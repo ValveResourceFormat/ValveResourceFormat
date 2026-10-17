@@ -195,6 +195,26 @@ namespace ValveResourceFormat.Renderer
             drawCall.SetNewMaterial(renderContext.MaterialLoader.GetMaterial(replacementName, dynamicParams));
         }
 
+        /// <summary>Lights a draw call with baked lighting from a vertex stream rather than from light probes.</summary>
+        /// <param name="drawCall">One of <see cref="DrawCalls"/>.</param>
+        /// <param name="lighting">The vertex buffer holding the lighting of each vertex of the draw call.</param>
+        public void SetBakedVertexLighting(DrawCall drawCall, VertexDrawBuffer lighting)
+        {
+            ArgumentNullException.ThrowIfNull(drawCall);
+
+            var material = drawCall.Material;
+
+            // Recycle non-material-derived shader arguments
+            var staticParams = material.Material.GetShaderArguments();
+            var dynamicParams = new Dictionary<string, byte>(material.Shader.Parameters.Except(staticParams));
+
+            dynamicParams.Remove("D_BAKED_LIGHTING_FROM_PROBE");
+            dynamicParams["D_BAKED_LIGHTING_FROM_VERTEX_STREAM"] = 1;
+
+            drawCall.AddVertexBuffer(lighting);
+            drawCall.SetNewMaterial(renderContext.MaterialLoader.GetMaterial(material.Material.Name, dynamicParams));
+        }
+
         /// <summary>Replaces all draw call materials with a single material resource for use in the material viewer.</summary>
         /// <param name="resourceMaterial">The material resource to apply to all draw calls.</param>
         public void SetMaterialForMaterialViewer(Resource resourceMaterial)
@@ -564,8 +584,9 @@ namespace ValveResourceFormat.Renderer
         /// <param name="vertexIndexBuffers">Vertex and index buffer data to upload.</param>
         /// <param name="bounds">Bounding box of the mesh.</param>
         /// <param name="renderContext">Renderer context for uploading buffers.</param>
-        /// <returns>A new <see cref="RenderableMesh"/> with one opaque draw call.</returns>
-        public static RenderableMesh CreateMesh(string name, RenderMaterial material, VBIB vertexIndexBuffers, AABB bounds, RendererContext renderContext)
+        /// <param name="sortByMaterial">Whether the draw call goes with the overlays or the blended ones when its material is one, rather than always with the opaque ones.</param>
+        /// <returns>A new <see cref="RenderableMesh"/> with one draw call, reading from every vertex buffer of the data.</returns>
+        public static RenderableMesh CreateMesh(string name, RenderMaterial material, VBIB vertexIndexBuffers, AABB bounds, RendererContext renderContext, bool sortByMaterial = false)
         {
             var mesh = new RenderableMesh(name, bounds, renderContext);
             var gpuVbib = renderContext.MeshBufferCache.CreateVertexIndexBuffers(name, vertexIndexBuffers);
@@ -586,12 +607,12 @@ namespace ValveResourceFormat.Renderer
 
                 VertexBuffers =
                 [
-                    new VertexDrawBuffer()
+                    .. vertexIndexBuffers.VertexBuffers.Select((buffer, index) => new VertexDrawBuffer()
                     {
-                        Handle = gpuVbib.VertexBuffers[0],
-                        ElementSizeInBytes = vb.ElementSizeInBytes,
-                        InputLayoutFields = vb.InputLayoutFields,
-                    }
+                        Handle = gpuVbib.VertexBuffers[index],
+                        ElementSizeInBytes = buffer.ElementSizeInBytes,
+                        InputLayoutFields = buffer.InputLayoutFields,
+                    })
                 ],
 
                 IndexBuffer = new IndexDrawBuffer()
@@ -600,7 +621,15 @@ namespace ValveResourceFormat.Renderer
                 }
             };
 
-            mesh.DrawCallsOpaque.Add(drawCall);
+            if (sortByMaterial)
+            {
+                mesh.AddDrawCall(drawCall, isAggregate: false);
+            }
+            else
+            {
+                mesh.DrawCallsOpaque.Add(drawCall);
+            }
+
             return mesh;
         }
     }

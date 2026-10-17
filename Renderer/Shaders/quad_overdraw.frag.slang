@@ -1,5 +1,7 @@
 #version 460
 
+#pragma IgnoreMaterialData
+
 #define renderMode_QuadOverdraw 0
 #define F_ALPHA_TEST 0 // set per draw from the material, see MeshBatchRenderer
 

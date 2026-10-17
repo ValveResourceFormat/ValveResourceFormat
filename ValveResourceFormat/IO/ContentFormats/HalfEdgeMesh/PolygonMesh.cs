@@ -7,7 +7,7 @@ namespace ValveResourceFormat.IO.ContentFormats.HalfEdgeMesh;
 /// vertex, corner data per half edge and a material per face, with the editing operations that keep that data
 /// right. Taken from <see href="https://github.com/Facepunch/sbox-public/blob/master/engine/Sandbox.Engine/Scene/Components/Mesh/PolygonMesh.cs">Sbox</see>
 /// </summary>
-public sealed class PolygonMesh
+public sealed partial class PolygonMesh
 {
     /// <summary>The half edge topology.</summary>
     public HalfEdgeMesh Topology { get; } = new();
@@ -68,11 +68,19 @@ public sealed class PolygonMesh
         Tangents = Topology.CreateHalfEdgeData<Vector4>(nameof(Tangents));
         VertexPaintBlendParams = Topology.CreateHalfEdgeData<Vector4>(nameof(VertexPaintBlendParams));
         VertexPaintTintColor = Topology.CreateHalfEdgeData<Vector4>(nameof(VertexPaintTintColor));
+        EdgeFlags = Topology.CreateHalfEdgeData<int>(nameof(EdgeFlags));
+        SubdivisionLevels = Topology.CreateHalfEdgeData<int>(nameof(SubdivisionLevels));
+        SubdivisionPatchStarts = Topology.CreateHalfEdgeData<int>(nameof(SubdivisionPatchStarts));
         MaterialIndex = Topology.CreateFaceData<int>(nameof(MaterialIndex));
+        FaceFlags = Topology.CreateFaceData<int>(nameof(FaceFlags));
         TextureUAxis = Topology.CreateFaceData<Vector3>(nameof(TextureUAxis));
         TextureVAxis = Topology.CreateFaceData<Vector3>(nameof(TextureVAxis));
         TextureScale = Topology.CreateFaceData<Vector2>(nameof(TextureScale));
         TextureOffset = Topology.CreateFaceData<Vector2>(nameof(TextureOffset));
+        VertexDataIndices = Topology.CreateVertexData<int>(nameof(VertexDataIndices));
+        FaceVertexDataIndices = Topology.CreateHalfEdgeData<int>(nameof(FaceVertexDataIndices));
+        EdgeDataIndices = Topology.CreateHalfEdgeData<int>(nameof(EdgeDataIndices));
+        FaceDataIndices = Topology.CreateFaceData<int>(nameof(FaceDataIndices));
 
         Topology.OnCopyFaceVertexData = (dst, src) =>
         {
@@ -101,6 +109,25 @@ public sealed class PolygonMesh
     public IEnumerable<FaceHandle> FaceHandles => Topology.FaceHandles;
     /// <summary>Half edges of the mesh.</summary>
     public IEnumerable<HalfEdgeHandle> HalfEdgeHandles => Topology.HalfEdgeHandles;
+
+    /// <summary>
+    /// Removes the faces and edges that do not hold together as a mesh, see <see cref="HalfEdgeMesh.RemoveInvalidComponents"/>.
+    /// </summary>
+    public void RemoveInvalidComponents() => Topology.RemoveInvalidComponents();
+
+    /// <summary>
+    /// Removes the vertices no edge is connected to.
+    /// </summary>
+    public void RemoveIsolatedVertices()
+    {
+        foreach (var hVertex in Topology.VertexHandles.ToArray())
+        {
+            if (HalfEdgeMesh.ComputeNumEdgesConnectedToVertex(hVertex) == 0)
+            {
+                Topology.RemoveVertex(hVertex, true);
+            }
+        }
+    }
 
     /// <summary>
     /// Returns the index of a material, adding it when it is new.
@@ -325,18 +352,228 @@ public sealed class PolygonMesh
     }
 
     /// <summary>
+    /// How the edge between two faces shades.
+    /// </summary>
+    public enum EdgeSmoothMode
+    {
+        /// <summary>Smooth when the faces meet at less than the smoothing angle of the mesh.</summary>
+        Default,
+
+        /// <summary>Always a crease.</summary>
+        Hard,
+
+        /// <summary>Always smooth.</summary>
+        Soft,
+    }
+
+    // How far past the smoothing angle two facings still count as within it
+    private const float SmoothingEpsilon = 0.00001f;
+
+    private float smoothingThreshold = MathF.Cos(float.DegreesToRadians(40f));
+
+    /// <summary>
+    /// Gets the flags of each edge, the same on both of its half edges, see <see cref="PolygonMeshEdgeFlags"/>.
+    /// </summary>
+    public HalfEdgeData<int> EdgeFlags { get; }
+
+    /// <summary>
+    /// Gets the flags of each face, see <see cref="PolygonMeshFaceFlags"/>.
+    /// </summary>
+    public FaceData<int> FaceFlags { get; }
+
+    /// <summary>
+    /// Gets whether a face is hidden. A hidden face is kept in the mesh but not drawn.
+    /// </summary>
+    public bool IsFaceHidden(FaceHandle hFace) => ((PolygonMeshFaceFlags)FaceFlags[hFace]).HasFlag(PolygonMeshFaceFlags.Hidden);
+
+    /// <summary>
+    /// Hides or shows a face.
+    /// </summary>
+    public void SetFaceHidden(FaceHandle hFace, bool hidden)
+    {
+        var flags = (PolygonMeshFaceFlags)FaceFlags[hFace];
+
+        FaceFlags[hFace] = (int)(hidden ? flags | PolygonMeshFaceFlags.Hidden : flags & ~PolygonMeshFaceFlags.Hidden);
+    }
+
+    /// <summary>
+    /// Clears flags on every face.
+    /// </summary>
+    /// <param name="flags">The flags to clear.</param>
+    public void ClearFaceFlags(PolygonMeshFaceFlags flags)
+    {
+        for (var i = 0; i < FaceFlags.Count; i++)
+        {
+            FaceFlags[i] &= ~(int)flags;
+        }
+    }
+
+    /// <summary>
+    /// Gets the smoothing of an edge. An edge flagged both hard and soft is hard.
+    /// </summary>
+    public EdgeSmoothMode GetEdgeSmoothing(HalfEdgeHandle hEdge)
+    {
+        var flags = (PolygonMeshEdgeFlags)EdgeFlags[hEdge];
+
+        return flags.HasFlag(PolygonMeshEdgeFlags.HardNormals) ? EdgeSmoothMode.Hard
+            : flags.HasFlag(PolygonMeshEdgeFlags.SoftNormals) ? EdgeSmoothMode.Soft
+            : EdgeSmoothMode.Default;
+    }
+
+    /// <summary>
+    /// Sets the smoothing of an edge, on both of its half edges.
+    /// </summary>
+    public void SetEdgeSmoothing(HalfEdgeHandle hEdge, EdgeSmoothMode mode)
+    {
+        var flags = mode switch
+        {
+            EdgeSmoothMode.Hard => PolygonMeshEdgeFlags.HardNormals,
+            EdgeSmoothMode.Soft => PolygonMeshEdgeFlags.SoftNormals,
+            _ => PolygonMeshEdgeFlags.None,
+        };
+
+        EdgeFlags[hEdge] = (int)flags;
+        EdgeFlags[hEdge.OppositeEdge] = (int)flags;
+    }
+
+    /// <summary>
+    /// Sets the angle between two faces, in degrees, below which an edge of <see cref="EdgeSmoothMode.Default"/>
+    /// smoothing shades smooth.
+    /// </summary>
+    public void SetSmoothingAngle(float smoothingAngle)
+    {
+        smoothingThreshold = MathF.Cos(float.DegreesToRadians(MathF.Min(smoothingAngle, 180f)));
+    }
+
+    // What the edge itself says about its smoothing, null when it is left to the angle between its faces
+    private bool? GetEdgeSmoothingOverride(HalfEdgeHandle hEdge)
+    {
+        if (!hEdge.Face.IsValid || !hEdge.OppositeEdge.Face.IsValid)
+        {
+            return false;
+        }
+
+        switch (GetEdgeSmoothing(hEdge))
+        {
+            case EdgeSmoothMode.Hard:
+                return false;
+            case EdgeSmoothMode.Soft:
+                return true;
+        }
+
+        if (smoothingThreshold > 1f - SmoothingEpsilon)
+        {
+            return false;
+        }
+
+        if (smoothingThreshold < SmoothingEpsilon)
+        {
+            return true;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Gets whether the two faces of an edge shade as one surface across it.
+    /// </summary>
+    public bool IsEdgeSmooth(HalfEdgeHandle hEdge) => IsEdgeSmooth(hEdge, GetFaceNormal);
+
+    // The normals of the faces are given, so that they can be worked out once for many edges
+    private bool IsEdgeSmooth(HalfEdgeHandle hEdge, Func<FaceHandle, Vector3> getFaceNormal)
+        => GetEdgeSmoothingOverride(hEdge)
+            ?? Vector3.Dot(getFaceNormal(hEdge.Face), getFaceNormal(hEdge.OppositeEdge.Face)) > smoothingThreshold + SmoothingEpsilon;
+
+    private static HalfEdgeHandle GetNextFaceVertexConnectedToVertex(HalfEdgeHandle hFaceVertex)
+        => hFaceVertex.NextEdge.OppositeEdge;
+
+    // Finds the face vertices around a vertex that shade as one with the given one, those its face reaches
+    // without crossing a hard edge: from the first one up to, but not including, the last. Whether the edge
+    // between a face vertex and the next one around the vertex is smooth is given.
+    private bool FindSmoothingFan(HalfEdgeHandle hTargetFaceVertex, Func<HalfEdgeHandle, HalfEdgeHandle, bool> isSmooth, out HalfEdgeHandle hFirstFaceVertex, out HalfEdgeHandle hLastFaceVertex)
+    {
+        hFirstFaceVertex = hTargetFaceVertex;
+        hLastFaceVertex = hTargetFaceVertex;
+
+        var hCurrentFaceVertex = hTargetFaceVertex;
+        var foundHardEdge = false;
+        var guard = Topology.HalfEdgeCount;
+
+        do
+        {
+            var hNextFaceVertex = GetNextFaceVertexConnectedToVertex(hCurrentFaceVertex);
+
+            if (!hNextFaceVertex.IsValid || guard-- < 0)
+            {
+                return false;
+            }
+
+            if (!foundHardEdge)
+            {
+                hLastFaceVertex = hNextFaceVertex;
+            }
+
+            if (!isSmooth(hCurrentFaceVertex, hNextFaceVertex))
+            {
+                foundHardEdge = true;
+                hFirstFaceVertex = hNextFaceVertex;
+            }
+
+            hCurrentFaceVertex = hNextFaceVertex;
+        }
+        while (hCurrentFaceVertex != hTargetFaceVertex);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Computes the normal of a face corner: the average of the normals of the faces around its vertex that
+    /// the face reaches without crossing a hard edge.
+    /// </summary>
+    /// <param name="hTargetFaceVertex">Half edge ending at the corner.</param>
+    public Vector3 ComputeFaceVertexNormal(HalfEdgeHandle hTargetFaceVertex) => ComputeFaceVertexNormal(hTargetFaceVertex, GetFaceNormal);
+
+    private Vector3 ComputeFaceVertexNormal(HalfEdgeHandle hTargetFaceVertex, Func<FaceHandle, Vector3> getFaceNormal)
+    {
+        var faceNormal = getFaceNormal(hTargetFaceVertex.Face);
+
+        if (!FindSmoothingFan(hTargetFaceVertex, (_, hNext) => IsEdgeSmooth(hNext, getFaceNormal), out var hFirstFaceVertex, out var hLastFaceVertex))
+        {
+            return faceNormal;
+        }
+
+        var normal = Vector3.Zero;
+        var hCurrentFaceVertex = hFirstFaceVertex;
+
+        do
+        {
+            normal += getFaceNormal(hCurrentFaceVertex.Face);
+
+            hCurrentFaceVertex = GetNextFaceVertexConnectedToVertex(hCurrentFaceVertex);
+        }
+        while (hCurrentFaceVertex != hLastFaceVertex && hCurrentFaceVertex.IsValid);
+
+        return MathUtils.SafeNormalize(normal, faceNormal);
+    }
+
+    /// <summary>
     /// Computes the normal of a face.
     /// </summary>
     public void ComputeFaceNormal(FaceHandle hFace, out Vector3 pOutNormal)
     {
+        if (!hFace.IsValid)
+        {
+            pOutNormal = Vector3.Zero;
+            return;
+        }
+
         PlaneEquation(hFace, out pOutNormal, out _);
     }
 
-    private static void AccumulateNewellPair(ref Vector3 vNormal, in Vector3 pU, in Vector3 pV)
+    private Vector3 GetFaceNormal(FaceHandle hFace)
     {
-        vNormal.X += (pU.Y - pV.Y) * (pU.Z + pV.Z);
-        vNormal.Y += (pU.Z - pV.Z) * (pU.X + pV.X);
-        vNormal.Z += (pU.X - pV.X) * (pU.Y + pV.Y);
+        ComputeFaceNormal(hFace, out var normal);
+        return normal;
     }
 
     private static void FinaliseNewellNormal(in Vector3 vNormal, in Vector3 refpt, int count, out Vector3 pOutNormal, out float pOutPlaneDistance)
@@ -378,7 +615,7 @@ public sealed class PolygonMesh
             }
             else
             {
-                AccumulateNewellPair(ref vNormal, prev, pos);
+                MeshUtils.AccumulateNewellPair(ref vNormal, prev, pos);
             }
 
             refpt += absolute;
@@ -391,7 +628,7 @@ public sealed class PolygonMesh
 
         if (count > 0)
         {
-            AccumulateNewellPair(ref vNormal, prev, first);
+            MeshUtils.AccumulateNewellPair(ref vNormal, prev, first);
         }
 
         FinaliseNewellNormal(vNormal, refpt, count, out pOutNormal, out pOutPlaneDistance);
@@ -410,6 +647,60 @@ public sealed class PolygonMesh
     {
         ComputeTangentSpaceForFaceVertex(hFaceVertex, out var tangentU, out var tangentV);
         CalcTangentAndFlipFromBasis(tangentU, tangentV, normal, out tangent);
+    }
+
+    // Texture coordinates that differ by less than this, whole repeats of the texture aside, are the same
+    private const float SameTexCoordDistanceSquared = 0.000000059604645f;
+
+    // Normals have to be this close for their corners to share a tangent
+    private const float SameNormalDot = 0.99999f;
+
+    /// <summary>
+    /// Computes the tangent of every face corner from its texture coordinates. The corners around a vertex that
+    /// have the same texture coordinate and normal, and whose textures run the same way, average theirs.
+    /// </summary>
+    public void ComputeFaceVertexTangents()
+    {
+        foreach (var hFaceVertex in Topology.HalfEdgeHandles)
+        {
+            if (!hFaceVertex.Face.IsValid || !ComputeTangentSpaceForFaceVertex(hFaceVertex, out var tangentU, out var tangentV))
+            {
+                continue;
+            }
+
+            var normal = Normals[hFaceVertex];
+            var texCoord = TextureCoords[hFaceVertex];
+            var isLeftHanded = Vector3.Dot(Vector3.Cross(tangentU, tangentV), normal) < 0f;
+            var sumU = tangentU;
+            var sumV = tangentV;
+
+            for (var hOther = GetNextFaceVertexConnectedToVertex(hFaceVertex); hOther != hFaceVertex; hOther = GetNextFaceVertexConnectedToVertex(hOther))
+            {
+                if (hOther.Face.IsValid
+                    && IsSameTexCoord(TextureCoords[hOther], texCoord)
+                    && Vector3.Dot(Normals[hOther], normal) >= SameNormalDot
+                    && ComputeTangentSpaceForFaceVertex(hOther, out var otherU, out var otherV)
+                    && (Vector3.Dot(Vector3.Cross(otherU, otherV), normal) < 0f) == isLeftHanded
+                    && Vector3.Dot(otherU, tangentU) >= 0f
+                    && Vector3.Dot(otherV, tangentV) >= 0f)
+                {
+                    sumU += otherU;
+                    sumV += otherV;
+                }
+            }
+
+            CalcTangentAndFlipFromBasis(sumU, sumV, normal, out var tangent);
+
+            var isFinite = float.IsFinite(tangent.X) && float.IsFinite(tangent.Y) && float.IsFinite(tangent.Z) && float.IsFinite(tangent.W);
+            Tangents[hFaceVertex] = isFinite ? tangent : Vector4.Zero;
+        }
+    }
+
+    private static bool IsSameTexCoord(Vector2 a, Vector2 b)
+    {
+        var difference = new Vector2(a.X - MathF.Truncate(a.X), a.Y - MathF.Truncate(a.Y)) - new Vector2(b.X - MathF.Truncate(b.X), b.Y - MathF.Truncate(b.Y));
+
+        return difference.LengthSquared() < SameTexCoordDistanceSquared;
     }
 
     private bool ComputeTangentSpaceForFaceVertex(HalfEdgeHandle targetHalfEdge, out Vector3 tangentU, out Vector3 tangentV)
@@ -501,30 +792,36 @@ public sealed class PolygonMesh
         tVect = MathUtils.SafeNormalize(tVect);
     }
 
-    private static void BuildBasis(Vector3 normal, out Vector3 tangent, out Vector3 bitangent)
+    // A direction of zero length normalises to NaN, or stays zero when zeroDegenerate is set
+    private static Vector3 NormalizeDirection(Vector3 value, bool zeroDegenerate)
+        => zeroDegenerate ? MathUtils.SafeNormalize(value) : Vector3.Normalize(value);
+
+    private static void BuildBasis(Vector3 normal, out Vector3 tangent, out Vector3 bitangent, bool zeroDegenerate = false)
     {
         // Source: up is +Z, left is +Y
-        tangent = Vector3.Normalize(Vector3.Cross(MathF.Abs(normal.Z) < 0.999f ? Vector3.UnitZ : Vector3.UnitY, normal));
+        tangent = NormalizeDirection(Vector3.Cross(MathF.Abs(normal.Z) < 0.999f ? Vector3.UnitZ : Vector3.UnitY, normal), zeroDegenerate);
         bitangent = Vector3.Cross(normal, tangent);
     }
 
-    private static void CalcTangentAndFlipFromBasis(Vector3 inTangentU, Vector3 inTangentV, Vector3 normal, out Vector4 tangent)
+    // Static overlays set zeroDegenerate, so a zero normal or a texture running along the normal gives a zero
+    // direction rather than NaN
+    internal static void CalcTangentAndFlipFromBasis(Vector3 inTangentU, Vector3 inTangentV, Vector3 normal, out Vector4 tangent, bool zeroDegenerate = false)
     {
         var tangentU = inTangentU;
         var tangentV = inTangentV;
 
         if (tangentU.Length() < 1e-12f || tangentV.Length() < 1e-12f)
         {
-            BuildBasis(normal, out tangentU, out tangentV);
+            BuildBasis(normal, out tangentU, out tangentV, zeroDegenerate);
         }
 
         var crossUV = Vector3.Cross(tangentU, tangentV);
         var isLeftHanded = Vector3.Dot(crossUV, normal) < 0.0f;
         var orthoU = Vector3.Cross(normal, tangentU);
-        var tangentFromU = Vector3.Normalize(Vector3.Cross(orthoU, normal));
+        var tangentFromU = NormalizeDirection(Vector3.Cross(orthoU, normal), zeroDegenerate);
         var tangentFromV = isLeftHanded ? Vector3.Cross(normal, tangentV) : Vector3.Cross(tangentV, normal);
-        tangentFromV = Vector3.Normalize(tangentFromV);
-        var finalTangent = Vector3.Normalize(tangentFromU + tangentFromV);
+        tangentFromV = NormalizeDirection(tangentFromV, zeroDegenerate);
+        var finalTangent = NormalizeDirection(tangentFromU + tangentFromV, zeroDegenerate);
         tangent = new Vector4(finalTangent.X, finalTangent.Y, finalTangent.Z, isLeftHanded ? -1.0f : 1.0f);
     }
 

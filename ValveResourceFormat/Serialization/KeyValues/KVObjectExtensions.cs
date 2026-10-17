@@ -537,6 +537,32 @@ namespace ValveResourceFormat.Serialization.KeyValues
         }
 
         /// <summary>
+        /// Parses KeyValues3 text that has no header, such as a block of keys kept in a value of its own.
+        /// </summary>
+        /// <param name="text">The text.</param>
+        /// <param name="root">The root of the text, or an empty object when it cannot be parsed.</param>
+        /// <param name="error">Why the text cannot be parsed, or empty when it can.</param>
+        /// <returns>Whether the text was parsed.</returns>
+        public static bool TryParseKV3WithoutHeader(string text, out KVObject root, out string error)
+        {
+            ArgumentNullException.ThrowIfNull(text);
+
+            try
+            {
+                using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(text));
+                root = KVSerializer.Create(KVSerializationFormat.KeyValues3Text).Deserialize(stream, new KVSerializerOptions { SkipHeader = true }).Root;
+                error = string.Empty;
+                return true;
+            }
+            catch (Exception e) when (e is InvalidDataException or KeyValueException or FormatException)
+            {
+                root = new KVObject();
+                error = e.Message;
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Parses a KeyValues3 file from the specified filename.
         /// </summary>
         public static KVDocument ParseKV3(string filename)

@@ -23,9 +23,6 @@ public sealed class SceneViewState : IDisposable
     /// <summary>Gets whether anything drawn after the framebuffer grab samples the scene depth.</summary>
     public bool WantsSceneDepth { get; private set; }
 
-    /// <summary>Gets whether there are any selected nodes queued for outline rendering.</summary>
-    public bool HasOutlineObjects => renderLists[RenderPass.Outline].Count > 0;
-
     /// <summary>Gets whether anything is queued to draw into the water effects map this frame.</summary>
     public bool HasWaterEffects => waterEffectsRenderList.Count > 0;
 
@@ -65,7 +62,6 @@ public sealed class SceneViewState : IDisposable
         [RenderPass.OpaqueRefract] = [],
         [RenderPass.Water] = [],
         [RenderPass.Translucent] = [],
-        [RenderPass.Outline] = [],
     };
 
     private readonly Dictionary<RenderPass, List<MeshBatchRenderer.Request>> viewmodelRenderLists = new()
@@ -77,6 +73,13 @@ public sealed class SceneViewState : IDisposable
     /// <summary>Translucent draws that go to the water effects map instead of the scene.</summary>
     private readonly List<MeshBatchRenderer.Request> waterEffectsRenderList = [];
     private readonly List<MeshBatchRenderer.Request> effectsBloomRenderList = [];
+    private readonly List<MeshBatchRenderer.Request> toolsRenderList = [];
+
+    /// <summary>
+    /// Gets the nodes the last culling found that draw in the tools pass, which the editor draws
+    /// over the final image.
+    /// </summary>
+    public IReadOnlyList<MeshBatchRenderer.Request> ToolsRenderList => toolsRenderList;
 
     /// <summary>Visible nodes that draw themselves, listed once each however many passes they draw in.</summary>
     private readonly List<SceneNode> customBufferNodes = [];
@@ -95,6 +98,9 @@ public sealed class SceneViewState : IDisposable
 
     /// <summary>Surfaces drawn over the resolved opaque scene, for <see cref="RenderTranslucentDepthLayer"/>.</summary>
     private readonly List<MeshBatchRenderer.Request> translucentDepthDraws = [];
+
+    /// <summary>The draws of the nodes given to <see cref="RenderNodes"/>.</summary>
+    private readonly List<MeshBatchRenderer.Request> nodeDraws = [];
 
     /// <summary>Gets whether any surface is queued for <see cref="RenderTranslucentDepthLayer"/> this frame.</summary>
     public bool HasTranslucentDepthDraws => translucentDepthDraws.Count > 0;
@@ -180,14 +186,9 @@ public sealed class SceneViewState : IDisposable
     {
         Debug.Assert(request.Call is not null);
 
-        if (!Scene.ShowToolsMaterials && request.Call.Material.IsToolsMaterial)
+        if (Scene.IsHiddenToolsMaterial(request.Call.Material, request.Node))
         {
             return;
-        }
-
-        if (renderPass > RenderPass.DepthOnly && request.Node.IsSelected)
-        {
-            renderLists[RenderPass.Outline].Add(request);
         }
 
         // Aggregated geometry is opaque world detail that never samples the scene color, and the refract
@@ -220,9 +221,10 @@ public sealed class SceneViewState : IDisposable
 
         if (renderPass == RenderPass.OpaqueFragments)
         {
-            if (Scene.DrawMeshletsIndirect && request.Node is SceneAggregate.Fragment { Parent.CanDrawIndirect: true })
+            // Skip individual fragment draws if aggregate can be drawn with indirect draw
+            if (IsDrawnByAggregate(request.Node))
             {
-                return; // Skip individual fragment draws if aggregate can be drawn with indirect draw
+                return;
             }
 
             renderPass = RenderPass.Opaque;
@@ -289,6 +291,7 @@ public sealed class SceneViewState : IDisposable
 
         waterEffectsRenderList.Clear();
         effectsBloomRenderList.Clear();
+        toolsRenderList.Clear();
         customBufferNodes.Clear();
         alphaTestAggregateDraws.Clear();
         alphaTestOpaqueDraws.Clear();
@@ -466,9 +469,9 @@ public sealed class SceneViewState : IDisposable
                     effectsBloomRenderList.Add(customRender);
                 }
 
-                if (node.IsSelected)
+                if ((customPasses & CustomRenderPasses.Tools) != 0)
                 {
-                    renderLists[RenderPass.Outline].Add(customRender);
+                    toolsRenderList.Add(customRender);
                 }
             }
         }
@@ -913,19 +916,77 @@ public sealed class SceneViewState : IDisposable
         }
     }
 
-    /// <summary>Renders all selected nodes using the outline shader to produce selection highlights.</summary>
-    /// <param name="renderContext">The render context for this pass.</param>
-    public void RenderOutlineLayer(Scene.RenderContext renderContext)
+    /// <summary>
+    /// Draws what the last collection queued for some nodes again, each node all at once, with the replacement
+    /// shader of the context. Nodes the collection left out, such as those out of view, are not drawn.
+    /// </summary>
+    /// <param name="renderContext">The render context, with the shader to draw with.</param>
+    /// <param name="nodes">The nodes to draw.</param>
+    /// <returns>Whether anything was drawn.</returns>
+    public bool RenderNodes(Scene.RenderContext renderContext, IReadOnlySet<SceneNode> nodes)
     {
-        var passShader = renderContext.ReplacementShader;
+        ArgumentNullException.ThrowIfNull(nodes);
+        Debug.Assert(renderContext.ReplacementShader != null);
 
-        renderContext.RenderPass = RenderPass.Outline;
-        renderContext.ReplacementShader = Scene.OutlineShader;
+        nodeDraws.Clear();
 
-        MeshBatchRenderer.Render(renderLists[RenderPass.Outline], renderContext);
+        foreach (var requests in renderLists.Values)
+        {
+            AddNodeDraws(requests, nodes);
+        }
 
-        renderContext.ReplacementShader = passShader;
+        foreach (var requests in viewmodelRenderLists.Values)
+        {
+            AddNodeDraws(requests, nodes);
+        }
+
+        AddNodeDraws(alphaTestAggregateDraws, nodes);
+        AddNodeDraws(alphaTestOpaqueDraws, nodes);
+
+        // Listed once each, unlike their requests, which are queued in every pass they draw in
+        foreach (var node in customBufferNodes)
+        {
+            if (nodes.Contains(node))
+            {
+                nodeDraws.Add(new MeshBatchRenderer.Request { Node = node });
+            }
+        }
+
+        // Fragments drawn by their aggregate have no draws of their own queued
+        foreach (var node in nodes)
+        {
+            if (IsDrawnByAggregate(node) && node is SceneAggregate.Fragment fragment
+                && aggregatesWithVisibleFragments.Contains(fragment.Parent) && fragment.Parent.IsFragmentInActiveLod(fragment)
+                && !Scene.IsHiddenToolsMaterial(fragment.DrawCall.Material, fragment))
+            {
+                nodeDraws.Add(new MeshBatchRenderer.Request { Mesh = fragment.RenderMesh, Call = fragment.DrawCall, Node = fragment });
+            }
+        }
+
+        if (nodeDraws.Count == 0)
+        {
+            return false;
+        }
+
+        renderContext.RenderPass = RenderPass.All;
+        MeshBatchRenderer.Render(nodeDraws, renderContext);
+
+        return true;
     }
+
+    private void AddNodeDraws(List<MeshBatchRenderer.Request> requests, IReadOnlySet<SceneNode> nodes)
+    {
+        foreach (var request in requests)
+        {
+            if (request.Call != null && nodes.Contains(request.Node))
+            {
+                nodeDraws.Add(request);
+            }
+        }
+    }
+
+    private bool IsDrawnByAggregate(SceneNode node)
+        => Scene.DrawMeshletsIndirect && node is SceneAggregate.Fragment { Parent.CanDrawIndirect: true };
 
     /// <inheritdoc/>
     public void Dispose()

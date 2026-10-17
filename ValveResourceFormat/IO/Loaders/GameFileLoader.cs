@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using ValveKeyValue;
 using ValvePak;
 using ValveResourceFormat.CompiledShader;
+using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using KVObject = ValveKeyValue.KVObject;
@@ -50,6 +51,7 @@ namespace ValveResourceFormat.IO
         private readonly Dictionary<string, ShaderCollection> CachedShaders = [];
         private readonly Lock CachedShadersLock = new();
         private readonly HashSet<string> CurrentGameSearchPaths = [];
+        private readonly List<(string Path, KVObject GameInfo)> CurrentGameInfos = [];
         private readonly HashSet<string> CurrentGameOfficialAddonsPaths = [];
         private readonly HashSet<string> CurrentGameAddonsPaths = [];
         private ImmutableArray<Package> CurrentGamePackages = [];
@@ -59,6 +61,9 @@ namespace ValveResourceFormat.IO
         private readonly List<string> CurrentAddonSearchPaths = [];
 
         private readonly string? CurrentFileName;
+
+        // Where the gameinfo of the current file is looked for from, which for a source file is the compiled side
+        private readonly string? GameSearchFileName;
         private readonly ILogger Logger;
         private string? PreferredAddonFolderOnDisk;
         private string? WorkshopContentFolder;
@@ -84,6 +89,16 @@ namespace ValveResourceFormat.IO
         /// <summary>Gets whether the game found is Counter-Strike 2.</summary>
         public bool IsCounterStrike2 => SteamAppId == CounterStrike2SteamAppId;
 
+        private int? installedSteamAppId;
+
+        /// <summary>
+        /// Gets the installed Steam app whose folder the first game found is in, such as 570 for Dota 2, or zero
+        /// when no game was found or it is not in the folder of an installed app. Where several apps share the
+        /// folder, it is the one with the lowest app id.
+        /// </summary>
+        /// <remarks>Nothing is kept before a game is found, as search paths loaded later can still find one.</remarks>
+        public virtual int InstalledSteamAppId => CurrentGameInfos.Count == 0 ? 0 : installedSteamAppId ??= FindInstalledSteamAppId();
+
         /// <summary>
         /// Initializes a new instance of the <see cref="GameFileLoader"/> class.
         /// </summary>
@@ -97,6 +112,7 @@ namespace ValveResourceFormat.IO
         {
             CurrentPackage = currentPackage;
             CurrentFileName = currentFileName;
+            GameSearchFileName = GetGamePathForContentFile(currentFileName);
             Logger = logger ?? NullLogger.Instance;
 
             // Find gameinfo.gi by walking up from the current file, preload vpks and add folders to search paths
@@ -382,22 +398,16 @@ namespace ValveResourceFormat.IO
         }
 
         /// <inheritdoc/>
-        public Stream? GetFileStream(string file)
-        {
-            var foundFile = FindFile(file);
+        public Stream? GetFileStream(string file) => OpenFoundFile(FindFile(file));
 
+        private static Stream? OpenFoundFile((string? PathOnDisk, Package? Package, PackageEntry? PackageEntry) foundFile)
+        {
             if (foundFile.PathOnDisk != null)
             {
                 return File.OpenRead(foundFile.PathOnDisk);
             }
-            else if (foundFile.PackageEntry != null)
-            {
-                return GetPackageEntryStream(foundFile.Package!, foundFile.PackageEntry);
-            }
-            else
-            {
-                return null;
-            }
+
+            return foundFile.PackageEntry != null ? GetPackageEntryStream(foundFile.Package!, foundFile.PackageEntry) : null;
         }
 
         /// <inheritdoc/>
@@ -456,6 +466,12 @@ namespace ValveResourceFormat.IO
 
             var gameName = gameInfo.TryGetValue("game", out var game) ? game.ToString() : null;
             Logger.LogInformation("Found \"{GameName}\" from \"{GameInfo}\"", gameName, gameinfoPath);
+
+            // Kept for what the game says about its tools, such as the FGD files it names, read when first needed
+            if (!CurrentGameInfos.Exists(info => info.Path == gameinfoPath))
+            {
+                CurrentGameInfos.Add((gameinfoPath, gameInfo));
+            }
 
             var fileSystem = gameInfo["FileSystem"];
 
@@ -628,6 +644,114 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
+        /// Loads the classes the current game declares for its tools, from the FGD files its <c>gameinfo.gi</c>
+        /// names, opened through the folders and packages the game mounts. What cannot be read is passed over
+        /// and listed in the errors of the classes.
+        /// </summary>
+        /// <returns>
+        /// The classes, or <see langword="null"/> when no game was found or none of its FGD files are there.
+        /// They come with the tools of a game.
+        /// </returns>
+        public virtual ForgeGameData? LoadFgd()
+        {
+            foreach (var (gameInfoPath, gameInfo) in CurrentGameInfos)
+            {
+                if (!gameInfo.TryGetValue("Hammer", out var hammer) || hammer == null)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var fgd = new ForgeGameData(OpenFileQuietly);
+
+                    if (fgd.LoadGameFiles(hammer))
+                    {
+                        Logger.LogInformation("Loaded {Count} FGD classes from \"{GameInfo}\"", fgd.Classes.Count, gameInfoPath);
+                        return fgd;
+                    }
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                {
+                    Logger.LogError(e, "Failed to load the FGD files of \"{GameInfo}\"", gameInfoPath);
+                }
+            }
+
+            return null;
+        }
+
+        private int FindInstalledSteamAppId()
+        {
+            var gameInfoPath = Path.GetFullPath(CurrentGameInfos[0].Path);
+
+            return GameFolderLocator.FindSteamGameContainingPath(gameInfoPath, GameFolderLocator.FindAllSteamGames()) is { } game ? game.AppID : 0;
+        }
+
+        /// <summary>
+        /// Gets a flag the <c>gameinfo.gi</c> of the current game sets, by the names of the blocks it is in and
+        /// its own, such as <c>WorldRenderer/LPVEdgeBlending</c>.
+        /// </summary>
+        /// <param name="path">The names, joined by slashes.</param>
+        /// <param name="defaultValue">The value where no game sets it.</param>
+        /// <returns>Whether the flag is a number other than zero, or true.</returns>
+        public bool GetGameInfoBool(string path, bool defaultValue)
+        {
+            if (FindGameInfoValue(path) is not { } text)
+            {
+                return defaultValue;
+            }
+
+            if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number))
+            {
+                return number != 0;
+            }
+
+            return bool.TryParse(text, out var flag) ? flag : defaultValue;
+        }
+
+        /// <summary>
+        /// Gets a number the <c>gameinfo.gi</c> of the current game sets, by the names of the blocks it is in and
+        /// its own, such as <c>WorldRenderer/EnvironmentMapCacheSize</c>.
+        /// </summary>
+        /// <param name="path">The names, joined by slashes.</param>
+        /// <param name="defaultValue">The value where no game sets it, or sets something that is not a number.</param>
+        /// <returns>The number.</returns>
+        public int GetGameInfoInt(string path, int defaultValue)
+            => int.TryParse(FindGameInfoValue(path), NumberStyles.Integer, CultureInfo.InvariantCulture, out var number) ? number : defaultValue;
+
+        // The value of the first game that sets it
+        private string? FindGameInfoValue(string path)
+        {
+            ArgumentNullException.ThrowIfNull(path);
+
+            var names = path.Split('/');
+
+            foreach (var (_, gameInfo) in CurrentGameInfos)
+            {
+                KVObject? value = gameInfo;
+
+                foreach (var name in names)
+                {
+                    if (value == null || !value.TryGetValue(name, out value))
+                    {
+                        value = null;
+                        break;
+                    }
+                }
+
+                if (value?.ToString() is { } text)
+                {
+                    return text;
+                }
+            }
+
+            return null;
+        }
+
+        // A game can name files it does not ship, which are not worth a warning
+        private Stream? OpenFileQuietly(string file) => OpenFoundFile(FindFile(file, logNotFound: false));
+
+        /// <summary>
         /// Finds and loads search paths from gameinfo.gi files.
         /// </summary>
         public void FindAndLoadSearchPaths(string? modIdentifierPath = null)
@@ -682,9 +806,34 @@ namespace ValveResourceFormat.IO
             FindAndLoadVpksInFolders(folders);
         }
 
+        // A source file sits under "content", beside the "game" folder holding what it compiles to, with the
+        // same folders below both. The game side is the one with the gameinfo and the compiled files.
+        private static string? GetGamePathForContentFile(string? fileName)
+        {
+            var directory = Path.GetDirectoryName(fileName);
+
+            while (!string.IsNullOrEmpty(directory))
+            {
+                var parent = Path.GetDirectoryName(directory);
+
+                if (parent != null && Path.GetFileName(directory).Equals("content", StringComparison.OrdinalIgnoreCase))
+                {
+                    var gameDirectory = Path.Join(parent, "game");
+
+                    return Directory.Exists(gameDirectory)
+                        ? Path.Join(gameDirectory, fileName![(directory.Length + 1)..])
+                        : fileName;
+                }
+
+                directory = parent;
+            }
+
+            return fileName;
+        }
+
         private string? GetModIdentifierFile()
         {
-            var directory = CurrentFileName!;
+            var directory = GameSearchFileName!;
             string? childDirectory = null;
             var i = 10;
             var isLastWorkshop = false;
@@ -765,7 +914,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         private string? FindGameInfoMountingCurrentFolder()
         {
-            var childDirectory = CurrentFileName!;
+            var childDirectory = GameSearchFileName!;
 
             if (!Path.IsPathFullyQualified(childDirectory) && !childDirectory.StartsWith('/'))
             {

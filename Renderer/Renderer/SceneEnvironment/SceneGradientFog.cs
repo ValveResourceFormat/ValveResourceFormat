@@ -1,4 +1,6 @@
 using ValveResourceFormat.Renderer.World;
+using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.SceneEnvironment;
 
@@ -52,8 +54,15 @@ public class SceneGradientFog(Scene scene) : SceneNode(scene)
 
         // this might be same as cubemap fog height calculations
         // Doesn't seem to be the case for SteamVR, it cuts off too early at the top
-        var heightScale = 1f / (heightStart - heightEnd);
-        var heightBias = -(heightEnd * heightScale);
+        var heightScale = 0f;
+        var heightBias = 1f;
+
+        // Without a height range every height is fully in the fog, rather than the scale dividing by zero
+        if (heightStart != heightEnd)
+        {
+            heightScale = 1f / (heightStart - heightEnd);
+            heightBias = -(heightEnd * heightScale);
+        }
 
         return new Vector4(distBias, heightBias, distScale, heightScale);
     }
@@ -71,5 +80,62 @@ public class SceneGradientFog(Scene scene) : SceneNode(scene)
         var startDist = fogSpace.Distance(StartDist);
 
         return new Vector2(startDist * startDist, fogSpace.Height(HeightStart));
+    }
+
+    /// <summary>Creates the fog an <c>env_gradient_fog</c> entity describes.</summary>
+    /// <param name="scene">The scene the fog is for.</param>
+    /// <param name="entity">The keyvalues of the entity.</param>
+    /// <returns>The fog.</returns>
+    public static SceneGradientFog FromEntityProperties(Scene scene, EntityLump.Entity entity)
+    {
+        var distExponent = entity.GetFloatProperty("fogfalloffexponent");
+        var startDist = entity.GetFloatProperty("fogstart");
+        var endDist = entity.GetFloatProperty("fogend");
+
+        // Some maps don't have these properties.
+        var useHeightFog = entity.ContainsKey("fogverticalexponent"); // The oldest versions lack these values, so disable it there
+        var useHeightFog2 = entity.ContainsKey("fogstartheight"); // Robot Repair lacks these values, so disable it there
+        useHeightFog = entity.GetBooleanProperty("heightfog", useHeightFog); // New in CS2
+
+        // TODO: find the correct behavior under this condition
+        var startHeight = entity.GetFloatProperty("fogstartheight");
+        var endHeight = entity.GetFloatProperty("fogendheight");
+        var heightExponent = entity.GetFloatProperty("fogverticalexponent");
+
+        var strength = entity.GetFloatProperty("fogstrength");
+        var color = entity.GetColor32Property("fogcolor");
+        var maxOpacity = entity.GetFloatProperty("fogmaxopacity");
+
+        if (!useHeightFog && !useHeightFog2)
+        {
+            heightExponent = 1.0f; // Need the value for Robot Repair
+            startHeight = startDist; // Assuming it's similar to the horizontal distances
+            endHeight = endDist; // Assuming it's similar to the horizontal distances
+            strength = 1.0f; // Need the value for Robot Repair
+            //color = entity.GetColor32Property("fogcolor"); // Need to get from `gradientfogtexture` key value and combine with `color` keyvalue
+            maxOpacity = 0.5f; // Need the value for Robot Repair
+            distExponent = 2.0f;
+        }
+        else if (!useHeightFog && useHeightFog2)
+        {
+            heightExponent = 1.0f; // Need the value for SteamVR
+            strength = 1.0f; // Need the value for SteamVR
+            //color = entity.GetColor32Property("fogcolor"); // Need to get from `gradientfogtexture` key value
+            maxOpacity = 0.5f; // Need the value for SteamVR
+            distExponent = 2.0f; // Need the value for SteamVR
+        }
+
+        return new SceneGradientFog(scene)
+        {
+            StartDist = startDist,
+            EndDist = endDist,
+            FalloffExponent = distExponent,
+            HeightStart = startHeight,
+            HeightEnd = endHeight,
+            VerticalExponent = heightExponent,
+            Color = color,
+            Strength = strength,
+            MaxOpacity = maxOpacity,
+        };
     }
 }

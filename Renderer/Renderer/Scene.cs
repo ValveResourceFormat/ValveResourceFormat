@@ -113,6 +113,9 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the world group this scene belongs to, such as <c>skyboxWorldGroup0</c>, or <see langword="null"/> for the main world.</summary>
         public string? WorldGroup { get; init; }
 
+        /// <summary>Gets whether this scene is a 3D sky placed into a map, rather than a map itself.</summary>
+        public bool IsSkybox { get; init; }
+
         /// <summary>
         /// How large an editor marker is drawn here next to the entity it marks. A 3D sky is magnified by
         /// the camera it is drawn through, so its markers shrink to come back out at their normal size.
@@ -188,8 +191,6 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Gets the GPU thinning of the scene's clutter, or <see langword="null"/> when it has none.</summary>
         internal ClutterCuller? ClutterCuller { get; private set; }
-
-        internal Shader? OutlineShader { get; private set; }
 
         internal LightBinner? ShadingLightBinner { get; set; }
 
@@ -323,7 +324,6 @@ namespace ValveResourceFormat.Renderer
 
             UpdateBuffers();
 
-            OutlineShader = RendererContext.ShaderLoader.LoadShader("outline");
             FrustumCullShader = RendererContext.ShaderLoader.LoadShader("frustum_cull");
             CompactionShader = RendererContext.ShaderLoader.LoadShader("compact_indirect_draws");
 
@@ -683,6 +683,9 @@ namespace ValveResourceFormat.Renderer
             }
 
             pendingRemovals.Clear();
+
+            // Once for every light whose style changed it this frame
+            LightingInfo.StoreChangedLights();
 
             foreach (var node in dynamicNodes)
             {
@@ -1632,7 +1635,7 @@ namespace ValveResourceFormat.Renderer
                             continue;
                         }
 
-                        if (opaqueCall.Material.DoNotCastShadows)
+                        if (!CastsShadows(opaqueCall.Material, node))
                         {
                             continue;
                         }
@@ -1654,6 +1657,17 @@ namespace ValveResourceFormat.Renderer
             casterDepthMin = depthMin;
             casterDepthMax = depthMax;
         }
+
+        /// <summary>
+        /// Gets whether a draw of a node is hidden for using a tools material while those are hidden, unless the
+        /// node shows its own anyway.
+        /// </summary>
+        internal bool IsHiddenToolsMaterial(RenderMaterial material, SceneNode node)
+            => !ShowToolsMaterials && material.IsToolsMaterial && !node.ShowsToolsMaterials;
+
+        // Geometry that blocks light casts shadows even while hidden, and whatever its material says
+        private bool CastsShadows(RenderMaterial material, SceneNode node)
+            => material.BlocksLight || (!material.DoNotCastShadows && !IsHiddenToolsMaterial(material, node));
 
         // The skinning variant is picked per draw, so the bucket only says which shader draws it
         internal static DepthOnlyBucket GetDepthOnlyBucket(DrawCall opaqueCall)
@@ -1745,6 +1759,19 @@ namespace ValveResourceFormat.Renderer
             {
                 ApplyLayerVisibility(renderer);
             }
+        }
+
+        /// <summary>
+        /// Gets whether the nodes of a layer are shown by the layers last given to <see cref="SetEnabledLayers"/>,
+        /// which shows every layer until it is first called.
+        /// </summary>
+        /// <param name="layerName">The name of the layer.</param>
+        /// <returns>Whether the layer is shown.</returns>
+        public bool IsLayerEnabled(string layerName)
+        {
+            ArgumentNullException.ThrowIfNull(layerName);
+
+            return enabledLayers == null || layerName.StartsWith("Internal -", StringComparison.Ordinal) || enabledLayers.Contains(layerName);
         }
 
         private void ApplyLayerVisibility(SceneNode node)
@@ -1937,14 +1964,8 @@ namespace ValveResourceFormat.Renderer
 
             var isAtlas = LightingInfo.LightProbeType == LightProbeType.ProbeAtlas;
 
-            static bool IsValid(SceneLightProbe probe, bool isAtlas) => isAtlas switch
-            {
-                true => probe is { Irradiance: not null, DirectLightShadows: not null },
-                false => true,
-            };
-
             var sortedLightProbes = LightingInfo.LightProbes
-                .Where(probe => IsValid(probe, isAtlas))
+                .Where(probe => !isAtlas || probe.Irradiance != null)
                 .OrderByDescending(static lpv => lpv.IndoorOutdoorLevel)
                 .ThenBy(static lpv => lpv.AtlasSize.LengthSquared())
                 .Take(LightProbeVolumeArray.MAX_PROBES)
@@ -1954,7 +1975,7 @@ namespace ValveResourceFormat.Renderer
             foreach (var probe in sortedLightProbes)
             {
                 probe.ShaderIndex = i;
-                lpvBuffer.Data.Probes[i] = probe.CalculateGpuProbeData(isAtlas);
+                lpvBuffer.Data.Probes[i] = probe.CalculateGpuProbeData();
                 i++;
             }
 
@@ -2434,6 +2455,7 @@ namespace ValveResourceFormat.Renderer
                 envMapBuffer?.Dispose();
                 simulationDispatch.Dispose();
                 LightingInfo.DisposeBarnLights();
+                LightingInfo.DeleteOwnedTextures();
 
                 DeleteIndirectDrawBuffers();
                 ClutterCuller?.Delete();

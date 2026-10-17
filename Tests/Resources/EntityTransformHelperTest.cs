@@ -338,7 +338,6 @@ namespace Tests.Resources
         {
             await Assert.That(EntityTransformHelper.ParseVector3("")).IsEqualTo(Vector3.Zero);
             await Assert.That(EntityTransformHelper.ParseVector3("1 2")).IsEqualTo(Vector3.Zero);
-            await Assert.That(EntityTransformHelper.ParseVector3("1 2 3 4")).IsEqualTo(Vector3.Zero);
         }
 
         [Test]
@@ -360,6 +359,10 @@ namespace Tests.Resources
         {
             await Assert.That(EntityTransformHelper.TryParseVector3("1 2 3", out var vector3)).IsTrue();
             await Assert.That(vector3).IsEqualTo(new Vector3(1f, 2f, 3f));
+
+            // A color stored with its alpha reads as its color
+            await Assert.That(EntityTransformHelper.TryParseVector3("203 235 255 255", out var color)).IsTrue();
+            await Assert.That(color).IsEqualTo(new Vector3(203f, 235f, 255f));
 
             await Assert.That(EntityTransformHelper.TryParseVector3("1 2", out _)).IsFalse();
             await Assert.That(EntityTransformHelper.TryParseVector3("1 2 banana", out _)).IsFalse();

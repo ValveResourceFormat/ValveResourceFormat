@@ -39,15 +39,6 @@ public sealed partial class MapExtract
         return mapEntity is CMapPathNode && key is "path_uniqueid" or "path_index" or "in_tangent_local" or "out_tangent_local";
     }
 
-    private const int LinearPathInterpolation = 0;
-    private const int SplinePathInterpolation = 1;
-    private const int BezierPathInterpolation = 2;
-
-    private const int LinearTangent = 0;
-    private const int SplineTangent = 1;
-    private const int DirectionTangent = 2;
-    private const int FreeTangent = 3;
-
     private static float HandleTolerance(float length) => 0.001f + 0.0001f * length;
 
     private static bool SameHandle(Vector3 a, Vector3 b)
@@ -59,9 +50,9 @@ public sealed partial class MapExtract
     /// piecewise bezier each node picks its own rule, a direction handle keeps the authored direction
     /// at that length and a free handle is kept as authored, so those come back as per-node tangent types.
     /// </summary>
-    private static int DetectPathInterpolation(List<PathParticleRopeNode> nodes, bool closedLoop, out (int In, int Out)[] tangentTypes)
+    private static MapPathInterpolationType DetectPathInterpolation(List<PathParticleRopeNode> nodes, bool closedLoop, out (MapPathTangentType In, MapPathTangentType Out)[] tangentTypes)
     {
-        tangentTypes = new (int, int)[nodes.Count];
+        tangentTypes = new (MapPathTangentType, MapPathTangentType)[nodes.Count];
         var allLinear = true;
         var allSpline = true;
 
@@ -87,22 +78,22 @@ public sealed partial class MapExtract
                 TangentType(nodes[i].OutTangent, outLinear, outSpline, outThird));
         }
 
-        return allLinear ? LinearPathInterpolation : allSpline ? SplinePathInterpolation : BezierPathInterpolation;
+        return allLinear ? MapPathInterpolationType.Linear : allSpline ? MapPathInterpolationType.Spline : MapPathInterpolationType.Bezier;
     }
 
-    private static int TangentType(Vector3 handle, bool linear, bool spline, float third)
+    private static MapPathTangentType TangentType(Vector3 handle, bool linear, bool spline, float third)
     {
         if (spline)
         {
-            return SplineTangent;
+            return MapPathTangentType.Spline;
         }
 
         if (linear)
         {
-            return LinearTangent;
+            return MapPathTangentType.Linear;
         }
 
-        return MathF.Abs(handle.Length() - third) <= HandleTolerance(third) ? DirectionTangent : FreeTangent;
+        return MathF.Abs(handle.Length() - third) <= HandleTolerance(third) ? MapPathTangentType.Direction : MapPathTangentType.Free;
     }
 
     /// <summary>
@@ -202,7 +193,8 @@ public sealed partial class MapExtract
         }
 
         var names = ParsePathNodeNames(compiledEntity.GetStringProperty("pathnodenames"));
-        path.InterpolationType = DetectPathInterpolation(nodes, path.ClosedLoop, out var tangentTypes);
+        var interpolationType = DetectPathInterpolation(nodes, path.ClosedLoop, out var tangentTypes);
+        path.InterpolationType = (int)interpolationType;
 
         for (var i = 0; i < nodes.Count; i++)
         {
@@ -246,10 +238,10 @@ public sealed partial class MapExtract
             pathNode.InTangent = Vector3.TransformNormal(node.InTangent, worldTransform);
             pathNode.OutTangent = Vector3.TransformNormal(node.OutTangent, worldTransform);
 
-            if (path.InterpolationType == BezierPathInterpolation)
+            if (interpolationType == MapPathInterpolationType.Bezier)
             {
-                pathNode.InTangentType = tangentTypes[i].In;
-                pathNode.OutTangentType = tangentTypes[i].Out;
+                pathNode.InTangentType = (int)tangentTypes[i].In;
+                pathNode.OutTangentType = (int)tangentTypes[i].Out;
             }
 
             if (names.TryGetValue(i, out var name))

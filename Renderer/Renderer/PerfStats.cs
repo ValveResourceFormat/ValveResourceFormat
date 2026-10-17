@@ -268,7 +268,7 @@ public class PerfStats
 
     private static LightGroup GetLightGroup(SceneLight light) => light.Entity switch
     {
-        SceneLight.EntityType.Omni or SceneLight.EntityType.Omni2 => LightGroup.Omni,
+        SceneLight.EntityType.Omni or SceneLight.EntityType.Omni2 or SceneLight.EntityType.Capsule => LightGroup.Omni,
         SceneLight.EntityType.Spot => LightGroup.Spot,
         SceneLight.EntityType.Barn => LightGroup.Barn,
         SceneLight.EntityType.Rect => LightGroup.Rect,

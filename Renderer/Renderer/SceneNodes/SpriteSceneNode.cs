@@ -4,6 +4,11 @@ using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
 {
+    /// <summary>A solid edge along the sides of a sprite, as wide on the screen whatever the size of the sprite.</summary>
+    /// <param name="Color">The color of the edge, which the sprite is cut out of like its texture.</param>
+    /// <param name="WidthPx">The width of the edge, in pixels.</param>
+    internal readonly record struct SpriteBorder(Vector4 Color, float WidthPx);
+
     class SpriteSceneNode : SceneNode
     {
         [StructLayout(LayoutKind.Sequential)]
@@ -37,13 +42,40 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private readonly int vao;
         private readonly RenderMaterial material;
         private readonly float spriteSize;
+        private readonly SpriteBorder? border;
 
         public override bool IsPointMarker => true;
 
-        public SpriteSceneNode(Scene scene, RendererContext renderContext, Resource resource, Vector3 position)
+        /// <summary>
+        /// Gets whether the sprite is drawn over everything else, after the opaque scene and without being
+        /// hidden by it, rather than among the opaque nodes.
+        /// </summary>
+        public bool IsDrawnOverScene
+        {
+            get;
+            init
+            {
+                field = value;
+
+                if (value)
+                {
+                    RenderPasses &= ~CustomRenderPasses.DepthOnly;
+                }
+            }
+        }
+
+        public SpriteSceneNode(Scene scene, RendererContext renderContext, Resource resource, Vector3 position, SpriteBorder? border = null)
             : base(scene)
         {
-            material = renderContext.MaterialLoader.LoadMaterial(resource, scene.LightingInfo.CreateShaderArguments());
+            var shaderArguments = scene.LightingInfo.CreateShaderArguments();
+
+            if (border != null)
+            {
+                shaderArguments["D_BORDER"] = 1;
+            }
+
+            material = renderContext.MaterialLoader.LoadMaterial(resource, shaderArguments);
+            this.border = border;
 
             // Forcefully clamp sprites so they don't render extra pixels on edges
             foreach (var texture in material.Textures.Values)
@@ -74,23 +106,34 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         public override void Render(Scene.RenderContext context)
         {
-            if (context.RenderPass is not RenderPass.Opaque and not RenderPass.Outline and not RenderPass.DepthOnly)
+            var drawPass = IsDrawnOverScene ? RenderPass.Translucent : RenderPass.Opaque;
+
+            if (context.RenderPass != drawPass && context.RenderPass is not RenderPass.All and not RenderPass.DepthOnly)
             {
                 return;
             }
 
+            using var overScene = IsDrawnOverScene && context.RenderPass == drawPass
+                ? GraphicsContext.RenderState.Scope(depthTest: false, depthWrite: false)
+                : default;
+
             var renderShader = context.DepthOnlyShader?.WithAlphaTest(material.IsAlphaTest)
-                ?? context.ReplacementShader
+                ?? context.ReplacementShader?.WithAlphaTest(material.IsAlphaTest)
                 ?? material.Shader;
 
             renderShader.Use();
 
             VertexArray.Bind(vao, renderShader);
 
-            renderShader.SetUniform1("shaderId", material.Shader.NameHash);
-            renderShader.SetUniform1("shaderProgramId", (uint)material.Shader.Program);
+            renderShader.SetDrawIdentity(0, material.Shader);
 
             material.Render(renderShader);
+
+            if (border is { } edge && renderShader == material.Shader)
+            {
+                renderShader.SetUniform("g_vBorderColor", edge.Color);
+                renderShader.SetUniform("g_flBorderWidthPx", edge.WidthPx);
+            }
 
             GL.DrawArraysInstancedBaseInstance(PrimitiveType.TriangleStrip, 0, 4, 1, Id);
 

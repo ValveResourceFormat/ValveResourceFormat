@@ -32,7 +32,7 @@ namespace GUI.Types.GLViewers
         private readonly World? world;
         private readonly WorldNode? worldNode;
         private readonly ResourceExtRefList? mapExternalReferences;
-        private CheckedListBox? worldLayersComboBox;
+        protected CheckedListBox? worldLayersComboBox;
         private CheckedListBox? physicsGroupsComboBox;
         private ComboBox? cameraComboBox;
         private SavedCameraPositionsControl? savedCameraPositionsControl;
@@ -95,6 +95,11 @@ namespace GUI.Types.GLViewers
         {
             this.worldNode = worldNode;
             mapExternalReferences = externalReferences;
+        }
+
+        protected GLWorldViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext)
+            : base(vrfGuiContext, rendererContext)
+        {
         }
 
         public override void Dispose()
@@ -218,13 +223,13 @@ namespace GUI.Types.GLViewers
         {
             base.PreSceneLoad();
 
+            // A world node seen alone has no lights of its own, so it is lit by a made up sun
             if (worldNode != null)
             {
                 base.LoadDefaultLighting();
-
                 Scene.LightingInfo.CubemapType = CubemapType.None; // default envmap actually looks bad
-                Scene.LightingInfo.UseSceneBoundsForSunLightFrustum = false;
-                Scene.LightingInfo.SunLightShadowCoverageScale = 2f;
+
+                LoadUnbakedLighting();
 
                 var post = new ScenePostProcessVolume(Scene)
                 {
@@ -234,6 +239,13 @@ namespace GUI.Types.GLViewers
 
                 Scene.PostProcessInfo.AddPostProcessVolume(post);
             }
+        }
+
+        /// <summary>Sets up the lighting of a world whose lighting is not built.</summary>
+        protected void LoadUnbakedLighting()
+        {
+            Scene.LightingInfo.UseSceneBoundsForSunLightFrustum = false;
+            Scene.LightingInfo.SunLightShadowCoverageScale = 2f;
         }
 
         protected override void LoadScene()
@@ -403,25 +415,7 @@ namespace GUI.Types.GLViewers
 
                 if (uniqueWorldLayers.Count > 0 && LoadedWorld != null)
                 {
-                    Debug.Assert(worldLayersComboBox != null);
-
-                    worldLayersComboBox.BeginUpdate();
-
-                    SetAvailableLayers(uniqueWorldLayers);
-
-                    foreach (var worldLayer in LoadedWorld.DefaultEnabledLayers)
-                    {
-                        var checkboxIndex = worldLayersComboBox.FindStringExact(worldLayer);
-
-                        if (checkboxIndex > -1)
-                        {
-                            worldLayersComboBox.SetItemCheckState(checkboxIndex, CheckState.Checked);
-                        }
-                    }
-
-                    worldLayersComboBox.EndUpdate();
-
-                    SetEnabledLayers(LoadedWorld.DefaultEnabledLayers);
+                    SetAvailableLayers(uniqueWorldLayers, LoadedWorld.DefaultEnabledLayers);
                 }
 
                 if (uniquePhysicsGroups.Count > 0)
@@ -941,7 +935,7 @@ namespace GUI.Types.GLViewers
                 entityInfoForm = new EntityInfoForm();
                 entityInfoForm.EntityInfoControl.LinkedResourceActivated += OnLinkedResourceActivated;
                 entityInfoForm.EntityInfoControl.ConnectionFireRequested += OnConnectionFireRequested;
-                entityInfoForm.EntityInfoControl.CanFireConnections = true;
+                entityInfoForm.EntityInfoControl.CanFireConnections = CanFireConnections;
 
                 if (ShowEntityInGraph != null)
                 {
@@ -964,7 +958,10 @@ namespace GUI.Types.GLViewers
             return entityInfoForm;
         }
 
-        private List<EntityLump.Entity> GetLinkableEntities()
+        /// <summary>Gets whether the entities run in a live entity world, so their connections can be fired.</summary>
+        protected virtual bool CanFireConnections => true;
+
+        protected virtual List<EntityLump.Entity> GetLinkableEntities()
         {
             if (LoadedWorld == null)
             {
@@ -1164,6 +1161,34 @@ namespace GUI.Types.GLViewers
             {
                 Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
             });
+        }
+
+        /// <summary>
+        /// Lists the layers along with the helpers layer, and checks and shows the ones enabled by default.
+        /// </summary>
+        protected void SetAvailableLayers(IEnumerable<string> worldLayers, HashSet<string> defaultEnabledLayers)
+        {
+            Debug.Assert(worldLayersComboBox != null);
+
+            worldLayersComboBox.BeginUpdate();
+
+            // Showing helpers also decides what a selected entity shows, so it can be chosen even while nothing
+            // unselected needs it
+            SetAvailableLayers(worldLayers.Append(HammerEntityVisuals.HelpersLayerName).Distinct());
+
+            foreach (var layer in defaultEnabledLayers)
+            {
+                var checkboxIndex = worldLayersComboBox.FindStringExact(layer);
+
+                if (checkboxIndex > -1)
+                {
+                    worldLayersComboBox.SetItemCheckState(checkboxIndex, CheckState.Checked);
+                }
+            }
+
+            worldLayersComboBox.EndUpdate();
+
+            SetEnabledLayers(defaultEnabledLayers);
         }
 
         private void SetAvailableLayers(IEnumerable<string> worldLayers)

@@ -21,8 +21,11 @@ namespace ValveResourceFormat.Renderer
         Water,
         /// <summary>Translucent (alpha-blended) pass.</summary>
         Translucent,
-        /// <summary>Selection outline pass.</summary>
-        Outline,
+        /// <summary>
+        /// Every part of a node at once, whatever pass it would draw in, for drawing chosen nodes again with a
+        /// replacement shader.
+        /// </summary>
+        All,
     }
 
     /// <summary>
@@ -71,6 +74,9 @@ namespace ValveResourceFormat.Renderer
         /// instead of the scene, so the geometry only shows as glow.
         /// </summary>
         EffectsBloom = 1 << 5,
+
+        /// <summary>Draws in the tools pass, over the final image after post processing.</summary>
+        Tools = 1 << 6,
 
         /// <summary>Draws in the opaque and translucent passes, the default for a node that draws itself.</summary>
         Default = Opaque | Translucent,

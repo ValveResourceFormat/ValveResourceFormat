@@ -1,0 +1,1894 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+// Classes of games whose classes are not known, which no FGD file of a known game declares, kept by hand.
+// They come from an older generated table, so every one is a point class and its helpers are only what it
+// was drawn with. They are only used for a game with no table of its own, after the classes of every game
+// that has one.
+{
+	classes = 
+	[
+		{
+			name = "ai_reaction"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"radiusoverride",
+						"255",
+						"255",
+						"255",
+					]
+				},
+			]
+		},
+		{
+			name = "ai_scripted_abilityusage"
+			kind = "point"
+			color = [ 255, 0, 255 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/aiscripted_schedule.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "ai_scripted_idle"
+			kind = "point"
+			color = [ 255, 0, 255 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/aiscripted_schedule.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "ai_scripted_moveto"
+			kind = "point"
+			color = [ 255, 0, 255 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/ai_scripted_moveto.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "ai_volumetric_event"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/ai_sound.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "ai_volumetric_event_sensor"
+			kind = "point"
+			color = [ 0, 0, 255 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/env_microphone.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "buoyancy_helper"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/editor/info_target.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "citadel_base_prop_midboss_indicator"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/props_gameplay/rejuv/rejuv.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "citadel_base_prop_stairs"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/editor/neutral_camp_marker.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "citadel_breakable_prop"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/props_gameplay/wooden_crate_03/wooden_crate_03.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "citadel_final_objective_proxy"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/editor/info_target.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "citadel_herotest_orbspawner"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/npc/sewer_beast/sewer.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "citadel_hideout_clock"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/hideout/hideout_wallclock_large.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "citadel_hideout_shootable_target_spawner"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/heroes_staging/grey_talon/grey_talon_owl.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "citadel_item_powerup_spawner"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/props_gameplay/powerup_idol/powerup_idol.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "citadel_point_talker"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/snd_event.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "citadel_snd_base_music_obb"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "box_oriented"
+					arguments = 
+					[
+						"box_mins",
+						"box_maxs",
+					]
+				},
+			]
+		},
+		{
+			name = "citadel_snd_obb"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/snd_opvar_set.vmat",
+					]
+				},
+				{
+					name = "box_oriented"
+					arguments = 
+					[
+						"box_mins",
+						"box_maxs",
+					]
+				},
+			]
+		},
+		{
+			name = "citadel_snd_stack_field_obb"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/snd_opvar_set.vmat",
+					]
+				},
+				{
+					name = "box_oriented"
+					arguments = 
+					[
+						"box_mins",
+						"box_maxs",
+					]
+				},
+			]
+		},
+		{
+			name = "citadel_volume_omni"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/light.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "citadel_zipline_path_node"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/props_gameplay/zip_tower_hover.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "client_script"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/point_script.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "cs_pet_placement"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/pets/egg_pristine.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "devtest_hierarchy"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "vecline_local"
+					arguments = 
+					[
+						"burstlocation",
+						"255",
+						"200",
+						"200",
+					]
+				},
+			]
+		},
+		{
+			name = "devtest_hierarchy2"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/survivors/survivor_gambler.vmdl",
+					]
+				},
+				{
+					name = "vecline_local"
+					arguments = 
+					[
+						"burstlocation",
+						"255",
+						"200",
+						"200",
+					]
+				},
+			]
+		},
+		{
+			name = "devtest_hierarchy_child"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "vecline_local"
+					arguments = 
+					[
+						"burstlocation",
+						"255",
+						"200",
+						"200",
+					]
+				},
+			]
+		},
+		{
+			name = "end_of_match_camera"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/editor/camera.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "env_alyxemp"
+			kind = "point"
+			color = [ 0, 0, 255 ]
+			helpers = 
+			[
+				{
+					name = "line"
+					arguments = 
+					[
+						"0",
+						"0",
+						"255",
+						"targetname",
+						"EndTargetName",
+					]
+				},
+			]
+		},
+		{
+			name = "env_speaker"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/ambient_generic.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "env_wind_controller"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/env_wind.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "env_wind_volume"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/env_wind.vmat",
+					]
+				},
+				{
+					name = "box_oriented"
+					arguments = 
+					[
+						"box_mins",
+						"box_maxs",
+					]
+				},
+			]
+		},
+		{
+			name = "env_world_lighting"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/light_env.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "filter_combineball_type"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/filter_class.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "func_bulletshield"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"fademindist",
+						"255",
+						"255",
+						"255",
+					]
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"fademaxdist",
+						"255",
+						"255",
+						"255",
+					]
+				},
+			]
+		},
+		{
+			name = "func_lookdoor"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "drawangles_local"
+					arguments = 
+					[
+						"movedir",
+						"movedir_islocal",
+					]
+				},
+			]
+		},
+		{
+			name = "grenade_helicopter"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/combine_helicopter/helicopter_bomb01.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "hegrenade_projectile"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/weapons/w_eq_fraggrenade.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "high_quality_shadows_region"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"radius",
+						"255",
+						"255",
+						"255",
+					]
+				},
+			]
+		},
+		{
+			name = "info_assigned_lane_particle"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/editor/axis_helper_thick.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "info_cover_point"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/npc/trooper/trooper_humanoid.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "info_darknessmode_lightsource"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"lightradius",
+						"255",
+						"255",
+						"255",
+					]
+				},
+			]
+		},
+		{
+			name = "info_hero_testing_point"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/heroes_staging/gen_man/gen_man.vmdl",
+					]
+				},
+				{
+					name = "line"
+					arguments = 
+					[
+						"100",
+						"105",
+						"255",
+						"targetname",
+						"MoveTarget",
+					]
+				},
+			]
+		},
+		{
+			name = "info_mini_map_marker"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/editor/info_target.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "info_nav_space"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/nav_space.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "info_neutral_trooper_camp"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/editor/neutral_camp_marker.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "info_neutral_trooper_spawn"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/props_gameplay/neutral_vault/neutral_vault.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "info_radar_target"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/info_target.vmat",
+					]
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"radius",
+						"255",
+						"255",
+						"255",
+					]
+				},
+			]
+		},
+		{
+			name = "info_super_trooper_spawn"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/npc/trooper/trooper_boss.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "info_target_advisor_roaming_crash"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/info_target.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "info_target_vehicle_transition"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/info_target.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "info_team_spawn"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/editor/playerstart.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "info_teleport_location"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/editor/info_target.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "info_teleporter_countdown"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/info_target.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "info_trooper_spawn"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/npc/trooper/trooper_humanoid.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "item_crate"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/props_gameplay/gold_crate.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "item_crate_spawn"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/props_gameplay/gold_crate.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "item_dynamic_resupply"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/items/healthkit.vmdl",
+					]
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"fademindist",
+						"255",
+						"255",
+						"255",
+					]
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"fademaxdist",
+						"255",
+						"255",
+						"255",
+					]
+				},
+			]
+		},
+		{
+			name = "light_ambient"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/light_ambient.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "light_ambientocclusion"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/light_ambientocclusion.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "light_capsule"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/light.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "light_sky"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/light_sky.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "logic_animtag_listener"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/logic_animtag_listener.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "logic_auto_citadel"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/logic_auto.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "molotov_projectile"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/weapons/w_eq_molotov.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "npc_appliance"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/npcs/washing_machine_cube/washing_machine_cube.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "npc_barrack_boss"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/npc/trooper/trooper_boss.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "npc_base_defense_sentry"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/npc/gargoyle/neutral_gargoyle.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "npc_boss_tier2"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/npc/boss_tier_02_sun_walker/boss_tier_02_sun_walker.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "npc_boss_tier3"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/npc/titan_v2/titan.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "npc_crabsynth"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/Synth.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "npc_cranedriver"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/roller.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "npc_enemyfinder_combinecannon"
+			kind = "point"
+			color = [ 255, 150, 0 ]
+		},
+		{
+			name = "npc_fastzombie_torso"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/Zombie/Fast_torso.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "npc_fisherman"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/Barney.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "npc_heli_avoidbox"
+			kind = "point"
+			color = [ 255, 255, 0 ]
+		},
+		{
+			name = "npc_heli_avoidsphere"
+			kind = "point"
+			color = [ 255, 255, 0 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/env_firesource.vmat",
+					]
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"radius",
+						"255",
+						"255",
+						"255",
+					]
+				},
+			]
+		},
+		{
+			name = "npc_heli_nobomb"
+			kind = "point"
+			color = [ 255, 255, 0 ]
+		},
+		{
+			name = "npc_hunter_maker"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/npc_maker.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "npc_ichthyosaur"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/ichthyosaur.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "npc_launcher"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/junk/w_traffcone.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "npc_missiledefense"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/missile_defense.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "npc_monk"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/Monk.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "npc_mortarsynth"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/mortarsynth.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "npc_mossman"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/mossman.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "npc_rollermine"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/roller.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "npc_stalker"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/Stalker.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "npc_trooper_boss"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/npc/trooper/trooper_boss.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "npc_turret_ground"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/combine_turrets/ground_turret.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "path_corner_crash"
+			kind = "point"
+			color = [ 255, 0, 0 ]
+		},
+		{
+			name = "phys_wheelconstraint"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/editor/axis_helper.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "point_antlion_repellant"
+			kind = "point"
+			color = [ 0, 0, 255 ]
+			helpers = 
+			[
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"repelradius",
+						"255",
+						"255",
+						"255",
+					]
+				},
+			]
+		},
+		{
+			name = "point_flesh_effect_target"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"radius",
+						"255",
+						"255",
+						"255",
+					]
+				},
+			]
+		},
+		{
+			name = "point_pulse"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/point_pulse.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "prop_coreball"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/props_combine/coreball.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "smokegrenade_projectile"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/weapons/w_eq_smokegrenade.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "sound_opvar_set"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/ambient_generic.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "steampal_camera_path"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/editor/camera.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "steampal_camera_path_node"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/editor/camera.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "steampal_conveyor"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/steampal_conveyor.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "steampal_conveyor_entity_spawner"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/steampal_conveyor.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "steampal_desk"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/props/steamdesk_model.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "steampal_kill_volume"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "box_oriented"
+					arguments = 
+					[
+						"box_mins",
+						"box_maxs",
+					]
+				},
+			]
+		},
+		{
+			name = "steampal_point_camera"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/editor/camera.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "steampal_sequencer"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/steampal_sequencer.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "steampal_turret_manager"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "iconsprite"
+					arguments = 
+					[
+						"materials/editor/steampal_turret_manager.vmat",
+					]
+				},
+			]
+		},
+		{
+			name = "team_select_camera"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/editor/camera.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "team_select_counterterrorist"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"characters/models/ctm_sas/ctm_sas.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "team_select_terrorist"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"characters/models/tm_phoenix/tm_phoenix.vmdl",
+					]
+				},
+			]
+		},
+		{
+			name = "weapon_alyxgun"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/weapons/W_Alyx_Gun.vmdl",
+					]
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"fademindist",
+						"255",
+						"255",
+						"255",
+					]
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"fademaxdist",
+						"255",
+						"255",
+						"255",
+					]
+				},
+			]
+		},
+		{
+			name = "weapon_annabelle"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/weapons/W_annabelle.vmdl",
+					]
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"fademindist",
+						"255",
+						"255",
+						"255",
+					]
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"fademaxdist",
+						"255",
+						"255",
+						"255",
+					]
+				},
+			]
+		},
+		{
+			name = "weapon_brickbat"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"fademindist",
+						"255",
+						"255",
+						"255",
+					]
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"fademaxdist",
+						"255",
+						"255",
+						"255",
+					]
+				},
+			]
+		},
+		{
+			name = "weapon_striderbuster"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/magnusson_device.vmdl",
+					]
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"fademindist",
+						"255",
+						"255",
+						"255",
+					]
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"fademaxdist",
+						"255",
+						"255",
+						"255",
+					]
+				},
+				{
+					name = "vecline_local"
+					arguments = 
+					[
+						"burstlocation",
+						"255",
+						"200",
+						"200",
+					]
+				},
+			]
+		},
+		{
+			name = "weapon_stunstick"
+			kind = "point"
+			color = [ 220, 30, 220 ]
+			helpers = 
+			[
+				{
+					name = "editormodel"
+					arguments = 
+					[
+						"models/weapons/vr_baton/vr_baton.vmdl",
+					]
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"fademindist",
+						"255",
+						"255",
+						"255",
+					]
+				},
+				{
+					name = "sphere"
+					arguments = 
+					[
+						"fademaxdist",
+						"255",
+						"255",
+						"255",
+					]
+				},
+			]
+		},
+	]
+}

@@ -69,6 +69,19 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>Gets or sets the GPU lighting constants buffer for the scene.</summary>
         public LightingConstants LightingData { get; set; } = new();
 
+        /// <summary>
+        /// Sets the version of the baked lighting the scene is lit with, which the shaders are built for. Meshes
+        /// take it into their shaders as they are created, so it is set before them.
+        /// </summary>
+        /// <param name="versionNumber">The lightmap version.</param>
+        /// <param name="gameVersionNumber">The game specific version within it.</param>
+        public void SetLightmapVersion(int versionNumber, int gameVersionNumber)
+        {
+            LightmapVersionNumber = versionNumber;
+            LightmapGameVersionNumber = gameVersionNumber;
+            scene.RenderAttributes["S_LIGHTMAP_VERSION_MINOR"] = (byte)gameVersionNumber;
+        }
+
         /// <summary>Gets or sets the storage format used for environment map cubemaps in this scene.</summary>
         public CubemapType CubemapType
         {
@@ -106,8 +119,11 @@ namespace ValveResourceFormat.Renderer.World
             return arguments;
         }
 
-        /// <summary>Gets a value indicating whether the lightmap contains baked shadow data.</summary>
-        public bool HasBakedShadowsFromLightmap => scene.RenderAttributes.GetValueOrDefault("S_LIGHTMAP_VERSION_MINOR") > 0;
+        /// <summary>
+        /// Gets a value indicating whether the lightmaps contain baked shadow data, which static geometry is shadowed by
+        /// instead of the sun shadow map. Geometry lit per vertex has none.
+        /// </summary>
+        public bool HasBakedShadowsFromLightmap => HasValidLightmaps && scene.RenderAttributes.GetValueOrDefault("S_LIGHTMAP_VERSION_MINOR") > 0;
         /// <summary>Gets or sets a value indicating whether dynamic shadow rendering is enabled.</summary>
         public bool EnableDynamicShadows { get; set; } = true;
 
@@ -173,10 +189,10 @@ namespace ValveResourceFormat.Renderer.World
                 GL.BindTextureUnit((int)lightmapSlot, texture.Handle);
             }
 
-            if (LightProbeType == LightProbeType.ProbeAtlas && LightProbes.Count > 0)
+            if (LightProbeType == LightProbeType.ProbeAtlas && LightProbes.Find(static probe => probe.Irradiance != null) is { } atlasProbe)
             {
-                BindProbeTexture("g_tLPV_Irradiance", LightProbes[0].Irradiance);
-                BindProbeTexture("g_tLPV_Shadows", LightProbes[0].DirectLightShadows);
+                BindProbeTexture("g_tLPV_Irradiance", atlasProbe.Irradiance);
+                BindProbeTexture("g_tLPV_Shadows", atlasProbe.DirectLightShadows ?? GetUnshadowedProbeTexture());
             }
 
             // Always bind something, even when the scene has no cookies: the cookie samplers are 2D arrays,
@@ -212,9 +228,31 @@ namespace ValveResourceFormat.Renderer.World
             }
             else if (LightmapGameVersionNumber >= 2)
             {
-                BindProbeTexture("g_tLPV_Shadows", lightProbe.DirectLightShadows);
+                BindProbeTexture("g_tLPV_Shadows", lightProbe.DirectLightShadows ?? GetUnshadowedProbeTexture());
             }
         }
+
+        private RenderTexture? unshadowedProbeTexture;
+
+        // Textures made for the lighting of the scene rather than loaded with its resources
+        private readonly List<RenderTexture> ownedTextures = [];
+
+        // Stands in for the direct light shadows of a volume baked without them, which then shadow nothing
+        private RenderTexture GetUnshadowedProbeTexture()
+        {
+            if (unshadowedProbeTexture == null)
+            {
+                unshadowedProbeTexture = RenderTexture.Create3D(TextureTarget.Texture3D, 1, 1, 1, ImageFormat.RGBA8888, 1, "UnshadowedLightProbe");
+                GL.ClearTexImage(unshadowedProbeTexture.Handle, 0, PixelFormat.Rgba, PixelType.UnsignedByte, IntPtr.Zero);
+                AddOwnedTexture(unshadowedProbeTexture);
+            }
+
+            return unshadowedProbeTexture;
+        }
+
+        /// <summary>Hands a texture made for the lighting of the scene to it, which deletes it in <see cref="DeleteOwnedTextures"/>.</summary>
+        /// <param name="texture">The texture.</param>
+        internal void AddOwnedTexture(RenderTexture texture) => ownedTextures.Add(texture);
 
         /// <summary>Binds a light probe volume texture to the unit its sampler reads.</summary>
         private static void BindProbeTexture(string samplerName, RenderTexture? texture)
@@ -285,11 +323,11 @@ namespace ValveResourceFormat.Renderer.World
                 return;
             }
 
+            // A volume baked without direct light shadows is still lit, as unshadowed
             var validTextureSet = (scene.LightingInfo.LightmapGameVersionNumber, lightProbe) switch
             {
                 (_, { Irradiance: null }) => false,
                 (1, { DirectLightIndices: null } or { DirectLightScalars: null }) => false,
-                (2 or 3 or 4, { DirectLightShadows: null }) => false,
                 _ => true,
             };
 
@@ -476,6 +514,12 @@ namespace ValveResourceFormat.Renderer.World
             if (usesUniformLightStore)
             {
                 StoreLightMappedLights_V1(lights);
+
+                // Logged here rather than on every store, which light styles do each frame
+                scene.RendererContext.Logger.LogDebug(
+                    "Lightmap version {Major}.{Minor}: {Stationary} stationary and {Dynamic} per-pixel lights of {Total} light entities",
+                    LightmapVersionNumber, LightmapGameVersionNumber, LightingData.StaticLightCount,
+                    LightingData.DynamicLightCount - LightingData.StaticLightCount, lights.Count);
             }
             else
             {
@@ -497,12 +541,33 @@ namespace ValveResourceFormat.Renderer.World
                 return;
             }
 
-            var envLight = storedLights.FirstOrDefault(static l => l.Entity == SceneLight.EntityType.Environment);
-            if (envLight != null)
+            if (FindSun(storedLights) is { } envLight)
             {
                 StoreSunLight(envLight, envLight.BakedShadowMask);
             }
         }
+
+        private bool storedLightsChanged;
+
+        /// <summary>Marks the stored lights as changed, such as by a light style, so they are stored again this frame.</summary>
+        public void MarkStoredLightsChanged() => storedLightsChanged = true;
+
+        /// <summary>Stores the lights again if they changed since they were last stored.</summary>
+        public void StoreChangedLights()
+        {
+            if (!storedLightsChanged)
+            {
+                return;
+            }
+
+            storedLightsChanged = false;
+            UpdateGpuLightBuffers();
+        }
+
+        // The environment light is the sun, or else the first other light that lights everything from one direction
+        private static SceneLight? FindSun(List<SceneLight> lights)
+            => lights.Find(static light => light.Entity == SceneLight.EntityType.Environment)
+                ?? lights.Find(static light => light.IsDirectional);
 
         /// <summary>
         /// Stores stationary and dynamic light data into <see cref="LightingData"/> using the V1 lightmap format.
@@ -522,7 +587,7 @@ namespace ValveResourceFormat.Renderer.World
                 // The strength texels hold plain sqrt(saturate(attenuation) * visibility); lights that
                 // look far dimmer than their surroundings in baked cubemaps (like the "light_disabled"
                 // prefabs) are scripted to raise their brightness at runtime, not scaled at load.
-                var premultipliedColor = ColorSpace.SrgbGammaToLinear(light.Color) * light.Brightness * light.BrightnessScale;
+                var premultipliedColor = ColorSpace.SrgbGammaToLinear(light.Color) * light.StyleColorScale * light.Brightness * light.BrightnessScale;
                 LightingData.LightColor_Brightness[index] = new Vector4(premultipliedColor, light.RenderSpecular ? 1f : 0f);
 
                 // zw carry the remaining render gates (diffuse, transmissive); specular sits in the color
@@ -567,10 +632,12 @@ namespace ValveResourceFormat.Renderer.World
                 LightingData.StaticLightCount = Math.Max(LightingData.StaticLightCount, index + 1);
             }
 
-            static bool IsDynamicSegmentLight(SceneLight light)
+            var envLight = FindSun(lights);
+
+            bool IsDynamicSegmentLight(SceneLight light)
             {
                 // Env light has its own fast path
-                if (light.Entity == SceneLight.EntityType.Environment)
+                if (light == envLight || light.Entity == SceneLight.EntityType.Environment)
                 {
                     return false;
                 }
@@ -596,12 +663,6 @@ namespace ValveResourceFormat.Renderer.World
 
             LightingData.DynamicLightCount = currentLightIndex;
 
-            scene.RendererContext.Logger.LogDebug(
-                "Lightmap version {Major}.{Minor}: {Stationary} stationary and {Dynamic} per-pixel lights of {Total} light entities",
-                LightmapVersionNumber, LightmapGameVersionNumber, LightingData.StaticLightCount,
-                currentLightIndex - LightingData.StaticLightCount, lights.Count);
-
-            var envLight = lights.FirstOrDefault(static l => l.Entity == SceneLight.EntityType.Environment);
             if (envLight != null)
             {
                 var bakedLightIndex = envLight.Cost == SceneLight.LightCost.Stationary ? envLight.StationaryLightIndex : -1;
@@ -655,13 +716,14 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         private void StoreSunLight(SceneLight envLight, Vector4 bakedShadowData)
         {
-            var premultipliedColor = ColorSpace.SrgbGammaToLinear(envLight.Color) * envLight.Brightness * envLight.BrightnessScale;
+            var premultipliedColor = ColorSpace.SrgbGammaToLinear(envLight.Color) * envLight.StyleColorScale * envLight.Brightness * envLight.BrightnessScale;
 
             LightingData.SunDirection = new Vector4(-envLight.Direction, GetSunMinRoughness(envLight.MinRoughness));
             LightingData.SunColor = new Vector4(premultipliedColor, envLight.RenderSpecular ? 1f : 0f);
             LightingData.SunLightBakedShadowMask = bakedShadowData;
 
-            skyLight = ColorSpace.SrgbGammaToLinear(envLight.SkyColor) * envLight.SkyIntensity;
+            // The brightness scale of the light scales its sky too
+            skyLight = ColorSpace.SrgbGammaToLinear(envLight.SkyColor) * envLight.SkyIntensity * envLight.BrightnessScale;
             skyAmbientBounce = ColorSpace.SrgbGammaToLinear(envLight.SkyAmbientBounce);
             UpdateAmbientLighting();
 
@@ -715,9 +777,7 @@ namespace ValveResourceFormat.Renderer.World
         /// <param name="lights">The list of scene lights to store.</param>
         public void StoreLightMappedLights_V2(List<SceneLight> lights)
         {
-            var envLight = lights.FirstOrDefault(static l => l.Entity == SceneLight.EntityType.Environment);
-
-            if (envLight != null)
+            if (FindSun(lights) is { } envLight)
             {
                 StoreSunLight(envLight, envLight.BakedShadowMask);
             }
@@ -825,7 +885,7 @@ namespace ValveResourceFormat.Renderer.World
                         data.BarnLightShadowScale = shadowFade;
                     }
 
-                    data.BarnLightColor_flCookie *= new Vector4(lightFade, lightFade, lightFade, 1f);
+                    data.BarnLightColor_flCookie *= new Vector4(light.StyleColorScale * lightFade, 1f);
 
                     BinnedBarnLightFaceSlots[LightingData.NumBarnLights] = new BarnLightFaceSlot(light, faceIndex);
 
@@ -958,6 +1018,18 @@ namespace ValveResourceFormat.Renderer.World
         /// <see cref="BinnedBarnLightVolumes"/>, so a cull bit traces back to the face it culled.</summary>
         public ReadOnlySpan<BarnLightFaceSlot> BinnedBarnLightFaces
             => BinnedBarnLightFaceSlots.AsSpan(0, (int)LightingData.NumBarnLights);
+
+        /// <summary>Deletes the textures made for the lighting of the scene rather than loaded with its resources.</summary>
+        public void DeleteOwnedTextures()
+        {
+            foreach (var texture in ownedTextures)
+            {
+                texture.Delete();
+            }
+
+            ownedTextures.Clear();
+            unshadowedProbeTexture = null;
+        }
 
         /// <summary>Releases the barn light GPU buffer, cookie atlas texture, and sampler objects.</summary>
         public void DisposeBarnLights()

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq;
 using ValveResourceFormat.ResourceTypes.ModelData;
 
@@ -42,6 +43,23 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             activeMeshGroups = new HashSet<string>(meshGroups.Names.Intersect(setMeshGroups));
             RebuildRenderableMeshes();
+        }
+
+        /// <summary>
+        /// Returns the choices of every body group of the model, which it holds as mesh groups, in the order of
+        /// those mesh groups.
+        /// </summary>
+        public IEnumerable<BodyGroupChoice> GetBodyGroupChoices()
+            => meshGroups.Names.Select(BodyGroupChoice.Parse).OfType<BodyGroupChoice>();
+
+        /// <summary>Makes a choice the one drawn of its body group, in place of the others of that group.</summary>
+        /// <param name="choice">One of <see cref="GetBodyGroupChoices"/>.</param>
+        public void SetBodyGroupChoice(BodyGroupChoice choice)
+        {
+            SetActiveMeshGroups([.. activeMeshGroups
+                .Where(meshGroup => BodyGroupChoice.Parse(meshGroup) is not { } active
+                    || !active.BodyGroup.Equals(choice.BodyGroup, StringComparison.OrdinalIgnoreCase))
+                .Append(choice.MeshGroup)]);
         }
 
         /// <summary>Gets the LoD level currently being rendered (auto-selected or forced).</summary>
@@ -97,6 +115,42 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     RenderableMeshes.Add(meshRenderer);
                 }
             }
+        }
+    }
+
+    /// <summary>A choice of a body group of a model, which the model holds as one of its mesh groups.</summary>
+    /// <param name="MeshGroup">The mesh group of the choice.</param>
+    /// <param name="BodyGroup">The body group the choice is of.</param>
+    /// <param name="Index">The number of the choice in its body group.</param>
+    /// <param name="Name">The name of the choice, where the model gives it one.</param>
+    public readonly record struct BodyGroupChoice(string MeshGroup, string BodyGroup, int Index, string? Name)
+    {
+        /// <summary>Reads the choice a mesh group holds from its name.</summary>
+        /// <param name="meshGroup">The name of the mesh group.</param>
+        /// <returns>The choice, or <see langword="null"/> when the mesh group is not one.</returns>
+        public static BodyGroupChoice? Parse(string meshGroup)
+        {
+            ArgumentNullException.ThrowIfNull(meshGroup);
+
+            // HL:A "<bodygroup>_@<index>"
+            // CS2  "<bodygroup>_@<index>_#&<choice name>"
+            var joiner = meshGroup.IndexOf("_@", StringComparison.Ordinal);
+
+            if (joiner <= 0)
+            {
+                return null;
+            }
+
+            var rest = meshGroup[(joiner + 2)..];
+            var nameJoiner = rest.IndexOf("_#&", StringComparison.Ordinal);
+            var indexText = nameJoiner < 0 ? rest : rest[..nameJoiner];
+
+            if (!int.TryParse(indexText, NumberStyles.None, CultureInfo.InvariantCulture, out var index))
+            {
+                return null;
+            }
+
+            return new BodyGroupChoice(meshGroup, meshGroup[..joiner], index, nameJoiner < 0 ? null : rest[(nameJoiner + 3)..]);
         }
     }
 }

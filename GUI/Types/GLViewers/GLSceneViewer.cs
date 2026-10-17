@@ -12,6 +12,7 @@ using ValveResourceFormat.Renderer.Audio;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.Picking;
 using ValveResourceFormat.Renderer.Editor.Selection;
+using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.SceneEnvironment;
@@ -98,6 +99,10 @@ namespace GUI.Types.GLViewers
         private bool isCubemapsRenderMode;
         private InfiniteGrid? baseGrid;
         private SelectionVisuals? selectionVisuals;
+        private ToolsPass? toolsPass;
+
+        /// <summary>The editor entities of the view, which draw what Hammer shows of them.</summary>
+        protected HammerEntityVisuals EntityVisuals { get; }
 
         static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
 
@@ -121,7 +126,8 @@ namespace GUI.Types.GLViewers
 
             Renderer = new(rendererContext);
             Input = new UserInput(Renderer);
-            Renderer.EntitySystem.ToolVisuals = new HammerEntityVisuals();
+            EntityVisuals = new HammerEntityVisuals(rendererContext.FileLoader, rendererContext.Logger);
+            Renderer.EntitySystem.ToolVisuals = EntityVisuals;
             TextRenderer = new(rendererContext, Renderer.Camera);
             crosshairRenderer = new CrosshairRenderer(rendererContext);
             Scene = Renderer.Scene;
@@ -139,6 +145,9 @@ namespace GUI.Types.GLViewers
 
             selectionVisuals?.Delete();
             selectionVisuals = null;
+
+            toolsPass?.Dispose();
+            toolsPass = null;
 
             Picker?.Delete();
             Picker = null;
@@ -465,7 +474,10 @@ namespace GUI.Types.GLViewers
             Renderer.Postprocess.ExposureCompensation = -0.4f; // eyeballed
 
             baseGrid = new InfiniteGrid(Scene);
-            selectionVisuals = new(Scene.RendererContext, Selection);
+            Debug.Assert(MainFramebuffer != null);
+
+            selectionVisuals = new(Selection, EntityVisuals, Scene.RendererContext);
+            toolsPass = new(Scene.RendererContext, MainFramebuffer);
             Picker = new(Scene.RendererContext, OnPicked);
 
             QuadOverdrawRenderer = new(Scene.RendererContext);
@@ -733,13 +745,10 @@ namespace GUI.Types.GLViewers
             Debug.Assert(MainFramebuffer != null);
             Debug.Assert(GLDefaultFramebuffer != null);
 
-            Renderer.PostprocessRender(MainFramebuffer, GLDefaultFramebuffer);
+            Debug.Assert(toolsPass != null && selectionVisuals != null);
 
-            // Over the final image, so the selection keeps its colors whatever the exposure
-            if (selectionVisuals != null && Renderer.ResolvedSceneDepth != null)
-            {
-                selectionVisuals.Render(Renderer.ResolvedSceneDepth);
-            }
+            // The tools are drawn over the final image, so they keep their colors whatever the exposure
+            toolsPass.Render(Renderer, GLDefaultFramebuffer, selectionVisuals, TextRenderer);
         }
 
         protected override void OnBufferSwapped(double blockedMs, double framePeriodMs)
@@ -1089,6 +1098,17 @@ namespace GUI.Types.GLViewers
 
                 renderModeCurrentIndex = i;
                 SetRenderMode(renderMode.Name);
+            }
+        }
+
+        /// <summary>Selects a render mode in the dropdown, when the scene supports it.</summary>
+        protected void SelectRenderMode(string name)
+        {
+            var index = renderModes.FindIndex(mode => mode.Name == name);
+
+            if (renderModeComboBox != null && index >= 0)
+            {
+                renderModeComboBox.SelectedIndex = index;
             }
         }
 

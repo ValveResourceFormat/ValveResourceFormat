@@ -1,10 +1,11 @@
-using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
+using ValveResourceFormat.IO;
+using ValveResourceFormat.Renderer.Editor.Helpers;
+using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Renderer.Entities;
-using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
-using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
@@ -12,119 +13,148 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Renderer.Editor.Entities;
 
 /// <summary>
-/// Draws entities the way Hammer shows them, from what their Hammer classes declare: the model, sprite or
-/// coloured box an entity is placed as, the helper lines its class draws to the entities it names, and a
-/// line along each of its entity I/O connections. None of it is what the game shows.
+/// Draws entities the way Hammer shows them, with the helpers their classes declare for the editor of the
+/// game: the model, icon or box an entity is placed as, the lines its class draws to the entities it names,
+/// and a line along each of its entity I/O connections. None of it is what the game shows. It holds the
+/// helpers of every entity of a view, of a compiled map or of a source map, so the shapes a selected entity
+/// shows are drawn by the same helpers either way.
 /// </summary>
 public sealed class HammerEntityVisuals : IEntityToolVisuals
 {
-    /// <summary>Visibility layer of the stand-ins and helper lines, so they can be hidden apart from the world.</summary>
+    /// <summary>
+    /// Visibility layer of what the editor draws entities with that is hidden while it shows only what the game
+    /// does, such as the boxes, icons and models entities stand in as. Turning it off is that option.
+    /// </summary>
     public const string MarkerLayerName = "Entities (editor only)";
 
     /// <summary>Visibility layer of the lines along entity I/O connections.</summary>
     public const string ConnectionsLayerName = "Entity Connections";
 
+    /// <summary>
+    /// Visibility layer of the helpers the editor only draws while it shows helpers, such as lines to the
+    /// entities an entity names, spheres of its radii and the edges of its volumes. Turning it off is that
+    /// option, which also hides those helpers of a selected entity.
+    /// </summary>
+    public const string HelpersLayerName = "Entity Helpers (editor only)";
+
     private static readonly Color32 ConnectionStartColor = new(0, 255, 0);
     private static readonly Color32 ConnectionEndColor = new(255, 0, 0);
 
-    /// <inheritdoc/>
-    public IEnumerable<string> GetResourcesToPreload(string classname) => HammerEntities.Get(classname)?.Icons ?? [];
+    private readonly Lazy<EntityClassTable> classes;
+    private readonly ConditionalWeakTable<BaseEntity, EntityHelperOwner> gameEntities = [];
+    private readonly ConditionalWeakTable<EntityLump.Entity, IHelperOwner> mapEntities = [];
+
+    /// <summary>Gets the entity classes the entities are drawn by, loaded when they are first needed.</summary>
+    public EntityClassTable Classes => classes.Value;
+
+    /// <summary>Initializes the visuals for the entities of a game.</summary>
+    /// <param name="fileLoader">The file loader of what is shown, which finds its game.</param>
+    /// <param name="logger">Where it is said which classes are used.</param>
+    public HammerEntityVisuals(IFileLoader fileLoader, ILogger logger)
+    {
+        ArgumentNullException.ThrowIfNull(fileLoader);
+        ArgumentNullException.ThrowIfNull(logger);
+
+        classes = new Lazy<EntityClassTable>(() => EntityClassCatalog.Get(fileLoader, logger));
+    }
+
+    /// <summary>Adds an entity of a source map, so the nodes it is drawn with are found to belong to it.</summary>
+    /// <param name="entity">The entity, with its helpers.</param>
+    public void AddMapEntity(IHelperOwner entity)
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+
+        mapEntities.AddOrUpdate(entity.KeyValues, entity);
+    }
+
+    /// <summary>Finds the entity a node is drawn for, with the helpers of its class.</summary>
+    /// <param name="node">A node of the view.</param>
+    /// <returns>The entity, or <see langword="null"/> when the node is not drawn for one.</returns>
+    public IHelperOwner? FindEntity(SceneNode node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+
+        if (node.EntityInstance is { Data: not null } entity)
+        {
+            return GetEntity(entity);
+        }
+
+        return node.EntityData != null && mapEntities.TryGetValue(node.EntityData, out var mapEntity) ? mapEntity : null;
+    }
+
+    // Every entity of the game has one set of helpers, made the first time anything asks for them
+    internal EntityHelperOwner GetEntity(BaseEntity entity) => gameEntities.GetValue(entity, CreateEntity);
+
+    private EntityHelperOwner CreateEntity(BaseEntity entity)
+    {
+        var owner = new EntityHelperOwner(entity, entity.SpawnData ?? entity.Data!, this);
+
+        owner.CreateHelpers();
+        return owner;
+    }
 
     /// <inheritdoc/>
-    /// <exception cref="InvalidDataException">The Hammer class names an icon of a type not handled here.</exception>
+    public IEnumerable<string> GetResourcesToPreload(string classname)
+    {
+        if (Classes.FindClass(classname) is not { } entityClass)
+        {
+            yield break;
+        }
+
+        foreach (var declaration in entityClass.Helpers)
+        {
+            if (declaration.Name.Equals("iconsprite", StringComparison.OrdinalIgnoreCase))
+            {
+                if (IconHelper.GetDeclaredMaterialName(declaration) is { } material)
+                {
+                    yield return material;
+                }
+            }
+            else if (declaration.Name is "editormodel" or "model" or "studio" or "studioprop" && ModelHelper.GetDeclaredModelName(declaration) is { } model)
+            {
+                yield return ModelHelper.GetModelName(model);
+            }
+        }
+    }
+
+    /// <inheritdoc/>
     public SceneNode? CreateStandIn(BaseEntity entity, ObjectTypeFlags flags)
     {
-        if (entity.Data is not { } data)
+        if (entity.Data == null)
         {
             return null;
         }
 
-        var scene = entity.Scene;
-        var classname = entity.Classname;
-        var hammerEntity = HammerEntities.Get(classname);
+        // The game draws what the entity shows in the game, so of the helpers of its class only the ones
+        // that stand in for it are drawn
+        var placed = new List<SceneNode>();
+        var owner = GetEntity(entity);
 
-        // Whatever the Hammer class draws, even a model, is the editor's preview and never what the game
-        // shows, so it goes on the editor-only layer. A template and what it spawns stay grouped together.
-        // This also hides entities the game does draw but that only get the Hammer model as a stand-in here,
-        // such as CS2 weapons placed on the ground. They will show again once their class spawns its real model.
-        var layerName = entity.LayerName == WorldLoader.TemplateLayerName ? WorldLoader.TemplateLayerName : MarkerLayerName;
+        owner.PlacedNodes = placed;
 
-        // Only markers keep their size where the scene is magnified
-        var keepsMarkerSize = layerName == MarkerLayerName;
-        string? filename = null;
-        Resource? resource = null;
-
-        foreach (var file in hammerEntity?.Icons ?? [])
+        foreach (var helper in owner.Helpers)
         {
-            filename = file;
-            resource = scene.RendererContext.FileLoader.LoadFileCompiled(file);
-
-            if (resource != null)
+            if (helper.IsStandIn && helper.IsAvailable)
             {
-                break;
+                helper.AddToScene();
             }
         }
 
-        if (resource == null)
-        {
-            var color = hammerEntity?.Color ?? new Color32(128, 0, 128, 255);
+        owner.PlacedNodes = null;
 
-            // Placed without the entity's scale, which a box must not take
-            return new SimpleBoxSceneNode(scene, color, new Vector3(16f))
-            {
-                Transform = entity.RigidTransform,
-                LayerName = layerName,
-                Name = filename,
-                EntityData = data,
-                Flags = flags,
-                KeepsMarkerSize = keepsMarkerSize,
-            };
+        foreach (var node in placed)
+        {
+            node.Flags |= flags;
         }
 
-        if (resource.ResourceType == ResourceType.Model && resource.DataBlock is Model modelData)
+        // The entity takes the first as its own, and owns the others along with it
+        foreach (var node in placed.Skip(1))
         {
-            var modelNode = IsCamera(classname)
-                ? new CameraSceneNode(scene, modelData)
-                : new ModelSceneNode(scene, modelData, null, isWorldPreview: true) { Name = filename };
-
-            modelNode.Transform = entity.Transform;
-            modelNode.LayerName = layerName;
-            modelNode.EntityData = data;
-            modelNode.Flags |= flags;
-            modelNode.KeepsMarkerSize = keepsMarkerSize;
-
-            if (SceneLight.IsAccepted(classname).Accepted)
-            {
-                modelNode.TintAlpha = new Vector4(SceneLight.GetEditorTint(data), 1f);
-            }
-
-            modelNode.SetAnimationForWorldPreview("tools_preview");
-
-            return modelNode;
+            entity.AddNode(node);
         }
 
-        if (resource.ResourceType == ResourceType.Material)
-        {
-            var spriteNode = new SpriteSceneNode(scene, scene.RendererContext, resource, entity.Transform.Translation)
-            {
-                LayerName = layerName,
-                Name = filename,
-                EntityData = data,
-                Flags = flags | ObjectTypeFlags.NoShadows,
-                KeepsMarkerSize = keepsMarkerSize,
-            };
-
-            if (SceneLight.IsAccepted(classname).Accepted)
-            {
-                // light_omni2 has no editor model in the fgd, only an icon, so the cost tint has
-                // to go on the sprite for it to show up at all.
-                spriteNode.TintAlpha = new Vector4(SceneLight.GetEditorTint(data), 1f);
-            }
-
-            return spriteNode;
-        }
-
-        throw new InvalidDataException($"Got resource {resource.ResourceType} for class \"{classname}\"");
+        owner.StandIn = placed.FirstOrDefault();
+        return owner.StandIn;
     }
 
     /// <inheritdoc/>
@@ -133,89 +163,63 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
         foreach (var entity in entities)
         {
             AddConnectionLines(scene, entity);
-            AddHelperLines(scene, entity);
+            AddToolShapes(entity);
         }
     }
 
-    /// <summary>Gets whether a classname is one Hammer draws as a camera.</summary>
-    private static bool IsCamera(string classname)
-        => classname is "sky_camera"
-        or "point_devshot_camera"
-        or "point_camera_vertical_fov"
-        or "point_camera";
-
-    /// <summary>
-    /// Draws the helper lines the entity's Hammer class declares, from the entity to the ones its
-    /// keyvalues name, as the editor shows them.
-    /// </summary>
-    private static void AddHelperLines(Scene scene, BaseEntity entity)
+    // The lines the class of the entity declares to the entities its keyvalues name, and the shapes the
+    // editor draws for it whether or not it is selected, none of which the game draws
+    private void AddToolShapes(BaseEntity entity)
     {
-        if (entity.SpawnData is not { } data || HammerEntities.Get(entity.Classname) is not { Lines.Length: > 0 } hammerEntity)
+        if (entity.Data == null)
         {
             return;
         }
 
-        var layerName = entity.LayerName == WorldLoader.TemplateLayerName ? WorldLoader.TemplateLayerName : MarkerLayerName;
+        var helpers = GetEntity(entity).Helpers;
 
-        foreach (var line in hammerEntity.Lines)
+        foreach (var helper in helpers)
         {
-            if (data.GetStringProperty(line.StartValueKey) is not { } startValue
-                || FindHelperLineEnd(scene, entity.EntitySystem, line.StartKey, startValue) is not { } startEntity)
+            if (helper.IsToolShape && helper.IsAvailable)
             {
-                continue;
+                helper.AddToScene();
             }
+        }
 
-            var start = startEntity.Transform.Translation;
-            var end = entity.Transform.Translation;
-
-            if (line.EndKey != null && line.EndValueKey != null)
-            {
-                if (data.GetStringProperty(line.EndValueKey) is not { } endValue
-                    || FindHelperLineEnd(scene, entity.EntitySystem, line.EndKey, endValue) is not { } endEntity)
-                {
-                    continue;
-                }
-
-                end = endEntity.Transform.Translation;
-            }
-
-            AddLine(entity, start, end, line.Color, line.Color, layerName);
+        // Every helper links, as the ones of a source map do, once its shapes are in the scene
+        foreach (var helper in helpers)
+        {
+            helper.Link();
         }
     }
 
-    /// <summary>
-    /// Finds the entity a helper line ends at. Lines address entities by name; the few Hammer classes that
-    /// address AI nodes by <c>nodeid</c> instead do not appear in compiled maps.
-    /// </summary>
-    private static BaseEntity? FindHelperLineEnd(Scene scene, EntitySystem entitySystem, string key, string name)
-        => key.Equals("targetname", StringComparison.OrdinalIgnoreCase)
-            ? entitySystem.FindAllByTargetNameInWorldGroup(name, scene).FirstOrDefault()
-            : null;
-
-    /// <summary>Draws a line from the entity to every entity its entity I/O connections reach.</summary>
-    private static void AddConnectionLines(Scene scene, BaseEntity entity)
+    // A 3D sky shares names with the map it is placed in, and the entity is the caller a connection aimed at !self reaches
+    private void AddConnectionLines(Scene scene, BaseEntity entity)
     {
-        if (entity.Data?.Connections is not { } connections)
+        if (entity.Data?.Connections is { } connections)
         {
-            return;
+            AddConnectionLines(GetEntity(entity), connections, connection => entity.EntitySystem
+                .FindTargets(EntitySystem.ConnectionTarget(connection, entity.NameFixup), caller: entity)
+                .Where(target => target.Scene.WorldGroup == scene.WorldGroup && (target.SpawnData ?? target.Data) != null)
+                .Select(GetEntity));
         }
+    }
 
+    /// <summary>Draws a line from an entity to every entity its entity I/O connections reach, once for each.</summary>
+    /// <param name="entity">The entity the connections start at, which owns the lines.</param>
+    /// <param name="connections">The connections.</param>
+    /// <param name="findTargets">Finds the entities a connection reaches.</param>
+    internal static void AddConnectionLines(IHelperOwner entity, IReadOnlyList<EntityLump.Connection> connections, Func<EntityLump.Connection, IEnumerable<IHelperOwner>> findTargets)
+    {
         var start = entity.Transform.Translation;
-        var alreadySeen = new HashSet<BaseEntity>(connections.Count);
+        var alreadySeen = new HashSet<IHelperOwner>(connections.Count);
 
         foreach (var connection in connections)
         {
             var matched = false;
 
-            // The entity as the caller, so a connection aimed at !self reaches it
-            foreach (var target in entity.EntitySystem.FindTargets(EntitySystem.ConnectionTarget(connection, entity.NameFixup), caller: entity))
+            foreach (var target in findTargets(connection))
             {
-                // A 3D sky shares names with the map it is placed in
-                if (target.Scene.WorldGroup != scene.WorldGroup)
-                {
-                    continue;
-                }
-
                 matched = true;
 
                 if (!alreadySeen.Add(target))
@@ -225,31 +229,36 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
 
                 string? name = null;
 #if DEBUG
-                name = $"Line from {entity.Data.GetStringProperty("hammeruniqueid")} to {target.Data?.GetStringProperty("hammeruniqueid")}";
+                name = $"Line from {entity.KeyValues.GetStringProperty("hammeruniqueid")} to {target.KeyValues.GetStringProperty("hammeruniqueid")}";
 #endif
 
-                AddLine(entity, start, target.Transform.Translation, ConnectionStartColor, ConnectionEndColor, ConnectionsLayerName, name);
+                // Owned by the entity the line starts at, so it leaves the scene with it
+                entity.AddNode(CreateConnectionLine(entity.Scene, start, target.Transform.Translation, name));
             }
 
             if (!matched)
             {
-                scene.RendererContext.Logger.LogDebug("Skipping entity i/o output {TargetName}: no entity matches it", connection.TargetName);
+                entity.Scene.RendererContext.Logger.LogDebug("Skipping entity i/o output {TargetName}: no entity matches it", connection.TargetName);
             }
         }
     }
 
-    // Owned by the entity the line starts at, so it leaves the scene with it
-    private static void AddLine(BaseEntity owner, Vector3 start, Vector3 end, Color32 startColor, Color32 endColor, string layerName, string? name = null)
+    /// <summary>Creates the line along an entity I/O connection, green at the caller and red at the target.</summary>
+    internal static ToolSceneNode CreateConnectionLine(Scene scene, Vector3 start, Vector3 end, string? name = null)
     {
-        var origin = (start + end) / 2f;
-
-        var lineNode = new LineSceneNode(owner.Scene, start - origin, end - origin, startColor, endColor)
+        var node = new ToolSceneNode(scene)
         {
-            LayerName = layerName,
-            Transform = Matrix4x4.CreateTranslation(origin),
             Name = name,
+            LayerName = ConnectionsLayerName,
         };
 
-        owner.AddNode(lineNode, followsEntity: false);
+        node.Draw(context =>
+        {
+            context.PushRenderMode(ToolRenderMode.Wireframe);
+            context.DrawLine(start, end, ConnectionStartColor, ConnectionEndColor);
+            context.PopRenderMode();
+        });
+
+        return node;
     }
 }

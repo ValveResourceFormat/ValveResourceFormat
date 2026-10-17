@@ -101,6 +101,148 @@ public class Rubikon
 
     private int[] HullIndices { get; }
 
+    private AABB? bounds;
+
+    /// <summary>Gets the bounds of every shape, or <see langword="null"/> when there are none.</summary>
+    public AABB? Bounds => bounds ??= ComputeBounds();
+
+    private AABB? ComputeBounds()
+    {
+        var hulls = Hulls.Concat(Compounds.SelectMany(static compound => compound.Hulls));
+        var vertices = Meshes.Concat(Compounds.SelectMany(static compound => compound.Meshes)).SelectMany(static mesh => mesh.VertexPositions);
+        var points = hulls.SelectMany(static hull => (Vector3[])[hull.Min, hull.Max]).Concat(vertices);
+
+        AABB? result = null;
+
+        foreach (var point in points)
+        {
+            result = result?.Encapsulate(point) ?? new AABB(point, point);
+        }
+
+        return result;
+    }
+
+    /// <summary>Initializes <see cref="Rubikon"/> from meshes alone, such as those <see cref="CreateMeshFromTriangles"/> builds.</summary>
+    /// <param name="meshes">The meshes to collide with.</param>
+    public Rubikon(IEnumerable<PhysicsMeshData> meshes)
+    {
+        // Player clip traces run first, as with compiled physics
+        Meshes = [.. meshes.OrderByDescending(static mesh => mesh.InteractAs.Contains("playerclip"))];
+        Compounds = [];
+        Hulls = [];
+        HullIndices = [];
+        HullTree = [];
+    }
+
+    /// <summary>
+    /// Builds a collision mesh from triangles that were never compiled, such as the faces of a map that is being edited,
+    /// with a tree over them for traces to search.
+    /// </summary>
+    /// <param name="interactAs">The collision tags the triangles have.</param>
+    /// <param name="interactExclude">The collision tags the triangles do not collide with.</param>
+    /// <param name="positions">The corners of the triangles, three for each.</param>
+    /// <param name="surfaceProperties">The hash of the surface property of each triangle, see <see cref="StringToken"/>.</param>
+    /// <returns>The mesh.</returns>
+    public static PhysicsMeshData CreateMeshFromTriangles(string[] interactAs, string[] interactExclude, IReadOnlyList<Vector3> positions, IReadOnlyList<uint> surfaceProperties)
+    {
+        ArgumentNullException.ThrowIfNull(positions);
+        ArgumentNullException.ThrowIfNull(surfaceProperties);
+
+        var triangleCount = positions.Count / 3;
+        var order = new int[triangleCount];
+        var centres = new Vector3[triangleCount];
+        var mins = new Vector3[triangleCount];
+        var maxs = new Vector3[triangleCount];
+
+        for (var i = 0; i < triangleCount; i++)
+        {
+            var (a, b, c) = (positions[i * 3], positions[(i * 3) + 1], positions[(i * 3) + 2]);
+
+            order[i] = i;
+            mins[i] = Vector3.Min(a, Vector3.Min(b, c));
+            maxs[i] = Vector3.Max(a, Vector3.Max(b, c));
+            centres[i] = (mins[i] + maxs[i]) * 0.5f;
+        }
+
+        var nodes = new List<Node>();
+
+        if (triangleCount > 0)
+        {
+            BuildMeshBvh(nodes, order, centres, mins, maxs, new float[triangleCount], 0, triangleCount, 0);
+        }
+
+        // The triangles are stored in the order the leaves of the tree hold them, each with corners of its own
+        var vertices = new Vector3[triangleCount * 3];
+        var triangles = new Triangle[triangleCount];
+        var hashes = surfaceProperties.Distinct().ToArray();
+        var hashIndices = hashes.Select(static (hash, index) => (hash, index)).ToDictionary(static entry => entry.hash, static entry => entry.index);
+        var triangleSurfaceProperties = new int[triangleCount];
+
+        for (var i = 0; i < triangleCount; i++)
+        {
+            var source = order[i];
+
+            vertices[i * 3] = positions[source * 3];
+            vertices[(i * 3) + 1] = positions[(source * 3) + 1];
+            vertices[(i * 3) + 2] = positions[(source * 3) + 2];
+            triangles[i] = new Triangle(i * 3, (i * 3) + 1, (i * 3) + 2);
+            triangleSurfaceProperties[i] = hashIndices[surfaceProperties[source]];
+        }
+
+        return new PhysicsMeshData(interactAs, interactExclude, vertices, triangles, [.. nodes])
+        {
+            SurfacePropertyHashes = hashes,
+            TriangleSurfaceProperties = triangleSurfaceProperties,
+        };
+    }
+
+    // Splits the triangles in half along the longest side of their bounds, by the middle of each, until few are left.
+    // The lower half comes first, as traces expect of the tree.
+    private static void BuildMeshBvh(List<Node> nodes, int[] order, Vector3[] centres, Vector3[] mins, Vector3[] maxs, float[] sortKeys, int start, int count, int depth)
+    {
+        const int MaxTrianglesPerLeaf = 4;
+
+        var nodeIndex = nodes.Count;
+        nodes.Add(default);
+
+        var min = mins[order[start]];
+        var max = maxs[order[start]];
+
+        for (var i = start + 1; i < start + count; i++)
+        {
+            min = Vector3.Min(min, mins[order[i]]);
+            max = Vector3.Max(max, maxs[order[i]]);
+        }
+
+        if (count <= MaxTrianglesPerLeaf || depth >= STACK_SIZE - 2)
+        {
+            nodes[nodeIndex] = new Node(min, max, NodeType.Leaf, (uint)count, (uint)start);
+            return;
+        }
+
+        var extent = max - min;
+        var splitAxis = extent.X > extent.Y
+            ? (extent.X > extent.Z ? NodeType.SplitX : NodeType.SplitZ)
+            : (extent.Y > extent.Z ? NodeType.SplitY : NodeType.SplitZ);
+        var axis = (int)splitAxis;
+
+        for (var i = start; i < start + count; i++)
+        {
+            sortKeys[i] = centres[order[i]][axis];
+        }
+
+        Array.Sort(sortKeys, order, start, count);
+
+        var lowerCount = count / 2;
+
+        BuildMeshBvh(nodes, order, centres, mins, maxs, sortKeys, start, lowerCount, depth + 1);
+
+        var upperIndex = nodes.Count;
+        BuildMeshBvh(nodes, order, centres, mins, maxs, sortKeys, start + lowerCount, count - lowerCount, depth + 1);
+
+        nodes[nodeIndex] = new Node(min, max, splitAxis, (uint)(upperIndex - nodeIndex), 0);
+    }
+
     /// <summary>Initializes <see cref="Rubikon"/> by parsing the mesh and hull shapes from the first part of the physics aggregate data.</summary>
     /// <param name="physicsData">Source physics aggregate containing shapes and collision attributes.</param>
     public Rubikon(PhysAggregateData physicsData)

@@ -6,8 +6,6 @@
 // Set for the pass after the translucent layer, which decals the translucent surfaces in front of the opaque scene
 #define D_TRANSLUCENT_SCENE_DEPTH 0
 
-#define ENABLE_LPV_BLENDING
-
 // Dual source: the destination becomes outputColor + destination * outputMultiplier, one channel at a time,
 // which is the same shape as every decal blend mode, so any mix of them stacks in order in one draw
 layout(location = 0, index = 0) out vec4 outputColor;
