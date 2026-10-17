@@ -27,6 +27,18 @@ namespace Tests.Renderer
         }
 
         [Test]
+        public async Task DropsTheKeysAClassRemovesOfItsBases()
+        {
+            var ragdoll = EntityClassCatalog.GetTable(HalfLifeAlyx).FindClass("prop_ragdoll")!;
+
+            await Assert.That(ragdoll.DerivesFrom("Studiomodel")).IsTrue();
+            await Assert.That(ragdoll.FindKey("skin")).IsNull();
+            await Assert.That(ragdoll.FindKey("bodygroups")).IsNull();
+            await Assert.That(ragdoll.FindKey("model")).IsNotNull();
+            await Assert.That(ragdoll.FindKey("spawnflags")?.Default).IsEqualTo("4");
+        }
+
+        [Test]
         public async Task KeepsWhatEachGameDeclares()
         {
             await Assert.That(EntityClassCatalog.GetTable(Dota2).GridNav?.EdgeSize).IsEqualTo(64);

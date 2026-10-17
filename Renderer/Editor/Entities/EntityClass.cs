@@ -66,7 +66,7 @@ public sealed class EntityClass
     public IReadOnlyList<EntityClassKey> Keys { get; init; } = [];
 
     /// <summary>Gets the names of every class the class is based on, directly or through others.</summary>
-    public IReadOnlySet<string> BaseClasses { get; init; } = new HashSet<string>();
+    public IReadOnlySet<string> BaseClasses { get; init; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Gets the class an entity of the class has to be placed under, or <see langword="null"/> where it can be placed anywhere.
