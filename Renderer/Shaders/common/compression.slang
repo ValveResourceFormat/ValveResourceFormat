@@ -70,7 +70,7 @@ public struct NormalData
                 float3 normal;
                 float4 tangent;
                 DecompressNormalTangent2(m_packed.get().value, normal, tangent);
-                return cross(tangent.xyz, normal) * tangent.w;
+                return cross(normal, tangent.xyz) * tangent.w;
             };
         }
     }
@@ -147,9 +147,9 @@ void DecompressNormalTangent2(
     float negativeZCompensation = saturate(-derivedNormalZ);
 
     unpackedNormal.xy += select(
-        float2(negativeZCompensation),
+        unpackedNormal.xy >= float2(0.0),
         float2(-negativeZCompensation),
-        unpackedNormal.xy >= float2(0.0));
+        float2(negativeZCompensation));
 
     normal = normalize(unpackedNormal);
 

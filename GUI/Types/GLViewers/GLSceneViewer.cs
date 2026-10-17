@@ -47,7 +47,6 @@ namespace GUI.Types.GLViewers
         //    }
         //}
 
-        private bool ShowBaseGrid;
         private bool ShowLightBackground;
         private bool ShowSolidBackground;
 
@@ -728,7 +727,7 @@ namespace GUI.Types.GLViewers
             // this frame's position and last frame's facing
             UpdateSoundPlayer();
 
-            //Renderer.ForceResolveSceneDepth = ShowBaseGrid;
+            //Renderer.ForceResolveSceneDepth = Renderer.ShowGrid;
 
             var quadOverdrawThisFrame = false;
 
@@ -952,8 +951,8 @@ namespace GUI.Types.GLViewers
 
             if (this is not GLMaterialViewer)
             {
-                ShowBaseGrid = true;
-                UiControl.AddCheckBox("Show Grid", ShowBaseGrid, (v) => ShowBaseGrid = v);
+                Renderer.ShowGrid = true;
+                UiControl.AddCheckBox("Show Grid", Renderer.ShowGrid, (v) => Renderer.ShowGrid = v);
             }
         }
 

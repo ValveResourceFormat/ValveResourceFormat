@@ -45,6 +45,13 @@ public class Renderer2
     public bool HasSwapchain => WindowSwapchain != null;
 
     /// <summary>
+    /// Draws the infinite reference grid on the XY plane after the scene.
+    /// </summary>
+    public bool ShowGrid { get; set; }
+
+    private ResourceHandle<PipelineGraphics>? GridPipeline;
+
+    /// <summary>
     /// Total time elapsed since the renderer was started, in seconds.
     /// </summary>
     public float Uptime { get; set; }
@@ -137,9 +144,30 @@ public class Renderer2
         projectionMatrix.M22 *= -1;
 
         var view = viewMatrix ?? Matrix4x4.Identity;
-        Frame.viewConstantsCPU.ViewToProjection = projectionMatrix;
+        var viewConstants = Frame.viewConstantsCPU;
+        viewConstants.ViewToProjection = projectionMatrix;
+        viewConstants.WorldToView = view;
+        viewConstants.WorldToProjection = view * projectionMatrix;
 
-        Frame.viewConstantsCPU.WorldToView = view;
+        // Despite the name, this only inverts the projection, matching what shaders expect
+        if (!Matrix4x4.Invert(projectionMatrix, out viewConstants.ProjectionToWorld))
+        {
+            throw new InvalidOperationException("Matrix invert failed");
+        }
+
+        viewConstants.InvProjRow3 = new Vector4(
+            viewConstants.ProjectionToWorld.M14,
+            viewConstants.ProjectionToWorld.M24,
+            viewConstants.ProjectionToWorld.M34,
+            viewConstants.ProjectionToWorld.M44
+        );
+
+        viewConstants.CameraPosition = viewContext.Camera.Location;
+        viewConstants.CameraDirWs = viewContext.Camera.Forward;
+        viewConstants.CameraUpDirWs = viewContext.Camera.Up;
+        viewConstants.ViewportSize = new Vector2(WindowSwapchain.Extent.width, WindowSwapchain.Extent.height);
+        viewConstants.InvViewportSize = Vector2.One / viewConstants.ViewportSize;
+        viewConstants.Time = Uptime;
 
         void* mapped = Frame.viewConstantBuffer.Map();
         Marshal.StructureToPtr(Frame.viewConstantsCPU, (nint)mapped, false);
@@ -174,6 +202,15 @@ public class Renderer2
 
         RenderScenesWithView(viewContext);
 
+        // VKTODO: Draw the +X/-X/+Y/-Y axis labels once world space text is ported
+        if (ShowGrid && GridPipeline != null)
+        {
+            cmd.BeginDebugLabel("Grid");
+            cmd.BindGraphicsPipeline(GridPipeline.Current);
+            cmd.Draw(3, 1, 0, 0);
+            cmd.EndDebugLabel();
+        }
+
         cmd.EndRendering();
         cmd.EndDebugLabel();
 
@@ -205,6 +242,7 @@ public class Renderer2
     public void Initialize()
     {
         InFlightFrames ??= new InFlightFrames(2);
+        GridPipeline ??= RendererContext.ShaderLoader.GetPipelineGraphics("grid", new BlendStateDescription { BlendEnable = true });
     }
 
     public void LoadRendererResources()

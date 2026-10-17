@@ -126,29 +126,6 @@ namespace ValveResourceFormat.Renderer.Shaders
 
         public ResourceHandle<PipelineGraphics> GetPipelineGraphics(string shaderName, VBIB vbib, IReadOnlyDictionary<string, byte>? arguments = null)
         {
-            var shaderFileName = GetShaderFileByName(shaderName) + ".slang";
-            var shaderCacheHash = CalculateShaderCacheHash(shaderName, arguments);
-
-            var path = Path.Combine(ShaderDirectory, shaderFileName);
-            if (ShaderSourceDirectory != null)
-                path = Path.Combine(ShaderSourceDirectory, shaderFileName);
-
-            if (!File.Exists(path))
-            {
-                throw new Exception("Uh oh, the pipeline does not exist!");
-            }
-
-            var module = ShaderCompiler.LoadShaderModule(path);
-
-            Dictionary<string, int>? castArguments = null;
-            if(arguments != null)
-
-                castArguments = arguments.ToDictionary(
-        kvp => kvp.Key,
-        kvp => (int)kvp.Value
-    );
-            var specialisedShader = ShaderCompiler.SpecialiseAndCompile(module.Module, castArguments);
-
             VkFormat DXGIFormatToVkFormat(DXGI_FORMAT format)
             {
                 switch (format)
@@ -184,7 +161,46 @@ namespace ValveResourceFormat.Renderer.Shaders
 
             }
 
-            var pipeline = new ResourceHandle<PipelineGraphics>(new RHI.PipelineGraphics(specialisedShader, VkFormat.R16G16B16A16Sfloat, VkFormat.D32Sfloat, bindingDescriptions));
+            return CreatePipelineGraphics(shaderName, bindingDescriptions, default, arguments);
+        }
+
+        /// <summary>
+        /// Gets a graphics pipeline without vertex input, for shaders that build their vertices from <c>SV_VertexID</c>.
+        /// </summary>
+        /// <param name="shaderName">The renderer shader file name, see <see cref="GetShaderFileByName"/>.</param>
+        /// <param name="blendState">Blending state of the color target.</param>
+        /// <param name="arguments">Static combo parameter overrides, or <see langword="null"/> for defaults.</param>
+        public ResourceHandle<PipelineGraphics> GetPipelineGraphics(string shaderName, BlendStateDescription blendState, IReadOnlyDictionary<string, byte>? arguments = null)
+        {
+            return CreatePipelineGraphics(shaderName, null, blendState, arguments);
+        }
+
+        private ResourceHandle<PipelineGraphics> CreatePipelineGraphics(string shaderName, BindingDescription[]? bindingDescriptions, BlendStateDescription blendState, IReadOnlyDictionary<string, byte>? arguments)
+        {
+            var shaderFileName = GetShaderFileByName(shaderName) + ".slang";
+            var shaderCacheHash = CalculateShaderCacheHash(shaderName, arguments);
+
+            var path = Path.Combine(ShaderDirectory, shaderFileName);
+            if (ShaderSourceDirectory != null)
+                path = Path.Combine(ShaderSourceDirectory, shaderFileName);
+
+            if (!File.Exists(path))
+            {
+                throw new Exception("Uh oh, the pipeline does not exist!");
+            }
+
+            var module = ShaderCompiler.LoadShaderModule(path);
+
+            Dictionary<string, int>? castArguments = null;
+            if(arguments != null)
+
+                castArguments = arguments.ToDictionary(
+        kvp => kvp.Key,
+        kvp => (int)kvp.Value
+    );
+            var specialisedShader = ShaderCompiler.SpecialiseAndCompile(module.Module, castArguments);
+
+            var pipeline = new ResourceHandle<PipelineGraphics>(new RHI.PipelineGraphics(specialisedShader, VkFormat.R16G16B16A16Sfloat, VkFormat.D32Sfloat, bindingDescriptions, blendState));
 
 
 
