@@ -16,6 +16,9 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 public class IconHelper : EntityHelper
 {
     /// <inheritdoc/>
+    public override bool IsStandIn => true;
+
+    /// <inheritdoc/>
     public override bool HiddenInGameObjectsOnly => true;
 
     private const float MinimumTintValue = 0.3f;

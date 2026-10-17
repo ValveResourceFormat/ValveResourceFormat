@@ -26,6 +26,9 @@ public enum BoxHelperSize
 public sealed class BoxHelper : EntityHelper
 {
     /// <inheritdoc/>
+    public override bool IsToolShape => true;
+
+    /// <inheritdoc/>
     public override bool IsVisual => false;
 
     /// <inheritdoc/>

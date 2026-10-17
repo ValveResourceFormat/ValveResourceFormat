@@ -12,6 +12,9 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 public sealed class SweptPlayerHullHelper : EntityHelper
 {
     /// <inheritdoc/>
+    public override bool IsToolShape => true;
+
+    /// <inheritdoc/>
     public override bool HiddenInGameObjectsOnly => true;
 
     private const string EndKey = "point1";

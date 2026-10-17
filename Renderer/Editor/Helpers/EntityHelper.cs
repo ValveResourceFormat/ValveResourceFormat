@@ -41,6 +41,18 @@ public abstract class EntityHelper
     public virtual bool RequiresHighlight => false;
 
     /// <summary>
+    /// Gets whether the helper stands in for its entity in the editor, rather than drawing what the game shows of
+    /// it. The game draws an entity of a compiled map, so of its helpers these are what is drawn in its place.
+    /// </summary>
+    public virtual bool IsStandIn => false;
+
+    /// <summary>
+    /// Gets whether the helper only draws shapes of the editor, which the game does not show. An entity of a
+    /// compiled map is drawn with these too.
+    /// </summary>
+    public virtual bool IsToolShape => false;
+
+    /// <summary>
     /// Gets whether the helper of a path is drawn as it is while the path is selected also while any node of the
     /// path is.
     /// </summary>

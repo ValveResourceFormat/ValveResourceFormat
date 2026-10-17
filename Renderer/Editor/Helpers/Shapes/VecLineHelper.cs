@@ -14,6 +14,9 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 public sealed class VecLineHelper : EntityHelper
 {
     /// <inheritdoc/>
+    public override bool IsToolShape => true;
+
+    /// <inheritdoc/>
     public override bool IsVisual => false;
 
     /// <inheritdoc/>
