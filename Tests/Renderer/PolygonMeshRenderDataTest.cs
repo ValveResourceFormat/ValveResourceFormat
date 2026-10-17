@@ -78,7 +78,7 @@ namespace Tests.Renderer
                 ("VertexPaintTintColor", "COLOR", 0),
                 ("PerVertexLighting", "COLOR", 1));
 
-            var (buffers, bounds) = PolygonMeshRenderData.BuildVertexAndIndexBuffers(submesh, blend, Matrix4x4.Identity);
+            var (buffers, bounds) = PolygonMeshRenderData.BuildVertexAndIndexBuffers(submesh, blend);
             var lighting = MemoryMarshal.Cast<byte, float>(buffers.VertexBuffers[1].Data).ToArray();
 
             using (Assert.Multiple())
@@ -97,14 +97,12 @@ namespace Tests.Renderer
             }
 
             var plain = MakeSignature(("PosXyz", "POSITION", 0), ("LowPrecisionUv", "TEXCOORD", 0));
-            var (plainBuffers, _) = PolygonMeshRenderData.BuildVertexAndIndexBuffers(submesh, plain, Matrix4x4.CreateTranslation(10, 0, 0));
-            var positions = MemoryMarshal.Cast<byte, float>(plainBuffers.VertexBuffers[0].Data).ToArray();
+            var (plainBuffers, _) = PolygonMeshRenderData.BuildVertexAndIndexBuffers(submesh, plain);
 
             using (Assert.Multiple())
             {
                 await Assert.That(plainBuffers.VertexBuffers.Count).IsEqualTo(1);
                 await Assert.That(Describe(plainBuffers.VertexBuffers[0])).IsEqualTo("POSITION0@0 NORMAL0@12 TANGENT0@24 TEXCOORD0@40");
-                await Assert.That(Enumerable.Range(0, 4).Min(i => positions[i * 12])).IsEqualTo(10f);
             }
         }
     }
