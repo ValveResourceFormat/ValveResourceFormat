@@ -249,4 +249,28 @@ public static class MeshUtils
 
         return Vector3.Distance(point, Vector3.Lerp(start, end, fraction));
     }
+
+    /// <summary>
+    /// Sums the normal of a polygon by Newell's method without normalising it, facing the way the polygon winds
+    /// counter clockwise around and twice as long as its area.
+    /// </summary>
+    internal static Vector3 NewellNormal(ReadOnlySpan<Vector3> positions)
+    {
+        var normal = Vector3.Zero;
+
+        for (var i = 0; i < positions.Length; i++)
+        {
+            AccumulateNewellPair(ref normal, positions[i], positions[(i + 1) % positions.Length]);
+        }
+
+        return normal;
+    }
+
+    /// <summary>Adds the edge from <paramref name="start"/> to <paramref name="end"/> to a Newell normal.</summary>
+    internal static void AccumulateNewellPair(ref Vector3 normal, in Vector3 start, in Vector3 end)
+    {
+        normal.X += (start.Y - end.Y) * (start.Z + end.Z);
+        normal.Y += (start.Z - end.Z) * (start.X + end.X);
+        normal.Z += (start.X - end.X) * (start.Y + end.Y);
+    }
 }

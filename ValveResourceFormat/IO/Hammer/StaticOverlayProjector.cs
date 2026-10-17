@@ -201,15 +201,7 @@ public static class StaticOverlayProjector
     // Newell's method, the way the polygon winds counter clockwise around
     private static Vector3 ComputePolygonNormal(ReadOnlySpan<Vector3> positions)
     {
-        var normal = Vector3.Zero;
-
-        for (var i = 0; i < positions.Length; i++)
-        {
-            var a = positions[i];
-            var b = positions[(i + 1) % positions.Length];
-
-            normal += new Vector3((a.Y - b.Y) * (a.Z + b.Z), (a.Z - b.Z) * (a.X + b.X), (a.X - b.X) * (a.Y + b.Y));
-        }
+        var normal = MeshUtils.NewellNormal(positions);
 
         return normal / (normal.Length() + 1.1920929e-7f);
     }
@@ -862,21 +854,7 @@ public static class StaticOverlayProjector
 
             for (var v = t; v < t + 3; v++)
             {
-                var normal = normals[v];
-                var u = gradientU;
-                var w = gradientV;
-
-                if (u.Length() < 1e-12f || w.Length() < 1e-12f)
-                {
-                    u = MathUtils.SafeNormalize(Vector3.Cross(MathF.Abs(normal.Z) < 0.999f ? Vector3.UnitZ : Vector3.UnitY, normal));
-                    w = Vector3.Cross(normal, u);
-                }
-
-                var sign = Vector3.Dot(normal, Vector3.Cross(u, w)) < 0f ? -1f : 1f;
-                var alongU = MathUtils.SafeNormalize(Vector3.Cross(Vector3.Cross(normal, u), normal));
-                var alongV = sign > 0f ? MathUtils.SafeNormalize(Vector3.Cross(w, normal)) : MathUtils.SafeNormalize(Vector3.Cross(normal, w));
-
-                tangents[v] = new Vector4(MathUtils.SafeNormalize(alongU + alongV), sign);
+                PolygonMesh.CalcTangentAndFlipFromBasis(gradientU, gradientV, normals[v], out tangents[v], zeroDegenerate: true);
             }
         }
 

@@ -1298,18 +1298,14 @@ public sealed partial class MapExtract
 
         void InsertFace(int targetSet, Vector3[] corners)
         {
-            // Newell normal and bounds
-            var normal = Vector3.Zero;
+            var normal = MeshUtils.NewellNormal(corners);
             var min = new Vector3(float.MaxValue);
             var max = new Vector3(float.MinValue);
 
-            for (var i = 0; i < corners.Length; i++)
+            foreach (var corner in corners)
             {
-                var current = corners[i];
-                var next = corners[(i + 1) % corners.Length];
-                normal += new Vector3((current.Y - next.Y) * (current.Z + next.Z), (current.Z - next.Z) * (current.X + next.X), (current.X - next.X) * (current.Y + next.Y));
-                min = Vector3.Min(min, current);
-                max = Vector3.Max(max, current);
+                min = Vector3.Min(min, corner);
+                max = Vector3.Max(max, corner);
             }
 
             if (normal.LengthSquared() < 1e-10f)

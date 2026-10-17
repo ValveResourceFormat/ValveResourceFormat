@@ -576,13 +576,6 @@ public sealed partial class PolygonMesh
         return normal;
     }
 
-    private static void AccumulateNewellPair(ref Vector3 vNormal, in Vector3 pU, in Vector3 pV)
-    {
-        vNormal.X += (pU.Y - pV.Y) * (pU.Z + pV.Z);
-        vNormal.Y += (pU.Z - pV.Z) * (pU.X + pV.X);
-        vNormal.Z += (pU.X - pV.X) * (pU.Y + pV.Y);
-    }
-
     private static void FinaliseNewellNormal(in Vector3 vNormal, in Vector3 refpt, int count, out Vector3 pOutNormal, out float pOutPlaneDistance)
     {
         var len = vNormal.Length() + 1.192092896e-07F;
@@ -622,7 +615,7 @@ public sealed partial class PolygonMesh
             }
             else
             {
-                AccumulateNewellPair(ref vNormal, prev, pos);
+                MeshUtils.AccumulateNewellPair(ref vNormal, prev, pos);
             }
 
             refpt += absolute;
@@ -635,7 +628,7 @@ public sealed partial class PolygonMesh
 
         if (count > 0)
         {
-            AccumulateNewellPair(ref vNormal, prev, first);
+            MeshUtils.AccumulateNewellPair(ref vNormal, prev, first);
         }
 
         FinaliseNewellNormal(vNormal, refpt, count, out pOutNormal, out pOutPlaneDistance);
@@ -799,30 +792,36 @@ public sealed partial class PolygonMesh
         tVect = MathUtils.SafeNormalize(tVect);
     }
 
-    private static void BuildBasis(Vector3 normal, out Vector3 tangent, out Vector3 bitangent)
+    // A direction of zero length normalises to NaN, or stays zero when zeroDegenerate is set
+    private static Vector3 NormalizeDirection(Vector3 value, bool zeroDegenerate)
+        => zeroDegenerate ? MathUtils.SafeNormalize(value) : Vector3.Normalize(value);
+
+    private static void BuildBasis(Vector3 normal, out Vector3 tangent, out Vector3 bitangent, bool zeroDegenerate = false)
     {
         // Source: up is +Z, left is +Y
-        tangent = Vector3.Normalize(Vector3.Cross(MathF.Abs(normal.Z) < 0.999f ? Vector3.UnitZ : Vector3.UnitY, normal));
+        tangent = NormalizeDirection(Vector3.Cross(MathF.Abs(normal.Z) < 0.999f ? Vector3.UnitZ : Vector3.UnitY, normal), zeroDegenerate);
         bitangent = Vector3.Cross(normal, tangent);
     }
 
-    private static void CalcTangentAndFlipFromBasis(Vector3 inTangentU, Vector3 inTangentV, Vector3 normal, out Vector4 tangent)
+    // Static overlays set zeroDegenerate, so a zero normal or a texture running along the normal gives a zero
+    // direction rather than NaN
+    internal static void CalcTangentAndFlipFromBasis(Vector3 inTangentU, Vector3 inTangentV, Vector3 normal, out Vector4 tangent, bool zeroDegenerate = false)
     {
         var tangentU = inTangentU;
         var tangentV = inTangentV;
 
         if (tangentU.Length() < 1e-12f || tangentV.Length() < 1e-12f)
         {
-            BuildBasis(normal, out tangentU, out tangentV);
+            BuildBasis(normal, out tangentU, out tangentV, zeroDegenerate);
         }
 
         var crossUV = Vector3.Cross(tangentU, tangentV);
         var isLeftHanded = Vector3.Dot(crossUV, normal) < 0.0f;
         var orthoU = Vector3.Cross(normal, tangentU);
-        var tangentFromU = Vector3.Normalize(Vector3.Cross(orthoU, normal));
+        var tangentFromU = NormalizeDirection(Vector3.Cross(orthoU, normal), zeroDegenerate);
         var tangentFromV = isLeftHanded ? Vector3.Cross(normal, tangentV) : Vector3.Cross(tangentV, normal);
-        tangentFromV = Vector3.Normalize(tangentFromV);
-        var finalTangent = Vector3.Normalize(tangentFromU + tangentFromV);
+        tangentFromV = NormalizeDirection(tangentFromV, zeroDegenerate);
+        var finalTangent = NormalizeDirection(tangentFromU + tangentFromV, zeroDegenerate);
         tangent = new Vector4(finalTangent.X, finalTangent.Y, finalTangent.Z, isLeftHanded ? -1.0f : 1.0f);
     }
 
