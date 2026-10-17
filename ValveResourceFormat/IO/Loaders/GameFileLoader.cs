@@ -122,7 +122,8 @@ namespace ValveResourceFormat.IO
         /// when no game was found or it is not in the folder of an installed app. Where several apps share the
         /// folder, it is the one with the lowest app id.
         /// </summary>
-        public virtual int InstalledSteamAppId => installedSteamAppId ??= FindInstalledSteamAppId();
+        /// <remarks>Nothing is kept before a game is found, as search paths loaded later can still find one.</remarks>
+        public virtual int InstalledSteamAppId => CurrentGameInfos.Count == 0 ? 0 : installedSteamAppId ??= FindInstalledSteamAppId();
 
         /// <summary>
         /// Gets whether the first game found fogs particles whose renderer leaves fog to the game, which its
@@ -976,11 +977,6 @@ namespace ValveResourceFormat.IO
 
         private int FindInstalledSteamAppId()
         {
-            if (CurrentGameInfos.Count == 0)
-            {
-                return 0;
-            }
-
             var gameInfoPath = Path.GetFullPath(CurrentGameInfos[0].Path);
 
             return GameFolderLocator.FindSteamGameContainingPath(gameInfoPath, GameFolderLocator.FindAllSteamGames()) is { } game ? game.AppID : 0;
