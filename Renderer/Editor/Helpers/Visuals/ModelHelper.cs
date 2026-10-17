@@ -204,7 +204,7 @@ public class ModelHelper : EntityHelper
         // A class can name a key of the entity that holds the model, rather than the model itself
         if (GetBlockString(block, "preview_modelname") is { } previewKey)
         {
-            name = GetKey(owner, previewKey);
+            name = GetStringKey(owner, previewKey);
             isNamedByClass = true;
             firstOption = 0;
         }
@@ -216,7 +216,7 @@ public class ModelHelper : EntityHelper
         }
         else
         {
-            name = GetKey(owner, "model");
+            name = GetStringKey(owner, "model");
             isNamedByClass = false;
             firstOption = 0;
         }
@@ -225,7 +225,7 @@ public class ModelHelper : EntityHelper
         if (GetBlock(block, "model_from_key") is { } fromKey && GetBlockString(fromKey, "source_key") is { } sourceKey
             && GetBlock(fromKey, "value_to_vmdl") is { } models)
         {
-            var value = GetKey(owner, sourceKey);
+            var value = GetStringKey(owner, sourceKey);
 
             name = value.Length > 0 && models.ContainsKey(value) ? models.GetStringProperty(value) : null;
         }
@@ -272,7 +272,7 @@ public class ModelHelper : EntityHelper
             ? arguments[animation + 1]
             : null;
 
-        var previewClip = isEditorModelName && GetBlockString(block, "preview_clipname") is { } clipKey ? GetKey(owner, clipKey) : null;
+        var previewClip = isEditorModelName && GetBlockString(block, "preview_clipname") is { } clipKey ? GetStringKey(owner, clipKey) : null;
 
         // The model of an entity is drawn the way the game draws it before it is told to play anything
         var defaultSequence = isEditorModel ? DefaultSequence.Search
@@ -614,29 +614,6 @@ public class ModelHelper : EntityHelper
     }
 
     private static string? NonEmpty(string value) => value.Length > 0 ? value : null;
-
-    /// <summary>Gets a key of an entity, or the default its class gives it.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="key">Name of the key.</param>
-    /// <returns>The value, empty when neither has it.</returns>
-    private protected static string GetKey(IHelperOwner owner, string key)
-    {
-        if (owner.KeyValues.ContainsKey(key))
-        {
-            return owner.KeyValues.GetStringProperty(key) ?? string.Empty;
-        }
-
-        return owner.FgdClass?.FindVariable(key) is { HasDefault: true } variable ? variable.DefaultString : string.Empty;
-    }
-
-    private static KVObject? GetBlock(KVObject? block, string key)
-        => block != null && block.ContainsKey(key) && block[key] is { ValueType: KVValueType.Collection } value ? value : null;
-
-    private static string? GetBlockString(KVObject? block, string key)
-        => block != null && block.ContainsKey(key) && block.GetStringProperty(key) is { Length: > 0 } value ? value : null;
-
-    private static bool GetBlockFlag(KVObject? block, string key)
-        => block != null && block.ContainsKey(key) && block.GetBooleanProperty(key);
 
     // Three or four numbers, the alpha full where it is left out
     private static Color32? ParseColor(string text)
