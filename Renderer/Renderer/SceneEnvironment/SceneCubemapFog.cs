@@ -166,7 +166,6 @@ public class SceneCubemapFog(Scene scene) : SceneNode(scene)
         var fogSource = (FogSource)entity.GetUInt32Property("cubemapfogsource");
 
         RenderTexture? fogTexture = null;
-        var exposureBias = 0.0f;
         string? material = null;
         var skyBrightnessScale = 1.0f;
 
@@ -209,23 +208,7 @@ public class SceneCubemapFog(Scene scene) : SceneNode(scene)
                 return null;
         }
 
-        if (!string.IsNullOrEmpty(material))
-        {
-            using var matFile = rendererContext.FileLoader.LoadFileCompiled(material);
-            var mat = rendererContext.MaterialLoader.LoadMaterial(matFile);
-
-            if (mat != null && mat.Textures.TryGetValue("g_tSkyTexture", out fogTexture))
-            {
-                var brightnessExposureBias = mat.FloatParams.GetValueOrDefault("g_flBrightnessExposureBias", 0f);
-                // todo: make sure this matches with scene post process
-                var renderOnlyExposureBias = mat.FloatParams.GetValueOrDefault("g_flRenderOnlyExposureBias", 0f);
-
-                // These are both logarithms, so this is equivalent to a multiply of the raw value
-                exposureBias = brightnessExposureBias + renderOnlyExposureBias + MathF.Log2(skyBrightnessScale);
-            }
-        }
-
-        return new SceneCubemapFog(scene)
+        var fog = new SceneCubemapFog(scene)
         {
             StartDist = startDist,
             EndDist = endDist,
@@ -237,8 +220,47 @@ public class SceneCubemapFog(Scene scene) : SceneNode(scene)
             Transform = transform,
             CubemapFogTexture = fogTexture,
             Opacity = opacity,
-            ExposureBias = exposureBias,
             UseHeightFog = useHeightFog,
         };
+
+        if (!string.IsNullOrEmpty(material))
+        {
+            fog.SetSkyMaterial(material, skyBrightnessScale);
+        }
+
+        return fog;
+    }
+
+    /// <summary>
+    /// Colors the fog from the sky texture of a sky material, exposed as the material and the sky entity
+    /// make it. Leaves the fog as it is when the material does not load or has no sky texture.
+    /// </summary>
+    /// <param name="materialName">The sky material.</param>
+    /// <param name="brightnessScale">Brightness scale of the sky entity, or 1 for a material the fog names itself.</param>
+    public void SetSkyMaterial(string materialName, float brightnessScale)
+    {
+        var rendererContext = Scene.RendererContext;
+
+        using var materialFile = rendererContext.FileLoader.LoadFileCompiled(materialName);
+
+        if (materialFile == null)
+        {
+            return;
+        }
+
+        var material = rendererContext.MaterialLoader.LoadMaterial(materialFile);
+
+        if (!material.Textures.TryGetValue("g_tSkyTexture", out var texture))
+        {
+            return;
+        }
+
+        // Both biases are powers of two, which the brightness of the sky entity scales
+        // todo: make sure this matches with scene post process
+        var exposureBias = material.FloatParams.GetValueOrDefault("g_flBrightnessExposureBias")
+            + material.FloatParams.GetValueOrDefault("g_flRenderOnlyExposureBias");
+
+        CubemapFogTexture = texture;
+        ExposureBias = exposureBias + MathF.Log2(brightnessScale);
     }
 }
