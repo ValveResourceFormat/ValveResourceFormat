@@ -194,30 +194,33 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
         }
     }
 
-    /// <summary>Draws a line from the entity to every entity its entity I/O connections reach.</summary>
-    private static void AddConnectionLines(Scene scene, BaseEntity entity)
+    // A 3D sky shares names with the map it is placed in, and the entity is the caller a connection aimed at !self reaches
+    private void AddConnectionLines(Scene scene, BaseEntity entity)
     {
-        if (entity.Data?.Connections is not { } connections)
+        if (entity.Data?.Connections is { } connections)
         {
-            return;
+            AddConnectionLines(GetEntity(entity), connections, connection => entity.EntitySystem
+                .FindTargets(EntitySystem.ConnectionTarget(connection, entity.NameFixup), caller: entity)
+                .Where(target => target.Scene.WorldGroup == scene.WorldGroup && (target.SpawnData ?? target.Data) != null)
+                .Select(GetEntity));
         }
+    }
 
+    /// <summary>Draws a line from an entity to every entity its entity I/O connections reach, once for each.</summary>
+    /// <param name="entity">The entity the connections start at, which owns the lines.</param>
+    /// <param name="connections">The connections.</param>
+    /// <param name="findTargets">Finds the entities a connection reaches.</param>
+    internal static void AddConnectionLines(IHelperOwner entity, IReadOnlyList<EntityLump.Connection> connections, Func<EntityLump.Connection, IEnumerable<IHelperOwner>> findTargets)
+    {
         var start = entity.Transform.Translation;
-        var alreadySeen = new HashSet<BaseEntity>(connections.Count);
+        var alreadySeen = new HashSet<IHelperOwner>(connections.Count);
 
         foreach (var connection in connections)
         {
             var matched = false;
 
-            // The entity as the caller, so a connection aimed at !self reaches it
-            foreach (var target in entity.EntitySystem.FindTargets(EntitySystem.ConnectionTarget(connection, entity.NameFixup), caller: entity))
+            foreach (var target in findTargets(connection))
             {
-                // A 3D sky shares names with the map it is placed in
-                if (target.Scene.WorldGroup != scene.WorldGroup)
-                {
-                    continue;
-                }
-
                 matched = true;
 
                 if (!alreadySeen.Add(target))
@@ -227,18 +230,16 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
 
                 string? name = null;
 #if DEBUG
-                name = $"Line from {entity.Data.GetStringProperty("hammeruniqueid")} to {target.Data?.GetStringProperty("hammeruniqueid")}";
+                name = $"Line from {entity.KeyValues.GetStringProperty("hammeruniqueid")} to {target.KeyValues.GetStringProperty("hammeruniqueid")}";
 #endif
 
-                var line = CreateConnectionLine(entity.Scene, start, target.Transform.Translation, name);
-
                 // Owned by the entity the line starts at, so it leaves the scene with it
-                entity.AddNode(line, followsEntity: false);
+                entity.AddNode(CreateConnectionLine(entity.Scene, start, target.Transform.Translation, name));
             }
 
             if (!matched)
             {
-                scene.RendererContext.Logger.LogDebug("Skipping entity i/o output {TargetName}: no entity matches it", connection.TargetName);
+                entity.Scene.RendererContext.Logger.LogDebug("Skipping entity i/o output {TargetName}: no entity matches it", connection.TargetName);
             }
         }
     }
