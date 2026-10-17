@@ -6,7 +6,7 @@ namespace ValveResourceFormat.Animation
     {
         /// <summary>
         /// Wires child node references and definition-derived state. Runs once for every node in
-        /// array order at graph construction (Esoterica InstantiateNode).
+        /// array order at graph construction.
         /// </summary>
         public abstract void Instantiate(GraphContext ctx);
 

@@ -1,3 +1,7 @@
+---
+description: Source 2 Viewer collects no personal data; this page explains the update check, update downloads and the websites involved.
+---
+
 # Privacy
 
 Source 2 Viewer does not collect or share any personal data. There is no telemetry, no crash

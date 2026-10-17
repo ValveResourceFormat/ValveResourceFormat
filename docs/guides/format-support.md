@@ -1,3 +1,7 @@
+---
+description: See which Source 2 resource formats Source 2 Viewer can view, decompile and export, and what data is lost along the way.
+---
+
 # Format Support and Export Fidelity
 
 Source 2 Viewer (and the ValveResourceFormat library) can view, dump, decompile, and export
@@ -138,12 +142,12 @@ rebuilt fails to decompile; `--skip_softbody_reconstruction` decompiles it witho
 
 What a recompiled model will be missing:
 
-| What                                      | Why                          | Details                                                                                                                                                                                                                                                                                                                                                               |
-| ----------------------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Stereo flex controls                      | Not in compiled files        | The compiler splits a stereo slider into independent left and right controllers, so it comes back as two sliders.                                                                                                                                                                                                                                                     |
-| Animations from include-models            | Not implemented              | Their sequences are not written, but their `AnimIncludeModel` references are kept, so they come back if those models are decompiled too.                                                                                                                                                                                                                              |
-| Vertical root motion                      | Intentional                  | The Z component of root motion is zeroed on export, matching how the engine applies movement to the visible body.                                                                                                                                                                                                                                                     |
-| Attachment camera preview look            | Not in compiled files        | The `preview_scale` and `background_color` of an `Attachment Camera Preview` only affect the editor, so they come back at their defaults. A camera on an attachment that the compiled model does not have is dropped.                                                                                                                                                 |
+| What                           | Why                   | Details                                                                                                                                                                                                               |
+| ------------------------------ | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stereo flex controls           | Not in compiled files | The compiler splits a stereo slider into independent left and right controllers, so it comes back as two sliders.                                                                                                     |
+| Animations from include-models | Not implemented       | Their sequences are not written, but their `AnimIncludeModel` references are kept, so they come back if those models are decompiled too.                                                                              |
+| Vertical root motion           | Intentional           | The Z component of root motion is zeroed on export, matching how the engine applies movement to the visible body.                                                                                                     |
+| Attachment camera preview look | Not in compiled files | The `preview_scale` and `background_color` of an `Attachment Camera Preview` only affect the editor, so they come back at their defaults. A camera on an attachment that the compiled model does not have is dropped. |
 
 ### glTF Export
 
@@ -227,11 +231,11 @@ lighting and visibility: the 3D sky a `skybox_reference` names, prefabs left for
 load (`point_prefab` and classes flagged `ispointprefab`, such as the CS2 team intros), and the
 stages an `info_spawngroup_load_unload` loads and unloads when its entity I/O fires.
 
-| What                         | Details                                                                                                              |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Runtime spawn group lights   | Realtime barn lights of a loaded stage are not drawn; its baked lighting and its sun are.                            |
-| Translucents across groups   | Each spawn group sorts its own translucent geometry, so translucents of two groups can overlap in the wrong order.  |
-| `sky_camera_volume`          | Not implemented; the 3D sky always comes from the `skybox_reference` and its `sky_camera`.                           |
+| What                       | Details                                                                                                            |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Runtime spawn group lights | Realtime barn lights of a loaded stage are not drawn; its baked lighting and its sun are.                          |
+| Translucents across groups | Each spawn group sorts its own translucent geometry, so translucents of two groups can overlap in the wrong order. |
+| `sky_camera_volume`        | Not implemented; the 3D sky always comes from the `skybox_reference` and its `sky_camera`.                         |
 
 ## Materials (vmat)
 
@@ -298,13 +302,13 @@ dedicated support beyond the generic dump.
 
 ### Animgraph Playback
 
-| Gap                                 | Category              | Detail                                                                                                      |
-| ----------------------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------- |
-| Control parameter values            | Not in compiled files | Set at runtime. The viewer exposes every parameter as a control and guesses starting values.                |
-| External graph, pose and data slots | Not in compiled files | Slots filled at runtime stay empty, and the branches reading them contribute no pose.                       |
-| Animgraph 1 execution               | Not implemented       | Only Animgraph 2 graphs are executed.                                                                       |
-| Orientation warp translation        | Not implemented       | The translation warp flag of `OrientationWarpNode` is not applied.                                          |
-| Target selector alignment bone      | Not implemented       | `TargetSelectorNode` scores its options by where their root motion ends, without the alignment bone.        |
+| Gap                                 | Category              | Detail                                                                                               |
+| ----------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------- |
+| Control parameter values            | Not in compiled files | Set at runtime. The viewer exposes every parameter as a control and guesses starting values.         |
+| External graph, pose and data slots | Not in compiled files | Slots filled at runtime stay empty, and the branches reading them contribute no pose.                |
+| Animgraph 1 execution               | Not implemented       | Only Animgraph 2 graphs are executed.                                                                |
+| Orientation warp translation        | Not implemented       | The translation warp flag of `OrientationWarpNode` is not applied.                                   |
+| Target selector alignment bone      | Not implemented       | `TargetSelectorNode` scores its options by where their root motion ends, without the alignment bone. |
 
 Animgraph 2 system is taken from the [Esoterica](https://www.esotericaengine.com/) animation system. Source 2 adds a couple of new nodes: `ChainLookatNode`,
 `FollowBoneNode`, `BodyGroupNode` and `IsInactiveBranchConditionNode`, and a few ones that are game specific.

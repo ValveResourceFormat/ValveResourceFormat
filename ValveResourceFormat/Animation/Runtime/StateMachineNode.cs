@@ -95,7 +95,7 @@ namespace ValveResourceFormat.Animation
         }
 
         /// <summary>
-        /// Picks the state to start in and initializes it (Esoterica SelectDefaultState): all entry
+        /// Picks the state to start in and initializes it: all entry
         /// conditions are initialized in advance (so value caching works), evaluated in order, and
         /// shut down again.
         /// </summary>

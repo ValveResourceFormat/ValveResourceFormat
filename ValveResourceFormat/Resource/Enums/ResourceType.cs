@@ -4,7 +4,9 @@ namespace ValveResourceFormat
     /// Resource file types.
     /// </summary>
     /// <remarks>
-    /// Friendly names are used
+    /// Members use friendly names rather than file extensions. Each member's <c>Extension</c> attribute
+    /// holds the extension without the compiled <c>_c</c> suffix.
+    /// <see cref="Resource.ResourceType"/> holds the type of a resource that was read.
     /// </remarks>
     public enum ResourceType
     {

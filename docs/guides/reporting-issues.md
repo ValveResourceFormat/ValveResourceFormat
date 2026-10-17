@@ -1,3 +1,7 @@
+---
+description: How to report a Source 2 Viewer bug on GitHub, what to check first and what to include so the issue can be reproduced and fixed.
+---
+
 # Reporting Issues
 
 Found a bug? Post it on

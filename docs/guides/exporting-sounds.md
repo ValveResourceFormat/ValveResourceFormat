@@ -1,3 +1,7 @@
+---
+description: Play Source 2 .vsnd_c sound files in Source 2 Viewer and export them as WAV or MP3, including batch export of whole folders.
+---
+
 # Exporting Sounds
 
 Source 2 Viewer can play and export audio files from Source 2 games. Sound files are decompiled back to WAV or MP3 format.

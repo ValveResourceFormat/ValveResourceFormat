@@ -1,3 +1,7 @@
+---
+description: Learn how to write and submit a guide for the Source 2 Viewer documentation using GitHub or a git fork and a pull request.
+---
+
 # Help Write Guides
 
 Our documentation is still growing, and we'd love your help! Whether you've figured out a workflow that others might find useful, or you want to document something you've learned about Source 2 files, contributing a guide is a great way to give back to the community.

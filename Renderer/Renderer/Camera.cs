@@ -410,7 +410,7 @@ namespace ValveResourceFormat.Renderer
             return MathF.Max(distance, NearPlane - nearestCorner);
         }
 
-        /// <inheritdoc cref="GetFramingDistance(Vector3, Vector3, Vector3)"/>
+        /// <inheritdoc cref="GetFramingDistance(Vector3, Vector3, Vector3)" path="/summary"/>
         /// <param name="size">The box's dimensions.</param>
         /// <param name="forward">Unit direction the camera looks along, in place of its own.</param>
         public float GetFramingDistance(Vector3 size, Vector3 forward)

@@ -1,3 +1,7 @@
+---
+description: Preview Source 2 .vmdl_c models in Source 2 Viewer and export them to glTF or GLB for Blender, Maya and 3ds Max.
+---
+
 # Exporting Models
 
 Source 2 Viewer can export 3D models from any Source 2 game to the standard glTF 2.0 format, which can be imported into Blender, Maya, 3ds Max, and other 3D software.

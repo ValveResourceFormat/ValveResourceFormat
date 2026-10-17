@@ -505,9 +505,10 @@ namespace ValveResourceFormat.IO
         /// <returns>Index of the first added vertex, to add to the indices handed to <see cref="AddFace"/>.</returns>
         public int AddVertices(ReadOnlySpan<Vector3> positions) => AddVertices(positions, Matrix4x4.Identity);
 
-        /// <inheritdoc cref="AddVertices(ReadOnlySpan{Vector3})"/>
+        /// <inheritdoc cref="AddVertices(ReadOnlySpan{Vector3})" path="/summary"/>
         /// <param name="positions">Vertex positions.</param>
         /// <param name="transform">Transform applied to every position.</param>
+        /// <inheritdoc cref="AddVertices(ReadOnlySpan{Vector3})" path="/returns"/>
         public int AddVertices(ReadOnlySpan<Vector3> positions, Matrix4x4 transform)
         {
             var baseVertex = Vertices.Count;

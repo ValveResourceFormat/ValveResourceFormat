@@ -12,12 +12,12 @@ public static class EventConditionRulesExtensions
         => flags.IsFlagSet(1u << (int)rule);
 }
 
-/// <summary>Shared helpers for the event-searching value nodes (Esoterica Events.cpp).</summary>
+/// <summary>Shared helpers for the event-searching value nodes.</summary>
 public static class EventSearch
 {
     /// <summary>
     /// The events to search: the source state's sampled range when the rules restrict the search,
-    /// otherwise the whole buffer (Esoterica CalculateSearchRange).
+    /// otherwise the whole buffer.
     /// </summary>
     public static SampledEventRange CalculateSearchRange(GraphContext ctx, StateNode? sourceStateNode, BitFlags rules)
     {
@@ -238,7 +238,7 @@ public class SampledEventsBuffer
 
     /// <summary>
     /// Scales the weights of two consecutive event ranges by their blend weights and returns the
-    /// combined range (Esoterica SampledEventsBuffer::BlendEventRanges).
+    /// combined range.
     /// </summary>
     public SampledEventRange BlendEventRanges(SampledEventRange range0, SampledEventRange range1, float blendWeight)
     {

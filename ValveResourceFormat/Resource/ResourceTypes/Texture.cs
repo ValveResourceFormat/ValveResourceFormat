@@ -15,6 +15,10 @@ namespace ValveResourceFormat.ResourceTypes
     /// <summary>
     /// Represents a texture resource containing image data with various formats and metadata.
     /// </summary>
+    /// <remarks>
+    /// Get one from <see cref="ValveResourceFormat.Resource.DataBlock"/> of a resource whose type is <see cref="ResourceType.Texture"/>.
+    /// Use <see cref="GenerateBitmap"/> to decode the pixels.
+    /// </remarks>
     public class Texture : Block
     {
         /// <summary>

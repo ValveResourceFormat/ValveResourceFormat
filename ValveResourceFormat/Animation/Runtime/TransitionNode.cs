@@ -230,8 +230,7 @@ namespace ValveResourceFormat.Animation
         /// <summary>
         /// Called before a new (forced) transition starts so this in-flight transition can switch to a
         /// cached-pose source if its source is about to become the new target state, or start caching
-        /// its pose if a forceable transition back to its source may follow (Esoterica
-        /// TransitionNode::NotifyNewTransitionStarting).
+        /// its pose if a forceable transition back to its source may follow.
         /// </summary>
         public void NotifyNewTransitionStarting(GraphContext ctx, StateNode targetStateNode, List<StateNode> forceableFutureTargetStatesUsingCachedPoses)
         {
@@ -286,7 +285,7 @@ namespace ValveResourceFormat.Animation
 
         /// <summary>
         /// Lerps the source layer context towards the target state's layer context by the transition
-        /// blend weight (Esoterica TransitionNode::UpdateLayerContext).
+        /// blend weight.
         /// </summary>
         void UpdateLayerContext(LayerContext sourceAndResultLayerContext, LayerContext targetContext)
         {

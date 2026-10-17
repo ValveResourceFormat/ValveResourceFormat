@@ -284,7 +284,7 @@ namespace ValveResourceFormat.Animation
 
         /// <summary>
         /// Samples every clip event whose time range overlaps [rangeFrom, rangeTo), with the trailing
-        /// edge included at the very end of the clip (Esoterica AnimationClip::GetEventsForRange).
+        /// edge included at the very end of the clip.
         /// </summary>
         public static void SampleEventsInRange(GraphContext ctx, short nodeIdx, GraphClip clip, float rangeFrom, float rangeTo, bool includeEnd, float sampleEndTime, bool playInReverse, bool isFromActiveBranch)
         {
@@ -665,9 +665,9 @@ namespace ValveResourceFormat.Animation
         public abstract void UpdateSelection(GraphContext ctx);
 
         /// <summary>
-        /// Selects an option and initializes it; an invalid selection is shut down and discarded
-        /// (Esoterica AnimationClipSelectorNode::InitializeInternal). Called by the concrete
-        /// selector nodes from their initialization — a plain ClipNode does not select.
+        /// Selects an option and initializes it; an invalid selection is shut down and discarded.
+        /// Called by the concrete selector nodes from their initialization; a plain ClipNode does
+        /// not select.
         /// </summary>
         protected void InitializeSelection(GraphContext ctx, SyncTrackTime initialTime)
         {

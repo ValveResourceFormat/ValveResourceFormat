@@ -1,8 +1,12 @@
 import { defineConfig } from "vitepress";
+import { readFileSync } from "fs";
 import { resolve } from "path";
 import { parseToc } from "./toc-parser.js";
 
 const docsDir = resolve(import.meta.dirname, "..");
+const siteUrl = "https://s2v.app/ValveResourceFormat/";
+const siteDescription =
+    "Source 2 resource file format parser, decompiler, and exporter";
 
 const apiSidebar = parseToc(resolve(docsDir, "api/toc.yml"), "/api/");
 
@@ -18,10 +22,46 @@ if (vrfRoot?.items) {
     }
 }
 
+// The permalink label is built from the heading's markdown source, which still holds escapes
+// such as \( and the {#id} suffix. Replacing the source with the parsed text cleans the label.
+function cleanPermalinkLabels(md) {
+    md.core.ruler.before("anchor", "clean_permalink_labels", (state) => {
+        for (let i = 0; i < state.tokens.length - 1; i++) {
+            if (state.tokens[i].type !== "heading_open") {
+                continue;
+            }
+
+            const inline = state.tokens[i + 1];
+            let text = "";
+            for (const token of inline.children) {
+                if (token.type === "text" || token.type === "code_inline") {
+                    text += token.content;
+                }
+            }
+            inline.content = text.trim();
+        }
+    });
+}
+
+// API pages without a summary hold only a signature, so the sitemap leaves them out. Generated
+// pages get description frontmatter only when they have a summary.
+function isListedInSitemap(item) {
+    if (!item.url.startsWith("api/")) {
+        return true;
+    }
+
+    const file = resolve(docsDir, item.url.replace(/\.html$/, ".md"));
+    return readFileSync(file, "utf-8").startsWith("---\n");
+}
+
 export default defineConfig({
     title: "Source 2 Viewer",
-    description:
-        "Source 2 resource file format parser, decompiler, and exporter",
+
+    markdown: {
+        config: cleanPermalinkLabels,
+    },
+
+    description: siteDescription,
     base: "/ValveResourceFormat/",
 
     themeConfig: {
@@ -32,8 +72,16 @@ export default defineConfig({
 
         nav: [
             { text: "Guides", link: "/guides/getting-started" },
-            { text: "Library", link: "/api/ValveResourceFormat" },
-            { text: "Renderer", link: "/api/ValveResourceFormat.Renderer" },
+            {
+                text: "Library",
+                link: "/api/ValveResourceFormat",
+                activeMatch: "^/api/ValveResourceFormat(?!\\.Renderer)",
+            },
+            {
+                text: "Renderer",
+                link: "/api/ValveResourceFormat.Renderer",
+                activeMatch: "^/api/ValveResourceFormat\\.Renderer",
+            },
             { text: "Wiki", link: "https://www.source2.wiki" },
             {
                 text: "Schema Explorer",
@@ -107,6 +155,21 @@ export default defineConfig({
 
         search: {
             provider: "local",
+            options: {
+                miniSearch: {
+                    searchOptions: {
+                        // A page's top section has no parent headings. Ranking it higher puts a
+                        // type's own page above its constructors and members of the same name.
+                        boostDocument(id, term, storedFields) {
+                            if (storedFields?.titles?.length === 0) {
+                                return 2;
+                            }
+
+                            return 1;
+                        },
+                    },
+                },
+            },
         },
 
         socialLinks: [
@@ -129,19 +192,38 @@ export default defineConfig({
     },
 
     sitemap: {
-        hostname: "https://s2v.app/ValveResourceFormat/",
+        hostname: siteUrl,
+        transformItems(items) {
+            return items.filter(isListedInSitemap);
+        },
     },
 
     transformPageData(pageData) {
-        const canonicalUrl =
-            `https://s2v.app/ValveResourceFormat/${pageData.relativePath}`
-                .replace(/index\.md$/, "")
-                .replace(/\.md$/, ".html");
+        const canonicalUrl = `${siteUrl}${pageData.relativePath}`
+            .replace(/index\.md$/, "")
+            .replace(/\.md$/, ".html");
+        const description = pageData.description || siteDescription;
+
+        if (pageData.relativePath.startsWith("api/")) {
+            pageData.frontmatter.pageClass = "api-page";
+        }
 
         pageData.frontmatter.head ??= [];
-        pageData.frontmatter.head.push([
-            "link",
-            { rel: "canonical", href: canonicalUrl },
-        ]);
+        pageData.frontmatter.head.push(
+            ["link", { rel: "canonical", href: canonicalUrl }],
+            ["meta", { property: "og:type", content: "website" }],
+            ["meta", { property: "og:site_name", content: "Source 2 Viewer" }],
+            ["meta", { property: "og:title", content: pageData.title }],
+            ["meta", { property: "og:description", content: description }],
+            ["meta", { property: "og:url", content: canonicalUrl }],
+            [
+                "meta",
+                {
+                    property: "og:image",
+                    content: `${siteUrl}images/source2viewer.png`,
+                },
+            ],
+            ["meta", { name: "twitter:card", content: "summary" }],
+        );
     },
 });

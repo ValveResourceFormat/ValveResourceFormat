@@ -353,7 +353,7 @@ public class Renderer : ISpawnGroupHost
 
     /// <summary>
     /// Stops drawing a spawn group and releases its scene and mounted package. Remove its entities first with
-    /// <see cref="EntitySystem.RemoveSpawnGroup"/>.
+    /// <see cref="ValveResourceFormat.Renderer.Entities.EntitySystem.RemoveSpawnGroup"/>.
     /// </summary>
     public void RemoveSpawnGroup(SpawnGroup group)
     {

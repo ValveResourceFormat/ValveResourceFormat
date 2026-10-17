@@ -12,11 +12,17 @@ using ValveResourceFormat.ResourceTypes.GenericData;
 namespace ValveResourceFormat
 {
     /// <summary>
-    /// Represents a Valve resource.
+    /// Represents a compiled Source 2 resource file, such as a <c>.vtex_c</c> or <c>.vmdl_c</c>.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// Create an instance, then call <see cref="Read(string, ReadMode)"/> or <see cref="Read(Stream, bool, ReadMode)"/>.
+    /// Check <see cref="ResourceType"/> and cast <see cref="DataBlock"/> to the matching block class.
+    /// </para>
+    /// <para>
     /// Blocks and the data they expose are read from the input stream when first accessed, so the
     /// resource must stay undisposed and its input stream open for as long as its blocks are used.
+    /// </para>
     /// </remarks>
     public class Resource : IDisposable
     {
@@ -70,7 +76,9 @@ namespace ValveResourceFormat
         internal List<Block> UnparsedBlocks => blocks.Items;
 
         /// <summary>
-        /// Gets the type of the resource.
+        /// Gets the type of the resource, which decides the class of <see cref="DataBlock"/>.
+        /// It comes from the file extension of <see cref="FileName"/> when set, otherwise from the edit info block,
+        /// and is <see cref="ResourceType.Unknown"/> when neither identifies it.
         /// </summary>
         /// <value>The type of the resource.</value>
         public ResourceType ResourceType { get; private set; }
@@ -95,7 +103,9 @@ namespace ValveResourceFormat
         public ResourceExtRefList? ExternalReferences => (ResourceExtRefList?)GetBlockByType(BlockType.RERL);
 
         /// <summary>
-        /// Gets the generic DATA block.
+        /// Gets the DATA block, which holds the main contents of the resource.
+        /// Its class depends on <see cref="ResourceType"/>, for example <see cref="ResourceTypes.Texture"/>
+        /// for textures. It is <c>null</c> when the resource has no DATA block.
         /// </summary>
         public Block? DataBlock => GetBlockByType(BlockType.DATA);
 

@@ -1,3 +1,7 @@
+---
+description: Preview Source 2 .vtex_c textures in Source 2 Viewer and export them as PNG, JPG or EXR, individually or in batches.
+---
+
 # Exporting Textures
 
 Source 2 Viewer can preview and export textures from any Source 2 game to standard image formats.

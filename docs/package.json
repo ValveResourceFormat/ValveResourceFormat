@@ -2,7 +2,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "generate": "docfx metadata",
+    "generate": "docfx metadata && node .vitepress/resolve-xrefs.js",
     "dev": "vitepress dev",
     "build": "vitepress build",
     "preview": "vitepress preview",

@@ -4,7 +4,7 @@ namespace ValveResourceFormat.Animation;
 /// <summary>
 /// Synchronizes animations by dividing their timeline into named sync periods. Positions on the
 /// track are expressed as <see cref="SyncTrackTime"/> (event index plus percentage through it),
-/// which lets differently-timed clips advance in lockstep. Port of Esoterica's SyncTrack.
+/// which lets differently-timed clips advance in lockstep.
 /// </summary>
 [KV3Transfer]
 public partial class SyncTrack

@@ -1,6 +1,7 @@
 import { readFileSync, existsSync } from "fs";
 import { resolve, dirname } from "path";
 import { load as yamlLoad } from "js-yaml";
+import { escapeHtml } from "./html.js";
 
 /**
  * Parse a DocFX toc.yml file into VitePress sidebar items.
@@ -13,7 +14,7 @@ export function parseToc(tocPath, baseUrl) {
     let content = readFileSync(tocPath, "utf-8");
 
     // Strip DocFX YAML MIME header if present
-    content = content.replace(/^### YamlMime:\w+\n/, "");
+    content = content.replace(/^### YamlMime:\w+\r?\n/, "");
 
     const tocDir = dirname(tocPath);
     const items = yamlLoad(content);
@@ -36,14 +37,22 @@ function isCategoryHeader(item) {
     return item.name && !item.href && (!item.items || item.items.length === 0);
 }
 
+// Nested types are named after their full chain of parents, such as
+// "ResourceDiskStruct.Field" under "ResourceIntrospectionManifest". The sidebar keeps the
+// immediate parent so a nested type is not mistaken for a top level one. Namespace names
+// are never dotted. The sidebar renders text as HTML, so <wbr> lets long names wrap at a dot or
+// between the words of a PascalCase name instead of in the middle of a word.
+function shortenName(name) {
+    const parts = escapeHtml(name).split(".");
+    const shortName = parts.slice(-2).join(".<wbr>");
+    return shortName.replace(/([a-z0-9])([A-Z])/g, "$1<wbr>$2");
+}
+
 function convertItem(item, baseUrl, tocDir) {
     const entry = {};
 
     if (item.name) {
-        // Simplify nested names: "MaterialExtract.UnpackInfo" to "UnpackInfo"
-        const dotIndex = item.name.lastIndexOf(".");
-        entry.text =
-            dotIndex >= 0 ? item.name.substring(dotIndex + 1) : item.name;
+        entry.text = shortenName(item.name);
     }
 
     if (item.href) {

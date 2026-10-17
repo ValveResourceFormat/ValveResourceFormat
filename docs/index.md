@@ -1,3 +1,8 @@
+---
+titleTemplate: false
+description: "Free, open-source tool to browse VPK archives and view, extract and decompile Source 2 assets from Counter-Strike 2, Dota 2, Half-Life: Alyx and Deadlock."
+---
+
 # Source 2 Viewer - VPK File Viewer & Asset Extractor for Source 2 Games
 
 **Source 2 Viewer** (also known as **S2V**) is a free, open-source tool that allows you to browse VPK archives, view, extract, and decompile Source 2 assets, including maps, models, materials, textures, sounds, and particles from Counter-Strike 2, Dota 2, Half-Life: Alyx, Deadlock, and more. The project is reverse-engineered without access to an official Source 2 SDK and is not affiliated with Valve Software.

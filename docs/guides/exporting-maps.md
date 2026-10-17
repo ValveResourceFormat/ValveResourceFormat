@@ -1,3 +1,7 @@
+---
+description: Export Source 2 maps to glTF for Blender or decompile them to .vmap for Hammer Editor, and preview them in Source 2 Viewer.
+---
+
 # Exporting Maps
 
 Source 2 Viewer can export maps in two ways: as glTF for use in 3D software like Blender, or decompiled to `.vmap` for editing in Hammer Editor.

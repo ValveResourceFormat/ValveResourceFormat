@@ -1,3 +1,7 @@
+---
+description: Reference for Source2Viewer-CLI, the Windows, Linux and macOS tool for decompiling Source 2 resources and working with VPK files.
+---
+
 # Command-line utility
 
 While Source 2 Viewer is a GUI application for Windows, there is also a command-line utility available for all of Windows, Linux, and macOS.
