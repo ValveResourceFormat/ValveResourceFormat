@@ -124,17 +124,8 @@ namespace ValveResourceFormat.Renderer.World
                         modelNode.SetOverrideLod(lodOverride);
                     }
 
-                    foreach (var materialOverride in materialOverrides[sceneObjectIndex])
-                    {
-                        var (mesh, drawCall) = FindDrawCall(modelNode, materialOverride.SubSceneObject, materialOverride.DrawCallIndex);
-
-                        if (mesh != null && drawCall != null)
-                        {
-                            mesh.ReplaceMaterial(drawCall, materialOverride.Material);
-                        }
-                    }
-
-                    extraVertexStreams.Apply(modelNode, sceneObjectIndex);
+                    ApplyMaterialOverrides(modelNode, [.. materialOverrides[(uint)sceneObjectIndex]]);
+                    extraVertexStreams.Apply(modelNode, (uint)sceneObjectIndex);
                     scene.Add(modelNode, false);
                 }
 
@@ -284,7 +275,38 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
-        private static (RenderableMesh? Mesh, DrawCall? DrawCall) FindDrawCall(ModelSceneNode modelNode, int subSceneObject, int drawCallIndex)
+        private static void ApplyMaterialOverrides(ModelSceneNode modelNode, WorldNode.MaterialOverride[] materialOverrides)
+        {
+            foreach (var materialOverride in materialOverrides)
+            {
+                if (!materialOverride.IsWholeModel || string.IsNullOrEmpty(materialOverride.Material))
+                {
+                    continue;
+                }
+
+                foreach (var mesh in modelNode.AllRenderableMeshes)
+                {
+                    foreach (var drawCall in mesh.DrawCalls)
+                    {
+                        mesh.ReplaceMaterial(drawCall, materialOverride.Material);
+                    }
+                }
+
+                return;
+            }
+
+            foreach (var materialOverride in materialOverrides)
+            {
+                var (mesh, drawCall) = FindDrawCall(modelNode, materialOverride.SubSceneObject, materialOverride.DrawCallIndex);
+
+                if (mesh != null && drawCall != null)
+                {
+                    mesh.ReplaceMaterial(drawCall, materialOverride.Material);
+                }
+            }
+        }
+
+        private static (RenderableMesh? Mesh, DrawCall? DrawCall) FindDrawCall(ModelSceneNode modelNode, uint subSceneObject, uint drawCallIndex)
         {
             foreach (var mesh in modelNode.AllRenderableMeshes)
             {
@@ -306,7 +328,7 @@ namespace ValveResourceFormat.Renderer.World
 
         private sealed class ExtraVertexStreams
         {
-            private readonly ILookup<int, WorldNode.ExtraVertexStreamOverride> OverridesBySceneObject;
+            private readonly ILookup<uint, WorldNode.ExtraVertexStreamOverride> OverridesBySceneObject;
             private readonly VBIB Streams;
             private readonly GPUMeshBuffers Buffers;
 
@@ -317,7 +339,7 @@ namespace ValveResourceFormat.Renderer.World
                 Buffers = rendererContext.MeshBufferCache.CreateVertexIndexBuffers($"{node.Resource.FileName} extra vertex streams", Streams);
             }
 
-            public void Apply(ModelSceneNode modelNode, int sceneObjectIndex)
+            public void Apply(ModelSceneNode modelNode, uint sceneObjectIndex)
             {
                 foreach (var streamOverride in OverridesBySceneObject[sceneObjectIndex])
                 {

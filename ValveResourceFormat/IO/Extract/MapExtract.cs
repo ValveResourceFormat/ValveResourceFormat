@@ -258,12 +258,17 @@ public sealed partial class MapExtract
 
         foreach (var streamOverride in streamOverrides)
         {
+            if (streamOverride.DrawCallIndex > int.MaxValue)
+            {
+                continue;
+            }
+
             var stream = streams.VertexBuffers[streamOverride.BufferIndex];
             var drawCall = model.GetEmbeddedMeshes()
                 .Where(mesh => mesh.MeshIndex == streamOverride.SubSceneObject)
                 .SelectMany(static mesh => mesh.Mesh.Data.GetArray("m_sceneObjects"))
                 .SelectMany(static meshSceneObject => meshSceneObject.GetArray("m_drawCalls"))
-                .ElementAtOrDefault(streamOverride.DrawCallIndex);
+                .ElementAtOrDefault((int)streamOverride.DrawCallIndex);
 
             // Streams painted on an older version of the model no longer match its vertex count
             if (drawCall is null || drawCall.GetInt32Property("m_nVertexCount") != stream.ElementCount
@@ -280,8 +285,8 @@ public sealed partial class MapExtract
 
             var extraStream = new CDmExtraVertexStream
             {
-                MeshIndex = streamOverride.SubSceneObject,
-                DrawCallIndex = streamOverride.DrawCallIndex,
+                MeshIndex = (int)streamOverride.SubSceneObject,
+                DrawCallIndex = (int)streamOverride.DrawCallIndex,
             };
 
             var indices = Enumerable.Range(0, (int)stream.ElementCount).ToArray();
@@ -316,6 +321,14 @@ public sealed partial class MapExtract
     /// </summary>
     private string? GetWholeModelMaterialOverride(string modelName, WorldNode.MaterialOverride[] materialOverrides)
     {
+        foreach (var materialOverride in materialOverrides)
+        {
+            if (materialOverride.IsWholeModel && !string.IsNullOrEmpty(materialOverride.Material))
+            {
+                return materialOverride.Material;
+            }
+        }
+
         if (materialOverrides.Length == 0 || materialOverrides.Any(materialOverride => materialOverride.Material != materialOverrides[0].Material))
         {
             return null;
@@ -2092,12 +2105,12 @@ public sealed partial class MapExtract
                 propStatic.EntityProperties["disablemerging"] = StringBool(true);
             }
 
-            if (GetWholeModelMaterialOverride(modelName!, [.. materialOverrides[sceneObjectIndex]]) is { } materialOverride)
+            if (GetWholeModelMaterialOverride(modelName!, [.. materialOverrides[(uint)sceneObjectIndex]]) is { } materialOverride)
             {
                 propStatic.EntityProperties["materialoverride"] = materialOverride;
             }
 
-            if (GetExtraVertexData(modelName!, [.. extraVertexStreamOverrides[sceneObjectIndex]], extraVertexStreams) is { } extraVertexData)
+            if (GetExtraVertexData(modelName!, [.. extraVertexStreamOverrides[(uint)sceneObjectIndex]], extraVertexStreams) is { } extraVertexData)
             {
                 propStatic["extra_vertex_data"] = extraVertexData;
             }
