@@ -51,13 +51,12 @@ public static class SceneLightingVolume
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(entity);
 
-        var volume = ReadVolume(entity, isSphere);
-
         if (entity.GetStringProperty("cubemaptexture") is not { Length: > 0 } cubemapTextureName)
         {
             return null;
         }
 
+        var volume = ReadVolume(entity, isSphere);
         var envMapTexture = scene.RendererContext.MaterialLoader.GetTexture(cubemapTextureName, true);
         var arrayIndex = entity.GetInt32Property("array_index");
 
