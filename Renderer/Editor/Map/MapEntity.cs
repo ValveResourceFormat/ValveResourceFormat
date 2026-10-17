@@ -4,6 +4,7 @@ using ValveResourceFormat.IO.ContentFormats.ValveMap;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.Gizmos;
 using ValveResourceFormat.Renderer.Editor.Helpers;
+using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
@@ -280,7 +281,17 @@ public sealed class MapEntity : IHelperOwner, IGizmoTransformable
 
         for (var i = 0; i < nodes.Count && i < nodeTransformsAtStart.Length; i++)
         {
-            nodes[i].Transform = nodeTransformsAtStart[i] * toCurrent;
+            var transform = nodeTransformsAtStart[i] * toCurrent;
+
+            // A light also lights the scene from where it is
+            if (nodes[i] is SceneLight light)
+            {
+                light.MoveTo(transform);
+            }
+            else
+            {
+                nodes[i].Transform = transform;
+            }
         }
     }
 }
