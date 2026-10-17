@@ -366,29 +366,13 @@ public sealed class MapDocumentLoader : IDisposable
     }
 
     // A line from the entity to every entity its entity I/O connections reach
-    private void AddConnectionLines(MapEntity mapEntity)
+    private static void AddConnectionLines(MapEntity mapEntity)
     {
-        if (mapEntity.KeyValues.Connections is not { } connections)
+        if (mapEntity.KeyValues.Connections is { } connections)
         {
-            return;
-        }
-
-        var start = mapEntity.Transform.Translation;
-        var alreadySeen = new HashSet<IHelperOwner>();
-
-        foreach (var connection in connections)
-        {
-            var targets = connection.TargetName.Equals("!self", StringComparison.OrdinalIgnoreCase)
+            HammerEntityVisuals.AddConnectionLines(mapEntity, connections, connection => connection.TargetName.Equals("!self", StringComparison.OrdinalIgnoreCase)
                 ? [mapEntity]
-                : mapEntity.FindByName(connection.TargetName);
-
-            foreach (var target in targets)
-            {
-                if (alreadySeen.Add(target))
-                {
-                    mapEntity.AddNode(HammerEntityVisuals.CreateConnectionLine(scene, start, target.Transform.Translation));
-                }
-            }
+                : mapEntity.FindByName(connection.TargetName));
         }
     }
 
