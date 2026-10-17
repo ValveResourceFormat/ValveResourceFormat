@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
@@ -37,7 +36,7 @@ internal sealed class LineHelper : EntityHelper
     /// <summary>Gets whether the lines are only drawn while the entity is selected.</summary>
     private bool IsSelectedOnly { get; }
 
-    private LineHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
+    private LineHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)
     {
         IsSelectedOnly = declaration.Name.Equals("selected_line", StringComparison.OrdinalIgnoreCase);
 
@@ -53,7 +52,7 @@ internal sealed class LineHelper : EntityHelper
 
     /// <summary>Creates the lines a class declares.</summary>
     /// <returns>The lines, or <see langword="null"/> when the declaration does not say what they go to.</returns>
-    public static LineHelper? Create(IHelperOwner owner, FgdHelper declaration)
+    public static LineHelper? Create(IHelperOwner owner, HelperDeclaration declaration)
     {
         ArgumentNullException.ThrowIfNull(declaration);
 

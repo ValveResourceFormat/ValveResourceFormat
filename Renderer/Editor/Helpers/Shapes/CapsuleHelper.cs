@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Utils;
 
@@ -8,7 +7,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// A capsule along +X of a selected entity, from its origin out as far as its <c>capsule_height</c> key and
 /// as thick as its <c>capsule_radius</c> key.
 /// </summary>
-internal sealed class CapsuleHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
+internal sealed class CapsuleHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override bool IsVisual => false;

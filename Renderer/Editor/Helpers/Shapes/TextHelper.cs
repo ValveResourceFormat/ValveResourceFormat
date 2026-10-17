@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
@@ -12,7 +11,7 @@ internal sealed class TextHelper : PointKeyHelper
     /// <summary>Gets the label.</summary>
     private string Text { get; }
 
-    public TextHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration, isLocal: true)
+    public TextHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration, isLocal: true)
     {
         // A color can follow the label, but the label is always written in white
         Text = GetArgument(1) ?? string.Empty;

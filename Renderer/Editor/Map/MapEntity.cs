@@ -1,7 +1,7 @@
 using System.Linq;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
-using ValveResourceFormat.IO.Fgd;
+using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.Helpers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer.Editor.Map;
 
 /// <summary>
 /// An entity of a source map where it was placed. Everything drawn of it comes from the helpers its class
-/// declares in the FGD files of its game, as in Hammer, and it stays where the map put it.
+/// declares for the editor of its game, as in Hammer, and it stays where the map put it.
 /// </summary>
 public sealed class MapEntity : IHelperOwner
 {
@@ -34,7 +34,7 @@ public sealed class MapEntity : IHelperOwner
     public string Classname { get; }
 
     /// <inheritdoc/>
-    public FgdClass? FgdClass { get; }
+    public EntityClass? EntityClass { get; }
 
     /// <summary>Gets where the entity is placed in the world.</summary>
     public Vector3 Origin { get; }
@@ -86,7 +86,7 @@ public sealed class MapEntity : IHelperOwner
     /// <inheritdoc/>
     public IHelperOwner? Path { get; }
 
-    internal MapEntity(Scene scene, PlacedMapNode placedNode, Entity keyValues, string layerName, ForgeGameData fgd, IReadOnlyList<IHelperOwner> mapEntities, Dictionary<string, List<IHelperOwner>> entitiesByName, MapEntity? path)
+    internal MapEntity(Scene scene, PlacedMapNode placedNode, Entity keyValues, string layerName, EntityClassTable classes, IReadOnlyList<IHelperOwner> mapEntities, Dictionary<string, List<IHelperOwner>> entitiesByName, MapEntity? path)
     {
         this.mapEntities = mapEntities;
         this.entitiesByName = entitiesByName;
@@ -96,7 +96,7 @@ public sealed class MapEntity : IHelperOwner
         KeyValues = keyValues;
         LayerName = layerName;
         Classname = keyValues.GetStringProperty("classname") ?? string.Empty;
-        FgdClass = fgd.FindClass(Classname);
+        EntityClass = classes.FindClass(Classname);
 
         Origin = keyValues.GetVector3Property("origin");
         Angles = keyValues.GetVector3Property("angles");

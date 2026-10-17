@@ -1,5 +1,4 @@
 using System.Globalization;
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Utils;
 
@@ -9,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The box an orthographic light shines through while it is selected, as wide and high as two of its keys
 /// say and reaching forward as far as its range, in the color of the light and faintly over everything.
 /// </summary>
-internal sealed class LightOrthoHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
+internal sealed class LightOrthoHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override bool IsVisual => false;

@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using ValveKeyValue;
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -134,7 +133,7 @@ public class ModelHelper : EntityHelper
         None,
     }
 
-    private protected ModelHelper(IHelperOwner owner, FgdHelper declaration, Settings settings, Model? model) : base(owner, declaration)
+    private protected ModelHelper(IHelperOwner owner, HelperDeclaration declaration, Settings settings, Model? model) : base(owner, declaration)
     {
         this.settings = settings;
         this.model = model;
@@ -145,7 +144,7 @@ public class ModelHelper : EntityHelper
     /// The model, or <see langword="null"/> when neither the class nor the entity names one or it does not
     /// load, so that the entity is drawn some other way.
     /// </returns>
-    internal static ModelHelper? Create(IHelperOwner owner, FgdHelper declaration)
+    internal static ModelHelper? Create(IHelperOwner owner, HelperDeclaration declaration)
     {
         ArgumentNullException.ThrowIfNull(owner);
         ArgumentNullException.ThrowIfNull(declaration);
@@ -158,7 +157,7 @@ public class ModelHelper : EntityHelper
     /// <summary>Gets the model a class names in the declaration of a model helper.</summary>
     /// <param name="declaration">The helper as a class declares it.</param>
     /// <returns>The name as it is declared, or <see langword="null"/> when the model is the one each entity names.</returns>
-    public static string? GetDeclaredModelName(FgdHelper declaration)
+    public static string? GetDeclaredModelName(HelperDeclaration declaration)
     {
         ArgumentNullException.ThrowIfNull(declaration);
 
@@ -186,7 +185,7 @@ public class ModelHelper : EntityHelper
 
     private static bool IsOption(string argument) => Array.Exists(Options, option => option.Equals(argument, StringComparison.OrdinalIgnoreCase));
 
-    private static Settings ReadDeclaration(IHelperOwner owner, FgdHelper declaration)
+    private static Settings ReadDeclaration(IHelperOwner owner, HelperDeclaration declaration)
     {
         var block = declaration.Metadata;
         var isEditorModelName = declaration.Name.Equals("editormodel", StringComparison.OrdinalIgnoreCase);
@@ -426,7 +425,7 @@ public class ModelHelper : EntityHelper
         return new Vector4(color, alpha) / byte.MaxValue;
     }
 
-    private bool HasKey(string key) => Owner.KeyValues.ContainsKey(key) || Owner.FgdClass?.FindVariable(key) is { HasDefault: true };
+    private bool HasKey(string key) => Owner.KeyValues.ContainsKey(key) || Owner.EntityClass?.FindKey(key) is { Default: not null };
 
     private void ApplyKeys(ModelSceneNode node)
     {
@@ -555,7 +554,7 @@ public class ModelHelper : EntityHelper
     // Of the keys of the class that name the animation shown, the set one that matters most
     private string? GetPreviewAnimation()
     {
-        if (Owner.FgdClass is not { } gameClass)
+        if (Owner.EntityClass is not { } entityClass)
         {
             return null;
         }
@@ -563,11 +562,9 @@ public class ModelHelper : EntityHelper
         string? animation = null;
         var highestPriority = -1;
 
-        foreach (var variable in gameClass.Variables)
+        foreach (var key in entityClass.Keys)
         {
-            var metadata = variable.Metadata;
-
-            if (!GetBlockFlag(metadata, PreviewAnimationKey) || GetStringKey(variable.Name) is not { Length: > 0 } value)
+            if (key.Metadata is not { } metadata || !GetBlockFlag(metadata, PreviewAnimationKey) || GetStringKey(key.Name) is not { Length: > 0 } value)
             {
                 continue;
             }

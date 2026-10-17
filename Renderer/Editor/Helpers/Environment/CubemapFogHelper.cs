@@ -1,5 +1,4 @@
 using System.IO;
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -9,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The fog of an <c>env_cubemap_fog</c>, colored from a cubemap, a sky material, or the sky of the entity it
 /// names. A map has the fog of the first such entity that is not disabled at the start.
 /// </summary>
-internal sealed class CubemapFogHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
+internal sealed class CubemapFogHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
     /// <summary>Makes this fog the one the scene of the entity is drawn with. It is only drawn while it has a texture.</summary>
     public void Apply()

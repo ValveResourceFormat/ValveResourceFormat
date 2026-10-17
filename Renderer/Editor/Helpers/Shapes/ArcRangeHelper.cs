@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
@@ -63,7 +62,7 @@ internal sealed class ArcRangeHelper : EntityHelper
     /// <summary>Gets whether a triangle points to zero degrees while the entity is selected.</summary>
     private bool DrawTriangle { get; }
 
-    public ArcRangeHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
+    public ArcRangeHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)
     {
         IsEnabledKey = (GetMetadata("is_enabled_key") ?? "is_enabled").ToLowerInvariant();
         AxisKey = (GetMetadata("axis_key") ?? "axis").ToLowerInvariant();

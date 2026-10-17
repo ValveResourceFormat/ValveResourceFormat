@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Utils;
 
@@ -8,7 +7,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The day or night lighting of a <c>dota_light_info</c>, which it previews. While the entity is the
 /// <c>fog</c> global, the map has the fog color and distances of the time of day it previews.
 /// </summary>
-internal sealed class DotaLightInfoHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration), ILinearFogSource
+internal sealed class DotaLightInfoHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration), ILinearFogSource
 {
     /// <inheritdoc/>
     public override bool IsVisual => false;

@@ -410,8 +410,7 @@ namespace GUI.Utils
         }
 
         // A file opened from another one belongs to the game that one was found in
-        public override ValveResourceFormat.IO.Fgd.ForgeGameData? LoadFgd()
-            => base.LoadFgd() ?? ParentGuiContext?.LoadFgd();
+        public override int InstalledSteamAppId => base.InstalledSteamAppId is not 0 and var appId ? appId : ParentGuiContext?.InstalledSteamAppId ?? 0;
 
         /// <summary>Loader that skips resource cache.</summary>
         public IFileLoader FileLoaderNoCache => fileLoaderNoCache ??= new UncachedFileLoader(this);

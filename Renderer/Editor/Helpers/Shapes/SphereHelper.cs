@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Utils;
 
@@ -50,7 +49,7 @@ internal sealed class SphereHelper : EntityHelper
     /// <summary>Gets whether the sphere is drawn while its entity is not selected too.</summary>
     private bool AlwaysRender { get; }
 
-    public SphereHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
+    public SphereHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)
     {
         IsLean = declaration.Name.Equals("leansphere", StringComparison.OrdinalIgnoreCase);
 

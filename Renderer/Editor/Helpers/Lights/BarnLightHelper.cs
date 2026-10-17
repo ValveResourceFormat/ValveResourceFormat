@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Utils;
 
@@ -33,7 +32,7 @@ internal sealed class BarnLightHelper : LightHelperBase
     /// <summary>Gets how much narrower the area light is along one axis than the other, from -1 to 1.</summary>
     private float LuminaireAnisotropy { get; }
 
-    public BarnLightHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
+    public BarnLightHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)
     {
         Hardness = Vector2.Clamp(Vector2.One - new Vector2(GetFloatKey("soft_x"), GetFloatKey("soft_y")), Vector2.Zero, new Vector2(0.9999999f));
         LuminaireShape = (int)GetFloatKey("luminaire_shape", 1f);

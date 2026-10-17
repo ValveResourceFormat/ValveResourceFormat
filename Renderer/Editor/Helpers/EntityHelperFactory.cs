@@ -1,7 +1,5 @@
-using System.Linq;
 using Microsoft.Extensions.Logging;
-using ValveResourceFormat.IO.Fgd;
-using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Renderer.Editor.Entities;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
@@ -10,9 +8,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// </summary>
 public static class EntityHelperFactory
 {
-    private delegate EntityHelper? Creator(IHelperOwner owner, FgdHelper declaration);
-
-    private const string RequiredParentClassKey = "required_parent_class";
+    private delegate EntityHelper? Creator(IHelperOwner owner, HelperDeclaration declaration);
 
     // Material of the icon an entity of a class no game declares is given
     private const string ObsoleteIcon = "materials/editor/obsolete.vmat";
@@ -32,7 +28,7 @@ public static class EntityHelperFactory
     /// <returns>
     /// The helper, or <see langword="null"/> when nothing creates helpers of that name, or no helper goes by it.
     /// </returns>
-    public static EntityHelper? Create(IHelperOwner owner, FgdHelper declaration)
+    public static EntityHelper? Create(IHelperOwner owner, HelperDeclaration declaration)
     {
         ArgumentNullException.ThrowIfNull(owner);
         ArgumentNullException.ThrowIfNull(declaration);
@@ -52,8 +48,8 @@ public static class EntityHelperFactory
 
     /// <summary>
     /// Creates everything an entity is drawn with: the box of a class that declares a size, the helpers its
-    /// class declares, one for each of its variables that is drawn, and a box where none of those is seen,
-    /// unless it is made of map geometry, a path, or a node of one.
+    /// class declares, one for each of its keys that is drawn, and a box where none of those is seen, unless it
+    /// is made of map geometry, a path, or a node of one.
     /// </summary>
     /// <param name="owner">The entity.</param>
     /// <returns>The helpers, in the order they were created.</returns>
@@ -62,18 +58,18 @@ public static class EntityHelperFactory
         ArgumentNullException.ThrowIfNull(owner);
 
         var helpers = new List<EntityHelper>();
-        var gameClass = owner.FgdClass;
+        var entityClass = owner.EntityClass;
         var isSeen = false;
 
-        if (gameClass is { HasSize: true })
+        if (entityClass?.Size is var (mins, maxs))
         {
-            helpers.Add(new AlignedBoxHelper(owner, gameClass.Mins, gameClass.Maxs));
+            helpers.Add(new AlignedBoxHelper(owner, mins, maxs));
             isSeen = true;
         }
 
-        if (gameClass != null)
+        if (entityClass != null)
         {
-            foreach (var declaration in gameClass.Helpers.Concat(GetVariableHelpers(gameClass)))
+            foreach (var declaration in entityClass.Helpers)
             {
                 if (Create(owner, declaration) is { } helper)
                 {
@@ -83,27 +79,26 @@ public static class EntityHelperFactory
             }
 
             // Never what the entity is seen by, so it does not keep the box away
-            if (gameClass.Metadata.ContainsKey(RequiredParentClassKey) && gameClass.Metadata.GetStringProperty(RequiredParentClassKey) is { Length: > 0 }
-                && Create(owner, new FgdHelper { Name = "error_indicator" }) is { } errorIndicator)
+            if (entityClass.RequiredParentClass is { Length: > 0 } && Create(owner, new HelperDeclaration { Name = "error_indicator" }) is { } errorIndicator)
             {
                 helpers.Add(errorIndicator);
             }
         }
 
         // An entity made of map geometry is seen by that, and a node of a path by the path it is on
-        if (gameClass is { Type: FgdClassType.SolidClass or FgdClassType.PathNodeClass })
+        if (entityClass is { Kind: EntityClassKind.Solid or EntityClassKind.PathNode })
         {
             return helpers;
         }
 
-        if (gameClass == null && Create(owner, CreateDeclaration("iconsprite", ObsoleteIcon)) is { } obsolete)
+        if (entityClass == null && Create(owner, new HelperDeclaration { Name = "iconsprite", Arguments = [ObsoleteIcon] }) is { } obsolete)
         {
             helpers.Add(obsolete);
             isSeen = true;
         }
 
         // A path or a cable is seen by its nodes
-        if (!isSeen && gameClass is not { Type: FgdClassType.PathClass or FgdClassType.CableClass })
+        if (!isSeen && entityClass is not { Kind: EntityClassKind.Path or EntityClassKind.Cable })
         {
             helpers.Add(new AlignedBoxHelper(owner, DefaultBoxMins, DefaultBoxMaxs));
         }
@@ -128,35 +123,6 @@ public static class EntityHelperFactory
 
             return true;
         }
-    }
-
-    // A variable of one of these types is drawn by a helper of its own, which is given its name
-    private static IEnumerable<FgdHelper> GetVariableHelpers(FgdClass gameClass)
-    {
-        foreach (var variable in gameClass.Variables)
-        {
-            var name = variable.DeclaredType switch
-            {
-                FgdVariableType.VecLine => "vecline",
-                FgdVariableType.Axis => "axis",
-                FgdVariableType.LocalAxis => "localaxis",
-                _ => null,
-            };
-
-            if (name != null)
-            {
-                // A variable without a name gives the helper no key
-                yield return variable.Name.Length > 0 ? CreateDeclaration(name, variable.Name) : new FgdHelper { Name = name };
-            }
-        }
-    }
-
-    private static FgdHelper CreateDeclaration(string name, string argument)
-    {
-        var declaration = new FgdHelper { Name = name };
-
-        declaration.Arguments.Add(argument);
-        return declaration;
     }
 
     private static Dictionary<string, Creator?> CreateCreators()

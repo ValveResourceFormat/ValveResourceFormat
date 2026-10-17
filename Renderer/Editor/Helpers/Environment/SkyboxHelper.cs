@@ -1,5 +1,4 @@
 using System.IO;
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
@@ -8,7 +7,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The sky of an <c>env_sky</c>, drawn behind everything else of the map, tinted and fogged as the entity
 /// says.
 /// </summary>
-internal sealed class SkyboxHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
+internal sealed class SkyboxHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
     // Where the angular fog fades below and above the horizon, while the entity does not say
     private static readonly Vector4 DefaultAngularFog = new(-25f, -35f, 25f, 35f);

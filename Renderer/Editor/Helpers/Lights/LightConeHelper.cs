@@ -1,5 +1,4 @@
 using System.Globalization;
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
@@ -34,7 +33,7 @@ internal sealed class LightConeHelper : EntityHelper
     /// <summary>Gets what the pitch of the entity is multiplied by for the cone to point the way the light does.</summary>
     private float PitchScale { get; }
 
-    public LightConeHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
+    public LightConeHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)
     {
         InnerAngleKey = GetArgument(0)?.ToLowerInvariant() ?? "innerconeangle";
         OuterAngleKey = GetArgument(1)?.ToLowerInvariant() ?? "outerconeangle";

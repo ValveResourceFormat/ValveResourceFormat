@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Utils;
 
@@ -25,7 +24,7 @@ internal sealed class RadiusSphereHelper : EntityHelper
     /// <summary>Gets the color of the sphere.</summary>
     private Color32 Color { get; }
 
-    public RadiusSphereHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
+    public RadiusSphereHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)
     {
         RadiusKey = GetArgument(0)?.ToLowerInvariant() ?? DefaultRadiusKey;
         Color = declaration.Name.Equals("viewer", StringComparison.OrdinalIgnoreCase) ? ViewerColor : OccluderColor;

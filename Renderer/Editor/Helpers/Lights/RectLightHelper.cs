@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Utils;
 
@@ -18,7 +17,7 @@ internal sealed class RectLightHelper : LightHelperBase
     /// <summary>Gets the shape of the luminaire: 0 for a rectangle, 1 for a disc.</summary>
     private int Shape { get; }
 
-    public RectLightHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
+    public RectLightHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)
     {
         Shape = (int)GetFloatKey("shape");
     }

@@ -7,7 +7,6 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.IO.ContentFormats.HalfEdgeMesh;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.Helpers;
 using ValveResourceFormat.Renderer.Entities;
@@ -312,18 +311,17 @@ public sealed class MapDocumentLoader : IDisposable
     // They are taken in the order the classes are declared in, and then in the order of the map.
     private Dictionary<string, MapEntity> FindGlobals()
     {
-        var fgd = entityVisuals.Fgd;
-        var classOrder = new Dictionary<FgdClass, int>();
+        var classOrder = new Dictionary<EntityClass, int>();
 
-        foreach (var gameClass in fgd.Classes.Concat(fgd.Fallback?.Classes ?? []))
+        foreach (var entityClass in entityVisuals.Classes.Classes)
         {
-            classOrder.TryAdd(gameClass, classOrder.Count);
+            classOrder.Add(entityClass, classOrder.Count);
         }
 
         var globals = new Dictionary<string, MapEntity>(StringComparer.OrdinalIgnoreCase);
         var depths = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-        var candidates = mapEntities.OrderBy(mapEntity => mapEntity.FgdClass is { } gameClass ? classOrder.GetValueOrDefault(gameClass, int.MaxValue) : int.MaxValue);
+        var candidates = mapEntities.OrderBy(mapEntity => mapEntity.EntityClass is { } entityClass ? classOrder.GetValueOrDefault(entityClass, int.MaxValue) : int.MaxValue);
 
         foreach (var mapEntity in candidates)
         {
@@ -406,7 +404,7 @@ public sealed class MapDocumentLoader : IDisposable
 
         Entities.Add(data);
 
-        var mapEntity = new MapEntity(scene, placedNode, data, placedNode.WorldLayer ?? EntitiesLayerName, entityVisuals.Fgd, mapEntities, entitiesByName, path);
+        var mapEntity = new MapEntity(scene, placedNode, data, placedNode.WorldLayer ?? EntitiesLayerName, entityVisuals.Classes, mapEntities, entitiesByName, path);
 
         mapEntity.CreateHelpers();
         mapEntities.Add(mapEntity);

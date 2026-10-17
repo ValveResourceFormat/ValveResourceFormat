@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
@@ -11,7 +10,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// <c>aspectRatio</c> keys of the path, with an arrow along the path that keeps its size on the screen. It is
 /// drawn while the path or any of its nodes is selected, and only for a path the camera takes some time to run.
 /// </summary>
-internal sealed class CameraPathHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
+internal sealed class CameraPathHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override bool NeedsShowHelpers => true;

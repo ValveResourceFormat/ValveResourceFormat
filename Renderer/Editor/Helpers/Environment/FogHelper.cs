@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Utils;
 
@@ -8,7 +7,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The fog of an <c>env_fog_controller</c>: a color faded in from a start to an end distance, up to a
 /// maximum density, which the map has while the entity is the <c>fog</c> global.
 /// </summary>
-internal sealed class FogHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration), ILinearFogSource
+internal sealed class FogHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration), ILinearFogSource
 {
     /// <inheritdoc/>
     public LinearFog GetFog()

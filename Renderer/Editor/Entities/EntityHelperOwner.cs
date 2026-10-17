@@ -1,5 +1,4 @@
 using System.Linq;
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Helpers;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Renderer.Entities;
@@ -35,7 +34,7 @@ internal sealed class EntityHelperOwner : IHelperOwner
 
     public string Classname => entity.Classname;
 
-    public FgdClass? FgdClass { get; }
+    public EntityClass? EntityClass { get; }
 
     public Matrix4x4 Transform => entity.Transform;
 
@@ -61,7 +60,7 @@ internal sealed class EntityHelperOwner : IHelperOwner
         this.visuals = visuals;
 
         KeyValues = keyValues;
-        FgdClass = visuals.Fgd.FindClass(entity.Classname);
+        EntityClass = visuals.Classes.FindClass(entity.Classname);
     }
 
     /// <summary>Creates the helpers of the entity, every one its class declares.</summary>

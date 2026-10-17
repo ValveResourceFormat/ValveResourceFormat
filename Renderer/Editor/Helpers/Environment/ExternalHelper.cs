@@ -1,5 +1,4 @@
 using System.IO;
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.SceneNodes;
 
@@ -9,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// What the game draws of an entity the editor shows through an object of the game, which the declaration
 /// names: the sprite of an <c>env_sprite</c>, or the panel of a <c>point_clientui_world_text_panel</c>.
 /// </summary>
-internal sealed class ExternalHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
+internal sealed class ExternalHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override bool IsVisual => false;

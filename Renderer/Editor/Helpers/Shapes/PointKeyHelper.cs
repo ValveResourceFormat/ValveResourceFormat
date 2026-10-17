@@ -1,5 +1,4 @@
 using System.Linq;
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
@@ -42,7 +41,7 @@ internal abstract class PointKeyHelper : EntityHelper
     /// <param name="owner">The entity the helper belongs to.</param>
     /// <param name="declaration">The helper as the class of the entity declares it.</param>
     /// <param name="isLocal">Whether the point is in the space of the entity, rather than in world space.</param>
-    private protected PointKeyHelper(IHelperOwner owner, FgdHelper declaration, bool isLocal) : base(owner, declaration)
+    private protected PointKeyHelper(IHelperOwner owner, HelperDeclaration declaration, bool isLocal) : base(owner, declaration)
     {
         PointKey = GetArgument(0)?.ToLowerInvariant() ?? DefaultPointKey;
         IsLocal = isLocal;

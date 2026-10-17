@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
@@ -12,7 +11,7 @@ internal sealed class GameUnitModelHelper : EntityHelper
     private static readonly Vector3 BoxMins = new(-8f);
     private static readonly Vector3 BoxMaxs = new(8f);
 
-    private GameUnitModelHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
+    private GameUnitModelHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)
     {
     }
 
@@ -21,7 +20,7 @@ internal sealed class GameUnitModelHelper : EntityHelper
 
     /// <summary>Creates the marker a class declares.</summary>
     /// <returns>The marker, or <see langword="null"/> when the declaration does not name exactly one key.</returns>
-    public static GameUnitModelHelper? Create(IHelperOwner owner, FgdHelper declaration)
+    public static GameUnitModelHelper? Create(IHelperOwner owner, HelperDeclaration declaration)
     {
         ArgumentNullException.ThrowIfNull(declaration);
 

@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Utils;
 
@@ -9,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// centered on the entity by its center keys, and as deep as its depth key on both sides of it. The box is
 /// drawn while the entity is selected.
 /// </summary>
-internal sealed class OverlayHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
+internal sealed class OverlayHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
     // The size along each axis whose key the entity does not have
     private const float DefaultSize = 64f;

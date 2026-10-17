@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
@@ -38,7 +37,7 @@ internal sealed class AnglesHelper : EntityHelper
     /// <summary>Gets the color of the arrow.</summary>
     private Color32 Color { get; }
 
-    public AnglesHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
+    public AnglesHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)
     {
         IsLocal = declaration.Name.Equals("drawangles_local", StringComparison.OrdinalIgnoreCase);
         AnglesKey = GetMetadata("angles_key")?.ToLowerInvariant();
