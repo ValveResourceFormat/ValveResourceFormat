@@ -291,7 +291,7 @@ public sealed class ToolRenderContext
     /// <summary>Draws a triangle with a color at each corner.</summary>
     public void DrawTriangle(Vector3 a, Vector3 b, Vector3 c, Color32 colorA, Color32 colorB, Color32 colorC)
     {
-        var normal = ComputeFaceNormals ? GetFaceNormal(a, b, c) : DefaultNormal;
+        var normal = ComputeFaceNormals ? MathUtils.SafeNormalize(MathUtils.TriangleCross(a, b, c)) : DefaultNormal;
 
         AddTriangle(a, b, c, colorA, colorB, colorC, normal);
     }
@@ -418,7 +418,7 @@ public sealed class ToolRenderContext
             return;
         }
 
-        var axis = NormalizeOrZero(end - start);
+        var axis = MathUtils.SafeNormalize(end - start);
         var (right, up) = GetVectorVectors(axis);
 
         // The rim around the start, then the one around the end
@@ -535,15 +535,15 @@ public sealed class ToolRenderContext
             return Matrix4x4.CreateTranslation(origin);
         }
 
-        var forward = NormalizeOrZero(axis);
+        var forward = MathUtils.SafeNormalize(axis);
         Vector3 left;
         Vector3 up;
 
         // Left is level with the ground, except along a vertical axis where it is +Y
         if (MathF.Abs(forward.X) >= 0.001f || MathF.Abs(forward.Y) >= 0.001f)
         {
-            left = NormalizeOrZero(new Vector3(-forward.Y, forward.X, 0f));
-            up = NormalizeOrZero(Vector3.Cross(forward, left));
+            left = MathUtils.SafeNormalize(new Vector3(-forward.Y, forward.X, 0f));
+            up = MathUtils.SafeNormalize(Vector3.Cross(forward, left));
         }
         else
         {
@@ -698,7 +698,7 @@ public sealed class ToolRenderContext
             return;
         }
 
-        var (right, up) = GetVectorVectors(NormalizeOrZero(tip - baseCenter));
+        var (right, up) = GetVectorVectors(MathUtils.SafeNormalize(tip - baseCenter));
         Span<Vector3> rim = segments <= 64 ? stackalloc Vector3[segments] : new Vector3[segments];
 
         var angle = 0f;
@@ -737,17 +737,11 @@ public sealed class ToolRenderContext
         var up = Vector3.Cross(forward, reference);
         var right = Vector3.Cross(up, forward);
 
-        return (NormalizeOrZero(right), NormalizeOrZero(up));
-    }
-
-    private static Vector3 NormalizeOrZero(Vector3 vector)
-    {
-        var length = vector.Length();
-        return length > 0f ? vector / length : Vector3.Zero;
+        return (MathUtils.SafeNormalize(right), MathUtils.SafeNormalize(up));
     }
 
     // The normal the CPU lights a face by, which faces away from the side its corners turn clockwise on
-    private static Vector3 GetShadeNormal(Vector3 a, Vector3 b, Vector3 c) => NormalizeOrZero(Vector3.Cross(c - a, b - a));
+    private static Vector3 GetShadeNormal(Vector3 a, Vector3 b, Vector3 c) => MathUtils.SafeNormalize(Vector3.Cross(c - a, b - a));
 
     private void AddFaces(Vector3 a, Vector3 b, Vector3 c, Color32 colorA, Color32 colorB, Color32 colorC, ToolFaceSides sides)
     {
@@ -772,14 +766,6 @@ public sealed class ToolRenderContext
         var worldNormal = NormalToWorld(normal);
 
         Output.AddTriangle(State, ToWorld(a), ToWorld(b), ToWorld(c), colorA, colorB, colorC, worldNormal, worldNormal, worldNormal);
-    }
-
-    private static Vector3 GetFaceNormal(Vector3 a, Vector3 b, Vector3 c)
-    {
-        var normal = Vector3.Cross(b - a, c - a);
-        var length = normal.Length();
-
-        return length > 0f ? normal / length : Vector3.Zero;
     }
 
     /// <summary>A color lit by the CPU the way the flat modes light faces, its alpha kept.</summary>
