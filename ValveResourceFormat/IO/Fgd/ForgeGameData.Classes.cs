@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Utils;
 using Token = ValveResourceFormat.IO.Fgd.FgdTokenizer.Token;
 
 namespace ValveResourceFormat.IO.Fgd;
@@ -229,7 +230,7 @@ public sealed partial class ForgeGameData
             return false;
         }
 
-        numbers = new Vector3(ParseFloat(x.Span), ParseFloat(y.Span), ParseFloat(z.Span));
+        numbers = new Vector3(LeadingNumber.ParseFloat(x.Span), LeadingNumber.ParseFloat(y.Span), LeadingNumber.ParseFloat(z.Span));
         return true;
     }
 
@@ -653,7 +654,7 @@ public sealed partial class ForgeGameData
                 break;
 
             case FgdStorage.Integer:
-                variable.DefaultInteger = ParseInteger(text);
+                variable.DefaultInteger = LeadingNumber.ParseInteger(text);
                 variable.HasDefault = true;
                 break;
         }
@@ -885,14 +886,14 @@ public sealed partial class ForgeGameData
 
             if (type == FgdVariableType.Flags)
             {
-                var value = ParseInteger(valueText);
+                var value = LeadingNumber.ParseInteger(valueText);
 
                 variable.Choices.Add(new FgdChoice
                 {
                     Value = value,
                     ValueText = value.ToString(CultureInfo.InvariantCulture),
                     Caption = caption,
-                    IsDefault = ParseInteger(isDefault.Span) != 0,
+                    IsDefault = LeadingNumber.ParseInteger(isDefault.Span) != 0,
                 });
             }
             else
@@ -915,7 +916,7 @@ public sealed partial class ForgeGameData
                     ValueText = valueText,
                     Caption = caption,
                     Description = description,
-                    IsDefault = ParseInteger(isDefault.Span) != 0,
+                    IsDefault = LeadingNumber.ParseInteger(isDefault.Span) != 0,
                 });
             }
         }
@@ -959,7 +960,7 @@ public sealed partial class ForgeGameData
 
         if (storage == FgdStorage.Integer)
         {
-            variable.DefaultInteger = ParseInteger(named.ValueText);
+            variable.DefaultInteger = LeadingNumber.ParseInteger(named.ValueText);
         }
         else if (storage == FgdStorage.String)
         {
