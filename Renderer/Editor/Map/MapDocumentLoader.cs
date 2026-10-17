@@ -565,7 +565,7 @@ public sealed class MapDocumentLoader : IDisposable
     // which for a target that is an instance or a prefab is everything it places
     private IEnumerable<OverlayReceiver> GetOverlayReceivers(PlacedMapNode placedNode, CMapStaticOverlay overlay)
     {
-        if (overlay.ProjectionMode != 3)
+        if ((MapOverlayProjectionMode)overlay.ProjectionMode != MapOverlayProjectionMode.Targets)
         {
             return overlayReceivers.Select(static receiver => receiver.Receiver);
         }

@@ -48,6 +48,9 @@ public static class StaticOverlayProjector
     // Overlay corners are moved onto a grid this fine once they are in the world
     private const float SnapStep = 0.125f;
 
+    // Faces flagged with any of these do not project
+    private const PolygonMeshFaceFlags NotProjectedFaceFlags = PolygonMeshFaceFlags.Selected | PolygonMeshFaceFlags.Hidden | PolygonMeshFaceFlags.CoveredByTile;
+
     // Corner weights of a point summing to this close to one put it inside a triangle
     private const float WeightSumTolerance = 0.001f;
 
@@ -96,8 +99,9 @@ public static class StaticOverlayProjector
         }
 
         // Targets of an overlay that projects no distance are taken whole, anything else only where it is in reach
-        var testBounds = overlay.ProjectionMode != 3 || depth > 0f;
-        var surfaces = GatherSurfaces(receivers, GetProjectionBounds(groups, depth), overlay.ProjectionMode, testBounds);
+        var projectionMode = (MapOverlayProjectionMode)overlay.ProjectionMode;
+        var testBounds = projectionMode != MapOverlayProjectionMode.Targets || depth > 0f;
+        var surfaces = GatherSurfaces(receivers, GetProjectionBounds(groups, depth), projectionMode, testBounds);
 
         if (surfaces.Positions.Count == 0)
         {
@@ -130,8 +134,7 @@ public static class StaticOverlayProjector
 
             foreach (var hFace in mesh.FaceHandles)
             {
-                // Faces that are selected, hidden or under a tile do not project
-                if (mesh.MaterialIndex[hFace] != material || (mesh.FaceFlags[hFace] & 7) != 0)
+                if (mesh.MaterialIndex[hFace] != material || ((PolygonMeshFaceFlags)mesh.FaceFlags[hFace] & NotProjectedFaceFlags) != 0)
                 {
                     continue;
                 }
@@ -279,7 +282,7 @@ public static class StaticOverlayProjector
         return new AABB(min - Vector3.One, max + Vector3.One);
     }
 
-    private static Surfaces GatherSurfaces(IEnumerable<OverlayReceiver> receivers, AABB bounds, int projectionMode, bool testBounds)
+    private static Surfaces GatherSurfaces(IEnumerable<OverlayReceiver> receivers, AABB bounds, MapOverlayProjectionMode projectionMode, bool testBounds)
     {
         var surfaces = new Surfaces();
         var centre = bounds.Center;
@@ -287,8 +290,8 @@ public static class StaticOverlayProjector
 
         foreach (var receiver in receivers)
         {
-            // Only world geometry (1), only models (2), or both
-            if ((receiver.Kind == OverlayReceiverKind.Mesh && projectionMode == 2) || (receiver.Kind == OverlayReceiverKind.Model && projectionMode == 1))
+            if ((receiver.Kind == OverlayReceiverKind.Mesh && projectionMode == MapOverlayProjectionMode.Models)
+                || (receiver.Kind == OverlayReceiverKind.Model && projectionMode == MapOverlayProjectionMode.World))
             {
                 continue;
             }
@@ -320,7 +323,7 @@ public static class StaticOverlayProjector
     {
         // Every face of the material goes the way the faces face on average. Points are brought back onto the plane
         // of that way through the middle of the first face to take their texture coordinates and paint from a face.
-        var normal = MathUtils.SafeNormalize(MathUtils.SafeNormalize(polygons.Aggregate(Vector3.Zero, static (sum, polygon) => sum + polygon.Normal)));
+        var normal = MathUtils.SafeNormalize(polygons.Aggregate(Vector3.Zero, static (sum, polygon) => sum + polygon.Normal));
         var firstFace = polygons[0].Positions;
         var planeDistance = Vector3.Dot(normal, firstFace.Aggregate(Vector3.Add) / firstFace.Length);
         var direction = -normal;

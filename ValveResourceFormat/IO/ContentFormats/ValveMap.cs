@@ -1630,8 +1630,7 @@ public class CMapStaticOverlay : CMapMesh
     public float BackFacingAngle { get; set; } = 90f;
 
     /// <summary>
-    /// What the overlay projects onto: everything (0), world geometry (1), models (2) or its
-    /// <see cref="ProjectionTargets"/> (3).
+    /// What the overlay projects onto, see <see cref="MapOverlayProjectionMode"/>.
     /// </summary>
     public int ProjectionMode { get; set; }
 }
