@@ -66,7 +66,7 @@ internal sealed class CubemapFogHelper(IHelperOwner owner, FgdHelper declaration
 
         if (materialName is { Length: > 0 } && Path.GetExtension(materialName).Equals(".vmat", StringComparison.OrdinalIgnoreCase))
         {
-            SetSkyMaterial(fog, materialName, brightness);
+            fog.SetSkyMaterial(materialName, brightness);
         }
         else if (textureName is { Length: > 0 } && Path.GetExtension(textureName).Equals(".vtex", StringComparison.OrdinalIgnoreCase))
         {
@@ -95,31 +95,5 @@ internal sealed class CubemapFogHelper(IHelperOwner owner, FgdHelper declaration
         fog.UseHeightFog = hasHeightFog;
         fog.HeightStart = heightStart;
         fog.HeightEnd = heightStart + heightWidth;
-    }
-
-    private void SetSkyMaterial(SceneCubemapFog fog, string materialName, float brightness)
-    {
-        var rendererContext = Owner.Scene.RendererContext;
-
-        using var materialFile = rendererContext.FileLoader.LoadFileCompiled(materialName);
-
-        if (materialFile == null)
-        {
-            return;
-        }
-
-        var material = rendererContext.MaterialLoader.LoadMaterial(materialFile);
-
-        if (!material.Textures.TryGetValue("g_tSkyTexture", out var texture))
-        {
-            return;
-        }
-
-        // Both biases are powers of two, which the brightness of the sky entity scales
-        var exposureBias = material.FloatParams.GetValueOrDefault("g_flBrightnessExposureBias")
-            + material.FloatParams.GetValueOrDefault("g_flRenderOnlyExposureBias");
-
-        fog.CubemapFogTexture = texture;
-        fog.ExposureBias = exposureBias + MathF.Log2(brightness);
     }
 }
