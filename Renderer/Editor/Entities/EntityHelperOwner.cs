@@ -64,18 +64,6 @@ internal sealed class EntityHelperOwner : IHelperOwner
         FgdClass = visuals.Fgd.FindClass(entity.Classname);
     }
 
-    /// <summary>
-    /// Gets whether a helper stands in for the entity in the editor, rather than drawing what the game
-    /// shows of it.
-    /// </summary>
-    public static bool IsStandIn(EntityHelper helper)
-        => helper is AlignedBoxHelper or IconHelper or ModelHelper { IsNamedByClass: true };
-
-    /// <summary>Gets whether a helper only draws shapes of the editor, which the game does not show.</summary>
-    public static bool IsToolShape(EntityHelper helper)
-        => helper is AccompanyHelper or AnglesHelper or ArcRangeHelper or BoxHelper or OrientedWidthHeightHelper
-            or RadiusSphereHelper or SphereHelper or SweptPlayerHullHelper or TextHelper or VecLineHelper or WireBoxHelper;
-
     /// <summary>Creates the helpers of the entity, every one its class declares.</summary>
     public void CreateHelpers()
     {

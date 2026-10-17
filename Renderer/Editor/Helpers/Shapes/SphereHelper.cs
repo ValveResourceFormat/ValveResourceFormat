@@ -11,6 +11,9 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 public sealed class SphereHelper : EntityHelper
 {
     /// <inheritdoc/>
+    public override bool IsToolShape => true;
+
+    /// <inheritdoc/>
     public override bool IsVisual => false;
 
     /// <inheritdoc/>

@@ -11,6 +11,9 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 public sealed class AlignedBoxHelper : EntityHelper
 {
     /// <inheritdoc/>
+    public override bool IsStandIn => true;
+
+    /// <inheritdoc/>
     public override bool HiddenInGameObjectsOnly => true;
 
     /// <summary>Gets the smallest corner of the box, from the origin of the entity.</summary>

@@ -12,6 +12,9 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 public sealed class OrientedWidthHeightHelper : EntityHelper
 {
     /// <inheritdoc/>
+    public override bool IsToolShape => true;
+
+    /// <inheritdoc/>
     public override bool HiddenInGameObjectsOnly => true;
 
     // The size of the box until the keys give it

@@ -14,6 +14,9 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 public sealed class ArcRangeHelper : EntityHelper
 {
     /// <inheritdoc/>
+    public override bool IsToolShape => true;
+
+    /// <inheritdoc/>
     public override bool NeedsShowHelpers => true;
 
     /// <inheritdoc/>

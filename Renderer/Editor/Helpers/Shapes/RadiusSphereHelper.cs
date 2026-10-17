@@ -11,6 +11,9 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// </summary>
 public sealed class RadiusSphereHelper : EntityHelper
 {
+    /// <inheritdoc/>
+    public override bool IsToolShape => true;
+
     private const string DefaultRadiusKey = "radius";
 
     private static readonly Color32 OccluderColor = new(255, 0, 0);

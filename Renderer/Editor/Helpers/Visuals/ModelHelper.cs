@@ -35,6 +35,9 @@ public enum ModelBoundsMode
 public class ModelHelper : EntityHelper
 {
     /// <inheritdoc/>
+    public override bool IsStandIn => IsNamedByClass;
+
+    /// <inheritdoc/>
     public override bool HiddenInGameObjectsOnly => IsEditorModel;
 
     // The bounds of the model while the entity is selected
