@@ -160,6 +160,7 @@ namespace Tests.IO
 
             await Assert.That(important.Metadata.GetBooleanProperty("report")).IsTrue();
             await Assert.That(important.DefaultInteger).IsEqualTo(3);
+            await Assert.That(important.DefaultString).IsEqualTo("3").Because("helpers read every default as text");
 
             await Assert.That(gameClass.FindVariable("hinge")!.Metadata.GetBooleanProperty("editor_only")).IsTrue();
             await Assert.That(gameClass.FindVariable("quoted")!.DefaultString).IsEqualTo("say \"hi\"\tnow");
