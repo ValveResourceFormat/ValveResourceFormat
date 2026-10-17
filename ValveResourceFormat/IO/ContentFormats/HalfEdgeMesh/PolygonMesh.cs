@@ -371,9 +371,6 @@ public sealed partial class PolygonMesh
 
     private float smoothingThreshold = MathF.Cos(float.DegreesToRadians(40f));
 
-    // Normal of every face while the mesh is being triangulated, which asks for them over and over
-    private Vector3[]? faceNormalCache;
-
     /// <summary>
     /// Gets the flags of each edge, the same on both of its half edges, see <see cref="PolygonMeshEdgeFlags"/>.
     /// </summary>
@@ -480,26 +477,20 @@ public sealed partial class PolygonMesh
     /// <summary>
     /// Gets whether the two faces of an edge shade as one surface across it.
     /// </summary>
-    public bool IsEdgeSmooth(HalfEdgeHandle hEdge)
-    {
-        if (GetEdgeSmoothingOverride(hEdge) is { } smooth)
-        {
-            return smooth;
-        }
+    public bool IsEdgeSmooth(HalfEdgeHandle hEdge) => IsEdgeSmooth(hEdge, GetFaceNormal);
 
-        ComputeFaceNormal(hEdge.Face, out var normalA);
-        ComputeFaceNormal(hEdge.OppositeEdge.Face, out var normalB);
-
-        return Vector3.Dot(normalA, normalB) > smoothingThreshold + SmoothingEpsilon;
-    }
+    // The normals of the faces are given, so that they can be worked out once for many edges
+    private bool IsEdgeSmooth(HalfEdgeHandle hEdge, Func<FaceHandle, Vector3> getFaceNormal)
+        => GetEdgeSmoothingOverride(hEdge)
+            ?? Vector3.Dot(getFaceNormal(hEdge.Face), getFaceNormal(hEdge.OppositeEdge.Face)) > smoothingThreshold + SmoothingEpsilon;
 
     private static HalfEdgeHandle GetNextFaceVertexConnectedToVertex(HalfEdgeHandle hFaceVertex)
         => hFaceVertex.NextEdge.OppositeEdge;
 
     // Finds the face vertices around a vertex that shade as one with the given one, those its face reaches
-    // without crossing a hard edge: from the first one up to, but not including, the last. Subdivided
-    // faces are taken the way their displaced surface faces at the vertex.
-    private bool FindSmoothingFan(HalfEdgeHandle hTargetFaceVertex, bool subdivided, out HalfEdgeHandle hFirstFaceVertex, out HalfEdgeHandle hLastFaceVertex)
+    // without crossing a hard edge: from the first one up to, but not including, the last. Whether the edge
+    // between a face vertex and the next one around the vertex is smooth is given.
+    private bool FindSmoothingFan(HalfEdgeHandle hTargetFaceVertex, Func<HalfEdgeHandle, HalfEdgeHandle, bool> isSmooth, out HalfEdgeHandle hFirstFaceVertex, out HalfEdgeHandle hLastFaceVertex)
     {
         hFirstFaceVertex = hTargetFaceVertex;
         hLastFaceVertex = hTargetFaceVertex;
@@ -522,7 +513,7 @@ public sealed partial class PolygonMesh
                 hLastFaceVertex = hNextFaceVertex;
             }
 
-            if (!(subdivided ? IsSubdividedEdgeSmooth(hCurrentFaceVertex, hNextFaceVertex) : IsEdgeSmooth(hNextFaceVertex)))
+            if (!isSmooth(hCurrentFaceVertex, hNextFaceVertex))
             {
                 foundHardEdge = true;
                 hFirstFaceVertex = hNextFaceVertex;
@@ -540,11 +531,13 @@ public sealed partial class PolygonMesh
     /// the face reaches without crossing a hard edge.
     /// </summary>
     /// <param name="hTargetFaceVertex">Half edge ending at the corner.</param>
-    public Vector3 ComputeFaceVertexNormal(HalfEdgeHandle hTargetFaceVertex)
-    {
-        ComputeFaceNormal(hTargetFaceVertex.Face, out var faceNormal);
+    public Vector3 ComputeFaceVertexNormal(HalfEdgeHandle hTargetFaceVertex) => ComputeFaceVertexNormal(hTargetFaceVertex, GetFaceNormal);
 
-        if (!FindSmoothingFan(hTargetFaceVertex, subdivided: false, out var hFirstFaceVertex, out var hLastFaceVertex))
+    private Vector3 ComputeFaceVertexNormal(HalfEdgeHandle hTargetFaceVertex, Func<FaceHandle, Vector3> getFaceNormal)
+    {
+        var faceNormal = getFaceNormal(hTargetFaceVertex.Face);
+
+        if (!FindSmoothingFan(hTargetFaceVertex, (_, hNext) => IsEdgeSmooth(hNext, getFaceNormal), out var hFirstFaceVertex, out var hLastFaceVertex))
         {
             return faceNormal;
         }
@@ -554,8 +547,7 @@ public sealed partial class PolygonMesh
 
         do
         {
-            ComputeFaceNormal(hCurrentFaceVertex.Face, out var normalOfFace);
-            normal += normalOfFace;
+            normal += getFaceNormal(hCurrentFaceVertex.Face);
 
             hCurrentFaceVertex = GetNextFaceVertexConnectedToVertex(hCurrentFaceVertex);
         }
@@ -575,13 +567,13 @@ public sealed partial class PolygonMesh
             return;
         }
 
-        if (faceNormalCache is { } cache)
-        {
-            pOutNormal = cache[hFace.Index];
-            return;
-        }
-
         PlaneEquation(hFace, out pOutNormal, out _);
+    }
+
+    private Vector3 GetFaceNormal(FaceHandle hFace)
+    {
+        ComputeFaceNormal(hFace, out var normal);
+        return normal;
     }
 
     private static void AccumulateNewellPair(ref Vector3 vNormal, in Vector3 pU, in Vector3 pV)
