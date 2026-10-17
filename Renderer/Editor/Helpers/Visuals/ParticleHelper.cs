@@ -12,21 +12,18 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The particle effect an entity plays, with its control points at the entities the <c>cpointN</c> keys
 /// name.
 /// </summary>
-public class ParticleHelper : EntityHelper
+internal class ParticleHelper : EntityHelper
 {
     private const int ControlPointCount = 64;
 
     private static readonly string[] ControlPointKeys = CreateControlPointKeys();
 
     /// <summary>Gets the key of the entity that names the effect.</summary>
-    public string EffectKey { get; }
+    private string EffectKey { get; }
 
     /// <summary>Gets the effect, once it is in the scene and it loaded.</summary>
-    public ParticleSceneNode? Effect { get; private set; }
+    private ParticleSceneNode? Effect { get; set; }
 
-    /// <summary>Initializes the effect of an entity.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
     public ParticleHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
     {
         EffectKey = GetArgument(0) ?? "effect_name";

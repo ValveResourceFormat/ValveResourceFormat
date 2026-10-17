@@ -9,14 +9,11 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// An icon over everything else that marks an entity whose class must be placed under an entity of another
 /// class, while it is not: it is under no entity, or under one of a class that is not that class or based on it.
 /// </summary>
-public sealed class ErrorIndicatorHelper : IconHelper
+internal sealed class ErrorIndicatorHelper : IconHelper
 {
     private const string ErrorMaterialName = "materials/editor/error_indicator.vmat";
     private const string RequiredParentClassKey = "required_parent_class";
 
-    /// <summary>Initializes the marker of an entity.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
     public ErrorIndicatorHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration, ErrorMaterialName)
     {
     }

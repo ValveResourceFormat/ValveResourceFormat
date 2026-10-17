@@ -9,20 +9,13 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The box an orthographic light shines through while it is selected, as wide and high as two of its keys
 /// say and reaching forward as far as its range, in the color of the light and faintly over everything.
 /// </summary>
-public sealed class LightOrthoHelper : EntityHelper
+internal sealed class LightOrthoHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override bool IsVisual => false;
 
     /// <inheritdoc/>
     public override bool NeedsShowHelpers => true;
-
-    /// <summary>Initializes the box of an orthographic light.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
-    public LightOrthoHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
-    {
-    }
 
     internal override void Render(ToolRenderContext context, in HelperRenderState state)
     {

@@ -28,18 +28,15 @@ public sealed class BakeResourceHelper : EntityHelper
     /// <param name="Key">The key.</param>
     /// <param name="Extension">The extension of the resource.</param>
     /// <param name="Prefix">What the name of the resource starts with.</param>
-    public readonly record struct BakedResource(string Key, string Extension, string Prefix);
+    private readonly record struct BakedResource(string Key, string Extension, string Prefix);
 
     /// <summary>Gets the keys the entity names its baked resources by, none where the declaration lists unequal numbers of them.</summary>
-    public IReadOnlyList<BakedResource> Resources { get; }
+    private IReadOnlyList<BakedResource> Resources { get; }
 
     /// <summary>Gets what is baked, such as <c>ToolObjects/LightProbeVolume</c>.</summary>
-    public string? ToolObject => GetArgument(3);
+    private string? ToolObject => GetArgument(3);
 
-    /// <summary>Initializes a baked resource of an entity.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
-    public BakeResourceHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
+    internal BakeResourceHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
     {
         static string[] Split(string? list) => list?.Split(',', StringSplitOptions.TrimEntries) ?? [];
 

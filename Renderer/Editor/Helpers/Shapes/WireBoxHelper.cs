@@ -7,7 +7,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The edges of a box two keys of an entity give, drawn whether or not the entity is selected: in world
 /// coordinates, or from the origin of the entity along the world axes.
 /// </summary>
-public sealed class WireBoxHelper : EntityHelper
+internal sealed class WireBoxHelper : EntityHelper
 {
     /// <inheritdoc/>
     public override bool IsToolShape => true;
@@ -19,13 +19,13 @@ public sealed class WireBoxHelper : EntityHelper
     public override bool HiddenInGameObjectsOnly => true;
 
     /// <summary>Gets the key of the entity that holds the smallest corner.</summary>
-    public string MinsKey { get; }
+    private string MinsKey { get; }
 
     /// <summary>Gets the key of the entity that holds the largest corner.</summary>
-    public string MaxsKey { get; }
+    private string MaxsKey { get; }
 
     /// <summary>Gets whether the corners are in world coordinates, rather than from the origin of the entity.</summary>
-    public bool IsWorld { get; }
+    private bool IsWorld { get; }
 
     private WireBoxHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
     {
@@ -35,8 +35,6 @@ public sealed class WireBoxHelper : EntityHelper
     }
 
     /// <summary>Creates the box a class declares.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
     /// <returns>The box, or <see langword="null"/> when the declaration does not name both keys.</returns>
     public static WireBoxHelper? Create(IHelperOwner owner, FgdHelper declaration)
     {

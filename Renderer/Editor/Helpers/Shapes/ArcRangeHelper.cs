@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// selected the slice is drawn full size over everything, the part past zero apart from the part before it;
 /// while it is not, it is a faint slice half the size.
 /// </summary>
-public sealed class ArcRangeHelper : EntityHelper
+internal sealed class ArcRangeHelper : EntityHelper
 {
     /// <inheritdoc/>
     public override bool IsToolShape => true;
@@ -31,41 +31,38 @@ public sealed class ArcRangeHelper : EntityHelper
     private static readonly Color32 TriangleColor = new(64, 200, 200, 64);
 
     /// <summary>Gets the key of the entity that holds whether the range is drawn.</summary>
-    public string IsEnabledKey { get; }
+    private string IsEnabledKey { get; }
 
     /// <summary>Gets the key of the entity that holds the axis.</summary>
-    public string AxisKey { get; }
+    private string AxisKey { get; }
 
     /// <summary>Gets the key of the entity that holds the smallest angle.</summary>
-    public string MinAngleKey { get; }
+    private string MinAngleKey { get; }
 
     /// <summary>Gets the key of the entity that holds the largest angle.</summary>
-    public string MaxAngleKey { get; }
+    private string MaxAngleKey { get; }
 
     /// <summary>Gets the key of the entity that holds the field of view, which takes the place of both angles when set.</summary>
-    public string FovKey { get; }
+    private string FovKey { get; }
 
     /// <summary>
     /// Gets whether the axis key holds two points in the space of the entity, rather than a point in world
     /// space the axis points to from the entity.
     /// </summary>
-    public bool IsLocalAxis { get; }
+    private bool IsLocalAxis { get; }
 
     /// <summary>Gets whether zero degrees is the forward axis of the entity, as near as it can be across the axis.</summary>
-    public bool AlignPieToLocalForward { get; }
+    private bool AlignPieToLocalForward { get; }
 
     /// <summary>Gets whether zero degrees is the up axis of the entity, the slice turning about its forward axis.</summary>
-    public bool AlignPieToLocalUp { get; }
+    private bool AlignPieToLocalUp { get; }
 
     /// <summary>Gets the radius of the slice.</summary>
-    public float Radius { get; }
+    private float Radius { get; }
 
     /// <summary>Gets whether a triangle points to zero degrees while the entity is selected.</summary>
-    public bool DrawTriangle { get; }
+    private bool DrawTriangle { get; }
 
-    /// <summary>Initializes the range a class declares.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
     public ArcRangeHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
     {
         IsEnabledKey = (GetMetadata("is_enabled_key") ?? "is_enabled").ToLowerInvariant();

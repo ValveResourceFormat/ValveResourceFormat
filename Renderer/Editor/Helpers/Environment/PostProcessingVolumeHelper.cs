@@ -8,20 +8,13 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The post processing of a <c>post_processing_volume</c>: its exposure and the post processing resource it
 /// names, under the keys its declaration gives.
 /// </summary>
-public sealed class PostProcessingVolumeHelper : EntityHelper
+internal sealed class PostProcessingVolumeHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
 {
-    /// <summary>Initializes the post processing of an entity.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
-    public PostProcessingVolumeHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
-    {
-    }
-
     /// <summary>Gets the key of the post processing resource the declaration gives.</summary>
-    public string ResourceKey => GetArgument(0) is { Length: > 0 } key ? key : "postprocessing";
+    private string ResourceKey => GetArgument(0) is { Length: > 0 } key ? key : "postprocessing";
 
     /// <summary>Gets the key of the fade time the declaration gives.</summary>
-    public string FadeTimeKey => GetArgument(1) is { Length: > 0 } key ? key : "fadetime";
+    private string FadeTimeKey => GetArgument(1) is { Length: > 0 } key ? key : "fadetime";
 
     /// <inheritdoc/>
     public override void AddToScene()

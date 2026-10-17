@@ -9,19 +9,12 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// centered on the entity by its center keys, and as deep as its depth key on both sides of it. The box is
 /// drawn while the entity is selected.
 /// </summary>
-public sealed class OverlayHelper : EntityHelper
+internal sealed class OverlayHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
 {
     // The size along each axis whose key the entity does not have
     private const float DefaultSize = 64f;
 
     private static readonly Color32 BoundsColor = new(0, 255, 0);
-
-    /// <summary>Initializes the box of an overlay.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
-    public OverlayHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
-    {
-    }
 
     /// <inheritdoc/>
     public override void AddToScene()

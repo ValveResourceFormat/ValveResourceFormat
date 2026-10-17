@@ -9,20 +9,13 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// What the game draws of an entity the editor shows through an object of the game, which the declaration
 /// names: the sprite of an <c>env_sprite</c>, or the panel of a <c>point_clientui_world_text_panel</c>.
 /// </summary>
-public sealed class ExternalHelper : EntityHelper
+internal sealed class ExternalHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override bool IsVisual => false;
 
     /// <summary>Gets the name of the object of the game the entity is shown through, such as <c>ToolObjects/env_sprite</c>.</summary>
-    public string ToolObject => GetArgument(0) ?? string.Empty;
-
-    /// <summary>Initializes what the game draws of an entity.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
-    public ExternalHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
-    {
-    }
+    private string ToolObject => GetArgument(0) ?? string.Empty;
 
     /// <inheritdoc/>
     public override void AddToScene()

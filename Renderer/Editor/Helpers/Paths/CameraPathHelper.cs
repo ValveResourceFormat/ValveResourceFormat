@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// <c>aspectRatio</c> keys of the path, with an arrow along the path that keeps its size on the screen. It is
 /// drawn while the path or any of its nodes is selected, and only for a path the camera takes some time to run.
 /// </summary>
-public sealed class CameraPathHelper : EntityHelper
+internal sealed class CameraPathHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override bool NeedsShowHelpers => true;
@@ -42,13 +42,6 @@ public sealed class CameraPathHelper : EntityHelper
     private const int ArrowHeadSides = 8;
 
     private static readonly Color32 ArrowColor = new(255, 230, 0);
-
-    /// <summary>Initializes the camera of a path.</summary>
-    /// <param name="owner">The path.</param>
-    /// <param name="declaration">The helper as the class of the path declares it.</param>
-    public CameraPathHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
-    {
-    }
 
     internal override void Render(ToolRenderContext context, in HelperRenderState state)
     {

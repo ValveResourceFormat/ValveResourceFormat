@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// which is in the space of the entity, with a line between the two and a handle at the end while the entity
 /// is selected.
 /// </summary>
-public sealed class SweptPlayerHullHelper : EntityHelper
+internal sealed class SweptPlayerHullHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override bool IsToolShape => true;
@@ -33,13 +33,6 @@ public sealed class SweptPlayerHullHelper : EntityHelper
     private static readonly Color32 HullColor = new(255, 0, 255);
     private static readonly Color32 LineColor = new(200, 180, 0);
     private static readonly Color32 SelectedLineColor = new(255, 0, 0);
-
-    /// <summary>Initializes the hulls a class declares.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
-    public SweptPlayerHullHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
-    {
-    }
 
     /// <inheritdoc/>
     public override void AddToScene()

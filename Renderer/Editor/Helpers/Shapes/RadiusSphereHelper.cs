@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// far as one of its keys. It is drawn whether or not the entity is selected, red for an occluder and green
 /// for a viewer, whatever color the declaration gives.
 /// </summary>
-public sealed class RadiusSphereHelper : EntityHelper
+internal sealed class RadiusSphereHelper : EntityHelper
 {
     /// <inheritdoc/>
     public override bool IsToolShape => true;
@@ -20,14 +20,11 @@ public sealed class RadiusSphereHelper : EntityHelper
     private static readonly Color32 ViewerColor = new(0, 255, 0);
 
     /// <summary>Gets the key of the entity that holds the radius.</summary>
-    public string RadiusKey { get; }
+    private string RadiusKey { get; }
 
     /// <summary>Gets the color of the sphere.</summary>
-    public Color32 Color { get; }
+    private Color32 Color { get; }
 
-    /// <summary>Initializes the sphere a class declares.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
     public RadiusSphereHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
     {
         RadiusKey = GetArgument(0)?.ToLowerInvariant() ?? DefaultRadiusKey;

@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// An omni light, which shows its luminaire and the cones it lights while its entity is selected: the inner
 /// cone at full strength and the outer one it fades out to, each capped by the part of a sphere at its range.
 /// </summary>
-public sealed class OmniLightHelper : LightHelperBase
+internal sealed class OmniLightHelper : LightHelperBase
 {
     private const int SphereShape = 0;
     private const int CappedTubeShape = 2;
@@ -34,17 +34,14 @@ public sealed class OmniLightHelper : LightHelperBase
         0f, 0f, 0f, 1f);
 
     /// <summary>Gets the shape of the luminaire: a sphere or a point, drawn as a sphere, or a tube along Y, open or capped.</summary>
-    public int Shape { get; }
+    private int Shape { get; }
 
     /// <summary>Gets the angle of the inner cone from the forward axis, in degrees.</summary>
-    public float InnerAngle { get; }
+    private float InnerAngle { get; }
 
     /// <summary>Gets the angle of the outer cone from the forward axis, in degrees.</summary>
-    public float OuterAngle { get; }
+    private float OuterAngle { get; }
 
-    /// <summary>Initializes the light of an entity.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
     public OmniLightHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
     {
         Shape = GetIntegerKey("shape");

@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The cone of a spot light while its entity is selected: the cone out to its range, and a dome over it
 /// whose radius follows the brightness of the light from the inner to the outer angle.
 /// </summary>
-public sealed class LightConeHelper : EntityHelper
+internal sealed class LightConeHelper : EntityHelper
 {
     /// <inheritdoc/>
     public override bool IsVisual => false;
@@ -23,20 +23,17 @@ public sealed class LightConeHelper : EntityHelper
     private const byte Alpha = 180;
 
     /// <summary>Gets the key of the entity that holds the angle of the inner cone.</summary>
-    public string InnerAngleKey { get; }
+    private string InnerAngleKey { get; }
 
     /// <summary>Gets the key of the entity that holds the angle of the outer cone.</summary>
-    public string OuterAngleKey { get; }
+    private string OuterAngleKey { get; }
 
     /// <summary>Gets the key of the entity that holds the color of the light.</summary>
-    public string ColorKey { get; }
+    private string ColorKey { get; }
 
     /// <summary>Gets what the pitch of the entity is multiplied by for the cone to point the way the light does.</summary>
-    public float PitchScale { get; }
+    private float PitchScale { get; }
 
-    /// <summary>Initializes the cone of a light.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
     public LightConeHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
     {
         InnerAngleKey = GetArgument(0)?.ToLowerInvariant() ?? "innerconeangle";

@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// planes, color and aspect ratio are keys of it. Its faces are tinted and outlined in white while the entity
 /// is selected.
 /// </summary>
-public sealed class FrustumHelper : EntityHelper
+internal sealed class FrustumHelper : EntityHelper
 {
     /// <inheritdoc/>
     public override bool IsVisual => false;
@@ -31,26 +31,23 @@ public sealed class FrustumHelper : EntityHelper
     private static readonly Color32 DefaultColor = new(128, 128, 128, 128);
 
     /// <summary>Gets the key of the entity that holds the field of view, in degrees.</summary>
-    public string FovKey { get; } = "_fov";
+    private string FovKey { get; } = "_fov";
 
     /// <summary>Gets the key of the entity that holds the distance to the near plane.</summary>
-    public string NearPlaneKey { get; } = "_nearplane";
+    private string NearPlaneKey { get; } = "_nearplane";
 
     /// <summary>Gets the key of the entity that holds the distance to the far plane.</summary>
-    public string FarPlaneKey { get; } = "_farplane";
+    private string FarPlaneKey { get; } = "_farplane";
 
     /// <summary>Gets the key of the entity that holds the color of the faces.</summary>
-    public string ColorKey { get; } = "_color";
+    private string ColorKey { get; } = "_color";
 
     /// <summary>Gets the key of the entity that holds the width of the view over its height.</summary>
-    public string AspectRatioKey { get; } = "aspectratio";
+    private string AspectRatioKey { get; } = "aspectratio";
 
     /// <summary>Gets whether the field of view is the vertical one, rather than the horizontal one.</summary>
-    public bool IsVerticalFov { get; }
+    private bool IsVerticalFov { get; }
 
-    /// <summary>Initializes the frustum a class declares.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
     public FrustumHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
     {
         // The fifth argument is not read

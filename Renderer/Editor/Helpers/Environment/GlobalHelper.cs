@@ -7,7 +7,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// <c>gradient_fog</c>. Of the entities that can be a global, one is: the first that is on, at the fewest
 /// prefabs deep.
 /// </summary>
-public sealed class GlobalHelper : EntityHelper
+internal sealed class GlobalHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override bool IsVisual => false;
@@ -21,11 +21,4 @@ public sealed class GlobalHelper : EntityHelper
     /// </summary>
     public bool IsEnabled
         => EnvironmentKeys.ParseInteger(GetStringKey("startdisabled"), 0) == 0 && EnvironmentKeys.ParseInteger(GetStringKey("fogenable"), 1) != 0;
-
-    /// <summary>Initializes the globals of an entity.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
-    public GlobalHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
-    {
-    }
 }

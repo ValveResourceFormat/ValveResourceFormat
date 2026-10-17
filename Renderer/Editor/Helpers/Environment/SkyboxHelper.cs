@@ -8,24 +8,17 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The sky of an <c>env_sky</c>, drawn behind everything else of the map, tinted and fogged as the entity
 /// says.
 /// </summary>
-public sealed class SkyboxHelper : EntityHelper
+internal sealed class SkyboxHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
 {
     // Where the angular fog fades below and above the horizon, while the entity does not say
     private static readonly Vector4 DefaultAngularFog = new(-25f, -35f, 25f, 35f);
 
     /// <summary>Gets the material of the sky, or <see langword="null"/> when the entity names no material.</summary>
-    public string? MaterialName => GetStringKey("skyname") is { Length: > 0 } name
+    private string? MaterialName => GetStringKey("skyname") is { Length: > 0 } name
         && Path.GetExtension(name).Equals(".vmat", StringComparison.OrdinalIgnoreCase) ? name : null;
 
     /// <summary>Gets what the brightness of the sky is scaled by, as the entity gives it.</summary>
-    public float BrightnessScale => GetFloatKey("brightnessscale", 1f);
-
-    /// <summary>Initializes the sky of an entity.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
-    public SkyboxHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
-    {
-    }
+    private float BrightnessScale => GetFloatKey("brightnessscale", 1f);
 
     /// <inheritdoc/>
     public override void AddToScene()

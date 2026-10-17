@@ -14,7 +14,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>Which bounds of its model a model helper draws while its entity is selected.</summary>
-public enum ModelBoundsMode
+internal enum ModelBoundsMode
 {
     /// <summary>The bounds of the model as it is built, which turn with the entity but follow neither its scale nor the animation.</summary>
     Fixed,
@@ -63,16 +63,16 @@ public class ModelHelper : EntityHelper
     public Model? Model => model;
 
     /// <summary>Gets the model, or <see langword="null"/> when neither the class nor the entity names one.</summary>
-    public string? ModelName => settings.ModelName;
+    internal string? ModelName => settings.ModelName;
 
     /// <summary>
     /// Gets whether the class names the model, which then stands in for every entity of the class, rather
     /// than each entity naming its own with its <c>model</c> key.
     /// </summary>
-    public bool IsNamedByClass => settings.IsNamedByClass;
+    private bool IsNamedByClass => settings.IsNamedByClass;
 
     /// <summary>Gets which bounds of the model are drawn while the entity is selected.</summary>
-    public ModelBoundsMode BoundsMode => settings.BoundsMode;
+    private ModelBoundsMode BoundsMode => settings.BoundsMode;
 
     /// <summary>Gets the bounds of the model in the space of the entity, or <see langword="null"/> before it is added.</summary>
     public AABB? ModelBounds => ModelNode?.LocalBoundingBox;
@@ -84,7 +84,7 @@ public class ModelHelper : EntityHelper
     public ModelSceneNode? ModelNode { get; private set; }
 
     /// <summary>Gets whether the model moves along with the entity, which it does where it is placed at it.</summary>
-    protected virtual bool FollowsEntity => true;
+    private protected virtual bool FollowsEntity => true;
 
     /// <summary>
     /// How a model helper draws its model, as the declaration of the class and the keys of the entity say
@@ -141,13 +141,11 @@ public class ModelHelper : EntityHelper
     }
 
     /// <summary>Creates the model a class declares.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
     /// <returns>
     /// The model, or <see langword="null"/> when neither the class nor the entity names one or it does not
     /// load, so that the entity is drawn some other way.
     /// </returns>
-    public static ModelHelper? Create(IHelperOwner owner, FgdHelper declaration)
+    internal static ModelHelper? Create(IHelperOwner owner, FgdHelper declaration)
     {
         ArgumentNullException.ThrowIfNull(owner);
         ArgumentNullException.ThrowIfNull(declaration);
@@ -317,7 +315,7 @@ public class ModelHelper : EntityHelper
 
     /// <summary>Gets where the model is placed, which is where the entity is.</summary>
     /// <returns>The transform of the model.</returns>
-    protected virtual Matrix4x4 GetModelTransform() => Owner.Transform;
+    private protected virtual Matrix4x4 GetModelTransform() => Owner.Transform;
 
     /// <inheritdoc/>
     public override void AddToScene()

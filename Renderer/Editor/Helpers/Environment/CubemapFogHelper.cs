@@ -9,15 +9,8 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The fog of an <c>env_cubemap_fog</c>, colored from a cubemap, a sky material, or the sky of the entity it
 /// names. A map has the fog of the first such entity that is not disabled at the start.
 /// </summary>
-public sealed class CubemapFogHelper : EntityHelper
+internal sealed class CubemapFogHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
 {
-    /// <summary>Initializes the fog of an entity.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
-    public CubemapFogHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
-    {
-    }
-
     /// <summary>Makes this fog the one the scene of the entity is drawn with. It is only drawn while it has a texture.</summary>
     public void Apply()
     {

@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// A node with no field of view of its own has the one of the view, and the nodes of a path with
 /// <c>relative_fov</c> set add theirs to it.
 /// </summary>
-public sealed class CameraPathNodeHelper : EntityHelper
+internal sealed class CameraPathNodeHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override bool IsVisual => false;
@@ -34,13 +34,6 @@ public sealed class CameraPathNodeHelper : EntityHelper
     private const float FaceAlphaScale = 0.5f;
 
     private static readonly Color32 DefaultColor = new(128, 128, 128, 128);
-
-    /// <summary>Initializes the view of a camera path node.</summary>
-    /// <param name="owner">The node.</param>
-    /// <param name="declaration">The helper as the class of the node declares it.</param>
-    public CameraPathNodeHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
-    {
-    }
 
     internal override void Render(ToolRenderContext context, in HelperRenderState state)
     {

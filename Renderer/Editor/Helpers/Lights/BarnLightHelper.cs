@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// A barn light, which shows the frustum it lights while its entity is selected: its luminaire, its far end
 /// at its range, where it fades in and out, and how soft its edges are.
 /// </summary>
-public sealed class BarnLightHelper : LightHelperBase
+internal sealed class BarnLightHelper : LightHelperBase
 {
     private static readonly Color32 ShapeColor = new(192, 255, 255, 32);
     private static readonly Color32 SoftEdgeColor = new(0, 255, 255, 32);
@@ -22,20 +22,17 @@ public sealed class BarnLightHelper : LightHelperBase
     private const float HandleSize = 6f;
 
     /// <summary>Gets the part of the width and of the height that is lit at full strength, below one.</summary>
-    public Vector2 Hardness { get; }
+    private Vector2 Hardness { get; }
 
     /// <summary>Gets the shape of the area light: 1 for a disc, 2 for a rectangle.</summary>
-    public int LuminaireShape { get; }
+    private int LuminaireShape { get; }
 
     /// <summary>Gets the angle the area light covers, in degrees.</summary>
-    public float LuminaireSize { get; }
+    private float LuminaireSize { get; }
 
     /// <summary>Gets how much narrower the area light is along one axis than the other, from -1 to 1.</summary>
-    public float LuminaireAnisotropy { get; }
+    private float LuminaireAnisotropy { get; }
 
-    /// <summary>Initializes the light of an entity.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
     public BarnLightHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
     {
         Hardness = Vector2.Clamp(Vector2.One - new Vector2(GetFloatKey("soft_x"), GetFloatKey("soft_y")), Vector2.Zero, new Vector2(0.9999999f));

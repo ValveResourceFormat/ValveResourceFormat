@@ -9,37 +9,35 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The light of a barn, rect or omni light, with the keys its shapes are drawn from while its entity is
 /// selected.
 /// </summary>
-public abstract class LightHelperBase : EntityHelper
+internal abstract class LightHelperBase : EntityHelper
 {
     /// <summary>Gets the light, once it is in the scene.</summary>
-    public SceneLight? Light { get; private set; }
+    private SceneLight? Light { get; set; }
 
     /// <summary>Gets how far the light reaches, at least one unit.</summary>
-    public float Range { get; }
+    protected float Range { get; }
 
     /// <summary>
     /// Gets the exponent the outline of the light is rounded by: zero for a rectangle, one for an ellipse.
     /// </summary>
-    public float ShapeExponent { get; }
+    protected float ShapeExponent { get; }
 
     /// <summary>Gets the part of the range over which the light fades out, from zero to one.</summary>
-    public float Skirt { get; }
+    protected float Skirt { get; }
 
     /// <summary>Gets the part of the range over which the light fades in, from zero to one.</summary>
-    public float SkirtNear { get; }
+    protected float SkirtNear { get; }
 
     /// <summary>Gets the half width and half height of the luminaire, and how much a barn light widens per unit.</summary>
-    public Vector3 SizeParams { get; }
+    protected Vector3 SizeParams { get; }
 
     /// <summary>Gets how far the far end of a barn light is moved sideways and up.</summary>
-    public Vector2 Shear { get; }
+    protected Vector2 Shear { get; }
 
     /// <summary>Gets whether a texture shapes the light.</summary>
-    public bool HasCookie { get; }
+    protected bool HasCookie { get; }
 
     /// <summary>Initializes the light of an entity, reading the keys every one of these lights has.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
     protected LightHelperBase(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
     {
         Range = MathF.Max(GetFloatKey("range"), 1f);

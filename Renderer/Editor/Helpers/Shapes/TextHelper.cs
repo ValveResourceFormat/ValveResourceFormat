@@ -7,7 +7,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// A label written at a point one key of an entity holds, in the space of the entity. It is written while the
 /// entity is selected, and while it is not where the class asks for that.
 /// </summary>
-public sealed class TextHelper : EntityHelper
+internal sealed class TextHelper : EntityHelper
 {
     /// <inheritdoc/>
     public override bool IsToolShape => true;
@@ -23,23 +23,20 @@ public sealed class TextHelper : EntityHelper
     private bool? modelIsBreakable;
 
     /// <summary>Gets the key of the entity that holds the point.</summary>
-    public string PointKey { get; }
+    private string PointKey { get; }
 
     /// <summary>Gets the label.</summary>
-    public string Text { get; }
+    private string Text { get; }
 
     /// <summary>Gets whether the label is written while the entity is not selected too.</summary>
-    public bool DrawUnselected { get; }
+    private bool DrawUnselected { get; }
 
     /// <summary>Gets whether no label is written while the point is the origin of the entity.</summary>
-    public bool HideIfZero { get; }
+    private bool HideIfZero { get; }
 
     /// <summary>Gets whether the label is only written while the model of the entity can break into pieces.</summary>
-    public bool RequiresBreakableModel { get; }
+    private bool RequiresBreakableModel { get; }
 
-    /// <summary>Initializes the label a class declares.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
     public TextHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
     {
         // A color can follow the label, but the label is always written in white

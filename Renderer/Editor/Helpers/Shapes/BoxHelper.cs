@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// <summary>
 /// How the keys of a box helper give the box.
 /// </summary>
-public enum BoxHelperSize
+internal enum BoxHelperSize
 {
     /// <summary>Two corners.</summary>
     MinsMaxs,
@@ -23,7 +23,7 @@ public enum BoxHelperSize
 /// and where the influence of the volume fades out past its sides the faces fade with it. While the entity is
 /// not selected only the edges are drawn.
 /// </summary>
-public sealed class BoxHelper : EntityHelper
+internal sealed class BoxHelper : EntityHelper
 {
     /// <inheritdoc/>
     public override bool IsToolShape => true;
@@ -34,50 +34,52 @@ public sealed class BoxHelper : EntityHelper
     /// <inheritdoc/>
     public override bool HiddenInGameObjectsOnly => true;
 
+    // There is no selection tool, so what is only drawn while the entity is highlighted by it is drawn while
+    // the entity is selected
     /// <inheritdoc/>
-    public override bool RequiresHighlight => OnlyVisibleHighlightEnabled;
+    public override bool RequiresSelection => OnlyVisibleHighlightEnabled;
 
     // The faces fade in steps of at most this many units
     private const float FadeStep = 24f;
 
     /// <summary>Gets how the keys give the box.</summary>
-    public BoxHelperSize Size { get; }
+    private BoxHelperSize Size { get; }
 
     /// <summary>Gets whether the box turns with the entity, rather than staying aligned to the world axes.</summary>
-    public bool IsOriented { get; }
+    private bool IsOriented { get; }
 
     /// <summary>Gets the key of the entity that holds the smallest corner.</summary>
-    public string? MinsKey { get; }
+    private string? MinsKey { get; }
 
     /// <summary>Gets the key of the entity that holds the largest corner.</summary>
-    public string? MaxsKey { get; }
+    private string? MaxsKey { get; }
 
     /// <summary>Gets the key of the entity that holds the size of the box, in place of two corners.</summary>
-    public string? SizeKey { get; }
+    private string? SizeKey { get; }
 
     /// <summary>Gets the key of the entity that holds how far past each side its influence fades.</summary>
-    public string? EdgeFadesKey { get; }
+    private string? EdgeFadesKey { get; }
 
     /// <summary>Gets the key of the entity that holds one fade distance for every side.</summary>
-    public string? EdgeFadeKey { get; }
+    private string? EdgeFadeKey { get; }
 
     /// <summary>Gets whether the edges are drawn while the entity is not selected.</summary>
-    public bool DrawUnselected { get; }
+    private bool DrawUnselected { get; }
 
     /// <summary>Gets whether the box is only drawn while its entity is selected with the selection tool.</summary>
-    public bool OnlyVisibleHighlightEnabled { get; }
+    private bool OnlyVisibleHighlightEnabled { get; }
 
     /// <summary>
     /// Gets whether the box is a light probe volume, whose faces are not tinted while the sample grids of the
     /// volumes are shown, so the samples can be seen.
     /// </summary>
-    public bool IsLightProbeVolume { get; }
+    private bool IsLightProbeVolume { get; }
 
     /// <summary>
     /// Gets whether the influence of the volume fades out past its sides, rather than inside them, which the
     /// game decides for all of its volumes.
     /// </summary>
-    public bool FadesPastSides { get; }
+    private bool FadesPastSides { get; }
 
     private BoxHelper(IHelperOwner owner, FgdHelper declaration, BoxHelperSize size, bool isOriented) : base(owner, declaration)
     {
@@ -103,8 +105,6 @@ public sealed class BoxHelper : EntityHelper
     }
 
     /// <summary>Creates the box a class declares.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
     /// <returns>The box, or <see langword="null"/> when the declaration does not name the keys it is given by.</returns>
     public static BoxHelper? Create(IHelperOwner owner, FgdHelper declaration)
     {

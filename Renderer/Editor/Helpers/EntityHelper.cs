@@ -37,9 +37,6 @@ public abstract class EntityHelper
     /// <summary>Gets whether nothing of the helper is drawn while its entity is not selected.</summary>
     public virtual bool RequiresSelection => false;
 
-    /// <summary>Gets whether the helper is only drawn while its entity is selected with the selection tool.</summary>
-    public virtual bool RequiresHighlight => false;
-
     /// <summary>
     /// Gets whether the helper stands in for its entity in the editor, rather than drawing what the game shows of
     /// it. The game draws an entity of a compiled map, so of its helpers these are what is drawn in its place.
@@ -136,9 +133,7 @@ public abstract class EntityHelper
     /// </param>
     private protected void AddShapes(Matrix4x4? placement = null, string? layerName = null)
     {
-        // There is no selection tool, so what is only drawn while the entity is highlighted by it is drawn
-        // while the entity is selected
-        if (RequiresSelection || RequiresHighlight || !IsAvailable)
+        if (RequiresSelection || !IsAvailable)
         {
             return;
         }
