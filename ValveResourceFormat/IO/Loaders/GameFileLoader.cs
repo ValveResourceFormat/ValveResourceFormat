@@ -955,10 +955,7 @@ namespace ValveResourceFormat.IO
 
             if (entry != null)
             {
-                lock (CurrentPackage!)
-                {
-                    CurrentPackage.ReadEntry(entry, out addonInfo);
-                }
+                CurrentPackage!.ReadEntry(entry, out addonInfo);
             }
             else if (PreferredAddonFolderOnDisk != null && FindFileInFolder(PreferredAddonFolderOnDisk, AddonInfoTxt) is { } addonInfoPath)
             {
@@ -1174,12 +1171,6 @@ namespace ValveResourceFormat.IO
         /// <remarks>
         /// Do not use this method, it will be removed in the future in favor of a method in the ValvePak library.
         /// </remarks>
-        public static Stream GetPackageEntryStream(Package package, PackageEntry entry)
-        {
-            lock (package)
-            {
-                return package.GetMemoryMappedStreamIfPossible(entry);
-            }
-        }
+        public static Stream GetPackageEntryStream(Package package, PackageEntry entry) => package.GetMemoryMappedStreamIfPossible(entry);
     }
 }

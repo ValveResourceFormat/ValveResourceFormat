@@ -94,7 +94,10 @@ namespace CLI
                 return 1;
             }
 
+            Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
+
             using var package = new Package();
+            package.SetFileName(outputPath);
 
             if (multiChunk)
             {
@@ -110,8 +113,6 @@ namespace CLI
 
                 package.AddFile(entryPath, File.ReadAllBytes(path), multiChunk);
             }
-
-            Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
             try
             {
