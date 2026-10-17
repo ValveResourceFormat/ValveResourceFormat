@@ -144,14 +144,16 @@ public static class EntityClassCatalog
         {
             if (!classes.TryGetValue(id, out var entityClass))
             {
-                entityClass = ReadClass(Find(id));
+                entityClass = CreateClass(Find(id), GetKeys(id), GetBaseClasses(id));
                 classes.Add(id, entityClass);
             }
 
             return entityClass;
         }
 
-        public EntityClass ReadClass(KVObject data)
+        public EntityClass ReadClass(KVObject data) => CreateClass(data, ResolveKeys(data), ResolveBaseClasses(data));
+
+        private static EntityClass CreateClass(KVObject data, List<EntityClassKey> keys, HashSet<string> baseClasses)
         {
             var name = data.GetStringProperty("name");
             var color = data.GetIntegerArray("color");
@@ -180,14 +182,14 @@ public static class EntityClassCatalog
                     Arguments = [.. (helper.GetArray("arguments") ?? []).Select(static argument => (string)argument)],
                     Metadata = helper.TryGetValue("metadata", out var metadata) ? metadata : null,
                 })],
-                Keys = ResolveKeys(data),
-                BaseClasses = ResolveBaseClasses(data),
+                Keys = keys,
+                BaseClasses = baseClasses,
                 RequiredParentClass = data.GetStringProperty("required_parent_class"),
             };
         }
 
         private KVObject Find(string id)
-            => definitions.TryGetValue(id, out var data) ? data : throw new InvalidDataException($"'{GeneratedFileName}' names class '{id}', which it does not declare.");
+            => definitions.TryGetValue(id, out var data) ? data : throw new InvalidDataException($"Class '{id}' is named but not declared.");
 
         private static IEnumerable<string> GetBaseIds(KVObject data) => (data.GetArray("bases") ?? []).Select(static id => (string)id);
 
