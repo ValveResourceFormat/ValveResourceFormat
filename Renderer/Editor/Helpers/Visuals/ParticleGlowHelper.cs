@@ -7,17 +7,10 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// <summary>
 /// The glow of an <c>env_particle_glow</c>: a particle effect its keys tint and scale.
 /// </summary>
-public sealed class ParticleGlowHelper : ParticleHelper
+internal sealed class ParticleGlowHelper(IHelperOwner owner, FgdHelper declaration) : ParticleHelper(owner, declaration)
 {
     private const int TintControlPoint = 16;
     private const int ScaleControlPoint = 17;
-
-    /// <summary>Initializes the glow of an entity.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
-    public ParticleGlowHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
-    {
-    }
 
     /// <inheritdoc/>
     protected override void SetControlPoints(ParticleSceneNode effect)

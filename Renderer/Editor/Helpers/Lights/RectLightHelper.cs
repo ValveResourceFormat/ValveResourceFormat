@@ -7,7 +7,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// <summary>
 /// A rect light, which shows its luminaire and the lobes of what it emits while its entity is selected.
 /// </summary>
-public sealed class RectLightHelper : LightHelperBase
+internal sealed class RectLightHelper : LightHelperBase
 {
     private const int DiscShape = 1;
     private const float HandleSize = 6f;
@@ -16,11 +16,8 @@ public sealed class RectLightHelper : LightHelperBase
     private static readonly Color32 ShapeBoundsColor = new(255, 255, 0, 16);
 
     /// <summary>Gets the shape of the luminaire: 0 for a rectangle, 1 for a disc.</summary>
-    public int Shape { get; }
+    private int Shape { get; }
 
-    /// <summary>Initializes the light of an entity.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
     public RectLightHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
     {
         Shape = (int)GetFloatKey("shape");

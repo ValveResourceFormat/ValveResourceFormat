@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// the entities that are hidden. The color the declaration gives is only for views from above, which are not
 /// drawn.
 /// </summary>
-public sealed class LineHelper : EntityHelper
+internal sealed class LineHelper : EntityHelper
 {
     /// <inheritdoc/>
     public override bool IsVisual => false;
@@ -35,7 +35,7 @@ public sealed class LineHelper : EntityHelper
     private int startCount;
 
     /// <summary>Gets whether the lines are only drawn while the entity is selected.</summary>
-    public bool IsSelectedOnly { get; }
+    private bool IsSelectedOnly { get; }
 
     private LineHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
     {
@@ -52,8 +52,6 @@ public sealed class LineHelper : EntityHelper
     }
 
     /// <summary>Creates the lines a class declares.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
     /// <returns>The lines, or <see langword="null"/> when the declaration does not say what they go to.</returns>
     public static LineHelper? Create(IHelperOwner owner, FgdHelper declaration)
     {

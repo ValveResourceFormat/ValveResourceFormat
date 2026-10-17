@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// handle at each over everything and a line between them that is dashed where the scene hides it. The points
 /// are in world space, or in the space of the entity for a local axis.
 /// </summary>
-public sealed class AxisHelper : EntityHelper
+internal sealed class AxisHelper : EntityHelper
 {
     /// <inheritdoc/>
     public override bool IsVisual => false;
@@ -21,14 +21,11 @@ public sealed class AxisHelper : EntityHelper
     private const float HandleSize = 10f;
 
     /// <summary>Gets the key of the entity that holds the axis.</summary>
-    public string AxisKey { get; }
+    private string AxisKey { get; }
 
     /// <summary>Gets whether the points are in the space of the entity, rather than in world space.</summary>
-    public bool IsLocal { get; }
+    private bool IsLocal { get; }
 
-    /// <summary>Initializes the axis a class declares, or one of its variables is.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
     public AxisHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
     {
         AxisKey = (GetArgument(0) ?? DefaultAxisKey).ToLowerInvariant();

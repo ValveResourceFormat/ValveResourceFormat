@@ -8,23 +8,16 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The distance and height fog of an <c>env_gradient_fog</c>, which the map has while the entity is the
 /// <c>gradient_fog</c> global.
 /// </summary>
-public sealed class GradientFogHelper : EntityHelper
+internal sealed class GradientFogHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
 {
     /// <summary>
     /// Gets whether the fog is only there while the entity names a gradient fog texture, as the block the
     /// helper is declared with can ask.
     /// </summary>
-    public bool IsTextureRequired => GetMetadataFlag("textureRequired", false);
+    private bool IsTextureRequired => GetMetadataFlag("textureRequired", false);
 
     /// <summary>Gets the gradient fog texture the entity names, or <see langword="null"/> when it names none.</summary>
-    public string? TextureName => GetStringKey("gradientfogtexture") is { Length: > 0 } name ? name : null;
-
-    /// <summary>Initializes the fog of an entity.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
-    public GradientFogHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
-    {
-    }
+    private string? TextureName => GetStringKey("gradientfogtexture") is { Length: > 0 } name ? name : null;
 
     /// <summary>Makes this fog the one the scene of the entity is drawn with, unless it lacks the texture it requires.</summary>
     public void Apply()

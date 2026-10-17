@@ -7,15 +7,8 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The rope of a <c>path_particle_rope</c>, hung between the nodes of its path, which stops moving once it
 /// has simulated for as long as the entity says.
 /// </summary>
-public sealed class ParticleRopeHelper : EntityHelper
+internal sealed class ParticleRopeHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
 {
-    /// <summary>Initializes the rope of an entity.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
-    public ParticleRopeHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
-    {
-    }
-
     /// <inheritdoc/>
     public override void AddToScene()
     {

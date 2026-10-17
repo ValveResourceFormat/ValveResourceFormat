@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// holds, or the way the entity itself faces. It is drawn whether or not the entity is selected, and while it
 /// is, over everything with a solid head.
 /// </summary>
-public sealed class AnglesHelper : EntityHelper
+internal sealed class AnglesHelper : EntityHelper
 {
     /// <inheritdoc/>
     public override bool IsToolShape => true;
@@ -27,20 +27,17 @@ public sealed class AnglesHelper : EntityHelper
     private const float AxisLength = 16f;
 
     /// <summary>Gets the key of the entity that holds the angles, or <see langword="null"/> for its own.</summary>
-    public string? AnglesKey { get; }
+    private string? AnglesKey { get; }
 
     /// <summary>Gets whether the angles are relative to the entity.</summary>
-    public bool IsLocal { get; }
+    private bool IsLocal { get; }
 
     /// <summary>Gets whether the forward, left and up axes are drawn under the arrow.</summary>
-    public bool DrawBasisVectors { get; }
+    private bool DrawBasisVectors { get; }
 
     /// <summary>Gets the color of the arrow.</summary>
-    public Color32 Color { get; }
+    private Color32 Color { get; }
 
-    /// <summary>Initializes the direction arrow of an entity.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
     public AnglesHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
     {
         IsLocal = declaration.Name.Equals("drawangles_local", StringComparison.OrdinalIgnoreCase);

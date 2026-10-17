@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// world space or in the space of the entity. It is drawn while the entity is selected, the line dashed where
 /// the scene hides it, and faintly while it is not where the class asks for that.
 /// </summary>
-public sealed class VecLineHelper : EntityHelper
+internal sealed class VecLineHelper : EntityHelper
 {
     /// <inheritdoc/>
     public override bool IsToolShape => true;
@@ -27,26 +27,23 @@ public sealed class VecLineHelper : EntityHelper
     private bool? modelIsBreakable;
 
     /// <summary>Gets the key of the entity that holds the point.</summary>
-    public string PointKey { get; }
+    private string PointKey { get; }
 
     /// <summary>Gets the color of the line.</summary>
-    public Color32 Color { get; }
+    private Color32 Color { get; }
 
     /// <summary>Gets whether the point is in the space of the entity, rather than in world space.</summary>
-    public bool IsLocal { get; }
+    private bool IsLocal { get; }
 
     /// <summary>Gets whether the line is drawn while the entity is not selected too.</summary>
-    public bool DrawUnselected { get; }
+    private bool DrawUnselected { get; }
 
     /// <summary>Gets whether no line is drawn while a point in the space of the entity is its origin.</summary>
-    public bool HideIfZero { get; }
+    private bool HideIfZero { get; }
 
     /// <summary>Gets whether the line is only drawn while the model of the entity can break into pieces.</summary>
-    public bool RequiresBreakableModel { get; }
+    private bool RequiresBreakableModel { get; }
 
-    /// <summary>Initializes the line a class declares.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
     public VecLineHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
     {
         PointKey = GetArgument(0)?.ToLowerInvariant() ?? DefaultPointKey;

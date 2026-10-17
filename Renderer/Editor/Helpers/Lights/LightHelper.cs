@@ -9,22 +9,12 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The light an entity casts, as its keys describe it, such as the light of the sun. It draws nothing while
 /// its entity is selected.
 /// </summary>
-public sealed class LightHelper : EntityHelper
+internal sealed class LightHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
 {
-    /// <summary>Gets the light, once it is in the scene.</summary>
-    public SceneLight? Light { get; private set; }
-
-    /// <summary>Initializes the light of an entity.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
-    public LightHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
-    {
-    }
-
     /// <inheritdoc/>
     public override void AddToScene()
     {
-        Light = AddLight(Owner);
+        AddLight(Owner);
     }
 
     /// <summary>Adds the light an entity casts to its scene.</summary>

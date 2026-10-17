@@ -5,8 +5,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
 /// The spline through the nodes of a path entity, in the world: a cubic Bezier between each two nodes, out of
-/// one along its out handle and into the next along its in handle. A position along the whole spline, from
-/// zero to one, runs through each segment in proportion to its length.
+/// one along its out handle and into the next along its in handle.
 /// </summary>
 internal sealed class PathSpline
 {
@@ -17,32 +16,17 @@ internal sealed class PathSpline
     private const float LengthTolerance = 0.01f;
     private const int MaxLengthPoints = 128;
 
-    private readonly PathParticleRopeNode[] Nodes;
-
-    // Where each node is along the spline, from zero to one
-    private readonly float[] Knots;
-
     /// <summary>Gets the length of the spline.</summary>
     public float Length { get; }
 
     private PathSpline(PathParticleRopeNode[] nodes)
     {
-        Nodes = nodes;
-        Knots = new float[nodes.Length];
-
         for (var i = 0; i < nodes.Length - 1; i++)
         {
-            var (p0, p1, p2, p3) = GetControlPoints(i);
-            Length += MeasureSegment(p0, p1, p2, p3);
-            Knots[i + 1] = Length;
-        }
+            var from = nodes[i];
+            var to = nodes[i + 1];
 
-        if (Length > 0f)
-        {
-            for (var i = 0; i < Knots.Length; i++)
-            {
-                Knots[i] /= Length;
-            }
+            Length += MeasureSegment(from.Position, from.Position + from.OutTangent, to.Position + to.InTangent, to.Position);
         }
     }
 
@@ -89,40 +73,6 @@ internal sealed class PathSpline
         }
 
         return placed;
-    }
-
-    /// <summary>Gets a point on the spline.</summary>
-    /// <param name="position">How far along the spline the point is, from zero to one.</param>
-    /// <returns>The point.</returns>
-    public Vector3 GetPoint(float position)
-    {
-        var last = Knots.Length - 1;
-        position = Math.Clamp(position, Knots[0], Knots[last]);
-
-        // The segment is the first one that ends past the position
-        var segment = 0;
-
-        while (segment < last - 1 && Knots[segment + 1] <= position)
-        {
-            segment++;
-        }
-
-        var start = Knots[segment];
-        var end = Knots[segment + 1];
-        var t = start < end ? Math.Clamp((position - start) / (end - start), 0f, 1f) : 0f;
-        var s = 1f - t;
-
-        var (p0, p1, p2, p3) = GetControlPoints(segment);
-
-        return s * s * s * p0 + 3f * s * s * t * p1 + 3f * s * t * t * p2 + t * t * t * p3;
-    }
-
-    private (Vector3 P0, Vector3 P1, Vector3 P2, Vector3 P3) GetControlPoints(int segment)
-    {
-        var from = Nodes[segment];
-        var to = Nodes[segment + 1];
-
-        return (from.Position, from.Position + from.OutTangent, to.Position + to.InTangent, to.Position);
     }
 
     // The length of the lines through evenly spaced points of the curve, with more points until it settles

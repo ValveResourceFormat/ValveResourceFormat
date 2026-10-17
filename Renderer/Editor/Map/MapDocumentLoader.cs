@@ -287,21 +287,9 @@ public sealed class MapDocumentLoader : IDisposable
     private void ApplyEnvironment()
     {
         var globals = FindGlobals();
-        var fog = LinearFog.None;
 
         // The first helper of the fog global that gives a fog gives it
-        if (globals.GetValueOrDefault("fog") is { } fogEntity)
-        {
-            foreach (var source in fogEntity.Helpers.OfType<ILinearFogSource>())
-            {
-                if (source.TryGetFog(ref fog))
-                {
-                    break;
-                }
-            }
-        }
-
-        scene.FogInfo.LinearFog = fog;
+        scene.FogInfo.LinearFog = globals.GetValueOrDefault("fog")?.Helpers.OfType<ILinearFogSource>().FirstOrDefault()?.GetFog() ?? LinearFog.None;
 
         globals.GetValueOrDefault("gradient_fog")?.Helpers.OfType<GradientFogHelper>().FirstOrDefault()?.Apply();
         globals.GetValueOrDefault("tonemap")?.Helpers.OfType<ToneMappingHelper>().FirstOrDefault()?.Apply();

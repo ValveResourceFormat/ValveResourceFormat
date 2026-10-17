@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// entity is seen. It sits at the entity as lit solid faces in the draw color of the entity, and does not turn
 /// with it.
 /// </summary>
-public sealed class AlignedBoxHelper : EntityHelper
+internal sealed class AlignedBoxHelper : EntityHelper
 {
     /// <inheritdoc/>
     public override bool IsStandIn => true;
@@ -17,15 +17,11 @@ public sealed class AlignedBoxHelper : EntityHelper
     public override bool HiddenInGameObjectsOnly => true;
 
     /// <summary>Gets the smallest corner of the box, from the origin of the entity.</summary>
-    public Vector3 Mins { get; }
+    private Vector3 Mins { get; }
 
     /// <summary>Gets the largest corner of the box, from the origin of the entity.</summary>
-    public Vector3 Maxs { get; }
+    private Vector3 Maxs { get; }
 
-    /// <summary>Initializes the box of an entity.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="mins">Smallest corner of the box, from the origin of the entity.</param>
-    /// <param name="maxs">Largest corner of the box, from the origin of the entity.</param>
     public AlignedBoxHelper(IHelperOwner owner, Vector3 mins, Vector3 maxs)
         : base(owner, new FgdHelper { Name = "wirebox" })
     {

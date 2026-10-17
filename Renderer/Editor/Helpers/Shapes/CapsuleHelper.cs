@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// A capsule along +X of a selected entity, from its origin out as far as its <c>capsule_height</c> key and
 /// as thick as its <c>capsule_radius</c> key.
 /// </summary>
-public sealed class CapsuleHelper : EntityHelper
+internal sealed class CapsuleHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override bool IsVisual => false;
@@ -19,13 +19,6 @@ public sealed class CapsuleHelper : EntityHelper
     private const int Segments = 8;
 
     private static readonly Color32 Color = new(0, 255, 255);
-
-    /// <summary>Initializes the capsule a class declares.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
-    public CapsuleHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
-    {
-    }
 
     internal override void Render(ToolRenderContext context, in HelperRenderState state)
     {

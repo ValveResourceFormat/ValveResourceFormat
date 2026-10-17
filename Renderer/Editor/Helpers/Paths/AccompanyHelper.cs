@@ -12,7 +12,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// between the directions it is reached from and left in, upright to the path but rolled as far about that
 /// direction as the node itself is.
 /// </summary>
-public sealed class AccompanyHelper : EntityHelper
+internal sealed class AccompanyHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override bool IsToolShape => true;
@@ -38,13 +38,6 @@ public sealed class AccompanyHelper : EntityHelper
 
     // Made once every node of the path exists
     private NodeFrame[]? Frames;
-
-    /// <summary>Initializes the lanes of a path.</summary>
-    /// <param name="owner">The path entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
-    public AccompanyHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
-    {
-    }
 
     /// <inheritdoc/>
     public override void AddToScene()

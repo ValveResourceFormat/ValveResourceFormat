@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// Where a selected door that spawns ajar stands, its bounds turned open by its <c>ajarangle</c> key: about
 /// its <c>hinge_axis</c> key in the space of the door, or about its up axis where that is not set.
 /// </summary>
-public sealed class DoorHelper : EntityHelper
+internal sealed class DoorHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override bool IsVisual => false;
@@ -21,13 +21,6 @@ public sealed class DoorHelper : EntityHelper
     private const byte FaceAlpha = 64;
     private const byte EdgeAlpha = 128;
     private const float EdgeWidth = 2f;
-
-    /// <summary>Initializes the ajar door a class declares.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
-    public DoorHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
-    {
-    }
 
     internal override void Render(ToolRenderContext context, in HelperRenderState state)
     {

@@ -10,17 +10,10 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The exposure limits of an <c>env_tonemap_controller</c>, which the map is exposed within while the entity
 /// is the <c>tonemap</c> global.
 /// </summary>
-public sealed class ToneMappingHelper : EntityHelper
+internal sealed class ToneMappingHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override bool IsVisual => false;
-
-    /// <summary>Initializes the exposure limits of an entity.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
-    public ToneMappingHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
-    {
-    }
 
     /// <summary>Makes these limits the ones the scene of the entity is exposed within, over those of any post processing.</summary>
     public void Apply()

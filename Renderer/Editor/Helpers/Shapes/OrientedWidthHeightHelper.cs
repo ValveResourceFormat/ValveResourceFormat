@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// keys. It is drawn as lit solid faces in the draw color of the entity, or tinted and outlined while the
 /// entity is selected.
 /// </summary>
-public sealed class OrientedWidthHeightHelper : EntityHelper
+internal sealed class OrientedWidthHeightHelper : EntityHelper
 {
     /// <inheritdoc/>
     public override bool IsToolShape => true;
@@ -24,10 +24,10 @@ public sealed class OrientedWidthHeightHelper : EntityHelper
     private const float Depth = 0.1f;
 
     /// <summary>Gets the key of the entity that holds the width.</summary>
-    public string WidthKey { get; }
+    private string WidthKey { get; }
 
     /// <summary>Gets the key of the entity that holds the height.</summary>
-    public string HeightKey { get; }
+    private string HeightKey { get; }
 
     private OrientedWidthHeightHelper(IHelperOwner owner, FgdHelper declaration, string widthKey, string heightKey)
         : base(owner, declaration)
@@ -37,8 +37,6 @@ public sealed class OrientedWidthHeightHelper : EntityHelper
     }
 
     /// <summary>Creates the box a class declares.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
     /// <returns>The box, or <see langword="null"/> when the declaration does not give both keys.</returns>
     public static OrientedWidthHeightHelper? Create(IHelperOwner owner, FgdHelper declaration)
     {

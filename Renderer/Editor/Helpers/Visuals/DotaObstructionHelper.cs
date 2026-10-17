@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// names, which only stands in for it in the editor, or the one its <c>model</c> key does. A magenta box
 /// stands there where there is no model.
 /// </summary>
-public sealed class DotaObstructionHelper : ModelHelper
+internal sealed class DotaObstructionHelper : ModelHelper
 {
     private const float BoxHalfSize = 16f;
 
@@ -19,7 +19,7 @@ public sealed class DotaObstructionHelper : ModelHelper
     private readonly float? gridCellSize;
 
     /// <inheritdoc/>
-    protected override bool FollowsEntity => false;
+    private protected override bool FollowsEntity => false;
 
     private DotaObstructionHelper(IHelperOwner owner, FgdHelper declaration, Settings settings, float? gridCellSize)
         : base(owner, declaration, settings, LoadModel(owner, settings.ModelName))
@@ -28,8 +28,6 @@ public sealed class DotaObstructionHelper : ModelHelper
     }
 
     /// <summary>Creates the obstruction of an entity.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
     /// <returns>The obstruction, which is drawn as a box where there is no model.</returns>
     public static new DotaObstructionHelper Create(IHelperOwner owner, FgdHelper declaration)
     {
@@ -67,7 +65,7 @@ public sealed class DotaObstructionHelper : ModelHelper
     }
 
     /// <inheritdoc/>
-    protected override Matrix4x4 GetModelTransform()
+    private protected override Matrix4x4 GetModelTransform()
     {
         var transform = Owner.Transform;
         transform.Translation = GetSnappedOrigin();

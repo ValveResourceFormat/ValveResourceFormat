@@ -7,7 +7,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The unit or item a key of an entity names. Its model comes from scripts of the game that are not read, so
 /// only the small white box that marks the entity is drawn, which does not turn with it.
 /// </summary>
-public sealed class GameUnitModelHelper : EntityHelper
+internal sealed class GameUnitModelHelper : EntityHelper
 {
     private static readonly Vector3 BoxMins = new(-8f);
     private static readonly Vector3 BoxMaxs = new(8f);
@@ -20,8 +20,6 @@ public sealed class GameUnitModelHelper : EntityHelper
     public override AABB? ObjectBounds => new(Owner.Transform.Translation + BoxMins, Owner.Transform.Translation + BoxMaxs);
 
     /// <summary>Creates the marker a class declares.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
     /// <returns>The marker, or <see langword="null"/> when the declaration does not name exactly one key.</returns>
     public static GameUnitModelHelper? Create(IHelperOwner owner, FgdHelper declaration)
     {

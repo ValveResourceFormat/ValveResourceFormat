@@ -34,28 +34,22 @@ public class IconHelper : EntityHelper
     private SpriteSceneNode? selectionBorder;
 
     /// <summary>Gets the material of the icon.</summary>
-    public string MaterialName { get; }
+    private string MaterialName { get; }
 
     /// <summary>Gets the key of the entity that tints the icon, or <see langword="null"/> when none does.</summary>
-    public string? TintKey { get; }
+    private string? TintKey { get; }
 
     /// <inheritdoc/>
     /// <remarks>Only where the icon is placed counts, not the size it is drawn at.</remarks>
     public override AABB? ObjectBounds => new(Owner.Transform.Translation, Owner.Transform.Translation);
 
-    /// <summary>Initializes the icon of an entity.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
-    public IconHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
+    internal IconHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
     {
         MaterialName = GetDeclaredMaterialName(declaration) ?? GetMaterialName(string.Empty);
         TintKey = GetMetadata("tintKey");
     }
 
     /// <summary>Initializes an icon drawn over everything else, which no key tints.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
-    /// <param name="materialName">The material of the icon.</param>
     private protected IconHelper(IHelperOwner owner, FgdHelper declaration, string materialName) : base(owner, declaration)
     {
         MaterialName = materialName;
@@ -79,7 +73,7 @@ public class IconHelper : EntityHelper
     /// <summary>Gets the material an icon is declared with: in lower case, under materials, as a vmat.</summary>
     /// <param name="image">The icon as a class declares it.</param>
     /// <returns>The name of the material.</returns>
-    public static string GetMaterialName(string image)
+    private static string GetMaterialName(string image)
     {
         ArgumentNullException.ThrowIfNull(image);
 

@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// A sphere around a selected entity whose radius is one of its keys, such as how far a sound carries. It
 /// stays aligned to the world axes, and a class can have it drawn while the entity is not selected too.
 /// </summary>
-public sealed class SphereHelper : EntityHelper
+internal sealed class SphereHelper : EntityHelper
 {
     /// <inheritdoc/>
     public override bool IsToolShape => true;
@@ -24,35 +24,32 @@ public sealed class SphereHelper : EntityHelper
     private static readonly Color32 DefaultUnselectedColor = new(128, 128, 128);
 
     /// <summary>Gets the key of the entity that holds the radius.</summary>
-    public string RadiusKey { get; }
+    private string RadiusKey { get; }
 
     /// <summary>Gets the key of the entity that holds how far in from the radius its influence fades, empty when there is none.</summary>
-    public string EdgeFadeKey { get; }
+    private string EdgeFadeKey { get; }
 
     /// <summary>
     /// Gets the key of the entity that holds the center of the sphere in world space, or <see langword="null"/>
     /// when it is the origin of the entity.
     /// </summary>
-    public string? OriginKey { get; }
+    private string? OriginKey { get; }
 
     /// <summary>Gets the color of the sphere while its entity is selected.</summary>
-    public Color32 Color { get; }
+    private Color32 Color { get; }
 
     /// <summary>Gets the color of the sphere while its entity is not selected.</summary>
-    public Color32 UnselectedColor { get; }
+    private Color32 UnselectedColor { get; }
 
     /// <summary>Gets whether the sphere is drawn as three circles rather than rings and meridians.</summary>
-    public bool IsLean { get; }
+    private bool IsLean { get; }
 
     /// <summary>Gets whether the sphere is only drawn while its entity is the only thing selected.</summary>
-    public bool SingleSelect { get; }
+    private bool SingleSelect { get; }
 
     /// <summary>Gets whether the sphere is drawn while its entity is not selected too.</summary>
-    public bool AlwaysRender { get; }
+    private bool AlwaysRender { get; }
 
-    /// <summary>Initializes the sphere a class declares.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
     public SphereHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
     {
         IsLean = declaration.Name.Equals("leansphere", StringComparison.OrdinalIgnoreCase);

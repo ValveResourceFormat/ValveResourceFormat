@@ -9,19 +9,12 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The volume a selected fog controller covers, dashed over the scene, with the volume of every fog volume of
 /// its map: the box around all of them, or the box of the controller itself while the map has none.
 /// </summary>
-public sealed class VolumetricFogControllerHelper : EntityHelper
+internal sealed class VolumetricFogControllerHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override bool IsVisual => false;
 
     private const string FogVolumeClassname = "env_volumetric_fog_volume";
-
-    /// <summary>Initializes the volumes of a fog controller.</summary>
-    /// <param name="owner">The entity.</param>
-    /// <param name="declaration">The helper as the class of the entity declares it.</param>
-    public VolumetricFogControllerHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
-    {
-    }
 
     internal override void Render(ToolRenderContext context, in HelperRenderState state)
     {
