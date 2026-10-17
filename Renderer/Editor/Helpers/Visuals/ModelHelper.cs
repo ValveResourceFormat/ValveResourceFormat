@@ -240,7 +240,7 @@ public class ModelHelper : EntityHelper
             return -1;
         }
 
-        Color32 GetColorArgument(int index) => (index < arguments.Count ? ParseColor(arguments[index]) : null) ?? Color32.White;
+        Color32 GetColorArgument(int index) => (index < arguments.Count ? ParseClampedColor(arguments[index]) : null) ?? Color32.White;
 
         // The word static is only looked for where neither of the other bounds is chosen
         var boundsMode = FindOption("fixedbounds") >= 0 ? ModelBoundsMode.Fixed
@@ -609,8 +609,8 @@ public class ModelHelper : EntityHelper
 
     private static string? NonEmpty(string value) => value.Length > 0 ? value : null;
 
-    // Three or four numbers, the alpha full where it is left out
-    private static Color32? ParseColor(string text)
+    // Three or four numbers, each clamped to a byte, the alpha full where it is left out
+    private static Color32? ParseClampedColor(string text)
     {
         var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 

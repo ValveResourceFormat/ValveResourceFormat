@@ -1,13 +1,10 @@
-using System.Globalization;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
-using ValveResourceFormat.Serialization.KeyValues;
-using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// The view of a camera that moves along a path, drawn as a frustum along +X: tinted faces outlined in white,
-/// and a white line along the middle out to the far plane.
+/// The view of a camera, or of one that moves along a path, drawn as a frustum along +X: tinted faces outlined
+/// in white, and a white line along the middle out to the far plane.
 /// </summary>
 internal static class CameraFrustum
 {
@@ -23,7 +20,25 @@ internal static class CameraFrustum
     /// <summary>Key of a camera path node that holds its field of view.</summary>
     public const string FovKey = "fov";
 
+    /// <summary>The field of view of a camera entity that does not set one, in degrees.</summary>
+    public const float DefaultFov = 90f;
+
+    /// <summary>The distance to the near plane of a camera entity that does not set one.</summary>
+    public const float DefaultNearPlane = 10f;
+
+    /// <summary>The distance to the far plane of a camera entity that does not set one.</summary>
+    public const float DefaultFarPlane = 10000f;
+
+    /// <summary>The width over the height of the view of a camera entity that does not set it.</summary>
+    public const float DefaultAspectRatio = 1f;
+
+    /// <summary>The color of a camera entity that does not set one.</summary>
+    public static readonly Color32 DefaultColor = new(128, 128, 128, 128);
+
     private const float EdgeWidth = 2f;
+
+    // The faces of the view of a camera entity are half as opaque as its color
+    private const float FaceAlphaScale = 0.5f;
 
     /// <summary>Draws the frustum, in the space of the camera.</summary>
     /// <param name="context">What the frustum is drawn with.</param>
@@ -59,55 +74,25 @@ internal static class CameraFrustum
     }
 
     /// <summary>
-    /// Reads a color key as three or four channels, opaque when there are three, and black where it is not a color.
+    /// Draws the frustum of a camera entity at a transform, after what is translucent and with its faces half as
+    /// opaque as its color.
     /// </summary>
-    /// <param name="keyValues">The keyvalues of the entity.</param>
-    /// <param name="key">Name of the key.</param>
-    /// <returns>The color, or <see langword="null"/> when the entity has no such key.</returns>
-    public static Color32? ReadColor(Entity keyValues, string key)
+    /// <param name="context">What the frustum is drawn with.</param>
+    /// <param name="transform">The space of the camera.</param>
+    /// <param name="fov">The horizontal field of view, in degrees.</param>
+    /// <param name="nearPlane">The distance to the near plane.</param>
+    /// <param name="farPlane">The distance to the far plane.</param>
+    /// <param name="aspectRatio">The width of the view over its height.</param>
+    /// <param name="color">The color of the camera.</param>
+    public static void DrawEntityView(ToolRenderContext context, Matrix4x4 transform, float fov, float nearPlane, float farPlane, float aspectRatio, Color32 color)
     {
-        if (!keyValues.TryGetValue(key, out var value))
-        {
-            return null;
-        }
+        context.PushTransform(transform);
+        context.LayerOverride = ToolRenderLayer.PostTranslucent;
 
-        if (value.IsArray)
-        {
-            if (value.Count < 3)
-            {
-                return default(Color32);
-            }
+        Draw(context, fov, nearPlane, farPlane, aspectRatio, color with { A = (byte)(int)(color.A * FaceAlphaScale + 0.5f) });
 
-            byte GetChannel(int index) => index < value.Count ? value[index].ToByte(CultureInfo.InvariantCulture) : byte.MaxValue;
-
-            return new Color32(GetChannel(0), GetChannel(1), GetChannel(2), GetChannel(3));
-        }
-
-        return keyValues.GetStringProperty(key) is { } text ? ParseColor(text) : default(Color32);
-    }
-
-    /// <summary>Parses a color as three or four channels, opaque when there are three, and black where it is not a color.</summary>
-    /// <param name="text">The color as text.</param>
-    /// <returns>The color.</returns>
-    public static Color32 ParseColor(string text)
-    {
-        var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        Span<byte> channels = [0, 0, 0, byte.MaxValue];
-
-        if (parts.Length < 3)
-        {
-            return default;
-        }
-
-        for (var i = 0; i < Math.Min(parts.Length, channels.Length); i++)
-        {
-            if (!byte.TryParse(parts[i], NumberStyles.Integer, CultureInfo.InvariantCulture, out channels[i]))
-            {
-                return default;
-            }
-        }
-
-        return new Color32(channels[0], channels[1], channels[2], channels[3]);
+        context.LayerOverride = null;
+        context.PopTransform();
     }
 
     private static void DrawFace(ToolRenderContext context, Vector3 a, Vector3 b, Vector3 c, Vector3 d, Color32 color)

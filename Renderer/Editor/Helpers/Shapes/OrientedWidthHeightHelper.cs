@@ -47,10 +47,7 @@ internal sealed class OrientedWidthHeightHelper : EntityHelper
             return null;
         }
 
-        // The editor keeps no more than 31 characters of each key
-        static string ToKey(string argument) => argument[..Math.Min(argument.Length, 31)].ToLowerInvariant();
-
-        return new OrientedWidthHeightHelper(owner, declaration, ToKey(declaration.Arguments[0]), ToKey(declaration.Arguments[1]));
+        return new OrientedWidthHeightHelper(owner, declaration, ToTruncatedKey(declaration.Arguments[0]), ToTruncatedKey(declaration.Arguments[1]));
     }
 
     /// <inheritdoc/>
@@ -64,25 +61,10 @@ internal sealed class OrientedWidthHeightHelper : EntityHelper
 
     internal override void Render(ToolRenderContext context, in HelperRenderState state)
     {
-        var (mins, maxs) = (GetBox().Min, GetBox().Max);
-
-        // Lit faces in the draw color, or tinted while selected and outlined then too
-        var color = state.IsSelected ? SelectionOverlayColor : GetDrawColor(state);
+        var box = GetBox();
 
         context.PushTransform(Owner.RigidTransform);
-
-        context.PushRenderMode(ToolRenderMode.Flat);
-        context.DrawBoxFaces(mins, maxs, color);
-        context.PopRenderMode();
-
-        if (state.IsSelected)
-        {
-            context.PushRenderMode(ToolRenderMode.Wireframe);
-            context.DrawColor = color;
-            context.DrawBoxFaceOutlines(mins, maxs);
-            context.PopRenderMode();
-        }
-
+        DrawLitBox(context, box.Min, box.Max, UnselectedEntityColor, state);
         context.PopTransform();
     }
 }

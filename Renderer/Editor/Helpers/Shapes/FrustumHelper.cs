@@ -20,16 +20,6 @@ internal sealed class FrustumHelper : EntityHelper
     /// <inheritdoc/>
     public override bool RequiresSelection => true;
 
-    private const float DefaultFov = 90f;
-    private const float DefaultNearPlane = 10f;
-    private const float DefaultFarPlane = 10000f;
-    private const float DefaultAspectRatio = 1f;
-
-    private const float FaceAlphaScale = 0.5f;
-    private const float EdgeWidth = 2f;
-
-    private static readonly Color32 DefaultColor = new(128, 128, 128, 128);
-
     /// <summary>Gets the key of the entity that holds the field of view, in degrees.</summary>
     private string FovKey { get; } = "_fov";
 
@@ -65,81 +55,18 @@ internal sealed class FrustumHelper : EntityHelper
 
     internal override void Render(ToolRenderContext context, in HelperRenderState state)
     {
-        var (fov, nearPlane, farPlane, aspectRatio, color) = GetView();
-
-        // Half the field of view is kept to where its tangent is of use
-        var tanHalfFov = MathF.Tan(float.DegreesToRadians(Math.Clamp(fov * 0.5f, 0.01f, 89f)));
-
-        Span<Vector3> near = stackalloc Vector3[4];
-        Span<Vector3> far = stackalloc Vector3[4];
-        GetPlaneCorners(nearPlane, tanHalfFov, aspectRatio, near);
-        GetPlaneCorners(farPlane, tanHalfFov, aspectRatio, far);
-
-        var faceColor = color with { A = (byte)(int)(color.A * FaceAlphaScale + 0.5f) };
-
-        context.PushTransform(Owner.RigidTransform);
-        context.LayerOverride = ToolRenderLayer.PostTranslucent;
-        context.PushRenderMode(ToolRenderMode.TranslucentFlat);
-
-        DrawFace(context, near[0], near[1], near[2], near[3], faceColor);
-        DrawFace(context, far[3], far[2], far[1], far[0], faceColor);
-
-        for (var i = 0; i < 4; i++)
-        {
-            var next = (i + 1) % 4;
-            DrawFace(context, near[i], far[i], far[next], near[next], faceColor);
-        }
-
-        context.DrawColor = Color32.White;
-        context.DrawLine(Vector3.Zero, new Vector3(farPlane, 0f, 0f));
-
-        context.PopRenderMode();
-        context.LayerOverride = null;
-        context.PopTransform();
-    }
-
-    private (float Fov, float NearPlane, float FarPlane, float AspectRatio, Color32 Color) GetView()
-    {
-        var aspectRatio = GetFloatKey(AspectRatioKey, DefaultAspectRatio);
-        var fov = GetFloatKey(FovKey, DefaultFov);
+        var aspectRatio = GetFloatKey(AspectRatioKey, CameraFrustum.DefaultAspectRatio);
+        var fov = GetFloatKey(FovKey, CameraFrustum.DefaultFov);
 
         if (IsVerticalFov)
         {
             fov = float.RadiansToDegrees(MathF.Atan(MathF.Tan(float.DegreesToRadians(fov * 0.5f)) * aspectRatio)) * 2f;
         }
 
-        var color = GetStringKey(ColorKey) is { Length: > 0 } colorText ? CameraFrustum.ParseColor(colorText) : DefaultColor;
+        // Unlike the color of a camera path node, an empty one is the default rather than transparent
+        var color = GetStringKey(ColorKey) is { Length: > 0 } colorText ? ParseColor(colorText) : CameraFrustum.DefaultColor;
 
-        return (fov, GetFloatKey(NearPlaneKey, DefaultNearPlane), GetFloatKey(FarPlaneKey, DefaultFarPlane), aspectRatio, color);
-    }
-
-    // A face is tinted and outlined in white
-    private static void DrawFace(ToolRenderContext context, Vector3 a, Vector3 b, Vector3 c, Vector3 d, Color32 color)
-    {
-        context.DrawQuad(a, b, c, d, color);
-
-        context.PushRenderMode(ToolRenderMode.Wireframe);
-        context.DrawColor = Color32.White;
-        context.LineWidth = EdgeWidth;
-
-        context.DrawLine(a, b);
-        context.DrawLine(b, c);
-        context.DrawLine(c, d);
-        context.DrawLine(d, a);
-
-        context.LineWidth = 0f;
-        context.PopRenderMode();
-    }
-
-    // The corners of the frustum at a distance along +X, around from its -Y -Z corner
-    private static void GetPlaneCorners(float distance, float tanHalfFov, float aspectRatio, Span<Vector3> corners)
-    {
-        var halfWidth = tanHalfFov * distance;
-        var halfHeight = halfWidth / aspectRatio;
-
-        corners[0] = new Vector3(distance, -halfWidth, -halfHeight);
-        corners[1] = new Vector3(distance, -halfWidth, halfHeight);
-        corners[2] = new Vector3(distance, halfWidth, halfHeight);
-        corners[3] = new Vector3(distance, halfWidth, -halfHeight);
+        CameraFrustum.DrawEntityView(context, Owner.RigidTransform, fov, GetFloatKey(NearPlaneKey, CameraFrustum.DefaultNearPlane),
+            GetFloatKey(FarPlaneKey, CameraFrustum.DefaultFarPlane), aspectRatio, color);
     }
 }

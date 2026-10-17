@@ -188,19 +188,118 @@ public abstract class EntityHelper
     /// </summary>
     private protected static Color32 GetDrawColor(in HelperRenderState state) => state.IsSelected ? SelectionWireframeColor : UnselectedEntityColor;
 
+    /// <summary>Draws a box as lit faces in a color, or tinted while its entity is selected and outlined then too.</summary>
+    /// <param name="context">What the box is drawn with.</param>
+    /// <param name="mins">The smallest corner.</param>
+    /// <param name="maxs">The largest corner.</param>
+    /// <param name="color">The color of the faces while the entity is not selected.</param>
+    /// <param name="state">Whether the entity is selected.</param>
+    private protected static void DrawLitBox(ToolRenderContext context, Vector3 mins, Vector3 maxs, Color32 color, in HelperRenderState state)
+    {
+        if (state.IsSelected)
+        {
+            color = SelectionOverlayColor;
+        }
+
+        context.PushRenderMode(ToolRenderMode.Flat);
+        context.DrawBoxFaces(mins, maxs, color);
+        context.PopRenderMode();
+
+        if (!state.IsSelected)
+        {
+            return;
+        }
+
+        // The faces leave the draw color shaded
+        context.PushRenderMode(ToolRenderMode.Wireframe);
+        context.DrawColor = color;
+        context.DrawBoxFaceOutlines(mins, maxs);
+        context.PopRenderMode();
+    }
+
+    /// <summary>Draws a line two pixels wide, dashed over the scene where the scene hides it.</summary>
+    /// <param name="context">What the line is drawn with.</param>
+    /// <param name="start">Where the line starts.</param>
+    /// <param name="end">Where the line ends.</param>
+    /// <param name="color">The color of the line.</param>
+    private protected static void DrawLineOverHidden(ToolRenderContext context, Vector3 start, Vector3 end, Color32 color)
+    {
+        context.LineWidth = 2f;
+
+        context.PushRenderMode(ToolRenderMode.Wireframe);
+        context.DrawLine(start, end, color);
+        context.PopRenderMode();
+
+        context.PushRenderMode(ToolRenderMode.DottedNoZ);
+        context.DrawLine(start, end, color);
+        context.PopRenderMode();
+
+        context.LineWidth = 0f;
+    }
+
     /// <summary>Gets a color the block the helper is declared with gives as three or four numbers.</summary>
     /// <param name="key">Name of the key.</param>
     /// <returns>The color, or <see langword="null"/> when the block has no such color.</returns>
     protected Color32? GetMetadataColor(string key)
+        => Declaration.Metadata is { } block && block.ContainsKey(key) ? ReadColorArray(block[key]) : null;
+
+    /// <summary>
+    /// Gets a color key of the entity as three or four numbers, opaque where there are three, or the default its
+    /// class gives the key where the entity has none. A value that is not a color is transparent black.
+    /// </summary>
+    /// <param name="key">Name of the key.</param>
+    /// <param name="defaultValue">The color where the entity has no such key and its class gives no default.</param>
+    /// <returns>The color.</returns>
+    private protected Color32 GetColorKey(string key, Color32 defaultValue)
     {
-        if (Declaration.Metadata is not { } block || !block.ContainsKey(key) || block[key] is not { IsArray: true, Count: >= 3 } color)
+        if (!Owner.KeyValues.TryGetValue(key, out var value))
+        {
+            return GetDefault(Owner, key) is { Length: > 0 } defaultText ? ParseColor(defaultText) : defaultValue;
+        }
+
+        if (value.IsArray)
+        {
+            return ReadColorArray(value) ?? default;
+        }
+
+        return Owner.KeyValues.GetStringProperty(key) is { } text ? ParseColor(text) : default;
+    }
+
+    /// <summary>Parses a color as three or four numbers, opaque where there are three, and transparent black where it is not a color.</summary>
+    /// <param name="text">The color as text.</param>
+    /// <returns>The color.</returns>
+    private protected static Color32 ParseColor(string text)
+    {
+        var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        Span<byte> channels = [0, 0, 0, byte.MaxValue];
+
+        if (parts.Length < 3)
+        {
+            return default;
+        }
+
+        for (var i = 0; i < Math.Min(parts.Length, channels.Length); i++)
+        {
+            if (!byte.TryParse(parts[i], NumberStyles.Integer, CultureInfo.InvariantCulture, out channels[i]))
+            {
+                return default;
+            }
+        }
+
+        return new Color32(channels[0], channels[1], channels[2], channels[3]);
+    }
+
+    // Three or four numbers, opaque where the fourth is left out
+    private static Color32? ReadColorArray(KVObject? value)
+    {
+        if (value is not { IsArray: true, Count: >= 3 })
         {
             return null;
         }
 
-        static byte GetByte(KVObject value) => value.ToByte(CultureInfo.InvariantCulture);
+        byte GetChannel(int index) => index < value.Count ? value[index].ToByte(CultureInfo.InvariantCulture) : byte.MaxValue;
 
-        return new Color32(GetByte(color[0]), GetByte(color[1]), GetByte(color[2]), color.Count > 3 ? GetByte(color[3]) : byte.MaxValue);
+        return new Color32(GetChannel(0), GetChannel(1), GetChannel(2), GetChannel(3));
     }
 
     /// <summary>Gets a flag of the block the helper is declared with.</summary>
@@ -366,6 +465,11 @@ public abstract class EntityHelper
     /// <returns>The argument.</returns>
     protected string? GetArgument(int index)
         => index < Declaration.Arguments.Count ? Declaration.Arguments[index] : null;
+
+    /// <summary>Gets the key of the entity an argument of a declaration names, of which the editor keeps no more than 31 characters.</summary>
+    /// <param name="argument">The argument.</param>
+    /// <returns>The name of the key.</returns>
+    private protected static string ToTruncatedKey(string argument) => argument[..Math.Min(argument.Length, 31)].ToLowerInvariant();
 }
 
 /// <summary>Whether the entity a helper draws for is selected, and whether it is all that is.</summary>

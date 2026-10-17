@@ -46,19 +46,7 @@ internal sealed class AxisHelper : EntityHelper
         context.DrawHandle(HandleSize, ToolHandleType.Circle, Color32.White, end, noZ: true, border: false, translucent: true);
         context.LayerOverride = null;
 
-        // Where the scene hides it, the line is dashed over it
-        context.DrawColor = Color32.White;
-        context.LineWidth = 2f;
-
-        context.PushRenderMode(ToolRenderMode.Wireframe);
-        context.DrawLine(start, end);
-        context.PopRenderMode();
-
-        context.PushRenderMode(ToolRenderMode.DottedNoZ);
-        context.DrawLine(start, end);
-        context.PopRenderMode();
-
-        context.LineWidth = 0f;
+        DrawLineOverHidden(context, start, end, Color32.White);
     }
 
     // Both points are at the entity until the key holds all six numbers, comma and all

@@ -34,23 +34,7 @@ internal sealed class GameUnitModelHelper : EntityHelper
     internal override void Render(ToolRenderContext context, in HelperRenderState state)
     {
         var origin = Owner.Transform.Translation;
-        var (mins, maxs) = (origin + BoxMins, origin + BoxMaxs);
 
-        // Lit white faces, or tinted while selected and outlined then too
-        var color = state.IsSelected ? SelectionOverlayColor : Color32.White;
-
-        context.PushRenderMode(ToolRenderMode.Flat);
-        context.DrawBoxFaces(mins, maxs, color);
-        context.PopRenderMode();
-
-        if (!state.IsSelected)
-        {
-            return;
-        }
-
-        context.PushRenderMode(ToolRenderMode.Wireframe);
-        context.DrawColor = color;
-        context.DrawBoxFaceOutlines(mins, maxs);
-        context.PopRenderMode();
+        DrawLitBox(context, origin + BoxMins, origin + BoxMaxs, Color32.White, state);
     }
 }

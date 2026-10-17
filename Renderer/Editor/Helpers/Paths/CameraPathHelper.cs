@@ -64,12 +64,9 @@ internal sealed class CameraPathHelper(IHelperOwner owner, FgdHelper declaration
         var transform = firstNode?.RigidTransform ?? Matrix4x4.Identity;
         transform.Translation = position;
 
-        var color = CameraFrustum.ReadColor(Owner.KeyValues, ColorKey)
-            ?? (GetStringKey(ColorKey) is { Length: > 0 } colorText ? CameraFrustum.ParseColor(colorText) : Color32.White);
-
         context.PushTransform(transform);
         CameraFrustum.Draw(context, GetFov(firstNode), GetFloatKey(NearPlaneKey, DefaultNearPlane), GetFloatKey(FarPlaneKey, DefaultFarPlane),
-            GetFloatKey(AspectRatioKey, DefaultAspectRatio), color);
+            GetFloatKey(AspectRatioKey, DefaultAspectRatio), GetColorKey(ColorKey, Color32.White));
         context.PopTransform();
 
         // The arrow points the way the path leaves the node
