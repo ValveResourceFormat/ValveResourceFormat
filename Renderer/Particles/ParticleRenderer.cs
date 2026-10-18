@@ -79,6 +79,11 @@ namespace ValveResourceFormat.Renderer.Particles
 
             SetupRenderers(simulation.Definition.GetArray("m_Renderers") ?? [], scene);
 
+            foreach (var renderer in renderers)
+            {
+                ObservedEvents |= renderer.ObservedEvents;
+            }
+
             simulation.RenderState.SequenceDurations = CollectSequenceDurations();
             simulation.RenderState.Lighting = scene.LightingInfo;
             simulation.RenderState.Collision = scene.ParticleCollision;
@@ -198,6 +203,30 @@ namespace ValveResourceFormat.Renderer.Particles
             }
         }
 
+        /// <inheritdoc/>
+        public void OnParticlesInitialized(ParticleCollection particles, ParticleSystemState state, int first, int count)
+        {
+            foreach (var renderer in renderers)
+            {
+                renderer.InitializeParticles(particles, state, first, count);
+            }
+        }
+
+        /// <inheritdoc/>
+        public ParticleEventType ObservedEvents { get; }
+
+        /// <inheritdoc/>
+        public void OnParticleEvent(ParticleCollection particles, ParticleEventType eventType, ReadOnlySpan<int> indices)
+        {
+            foreach (var renderer in renderers)
+            {
+                if ((renderer.ObservedEvents & eventType) != 0)
+                {
+                    renderer.OnParticleEvent(particles, eventType, indices);
+                }
+            }
+        }
+
         /// <summary>
         /// Finishes the frame for this system's renderers and its children's, on one thread. Renderers
         /// out of draw distance or faded out are hidden; the rest finish the step when there was one.
@@ -268,10 +297,12 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
         /// <summary>
-        /// Draws the renderers belonging to <paramref name="pass"/>.
+        /// Draws the renderers belonging to <paramref name="pass"/>, this system's before its children's.
         /// </summary>
         public void Render(Camera camera, RenderPass pass, RenderLayer layer = RenderLayer.Scene)
         {
+            RenderSelf(camera, pass, layer);
+
             foreach (var childRenderer in childRenderers)
             {
                 if (!childRenderer.Simulation.ShouldRunAsChildOf(Simulation.RenderState))
@@ -281,7 +312,10 @@ namespace ValveResourceFormat.Renderer.Particles
 
                 childRenderer.Render(camera, pass, layer);
             }
+        }
 
+        private void RenderSelf(Camera camera, RenderPass pass, RenderLayer layer)
+        {
             if (!IsWithinDrawDistance(camera) || Simulation.Particles.Count == 0)
             {
                 return;
@@ -343,10 +377,25 @@ namespace ValveResourceFormat.Renderer.Particles
         public bool CanRenderReplacement { get; }
 
         /// <summary>
-        /// Draws the renderers belonging to <paramref name="pass"/> with a pass replacement shader.
+        /// Draws the renderers belonging to <paramref name="pass"/> with a pass replacement shader,
+        /// this system's before its children's.
         /// </summary>
         public void RenderReplacement(Shader replacement, uint objectId, RenderPass pass, Camera camera)
         {
+            if (IsWithinDrawDistance(camera) && Simulation.Particles.Count > 0)
+            {
+                foreach (var renderer in renderers)
+                {
+                    if (!renderer.CanRenderReplacement || !InPass(renderer, pass, RenderLayer.Scene)
+                        || renderer.GetOperatorRunStrength(Simulation.RenderState) <= 0.0f)
+                    {
+                        continue;
+                    }
+
+                    renderer.RenderReplacement(replacement, objectId);
+                }
+            }
+
             foreach (var childRenderer in childRenderers)
             {
                 if (!childRenderer.CanRenderReplacement || !childRenderer.Simulation.ShouldRunAsChildOf(Simulation.RenderState))
@@ -355,22 +404,6 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
 
                 childRenderer.RenderReplacement(replacement, objectId, pass, camera);
-            }
-
-            if (!IsWithinDrawDistance(camera) || Simulation.Particles.Count == 0)
-            {
-                return;
-            }
-
-            foreach (var renderer in renderers)
-            {
-                if (!renderer.CanRenderReplacement || !InPass(renderer, pass, RenderLayer.Scene)
-                    || renderer.GetOperatorRunStrength(Simulation.RenderState) <= 0.0f)
-                {
-                    continue;
-                }
-
-                renderer.RenderReplacement(replacement, objectId);
             }
         }
 
