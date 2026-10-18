@@ -131,6 +131,7 @@ namespace ValveResourceFormat.Particles
                 ["C_OP_FadeInSimple"] = operatorInfo => new FadeInSimple(operatorInfo),
                 ["C_OP_FadeOut"] = operatorInfo => new FadeOutRandom(operatorInfo),
                 ["C_OP_FadeOutSimple"] = operatorInfo => new FadeOutSimple(operatorInfo),
+                ["C_OP_InheritFromParentParticlesV2"] = operatorInfo => new InheritFromParentParticlesV2(operatorInfo),
                 ["C_OP_InterpolateRadius"] = operatorInfo => new InterpolateRadius(operatorInfo),
                 ["C_OP_LerpEndCapScalar"] = operatorInfo => new LerpEndCapScalar(operatorInfo),
                 ["C_OP_LerpEndCapVector"] = operatorInfo => new LerpEndCapVector(operatorInfo),
