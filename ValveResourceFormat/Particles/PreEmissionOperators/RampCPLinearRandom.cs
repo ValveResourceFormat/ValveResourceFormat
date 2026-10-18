@@ -22,14 +22,14 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             rateMax = parse.Vector3("m_vecRateMax", rateMax);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
+        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             // This operator counts the seed twice where the shared per-particle draw counts it once
             var sampleId = (2 * particleSystemState.Random.Seed) + particleSystemState.Random.OperatorOffset;
             var rampRate = ParticleRandom.ForSampleBetweenPerComponent(sampleId, rateMin, rateMax);
 
             var cpPos = particleSystemState.GetControlPoint(cp).Position;
-            particleSystemState.SetControlPointValue(cp, cpPos + (rampRate * frameTime));
+            particleSystemState.SetControlPointValue(cp, (rampRate * (strength * frameTime)) + cpPos);
         }
     }
 }
