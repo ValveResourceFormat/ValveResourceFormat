@@ -67,11 +67,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
 
-            (layers, var textureName) = ParticleTextureLayer.Build(parse, rendererContext, DefaultTextureName, srgbRead: OutputIsColor);
+            (layers, var textureName) = ParticleTextureLayer.Build(parse, rendererContext, DefaultTextureName, srgbRead: TexturesAreColor);
 
             var shaderArguments = CreateShaderArguments();
             shaderArguments["S_TEXTURE_LAYERS"] = (byte)(layers.Length - 1);
             shaderArguments["S_PARTICLE_INSTANCED"] = 1;
+            AddSpritecardShaderArguments(shaderArguments);
 
             shader = rendererContext.ShaderLoader.LoadShader(ShaderName, shaderArguments);
 
@@ -136,7 +137,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             public Vector4 Color;
             public Vector4 UvRect;
             public Vector4 UvRectNext;
-            public float FrameBlend;
+            public Vector3 FrameBlendAlphaReference;
         }
 
         private static readonly int BaseInstanceFloats = Unsafe.SizeOf<CardInstance>() / sizeof(float);
@@ -162,7 +163,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 new(VertexSlot.Color, DXGI_FORMAT.R32G32B32A32_FLOAT),
                 new(VertexSlot.TexCoord, DXGI_FORMAT.R32G32B32A32_FLOAT),
                 new(VertexSlot.TexCoord1, DXGI_FORMAT.R32G32B32A32_FLOAT),
-                new("vFrameBlend", DXGI_FORMAT.R32_FLOAT),
+                new("vFrameBlendAlphaRef", DXGI_FORMAT.R32G32B32_FLOAT),
             };
 
             for (var layer = 1; layer < layerCount; layer++)
@@ -512,6 +513,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     var (uvMin, uvMax, uvNextMin, uvNextMax) = GetLayerSheetUvs(cardFrames, window);
 
                     var start = i * instanceFloats;
+                    var alphaReference = GetAlphaReference(ref particle, halfWidth, alpha);
 
                     MemoryMarshal.Cast<float, CardInstance>(instances.Slice(start, BaseInstanceFloats))[0] = new CardInstance
                     {
@@ -521,7 +523,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         Color = new Vector4(color.AsVector3() * colorFade, alpha),
                         UvRect = Rect(uvMin, uvMax),
                         UvRectNext = Rect(uvNextMin, uvNextMax),
-                        FrameBlend = cardFrames?.Blend ?? 0f,
+                        FrameBlendAlphaReference = new Vector3(cardFrames?.Blend ?? 0f, alphaReference.X, alphaReference.Y),
                     };
 
                     var layerRects = MemoryMarshal.Cast<float, Vector4>(

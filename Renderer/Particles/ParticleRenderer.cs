@@ -39,6 +39,11 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         public bool WantsSceneDepth { get; }
 
+        /// <summary>
+        /// Whether this system, or any system nested under it, draws the scene behind it refracted.
+        /// </summary>
+        public bool WantsSceneColor { get; }
+
         private SceneNode? ownerNode;
 
         /// <summary>
@@ -95,6 +100,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             Passes = CollectPasses();
             WantsSceneDepth = renderers.Any(static r => r.WantsSceneDepth) || childRenderers.Any(static c => c.WantsSceneDepth);
+            WantsSceneColor = renderers.Any(static r => r.WantsSceneColor) || childRenderers.Any(static c => c.WantsSceneColor);
             CanRenderReplacement = renderers.Any(static r => r.CanRenderReplacement) || childRenderers.Any(static c => c.CanRenderReplacement);
         }
 

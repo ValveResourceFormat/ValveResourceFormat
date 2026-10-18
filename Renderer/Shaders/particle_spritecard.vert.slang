@@ -14,7 +14,8 @@
 // The corner position, or the card's centre when the corners are generated.
 in vec3 vPOSITION;
 in vec4 vCOLOR;
-in float vFrameBlend;
+// How far between its two sheet frames the card has crossed in x, the alpha test threshold and window in yz.
+in vec3 vFrameBlendAlphaRef;
 
 #if S_PARTICLE_INSTANCED
 // Sheet frame rectangles as (min.xy, max.xy), for the frame this particle is on and the one after it.
@@ -128,6 +129,7 @@ out vec2 vTexCoordNextFrameOut;
 out vec4 vLayerUvOut[S_TEXTURE_LAYERS];
 #endif
 out float vFrameBlendOut;
+flat out vec2 vAlphaReferenceOut;
 out vec2 vCardUvOut;
 out vec4 vColor;
 out vec3 vFragPosition;
@@ -210,7 +212,8 @@ void main(void) {
 #endif
 #endif
 
-    vFrameBlendOut = vFrameBlend;
+    vFrameBlendOut = vFrameBlendAlphaRef.x;
+    vAlphaReferenceOut = vFrameBlendAlphaRef.yz;
     vCardUvOut = cardUv;
     vFragPosition = positionWs;
 

@@ -59,8 +59,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>Whether the vertex colour is decoded from gamma space in the shader.</summary>
         protected bool GammaCorrectVertexColors { get; } = true;
 
-        /// <summary>Whether sheet frame blending keeps the brighter of the two frames per channel.</summary>
+        /// <summary>
+        /// Whether sheet frame blending keeps the brighter of the two frames per channel. Shaders that
+        /// switch features at run time never take this path.
+        /// </summary>
         protected bool MaxLuminanceFrameBlend { get; }
+
+        /// <summary>
+        /// Whether the lit colour is clamped to 1 before it blends. Shaders that switch features at run
+        /// time never clamp it.
+        /// </summary>
+        private bool SaturateColorPreAlphaBlend { get; } = true;
 
         /// <summary>Additive self-colour laid over the alpha blend; uploaded as 1 + amount.</summary>
         protected INumberProvider AddSelfAmount { get; } = new LiteralNumberProvider(0f);
@@ -103,6 +112,49 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         /// <summary>Whether this renderer samples the opaque scene depth.</summary>
         public bool WantsSceneDepth => FeatheringMode != ParticleDepthFeatheringMode.PARTICLE_DEPTH_FEATHERING_OFF;
+
+        /// <summary>
+        /// Whether this renderer draws the opaque scene behind it, displaced by the red and green of its
+        /// texture, in place of the texture's colour.
+        /// </summary>
+        private bool Refract { get; }
+
+        /// <summary>How far the texture displaces the scene, in screen coordinates at full texture alpha.</summary>
+        private INumberProvider RefractAmount { get; } = new LiteralNumberProvider(1f);
+
+        /// <summary>The radius of the blur over the displaced scene, in pixels, at most 4.</summary>
+        private int RefractBlurRadius { get; }
+
+        private BlurFilterType RefractBlurType { get; }
+
+        /// <summary>Whether this renderer samples the opaque scene colour.</summary>
+        public bool WantsSceneColor => Refract && OutputIsColor;
+
+        /// <summary>Whether the textures this renderer draws are colour, rather than data such as a refraction offset.</summary>
+        protected bool TexturesAreColor => OutputIsColor && !Refract;
+
+        /// <summary>Whether the particles draw over everything, without a depth test.</summary>
+        private bool DisableZBuffering { get; }
+
+        /// <summary>Whether the particles draw only where geometry is in front of them.</summary>
+        private bool ReverseZBuffering { get; }
+
+        /// <summary>Whether the particles are fogged.</summary>
+        private bool Fogged { get; }
+
+        /// <summary>The per particle value whose complement is the alpha test threshold.</summary>
+        private SpriteCardPerParticleScale PerParticleAlphaReference { get; }
+
+        /// <summary>The per particle value giving the width of the alpha band that passes the test.</summary>
+        private SpriteCardPerParticleScale PerParticleAlphaRefWindow { get; }
+
+        private ParticleAlphaReferenceType AlphaReferenceType { get; }
+
+        /// <summary>How far past the threshold the alpha test fades in, in texture alpha.</summary>
+        private INumberProvider AlphaReferenceSoftness { get; } = new LiteralNumberProvider(0f);
+
+        /// <summary>Whether the particles are alpha tested against a per particle threshold.</summary>
+        private bool AlphaTested => PerParticleAlphaReference != SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_NONE;
 
         private readonly Scene? scene;
 
@@ -149,8 +201,36 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             FeatheringMinDist = parse.NumberProvider("m_flFeatheringMinDist", FeatheringMinDist);
             FeatheringMaxDist = parse.NumberProvider("m_flFeatheringMaxDist", FeatheringMaxDist);
             FeatheringFilter = parse.NumberProvider("m_flFeatheringFilter", FeatheringFilter);
+            Refract = parse.Boolean("m_bRefract", Refract);
+            RefractAmount = parse.NumberProvider("m_flRefractAmount", RefractAmount);
+            RefractBlurRadius = Math.Clamp(parse.Int32("m_nRefractBlurRadius", RefractBlurRadius), 0, 4);
+            RefractBlurType = parse.Enum("m_nRefractBlurType", RefractBlurType);
+            DisableZBuffering = parse.Boolean("m_bDisableZBuffering", DisableZBuffering);
+            ReverseZBuffering = parse.Boolean("m_bReverseZBuffering", ReverseZBuffering);
+            PerParticleAlphaReference = parse.Enum("m_nPerParticleAlphaReference", PerParticleAlphaReference);
+            PerParticleAlphaRefWindow = parse.Enum("m_nPerParticleAlphaRefWindow", PerParticleAlphaRefWindow);
+            AlphaReferenceType = parse.Enum("m_nAlphaReferenceType", AlphaReferenceType);
+            AlphaReferenceSoftness = parse.NumberProvider("m_flAlphaReferenceSoftness", AlphaReferenceSoftness);
+
+            SaturateColorPreAlphaBlend = parse.Boolean("m_bSaturateColorPreAlphaBlend", SaturateColorPreAlphaBlend);
+
+            var fileLoader = scene?.RendererContext.FileLoader;
+
+            Fogged = parse.Enum("m_nFogType", ParticleFogType.PARTICLE_FOG_GAME_DEFAULT) switch
+            {
+                ParticleFogType.PARTICLE_FOG_ENABLED => true,
+                ParticleFogType.PARTICLE_FOG_GAME_DEFAULT => fileLoader?.ParticlesFoggedByDefault ?? false,
+                _ => false,
+            };
+
+            if (fileLoader?.ParticleShaderFeatureBranching == true)
+            {
+                MaxLuminanceFrameBlend = false;
+                SaturateColorPreAlphaBlend = false;
+            }
 
             GammaCorrectVertexColors &= OutputIsColor;
+            SaturateColorPreAlphaBlend &= OutputIsColor;
         }
 
         /// <summary>Creates the static combos for this renderer's shader, lit from the scene when it draws an image.</summary>
@@ -272,23 +352,57 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// draw, so blending is enabled and depth writes stopped or the card renders opaque; an opaque
         /// renderer keeps the pass defaults instead. Modulate-2x scales what is behind it and so needs
         /// its own factors, while everything else composites premultiplied. Both faces are drawn,
-        /// since a card or ribbon can turn either one toward the camera.
+        /// since a card or ribbon can turn either one toward the camera. The lighten blend mode keeps
+        /// the depth test whatever the z buffering settings ask.
         /// </summary>
-        protected static RenderPassScope SpritecardStateScope(ParticleBlendMode blendMode, bool opaque = false)
+        protected RenderPassScope SpritecardStateScope(ParticleBlendMode blendMode, bool opaque = false)
         {
             var renderState = GraphicsContext.RenderState;
 
+            var depthSettings = blendMode != ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_LIGHTEN;
+            bool? depthTest = depthSettings && DisableZBuffering ? false : null;
+            RsComparison? depthFunc = depthSettings && !DisableZBuffering && ReverseZBuffering ? RsComparison.Farther : null;
+
             if (opaque)
             {
-                return renderState.Scope(cullMode: RsCullMode.None);
+                return renderState.Scope(cullMode: RsCullMode.None, depthTest: depthTest, depthFunc: depthFunc);
             }
 
             var mod2x = blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X;
 
             return renderState.Scope(blend: true, depthWrite: false, cullMode: RsCullMode.None,
+                depthTest: depthTest, depthFunc: depthFunc,
                 srcBlend: mod2x ? RsBlendMode.DestColor : RsBlendMode.One,
                 dstBlend: mod2x ? RsBlendMode.SrcColor : RsBlendMode.InvSrcAlpha);
         }
+
+        /// <summary>
+        /// The threshold a particle's texture alpha is tested against and the width of the band above it
+        /// that passes, in x and y, as the shader reads them.
+        /// </summary>
+        /// <param name="particle">The particle being drawn.</param>
+        /// <param name="radius">The radius it is drawn at.</param>
+        /// <param name="alpha">The alpha it is drawn with.</param>
+        protected Vector2 GetAlphaReference(ref Particle particle, float radius, float alpha)
+            => AlphaTested
+                ? new Vector2(
+                    1f - GetPerParticleScale(PerParticleAlphaReference, ref particle, radius, alpha),
+                    GetPerParticleScale(PerParticleAlphaRefWindow, ref particle, radius, alpha))
+                : Vector2.Zero;
+
+        /// <summary>The value a per particle input reads. Animation frames and the random sources read 1.</summary>
+        private static float GetPerParticleScale(SpriteCardPerParticleScale source, ref Particle particle, float radius, float alpha) => source switch
+        {
+            SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_PARTICLE_AGE => particle.Age + 1f,
+            SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_SHADER_EXTRA_DATA1 => particle.ShaderExtraData1,
+            SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_SHADER_EXTRA_DATA2 => particle.ShaderExtraData2,
+            SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_PARTICLE_ALPHA => alpha,
+            SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_SHADER_RADIUS => radius,
+            SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_ROLL => particle.Rotation.Z,
+            SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_YAW => particle.Rotation.X,
+            SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_PITCH => particle.Rotation.Y,
+            _ => 1f,
+        };
 
         /// <summary>
         /// Whether the particles are drawn farthest from the camera first rather than newest first.
@@ -329,6 +443,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             shader.SetUniform1("uGammaCorrectVertexColors", GammaCorrectVertexColors);
             shader.SetUniform1("uDepthBias", DepthBias.NextNumber(systemState));
             shader.SetUniform1("uMaxLuminanceFrameBlend", MaxLuminanceFrameBlend);
+            shader.SetUniform1("uSaturateColor", SaturateColorPreAlphaBlend);
             shader.SetUniform1("uLightingMode", (int)LightingMode);
             shader.SetUniform1("g_tSceneDepth", (int)ReservedTextureSlots.SceneDepth);
 
@@ -341,6 +456,37 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 ? new Vector2(FeatheringMinDist.NextNumber(systemState), FeatheringMaxDist.NextNumber(systemState))
                 : Vector2.Zero);
             shader.SetUniform1("uFeatheringFilter", FeatheringFilter.NextNumber(systemState));
+            shader.SetUniform1("uFogParticles", Fogged);
+            shader.SetUniform1("uAlphaReference", AlphaTested);
+
+            if (AlphaTested)
+            {
+                var softness = AlphaReferenceSoftness.NextNumber(systemState);
+                var windowed = PerParticleAlphaRefWindow != SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_NONE;
+
+                shader.SetUniform2("uAlphaReferenceOpaque", new Vector2(
+                    AlphaReferenceType is ParticleAlphaReferenceType.PARTICLE_ALPHA_REFERENCE_OPAQUE_ALPHA or ParticleAlphaReferenceType.PARTICLE_ALPHA_REFERENCE_OPAQUE_OPAQUE ? 1f : 0f,
+                    AlphaReferenceType is ParticleAlphaReferenceType.PARTICLE_ALPHA_REFERENCE_ALPHA_OPAQUE or ParticleAlphaReferenceType.PARTICLE_ALPHA_REFERENCE_OPAQUE_OPAQUE ? 1f : 0f));
+                shader.SetUniform2("uAlphaReferenceSoftness", windowed
+                    ? new Vector2(softness * 0.5f)
+                    : new Vector2(0f, softness));
+            }
+
+            if (Refract)
+            {
+                shader.SetUniform1("uRefractAmount", RefractAmount.NextNumber(systemState));
+                shader.SetUniform1("uRefractBlurRadius", RefractBlurRadius);
+                shader.SetUniform1("uRefractBlurBox", RefractBlurType == BlurFilterType.BLURFILTER_BOX);
+            }
+        }
+
+        /// <summary>Adds the static combos every spritecard renderer derives from these settings.</summary>
+        protected void AddSpritecardShaderArguments(Dictionary<string, byte> shaderArguments)
+        {
+            if (WantsSceneColor)
+            {
+                shaderArguments["S_REFRACT"] = 1;
+            }
         }
 
         /// <summary>The pass this renderer draws in.</summary>
