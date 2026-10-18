@@ -11,7 +11,8 @@ permissions:
 jobs:
   check-bug:
     runs-on: ubuntu-latest
-    if: contains(github.event.issue.labels.*.name, 'Bug') || !contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR", "CONTRIBUTOR"]'), github.event.issue.author_association)
+    # Every template applies a label, so an unlabeled issue is a blank one
+    if: contains(github.event.issue.labels.*.name, 'Bug') || (!github.event.issue.labels[0] && !contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR", "CONTRIBUTOR"]'), github.event.issue.author_association))
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
