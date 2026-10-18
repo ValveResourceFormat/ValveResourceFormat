@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Threading.Tasks;
+using TUnit.Assertions.Enums;
 using ValveResourceFormat.Renderer.Editor.Entities;
 
 namespace Tests.Renderer
@@ -19,11 +20,11 @@ namespace Tests.Renderer
             await Assert.That(light.Kind).IsEqualTo(EntityClassKind.Point);
             await Assert.That(light.Helpers.Select(static helper => helper.Name)).IsEquivalentTo(["omnilight", "iconsprite"]);
             await Assert.That(light.Helpers[1].Metadata!.ContainsKey("image")).IsTrue();
-            await Assert.That(light.FindKey("Color")?.Default).IsEqualTo("255 255 255");
+            await Assert.That(light.PreviewAnimationKeys).IsEmpty();
 
-            // A default is kept as the text the class declares, numbers included
-            await Assert.That(light.FindKey("range")?.Default).IsEqualTo("256.0");
-            await Assert.That(light.DerivesFrom("targetname")).IsTrue();
+            // Only the classes an entity can be required to be placed under are kept of what a class is based on
+            await Assert.That(light.DerivesFrom("light_omni2")).IsTrue();
+            await Assert.That(light.DerivesFrom("targetname")).IsFalse();
         }
 
         [Test]
@@ -33,19 +34,17 @@ namespace Tests.Renderer
 
             await Assert.That(classes.FindClass("post_processing_volume")?.AutoApplyMaterial).IsEqualTo("materials/tools_postprocess_volume.vmat");
             await Assert.That(classes.FindClass("trigger_multiple")?.AutoApplyMaterial).IsEqualTo("materials/tools/toolstrigger.vmat");
+            await Assert.That(classes.FindClass("trigger_multiple")?.Kind).IsEqualTo(EntityClassKind.Solid);
             await Assert.That(classes.FindClass("func_brush")?.AutoApplyMaterial).IsNull();
         }
 
         [Test]
-        public async Task DropsTheKeysAClassRemovesOfItsBases()
+        public async Task ReadsTheKeysThatNameTheAnimationPlayed()
         {
-            var ragdoll = EntityClassCatalog.GetTable(HalfLifeAlyx).FindClass("prop_ragdoll")!;
+            var prop = EntityClassCatalog.GetTable(CounterStrike2).FindClass("prop_dynamic")!;
 
-            await Assert.That(ragdoll.DerivesFrom("Studiomodel")).IsTrue();
-            await Assert.That(ragdoll.FindKey("skin")).IsNull();
-            await Assert.That(ragdoll.FindKey("bodygroups")).IsNull();
-            await Assert.That(ragdoll.FindKey("model")).IsNotNull();
-            await Assert.That(ragdoll.FindKey("spawnflags")?.Default).IsEqualTo("4");
+            // Keys the class takes from its bases are there, the one that matters most first
+            await Assert.That(prop.PreviewAnimationKeys).IsEquivalentTo(["StartingAnim", "IdleAnim"], CollectionOrdering.Matching);
         }
 
         [Test]
@@ -55,7 +54,7 @@ namespace Tests.Renderer
             await Assert.That(EntityClassCatalog.GetTable(CounterStrike2).GridNav).IsNull();
 
             // A class two games declare differently is the one of each game
-            var games = new[] { CounterStrike2, Dota2, SteamVRHome }.Select(static appId => EntityClassCatalog.GetTable(appId).FindClass("env_beam"));
+            var games = new[] { CounterStrike2, Dota2, SteamVRHome }.Select(static appId => EntityClassCatalog.GetTable(appId).FindClass("info_target"));
 
             await Assert.That(games.Distinct().Count()).IsGreaterThan(1);
         }

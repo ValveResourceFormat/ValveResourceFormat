@@ -46,7 +46,7 @@ foreach (var appId in appIds)
     // A game whose tools are not installed here keeps what was found of it before
     if (table == null && previousTables.TryGetValue(appId, out var previousTable))
     {
-        Console.WriteLine($"Keeping the classes of {appId} {previousTable.GetStringProperty("name")}, which is not installed with its FGD files");
+        Console.WriteLine($"Keeping the classes of {appId}, which is not installed with its FGD files");
         table = KeepTable(previousTable);
     }
 
@@ -108,24 +108,26 @@ KVObject? ParseGameClasses(GameFolderLocator.SteamLibraryGameInfo game, string g
         return null;
     }
 
+    // Of the classes a class is based on, only the ones an entity can be required to be placed under are read
+    var requiredParentClasses = fgd.Classes
+        .Select(static gameClass => GetText(gameClass.Metadata, "required_parent_class"))
+        .OfType<string>()
+        .Where(static name => name.Length > 0)
+        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
     var classIds = KVObject.Array();
-    var ids = new Dictionary<FgdClass, string>();
 
     foreach (var gameClass in fgd.Classes)
     {
-        if (GetKind(gameClass) is not (null or "base"))
+        if (ConvertClass(gameClass, requiredParentClasses) is { } data)
         {
-            classIds.Add(AddClass(gameClass, game.AppID, ids));
+            classIds.Add(AddDefinition(gameClass.Name, data, game.AppID));
         }
     }
 
     Console.WriteLine($"Found {classIds.Count} classes in {Path.GetDirectoryName(gameInfo)}");
 
-    var table = new KVObject
-    {
-        { "app_id", game.AppID },
-        { "name", game.AppName },
-    };
+    var table = new KVObject { { "app_id", game.AppID } };
 
     if (fgd.GridNav is var (edgeSize, offsetX, offsetY, pickHeight))
     {
@@ -146,13 +148,12 @@ KVObject? ParseGameClasses(GameFolderLocator.SteamLibraryGameInfo game, string g
 KVObject KeepTable(KVObject previousTable)
 {
     var appId = previousTable.GetInt32Property("app_id");
-    var ids = new Dictionary<string, string>(StringComparer.Ordinal);
     var table = new KVObject();
 
     foreach (var (name, value) in previousTable)
     {
         table.Add(name, name == "classes"
-            ? KVObject.Array((previousTable.GetArray("classes") ?? []).Select(id => new KVObject(KeepDefinition((string)id, appId, ids))))
+            ? KVObject.Array((previousTable.GetArray("classes") ?? []).Select(id => new KVObject(KeepDefinition((string)id, appId))))
             : value);
     }
 
@@ -160,13 +161,8 @@ KVObject KeepTable(KVObject previousTable)
 }
 
 // A class as it was written before, under the id it is given among the classes written now
-string KeepDefinition(string previousId, int appId, Dictionary<string, string> ids)
+string KeepDefinition(string previousId, int appId)
 {
-    if (ids.TryGetValue(previousId, out var id))
-    {
-        return id;
-    }
-
     var previousData = previousDefinitions.GetValueOrDefault(previousId)
         ?? throw new InvalidDataException($"'{classesPath}' names class '{previousId}', which it does not declare.");
 
@@ -175,19 +171,13 @@ string KeepDefinition(string previousId, int appId, Dictionary<string, string> i
 
     foreach (var (name, value) in previousData)
     {
-        if (name == "id")
+        if (name != "id")
         {
-            continue;
+            data.Add(name, value);
         }
-
-        data.Add(name, name == "bases"
-            ? KVObject.Array((previousData.GetArray("bases") ?? []).Select(baseId => new KVObject(KeepDefinition((string)baseId, appId, ids))))
-            : value);
     }
 
-    id = AddDefinition(data.GetStringProperty("name"), data, appId);
-    ids.Add(previousId, id);
-    return id;
+    return AddDefinition(data.GetStringProperty("name"), data, appId);
 }
 
 // The key of the version of a class a game declares, which is shared by every game that declares it alike
@@ -217,24 +207,10 @@ string AddDefinition(string name, KVObject data, int appId)
     return key;
 }
 
-// The id of a class and of every class it is based on, added the first time a game names them
-string AddClass(FgdClass gameClass, int appId, Dictionary<FgdClass, string> ids)
-{
-    if (ids.TryGetValue(gameClass, out var id))
-    {
-        return id;
-    }
-
-    var baseIds = gameClass.BaseClasses.Select(baseClass => AddClass(baseClass, appId, ids)).ToList();
-
-    id = AddDefinition(gameClass.Name, ConvertClass(gameClass, baseIds), appId);
-    ids.Add(gameClass, id);
-    return id;
-}
-
+// What an entity of a class is in the editor, where it is not the most common, a point; null for a class only
+// other classes are based on
 static string? GetKind(FgdClass gameClass) => gameClass.Type switch
 {
-    FgdClassType.BaseClass => "base",
     FgdClassType.PointClass or FgdClassType.NpcClass or FgdClassType.FilterClass or FgdClassType.MoveClass
         or FgdClassType.KeyFrameClass or FgdClassType.NavLinkClass or FgdClassType.ChoreoAnchorClass => "point",
     FgdClassType.SolidClass => "solid",
@@ -244,53 +220,24 @@ static string? GetKind(FgdClass gameClass) => gameClass.Type switch
     _ => null,
 };
 
-// A class as the renderer reads it. Its keys, inputs and outputs are only the ones it changes of what the
-// classes it is based on give it, and the renderer takes the rest from those, so each is written once.
-static KVObject ConvertClass(FgdClass gameClass, List<string> baseIds)
+// Every class a class is based on, directly or through others
+static IEnumerable<FgdClass> GetAllBaseClasses(FgdClass gameClass)
+    => gameClass.BaseClasses.SelectMany(static baseClass => GetAllBaseClasses(baseClass).Prepend(baseClass));
+
+// A class as the renderer reads it, which is only what an entity of it is drawn with, or null for a class only
+// other classes are based on
+static KVObject? ConvertClass(FgdClass gameClass, HashSet<string> requiredParentClasses)
 {
-    var kind = GetKind(gameClass)!;
-    var data = new KVObject
+    if (GetKind(gameClass) is not { } kind)
     {
-        { "name", gameClass.Name },
-        { "kind", kind },
-    };
-
-    if (kind != "base")
-    {
-        AddDrawnData(gameClass, data);
+        return null;
     }
 
-    if (baseIds.Count > 0)
+    var data = new KVObject { { "name", gameClass.Name } };
+
+    if (kind != "point")
     {
-        data.Add("bases", KVObject.Array(baseIds.Select(static id => new KVObject(id))));
-    }
-
-    AddOwnEntries(gameClass.Name, data, "keys",
-        InheritEntries(gameClass.BaseClasses.Select(static baseClass => ConvertKeys(baseClass.Variables)), laterBaseWins: true),
-        ConvertKeys(gameClass.Variables), asObject: true);
-
-    AddOwnEntries(gameClass.Name, data, "inputs",
-        InheritEntries(gameClass.BaseClasses.Select(static baseClass => ConvertInputsOutputs(baseClass.Inputs)), laterBaseWins: false),
-        ConvertInputsOutputs(gameClass.Inputs), asObject: false);
-
-    AddOwnEntries(gameClass.Name, data, "outputs",
-        InheritEntries(gameClass.BaseClasses.Select(static baseClass => ConvertInputsOutputs(baseClass.Outputs)), laterBaseWins: false),
-        ConvertInputsOutputs(gameClass.Outputs), asObject: false);
-
-    return data;
-}
-
-// What an entity of the class is drawn with, which is written whole for each class as it is small
-static void AddDrawnData(FgdClass gameClass, KVObject data)
-{
-    if (gameClass.Description.Length > 0)
-    {
-        data.Add("description", gameClass.Description);
-    }
-
-    if (gameClass.HasColor)
-    {
-        data.Add("color", KVObject.Array([gameClass.Color.R, gameClass.Color.G, gameClass.Color.B]));
+        data.Add("kind", kind);
     }
 
     if (gameClass.HasSize)
@@ -338,188 +285,30 @@ static void AddDrawnData(FgdClass gameClass, KVObject data)
     {
         data.Add("auto_apply_material", autoApplyMaterial);
     }
-}
 
-// A key without a name is never read
-static List<(string Name, KVObject Data)> ConvertKeys(List<FgdVariable> variables)
-    => [.. variables.Where(static variable => variable.Name.Length > 0).Select(static variable => (variable.Name, Data: ConvertKey(variable)))];
-
-static List<(string Name, KVObject Data)> ConvertInputsOutputs(List<FgdInputOutput> inputsOutputs)
-    => [.. inputsOutputs.Select(static inputOutput => (inputOutput.Name, Data: ConvertInputOutput(inputOutput)))];
-
-// What a class takes from the classes it is based on, in their order. Of a name several of them have, a key is
-// the one of the last, and an input or an output the one of the first.
-static List<(string Name, KVObject Data)> InheritEntries(IEnumerable<List<(string Name, KVObject Data)>> bases, bool laterBaseWins)
-{
-    var entries = new List<(string Name, KVObject Data)>();
-
-    foreach (var baseEntries in bases)
-    {
-        foreach (var entry in baseEntries)
-        {
-            var index = entries.FindIndex(other => other.Name.Equals(entry.Name, StringComparison.OrdinalIgnoreCase));
-
-            if (index < 0)
-            {
-                entries.Add(entry);
-            }
-            else if (laterBaseWins)
-            {
-                entries[index] = entry;
-            }
-        }
-    }
-
-    return entries;
-}
-
-// The entries of a class that are not what it takes from its bases: the ones it adds or changes, which replace
-// an inherited one of their name where there is one, and the names of the inherited ones it drops
-static void AddOwnEntries(string className, KVObject data, string name, List<(string Name, KVObject Data)> inherited, List<(string Name, KVObject Data)> entries, bool asObject)
-{
-    var own = new List<(string Name, KVObject Data)>();
-
-    foreach (var entry in entries)
-    {
-        var index = inherited.FindIndex(other => other.Name.Equals(entry.Name, StringComparison.OrdinalIgnoreCase));
-
-        if (index < 0 || inherited[index].Name != entry.Name || inherited[index].Data.ToKV3String() != entry.Data.ToKV3String())
-        {
-            own.Add(entry);
-        }
-    }
-
-    var removed = inherited
-        .Where(other => !entries.Exists(entry => entry.Name.Equals(other.Name, StringComparison.OrdinalIgnoreCase)))
-        .Select(static entry => entry.Name)
+    // The keys that name the animation the model plays, the one that matters most first, and of keys that matter
+    // as much the one declared first
+    var previewAnimationKeys = gameClass.Variables
+        .Where(static variable => variable.Name.Length > 0 && variable.Metadata.GetBooleanProperty("is_preview_animation"))
+        .OrderByDescending(static variable => variable.Metadata.GetInt32Property("preview_animation_priority"))
+        .Select(static variable => new KVObject(variable.Name))
         .ToList();
 
-    // The renderer has to end up with the entries the class has, in their order
-    var resolved = new List<(string Name, KVObject Data)>(inherited);
-    resolved.RemoveAll(entry => removed.Contains(entry.Name, StringComparer.OrdinalIgnoreCase));
-
-    foreach (var entry in own)
+    if (previewAnimationKeys.Count > 0)
     {
-        var index = resolved.FindIndex(other => other.Name.Equals(entry.Name, StringComparison.OrdinalIgnoreCase));
-
-        if (index < 0)
-        {
-            resolved.Add(entry);
-        }
-        else
-        {
-            resolved[index] = entry;
-        }
+        data.Add("preview_animation_keys", KVObject.Array(previewAnimationKeys));
     }
 
-    if (!resolved.Select(static entry => entry.Name).SequenceEqual(entries.Select(static entry => entry.Name)))
+    var baseClasses = GetAllBaseClasses(gameClass)
+        .Select(static baseClass => baseClass.Name)
+        .Where(requiredParentClasses.Contains)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Select(static name => new KVObject(name))
+        .ToList();
+
+    if (baseClasses.Count > 0)
     {
-        throw new InvalidOperationException($"The {name} of '{className}' cannot be written as what it changes of its bases.");
-    }
-
-    if (own.Count > 0)
-    {
-        data.Add(name, asObject
-            ? KVObject.Collection(own.Select(static entry => KeyValuePair.Create(entry.Name, entry.Data)))
-            : KVObject.Array(own.Select(static entry => entry.Data)));
-    }
-
-    if (removed.Count > 0)
-    {
-        data.Add($"removed_{name}", KVObject.Array(removed.Select(static entry => new KVObject(entry))));
-    }
-}
-
-// Everything the class declares of a key, as its properties are shown in the editor
-static KVObject ConvertKey(FgdVariable variable)
-{
-    var key = new KVObject { { "type", variable.TypeName } };
-
-    if (variable.SubType.Length > 0)
-    {
-        key.Add("sub_type", variable.SubType);
-    }
-
-    if (variable.LongName.Length > 0)
-    {
-        key.Add("long_name", variable.LongName);
-    }
-
-    if (variable.Description.Length > 0 && variable.Description != variable.Name)
-    {
-        key.Add("description", variable.Description);
-    }
-
-    if (variable.HasDefault)
-    {
-        key.Add("default", variable.DefaultString);
-    }
-
-    if (variable.Choices.Count > 0)
-    {
-        key.Add("choices", KVObject.Array(variable.Choices.Select(choice =>
-        {
-            var data = new KVObject { { "value", choice.ValueText } };
-
-            if (choice.Caption.Length > 0)
-            {
-                data.Add("caption", choice.Caption);
-            }
-
-            if (choice.Description.Length > 0)
-            {
-                data.Add("description", choice.Description);
-            }
-
-            if (choice.IsDefault)
-            {
-                data.Add("default", true);
-            }
-
-            return data;
-        })));
-    }
-
-    if (variable.Metadata.Count > 0)
-    {
-        key.Add("metadata", variable.Metadata);
-    }
-
-    return key;
-}
-
-// Where an input or output was declared is left out, as it is not the same for every game
-static KVObject ConvertInputOutput(FgdInputOutput inputOutput)
-{
-    var data = new KVObject
-    {
-        { "name", inputOutput.Name },
-        { "type", inputOutput.Type.ToString().ToLowerInvariant() },
-    };
-
-    if (inputOutput.IsApi)
-    {
-        data.Add("api", true);
-    }
-
-    if (inputOutput.Description.Length > 0)
-    {
-        data.Add("description", inputOutput.Description);
-    }
-
-    var metadata = new KVObject();
-
-    foreach (var (name, value) in inputOutput.Metadata)
-    {
-        if (!name.StartsWith("originating_", StringComparison.Ordinal))
-        {
-            metadata.Add(name, value);
-        }
-    }
-
-    if (metadata.Count > 0)
-    {
-        data.Add("metadata", metadata);
+        data.Add("base_classes", KVObject.Array(baseClasses));
     }
 
     return data;
@@ -566,13 +355,13 @@ void WriteClasses()
         throw new InvalidOperationException("Two versions of a class were given the same id.");
     }
 
-    KVObject MapIds(KVObject data, string arrayName)
+    KVObject MapClassIds(KVObject table)
     {
         var mapped = new KVObject();
 
-        foreach (var (name, value) in data)
+        foreach (var (name, value) in table)
         {
-            mapped.Add(name, name == arrayName ? KVObject.Array(data.GetArray(arrayName).Select(key => new KVObject(ids[(string)key]))) : value);
+            mapped.Add(name, name == "classes" ? KVObject.Array(table.GetArray("classes").Select(key => new KVObject(ids[(string)key]))) : value);
         }
 
         return mapped;
@@ -582,22 +371,21 @@ void WriteClasses()
         .SelectMany(static versions => versions.Value)
         .Select(version =>
         {
-            var data = MapIds(version.Data, "bases");
             var id = ids[version.Key];
 
-            if (id != data.GetStringProperty("name"))
+            if (id != version.Data.GetStringProperty("name"))
             {
-                data.Add("id", id);
+                version.Data.Add("id", id);
             }
 
-            return (Id: id, Data: data);
+            return (Id: id, version.Data);
         })
         .OrderBy(static version => version.Id, StringComparer.Ordinal)
         .Select(static version => version.Data);
 
     var root = new KVObject
     {
-        { "games", KVObject.Array(gameTables.Select(table => MapIds(table, "classes"))) },
+        { "games", KVObject.Array(gameTables.Select(MapClassIds)) },
         { "classes", KVObject.Array(classes) },
     };
 

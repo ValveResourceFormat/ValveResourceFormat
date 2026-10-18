@@ -44,10 +44,6 @@ public class ModelHelper : EntityHelper
     // What a class can put where the name of the model goes, to draw the model the entity names differently
     private static readonly string[] Options = ["static", "fixedbounds", "castshadows", "nobounds", "posable", "postocclusionquery"];
 
-    // The keys of a class that name the animation shown, and how much each matters where several are set
-    private const string PreviewAnimationKey = "is_preview_animation";
-    private const string PreviewAnimationPriorityKey = "preview_animation_priority";
-
     // A light without a directlight key is drawn as one that is lit as it moves
     private const int DefaultDirectLight = 2;
 
@@ -405,7 +401,7 @@ public class ModelHelper : EntityHelper
             return GetEntityColor();
         }
 
-        var directLight = HasKey("directlight") ? GetIntegerKey("directlight") : DefaultDirectLight;
+        var directLight = GetIntegerKey("directlight", DefaultDirectLight);
         var color = directLight switch
         {
             1 => tints.Baked,
@@ -421,15 +417,13 @@ public class ModelHelper : EntityHelper
     /// <returns>The color, each channel from 0 to 1.</returns>
     private protected Vector4 GetEntityColor()
     {
-        var color = HasKey("rendercolor") ? GetVector3Key("rendercolor") : new Vector3(byte.MaxValue);
+        var color = GetVector3Key("rendercolor", new Vector3(byte.MaxValue));
 
         // The amount is a byte, so one meant as a fraction leaves the model all but transparent
-        var alpha = HasKey("renderamt") ? unchecked((byte)GetIntegerKey("renderamt")) : byte.MaxValue;
+        var alpha = unchecked((byte)GetIntegerKey("renderamt", byte.MaxValue));
 
         return new Vector4(color, alpha) / byte.MaxValue;
     }
-
-    private bool HasKey(string key) => Owner.KeyValues.ContainsKey(key) || Owner.EntityClass?.FindKey(key) is { Default: not null };
 
     private void ApplyKeys(ModelSceneNode node)
     {
@@ -477,7 +471,7 @@ public class ModelHelper : EntityHelper
             }
         }
 
-        if (HasKey("lodlevel") && GetIntegerKey("lodlevel") is >= 0 and var level)
+        if (GetIntegerKey("lodlevel", -1) is >= 0 and var level)
         {
             node.SetOverrideLod(level);
         }
@@ -557,33 +551,7 @@ public class ModelHelper : EntityHelper
 
     // Of the keys of the class that name the animation shown, the set one that matters most
     private string? GetPreviewAnimation()
-    {
-        if (Owner.EntityClass is not { } entityClass)
-        {
-            return null;
-        }
-
-        string? animation = null;
-        var highestPriority = -1;
-
-        foreach (var key in entityClass.Keys)
-        {
-            if (key.Metadata is not { } metadata || !GetBlockFlag(metadata, PreviewAnimationKey) || GetStringKey(key.Name) is not { Length: > 0 } value)
-            {
-                continue;
-            }
-
-            var priority = metadata.ContainsKey(PreviewAnimationPriorityKey) ? metadata.GetInt32Property(PreviewAnimationPriorityKey) : 0;
-
-            if (priority > highestPriority)
-            {
-                animation = value;
-                highestPriority = priority;
-            }
-        }
-
-        return animation;
-    }
+        => Owner.EntityClass?.PreviewAnimationKeys.Select(GetStringKey).FirstOrDefault(static value => value.Length > 0);
 
     // An animation by its name, or else the first sequence with an activity of that name
     private static AnimationBase? FindAnimation(ModelSceneNode node, string name)

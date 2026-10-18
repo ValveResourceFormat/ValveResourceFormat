@@ -255,17 +255,17 @@ public abstract class EntityHelper
         => Declaration.Metadata is { } block && block.ContainsKey(key) ? ReadColorArray(block[key]) : null;
 
     /// <summary>
-    /// Gets a color key of the entity as three or four numbers, opaque where there are three, or the default its
-    /// class gives the key where the entity has none. A value that is not a color is transparent black.
+    /// Gets a color key of the entity as three or four numbers, opaque where there are three. A value that is not
+    /// a color is transparent black.
     /// </summary>
     /// <param name="key">Name of the key.</param>
-    /// <param name="defaultValue">The color where the entity has no such key and its class gives no default.</param>
+    /// <param name="defaultValue">The color where the entity has no such key.</param>
     /// <returns>The color.</returns>
     private protected Color32 GetColorKey(string key, Color32 defaultValue)
     {
         if (!Owner.KeyValues.TryGetValue(key, out var value))
         {
-            return GetDefault(Owner, key) is { Length: > 0 } defaultText ? ParseColor(defaultText) : defaultValue;
+            return defaultValue;
         }
 
         if (value.IsArray)
@@ -348,45 +348,38 @@ public abstract class EntityHelper
     {
     }
 
-    /// <summary>Gets a key of the entity as text, or the default its class gives the key where the entity has none.</summary>
+    /// <summary>Gets a key of the entity as text.</summary>
     /// <param name="key">Name of the key.</param>
-    /// <returns>The value, empty when neither has it.</returns>
+    /// <returns>The value, empty when the entity has no such key.</returns>
     protected string GetStringKey(string key) => GetStringKey(Owner, key);
 
-    /// <summary>Gets a key of an entity as text, or the default its class gives the key where the entity has none.</summary>
+    /// <summary>Gets a key of an entity as text.</summary>
     /// <param name="owner">The entity.</param>
     /// <param name="key">Name of the key.</param>
-    /// <returns>The value, empty when neither has it.</returns>
+    /// <returns>The value, empty when the entity has no such key.</returns>
     private protected static string GetStringKey(IHelperOwner owner, string key)
-        => owner.KeyValues.ContainsKey(key) ? owner.KeyValues.GetStringProperty(key) ?? string.Empty : GetDefault(owner, key) ?? string.Empty;
+        => owner.KeyValues.GetStringProperty(key) ?? string.Empty;
 
-    /// <summary>Gets a key of the entity as a number, or the default its class gives the key where the entity has none.</summary>
+    /// <summary>Gets a key of the entity as a number.</summary>
     /// <param name="key">Name of the key.</param>
-    /// <param name="defaultValue">The value where neither has it.</param>
+    /// <param name="defaultValue">The value where the entity has no such key.</param>
     /// <returns>The value.</returns>
     protected float GetFloatKey(string key, float defaultValue = 0f)
-    {
-        if (Owner.KeyValues.ContainsKey(key))
-        {
-            return Owner.KeyValues.GetFloatProperty(key);
-        }
+        => Owner.KeyValues.ContainsKey(key) ? Owner.KeyValues.GetFloatProperty(key) : defaultValue;
 
-        return GetDefault(Owner, key) is { } value ? ParseComponents(value).X : defaultValue;
-    }
-
-    /// <summary>Gets a key of the entity as a flag, or the default its class gives the key where the entity has none.</summary>
+    /// <summary>Gets a key of the entity as a flag.</summary>
     /// <param name="key">Name of the key.</param>
-    /// <param name="defaultValue">The value where neither has it, or where it is neither a number nor a boolean.</param>
+    /// <param name="defaultValue">The value where the entity has no such key, or where it is neither a number nor a boolean.</param>
     /// <returns>Whether the value is a number other than zero, or true.</returns>
     protected bool GetBooleanKey(string key, bool defaultValue)
     {
-        if (!Owner.KeyValues.ContainsKey(key) && GetDefault(Owner, key) == null)
+        if (!Owner.KeyValues.TryGetValue(key, out var stored))
         {
             return defaultValue;
         }
 
         // A compiled map keeps flags as booleans rather than as text
-        if (Owner.KeyValues.TryGetValue(key, out var stored) && stored.ValueType == KVValueType.Boolean)
+        if (stored.ValueType == KVValueType.Boolean)
         {
             return (bool)stored;
         }
@@ -401,47 +394,24 @@ public abstract class EntityHelper
         return bool.TryParse(value, out var flag) ? flag : defaultValue;
     }
 
-    /// <summary>Gets a key of the entity as an integer, or the default its class gives the key where the entity has none.</summary>
+    /// <summary>Gets a key of the entity as an integer.</summary>
     /// <param name="key">Name of the key.</param>
-    /// <returns>The value, zero when neither has it.</returns>
-    protected int GetIntegerKey(string key)
-        => Owner.KeyValues.ContainsKey(key) ? Owner.KeyValues.GetInt32Property(key) : (int)GetDefaultComponents(key).X;
+    /// <param name="defaultValue">The value where the entity has no such key.</param>
+    /// <returns>The value.</returns>
+    protected int GetIntegerKey(string key, int defaultValue = 0)
+        => Owner.KeyValues.ContainsKey(key) ? Owner.KeyValues.GetInt32Property(key) : defaultValue;
 
-    /// <summary>Gets a key of the entity as a vector, or the default its class gives the key where the entity has none.</summary>
+    /// <summary>Gets a key of the entity as a vector.</summary>
     /// <param name="key">Name of the key.</param>
-    /// <returns>The value, zero when neither has it.</returns>
-    protected Vector2 GetVector2Key(string key)
-        => Owner.KeyValues.ContainsKey(key) ? Owner.KeyValues.GetVector2Property(key) : GetDefaultComponents(key).AsVector2();
+    /// <returns>The value, zero when the entity has no such key.</returns>
+    protected Vector2 GetVector2Key(string key) => Owner.KeyValues.GetVector2Property(key);
 
-    /// <summary>Gets a key of the entity as a vector, or the default its class gives the key where the entity has none.</summary>
+    /// <summary>Gets a key of the entity as a vector.</summary>
     /// <param name="key">Name of the key.</param>
-    /// <returns>The value, zero when neither has it.</returns>
-    protected Vector3 GetVector3Key(string key)
-        => Owner.KeyValues.ContainsKey(key) ? Owner.KeyValues.GetVector3Property(key) : GetDefaultComponents(key).AsVector3();
-
-    // An entity has every key of its class, set to the default of the class until it is changed
-    private static string? GetDefault(IHelperOwner owner, string key)
-        => owner.EntityClass?.FindKey(key)?.Default;
-
-    private Vector4 GetDefaultComponents(string key) => ParseComponents(GetDefault(Owner, key) ?? string.Empty);
-
-    private static Vector4 ParseComponents(string value)
-    {
-        Span<float> components = stackalloc float[4];
-        var index = 0;
-
-        foreach (var part in value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-        {
-            if (index == components.Length)
-            {
-                break;
-            }
-
-            components[index++] = float.TryParse(part, NumberStyles.Float, CultureInfo.InvariantCulture, out var component) ? component : 0f;
-        }
-
-        return new Vector4(components);
-    }
+    /// <param name="defaultValue">The value where the entity has no such key.</param>
+    /// <returns>The value.</returns>
+    protected Vector3 GetVector3Key(string key, Vector3 defaultValue = default)
+        => Owner.KeyValues.ContainsKey(key) ? Owner.KeyValues.GetVector3Property(key) : defaultValue;
 
     /// <summary>Gets a key of the block the helper is declared with as text.</summary>
     /// <param name="key">Name of the key.</param>

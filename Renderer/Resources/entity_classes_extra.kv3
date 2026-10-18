@@ -8,8 +8,6 @@
 	[
 		{
 			name = "ai_reaction"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -26,8 +24,6 @@
 		},
 		{
 			name = "ai_scripted_abilityusage"
-			kind = "point"
-			color = [ 255, 0, 255 ]
 			helpers = 
 			[
 				{
@@ -41,8 +37,6 @@
 		},
 		{
 			name = "ai_scripted_idle"
-			kind = "point"
-			color = [ 255, 0, 255 ]
 			helpers = 
 			[
 				{
@@ -56,8 +50,6 @@
 		},
 		{
 			name = "ai_scripted_moveto"
-			kind = "point"
-			color = [ 255, 0, 255 ]
 			helpers = 
 			[
 				{
@@ -71,8 +63,6 @@
 		},
 		{
 			name = "ai_volumetric_event"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -86,8 +76,6 @@
 		},
 		{
 			name = "ai_volumetric_event_sensor"
-			kind = "point"
-			color = [ 0, 0, 255 ]
 			helpers = 
 			[
 				{
@@ -101,8 +89,6 @@
 		},
 		{
 			name = "buoyancy_helper"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -116,8 +102,6 @@
 		},
 		{
 			name = "citadel_base_prop_midboss_indicator"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -131,8 +115,6 @@
 		},
 		{
 			name = "citadel_base_prop_stairs"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -146,8 +128,6 @@
 		},
 		{
 			name = "citadel_breakable_prop"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -161,8 +141,6 @@
 		},
 		{
 			name = "citadel_final_objective_proxy"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -176,8 +154,6 @@
 		},
 		{
 			name = "citadel_herotest_orbspawner"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -191,8 +167,6 @@
 		},
 		{
 			name = "citadel_hideout_clock"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -206,8 +180,6 @@
 		},
 		{
 			name = "citadel_hideout_shootable_target_spawner"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -221,8 +193,6 @@
 		},
 		{
 			name = "citadel_item_powerup_spawner"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -236,8 +206,6 @@
 		},
 		{
 			name = "citadel_point_talker"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -251,8 +219,6 @@
 		},
 		{
 			name = "citadel_snd_base_music_obb"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -267,8 +233,6 @@
 		},
 		{
 			name = "citadel_snd_obb"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -290,8 +254,6 @@
 		},
 		{
 			name = "citadel_snd_stack_field_obb"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -313,8 +275,6 @@
 		},
 		{
 			name = "citadel_volume_omni"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -328,8 +288,6 @@
 		},
 		{
 			name = "citadel_zipline_path_node"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -343,8 +301,6 @@
 		},
 		{
 			name = "client_script"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -358,8 +314,6 @@
 		},
 		{
 			name = "cs_pet_placement"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -373,8 +327,6 @@
 		},
 		{
 			name = "devtest_hierarchy"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -391,8 +343,6 @@
 		},
 		{
 			name = "devtest_hierarchy2"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -416,8 +366,6 @@
 		},
 		{
 			name = "devtest_hierarchy_child"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -434,8 +382,6 @@
 		},
 		{
 			name = "end_of_match_camera"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -449,8 +395,6 @@
 		},
 		{
 			name = "env_alyxemp"
-			kind = "point"
-			color = [ 0, 0, 255 ]
 			helpers = 
 			[
 				{
@@ -468,8 +412,6 @@
 		},
 		{
 			name = "env_speaker"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -483,8 +425,6 @@
 		},
 		{
 			name = "env_wind_controller"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -498,8 +438,6 @@
 		},
 		{
 			name = "env_wind_volume"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -521,8 +459,6 @@
 		},
 		{
 			name = "env_world_lighting"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -536,8 +472,6 @@
 		},
 		{
 			name = "filter_combineball_type"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -551,8 +485,6 @@
 		},
 		{
 			name = "func_bulletshield"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -579,8 +511,6 @@
 		},
 		{
 			name = "func_lookdoor"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -595,8 +525,6 @@
 		},
 		{
 			name = "grenade_helicopter"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -610,8 +538,6 @@
 		},
 		{
 			name = "hegrenade_projectile"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -625,8 +551,6 @@
 		},
 		{
 			name = "high_quality_shadows_region"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -643,8 +567,6 @@
 		},
 		{
 			name = "info_assigned_lane_particle"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -658,8 +580,6 @@
 		},
 		{
 			name = "info_cover_point"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -673,8 +593,6 @@
 		},
 		{
 			name = "info_darknessmode_lightsource"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -691,8 +609,6 @@
 		},
 		{
 			name = "info_hero_testing_point"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -717,8 +633,6 @@
 		},
 		{
 			name = "info_mini_map_marker"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -732,8 +646,6 @@
 		},
 		{
 			name = "info_nav_space"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -747,8 +659,6 @@
 		},
 		{
 			name = "info_neutral_trooper_camp"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -762,8 +672,6 @@
 		},
 		{
 			name = "info_neutral_trooper_spawn"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -777,8 +685,6 @@
 		},
 		{
 			name = "info_radar_target"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -802,8 +708,6 @@
 		},
 		{
 			name = "info_super_trooper_spawn"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -817,8 +721,6 @@
 		},
 		{
 			name = "info_target_advisor_roaming_crash"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -832,8 +734,6 @@
 		},
 		{
 			name = "info_target_vehicle_transition"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -847,8 +747,6 @@
 		},
 		{
 			name = "info_team_spawn"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -862,8 +760,6 @@
 		},
 		{
 			name = "info_teleport_location"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -877,8 +773,6 @@
 		},
 		{
 			name = "info_teleporter_countdown"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -892,8 +786,6 @@
 		},
 		{
 			name = "info_trooper_spawn"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -907,8 +799,6 @@
 		},
 		{
 			name = "item_crate"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -922,8 +812,6 @@
 		},
 		{
 			name = "item_crate_spawn"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -937,8 +825,6 @@
 		},
 		{
 			name = "item_dynamic_resupply"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -972,8 +858,6 @@
 		},
 		{
 			name = "light_ambient"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -987,8 +871,6 @@
 		},
 		{
 			name = "light_ambientocclusion"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1002,8 +884,6 @@
 		},
 		{
 			name = "light_capsule"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1017,8 +897,6 @@
 		},
 		{
 			name = "light_sky"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1032,8 +910,6 @@
 		},
 		{
 			name = "logic_animtag_listener"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1047,8 +923,6 @@
 		},
 		{
 			name = "logic_auto_citadel"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1062,8 +936,6 @@
 		},
 		{
 			name = "molotov_projectile"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1077,8 +949,6 @@
 		},
 		{
 			name = "npc_appliance"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1092,8 +962,6 @@
 		},
 		{
 			name = "npc_barrack_boss"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1107,8 +975,6 @@
 		},
 		{
 			name = "npc_base_defense_sentry"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1122,8 +988,6 @@
 		},
 		{
 			name = "npc_boss_tier2"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1137,8 +1001,6 @@
 		},
 		{
 			name = "npc_boss_tier3"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1152,8 +1014,6 @@
 		},
 		{
 			name = "npc_crabsynth"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1167,8 +1027,6 @@
 		},
 		{
 			name = "npc_cranedriver"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1182,13 +1040,9 @@
 		},
 		{
 			name = "npc_enemyfinder_combinecannon"
-			kind = "point"
-			color = [ 255, 150, 0 ]
 		},
 		{
 			name = "npc_fastzombie_torso"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1202,8 +1056,6 @@
 		},
 		{
 			name = "npc_fisherman"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1217,13 +1069,9 @@
 		},
 		{
 			name = "npc_heli_avoidbox"
-			kind = "point"
-			color = [ 255, 255, 0 ]
 		},
 		{
 			name = "npc_heli_avoidsphere"
-			kind = "point"
-			color = [ 255, 255, 0 ]
 			helpers = 
 			[
 				{
@@ -1247,13 +1095,9 @@
 		},
 		{
 			name = "npc_heli_nobomb"
-			kind = "point"
-			color = [ 255, 255, 0 ]
 		},
 		{
 			name = "npc_hunter_maker"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1267,8 +1111,6 @@
 		},
 		{
 			name = "npc_ichthyosaur"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1282,8 +1124,6 @@
 		},
 		{
 			name = "npc_launcher"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1297,8 +1137,6 @@
 		},
 		{
 			name = "npc_missiledefense"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1312,8 +1150,6 @@
 		},
 		{
 			name = "npc_monk"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1327,8 +1163,6 @@
 		},
 		{
 			name = "npc_mortarsynth"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1342,8 +1176,6 @@
 		},
 		{
 			name = "npc_mossman"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1357,8 +1189,6 @@
 		},
 		{
 			name = "npc_rollermine"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1372,8 +1202,6 @@
 		},
 		{
 			name = "npc_stalker"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1387,8 +1215,6 @@
 		},
 		{
 			name = "npc_trooper_boss"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1402,8 +1228,6 @@
 		},
 		{
 			name = "npc_turret_ground"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1417,13 +1241,9 @@
 		},
 		{
 			name = "path_corner_crash"
-			kind = "point"
-			color = [ 255, 0, 0 ]
 		},
 		{
 			name = "phys_wheelconstraint"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1437,8 +1257,6 @@
 		},
 		{
 			name = "point_antlion_repellant"
-			kind = "point"
-			color = [ 0, 0, 255 ]
 			helpers = 
 			[
 				{
@@ -1455,8 +1273,6 @@
 		},
 		{
 			name = "point_flesh_effect_target"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1473,8 +1289,6 @@
 		},
 		{
 			name = "point_pulse"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1488,8 +1302,6 @@
 		},
 		{
 			name = "prop_coreball"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1503,8 +1315,6 @@
 		},
 		{
 			name = "smokegrenade_projectile"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1518,8 +1328,6 @@
 		},
 		{
 			name = "sound_opvar_set"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1533,8 +1341,6 @@
 		},
 		{
 			name = "steampal_camera_path"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1548,8 +1354,6 @@
 		},
 		{
 			name = "steampal_camera_path_node"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1563,8 +1367,6 @@
 		},
 		{
 			name = "steampal_conveyor"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1578,8 +1380,6 @@
 		},
 		{
 			name = "steampal_conveyor_entity_spawner"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1593,8 +1393,6 @@
 		},
 		{
 			name = "steampal_desk"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1608,8 +1406,6 @@
 		},
 		{
 			name = "steampal_kill_volume"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1624,8 +1420,6 @@
 		},
 		{
 			name = "steampal_point_camera"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1639,8 +1433,6 @@
 		},
 		{
 			name = "steampal_sequencer"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1654,8 +1446,6 @@
 		},
 		{
 			name = "steampal_turret_manager"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1669,8 +1459,6 @@
 		},
 		{
 			name = "team_select_camera"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1684,8 +1472,6 @@
 		},
 		{
 			name = "team_select_counterterrorist"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1699,8 +1485,6 @@
 		},
 		{
 			name = "team_select_terrorist"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1714,8 +1498,6 @@
 		},
 		{
 			name = "weapon_alyxgun"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1749,8 +1531,6 @@
 		},
 		{
 			name = "weapon_annabelle"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1784,8 +1564,6 @@
 		},
 		{
 			name = "weapon_brickbat"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1812,8 +1590,6 @@
 		},
 		{
 			name = "weapon_striderbuster"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{
@@ -1857,8 +1633,6 @@
 		},
 		{
 			name = "weapon_stunstick"
-			kind = "point"
-			color = [ 220, 30, 220 ]
 			helpers = 
 			[
 				{

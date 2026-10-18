@@ -137,8 +137,7 @@ public class IconHelper : EntityHelper
     // A dark tint is brightened to a value of at least 0.3, keeping its hue and saturation, so the icon still shows
     private Vector3 GetTint()
     {
-        if (string.IsNullOrEmpty(TintKey)
-            || !Owner.KeyValues.ContainsKey(TintKey) && Owner.EntityClass?.FindKey(TintKey) is not { Default: not null })
+        if (string.IsNullOrEmpty(TintKey) || !Owner.KeyValues.ContainsKey(TintKey))
         {
             return Vector3.One;
         }

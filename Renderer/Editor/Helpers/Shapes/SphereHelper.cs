@@ -134,7 +134,7 @@ internal sealed class SphereHelper : EntityHelper
             return;
         }
 
-        // The key, or the default its class gives it, names a point in the world once it holds one
+        // The key names a point in the world once it holds one
         var center = OriginKey != null && KeyValueScanner.TryReadVector(GetStringKey(OriginKey), out var originKeyValue)
             ? originKeyValue
             : Owner.RigidTransform.Translation;

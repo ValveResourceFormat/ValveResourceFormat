@@ -72,21 +72,22 @@ public static class EntityClassCatalog
 
         // A class is kept once for each way games declare it: under its name where they all declare it alike, and
         // under an id naming a game that declares it so where they do not
-        var definitions = new Dictionary<string, KVObject>(StringComparer.Ordinal);
+        var definitions = new Dictionary<string, EntityClass>(StringComparer.Ordinal);
 
         foreach (var data in generated.GetArray("classes") ?? [])
         {
-            definitions.Add(data.GetStringProperty("id", data.GetStringProperty("name")), data);
+            definitions.Add(data.GetStringProperty("id", data.GetStringProperty("name")), ReadClass(data));
         }
 
-        var reader = new ClassReader(definitions);
         var games = new Dictionary<int, EntityClassTable>();
         var gameClasses = new List<EntityClass>();
         (int, int, int, int)? mergedGridNav = null;
 
         foreach (var game in (generated.GetArray("games") ?? []).OrderBy(static game => game.GetInt32Property("app_id")))
         {
-            var classes = (game.GetArray("classes") ?? []).Select(id => reader.Read((string)id)).ToList();
+            var classes = (game.GetArray("classes") ?? [])
+                .Select(id => definitions.GetValueOrDefault((string)id) ?? throw new InvalidDataException($"Class '{id}' is named but not declared."))
+                .ToList();
             var gridNav = ReadGridNav(game);
 
             games.Add(game.GetInt32Property("app_id"), new EntityClassTable(classes, gridNav));
@@ -99,7 +100,7 @@ public static class EntityClassCatalog
             .GroupBy(static entityClass => entityClass.Name, StringComparer.OrdinalIgnoreCase)
             .Select(static versions => versions.MaxBy(version => versions.Count(other => other == version))!);
 
-        var extraClasses = (extra.GetArray("classes") ?? []).Select(reader.ReadClass);
+        var extraClasses = (extra.GetArray("classes") ?? []).Select(ReadClass);
 
         return (games, new EntityClassTable(mergedClasses.Concat(extraClasses), mergedGridNav));
     }
@@ -129,151 +130,38 @@ public static class EntityClassCatalog
         return (gridNav.GetInt32Property("edge_size"), gridNav.GetInt32Property("offset_x"), gridNav.GetInt32Property("offset_y"), gridNav.GetInt32Property("pick_height"));
     }
 
-    /// <summary>
-    /// Reads classes as the tables keep them: a class names the ones it is based on, and has only the keys it
-    /// adds or changes of what they give it, and the names of the ones it drops. A key it adds goes last, and one
-    /// it changes stays where the classes it is based on put it, the last of them where several have it.
-    /// </summary>
-    private sealed class ClassReader(Dictionary<string, KVObject> definitions)
+    // A class as the tables keep it, where one without a kind is a point
+    private static EntityClass ReadClass(KVObject data)
     {
-        private readonly Dictionary<string, EntityClass> classes = new(StringComparer.Ordinal);
-        private readonly Dictionary<string, List<EntityClassKey>> keys = new(StringComparer.Ordinal);
-        private readonly Dictionary<string, HashSet<string>> baseClasses = new(StringComparer.Ordinal);
+        var name = data.GetStringProperty("name");
+        var mins = data.GetFloatArray("mins");
+        var maxs = data.GetFloatArray("maxs");
 
-        public EntityClass Read(string id)
+        return new EntityClass
         {
-            if (!classes.TryGetValue(id, out var entityClass))
+            Name = name,
+            Kind = data.GetStringProperty("kind", "point") switch
             {
-                entityClass = CreateClass(Find(id), GetKeys(id), GetBaseClasses(id));
-                classes.Add(id, entityClass);
-            }
-
-            return entityClass;
-        }
-
-        public EntityClass ReadClass(KVObject data) => CreateClass(data, ResolveKeys(data), ResolveBaseClasses(data));
-
-        private static EntityClass CreateClass(KVObject data, List<EntityClassKey> keys, HashSet<string> baseClasses)
-        {
-            var name = data.GetStringProperty("name");
-            var color = data.GetIntegerArray("color");
-            var mins = data.GetFloatArray("mins");
-            var maxs = data.GetFloatArray("maxs");
-
-            return new EntityClass
+                "point" => EntityClassKind.Point,
+                "solid" => EntityClassKind.Solid,
+                "path" => EntityClassKind.Path,
+                "path_node" => EntityClassKind.PathNode,
+                "cable" => EntityClassKind.Cable,
+                var kind => throw new InvalidDataException($"Class '{name}' is of unknown kind '{kind}'."),
+            },
+            Size = mins is [var minX, var minY, var minZ] && maxs is [var maxX, var maxY, var maxZ]
+                ? (new Vector3(minX, minY, minZ), new Vector3(maxX, maxY, maxZ))
+                : null,
+            Helpers = [.. (data.GetArray("helpers") ?? []).Select(static helper => new HelperDeclaration
             {
-                Name = name,
-                Kind = data.GetStringProperty("kind") switch
-                {
-                    "point" => EntityClassKind.Point,
-                    "solid" => EntityClassKind.Solid,
-                    "path" => EntityClassKind.Path,
-                    "path_node" => EntityClassKind.PathNode,
-                    "cable" => EntityClassKind.Cable,
-                    var kind => throw new InvalidDataException($"Class '{name}' is of unknown kind '{kind}'."),
-                },
-                Color = color is [var r, var g, var b] ? new Color32((byte)r, (byte)g, (byte)b) : null,
-                Size = mins is [var minX, var minY, var minZ] && maxs is [var maxX, var maxY, var maxZ]
-                    ? (new Vector3(minX, minY, minZ), new Vector3(maxX, maxY, maxZ))
-                    : null,
-                Helpers = [.. (data.GetArray("helpers") ?? []).Select(static helper => new HelperDeclaration
-                {
-                    Name = helper.GetStringProperty("name"),
-                    Arguments = [.. (helper.GetArray("arguments") ?? []).Select(static argument => (string)argument)],
-                    Metadata = helper.TryGetValue("metadata", out var metadata) ? metadata : null,
-                })],
-                Keys = keys,
-                BaseClasses = baseClasses,
-                RequiredParentClass = data.GetStringProperty("required_parent_class"),
-                AutoApplyMaterial = data.GetStringProperty("auto_apply_material"),
-            };
-        }
-
-        private KVObject Find(string id)
-            => definitions.TryGetValue(id, out var data) ? data : throw new InvalidDataException($"Class '{id}' is named but not declared.");
-
-        private static IEnumerable<string> GetBaseIds(KVObject data) => (data.GetArray("bases") ?? []).Select(static id => (string)id);
-
-        private List<EntityClassKey> GetKeys(string id)
-        {
-            if (!keys.TryGetValue(id, out var resolved))
-            {
-                resolved = ResolveKeys(Find(id));
-                keys.Add(id, resolved);
-            }
-
-            return resolved;
-        }
-
-        private List<EntityClassKey> ResolveKeys(KVObject data)
-        {
-            var resolved = new List<EntityClassKey>();
-
-            foreach (var baseId in GetBaseIds(data))
-            {
-                foreach (var key in GetKeys(baseId))
-                {
-                    SetKey(resolved, key);
-                }
-            }
-
-            if (data.GetArray("removed_keys") is { } removed)
-            {
-                resolved.RemoveAll(key => removed.Any(name => key.Name.Equals((string)name, StringComparison.OrdinalIgnoreCase)));
-            }
-
-            if (data.TryGetValue("keys", out var own))
-            {
-                foreach (var (name, key) in own)
-                {
-                    SetKey(resolved, new EntityClassKey
-                    {
-                        Name = name,
-                        Default = key.GetStringProperty("default"),
-                        Metadata = key.TryGetValue("metadata", out var metadata) ? metadata : null,
-                    });
-                }
-            }
-
-            return resolved;
-        }
-
-        private static void SetKey(List<EntityClassKey> keys, EntityClassKey key)
-        {
-            var index = keys.FindIndex(other => other.Name.Equals(key.Name, StringComparison.OrdinalIgnoreCase));
-
-            if (index < 0)
-            {
-                keys.Add(key);
-            }
-            else
-            {
-                keys[index] = key;
-            }
-        }
-
-        private HashSet<string> GetBaseClasses(string id)
-        {
-            if (!baseClasses.TryGetValue(id, out var resolved))
-            {
-                resolved = ResolveBaseClasses(Find(id));
-                baseClasses.Add(id, resolved);
-            }
-
-            return resolved;
-        }
-
-        private HashSet<string> ResolveBaseClasses(KVObject data)
-        {
-            var resolved = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var baseId in GetBaseIds(data))
-            {
-                resolved.Add(Find(baseId).GetStringProperty("name"));
-                resolved.UnionWith(GetBaseClasses(baseId));
-            }
-
-            return resolved;
-        }
+                Name = helper.GetStringProperty("name"),
+                Arguments = [.. (helper.GetArray("arguments") ?? []).Select(static argument => (string)argument)],
+                Metadata = helper.TryGetValue("metadata", out var metadata) ? metadata : null,
+            })],
+            PreviewAnimationKeys = [.. (data.GetArray("preview_animation_keys") ?? []).Select(static key => (string)key)],
+            BaseClasses = (data.GetArray("base_classes") ?? []).Select(static baseClass => (string)baseClass).ToHashSet(StringComparer.OrdinalIgnoreCase),
+            RequiredParentClass = data.GetStringProperty("required_parent_class"),
+            AutoApplyMaterial = data.GetStringProperty("auto_apply_material"),
+        };
     }
 }
