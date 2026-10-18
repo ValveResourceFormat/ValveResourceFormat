@@ -49,6 +49,24 @@ namespace ValveResourceFormat.Particles
         public float NextNumber(ref Particle particle, ParticleSystemState renderState) => value;
     }
 
+    /// <summary>
+    /// An input evaluated for the whole collection, as a <c>CParticleCollectionFloatInput</c> is. A read
+    /// for a particle gets the collection value, which holds for the whole function call.
+    /// </summary>
+    readonly struct CollectionNumberInput : INumberProvider
+    {
+        private readonly INumberProvider input;
+
+        public CollectionNumberInput(INumberProvider input)
+        {
+            this.input = input;
+        }
+
+        public float NextNumber(ref Particle particle, ParticleSystemState renderState) => input.NextNumber(renderState);
+
+        public float NextNumber(ParticleSystemState renderState) => input.NextNumber(renderState);
+    }
+
     // Random Uniform/Random Biased
     class RandomNumberProvider : INumberProvider
     {
@@ -65,7 +83,11 @@ namespace ValveResourceFormat.Particles
 
         private readonly bool hasRandomSignFlip;
 
-        private readonly int sampleOffset;
+        private readonly ParticleRandom.InputSeed inputSeed = new();
+
+        private ParticleRandom.EvaluationKey? varyingKey;
+        private float varyingDraw;
+        private float varyingSignDraw;
 
         /// <param name="parse">The input block.</param>
         /// <param name="isBiased">Whether the draw goes through a bias curve.</param>
@@ -85,43 +107,82 @@ namespace ValveResourceFormat.Particles
                 biasParam = parse.Float("m_flBiasParameter");
                 biasType = parse.Enum<ParticleFloatBiasType>("m_nBiasType", biasType);
             }
+        }
 
-            // Only an input that is constant per particle needs its own slot; a varying one draws from
-            // the running counter and is already separated from its siblings.
-            if (randomMode == ParticleFloatRandomMode.PF_RANDOM_MODE_CONSTANT)
+        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+            => Evaluate(renderState.Random, particle.Index, particle.ParticleId);
+
+        public float NextNumber(ParticleSystemState renderState)
+            => Evaluate(renderState.Random, -1, 0);
+
+        /// <summary>
+        /// A constant input reads the slot keyed by its own seed and the particle id. A varying input
+        /// draws once per block of four particles in a function call, or once per call for the collection.
+        /// </summary>
+        private float Evaluate(ParticleRandom random, int particleIndex, int particleId)
+        {
+            float draw;
+            var sign = 1f;
+
+            if (randomMode == ParticleFloatRandomMode.PF_RANDOM_MODE_VARYING)
             {
-                sampleOffset = parse.NextInputOrdinal();
+                var key = random.Evaluation(particleIndex);
+
+                if (varyingKey != key)
+                {
+                    varyingKey = key;
+                    varyingDraw = random.Next();
+                    varyingSignDraw = hasRandomSignFlip ? random.Next() : 1f;
+                }
+
+                draw = varyingDraw;
+                sign = varyingSignDraw;
             }
+            else
+            {
+                var seed = inputSeed.Get(random);
+                draw = random.ForParticle(particleId, seed);
+
+                if (hasRandomSignFlip)
+                {
+                    sign = random.ForParticle(particleId, seed + SignFlipOffset);
+                }
+            }
+
+            if (isBiased)
+            {
+                draw = ParticleMath.BiasFromParameter(MathF.Min(1f, draw), biasParam, biasType);
+            }
+
+            var value = MathUtils.Clamp(MathUtils.Lerp(minRange, maxRange, draw), minRange, maxRange);
+
+            return sign < 0.5f ? -value : value;
+        }
+    }
+
+    /// <summary>
+    /// PF_TYPE_NAMED_VALUE. The system's current float named value through the mapping, or the mapping
+    /// of 0 while neither a local default nor a host has given the name one.
+    /// </summary>
+    class NamedValueNumberProvider : INumberProvider
+    {
+        private readonly string name;
+        private readonly AttributeMapping attributeMapping;
+
+        public NamedValueNumberProvider(ParticleDefinitionParser parse)
+        {
+            name = parse.String("m_NamedValue");
+            attributeMapping = new AttributeMapping(parse);
         }
 
         public float NextNumber(ref Particle particle, ParticleSystemState renderState)
         {
-            var varying = randomMode == ParticleFloatRandomMode.PF_RANDOM_MODE_VARYING;
-
-            var random = varying
-                ? renderState.Random.Next()
-                : renderState.Random.ForParticle(particle.ParticleId, sampleOffset);
-
-            if (isBiased)
+            if (renderState.Data?.NamedValues is not { } namedValues || !namedValues.TryGetFloat(name, out var value))
             {
-                random = ParticleMath.BiasFromParameter(random, biasParam, biasType);
+                value = 0f;
             }
 
-            var value = float.Lerp(minRange, maxRange, random);
-
-            if (hasRandomSignFlip)
-            {
-                var sign = varying
-                    ? renderState.Random.Next()
-                    : renderState.Random.ForParticle(particle.ParticleId, sampleOffset + SignFlipOffset);
-
-                if (sign < 0.5f)
-                {
-                    value = -value;
-                }
-            }
-
-            return value;
+            return attributeMapping.ApplyMapping(value);
         }
     }
 
@@ -131,6 +192,9 @@ namespace ValveResourceFormat.Particles
         private readonly AttributeMapping attributeMapping;
         public CollectionAgeNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
         public float NextNumber(ref Particle particle, ParticleSystemState renderState) => attributeMapping.ApplyMapping(renderState.Age);
+
+        /// <summary>Evaluates the input as if the system were <paramref name="age"/> seconds old.</summary>
+        public float AtAge(float age) => attributeMapping.ApplyMapping(age);
     }
 
     // How long the endcap has been running, 0 outside it
@@ -143,24 +207,11 @@ namespace ValveResourceFormat.Particles
 
     class DetailLevelNumberProvider : INumberProvider
     {
-        private readonly float[] tiers = new float[4];
+        private readonly float[] tiers;
 
         public DetailLevelNumberProvider(ParticleDefinitionParser parse)
         {
-            // Absent tiers fall back to the nearest lower authored tier.
-            var value = parse.Float("m_flLOD0");
-            tiers[0] = value;
-
-            var tier = 1;
-            foreach (var key in (ReadOnlySpan<string>)["m_flLOD1", "m_flLOD2", "m_flLOD3"])
-            {
-                if (parse.Data.ContainsKey(key))
-                {
-                    value = parse.Float(key);
-                }
-
-                tiers[tier++] = value;
-            }
+            tiers = [parse.Float("m_flLOD0"), parse.Float("m_flLOD1"), parse.Float("m_flLOD2"), parse.Float("m_flLOD3")];
         }
 
         public float NextNumber(ref Particle particle, ParticleSystemState renderState)
@@ -183,64 +234,83 @@ namespace ValveResourceFormat.Particles
     {
         private readonly AttributeMapping attributeMapping;
         public ParticleAgeNormalizedNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState) => attributeMapping.ApplyMapping(particle.NormalizedAge);
+
+        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+            => attributeMapping.ApplyMapping(particle.Lifetime <= 0f ? 0f : particle.Age / particle.Lifetime);
+
         public float NextNumber(ParticleSystemState renderState) => 0f;
     }
 
-    // Particle Float
-    // Note that the per-particle parameters are not usable in initializers, so we don't need to account for that somehow
+    /// <summary>PF_TYPE_PARTICLE_FLOAT. A scalar attribute, with angles read in degrees.</summary>
     class PerParticleNumberProvider : INumberProvider
     {
-        private readonly ParticleField field;
+        private readonly ParticleField field = ParticleField.Radius;
 
         private readonly AttributeMapping mapping;
 
         public PerParticleNumberProvider(ParticleDefinitionParser parse)
         {
-            field = parse.ParticleField("m_nScalarAttribute");
+            field = parse.ParticleField("m_nScalarAttribute", field);
             mapping = new AttributeMapping(parse);
         }
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState) => mapping.ApplyMapping(particle.GetScalar(field));
+
+        public float NextNumber(ref Particle particle, ParticleSystemState renderState) => mapping.ApplyMapping(Read(ref particle, field));
+
         public float NextNumber(ParticleSystemState renderState) => 0f;
+
+        public static float Read(ref Particle particle, ParticleField field)
+        {
+            var value = particle.GetScalar(field);
+            return field.IsAngleField() ? float.RadiansToDegrees(value) : value;
+        }
     }
 
     /// <summary>
-    /// PF_TYPE_PARTICLE_INITIAL_FLOAT. Reads the particle's current attribute value, which equals
-    /// the initial value for attributes that never mutate after spawn (creation time, particle id);
-    /// for attributes operators rewrite it is an approximation.
+    /// PF_TYPE_PARTICLE_INITIAL_FLOAT. A scalar attribute as the particle's initializers left it, read
+    /// as <see cref="PerParticleNumberProvider"/> does.
     /// </summary>
     class PerParticleInitialNumberProvider : INumberProvider
     {
-        private readonly ParticleField field;
+        private readonly ParticleField field = ParticleField.Radius;
 
         private readonly AttributeMapping mapping;
 
         public PerParticleInitialNumberProvider(ParticleDefinitionParser parse)
         {
-            field = parse.ParticleField("m_nScalarAttribute");
+            field = parse.ParticleField("m_nScalarAttribute", field);
             mapping = new AttributeMapping(parse);
         }
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState) => mapping.ApplyMapping(particle.GetScalar(field));
+
+        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+            => mapping.ApplyMapping(PerParticleNumberProvider.Read(ref renderState.InitialOf(ref particle), field));
+
         public float NextNumber(ParticleSystemState renderState) => 0f;
     }
 
-    // Particle Vector Component
+    /// <summary>
+    /// PF_TYPE_PARTICLE_VECTOR_COMPONENT and PF_TYPE_PARTICLE_INITIAL_VECTOR_COMPONENT. One component of
+    /// a vector attribute, the initial variant as the particle's initializers left it.
+    /// </summary>
     class PerParticleVectorComponentNumberProvider : INumberProvider
     {
-        private readonly ParticleField field;
+        private readonly ParticleField field = ParticleField.Color;
         private readonly int component;
+        private readonly bool initial;
 
         private readonly AttributeMapping mapping;
 
-        public PerParticleVectorComponentNumberProvider(ParticleDefinitionParser parse)
+        public PerParticleVectorComponentNumberProvider(ParticleDefinitionParser parse, bool initial)
         {
-            field = parse.ParticleField("m_nVectorAttribute");
+            field = parse.ParticleField("m_nVectorAttribute", field);
             component = parse.Int32("m_nVectorComponent");
+            this.initial = initial;
             mapping = new AttributeMapping(parse);
         }
+
         public float NextNumber(ref Particle particle, ParticleSystemState renderState)
         {
-            return mapping.ApplyMapping(particle.GetVectorComponent(field, component));
+            ref var source = ref initial ? ref renderState.InitialOf(ref particle) : ref particle;
+            return mapping.ApplyMapping(source.GetVectorComponent(field, component));
         }
 
         public float NextNumber(ParticleSystemState renderState) => 0f;
@@ -251,16 +321,36 @@ namespace ValveResourceFormat.Particles
     {
         private readonly AttributeMapping attributeMapping;
         public PerParticleSpeedNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState) => attributeMapping.ApplyMapping(particle.Speed);
+        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+            => attributeMapping.ApplyMapping(particle.GetVelocity(renderState.Data?.CurrentFrameTime ?? 0f).Length());
         public float NextNumber(ParticleSystemState renderState) => 0f;
     }
 
-    // Particle Count
+    /// <summary>
+    /// PF_TYPE_PARTICLE_NUMBER. The particle's place in the collection, counted back from the particle
+    /// count when the order is reversed. Initializers instead read how many particles the system had
+    /// created before this one.
+    /// </summary>
     class PerParticleCountNumberProvider : INumberProvider
     {
         private readonly AttributeMapping attributeMapping;
-        public PerParticleCountNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState) => attributeMapping.ApplyMapping(particle.UniqueParticleId);
+        private readonly bool reverseOrder;
+
+        public PerParticleCountNumberProvider(ParticleDefinitionParser parse)
+        {
+            attributeMapping = new AttributeMapping(parse);
+            reverseOrder = parse.Boolean("m_bReverseOrder");
+        }
+
+        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+        {
+            var number = reverseOrder ? renderState.ParticleCount - particle.Index
+                : renderState.InitializingParticles ? particle.UniqueParticleId
+                : particle.Index;
+
+            return attributeMapping.ApplyMapping(number);
+        }
+
         public float NextNumber(ParticleSystemState renderState) => 0f;
     }
 
@@ -271,12 +361,10 @@ namespace ValveResourceFormat.Particles
         public PerParticleCountNormalizedNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
         public float NextNumber(ref Particle particle, ParticleSystemState renderState)
         {
-            // Mapping input ranges are normalized 0-1. Index is the alive-list slot; UniqueParticleId is a lifetime counter
-            // that would exceed the count. From behavior version 12 the last live particle reads 1, not count/(count+1).
             var divisor = renderState.Data?.BehaviorVersion >= 12
                 ? Math.Max(renderState.ParticleCount - 1, 1)
                 : Math.Max(renderState.ParticleCount, 1);
-            return attributeMapping.ApplyMapping(particle.Index / (float)divisor);
+            return attributeMapping.ApplyMapping(particle.Index * (1f / divisor));
         }
 
         public float NextNumber(ParticleSystemState renderState) => 0f;
@@ -374,20 +462,20 @@ namespace ValveResourceFormat.Particles
     /// PF_TYPE_PARTICLE_NOISE. Fractal noise over a particle vector attribute, or over the live
     /// position of the input's control point when evaluated at collection level (emitters,
     /// renderers); a negative control point index samples the origin. The evaluation pipeline
-    /// lives in <see cref="Utils.NoiseEvaluator"/>.
+    /// lives in <see cref="NoiseEvaluator"/>.
     /// </summary>
     class NoiseNumberProvider : INumberProvider
     {
         private readonly ParticleField inputField = ParticleField.Position;
         private readonly int controlPoint;
-        private readonly Utils.NoiseEvaluator noise;
+        private readonly NoiseEvaluator noise;
         private readonly AttributeMapping mapping;
 
         public NoiseNumberProvider(ParticleDefinitionParser parse)
         {
             inputField = parse.ParticleField("m_nNoiseInputVectorAttribute", inputField);
             controlPoint = parse.Int32("m_nControlPoint", controlPoint);
-            noise = new Utils.NoiseEvaluator(parse);
+            noise = new NoiseEvaluator(parse);
             mapping = new AttributeMapping(parse);
         }
 
@@ -400,9 +488,14 @@ namespace ValveResourceFormat.Particles
                 renderState.Age));
     }
 
-    // Control Point Speed
+    /// <summary>
+    /// PF_TYPE_CONTROL_POINT_SPEED. How far the control point moved since the previous frame, over the
+    /// simulation step being run, so a frame split into several steps reads several times the speed.
+    /// </summary>
     class ControlPointSpeedNumberProvider : INumberProvider
     {
+        private const float FallbackStep = 0.1f;
+
         private readonly AttributeMapping attributeMapping;
         private readonly int cp;
 
@@ -414,12 +507,22 @@ namespace ValveResourceFormat.Particles
 
         public float NextNumber(ref Particle particle, ParticleSystemState renderState)
         {
-            var speed = renderState.GetControlPoint(cp).Velocity.Length();
-            return attributeMapping.ApplyMapping(speed);
+            var point = renderState.GetControlPoint(cp);
+            var step = renderState.Data?.CurrentFrameTime ?? 0f;
+
+            if (step == 0f)
+            {
+                step = FallbackStep;
+            }
+
+            return attributeMapping.ApplyMapping(Vector3.Distance(point.Position, point.PositionPrevious) / step);
         }
     }
 
-    /// <summary>PF_TYPE_CONTROL_POINT_CHANGE_AGE. How long ago the control point last changed, see <see cref="ControlPoint.ChangeAge"/>.</summary>
+    /// <summary>
+    /// PF_TYPE_CONTROL_POINT_CHANGE_AGE. How long before the reading system's current time the control
+    /// point last changed, see <see cref="ControlPoint.ChangeTime"/>.
+    /// </summary>
     class ControlPointChangeAgeNumberProvider : INumberProvider
     {
         private readonly AttributeMapping attributeMapping;
@@ -432,7 +535,7 @@ namespace ValveResourceFormat.Particles
         }
 
         public float NextNumber(ref Particle particle, ParticleSystemState renderState)
-            => attributeMapping.ApplyMapping(renderState.GetControlPoint(cp).ChangeAge);
+            => attributeMapping.ApplyMapping(renderState.Age - renderState.GetControlPoint(cp).ChangeTime);
     }
 
     /// <summary>PF_TYPE_CONTROL_POINT_IS_SET. 1 once the control point has changed, see <see cref="ControlPoint.ChangeTime"/>, and 0 before that.</summary>
@@ -492,8 +595,4 @@ namespace ValveResourceFormat.Particles
 
         public float NextNumber(ParticleSystemState renderState) => 0f;
     }
-
-    /* Unaccounted for params:
-     * m_NamedValue
-     */
 }
