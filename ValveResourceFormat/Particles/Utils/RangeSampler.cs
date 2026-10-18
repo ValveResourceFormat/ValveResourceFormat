@@ -57,32 +57,11 @@ namespace ValveResourceFormat.Particles.Utils
             var index = (start + particle.UniqueParticleId) & 0x7FFFFFFF;
 
             var fractions = new Vector3(
-                RadicalInverse(index, 2),
-                RadicalInverse(index, 3),
-                RadicalInverse(index, 5));
+                MathUtils.RadicalInverse(index, 2),
+                MathUtils.RadicalInverse(index, 3),
+                MathUtils.RadicalInverse(index, 5));
 
             return MathUtils.Lerp(min, max, fractions);
-        }
-
-        /// <summary>
-        /// The radical inverse of <paramref name="index"/> in <paramref name="radix"/>: the digits of the
-        /// index in that base, mirrored about the radix point, giving a value in [0, 1).
-        /// </summary>
-        private static float RadicalInverse(int index, int radix)
-        {
-            var inverseRadix = 1f / radix;
-            var digitScale = 1f;
-            var result = 0f;
-
-            do
-            {
-                digitScale *= inverseRadix;
-                result += (index % radix) * digitScale;
-                index /= radix;
-            }
-            while (index > 0);
-
-            return result;
         }
     }
 }

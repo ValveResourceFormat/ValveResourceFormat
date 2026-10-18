@@ -115,7 +115,7 @@ namespace ValveResourceFormat.Particles
             if (growth < 1f)
             {
                 var limit = MathF.Floor((MathUtils.Saturate(growth) * (high - low)) + low);
-                var candidate = low + (int)(((int)limit - low + 1) * state.Random.Next());
+                var candidate = low + state.Random.NextIndex((int)limit - low + 1);
 
                 if (candidates[..count].Contains(candidate))
                 {
@@ -127,7 +127,7 @@ namespace ValveResourceFormat.Particles
                 return controlPoint;
             }
 
-            var index = (int)(count * state.Random.Next());
+            var index = state.Random.NextIndex(count);
 
             return count == 0 ? controlPoint : candidates[Math.Min(index, count - 1)];
         }

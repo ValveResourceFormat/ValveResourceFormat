@@ -30,6 +30,9 @@ namespace ValveResourceFormat.Particles
 
         private readonly List<ParticleFunctionOperator> operators = [];
 
+        /// <summary>The enabled operators, in the order they run.</summary>
+        internal IReadOnlyList<ParticleFunctionOperator> Operators => operators;
+
         /// <summary>Run by <see cref="BasicMovement"/> rather than the operator loop.</summary>
         internal readonly List<ParticleFunctionForceGenerator> ForceGenerators = [];
 
@@ -154,6 +157,13 @@ namespace ValveResourceFormat.Particles
         /// </summary>
         internal bool IsEndCapChild { get; private set; }
 
+        /// <summary>
+        /// Whether a model with no hitboxes in the asked set reads as one box around its render bounds,
+        /// and a control point without a model as one empty box at the world origin
+        /// (<c>m_bShouldHitboxesFallbackToRenderBounds</c>).
+        /// </summary>
+        internal bool HitboxesFallBackToRenderBounds { get; }
+
         /// <summary>The lowest detail tier this child appears at (<c>m_nDetailLevel</c>).</summary>
         private ParticleDetailLevel detailLevel;
 
@@ -216,6 +226,9 @@ namespace ValveResourceFormat.Particles
         private readonly List<ParticleSystemSimulation> childSimulations;
         private readonly ILogger logger;
         private readonly IFileLoader fileLoader;
+
+        /// <summary>Resolves the resources the definition and its functions name.</summary>
+        internal IFileLoader FileLoader => fileLoader;
 
         /// <summary>Whether the first frame, which runs the pre-emission operators once and the initial burst, is still to come.</summary>
         private bool firstFramePending = true;
@@ -282,6 +295,7 @@ namespace ValveResourceFormat.Particles
             minimumFrames = parse.Int32("m_nMinimumFrames", 0);
             preSimulationTime = parse.Float("m_flPreSimulationTime", 0f);
             stopSimulationAfterTime = parse.Float("m_flStopSimulationAfterTime", 1e9f);
+            HitboxesFallBackToRenderBounds = parse.Boolean("m_bShouldHitboxesFallbackToRenderBounds", true);
 
             // Non-positive distances, and ones large enough to overflow when squared, draw at any range.
             var maxDrawDistance = parse.Float("m_flMaxDrawDistance", -1f);

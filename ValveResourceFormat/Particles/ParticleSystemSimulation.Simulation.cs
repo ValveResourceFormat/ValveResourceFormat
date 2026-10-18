@@ -724,11 +724,11 @@ namespace ValveResourceFormat.Particles
 
         /// <summary>
         /// Runs the emitters listening for <paramref name="eventType"/> for an event the parent raised
-        /// on <paramref name="count"/> of its particles.
+        /// on the particles at <paramref name="parentIndices"/>.
         /// </summary>
-        private void EmitForEvent(ParticleEventType eventType, int count)
+        private void EmitForEvent(ParticleEventType eventType, List<int> parentIndices)
         {
-            systemState.EmitterEventCount = count;
+            systemState.EmitterEventParticles = parentIndices;
 
             foreach (var emitter in emitters)
             {
@@ -749,7 +749,7 @@ namespace ValveResourceFormat.Particles
                 InitializeNewParticles(first, particleCollection.Count - first, EmittedWrittenFields, emitter.EmitterIndex);
             }
 
-            systemState.EmitterEventCount = 0;
+            systemState.EmitterEventParticles = null;
         }
 
         /// <summary>Creates a particle at <paramref name="creationTime"/>, leaving it for <see cref="InitializeNewParticles"/>.</summary>
@@ -800,7 +800,7 @@ namespace ValveResourceFormat.Particles
                     continue;
                 }
 
-                if (initializer.GetOperatorRunStrength(systemState) <= 0f)
+                if (!initializer.ShouldRun(systemState) || initializer.GetOperatorRunStrength(systemState) <= 0f)
                 {
                     continue;
                 }
@@ -970,7 +970,7 @@ namespace ValveResourceFormat.Particles
 
             foreach (var childSimulation in childSimulations)
             {
-                childSimulation.EmitForEvent(eventType, indices.Count);
+                childSimulation.EmitForEvent(eventType, indices);
             }
         }
 

@@ -148,6 +148,13 @@ namespace ValveResourceFormat.Particles
             }
         }
 
+        /// <summary>
+        /// Reads the <c>CParticleRemapFloatInput</c> at <paramref name="key"/>, which only maps a value its
+        /// function supplies, or returns null when the block is absent.
+        /// </summary>
+        public static AttributeMapping? FromRemapInput(ParticleDefinitionParser parse, string key)
+            => parse.Data.GetSubCollection(key) is { IsCollection: true } remap ? new AttributeMapping(parse.Nested(remap)) : null;
+
         public float ApplyMapping(float value)
         {
             switch (mapType)
