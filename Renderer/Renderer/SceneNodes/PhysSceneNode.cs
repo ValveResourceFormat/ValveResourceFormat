@@ -2,6 +2,7 @@ using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using RnHull = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Hull;
+using RnMesh = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Mesh;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
 {
@@ -17,6 +18,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private static readonly Color32 ColorCapsule = new(0.1f, 1f, 0.4f, FillAlpha);
         private static readonly Color32 ColorMesh = new(0.4f, 0.4f, 1f, FillAlpha);
         private static readonly Color32 ColorHull = new(1.0f, 0.2f, 0.1f, FillAlpha);
+
+        // Larger meshes, such as world collision, are split along their collision tree so culling can skip parts of them
+        private const int MaxChunkTriangles = 32768;
+
+        private readonly record struct GroupMesh(RnMesh Shape, Vector3[] Positions);
 
         /// <inheritdoc/>
         public override bool LayerEnabled => Enabled && base.LayerEnabled;
@@ -58,7 +64,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>
-        /// Creates one <see cref="PhysSceneNode"/> per collision attribute group from the given physics aggregate data.
+        /// Creates the <see cref="PhysSceneNode"/>s for each collision attribute group from the given physics aggregate data.
+        /// A large mesh is split into several nodes along its collision tree, which all share the group's <see cref="PhysGroupName"/>.
         /// </summary>
         /// <param name="scene">The scene to add nodes to.</param>
         /// <param name="phys">The physics aggregate data containing all collision shapes.</param>
@@ -67,11 +74,13 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public static IEnumerable<PhysSceneNode> CreatePhysSceneNodes(Scene scene, PhysAggregateData phys, string? fileName, string? classname = null)
         {
             var groupCount = phys.CollisionAttributes.Count;
-            var physSceneNodes = new PhysSceneNode[groupCount];
+            var physSceneNodes = new List<PhysSceneNode>(groupCount);
             var verts = new List<SimpleVertexNormal>(128);
             var inds = new List<int>(128);
-            var boundingBox = new AABB();
-            var boundingBoxInitted = false;
+            var meshes = new List<GroupMesh>();
+            var chunks = new List<Range>();
+            var chunkVerts = new List<SimpleVertexNormal>();
+            var chunkInds = new List<int>();
             var bindPose = phys.BindPose;
 
             for (var collisionAttributeIndex = 0; collisionAttributeIndex < phys.CollisionAttributes.Count; collisionAttributeIndex++)
@@ -101,18 +110,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         inds.EnsureCapacity(inds.Count + HemisphereTriangles * 6 * 2);
 
                         AddSphere(verts, inds, center, radius, ColorSphere);
-
-                        var bbox = new AABB(center, radius);
-
-                        if (!boundingBoxInitted)
-                        {
-                            boundingBoxInitted = true;
-                            boundingBox = bbox;
-                        }
-                        else
-                        {
-                            boundingBox = boundingBox.Union(bbox);
-                        }
                     }
 
                     foreach (var capsule in shape.GetAllCapsules())
@@ -136,21 +133,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         inds.EnsureCapacity(inds.Count + CapsuleTriangles * 6);
 
                         AddCapsule(verts, inds, center[0], center[1], radius, ColorCapsule);
-
-                        foreach (var cn in center)
-                        {
-                            var bbox = new AABB(cn, radius);
-
-                            if (!boundingBoxInitted)
-                            {
-                                boundingBoxInitted = true;
-                                boundingBox = bbox;
-                            }
-                            else
-                            {
-                                boundingBox = boundingBox.Union(bbox);
-                            }
-                        }
                     }
 
                     foreach (var hull in shape.GetAllHulls())
@@ -200,18 +182,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                                 }
                             }
                         }
-
-                        var bbox = new AABB(hull.Shape.Min, hull.Shape.Max);
-
-                        if (!boundingBoxInitted)
-                        {
-                            boundingBoxInitted = true;
-                            boundingBox = bbox;
-                        }
-                        else
-                        {
-                            boundingBox = boundingBox.Union(bbox);
-                        }
                     }
 
                     foreach (var mesh in shape.GetAllMeshes())
@@ -223,14 +193,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                         //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
 
-                        var triangles = mesh.Shape.GetTriangles();
                         var vertices = mesh.Shape.GetVertices();
 
                         var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
-
-                        var numTriangles = triangles.Length;
-                        verts.EnsureCapacity(verts.Count + numTriangles * 3);
-                        inds.EnsureCapacity(inds.Count + numTriangles * 6);
 
                         var positions = new Vector3[vertices.Length];
                         for (var i = 0; i < vertices.Length; i++)
@@ -238,33 +203,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                             positions[i] = Vector3.Transform(vertices[i], pose);
                         }
 
-                        foreach (var tri in triangles)
-                        {
-                            var a = positions[tri.X];
-                            var b = positions[tri.Y];
-                            var c = positions[tri.Z];
-
-                            var normal = ComputeNormal(a, b, c);
-
-                            var offset = verts.Count;
-                            verts.Add(new(a, ColorMesh, normal));
-                            verts.Add(new(b, ColorMesh, normal));
-                            verts.Add(new(c, ColorMesh, normal));
-
-                            AddTriangle(inds, offset, 0, 1, 2);
-                        }
-
-                        var bbox = new AABB(mesh.Shape.Min, mesh.Shape.Max);
-
-                        if (!boundingBoxInitted)
-                        {
-                            boundingBoxInitted = true;
-                            boundingBox = bbox;
-                        }
-                        else
-                        {
-                            boundingBox = boundingBox.Union(bbox);
-                        }
+                        meshes.Add(new GroupMesh(mesh.Shape, positions));
                     }
                 }
 
@@ -305,35 +244,199 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     }
                 }
 
-                var physSceneNode = new PhysSceneNode(scene, verts, inds)
-                {
-                    PhysGroupName = physName,
-                    Name = fileName,
-                    LocalBoundingBox = boundingBox,
-                    OverlayRenderOrder = collisionAttributeIndex,
-                };
+                string? toolMaterialName = null;
 
                 if (classname != null)
                 {
                     var toolTexture = MapExtract.GetToolTextureForEntity(classname);
                     if (!string.IsNullOrEmpty(toolTexture))
                     {
-                        physSceneNode.SetToolTexture(toolTexture);
+                        toolMaterialName = toolTexture;
                     }
                 }
                 else if (tooltexture != "nodraw")
                 {
-                    physSceneNode.SetToolTexture($"materials/tools/tools{tooltexture}.vmat");
+                    toolMaterialName = $"materials/tools/tools{tooltexture}.vmat";
                 }
 
-                physSceneNodes[collisionAttributeIndex] = physSceneNode;
+                var firstGroupNode = physSceneNodes.Count;
+
+                foreach (var mesh in meshes)
+                {
+                    var triangles = mesh.Shape.GetTriangles();
+
+                    AddMeshChunks(mesh.Shape, triangles.Length, chunks);
+
+                    // A mesh that fits in one chunk shares the node of the group's other shapes
+                    if (chunks.Count == 1)
+                    {
+                        AddMeshTriangles(verts, inds, mesh, triangles, chunks[0]);
+                    }
+                    else
+                    {
+                        foreach (var chunk in chunks)
+                        {
+                            AddMeshTriangles(chunkVerts, chunkInds, mesh, triangles, chunk);
+
+                            physSceneNodes.Add(CreateNode(scene, chunkVerts, chunkInds, physName, fileName, collisionAttributeIndex, toolMaterialName));
+
+                            chunkVerts.Clear();
+                            chunkInds.Clear();
+                        }
+                    }
+
+                    chunks.Clear();
+                }
+
+                // Every group gets a node, even an empty one, so that it is listed
+                var groupHasNode = physSceneNodes.Count > firstGroupNode;
+
+                if (inds.Count > 0 || !groupHasNode)
+                {
+                    physSceneNodes.Add(CreateNode(scene, verts, inds, physName, fileName, collisionAttributeIndex, toolMaterialName));
+                }
 
                 // PhysSceneNode uploads verts to the gpu and does not keep them around
                 verts.Clear();
                 inds.Clear();
+                meshes.Clear();
             }
 
             return physSceneNodes;
+        }
+
+        private static PhysSceneNode CreateNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds, string physName, string? fileName, int collisionAttributeIndex, string? toolMaterialName)
+        {
+            var boundingBox = new AABB();
+
+            if (verts.Count > 0)
+            {
+                boundingBox = new AABB(verts[0].Position, verts[0].Position);
+
+                foreach (var vertex in verts)
+                {
+                    boundingBox = boundingBox.Encapsulate(vertex.Position);
+                }
+            }
+
+            var physSceneNode = new PhysSceneNode(scene, verts, inds)
+            {
+                PhysGroupName = physName,
+                Name = fileName,
+                LocalBoundingBox = boundingBox,
+                OverlayRenderOrder = collisionAttributeIndex,
+            };
+
+            if (toolMaterialName != null)
+            {
+                physSceneNode.SetToolTexture(toolMaterialName);
+            }
+
+            return physSceneNode;
+        }
+
+        private static void AddMeshTriangles(List<SimpleVertexNormal> verts, List<int> inds, GroupMesh mesh, ReadOnlySpan<RnMesh.Triangle> triangles, Range chunk)
+        {
+            var positions = mesh.Positions;
+            var (firstTriangle, triangleCount) = chunk.GetOffsetAndLength(triangles.Length);
+
+            verts.EnsureCapacity(verts.Count + triangleCount * 3);
+            inds.EnsureCapacity(inds.Count + triangleCount * 3);
+
+            for (var i = firstTriangle; i < firstTriangle + triangleCount; i++)
+            {
+                var tri = triangles[i];
+                var a = positions[tri.X];
+                var b = positions[tri.Y];
+                var c = positions[tri.Z];
+
+                var normal = ComputeNormal(a, b, c);
+
+                var offset = verts.Count;
+                verts.Add(new(a, ColorMesh, normal));
+                verts.Add(new(b, ColorMesh, normal));
+                verts.Add(new(c, ColorMesh, normal));
+
+                AddTriangle(inds, offset, 0, 1, 2);
+            }
+        }
+
+        // Each subtree of the collision tree holds a contiguous range of triangles. A mesh whose tree does not stays whole.
+        private static void AddMeshChunks(RnMesh mesh, int triangleCount, List<Range> chunks)
+        {
+            if (triangleCount > MaxChunkTriangles)
+            {
+                var nodes = mesh.ParseNodes();
+
+                if (nodes.Length > 0)
+                {
+                    AddTreeChunks(nodes, 0, chunks);
+
+                    if (ChunksCoverTriangles(chunks, triangleCount))
+                    {
+                        return;
+                    }
+
+                    chunks.Clear();
+                }
+            }
+
+            chunks.Add(0..triangleCount);
+        }
+
+        // Takes the largest subtrees that fit in a chunk
+        private static void AddTreeChunks(ReadOnlySpan<RnMesh.Node> nodes, int index, List<Range> chunks)
+        {
+            var node = nodes[index];
+            var triangles = GetSubtreeTriangles(nodes, index);
+
+            if (node.Type == RnMesh.NodeType.Leaf || triangles.End.Value - triangles.Start.Value <= MaxChunkTriangles)
+            {
+                chunks.Add(triangles);
+                return;
+            }
+
+            AddTreeChunks(nodes, index + 1, chunks);
+            AddTreeChunks(nodes, index + (int)node.ChildOffset, chunks);
+        }
+
+        private static Range GetSubtreeTriangles(ReadOnlySpan<RnMesh.Node> nodes, int index)
+        {
+            var firstLeaf = index;
+
+            while (nodes[firstLeaf].Type != RnMesh.NodeType.Leaf)
+            {
+                firstLeaf++;
+            }
+
+            var lastLeaf = index;
+
+            while (nodes[lastLeaf].Type != RnMesh.NodeType.Leaf)
+            {
+                lastLeaf += (int)nodes[lastLeaf].ChildOffset;
+            }
+
+            var start = (int)nodes[firstLeaf].TriangleOffset;
+            var end = (int)(nodes[lastLeaf].TriangleOffset + nodes[lastLeaf].ChildOffset);
+
+            return start..end;
+        }
+
+        private static bool ChunksCoverTriangles(List<Range> chunks, int triangleCount)
+        {
+            var end = 0;
+
+            foreach (var chunk in chunks)
+            {
+                if (chunk.Start.Value != end)
+                {
+                    return false;
+                }
+
+                end = chunk.End.Value;
+            }
+
+            return end == triangleCount;
         }
 
         private void SetToolTexture(string toolMaterialName)
