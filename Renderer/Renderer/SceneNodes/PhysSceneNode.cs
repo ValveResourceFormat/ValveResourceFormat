@@ -171,6 +171,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Gets the display name of the collision group represented by this node.</summary>
         public required string PhysGroupName { get; init; }
 
+        /// <summary>Gets the physics this node was built from, or <see langword="null"/> for a node built from raw geometry.</summary>
+        public PhysAggregateData? Physics { get; private init; }
+
+        /// <summary>Gets the index into <see cref="PhysAggregateData.CollisionAttributes"/> of the group this node draws.</summary>
+        public int CollisionAttributeIndex { get; private init; }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="PhysSceneNode"/> class from pre-built vertex and index lists.
         /// </summary>
@@ -454,7 +460,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         {
                             AddMeshTriangles(chunkVerts, chunkInds, chunkLines, mesh, triangles, meshEdges, lineCorners, chunk);
 
-                            physSceneNodes.Add(CreateNode(scene, chunkVerts, chunkInds, chunkLines, physName, fileName, collisionAttributeIndex, toolMaterialName));
+                            physSceneNodes.Add(CreateNode(scene, phys, chunkVerts, chunkInds, chunkLines, physName, fileName, collisionAttributeIndex, toolMaterialName));
 
                             chunkVerts.Clear();
                             chunkInds.Clear();
@@ -470,7 +476,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                 if (inds.Count > 0 || !groupHasNode)
                 {
-                    physSceneNodes.Add(CreateNode(scene, verts, inds, lines, physName, fileName, collisionAttributeIndex, toolMaterialName));
+                    physSceneNodes.Add(CreateNode(scene, phys, verts, inds, lines, physName, fileName, collisionAttributeIndex, toolMaterialName));
                 }
 
                 // PhysSceneNode uploads verts to the gpu and does not keep them around
@@ -486,7 +492,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         // The line indices are appended after the triangle indices
-        private static PhysSceneNode CreateNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds, List<int> lines, string physName, string? fileName, int collisionAttributeIndex, string? toolMaterialName)
+        private static PhysSceneNode CreateNode(Scene scene, PhysAggregateData phys, List<SimpleVertexNormal> verts, List<int> inds, List<int> lines, string physName, string? fileName, int collisionAttributeIndex, string? toolMaterialName)
         {
             inds.AddRange(lines);
 
@@ -508,6 +514,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 Name = fileName,
                 LocalBoundingBox = boundingBox,
                 OverlayRenderOrder = collisionAttributeIndex,
+                Physics = phys,
+                CollisionAttributeIndex = collisionAttributeIndex,
             };
 
             if (toolMaterialName != null)

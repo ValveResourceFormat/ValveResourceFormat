@@ -13,6 +13,7 @@ using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Editor;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.Picking;
+using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -885,6 +886,10 @@ namespace GUI.Types.GLViewers
                     info.AddProperty("Custom Lighting Origin", FormatVector(modelSceneNode.LightingOrigin.Value));
                 }
             }
+            else if (sceneNode is PhysSceneNode physSceneNode)
+            {
+                PhysicsDetails.AddNodeDetails(info, physSceneNode);
+            }
 
             if (sceneNode.CubeMapPrecomputedHandshake > 0)
             {
@@ -912,6 +917,13 @@ namespace GUI.Types.GLViewers
             var form = PrepareEntityInfoForm(entity);
 
             form.EntityInfoControl.PopulateFromEntity(GetLinkableEntities(), entity);
+
+            var modelEntity = Renderer.EntitySystem.Entities.OfType<BaseModelEntity>().FirstOrDefault(candidate => candidate.Data == entity);
+
+            if (modelEntity?.Physics != null)
+            {
+                PhysicsDetails.AddEntityDetails(form.EntityInfoControl, modelEntity, modelEntity.Physics);
+            }
 
             var classname = entity.GetStringProperty("classname");
             var targetName = entity.FriendlyTargetName;
