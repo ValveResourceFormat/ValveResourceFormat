@@ -93,6 +93,9 @@ namespace ValveResourceFormat.Particles.Utils
         /// <summary>Takes the next value from the table, in [0, 1).</summary>
         public float Next() => At(queryCount++ + Seed);
 
+        /// <summary>Takes the next value as an index in [0, <paramref name="count"/>).</summary>
+        public int NextIndex(int count) => (int)(count * Next());
+
         /// <summary>
         /// Takes the next value from the shared counter, or, for a non-zero <paramref name="randomSeed"/>,
         /// from a sequence of its own that <paramref name="counter"/> walks, leaving the shared counter untouched.

@@ -2,8 +2,9 @@ namespace ValveResourceFormat.Particles.Utils
 {
     /// <summary>
     /// Math with particle-specific semantics: the parabolic sine of the oscillators, quarter step
-    /// exponents, bias curves, the frame built around a forward vector, and the length and epsilon
-    /// thresholds particle functions share. General-purpose helpers live in <see cref="MathUtils"/>.
+    /// exponents, bias curves, the frame built around a forward vector, the epsilon normalize and range
+    /// fraction, and the length and epsilon thresholds particle functions share. General-purpose
+    /// helpers live in <see cref="MathUtils"/>.
     /// </summary>
     static class ParticleMath
     {
@@ -188,5 +189,20 @@ namespace ValveResourceFormat.Particles.Utils
 
             return MathF.Abs(x) % 2f;
         }
+
+        /// <summary>
+        /// Scales <paramref name="value"/> to unit length with <see cref="FloatEpsilon"/> added to its squared
+        /// length, so a vector much shorter than the square root of that epsilon shrinks toward zero instead
+        /// of growing to unit length.
+        /// </summary>
+        public static Vector3 NormalizeWithEpsilon(Vector3 value)
+            => value / MathF.Sqrt(value.LengthSquared() + FloatEpsilon);
+
+        /// <summary>
+        /// Where <paramref name="x"/> lies between <paramref name="min"/> and <paramref name="max"/> as a
+        /// fraction clamped to [0, 1], with a range of no width counting as one unit wide.
+        /// </summary>
+        public static float ClampedFraction(float x, float min, float max)
+            => MathUtils.Saturate((x - min) / (max == min ? 1f : max - min));
     }
 }

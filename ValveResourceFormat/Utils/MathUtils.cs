@@ -426,5 +426,47 @@ namespace ValveResourceFormat.Utils
         {
             return ((index % count) + count) % count;
         }
+
+        /// <summary>
+        /// Scales <paramref name="value"/> down to a non-negative <paramref name="maxLength"/> when it is
+        /// longer, and returns it unchanged otherwise.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3 ClampLength(Vector3 value, float maxLength)
+        {
+            var lengthSquared = value.LengthSquared();
+
+            return lengthSquared > maxLength * maxLength ? value * (maxLength / MathF.Sqrt(lengthSquared)) : value;
+        }
+
+        /// <summary>
+        /// The area of the triangle with corners <paramref name="a"/>, <paramref name="b"/> and <paramref name="c"/>.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float TriangleArea(Vector3 a, Vector3 b, Vector3 c)
+        {
+            return TriangleCross(a, b, c).Length() * 0.5f;
+        }
+
+        /// <summary>
+        /// The radical inverse of a non-negative <paramref name="index"/> in base <paramref name="radix"/>: its
+        /// digits mirrored about the radix point, giving a value in [0, 1). Successive indices in bases 2, 3 and
+        /// 5 give the coordinates of a Halton sequence.
+        /// </summary>
+        public static float RadicalInverse(int index, int radix)
+        {
+            var inverseRadix = 1f / radix;
+            var digitScale = inverseRadix;
+            var result = 0f;
+
+            while (index > 0)
+            {
+                result += index % radix * digitScale;
+                index /= radix;
+                digitScale *= inverseRadix;
+            }
+
+            return result;
+        }
     }
 }

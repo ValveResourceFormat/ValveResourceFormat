@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using ValveKeyValue;
+using ValveResourceFormat.Particles.Operators;
+using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -9,17 +11,14 @@ namespace ValveResourceFormat.Particles
     public partial class ParticleSystemSimulation
     {
         /// <summary>Holds every direct child tagged with <paramref name="groupId"/> before its start until a selection releases it.</summary>
-        internal void ParkChildrenInGroup(int groupId)
+        internal void HoldChildrenInGroup(int groupId)
         {
             foreach (var child in childSimulations)
             {
-                if (child.groupId != groupId)
+                if (child.groupId == groupId)
                 {
-                    continue;
+                    child.Hold(finishedWhileHeld: true);
                 }
-
-                child.finishedBeforeStartAllowed = true;
-                child.systemState.Age = float.MinValue;
             }
         }
 
@@ -30,7 +29,7 @@ namespace ValveResourceFormat.Particles
         /// </summary>
         internal void ChooseRandomChildrenInGroup(int groupId, float numberOfChildren)
         {
-            ParkChildrenInGroup(groupId);
+            HoldChildrenInGroup(groupId);
 
             var candidates = new List<ParticleSystemSimulation>();
 
@@ -50,7 +49,7 @@ namespace ValveResourceFormat.Particles
                 {
                     if (candidates.Count != 0)
                     {
-                        var index = (int)(candidates.Count * systemState.Random.Next());
+                        var index = systemState.Random.NextIndex(candidates.Count);
                         var child = candidates[index];
 
                         child.systemState.Age = 0f;
@@ -103,9 +102,27 @@ namespace ValveResourceFormat.Particles
         /// <summary>Whether <paramref name="state"/> belongs to a system tagged with <paramref name="groupId"/>.</summary>
         internal static bool IsInGroup(ParticleSystemState state, int groupId) => state.Data?.groupId == groupId;
 
+        /// <summary>The group this system belongs to among its parent's children (<c>m_nGroupID</c>).</summary>
+        internal int GroupId => groupId;
+
+        /// <summary>
+        /// Holds this child before its start until a group operator starts it again. With
+        /// <paramref name="finishedWhileHeld"/> it also counts as finished while it waits.
+        /// </summary>
+        internal void Hold(bool finishedWhileHeld)
+        {
+            if (finishedWhileHeld)
+            {
+                finishedBeforeStartAllowed = true;
+            }
+
+            systemState.Age = float.MinValue;
+        }
+
         private void SetupChildParticles(IReadOnlyList<KVObject> children)
         {
             childSlotCount = children.Count;
+            var placesControlPointsOnModels = operators.Exists(static op => op is SetControlPointsToModelParticles);
 
             for (var slot = 0; slot < children.Count; slot++)
             {
@@ -134,9 +151,11 @@ namespace ValveResourceFormat.Particles
                 var childSystemDefinition = (ParticleSystem?)childResource.DataBlock;
                 Debug.Assert(childSystemDefinition != null);
 
+                var delay = parse.Float("m_flDelay", 0f);
+
                 var childSystem = new ParticleSystemSimulation(childSystemDefinition, fileLoader, logger, null, systemState)
                 {
-                    startDelay = parse.Float("m_flDelay", 0f),
+                    startDelay = delay == 0f && placesControlPointsOnModels ? ParticleMath.FloatEpsilon : delay,
                     IsEndCapChild = parse.Boolean("m_bEndCap", false),
                     detailLevel = parse.Enum("m_nDetailLevel", ParticleDetailLevel.PARTICLEDETAIL_LOW)
                 };
