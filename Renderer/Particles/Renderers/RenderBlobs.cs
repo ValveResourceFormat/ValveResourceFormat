@@ -59,6 +59,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <inheritdoc/>
+        public override void AddControlPointDefaults(ControlPointDefaults defaults)
+        {
+            defaults.AddScale(scaleControlPoint);
+        }
+
+        /// <inheritdoc/>
         public override void SetMaterialOverride(RenderMaterial material)
         {
             Delete();

@@ -53,6 +53,11 @@ namespace ValveResourceFormat.Particles.Initializers
             useOrigRadius = parse.Boolean("m_bUseOrigRadius", useOrigRadius);
         }
 
+        public override void AddControlPointDefaults(ControlPointDefaults defaults)
+        {
+            defaults.AddScale(scaleCP, component);
+        }
+
         public override void Reset()
         {
             pointIndex = 0;

@@ -25,6 +25,11 @@ namespace ValveResourceFormat.Particles.Operators
             offsetLocal = parse.Boolean("m_bOffsetLocal", offsetLocal);
         }
 
+        public override void AddControlPointDefaults(ControlPointDefaults defaults)
+        {
+            defaults.AddScale(scaleControlPoint, scaleComponent);
+        }
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var point = particleSystemState.GetControlPoint(controlPoint);
