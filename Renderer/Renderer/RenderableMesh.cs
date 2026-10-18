@@ -631,6 +631,39 @@ namespace ValveResourceFormat.Renderer
             mesh.DrawCallsOpaque.Add(drawCall);
             return mesh;
         }
+
+        /// <summary>
+        /// Creates a renderable mesh with a single material over vertex and index buffers the caller owns and
+        /// may rewrite every frame. The draw call starts empty; the caller sets its <see cref="DrawCall.IndexCount"/>
+        /// to the indices it uploads, which are 32 bit.
+        /// </summary>
+        /// <param name="name">Name for the mesh.</param>
+        /// <param name="material">Material to assign to the single draw call.</param>
+        /// <param name="vertexBuffer">The vertex buffer and its layout.</param>
+        /// <param name="indexBuffer">OpenGL handle of the index buffer.</param>
+        /// <param name="renderContext">Renderer context the buffers belong to.</param>
+        /// <returns>A new <see cref="RenderableMesh"/> with one draw call, translucent when the material is.</returns>
+        public static RenderableMesh CreateMesh(string name, RenderMaterial material, VertexDrawBuffer vertexBuffer, int indexBuffer, RendererContext renderContext)
+        {
+            var mesh = new RenderableMesh(name, new AABB(), renderContext);
+
+            var drawCall = new DrawCall
+            {
+                Material = material,
+                MeshBuffers = renderContext.MeshBufferCache,
+                MeshName = name,
+                PrimitiveType = PrimitiveType.Triangles,
+                IndexType = DrawElementsType.UnsignedInt,
+                VertexBuffers = [vertexBuffer],
+                IndexBuffer = new IndexDrawBuffer()
+                {
+                    Handle = indexBuffer,
+                },
+            };
+
+            mesh.AddDrawCall(drawCall, isAggregate: false);
+            return mesh;
+        }
     }
 
     /// <summary>

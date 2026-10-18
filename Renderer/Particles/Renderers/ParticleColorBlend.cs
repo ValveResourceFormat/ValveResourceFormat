@@ -1,4 +1,5 @@
 using ValveResourceFormat.Particles;
+using ValveResourceFormat.Particles.Utils;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
@@ -58,6 +59,31 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>A division by a zero scale channel gives 0 in that channel.</summary>
         private static Vector3 FiniteOrZero(Vector3 value)
             => new(float.IsFinite(value.X) ? value.X : 0f, float.IsFinite(value.Y) ? value.Y : 0f, float.IsFinite(value.Z) ? value.Z : 0f);
+
+        /// <summary>
+        /// Shifts a colour in 0 to 1 by an HSV shift: x turns the hue by that fraction of a turn, y and z
+        /// scale the saturation and value, each clamped to 0 to 1. The result is rounded to bytes.
+        /// </summary>
+        public static Vector3 ShiftHsv(Vector3 rgb, Vector3 shift)
+        {
+            var hsv = HsvColor.FromRgb(rgb);
+            var hue = hsv.X + (shift.X * 360f);
+
+            if (hue > 360f)
+            {
+                hue -= 360f;
+            }
+            else if (hue < 0f)
+            {
+                hue += 360f;
+            }
+
+            var shifted = HsvColor.ToRgb(new Vector3(hue, MathUtils.Saturate(hsv.Y * shift.Y), MathUtils.Saturate(hsv.Z * shift.Z)));
+
+            return new Vector3(ToByte(shifted.X), ToByte(shifted.Y), ToByte(shifted.Z)) / 255f;
+
+            static float ToByte(float x) => Math.Min((int)((x * 255f) + 0.5f), 255);
+        }
 
         /// <summary>A colour in 0 to 1 as saturated bytes.</summary>
         public static Vector4 ToBytes(Vector3 color, float alpha)
