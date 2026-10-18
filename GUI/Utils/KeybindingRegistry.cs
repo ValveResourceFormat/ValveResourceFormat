@@ -20,6 +20,7 @@ namespace GUI.Utils
         WorldViewer,
         ParticleViewer,
         MaterialViewer,
+        GraphViewer,
         AudioPlayer,
         //PackageViewer,
     }
@@ -47,7 +48,7 @@ namespace GUI.Utils
             [ViewerType.ModelViewer] =
             [
                 //new("WASD", "Move"),
-                new("Q/Z", "Up/Down"),
+                new("Z", "Mouselook"),
                 //new("Mouse", "Rotate"),
                 new("Alt", "Orbit"),
                 new("Shift", "Pan"),
@@ -65,7 +66,9 @@ namespace GUI.Utils
                 //new("WASD", "Move"),
                 new("Alt", "Orbit"),
                 new("Shift", "Pan"),
-                new("Click", "Pick"),
+                new("Click", "Select"),
+                new("Dbl-click", "Details"),
+                new("Ctrl+Dbl-click", "Open"),
                 //new("Ctrl+Click", "Multi-select"),
                 //new("Esc", "Deselect"),
                 //new("Del", "Hide"),
@@ -86,11 +89,25 @@ namespace GUI.Utils
 
             [ViewerType.MaterialViewer] =
             [
-                new("Mouse", "Orbit"),
+                new("Drag", "Orbit"),
+                new("Right drag", "Pan"),
                 new("Scroll", "Zoom"),
                 new("Ctrl+Drag", "Adjust sun"),
                 new("F11", "Fullscreen"),
                 new("Ctrl+C", "Screenshot"),
+            ],
+
+            [ViewerType.GraphViewer] =
+            [
+                new("Drag", "Pan"),
+                new("Scroll", "Zoom"),
+                new("Shift+Click", "Multi-select"),
+                new("Ctrl+Drag", "Move connected"),
+                new("Right click", "Menu"),
+                new("Ctrl+0", "Fit"),
+                new("Ctrl+C", "Copy"),
+                new("Ctrl+S", "Save"),
+                new("F11", "Fullscreen"),
             ],
 
             [ViewerType.AudioPlayer] =
@@ -135,6 +152,7 @@ namespace GUI.Utils
                 {
                     return glViewer switch
                     {
+                        GLGraphViewer => ViewerType.GraphViewer,
                         GLTextureViewer => ViewerType.TextureViewer,
                         GLMaterialViewer => ViewerType.MaterialViewer,
                         GLWorldViewer => ViewerType.WorldViewer,
