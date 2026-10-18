@@ -245,6 +245,8 @@ namespace GUI.Types.GLViewers
 
             if (world != null)
             {
+                Renderer.EntitySystem.Enabled = false;
+
                 LoadedWorld = new WorldLoader(world, Scene, Renderer.EntitySystem)
                 {
                     LoadingProgress = GuiContext.LoadingProgress,
@@ -291,9 +293,6 @@ namespace GUI.Types.GLViewers
 
                 Input.EntitySystem = Renderer.EntitySystem;
                 Renderer.EntitySystem.SpawnPlayer(Input.PlayerMovement, Scene);
-
-                // The world rests as it loaded until it is played
-                Renderer.EntitySystem.Enabled = false;
             }
 
             if (!cameraSet)
@@ -1227,7 +1226,22 @@ namespace GUI.Types.GLViewers
         protected override bool HasToolsVisibilityControls => world != null;
 
         protected override HashSet<string> FilterLayers(HashSet<string> layers)
-            => HasToolsVisibilityControls ? tools.FilterLayers(layers) : layers;
+        {
+            if (!HasToolsVisibilityControls)
+            {
+                return layers;
+            }
+
+            var filtered = tools.FilterLayers(layers);
+
+            // While playing the game hides disabled entities itself, so they come and go with the other entities
+            if (simulationState != SimulationState.Stopped && filtered.Contains("Entities"))
+            {
+                filtered.Add(WorldLoader.DisabledEntitiesLayerName);
+            }
+
+            return filtered;
+        }
 
         protected override void ApplyVisibility()
         {
@@ -1343,8 +1357,10 @@ namespace GUI.Types.GLViewers
             {
                 case (SimulationRequest.Play, SimulationState.Stopped):
                     simulationState = SimulationState.Playing;
-                    ResetScene();
+
+                    // Before the respawn, so entities spawn hidden as the game has them
                     entitySystem.Enabled = true;
+                    ResetScene();
                     entitySystem.StartRound();
                     Input.SetWalkMode(true);
                     break;
