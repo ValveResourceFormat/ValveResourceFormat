@@ -105,6 +105,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         public override bool DrawsInPasses => false;
 
         /// <inheritdoc/>
+        public override void AddControlPointDefaults(ControlPointDefaults defaults)
+        {
+            defaults.AddScale(modelScaleControlPoint);
+        }
+
+        /// <inheritdoc/>
         public override void Act(ParticleCollection particles, ParticleSystemState systemState)
         {
             if (models.Count == 0)

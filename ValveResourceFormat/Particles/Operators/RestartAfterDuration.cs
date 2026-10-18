@@ -28,6 +28,11 @@ namespace ValveResourceFormat.Particles.Operators
             onlyChildren = parse.Boolean("m_bOnlyChildren", onlyChildren);
         }
 
+        public override void AddControlPointDefaults(ControlPointDefaults defaults)
+        {
+            defaults.AddScale(controlPoint, controlPointField);
+        }
+
         public override void Initialize(ParticleSystemState particleSystemState)
         {
             lastRestartTime = 0f;

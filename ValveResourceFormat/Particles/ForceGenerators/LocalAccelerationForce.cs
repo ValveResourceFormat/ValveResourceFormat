@@ -18,6 +18,11 @@ class LocalAccelerationForce : ParticleFunctionForceGenerator
         acceleration = parse.VectorProvider("m_vecAccel", acceleration);
     }
 
+    public override void AddControlPointDefaults(ControlPointDefaults defaults)
+    {
+        defaults.AddScale(scaleControlPoint);
+    }
+
     public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
     {
         var force = acceleration.NextVector(particleSystemState);

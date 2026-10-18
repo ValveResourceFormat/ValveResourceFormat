@@ -57,6 +57,11 @@ namespace ValveResourceFormat.Particles.Initializers
             }
         }
 
+        public override void AddControlPointDefaults(ControlPointDefaults defaults)
+        {
+            defaults.AddScale(controlPoint, controlPointComponent);
+        }
+
         public override void Reset()
         {
             count = 0;

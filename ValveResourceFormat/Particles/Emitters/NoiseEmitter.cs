@@ -62,6 +62,11 @@ namespace ValveResourceFormat.Particles.Emitters
             worldTimeScale = parse.Float("m_flWorldTimeScale", worldTimeScale);
         }
 
+        public override void AddControlPointDefaults(ControlPointDefaults defaults)
+        {
+            defaults.AddScale(scaleControlPoint, scaleControlPointField);
+        }
+
         public override void Reset()
         {
             totalToEmit = 1d;

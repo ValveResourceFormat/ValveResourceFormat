@@ -74,6 +74,13 @@ namespace ValveResourceFormat.Particles
         /// </summary>
         public virtual bool IsOrderImportant => false;
 
+        /// <summary>
+        /// Adds the control points this function reads whose use implies a nonzero preview value.
+        /// </summary>
+        public virtual void AddControlPointDefaults(ControlPointDefaults defaults)
+        {
+        }
+
         /// <summary>Whether the fade window has closed for good, past <c>m_flOpEndFadeOutTime</c>.</summary>
         protected bool IsPastFadeOut(ParticleSystemState systemState)
             => OpFadeOscillatePeriod == 0f && OpEndFadeOutTime > 0f && GetFunctionTime(systemState) > OpEndFadeOutTime;

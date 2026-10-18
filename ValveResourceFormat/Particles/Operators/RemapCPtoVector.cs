@@ -43,6 +43,11 @@ namespace ValveResourceFormat.Particles.Operators
             timing = new ControlPointRemapTiming(parse);
         }
 
+        public override void AddControlPointDefaults(ControlPointDefaults defaults)
+        {
+            defaults.AddField(cpInput, fieldOutput);
+        }
+
         public override void Reset()
         {
             timing.Reset();
