@@ -5,7 +5,8 @@ namespace ValveResourceFormat.Particles.Initializers
     /// <summary>
     /// Initializes a scalar particle attribute from the value lattice sampled at the particle's
     /// scaled creation position with a time term added to every component, remapped into an output
-    /// range. Angle fields author the range in degrees; alpha fields clamp to [0, 1].
+    /// range. The time term is taken from the first particle of each batch and shared by the rest.
+    /// Angle fields author the range in degrees; alpha fields clamp to [0, 1].
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreationNoise">C_INIT_CreationNoise</seealso>
     class CreationNoise : ParticleFunctionInitializer
@@ -20,6 +21,8 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly float noiseScaleLoc = 0.001f;
         private readonly float worldTimeScale;
         private readonly Vector3 offsetLoc = Vector3.Zero;
+
+        private float callTimeTerm;
 
         public CreationNoise(ParticleDefinitionParser parse) : base(parse)
         {
@@ -37,6 +40,13 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(fieldOutput);
 
+        protected override void BeginCall(ref Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
+        {
+            // The world time term ticks in milliseconds
+            callTimeTerm = ((first.CreationTime + offset) * noiseScale)
+                + (particleSystemState.WorldTime * 1000f * worldTimeScale);
+        }
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             if (fieldOutput.FieldType() != "float")
@@ -45,33 +55,11 @@ namespace ValveResourceFormat.Particles.Initializers
             }
 
             var samplePosition = (particle.Position + offsetLoc) * noiseScaleLoc;
+            var noise = Noise.Value3D(samplePosition + new Vector3(callTimeTerm));
 
-            // The world time term ticks in milliseconds
-            var sampleTime = ((particle.CreationTime + offset) * noiseScale)
-                + (particleSystemState.WorldTime * 1000f * worldTimeScale);
-            var noise = Noise.Value3D(samplePosition + new Vector3(sampleTime));
-
-            // abs folds the signed noise into the full output range; otherwise the half-span
-            // scale centers it in the range. absValInv inverts either way.
-            var absScale = absVal ? 1f : 0.5f;
-            var normalized = absVal ? MathF.Abs(noise) : noise;
-
-            if (absValInv)
-            {
-                normalized = 1f - normalized;
-            }
-
-            var min = outputMin;
-            var max = outputMax;
-
-            if (fieldOutput is ParticleField.Roll or ParticleField.Yaw or ParticleField.Pitch)
-            {
-                min *= 0.017453292f;
-                max *= 0.017453292f;
-            }
-
-            var span = max - min;
-            var value = min + ((1f - absScale) * span) + (absScale * span * normalized);
+            var value = fieldOutput is ParticleField.Roll or ParticleField.Yaw or ParticleField.Pitch
+                ? MapToRange(noise, absVal, absValInv, float.DegreesToRadians(outputMin), float.DegreesToRadians(outputMax))
+                : MapToRange(noise, absVal, absValInv, outputMin, outputMax);
 
             if (fieldOutput is ParticleField.Alpha or ParticleField.AlphaAlternate)
             {
@@ -81,6 +69,25 @@ namespace ValveResourceFormat.Particles.Initializers
             particle.SetScalar(fieldOutput, value);
 
             return particle;
+        }
+
+        /// <summary>
+        /// Maps value noise in -1 to 1 onto [<paramref name="min"/>, <paramref name="max"/>]. Absolute
+        /// noise covers the whole range from 0, signed noise is centred in it, and inverting flips either.
+        /// </summary>
+        internal static float MapToRange(float noise, bool absolute, bool inverted, float min, float max)
+        {
+            var absScale = absolute ? 1f : 0.5f;
+            var normalized = absolute ? MathF.Abs(noise) : noise;
+
+            if (inverted)
+            {
+                normalized = 1f - normalized;
+            }
+
+            var span = max - min;
+
+            return min + ((1f - absScale) * span) + (absScale * span * normalized);
         }
     }
 }

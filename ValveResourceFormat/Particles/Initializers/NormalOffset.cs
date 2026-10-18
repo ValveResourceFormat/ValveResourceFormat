@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Particles.Initializers
         {
             offsetMin = parse.Vector3("m_OffsetMin", offsetMin);
             offsetMax = parse.Vector3("m_OffsetMax", offsetMax);
-            controlPointNumber = parse.Int32("m_nControlPointNumber", controlPointNumber);
+            controlPointNumber = parse.ControlPoint("m_nControlPointNumber", controlPointNumber);
             localCoords = parse.Boolean("m_bLocalCoords", localCoords);
             normalize = parse.Boolean("m_bNormalize", normalize);
         }
@@ -25,11 +25,12 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var offset = particleSystemState.Random.NextBetweenPerComponent(offsetMin, offsetMax);
+            var offset = particleSystemState.Random.NextBetweenPerComponentSeededTwice(offsetMin, offsetMax);
 
             if (localCoords)
             {
-                offset = ControlPointTransformProvider.TransformDirection(particleSystemState, controlPointNumber, offset);
+                var basis = particleSystemState.GetControlPoint(controlPointNumber).GetBasisAtTime(particle.CreationTime);
+                offset = Vector3.TransformNormal(offset, basis);
             }
 
             var normal = particle.GetVector(ParticleField.Normal) + offset;

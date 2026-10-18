@@ -99,14 +99,14 @@ namespace ValveResourceFormat.Particles.Initializers
                 // The bias shapes the output value, after the lerp, and is skipped entirely at its identity
                 if (remapBias != 0.5f)
                 {
-                    output = ParticleMath.Bias(output, remapBias);
+                    output = ParticleMath.Bias(MathUtils.Saturate(output), remapBias);
                 }
 
                 output = scaleInitialRange
                     ? particle.GetScalar(fieldOutput) * output
                     : particle.ModifyScalarBySetMethodAtSpawn(particles, fieldOutput, output, setMethod);
 
-                particle.SetScalar(fieldOutput, output);
+                particle.SetScalar(fieldOutput, fieldOutput.IsIntegerAttribute() ? MathF.Truncate(output) : output);
             }
 
             count++;
