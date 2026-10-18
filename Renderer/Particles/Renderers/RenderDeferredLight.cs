@@ -9,7 +9,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     /// <c>m_flLightDistance</c> is set. Up to 64 particles get a light each, which follows its particle
     /// by id; particles past that wait for a light to come free. The light reaches the particle's radius
     /// and shines with its alpha as intensity. Lights with a negative intensity darken in the game and
-    /// are not drawn, and projected textures are not applied.
+    /// are not drawn, and projected textures are not applied. Only games that ship the deferred local
+    /// light material create these lights.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderDeferredLight">C_OP_RenderDeferredLight</seealso>
     internal class RenderDeferredLight : ParticleLightRenderer
@@ -18,6 +19,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         /// <summary>The fraction of the radius at which a light shines with its intensity.</summary>
         private const float IntensityDistanceFraction = 0.5f;
+
+        private const string DeferredLocalLightMaterial = "materials/dev/deferred_local_light_sphere.vmat_c";
 
         private readonly float lightDistance;
         private readonly float startFalloff = 0.25f;
@@ -30,6 +33,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             startFalloff = parse.Float("m_flStartFalloff", startFalloff);
             spotFoV = parse.Float("m_flSpotFoV", spotFoV);
         }
+
+        /// <summary>Whether the game the files come from ships the material its deferred lights are drawn with.</summary>
+        public static bool GameHasDeferredLights(RendererContext rendererContext)
+            => rendererContext.FileLoader.FindFile(DeferredLocalLightMaterial, logNotFound: false) is not (null, _, null);
 
         /// <inheritdoc/>
         protected override int LightCount(int particleCount) => MaxLights;
