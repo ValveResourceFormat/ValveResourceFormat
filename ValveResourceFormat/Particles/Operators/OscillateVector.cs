@@ -162,7 +162,7 @@ namespace ValveResourceFormat.Particles.Operators
             oscillationMultiplier = parse.Float("m_flOscMult", oscillationMultiplier);
             oscillationOffset = parse.Float("m_flOscAdd", oscillationOffset);
 
-            clampToUnit = outputField.IsNormalizedField();
+            clampToUnit = outputField is ParticleField.Color or ParticleField.Alpha or ParticleField.GlowRgb or ParticleField.GlowAlpha;
             offsetsPosition = parse.Boolean("m_bOffset", false) && outputField == ParticleField.Position;
         }
 

@@ -69,9 +69,7 @@ namespace ValveResourceFormat.Particles.Operators
                 var current = currentPaths[startControlPoint];
                 var previous = previousPaths[startControlPoint]!.Value;
 
-                var creationFraction = frameTime > 0f
-                    ? MathF.Min(particle.Age, frameTime) / frameTime
-                    : 1f;
+                var creationFraction = LivedStepFraction(particle, frameTime);
 
                 var delta = (ParticlePath.Evaluate(current.Start, current.Mid, current.End, saved.X)
                     - ParticlePath.Evaluate(previous.Start, previous.Mid, previous.End, saved.X)) * creationFraction;

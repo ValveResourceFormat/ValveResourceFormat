@@ -30,10 +30,10 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            var fromIsVector = fieldInputFrom.FieldType() == "vector";
-            var toIsVector = fieldInput.FieldType() == "vector";
+            var fromIsVector = IsVector(fieldInputFrom);
+            var toIsVector = IsVector(fieldInput);
 
-            if (fieldOutput.FieldType() == "vector")
+            if (IsVector(fieldOutput))
             {
                 if (!fromIsVector && !toIsVector)
                 {
@@ -59,5 +59,9 @@ namespace ValveResourceFormat.Particles.Operators
                 particle.SetScalar(fieldOutput, float.Lerp(from, to, interp));
             }
         }
+
+        /// <summary>Whether the attribute takes part as a vector. The bone indices count as a scalar here.</summary>
+        private static bool IsVector(ParticleField field)
+            => field != ParticleField.BoneIndices && field.FieldType() == "vector";
     }
 }

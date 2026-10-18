@@ -98,7 +98,7 @@ namespace ValveResourceFormat.Particles.Operators
             {
                 if (lerpRate > 0f)
                 {
-                    interpolation = MathUtils.Saturate((particleSystemState.Age - lastRetraceTime) / lerpRate);
+                    interpolation = MathUtils.RemapValClamped(particleSystemState.Age, lastRetraceTime, lastRetraceTime + lerpRate, 0f, 1f);
 
                     if (interpolation == 1f && !retraceOnControlPointMove)
                     {
@@ -109,7 +109,7 @@ namespace ValveResourceFormat.Particles.Operators
                 else if (lerpControlPoint > -1)
                 {
                     var moved = Vector3.Distance(particleSystemState.GetControlPoint(lerpControlPoint).Position, lastLerpPosition) / tolerance;
-                    interpolation = float.IsNaN(moved) ? 0f : MathUtils.Saturate(moved);
+                    interpolation = float.IsNaN(moved) ? 0f : MathF.Min(1f, moved);
                 }
             }
             else if (!retrace)
@@ -174,7 +174,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                     if (!hitGround && missBehavior == ParticleTraceMissBehavior.PARTICLE_TRACE_MISS_BEHAVIOR_KILL)
                     {
-                        particle.Kill();
+                        particle.Lifetime = -1f;
                     }
                     else
                     {

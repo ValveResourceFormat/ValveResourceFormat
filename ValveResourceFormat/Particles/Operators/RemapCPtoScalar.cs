@@ -14,10 +14,8 @@ namespace ValveResourceFormat.Particles.Operators
         private readonly float inputMax = 1f;
         private readonly float outputMin;
         private readonly float outputMax = 1f;
-        private readonly float startTime = -1f;
-        private readonly float endTime = -1f;
-        private readonly float interpRate;
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
+        private readonly ControlPointRemapTiming timing;
 
         public RemapCPtoScalar(ParticleDefinitionParser parse) : base(parse)
         {
@@ -28,21 +26,17 @@ namespace ValveResourceFormat.Particles.Operators
             inputMax = parse.Float("m_flInputMax", inputMax);
             outputMin = parse.Float("m_flOutputMin", outputMin);
             outputMax = parse.Float("m_flOutputMax", outputMax);
-            startTime = parse.Float("m_flStartTime", startTime);
-            endTime = parse.Float("m_flEndTime", endTime);
-            interpRate = parse.Float("m_flInterpRate", interpRate);
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
+            timing = new ControlPointRemapTiming(parse);
+        }
+
+        public override void Reset()
+        {
+            timing.Reset();
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            // The window is measured against the system's own age, and a negative bound leaves it unset.
-            if (startTime >= 0f && endTime >= 0f
-                && (particleSystemState.Age < startTime || particleSystemState.Age > endTime))
-            {
-                return;
-            }
-
             var outputMin = this.outputMin;
             var outputMax = this.outputMax;
 
@@ -60,15 +54,20 @@ namespace ValveResourceFormat.Particles.Operators
                 _ => input.Z,
             };
 
+            var interpolation = timing.NextInterpolation(new Vector3(component, 0f, 0f), particleSystemState.Age);
             var remapped = MathUtils.RemapValClamped(component, inputMin, inputMax, outputMin, outputMax);
-
-            var interpolation = interpRate > 0f ? MathUtils.Saturate(interpRate * frameTime) : 1f;
 
             foreach (ref var particle in particles.Current)
             {
+                if (!timing.Covers(particle.CreationTime))
+                {
+                    continue;
+                }
+
+                var current = particle.GetScalar(fieldOutput);
                 var target = particle.ModifyScalarBySetMethod(particles, fieldOutput, remapped, setMethod);
 
-                particle.SetScalar(fieldOutput, float.Lerp(particle.GetScalar(fieldOutput), target, interpolation * strength));
+                particle.SetScalar(fieldOutput, MathUtils.Lerp(current, target, interpolation));
             }
         }
     }
