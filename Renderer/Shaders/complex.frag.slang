@@ -75,7 +75,6 @@ uniform int F_SCALE_NORMAL_MAP; // vr_complex
 #define F_SELF_ILLUM 0 // most shaders
 #define F_ENABLE_AMBIENT_OCCLUSION 0 // csgo_simple_2way_blend, steampal_2way_blend_mask, vr_simple_2way_blend
 #define F_ENABLE_TINT_MASKS 0 // csgo_simple_2way_blend, steampal_2way_blend_mask, vr_simple_2way_blend
-#define F_DECAL_TEXTURE 0 // csgo_character, csgo_complex, csgo_vertexlitgeneric
 uniform int F_DECAL_BLEND_MODE; // csgo_character, csgo_complex, csgo_vertexlitgeneric
 // SHADING
 #define F_SPECULAR 0 // most shaders
@@ -196,7 +195,7 @@ uniform sampler2D g_tTintMask;
 #define blendMod2x (F_BLEND_MODE == 3) || (GameVfx_csgo_decalmodulate != 0)
 #define blendModThenAdd (F_BLEND_MODE == 6)
 
-#if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+#if defined(secondary_uv_vfx_common)
     in vec2 vTexCoord2;
     uniform bool g_bUseSecondaryUvForAmbientOcclusion = true;
     #if F_TINT_MASK
@@ -526,7 +525,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
         #if (F_TINT_MASK == 1) // complex_vfx_common, csgo_generic_vfx_common, character, weapon, etc.
             vec2 tintMaskTexcoord = texCoord;
-            #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+            #if defined(secondary_uv_vfx_common)
                 tintMaskTexcoord = (g_bUseSecondaryUvForTintMask || (F_FORCE_UV2 == 1)) ? vTexCoord2 : texCoord;
             #else
 
@@ -543,7 +542,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         #if (GameVfx_vr_skin == 0)
             vec2 vSelfIllumMaskCoords = texCoord;
 
-            #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+            #if defined(secondary_uv_vfx_common)
                 vSelfIllumMaskCoords = (g_bUseSecondaryUvForSelfIllum || (F_FORCE_UV2 == 1)) ? vTexCoord2 : texCoord;
             #endif
 
@@ -582,7 +581,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     // Detail texture
 #if defined(detail_texture_vfx_common)
-    #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+    #if defined(secondary_uv_vfx_common)
         vec2 detailMaskCoords = (g_bUseSecondaryUvForDetailMask || (F_FORCE_UV2 == 1)) ? vTexCoord2 : texCoord;
     #else
         vec2 detailMaskCoords = texCoord;
@@ -631,7 +630,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 #if (_colorAlphaAO)
     mat.AmbientOcclusion = color.a;
 #elif (_ambientOcclusionTexture)
-    #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+    #if defined(secondary_uv_vfx_common)
         mat.AmbientOcclusion = texture(g_tAmbientOcclusion, (g_bUseSecondaryUvForAmbientOcclusion || (F_FORCE_UV2 == 1)) ? vTexCoord2 : texCoord).r;
     #else
         mat.AmbientOcclusion = texture(g_tAmbientOcclusion, texCoord).r;

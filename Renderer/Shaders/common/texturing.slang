@@ -381,13 +381,13 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
 #if (F_DECAL_TEXTURE == 1)
 
     uniform sampler2D g_tDecal;
-    #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
-        uniform bool g_bUseSecondaryUvForDecal;
+    #if defined(secondary_uv_vfx_common)
+        uniform bool g_bUseSecondaryUvForDecal = true;
     #endif
 
     vec3 ApplyDecalTexture(vec3 albedo)
     {
-    #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+    #if defined(secondary_uv_vfx_common)
         vec2 coords = (g_bUseSecondaryUvForDecal || (F_FORCE_UV2 == 1)) ? vTexCoord2.xy : vTexCoordOut.xy;
     #else
         vec2 coords = vTexCoordOut.xy;

@@ -139,7 +139,7 @@ uniform int F_TEXTURE_ANIMATION_MODE; // csgo_complex, csgo_static_overlay, csgo
     }
 #endif
 
-#if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+#if defined(secondary_uv_vfx_common)
     in vec4 vTEXCOORD1;
     out vec2 vTexCoord2;
 #endif
@@ -238,7 +238,7 @@ vec4 GetTintColorLinear(vec4 vTint)
     uniform vec2 g_vDetailTexCoordScale = vec2(1.0);
     out vec2 vDetailTexCoords;
 
-    #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+    #if defined(secondary_uv_vfx_common)
         uniform bool g_bUseSecondaryUvForDetailTexture = false; // this doesn't always show up
     #endif
 
@@ -358,12 +358,12 @@ void main()
     #endif
 #endif
 
-#if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+#if defined(secondary_uv_vfx_common)
     vTexCoord2 = vTEXCOORD1.xy;
 #endif
 
 #if defined(detail_texture_vfx_common) || CS2_CHARACTER_ADJUSTMENTS
-    #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+    #if defined(secondary_uv_vfx_common)
         vec2 detailCoords = (g_bUseSecondaryUvForDetailTexture || (F_FORCE_UV2 == 1)) ? vTexCoord2 : vTexCoordOut;
     #else
         #define detailCoords vTexCoordOut
