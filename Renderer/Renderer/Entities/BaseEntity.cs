@@ -314,8 +314,8 @@ public abstract class BaseEntity
     public bool IsTrigger { get; set; }
 
     /// <summary>
-    /// Gets or sets whether the entity's geometry is drawn. Every node it owns follows through
-    /// <see cref="SceneNode.Visible"/>.
+    /// Gets or sets whether the game draws the entity's geometry. Every node it owns follows through
+    /// <see cref="SceneNode.Visible"/>, unless a stopped <see cref="EntitySystem.Enabled"/> keeps it shown.
     /// </summary>
     public bool IsDrawn
     {
@@ -326,10 +326,13 @@ public abstract class BaseEntity
 
             foreach (var node in ownedNodes)
             {
-                node.Visible = value;
+                node.Visible = IsShown;
             }
         }
     } = true;
+
+    /// <summary>Gets whether the entity's geometry ends up shown, which in an editor it is even while the game hides it.</summary>
+    public bool IsShown => IsDrawn || !EntitySystem.Enabled;
 
     /// <summary>
     /// Gets whether the entity currently takes part in collision traces, which are only made in the main
@@ -1337,7 +1340,7 @@ public abstract class BaseEntity
         }
 
         // Only the hidden state is imposed, so a node that manages its own Visible keeps it while drawn
-        if (!IsDrawn)
+        if (!IsShown)
         {
             node.Visible = false;
         }

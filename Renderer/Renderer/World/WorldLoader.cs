@@ -47,6 +47,9 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>Visibility layer of the entities a <c>point_template</c> spawns, and of the template itself.</summary>
         public const string TemplateLayerName = "Template Entities";
 
+        /// <summary>Visibility layer of the entities that start disabled, which the game keeps hidden until enabled.</summary>
+        public const string DisabledEntitiesLayerName = "Entities (disabled)";
+
         /// <summary>Layer names that should be visible by default, populated during loading.</summary>
         public HashSet<string> DefaultEnabledLayers { get; } = ["No layer", "Entities", Scene.ParticlesLayerName, PhysicsDebugLayerName];
 
@@ -659,7 +662,7 @@ namespace ValveResourceFormat.Renderer.World
 
                     if (disabled && layerName == "Entities")
                     {
-                        layerName = "Entities (disabled)";
+                        layerName = DisabledEntitiesLayerName;
                     }
 
                     // Every entity joins the entity system, so it can be named and targeted, and draws itself
