@@ -50,7 +50,7 @@ namespace ValveResourceFormat.Particles.Operators
             {
                 var first = (useParticleVelocity, useParticleNormal) switch
                 {
-                    (true, _) => NormalizeBiased(particle.Position - particle.PositionPrevious),
+                    (true, _) => ParticleMath.NormalizeWithEpsilon(particle.Position - particle.PositionPrevious),
                     (_, true) => particle.Normal,
                     _ => forward1,
                 };
@@ -67,12 +67,5 @@ namespace ValveResourceFormat.Particles.Operators
                 particle.SetScalar(fieldOutput, particle.ModifyScalarBySetMethod(particles, fieldOutput, remapped, setMethod));
             }
         }
-
-        /// <summary>
-        /// Scales a vector to unit length with an epsilon in its squared length, so a still particle
-        /// reads as the zero vector rather than having no direction.
-        /// </summary>
-        private static Vector3 NormalizeBiased(Vector3 vector)
-            => vector / MathF.Sqrt(vector.LengthSquared() + ParticleMath.FloatEpsilon);
     }
 }
