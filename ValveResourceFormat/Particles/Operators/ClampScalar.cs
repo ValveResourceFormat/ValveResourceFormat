@@ -30,7 +30,7 @@ namespace ValveResourceFormat.Particles.Operators
                 // the maximum wins outright.
                 var clampedValue = MathF.Min(max, MathF.Max(currentValue, min));
 
-                particle.SetScalar(outputField, float.Lerp(currentValue, clampedValue, strength));
+                particle.SetScalar(outputField, BlendByStrength(currentValue, clampedValue, strength));
             }
         }
     }

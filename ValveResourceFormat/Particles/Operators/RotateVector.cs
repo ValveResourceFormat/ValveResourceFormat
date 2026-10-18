@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -20,8 +22,8 @@ namespace ValveResourceFormat.Particles.Operators
         public RotateVector(ParticleDefinitionParser parse) : base(parse)
         {
             outputField = parse.ParticleField("m_nFieldOutput", outputField);
-            rotAxisMin = parse.Vector3("m_vecRotAxisMin", rotAxisMin);
-            rotAxisMax = parse.Vector3("m_vecRotAxisMax", rotAxisMax);
+            rotAxisMin = MathUtils.SafeNormalize(parse.Vector3("m_vecRotAxisMin", rotAxisMin), Vector3.UnitZ);
+            rotAxisMax = MathUtils.SafeNormalize(parse.Vector3("m_vecRotAxisMax", rotAxisMax), Vector3.UnitZ);
             rotRateMin = parse.Float("m_flRotRateMin", rotRateMin);
 
             rotRateMax = parse.Float("m_flRotRateMax", rotRateMax);
@@ -34,16 +36,8 @@ namespace ValveResourceFormat.Particles.Operators
             foreach (ref var particle in particles.Current)
             {
                 // The rotation rate shares the axis draw rather than taking one of its own
-                var random = particleSystemState.Random.ForParticle(particle.ParticleId);
-                var drawnAxis = Vector3.Lerp(rotAxisMin, rotAxisMax, random);
-
-                // Authored as zero, or as a pair that cancels at this draw, leaves nothing to rotate about
-                if (drawnAxis == Vector3.Zero)
-                {
-                    continue;
-                }
-
-                var axis = MathUtils.SafeNormalize(drawnAxis);
+                var random = ParticleRandom.ForSample(particleSystemState.Random.Seed + particle.ParticleId);
+                var axis = MathUtils.SafeNormalize(MathUtils.Lerp(rotAxisMin, rotAxisMax, random));
                 var rotationRate = float.DegreesToRadians(float.Lerp(rotRateMin, rotRateMax, random));
 
                 var scale = perParticleScale.NextNumber(ref particle, particleSystemState);

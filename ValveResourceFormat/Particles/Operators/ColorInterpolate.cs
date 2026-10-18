@@ -23,25 +23,32 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
+            if (fadeEndTime == fadeStartTime)
+            {
+                return;
+            }
+
             foreach (ref var particle in particles.Current)
             {
-                var time = particle.NormalizedAge;
+                var initialColor = particle.GetInitialVector(particles, fieldOutput);
+                var color = particle.GetVector(fieldOutput);
 
-                if (time >= fadeStartTime && time <= fadeEndTime)
+                if (particle.Lifetime > 0f)
                 {
-                    var t = MathUtils.Remap(time, fadeStartTime, fadeEndTime);
-                    if (easeInOut)
-                    {
-                        t = MathUtils.Smoothstep(0f, 1f, t);
-                    }
-
-                    // Interpolate from constant color to fade color; strength blends from the initial color
-                    var initialColor = particle.GetInitialVector(particles, ParticleField.Color);
-                    var faded = Vector3.Lerp(initialColor, colorFade, t);
-
-                    particle.SetVector(fieldOutput, Vector3.Lerp(initialColor, faded, strength));
+                    color = MathUtils.Lerp(initialColor, colorFade, FadeFraction(particle.Age / particle.Lifetime, fadeStartTime, fadeEndTime, easeInOut));
                 }
+
+                particle.SetVector(fieldOutput, BlendByStrength(initialColor, color, strength));
             }
         }
+
+        /// <summary>
+        /// How far into the fade from <paramref name="start"/> to <paramref name="end"/> a normalized age
+        /// is, eased along a smoothstep when asked to.
+        /// </summary>
+        internal static float FadeFraction(float normalizedAge, float start, float end, bool easeInOut)
+            => easeInOut
+                ? MathUtils.Smoothstep(start, end, normalizedAge)
+                : MathUtils.Saturate(MathUtils.Remap(normalizedAge, start, end));
     }
 }
