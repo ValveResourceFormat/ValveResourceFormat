@@ -60,8 +60,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             }
 
             var head = particleSystemState.GetControlPoint(cpOffset);
-            var headTransform = head.GetRotationMatrix();
-            headTransform.Translation = head.Position;
+            var headTransform = head.GetTransform();
 
             foreach (var (controlPoint, position) in points)
             {
