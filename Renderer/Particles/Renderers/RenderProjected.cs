@@ -26,8 +26,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly float minProjectionDepth = -128f;
         private readonly float maxProjectionDepth = 128f;
         private readonly INumberProvider materialSelection = new LiteralNumberProvider(0f);
-        private readonly INumberProvider rollScale = new LiteralNumberProvider(1f);
-        private readonly ParticleField alpha2Field = ParticleField.AlphaAlternate;
 
         private readonly PlacedPerParticle<(ProjectedDecalHandle Handle, int Material)> placed = new();
 
@@ -52,8 +50,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             minProjectionDepth = parse.Float("m_flMinProjectionDepth", minProjectionDepth);
             maxProjectionDepth = parse.Float("m_flMaxProjectionDepth", maxProjectionDepth);
             materialSelection = parse.NumberProvider("m_flMaterialSelection", materialSelection);
-            rollScale = parse.NumberProvider("m_flRollScale", rollScale);
-            alpha2Field = parse.ParticleField("m_nAlpha2Field", alpha2Field);
         }
 
         /// <inheritdoc/>
@@ -67,16 +63,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
-            var radiusScale = RadiusScale.NextNumber(systemState);
-            var alphaScale = AlphaScale.NextNumber(systemState);
-            var colorScale = ColorScale.NextVector(systemState);
-            var roll = rollScale.NextNumber(systemState);
+            var scales = EvaluateScales(systemState);
 
             placed.BeginFrame();
 
             foreach (ref var particle in particles.Current)
             {
-                var width = particle.Radius * radiusScale * 2f;
+                var width = particle.Radius * scales.Radius * 2f;
 
                 if (width <= 0f)
                 {
@@ -91,8 +84,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     continue;
                 }
 
-                var box = DecalBox(ref particle, width, roll);
-                var tint = new Vector4(particle.Color * colorScale, particle.Alpha * particle.GetScalar(alpha2Field) * alphaScale);
+                var box = DecalBox(ref particle, width, scales.Roll);
+                var tint = BlendColor(ref particle, scales);
 
                 if (placed.TryGetValue(particle.UniqueParticleId, out var entry))
                 {
@@ -123,13 +116,19 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         public override void Hide() => Delete();
 
         /// <summary>
-        /// The box the particle's decal projects through: as wide as the particle, turned by its roll,
-        /// projecting along its normal when authored to and straight down otherwise. The depth range,
-        /// when enabled, places the box along the projection axis instead of centring it on the particle.
+        /// The box the particle's decal projects through: as wide as the particle, projecting along its
+        /// normal when authored to and straight down otherwise. The texture's top runs along the normal
+        /// crossed with world Y, or world X for a normal close to Y, or along -X when projecting down,
+        /// turned back about the projection axis by the particle's roll. The depth range, when enabled,
+        /// places the box along the projection axis instead of centring it on the particle.
         /// </summary>
         private Matrix4x4 DecalBox(ref Particle particle, float width, float roll)
         {
             var normal = orientToNormal ? particle.Normal : Vector3.UnitZ;
+            var top = orientToNormal
+                ? Vector3.Cross(normal.Y > 0.99f ? Vector3.UnitX : Vector3.UnitY, normal)
+                : -Vector3.UnitX;
+
             normal = normal.LengthSquared() > 1e-8f ? Vector3.Normalize(normal) : Vector3.UnitZ;
 
             var center = particle.Position;
@@ -141,8 +140,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 depth = MathF.Max(maxProjectionDepth - minProjectionDepth, 1f);
             }
 
-            var reference = MathF.Abs(normal.Z) < 0.9f ? Vector3.UnitZ : Vector3.UnitX;
-            var up = Vector3.Transform(Vector3.Normalize(Vector3.Cross(normal, reference)), Quaternion.CreateFromAxisAngle(normal, particle.Rotation.Z * roll));
+            var up = Vector3.Transform(top, Quaternion.CreateFromAxisAngle(normal, -(roll * particle.Rotation.Z)));
 
             return ProjectedDecalSystem.CreateBoxTransform(center, normal, up, new Vector3(width, width, depth));
         }

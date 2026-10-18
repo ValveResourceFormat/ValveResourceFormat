@@ -18,6 +18,7 @@ namespace ValveResourceFormat.Renderer
         public AABB BoundingBox { get; }
 
         private readonly RendererContext renderContext;
+        private readonly bool isAggregate;
 
         /// <summary>Gets the list of meshlets for GPU-driven indirect culling.</summary>
         public List<Meshlet> Meshlets { get; } = [];
@@ -75,6 +76,7 @@ namespace ValveResourceFormat.Renderer
             IReadOnlyDictionary<string, byte>? shaderArguments = null)
         {
             renderContext = scene.RendererContext;
+            this.isAggregate = isAggregate;
 
             Name = mesh.Name;
 
@@ -194,6 +196,33 @@ namespace ValveResourceFormat.Renderer
             var dynamicParams = new Dictionary<string, byte>(material.Shader.Parameters.Except(staticParams));
 
             drawCall.SetNewMaterial(renderContext.MaterialLoader.GetMaterial(replacementName, dynamicParams));
+        }
+
+        /// <summary>
+        /// Replaces the material of every draw call <paramref name="shouldReplace"/> accepts, and moves each
+        /// draw call into the opaque, overlay or blended list its material now belongs in.
+        /// </summary>
+        /// <param name="replacementName">Name of the replacement material.</param>
+        /// <param name="shouldReplace">Decides from a draw call's current material whether to replace it.</param>
+        public void ReplaceMaterials(string replacementName, Func<RenderMaterial, bool> shouldReplace)
+        {
+            ArgumentNullException.ThrowIfNull(shouldReplace);
+
+            var drawCalls = DrawCalls.ToList();
+
+            DrawCallsOpaque.Clear();
+            DrawCallsOverlay.Clear();
+            DrawCallsBlended.Clear();
+
+            foreach (var drawCall in drawCalls)
+            {
+                if (shouldReplace(drawCall.Material))
+                {
+                    ReplaceMaterial(drawCall, replacementName);
+                }
+
+                AddDrawCall(drawCall, isAggregate);
+            }
         }
 
         /// <summary>Replaces all draw call materials with a single material resource for use in the material viewer.</summary>
