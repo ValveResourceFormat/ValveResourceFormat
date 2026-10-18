@@ -73,7 +73,18 @@ namespace ValveResourceFormat.Particles
 
             if (firstFramePending && !removeAllParticles && !finishedBeforeStartAllowed)
             {
-                SimulateFirstFrame();
+                var root = systemState.Root;
+                var wasRunning = root.FunctionsRunning;
+                root.FunctionsRunning = true;
+
+                try
+                {
+                    SimulateFirstFrame();
+                }
+                finally
+                {
+                    root.FunctionsRunning = wasRunning;
+                }
             }
 
             foreach (var emitter in emitters)
@@ -190,16 +201,18 @@ namespace ValveResourceFormat.Particles
 
         /// <summary>
         /// Replays the system from scratch, as if it had just been created, discarding the particles
-        /// still alive first. As in the engine it keeps its seed and the draws run on, unless a pinned
-        /// seed (<see cref="PinRandomSeed"/>) starts them over.
+        /// still alive first. As in the engine it keeps its seed, the draws run on and the control points
+        /// keep what functions wrote to them, unless a pinned seed (<see cref="PinRandomSeed"/>) starts the
+        /// draws over and puts those control points back.
         /// </summary>
         public void Replay()
         {
             StopEmission(removeAllParticles: true, playEndCap: false);
 
-            if (systemState.Random.PinnedSeed is { } seed)
+            if (pinnedSeed is { } seed)
             {
-                SeedRandom(seed);
+                systemState.UndoFunctionControlPointWrites();
+                ApplySeed(seed, 0);
             }
 
             Rewind();
@@ -224,7 +237,6 @@ namespace ValveResourceFormat.Particles
             }
 
             particlesEmitted = 0;
-            particleIdCounter = 0;
             preSimFrames = 0;
             firstFramePending = true;
             finishedBeforeStartAllowed = false;
@@ -243,8 +255,11 @@ namespace ValveResourceFormat.Particles
             systemState.Frozen = false;
             systemState.RewindControlPointChanges();
             previousControlPointsValid = true;
+            currentFrameTime = maximumTimeStep;
+            particleCollection.CurrentFrameTime = 0f;
             particleCollection.PreviousFrameTime = FirstFrameStep;
 
+            systemState.Random.RedrawInputSeeds();
             ResetFunctions();
             NamedValues.Reset();
             ApplyNamedValueLocals();
@@ -342,7 +357,18 @@ namespace ValveResourceFormat.Particles
             // Only the root carries it; children read it back through their parent chain.
             systemState.WorldTime = worldTime;
 
-            SimulateInternal(frameTime * systemState.TimeScale);
+            var root = systemState.Root;
+            var wasRunning = root.FunctionsRunning;
+            root.FunctionsRunning = true;
+
+            try
+            {
+                SimulateInternal(frameTime * systemState.TimeScale);
+            }
+            finally
+            {
+                root.FunctionsRunning = wasRunning;
+            }
         }
 
         /// <summary>

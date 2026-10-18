@@ -105,6 +105,8 @@ namespace ValveResourceFormat.Particles
 
         private void SetupChildParticles(IReadOnlyList<KVObject> children)
         {
+            childSlotCount = children.Count;
+
             for (var slot = 0; slot < children.Count; slot++)
             {
                 var childInfo = children[slot];
@@ -143,17 +145,6 @@ namespace ValveResourceFormat.Particles
                 childSystem.childSlot = slot;
 
                 childSimulations.Add(childSystem);
-            }
-        }
-
-        /// <summary>Gives every system below this one the seed its place in the tree derives from this one's.</summary>
-        private void DeriveChildSeeds()
-        {
-            for (var i = 0; i < childSimulations.Count; i++)
-            {
-                var child = childSimulations[i];
-                child.systemState.Random.DeriveSeed(systemState.Random.Seed, child.childSlot, (i + 1) * child.maxParticles);
-                child.DeriveChildSeeds();
             }
         }
 

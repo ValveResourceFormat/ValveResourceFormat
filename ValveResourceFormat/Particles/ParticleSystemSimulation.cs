@@ -139,8 +139,14 @@ namespace ValveResourceFormat.Particles
         /// <summary>How long after its parent this child starts (<c>m_flDelay</c>).</summary>
         private float startDelay;
 
-        /// <summary>This child's position in its parent's <c>m_Children</c>, which its random seed derives from.</summary>
+        /// <summary>This child's index in its parent's <c>m_Children</c>, counting the entries that were skipped.</summary>
         private int childSlot;
+
+        /// <summary>How many entries <c>m_Children</c> lists, including those that were skipped.</summary>
+        private int childSlotCount;
+
+        /// <summary>The seed every <see cref="Replay"/> starts over from, or null to run on.</summary>
+        private int? pinnedSeed;
 
         /// <summary>
         /// Whether this child exists only for the parent's endcap (<c>m_bEndCap</c>). It waits at
@@ -329,7 +335,6 @@ namespace ValveResourceFormat.Particles
             if (parentSystemState == null)
             {
                 SeedRandom(unchecked((int)StringToken.Get(Name)));
-                InitializeTree();
             }
         }
 
@@ -411,25 +416,47 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Seeds this system and starts its draws over, and gives every system below it the seed its
-        /// place in the tree derives from this one's. The engine seeds a new system from the clock; here
-        /// it is seeded from its name, so instances of one effect play out alike unless each is seeded
-        /// apart, such as from where it is placed.
+        /// Seeds this system and its children, starts their draws over and rebuilds every function's
+        /// state from it. As the engine does with a given seed, every entry of <c>m_Children</c> steps
+        /// the seed by 129, including entries that are skipped, so the child in slot n takes the seed
+        /// 129 * (n + 1) above it and this system the step after the last slot. The engine seeds a new
+        /// system from the clock; here it is seeded from its name, so instances of one effect play out
+        /// alike unless each is seeded apart, such as from where it is placed.
         /// </summary>
         /// <param name="seed">Any value, of which the low 12 bits are used.</param>
         internal void SeedRandom(int seed)
         {
-            systemState.Random.Start(seed);
-            DeriveChildSeeds();
+            ApplySeed(seed, 0);
+            InitializeTree();
         }
 
         /// <summary>
-        /// Fixes the seed this system starts over from each time it replays, so every replay plays out
-        /// the same, with the children's seeds derived as <see cref="SeedRandom"/> does. Takes effect at
-        /// the next replay.
+        /// Fixes the seed this system and its children start over from each time they replay, so every
+        /// replay plays out the same, with the children's seeds stepped as <see cref="SeedRandom"/> does.
+        /// Each replay also puts the control points that functions wrote back to how the host left them.
+        /// Takes effect at the next replay.
         /// </summary>
         /// <param name="seed">The seed, or null to let each replay run on from the last as the engine does.</param>
-        internal void PinRandomSeed(int? seed) => systemState.Random.PinnedSeed = seed;
+        internal void PinRandomSeed(int? seed) => pinnedSeed = seed;
+
+        /// <summary>
+        /// Seeds this system and its children as <see cref="SeedRandom"/> describes and starts their draws
+        /// and particle ids over. A child's draws start past those of the children listed before it.
+        /// </summary>
+        private void ApplySeed(int seed, int counter)
+        {
+            for (var i = 0; i < childSimulations.Count; i++)
+            {
+                var child = childSimulations[i];
+                child.ApplySeed(ChildSeed(seed, child.childSlot), (i + 1) * child.maxParticles);
+            }
+
+            systemState.Random.Start(ChildSeed(seed, childSlotCount - 1), counter);
+            particleIdCounter = 0;
+        }
+
+        /// <summary>The seed of the <c>m_Children</c> entry in <paramref name="slot"/>, stepped from its parent's.</summary>
+        private static int ChildSeed(int seed, int slot) => unchecked(seed + (129 * (slot + 1)));
 
         /// <summary>The systems this one runs as children, in definition order.</summary>
         public IReadOnlyList<ParticleSystemSimulation> Children => childSimulations;
