@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Renderer.Materials;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
 {
@@ -44,6 +45,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         /// <summary>Gets or sets an optional tool texture overlay rendered on top of the shape.</summary>
         protected RenderTexture? ToolTexture { get; set; }
+
+        /// <summary>
+        /// Gets whether the translucent fill is drawn with order independent transparency where the renderer supports it,
+        /// for volumes such as triggers that can span the whole map, which no sort order draws correctly.
+        /// </summary>
+        internal virtual bool HasOrderIndependentFill => false;
 
         private ShapeSceneNode(Scene scene) : base(scene)
         {
@@ -344,6 +351,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
+            if (HasOrderIndependentFill && context.OrderIndependentTranslucency)
+            {
+                return; // The renderer draws the fill with RenderOrderIndependentFill after this layer
+            }
+
             var renderShader = context.ReplacementShader ?? shader;
             renderShader.Use();
 
@@ -377,12 +389,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
 
                 // Triangles
-                var fillState = state;
+                var fillState = WithFillDepthBias(state);
                 fillState.BlendEnable = true;
                 fillState.SetBlend(RsBlendMode.SrcAlpha, RsBlendMode.InvSrcAlpha);
-                fillState.Rasterizer.SlopeScaledDepthBias = 2f;
-                fillState.Rasterizer.DepthBias = 100;
-                fillState.Rasterizer.DepthBiasClamp = 0.05f;
                 renderState.Apply(in fillState);
                 renderShader.SetUniform("g_bNormalShaded", Shaded);
                 GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
@@ -391,6 +400,46 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             {
                 GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
             }
+        }
+
+        /// <summary>
+        /// Draws the translucent fill into the order independent layers the caller binds, which the fill shader
+        /// writes instead of its color.
+        /// </summary>
+        internal void RenderOrderIndependentFill()
+        {
+            var fillShader = shader.WithCombo("D_OIT", 1);
+            fillShader.Use();
+
+            fillShader.SetUniform("g_bNormalShaded", Shaded);
+            fillShader.SetUniform("g_bTriplanarMapping", ToolTexture != null);
+
+            // Drawn outside the batch renderer, which rebinds the reserved units after each node it draws
+            fillShader.SetTexture(RenderMaterial.TextureUnitStart, "g_tColor", ToolTexture ?? Scene.RendererContext.MaterialLoader.GetDefaultColor());
+
+            VertexArray.Bind(vao, fillShader);
+
+            var renderState = GraphicsContext.RenderState;
+            var state = WithFillDepthBias(renderState.CurrentPass);
+            state.DepthStencil.DepthFunc = RsComparison.CloserEqual;
+
+            if (IsDoubleSided)
+            {
+                state.Rasterizer.CullMode = RsCullMode.None;
+            }
+
+            using var _ = renderState.Scope(in state);
+
+            GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
+        }
+
+        // Pulls the fill in front of the scene surfaces it lies on, such as the walls that world collision follows
+        private static RenderState WithFillDepthBias(RenderState state)
+        {
+            state.Rasterizer.SlopeScaledDepthBias = 2f;
+            state.Rasterizer.DepthBias = 100;
+            state.Rasterizer.DepthBiasClamp = 0.05f;
+            return state;
         }
 
         /// <inheritdoc/>

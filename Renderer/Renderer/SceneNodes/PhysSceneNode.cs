@@ -10,16 +10,22 @@ namespace ValveResourceFormat.Renderer.SceneNodes
     /// </summary>
     public class PhysSceneNode : ShapeSceneNode
     {
-        private static readonly Color32 ColorSphere = new(0.4f, 1f, 0.1f, 0.65f);
-        private static readonly Color32 ColorCapsule = new(0.1f, 1f, 0.4f, 0.65f);
-        private static readonly Color32 ColorMesh = new(0.4f, 0.4f, 1f, 0.65f);
-        private static readonly Color32 ColorHull = new(1.0f, 0.2f, 0.1f, 0.65f);
+        /// <summary>The opacity of every translucent physics fill, which the order independent composite relies on.</summary>
+        internal const float FillAlpha = 0.65f;
+
+        private static readonly Color32 ColorSphere = new(0.4f, 1f, 0.1f, FillAlpha);
+        private static readonly Color32 ColorCapsule = new(0.1f, 1f, 0.4f, FillAlpha);
+        private static readonly Color32 ColorMesh = new(0.4f, 0.4f, 1f, FillAlpha);
+        private static readonly Color32 ColorHull = new(1.0f, 0.2f, 0.1f, FillAlpha);
 
         /// <inheritdoc/>
         public override bool LayerEnabled => Enabled && base.LayerEnabled;
 
         /// <inheritdoc/>
         protected override bool IsDoubleSided => false;
+
+        /// <inheritdoc/>
+        internal override bool HasOrderIndependentFill => IsTranslucent && IsTranslucentRenderMode;
 
         /// <summary>Gets or sets whether this physics node is individually enabled for rendering.</summary>
         public bool Enabled

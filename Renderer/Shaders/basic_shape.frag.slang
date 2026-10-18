@@ -11,6 +11,18 @@
 #define renderMode_Normals 0
 #define renderMode_VertexColor 0
 
+// Order independent transparency: writes the fragment into the layers of the nearest two instead of its color
+#define D_OIT 0
+
+#if (D_OIT == 1)
+    #include "common/order_independent.slang"
+
+    // The layers only take fragments in front of the scene
+    layout(early_fragment_tests) in;
+
+    layout(binding = 0, r32ui) uniform coherent uimage2DArray g_tOrderIndependentLayers;
+#endif
+
 in vec4 vtxColor;
 in vec3 vtxNormal;
 in vec3 vtxPos;
@@ -45,6 +57,15 @@ vec4 boxmap( in sampler2D s, in vec3 p, in vec3 n, in float k )
 
 void main(void)
 {
+#if (D_OIT == 1)
+    // Each sample belongs to one triangle of a surface, so only the fragment covering the first sample is kept,
+    // and a pixel on an edge shared by two triangles does not take the surface twice
+    if ((gl_SampleMaskIn[0] & 1) == 0)
+    {
+        return;
+    }
+#endif
+
     outputColor = vtxColor;
     vec3 toolTexture = vec3(1.0);
 
@@ -94,4 +115,19 @@ void main(void)
     {
         outputColor = vec4(vtxColor.rgb, 1.0);
     }
+
+#if (D_OIT == 1)
+    ivec2 pixel = ivec2(gl_FragCoord.xy);
+    uint fragment = PackOrderIndependentFragment(outputColor.rgb, length(camPos - vtxPosWs));
+
+    // The first layer keeps the nearer of it and this fragment, and passes the farther on to the second
+    uint previous = imageAtomicMax(g_tOrderIndependentLayers, ivec3(pixel, 0), fragment);
+
+    if (previous != 0u)
+    {
+        imageAtomicMax(g_tOrderIndependentLayers, ivec3(pixel, 1), min(previous, fragment));
+    }
+
+    imageAtomicAdd(g_tOrderIndependentLayers, ivec3(pixel, 2), 1u);
+#endif
 }
