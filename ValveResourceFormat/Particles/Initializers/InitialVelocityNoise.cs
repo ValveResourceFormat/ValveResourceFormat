@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Particles.Initializers
     {
         private readonly IVectorProvider outputMin = new LiteralVectorProvider(Vector3.Zero);
         private readonly IVectorProvider outputMax = new LiteralVectorProvider(Vector3.One);
-        private readonly INumberProvider noiseScale = new LiteralNumberProvider(0.1f);
+        private readonly INumberProvider noiseScale = new LiteralNumberProvider(1f);
         private readonly INumberProvider noiseScaleLoc = new LiteralNumberProvider(0.01f);
         private readonly INumberProvider offset = new LiteralNumberProvider(0f);
         private readonly IVectorProvider offsetLoc = new LiteralVectorProvider(Vector3.Zero);
@@ -64,14 +64,7 @@ namespace ValveResourceFormat.Particles.Initializers
             var transform = transformInput.NextTransformAtTime(ref particle, particleSystemState, particle.CreationTime);
             var transformed = Vector3.TransformNormal(velocity, transform);
 
-            // The engine skips the timestep multiply on its previous-position subtraction, which in
-            // velocity terms divides by the spawn frame's timestep
-            if (ignoreDt && particles.CurrentFrameTime > 0f)
-            {
-                transformed /= particles.CurrentFrameTime;
-            }
-
-            particle.Velocity += transformed;
+            AddVelocity(ref particle, particles, transformed, ignoreDt);
 
             return particle;
         }
