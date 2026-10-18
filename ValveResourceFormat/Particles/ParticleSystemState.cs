@@ -206,6 +206,20 @@ namespace ValveResourceFormat.Particles
 
         private readonly ControlPoint?[] controlPoints = new ControlPoint?[MaxControlPoint + 1];
 
+        private Dictionary<int, ControlPoint.SavedState>? functionWrites;
+        private int? highestBeforeFunctionWrites;
+        private bool functionsRunning;
+
+        /// <summary>
+        /// Whether the functions of this system's tree are running, so the control point writes made
+        /// meanwhile are theirs rather than the host's. Only the root's value counts.
+        /// </summary>
+        internal bool FunctionsRunning
+        {
+            get => ParentSystem?.FunctionsRunning ?? functionsRunning;
+            set => functionsRunning = value;
+        }
+
         /// <summary>
         /// Gets one of this system's control points, creating it at its default on first use. An index
         /// outside 0 to <see cref="MaxControlPoint"/> gives a detached point that nothing reads back.
@@ -249,6 +263,57 @@ namespace ValveResourceFormat.Particles
         public int HighestControlPoint { get; private set; }
 
         internal void RaiseHighestControlPoint(int cp) => HighestControlPoint = Math.Max(HighestControlPoint, cp);
+
+        /// <summary>
+        /// Called before <paramref name="point"/> is written. A write by a function remembers the point as
+        /// it was before the first such write, and a write by the host drops that memory, so
+        /// <see cref="UndoFunctionControlPointWrites"/> keeps what the host set.
+        /// </summary>
+        internal void NoteControlPointWrite(ControlPoint point)
+        {
+            if (!FunctionsRunning)
+            {
+                functionWrites?.Remove(point.Index);
+
+                if (highestBeforeFunctionWrites is { } highest)
+                {
+                    highestBeforeFunctionWrites = Math.Max(highest, point.Index);
+                }
+
+                return;
+            }
+
+            highestBeforeFunctionWrites ??= HighestControlPoint;
+            (functionWrites ??= []).TryAdd(point.Index, point.Save());
+        }
+
+        /// <summary>
+        /// Puts every control point of this system and the systems below it that functions have written
+        /// back to how it was before they first did, leaving the points the host has written since.
+        /// </summary>
+        internal void UndoFunctionControlPointWrites()
+        {
+            if (functionWrites != null)
+            {
+                foreach (var (index, state) in functionWrites)
+                {
+                    controlPoints[index]!.Restore(state);
+                }
+
+                functionWrites.Clear();
+            }
+
+            if (highestBeforeFunctionWrites is { } highest)
+            {
+                HighestControlPoint = highest;
+                highestBeforeFunctionWrites = null;
+            }
+
+            foreach (var child in Children)
+            {
+                child.UndoFunctionControlPointWrites();
+            }
+        }
 
         /// <summary>
         /// Copies a control point's position and orientation into this system's one at
@@ -393,6 +458,8 @@ namespace ValveResourceFormat.Particles
             get => position;
             set
             {
+                Owner?.NoteControlPointWrite(this);
+
                 if (value != position)
                 {
                     position = value;
@@ -428,6 +495,8 @@ namespace ValveResourceFormat.Particles
         /// <param name="up">The up axis.</param>
         public void SetOrientation(Vector3 forward, Vector3 left, Vector3 up)
         {
+            Owner?.NoteControlPointWrite(this);
+
             if (forward != this.forward || left != this.left || up != this.up)
             {
                 this.forward = forward;
@@ -494,6 +563,20 @@ namespace ValveResourceFormat.Particles
         public float ChangeAge => (Owner?.Age ?? 0f) - ChangeTime;
 
         private void Stamp() => ChangeTime = Owner?.Age ?? 0f;
+
+        /// <summary>The position, axes and change time of a control point.</summary>
+        internal readonly record struct SavedState(Vector3 Position, Vector3 Forward, Vector3 Left, Vector3 Up, float ChangeTime);
+
+        internal SavedState Save() => new(position, forward, left, up, ChangeTime);
+
+        internal void Restore(SavedState state)
+        {
+            position = state.Position;
+            forward = state.Forward;
+            left = state.Left;
+            up = state.Up;
+            ChangeTime = state.ChangeTime;
+        }
 
         internal void RewindChange()
         {
