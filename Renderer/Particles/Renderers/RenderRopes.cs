@@ -486,7 +486,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         private float MapV(float coordinate, float oneOverWorldSize, float vOffset)
         {
-            var v = useScalarForTextureCoordinate ? coordinate : (coordinate * oneOverWorldSize) + vOffset;
+            var v = (coordinate * oneOverWorldSize) + vOffset;
 
             return clampV ? MathUtils.Saturate(v) : v;
         }
