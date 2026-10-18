@@ -28,6 +28,11 @@ namespace ValveResourceFormat.Particles.Initializers
             controlPointNumber = parse.ControlPoint("m_nControlPointNumber", controlPointNumber);
         }
 
+        public override void AddControlPointDefaults(ControlPointDefaults defaults)
+        {
+            defaults.AddScale(scaleControlPointNumber);
+        }
+
         public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.Radius);
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)

@@ -28,6 +28,18 @@ namespace ValveResourceFormat.Particles.Operators
             desiredVelocityCPField = Math.Clamp(parse.Int32("m_nDesiredVelocityCPField", desiredVelocityCPField), -1, 2);
         }
 
+        public override void AddControlPointDefaults(ControlPointDefaults defaults)
+        {
+            if (desiredVelocityCPField < 0)
+            {
+                defaults.AddScale(desiredVelocityCP);
+            }
+            else
+            {
+                defaults.AddScale(desiredVelocityCP, desiredVelocityCPField);
+            }
+        }
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             if (desiredVelocityCP < 0 || latencyCP < 0)

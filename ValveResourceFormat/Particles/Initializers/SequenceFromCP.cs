@@ -31,6 +31,11 @@ namespace ValveResourceFormat.Particles.Initializers
             offset = parse.Vector3("m_vecOffset", offset);
         }
 
+        public override void AddControlPointDefaults(ControlPointDefaults defaults)
+        {
+            defaults.Add(cp, new Vector3(10f, 0f, 0f));
+        }
+
         public override ulong WrittenFields
         {
             get
