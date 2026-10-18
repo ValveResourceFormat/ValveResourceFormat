@@ -116,7 +116,7 @@ namespace ValveResourceFormat.Particles.Initializers
             }
             else
             {
-                particle.SequenceNumber = sequenceMin + (int)((sequenceMax - sequenceMin + 1) * particleSystemState.Random.Next());
+                particle.SequenceNumber = sequenceMin + particleSystemState.Random.NextIndex(sequenceMax - sequenceMin + 1);
             }
 
             return particle;
@@ -170,7 +170,7 @@ namespace ValveResourceFormat.Particles.Initializers
         {
             for (var i = sequenceMax; i > sequenceMin; i--)
             {
-                var j = sequenceMin + (int)((i - sequenceMin + 1) * particleSystemState.Random.Next());
+                var j = sequenceMin + particleSystemState.Random.NextIndex(i - sequenceMin + 1);
                 var swapped = GetEntry(i);
                 SetEntry(i, GetEntry(j));
                 SetEntry(j, swapped);
