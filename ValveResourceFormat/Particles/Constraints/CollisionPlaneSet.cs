@@ -2,21 +2,29 @@ namespace ValveResourceFormat.Particles.Constraints
 {
     /// <summary>
     /// The surfaces a plane set collision mode collides with: the hits of traces from a control point,
-    /// plus those found by confirmation traces.
+    /// plus those found by confirmation traces. The set at index 0 of a tree also serves as a ring of
+    /// cached particle traces, with their endpoints, for the initializers that share world hits.
     /// </summary>
     sealed class CollisionPlaneSet
     {
-        private const int MaxPlanes = 41;
+        /// <summary>The most surfaces a set holds.</summary>
+        public const int MaxPlanes = 41;
+
         private const int DirectionPlanes = 26;
         private const float TraceLength = 1000f;
 
         private readonly Vector3[] points = new Vector3[MaxPlanes];
         private readonly Vector3[] normals = new Vector3[MaxPlanes];
+        private readonly Vector3[] traceStarts = new Vector3[MaxPlanes];
+        private readonly Vector3[] traceEnds = new Vector3[MaxPlanes];
         private readonly bool[] valid = new bool[MaxPlanes];
         private int count;
         private int nextSlot;
         private int retestSlot;
         private Vector3 lastOrigin;
+
+        /// <summary>How many slots hold a surface or a cached trace.</summary>
+        public int Count => count;
 
         /// <summary>The system age at the last refresh, or -1 before the first.</summary>
         public float LastRefreshTime { get; private set; } = -1f;
@@ -134,6 +142,84 @@ namespace ValveResourceFormat.Particles.Constraints
 
             return fraction < 1f;
         }
+
+        /// <summary>
+        /// Moves a sphere at <paramref name="position"/> out to the front side of every surface it
+        /// sinks behind, one surface after the other.
+        /// </summary>
+        /// <returns>Whether the sphere was moved.</returns>
+        public bool PushOut(ref Vector3 position, float radius)
+        {
+            var pushed = false;
+
+            for (var i = 0; i < count; i++)
+            {
+                if (!valid[i])
+                {
+                    continue;
+                }
+
+                var depth = Vector3.Dot(position - points[i], normals[i]) - radius;
+
+                if (depth < 0f)
+                {
+                    position -= normals[i] * depth;
+                    pushed = true;
+                }
+            }
+
+            return pushed;
+        }
+
+        /// <summary>
+        /// Finds the cached trace whose endpoints are both nearest to <paramref name="start"/> and
+        /// <paramref name="end"/>, by the larger of the two squared distances, later slots winning ties.
+        /// </summary>
+        /// <param name="start">Start of the trace to look up.</param>
+        /// <param name="end">End of the trace to look up.</param>
+        /// <param name="point">Where the cached trace ended, left unchanged when there is none.</param>
+        /// <returns>The larger squared endpoint distance, or <see cref="float.MaxValue"/> when nothing is cached.</returns>
+        public float FindNearestTrace(Vector3 start, Vector3 end, ref Vector3 point)
+        {
+            var best = float.MaxValue;
+
+            for (var i = 0; i < count; i++)
+            {
+                if (!valid[i])
+                {
+                    continue;
+                }
+
+                var distance = MathF.Max(Vector3.DistanceSquared(start, traceStarts[i]), Vector3.DistanceSquared(end, traceEnds[i]));
+
+                if (!(best < distance))
+                {
+                    best = distance;
+                    point = points[i];
+                }
+            }
+
+            return best;
+        }
+
+        /// <summary>
+        /// Caches a trace in the ring of slots up to <paramref name="maxSlot"/>, writing after the
+        /// last one written and wrapping to the first past it.
+        /// </summary>
+        public void AddTrace(Vector3 start, Vector3 end, Vector3 point, Vector3 normal, int maxSlot)
+        {
+            var slot = nextSlot > maxSlot ? 0 : nextSlot;
+
+            traceStarts[slot] = start;
+            traceEnds[slot] = end;
+            Store(slot, point, normal);
+
+            nextSlot = slot + 1;
+            count = Math.Max(count, nextSlot);
+        }
+
+        /// <summary>Gets the surface point and normal held in <paramref name="slot"/>.</summary>
+        public (Vector3 Point, Vector3 Normal) GetPlane(int slot) => (points[slot], normals[slot]);
 
         private void Trace(IParticleCollision collision, int slot, Vector3 origin, Vector3 direction)
         {
