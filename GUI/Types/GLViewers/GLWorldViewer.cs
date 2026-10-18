@@ -50,6 +50,7 @@ namespace GUI.Types.GLViewers
         private SimulationState simulationState;
         private int simulationRequest;
         private bool ignoreLayersChangeEvents = true;
+        private string[] unlistedEnabledLayers = [];
         private List<Matrix4x4> CameraMatrices = [];
         private WorldNodeLoader? LoadedWorldNode;
         public WorldLoader? LoadedWorld;
@@ -128,7 +129,7 @@ namespace GUI.Types.GLViewers
 
             UiControl.AddControl(exposureLabel);
 
-            var exposureSlider = UiControl.AddTrackBar((exposureAmount) =>
+            var exposureSlider = UiControl.AddTrackBar("Exposure", (exposureAmount) =>
             {
                 var exposure = exposureAmount * 10;
                 UpdateExposureText(exposure);
@@ -338,7 +339,7 @@ namespace GUI.Types.GLViewers
                     return;
                 }
 
-                SetEnabledLayers([.. worldLayers]);
+                SetEnabledLayers([.. worldLayers, .. unlistedEnabledLayers]);
             });
             physicsGroupsComboBox = UiControl.AddMultiSelection("Physics Groups", null, (physicsGroups) =>
             {
@@ -385,7 +386,7 @@ namespace GUI.Types.GLViewers
 
                 foreach (var node in Scene.AllNodes)
                 {
-                    if (node.LayerName?.StartsWith("Internal -", StringComparison.Ordinal) == true)
+                    if (node.LayerName != null && Scene.IsInternalLayer(node.LayerName))
                     {
                         continue;
                     }
@@ -408,6 +409,9 @@ namespace GUI.Types.GLViewers
                     worldLayersComboBox.BeginUpdate();
 
                     SetAvailableLayers(uniqueWorldLayers);
+
+                    // Layers that have no nodes yet, such as particles spawned later, are not listed and stay enabled
+                    unlistedEnabledLayers = [.. LoadedWorld.DefaultEnabledLayers.Where(layer => !uniqueWorldLayers.Contains(layer))];
 
                     foreach (var worldLayer in LoadedWorld.DefaultEnabledLayers)
                     {
@@ -703,7 +707,7 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        private void SelectAndFocusNode(SceneNode node)
+        internal void SelectAndFocusNode(SceneNode node)
         {
             ArgumentNullException.ThrowIfNull(node);
 
@@ -712,24 +716,8 @@ namespace GUI.Types.GLViewers
             EnsureNodeVisible(node);
         }
 
-        private static AABB SelectionBounds(SceneNode node)
-        {
-            var bbox = node.BoundingBox;
-            var maxSpan = bbox.Size.MaxComponent();
-
-            // Empty or degenerate bounds (e.g. a particle system that finished playing)
-            // would put the camera inside the node or at a garbage position.
-            if (!float.IsFinite(maxSpan) || maxSpan < 1f)
-            {
-                bbox = PointBounds(node.Transform.Translation);
-            }
-
-            // Bounds of a 3D sky node are mapped to where the sky appears in the world
-            return bbox.Transform(node.Scene.ToViewerWorld);
-        }
-
         /// <summary>Bounds to focus on for an entity that has no scene node, from its authored origin.</summary>
-        private AABB EntityOriginBounds(EntityLump.Entity entity)
+        internal AABB EntityOriginBounds(EntityLump.Entity entity)
         {
             var origin = entity.GetVector3Property("origin");
 
@@ -739,26 +727,6 @@ namespace GUI.Types.GLViewers
             }
 
             return PointBounds(origin);
-        }
-
-        private static AABB PointBounds(Vector3 point) => new(point - new Vector3(32f), point + new Vector3(32f));
-
-        private void FocusCameraOnBounds(in AABB bbox)
-        {
-            var center = bbox.Center;
-
-            var size = bbox.Size * 1.25f;
-
-            // Framed by what the bounds cover from where the camera will be: their longest axis would
-            // stand a cable or a trigger brush off by its own length. The floor keeps something player
-            // sized from filling the view with nothing around it to place it by.
-            var framing = Input.Camera.GetFramingDistance(size, -CameraPlacement.PreferredDirection(size));
-            var distance = Math.Max(framing, 192f);
-            var location = CameraPlacement.FindOrbitPosition(Renderer.EntitySystem.PhysicsWorld, center, distance, size);
-
-            Input.SaveCameraForTransition();
-            Input.Camera.SetLocation(location);
-            Input.Camera.LookAt(center);
         }
 
         private void EnsureNodeVisible(SceneNode node)
@@ -1040,8 +1008,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            var scenes = Renderer.Scenes;
-            var sceneNode = pixelInfo.SceneIndex < scenes.Count ? scenes[(int)pixelInfo.SceneIndex].Find(pixelInfo.ObjectId) : null;
+            var sceneNode = Renderer.FindPickedNode(result);
 
             if (sceneNode == null)
             {

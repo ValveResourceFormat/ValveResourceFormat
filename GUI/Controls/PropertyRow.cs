@@ -14,6 +14,9 @@ internal sealed class PropertyRow : Panel
     private readonly Control[] editors;
     private readonly Control[] trailing;
 
+    /// <summary>The controls that edit the value, beside the name, one for each component of a vector.</summary>
+    public IReadOnlyList<Control> Editors => editors;
+
     /// <summary>Where the name sits within its half of the row.</summary>
     public System.Drawing.ContentAlignment NameAlign
     {
@@ -42,6 +45,7 @@ internal sealed class PropertyRow : Panel
             };
 
             Controls.Add(nameLabel);
+            AccessibleName = name;
         }
 
         foreach (var control in editors)

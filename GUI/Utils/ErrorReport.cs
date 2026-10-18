@@ -110,6 +110,11 @@ static class ErrorReport
     /// <param name="report">The text in the expander, which the copy and report buttons place on the clipboard.</param>
     public static void ShowDialog(string heading, string text, string report)
     {
+        if (Automation.Automation.TryReportError($"{heading}: {text}{Environment.NewLine}{report}"))
+        {
+            return;
+        }
+
         ShowUpdateAfterError();
 
         var status = UpdateChecker.GetUpdateStatus();

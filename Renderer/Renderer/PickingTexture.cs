@@ -2,13 +2,14 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
+using ValveResourceFormat.Renderer.Editor.Picking;
 
 namespace ValveResourceFormat.Renderer;
 
 /// <summary>
 /// Framebuffer for GPU-based object picking using unique object IDs. Rendering the scene into it with
 /// <see cref="Shader"/> as the replacement shader writes each pixel's node and mesh, which
-/// <see cref="ReadPixel"/> reads back.
+/// <see cref="Read"/> reads back.
 /// </summary>
 public class PickingTexture : Framebuffer
 {
@@ -64,26 +65,34 @@ public class PickingTexture : Framebuffer
     }
 
     /// <summary>
-    /// Reads back the pixel at a cursor position, waiting for rendering into the framebuffer to finish.
+    /// Reads back the pixel and depth at a request's point, waiting for rendering into the framebuffer to finish.
     /// </summary>
-    /// <param name="x">Cursor X position in window coordinates.</param>
-    /// <param name="y">Cursor Y position in window coordinates, from the top.</param>
-    /// <returns>The node and mesh drawn at that pixel.</returns>
-    public PixelInfo ReadPixel(int x, int y)
+    /// <param name="request">The request, whose point is in window coordinates from the top.</param>
+    /// <returns>The node, mesh and depth drawn at that pixel.</returns>
+    internal PickResult Read(PickRequest request)
     {
         GL.Flush();
         GL.Finish();
 
-        y = Height - 1 - y; // flip y
+        var x = request.X;
+        var y = Height - 1 - request.Y; // flip y
         var pixelInfo = new PixelInfo();
+        var depth = 0f;
 
         Debug.Assert(ColorFormat is not null);
+
+        var previousReadFramebuffer = GL.GetInteger(GetPName.ReadFramebufferBinding);
+        GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, FboHandle);
 
         GL.NamedFramebufferReadBuffer(FboHandle, ReadBufferMode.ColorAttachment0);
         GL.ReadPixels(x, y, 1, 1, ColorFormat!.Value.ToGLPixelFormat(), ColorFormat.Value.ToGLPixelType(), ref pixelInfo);
         GL.NamedFramebufferReadBuffer(FboHandle, ReadBufferMode.None);
 
-        return pixelInfo;
+        GL.ReadPixels(x, y, 1, 1, PixelFormat.DepthComponent, PixelType.Float, ref depth);
+
+        GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, previousReadFramebuffer);
+
+        return new PickResult(request, pixelInfo, depth);
     }
 
     /// <summary>Updates <see cref="IsDebugActive"/> based on whether the current render mode matches the picking shader's supported modes.</summary>

@@ -29,7 +29,7 @@ namespace GUI.Types.GLViewers
 
         // Order matches the CS2 particle editor (PET): pre-emission first, then emit/init/operate,
         // forces, constraints, and renderers last.
-        private static readonly (string Title, string ListName, Func<string, bool> IsSupported)[] FunctionGroups =
+        internal static readonly (string Title, string ListName, Func<string, bool> IsSupported)[] FunctionGroups =
         [
             ("Pre-Emission Operators", "m_PreEmissionOperators", ParticleSupportInfo.IsPreEmissionOperatorSupported),
             ("Emitters", "m_Emitters", ParticleSupportInfo.IsEmitterSupported),
@@ -40,9 +40,9 @@ namespace GUI.Types.GLViewers
             ("Renderers", "m_Renderers", ParticleRendererFactory.IsSupported),
         ];
 
-        private readonly ParticleSystem particleSystem;
+        internal readonly ParticleSystem particleSystem;
         private readonly ParticleSnapshot? particleSnapshot;
-        private IReadOnlyDictionary<string, IReadOnlyList<ParticleUpgradeTrace.TracedFunction>>? functionLists;
+        internal IReadOnlyDictionary<string, IReadOnlyList<ParticleUpgradeTrace.TracedFunction>>? functionLists;
         private ParticleSceneNode? particleSceneNode;
         private GLViewerSliderControl? slowmodeTrackBar;
         private ThemedButton? restartButton;
@@ -218,7 +218,7 @@ namespace GUI.Types.GLViewers
                 UiControl.AddControl(pauseButton);
                 UiControl.AddControl(endCapButton);
 
-                slowmodeTrackBar = UiControl.AddTrackBar(value =>
+                slowmodeTrackBar = UiControl.AddTrackBar("Speed", value =>
                 {
                     particleSceneNode?.FrametimeMultiplier = value;
                 }, particleSceneNode?.FrametimeMultiplier ?? 1f);
@@ -375,19 +375,17 @@ namespace GUI.Types.GLViewers
             foreach (var function in functions)
             {
                 var displayName = StripClassPrefix(function.Class);
+                var support = GetFunctionSupport(function, isSupported);
 
-                if (function.RemovedByUpgrade)
+                if (support == FunctionSupport.Removed)
                 {
-                    listBox.Items.Add(new ParticleFunctionItem($"{displayName} (removed by upgrade)", FunctionSupport.Removed));
-                    continue;
+                    displayName = $"{displayName} (removed by upgrade)";
                 }
-
-                if (function.OriginalClass != null)
+                else if (function.OriginalClass != null)
                 {
                     displayName = $"{displayName} (was {StripClassPrefix(function.OriginalClass)})";
                 }
 
-                var support = isSupported(function.Class) ? FunctionSupport.Supported : FunctionSupport.Unsupported;
                 listBox.Items.Add(new ParticleFunctionItem(displayName, support));
             }
 
@@ -434,7 +432,25 @@ namespace GUI.Types.GLViewers
             return className;
         }
 
-        private enum FunctionSupport
+        /// <summary>Whether the viewer runs a particle function, or the format upgrade removed it.</summary>
+        /// <param name="function">The function as the upgrade left it.</param>
+        /// <param name="isSupported">Whether the viewer implements a class of the function's group.</param>
+        internal static FunctionSupport GetFunctionSupport(ParticleUpgradeTrace.TracedFunction function, Func<string, bool> isSupported)
+        {
+            if (function.RemovedByUpgrade)
+            {
+                return FunctionSupport.Removed;
+            }
+
+            if (isSupported(function.Class))
+            {
+                return FunctionSupport.Supported;
+            }
+
+            return FunctionSupport.Unsupported;
+        }
+
+        internal enum FunctionSupport
         {
             Supported,
             Unsupported,

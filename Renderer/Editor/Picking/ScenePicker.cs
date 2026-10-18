@@ -1,4 +1,5 @@
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace ValveResourceFormat.Renderer.Editor.Picking;
 
@@ -13,6 +14,9 @@ public enum PickIntent
 
     /// <summary>Show detailed information about the picked object.</summary>
     Details,
+
+    /// <summary>Only find what is drawn at the point. The viewer is not handed the result.</summary>
+    Query,
 }
 
 /// <summary>Modifier keys held when a pick was requested.</summary>
@@ -42,7 +46,8 @@ public readonly record struct PickRequest(int X, int Y, PickIntent Intent, PickM
 /// <summary>What a <see cref="PickRequest"/> found.</summary>
 /// <param name="Request">The request this answers.</param>
 /// <param name="Pixel">The node and mesh drawn at the requested point.</param>
-public readonly record struct PickResult(PickRequest Request, PickingTexture.PixelInfo Pixel)
+/// <param name="Depth">The window depth at the requested point, which is 0 where nothing was drawn.</param>
+public readonly record struct PickResult(PickRequest Request, PickingTexture.PixelInfo Pixel, float Depth)
 {
     /// <summary>Gets the intent of the request.</summary>
     public PickIntent Intent => Request.Intent;
@@ -62,10 +67,16 @@ public readonly record struct PickResult(PickRequest Request, PickingTexture.Pix
 /// </summary>
 public sealed class ScenePicker
 {
+    /// <summary>A queued request, with the completion of one made by <see cref="RequestAsync"/>.</summary>
+    private readonly record struct QueuedPick(PickRequest Request, TaskCompletionSource<PickResult>? Completion);
+
+    /// <summary>A result waiting to be handed over, with the completion of its request.</summary>
+    private readonly record struct ReadPick(PickResult Result, TaskCompletionSource<PickResult>? Completion);
+
     private readonly Lock requestLock = new();
-    private readonly List<PickRequest> pendingRequests = [];
-    private readonly List<PickRequest> frameRequests = [];
-    private readonly List<PickResult> results = [];
+    private readonly List<QueuedPick> pendingRequests = [];
+    private readonly List<QueuedPick> frameRequests = [];
+    private readonly List<ReadPick> results = [];
     private readonly Action<PickResult> onPicked;
 
     /// <summary>Gets the framebuffer the object id pass is drawn into.</summary>
@@ -103,7 +114,21 @@ public sealed class ScenePicker
         }
 
         using var _ = requestLock.EnterScope();
-        pendingRequests.Add(request);
+        pendingRequests.Add(new QueuedPick(request, null));
+    }
+
+    /// <summary>Queues a pick to be resolved on the next frame, even while picking is disabled.</summary>
+    /// <param name="request">The point to pick and what for.</param>
+    /// <returns>The result, once the viewer has handled it at the end of the frame.</returns>
+    internal Task<PickResult> RequestAsync(PickRequest request)
+    {
+        // Completed on the render thread in the middle of a frame, which must not run the awaiting code
+        var completion = new TaskCompletionSource<PickResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        using var _ = requestLock.EnterScope();
+        pendingRequests.Add(new QueuedPick(request, completion));
+
+        return completion.Task;
     }
 
     /// <summary>Resizes the picking framebuffer to the viewport.</summary>
@@ -134,15 +159,18 @@ public sealed class ScenePicker
             renderer.RenderScenesWithView(renderContext with { ReplacementShader = Texture.Shader, Framebuffer = Texture });
         }
 
-        foreach (var request in frameRequests)
+        foreach (var queued in frameRequests)
         {
-            results.Add(new PickResult(request, Texture.ReadPixel(request.X, request.Y)));
+            results.Add(new ReadPick(Texture.Read(queued.Request), queued.Completion));
         }
 
         frameRequests.Clear();
     }
 
-    /// <summary>Hands the results read back by <see cref="Render"/> to the viewer, in the order they were requested.</summary>
+    /// <summary>
+    /// Hands the results read back by <see cref="Render"/> to the viewer, in the order they were requested,
+    /// and then completes the requests that wait for them. Query results are not handed to the viewer.
+    /// </summary>
     public void DispatchResults()
     {
         if (results.Count == 0)
@@ -150,9 +178,14 @@ public sealed class ScenePicker
             return;
         }
 
-        foreach (var result in results)
+        foreach (var read in results)
         {
-            onPicked(result);
+            if (read.Result.Intent != PickIntent.Query)
+            {
+                onPicked(read.Result);
+            }
+
+            read.Completion?.SetResult(read.Result);
         }
 
         results.Clear();

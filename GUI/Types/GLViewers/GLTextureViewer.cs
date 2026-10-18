@@ -541,7 +541,7 @@ namespace GUI.Types.GLViewers
             UiControl.AddCheckBox("Autoplay", IsSpritePlaying, isChecked => IsSpritePlaying = isChecked);
             UiControl.AddCheckBox("Loop", SpriteLoop, isChecked => SpriteLoop = isChecked);
 
-            spriteFrameTrackBar = UiControl.AddTrackBar(value =>
+            spriteFrameTrackBar = UiControl.AddTrackBar("Sprite Frame", value =>
             {
                 var sequence = spriteSheetData.Sequences[SelectedSequence];
                 var frameCount = sequence.Frames.Length;
@@ -563,7 +563,7 @@ namespace GUI.Types.GLViewers
                 UpdateSpriteAnimationRate();
             });
 
-            spriteSpeedTrackBar = UiControl.AddTrackBar(value =>
+            spriteSpeedTrackBar = UiControl.AddTrackBar("Sprite Speed", value =>
             {
                 spriteRateSliderValue = value;
                 UpdateSpriteAnimationRate();

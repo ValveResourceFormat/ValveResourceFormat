@@ -51,7 +51,7 @@ namespace GUI.Types.GLViewers
         private bool modelStatsPosted;
         private string modelStatsText = string.Empty;
         private int statsLod = -1;
-        private ModelSceneNode? modelSceneNode;
+        internal ModelSceneNode? modelSceneNode;
         protected AnimationController? animationController;
         private AnimationGraph? animGraph;
         private GraphSession[] graphSessions = [];
@@ -206,7 +206,7 @@ namespace GUI.Types.GLViewers
                     animationController.IsPaused = !isChecked;
                 }
             });
-            animationTrackBar = UiControl.AddTrackBar(frame =>
+            animationTrackBar = UiControl.AddTrackBar("Animation Frame", frame =>
             {
                 if (animationController?.ActiveAnimation is { CycleFrames: > 0 } animation)
                 {
@@ -214,7 +214,7 @@ namespace GUI.Types.GLViewers
                 }
             });
 
-            slowmodeTrackBar = UiControl.AddTrackBar(value =>
+            slowmodeTrackBar = UiControl.AddTrackBar("Animation Speed", value =>
             {
                 animationController.FrametimeMultiplier = value;
             }, animationController.FrametimeMultiplier);

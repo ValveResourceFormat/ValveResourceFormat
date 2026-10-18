@@ -87,10 +87,13 @@ namespace ValveResourceFormat.Particles
             }
         }
 
-        private void SetupChildParticles(IEnumerable<KVObject> children)
+        private void SetupChildParticles(IReadOnlyList<KVObject> children)
         {
-            foreach (var childInfo in children)
+            childSlotCount = children.Count;
+
+            for (var slot = 0; slot < children.Count; slot++)
             {
+                var childInfo = children[slot];
                 var parse = new ParticleDefinitionParser(childInfo, logger, BehaviorVersion);
 
                 if (BehaviorVersion >= 5 && parse.Boolean("m_bDisableChild", false))
@@ -120,7 +123,8 @@ namespace ValveResourceFormat.Particles
                     MainControlPoint = MainControlPoint,
                     startDelay = parse.Float("m_flDelay", 0f),
                     isEndCapChild = parse.Boolean("m_bEndCap", false),
-                    detailLevel = parse.Enum("m_nDetailLevel", ParticleDetailLevel.PARTICLEDETAIL_LOW)
+                    detailLevel = parse.Enum("m_nDetailLevel", ParticleDetailLevel.PARTICLEDETAIL_LOW),
+                    childSlot = slot,
                 };
 
                 childSimulations.Add(childSystem);

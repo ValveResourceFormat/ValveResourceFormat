@@ -355,7 +355,7 @@ void Generate(Schema schema, string outputDir)
         var writer = new StringBuilder();
 
         // Nested types go inside partial declarations of the types they belong to
-        var outers = converter.OuterTypes(internalName);
+        var outers = Converter.OuterTypes(internalName);
         for (var i = 0; i < outers.Count; i++)
         {
             var indent = new string(' ', i * 4);
@@ -741,7 +741,7 @@ class Converter
     public string SimpleName(string internalName) => TypeReference(internalName).Split('.')[^1];
 
     /// <summary>The types a nested type is declared in, outermost first, by internal name.</summary>
-    public List<string> OuterTypes(string internalName)
+    public static List<string> OuterTypes(string internalName)
     {
         var parts = internalName.Split("__");
         List<string> outers = [];

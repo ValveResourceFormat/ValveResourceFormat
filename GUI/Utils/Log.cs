@@ -21,8 +21,18 @@ internal static class Log
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [{component}] {message}");
     }
 
+    [System.Diagnostics.Conditional("DEBUG")]
+    private static void AddToAutomationLog(Category category, string component, string message)
+    {
+#if DEBUG
+        Automation.AutomationLog.Add(category, component, message);
+#endif
+    }
+
     public static void Debug(string component, string message)
     {
+        AddToAutomationLog(Category.DEBUG, component, message);
+
         if (console == null)
         {
             WriteToConsole(component, message);
@@ -38,6 +48,8 @@ internal static class Log
 
     public static void Info(string component, string message)
     {
+        AddToAutomationLog(Category.INFO, component, message);
+
         if (console == null)
         {
             WriteToConsole(component, message);
@@ -49,6 +61,8 @@ internal static class Log
 
     public static void Warn(string component, string message)
     {
+        AddToAutomationLog(Category.WARN, component, message);
+
         if (console == null)
         {
             WriteToConsole(component, message);
@@ -60,6 +74,8 @@ internal static class Log
 
     public static void Error(string component, string message)
     {
+        AddToAutomationLog(Category.ERROR, component, message);
+
         if (console == null)
         {
             WriteToConsole(component, message);

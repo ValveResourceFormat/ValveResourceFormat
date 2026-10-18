@@ -156,18 +156,22 @@ namespace GUI.Utils
             {
                 Log.Error(nameof(Settings), $"Failed to parse '{SettingsFilePath}', is it corrupted?{Environment.NewLine}{e}");
 
-                try
+                // A run driven by automation keeps settings in memory and leaves the file alone
+                if (!Automation.Automation.IsEnabled)
                 {
-                    var corruptedPath = Path.ChangeExtension(SettingsFilePath, $".corrupted-{DateTimeOffset.Now.ToUnixTimeSeconds()}.txt");
-                    File.Move(SettingsFilePath, corruptedPath);
+                    try
+                    {
+                        var corruptedPath = Path.ChangeExtension(SettingsFilePath, $".corrupted-{DateTimeOffset.Now.ToUnixTimeSeconds()}.txt");
+                        File.Move(SettingsFilePath, corruptedPath);
 
-                    Log.Error(nameof(Settings), $"Corrupted '{Path.GetFileName(SettingsFilePath)}' has been renamed to '{Path.GetFileName(corruptedPath)}'.");
+                        Log.Error(nameof(Settings), $"Corrupted '{Path.GetFileName(SettingsFilePath)}' has been renamed to '{Path.GetFileName(corruptedPath)}'.");
 
-                    Save();
-                }
-                catch
-                {
-                    //
+                        Save();
+                    }
+                    catch
+                    {
+                        //
+                    }
                 }
             }
 
@@ -333,9 +337,15 @@ namespace GUI.Utils
 
         /// <summary>
         /// Serializes the current <see cref="Config"/> to disk, writing atomically via a temp file.
+        /// A run driven by automation keeps every change in memory instead.
         /// </summary>
         public static void Save()
         {
+            if (Automation.Automation.IsEnabled)
+            {
+                return;
+            }
+
             var tempFile = Path.GetTempFileName();
 
             using (var stream = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None))

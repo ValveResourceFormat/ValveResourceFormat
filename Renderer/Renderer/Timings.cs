@@ -10,7 +10,23 @@ namespace ValveResourceFormat.Renderer;
 public class Timings
 {
     private record struct TimingQuery(long StartTimestamp, bool SubmitGpuQueries, string Name, int Depth, QueryId Id, bool CpuOnly);
-    private readonly record struct TimingResult(string Name, double TimeMs, double TimeMsGpu, int Depth, QueryId Id, bool CpuOnly);
+    private readonly record struct TimingResult(string Name, double TimeMs, double TimeMsGpu, int Depth, QueryId Id, bool CpuOnly, bool GpuFresh = false);
+
+    private record struct AveragedRow(string Name, int Depth, bool CpuOnly, double CpuMs, int CpuSamples, double GpuMs, int GpuSamples);
+
+    /// <summary>Gets the average of a timed region over the frames since <see cref="StartAveraging"/>.</summary>
+    /// <param name="Name">Name of the region.</param>
+    /// <param name="Depth">How deep the region is nested in others.</param>
+    /// <param name="CpuMs">Average CPU milliseconds.</param>
+    /// <param name="CpuSamples">Frames the region ran in.</param>
+    /// <param name="GpuMs">Average GPU milliseconds, or null for a region that submits no GPU work or got no GPU reading.</param>
+    /// <param name="GpuSamples">GPU readings the average is made of. GPU times arrive a few frames late and not every frame.</param>
+    internal readonly record struct TimingAverage(string Name, int Depth, double CpuMs, int CpuSamples, double? GpuMs, int GpuSamples);
+
+    private SortedDictionary<QueryId, AveragedRow>? averaging;
+
+    /// <summary>Gets the number of frames summed since <see cref="StartAveraging"/>.</summary>
+    internal int AveragedFrames { get; private set; }
 
     private readonly Dictionary<QueryId, TimingQuery> activeQueries = [];
     private readonly Dictionary<QueryId, int> gpuStartQueries = [];
@@ -175,6 +191,7 @@ public class Timings
 
             // carry forward previous GPU time if new GPU time is not available
             var elapsedGpuMs = gpuTimingsCache.GetValueOrDefault(query.Id);
+            var gpuFresh = false;
 
             var startQueryId = gpuStartQueries[query.Id];
             var endQueryId = gpuEndQueries[query.Id];
@@ -200,6 +217,7 @@ public class Timings
                         {
                             elapsedGpuMs = (endTimestampGpu - startTimestampGpu) / 1_000_000.0; // convert nanoseconds to milliseconds
                             gpuTimingsCache[query.Id] = elapsedGpuMs;
+                            gpuFresh = true;
                             resubmitQueries = true;
                         }
                     }
@@ -208,7 +226,7 @@ public class Timings
 
             activeQueries[id] = query with { SubmitGpuQueries = resubmitQueries };
 
-            results[id] = new TimingResult(query.Name, elapsed.TotalMilliseconds, elapsedGpuMs, query.Depth, query.Id, CpuOnly: false);
+            results[id] = new TimingResult(query.Name, elapsed.TotalMilliseconds, elapsedGpuMs, query.Depth, query.Id, CpuOnly: false, gpuFresh);
         }
 
         currentDepth--;
@@ -405,8 +423,77 @@ public class Timings
                 }
             }
 
+            if (averaging != null)
+            {
+                AddToAverages();
+            }
+
             results.Clear();
         }
+    }
+
+    private void AddToAverages()
+    {
+        Debug.Assert(averaging != null);
+
+        AveragedFrames++;
+
+        foreach (var result in results.Values)
+        {
+            var row = averaging.GetValueOrDefault(result.Id);
+
+            // A region seen for the first time, or that took another name in a later frame, starts over
+            if (row.Name != result.Name)
+            {
+                row = new AveragedRow(result.Name, result.Depth, result.CpuOnly, 0.0, 0, 0.0, 0);
+            }
+
+            row.CpuMs += result.TimeMs;
+            row.CpuSamples++;
+
+            // Between readings the last GPU time is carried forward, which would count it more than once
+            if (result.GpuFresh)
+            {
+                row.GpuMs += result.TimeMsGpu;
+                row.GpuSamples++;
+            }
+
+            averaging[result.Id] = row;
+        }
+    }
+
+    /// <summary>
+    /// Starts summing every timed region of each frame, for <see cref="StopAveraging"/> to average.
+    /// Only collected while <see cref="Capture"/> is on. Call between frames.
+    /// </summary>
+    internal void StartAveraging()
+    {
+        averaging = [];
+        AveragedFrames = 0;
+    }
+
+    /// <summary>Stops summing, and returns each region's averages in frame order. Call between frames.</summary>
+    /// <returns>The averages, empty when nothing was timed.</returns>
+    internal List<TimingAverage> StopAveraging()
+    {
+        if (averaging == null)
+        {
+            return [];
+        }
+
+        var averages = new List<TimingAverage>(averaging.Count);
+
+        foreach (var row in averaging.Values)
+        {
+            var cpuMs = row.CpuMs / row.CpuSamples;
+            double? gpuMs = row.CpuOnly || row.GpuSamples == 0 ? null : row.GpuMs / row.GpuSamples;
+
+            averages.Add(new TimingAverage(row.Name, row.Depth, cpuMs, row.CpuSamples, gpuMs, row.GpuSamples));
+        }
+
+        averaging = null;
+
+        return averages;
     }
 
     /// <summary>

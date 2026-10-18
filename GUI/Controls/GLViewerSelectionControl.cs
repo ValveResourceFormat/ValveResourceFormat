@@ -28,6 +28,8 @@ namespace GUI.Controls
         {
             SuspendLayout();
 
+            comboBox.AccessibleName = name;
+
             if (horizontal)
             {
                 selectionNameLabel.Text = name;

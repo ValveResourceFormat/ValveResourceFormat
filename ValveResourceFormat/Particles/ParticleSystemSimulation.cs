@@ -12,6 +12,7 @@ using ValveResourceFormat.Particles.Operators;
 using ValveResourceFormat.Particles.PreEmissionOperators;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Particles
 {
@@ -115,6 +116,12 @@ namespace ValveResourceFormat.Particles
 
         /// <summary>The lowest detail tier this child appears at (<c>m_nDetailLevel</c>).</summary>
         private ParticleDetailLevel detailLevel;
+
+        /// <summary>This child's index in its parent's <c>m_Children</c>, counting the entries that were skipped.</summary>
+        private int childSlot;
+
+        /// <summary>How many entries <c>m_Children</c> lists, including those that were skipped.</summary>
+        private int childSlotCount;
 
         private readonly int initialParticles;
         private readonly int maxParticles;
@@ -276,6 +283,12 @@ namespace ValveResourceFormat.Particles
 
             SetupChildParticles(Functions("m_Children"));
 
+            // A child is seeded by the root it belongs to
+            if (parentSystemState == null)
+            {
+                SeedRandom(unchecked((int)StringToken.Get(Name)));
+            }
+
             CalculateBounds();
         }
 
@@ -298,6 +311,44 @@ namespace ValveResourceFormat.Particles
         {
             systemState.DetailLevel = level;
         }
+
+        /// <summary>
+        /// Seeds this system and its children and starts their draws over. As the engine does with a
+        /// given seed, every entry of <c>m_Children</c> steps the seed by 129, including entries that are
+        /// skipped, so the child in slot n takes the seed 129 * (n + 1) above it and this system the step
+        /// after the last slot. The engine seeds a new system from the clock; here it is seeded from its
+        /// name, so instances of one effect play out alike unless each is seeded apart, such as from
+        /// where it is placed.
+        /// </summary>
+        /// <param name="seed">Any value, of which the low 12 bits are used.</param>
+        internal void SeedRandom(int seed)
+        {
+            foreach (var child in childSimulations)
+            {
+                child.SeedRandom(ChildSeed(seed, child.childSlot));
+            }
+
+            systemState.Random.Start(ChildSeed(seed, childSlotCount - 1));
+        }
+
+        /// <summary>
+        /// Fixes the seed this system and its children start over from each time they replay, so every
+        /// replay plays out the same, with the children's seeds stepped as <see cref="SeedRandom"/> does.
+        /// Takes effect at the next replay.
+        /// </summary>
+        /// <param name="seed">The seed, or null to let each replay run on from the last as the engine does.</param>
+        internal void PinRandomSeed(int? seed)
+        {
+            foreach (var child in childSimulations)
+            {
+                child.PinRandomSeed(seed == null ? null : ChildSeed(seed.Value, child.childSlot));
+            }
+
+            systemState.Random.Pin(seed == null ? null : ChildSeed(seed.Value, childSlotCount - 1));
+        }
+
+        /// <summary>The seed of the <c>m_Children</c> entry in <paramref name="slot"/>, stepped from its parent's.</summary>
+        private static int ChildSeed(int seed, int slot) => unchecked(seed + (129 * (slot + 1)));
 
         /// <summary>The systems this one runs as children, in definition order.</summary>
         public IReadOnlyList<ParticleSystemSimulation> Children => childSimulations;

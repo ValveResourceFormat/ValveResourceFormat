@@ -191,7 +191,7 @@ namespace GUI.Forms
         /// and, for a resource, its type prefix (<c>resource_name:"particles/foo.vpcf"</c>), which is
         /// neither what the grid should show nor a path anything can be looked up by.
         /// </summary>
-        private static string? BareText(KVObject value)
+        internal static string? BareText(KVObject value)
             => value.ValueType == KVValueType.String ? (string)value : null;
 
         private void AddOutputConnection(Connection connectionData, List<Entity> targets)

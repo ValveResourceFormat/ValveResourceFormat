@@ -16,6 +16,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
     /// </summary>
     public partial class ModelSceneNode : MeshCollectionNode
     {
+        /// <summary>Gets the model resource this node renders.</summary>
+        internal Model Model { get; }
+
         /// <summary>Gets the animation controller managing skeletal pose and flex data for this model.</summary>
         public AnimationController AnimationController { get; }
 
@@ -52,6 +55,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public ModelSceneNode(Scene scene, Model model, string? skin = null, bool isWorldPreview = false)
             : base(scene)
         {
+            Model = model;
             materialGroups = model.GetMaterialGroups().ToArray();
             AnimationGraphReferences = model.AnimGraph2References;
             meshGroups = model.MeshGroups;

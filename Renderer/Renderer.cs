@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Reflection;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Renderer.Editor.Picking;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.PostProcess;
 using ValveResourceFormat.Renderer.SceneEnvironment;
@@ -109,6 +110,21 @@ public class Renderer : ISpawnGroupHost
         }
 
         return null;
+    }
+
+    /// <summary>Finds the node a pick found.</summary>
+    /// <param name="result">The result of the pick.</param>
+    /// <returns>The node, or <see langword="null"/> when the pick hit none.</returns>
+    internal SceneNode? FindPickedNode(PickResult result)
+    {
+        var pixel = result.Pixel;
+
+        if (result.HitNothing || pixel.SceneIndex >= scenes.Count)
+        {
+            return null;
+        }
+
+        return scenes[(int)pixel.SceneIndex].Find(pixel.ObjectId);
     }
 
     /// <summary>Finds a node by its entity's <c>targetname</c>, in whichever scene it went into.</summary>
@@ -1247,7 +1263,8 @@ public class Renderer : ISpawnGroupHost
 
             DrawThrough(mainView, mainState, ref renderContext);
 
-            if (!isWireframe)
+            // The sky draws with its own shader, which would write colors into the ids of a replacement pass
+            if (!isWireframe && renderContext.ReplacementShader == null)
             {
                 using (new GLDebugGroup("2D Sky Render"))
                 {

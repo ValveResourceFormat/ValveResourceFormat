@@ -28,8 +28,12 @@ namespace GUI
         internal ExplorerControl? explorerControl;
 
         private SearchForm? searchForm;
+
+        internal MainTabs Tabs => mainTabs;
+
 #pragma warning disable CA2213 // Disposed in OnFormClosing
         private Ipc.IpcWindow? ipcWindow;
+        private IDisposable? automationServer;
 #pragma warning restore CA2213
 
         static MainForm()
@@ -60,7 +64,14 @@ namespace GUI
             Themer.ApplyTheme(this);
 
 #if !SCREENSHOT_MODE
-            if (Settings.Config.WindowWidth > 0 && Settings.Config.WindowHeight > 0)
+            // Filling the screen rather than maximizing, because a maximized form is shown with
+            // SW_SHOWMAXIMIZED, which activates it whatever ShowWithoutActivation says
+            if (Automation.Automation.IsEnabled)
+            {
+                StartPosition = FormStartPosition.Manual;
+                Bounds = Screen.PrimaryScreen?.WorkingArea ?? Bounds;
+            }
+            else if (Settings.Config.WindowWidth > 0 && Settings.Config.WindowHeight > 0)
             {
                 StartPosition = FormStartPosition.Manual;
 
@@ -145,164 +156,158 @@ namespace GUI
 
         public void OpenCommandLineArgFiles(string[] args)
         {
-            for (var i = 0; i < args.Length; i++)
+            foreach (var arg in args)
             {
-                var file = args[i];
-                List<string> packagePaths = [];
-                var innerFile = file;
-
-                if (VpkLink.IsVpkLink(file))
+                try
                 {
-                    (packagePaths, innerFile) = VpkLink.Parse(file);
-
-                    if (packagePaths.Count == 0)
-                    {
-                        Log.Error(nameof(MainForm), $"For vpk: protocol to work, specify a file path inside of the package, for example: \"vpk:C:/path/pak01_dir.vpk:inner/file.vmdl_c\"");
-                        file = innerFile;
-                    }
+                    OpenCommandLineArgFile(arg);
                 }
-
-                if (packagePaths.Count > 0)
+                catch (MissingFileException e)
                 {
-                    file = packagePaths[0];
-                }
-
-                // Paths can be relative to a Steam app, such as "steam:730/game/csgo/pak01_dir.vpk"
-                if (!GameFolderLocator.TryResolveSteamAppPath(file, out file, out var steamAppPathError))
-                {
-                    Log.Error(nameof(MainForm), steamAppPathError);
+                    Log.Error(nameof(MainForm), e.Message);
                     mainTabs.OpenTab("Console");
-                    continue;
                 }
-
-                if (packagePaths.Count > 0)
-                {
-                    if (!File.Exists(file))
-                    {
-                        var dirFile = PackageFileNames.GetDirectoryFile(file);
-
-                        if (!File.Exists(dirFile))
-                        {
-                            Log.Error(nameof(MainForm), $"File '{file}' does not exist.");
-                            mainTabs.OpenTab("Console");
-                            continue;
-                        }
-
-                        file = dirFile;
-                    }
-
-                    file = Path.GetFullPath(file);
-                    Log.Info(nameof(MainForm), $"Opening {VrfGuiContext.GetDisplayPath(file)}");
-
-                    VrfGuiContext? packageContext = null;
-
-                    try
-                    {
-                        var package = new Package();
-                        try
-                        {
-                            package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                            package.Read(file);
-                            packageContext = new VrfGuiContext(file, null)
-                            {
-                                CurrentPackage = package
-                            };
-                            package = null;
-                        }
-                        finally
-                        {
-                            package?.Dispose();
-                        }
-
-                        var missingFile = false;
-
-                        for (var depth = 1; depth < packagePaths.Count; depth++)
-                        {
-                            var nestedPath = packagePaths[depth];
-                            var nestedEntry = packageContext.CurrentPackage!.FindEntry(nestedPath);
-
-                            if (nestedEntry == null)
-                            {
-                                Log.Error(nameof(MainForm), $"File '{nestedPath}' does not exist in package '{packageContext.FileName}'.");
-                                mainTabs.OpenTab("Console");
-                                missingFile = true;
-                                break;
-                            }
-
-                            var nestedPackage = new Package();
-                            try
-                            {
-                                nestedPackage.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                                nestedPackage.SetFileName(nestedPath);
-                                nestedPackage.Read(GameFileLoader.GetPackageEntryStream(packageContext.CurrentPackage!, nestedEntry));
-                                packageContext = new VrfGuiContext(nestedPath, packageContext)
-                                {
-                                    CurrentPackage = nestedPackage
-                                };
-                                nestedPackage = null;
-                            }
-                            finally
-                            {
-                                nestedPackage?.Dispose();
-                            }
-                        }
-
-                        if (missingFile)
-                        {
-                            continue;
-                        }
-
-                        var packageFile = packageContext.CurrentPackage!.FindEntry(innerFile)
-                            ?? packageContext.CurrentPackage.FindEntry(innerFile + GameFileLoader.CompiledFileSuffix);
-
-                        if (packageFile == null)
-                        {
-                            Log.Error(nameof(MainForm), $"File '{innerFile}' does not exist in package '{packageContext.FileName}'.");
-                            mainTabs.OpenTab("Console");
-                            continue;
-                        }
-
-                        innerFile = packageFile.GetFullPath();
-
-                        Log.Info(nameof(MainForm), $"Opening {innerFile}");
-
-                        var fileContext = new VrfGuiContext(innerFile, packageContext);
-
-                        try
-                        {
-                            OpenFile(fileContext, packageFile);
-                            fileContext = null;
-                        }
-                        finally
-                        {
-                            fileContext?.Dispose();
-                        }
-                    }
-                    finally
-                    {
-                        // Contexts still referenced by an opened tab are only marked here and dispose when the tab closes
-                        for (var context = packageContext; context != null; context = context.ParentGuiContext)
-                        {
-                            context.Dispose();
-                        }
-                    }
-
-                    continue;
-                }
-
-                if (!File.Exists(file))
-                {
-                    Log.Error(nameof(MainForm), $"File '{file}' does not exist.");
-                    mainTabs.OpenTab("Console");
-                    continue;
-                }
-
-                file = Path.GetFullPath(file);
-                OpenFile(file);
             }
 
             OnMainSelectedTabChanged(null, EventArgs.Empty);
         }
+
+        /// <summary>A file named on the command line, or a package on the way to it, that was not found.</summary>
+#pragma warning disable CA1032 // Implement standard exception constructors
+        private sealed class MissingFileException(string message) : FileNotFoundException(message);
+#pragma warning restore CA1032
+
+        /// <summary>Opens a path or a vpk: link as given on the command line in a new tab, and returns the tab.</summary>
+        /// <exception cref="FileNotFoundException">The file, the Steam app it is in, or a package on the way to it was not found.</exception>
+        internal TabPage OpenCommandLineArgFile(string file)
+        {
+            List<string> packagePaths = [];
+            var innerFile = file;
+
+            if (VpkLink.IsVpkLink(file))
+            {
+                (packagePaths, innerFile) = VpkLink.Parse(file);
+
+                if (packagePaths.Count == 0)
+                {
+                    Log.Error(nameof(MainForm), $"For vpk: protocol to work, specify a file path inside of the package, for example: \"vpk:C:/path/pak01_dir.vpk:inner/file.vmdl_c\"");
+                    file = innerFile;
+                }
+            }
+
+            if (packagePaths.Count > 0)
+            {
+                file = packagePaths[0];
+            }
+
+            // Paths can be relative to a Steam app, such as "steam:730/game/csgo/pak01_dir.vpk"
+            if (!GameFolderLocator.TryResolveSteamAppPath(file, out file, out var steamAppPathError))
+            {
+                throw new MissingFileException(steamAppPathError);
+            }
+
+            if (packagePaths.Count == 0)
+            {
+                if (!File.Exists(file))
+                {
+                    throw new MissingFileException($"File '{file}' does not exist.");
+                }
+
+                return OpenFile(Path.GetFullPath(file));
+            }
+
+            if (!File.Exists(file))
+            {
+                var dirFile = PackageFileNames.GetDirectoryFile(file);
+
+                if (!File.Exists(dirFile))
+                {
+                    throw new MissingFileException($"File '{file}' does not exist.");
+                }
+
+                file = dirFile;
+            }
+
+            file = Path.GetFullPath(file);
+            Log.Info(nameof(MainForm), $"Opening {VrfGuiContext.GetDisplayPath(file)}");
+
+            VrfGuiContext? packageContext = null;
+
+            try
+            {
+                var package = new Package();
+                try
+                {
+                    package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
+                    package.Read(file);
+                    packageContext = new VrfGuiContext(file, null)
+                    {
+                        CurrentPackage = package
+                    };
+                    package = null;
+                }
+                finally
+                {
+                    package?.Dispose();
+                }
+
+                for (var depth = 1; depth < packagePaths.Count; depth++)
+                {
+                    var nestedPath = packagePaths[depth];
+                    var nestedEntry = packageContext.CurrentPackage!.FindEntry(nestedPath)
+                        ?? throw new MissingFileException($"File '{nestedPath}' does not exist in package '{packageContext.FileName}'.");
+
+                    var nestedPackage = new Package();
+                    try
+                    {
+                        nestedPackage.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
+                        nestedPackage.SetFileName(nestedPath);
+                        nestedPackage.Read(GameFileLoader.GetPackageEntryStream(packageContext.CurrentPackage!, nestedEntry));
+                        packageContext = new VrfGuiContext(nestedPath, packageContext)
+                        {
+                            CurrentPackage = nestedPackage
+                        };
+                        nestedPackage = null;
+                    }
+                    finally
+                    {
+                        nestedPackage?.Dispose();
+                    }
+                }
+
+                var packageFile = packageContext.CurrentPackage!.FindEntry(innerFile)
+                    ?? packageContext.CurrentPackage.FindEntry(innerFile + GameFileLoader.CompiledFileSuffix)
+                    ?? throw new MissingFileException($"File '{innerFile}' does not exist in package '{packageContext.FileName}'.");
+
+                innerFile = packageFile.GetFullPath();
+
+                Log.Info(nameof(MainForm), $"Opening {innerFile}");
+
+                var fileContext = new VrfGuiContext(innerFile, packageContext);
+
+                try
+                {
+                    var tab = OpenFile(fileContext, packageFile);
+                    fileContext = null;
+                    return tab;
+                }
+                finally
+                {
+                    fileContext?.Dispose();
+                }
+            }
+            finally
+            {
+                // Contexts still referenced by an opened tab are only marked here and dispose when the tab closes
+                for (var context = packageContext; context != null; context = context.ParentGuiContext)
+                {
+                    context.Dispose();
+                }
+            }
+        }
+
+        /// <summary>Automation renders and captures without focus, so it does not take the foreground.</summary>
+        protected override bool ShowWithoutActivation => Automation.Automation.IsEnabled;
 
         protected override void OnLoad(EventArgs e)
         {
@@ -327,7 +332,7 @@ namespace GUI
                     sizeof(Windows.Win32.Graphics.Dwm.DWM_WINDOW_CORNER_PREFERENCE));
             }
 #else
-            if (StartPosition == FormStartPosition.Manual)
+            if (StartPosition == FormStartPosition.Manual && !Automation.Automation.IsEnabled)
             {
                 var maximized = WindowState == FormWindowState.Maximized;
                 var placement = new WINDOWPLACEMENT
@@ -347,7 +352,22 @@ namespace GUI
             }
 #endif
 
+            automationServer = Automation.Automation.Start();
+
             NativeWindowFactory.WarmUpInBackground();
+
+            // Automation opens what it is told to and nothing else. The explorer would focus its filter box
+            // on load, which activates the window, and without the IPC window files the user opens go to
+            // another instance.
+            if (Automation.Automation.IsEnabled)
+            {
+                if (Args.Length > 0)
+                {
+                    OpenCommandLineArgFiles(Args);
+                }
+
+                return;
+            }
 
             if (Settings.IsFirstStartup)
             {
@@ -394,6 +414,7 @@ namespace GUI
 #endif
 
             ipcWindow?.Dispose();
+            automationServer?.Dispose();
 
             Settings.Save();
             base.OnFormClosing(e);
@@ -475,21 +496,23 @@ namespace GUI
         /// </summary>
         public void ShowSelectedTabKeybindings() => UpdateBottomPanelKeybindings();
 
-        private void CloseAndReOpenActiveTab()
+        /// <summary>Reopens the active tab from its file, returning the new tab, or null when nothing was reopened.</summary>
+        internal TabPage? CloseAndReOpenActiveTab()
         {
             var tab = mainTabs.SelectedTab;
             if (tab is null || tab.Tag is not ExportData exportData)
             {
-                return;
+                return null;
             }
 
             if (exportData.PackageEntry is { } packageEntry && exportData.VrfGuiContext.ParentGuiContext is { } packageContext)
             {
                 var fileContext = new VrfGuiContext(packageEntry.GetFullPath(), packageContext);
+                TabPage reopened;
 
                 try
                 {
-                    OpenFile(fileContext, packageEntry);
+                    reopened = OpenFile(fileContext, packageEntry);
                     fileContext = null;
                 }
                 finally
@@ -498,16 +521,19 @@ namespace GUI
                 }
 
                 mainTabs.CloseTab(tab);
-                return;
+                return reopened;
             }
 
             var (newFileContext, newPackageEntry) = exportData.VrfGuiContext.FindFileWithContext(exportData.VrfGuiContext.FileName);
 
-            if (newFileContext != null)
+            if (newFileContext == null)
             {
-                OpenFile(newFileContext, newPackageEntry);
-                mainTabs.CloseTab(tab);
+                return null;
             }
+
+            var newTab = OpenFile(newFileContext, newPackageEntry);
+            mainTabs.CloseTab(tab);
+            return newTab;
         }
 
         private void CloseAllTabs()
@@ -671,7 +697,7 @@ namespace GUI
             }
         }
 
-        public void OpenFile(string fileName)
+        public TabPage OpenFile(string fileName)
         {
             if (PackageFileNames.IsArchiveChunk(fileName))
             {
@@ -688,12 +714,14 @@ namespace GUI
 
             Log.Info(nameof(MainForm), $"Opening {vrfGuiContext.DisplayPath}");
 
-            OpenFile(vrfGuiContext, null, loadSearchPaths: true);
+            var tab = OpenFile(vrfGuiContext, null, loadSearchPaths: true);
 
             Settings.TrackRecentFile(fileName);
+
+            return tab;
         }
 
-        public void OpenFile(VrfGuiContext vrfGuiContext, PackageEntry? file, TreeViewWithSearchResults? packageTreeView = null, bool withoutViewer = false, bool loadSearchPaths = false)
+        public TabPage OpenFile(VrfGuiContext vrfGuiContext, PackageEntry? file, TreeViewWithSearchResults? packageTreeView = null, bool withoutViewer = false, bool loadSearchPaths = false)
         {
             var isPreview = packageTreeView != null;
 
@@ -704,14 +732,16 @@ namespace GUI
                 (_, _) => ResourceViewMode.Default,
             };
 
+            var tabExportData = new ExportData
+            {
+                PackageEntry = file,
+                VrfGuiContext = vrfGuiContext,
+            };
+
             var tabTemp = new ThemedTabPage(Path.GetFileName(vrfGuiContext.FileName))
             {
                 ToolTipText = vrfGuiContext.FileName,
-                Tag = new ExportData
-                {
-                    PackageEntry = file,
-                    VrfGuiContext = vrfGuiContext,
-                }
+                Tag = tabExportData,
             };
             var tab = tabTemp;
             tab.Disposed += OnTabDisposed;
@@ -798,12 +828,14 @@ namespace GUI
 
                     if (!packageTreeView.ReplaceListViewWithControl(tab, file?.TypeName))
                     {
-                        return;
+                        tabExportData.SetLoaded(null);
+                        return tab;
                     }
                 }
             }
 
             Types.Viewers.IViewer? createdViewer = null;
+            Exception? createError = null;
 
             var taskLoad = Task.Run(() =>
             {
@@ -873,6 +905,8 @@ namespace GUI
                         }
                         catch (Exception ex)
                         {
+                            createError = ex;
+
                             var control = CodeTextBox.CreateFromException(ex, vrfGuiContext.DisplayPath);
 
                             tab.Controls.Add(control);
@@ -940,6 +974,10 @@ namespace GUI
                 {
                     vrfGuiContext.LoadingProgress = null;
 
+                    // A faulted load cancels this continuation's antecedent, so the reason is on
+                    // the load task itself.
+                    var loadError = taskLoad.Exception?.Flatten().InnerException ?? createError;
+
                     if (tab.IsDisposed)
                     {
                         loadingFile?.Dispose();
@@ -951,6 +989,7 @@ namespace GUI
 
                         if (!packageTreeView.ReplaceListViewWithControl(tab, file?.TypeName))
                         {
+                            tabExportData.SetLoaded(loadError);
                             return;
                         }
                     }
@@ -963,8 +1002,12 @@ namespace GUI
                     // Revealing the viewer does not reliably deliver a paint to the underlying GL control, so tell
                     // the viewer to redraw now that it is visible.
                     createdViewer?.NotifyVisible();
+
+                    tabExportData.SetLoaded(loadError);
                 });
             });
+
+            return tab;
         }
 
         private void MainForm_DragDrop(object sender, DragEventArgs e)

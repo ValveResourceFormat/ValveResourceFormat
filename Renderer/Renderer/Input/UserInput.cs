@@ -412,7 +412,7 @@ public class UserInput
     /// <summary>
     /// Switches to noclip mode and begins a smooth camera transition from the current position.
     /// </summary>
-    /// <param name="transitionDuration">Duration of the transition animation in seconds.</param>
+    /// <param name="transitionDuration">Duration of the transition animation in seconds. Zero shows the camera where it is placed at once, cancelling a transition that is running.</param>
     /// <param name="exitWalkMode">Whether to leave walk mode; pass false to teleport the player instead.</param>
     public void SaveCameraForTransition(float transitionDuration = 1.5f, bool exitWalkMode = true)
     {
@@ -448,6 +448,16 @@ public class UserInput
 
     private void TransitionCamera(float transitionDuration = 1.5f)
     {
+        if (transitionDuration <= 0f)
+        {
+            TransitionEndTime = -1f;
+
+            // Without the mouse over the viewport nothing else ticks the input, and the render camera
+            // would keep showing the pose the view was left at
+            ForceUpdate = true;
+            return;
+        }
+
         StartingCamera = GetInterpolatedCamera();
         TransitionDuration = transitionDuration;
         TransitionEndTime = Renderer.Uptime + transitionDuration;

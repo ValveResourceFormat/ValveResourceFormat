@@ -393,6 +393,7 @@ partial class RendererControl : UserControl
             AutoSize = true,
             ForeColor = Themer.CurrentThemeColors.ContrastSoft,
             Margin = Padding.Empty,
+            AccessibleRole = AccessibleRole.Grouping,
         };
 
         // Derived from the sidebar font once parented, since an unparented label only knows the system default
@@ -473,9 +474,10 @@ partial class RendererControl : UserControl
         return selectionControl;
     }
 
-    public GLViewerSliderControl AddTrackBar(Action<float> changeCallback, float defaultValue = 0f)
+    public GLViewerSliderControl AddTrackBar(string name, Action<float> changeCallback, float defaultValue = 0f)
     {
         var trackBar = new GLViewerSliderControl();
+        trackBar.Slider.AccessibleName = name;
         trackBar.Slider.Value = defaultValue;
         trackBar.Slider.ValueChanged = changeCallback;
 
@@ -505,6 +507,7 @@ partial class RendererControl : UserControl
             Value = startValue,
             Dock = DockStyle.Right,
             Padding = new Padding(0, 0, 4, 0),
+            AccessibleName = name,
         };
 
         numeric.Width = numeric.AdjustForDPI(50);
@@ -622,6 +625,7 @@ partial class RendererControl : UserControl
             ItemHeight = this.AdjustForDPI(20),
             Margin = new Padding(this.AdjustForDPI(2), 0, this.AdjustForDPI(2), 0),
             DefaultItemText = defaultItemText,
+            AccessibleName = defaultItemText,
         };
 
         comboBox.SelectedIndexChanged += (_, _) =>
@@ -648,6 +652,7 @@ partial class RendererControl : UserControl
     private void AddToolbarItem(ThemedButton button, string text, bool centered = false)
     {
         button.Text = text;
+        button.AccessibleName = text;
         button.AutoSize = true;
         button.AutoSizeMode = AutoSizeMode.GrowAndShrink;
         button.MinimumSize = new Size(0, this.AdjustForDPI(ToolbarItemHeight));
@@ -675,6 +680,7 @@ partial class RendererControl : UserControl
             Height = this.AdjustForDPI(ToolbarItemHeight) + padding * 2,
             Padding = new Padding(padding),
             Font = controlsPanel.Font,
+            AccessibleRole = AccessibleRole.ToolBar,
         };
 
         var items = new FlowLayoutPanel

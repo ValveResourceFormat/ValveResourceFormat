@@ -211,9 +211,23 @@ namespace GUI.Types.GLViewers
             {
                 isPaused = true;
                 renderSignal.Reset();
+                KeepDrawingForFrameRequests(ref isPaused);
             }
 
-            return control.Draw(isPaused);
+            OnFrameStarting(control);
+
+            var presented = control.Draw(isPaused);
+
+            OnFrameDrawn(control);
+
+            return presented;
         }
+
+        // Implemented by automation in debug builds only; elsewhere these calls are compiled out
+        static partial void KeepDrawingForFrameRequests(ref bool isPaused);
+
+        static partial void OnFrameStarting(GLBaseControl control);
+
+        static partial void OnFrameDrawn(GLBaseControl control);
     }
 }

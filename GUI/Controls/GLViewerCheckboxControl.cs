@@ -15,6 +15,7 @@ namespace GUI.Controls
             : this()
         {
             checkBox.Text = name;
+            checkBox.AccessibleName = name;
             checkBox.Checked = isChecked;
         }
     }

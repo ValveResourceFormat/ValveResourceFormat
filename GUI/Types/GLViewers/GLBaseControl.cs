@@ -17,12 +17,12 @@ namespace GUI.Types.GLViewers;
 
 internal abstract class GLBaseControl : IDisposable, IMessageFilter
 {
-    protected RendererControl? UiControl;
+    protected internal RendererControl? UiControl;
 
     protected OpenTK.Windowing.Desktop.NativeWindow? GLNativeWindow;
 
     /// <summary>The command stream this control records into, over <see cref="GLNativeWindow"/>.</summary>
-    protected GraphicsContext? GraphicsContext;
+    protected internal GraphicsContext? GraphicsContext;
     public GLControl? GLControl { get; private set; }
 
     protected Form? FullScreenForm { get; private set; }
@@ -110,7 +110,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
     protected long lastFpsUpdate;
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2213:Disposable fields should be disposed", Justification = "RendererContext is disposed in Dispose method")]
-    protected RendererContext RendererContext;
+    protected internal RendererContext RendererContext;
 
     protected Framebuffer? GLDefaultFramebuffer;
     protected Framebuffer? MainFramebuffer;
@@ -452,6 +452,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         }
 
         NativeWindowFactory.Destroy(GLNativeWindow);
+        GraphicsContext = null;
         RendererContext.Dispose();
     }
 
@@ -796,7 +797,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
     private void OnGlControlPaint(object? sender, EventArgs e) => AttachToRenderLoop();
 
-    private void AttachToRenderLoop()
+    internal void AttachToRenderLoop()
     {
         if (!RenderLoopThread.IsCurrentGLControl(this))
         {
@@ -805,6 +806,9 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         RenderLoopThread.SetCurrentGLControl(this);
     }
+
+    // Only reapplied when the setting changes, so a field of view set on the viewer itself survives switching tabs
+    private float appliedFieldOfView;
 
     /// <summary>Push user settings into the render state.</summary>
     private void ApplySettingsToRenderState()
@@ -815,18 +819,24 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         if (this is GLSceneViewer viewer)
         {
-            RendererContext.FieldOfView = Settings.Config.FieldOfView;
             RendererContext.ViewmodelFieldOfView = Settings.Config.ViewmodelFieldOfView;
-            viewer.Renderer.Camera.FieldOfView = Settings.Config.FieldOfView;
-            viewer.Renderer.Camera.CreateProjectionMatrix();
 
-            // The input camera frames objects using its own field of view, so it follows the setting too
-            viewer.Input.Camera.FieldOfView = Settings.Config.FieldOfView;
-            viewer.Input.Camera.CreateProjectionMatrix();
+            var fieldOfView = Settings.Config.FieldOfView;
+
+            if (fieldOfView != appliedFieldOfView)
+            {
+                appliedFieldOfView = fieldOfView;
+                viewer.SetFieldOfView(fieldOfView);
+            }
         }
     }
 
     protected bool ShouldResize;
+
+#if DEBUG
+    /// <summary>How many frames have been painted, presented or not.</summary>
+    public long PaintedFrames { get; private set; }
+#endif
 
     protected bool SkipBufferSwap;
 
@@ -927,6 +937,15 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
                 Title = "Source 2 Viewer OpenGL",
             };
             GLNativeWindow = NativeWindowFactory.Create(settings);
+
+            // Showing a GLFW window also focuses it, which takes the foreground when Windows allows it
+            if (Automation.Automation.IsEnabled)
+            {
+                unsafe
+                {
+                    OpenTK.Windowing.GraphicsLibraryFramework.GLFW.SetWindowAttrib(GLNativeWindow.WindowPtr, OpenTK.Windowing.GraphicsLibraryFramework.WindowAttribute.FocusOnShow, false);
+                }
+            }
 
             GLNativeWindow.Context.MakeNoneCurrent();
         });
@@ -1069,7 +1088,8 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         }
 
 #if DEBUG
-        if (type == DebugType.DebugTypeError && source != DebugSource.DebugSourceShaderCompiler)
+        // Without a debugger to catch it, breaking would stop the viewer at a system dialog
+        if (type == DebugType.DebugTypeError && source != DebugSource.DebugSourceShaderCompiler && Debugger.IsAttached)
         {
             Debugger.Break();
         }
@@ -1131,6 +1151,10 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         OnPaint(frameTime);
 
+#if DEBUG
+        PaintedFrames++;
+#endif
+
         if (SkipBufferSwap)
         {
             SkipBufferSwap = false;
@@ -1165,15 +1189,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         //
     }
 
-    public GLLockScope MakeCurrent()
-    {
-        if (GraphicsContext == null)
-        {
-            throw new InvalidOperationException("Cannot acquire GLLockScope without a valid GLNativeWindow.");
-        }
-
-        return new GLLockScope(glLock, GraphicsContext);
-    }
+    public GLLockScope MakeCurrent() => new(glLock, this);
 
     static bool loadedBindings;
     private static void LoadOpenGLBindings()
@@ -1182,7 +1198,13 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         GL.LoadBindings(provider);
     }
 
-    protected virtual SkiaSharp.SKBitmap? ReadPixelsToBitmap()
+    /// <summary>Captures what the viewer exports as an image, which by default is the frame the window shows.</summary>
+    protected virtual SkiaSharp.SKBitmap? ReadPixelsToBitmap() => ReadWindowPixels();
+
+    internal SkiaSharp.SKBitmap? CaptureFrame() => ReadPixelsToBitmap();
+
+    /// <summary>Reads back the frame as the window shows it.</summary>
+    internal SkiaSharp.SKBitmap? ReadWindowPixels()
     {
         if (GLDefaultFramebuffer is null)
         {

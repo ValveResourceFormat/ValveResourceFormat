@@ -15,6 +15,7 @@ namespace GUI.Controls
             : this()
         {
             groupBox.Text = name;
+            checkedListBox.AccessibleName = name;
         }
     }
 }

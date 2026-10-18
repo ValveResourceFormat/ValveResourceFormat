@@ -1753,6 +1753,13 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>
+        /// Gets whether a layer is internal to the renderer. Internal layers are switched one at a time rather
+        /// than by <see cref="SetEnabledLayers"/>, and are not offered to the user.
+        /// </summary>
+        /// <param name="layerName">The layer name of a node.</param>
+        internal static bool IsInternalLayer(string layerName) => layerName.StartsWith("Internal -", StringComparison.Ordinal);
+
         private void ApplyLayerVisibility(SceneNode node)
         {
             if (enabledLayers == null)
@@ -1766,7 +1773,7 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            if (node.LayerName.StartsWith("Internal -", StringComparison.Ordinal))
+            if (IsInternalLayer(node.LayerName))
             {
                 return;
             }
