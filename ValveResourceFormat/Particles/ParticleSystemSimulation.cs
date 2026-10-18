@@ -30,25 +30,63 @@ namespace ValveResourceFormat.Particles
 
         private readonly List<ParticleFunctionOperator> operators = [];
 
-        // Run by C_OP_BasicMovement (not the operator loop): each of its instances asks every force
-        // generator to add accelerations into Particle.ForceAccumulator, then integrates and clears it.
+        /// <summary>Run by <see cref="BasicMovement"/> rather than the operator loop.</summary>
         internal readonly List<ParticleFunctionForceGenerator> ForceGenerators = [];
 
         private readonly List<ParticleFunctionConstraint> constraints = [];
 
-        // Caps pre-simulation substeps for pathological content; the largest shipped effect needs 1500
-        // (15s at 0.01 step).
+        /// <summary>The most substeps a pre-simulation runs; earlier time is skipped.</summary>
         private const int MaxPreSimulationSteps = 2048;
-
-        // Upper bound on constraint work-list rounds per frame (m_nMaxConstraintPasses, default 3).
-        // A lone constraint settles in one round; the bound only matters when multiple constraints
-        // invalidate each other. ReadConstraintPasses returns 1 for systems with no constraints.
-        private readonly int constraintPasses;
 
         private const string UnsupportedClassWarning = "Unsupported {ComponentType} class '{ClassName}' {File}";
 
-        /// <summary>The box containing the system's particles, relative to its first control point.</summary>
-        public AABB LocalBoundingBox { get; private set; } = new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue));
+        /// <summary>
+        /// Classes that only exist in a range of behavior versions, as (class, first version, last
+        /// version). Outside its range a function is dropped.
+        /// </summary>
+        private static readonly (string ClassName, int MinVersion, int MaxVersion)[] ClassVersionRanges =
+        [
+            ("C_INIT_CreateSequentialPath", int.MinValue, 7),
+            ("C_INIT_CreateSequentialPathV2", 8, int.MaxValue),
+            ("C_OP_InheritFromParentParticles", int.MinValue, 8),
+            ("C_OP_InheritFromParentParticlesV2", 9, int.MaxValue),
+            ("C_OP_LockToSavedSequentialPath", int.MinValue, 7),
+            ("C_OP_LockToSavedSequentialPathV2", 8, int.MaxValue),
+        ];
+
+        private AABB bounds;
+        private bool boundsValid;
+
+        /// <summary>
+        /// The box containing the system's particles and those of its children, relative to its first
+        /// control point. Empty at that control point while there is nothing to bound, and unbounded
+        /// before the first frame.
+        /// </summary>
+        public AABB LocalBoundingBox
+        {
+            get
+            {
+                if (infiniteBounds || !boundsComputed)
+                {
+                    return new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue));
+                }
+
+                return boundsValid ? bounds.Translate(-MainControlPoint.Position) : new AABB(Vector3.Zero, Vector3.Zero);
+            }
+        }
+
+        /// <summary>
+        /// The world-space box last calculated for the system, kept while it has nothing to bound.
+        /// </summary>
+        internal AABB WorldBounds => bounds;
+
+        /// <summary>
+        /// The world-space box around the system's particles and children while it is valid, or null.
+        /// A system with infinite bounds has one from the start, covering everything.
+        /// </summary>
+        internal AABB? WorldBoundingBox => infiniteBounds
+            ? new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue))
+            : boundsComputed && boundsValid ? bounds : null;
 
         /// <summary>
         /// The squared camera distance past which the system is not drawn (<c>m_flMaxDrawDistance</c>),
@@ -70,8 +108,8 @@ namespace ValveResourceFormat.Particles
                 return true;
             }
 
-            var bounds = LocalBoundingBox.Translate(MainControlPoint.Position);
-            var nearest = Vector3.Clamp(cameraPosition, bounds.Min, bounds.Max);
+            var box = LocalBoundingBox.Translate(MainControlPoint.Position);
+            var nearest = Vector3.Clamp(cameraPosition, box.Min, box.Max);
 
             return Vector3.DistanceSquared(cameraPosition, nearest) <= MaxDrawDistanceSquared;
         }
@@ -98,38 +136,27 @@ namespace ValveResourceFormat.Particles
         /// </summary>
         private readonly int groupId;
 
-        /// <summary>
-        /// Whether the parent's child selection currently lets this system run. Always true for a
-        /// root system and for children in a group nobody selects from.
-        /// </summary>
-        private bool childEnabled = true;
-
-        /// <summary>How long into the parent's life this child waits before starting (<c>m_flDelay</c>).</summary>
+        /// <summary>How long after its parent this child starts (<c>m_flDelay</c>).</summary>
         private float startDelay;
 
+        /// <summary>This child's position in its parent's <c>m_Children</c>, which its random seed derives from.</summary>
+        private int childSlot;
+
         /// <summary>
-        /// Whether this child exists only for the parent's endcap (<c>m_bEndCap</c>). It is not started
-        /// with the parent, it does not enter the endcap phase itself, and it never holds the parent back
-        /// from counting as finished.
+        /// Whether this child exists only for the parent's endcap (<c>m_bEndCap</c>). It waits at
+        /// <see cref="float.MinValue"/> until the parent's endcap starts it.
         /// </summary>
-        private bool isEndCapChild;
+        internal bool IsEndCapChild { get; private set; }
 
         /// <summary>The lowest detail tier this child appears at (<c>m_nDetailLevel</c>).</summary>
         private ParticleDetailLevel detailLevel;
-
-        /// <summary>This child's index in its parent's <c>m_Children</c>, counting the entries that were skipped.</summary>
-        private int childSlot;
-
-        /// <summary>How many entries <c>m_Children</c> lists, including those that were skipped.</summary>
-        private int childSlotCount;
 
         private readonly int initialParticles;
         private readonly int maxParticles;
         private readonly float minimumTimeStep;
         private readonly float maximumTimeStep;
 
-        // The simulation step currently being run; spawn-time velocity encoding (prev = pos - vel*dt)
-        // uses it.
+        /// <summary>The length of the step being simulated.</summary>
         private float currentFrameTime;
 
         internal float CurrentFrameTime => currentFrameTime;
@@ -151,9 +178,9 @@ namespace ValveResourceFormat.Particles
         private readonly bool infiniteBounds;
 
         /// <summary>
-        /// Cache a reference to <see cref="EmitParticle"/> as to not allocate one for every emitted particle.
+        /// Cache a reference to <see cref="AddParticle"/> as to not allocate one for every emitted particle.
         /// </summary>
-        private readonly Action<float> emitParticleAction;
+        private readonly Action<float> addParticleAction;
 
         /// <summary>Control point 0, which places the system in the world.</summary>
         public ControlPoint MainControlPoint
@@ -183,21 +210,36 @@ namespace ValveResourceFormat.Particles
         private readonly List<ParticleSystemSimulation> childSimulations;
         private readonly ILogger logger;
         private readonly IFileLoader fileLoader;
-        private bool hasStarted;
-        private bool preSimulating;
-        private int simulatedFrames;
+
+        /// <summary>Whether the first frame, which runs the pre-emission operators once and the initial burst, is still to come.</summary>
+        private bool firstFramePending = true;
+
+        /// <summary>Whether the control points hold a previous state to interpolate from.</summary>
+        private bool previousControlPointsValid;
 
         /// <summary>
-        /// Real time the system has been asked to draw, accumulated across frames. A minimum time step over-simulates on short frames, and later frames are
-        /// skipped until draw time catches up with the simulated age.
+        /// Whether <see cref="IsFinished"/> may pass before the system's clock reaches zero, set for
+        /// children a random child selection parks.
         /// </summary>
-        private float targetDrawTime;
+        private bool finishedBeforeStartAllowed;
 
-        /// <summary>Age at the start of the last simulated step.</summary>
-        private float previousSimTime = 1e23f;
+        /// <summary>How many frames ran while <c>m_flMaximumSimTime</c> could still cut them.</summary>
+        private int preSimFrames;
+
+        /// <summary>Nesting depth of fast-forwards in progress, during which the observer is not told about steps.</summary>
+        private int skipDepth;
+
+        /// <summary>The parent particle events any child of this system emits from.</summary>
+        private ParticleEventType eventListenMask;
+
+        /// <inheritdoc cref="eventListenMask"/>
+        internal ParticleEventType ListenedEvents => eventListenMask;
 
         private readonly ParticleCollection particleCollection;
         private int particlesEmitted;
+
+        /// <summary>Where the next particle id is drawn from, before the seed displaces it.</summary>
+        private int particleIdCounter;
         private ParticleSystemState systemState;
 
         /// <summary>Builds a runnable system from its definition.</summary>
@@ -208,7 +250,7 @@ namespace ValveResourceFormat.Particles
         /// <param name="parentSystemState">The state of the system running this one as a child.</param>
         public ParticleSystemSimulation(ParticleSystem particleSystem, IFileLoader fileLoader, ILogger? logger = null, ParticleSnapshot? particleSnapshot = null, ParticleSystemState? parentSystemState = null)
         {
-            emitParticleAction = EmitParticle;
+            addParticleAction = AddParticle;
 
             childSimulations = [];
             this.logger = logger ?? NullLogger.Instance;
@@ -221,33 +263,25 @@ namespace ValveResourceFormat.Particles
             parse = parse with { BehaviorVersion = BehaviorVersion };
             firstMultipleOverride = parse.Int32("m_nFirstMultipleOverride_BackwardCompat", -1);
             groupId = parse.Int32("m_nGroupID", 0);
-            initialParticles = parse.Int32("m_nInitialParticles", 0);
-            maxParticles = parse.Int32("m_nMaxParticles", 1000);
+            initialParticles = Math.Max(0, parse.Int32("m_nInitialParticles", 0));
 
             // The pool is capped whatever the file asks for; GPU simulated systems get a far larger one.
-            var particleCeiling = parse.Boolean("m_bIsGPUParticleSystem", false) ? 100000 : 20000;
-            maxParticles = Math.Min(maxParticles, particleCeiling);
+            var particleCeiling = parse.Boolean("m_bIsGPUParticleSystem", false) ? ParticleCollection.MAX_GPU_PARTICLES : ParticleCollection.MAX_PARTICLES;
+            maxParticles = Math.Clamp(parse.Int32("m_nMaxParticles", 1000), 1, particleCeiling);
             minimumTimeStep = parse.Float("m_flMinimumTimeStep", 0f);
-            maximumTimeStep = parse.Float("m_flMaximumTimeStep", 0.1f);
+            var authoredMaximumTimeStep = parse.Float("m_flMaximumTimeStep", 0.1f);
+            maximumTimeStep = authoredMaximumTimeStep > 0f ? authoredMaximumTimeStep : 0.1f;
             minimumSimTime = parse.Float("m_flMinimumSimTime", 0f);
             maximumSimTime = parse.Float("m_flMaximumSimTime", 0f);
             minimumFrames = parse.Int32("m_nMinimumFrames", 0);
             preSimulationTime = parse.Float("m_flPreSimulationTime", 0f);
-            stopSimulationAfterTime = parse.Float("m_flStopSimulationAfterTime", 0f);
+            stopSimulationAfterTime = parse.Float("m_flStopSimulationAfterTime", 1e9f);
 
             // Non-positive distances, and ones large enough to overflow when squared, draw at any range.
             var maxDrawDistance = parse.Float("m_flMaxDrawDistance", -1f);
             MaxDrawDistanceSquared = maxDrawDistance is <= 0f or >= 1e10f
                 ? float.MaxValue
                 : maxDrawDistance * maxDrawDistance;
-
-            maximumTimeStep = Math.Max(minimumTimeStep, maximumTimeStep);
-
-            // A zero max timestep would clamp every frame to 0 and freeze the effect; use the 0.1 default.
-            if (maximumTimeStep <= 0f)
-            {
-                maximumTimeStep = 0.1f;
-            }
 
             currentFrameTime = maximumTimeStep;
 
@@ -263,33 +297,97 @@ namespace ValveResourceFormat.Particles
             systemState = new ParticleSystemState(parentSystemState)
             {
                 Data = this,
-                EndEarly = false
             };
-
-            PublishSnapshot(parse, particleSnapshot);
 
             Name = particleSystem.Resource?.FileName ?? "<unnamed>";
 
             IReadOnlyList<KVObject> Functions(string key) => rootData.GetArray(key) ?? [];
 
+            SetupFunctions(Functions("m_PreEmissionOperators"), ParticleControllerFactory.TryCreatePreEmissionOperator, preEmissionOperators, "pre-emission operator");
             SetupFunctions(Functions("m_Emitters"), ParticleControllerFactory.TryCreateEmitter, emitters, "emitter");
             SetupFunctions(Functions("m_Initializers"), ParticleControllerFactory.TryCreateInitializer, initializers, "initializer");
-            SetupFunctions(Functions("m_ForceGenerators"), ParticleControllerFactory.TryCreateForceGenerator, ForceGenerators, "force generator");
             SetupFunctions(Functions("m_Operators"), ParticleControllerFactory.TryCreateOperator, operators, "operator");
+            SetupFunctions(Functions("m_ForceGenerators"), ParticleControllerFactory.TryCreateForceGenerator, ForceGenerators, "force generator");
             SetupFunctions(Functions("m_Constraints"), ParticleControllerFactory.TryCreateConstraint, constraints, "constraint");
-            constraintPasses = ReadConstraintPasses(Functions("m_Operators"));
-
-            SetupFunctions(Functions("m_PreEmissionOperators"), ParticleControllerFactory.TryCreatePreEmissionOperator, preEmissionOperators, "pre-emission operator");
 
             SetupChildParticles(Functions("m_Children"));
 
-            // A child is seeded by the root it belongs to
+            NamedValues = new ParticleNamedValues(rootData, childSimulations.ConvertAll(static child => child.NamedValues));
+
+            PublishSnapshot(parse, particleSnapshot);
+
+            particleCollection.PreserveOrderOnKill = IsOrderImportant(Functions("m_Renderers"));
+
+            foreach (var childSimulation in childSimulations)
+            {
+                foreach (var emitter in childSimulation.emitters)
+                {
+                    eventListenMask |= emitter.EventTypeMask;
+                }
+            }
+
             if (parentSystemState == null)
             {
                 SeedRandom(unchecked((int)StringToken.Get(Name)));
+                InitializeTree();
+            }
+        }
+
+        /// <summary>Builds the running state of every function in the tree, children before their parent.</summary>
+        private void InitializeTree()
+        {
+            foreach (var childSimulation in childSimulations)
+            {
+                childSimulation.InitializeTree();
             }
 
-            CalculateBounds();
+            ResetFunctions();
+            ApplyNamedValueLocals();
+        }
+
+        /// <summary>The system's named values.</summary>
+        internal ParticleNamedValues NamedValues { get; }
+
+        /// <summary>Sets the default of every <c>m_NamedValueLocals</c> entry that has one, here and in every system below.</summary>
+        private void ApplyNamedValueLocals()
+        {
+            foreach (var (name, value) in NamedValues.Locals)
+            {
+                SetNamedValue(name, value);
+            }
+        }
+
+        /// <summary>
+        /// Sets a float named value on this system and every system below it. The value is read by
+        /// the next simulation step; after each step the system goes back to the value it held the
+        /// step before, so a value meant to hold is set again before every update.
+        /// </summary>
+        /// <param name="name">The named value, as the definition's <c>m_NamedValueLocals</c> or its inputs name it.</param>
+        /// <param name="value">The value.</param>
+        /// <returns>Whether this system declares the name with a type the value converts to.</returns>
+        public bool SetNamedValue(string name, float value) => SetNamedValue(name, ParticleNamedValue.FromFloat(value));
+
+        /// <inheritdoc cref="SetNamedValue(string, float)"/>
+        /// <remarks>A transform named value takes the vector as its position, with no rotation.</remarks>
+        public bool SetNamedValue(string name, Vector3 value) => SetNamedValue(name, ParticleNamedValue.FromVector(value));
+
+        /// <inheritdoc cref="SetNamedValue(string, float)"/>
+        /// <param name="name">The named value, as the definition's <c>m_NamedValueLocals</c> or its inputs name it.</param>
+        /// <param name="position">The transform's position.</param>
+        /// <param name="rotation">The transform's rotation. A vector named value takes only the position.</param>
+        public bool SetNamedValue(string name, Vector3 position, Quaternion rotation)
+            => SetNamedValue(name, ParticleNamedValue.FromTransform(position, rotation));
+
+        private bool SetNamedValue(string name, ParticleNamedValue value)
+        {
+            var result = NamedValues.Set(name, value);
+
+            foreach (var childSimulation in childSimulations)
+            {
+                childSimulation.SetNamedValue(name, value);
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -301,7 +399,7 @@ namespace ValveResourceFormat.Particles
         /// <summary>The most particles this system can hold at once.</summary>
         internal int ParticleCapacity => particleCollection.Capacity;
 
-        /// <summary>How many particles the last prune removed from this system.</summary>
+        /// <summary>How many particles the last kill removed from this system.</summary>
         internal int KilledLastPass => particleCollection.KilledLastPass;
 
         /// <summary>
@@ -313,42 +411,25 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Seeds this system and its children and starts their draws over. As the engine does with a
-        /// given seed, every entry of <c>m_Children</c> steps the seed by 129, including entries that are
-        /// skipped, so the child in slot n takes the seed 129 * (n + 1) above it and this system the step
-        /// after the last slot. The engine seeds a new system from the clock; here it is seeded from its
-        /// name, so instances of one effect play out alike unless each is seeded apart, such as from
-        /// where it is placed.
+        /// Seeds this system and starts its draws over, and gives every system below it the seed its
+        /// place in the tree derives from this one's. The engine seeds a new system from the clock; here
+        /// it is seeded from its name, so instances of one effect play out alike unless each is seeded
+        /// apart, such as from where it is placed.
         /// </summary>
         /// <param name="seed">Any value, of which the low 12 bits are used.</param>
         internal void SeedRandom(int seed)
         {
-            foreach (var child in childSimulations)
-            {
-                child.SeedRandom(ChildSeed(seed, child.childSlot));
-            }
-
-            systemState.Random.Start(ChildSeed(seed, childSlotCount - 1));
+            systemState.Random.Start(seed);
+            DeriveChildSeeds();
         }
 
         /// <summary>
-        /// Fixes the seed this system and its children start over from each time they replay, so every
-        /// replay plays out the same, with the children's seeds stepped as <see cref="SeedRandom"/> does.
-        /// Takes effect at the next replay.
+        /// Fixes the seed this system starts over from each time it replays, so every replay plays out
+        /// the same, with the children's seeds derived as <see cref="SeedRandom"/> does. Takes effect at
+        /// the next replay.
         /// </summary>
         /// <param name="seed">The seed, or null to let each replay run on from the last as the engine does.</param>
-        internal void PinRandomSeed(int? seed)
-        {
-            foreach (var child in childSimulations)
-            {
-                child.PinRandomSeed(seed == null ? null : ChildSeed(seed.Value, child.childSlot));
-            }
-
-            systemState.Random.Pin(seed == null ? null : ChildSeed(seed.Value, childSlotCount - 1));
-        }
-
-        /// <summary>The seed of the <c>m_Children</c> entry in <paramref name="slot"/>, stepped from its parent's.</summary>
-        private static int ChildSeed(int seed, int slot) => unchecked(seed + (129 * (slot + 1)));
+        internal void PinRandomSeed(int? seed) => systemState.Random.PinnedSeed = seed;
 
         /// <summary>The systems this one runs as children, in definition order.</summary>
         public IReadOnlyList<ParticleSystemSimulation> Children => childSimulations;
@@ -374,14 +455,16 @@ namespace ValveResourceFormat.Particles
                 return null;
             }
 
-            // EmitParticle moves emission-order state that real spawns rely on for determinism, so
+            // Spawning moves emission-order state that real spawns rely on for determinism, so
             // EndPrewarm puts it back and these leave no trace once the real simulation starts.
-            var scope = new PrewarmScope(particlesEmitted, systemState.ParticleCount);
+            var scope = new PrewarmScope(particlesEmitted, systemState.ParticleCount) { ParticleIdCounter = particleIdCounter };
 
             for (var i = 0; i < count; i++)
             {
-                EmitParticle(0f);
+                AddParticle(systemState.Age);
             }
+
+            InitializeNewParticles(0, particleCollection.Count, 0, -1, raiseEvents: false);
 
             return scope;
         }
@@ -392,16 +475,45 @@ namespace ValveResourceFormat.Particles
         {
             particleCollection.Clear();
             particlesEmitted = scope.ParticlesEmitted;
+            particleIdCounter = scope.ParticleIdCounter;
             systemState.ParticleCount = scope.ParticleCount;
         }
 
         /// <summary>The emission state a prewarm disturbed, handed back to <see cref="EndPrewarm"/>.</summary>
         /// <param name="ParticlesEmitted">Emission counter before the prewarm.</param>
         /// <param name="ParticleCount">Particle count before the prewarm.</param>
-        public readonly record struct PrewarmScope(int ParticlesEmitted, long ParticleCount);
+        public readonly record struct PrewarmScope(int ParticlesEmitted, long ParticleCount)
+        {
+            /// <summary>Particle id counter before the prewarm.</summary>
+            internal int ParticleIdCounter { get; init; }
+        }
 
-        // Runs the renderer updates and bounds skipped during the pre-simulation burst; children first so
-        // the parent's bounds union sees their settled state.
+        /// <summary>
+        /// Gets how far to blend from <see cref="ParticleCollection.PreviousStep"/> toward
+        /// <see cref="ParticleCollection.Current"/> to draw the system at the time it was asked to reach.
+        /// A minimum time step can carry the simulation past that time, and the blend draws it where
+        /// it would have been. Particles created after <see cref="ParticleSystemState.RequestedAge"/> do
+        /// not exist yet at that time and should not be drawn.
+        /// </summary>
+        /// <param name="fraction">0 for the previous step, 1 for the current one.</param>
+        /// <returns>Whether the last step overshot and the blend applies.</returns>
+        public bool TryGetRenderBlend(out float fraction)
+        {
+            var stepStart = systemState.StepStartAge;
+            var requested = systemState.RequestedAge;
+            var time = systemState.Age;
+
+            if (systemState.Frozen || particleCollection.PreviousStep.IsEmpty || !(time > requested && requested >= stepStart))
+            {
+                fraction = 1f;
+                return false;
+            }
+
+            fraction = (requested - stepStart) / (time - stepStart);
+            return true;
+        }
+
+        /// <summary>Runs the observer updates and bounds a fast-forward skipped, children first.</summary>
         private void RefreshRenderState()
         {
             foreach (var childSimulation in childSimulations)
@@ -419,24 +531,37 @@ namespace ValveResourceFormat.Particles
         private void SetupFunctions<T>(IEnumerable<KVObject> data, TryCreateFunction<T> tryCreate, List<T> target, string label)
         {
             var definitionIndex = 0;
+            var listIndex = 0;
 
             foreach (var info in data)
             {
-                if (IsOperatorDisabled(info, logger))
+                var className = info.GetStringProperty("_class");
+                var disabled = IsOperatorDisabled(info, logger);
+
+                if (disabled || !IsInVersionRange(className))
                 {
+                    if (disabled && BehaviorVersion < 5)
+                    {
+                        listIndex++;
+                    }
+
                     definitionIndex++;
                     continue;
                 }
 
-                var className = info.GetStringProperty("_class");
                 if (tryCreate(className, info, logger, BehaviorVersion, out var function))
                 {
                     if (function is ParticleFunctionInitializer initializer)
                     {
                         initializer.DefinitionIndex = definitionIndex;
                     }
+                    else if (function is ParticleFunctionEmitter emitter)
+                    {
+                        emitter.EmitterIndex = listIndex;
+                    }
 
                     target.Add(function);
+                    listIndex++;
                 }
                 else
                 {
@@ -447,25 +572,47 @@ namespace ValveResourceFormat.Particles
             }
         }
 
-        // Read m_nMaxConstraintPasses (default 3) so rope springs get enough constraint passes.
-        private int ReadConstraintPasses(IReadOnlyList<KVObject> operatorData)
+        private bool IsInVersionRange(string className)
         {
-            if (constraints.Count == 0)
+            foreach (var (name, minVersion, maxVersion) in ClassVersionRanges)
             {
-                return 1;
-            }
-
-            var passes = 1;
-            foreach (var op in operatorData)
-            {
-                if (op.GetStringProperty("_class") == "C_OP_BasicMovement" && !IsOperatorDisabled(op, logger))
+                if (name == className)
                 {
-                    var parse = new ParticleDefinitionParser(op, logger, BehaviorVersion);
-                    passes = Math.Max(passes, parse.Int32("m_nMaxConstraintPasses", 3));
+                    return BehaviorVersion >= minVersion && BehaviorVersion <= maxVersion;
                 }
             }
 
-            return passes;
+            return true;
+        }
+
+        /// <summary>
+        /// Whether a function or renderer of this system, or any child, needs particle order kept when
+        /// particles are removed.
+        /// </summary>
+        private bool IsOrderImportant(IReadOnlyList<KVObject> rendererData)
+        {
+            if (operators.Exists(static op => op.IsOrderImportant) || childSimulations.Exists(static child => child.particleCollection.PreserveOrderOnKill))
+            {
+                return true;
+            }
+
+            foreach (var renderer in rendererData)
+            {
+                if (IsOperatorDisabled(renderer, logger))
+                {
+                    continue;
+                }
+
+                var className = renderer.GetStringProperty("_class");
+
+                if (className == "C_OP_RenderRopes"
+                    || (className == "C_OP_RenderProjected" && renderer.GetArray("m_MaterialVars") is { Count: > 0 }))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static bool IsOperatorDisabled(KVObject op, ILogger logger)
