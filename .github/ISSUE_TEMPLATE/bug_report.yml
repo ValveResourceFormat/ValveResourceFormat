@@ -8,8 +8,8 @@ body:
   attributes:
     label: What version of S2V are you using?
     description: |
-      # **Make sure your issue still exists on [the latest dev build.](https://s2v.app/dev/)** (NOT RELEASE)
-    placeholder: Use copy version button in the about window. Download dev build from the site (NOT RELEASE)
+      # **Test on the [latest dev build](https://s2v.app/dev/) first, not a release.**
+    placeholder: Use the copy version button in the about window
   validations:
     required: true
 
