@@ -771,13 +771,10 @@ namespace GUI.Types.GLViewers
                 RequestVisibilityUpdate();
             }
 
-            if (node is PhysSceneNode { IsToolsMaterial: true } && !(tools.ShowToolEntities && tools.ShowToolMaterials))
+            if (node is PhysSceneNode { IsToolsMaterial: true } && !tools.ShowToolMaterials)
             {
-                tools.ShowToolEntities = true;
                 tools.ShowToolMaterials = true;
-                toolEntitiesButton?.Checked = true;
                 toolMaterialsButton?.Checked = true;
-                toolMaterialsButton?.Enabled = toolEntitiesButton?.Enabled == true;
                 RequestVisibilityUpdate();
             }
 
@@ -1238,7 +1235,7 @@ namespace GUI.Types.GLViewers
             {
                 foreach (var scene in Renderer.Scenes)
                 {
-                    scene.ShowToolsMaterials = tools.ToolMaterialsVisible;
+                    scene.ShowToolsMaterials = tools.ShowToolMaterials;
                 }
             }
 
@@ -1272,9 +1269,6 @@ namespace GUI.Types.GLViewers
             toolEntitiesButton = UiControl.AddToolbarToggle("Tool Entities", tools.ShowToolEntities, v =>
             {
                 tools.ShowToolEntities = v;
-
-                // Tools materials are hidden along with them
-                toolMaterialsButton?.Enabled = v;
                 RequestVisibilityUpdate();
             });
             toolMaterialsButton = UiControl.AddToolbarToggle("Tool Materials", tools.ShowToolMaterials, v =>
@@ -1302,16 +1296,6 @@ namespace GUI.Types.GLViewers
             playPauseButton?.Image = playing ? pauseImage : playImage;
             playPauseButton?.AccessibleName = playing ? "Pause" : "Play";
             stopButton?.Enabled = state != SimulationState.Stopped;
-
-            // Both are hidden while the world is played, whatever the switches say
-            toolEntitiesButton?.Enabled = state == SimulationState.Stopped;
-            toolMaterialsButton?.Enabled = state == SimulationState.Stopped && tools.ShowToolEntities;
-        }
-
-        private void SetSimulationState(SimulationState state)
-        {
-            simulationState = state;
-            tools.IsPlaying = state != SimulationState.Stopped;
         }
 
         protected override (string Text, Color32 Color)? ModeLabel => simulationState switch
@@ -1358,7 +1342,7 @@ namespace GUI.Types.GLViewers
             switch (request, simulationState)
             {
                 case (SimulationRequest.Play, SimulationState.Stopped):
-                    SetSimulationState(SimulationState.Playing);
+                    simulationState = SimulationState.Playing;
                     ResetScene();
                     entitySystem.Enabled = true;
                     entitySystem.StartRound();
@@ -1366,17 +1350,17 @@ namespace GUI.Types.GLViewers
                     break;
 
                 case (SimulationRequest.Play, SimulationState.Paused):
-                    SetSimulationState(SimulationState.Playing);
+                    simulationState = SimulationState.Playing;
                     entitySystem.Enabled = true;
                     break;
 
                 case (SimulationRequest.Pause, SimulationState.Playing):
-                    SetSimulationState(SimulationState.Paused);
+                    simulationState = SimulationState.Paused;
                     entitySystem.Enabled = false;
                     break;
 
                 case (SimulationRequest.Stop, SimulationState.Playing or SimulationState.Paused):
-                    SetSimulationState(SimulationState.Stopped);
+                    simulationState = SimulationState.Stopped;
                     entitySystem.Enabled = false;
                     Input.SetWalkMode(false);
                     ResetScene();
