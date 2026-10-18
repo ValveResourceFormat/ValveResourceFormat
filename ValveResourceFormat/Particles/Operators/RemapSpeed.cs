@@ -37,7 +37,7 @@ namespace ValveResourceFormat.Particles.Operators
             outputMax = parse.Float("m_flOutputMax", outputMax);
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
 
-            if (outputField is ParticleField.Alpha or ParticleField.AlphaAlternate)
+            if (outputField.IsAlpha())
             {
                 outputMin = MathUtils.Saturate(outputMin);
                 outputMax = MathUtils.Saturate(outputMax);

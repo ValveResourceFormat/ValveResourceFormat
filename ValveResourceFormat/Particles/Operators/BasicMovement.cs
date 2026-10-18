@@ -40,6 +40,7 @@ namespace ValveResourceFormat.Particles.Operators
                         continue;
                     }
 
+                    forceGenerator.MovementGravity = gravityAcceleration;
                     forceGenerator.GenerateForces(particles, frameTime, particleSystemState, forceStrength);
                 }
             }
