@@ -4,8 +4,8 @@ using ValveResourceFormat.Renderer.SceneEnvironment;
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
-    /// A renderer that keeps a scene light on each of up to <c>m_nMaxAllowed</c> particles. The scene
-    /// draws the lights; drawing the renderer only lets the next simulation step keep them.
+    /// A renderer that keeps a scene light on each of up to <see cref="LightCount"/> particles. The
+    /// scene draws the lights; drawing the renderer only lets the next simulation step keep them.
     /// </summary>
     internal abstract class ParticleLightRenderer : ParticleFunctionRenderer
     {
@@ -20,6 +20,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         /// <summary>The lights following the particles.</summary>
         protected ParticleLightPool Lights { get; }
+
+        /// <summary>
+        /// How many lights the pool holds for a step with <paramref name="particleCount"/> particles,
+        /// by default as many as there are particles, up to <c>m_nMaxAllowed</c>.
+        /// </summary>
+        protected virtual int LightCount(int particleCount) => Math.Min(particleCount, maxAllowed);
 
         /// <summary>Creates a scene light for the pool, dark until a step gives it a particle.</summary>
         protected abstract SceneLight CreateLight(Scene scene);
@@ -47,7 +53,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// </remarks>
         public override void Simulate(ParticleCollection particles, ParticleSystemState systemState)
         {
-            Lights.BeginStep(Math.Min(particles.Count, maxAllowed));
+            Lights.BeginStep(LightCount(particles.Count));
 
             if (GetOperatorRunStrength(systemState) <= 0f)
             {

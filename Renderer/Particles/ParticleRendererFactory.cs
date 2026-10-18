@@ -24,6 +24,11 @@ public static class ParticleRendererFactory
         "C_OP_RenderOmni2Light" => new RenderOmni2Light(definition, scene),
         "C_OP_RenderModels" => new RenderModels(definition, rendererContext, scene),
         "C_OP_RenderProjected" => new RenderProjected(definition, scene),
+        "C_OP_RenderBlobs" => new RenderBlobs(definition, rendererContext, scene),
+        "C_OP_RenderDeferredLight" => new RenderDeferredLight(definition, scene),
+        "C_OP_RenderLightBeam" => new RenderLightBeam(definition, scene),
+        "C_OP_RenderScreenVelocityRotate" => new RenderScreenVelocityRotate(definition),
+        _ when IsGameOnly(className) => new RenderGameOnly(definition),
         _ => null,
     };
 
@@ -34,7 +39,13 @@ public static class ParticleRendererFactory
     {
         "C_OP_RenderSprites" or "C_OP_RenderCables" or "C_OP_RenderRopes" or "C_OP_RenderTrails"
             or "C_OP_RenderSound" or "C_OP_RenderStandardLight" or "C_OP_RenderOmni2Light" or "C_OP_RenderModels"
-            or "C_OP_RenderProjected" => true,
-        _ => false,
+            or "C_OP_RenderProjected" or "C_OP_RenderDeferredLight" or "C_OP_RenderLightBeam"
+            or "C_OP_RenderBlobs" or "C_OP_RenderScreenVelocityRotate" => true,
+        _ => IsGameOnly(className),
     };
+
+    /// <summary>Renderers that draw nothing in the viewer, so they are created as no-ops rather than reported.</summary>
+    private static bool IsGameOnly(string className) => className is "C_OP_ClientPhysics" or "C_OP_RenderGpuImplicit"
+        or "C_OP_RenderScreenShake" or "C_OP_RenderStatusEffect" or "C_OP_RenderStatusEffectCitadel" or "C_OP_RenderText"
+        or "C_OP_RenderTreeShake" or "C_OP_RenderVRHapticEvent";
 }

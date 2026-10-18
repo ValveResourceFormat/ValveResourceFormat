@@ -20,6 +20,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <param name="LuminaireSize">The size of the emitting shape.</param>
         /// <param name="FallOff">The fraction of the range the light fades over.</param>
         /// <param name="Transform">Where the light sits, facing along its first row.</param>
+        /// <param name="TubeHalfLength">Half the length of a tube luminaire, along the second row.</param>
         public readonly record struct LightState(
             Vector3 Color,
             float LinearBrightness,
@@ -29,7 +30,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             float SpotOuterAngle,
             float LuminaireSize,
             float FallOff,
-            Matrix4x4 Transform);
+            Matrix4x4 Transform,
+            float TubeHalfLength = 0f);
 
         /// <summary>One light and the particle it follows.</summary>
         public sealed class Slot
@@ -149,6 +151,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 light.SpotOuterAngle = state.SpotOuterAngle;
                 light.LuminaireSize = state.LuminaireSize;
                 light.FallOff = state.FallOff;
+                light.SizeParams = light.SizeParams with { Y = state.TubeHalfLength };
                 light.PlaceAt(state.Transform);
                 light.IsDirty = true;
             }

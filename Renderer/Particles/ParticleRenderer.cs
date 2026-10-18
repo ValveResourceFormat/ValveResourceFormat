@@ -24,6 +24,7 @@ namespace ValveResourceFormat.Renderer.Particles
         private readonly List<ParticleRenderer> childRenderers = [];
         private readonly List<string> skippedRendererClasses = [];
         private readonly RendererContext rendererContext;
+        private readonly ParticleSourceLights sourceLights;
 
         /// <summary>The system this draws.</summary>
         public ParticleSystemSimulation Simulation { get; }
@@ -78,6 +79,7 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             Simulation = simulation;
             this.rendererContext = rendererContext;
+            sourceLights = new ParticleSourceLights(scene);
 
             simulation.Observer = this;
             simulation.RenderState.Player = scene.ParticlePlayer;
@@ -233,9 +235,13 @@ namespace ValveResourceFormat.Renderer.Particles
             }
         }
 
+        /// <inheritdoc/>
+        public void OnLightSourceUpdated(ParticleLightSource light) => sourceLights.Update(light);
+
         /// <summary>
         /// Finishes the frame for this system's renderers and its children's, on one thread. Renderers
         /// out of draw distance or faded out are hidden; the rest finish the step when there was one.
+        /// The lights the system places itself show while it is within draw distance and not finished.
         /// </summary>
         public void Act(Camera camera, bool stepped)
         {
@@ -253,6 +259,8 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
             }
 
+            sourceLights.Apply(withinDrawDistance && !Simulation.IsFinished());
+
             foreach (var childRenderer in childRenderers)
             {
                 childRenderer.Act(camera, stepped);
@@ -266,6 +274,8 @@ namespace ValveResourceFormat.Renderer.Particles
             {
                 renderer.Hide();
             }
+
+            sourceLights.Apply(visible: false);
 
             foreach (var childRenderer in childRenderers)
             {
@@ -514,6 +524,8 @@ namespace ValveResourceFormat.Renderer.Particles
             {
                 renderer.Delete();
             }
+
+            sourceLights.Delete();
 
             foreach (var childRenderer in childRenderers)
             {
