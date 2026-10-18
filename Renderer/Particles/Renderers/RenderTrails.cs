@@ -68,11 +68,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
 
-            (layers, var textureName) = ParticleTextureLayer.Build(parse, rendererContext, DefaultTextureName, srgbRead: OutputIsColor);
+            (layers, var textureName) = ParticleTextureLayer.Build(parse, rendererContext, DefaultTextureName, srgbRead: TexturesAreColor);
 
             var shaderArguments = CreateShaderArguments();
             shaderArguments["S_TEXTURE_LAYERS"] = (byte)(layers.Length - 1);
             shaderArguments["S_PARTICLE_INSTANCED"] = 2;
+            AddSpritecardShaderArguments(shaderArguments);
 
             shader = rendererContext.ShaderLoader.LoadShader(ShaderName, shaderArguments);
 
@@ -135,7 +136,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             public Vector4 UvRect;
             public Vector4 UvRectNext;
-            public float FrameBlend;
+            public Vector3 FrameBlendAlphaReference;
         }
 
         private static readonly int BaseInstanceFloats = Unsafe.SizeOf<TrailInstance>() / sizeof(float);
@@ -161,7 +162,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 new("vAxisV", DXGI_FORMAT.R32G32B32A32_FLOAT),
                 new(VertexSlot.TexCoord, DXGI_FORMAT.R32G32B32A32_FLOAT),
                 new(VertexSlot.TexCoord1, DXGI_FORMAT.R32G32B32A32_FLOAT),
-                new("vFrameBlend", DXGI_FORMAT.R32_FLOAT),
+                new("vFrameBlendAlphaRef", DXGI_FORMAT.R32G32B32_FLOAT),
             };
 
             for (var layer = 1; layer < layerCount; layer++)
@@ -374,6 +375,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     var color = BlendColor(ref particle, scales);
                     var alpha = color.W * colorFade * alphaFade;
                     var tint = color.AsVector3() * colorFade;
+                    var alphaReference = GetAlphaReference(ref particle, radius, alpha);
 
                     var head = Vector4.Clamp(
                         new Vector4(tint * headColor, alpha * headAlphaScale.NextNumber(ref particle, systemState)),
@@ -394,7 +396,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         AxisV = new Vector4(lengthAxis * halfLength, tailHalfWidth),
                         UvRect = Rect(layerRects[0].Min, layerRects[0].Max),
                         UvRectNext = Rect(layerRects[0].NextMin, layerRects[0].NextMax),
-                        FrameBlend = frameBlend,
+                        FrameBlendAlphaReference = new Vector3(frameBlend, alphaReference.X, alphaReference.Y),
                     };
 
                     var instanceLayerRects = MemoryMarshal.Cast<float, Vector4>(

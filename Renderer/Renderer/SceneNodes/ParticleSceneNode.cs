@@ -20,6 +20,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Gets whether this system samples the resolved opaque depth.</summary>
         public bool WantsSceneDepth { get; }
 
+        /// <summary>Gets whether this system samples the resolved opaque colour.</summary>
+        public bool WantsSceneColor { get; }
+
         internal IEnumerable<ParticleFunctionRenderer> Renderers => particleRenderer.EnumerateRenderers();
 
         /// <summary>Gets the simulation this node draws, with its particles, control points and child systems.</summary>
@@ -88,6 +91,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             RenderPasses = particleRenderer.Passes;
             WantsSceneDepth = particleRenderer.WantsSceneDepth;
+            WantsSceneColor = particleRenderer.WantsSceneColor;
 
             Simulation = NodeSimulation.Parallel;
 

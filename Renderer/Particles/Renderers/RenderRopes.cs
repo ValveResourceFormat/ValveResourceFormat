@@ -106,6 +106,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             public float Alpha;
             public Vector3 Orientation;
             public float ScalarCoordinate;
+            public Vector2 AlphaReference;
         }
 
         private struct RopeSample
@@ -115,6 +116,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             public Vector3 Tangent { get; init; }
             public float Radius { get; init; }
             public Vector4 Color { get; init; }
+            public Vector2 AlphaReference { get; init; }
         }
 
         public RenderRopes(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene) : base(parse, scene)
@@ -123,10 +125,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             blendMode = parse.Enum("m_nOutputBlendMode", blendMode);
 
-            (layers, var textureName) = ParticleTextureLayer.Build(parse, rendererContext, DefaultTextureName, srgbRead: OutputIsColor);
+            (layers, var textureName) = ParticleTextureLayer.Build(parse, rendererContext, DefaultTextureName, srgbRead: TexturesAreColor);
 
             var shaderArguments = CreateShaderArguments();
             shaderArguments["S_TEXTURE_LAYERS"] = (byte)(layers.Length - 1);
+            AddSpritecardShaderArguments(shaderArguments);
 
             shader = rendererContext.ShaderLoader.LoadShader(ShaderName, shaderArguments);
             (vaoHandle, vertexBufferHandle) = SetupQuadBuffer($"{nameof(RenderRopes)}: {System.IO.Path.GetFileName(textureName)}");
@@ -429,6 +432,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     ScalarCoordinate = useScalarForTextureCoordinate
                         ? particle.GetScalar(scalarFieldForTextureCoordinate) * scalarAttributeTextureCoordScale
                         : 0f,
+                    AlphaReference = GetAlphaReference(ref particle, radius, alpha),
                 };
             }
 
@@ -631,6 +635,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 Color = Vector4.Clamp(
                     new Vector4(Vector3.Lerp(n1.Color, n2.Color, t), float.Lerp(n1.Alpha, n2.Alpha, t)),
                     Vector4.Zero, Vector4.One),
+                AlphaReference = Vector2.Lerp(n1.AlphaReference, n2.AlphaReference, t),
             };
         }
 
@@ -667,12 +672,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             for (var j = 0; j < 4; j++)
             {
-                var color = j is 0 or 3 ? startColor : endColor;
+                var atStart = j is 0 or 3;
+                var alphaReference = atStart ? start.AlphaReference : end.AlphaReference;
                 ref var vertex = ref vertices[quadStart + j];
                 vertex = default;
                 vertex.Position = positions[j];
-                vertex.Color = color;
-                vertex.FrameBlend = sheets[0].Blend;
+                vertex.Color = atStart ? startColor : endColor;
+                vertex.FrameBlendAlphaReference = new Vector3(sheets[0].Blend, alphaReference.X, alphaReference.Y);
                 vertex.UV = ParticleTextureLayer.PlaceCorner(coordinates[j], uvTransforms[0], sheets[0].Offset, sheets[0].Offset + sheets[0].Scale);
                 vertex.UVNextFrame = ParticleTextureLayer.PlaceCorner(coordinates[j], uvTransforms[0], sheets[0].NextOffset, sheets[0].NextOffset + sheets[0].NextScale);
 
