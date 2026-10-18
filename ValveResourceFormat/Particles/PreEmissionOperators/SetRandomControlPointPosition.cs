@@ -2,8 +2,10 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 {
     /// <summary>
     /// Sets a control point to a random position within a bounding box, re-randomizing at a configurable
-    /// rate and interpolating toward the new target position every frame. A first target is drawn when the
-    /// system starts, and a negative <c>m_flReRandomRate</c> keeps that target for the system's lifetime.
+    /// rate and interpolating toward the new target position every frame. A first target is drawn and, in
+    /// world space, written when the system is created; the first step draws again and snaps to the new
+    /// target, and a negative <c>m_flReRandomRate</c> keeps that one for the system's lifetime, restarts
+    /// included. <c>m_bOrient</c> copies the head control point's orientation outside world space only.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetRandomControlPointPosition">C_OP_SetRandomControlPointPosition</seealso>
     class SetRandomControlPointPosition : ParticleFunctionPreEmissionOperator
@@ -21,7 +23,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
         public SetRandomControlPointPosition(ParticleDefinitionParser parse) : base(parse)
         {
-            cp = parse.Int32("m_nCP1", cp);
+            cp = parse.ControlPoint("m_nCP1", cp);
             minPos = parse.Vector3("m_vecCPMinPos", minPos);
             maxPos = parse.Vector3("m_vecCPMaxPos", maxPos);
             useWorldLocation = parse.Boolean("m_bUseWorldLocation", useWorldLocation);
@@ -31,7 +33,6 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             interpolation = parse.NumberProvider("m_flInterpolation", interpolation);
         }
 
-        private bool initialised;
         private float lastDrawTime;
 
         private Vector3 currentPosition = Vector3.Zero;
@@ -43,34 +44,35 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             ? currentPosition
             : ControlPointTransformProvider.TransformPosition(particleSystemState, offsetCP, currentPosition);
 
-        public override void Reset()
+        public override void Initialize(ParticleSystemState particleSystemState)
         {
-            initialised = false;
+            lastDrawTime = float.MinValue;
+            currentPosition = particleSystemState.Random.NextBetweenPerComponentSeededTwice(minPos, maxPos);
+
+            if (useWorldLocation)
+            {
+                particleSystemState.SetControlPointValue(cp, currentPosition);
+            }
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
+        public override void Restart(ParticleSystemState particleSystemState)
         {
-            if (!initialised)
-            {
-                initialised = true;
-                lastDrawTime = float.MinValue;
-                currentPosition = particleSystemState.Random.NextBetweenPerComponent(minPos, maxPos);
-            }
+        }
 
+        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        {
             // Both inputs are sampled before the gate so their draws stay in step whether or not it fires
             var lerpAmount = interpolation.NextNumber(particleSystemState);
             var rate = reRandomRate.NextNumber(particleSystemState);
 
-            var firstRun = lastDrawTime == float.MinValue;
-
-            if (firstRun)
+            if (lastDrawTime == float.MinValue)
             {
                 lerpAmount = 1f;
             }
 
             if (particleSystemState.Age >= lastDrawTime + rate)
             {
-                currentPosition = particleSystemState.Random.NextBetweenPerComponent(minPos, maxPos);
+                currentPosition = particleSystemState.Random.NextBetweenPerComponentSeededTwice(minPos, maxPos);
                 lastDrawTime = rate < 0f ? float.MaxValue : particleSystemState.Age;
             }
 
@@ -81,9 +83,10 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
             particleSystemState.SetControlPointValue(cp, blendedPosition);
 
-            if (orient)
+            if (!useWorldLocation && orient)
             {
-                particleSystemState.SetControlPointOrientation(cp, particleSystemState.GetControlPoint(offsetCP).Orientation);
+                var head = particleSystemState.GetControlPoint(offsetCP);
+                particleSystemState.SetControlPointOrientation(cp, head.Forward, head.Left, head.Up);
             }
         }
     }

@@ -80,11 +80,17 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             poolSize = -1;
         }
 
+        /// <summary>Rebuilds the bolt on the next step, keeping the pool size of the first one.</summary>
+        public override void Restart(ParticleSystemState particleSystemState)
+        {
+            nextGenerationTime = 0f;
+        }
+
         /// <summary>
         /// Builds a new bolt once the system's age passes the next generation time. <c>m_flRecalcRate</c>
         /// is the period until the next one, so 0 rebuilds every step and a negative rate keeps the first.
         /// </summary>
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
+        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             if (particleSystemState.Data is not { } simulation || particleSystemState.Age <= nextGenerationTime)
             {
@@ -200,7 +206,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                 var jitter = ScaleBranchDistance ? offset / (BranchDistanceScale * generation) : offset;
 
                 var direction = MathUtils.SafeNormalize(to.Position - from.Position, Vector3.UnitZ);
-                // Source 2 bug: the span is crossed with the row's world position, so the jitter depends on where the bolt is.
+                // The sideways axis is perpendicular to the span and to the row's world position.
                 var sideways = MathUtils.SafeNormalize(Vector3.Cross(direction, from.Position));
                 var wander = random.NextInUnitBall(out _);
                 var push = random.NextBetween(-jitter, jitter) / generation;
@@ -238,7 +244,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                     ? origin.Position + (Vector3.Lerp(MathUtils.SafeNormalize(End - origin.Position), direction, BranchTwist) * length) + (wander * (push * offsetScale))
                     : origin.Position + (direction * length) + (wander * (BranchTwist * push * offsetScale));
 
-                var textureEnd = ((TextureEnd - origin.TextureCoordinate) * 0.5f) + origin.TextureCoordinate;
+                var textureEnd = MathUtils.Lerp(origin.TextureCoordinate, TextureEnd, 0.5f);
 
                 rows.Add(BoltRow.Separator(origin.Position, origin.TextureCoordinate));
                 rows.Add(BoltRow.Separator(origin.Position, origin.TextureCoordinate));
