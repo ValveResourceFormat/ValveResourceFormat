@@ -479,6 +479,12 @@ namespace ValveResourceFormat.Renderer.World
                 if (phys.Parts.Length > 0)
                 {
                     entitySystem.GetPhysicsWorld(scene.WorldGroup).Add(scene, new Rubikon(phys), rootTransform);
+
+                    // Only the main world group is simulated
+                    if (scene.WorldGroup == null)
+                    {
+                        entitySystem.Physics.AddStaticGeometry(phys, rootTransform);
+                    }
                 }
             }
         }

@@ -1,3 +1,4 @@
+using Box3D;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
@@ -96,6 +97,77 @@ public sealed class EntitySystem
     /// </summary>
     public WorldEntity? World { get; private set; }
 
+    /// <summary>
+    /// Gets the rigid body world, creating it on first use. The world loader pushes the static
+    /// geometry through here, physics props add their bodies, and <see cref="Update"/> steps it every frame.
+    /// </summary>
+    public PhysicsSimulation Physics => physics ??= new PhysicsSimulation(FileLoader);
+
+    /// <summary>
+    /// Gets the rigid body world if anything has created one, without creating it: the player's
+    /// pickup logic has nothing to do in a scene with no simulated physics.
+    /// </summary>
+    public PhysicsSimulation? PhysicsOrNull => physics;
+
+    /// <summary>Gets the game's breakable prop base classes, loaded on first use.</summary>
+    public PropDataTable PropData => propData ??= PropDataTable.Load(FileLoader);
+
+    private PropDataTable? propData;
+
+    // Reused each frame to gather physics impacts before any of them breaks something
+    private readonly Dictionary<PropPhysics, float> impactSpeeds = [];
+
+    // Turns this step's hard contacts into impact damage for breakable props: a pot dropped from a
+    // shelf, a bottle thrown at a wall. The player's pushing hull shoves props rather than striking
+    // them, so its contacts are left out. The same hits play the impact sounds, in the physics step.
+    private void DispatchPhysicsImpacts(PhysicsSimulation simulation)
+    {
+        impactSpeeds.Clear();
+
+        foreach (var hit in simulation.World.Events.ContactHits)
+        {
+            if (!hit.ShapeA.IsValid || !hit.ShapeB.IsValid
+                || ((hit.ShapeA.Filter.Categories | hit.ShapeB.Filter.Categories) & PhysicsSimulation.PlayerCategory) != 0)
+            {
+                continue;
+            }
+
+            NoteImpact(simulation, hit.ShapeA.Body, hit.ShapeB.Body, hit.ApproachSpeed);
+            NoteImpact(simulation, hit.ShapeB.Body, hit.ShapeA.Body, hit.ApproachSpeed);
+        }
+
+        foreach (var (prop, speed) in impactSpeeds)
+        {
+            prop.TakeImpact(speed);
+        }
+    }
+
+    // A light body striking a heavy one hurts it in proportion, so a tossed can does not shatter a
+    // pot and falling debris does not chain-break everything it lands on; anything that does not
+    // move under the hit - the world, a door - strikes with its full weight
+    private void NoteImpact(PhysicsSimulation simulation, Body struck, Body other, float speed)
+    {
+        if (simulation.GetOwner(struck) is not PropPhysics { IsBreakable: true } prop)
+        {
+            return;
+        }
+
+        // What the player holds breaks nothing it bumps, unless the struck prop opts in: HL:A
+        // opts in its crockery and nothing else
+        if (!prop.AcceptsDamageFromHeldObjects && Player?.Carried is { } held && ReferenceEquals(simulation.GetOwner(other), held))
+        {
+            return;
+        }
+
+        if (other.Type == BodyType.Dynamic && struck.Mass > 0f)
+        {
+            speed *= MathF.Min(1f, MathF.Sqrt(other.Mass / struck.Mass));
+        }
+
+        // Several contact points of one collision report separately; the hardest one counts
+        impactSpeeds[prop] = MathF.Max(impactSpeeds.GetValueOrDefault(prop), speed);
+    }
+
     /// <summary>Gets the current simulation time in seconds.</summary>
     public float CurrentTime { get; private set; }
 
@@ -130,6 +202,7 @@ public sealed class EntitySystem
     private long sequence;
     private float tickAccumulator;
     private bool hasRemovedEntities;
+    private PhysicsSimulation? physics;
 
     /// <summary>
     /// Initializes an entity world. Prefer <see cref="Renderer.EntitySystem"/> over constructing one.
@@ -470,6 +543,8 @@ public sealed class EntitySystem
 
         PhysicsWorld.Clear();
         worldGroupPhysicsWorlds.Clear();
+        physics?.Dispose();
+        physics = null;
     }
 
     /// <summary>
@@ -504,9 +579,19 @@ public sealed class EntitySystem
         TickCount = 0;
     }
 
+    /// <summary>
+    /// Gets the camera the current frame is drawn with, or <see langword="null"/> outside a frame.
+    /// The input camera and this can differ - view smoothing and view punch sit between them - so
+    /// anything drawn relative to the view must read this one, not the controller's.
+    /// </summary>
+    public Camera? RenderCamera { get; private set; }
+
     /// <summary>Advances the world by a frame's worth of time, running whole ticks.</summary>
-    public void Update(float frameTime)
+    /// <param name="frameTime">Elapsed time in seconds since the last frame.</param>
+    /// <param name="renderCamera">The camera the frame is drawn with, for <see cref="RenderCamera"/>.</param>
+    public void Update(float frameTime, Camera? renderCamera = null)
     {
+        RenderCamera = renderCamera;
         TempEntities.Update();
 
         if (entities.Count <= 1)
@@ -540,6 +625,32 @@ public sealed class EntitySystem
             tickAccumulator = 0f;
         }
 
+        if (Enabled)
+        {
+            // The rigid body world steps with the rendered frame, like the player movement does:
+            // physics that only ever saw the camera at the tick rate reads back quantized however
+            // it is drawn. Steering runs first and drawing happens after, so what the carry asks
+            // for this frame is on screen this frame. The entity tick above stays the cadence of
+            // game logic; this is only the integrator.
+            var physicsStep = MathF.Min(frameTime, MaxPhysicsFrameStep);
+
+            for (var i = 0; i < entities.Count; i++)
+            {
+                var entity = entities[i];
+
+                if (!entity.IsRemoved)
+                {
+                    entity.FrameSimulate(physicsStep);
+                }
+            }
+
+            if (physics != null)
+            {
+                physics.Step(physicsStep);
+                DispatchPhysicsImpacts(physics);
+            }
+        }
+
         // Entities are not scene nodes, so nothing else places what they own. Parents first, so a child
         // follows its parent's current pose.
         foreach (var entity in entities)
@@ -555,6 +666,9 @@ public sealed class EntitySystem
             entity.Update();
         }
     }
+
+    // Load stalls and breakpoints must not become one giant integration step
+    private const float MaxPhysicsFrameStep = 0.1f;
 
     private void Tick()
     {
