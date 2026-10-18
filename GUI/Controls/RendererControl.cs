@@ -432,12 +432,17 @@ partial class RendererControl : UserControl
         return selectionControl.ComboBox;
     }
 
-    public CheckedListBox AddMultiSelection(string name, Action<CheckedListBox>? initializeCallback, Action<IEnumerable<string>> changeCallback)
-        => AddMultiSelectionControl(name, initializeCallback, changeCallback).CheckedListBox;
+    public CheckedListBox AddMultiSelection(string name, Action<CheckedListBox>? initializeCallback, Action<IEnumerable<string>> changeCallback, int? height = null)
+        => AddMultiSelectionControl(name, initializeCallback, changeCallback, height).CheckedListBox;
 
-    public GLViewerMultiSelectionControl AddMultiSelectionControl(string name, Action<CheckedListBox>? initializeCallback, Action<IEnumerable<string>> changeCallback)
+    public GLViewerMultiSelectionControl AddMultiSelectionControl(string name, Action<CheckedListBox>? initializeCallback, Action<IEnumerable<string>> changeCallback, int? height = null)
     {
         var selectionControl = new GLViewerMultiSelectionControl(name);
+
+        if (height.HasValue)
+        {
+            selectionControl.Height = selectionControl.AdjustForDPI(height.Value);
+        }
 
         initializeCallback?.Invoke(selectionControl.CheckedListBox);
 
