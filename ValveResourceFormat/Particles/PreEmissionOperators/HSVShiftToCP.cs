@@ -32,6 +32,11 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             defaultHSV = HsvColor.FromRgb(defaultColor);
         }
 
+        public override void AddControlPointDefaults(ControlPointDefaults defaults)
+        {
+            defaults.AddColor(colorCP);
+        }
+
         public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             if (particleSystemState.GetControlPoint(colorGemEnableCP).Position.X <= 0f)

@@ -37,6 +37,11 @@ namespace ValveResourceFormat.Particles.Initializers
             useCount = parse.Boolean("m_bUseCount", useCount);
         }
 
+        public override void AddControlPointDefaults(ControlPointDefaults defaults)
+        {
+            defaults.AddScale(scaleControlPointNumber);
+        }
+
         public override void Reset()
         {
             warpCount = 0;

@@ -613,6 +613,25 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
+        /// Adds the control point defaults of every function of this system and its children. Renderers
+        /// live with the renderer and add theirs there.
+        /// </summary>
+        internal void AddControlPointDefaults(ControlPointDefaults defaults)
+        {
+            ParticleFunction[] functions = [.. preEmissionOperators, .. emitters, .. initializers, .. operators, .. ForceGenerators, .. constraints];
+
+            foreach (var function in functions)
+            {
+                function.AddControlPointDefaults(defaults);
+            }
+
+            foreach (var child in childSimulations)
+            {
+                child.AddControlPointDefaults(defaults);
+            }
+        }
+
+        /// <summary>
         /// Whether a function or renderer of this system, or any child, needs particle order kept when
         /// particles are removed.
         /// </summary>

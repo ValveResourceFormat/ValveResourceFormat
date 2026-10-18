@@ -36,6 +36,12 @@ namespace ValveResourceFormat.Particles.Operators
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
         }
 
+        public override void AddControlPointDefaults(ControlPointDefaults defaults)
+        {
+            defaults.AddScale(cpScale, cpFieldMin);
+            defaults.AddScale(cpScale, cpFieldMax);
+        }
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var start = startValue;
