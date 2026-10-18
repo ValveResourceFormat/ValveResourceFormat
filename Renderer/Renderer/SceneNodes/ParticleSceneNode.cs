@@ -38,6 +38,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private string? PreviewModelAttachmentPoint { get; set; }
 
+        private ParticleModelNodeObject? previewModelObject;
+
         /// <summary>Gets or sets a time-scale multiplier applied to the particle simulation each frame.</summary>
         public float FrametimeMultiplier { get; set; } = 1.0f;
 
@@ -248,7 +250,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         Name = particleName,
                     };
 
-                    particleNode.GetControlPoint(0).Model = model;
+                    particleNode.GetControlPoint(0).ModelObject = new ParticleModelNodeObject(model, modelNode, scene.RendererContext.FileLoader);
                     AttachOnModel(modelNode, particleNode, attachmentType, attachmentPoint, offset);
                     nodes.Add(particleNode);
                 }
@@ -491,6 +493,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 Name = previewModelData.Name,
             };
 
+            previewModelObject = new ParticleModelNodeObject(previewModelData, previewModelNode, Scene.RendererContext.FileLoader);
+            GetControlPoint(0).ModelObject = previewModelObject;
+
             var sequenceName = previewState.GetStringProperty("m_sequenceName");
             if (!string.IsNullOrEmpty(sequenceName))
             {
@@ -564,6 +569,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     point.Rotation = EntityTransformHelper.EulerAnglesToQuaternion(angleOffset);
                 }
                 point.AttachType = attachType;
+                point.ModelObject = previewModelObject;
 
                 if (controlPoint == 0)
                 {

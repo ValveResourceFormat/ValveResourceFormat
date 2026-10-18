@@ -1,5 +1,7 @@
 using System.Linq;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Particles;
+using ValveResourceFormat.Particles.Operators;
 using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
@@ -50,10 +52,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly Dictionary<int, int> pickedModels = [];
         private readonly HashSet<int> liveParticleIds = [];
         private readonly List<Stack<(ModelSceneNode Node, int Skin)>> idle;
+        private readonly Dictionary<ModelSceneNode, ParticleModelNodeObject> nodeObjects = [];
+        private readonly IFileLoader fileLoader;
 
         public RenderModels(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene) : base(parse, scene)
         {
             this.scene = scene;
+            fileLoader = rendererContext.FileLoader;
 
             if (!OnlyRenderInEffectsBloomPass && !OnlyRenderInEffectsWaterPass)
             {
@@ -155,6 +160,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     node.Tint = suppressTint ? Vector3.One : color.AsVector3();
                     node.Alpha = color.W;
                     node.Visible = true;
+
+                    if (systemState.ModelParticleControlPoints.Count > 0 && models[entry.Model].Model is { } nodeModel)
+                    {
+                        BindControlPoints(particles, systemState, particle.Index, node, nodeModel);
+                    }
                 }
 
                 placed.Keep(particle.UniqueParticleId, entry);
@@ -168,6 +178,40 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             if (pickedModels.Count > particles.Count)
             {
                 ForgetDeadParticles(particles);
+            }
+        }
+
+        /// <summary>
+        /// Binds the control points <see cref="SetControlPointsToModelParticles"/> sets to the particle at
+        /// <paramref name="particleIndex"/> to the model drawn on it, placed on the named attachment where
+        /// one is asked for.
+        /// </summary>
+        private void BindControlPoints(ParticleCollection particles, ParticleSystemState systemState, int particleIndex, ModelSceneNode node, Model model)
+        {
+            foreach (var binding in systemState.ModelParticleControlPoints)
+            {
+                var offset = particleIndex - binding.FirstSourcePoint;
+
+                if (offset < 0 || offset >= binding.ActiveCount(particles.Count))
+                {
+                    continue;
+                }
+
+                if (!nodeObjects.TryGetValue(node, out var modelObject))
+                {
+                    modelObject = new ParticleModelNodeObject(model, node, fileLoader);
+                    nodeObjects[node] = modelObject;
+                }
+
+                var controlPoint = systemState.GetControlPoint(binding.FirstControlPoint + offset);
+                controlPoint.ModelObject = modelObject;
+
+                if (binding.Attachment != null)
+                {
+                    var attachment = node.GetChildFrame(binding.Attachment);
+                    controlPoint.Position = attachment.Translation;
+                    controlPoint.SetOrientation(Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(attachment)));
+                }
             }
         }
 
