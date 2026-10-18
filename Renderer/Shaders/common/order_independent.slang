@@ -11,10 +11,17 @@
 // Distances up to two to this power, in units, are told apart
 const float orderIndependentMaxDistanceLog2 = 16.0;
 
-uint PackOrderIndependentFragment(vec3 color, float distance)
+// The top half of a packed fragment at this distance
+uint PackOrderIndependentNearness(float distance)
 {
     float distanceScale = clamp(log2(max(distance, 1.0)) / orderIndependentMaxDistanceLog2, 0.0, 1.0);
-    uint nearness = 65535u - uint(distanceScale * 65535.0);
+
+    return 65535u - uint(distanceScale * 65535.0);
+}
+
+uint PackOrderIndependentFragment(vec3 color, float distance)
+{
+    uint nearness = PackOrderIndependentNearness(distance);
 
     vec3 encoded = sqrt(clamp(color, 0.0, 1.0));
     uint red = uint(round(encoded.r * 31.0));

@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -22,7 +23,124 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         // Larger meshes, such as world collision, are split along their collision tree so culling can skip parts of them
         private const int MaxChunkTriangles = 32768;
 
-        private readonly record struct GroupMesh(RnMesh Shape, Vector3[] Positions);
+        // Only mesh edges whose triangles meet at more than this angle are drawn, so bumpy ground is not a web of lines
+        private static readonly float CreaseAngleCosine = MathF.Cos(float.DegreesToRadians(40f));
+
+        private readonly record struct GroupMesh(RnMesh Shape, Vector3[] Positions, int FirstTriangle);
+
+        private enum EdgeKind : byte
+        {
+            Boundary,
+            Smooth,
+            Crease,
+            NonManifold,
+        }
+
+        // Edges are keyed by their lower welded vertex, and edges sharing it are chained through Next
+        private struct MeshEdge
+        {
+            public int Higher;
+            public int Next;
+            public int Triangle;
+            public byte Corner;
+            public EdgeKind Kind;
+        }
+
+        // The triangles of a group's meshes, with the edges between their welded vertices
+        private sealed class MeshEdges
+        {
+            private readonly List<int> firstEdges = [];
+            private readonly List<MeshEdge> edges = [];
+            private readonly List<Vector3> triangleNormals = [];
+
+            public int TriangleCount => triangleNormals.Count;
+
+            public Vector3 GetNormal(int triangle) => triangleNormals[triangle];
+
+            public void EnsureCapacity(int vertexCount, int triangleCount)
+            {
+                // A mesh has about as many edges as vertices and triangles together
+                edges.EnsureCapacity(vertexCount + triangleCount);
+                triangleNormals.EnsureCapacity(triangleCount);
+                firstEdges.EnsureCapacity(vertexCount);
+
+                while (firstEdges.Count < vertexCount)
+                {
+                    firstEdges.Add(-1);
+                }
+            }
+
+            public void Clear()
+            {
+                firstEdges.Clear();
+                edges.Clear();
+                triangleNormals.Clear();
+            }
+
+            public void AddTriangle(int a, int b, int c, Vector3 normal)
+            {
+                var triangle = triangleNormals.Count;
+                triangleNormals.Add(normal);
+
+                AddEdge(triangle, 0, a, b);
+                AddEdge(triangle, 1, b, c);
+                AddEdge(triangle, 2, c, a);
+            }
+
+            // A bit per triangle corner whose edge to the next corner is drawn
+            public byte[] GetLineCorners()
+            {
+                var lineCorners = new byte[triangleNormals.Count];
+
+                foreach (var edge in CollectionsMarshal.AsSpan(edges))
+                {
+                    if (edge.Kind != EdgeKind.Smooth)
+                    {
+                        lineCorners[edge.Triangle] |= (byte)(1 << edge.Corner);
+                    }
+                }
+
+                return lineCorners;
+            }
+
+            private void AddEdge(int triangle, int corner, int from, int to)
+            {
+                if (from == to)
+                {
+                    return;
+                }
+
+                var lower = Math.Min(from, to);
+                var higher = Math.Max(from, to);
+                var allEdges = CollectionsMarshal.AsSpan(edges);
+                var first = firstEdges[lower];
+
+                for (var i = first; i >= 0; i = allEdges[i].Next)
+                {
+                    ref var edge = ref allEdges[i];
+
+                    if (edge.Higher != higher)
+                    {
+                        continue;
+                    }
+
+                    if (edge.Kind == EdgeKind.Boundary)
+                    {
+                        var isCrease = Vector3.Dot(triangleNormals[edge.Triangle], triangleNormals[triangle]) < CreaseAngleCosine;
+                        edge.Kind = isCrease ? EdgeKind.Crease : EdgeKind.Smooth;
+                    }
+                    else
+                    {
+                        edge.Kind = EdgeKind.NonManifold;
+                    }
+
+                    return;
+                }
+
+                firstEdges[lower] = edges.Count;
+                edges.Add(new MeshEdge { Higher = higher, Next = first, Triangle = triangle, Corner = (byte)corner });
+            }
+        }
 
         /// <inheritdoc/>
         public override bool LayerEnabled => Enabled && base.LayerEnabled;
@@ -63,6 +181,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
         }
 
+        private PhysSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds, int lineIndexCount) : base(scene, verts, inds, lineIndexCount)
+        {
+        }
+
         /// <summary>
         /// Creates the <see cref="PhysSceneNode"/>s for each collision attribute group from the given physics aggregate data.
         /// A large mesh is split into several nodes along its collision tree, which all share the group's <see cref="PhysGroupName"/>.
@@ -77,10 +199,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             var physSceneNodes = new List<PhysSceneNode>(groupCount);
             var verts = new List<SimpleVertexNormal>(128);
             var inds = new List<int>(128);
+            var lines = new List<int>(128);
             var meshes = new List<GroupMesh>();
+            var weldedVertices = new Dictionary<Vector3, int>();
+            var meshEdges = new MeshEdges();
             var chunks = new List<Range>();
             var chunkVerts = new List<SimpleVertexNormal>();
             var chunkInds = new List<int>();
+            var chunkLines = new List<int>();
             var bindPose = phys.BindPose;
 
             for (var collisionAttributeIndex = 0; collisionAttributeIndex < phys.CollisionAttributes.Count; collisionAttributeIndex++)
@@ -109,7 +235,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         verts.EnsureCapacity(verts.Count + HemisphereVerts * 2);
                         inds.EnsureCapacity(inds.Count + HemisphereTriangles * 6 * 2);
 
+                        var firstVertex = verts.Count;
+
                         AddSphere(verts, inds, center, radius, ColorSphere);
+                        AddSphereLines(lines, firstVertex);
                     }
 
                     foreach (var capsule in shape.GetAllCapsules())
@@ -132,7 +261,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         verts.EnsureCapacity(verts.Count + HemisphereVerts * 2);
                         inds.EnsureCapacity(inds.Count + CapsuleTriangles * 6);
 
+                        var firstVertex = verts.Count;
+
                         AddCapsule(verts, inds, center[0], center[1], radius, ColorCapsule);
+                        AddCapsuleLines(lines, firstVertex);
                     }
 
                     foreach (var hull in shape.GetAllHulls())
@@ -149,8 +281,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
 
                         using (var positionsBuffer = new RentedBuffer<Vector3>(vertexPositions.Length))
+                        using (var drawnVerticesBuffer = new RentedBuffer<int>(vertexPositions.Length))
                         {
                             var positions = positionsBuffer.Span;
+                            var drawnVertices = drawnVerticesBuffer.Span;
+
                             for (var i = 0; i < vertexPositions.Length; i++)
                             {
                                 positions[i] = Vector3.Transform(vertexPositions[i], pose);
@@ -161,7 +296,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                             var numTriangles = edges.Length - faces.Length * 2;
                             verts.EnsureCapacity(verts.Count + numTriangles * 3);
-                            inds.EnsureCapacity(inds.Count + numTriangles * 6);
+                            inds.EnsureCapacity(inds.Count + numTriangles * 3);
 
                             foreach (var face in faces)
                             {
@@ -179,6 +314,22 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                                     verts.Add(new(c, ColorHull, normal));
 
                                     AddTriangle(inds, offset, 0, 1, 2);
+
+                                    drawnVertices[ai] = offset;
+                                    drawnVertices[bi] = offset + 1;
+                                    drawnVertices[ci] = offset + 2;
+                                }
+                            }
+
+                            // Each edge once, from its half edge with the lower index
+                            for (var i = 0; i < edges.Length; i++)
+                            {
+                                var twin = edges[i].Twin;
+
+                                if (i < twin)
+                                {
+                                    lines.Add(drawnVertices[edges[i].Origin]);
+                                    lines.Add(drawnVertices[edges[twin].Origin]);
                                 }
                             }
                         }
@@ -193,17 +344,41 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                         //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
 
+                        var triangles = mesh.Shape.GetTriangles();
                         var vertices = mesh.Shape.GetVertices();
 
                         var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
 
                         var positions = new Vector3[vertices.Length];
+                        using var weldedBuffer = new RentedBuffer<int>(vertices.Length);
+                        var welded = weldedBuffer.Span;
+
+                        weldedVertices.EnsureCapacity(weldedVertices.Count + vertices.Length);
+
+                        // Vertices weld across all meshes of the group, so that edges where meshes meet are not boundaries
                         for (var i = 0; i < vertices.Length; i++)
                         {
                             positions[i] = Vector3.Transform(vertices[i], pose);
+
+                            ref var weldedVertex = ref CollectionsMarshal.GetValueRefOrAddDefault(weldedVertices, positions[i], out var exists);
+
+                            if (!exists)
+                            {
+                                weldedVertex = weldedVertices.Count - 1;
+                            }
+
+                            welded[i] = weldedVertex;
                         }
 
-                        meshes.Add(new GroupMesh(mesh.Shape, positions));
+                        meshes.Add(new GroupMesh(mesh.Shape, positions, meshEdges.TriangleCount));
+                        meshEdges.EnsureCapacity(weldedVertices.Count, meshEdges.TriangleCount + triangles.Length);
+
+                        // Triangles are added once all edges of the group are known
+                        foreach (var tri in triangles)
+                        {
+                            var normal = ComputeNormal(positions[tri.X], positions[tri.Y], positions[tri.Z]);
+                            meshEdges.AddTriangle(welded[tri.X], welded[tri.Y], welded[tri.Z], normal);
+                        }
                     }
                 }
 
@@ -259,6 +434,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     toolMaterialName = $"materials/tools/tools{tooltexture}.vmat";
                 }
 
+                var lineCorners = meshEdges.GetLineCorners();
                 var firstGroupNode = physSceneNodes.Count;
 
                 foreach (var mesh in meshes)
@@ -270,18 +446,19 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     // A mesh that fits in one chunk shares the node of the group's other shapes
                     if (chunks.Count == 1)
                     {
-                        AddMeshTriangles(verts, inds, mesh, triangles, chunks[0]);
+                        AddMeshTriangles(verts, inds, lines, mesh, triangles, meshEdges, lineCorners, chunks[0]);
                     }
                     else
                     {
                         foreach (var chunk in chunks)
                         {
-                            AddMeshTriangles(chunkVerts, chunkInds, mesh, triangles, chunk);
+                            AddMeshTriangles(chunkVerts, chunkInds, chunkLines, mesh, triangles, meshEdges, lineCorners, chunk);
 
-                            physSceneNodes.Add(CreateNode(scene, chunkVerts, chunkInds, physName, fileName, collisionAttributeIndex, toolMaterialName));
+                            physSceneNodes.Add(CreateNode(scene, chunkVerts, chunkInds, chunkLines, physName, fileName, collisionAttributeIndex, toolMaterialName));
 
                             chunkVerts.Clear();
                             chunkInds.Clear();
+                            chunkLines.Clear();
                         }
                     }
 
@@ -293,20 +470,26 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                 if (inds.Count > 0 || !groupHasNode)
                 {
-                    physSceneNodes.Add(CreateNode(scene, verts, inds, physName, fileName, collisionAttributeIndex, toolMaterialName));
+                    physSceneNodes.Add(CreateNode(scene, verts, inds, lines, physName, fileName, collisionAttributeIndex, toolMaterialName));
                 }
 
                 // PhysSceneNode uploads verts to the gpu and does not keep them around
                 verts.Clear();
                 inds.Clear();
+                lines.Clear();
                 meshes.Clear();
+                weldedVertices.Clear();
+                meshEdges.Clear();
             }
 
             return physSceneNodes;
         }
 
-        private static PhysSceneNode CreateNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds, string physName, string? fileName, int collisionAttributeIndex, string? toolMaterialName)
+        // The line indices are appended after the triangle indices
+        private static PhysSceneNode CreateNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds, List<int> lines, string physName, string? fileName, int collisionAttributeIndex, string? toolMaterialName)
         {
+            inds.AddRange(lines);
+
             var boundingBox = new AABB();
 
             if (verts.Count > 0)
@@ -319,7 +502,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 }
             }
 
-            var physSceneNode = new PhysSceneNode(scene, verts, inds)
+            var physSceneNode = new PhysSceneNode(scene, verts, inds, lines.Count)
             {
                 PhysGroupName = physName,
                 Name = fileName,
@@ -335,7 +518,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             return physSceneNode;
         }
 
-        private static void AddMeshTriangles(List<SimpleVertexNormal> verts, List<int> inds, GroupMesh mesh, ReadOnlySpan<RnMesh.Triangle> triangles, Range chunk)
+        private static void AddMeshTriangles(List<SimpleVertexNormal> verts, List<int> inds, List<int> lines, GroupMesh mesh, ReadOnlySpan<RnMesh.Triangle> triangles, MeshEdges meshEdges, byte[] lineCorners, Range chunk)
         {
             var positions = mesh.Positions;
             var (firstTriangle, triangleCount) = chunk.GetOffsetAndLength(triangles.Length);
@@ -346,18 +529,26 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             for (var i = firstTriangle; i < firstTriangle + triangleCount; i++)
             {
                 var tri = triangles[i];
-                var a = positions[tri.X];
-                var b = positions[tri.Y];
-                var c = positions[tri.Z];
-
-                var normal = ComputeNormal(a, b, c);
+                var groupTriangle = mesh.FirstTriangle + i;
+                var normal = meshEdges.GetNormal(groupTriangle);
 
                 var offset = verts.Count;
-                verts.Add(new(a, ColorMesh, normal));
-                verts.Add(new(b, ColorMesh, normal));
-                verts.Add(new(c, ColorMesh, normal));
+                verts.Add(new(positions[tri.X], ColorMesh, normal));
+                verts.Add(new(positions[tri.Y], ColorMesh, normal));
+                verts.Add(new(positions[tri.Z], ColorMesh, normal));
 
                 AddTriangle(inds, offset, 0, 1, 2);
+
+                var corners = lineCorners[groupTriangle];
+
+                for (var corner = 0; corner < 3; corner++)
+                {
+                    if ((corners & (1 << corner)) != 0)
+                    {
+                        lines.Add(offset + corner);
+                        lines.Add(offset + (corner + 1) % 3);
+                    }
+                }
             }
         }
 

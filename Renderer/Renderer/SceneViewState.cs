@@ -830,6 +830,14 @@ public sealed class SceneViewState : IDisposable
         }
     }
 
+    internal void RenderOrderIndependentLines()
+    {
+        foreach (var shape in orderIndependentFills)
+        {
+            shape.RenderOrderIndependentLines();
+        }
+    }
+
     /// <summary>
     /// Lays down the depth of the surfaces the refract, water and translucent layers draw over the opaque scene,
     /// collected during <see cref="CollectSceneDrawCalls"/>, each through its material's own depth mode where it has one.

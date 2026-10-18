@@ -957,7 +957,7 @@ public class Renderer : ISpawnGroupHost
     /// <summary>
     /// Draws the fills that skipped the sorted translucent layer in one pass that keeps the two nearest fragments
     /// of each pixel and counts them all, and then blends them over the scene as sorted layers of
-    /// <see cref="PhysSceneNode.FillAlpha"/> would.
+    /// <see cref="PhysSceneNode.FillAlpha"/> would. The shapes' edge lines go over them last.
     /// </summary>
     private void RenderOrderIndependentFills(SceneViewState state, Framebuffer sceneFramebuffer)
     {
@@ -982,6 +982,13 @@ public class Renderer : ISpawnGroupHost
 
             GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+        }
+
+        // The lines go over the composite, and read the layers to fade behind the fills in front of them
+        using (new GLDebugGroup("Order Independent Lines"))
+        using (GraphicsContext.RenderState.Scope(srcBlend: RsBlendMode.SrcAlpha, dstBlend: RsBlendMode.InvSrcAlpha))
+        {
+            state.RenderOrderIndependentLines();
         }
     }
 

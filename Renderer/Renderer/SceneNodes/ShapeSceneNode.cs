@@ -31,8 +31,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Gets the shader used to render this shape.</summary>
         protected Shader shader { get; init; }
 
-        /// <summary>Gets the number of indices uploaded to the GPU index buffer.</summary>
+        /// <summary>Gets the number of triangle indices at the start of the GPU index buffer.</summary>
         protected int indexCount { get; private set; }
+
+        // Line index pairs that follow the triangle indices, drawn instead of a wireframe
+        private int lineIndexCount;
 
         /// <summary>Gets the vertex array state for this shape.</summary>
         protected int vao { get; private set; }
@@ -60,6 +63,17 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         internal ShapeSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds) : this(scene)
         {
             Init(verts, inds);
+        }
+
+        /// <summary>
+        /// Constructs a node whose last <paramref name="lineIndexCount"/> indices are pairs that draw its edges as lines.
+        /// </summary>
+        internal ShapeSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds, int lineIndexCount) : this(scene)
+        {
+            Init(verts, inds);
+
+            indexCount -= lineIndexCount;
+            this.lineIndexCount = lineIndexCount;
         }
 
         /// <summary>
@@ -224,6 +238,62 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
+        /// <summary>
+        /// Appends line index pairs along a capsule from <see cref="AddCapsule(List{SimpleVertexNormal}, List{int}, Vector3, Vector3, float, Color32)"/>
+        /// that starts at <paramref name="baseVertex"/>: both rims, and four lines along its length that go on over the caps.
+        /// </summary>
+        protected static void AddCapsuleLines(List<int> lines, int baseVertex)
+        {
+            var secondHemisphere = baseVertex + HemisphereVerts;
+
+            AddHemisphereLines(lines, baseVertex, withRim: true);
+            AddHemisphereLines(lines, secondHemisphere, withRim: true);
+
+            // The second hemisphere winds the other way around, as in AddCapsule
+            for (var segment = 0; segment < SphereSegments; segment += SphereSegments / 4)
+            {
+                lines.Add(baseVertex + segment);
+                lines.Add(secondHemisphere + (SphereSegments - segment) % SphereSegments);
+            }
+        }
+
+        /// <summary>
+        /// Appends line index pairs along a sphere from <see cref="AddSphere(List{SimpleVertexNormal}, List{int}, Vector3, float, Color32)"/>
+        /// that starts at <paramref name="baseVertex"/>: its equator and two circles through its poles.
+        /// </summary>
+        protected static void AddSphereLines(List<int> lines, int baseVertex)
+        {
+            AddHemisphereLines(lines, baseVertex, withRim: true);
+            AddHemisphereLines(lines, baseVertex + HemisphereVerts, withRim: false);
+        }
+
+        // Four arcs from the rim to the top, a quarter turn apart, which meet the arcs of an opposite hemisphere
+        private static void AddHemisphereLines(List<int> lines, int baseVertex, bool withRim)
+        {
+            var topVertex = baseVertex + SphereBands * SphereSegments;
+
+            for (var segment = 0; segment < SphereSegments; segment += SphereSegments / 4)
+            {
+                for (var band = 0; band < SphereBands; band++)
+                {
+                    var from = baseVertex + band * SphereSegments + segment;
+                    var to = band == SphereBands - 1 ? topVertex : from + SphereSegments;
+
+                    lines.Add(from);
+                    lines.Add(to);
+                }
+            }
+
+            if (withRim)
+            {
+                for (var segment = 0; segment < SphereSegments; segment++)
+                {
+                    lines.Add(baseVertex + segment);
+                    lines.Add(baseVertex + (segment + 1) % SphereSegments);
+                }
+            }
+        }
+
         /// <summary>Appends solid box geometry to the given vertex and index lists.</summary>
         protected static void AddBox(List<SimpleVertexNormal> verts, List<int> inds, Vector3 minBounds, Vector3 maxBounds, Color32 color)
         {
@@ -379,14 +449,28 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             if (isTranslucent)
             {
-                // Lines
                 var lineState = state;
-                lineState.Rasterizer.FillMode = RsFillMode.Wireframe;
-                lineState.BlendEnable = false;
-                renderState.Apply(in lineState);
 
-                renderShader.SetUniform("g_bNormalShaded", false);
-                GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
+                if (lineIndexCount > 0)
+                {
+                    lineState.BlendEnable = true;
+                    lineState.SetBlend(RsBlendMode.SrcAlpha, RsBlendMode.InvSrcAlpha);
+                    renderState.Apply(in lineState);
+
+                    DrawLines(shader.WithCombo("D_LINES", 1));
+
+                    renderShader.Use();
+                    VertexArray.Bind(vao, renderShader);
+                }
+                else
+                {
+                    lineState.Rasterizer.FillMode = RsFillMode.Wireframe;
+                    lineState.BlendEnable = false;
+                    renderState.Apply(in lineState);
+
+                    renderShader.SetUniform("g_bNormalShaded", false);
+                    GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
+                }
 
                 // Triangles
                 var fillState = WithFillDepthBias(state);
@@ -431,6 +515,38 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             using var _ = renderState.Scope(in state);
 
             GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
+        }
+
+        /// <summary>Draws the edge lines over the composited order independent fills, faded by the fills in front of them.</summary>
+        internal void RenderOrderIndependentLines()
+        {
+            if (lineIndexCount == 0)
+            {
+                return;
+            }
+
+            var renderState = GraphicsContext.RenderState;
+            var state = renderState.CurrentPass;
+            state.DepthStencil.DepthFunc = RsComparison.CloserEqual;
+
+            using var _ = renderState.Scope(in state);
+
+            DrawLines(shader.WithCombo("D_LINES", 1).WithCombo("D_OIT", 1));
+        }
+
+        private void DrawLines(Shader lineShader)
+        {
+            lineShader.Use();
+            lineShader.SetUniform("g_bTriplanarMapping", ToolTexture != null);
+
+            if (ToolTexture != null)
+            {
+                lineShader.SetUniform("g_vToolTextureAverage", ToolTexture.Reflectivity.AsVector3());
+            }
+
+            VertexArray.Bind(vao, lineShader);
+
+            GL.DrawElementsInstancedBaseInstance(PrimitiveType.Lines, lineIndexCount, DrawElementsType.UnsignedInt, indexCount * sizeof(int), 1, Id);
         }
 
         // Pulls the fill in front of the scene surfaces it lies on, such as the walls that world collision follows
