@@ -349,7 +349,7 @@ namespace GUI.Types.GLViewers
                 }
 
                 SetEnabledPhysicsGroups([.. physicsGroups]);
-            });
+            }, height: 250);
 
             using (UiControl.BeginGroup("Camera"))
             {
