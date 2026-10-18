@@ -25,7 +25,9 @@ public static class ParticleRendererFactory
         "C_OP_RenderModels" => new RenderModels(definition, rendererContext, scene),
         "C_OP_RenderProjected" => new RenderProjected(definition, scene),
         "C_OP_RenderBlobs" => new RenderBlobs(definition, rendererContext, scene),
-        "C_OP_RenderDeferredLight" => new RenderDeferredLight(definition, scene),
+        "C_OP_RenderDeferredLight" => RenderDeferredLight.GameHasDeferredLights(rendererContext)
+            ? new RenderDeferredLight(definition, scene)
+            : new RenderGameOnly(definition),
         "C_OP_RenderLightBeam" => new RenderLightBeam(definition, scene),
         "C_OP_RenderScreenVelocityRotate" => new RenderScreenVelocityRotate(definition),
         _ when IsGameOnly(className) => new RenderGameOnly(definition),
