@@ -69,6 +69,11 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>Gets or sets the GPU lighting constants buffer for the scene.</summary>
         public LightingConstants LightingData { get; set; } = new();
 
+        /// <inheritdoc/>
+        /// <remarks>A scene without baked lighting answers white, as the particle shaders light it; one with baked lighting answers a flat grey.</remarks>
+        public Vector3 SampleAmbientLight(Vector3 position)
+            => HasValidLightProbes || HasValidLightmaps ? new Vector3(0.3f) : Vector3.One;
+
         /// <summary>Gets or sets the storage format used for environment map cubemaps in this scene.</summary>
         public CubemapType CubemapType
         {
