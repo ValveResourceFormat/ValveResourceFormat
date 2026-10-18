@@ -26,7 +26,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
         public override void Initialize(ParticleSystemState particleSystemState)
         {
             done = false;
-            particleSystemState.Data?.ParkChildrenInGroup(childGroupId);
+            particleSystemState.Data?.HoldChildrenInGroup(childGroupId);
         }
 
         public override void Restart(ParticleSystemState particleSystemState) => Initialize(particleSystemState);
