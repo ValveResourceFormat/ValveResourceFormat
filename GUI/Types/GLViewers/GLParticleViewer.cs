@@ -191,8 +191,8 @@ namespace GUI.Types.GLViewers
                     particleSceneNode.PlaybackMode = (ParticlePlaybackMode)i;
                     particleSceneNode.Restart();
                 }, horizontal: true, fill: true);
-                playbackModeComboBox.Items.AddRange(["Normal + Endcap", "Normal", "Endcap Only"]);
-                playbackModeComboBox.SelectedIndex = (int)ParticlePlaybackMode.NormalWithEndCap;
+                playbackModeComboBox.Items.AddRange(["Normal", "Normal + Endcap", "Endcap Only"]);
+                playbackModeComboBox.SelectedIndex = (int)ParticlePlaybackMode.Normal;
 
                 UiControl.AddCheckBox("Loop", true, value =>
                 {
