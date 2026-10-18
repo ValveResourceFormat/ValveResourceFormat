@@ -13,6 +13,9 @@ namespace ValveResourceFormat.Particles.ForceGenerators
         {
         }
 
+        /// <summary>The gravity of the <c>C_OP_BasicMovement</c> running this generator, set before every call.</summary>
+        public Vector3 MovementGravity { get; set; }
+
         /// <summary>
         /// Adds this generator's acceleration to each particle's <see cref="Particle.ForceAccumulator"/>,
         /// scaled by the operator fade <paramref name="strength"/>.
