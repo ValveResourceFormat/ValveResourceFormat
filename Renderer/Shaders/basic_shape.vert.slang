@@ -4,7 +4,7 @@ in vec3 vPOSITION;
 in vec3 vNORMAL;
 in vec4 vCOLOR;
 out vec4 vtxColor;
-out vec3 vtxNormal;
+flat out vec3 vtxNormal;
 out vec3 vtxPos;
 out vec3 vtxPosWs;
 out vec3 vtxNormalWs;

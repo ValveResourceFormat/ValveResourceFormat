@@ -35,7 +35,8 @@ const float lineFadeEnd = 4096.0;
 const float lineOwnFaceTolerance = 0.02;
 
 in vec4 vtxColor;
-in vec3 vtxNormal;
+// One normal per triangle, so the tool texture of a smooth shape keeps a fixed plane across each triangle
+flat in vec3 vtxNormal;
 in vec3 vtxPos;
 in vec3 vtxPosWs;
 in vec3 vtxNormalWs;
@@ -45,8 +46,11 @@ out vec4 outputColor;
 
 const float shadingStrength = 0.8;
 
+// 64 pixel tool textures at Hammer's default scale of 0.25 repeat every 16 units
+const float toolTextureScale = 0.0625;
+
 uniform bool g_bNormalShaded;
-uniform bool g_bTriplanarMapping;
+uniform bool g_bHasToolTexture;
 uniform sampler2D g_tColor; // SrgbRead(true)
 
 #if (D_LINES == 1)
@@ -54,21 +58,17 @@ uniform sampler2D g_tColor; // SrgbRead(true)
     uniform vec3 g_vToolTextureAverage;
 #endif
 
-// "p" point being textured
-// "n" surface normal at "p"
-// "k" controls the sharpness of the blending in the transition areas
-// "s" texture sampler
-vec4 boxmap( in sampler2D s, in vec3 p, in vec3 n, in float k )
+// Projects the tool texture onto the plane of the face, upright on walls and with its right towards the right of
+// someone looking at the face from outside, so it reads the same way on every side of the shape. A slanted face
+// shows the texture once, unstretched.
+vec4 SampleToolTexture(vec3 position, vec3 normal)
 {
-    // project+fetch
-    vec4 x = texture( s, p.zy );
-    vec4 y = texture( s, p.xz * vec2(1,-1) );
-    vec4 z = texture( s, p.yx );
+    vec3 n = normalize(normal);
+    vec3 up = abs(n.z) >= max(abs(n.x), abs(n.y)) ? vec3(0.0, 1.0, 0.0) : vec3(0.0, 0.0, 1.0);
+    vec3 u = normalize(cross(up, n));
+    vec3 v = cross(u, n);
 
-    // blend weights
-    vec3 w = pow( abs(n), vec3(k) );
-    // blend and return
-    return (x*w.x + y*w.y + z*w.z) / (w.x + w.y + w.z);
+    return texture(g_tColor, vec2(dot(position, u), dot(position, v)) * toolTextureScale);
 }
 
 #if (D_LINES == 1 && D_OIT == 1)
@@ -110,7 +110,7 @@ vec4 ShadeLine()
 
     vec3 color = vtxColor.rgb;
 
-    if (g_bTriplanarMapping)
+    if (g_bHasToolTexture)
     {
         color = g_vToolTextureAverage;
     }
@@ -148,10 +148,9 @@ void main(void)
         vec3 normalWs = normalize(vtxNormalWs);
         vec3 viewDir = normalize(camPos - vtxPosWs);
 
-        if (g_bTriplanarMapping)
+        if (g_bHasToolTexture)
         {
-            const float uvScale = 0.0625;
-            outputColor = boxmap(g_tColor, vtxPos * uvScale, vtxNormal, 1.0);
+            outputColor = SampleToolTexture(vtxPos, vtxNormal);
             toolTexture = outputColor.rgb;
         }
 

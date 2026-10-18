@@ -430,7 +430,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             renderShader.Use();
 
             renderShader.SetUniform("g_bNormalShaded", Shaded);
-            renderShader.SetUniform("g_bTriplanarMapping", ToolTexture != null);
+            renderShader.SetUniform("g_bHasToolTexture", ToolTexture != null);
 
             renderShader.SetTexture(0, "g_tColor", ToolTexture ?? Scene.RendererContext.MaterialLoader.GetDefaultColor());
 
@@ -498,7 +498,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             fillShader.Use();
 
             fillShader.SetUniform("g_bNormalShaded", Shaded);
-            fillShader.SetUniform("g_bTriplanarMapping", ToolTexture != null);
+            fillShader.SetUniform("g_bHasToolTexture", ToolTexture != null);
 
             // Drawn outside the batch renderer, which rebinds the reserved units after each node it draws
             fillShader.SetTexture(RenderMaterial.TextureUnitStart, "g_tColor", ToolTexture ?? Scene.RendererContext.MaterialLoader.GetDefaultColor());
@@ -539,7 +539,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private void DrawLines(Shader lineShader)
         {
             lineShader.Use();
-            lineShader.SetUniform("g_bTriplanarMapping", ToolTexture != null);
+            lineShader.SetUniform("g_bHasToolTexture", ToolTexture != null);
 
             if (ToolTexture != null)
             {

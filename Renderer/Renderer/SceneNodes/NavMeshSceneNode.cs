@@ -110,7 +110,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             renderShader.Use();
 
-            renderShader.SetUniform("g_bTriplanarMapping", false);
+            renderShader.SetUniform("g_bHasToolTexture", false);
 
             VertexArray.Bind(vao, renderShader);
 
