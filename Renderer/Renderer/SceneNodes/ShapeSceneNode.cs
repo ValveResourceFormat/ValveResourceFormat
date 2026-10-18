@@ -482,6 +482,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
             else
             {
+                var fillState = WithFillDepthBias(state);
+                renderState.Apply(in fillState);
                 GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
             }
         }
