@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Renderer.Materials;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
 {
@@ -30,8 +31,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Gets the shader used to render this shape.</summary>
         protected Shader shader { get; init; }
 
-        /// <summary>Gets the number of indices uploaded to the GPU index buffer.</summary>
+        /// <summary>Gets the number of triangle indices at the start of the GPU index buffer.</summary>
         protected int indexCount { get; private set; }
+
+        // Line index pairs that follow the triangle indices, drawn instead of a wireframe
+        private int lineIndexCount;
 
         /// <summary>Gets the vertex array state for this shape.</summary>
         protected int vao { get; private set; }
@@ -39,8 +43,17 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Gets whether this shape uses normal-based shading.</summary>
         protected virtual bool Shaded { get; } = true;
 
+        /// <summary>Gets whether this shape draws its back faces when translucent.</summary>
+        protected virtual bool IsDoubleSided { get; } = true;
+
         /// <summary>Gets or sets an optional tool texture overlay rendered on top of the shape.</summary>
         protected RenderTexture? ToolTexture { get; set; }
+
+        /// <summary>
+        /// Gets whether the translucent fill is drawn with order independent transparency where the renderer supports it,
+        /// for volumes such as triggers that can span the whole map, which no sort order draws correctly.
+        /// </summary>
+        internal virtual bool HasOrderIndependentFill => false;
 
         private ShapeSceneNode(Scene scene) : base(scene)
         {
@@ -50,6 +63,17 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         internal ShapeSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds) : this(scene)
         {
             Init(verts, inds);
+        }
+
+        /// <summary>
+        /// Constructs a node whose last <paramref name="lineIndexCount"/> indices are pairs that draw its edges as lines.
+        /// </summary>
+        internal ShapeSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds, int lineIndexCount) : this(scene)
+        {
+            Init(verts, inds);
+
+            indexCount -= lineIndexCount;
+            this.lineIndexCount = lineIndexCount;
         }
 
         /// <summary>
@@ -214,6 +238,62 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
+        /// <summary>
+        /// Appends line index pairs along a capsule from <see cref="AddCapsule(List{SimpleVertexNormal}, List{int}, Vector3, Vector3, float, Color32)"/>
+        /// that starts at <paramref name="baseVertex"/>: both rims, and four lines along its length that go on over the caps.
+        /// </summary>
+        protected static void AddCapsuleLines(List<int> lines, int baseVertex)
+        {
+            var secondHemisphere = baseVertex + HemisphereVerts;
+
+            AddHemisphereLines(lines, baseVertex, withRim: true);
+            AddHemisphereLines(lines, secondHemisphere, withRim: true);
+
+            // The second hemisphere winds the other way around, as in AddCapsule
+            for (var segment = 0; segment < SphereSegments; segment += SphereSegments / 4)
+            {
+                lines.Add(baseVertex + segment);
+                lines.Add(secondHemisphere + (SphereSegments - segment) % SphereSegments);
+            }
+        }
+
+        /// <summary>
+        /// Appends line index pairs along a sphere from <see cref="AddSphere(List{SimpleVertexNormal}, List{int}, Vector3, float, Color32)"/>
+        /// that starts at <paramref name="baseVertex"/>: its equator and two circles through its poles.
+        /// </summary>
+        protected static void AddSphereLines(List<int> lines, int baseVertex)
+        {
+            AddHemisphereLines(lines, baseVertex, withRim: true);
+            AddHemisphereLines(lines, baseVertex + HemisphereVerts, withRim: false);
+        }
+
+        // Four arcs from the rim to the top, a quarter turn apart, which meet the arcs of an opposite hemisphere
+        private static void AddHemisphereLines(List<int> lines, int baseVertex, bool withRim)
+        {
+            var topVertex = baseVertex + SphereBands * SphereSegments;
+
+            for (var segment = 0; segment < SphereSegments; segment += SphereSegments / 4)
+            {
+                for (var band = 0; band < SphereBands; band++)
+                {
+                    var from = baseVertex + band * SphereSegments + segment;
+                    var to = band == SphereBands - 1 ? topVertex : from + SphereSegments;
+
+                    lines.Add(from);
+                    lines.Add(to);
+                }
+            }
+
+            if (withRim)
+            {
+                for (var segment = 0; segment < SphereSegments; segment++)
+                {
+                    lines.Add(baseVertex + segment);
+                    lines.Add(baseVertex + (segment + 1) % SphereSegments);
+                }
+            }
+        }
+
         /// <summary>Appends solid box geometry to the given vertex and index lists.</summary>
         protected static void AddBox(List<SimpleVertexNormal> verts, List<int> inds, Vector3 minBounds, Vector3 maxBounds, Color32 color)
         {
@@ -341,6 +421,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
+            if (HasOrderIndependentFill && context.OrderIndependentTranslucency)
+            {
+                return; // The renderer draws the fill with RenderOrderIndependentFill after this layer
+            }
+
             var renderShader = context.ReplacementShader ?? shader;
             renderShader.Use();
 
@@ -355,7 +440,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             var state = renderState.CurrentPass;
             state.DepthStencil.DepthFunc = RsComparison.CloserEqual;
 
-            if (isTranslucent)
+            if (isTranslucent && IsDoubleSided)
             {
                 state.Rasterizer.CullMode = RsCullMode.None;
             }
@@ -364,22 +449,33 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             if (isTranslucent)
             {
-                // Lines
                 var lineState = state;
-                lineState.Rasterizer.FillMode = RsFillMode.Wireframe;
-                lineState.BlendEnable = false;
-                renderState.Apply(in lineState);
 
-                renderShader.SetUniform("g_bNormalShaded", false);
-                GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
+                if (lineIndexCount > 0)
+                {
+                    lineState.BlendEnable = true;
+                    lineState.SetBlend(RsBlendMode.SrcAlpha, RsBlendMode.InvSrcAlpha);
+                    renderState.Apply(in lineState);
+
+                    DrawLines(shader.WithCombo("D_LINES", 1));
+
+                    renderShader.Use();
+                    VertexArray.Bind(vao, renderShader);
+                }
+                else
+                {
+                    lineState.Rasterizer.FillMode = RsFillMode.Wireframe;
+                    lineState.BlendEnable = false;
+                    renderState.Apply(in lineState);
+
+                    renderShader.SetUniform("g_bNormalShaded", false);
+                    GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
+                }
 
                 // Triangles
-                var fillState = state;
+                var fillState = WithFillDepthBias(state);
                 fillState.BlendEnable = true;
                 fillState.SetBlend(RsBlendMode.SrcAlpha, RsBlendMode.InvSrcAlpha);
-                fillState.Rasterizer.SlopeScaledDepthBias = 2f;
-                fillState.Rasterizer.DepthBias = 100;
-                fillState.Rasterizer.DepthBiasClamp = 0.05f;
                 renderState.Apply(in fillState);
                 renderShader.SetUniform("g_bNormalShaded", Shaded);
                 GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
@@ -388,6 +484,78 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             {
                 GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
             }
+        }
+
+        /// <summary>
+        /// Draws the translucent fill into the order independent layers the caller binds, which the fill shader
+        /// writes instead of its color.
+        /// </summary>
+        internal void RenderOrderIndependentFill()
+        {
+            var fillShader = shader.WithCombo("D_OIT", 1);
+            fillShader.Use();
+
+            fillShader.SetUniform("g_bNormalShaded", Shaded);
+            fillShader.SetUniform("g_bTriplanarMapping", ToolTexture != null);
+
+            // Drawn outside the batch renderer, which rebinds the reserved units after each node it draws
+            fillShader.SetTexture(RenderMaterial.TextureUnitStart, "g_tColor", ToolTexture ?? Scene.RendererContext.MaterialLoader.GetDefaultColor());
+
+            VertexArray.Bind(vao, fillShader);
+
+            var renderState = GraphicsContext.RenderState;
+            var state = WithFillDepthBias(renderState.CurrentPass);
+            state.DepthStencil.DepthFunc = RsComparison.CloserEqual;
+
+            if (IsDoubleSided)
+            {
+                state.Rasterizer.CullMode = RsCullMode.None;
+            }
+
+            using var _ = renderState.Scope(in state);
+
+            GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
+        }
+
+        /// <summary>Draws the edge lines over the composited order independent fills, faded by the fills in front of them.</summary>
+        internal void RenderOrderIndependentLines()
+        {
+            if (lineIndexCount == 0)
+            {
+                return;
+            }
+
+            var renderState = GraphicsContext.RenderState;
+            var state = renderState.CurrentPass;
+            state.DepthStencil.DepthFunc = RsComparison.CloserEqual;
+
+            using var _ = renderState.Scope(in state);
+
+            DrawLines(shader.WithCombo("D_LINES", 1).WithCombo("D_OIT", 1));
+        }
+
+        private void DrawLines(Shader lineShader)
+        {
+            lineShader.Use();
+            lineShader.SetUniform("g_bTriplanarMapping", ToolTexture != null);
+
+            if (ToolTexture != null)
+            {
+                lineShader.SetUniform("g_vToolTextureAverage", ToolTexture.Reflectivity.AsVector3());
+            }
+
+            VertexArray.Bind(vao, lineShader);
+
+            GL.DrawElementsInstancedBaseInstance(PrimitiveType.Lines, lineIndexCount, DrawElementsType.UnsignedInt, indexCount * sizeof(int), 1, Id);
+        }
+
+        // Pulls the fill in front of the scene surfaces it lies on, such as the walls that world collision follows
+        private static RenderState WithFillDepthBias(RenderState state)
+        {
+            state.Rasterizer.SlopeScaledDepthBias = 2f;
+            state.Rasterizer.DepthBias = 100;
+            state.Rasterizer.DepthBiasClamp = 0.05f;
+            return state;
         }
 
         /// <inheritdoc/>

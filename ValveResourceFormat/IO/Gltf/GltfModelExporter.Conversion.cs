@@ -6,9 +6,10 @@ public partial class GltfModelExporter
     // Also scales inches to meters (gltf units are meters, source engine units are inches)
     // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coordinate-system-and-units
     private const float SourceToGltfScale = 0.0254f;
-    private static readonly Quaternion SourceToGltfRotation = Quaternion.CreateFromYawPitchRoll(0, MathF.PI / -2f, MathF.PI / -2f);
+    // Pitch and roll of -90 degrees, written out exactly so the axis swap matrices hold only 0 and +-1
+    private static readonly Quaternion SourceToGltfRotation = new(-0.5f, -0.5f, -0.5f, 0.5f);
     private static readonly Matrix4x4 TransformSourceToGltf = Matrix4x4.CreateScale(SourceToGltfScale) * Matrix4x4.CreateFromQuaternion(SourceToGltfRotation);
-    private static readonly Matrix4x4 TransformGltfToSource = Invert(TransformSourceToGltf);
+    private static readonly Matrix4x4 TransformGltfToSource = Matrix4x4.CreateFromQuaternion(Quaternion.Conjugate(SourceToGltfRotation)) * Matrix4x4.CreateScale(1f / SourceToGltfScale);
 
     // The conversion is baked into the exported geometry (bones, vertices, animation tracks) so the armature
     // is identity-scaled and the bind matrices are clean inverses. The scale folds into translations (a bone
@@ -50,12 +51,6 @@ public partial class GltfModelExporter
     private static Matrix4x4 GetPlacementTransform(Matrix4x4 transform)
     {
         return TransformGltfToSource * transform * TransformSourceToGltf;
-    }
-
-    private static Matrix4x4 Invert(Matrix4x4 matrix)
-    {
-        Matrix4x4.Invert(matrix, out var inverse);
-        return inverse;
     }
 
     private static void BakePositions(Span<Vector3> positions)

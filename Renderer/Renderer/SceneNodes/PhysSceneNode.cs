@@ -1,7 +1,9 @@
+using System.Runtime.InteropServices;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using RnHull = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Hull;
+using RnMesh = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Mesh;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
 {
@@ -10,13 +12,144 @@ namespace ValveResourceFormat.Renderer.SceneNodes
     /// </summary>
     public class PhysSceneNode : ShapeSceneNode
     {
-        private static readonly Color32 ColorSphere = new(0.4f, 1f, 0.1f, 0.65f);
-        private static readonly Color32 ColorCapsule = new(0.1f, 1f, 0.4f, 0.65f);
-        private static readonly Color32 ColorMesh = new(0.4f, 0.4f, 1f, 0.65f);
-        private static readonly Color32 ColorHull = new(1.0f, 0.2f, 0.1f, 0.65f);
+        /// <summary>The opacity of every translucent physics fill, which the order independent composite relies on.</summary>
+        internal const float FillAlpha = 0.65f;
+
+        private static readonly Color32 ColorSphere = new(0.4f, 1f, 0.1f, FillAlpha);
+        private static readonly Color32 ColorCapsule = new(0.1f, 1f, 0.4f, FillAlpha);
+        private static readonly Color32 ColorMesh = new(0.4f, 0.4f, 1f, FillAlpha);
+        private static readonly Color32 ColorHull = new(1.0f, 0.2f, 0.1f, FillAlpha);
+
+        // Larger meshes, such as world collision, are split along their collision tree so culling can skip parts of them
+        private const int MaxChunkTriangles = 32768;
+
+        // Only mesh edges whose triangles meet at more than this angle are drawn, so bumpy ground is not a web of lines
+        private static readonly float CreaseAngleCosine = MathF.Cos(float.DegreesToRadians(40f));
+
+        private readonly record struct GroupMesh(RnMesh Shape, Vector3[] Positions, int FirstTriangle);
+
+        private enum EdgeKind : byte
+        {
+            Boundary,
+            Smooth,
+            Crease,
+            NonManifold,
+        }
+
+        // Edges are keyed by their lower welded vertex, and edges sharing it are chained through Next
+        private struct MeshEdge
+        {
+            public int Higher;
+            public int Next;
+            public int Triangle;
+            public byte Corner;
+            public EdgeKind Kind;
+        }
+
+        // The triangles of a group's meshes, with the edges between their welded vertices
+        private sealed class MeshEdges
+        {
+            private readonly List<int> firstEdges = [];
+            private readonly List<MeshEdge> edges = [];
+            private readonly List<Vector3> triangleNormals = [];
+
+            public int TriangleCount => triangleNormals.Count;
+
+            public Vector3 GetNormal(int triangle) => triangleNormals[triangle];
+
+            public void EnsureCapacity(int vertexCount, int triangleCount)
+            {
+                // A mesh has about as many edges as vertices and triangles together
+                edges.EnsureCapacity(vertexCount + triangleCount);
+                triangleNormals.EnsureCapacity(triangleCount);
+                firstEdges.EnsureCapacity(vertexCount);
+
+                while (firstEdges.Count < vertexCount)
+                {
+                    firstEdges.Add(-1);
+                }
+            }
+
+            public void Clear()
+            {
+                firstEdges.Clear();
+                edges.Clear();
+                triangleNormals.Clear();
+            }
+
+            public void AddTriangle(int a, int b, int c, Vector3 normal)
+            {
+                var triangle = triangleNormals.Count;
+                triangleNormals.Add(normal);
+
+                AddEdge(triangle, 0, a, b);
+                AddEdge(triangle, 1, b, c);
+                AddEdge(triangle, 2, c, a);
+            }
+
+            // A bit per triangle corner whose edge to the next corner is drawn
+            public byte[] GetLineCorners()
+            {
+                var lineCorners = new byte[triangleNormals.Count];
+
+                foreach (var edge in CollectionsMarshal.AsSpan(edges))
+                {
+                    if (edge.Kind != EdgeKind.Smooth)
+                    {
+                        lineCorners[edge.Triangle] |= (byte)(1 << edge.Corner);
+                    }
+                }
+
+                return lineCorners;
+            }
+
+            private void AddEdge(int triangle, int corner, int from, int to)
+            {
+                if (from == to)
+                {
+                    return;
+                }
+
+                var lower = Math.Min(from, to);
+                var higher = Math.Max(from, to);
+                var allEdges = CollectionsMarshal.AsSpan(edges);
+                var first = firstEdges[lower];
+
+                for (var i = first; i >= 0; i = allEdges[i].Next)
+                {
+                    ref var edge = ref allEdges[i];
+
+                    if (edge.Higher != higher)
+                    {
+                        continue;
+                    }
+
+                    if (edge.Kind == EdgeKind.Boundary)
+                    {
+                        var isCrease = Vector3.Dot(triangleNormals[edge.Triangle], triangleNormals[triangle]) < CreaseAngleCosine;
+                        edge.Kind = isCrease ? EdgeKind.Crease : EdgeKind.Smooth;
+                    }
+                    else
+                    {
+                        edge.Kind = EdgeKind.NonManifold;
+                    }
+
+                    return;
+                }
+
+                firstEdges[lower] = edges.Count;
+                edges.Add(new MeshEdge { Higher = higher, Next = first, Triangle = triangle, Corner = (byte)corner });
+            }
+        }
 
         /// <inheritdoc/>
         public override bool LayerEnabled => Enabled && base.LayerEnabled;
+
+        /// <inheritdoc/>
+        protected override bool IsDoubleSided => false;
+
+        /// <inheritdoc/>
+        internal override bool HasOrderIndependentFill => IsTranslucent && IsTranslucentRenderMode;
 
         /// <summary>Gets or sets whether this physics node is individually enabled for rendering.</summary>
         public bool Enabled
@@ -38,6 +171,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Gets the display name of the collision group represented by this node.</summary>
         public required string PhysGroupName { get; init; }
 
+        /// <summary>Gets the physics this node was built from, or <see langword="null"/> for a node built from raw geometry.</summary>
+        public PhysAggregateData? Physics { get; private init; }
+
+        /// <summary>Gets the index into <see cref="PhysAggregateData.CollisionAttributes"/> of the group this node draws.</summary>
+        public int CollisionAttributeIndex { get; private init; }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="PhysSceneNode"/> class from pre-built vertex and index lists.
         /// </summary>
@@ -48,8 +187,13 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
         }
 
+        private PhysSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds, int lineIndexCount) : base(scene, verts, inds, lineIndexCount)
+        {
+        }
+
         /// <summary>
-        /// Creates one <see cref="PhysSceneNode"/> per collision attribute group from the given physics aggregate data.
+        /// Creates the <see cref="PhysSceneNode"/>s for each collision attribute group from the given physics aggregate data.
+        /// A large mesh is split into several nodes along its collision tree, which all share the group's <see cref="PhysGroupName"/>.
         /// </summary>
         /// <param name="scene">The scene to add nodes to.</param>
         /// <param name="phys">The physics aggregate data containing all collision shapes.</param>
@@ -58,11 +202,17 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public static IEnumerable<PhysSceneNode> CreatePhysSceneNodes(Scene scene, PhysAggregateData phys, string? fileName, string? classname = null)
         {
             var groupCount = phys.CollisionAttributes.Count;
-            var physSceneNodes = new PhysSceneNode[groupCount];
+            var physSceneNodes = new List<PhysSceneNode>(groupCount);
             var verts = new List<SimpleVertexNormal>(128);
             var inds = new List<int>(128);
-            var boundingBox = new AABB();
-            var boundingBoxInitted = false;
+            var lines = new List<int>(128);
+            var meshes = new List<GroupMesh>();
+            var weldedVertices = new Dictionary<Vector3, int>();
+            var meshEdges = new MeshEdges();
+            var chunks = new List<Range>();
+            var chunkVerts = new List<SimpleVertexNormal>();
+            var chunkInds = new List<int>();
+            var chunkLines = new List<int>();
             var bindPose = phys.BindPose;
 
             for (var collisionAttributeIndex = 0; collisionAttributeIndex < phys.CollisionAttributes.Count; collisionAttributeIndex++)
@@ -91,19 +241,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         verts.EnsureCapacity(verts.Count + HemisphereVerts * 2);
                         inds.EnsureCapacity(inds.Count + HemisphereTriangles * 6 * 2);
 
+                        var firstVertex = verts.Count;
+
                         AddSphere(verts, inds, center, radius, ColorSphere);
-
-                        var bbox = new AABB(center, radius);
-
-                        if (!boundingBoxInitted)
-                        {
-                            boundingBoxInitted = true;
-                            boundingBox = bbox;
-                        }
-                        else
-                        {
-                            boundingBox = boundingBox.Union(bbox);
-                        }
+                        AddSphereLines(lines, firstVertex);
                     }
 
                     foreach (var capsule in shape.GetAllCapsules())
@@ -126,22 +267,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         verts.EnsureCapacity(verts.Count + HemisphereVerts * 2);
                         inds.EnsureCapacity(inds.Count + CapsuleTriangles * 6);
 
+                        var firstVertex = verts.Count;
+
                         AddCapsule(verts, inds, center[0], center[1], radius, ColorCapsule);
-
-                        foreach (var cn in center)
-                        {
-                            var bbox = new AABB(cn, radius);
-
-                            if (!boundingBoxInitted)
-                            {
-                                boundingBoxInitted = true;
-                                boundingBox = bbox;
-                            }
-                            else
-                            {
-                                boundingBox = boundingBox.Union(bbox);
-                            }
-                        }
+                        AddCapsuleLines(lines, firstVertex);
                     }
 
                     foreach (var hull in shape.GetAllHulls())
@@ -158,8 +287,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
 
                         using (var positionsBuffer = new RentedBuffer<Vector3>(vertexPositions.Length))
+                        using (var drawnVerticesBuffer = new RentedBuffer<int>(vertexPositions.Length))
                         {
                             var positions = positionsBuffer.Span;
+                            var drawnVertices = drawnVerticesBuffer.Span;
+
                             for (var i = 0; i < vertexPositions.Length; i++)
                             {
                                 positions[i] = Vector3.Transform(vertexPositions[i], pose);
@@ -170,7 +302,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                             var numTriangles = edges.Length - faces.Length * 2;
                             verts.EnsureCapacity(verts.Count + numTriangles * 3);
-                            inds.EnsureCapacity(inds.Count + numTriangles * 6);
+                            inds.EnsureCapacity(inds.Count + numTriangles * 3);
 
                             foreach (var face in faces)
                             {
@@ -188,20 +320,24 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                                     verts.Add(new(c, ColorHull, normal));
 
                                     AddTriangle(inds, offset, 0, 1, 2);
+
+                                    drawnVertices[ai] = offset;
+                                    drawnVertices[bi] = offset + 1;
+                                    drawnVertices[ci] = offset + 2;
                                 }
                             }
-                        }
 
-                        var bbox = new AABB(hull.Shape.Min, hull.Shape.Max);
+                            // Each edge once, from its half edge with the lower index
+                            for (var i = 0; i < edges.Length; i++)
+                            {
+                                var twin = edges[i].Twin;
 
-                        if (!boundingBoxInitted)
-                        {
-                            boundingBoxInitted = true;
-                            boundingBox = bbox;
-                        }
-                        else
-                        {
-                            boundingBox = boundingBox.Union(bbox);
+                                if (i < twin)
+                                {
+                                    lines.Add(drawnVertices[edges[i].Origin]);
+                                    lines.Add(drawnVertices[edges[twin].Origin]);
+                                }
+                            }
                         }
                     }
 
@@ -219,42 +355,35 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                         var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
 
-                        var numTriangles = triangles.Length;
-                        verts.EnsureCapacity(verts.Count + numTriangles * 3);
-                        inds.EnsureCapacity(inds.Count + numTriangles * 6);
-
                         var positions = new Vector3[vertices.Length];
+                        using var weldedBuffer = new RentedBuffer<int>(vertices.Length);
+                        var welded = weldedBuffer.Span;
+
+                        weldedVertices.EnsureCapacity(weldedVertices.Count + vertices.Length);
+
+                        // Vertices weld across all meshes of the group, so that edges where meshes meet are not boundaries
                         for (var i = 0; i < vertices.Length; i++)
                         {
                             positions[i] = Vector3.Transform(vertices[i], pose);
+
+                            ref var weldedVertex = ref CollectionsMarshal.GetValueRefOrAddDefault(weldedVertices, positions[i], out var exists);
+
+                            if (!exists)
+                            {
+                                weldedVertex = weldedVertices.Count - 1;
+                            }
+
+                            welded[i] = weldedVertex;
                         }
 
+                        meshes.Add(new GroupMesh(mesh.Shape, positions, meshEdges.TriangleCount));
+                        meshEdges.EnsureCapacity(weldedVertices.Count, meshEdges.TriangleCount + triangles.Length);
+
+                        // Triangles are added once all edges of the group are known
                         foreach (var tri in triangles)
                         {
-                            var a = positions[tri.X];
-                            var b = positions[tri.Y];
-                            var c = positions[tri.Z];
-
-                            var normal = ComputeNormal(a, b, c);
-
-                            var offset = verts.Count;
-                            verts.Add(new(a, ColorMesh, normal));
-                            verts.Add(new(b, ColorMesh, normal));
-                            verts.Add(new(c, ColorMesh, normal));
-
-                            AddTriangle(inds, offset, 0, 1, 2);
-                        }
-
-                        var bbox = new AABB(mesh.Shape.Min, mesh.Shape.Max);
-
-                        if (!boundingBoxInitted)
-                        {
-                            boundingBoxInitted = true;
-                            boundingBox = bbox;
-                        }
-                        else
-                        {
-                            boundingBox = boundingBox.Union(bbox);
+                            var normal = ComputeNormal(positions[tri.X], positions[tri.Y], positions[tri.Z]);
+                            meshEdges.AddTriangle(welded[tri.X], welded[tri.Y], welded[tri.Z], normal);
                         }
                     }
                 }
@@ -296,35 +425,217 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     }
                 }
 
-                var physSceneNode = new PhysSceneNode(scene, verts, inds)
-                {
-                    PhysGroupName = physName,
-                    Name = fileName,
-                    LocalBoundingBox = boundingBox,
-                    OverlayRenderOrder = collisionAttributeIndex,
-                };
+                string? toolMaterialName = null;
 
                 if (classname != null)
                 {
                     var toolTexture = MapExtract.GetToolTextureForEntity(classname);
                     if (!string.IsNullOrEmpty(toolTexture))
                     {
-                        physSceneNode.SetToolTexture(toolTexture);
+                        toolMaterialName = toolTexture;
                     }
                 }
                 else if (tooltexture != "nodraw")
                 {
-                    physSceneNode.SetToolTexture($"materials/tools/tools{tooltexture}.vmat");
+                    toolMaterialName = $"materials/tools/tools{tooltexture}.vmat";
                 }
 
-                physSceneNodes[collisionAttributeIndex] = physSceneNode;
+                var lineCorners = meshEdges.GetLineCorners();
+                var firstGroupNode = physSceneNodes.Count;
+
+                foreach (var mesh in meshes)
+                {
+                    var triangles = mesh.Shape.GetTriangles();
+
+                    AddMeshChunks(mesh.Shape, triangles.Length, chunks);
+
+                    // A mesh that fits in one chunk shares the node of the group's other shapes
+                    if (chunks.Count == 1)
+                    {
+                        AddMeshTriangles(verts, inds, lines, mesh, triangles, meshEdges, lineCorners, chunks[0]);
+                    }
+                    else
+                    {
+                        foreach (var chunk in chunks)
+                        {
+                            AddMeshTriangles(chunkVerts, chunkInds, chunkLines, mesh, triangles, meshEdges, lineCorners, chunk);
+
+                            physSceneNodes.Add(CreateNode(scene, phys, chunkVerts, chunkInds, chunkLines, physName, fileName, collisionAttributeIndex, toolMaterialName));
+
+                            chunkVerts.Clear();
+                            chunkInds.Clear();
+                            chunkLines.Clear();
+                        }
+                    }
+
+                    chunks.Clear();
+                }
+
+                // Every group gets a node, even an empty one, so that it is listed
+                var groupHasNode = physSceneNodes.Count > firstGroupNode;
+
+                if (inds.Count > 0 || !groupHasNode)
+                {
+                    physSceneNodes.Add(CreateNode(scene, phys, verts, inds, lines, physName, fileName, collisionAttributeIndex, toolMaterialName));
+                }
 
                 // PhysSceneNode uploads verts to the gpu and does not keep them around
                 verts.Clear();
                 inds.Clear();
+                lines.Clear();
+                meshes.Clear();
+                weldedVertices.Clear();
+                meshEdges.Clear();
             }
 
             return physSceneNodes;
+        }
+
+        // The line indices are appended after the triangle indices
+        private static PhysSceneNode CreateNode(Scene scene, PhysAggregateData phys, List<SimpleVertexNormal> verts, List<int> inds, List<int> lines, string physName, string? fileName, int collisionAttributeIndex, string? toolMaterialName)
+        {
+            inds.AddRange(lines);
+
+            var boundingBox = new AABB();
+
+            if (verts.Count > 0)
+            {
+                boundingBox = new AABB(verts[0].Position, verts[0].Position);
+
+                foreach (var vertex in verts)
+                {
+                    boundingBox = boundingBox.Encapsulate(vertex.Position);
+                }
+            }
+
+            var physSceneNode = new PhysSceneNode(scene, verts, inds, lines.Count)
+            {
+                PhysGroupName = physName,
+                Name = fileName,
+                LocalBoundingBox = boundingBox,
+                OverlayRenderOrder = collisionAttributeIndex,
+                Physics = phys,
+                CollisionAttributeIndex = collisionAttributeIndex,
+            };
+
+            if (toolMaterialName != null)
+            {
+                physSceneNode.SetToolTexture(toolMaterialName);
+            }
+
+            return physSceneNode;
+        }
+
+        private static void AddMeshTriangles(List<SimpleVertexNormal> verts, List<int> inds, List<int> lines, GroupMesh mesh, ReadOnlySpan<RnMesh.Triangle> triangles, MeshEdges meshEdges, byte[] lineCorners, Range chunk)
+        {
+            var positions = mesh.Positions;
+            var (firstTriangle, triangleCount) = chunk.GetOffsetAndLength(triangles.Length);
+
+            verts.EnsureCapacity(verts.Count + triangleCount * 3);
+            inds.EnsureCapacity(inds.Count + triangleCount * 3);
+
+            for (var i = firstTriangle; i < firstTriangle + triangleCount; i++)
+            {
+                var tri = triangles[i];
+                var groupTriangle = mesh.FirstTriangle + i;
+                var normal = meshEdges.GetNormal(groupTriangle);
+
+                var offset = verts.Count;
+                verts.Add(new(positions[tri.X], ColorMesh, normal));
+                verts.Add(new(positions[tri.Y], ColorMesh, normal));
+                verts.Add(new(positions[tri.Z], ColorMesh, normal));
+
+                AddTriangle(inds, offset, 0, 1, 2);
+
+                var corners = lineCorners[groupTriangle];
+
+                for (var corner = 0; corner < 3; corner++)
+                {
+                    if ((corners & (1 << corner)) != 0)
+                    {
+                        lines.Add(offset + corner);
+                        lines.Add(offset + (corner + 1) % 3);
+                    }
+                }
+            }
+        }
+
+        // Each subtree of the collision tree holds a contiguous range of triangles. A mesh whose tree does not stays whole.
+        private static void AddMeshChunks(RnMesh mesh, int triangleCount, List<Range> chunks)
+        {
+            if (triangleCount > MaxChunkTriangles)
+            {
+                var nodes = mesh.ParseNodes();
+
+                if (nodes.Length > 0)
+                {
+                    AddTreeChunks(nodes, 0, chunks);
+
+                    if (ChunksCoverTriangles(chunks, triangleCount))
+                    {
+                        return;
+                    }
+
+                    chunks.Clear();
+                }
+            }
+
+            chunks.Add(0..triangleCount);
+        }
+
+        // Takes the largest subtrees that fit in a chunk
+        private static void AddTreeChunks(ReadOnlySpan<RnMesh.Node> nodes, int index, List<Range> chunks)
+        {
+            var node = nodes[index];
+            var triangles = GetSubtreeTriangles(nodes, index);
+
+            if (node.Type == RnMesh.NodeType.Leaf || triangles.End.Value - triangles.Start.Value <= MaxChunkTriangles)
+            {
+                chunks.Add(triangles);
+                return;
+            }
+
+            AddTreeChunks(nodes, index + 1, chunks);
+            AddTreeChunks(nodes, index + (int)node.ChildOffset, chunks);
+        }
+
+        private static Range GetSubtreeTriangles(ReadOnlySpan<RnMesh.Node> nodes, int index)
+        {
+            var firstLeaf = index;
+
+            while (nodes[firstLeaf].Type != RnMesh.NodeType.Leaf)
+            {
+                firstLeaf++;
+            }
+
+            var lastLeaf = index;
+
+            while (nodes[lastLeaf].Type != RnMesh.NodeType.Leaf)
+            {
+                lastLeaf += (int)nodes[lastLeaf].ChildOffset;
+            }
+
+            var start = (int)nodes[firstLeaf].TriangleOffset;
+            var end = (int)(nodes[lastLeaf].TriangleOffset + nodes[lastLeaf].ChildOffset);
+
+            return start..end;
+        }
+
+        private static bool ChunksCoverTriangles(List<Range> chunks, int triangleCount)
+        {
+            var end = 0;
+
+            foreach (var chunk in chunks)
+            {
+                if (chunk.Start.Value != end)
+                {
+                    return false;
+                }
+
+                end = chunk.End.Value;
+            }
+
+            return end == triangleCount;
         }
 
         private void SetToolTexture(string toolMaterialName)

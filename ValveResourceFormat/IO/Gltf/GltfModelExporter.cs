@@ -74,6 +74,12 @@ namespace ValveResourceFormat.IO
         public bool ComposeAdditiveAnimations { get; set; }
 
         /// <summary>
+        /// Gets or sets a value indicating whether animation keys that linear interpolation of the
+        /// kept keys reproduces within a small tolerance are dropped. When false, every frame is written.
+        /// </summary>
+        public bool ReduceAnimationKeyframes { get; set; } = true;
+
+        /// <summary>
         /// Gets the set of animation names to filter during export. An entry matches an animation by its
         /// full name or, for animation graph clips named by resource path, by its leaf name (e.g. "idle_knife"
         /// matches "animation/anims/.../idle_knife"). Empty means export every animation.
@@ -93,6 +99,7 @@ namespace ValveResourceFormat.IO
         private CancellationToken CancellationToken;
         private Vector2 LightmapUvScale = Vector2.One;
         private readonly Dictionary<string, Mesh> ExportedMeshes = [];
+        private readonly Dictionary<Node[], Skin> ExportedSkins = [];
         private readonly List<(PhysAggregateData Phys, string? Classname, Matrix4x4 Transform)> PhysicsToExport = [];
         private bool IsExporting;
 
@@ -168,10 +175,9 @@ namespace ValveResourceFormat.IO
             {
                 matchedAnimationFilter.Clear();
                 ExportedMeshes.Clear();
+                ExportedSkins.Clear();
                 LightmapUvScale = Vector2.One;
                 MaterialInputSignatures.Clear();
-                ScaledLightmapUvAccessors.Clear();
-                OverlayOffsetPositionAccessors.Clear();
                 PhysicsToExport.Clear();
                 TextureExportingTasks.Clear();
                 ExportedTextures.Clear();
@@ -347,7 +353,7 @@ namespace ValveResourceFormat.IO
             var exportedModel = CreateModelRoot(resourceName, out var scene);
 
             // Add meshes and their skeletons
-            LoadModel(exportedModel, scene, model, resourceName, Matrix4x4.Identity, Vector4.One);
+            LoadModel(exportedModel, scene, model, Path.GetFileNameWithoutExtension(resourceName), Matrix4x4.Identity, Vector4.One);
 
             WriteModelFile(exportedModel, fileName);
 
@@ -416,20 +422,20 @@ namespace ValveResourceFormat.IO
                 var skeletonData = Skeleton.FromSkeletonResource(FileLoader, clip.SkeletonName)
                     ?? throw new InvalidOperationException($"Unable to load skeleton data '{clip.SkeletonName}'.");
 
-                var (skeletonNode, joints) = CreateGltfSkeleton(scene, skeletonData, clip.SkeletonName);
+                var skeletonName = Path.GetFileNameWithoutExtension(clip.SkeletonName);
+                var (skeletonNode, joints) = CreateGltfSkeleton(scene, skeletonData, skeletonName);
                 if (skeletonNode == null || joints == null)
                 {
                     throw new InvalidDataException($"Failure creating glTF skeleton for '{clip.SkeletonName}'.");
                 }
 
                 // Create a skeleton visualization mesh so importers recognize this as a proper skeleton
-                var meshNode = CreateSkeletonVisualizationMesh(exportedModel, scene, skeletonData, joints);
-                meshNode.Name = $"{clip.SkeletonName}.empty_mesh_reference";
+                CreateSkeletonVisualizationMesh(exportedModel, scene, skeletonData, joints, skeletonName);
 
                 //if (ExportAnimations)
                 {
                     var animation = new ResourceTypes.ModelAnimation.ClipAnimation(clip);
-                    var animationWriter = new AnimationWriter(skeletonData, []) { ComposeAdditive = ComposeAdditiveAnimations };
+                    var animationWriter = new AnimationWriter(skeletonData, []) { ComposeAdditive = ComposeAdditiveAnimations, ReduceKeyframes = ReduceAnimationKeyframes };
                     animationWriter.WriteAnimation(exportedModel, joints, animation, ClipAnimationName(clip.Name));
                 }
             }
@@ -454,15 +460,15 @@ namespace ValveResourceFormat.IO
         {
             var exportedModel = CreateModelRoot(resourceName, out var scene);
 
-            var (skeletonNode, joints) = CreateGltfSkeleton(scene, skeleton, resourceName);
+            var skeletonName = Path.GetFileNameWithoutExtension(resourceName);
+            var (skeletonNode, joints) = CreateGltfSkeleton(scene, skeleton, skeletonName);
             if (skeletonNode == null || joints == null)
             {
                 throw new InvalidDataException($"Failure creating glTF skeleton for '{resourceName}'.");
             }
 
             // Create a skeleton visualization mesh so importers recognize this as a proper skeleton
-            var meshNode = CreateSkeletonVisualizationMesh(exportedModel, scene, skeleton, joints);
-            meshNode.Name = $"{resourceName}.empty_mesh_reference";
+            CreateSkeletonVisualizationMesh(exportedModel, scene, skeleton, joints, skeletonName);
 
             WriteModelFile(exportedModel, fileName);
         }
@@ -511,7 +517,7 @@ namespace ValveResourceFormat.IO
                 Debug.Assert(joints != null);
 
                 var animations = model.GetAllAnimations(FileLoader);
-                var animationWriter = new AnimationWriter(model.Skeleton, model.FlexControllers) { ComposeAdditive = ComposeAdditiveAnimations };
+                var animationWriter = new AnimationWriter(model.Skeleton, model.FlexControllers) { ComposeAdditive = ComposeAdditiveAnimations, ReduceKeyframes = ReduceAnimationKeyframes };
 
                 foreach (var animation in animations)
                 {
@@ -618,7 +624,7 @@ namespace ValveResourceFormat.IO
         private void ExportToFile(string resourceName, string? fileName, VMesh mesh)
         {
             var exportedModel = CreateModelRoot(resourceName, out var scene);
-            var name = Path.GetFileName(resourceName);
+            var name = Path.GetFileNameWithoutExtension(resourceName);
 
             var renderSkeleton = mesh.Data.GetSubCollection("m_skeleton");
             var skeleton = renderSkeleton != null ? Skeleton.FromRenderSkeleton(renderSkeleton) : null;
@@ -668,7 +674,18 @@ namespace ValveResourceFormat.IO
                 return newNode.WithMesh(exportedMesh);
             }
 
-            newNode.WithSkinnedMesh(exportedMesh, Matrix4x4.Identity, joints);
+            // Inverse bind matrices are taken from the joints' current world matrices, so the skin
+            // must be bound before the skeleton node is placed.
+            if (!ExportedSkins.TryGetValue(joints, out var skin))
+            {
+                skin = exportedModel.CreateSkin();
+                skin.BindJoints(Matrix4x4.Identity, joints);
+                ExportedSkins.Add(joints, skin);
+            }
+
+            newNode.Mesh = exportedMesh;
+            newNode.Skin = skin;
+
             // WorldMatrix is set only once on skeletonNode
             return null;
         }
@@ -677,7 +694,7 @@ namespace ValveResourceFormat.IO
         {
             var exportedModel = ModelRoot.CreateModel();
             exportedModel.Asset.Generator = StringToken.VRF_GENERATOR;
-            scene = exportedModel.UseScene(Path.GetFileName(resourceName));
+            scene = exportedModel.UseScene(Path.GetFileNameWithoutExtension(resourceName));
 
 #if DEBUG_VALIDATE_GLTF
             debugCurrentExportedModel = exportedModel;
@@ -690,6 +707,8 @@ namespace ValveResourceFormat.IO
 
         private void WriteModelFile(ModelRoot exportedModel, string? filePath, Stream? stream = null)
         {
+            AddMissingScaleChannels(exportedModel);
+
             if (!SatelliteImages)
             {
                 WaitForTexturesToExport();

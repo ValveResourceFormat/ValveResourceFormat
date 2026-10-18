@@ -30,7 +30,6 @@ namespace ValveResourceFormat.Animation
 
             /// <summary>
             /// Creates a parameterization for a set of values, each corresponding to a source node (in source order).
-            /// Ported from Esoterica's <c>ParameterizedBlendNode::Parameterization::CreateParameterization</c>.
             /// </summary>
             public static ParameterizedBlendNode.ParameterizationType CreateParameterization(float[] values)
             {
@@ -736,9 +735,9 @@ namespace ValveResourceFormat.Animation
         }
 
         /// <summary>
-        /// Port of Esoterica's Blender::ModelSpaceBlend: masked bones blend their rotations in model
-        /// space (translation and scale blend in parent space), and the mask-weighted result is then
-        /// blended over the base pose in parent space by the layer weight.
+        /// Masked bones blend their rotations in model space (translation and scale blend in parent
+        /// space), and the mask-weighted result is then blended over the base pose in parent space by
+        /// the layer weight.
         /// </summary>
         private void BlendLayerModelSpace(GraphContext ctx, FrameBone[] layerPose, float layerWeight, float[] maskWeights, int boneCount)
         {

@@ -402,7 +402,9 @@ public class UserInput
         }
         else
         {
-            MoveCamera(new Vector3(0, 0, 32), transition: true);
+            // Straight up in the world, not along the view, which tilts with pitch
+            SaveCameraForTransition();
+            Camera.Location += Vector3.UnitZ * 32f;
             CurrentSpeedModifier = 7;
         }
     }

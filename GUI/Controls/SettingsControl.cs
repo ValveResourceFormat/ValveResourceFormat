@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Utils;
 using Microsoft.Win32;
+using ValveResourceFormat.IO;
 
 namespace GUI.Controls
 {
@@ -104,9 +105,9 @@ namespace GUI.Controls
                 return;
             }
 
-            if (Regexes.VpkNumberArchive().IsMatch(fileName))
+            if (PackageFileNames.IsArchiveChunk(fileName))
             {
-                fileName = $"{fileName[..^8]}_dir.vpk";
+                fileName = PackageFileNames.GetDirectoryFile(fileName);
             }
 
             if (Settings.Config.GameSearchPaths.Contains(fileName))

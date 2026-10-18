@@ -10,10 +10,10 @@ namespace ValveResourceFormat.Utils
         /// <summary>
         /// Reads a null terminated string.
         /// </summary>
-        /// <param name="stream">Stream.</param>
-        /// <param name="encoding">Encoding.</param>
+        /// <param name="stream">The reader to read from. It is left positioned after the null terminator.</param>
+        /// <param name="encoding">The encoding of the string, which decides the size of the terminator.</param>
         /// <param name="bufferLengthHint">Initial buffer length used when reading the string.</param>
-        /// <returns>String.</returns>
+        /// <returns>The decoded string without the terminator.</returns>
         public static string ReadNullTermString(this BinaryReader stream, Encoding encoding, int bufferLengthHint = 32)
         {
             if (encoding == Encoding.UTF8)
@@ -47,9 +47,9 @@ namespace ValveResourceFormat.Utils
         /// <summary>
         /// Reads a string located at a signed 32-bit relative offset read from the stream.
         /// </summary>
-        /// <returns>String.</returns>
-        /// <param name="stream">Stream.</param>
-        /// <param name="encoding">Encoding.</param>
+        /// <returns>The string, or an empty string when the offset is zero.</returns>
+        /// <param name="stream">The reader positioned at the offset. It is left positioned after the offset.</param>
+        /// <param name="encoding">The encoding of the string.</param>
         public static string ReadOffsetString(this BinaryReader stream, Encoding encoding)
         {
             var currentOffset = stream.BaseStream.Position;

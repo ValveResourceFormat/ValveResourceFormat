@@ -1,3 +1,7 @@
+---
+description: Describes the binary layout of compiled Source 2 resource files with a _c suffix, including the header and block index table.
+---
+
 # Valve Resource File
 
 This document describes the binary file format used by Valve's Source 2 engine for compiled resource files (files with `_c` suffix such as `.vmdl_c`, `.vtex_c`, `.vmat_c`, etc.).

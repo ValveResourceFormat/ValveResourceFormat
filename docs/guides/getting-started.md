@@ -1,3 +1,7 @@
+---
+description: Download Source 2 Viewer and learn the basics of browsing game files in the Explorer, opening files and VPK links, and exporting assets.
+---
+
 # Getting Started
 
 This guide walks you through the basics of using Source 2 Viewer to browse, preview, and export Source 2 game assets.

@@ -183,7 +183,7 @@ namespace ValveResourceFormat.Animation
 
         /// <summary>
         /// Executes the task list, writing the resulting per-bone weight into
-        /// <paramref name="result"/> (Esoterica BoneMaskTaskList::GenerateBoneMask).
+        /// <paramref name="result"/>.
         /// </summary>
         public readonly void GenerateBoneMask(Skeleton? skeleton, BoneMaskPool pool, float[] result)
         {

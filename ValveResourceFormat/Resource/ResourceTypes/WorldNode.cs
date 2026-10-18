@@ -150,19 +150,19 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         /// <param name="SceneObjectIndex">Index into <see cref="SceneObjects"/>.</param>
         /// <param name="SubSceneObject">Index of the mesh within the scene object's model.</param>
-        /// <param name="DrawCallIndex">Index of the draw call within the mesh.</param>
+        /// <param name="DrawCallIndex">Index of the draw call within the mesh; an index the mesh does not have binds nothing.</param>
         /// <param name="BufferIndex">Index into <see cref="GetExtraVertexStreams"/>.</param>
         /// <seealso href="https://s2v.app/SchemaExplorer/cs2/worldrenderer/ExtraVertexStreamOverride_t">ExtraVertexStreamOverride_t</seealso>
-        public readonly record struct ExtraVertexStreamOverride(int SceneObjectIndex, int SubSceneObject, int DrawCallIndex, int BufferIndex);
+        public readonly record struct ExtraVertexStreamOverride(uint SceneObjectIndex, uint SubSceneObject, uint DrawCallIndex, int BufferIndex);
 
         /// <summary>
         /// Gets the extra vertex streams bound to single draw calls of <see cref="SceneObjects"/>.
         /// </summary>
         public IEnumerable<ExtraVertexStreamOverride> ExtraVertexStreamOverrides
             => (Data.GetArray("m_extraVertexStreamOverrides") ?? []).Select(static streamOverride => new ExtraVertexStreamOverride(
-                streamOverride.GetInt32Property("m_nSceneObjectIndex"),
-                streamOverride.GetInt32Property("m_nSubSceneObject"),
-                streamOverride.GetInt32Property("m_nDrawCallIndex"),
+                streamOverride.GetUInt32Property("m_nSceneObjectIndex"),
+                streamOverride.GetUInt32Property("m_nSubSceneObject"),
+                streamOverride.GetUInt32Property("m_nDrawCallIndex"),
                 streamOverride.GetSubCollection("m_extraBufferBinding").GetInt32Property("m_hBuffer")));
 
         /// <summary>
@@ -177,23 +177,36 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// A material that replaces the one of a single draw call of one of <see cref="SceneObjects"/>.
+        /// A material that replaces the one of a single draw call of one of <see cref="SceneObjects"/>,
+        /// or of all its draw calls when <see cref="DrawCallIndex"/> is <see cref="AllDrawCalls"/>.
         /// </summary>
         /// <param name="SceneObjectIndex">Index into <see cref="SceneObjects"/>.</param>
-        /// <param name="SubSceneObject">Index of the mesh within the scene object's model.</param>
-        /// <param name="DrawCallIndex">Index of the draw call within the mesh.</param>
+        /// <param name="SubSceneObject">Index of the mesh within the scene object's model, ignored for <see cref="AllDrawCalls"/>.</param>
+        /// <param name="DrawCallIndex">Index of the draw call within the mesh, or <see cref="AllDrawCalls"/>.</param>
         /// <param name="Material">Name of the replacement material.</param>
         /// <seealso href="https://s2v.app/SchemaExplorer/cs2/worldrenderer/MaterialOverride_t">MaterialOverride_t</seealso>
-        public readonly record struct MaterialOverride(int SceneObjectIndex, int SubSceneObject, int DrawCallIndex, string Material);
+        public readonly record struct MaterialOverride(uint SceneObjectIndex, uint SubSceneObject, uint DrawCallIndex, string Material)
+        {
+            /// <summary>
+            /// The <see cref="DrawCallIndex"/> that replaces the material of every draw call of every mesh of the model.
+            /// The first such override of a scene object wins and its single draw call overrides are not applied.
+            /// </summary>
+            public const uint AllDrawCalls = uint.MaxValue;
+
+            /// <summary>
+            /// Gets whether this override replaces the material of every draw call of the model.
+            /// </summary>
+            public bool IsWholeModel => DrawCallIndex == AllDrawCalls;
+        }
 
         /// <summary>
-        /// Gets the materials that replace those of single draw calls of <see cref="SceneObjects"/>.
+        /// Gets the materials that replace those of draw calls of <see cref="SceneObjects"/>.
         /// </summary>
         public IEnumerable<MaterialOverride> MaterialOverrides
             => (Data.GetArray("m_materialOverrides") ?? []).Select(static materialOverride => new MaterialOverride(
-                materialOverride.GetInt32Property("m_nSceneObjectIndex"),
-                materialOverride.GetInt32Property("m_nSubSceneObject"),
-                materialOverride.GetInt32Property("m_nDrawCallIndex"),
+                materialOverride.GetUInt32Property("m_nSceneObjectIndex"),
+                materialOverride.GetUInt32Property("m_nSubSceneObject"),
+                materialOverride.GetUInt32Property("m_nDrawCallIndex"),
                 materialOverride.GetStringProperty("m_pMaterial")));
 
         /// <summary>

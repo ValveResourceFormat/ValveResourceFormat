@@ -1,3 +1,7 @@
+---
+description: Learn how Source 2 Viewer finds the models, materials and textures a file depends on, and how to add game paths manually.
+---
+
 # Game Search Paths
 
 Most game files depend on other files. A model needs its materials, a material needs its textures, and a map needs all of the models placed in it. Source 2 Viewer finds these files the same way the game does, by looking through the game's folders and VPK archives. These folders and archives are called game search paths.

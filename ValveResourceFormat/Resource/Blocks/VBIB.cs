@@ -41,6 +41,21 @@ namespace ValveResourceFormat.Blocks
         /// </summary>
         internal void AddToolsBuffers(IEnumerable<OnDiskBufferData> buffers) => toolsBuffers.AddRange(buffers);
 
+        private readonly KVObject? sourceData;
+
+        /// <summary>
+        /// Drops the decoded vertex and index buffers.
+        /// </summary>
+        internal void Release()
+        {
+            lock (Resource.ReaderLock)
+            {
+                VertexBuffers.Clear();
+                IndexBuffers.Clear();
+                MarkDeferred();
+            }
+        }
+
         internal void AddVertexBuffers(IEnumerable<KVObject> buffers)
         {
             foreach (var buffer in buffers)
@@ -158,19 +173,9 @@ namespace ValveResourceFormat.Blocks
         public VBIB(Resource resource, KVObject data) : this()
         {
             Resource = resource;
+            sourceData = data;
 
-            var vertexBuffers = data.GetArray("m_vertexBuffers");
-            foreach (var vb in vertexBuffers)
-            {
-                var vertexBuffer = BufferDataFromDATA(vb, isVertex: true);
-                VertexBuffers.Add(vertexBuffer);
-            }
-            var indexBuffers = data.GetArray("m_indexBuffers");
-            foreach (var ib in indexBuffers)
-            {
-                var indexBuffer = BufferDataFromDATA(ib, isVertex: false);
-                IndexBuffers.Add(indexBuffer);
-            }
+            ReadBuffersFromData(data);
 
             var compiledToolsBuffers = data.GetArray("m_toolsBuffers") ?? [];
             foreach (var tb in compiledToolsBuffers)
@@ -186,9 +191,28 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
+        private void ReadBuffersFromData(KVObject data)
+        {
+            foreach (var vb in data.GetArray("m_vertexBuffers"))
+            {
+                VertexBuffers.Add(BufferDataFromDATA(vb, isVertex: true));
+            }
+
+            foreach (var ib in data.GetArray("m_indexBuffers"))
+            {
+                IndexBuffers.Add(BufferDataFromDATA(ib, isVertex: false));
+            }
+        }
+
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
+            if (sourceData != null)
+            {
+                ReadBuffersFromData(sourceData);
+                return;
+            }
+
             reader.BaseStream.Position = Offset;
 
             var vertexBufferOffset = reader.ReadUInt32();

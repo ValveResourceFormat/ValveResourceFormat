@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using ValveKeyValue;
+using ValveResourceFormat.Particles.Upgrade;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -74,7 +75,7 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
             return NumberProvider(k)?.NextNumber() ?? 0f;
         }
 
-        return Data.GetFloatProperty(k);
+        return Data.GetFloat(k, 0f);
     }
 
     /// <summary>Reads a float property, returning <paramref name="default"/> if the key is absent.</summary>
@@ -282,12 +283,13 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
                     }
 
                     Logger.LogWarning("Number provider of type {Type} is not supported, using its literal value", type);
-                    return new LiteralNumberProvider(pfParameters.GetFloatProperty("m_flLiteralValue"));
+                    return new LiteralNumberProvider(parse.Float("m_flLiteralValue"));
             }
         }
         else
         {
-            return new LiteralNumberProvider((float)pfParameters);
+            // A value that is not a block is a literal; a string that does not parse, empty included, is zero
+            return new LiteralNumberProvider(Data.GetFloat(key, 0f));
         }
     }
 

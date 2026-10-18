@@ -190,7 +190,7 @@ namespace GUI
                 {
                     if (!File.Exists(file))
                     {
-                        var dirFile = string.Concat(file.AsSpan(0, file.Length - 4), "_dir.vpk");
+                        var dirFile = PackageFileNames.GetDirectoryFile(file);
 
                         if (!File.Exists(dirFile))
                         {
@@ -547,6 +547,17 @@ namespace GUI
             }
         }
 
+        private void CloseOtherTabs(TabPage basePage)
+        {
+            for (var i = mainTabs.TabPages.Count - 1; i > 0; i--)
+            {
+                if (mainTabs.TabPages[i] != basePage)
+                {
+                    mainTabs.CloseTab(mainTabs.TabPages[i]);
+                }
+            }
+        }
+
         private void CloseTabsToLeft(TabPage basePage)
         {
             //Close all tabs to the left of the base (excluding console)
@@ -612,6 +623,7 @@ namespace GUI
 
                 //For UX purposes, hide the option to close the console also (this is disabled later in code too)
                 closeToolStripMenuItem.Visible = tabIndex != 0;
+                closeOtherTabsToolStripMenuItem.Visible = tabIndex != 0 && mainTabs.TabPages.Count > 2;
 
                 //Only tabs that got a sound player (world and model viewers) have anything to mute
                 var sceneViewer = GLBaseControl.FindHostedIn(thisTab) as GLSceneViewer;
@@ -686,9 +698,9 @@ namespace GUI
 
         public void OpenFile(string fileName)
         {
-            if (Regexes.VpkNumberArchive().IsMatch(fileName))
+            if (PackageFileNames.IsArchiveChunk(fileName))
             {
-                var fixedPackage = $"{fileName[..^8]}_dir.vpk";
+                var fixedPackage = PackageFileNames.GetDirectoryFile(fileName);
 
                 if (File.Exists(fixedPackage))
                 {
@@ -749,7 +761,7 @@ namespace GUI
 
             try
             {
-                tab.ToolTipText = vrfGuiContext.DisplayPath;
+                tab.ToolTipText = vrfGuiContext.OpenedFromPath;
 
                 var extension = Path.GetExtension(vrfGuiContext.FileName.AsSpan());
 

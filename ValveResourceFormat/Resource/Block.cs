@@ -6,6 +6,11 @@ namespace ValveResourceFormat
     /// <summary>
     /// Represents a block within the resource file.
     /// </summary>
+    /// <remarks>
+    /// Get blocks from <see cref="ValveResourceFormat.Resource.Blocks"/>, or by type with
+    /// <see cref="ValveResourceFormat.Resource.GetBlockByType"/>. Cast <see cref="ValveResourceFormat.Resource.DataBlock"/>
+    /// to the block class that matches the resource type, for example <see cref="ResourceTypes.Texture"/>.
+    /// </remarks>
     public abstract class Block
     {
         /// <summary>
@@ -27,7 +32,7 @@ namespace ValveResourceFormat
         /// Gets the resource this block belongs to.
         /// </summary>
         /// <remarks>
-        /// Can technically be <c>null</c> if constructed outside of a <see cref="Resource"/>.
+        /// Can technically be <c>null</c> if constructed outside of a <see cref="ValveResourceFormat.Resource"/>.
         /// </remarks>
         public required Resource Resource { get; set; }
 
@@ -125,15 +130,17 @@ namespace ValveResourceFormat
         }
 
         /// <summary>
-        /// Writes the correct text dump of the object to <see cref="IndentedTextWriter"/>.
+        /// Writes a human readable text dump of the block contents.
+        /// This is the output <see cref="ToString"/> returns.
         /// </summary>
-        /// <param name="writer"><see cref="IndentedTextWriter"/>.</param>
+        /// <param name="writer">The writer that receives the text, which handles indentation.</param>
         public abstract void WriteText(IndentedTextWriter writer);
 
         /// <summary>
-        /// Writes the binary representation of the object to Stream.
+        /// Writes the block data in its binary form, as stored in a resource file.
+        /// Blocks that do not support serialization throw <see cref="NotImplementedException"/>.
         /// </summary>
-        /// <param name="stream">Stream.</param>
+        /// <param name="stream">The stream to write the block data to.</param>
         public abstract void Serialize(Stream stream);
     }
 }

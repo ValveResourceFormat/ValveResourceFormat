@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
-using ValvePak;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.NavMesh;
@@ -229,9 +228,19 @@ namespace ValveResourceFormat.Renderer.World
                     return resource;
                 }
 
+                var mapFolder = string.Concat(MapName, "/");
+
+                bool IsExternalModel(string name)
+                {
+                    var isModel = name.EndsWith(".vmdl", StringComparison.OrdinalIgnoreCase);
+                    var isInMapFolder = name.StartsWith(mapFolder, StringComparison.OrdinalIgnoreCase);
+                    return isModel && !isInMapFolder;
+                }
+
                 var resourceNames = mapResourceReferences.ResourceRefInfoList
                     .Select(x => x.Name)
-                    .Where(r => !r.StartsWith("_bakeresourcecache", StringComparison.Ordinal));
+                    .Where(r => !r.StartsWith("_bakeresourcecache", StringComparison.Ordinal))
+                    .Where(r => !IsExternalModel(r));
 
                 var parallelOptions = new ParallelOptions { CancellationToken = CancellationToken };
 
@@ -252,19 +261,24 @@ namespace ValveResourceFormat.Renderer.World
                         });
                     }
 
-                    if (resource is { ResourceType: ResourceType.EntityLump, DataBlock: EntityLump entityLump } && entitySystem.ToolVisuals is { } toolVisuals)
+                    if (resource is { ResourceType: ResourceType.EntityLump, DataBlock: EntityLump entityLump })
                     {
-                        HashSet<string> toolResources = [];
+                        HashSet<string> entityResources = [];
                         foreach (var entity in entityLump.GetEntities())
                         {
-                            var className = entity.GetStringProperty("classname");
-                            if (className != null)
+                            if (entity.GetStringProperty("model") is { Length: > 0 } modelName)
                             {
-                                toolResources.UnionWith(toolVisuals.GetResourcesToPreload(className));
+                                entityResources.Add(modelName);
+                            }
+
+                            var className = entity.GetStringProperty("classname");
+                            if (className != null && entitySystem.ToolVisuals is { } toolVisuals)
+                            {
+                                entityResources.UnionWith(toolVisuals.GetResourcesToPreload(className));
                             }
                         }
 
-                        Parallel.ForEach(toolResources, parallelOptions, file =>
+                        Parallel.ForEach(entityResources, parallelOptions, file =>
                         {
                             PreloadResource(file);
                         });
@@ -818,7 +832,7 @@ namespace ValveResourceFormat.Renderer.World
 
             LoadingProgress?.Report("Loading 3D sky…");
 
-            var skyLoader = LoadNestedMap(RendererContext, entitySystem, targetMapName, skyScene, reference, LoadKind.SpawnGroup, ChildNameFixup(skyboxReference), entitiesOnly: false, out var package);
+            var skyLoader = LoadNestedMap(RendererContext, entitySystem, targetMapName, skyScene, reference, LoadKind.SpawnGroup, ChildNameFixup(skyboxReference), entitiesOnly: false, out var mapPackage);
 
             if (currentLoadingPhase != null)
             {
@@ -827,6 +841,11 @@ namespace ValveResourceFormat.Renderer.World
 
             if (skyLoader == null)
             {
+                if (mapPackage != null)
+                {
+                    RendererContext.FileLoader.UnmountMapPackage(mapPackage);
+                }
+
                 skyScene.Dispose();
                 return;
             }
@@ -834,7 +853,7 @@ namespace ValveResourceFormat.Renderer.World
             SpawnGroups.Add(new SpawnGroup(skyLoader.MapName, skyScene, reference, skyLoader.Entities)
             {
                 PlacedBy = skyboxReference,
-                MountedPackage = package,
+                MountedMapPackage = mapPackage,
             });
 
             // The sky camera magnifies the sky, so markers are shrunk to appear at normal size
@@ -869,12 +888,11 @@ namespace ValveResourceFormat.Renderer.World
                 return;
             }
 
-            var prefabLoader = LoadNestedMap(RendererContext, entitySystem, targetMapName, scene, prefab.RigidTransform, LoadKind.Prefab, ChildNameFixup(prefab), entitiesOnly, out var package);
+            var prefabLoader = LoadNestedMap(RendererContext, entitySystem, targetMapName, scene, prefab.RigidTransform, LoadKind.Prefab, ChildNameFixup(prefab), entitiesOnly, out var mapPackage);
 
-            if (package != null)
+            if (mapPackage != null)
             {
-                RendererContext.FileLoader.RemovePackageFromSearch(package);
-                package.Dispose();
+                RendererContext.FileLoader.UnmountMapPackage(mapPackage);
             }
 
             if (prefabLoader != null)
@@ -894,13 +912,15 @@ namespace ValveResourceFormat.Renderer.World
             ArgumentNullException.ThrowIfNull(entitySystem);
 
             var mapName = GetSpawnGroupMapName(targetMapName);
+            var mapPackage = $"{mapName}.vpk";
 
-            if (!TryMountMapPackage(rendererContext, mapName, out var package))
+            if (!rendererContext.FileLoader.TryMountMapPackage(mapPackage))
             {
                 return null;
             }
 
             Scene? scene = null;
+            string? mountedMapPackage = mapPackage;
 
             try
             {
@@ -918,11 +938,11 @@ namespace ValveResourceFormat.Renderer.World
 
                 var group = new SpawnGroup(loader.MapName, scene, transform, loader.Entities)
                 {
-                    MountedPackage = package,
+                    MountedMapPackage = mapPackage,
                 };
 
                 scene = null;
-                package = null;
+                mountedMapPackage = null;
 
                 return group;
             }
@@ -935,10 +955,9 @@ namespace ValveResourceFormat.Renderer.World
             {
                 scene?.Dispose();
 
-                if (package != null)
+                if (mountedMapPackage != null)
                 {
-                    rendererContext.FileLoader.RemovePackageFromSearch(package);
-                    package.Dispose();
+                    rendererContext.FileLoader.UnmountMapPackage(mountedMapPackage);
                 }
             }
         }
@@ -974,12 +993,14 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         private static WorldLoader? LoadNestedMap(RendererContext rendererContext, EntitySystem entitySystem, string targetMapName,
-            Scene intoScene, Matrix4x4 transform, LoadKind loadKind, EntityNameFixup nameFixup, bool entitiesOnly, out Package? package)
+            Scene intoScene, Matrix4x4 transform, LoadKind loadKind, EntityNameFixup nameFixup, bool entitiesOnly, out string? mapPackage)
         {
             var mapName = GetSpawnGroupMapName(targetMapName);
+            mapPackage = $"{mapName}.vpk";
 
-            if (!TryMountMapPackage(rendererContext, mapName, out package))
+            if (!rendererContext.FileLoader.TryMountMapPackage(mapPackage))
             {
+                mapPackage = null;
                 return null;
             }
 
@@ -1020,54 +1041,6 @@ namespace ValveResourceFormat.Renderer.World
             }
 
             return $"maps/{name}";
-        }
-
-        private static bool TryMountMapPackage(RendererContext rendererContext, string mapName, out Package? package)
-        {
-            package = null;
-
-            var vpkFound = rendererContext.FileLoader.FindFile($"{mapName}.vpk");
-
-            if (vpkFound.PathOnDisk != null)
-            {
-                // TODO: Due to the way gui contexts work, we're preloading the vpk into parent context
-                package = rendererContext.FileLoader.AddPackageToSearch(vpkFound.PathOnDisk);
-                return true;
-            }
-
-            if (vpkFound.PackageEntry == null)
-            {
-                return false; // Not found logged by FindFile
-            }
-
-            Debug.Assert(vpkFound.Package != null);
-
-            var innerVpkName = vpkFound.PackageEntry.GetFullPath();
-
-            rendererContext.Logger.LogInformation("Preloading vpk \"{InnerVpkName}\" from \"{PackageFileName}\"", innerVpkName, vpkFound.Package.FileName);
-
-            // TODO: Should FileLoader have a method that opens stream for us?
-            var stream = GameFileLoader.GetPackageEntryStream(vpkFound.Package, vpkFound.PackageEntry);
-
-            var innerPackage = new Package();
-
-            try
-            {
-                innerPackage.SetFileName(innerVpkName);
-                innerPackage.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                innerPackage.Read(stream);
-
-                rendererContext.FileLoader.AddPackageToSearch(innerPackage);
-
-                package = innerPackage;
-                innerPackage = null;
-            }
-            finally
-            {
-                innerPackage?.Dispose();
-            }
-
-            return true;
         }
 
         /// <summary>

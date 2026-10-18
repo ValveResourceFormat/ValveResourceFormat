@@ -9,6 +9,20 @@
     color: var(--vp-c-green-2);
 }
 
+/* Nested type names are long dotted chains with no spaces to wrap at */
+.VPSidebarItem .text {
+    overflow-wrap: anywhere;
+}
+
+/* API listings and enum fields read better spanning the content column. Narrow screens keep
+   the default block display, which scrolls the table instead of widening the page. */
+@media (min-width: 768px) {
+    .api-page .vp-doc table {
+        display: table;
+        width: 100%;
+    }
+}
+
 .dark {
     --vp-c-bg: hsl(216 40% 8%);
     --vp-c-bg-alt: hsl(216 40% 6%);

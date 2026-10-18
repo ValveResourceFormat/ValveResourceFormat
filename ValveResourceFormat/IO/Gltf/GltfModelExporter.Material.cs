@@ -52,7 +52,7 @@ public partial class GltfModelExporter
     private readonly List<Task> TextureExportingTasks = [];
     private readonly Dictionary<string, Texture> ExportedTextures = [];
 
-    private void GenerateGLTFMaterialFromRenderMaterial(Material material, VMaterial renderMaterial, ModelRoot model, Vector4 modelTintColor)
+    private void GenerateGLTFMaterialFromRenderMaterial(Material material, VMaterial renderMaterial, ModelRoot model, Vector4 modelTintColor, bool baseColorOnly = false)
     {
         renderMaterial.IntParams.TryGetValue("F_TRANSLUCENT", out var isTranslucent);
         renderMaterial.IntParams.TryGetValue("F_ALPHA_TEST", out var isAlphaTest);
@@ -104,18 +104,51 @@ public partial class GltfModelExporter
         baseColor = new Vector4(baseColorLinear, baseColor.W);
         baseColor = Vector4.Clamp(baseColor, Vector4.Zero, Vector4.One);
 
+        var emissiveColor = Vector3.One;
+
+        if (renderMaterial.VectorParams.TryGetValue("g_vSelfIllumTint", out var vSelfIllumTint)
+            || renderMaterial.VectorParams.TryGetValue("g_vSelfIllumTint1", out vSelfIllumTint))
+        {
+            var selfIllumTintLinear = ColorSpace.SrgbGammaToLinear(vSelfIllumTint.AsVector3());
+            emissiveColor = Vector3.Clamp(selfIllumTintLinear, Vector3.Zero, Vector3.One);
+        }
+
         var gltfChannelsCache = new Dictionary<string, List<RemapInstruction>>();
         var needsSpecularMode = false;
+        // Materials without self-illumination can still carry a default white mask
+        var selfIllumEnabled = renderMaterial.IntParams.GetValueOrDefault("F_SELF_ILLUM") != 0;
 
         foreach (var (textureKey, _) in renderMaterial.TextureParams)
         {
-            var remapInstructions = GetGltfChannels(renderMaterial, textureKey);
-            gltfChannelsCache[textureKey] = remapInstructions;
+            List<(ChannelMapping Channel, string Name)> inputImages = [.. shaderDataProvider.GetInputsForTexture(textureKey, renderMaterial)];
+            var remapInstructions = RemapValveChannelsToGltf(inputImages);
+
+            if (baseColorOnly)
+            {
+                remapInstructions.RemoveAll(static i => i.ChannelName != "BaseColor");
+            }
 
             if (remapInstructions.Any(static i => i.ChannelName == "SpecularFactor"))
             {
                 needsSpecularMode = true;
             }
+
+            // Without adapting, the whole texture is bound to its first channel, so its color is only
+            // an emissive color when it holds nothing but the self-illum mask
+            if (!AdaptTextures && remapInstructions.Count > 1)
+            {
+                remapInstructions.RemoveRange(1, remapInstructions.Count - 1);
+            }
+
+            var isSelfIllumMaskOnly = inputImages.Count == 1 && BlendNameComparer.Equals(inputImages[0].Name, "TextureSelfIllumMask");
+            var keepsEmissive = selfIllumEnabled && (AdaptTextures || isSelfIllumMaskOnly);
+
+            if (!keepsEmissive)
+            {
+                remapInstructions.RemoveAll(static i => i.ChannelName == "Emissive");
+            }
+
+            gltfChannelsCache[textureKey] = remapInstructions;
         }
 
         if (needsSpecularMode)
@@ -143,6 +176,12 @@ public partial class GltfModelExporter
                 var textureName = Path.GetFileName(texturePath);
                 textures[textureKey] = textureName;
 
+                var gltfChannels = gltfChannelsCache[textureKey];
+                if (gltfChannels.Count == 0)
+                {
+                    continue;
+                }
+
                 if (!ExportedTextures.TryGetValue(textureName, out var texture))
                 {
                     var newImage = CreateNewGLTFImage(model, textureName);
@@ -155,11 +194,7 @@ public partial class GltfModelExporter
                     TextureExportingTasks.Add(texTask);
                 }
 
-                var gltfChannels = gltfChannelsCache[textureKey];
-                if (gltfChannels.Count > 0)
-                {
-                    TieTextureToMaterial(texture, gltfChannels[0].ChannelName, false);
-                }
+                TieTextureToMaterial(texture, gltfChannels[0].ChannelName, false);
             }
 
             WriteMaterialExtras(material, renderMaterial, textures);
@@ -393,13 +428,11 @@ public partial class GltfModelExporter
                     material.FindChannel("Occlusion")?.SetTexture(0, tex);
                 }
             }
-        }
-
-        List<RemapInstruction> GetGltfChannels(VMaterial renderMaterial, string textureKey)
-        {
-            List<(ChannelMapping Channel, string Name)> inputImages = [.. shaderDataProvider.GetInputsForTexture(textureKey, renderMaterial)];
-            var remapInstructions = RemapValveChannelsToGltf(inputImages);
-            return remapInstructions;
+            else if (gltfPackedName == "Emissive")
+            {
+                // The default emissive factor is black, which would hide the texture
+                material.WithChannelColor("Emissive", new Vector4(emissiveColor, 1f));
+            }
         }
 
         List<RemapInstruction> RemapValveChannelsToGltf(List<(ChannelMapping Channel, string Name)> renderTextureChannels)

@@ -1,4 +1,3 @@
-using ValvePak;
 using ValveResourceFormat.Renderer.Entities;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 
@@ -31,7 +30,7 @@ public sealed class SpawnGroup
     /// <summary>Gets the entity that loaded the group, such as a <c>skybox_reference</c>.</summary>
     public BaseEntity? PlacedBy { get; init; }
 
-    internal Package? MountedPackage { get; init; }
+    internal string? MountedMapPackage { get; init; }
 
     /// <summary>Initializes a new instance of the <see cref="SpawnGroup"/> class.</summary>
     public SpawnGroup(string mapName, Scene scene, Matrix4x4 transform, IReadOnlyList<Entity> entities)

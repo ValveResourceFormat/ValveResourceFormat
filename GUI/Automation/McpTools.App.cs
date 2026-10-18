@@ -242,7 +242,7 @@ internal sealed partial class McpTools
             {
                 using var onDisk = new Package();
                 onDisk.Read(package);
-                return List(onDisk, VpkLink.Prefix + VpkLink.EscapePath(Path.GetFullPath(package).Replace('\\', '/')));
+                return List(onDisk, VpkLink.Create([Path.GetFullPath(package)]));
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -254,7 +254,7 @@ internal sealed partial class McpTools
             var context = data?.PackageEntry != null ? data.VrfGuiContext.ParentGuiContext : data?.VrfGuiContext;
 
             return context?.CurrentPackage is { } entries
-                ? List(entries, MainForm.GetVpkLinkPackagePath(context))
+                ? List(entries, context.GetVpkLink())
                 : throw new ToolException($"Tab {tabIds.IdOf(page)} '{page.Text}' is not a package or a file inside one. Pass 'package' to read a .vpk on disk.");
         }, cancellationToken).ConfigureAwait(false);
     }

@@ -78,8 +78,6 @@ namespace ValveResourceFormat.Renderer
 
             Name = mesh.Name;
 
-            var vbib = mesh.VBIB;
-
             if (model != null)
             {
                 MeshBoneOffset = model.BoneRemapTable.GetMeshStart(meshIndex);
@@ -87,6 +85,9 @@ namespace ValveResourceFormat.Renderer
             }
 
             BoneWeightCount = mesh.BoneWeightCount;
+
+            var gpuVbib = renderContext.MeshBufferCache.CreateVertexIndexBuffers(mesh);
+            var vbib = gpuVbib.Layout;
             Skinning = GetSkinning(vbib, BoneWeightCount);
 
             mesh.GetBounds();
@@ -94,7 +95,7 @@ namespace ValveResourceFormat.Renderer
             MeshIndex = meshIndex;
 
             var meshSceneObjects = mesh.Data.GetArray("m_sceneObjects");
-            ConfigureDrawCalls(scene, vbib, meshSceneObjects, initialMaterialTable, isAggregate, shaderArguments);
+            ConfigureDrawCalls(scene, vbib, gpuVbib, meshSceneObjects, initialMaterialTable, isAggregate, shaderArguments);
 
             // Without an atlas of deltas there is nothing for the composite to sample.
             if (morph?.TextureResource != null)
@@ -260,15 +261,13 @@ namespace ValveResourceFormat.Renderer
             return boneWeightCount > 4 ? MeshSkinning.EightBones : MeshSkinning.FourBones;
         }
 
-        private void ConfigureDrawCalls(Scene scene, VBIB vbib, IReadOnlyList<KVObject> sceneObjects, Dictionary<string, string>? materialReplacementTable, bool isAggregate,
+        private void ConfigureDrawCalls(Scene scene, VBIB vbib, GPUMeshBuffers gpuVbib, IReadOnlyList<KVObject> sceneObjects, Dictionary<string, string>? materialReplacementTable, bool isAggregate,
             IReadOnlyDictionary<string, byte>? extraShaderArguments)
         {
             if (vbib.VertexBuffers.Count == 0)
             {
                 return;
             }
-
-            var gpuVbib = renderContext.MeshBufferCache.CreateVertexIndexBuffers(Name, vbib);
 
             // Scene objects are flattened into one mesh. Unsure when there can be more than one.
 

@@ -973,13 +973,26 @@ namespace GUI.Types.Viewers
                 }
             }
 
+            void OnKeyDown(object? sender, KeyEventArgs e)
+            {
+                if (e.KeyData != (Keys.Control | Keys.C) || treeView.SelectedNode is not { } node)
+                {
+                    return;
+                }
+
+                AppClipboard.SetText(node.Tag is ResourceExtRefList.ResourceReferenceInfo refInfo ? refInfo.Name : node.Text);
+                e.SuppressKeyPress = true;
+            }
+
             void OnDisposed(object? sender, EventArgs e)
             {
                 treeView.NodeMouseDoubleClick -= OnNodeDoubleClick;
+                treeView.KeyDown -= OnKeyDown;
                 treeView.Disposed -= OnDisposed;
             }
 
             treeView.NodeMouseDoubleClick += OnNodeDoubleClick;
+            treeView.KeyDown += OnKeyDown;
             treeView.Disposed += OnDisposed;
 
             return treeView;

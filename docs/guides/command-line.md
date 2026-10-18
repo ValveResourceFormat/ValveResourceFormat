@@ -1,3 +1,7 @@
+---
+description: Reference for Source2Viewer-CLI, the Windows, Linux and macOS tool for decompiling Source 2 resources and working with VPK files.
+---
+
 # Command-line utility
 
 While Source 2 Viewer is a GUI application for Windows, there is also a command-line utility available for all of Windows, Linux, and macOS.
@@ -37,6 +41,7 @@ The binary name is `Source2Viewer-CLI`.
 | `--gltf_textures_adapt`          | Perform glTF spec adaptations on exported textures (e.g. split metallic map). Implies `--gltf_export_materials`.                                                                                                                                                                                                 |
 | `--gltf_export_extras`           | Export additional mesh properties into glTF extras.                                                                                                                                                                                                                                                              |
 | `--gltf_compose_additive`        | Compose additive animations over the bind pose instead of exporting their delta tracks.                                                                                                                                                                                                                          |
+| `--gltf_keep_all_keyframes`      | Write an animation key for every frame instead of dropping keys that linear interpolation reproduces within a small tolerance.                                                                                                                                                                                   |
 | `--shader_list_combos`           | List every compiled variant of a shader with its combo values and bytecode hash. For a material, only the variants of its shader that the material selects.                                                                                                                                                      |
 | `--shader_combo`                 | Decompile the shader variant matching these combo values, example: `"S_ALPHA_TEST=1,D_BLEND_WEIGHT_COUNT=4"`. A bare name means `=1`, omitted combos stay at their minimum. For a material, the static combos it selects are used.                                                                               |
 | `--tools_asset_info_short`       | Print only file paths for tools_asset_info files.                                                                                                                                                                                                                                                                |

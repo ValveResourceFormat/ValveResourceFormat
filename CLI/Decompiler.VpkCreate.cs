@@ -1,6 +1,7 @@
 using System.IO;
 using System.IO.Enumeration;
 using ValvePak;
+using ValveResourceFormat.IO;
 
 namespace CLI
 {
@@ -13,9 +14,6 @@ namespace CLI
         {
             var outputPath = Path.GetFullPath(VpkCreatePath!);
             var multiChunk = VpkCreateChunkSize > 0;
-
-            // "_dir.vpk" and "_000.vpk" have the same length
-            var chunkFileBaseName = outputPath.EndsWith("_dir.vpk", StringComparison.OrdinalIgnoreCase) ? outputPath[..^8] : null;
 
             // Skip dot files and folders such as .git, which are not game files
             var enumeration = new FileSystemEnumerable<(string Path, long Length)>(
@@ -39,7 +37,7 @@ namespace CLI
                     continue;
                 }
 
-                if (chunkFileBaseName != null && VpkArchiveIndexRegex().IsMatch(path) && path.AsSpan()[..^8].Equals(chunkFileBaseName, StringComparison.OrdinalIgnoreCase))
+                if (PackageFileNames.IsArchiveChunk(path) && PackageFileNames.GetDirectoryFile(path).Equals(outputPath, StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -94,27 +92,29 @@ namespace CLI
                 return 1;
             }
 
+            Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
+
             using var package = new Package();
+            package.SetFileName(outputPath);
 
             if (multiChunk)
             {
                 package.WriteChunkSize = VpkCreateChunkSize * 1024 * 1024;
             }
 
-            foreach (var (entryPath, path) in files)
-            {
-                if (!Quiet)
-                {
-                    Console.WriteLine(entryPath);
-                }
-
-                package.AddFile(entryPath, File.ReadAllBytes(path), multiChunk);
-            }
-
-            Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
-
             try
             {
+                foreach (var (entryPath, path) in files)
+                {
+                    if (!Quiet)
+                    {
+                        Console.WriteLine(entryPath);
+                    }
+
+                    using var stream = File.OpenRead(path);
+                    package.AddFile(entryPath, stream, multiChunk);
+                }
+
                 package.Write(outputPath);
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException)

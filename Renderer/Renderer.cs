@@ -4,6 +4,7 @@ using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.PostProcess;
 using ValveResourceFormat.Renderer.SceneEnvironment;
+using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 using Color4 = OpenTK.Mathematics.Color4;
@@ -220,6 +221,13 @@ public class Renderer : ISpawnGroupHost
 
     private Shader depthDownsampleShader = null!;
 
+    // Per pixel, the nearest and second nearest order independent fragments, and how many there are in all
+    private RenderTexture? orderIndependentLayers;
+    private Shader orderIndependentCompositeShader = null!;
+
+    // The image unit both order independent shaders declare the layers at
+    private const int OrderIndependentLayersImageUnit = 0;
+
     /// <summary>Scene pixels per water effects texel, horizontally and vertically.</summary>
     public static (int X, int Y) WaterEffectsDownsample { get; } = (4, 2); // 6:3 in low settings
 
@@ -367,7 +375,7 @@ public class Renderer : ISpawnGroupHost
 
     /// <summary>
     /// Stops drawing a spawn group and releases its scene and mounted package. Remove its entities first with
-    /// <see cref="EntitySystem.RemoveSpawnGroup"/>.
+    /// <see cref="ValveResourceFormat.Renderer.Entities.EntitySystem.RemoveSpawnGroup"/>.
     /// </summary>
     public void RemoveSpawnGroup(SpawnGroup group)
     {
@@ -397,10 +405,9 @@ public class Renderer : ISpawnGroupHost
         group.Scene.DeleteNodes();
         group.Scene.Dispose();
 
-        if (group.MountedPackage is { } package)
+        if (group.MountedMapPackage is { } mapPackage)
         {
-            RendererContext.FileLoader.RemovePackageFromSearch(package);
-            package.Dispose();
+            RendererContext.FileLoader.UnmountMapPackage(mapPackage);
         }
     }
 
@@ -640,6 +647,7 @@ public class Renderer : ISpawnGroupHost
 
         depthOnlyShader = Scene.RendererContext.ShaderLoader.LoadShader("depth_only");
         depthDownsampleShader = Scene.RendererContext.ShaderLoader.LoadShader("depth_downsample");
+        orderIndependentCompositeShader = Scene.RendererContext.ShaderLoader.LoadShader("oit_composite");
 
         histogramShaders[0] = Scene.RendererContext.ShaderLoader.LoadShader("histogram");
         histogramShaders[1] = Scene.RendererContext.ShaderLoader.LoadShader("histogram", ("D_HISTOGRAM_MODE", 1));
@@ -936,6 +944,12 @@ public class Renderer : ISpawnGroupHost
     // Translucents sort per scene, so a later scene draws over an earlier one
     private void RenderTranslucentLayer(in SceneView view, ref Scene.RenderContext renderContext)
     {
+        // Not the 3D sky, which draws in its own depth range, nor the passes that replace or count the shaders
+        var orderIndependent = view.Sky == null
+            && renderContext.ReplacementShader == null
+            && renderContext.OverdrawShader == null
+            && ReferenceEquals(renderContext.Framebuffer, MainFramebuffer);
+
         foreach (var state in view.States)
         {
             DrawThrough(view, state, ref renderContext);
@@ -945,8 +959,65 @@ public class Renderer : ISpawnGroupHost
 
             using var _ = GraphicsContext.RenderState.Scope(depthWrite: false, blend: true);
 
-            state.RenderTranslucentLayer(renderContext);
+            state.RenderTranslucentLayer(renderContext with { OrderIndependentTranslucency = orderIndependent });
+
+            if (orderIndependent && state.HasOrderIndependentFills)
+            {
+                RenderOrderIndependentFills(state, renderContext.Framebuffer);
+            }
         }
+    }
+
+    /// <summary>
+    /// Draws the fills that skipped the sorted translucent layer in one pass that keeps the two nearest fragments
+    /// of each pixel and counts them all, and then blends them over the scene as sorted layers of
+    /// <see cref="PhysSceneNode.FillAlpha"/> would. The shapes' edge lines go over them last.
+    /// </summary>
+    private void RenderOrderIndependentFills(SceneViewState state, Framebuffer sceneFramebuffer)
+    {
+        using var _ = new GLDebugGroup("Order Independent Fills");
+
+        var layers = PrepareOrderIndependentLayers(sceneFramebuffer.Width, sceneFramebuffer.Height);
+        GL.BindImageTexture(OrderIndependentLayersImageUnit, layers.Handle, 0, true, 0, TextureAccess.ReadWrite, SizedInternalFormat.R32ui);
+
+        // The fills only write the layers, still testing against the scene depth
+        using (GraphicsContext.RenderState.Scope(colorWriteMask: RsColorWriteEnableBits.None))
+        {
+            state.RenderOrderIndependentFills();
+        }
+
+        GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
+
+        // The composite outputs the layers' color premultiplied, and what they let through of the scene as alpha
+        using (GraphicsContext.RenderState.Scope(fillMode: RsFillMode.Solid, cullMode: RsCullMode.None, depthTest: false, srcBlend: RsBlendMode.One, dstBlend: RsBlendMode.SrcAlpha))
+        {
+            orderIndependentCompositeShader.Use();
+            orderIndependentCompositeShader.SetUniform("g_flLayerAlpha", PhysSceneNode.FillAlpha);
+
+            GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+        }
+
+        // The lines go over the composite, and read the layers to fade behind the fills in front of them
+        using (new GLDebugGroup("Order Independent Lines"))
+        using (GraphicsContext.RenderState.Scope(srcBlend: RsBlendMode.SrcAlpha, dstBlend: RsBlendMode.InvSrcAlpha))
+        {
+            state.RenderOrderIndependentLines();
+        }
+    }
+
+    /// <summary>Clears the order independent layers, created or recreated to match the scene size.</summary>
+    private RenderTexture PrepareOrderIndependentLayers(int width, int height)
+    {
+        if (orderIndependentLayers == null || orderIndependentLayers.Width != width || orderIndependentLayers.Height != height)
+        {
+            orderIndependentLayers?.Delete();
+            orderIndependentLayers = RenderTexture.Create3D(TextureTarget.Texture2DArray, width, height, 3, ImageFormat.R32_UINT, 1, "OrderIndependentLayers");
+        }
+
+        GL.ClearTexImage(orderIndependentLayers.Handle, 0, PixelFormat.RedInteger, PixelType.UnsignedInt, IntPtr.Zero);
+
+        return orderIndependentLayers;
     }
 
     /// <summary>
@@ -1911,6 +1982,7 @@ public class Renderer : ISpawnGroupHost
         ResolvedSceneDepth?.Delete();
         TranslucentDepthBuffer?.Delete();
         OutlineMaskBuffer?.Delete();
+        orderIndependentLayers?.Delete();
         ShadowDepthBuffer?.Delete();
         BarnLightShadowBuffer?.Delete();
         histogramBuffers[0]?.Delete();

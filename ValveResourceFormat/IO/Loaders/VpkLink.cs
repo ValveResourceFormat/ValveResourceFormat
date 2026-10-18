@@ -1,3 +1,5 @@
+using System.Linq;
+
 namespace ValveResourceFormat.IO
 {
     /// <summary>
@@ -42,5 +44,11 @@ namespace ValveResourceFormat.IO
         /// Escapes a package or inner path for a link, so that <see cref="Parse"/> reads it back unchanged.
         /// </summary>
         public static string EscapePath(string path) => path.Replace("%", "%25", StringComparison.Ordinal);
+
+        /// <summary>
+        /// Builds a link from the paths of the packages it goes through, outermost first, optionally followed by the path inside of the innermost one.
+        /// </summary>
+        public static string Create(IEnumerable<string> paths)
+            => string.Concat(Prefix, string.Join(':', paths.Select(static path => EscapePath(path.Replace('\\', '/')))));
     }
 }

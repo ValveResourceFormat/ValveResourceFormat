@@ -44,10 +44,28 @@ namespace ValveResourceFormat.Renderer
             return a.RenderOrder - b.RenderOrder;
         }
 
-        /// <summary>Compares two requests by distance from camera, furthest first (back-to-front).</summary>
+        /// <summary>Compares two requests by distance from camera, furthest first (back-to-front), with ties in a stable order.</summary>
         public static int CompareCameraDistance(Request a, Request b)
         {
-            return -a.DistanceFromCamera.CompareTo(b.DistanceFromCamera);
+            var byDistance = b.DistanceFromCamera.CompareTo(a.DistanceFromCamera);
+            if (byDistance != 0)
+            {
+                return byDistance;
+            }
+
+            var byNode = a.Node.Id.CompareTo(b.Node.Id);
+            if (byNode != 0 || a.Call == null || b.Call == null)
+            {
+                return byNode;
+            }
+
+            var byMesh = a.Mesh.MeshIndex.CompareTo(b.Mesh.MeshIndex);
+            if (byMesh != 0)
+            {
+                return byMesh;
+            }
+
+            return a.Call.Index.CompareTo(b.Call.Index);
         }
 
         /// <summary>Compares two requests by draw stage first, then by shader program sort ID.</summary>

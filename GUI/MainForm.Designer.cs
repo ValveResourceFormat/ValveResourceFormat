@@ -63,6 +63,7 @@ namespace GUI
             mainTabs = new MainTabs();
             tabContextMenuStrip = new ThemedContextMenuStrip(components);
             closeToolStripMenuItem = new ThemedToolStripMenuItem();
+            closeOtherTabsToolStripMenuItem = new ThemedToolStripMenuItem();
             closeToolStripMenuItems = new ThemedToolStripMenuItem();
             closeToolStripMenuItemsToRight = new ThemedToolStripMenuItem();
             closeToolStripMenuItemsToLeft = new ThemedToolStripMenuItem();
@@ -249,7 +250,7 @@ namespace GUI
             // 
             tabContextMenuStrip.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
             tabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(24, 24);
-            tabContextMenuStrip.Items.AddRange(new ToolStripItem[] { closeToolStripMenuItem, closeToolStripMenuItems, closeToolStripMenuItemsToRight, closeToolStripMenuItemsToLeft, muteTabToolStripMenuItem, toolStripSeparator5, exportAsIsToolStripMenuItem, decompileExportToolStripMenuItem, clearConsoleToolStripMenuItem });
+            tabContextMenuStrip.Items.AddRange(new ToolStripItem[] { closeToolStripMenuItem, closeOtherTabsToolStripMenuItem, closeToolStripMenuItems, closeToolStripMenuItemsToRight, closeToolStripMenuItemsToLeft, muteTabToolStripMenuItem, toolStripSeparator5, exportAsIsToolStripMenuItem, decompileExportToolStripMenuItem, clearConsoleToolStripMenuItem });
             tabContextMenuStrip.LayoutStyle = ToolStripLayoutStyle.Table;
             tabContextMenuStrip.Name = "contextMenuStrip1";
             tabContextMenuStrip.Size = new System.Drawing.Size(234, 220);
@@ -262,6 +263,14 @@ namespace GUI
             closeToolStripMenuItem.SVGImageResourceName = "GUI.Icons.CloseTab.svg";
             closeToolStripMenuItem.Text = "Close &tab";
             closeToolStripMenuItem.Click += CloseToolStripMenuItem_Click;
+            // 
+            // closeOtherTabsToolStripMenuItem
+            // 
+            closeOtherTabsToolStripMenuItem.Name = "closeOtherTabsToolStripMenuItem";
+            closeOtherTabsToolStripMenuItem.Size = new System.Drawing.Size(233, 30);
+            closeOtherTabsToolStripMenuItem.SVGImageResourceName = "GUI.Icons.CloseOtherTabs.svg";
+            closeOtherTabsToolStripMenuItem.Text = "Close all &other tabs";
+            closeOtherTabsToolStripMenuItem.Click += CloseOtherTabsToolStripMenuItem_Click;
             // 
             // closeToolStripMenuItems
             // 
@@ -557,6 +566,7 @@ namespace GUI
 
         private ThemedMenuStrip menuStrip;
         private ThemedToolStripMenuItem closeToolStripMenuItem;
+        private ThemedToolStripMenuItem closeOtherTabsToolStripMenuItem;
         private ThemedToolStripMenuItem extractToolStripMenuItem;
         private ThemedToolStripMenuItem copyFileNameToolStripMenuItem;
         private ThemedToolStripMenuItem closeToolStripMenuItemsToLeft;

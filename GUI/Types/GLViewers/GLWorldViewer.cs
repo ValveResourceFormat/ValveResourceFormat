@@ -13,6 +13,7 @@ using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Editor;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.Picking;
+using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -727,11 +728,11 @@ namespace GUI.Types.GLViewers
             return PointBounds(origin);
         }
 
-        /// <summary>Gets whether a node is an editor-only entity or tools material that the tools switches, or playing the world, hide.</summary>
+        /// <summary>Gets whether a node is an editor-only entity or tools material that the tools switches hide.</summary>
         internal bool IsHiddenAsTool(SceneNode node) => HasToolsVisibilityControls && node switch
         {
-            PhysSceneNode { IsToolsMaterial: true } => !tools.ToolMaterialsVisible,
-            { LayerName: { } layer } => ToolsVisibility.IsToolEntityLayer(layer) && !tools.ToolEntitiesVisible,
+            PhysSceneNode { IsToolsMaterial: true } => !tools.ShowToolMaterials,
+            { LayerName: { } layer } => ToolsVisibility.IsToolEntityLayer(layer) && !tools.ShowToolEntities,
             _ => false,
         };
 
@@ -744,13 +745,10 @@ namespace GUI.Types.GLViewers
                 RequestVisibilityUpdate();
             }
 
-            if (node is PhysSceneNode { IsToolsMaterial: true } && !(tools.ShowToolEntities && tools.ShowToolMaterials))
+            if (node is PhysSceneNode { IsToolsMaterial: true } && !tools.ShowToolMaterials)
             {
-                tools.ShowToolEntities = true;
                 tools.ShowToolMaterials = true;
-                toolEntitiesButton?.Checked = true;
                 toolMaterialsButton?.Checked = true;
-                toolMaterialsButton?.Enabled = toolEntitiesButton?.Enabled == true;
                 RequestVisibilityUpdate();
             }
 
@@ -859,6 +857,10 @@ namespace GUI.Types.GLViewers
                     info.AddProperty("Custom Lighting Origin", FormatVector(modelSceneNode.LightingOrigin.Value));
                 }
             }
+            else if (sceneNode is PhysSceneNode physSceneNode)
+            {
+                PhysicsDetails.AddNodeDetails(info, physSceneNode);
+            }
 
             if (sceneNode.CubeMapPrecomputedHandshake > 0)
             {
@@ -886,6 +888,13 @@ namespace GUI.Types.GLViewers
             var form = PrepareEntityInfoForm(entity);
 
             form.EntityInfoControl.PopulateFromEntity(GetLinkableEntities(), entity);
+
+            var modelEntity = Renderer.EntitySystem.Entities.OfType<BaseModelEntity>().FirstOrDefault(candidate => candidate.Data == entity);
+
+            if (modelEntity?.Physics != null)
+            {
+                PhysicsDetails.AddEntityDetails(form.EntityInfoControl, modelEntity, modelEntity.Physics);
+            }
 
             var classname = entity.GetStringProperty("classname");
             var targetName = entity.FriendlyTargetName;
@@ -1199,7 +1208,7 @@ namespace GUI.Types.GLViewers
             {
                 foreach (var scene in Renderer.Scenes)
                 {
-                    scene.ShowToolsMaterials = tools.ToolMaterialsVisible;
+                    scene.ShowToolsMaterials = tools.ShowToolMaterials;
                 }
             }
 
@@ -1233,9 +1242,6 @@ namespace GUI.Types.GLViewers
             toolEntitiesButton = UiControl.AddToolbarToggle("Tool Entities", tools.ShowToolEntities, v =>
             {
                 tools.ShowToolEntities = v;
-
-                // Tools materials are hidden along with them
-                toolMaterialsButton?.Enabled = v;
                 RequestVisibilityUpdate();
             });
             toolMaterialsButton = UiControl.AddToolbarToggle("Tool Materials", tools.ShowToolMaterials, v =>
@@ -1263,16 +1269,6 @@ namespace GUI.Types.GLViewers
             playPauseButton?.Image = playing ? pauseImage : playImage;
             playPauseButton?.AccessibleName = playing ? "Pause" : "Play";
             stopButton?.Enabled = state != SimulationState.Stopped;
-
-            // Both are hidden while the world is played, whatever the switches say
-            toolEntitiesButton?.Enabled = state == SimulationState.Stopped;
-            toolMaterialsButton?.Enabled = state == SimulationState.Stopped && tools.ShowToolEntities;
-        }
-
-        private void SetSimulationState(SimulationState state)
-        {
-            simulationState = state;
-            tools.IsPlaying = state != SimulationState.Stopped;
         }
 
         protected override (string Text, Color32 Color)? ModeLabel => simulationState switch
@@ -1319,7 +1315,7 @@ namespace GUI.Types.GLViewers
             switch (request, simulationState)
             {
                 case (SimulationRequest.Play, SimulationState.Stopped):
-                    SetSimulationState(SimulationState.Playing);
+                    simulationState = SimulationState.Playing;
                     ResetScene();
                     entitySystem.Enabled = true;
                     entitySystem.StartRound();
@@ -1327,17 +1323,17 @@ namespace GUI.Types.GLViewers
                     break;
 
                 case (SimulationRequest.Play, SimulationState.Paused):
-                    SetSimulationState(SimulationState.Playing);
+                    simulationState = SimulationState.Playing;
                     entitySystem.Enabled = true;
                     break;
 
                 case (SimulationRequest.Pause, SimulationState.Playing):
-                    SetSimulationState(SimulationState.Paused);
+                    simulationState = SimulationState.Paused;
                     entitySystem.Enabled = false;
                     break;
 
                 case (SimulationRequest.Stop, SimulationState.Playing or SimulationState.Paused):
-                    SetSimulationState(SimulationState.Stopped);
+                    simulationState = SimulationState.Stopped;
                     entitySystem.Enabled = false;
                     Input.SetWalkMode(false);
                     ResetScene();

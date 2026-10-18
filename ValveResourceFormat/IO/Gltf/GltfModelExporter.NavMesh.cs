@@ -132,7 +132,7 @@ public partial class GltfModelExporter
         primitive.SetVertexAccessor("NORMAL", normalAccessor);
         primitive.SetVertexAccessor("TEXCOORD_0", uvAccessor);
 
-        primitive.WithIndicesAccessor(PrimitiveType.TRIANGLES, [.. indices]);
+        SetIndices(primitive, PrimitiveType.TRIANGLES, [.. indices]);
 
         var material = exportedModel.CreateMaterial($"{meshName}_material");
         material.WithPBRMetallicRoughness(color, null, metallicFactor: 0.0f);

@@ -131,8 +131,7 @@ namespace ValveResourceFormat.Animation
         }
 
         /// <summary>
-        /// (Re)initializes the root node tree at the given time (Esoterica
-        /// GraphInstance::ResetGraphState).
+        /// (Re)initializes the root node tree at the given time.
         /// </summary>
         internal void ResetGraphState(SyncTrackTime initTime = default)
         {
