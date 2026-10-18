@@ -20,7 +20,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            particle.SecondSequenceNumber = sequenceMin + (int)((sequenceMax - sequenceMin + 1) * particleSystemState.Random.Next());
+            particle.SecondSequenceNumber = sequenceMin + particleSystemState.Random.NextIndex(sequenceMax - sequenceMin + 1);
 
             return particle;
         }

@@ -89,6 +89,12 @@ namespace ValveResourceFormat.Particles.Initializers
             return (..blocksStart, blocksStart..blocksEnd, blocksEnd..);
         }
 
+        /// <summary>
+        /// Whether the initializer takes part in initializing the particles being created now. One
+        /// that does not is skipped as if disabled, and counts as writing nothing.
+        /// </summary>
+        public virtual bool ShouldRun(ParticleSystemState particleSystemState) => true;
+
         /// <summary>Builds the per-instance running state the initializer starts with.</summary>
         public virtual void Reset()
         {

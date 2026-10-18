@@ -4,9 +4,9 @@ namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
     /// Copies one attribute from a parent particle to each new child particle, scaled for scalar and
-    /// vector fields and copied as is for integer fields, walking the parent list with a running index
-    /// that resets to zero past the end rather than wrapping modulo, and keeps its place across a
-    /// restart. Color and alpha class fields clamp to [0, 1] after scaling.
+    /// vector fields and copied as is for integer fields and bone indices, walking the parent list with
+    /// a running index that resets to zero past the end rather than wrapping modulo, and keeps its
+    /// place across a restart. Color and alpha class fields clamp to [0, 1] after scaling.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_InheritFromParentParticles">C_INIT_InheritFromParentParticles</seealso>
     class InheritFromParentParticles : ParticleFunctionInitializer
@@ -80,7 +80,11 @@ namespace ValveResourceFormat.Particles.Initializers
 
             ref var parent = ref parentParticles[index];
 
-            if (fieldOutput.FieldType() == "vector")
+            if (fieldOutput == ParticleField.BoneIndices)
+            {
+                particle.BoneIndices = parent.BoneIndices;
+            }
+            else if (fieldOutput.FieldType() == "vector")
             {
                 var value = parent.GetVector(fieldOutput) * scale;
 
