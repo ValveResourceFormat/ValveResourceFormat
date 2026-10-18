@@ -18,19 +18,21 @@ class TwistAroundAxis : ParticleFunctionForceGenerator
     private readonly Vector3 twistAxis = Vector3.UnitZ;
     private readonly bool localSpace;
     private readonly int controlPoint;
+    private readonly int axisControlPoint;
 
     public TwistAroundAxis(ParticleDefinitionParser parse) : base(parse)
     {
         forceAmount = parse.Float("m_fForceAmount", forceAmount);
         twistAxis = parse.Vector3("m_TwistAxis", twistAxis);
         localSpace = parse.Boolean("m_bLocalSpace", localSpace);
-        controlPoint = parse.BehaviorVersion >= 3 ? parse.Int32("m_nControlPointNumber", controlPoint) : 0;
+        controlPoint = parse.Int32("m_nControlPointNumber", controlPoint);
+        axisControlPoint = parse.BehaviorVersion >= 3 ? controlPoint : 0;
     }
 
     public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
     {
         var axis = localSpace
-            ? ControlPointTransformProvider.TransformDirection(particleSystemState, controlPoint, twistAxis)
+            ? ControlPointTransformProvider.TransformDirection(particleSystemState, axisControlPoint, twistAxis)
             : twistAxis;
 
         axis = MathUtils.SafeNormalize(axis, Vector3.UnitZ);
@@ -42,7 +44,7 @@ class TwistAroundAxis : ParticleFunctionForceGenerator
         {
             var delta = particle.Position - center;
 
-            if (delta.LengthSquared() <= ParticleMath.MinimumLengthSquared)
+            if (delta.LengthSquared() <= ParticleMath.FloatEpsilon)
             {
                 continue;
             }
@@ -50,7 +52,7 @@ class TwistAroundAxis : ParticleFunctionForceGenerator
             var direction = MathUtils.SafeNormalize(delta);
             var alignment = 1f - Vector3.Dot(direction, axis);
 
-            if (alignment * alignment <= ParticleMath.MinimumLengthSquared)
+            if (alignment * alignment <= ParticleMath.FloatEpsilon)
             {
                 continue;
             }

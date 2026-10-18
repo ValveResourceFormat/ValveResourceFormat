@@ -12,9 +12,10 @@ namespace ValveResourceFormat.Particles.Constraints
     /// <c>frameTime * m_flAdjustmentScale</c> of the error each pass, so the rope can drape.</para>
     ///
     /// <para>The per-segment rest length is <c>baseLength * m_flRestLength</c>. <c>baseLength</c> is
-    /// <c>m_flInitialRestingLength</c> when non-negative, otherwise the spawn chain length divided by the
-    /// particle count (captured once). <c>m_flRestLength</c> is the path_particle_rope <c>slack</c>
-    /// (control point 1, Y), a bare multiplier: for slack &lt; 1 the rest length is shorter than the chord
+    /// <c>m_flInitialRestingLength</c> when non-negative, otherwise the last non-negative value it had, or
+    /// the spawn chain length divided by the particle count, captured once from the first particles seen.
+    /// <c>m_flRestLength</c> is the path_particle_rope <c>slack</c> (control point 1, Y), a bare
+    /// multiplier: for slack &lt; 1 the rest length is shorter than the chord
     /// between the pinned nodes, so the rope is pulled taut and runs roughly straight with a slight gravity
     /// droop; slack &gt; 1 lets it sag.</para>
     /// </summary>
@@ -46,17 +47,13 @@ namespace ValveResourceFormat.Particles.Constraints
             baseLength = 0f;
         }
 
-        public override bool ApplyConstraint(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState)
+        public override bool ApplyConstraint(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var current = particles.Current;
-            if (current.Length < 2)
-            {
-                return true;
-            }
 
             // Rest segment length is spawn spacing * slack. Resolved before the large-step gate so it locks
             // in from the spawn geometry regardless of the timestep.
-            var rest = ResolveBaseLength(current, particleSystemState) * restLength.NextNumber(particleSystemState);
+            var rest = ResolveBaseLength(particles, particleSystemState) * restLength.NextNumber(particleSystemState);
 
             // Skip the solve on large steps: a step over 0.1s over-corrects the rope
             // instead of nudging it. The constraint is still reported as run.
@@ -98,7 +95,7 @@ namespace ValveResourceFormat.Particles.Constraints
                 // Move b toward / away from a along the connecting axis to reduce the length error, but only
                 // by the soft fraction so gravity can still bend the rope between passes. The divisor is
                 // clamped so near-coincident points still get a finite nudge.
-                var correction = delta * (((target - d) / MathF.Max(d, ParticleMath.MinimumLength)) * scale);
+                var correction = delta * (((target - d) / MathF.Max(d, ParticleMath.FloatEpsilon)) * scale);
 
                 var aPinned = a.ForceScale == 0f;
                 var bPinned = b.ForceScale == 0f;
@@ -126,27 +123,30 @@ namespace ValveResourceFormat.Particles.Constraints
 
         /// <summary>
         /// Resolves the uniform per-segment base length. An explicit non-negative
-        /// <c>m_flInitialRestingLength</c> is evaluated every frame; otherwise the base length is captured
-        /// once from the spawn geometry (total chain length over particle count), while <see cref="Particle.PositionPrevious"/> still
-        /// holds the spawn positions.
+        /// <c>m_flInitialRestingLength</c> is evaluated every frame and remembered; otherwise the base length
+        /// is captured once from the spawn positions (total chain length over particle count) of the first
+        /// particles seen, which is 0 for a single particle.
         /// </summary>
-        private float ResolveBaseLength(ReadOnlySpan<Particle> current, ParticleSystemState particleSystemState)
+        private float ResolveBaseLength(ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var initial = initialRestingLength.NextNumber(particleSystemState);
             if (initial >= 0f)
             {
+                baseLength = initial;
+                captured = true;
                 return initial;
             }
 
-            if (!captured)
+            var spawned = particles.Initial;
+            if (!captured && spawned.Length > 0)
             {
                 var total = 0f;
-                for (var i = 1; i < current.Length; i++)
+                for (var i = 1; i < spawned.Length; i++)
                 {
-                    total += (current[i].PositionPrevious - current[i - 1].PositionPrevious).Length();
+                    total += (spawned[i].Position - spawned[i - 1].Position).Length();
                 }
 
-                baseLength = total / current.Length;
+                baseLength = total / spawned.Length;
                 captured = true;
             }
 
