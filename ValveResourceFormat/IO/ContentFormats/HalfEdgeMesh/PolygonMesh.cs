@@ -835,13 +835,14 @@ public sealed partial class PolygonMesh
         new(1, 0, 0),
     ];
 
+    // Opposite faces share their axes, so the texture reads mirrored on one of them, as it does in Hammer
     private static readonly Vector3[] FaceRightVectors =
     [
         new(1, 0, 0),
         new(1, 0, 0),
         new(1, 0, 0),
-        new(-1, 0, 0),
-        new(0, -1, 0),
+        new(1, 0, 0),
+        new(0, 1, 0),
         new(0, 1, 0),
     ];
 
