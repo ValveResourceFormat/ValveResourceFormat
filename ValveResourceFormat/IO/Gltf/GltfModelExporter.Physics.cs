@@ -1,3 +1,4 @@
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using SharpGLTF.Schema2;
@@ -421,33 +422,15 @@ public partial class GltfModelExporter
             var material = exportedModel.CreateMaterial($"{meshName}_material");
 
             // Try to load and use tool material first. Physics meshes have no tangents or detail worth shading, so only its base color is bound
-            var tags = PhysAggregateData.GetInteractAsTags(collisionAttributes);
-            var toolTextureName = MapExtract.GetToolTextureShortenedName_ForInteractStrings([.. tags]);
+            var toolMaterialPath = classname != null
+                ? MapExtract.GetToolTextureForEntity(classname)
+                : MapExtract.GetToolsMaterialForInteractAs(PhysAggregateData.GetInteractAsTags(collisionAttributes));
             var usedToolMaterial = false;
 
-            if (classname != null)
+            if (toolMaterialPath != null && FileLoader.LoadFileCompiled(toolMaterialPath)?.DataBlock is VMaterial toolMaterial)
             {
-                var toolMaterialPath = MapExtract.GetToolTextureForEntity(classname);
-                if (!string.IsNullOrEmpty(toolMaterialPath))
-                {
-                    var materialResource = FileLoader.LoadFileCompiled(toolMaterialPath);
-                    if (materialResource?.DataBlock is VMaterial toolMaterial)
-                    {
-                        GenerateGLTFMaterialFromRenderMaterial(material, toolMaterial, exportedModel, Vector4.One, baseColorOnly: true);
-                        usedToolMaterial = true;
-                    }
-                }
-            }
-            else if (!string.IsNullOrEmpty(toolTextureName) && toolTextureName != "nodraw")
-            {
-                var toolMaterialPath = $"materials/tools/tools{toolTextureName}.vmat";
-
-                var materialResource = FileLoader.LoadFileCompiled(toolMaterialPath);
-                if (materialResource?.DataBlock is VMaterial toolMaterial)
-                {
-                    GenerateGLTFMaterialFromRenderMaterial(material, toolMaterial, exportedModel, Vector4.One, baseColorOnly: true);
-                    usedToolMaterial = true;
-                }
+                GenerateGLTFMaterialFromRenderMaterial(material, toolMaterial, exportedModel, Vector4.One, baseColorOnly: true);
+                usedToolMaterial = true;
             }
 
             // If no tool material was used, fall back to auto-generated textures
@@ -462,10 +445,11 @@ public partial class GltfModelExporter
                 string textureName;
                 SharpGLTF.Schema2.Texture? texture = null;
 
-                if (!string.IsNullOrEmpty(toolTextureName) && toolTextureName != "nodraw")
+                if (toolMaterialPath != null)
                 {
-                    // Use tool texture name for fallback auto-generated texture
-                    textureName = $"tool_{toolTextureName}";
+                    // Use tool material name for fallback auto-generated texture
+                    var toolMaterialName = Path.GetFileNameWithoutExtension(toolMaterialPath);
+                    textureName = $"tool_{toolMaterialName}";
 
                     if (!ExportedTextures.TryGetValue(textureName, out texture))
                     {
@@ -474,7 +458,7 @@ public partial class GltfModelExporter
                         texture.Name = newImage.Name;
                         ExportedTextures[textureName] = texture;
 
-                        var toolTexTask = AddPhysicsTexture(newImage, $"TOOL_{toolTextureName.ToUpperInvariant()}");
+                        var toolTexTask = AddPhysicsTexture(newImage, $"TOOL_{toolMaterialName.ToUpperInvariant()}");
                         TextureExportingTasks.Add(toolTexTask);
                     }
                 }

@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -65,10 +66,9 @@ public sealed partial class MapExtract
     private const int AutoPhysicsMaterialWorldMapping = 16;
 
     /// <summary>
-    /// The texture size Hammer projects a material with, for faces that have no texture coordinates, in texels at
-    /// <see cref="PolygonMesh.DefaultTextureScale"/>: the units its WorldMappingWidth / WorldMappingHeight attributes
-    /// say the texture spans, else the size of its representative texture. Null when the material declares neither,
-    /// projecting it at the builder's default size.
+    /// The texture size Hammer projects a material with, for faces that have no texture coordinates, see
+    /// <see cref="GetProjectedTextureSize"/>. Null when the material declares none, projecting it at the builder's
+    /// default size.
     /// </summary>
     private Vector2? GetMaterialTextureSize(string materialName)
     {
@@ -90,10 +90,20 @@ public sealed partial class MapExtract
         }
 
         using var materialResource = FileLoader.LoadFileCompiled(materialName);
-        if (materialResource?.DataBlock is not Material material)
-        {
-            return null;
-        }
+
+        return materialResource?.DataBlock is Material material ? GetProjectedTextureSize(material) : null;
+    }
+
+    /// <summary>
+    /// Gets the texture size Hammer projects a material with, in texels at <see cref="PolygonMesh.DefaultTextureScale"/>:
+    /// the units its WorldMappingWidth / WorldMappingHeight attributes say the texture spans, else the size of its
+    /// representative texture.
+    /// </summary>
+    /// <param name="material">The material.</param>
+    /// <returns>The size, or <see langword="null"/> when the material declares neither.</returns>
+    public static Vector2? GetProjectedTextureSize(Material material)
+    {
+        ArgumentNullException.ThrowIfNull(material);
 
         int GetIntAttribute(string name) => (int)material.IntAttributes.GetValueOrDefault(name);
 
@@ -505,6 +515,39 @@ public sealed partial class MapExtract
         };
     }
 
+    // Tools materials by the interact-as tags their collision compiles with, sorted and comma separated. A material
+    // gets a tag of the same name from each of its "mapbuilder.<tag>" attributes that is one of ladder, blocklos,
+    // blocksound, passbullets, npcclip, playerclip, sky, water, teleportclip and navclip, or the tags of the entry in
+    // scripts/collision_properties.txt that its "mapbuilder.collisionproperties" attribute names. Where several
+    // materials compile to the same tags, the one they are usually made with is listed.
+    private static readonly FrozenDictionary<string, string> ToolsMaterialByInteractAs = new Dictionary<string, string>
+    {
+        ["blocklos"] = "materials/tools/toolsblock_los.vmat",
+        ["blocksound"] = "materials/tools/toolsblocksound.vmat",
+        ["csgo_grenadeclip"] = "materials/tools/toolsgrenadeclip.vmat",
+        ["ladder,npcclip,playerclip"] = "materials/tools/toolsinvisibleladder.vmat",
+        ["ladder,passbullets"] = "materials/tools/toolsinvisibleladder_wood.vmat",
+        ["navclip"] = "materials/tools/toolsnavclip.vmat",
+        ["npcclip"] = "materials/tools/toolsnpcclip.vmat",
+        ["npcclip,passbullets"] = "materials/tools/toolsinvisible.vmat",
+        ["npcclip,playerclip"] = "materials/tools/toolsclip.vmat",
+        ["playerclip"] = "materials/tools/toolsplayerclip.vmat",
+        ["sky"] = "materials/tools/toolsskybox.vmat",
+        ["teleportclip"] = "materials/tools/toolsteleportclip.vmat",
+    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the tools material that compiles to collision which interacts as the given tags.
+    /// </summary>
+    /// <param name="interactAs">The interact-as tags of a group of collision, see <see cref="PhysAggregateData.GetInteractAsTags(KVObject)"/>.</param>
+    /// <returns>The path of the material, or <see langword="null"/> when no tools material compiles to exactly these tags.</returns>
+    public static string? GetToolsMaterialForInteractAs(IEnumerable<string> interactAs)
+    {
+        ArgumentNullException.ThrowIfNull(interactAs);
+
+        return ToolsMaterialByInteractAs.GetValueOrDefault(string.Join(',', interactAs.Order(StringComparer.OrdinalIgnoreCase)));
+    }
+
     /// <summary>
     /// Maps tool texture names to their associated collision tag sets.
     /// </summary>
@@ -514,16 +557,6 @@ public sealed partial class MapExtract
         ["clip"] = ["npcclip", "playerclip"],
         ["invisibleladder"] = ["ladder", "passbullets"],
     };
-
-    /// <summary>
-    /// Gets the tool texture material path for a given surface tag combination.
-    /// </summary>
-    public static string GetToolTextureNameForCollisionTags(SurfaceTagCombo combo)
-    {
-        var shortenedToolTextureName = GetToolTextureShortenedName_ForInteractStrings(combo.InteractAsStrings);
-
-        return $"materials/tools/tools{shortenedToolTextureName}.vmat";
-    }
 
     /// <summary>
     /// Gets the shortened tool texture name for a set of interact-as strings.
