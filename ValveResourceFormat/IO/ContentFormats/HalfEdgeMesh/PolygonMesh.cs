@@ -298,29 +298,42 @@ public sealed partial class PolygonMesh
     /// <summary>
     /// Copies another mesh into this one, reporting the handle each source component landed on.
     /// </summary>
+    /// <exception cref="InvalidOperationException">The meshes store a stream of the same semantic as different types.</exception>
     public void MergeMesh(PolygonMesh sourceMesh,
         out Dictionary<VertexHandle, VertexHandle> newVertices,
         out Dictionary<HalfEdgeHandle, HalfEdgeHandle> newHalfEdges,
         out Dictionary<FaceHandle, FaceHandle> newFaces)
     {
+        var dataCounts = CountComponentData();
         Topology.AppendComponentsFromMesh(sourceMesh.Topology, out newVertices, out newHalfEdges, out newFaces);
-        CopyMergedData(sourceMesh, newVertices, newHalfEdges, newFaces);
+        CopyMergedData(sourceMesh, dataCounts, newVertices, newHalfEdges, newFaces);
     }
 
     /// <summary>
     /// Copies a set of faces of another mesh into this one, with their edges and vertices, reporting the handle
     /// each source component landed on. The faces should form whole islands connected through edges.
     /// </summary>
+    /// <exception cref="InvalidOperationException">The meshes store a stream of the same semantic as different types.</exception>
     public void MergeMesh(PolygonMesh sourceMesh, IReadOnlyCollection<FaceHandle> faces,
         out Dictionary<VertexHandle, VertexHandle> newVertices,
         out Dictionary<HalfEdgeHandle, HalfEdgeHandle> newHalfEdges,
         out Dictionary<FaceHandle, FaceHandle> newFaces)
     {
-        Topology.AppendComponentsFromMesh(sourceMesh.Topology, faces, out newVertices, out newHalfEdges, out newFaces);
-        CopyMergedData(sourceMesh, newVertices, newHalfEdges, newFaces);
+        var dataCounts = CountComponentData();
+        Topology.AppendComponentsFromMesh(faces, out newVertices, out newHalfEdges, out newFaces);
+        CopyMergedData(sourceMesh, dataCounts, newVertices, newHalfEdges, newFaces);
+    }
+
+    // How many entries of data a file keeps for the components in use, the data of merged components going after them
+    private (int Vertices, int FaceVertices, int Edges, int Faces) CountComponentData()
+    {
+        var halfEdgeCount = Topology.HalfEdgeHandles.Count();
+
+        return (Topology.VertexHandles.Count(), halfEdgeCount, halfEdgeCount / 2, Topology.FaceHandles.Count());
     }
 
     private void CopyMergedData(PolygonMesh sourceMesh,
+        (int Vertices, int FaceVertices, int Edges, int Faces) dataCounts,
         Dictionary<VertexHandle, VertexHandle> newVertices,
         Dictionary<HalfEdgeHandle, HalfEdgeHandle> newHalfEdges,
         Dictionary<FaceHandle, FaceHandle> newFaces)
@@ -328,6 +341,7 @@ public sealed partial class PolygonMesh
         foreach (var (hVertex, hNewVertex) in newVertices)
         {
             Positions[hNewVertex] = sourceMesh.Positions[hVertex];
+            VertexDataIndices[hNewVertex] = sourceMesh.VertexDataIndices[hVertex] + dataCounts.Vertices;
         }
 
         foreach (var (hEdge, hNewEdge) in newHalfEdges)
@@ -338,6 +352,10 @@ public sealed partial class PolygonMesh
             Tangents[hNewEdge] = sourceMesh.Tangents[hEdge];
             VertexPaintBlendParams[hNewEdge] = sourceMesh.VertexPaintBlendParams[hEdge];
             VertexPaintTintColor[hNewEdge] = sourceMesh.VertexPaintTintColor[hEdge];
+            EdgeFlags[hNewEdge] = sourceMesh.EdgeFlags[hEdge];
+            SubdivisionLevels[hNewEdge] = sourceMesh.SubdivisionLevels[hEdge];
+            FaceVertexDataIndices[hNewEdge] = sourceMesh.FaceVertexDataIndices[hEdge] + dataCounts.FaceVertices;
+            EdgeDataIndices[hNewEdge] = sourceMesh.EdgeDataIndices[hEdge] + dataCounts.Edges;
         }
 
         foreach (var (hFace, hNewFace) in newFaces)
@@ -346,9 +364,149 @@ public sealed partial class PolygonMesh
             TextureVAxis[hNewFace] = sourceMesh.TextureVAxis[hFace];
             TextureScale[hNewFace] = sourceMesh.TextureScale[hFace];
             TextureOffset[hNewFace] = sourceMesh.TextureOffset[hFace];
+            FaceFlags[hNewFace] = sourceMesh.FaceFlags[hFace];
+            FaceDataIndices[hNewFace] = sourceMesh.FaceDataIndices[hFace] + dataCounts.Faces;
 
             SetFaceMaterial(hNewFace, sourceMesh.GetFaceMaterial(hFace));
         }
+
+        CopyMergedStreams(sourceMesh, newVertices, newHalfEdges, newFaces);
+    }
+
+    // A stream of the source this mesh lacks is added, its values default for the components this mesh already has.
+    // The patches of the merged face corners go after the ones this mesh has, so their starts move.
+    private void CopyMergedStreams(PolygonMesh sourceMesh,
+        Dictionary<VertexHandle, VertexHandle> newVertices,
+        Dictionary<HalfEdgeHandle, HalfEdgeHandle> newHalfEdges,
+        Dictionary<FaceHandle, FaceHandle> newFaces)
+    {
+        var patchValueCount = 0;
+
+        foreach (var stream in StoredStreams)
+        {
+            if (stream.Component == MeshComponentType.Subdivision && stream.Values != null)
+            {
+                patchValueCount = Math.Max(patchValueCount, stream.Values.Length);
+            }
+        }
+
+        var sourcePatchStarts = new List<(int Source, int Merged, int Count)>();
+
+        foreach (var (hEdge, hNewEdge) in newHalfEdges)
+        {
+            var size = GetPatchSize(SubdivisionLevels[hNewEdge]);
+
+            SubdivisionPatchStarts[hNewEdge] = patchValueCount;
+            sourcePatchStarts.Add((sourceMesh.SubdivisionPatchStarts[hEdge], patchValueCount, size * size));
+            patchValueCount += size * size;
+        }
+
+        foreach (var sourceStream in sourceMesh.StoredStreams)
+        {
+            var stream = FindOrAddStoredStream(sourceStream);
+
+            if (sourceStream.Values is not { } sourceValues)
+            {
+                continue;
+            }
+
+            switch (sourceStream.Component)
+            {
+                case MeshComponentType.Vertex:
+                    CopyStreamValues(stream, sourceValues, newVertices, Topology.VertexCount, static h => h.Index);
+                    break;
+                case MeshComponentType.FaceVertex:
+                case MeshComponentType.Edge:
+                    CopyStreamValues(stream, sourceValues, newHalfEdges, Topology.HalfEdgeCount, static h => h.Index);
+                    break;
+                case MeshComponentType.Face:
+                    CopyStreamValues(stream, sourceValues, newFaces, Topology.FaceCount, static h => h.Index);
+                    break;
+
+                // An empty subdivision stream is the same as none
+                case MeshComponentType.Subdivision when sourceValues.Length > 0:
+                {
+                    var values = GrowStreamValues(stream, patchValueCount);
+
+                    foreach (var (sourceStart, mergedStart, count) in sourcePatchStarts)
+                    {
+                        if (sourceStart >= 0 && sourceStart + count <= sourceValues.Length)
+                        {
+                            Array.Copy(sourceValues, sourceStart, values, mergedStart, count);
+                        }
+                    }
+
+                    break;
+                }
+            }
+        }
+    }
+
+    // The stream of this mesh with the semantic of a stream of another mesh, added when this mesh has none
+    private PolygonMeshStream FindOrAddStoredStream(PolygonMeshStream sourceStream)
+    {
+        foreach (var stream in StoredStreams)
+        {
+            if (stream.Component == sourceStream.Component && stream.SemanticIndex == sourceStream.SemanticIndex
+                && stream.SemanticName.Equals(sourceStream.SemanticName, StringComparison.OrdinalIgnoreCase))
+            {
+                if (stream.Values?.GetType() != sourceStream.Values?.GetType())
+                {
+                    throw new InvalidOperationException($"Cannot merge the {sourceStream.Name} streams of two meshes, they hold different types.");
+                }
+
+                return stream;
+            }
+        }
+
+        var added = new PolygonMeshStream
+        {
+            Component = sourceStream.Component,
+            Name = sourceStream.Name,
+            StandardAttributeName = sourceStream.StandardAttributeName,
+            SemanticName = sourceStream.SemanticName,
+            SemanticIndex = sourceStream.SemanticIndex,
+            VertexBufferLocation = sourceStream.VertexBufferLocation,
+            DataStateFlags = sourceStream.DataStateFlags,
+            SubdivisionBinding = sourceStream.SubdivisionBinding,
+            Values = sourceStream.Values is { } values ? Array.CreateInstanceFromArrayType(values.GetType(), 0) : null,
+        };
+
+        StoredStreams.Add(added);
+
+        return added;
+    }
+
+    private static void CopyStreamValues<THandle>(PolygonMeshStream stream, Array sourceValues,
+        Dictionary<THandle, THandle> newComponents, int componentCount, Func<THandle, int> getIndex)
+        where THandle : notnull
+    {
+        var values = GrowStreamValues(stream, componentCount);
+
+        foreach (var (hComponent, hNewComponent) in newComponents)
+        {
+            var index = getIndex(hComponent);
+
+            if ((uint)index < (uint)sourceValues.Length)
+            {
+                Array.Copy(sourceValues, index, values, getIndex(hNewComponent), 1);
+            }
+        }
+    }
+
+    // The values of a stream, grown with default values to at least a length
+    private static Array GrowStreamValues(PolygonMeshStream stream, int length)
+    {
+        var values = stream.Values!;
+
+        if (values.Length < length)
+        {
+            var grown = Array.CreateInstanceFromArrayType(values.GetType(), length);
+            Array.Copy(values, grown, values.Length);
+            stream.Values = values = grown;
+        }
+
+        return values;
     }
 
     /// <summary>
@@ -1760,7 +1918,7 @@ public sealed partial class PolygonMesh
 
         foreach (var islandFaces in islands)
         {
-            var part = new PolygonMesh();
+            var part = new PolygonMesh { smoothingThreshold = smoothingThreshold };
             part.MergeMesh(this, islandFaces, out _, out _, out _);
             parts.Add(part);
         }

@@ -486,6 +486,95 @@ namespace Tests.IO
         }
 
         /// <summary>
+        /// A merged mesh keeps the order its data was read in, after the data of the mesh it is merged into.
+        /// </summary>
+        [Test]
+        public async Task MergedMeshesAreStoredWithTheirDataAfterTheMeshTheyAreMergedInto()
+        {
+            var stored = MakeTwoQuads();
+            stored.FaceDataIndices[0] = 1;
+            stored.FaceDataIndices[1] = 0;
+
+            var materialIndices = (Datamodel.IntArray)stored.FaceData.Streams.OfType<CDmePolygonMeshDataStream>().Single(static stream => stream.SemanticName == "materialindex").Data!;
+            (materialIndices[0], materialIndices[1]) = (materialIndices[1], materialIndices[0]);
+
+            var mesh = new PolygonMesh();
+            stored.CopyToPolyMesh(mesh);
+
+            var source = new PolygonMesh();
+            stored.CopyToPolyMesh(source);
+
+            mesh.MergeMesh(source, out _, out _, out var newFaces);
+
+            var written = new CDmePolygonMesh();
+            written.CopyFromPolyMesh(mesh);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(string.Join(' ', written.FaceDataIndices)).IsEqualTo("1 0 3 2");
+                await Assert.That(written.FaceVertexData.Size).IsEqualTo(2 * stored.FaceVertexData.Size);
+                await Assert.That(mesh.Materials[mesh.MaterialIndex[newFaces[source.FaceHandles.First()]]]).IsEqualTo("materials/a.vmat");
+            }
+        }
+
+        /// <summary>
+        /// The parts a mesh is split into keep the flags, subdivision patches and other streams of their faces,
+        /// edges and corners.
+        /// </summary>
+        [Test]
+        public async Task SplitPartsKeepTheDataOfTheirComponents()
+        {
+            var builder = new HammerMeshBuilder();
+
+            builder.AddVertices(
+            [
+                new(0, 0, 0), new(4, 0, 0), new(4, 4, 0), new(0, 4, 0),
+                new(10, 0, 0), new(14, 0, 0), new(14, 4, 0), new(10, 4, 0),
+            ]);
+            builder.AddFace([0, 1, 2, 3], "materials/a.vmat");
+            builder.AddFace([4, 5, 6, 7], "materials/a.vmat");
+
+            var displacement = new Vector3(0, 0, 2);
+            var stored = Subdivide(builder.GenerateMesh(), [0, 2], displacement);
+            AddCornerStream(stored, "PerVertexLighting", 1, static data => new Vector4(data + 1, 0, 0, 1));
+
+            var mesh = new PolygonMesh();
+            stored.CopyToPolyMesh(mesh);
+
+            var plainFace = mesh.FaceHandles.First();
+            mesh.SetFaceHidden(plainFace, true);
+            mesh.SetEdgeSmoothing(plainFace.Edge, PolygonMesh.EdgeSmoothMode.Hard);
+
+            static string Lighting(PolygonMesh mesh, FaceHandle hFace)
+            {
+                var values = (Vector4[])mesh.StoredStreams.Single(static stream => stream.SemanticName == "PerVertexLighting").Values!;
+                return string.Join(' ', mesh.HalfEdgeHandles.Where(hEdge => hEdge.Face == hFace).Select(hEdge => values[hEdge.Index].X).Order());
+            }
+
+            var expectedLighting = Lighting(mesh, plainFace);
+
+            var parts = mesh.SplitConnectedParts();
+            var plainPart = parts.Single(static part => part.HalfEdgeHandles.All(hEdge => part.SubdivisionLevels[hEdge] == 0));
+            var subdividedPart = parts.Single(part => part != plainPart);
+            var plainPartFace = plainPart.FaceHandles.Single();
+
+            var written = new CDmePolygonMesh();
+            written.CopyFromPolyMesh(subdividedPart);
+
+            var writtenDisplacements = (Datamodel.Vector3Array)written.SubdivisionData.Streams.OfType<CDmePolygonMeshDataStream>().Single().Data!;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(plainPart.IsFaceHidden(plainPartFace)).IsTrue();
+                await Assert.That(plainPart.HalfEdgeHandles.Count(hEdge => plainPart.GetEdgeSmoothing(hEdge) == PolygonMesh.EdgeSmoothMode.Hard)).IsEqualTo(2);
+                await Assert.That(Lighting(plainPart, plainPartFace)).IsEqualTo(expectedLighting);
+                await Assert.That(written.SubdivisionData.SubdivisionLevels.Count(static level => level == 2)).IsEqualTo(4);
+                await Assert.That(writtenDisplacements.Count).IsEqualTo(4 * 9);
+                await Assert.That(writtenDisplacements.Where(static (_, i) => i % 9 == 8).All(value => value == displacement)).IsTrue();
+            }
+        }
+
+        /// <summary>
         /// The corners of a face are all subdivided to the level of its first one. The patch of a corner that was at
         /// a finer level is thinned out, and that of one at a coarser level interpolated.
         /// </summary>
