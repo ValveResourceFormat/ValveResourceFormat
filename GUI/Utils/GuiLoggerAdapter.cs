@@ -59,16 +59,3 @@ internal sealed class GuiLoggerAdapter : ILogger
         }
     }
 }
-
-internal sealed class GuiLoggerProvider : ILoggerProvider
-{
-    public ILogger CreateLogger(string categoryName)
-    {
-        return new GuiLoggerAdapter(categoryName);
-    }
-
-    public void Dispose()
-    {
-        //
-    }
-}

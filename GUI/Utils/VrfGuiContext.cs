@@ -16,7 +16,7 @@ namespace GUI.Utils
 {
     public class VrfGuiContext : GameFileLoader
     {
-        public static ILogger Logger { get; } = MakeLogger();
+        public static ILogger Logger { get; } = new GuiLoggerAdapter(nameof(RendererContext));
         private static readonly ILogger FileLoaderLogger = new GuiLoggerAdapter(nameof(GameFileLoader));
 
         public string FileName { get; }
@@ -447,26 +447,5 @@ namespace GUI.Utils
         }
 
         public override Resource? LoadFileCompiled(string file) => LoadFile(string.Concat(file, CompiledFileSuffix));
-
-        private static ILogger MakeLogger()
-        {
-            ILoggerFactory? loggerFactory = null;
-
-            try
-            {
-                loggerFactory = LoggerFactory.Create(static builder =>
-                {
-                    builder.SetMinimumLevel(LogLevel.Debug);
-                    builder.AddProvider(new GuiLoggerProvider());
-                });
-                var logger = loggerFactory.CreateLogger(nameof(RendererContext));
-                loggerFactory = null;
-                return logger;
-            }
-            finally
-            {
-                loggerFactory?.Dispose();
-            }
-        }
     }
 }
