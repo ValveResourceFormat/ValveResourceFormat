@@ -4,6 +4,7 @@ using ValveResourceFormat.Renderer.Editor.Collision;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.Map;
 using ValveResourceFormat.Renderer.Materials;
+using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.World;
 
 namespace ValveResourceFormat.Renderer.Editor;
@@ -42,16 +43,30 @@ public sealed class ToolsVisibility : IDrawFilter
     /// </summary>
     public IReadOnlySet<string> ShownCollision { get; set; } = FrozenSet<string>.Empty;
 
-    /// <summary>Gets or sets whether collision is drawn opaque, rather than as translucent fills and edge lines.</summary>
+    /// <summary>
+    /// Gets or sets whether collision and the shapes of tools materials are drawn opaque, rather than as translucent
+    /// fills and edge lines.
+    /// </summary>
     public bool OpaqueCollision { get; set; }
 
-    /// <summary>Shows the collision among some nodes that <see cref="ShownCollision"/> names, as <see cref="OpaqueCollision"/> says.</summary>
-    /// <param name="nodes">The nodes, of which only collision that shows no tools material is changed.</param>
+    /// <summary>
+    /// Shows the collision among some nodes that <see cref="ShownCollision"/> names, and draws it and the shapes of
+    /// tools materials as <see cref="OpaqueCollision"/> says.
+    /// </summary>
+    /// <param name="nodes">The nodes, of which only collision and the shapes of tools materials are changed.</param>
     public void ApplyCollisionVisibility(IEnumerable<SceneNode> nodes)
     {
-        foreach (var node in nodes.OfType<PhysSceneNode>().Where(static node => node.ToolsMaterial == null))
+        foreach (var node in nodes.OfType<ShapeSceneNode>())
         {
-            node.Enabled = ShownCollision.Contains(node.CollisionLabel);
+            if (node is PhysSceneNode { ToolsMaterial: null } collision)
+            {
+                collision.Enabled = ShownCollision.Contains(collision.CollisionLabel);
+            }
+            else if (node.ToolsMaterial == null)
+            {
+                continue;
+            }
+
             node.IsTranslucentRenderMode = !OpaqueCollision;
         }
     }

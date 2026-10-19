@@ -1172,23 +1172,25 @@ namespace GUI.Types.GLViewers
             UiControl.AddTreeSelection("Auto Vis Groups", groups, shown => Tools.HiddenToolBrushGroups = allGroups.Except(shown).ToFrozenSet());
         }
 
-        // What the loaded map collides as, hidden until checked
+        // What the loaded map collides as, hidden until checked, and whether it and tools materials are drawn opaque
         private void AddCollisionControl()
         {
             Debug.Assert(UiControl != null);
 
             var labels = ToolsVisibility.GetCollisionLabels(Scene.AllNodes);
 
-            if (labels.Length == 0)
+            if (labels.Length > 0)
+            {
+                collisionTree = UiControl.AddTreeSelection("Collision", labels, shown =>
+                {
+                    Tools.ShownCollision = shown.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+                    RequestVisibilityUpdate();
+                }, initiallyChecked: false);
+            }
+            else if (!Scene.AllNodes.Any(static node => node is ShapeSceneNode { ToolsMaterial: not null }))
             {
                 return;
             }
-
-            collisionTree = UiControl.AddTreeSelection("Collision", labels, shown =>
-            {
-                Tools.ShownCollision = shown.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
-                RequestVisibilityUpdate();
-            }, initiallyChecked: false);
 
             UiControl.AddCheckBox("Opaque Collision", Tools.OpaqueCollision, v =>
             {
