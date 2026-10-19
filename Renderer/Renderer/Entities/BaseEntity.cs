@@ -155,11 +155,14 @@ public abstract class BaseEntity
 
         foreach (var candidate in EntitySystem.FindAllByTargetNameInWorldGroup(parentName, Scene))
         {
-            if (candidate != this)
-            {
-                MoveParent = candidate;
-                break;
-            }
+            MoveParent = candidate;
+            break;
+        }
+
+        if (MoveParent == this)
+        {
+            EntitySystem.Logger.LogWarning("{Classname} '{TargetName}' is parented to itself", Classname, TargetName);
+            MoveParent = null;
         }
 
         if (MoveParent == null)
@@ -169,6 +172,14 @@ public abstract class BaseEntity
 
         // Its world pose has to be final before this one is made relative to it
         EntitySystem.ResolveMoveParentChain(MoveParent);
+
+        if (IsMoveAncestor(MoveParent))
+        {
+            EntitySystem.Logger.LogWarning("{Classname} '{TargetName}' is parented to '{ParentName}', which is parented back to it",
+                Classname, TargetName, MoveParent.TargetName);
+            MoveParent = null;
+            return;
+        }
 
         var data = Data!;
         var useLocalOffset = data.GetBooleanProperty("uselocaloffset");
@@ -889,6 +900,19 @@ public abstract class BaseEntity
 
             return root;
         }
+    }
+
+    private bool IsMoveAncestor(BaseEntity entity)
+    {
+        for (var ancestor = entity; ancestor != null; ancestor = ancestor.MoveParent)
+        {
+            if (ancestor == this)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
