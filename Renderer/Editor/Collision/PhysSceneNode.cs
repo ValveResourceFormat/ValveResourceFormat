@@ -1,24 +1,23 @@
 using System.Runtime.InteropServices;
-using ValveResourceFormat.IO;
+using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using RnHull = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Hull;
 using RnMesh = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Mesh;
 
-namespace ValveResourceFormat.Renderer.SceneNodes
+namespace ValveResourceFormat.Renderer.Editor.Collision
 {
     /// <summary>
-    /// Scene node that visualizes physics collision shapes.
+    /// The shapes of one group of collision, which the editor draws to show what collides, as Hammer does with its
+    /// "Show collision models" toggle, colored by the kind of shape. A group built from a tools material, such as a
+    /// clip, shows that material instead, see <see cref="ShapeSceneNode.ToolsMaterial"/>.
     /// </summary>
     public class PhysSceneNode : ShapeSceneNode
     {
-        /// <summary>The opacity of every translucent physics fill, which the order independent composite relies on.</summary>
-        internal const float FillAlpha = 0.65f;
-
-        private static readonly Color32 ColorSphere = new(0.4f, 1f, 0.1f, FillAlpha);
-        private static readonly Color32 ColorCapsule = new(0.1f, 1f, 0.4f, FillAlpha);
-        private static readonly Color32 ColorMesh = new(0.4f, 0.4f, 1f, FillAlpha);
-        private static readonly Color32 ColorHull = new(1.0f, 0.2f, 0.1f, FillAlpha);
+        private static readonly Color32 ColorSphere = new(0.4f, 1f, 0.1f, OrderIndependentFillAlpha);
+        private static readonly Color32 ColorCapsule = new(0.1f, 1f, 0.4f, OrderIndependentFillAlpha);
+        private static readonly Color32 ColorMesh = new(0.4f, 0.4f, 1f, OrderIndependentFillAlpha);
+        private static readonly Color32 ColorHull = new(1.0f, 0.2f, 0.1f, OrderIndependentFillAlpha);
 
         // Larger meshes, such as world collision, are split along their collision tree so culling can skip parts of them
         private const int MaxChunkTriangles = 32768;
@@ -157,50 +156,62 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             get;
             set
             {
+                if (field == value)
+                {
+                    return;
+                }
+
                 field = value;
                 Scene.MarkParentOctreeDirty(this);
             }
         }
 
-        /// <summary>
-        /// Gets whether these shapes stand for surfaces built from a tools material, such as clips and triggers,
-        /// which the compiled world keeps only as collision.
-        /// </summary>
-        public bool IsToolsMaterial { get; private set; }
+        /// <summary>Gets what the shapes collide as, see <see cref="GetCollisionLabel"/>.</summary>
+        public required string CollisionLabel { get; init; }
 
-        /// <summary>Gets the display name of the collision group represented by this node.</summary>
-        public required string PhysGroupName { get; init; }
-
-        /// <summary>Gets the physics this node was built from, or <see langword="null"/> for a node built from raw geometry.</summary>
-        public PhysAggregateData? Physics { get; private init; }
+        /// <summary>Gets the physics this node was built from.</summary>
+        public required PhysAggregateData Physics { get; init; }
 
         /// <summary>Gets the index into <see cref="PhysAggregateData.CollisionAttributes"/> of the group this node draws.</summary>
-        public int CollisionAttributeIndex { get; private init; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="PhysSceneNode"/> class from pre-built vertex and index lists.
-        /// </summary>
-        /// <param name="scene">The scene this node belongs to.</param>
-        /// <param name="verts">The vertex data for the collision geometry.</param>
-        /// <param name="inds">The index data for the collision geometry.</param>
-        public PhysSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds) : base(scene, verts, inds)
-        {
-        }
+        public required int CollisionAttributeIndex { get; init; }
 
         private PhysSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds, int lineIndexCount) : base(scene, verts, inds, lineIndexCount)
         {
         }
 
         /// <summary>
-        /// Creates the <see cref="PhysSceneNode"/>s for each collision attribute group from the given physics aggregate data.
-        /// A large mesh is split into several nodes along its collision tree, which all share the group's <see cref="PhysGroupName"/>.
+        /// Gets what a group of collision collides as, which the collision drawn is chosen by: its interact-as tags,
+        /// or its collision group when it has none, and under that, as a path such as <c>default/not player</c>,
+        /// what it does not collide with.
         /// </summary>
-        /// <param name="scene">The scene to add nodes to.</param>
-        /// <param name="phys">The physics aggregate data containing all collision shapes.</param>
-        /// <param name="fileName">The source file name, used for the node's <see cref="SceneNode.Name"/>.</param>
-        /// <param name="classname">Optional entity classname used to derive tool textures and names.</param>
-        public static IEnumerable<PhysSceneNode> CreatePhysSceneNodes(Scene scene, PhysAggregateData phys, string? fileName, string? classname = null)
+        /// <param name="attributes">The collision attributes of the group.</param>
+        public static string GetCollisionLabel(KVObject attributes)
         {
+            ArgumentNullException.ThrowIfNull(attributes);
+
+            var tags = PhysAggregateData.GetInteractAsTags(attributes);
+            var label = tags.Length > 0 ? string.Join(", ", tags) : attributes.GetStringProperty("m_CollisionGroupString") ?? "default";
+
+            return attributes.GetArray<string>("m_InteractExcludeStrings") is { Length: > 0 } excluded
+                ? $"{label}/not {string.Join(", ", excluded)}"
+                : label;
+        }
+
+        /// <summary>
+        /// Creates the nodes of each group of collision. A large mesh is split into several nodes along its collision
+        /// tree.
+        /// </summary>
+        /// <param name="scene">The scene the nodes are for, which they are not added to.</param>
+        /// <param name="phys">The collision.</param>
+        /// <param name="name">What the nodes are named.</param>
+        /// <param name="groupToolsMaterial">
+        /// The tools material a group, by its index into <see cref="PhysAggregateData.CollisionAttributes"/>, was built
+        /// from, or <see langword="null"/> for plain collision. All groups are plain collision without it.
+        /// </param>
+        public static List<PhysSceneNode> Create(Scene scene, PhysAggregateData phys, string? name, Func<int, string?>? groupToolsMaterial = null)
+        {
+            ArgumentNullException.ThrowIfNull(phys);
+
             var groupCount = phys.CollisionAttributes.Count;
             var physSceneNodes = new List<PhysSceneNode>(groupCount);
             var verts = new List<SimpleVertexNormal>(128);
@@ -217,6 +228,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             for (var collisionAttributeIndex = 0; collisionAttributeIndex < phys.CollisionAttributes.Count; collisionAttributeIndex++)
             {
+                var toolsMaterial = groupToolsMaterial?.Invoke(collisionAttributeIndex);
+
                 for (var p = 0; p < phys.Parts.Length; p++)
                 {
                     var shape = phys.Parts[p].Shape;
@@ -388,58 +401,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     }
                 }
 
-                var attributes = phys.CollisionAttributes[collisionAttributeIndex];
-                var tags = PhysAggregateData.GetInteractAsTags(attributes);
-                var group = attributes.GetStringProperty("m_CollisionGroupString");
-
-                var tooltexture = MapExtract.GetToolTextureShortenedName_ForInteractStrings([.. tags]);
-
-                var physName = string.Empty;
-
-                if (classname != null)
-                {
-                    physName = classname;
-                }
-                else
-                {
-                    if (group != null)
-                    {
-                        if (group.Equals("default", StringComparison.OrdinalIgnoreCase))
-                        {
-                            physName = $"- default";
-                        }
-                        else if (!group.Equals("conditionallysolid", StringComparison.OrdinalIgnoreCase))
-                        {
-                            physName = group;
-                        }
-                    }
-
-                    if (tags.Length > 0)
-                    {
-                        physName = $"[{string.Join(", ", tags)}]" + physName;
-                    }
-
-                    if (tooltexture != "nodraw")
-                    {
-                        physName = $"- {tooltexture} {physName}";
-                    }
-                }
-
-                string? toolMaterialName = null;
-
-                if (classname != null)
-                {
-                    var toolTexture = MapExtract.GetToolTextureForEntity(classname);
-                    if (!string.IsNullOrEmpty(toolTexture))
-                    {
-                        toolMaterialName = toolTexture;
-                    }
-                }
-                else if (tooltexture != "nodraw")
-                {
-                    toolMaterialName = $"materials/tools/tools{tooltexture}.vmat";
-                }
-
+                var label = GetCollisionLabel(phys.CollisionAttributes[collisionAttributeIndex]);
                 var lineCorners = meshEdges.GetLineCorners();
                 var firstGroupNode = physSceneNodes.Count;
 
@@ -460,7 +422,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         {
                             AddMeshTriangles(chunkVerts, chunkInds, chunkLines, mesh, triangles, meshEdges, lineCorners, chunk);
 
-                            physSceneNodes.Add(CreateNode(scene, phys, chunkVerts, chunkInds, chunkLines, physName, fileName, collisionAttributeIndex, toolMaterialName));
+                            physSceneNodes.Add(CreateNode(scene, phys, chunkVerts, chunkInds, chunkLines, label, name, collisionAttributeIndex, toolsMaterial));
 
                             chunkVerts.Clear();
                             chunkInds.Clear();
@@ -476,10 +438,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                 if (inds.Count > 0 || !groupHasNode)
                 {
-                    physSceneNodes.Add(CreateNode(scene, phys, verts, inds, lines, physName, fileName, collisionAttributeIndex, toolMaterialName));
+                    physSceneNodes.Add(CreateNode(scene, phys, verts, inds, lines, label, name, collisionAttributeIndex, toolsMaterial));
                 }
 
-                // PhysSceneNode uploads verts to the gpu and does not keep them around
+                // The node uploads the vertices and does not keep them
                 verts.Clear();
                 inds.Clear();
                 lines.Clear();
@@ -492,7 +454,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         // The line indices are appended after the triangle indices
-        private static PhysSceneNode CreateNode(Scene scene, PhysAggregateData phys, List<SimpleVertexNormal> verts, List<int> inds, List<int> lines, string physName, string? fileName, int collisionAttributeIndex, string? toolMaterialName)
+        private static PhysSceneNode CreateNode(Scene scene, PhysAggregateData phys, List<SimpleVertexNormal> verts, List<int> inds, List<int> lines, string label, string? name, int collisionAttributeIndex, string? toolsMaterial)
         {
             inds.AddRange(lines);
 
@@ -508,22 +470,24 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 }
             }
 
-            var physSceneNode = new PhysSceneNode(scene, verts, inds, lines.Count)
+            var node = new PhysSceneNode(scene, verts, inds, lines.Count)
             {
-                PhysGroupName = physName,
-                Name = fileName,
+                CollisionLabel = label,
+                Name = name,
                 LocalBoundingBox = boundingBox,
                 OverlayRenderOrder = collisionAttributeIndex,
                 Physics = phys,
                 CollisionAttributeIndex = collisionAttributeIndex,
             };
 
-            if (toolMaterialName != null)
+            // Shown as its tools material is, rather than as the collision chosen to be shown
+            if (toolsMaterial != null)
             {
-                physSceneNode.SetToolTexture(toolMaterialName);
+                node.SetToolsMaterial(toolsMaterial);
+                node.Enabled = true;
             }
 
-            return physSceneNode;
+            return node;
         }
 
         private static void AddMeshTriangles(List<SimpleVertexNormal> verts, List<int> inds, List<int> lines, GroupMesh mesh, ReadOnlySpan<RnMesh.Triangle> triangles, MeshEdges meshEdges, byte[] lineCorners, Range chunk)
@@ -636,12 +600,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
 
             return end == triangleCount;
-        }
-
-        private void SetToolTexture(string toolMaterialName)
-        {
-            IsToolsMaterial = true;
-            ToolTexture = Scene.RendererContext.MaterialLoader.GetMaterial(toolMaterialName, null).Textures.GetValueOrDefault("g_tColor");
         }
 
         private static Vector3 ComputeNormal(Vector3 a, Vector3 b, Vector3 c)

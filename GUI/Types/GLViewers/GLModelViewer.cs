@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
@@ -9,6 +10,8 @@ using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Editor;
+using ValveResourceFormat.Renderer.Editor.Collision;
 using ValveResourceFormat.Renderer.Editor.Picking;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.SceneEnvironment;
@@ -68,7 +71,7 @@ namespace GUI.Types.GLViewers
         protected SkeletonSceneNode? skeletonSceneNode;
         private HitboxSetSceneNode? hitboxSetSceneNode;
         private List<ParticleSceneNode> modelParticleNodes = [];
-        private CheckedListBox? physicsGroupsComboBox;
+        private GLViewerTreeSelectionControl? collisionTree;
         private int animationComboBoxCurrentIndex = -1;
 
         public GLModelViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext) : base(vrfGuiContext, rendererContext)
@@ -104,7 +107,7 @@ namespace GUI.Types.GLViewers
             meshGroupListBox?.Dispose();
             materialGroupListBox?.Dispose();
             lodComboBox?.Dispose();
-            physicsGroupsComboBox?.Dispose();
+            collisionTree?.Dispose();
             rootMotionCheckBox?.Dispose();
             additiveCheckBox?.Dispose();
             showSkeletonCheckbox?.Dispose();
@@ -402,17 +405,22 @@ namespace GUI.Types.GLViewers
                     Renderer.EntitySystem.PhysicsWorld.GroundPlane = isMapPhysics ? null : 0f;
                 }
 
-                var physSceneNodes = PhysSceneNode.CreatePhysSceneNodes(Scene, phys, null).ToList();
+                var collision = PhysSceneNode.Create(Scene, phys, null);
 
-                // Physics are not shown by default unless the model has no meshes
-                var enabledAllPhysByDefault = modelSceneNode == null || modelSceneNode.RenderableMeshes.Count == 0;
-
-                foreach (var physSceneNode in physSceneNodes)
+                foreach (var node in collision)
                 {
-                    physSceneNode.Enabled = enabledAllPhysByDefault;
-                    physSceneNode.IsTranslucentRenderMode = false;
-                    Scene.Add(physSceneNode, false);
+                    Scene.Add(node, false);
                 }
+
+                // Collision is not shown unless the model has nothing else to show
+                Tools.OpaqueCollision = true;
+
+                if (modelSceneNode == null || modelSceneNode.RenderableMeshes.Count == 0)
+                {
+                    Tools.ShownCollision = collision.Select(static node => node.CollisionLabel).ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+                }
+
+                Tools.ApplyCollisionVisibility(collision);
             }
 
             var post = new ScenePostProcessVolume(Scene)
@@ -599,40 +607,11 @@ namespace GUI.Types.GLViewers
 
             if (phys != null)
             {
-                var physSceneNodes = Scene.AllNodes.OfType<PhysSceneNode>().ToList();
+                var collisionLabels = ToolsVisibility.GetCollisionLabels(Scene.AllNodes);
 
-                // Physics are not shown by default unless the model has no meshes
-                var enabledAllPhysByDefault = modelSceneNode == null || modelSceneNode.RenderableMeshes.Count == 0;
-
-                var physicsGroups = physSceneNodes
-                    .Select(r => r.PhysGroupName)
-                    .Distinct()
-                    .OrderByDescending(static s => s.StartsWith('-'))
-                    .ThenBy(static s => s)
-                    .ToArray();
-
-                if (physicsGroups.Length > 0)
+                if (collisionLabels.Length > 0)
                 {
-                    physicsGroupsComboBox = UiControl.AddMultiSelection("Physics Groups", (listBox) =>
-                    {
-                        if (!enabledAllPhysByDefault)
-                        {
-                            listBox.Items.AddRange(physicsGroups);
-                            return;
-                        }
-
-                        listBox.BeginUpdate();
-
-                        foreach (var physGroup in physicsGroups)
-                        {
-                            listBox.Items.Add(physGroup, true);
-                        }
-
-                        listBox.EndUpdate();
-                    }, (enabledPhysicsGroups) =>
-                    {
-                        SetEnabledPhysicsGroups(enabledPhysicsGroups.ToHashSet());
-                    });
+                    collisionTree = UiControl.AddTreeSelection("Collision", collisionLabels, SetShownCollision, initiallyChecked: Tools.ShownCollision.Count > 0);
                 }
             }
 
@@ -884,12 +863,10 @@ namespace GUI.Types.GLViewers
             return sb.ToString();
         }
 
-        private void SetEnabledPhysicsGroups(HashSet<string> physicsGroups)
+        private void SetShownCollision(IEnumerable<string> collision)
         {
-            foreach (var physNode in Scene.AllNodes.OfType<PhysSceneNode>())
-            {
-                physNode.Enabled = physicsGroups.Contains(physNode.PhysGroupName);
-            }
+            Tools.ShownCollision = collision.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+            Tools.ApplyCollisionVisibility(Scene.AllNodes);
 
             using var lockedGl = MakeCurrent();
 

@@ -549,34 +549,6 @@ public sealed partial class MapExtract
     }
 
     /// <summary>
-    /// Maps tool texture names to their associated collision tag sets.
-    /// </summary>
-    // TODO: we should be parsing fgds and collision_*.txt files from game to remain correct.
-    public static readonly Dictionary<string, HashSet<string>> ToolTextureMultiTags = new()
-    {
-        ["clip"] = ["npcclip", "playerclip"],
-        ["invisibleladder"] = ["ladder", "passbullets"],
-    };
-
-    /// <summary>
-    /// Gets the shortened tool texture name for a set of interact-as strings.
-    /// </summary>
-    public static string GetToolTextureShortenedName_ForInteractStrings(HashSet<string> interactAsStrings)
-    {
-        var texture = ToolTextureMultiTags.FirstOrDefault(x => x.Value.SetEquals(interactAsStrings)).Key;
-        var tag = interactAsStrings.FirstOrDefault();
-        texture ??= tag switch
-        {
-            "playerclip" or "npcclip" or "blocksound" => tag,
-            "sky" => "skybox",
-            "csgo_grenadeclip" => "grenadeclip",
-            "ladder" => "invisibleladder",
-            _ => "nodraw",
-        };
-        return texture;
-    }
-
-    /// <summary>
     /// Gets the auto-applied tool texture material for an entity class name.
     /// </summary>
     // These appear in FGD as "auto_apply_material"

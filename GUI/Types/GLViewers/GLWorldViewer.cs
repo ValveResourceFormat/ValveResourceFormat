@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -11,6 +12,7 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Editor;
+using ValveResourceFormat.Renderer.Editor.Collision;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.Picking;
 using ValveResourceFormat.Renderer.Entities;
@@ -34,7 +36,7 @@ namespace GUI.Types.GLViewers
         private readonly WorldNode? worldNode;
         private readonly ResourceExtRefList? mapExternalReferences;
         protected CheckedListBox? worldLayersComboBox;
-        private CheckedListBox? physicsGroupsComboBox;
+        private GLViewerTreeSelectionControl? collisionTree;
         private ComboBox? cameraComboBox;
         private SavedCameraPositionsControl? savedCameraPositionsControl;
         private EntityInfoForm? entityInfoForm;
@@ -45,7 +47,6 @@ namespace GUI.Types.GLViewers
         private System.Drawing.Image? stopImage;
         private ThemedToggleButton? toolEntitiesButton;
         private ThemedToggleButton? toolMaterialsButton;
-        private volatile HashSet<string> chosenPhysicsGroups = [];
         private SimulationState simulationState;
         private int simulationRequest;
         private bool ignoreLayersChangeEvents = true;
@@ -108,7 +109,7 @@ namespace GUI.Types.GLViewers
             base.Dispose();
 
             worldLayersComboBox?.Dispose();
-            physicsGroupsComboBox?.Dispose();
+            collisionTree?.Dispose();
             cameraComboBox?.Dispose();
             savedCameraPositionsControl?.Dispose();
             entityInfoForm?.Dispose();
@@ -352,15 +353,7 @@ namespace GUI.Types.GLViewers
 
                 SetEnabledLayers([.. worldLayers, .. unlistedEnabledLayers]);
             });
-            physicsGroupsComboBox = UiControl.AddMultiSelection("Physics Groups", null, (physicsGroups) =>
-            {
-                if (ignoreLayersChangeEvents)
-                {
-                    return;
-                }
-
-                SetEnabledPhysicsGroups([.. physicsGroups]);
-            }, height: 250);
+            AddCollisionControl();
 
             using (UiControl.BeginGroup("Camera"))
             {
@@ -393,7 +386,6 @@ namespace GUI.Types.GLViewers
                 AddSimulationToolbar();
 
                 var uniqueWorldLayers = new HashSet<string>(4);
-                var uniquePhysicsGroups = new HashSet<string>();
 
                 foreach (var node in Scene.AllNodes)
                 {
@@ -406,46 +398,11 @@ namespace GUI.Types.GLViewers
                     {
                         uniqueWorldLayers.Add(node.LayerName);
                     }
-
-                    if (node is PhysSceneNode physSceneNode)
-                    {
-                        uniquePhysicsGroups.Add(physSceneNode.PhysGroupName);
-                    }
                 }
 
                 if (uniqueWorldLayers.Count > 0 && LoadedWorld != null)
                 {
                     SetAvailableLayers(uniqueWorldLayers, LoadedWorld.DefaultEnabledLayers);
-                }
-
-                if (uniquePhysicsGroups.Count > 0)
-                {
-                    Debug.Assert(physicsGroupsComboBox != null);
-
-                    physicsGroupsComboBox.BeginUpdate();
-
-                    SetAvailablePhysicsGroups(uniquePhysicsGroups);
-
-                    // Groups of tools materials start shown, it is the tools materials switch that hides them
-                    var toolsMaterialGroups = Scene.AllNodes
-                        .OfType<PhysSceneNode>()
-                        .Where(static node => node.IsToolsMaterial)
-                        .Select(static node => node.PhysGroupName)
-                        .ToHashSet();
-
-                    foreach (var group in toolsMaterialGroups)
-                    {
-                        var checkboxIndex = physicsGroupsComboBox.FindStringExact(group);
-
-                        if (checkboxIndex > -1)
-                        {
-                            physicsGroupsComboBox.SetItemCheckState(checkboxIndex, CheckState.Checked);
-                        }
-                    }
-
-                    physicsGroupsComboBox.EndUpdate();
-
-                    SetEnabledPhysicsGroups(toolsMaterialGroups);
                 }
 
                 using (UiControl.BeginGroup("World"))
@@ -728,13 +685,6 @@ namespace GUI.Types.GLViewers
                 RequestVisibilityUpdate();
             }
 
-            if (node is PhysSceneNode { IsToolsMaterial: true } && !Tools.ShowToolMaterials)
-            {
-                Tools.ShowToolMaterials = true;
-                toolMaterialsButton?.Checked = true;
-                RequestVisibilityUpdate();
-            }
-
             if (!node.LayerEnabled && worldLayersComboBox != null && node.LayerName != null)
             {
                 var layerId = worldLayersComboBox.Items.IndexOf(node.LayerName);
@@ -745,14 +695,9 @@ namespace GUI.Types.GLViewers
                 }
             }
 
-            if (node is PhysSceneNode physNode && !physNode.Enabled && physicsGroupsComboBox != null && physNode.PhysGroupName != null)
+            if (node is PhysSceneNode { Enabled: false } collision)
             {
-                var physId = physicsGroupsComboBox.Items.IndexOf(physNode.PhysGroupName);
-
-                if (physId >= 0)
-                {
-                    physicsGroupsComboBox.SetItemChecked(physId, true);
-                }
+                collisionTree?.Check(collision.CollisionLabel);
             }
         }
 
@@ -840,9 +785,9 @@ namespace GUI.Types.GLViewers
                     info.AddProperty("Custom Lighting Origin", FormatVector(modelSceneNode.LightingOrigin.Value));
                 }
             }
-            else if (sceneNode is PhysSceneNode physSceneNode)
+            else if (sceneNode is PhysSceneNode collision)
             {
-                PhysicsDetails.AddNodeDetails(info, physSceneNode);
+                PhysicsDetails.AddNodeDetails(info, collision);
             }
 
             if (sceneNode.CubeMapPrecomputedHandshake > 0)
@@ -1185,34 +1130,29 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        private const string PhysicsRenderAsOpaque = "S2V: Render as opaque";
-
-        private void SetAvailablePhysicsGroups(IEnumerable<string> physicsGroups)
+        // What the loaded map collides as, hidden until checked
+        private void AddCollisionControl()
         {
-            Debug.Assert(physicsGroupsComboBox != null);
+            Debug.Assert(UiControl != null);
 
-            physicsGroupsComboBox.Items.Clear();
+            var labels = ToolsVisibility.GetCollisionLabels(Scene.AllNodes);
 
-            var physicsGroupsArray = physicsGroups
-                .OrderByDescending(static s => s.StartsWith('-'))
-                .ToArray();
-
-            if (physicsGroupsArray.Length > 0)
+            if (labels.Length == 0)
             {
-                physicsGroupsComboBox.Enabled = true;
-                physicsGroupsComboBox.Items.AddRange(physicsGroupsArray);
-                physicsGroupsComboBox.Items.Add(PhysicsRenderAsOpaque);
+                return;
             }
-            else
-            {
-                physicsGroupsComboBox.Enabled = false;
-            }
-        }
 
-        private void SetEnabledPhysicsGroups(HashSet<string> physicsGroups)
-        {
-            chosenPhysicsGroups = physicsGroups;
-            RequestVisibilityUpdate();
+            collisionTree = UiControl.AddTreeSelection("Collision", labels, shown =>
+            {
+                Tools.ShownCollision = shown.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+                RequestVisibilityUpdate();
+            }, initiallyChecked: false);
+
+            UiControl.AddCheckBox("Opaque Collision", Tools.OpaqueCollision, v =>
+            {
+                Tools.OpaqueCollision = v;
+                RequestVisibilityUpdate();
+            });
         }
 
         protected override bool HasToolsVisibilityControls => world != null;
@@ -1239,16 +1179,7 @@ namespace GUI.Types.GLViewers
         {
             base.ApplyVisibility();
 
-            var physicsGroups = chosenPhysicsGroups;
-            var renderTranslucent = !physicsGroups.Contains(PhysicsRenderAsOpaque);
-
-            foreach (var physNode in Scene.AllNodes.OfType<PhysSceneNode>())
-            {
-                var groupChosen = physicsGroups.Contains(physNode.PhysGroupName);
-
-                physNode.Enabled = HasToolsVisibilityControls ? Tools.IsPhysicsVisible(physNode, groupChosen) : groupChosen;
-                physNode.IsTranslucentRenderMode = renderTranslucent;
-            }
+            Tools.ApplyCollisionVisibility(Scene.AllNodes);
         }
 
         // Above the viewport rather than in the sidebar: how the world is run and what of the tools is drawn

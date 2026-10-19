@@ -11,6 +11,7 @@ using GUI.Forms;
 using GUI.Types.GLViewers;
 using ValveKeyValue;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Editor.Collision;
 using ValveResourceFormat.Renderer.Editor.Picking;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -390,7 +391,7 @@ internal sealed partial class McpTools
             node.Name,
             Entity = EntityId(entities, node.EntityData),
             Layer = node.LayerName,
-            PhysicsGroup = (node as PhysSceneNode)?.PhysGroupName,
+            Collision = (node as PhysSceneNode)?.CollisionLabel,
             SpawnGroup = group?.MapName,
             Sky = Flag(group?.WorldGroup != null),
             Hidden = HiddenReason(node),
@@ -467,7 +468,7 @@ internal sealed partial class McpTools
                 Distance = distance,
                 Node = DescribeNode(viewer, MapEntities(viewer), node),
                 Mesh = DescribeMesh(node, result.Pixel.MeshId),
-                Selected = action is PickAction.Select or PickAction.Add ? node.IsSelected : (bool?)null,
+                Selected = action is PickAction.Select or PickAction.Add ? viewer.Selection.Nodes.Contains(node) : (bool?)null,
             };
         }, cancellationToken).ConfigureAwait(false);
 

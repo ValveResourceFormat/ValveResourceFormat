@@ -1,15 +1,15 @@
 using System.Collections.Frozen;
 using System.Linq;
+using ValveResourceFormat.Renderer.Editor.Collision;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Materials;
-using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.World;
 
 namespace ValveResourceFormat.Renderer.Editor;
 
 /// <summary>
-/// Which tools-only content is drawn: entities that only exist in the editor, and tools materials such as triggers
-/// and clips. It decides each draw of a tools material the way Hammer decides each material of a mesh.
+/// Which tools-only content is drawn: entities that only exist in the editor, tools materials such as triggers
+/// and clips, and collision. It decides each draw of a tools material the way Hammer decides each material of a mesh.
 /// </summary>
 public sealed class ToolsVisibility : IDrawFilter
 {
@@ -29,22 +29,42 @@ public sealed class ToolsVisibility : IDrawFilter
     /// <summary>Gets or sets whether tools materials are drawn.</summary>
     public bool ShowToolMaterials { get; set; }
 
+    /// <summary>
+    /// Gets or sets the collision drawn, by what it collides as, see <see cref="PhysSceneNode.CollisionLabel"/>. It is
+    /// replaced whole, so a frame being drawn never reads it half changed.
+    /// </summary>
+    public IReadOnlySet<string> ShownCollision { get; set; } = FrozenSet<string>.Empty;
+
+    /// <summary>Gets or sets whether collision is drawn opaque, rather than as translucent fills and edge lines.</summary>
+    public bool OpaqueCollision { get; set; }
+
+    /// <summary>Shows the collision among some nodes that <see cref="ShownCollision"/> names, as <see cref="OpaqueCollision"/> says.</summary>
+    /// <param name="nodes">The nodes, of which only collision that shows no tools material is changed.</param>
+    public void ApplyCollisionVisibility(IEnumerable<SceneNode> nodes)
+    {
+        foreach (var node in nodes.OfType<PhysSceneNode>().Where(static node => node.ToolsMaterial == null))
+        {
+            node.Enabled = ShownCollision.Contains(node.CollisionLabel);
+            node.IsTranslucentRenderMode = !OpaqueCollision;
+        }
+    }
+
+    /// <summary>Gets what the collision among some nodes collides as, once each, in order.</summary>
+    /// <param name="nodes">The nodes, of which only collision that shows no tools material is read.</param>
+    /// <returns>The labels, see <see cref="PhysSceneNode.CollisionLabel"/>.</returns>
+    public static string[] GetCollisionLabels(IEnumerable<SceneNode> nodes)
+    {
+        return [.. nodes
+            .OfType<PhysSceneNode>()
+            .Where(static node => node.ToolsMaterial == null)
+            .Select(static node => node.CollisionLabel)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase)];
+    }
+
     /// <summary>Gets whether a layer only holds editor-only entities.</summary>
     /// <param name="layerName">The layer.</param>
     public static bool IsToolEntityLayer(string layerName) => ToolEntityLayerNames.Contains(layerName);
-
-    /// <summary>
-    /// Gets whether collision shapes end up drawn, given whether their group was chosen to be shown. Tools
-    /// materials only survive compilation as collision, so these are what the tools materials switch hides.
-    /// </summary>
-    /// <param name="node">The collision shapes.</param>
-    /// <param name="groupChosen">Whether the group of the shapes was chosen to be shown.</param>
-    public bool IsPhysicsVisible(PhysSceneNode node, bool groupChosen)
-    {
-        ArgumentNullException.ThrowIfNull(node);
-
-        return groupChosen && (!node.IsToolsMaterial || ShowToolMaterials);
-    }
 
     /// <summary>The layers to enable out of those chosen, without the editor-only ones while they are hidden.</summary>
     /// <param name="chosenLayers">The layers chosen to be shown.</param>

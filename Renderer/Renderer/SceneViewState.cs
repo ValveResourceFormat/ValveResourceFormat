@@ -428,6 +428,11 @@ public sealed class SceneViewState : IDisposable
                     }, RenderPass.OpaqueAggregate);
                 }
             }
+            else if (node is ShapeSceneNode { ToolsMaterial: { } toolsMaterial } && !Scene.IsDrawn(toolsMaterial, node))
+            {
+                // A shape standing for a tools material is shown as the material would be
+                continue;
+            }
             else
             {
                 if (node is SceneLight light)
@@ -437,7 +442,8 @@ public sealed class SceneViewState : IDisposable
 
                 var customRender = new MeshBatchRenderer.Request
                 {
-                    DistanceFromCamera = node is PhysSceneNode
+                    // Volumes that span the map, which no sort draws correctly, keep the order they are given
+                    DistanceFromCamera = node is ShapeSceneNode { HasOrderIndependentFill: true }
                         ? 100000f - node.OverlayRenderOrder * 10f
                         : node.GetCameraDistance(camera),
                     Node = node,
