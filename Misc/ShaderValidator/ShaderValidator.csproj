@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="$(BundledNETCoreAppPackageVersion)" />
     <PackageReference Include="OpenTK.Windowing.Desktop" Version="4.9.4" />
   </ItemGroup>
   <ItemGroup>
