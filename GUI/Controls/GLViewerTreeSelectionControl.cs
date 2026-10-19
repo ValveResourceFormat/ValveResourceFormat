@@ -26,7 +26,7 @@ namespace GUI.Controls
         /// <summary>Raised with the paths of the checked items after one is checked or unchecked.</summary>
         public event Action<IEnumerable<string>>? CheckedPathsChanged;
 
-        public GLViewerTreeSelectionControl(string name, IEnumerable<string> paths, bool initiallyChecked)
+        public GLViewerTreeSelectionControl(string name, IEnumerable<string> paths, bool initiallyChecked, bool foldGroups)
         {
             treeView = new CompactTreeView
             {
@@ -43,7 +43,16 @@ namespace GUI.Controls
                 AddPath(path, initiallyChecked);
             }
 
-            treeView.ExpandAll();
+            if (!foldGroups)
+            {
+                treeView.ExpandAll();
+            }
+            else if (treeView.Nodes is [var root])
+            {
+                // A lone item at the top holds all the others, so it lists its groups, each folded away
+                root.Expand();
+            }
+
             treeView.EndUpdate();
 
             treeView.ItemClicked += node => SetChecked(node, !IsChecked(node));

@@ -611,7 +611,7 @@ namespace GUI.Types.GLViewers
 
                 if (collisionLabels.Length > 0)
                 {
-                    collisionTree = UiControl.AddTreeSelection("Collision", collisionLabels, SetShownCollision, initiallyChecked: Tools.ShownCollision.Count > 0);
+                    collisionTree = UiControl.AddTreeSelection("Collision", collisionLabels, SetShownCollision, initiallyChecked: Tools.ShownCollision.Count > 0, foldGroups: true);
                 }
             }
 

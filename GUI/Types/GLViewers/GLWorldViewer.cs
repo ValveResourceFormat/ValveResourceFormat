@@ -1138,7 +1138,7 @@ namespace GUI.Types.GLViewers
         }
 
         // Hammer's Auto Vis Groups of tools materials, those the loaded map uses nested under the groups above them,
-        // shown until unchecked
+        // shown until unchecked and folded until opened
         private void AddToolBrushGroupsControl()
         {
             Debug.Assert(UiControl != null);
@@ -1169,10 +1169,10 @@ namespace GUI.Types.GLViewers
 
             var allGroups = groups.SelectMany(ToolBrushGroups.GetGroupAndParents).ToHashSet();
 
-            UiControl.AddTreeSelection("Auto Vis Groups", groups, shown => Tools.HiddenToolBrushGroups = allGroups.Except(shown).ToFrozenSet());
+            UiControl.AddTreeSelection("Auto Vis Groups", groups, shown => Tools.HiddenToolBrushGroups = allGroups.Except(shown).ToFrozenSet(), foldGroups: true);
         }
 
-        // What the loaded map collides as, hidden until checked, and whether it and tools materials are drawn opaque
+        // What the loaded map collides as, hidden until checked and folded until opened, and whether it and tools materials are drawn opaque
         private void AddCollisionControl()
         {
             Debug.Assert(UiControl != null);
@@ -1185,7 +1185,7 @@ namespace GUI.Types.GLViewers
                 {
                     Tools.ShownCollision = shown.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
                     RequestVisibilityUpdate();
-                }, initiallyChecked: false);
+                }, initiallyChecked: false, foldGroups: true);
             }
             else if (!Scene.AllNodes.Any(static node => node is ShapeSceneNode { ToolsMaterial: not null }))
             {

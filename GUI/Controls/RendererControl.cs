@@ -481,9 +481,10 @@ partial class RendererControl : UserControl
     /// <param name="paths">The paths of the items. Each group a path passes through gets an item too.</param>
     /// <param name="changeCallback">Called with the paths of the checked items whenever one changes.</param>
     /// <param name="initiallyChecked">Whether the items start checked.</param>
-    public GLViewerTreeSelectionControl AddTreeSelection(string name, IEnumerable<string> paths, Action<IEnumerable<string>> changeCallback, bool initiallyChecked = true)
+    /// <param name="foldGroups">Whether the groups start folded away, but for a lone item at the top, which lists them.</param>
+    public GLViewerTreeSelectionControl AddTreeSelection(string name, IEnumerable<string> paths, Action<IEnumerable<string>> changeCallback, bool initiallyChecked = true, bool foldGroups = false)
     {
-        var selectionControl = new GLViewerTreeSelectionControl(name, paths, initiallyChecked);
+        var selectionControl = new GLViewerTreeSelectionControl(name, paths, initiallyChecked, foldGroups);
         selectionControl.CheckedPathsChanged += changeCallback;
 
         ControlsPanel.Controls.Add(selectionControl);
