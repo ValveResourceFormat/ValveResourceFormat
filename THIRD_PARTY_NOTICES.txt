@@ -162,11 +162,6 @@ TinyBCSharp
   Copyright (c) 2025 Jan De Kock
   https://github.com/jandk/TinyBCSharp
 
-TinyEXR.NET
-  License: MIT
-  Copyright (c) 2023-2026 ksgfk
-  https://github.com/ksgfk/TinyEXR.NET
-
 uTinyRipper (Etc decoder)
   License: MIT
   Copyright (c) 2020 mafaca

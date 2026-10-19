@@ -1,11 +1,9 @@
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using SkiaSharp;
-using TinyEXR;
 using ValveResourceFormat.IO.ContentFormats.ValveTexture;
 using ValveResourceFormat.ResourceTypes;
 using ChannelMapping = ValveResourceFormat.CompiledShader.ChannelMapping;
@@ -649,15 +647,7 @@ public sealed class TextureExtract
     /// </summary>
     public static byte[] ToExrImage(SKPixmap pixels)
     {
-        var pixelSpan = pixels.GetPixelSpan<SKColorF>();
-        var floatSpan = MemoryMarshal.Cast<SKColorF, float>(pixelSpan);
-        var result = Exr.SaveEXRToMemory(floatSpan, pixels.Width, pixels.Height, components: 4, asFp16: false, out var exrData);
-        if (result != ResultCode.Success)
-        {
-            throw new InvalidOperationException($"Got result {result} while saving EXR image");
-        }
-
-        return exrData;
+        return ExrWriter.Write(pixels);
     }
 
     /// <summary>

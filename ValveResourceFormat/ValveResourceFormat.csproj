@@ -29,7 +29,6 @@
     <PackageReference Include="Vortice.SpirvCross" Version="1.6.0" />
     <PackageReference Include="ZstdSharp.Port" Version="0.8.8" />
     <PackageReference Include="KeyValues2" Version="2.0.0-rc2" />
-    <PackageReference Include="TinyEXR.NET" Version="1.2.0" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
