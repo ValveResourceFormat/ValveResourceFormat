@@ -34,10 +34,10 @@ public sealed class SelectionVisuals
     private readonly SelectionSet selection;
     private readonly List<SceneEnvMap> envMaps = [];
     private readonly HammerEntityVisuals entityVisuals;
+    private readonly ToolsVisibility tools;
     private readonly HashSet<IHelperOwner> selectedEntities = [];
     private readonly HashSet<IHelperOwner> previouslySelectedEntities = [];
     private readonly Dictionary<IHelperOwner, Matrix4x4> pathsOfSelectedNodes = [];
-    private readonly List<SceneNode> nodesShowingToolsMaterials = [];
     private readonly SelectionOutline outline;
 
     /// <summary>Gets the shapes of the selection, in world space, as the last <see cref="Update"/> drew them.</summary>
@@ -49,13 +49,15 @@ public sealed class SelectionVisuals
     /// <summary>Initializes the visuals of a selection.</summary>
     /// <param name="selection">The selection to draw.</param>
     /// <param name="entityVisuals">The editor entities of the view, whose helpers draw the shapes of a selected entity.</param>
+    /// <param name="tools">What tools-only content the view draws, told what is selected.</param>
     /// <param name="rendererContext">Renderer context for loading the outline shaders.</param>
-    public SelectionVisuals(SelectionSet selection, HammerEntityVisuals entityVisuals, RendererContext rendererContext)
+    public SelectionVisuals(SelectionSet selection, HammerEntityVisuals entityVisuals, ToolsVisibility tools, RendererContext rendererContext)
     {
         ArgumentNullException.ThrowIfNull(rendererContext);
 
         this.selection = selection;
         this.entityVisuals = entityVisuals;
+        this.tools = tools;
         outline = new SelectionOutline(rendererContext);
     }
 
@@ -76,18 +78,7 @@ public sealed class SelectionVisuals
         var nodes = selection.Nodes;
         AABB? bounds = null;
 
-        foreach (var node in nodesShowingToolsMaterials)
-        {
-            node.ShowsToolsMaterials = false;
-        }
-
-        nodesShowingToolsMaterials.Clear();
-        nodesShowingToolsMaterials.AddRange(nodes);
-
-        foreach (var node in nodes)
-        {
-            node.ShowsToolsMaterials = true;
-        }
+        tools.SetSelectedNodes(nodes);
 
         // What is selected is counted by the entities and other objects it is, not by the nodes drawing them
         var objectCount = nodes.Select(node => (object?)FindEntity(node) ?? node).Distinct().Count();

@@ -45,7 +45,6 @@ namespace GUI.Types.GLViewers
         private System.Drawing.Image? stopImage;
         private ThemedToggleButton? toolEntitiesButton;
         private ThemedToggleButton? toolMaterialsButton;
-        private readonly ToolsVisibility tools = new();
         private volatile HashSet<string> chosenPhysicsGroups = [];
         private SimulationState simulationState;
         private int simulationRequest;
@@ -722,16 +721,16 @@ namespace GUI.Types.GLViewers
 
         private void EnsureNodeVisible(SceneNode node)
         {
-            if (node.LayerName != null && ToolsVisibility.IsToolEntityLayer(node.LayerName) && !tools.ShowToolEntities)
+            if (node.LayerName != null && ToolsVisibility.IsToolEntityLayer(node.LayerName) && !Tools.ShowToolEntities)
             {
-                tools.ShowToolEntities = true;
+                Tools.ShowToolEntities = true;
                 toolEntitiesButton?.Checked = true;
                 RequestVisibilityUpdate();
             }
 
-            if (node is PhysSceneNode { IsToolsMaterial: true } && !tools.ShowToolMaterials)
+            if (node is PhysSceneNode { IsToolsMaterial: true } && !Tools.ShowToolMaterials)
             {
-                tools.ShowToolMaterials = true;
+                Tools.ShowToolMaterials = true;
                 toolMaterialsButton?.Checked = true;
                 RequestVisibilityUpdate();
             }
@@ -1225,7 +1224,7 @@ namespace GUI.Types.GLViewers
                 return layers;
             }
 
-            var filtered = tools.FilterLayers(layers);
+            var filtered = Tools.FilterLayers(layers);
 
             // While playing the game hides disabled entities itself, so they come and go with the other entities
             if (simulationState != SimulationState.Stopped && filtered.Contains("Entities"))
@@ -1238,14 +1237,6 @@ namespace GUI.Types.GLViewers
 
         protected override void ApplyVisibility()
         {
-            if (HasToolsVisibilityControls)
-            {
-                foreach (var scene in Renderer.Scenes)
-                {
-                    scene.ShowToolsMaterials = tools.ShowToolMaterials;
-                }
-            }
-
             base.ApplyVisibility();
 
             var physicsGroups = chosenPhysicsGroups;
@@ -1255,7 +1246,7 @@ namespace GUI.Types.GLViewers
             {
                 var groupChosen = physicsGroups.Contains(physNode.PhysGroupName);
 
-                physNode.Enabled = HasToolsVisibilityControls ? tools.IsPhysicsVisible(physNode, groupChosen) : groupChosen;
+                physNode.Enabled = HasToolsVisibilityControls ? Tools.IsPhysicsVisible(physNode, groupChosen) : groupChosen;
                 physNode.IsTranslucentRenderMode = renderTranslucent;
             }
         }
@@ -1273,14 +1264,14 @@ namespace GUI.Types.GLViewers
             playPauseButton = UiControl.AddToolbarButton(playImage, "Play", () => RequestSimulation(SimulationRequest.PlayOrPause), centered: true);
             stopButton = UiControl.AddToolbarButton(stopImage, "Stop", () => RequestSimulation(SimulationRequest.Stop), centered: true);
 
-            toolEntitiesButton = UiControl.AddToolbarToggle("Tool Entities", tools.ShowToolEntities, v =>
+            toolEntitiesButton = UiControl.AddToolbarToggle("Tool Entities", Tools.ShowToolEntities, v =>
             {
-                tools.ShowToolEntities = v;
+                Tools.ShowToolEntities = v;
                 RequestVisibilityUpdate();
             });
-            toolMaterialsButton = UiControl.AddToolbarToggle("Tool Materials", tools.ShowToolMaterials, v =>
+            toolMaterialsButton = UiControl.AddToolbarToggle("Tool Materials", Tools.ShowToolMaterials, v =>
             {
-                tools.ShowToolMaterials = v;
+                Tools.ShowToolMaterials = v;
                 RequestVisibilityUpdate();
             });
 

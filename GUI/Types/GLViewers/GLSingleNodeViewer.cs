@@ -24,7 +24,7 @@ namespace GUI.Types.GLViewers
             AddRenderModeAndWireframeControls();
             AddBaseGridControl();
 
-            Scene.ShowToolsMaterials = true;
+            Tools.ShowToolMaterials = true;
 
             base.AddUiControls();
         }

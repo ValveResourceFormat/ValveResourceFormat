@@ -127,12 +127,6 @@ namespace ValveResourceFormat.Renderer
         public uint Id { get; set; }
 
         /// <summary>
-        /// Gets or sets whether this node draws its tools materials even while <see cref="Scene.ShowToolsMaterials"/>
-        /// hides them, as a selected node does.
-        /// </summary>
-        public bool ShowsToolsMaterials { get; set; }
-
-        /// <summary>
         /// Gets whether this node is a fixed-size marker standing in for a point, so its bounds describe
         /// the marker rather than anything in the world.
         /// </summary>

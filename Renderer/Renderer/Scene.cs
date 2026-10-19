@@ -209,8 +209,11 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the flat spatial set holding dynamic scene nodes.</summary>
         public SpatialNodeSet DynamicOctree { get; } = new();
 
-        /// <summary>Gets or sets whether materials flagged as tools-only are rendered.</summary>
-        public bool ShowToolsMaterials { get; set; }
+        /// <summary>
+        /// Gets or sets what decides which materials of the nodes are drawn, which the renderer hands every scene it
+        /// draws, see <see cref="Renderer.DrawFilter"/>. Without one, every material is drawn.
+        /// </summary>
+        public IDrawFilter? DrawFilter { get; set; }
 
         /// <summary>Gets or sets whether scene fog is applied during rendering.</summary>
         public bool FogEnabled { get; set; } = true;
@@ -1664,16 +1667,18 @@ namespace ValveResourceFormat.Renderer
             casterDepthMax = depthMax;
         }
 
-        /// <summary>
-        /// Gets whether a draw of a node is hidden for using a tools material while those are hidden, unless the
-        /// node shows its own anyway.
-        /// </summary>
-        internal bool IsHiddenToolsMaterial(RenderMaterial material, SceneNode node)
-            => !ShowToolsMaterials && material.IsToolsMaterial && !node.ShowsToolsMaterials;
+        /// <summary>Gets whether a draw of a node is drawn into the views, see <see cref="DrawFilter"/>.</summary>
+        internal bool IsDrawn(RenderMaterial material, SceneNode node)
+            => DrawFilter?.GetVisibility(node, material) is null or DrawVisibility.Drawn;
 
-        // Geometry that blocks light casts shadows even while hidden, and whatever its material says
+        // Geometry that blocks light casts shadows whatever its material says
         private bool CastsShadows(RenderMaterial material, SceneNode node)
-            => material.BlocksLight || (!material.DoNotCastShadows && !IsHiddenToolsMaterial(material, node));
+            => DrawFilter?.GetVisibility(node, material) switch
+            {
+                DrawVisibility.Hidden => false,
+                DrawVisibility.ShadowOnly => true,
+                _ => material.BlocksLight || !material.DoNotCastShadows,
+            };
 
         // The skinning variant is picked per draw, so the bucket only says which shader draws it
         internal static DepthOnlyBucket GetDepthOnlyBucket(DrawCall opaqueCall)

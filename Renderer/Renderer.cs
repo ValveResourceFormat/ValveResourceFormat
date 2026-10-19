@@ -149,6 +149,24 @@ public class Renderer : ISpawnGroupHost
     /// <summary>Gets the spawn groups placed into the loaded map, such as its 3D sky.</summary>
     public IReadOnlyList<SpawnGroup> SpawnGroups => spawnGroups;
 
+    /// <summary>
+    /// Gets or sets what decides which materials of the nodes are drawn, handed to every scene drawn, those of spawn
+    /// groups added later included. Without one, every material is drawn.
+    /// </summary>
+    public IDrawFilter? DrawFilter
+    {
+        get;
+        set
+        {
+            field = value;
+
+            foreach (var scene in scenes)
+            {
+                scene.DrawFilter = value;
+            }
+        }
+    }
+
     /// <summary>Gets the spawn group the 3D sky is drawn from, or <see langword="null"/>; the last one placed wins.</summary>
     // TODO: The game draws the sky of the last skybox_reference to activate, through the first sky_camera in its
     // world group. Without one it uses the sky_camera named by an ActivateSkybox input, else the newest sky_camera,
@@ -364,6 +382,7 @@ public class Renderer : ISpawnGroupHost
 
         spawnGroups.Add(group);
         group.Scene.PhysicsWorld ??= EntitySystem.GetPhysicsWorld(group.Scene.WorldGroup);
+        group.Scene.DrawFilter = DrawFilter;
         scenes.Add(group.Scene);
     }
 

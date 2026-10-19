@@ -9,6 +9,7 @@ using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Audio;
+using ValveResourceFormat.Renderer.Editor;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.Picking;
 using ValveResourceFormat.Renderer.Editor.Selection;
@@ -108,6 +109,9 @@ namespace GUI.Types.GLViewers
         /// <summary>The editor entities of the view, which draw what Hammer shows of them.</summary>
         protected HammerEntityVisuals EntityVisuals { get; }
 
+        /// <summary>What tools-only content the view draws, which decides the tools materials the renderer draws.</summary>
+        protected ToolsVisibility Tools { get; } = new();
+
         static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
 
         private readonly float[] frameTimes = new float[30];
@@ -132,6 +136,7 @@ namespace GUI.Types.GLViewers
             Input = new UserInput(Renderer);
             EntityVisuals = new HammerEntityVisuals(rendererContext.FileLoader, rendererContext.Logger);
             Renderer.EntitySystem.ToolVisuals = EntityVisuals;
+            Renderer.DrawFilter = Tools;
             TextRenderer = new(rendererContext, Renderer.Camera);
             crosshairRenderer = new CrosshairRenderer(rendererContext);
             Scene = Renderer.Scene;
@@ -196,13 +201,7 @@ namespace GUI.Types.GLViewers
                 UiControl.AddCheckBox("Show Dynamic Octree", showDynamicOctree, (v) => showDynamicOctree = v);
                 if (!HasToolsVisibilityControls)
                 {
-                    UiControl.AddCheckBox("Show Tool Materials", Scene.ShowToolsMaterials, (v) =>
-                    {
-                        foreach (var scene in Renderer.Scenes)
-                        {
-                            scene.ShowToolsMaterials = v;
-                        }
-                    });
+                    UiControl.AddCheckBox("Show Tool Materials", Tools.ShowToolMaterials, (v) => Tools.ShowToolMaterials = v);
                 }
 
                 if (Renderer.Scenes.Any(static scene => scene.LightingInfo.LightProbes.Count > 0))
@@ -529,7 +528,7 @@ namespace GUI.Types.GLViewers
             baseGrid = new InfiniteGrid(Scene);
             Debug.Assert(MainFramebuffer != null);
 
-            selectionVisuals = new(Selection, EntityVisuals, Scene.RendererContext);
+            selectionVisuals = new(Selection, EntityVisuals, Tools, Scene.RendererContext);
             toolsPass = new(Scene.RendererContext, MainFramebuffer);
             Picker = new(Scene.RendererContext, OnPicked);
 

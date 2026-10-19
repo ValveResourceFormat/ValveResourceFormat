@@ -192,7 +192,7 @@ public sealed class SceneViewState : IDisposable
     {
         Debug.Assert(request.Call is not null);
 
-        if (Scene.IsHiddenToolsMaterial(request.Call.Material, request.Node))
+        if (!Scene.IsDrawn(request.Call.Material, request.Node))
         {
             return;
         }
@@ -990,7 +990,7 @@ public sealed class SceneViewState : IDisposable
         {
             if (IsDrawnByAggregate(node) && node is SceneAggregate.Fragment fragment
                 && aggregatesWithVisibleFragments.Contains(fragment.Parent) && fragment.Parent.IsFragmentInActiveLod(fragment)
-                && !Scene.IsHiddenToolsMaterial(fragment.DrawCall.Material, fragment))
+                && Scene.IsDrawn(fragment.DrawCall.Material, fragment))
             {
                 nodeDraws.Add(new MeshBatchRenderer.Request { Mesh = fragment.RenderMesh, Call = fragment.DrawCall, Node = fragment });
             }
