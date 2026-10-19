@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Types.Audio;
 using GUI.Utils;
 using NAudio.Wave;
 using NLayer.NAudioSupport;
@@ -25,12 +26,7 @@ namespace GUI.Types.Viewers
             {
                 if (vrfGuiContext.FileName.EndsWith(".wav", StringComparison.OrdinalIgnoreCase))
                 {
-                    waveStream = new WaveFileReader(vrfGuiContext.FileName);
-                    if (waveStream.WaveFormat.Encoding != WaveFormatEncoding.Pcm && waveStream.WaveFormat.Encoding != WaveFormatEncoding.IeeeFloat)
-                    {
-                        waveStream = WaveFormatConversionStream.CreatePcmStream(waveStream);
-                        waveStream = new BlockAlignReductionStream(waveStream);
-                    }
+                    waveStream = AudioPlayer.CreateWavStream(new WaveFileReader(vrfGuiContext.FileName));
                 }
                 else if (vrfGuiContext.FileName.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase))
                 {
@@ -48,7 +44,7 @@ namespace GUI.Types.Viewers
             }
             else
             {
-                waveStream = new WaveFileReader(stream);
+                waveStream = AudioPlayer.CreateWavStream(new WaveFileReader(stream));
             }
         }
 

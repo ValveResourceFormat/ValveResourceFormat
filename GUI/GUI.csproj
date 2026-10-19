@@ -29,7 +29,6 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="NAudio.Wasapi" Version="3.2.0" />
-    <PackageReference Include="NAudio.WinMM" Version="3.2.0" />
     <PackageReference Include="NLayer.NAudioSupport" Version="3.0.0" />
     <PackageReference Include="OpenTK.Windowing.Desktop" Version="4.9.4" />
     <PackageReference Include="Sigstore" Version="1.1.1" />

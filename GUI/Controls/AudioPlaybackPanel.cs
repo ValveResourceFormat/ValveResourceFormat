@@ -18,7 +18,9 @@ namespace GUI.Controls
         private readonly record struct Peak(float Min, float Max);
         private readonly record struct Rgb(byte R, byte G, byte B);
 
-        private readonly WaveOut WaveOut = new();
+        private const int PlayerLatencyMs = 50;
+
+        private WasapiPlayer? Player;
         private readonly WaveStream WaveStream;
         private readonly MemoryStream audioData;
         private readonly SampleChannel? SampleChannel;
@@ -79,8 +81,6 @@ namespace GUI.Controls
             labelCurrentTime.Text = GetCurrentTimeString(WaveStream.CurrentTime);
             volumeSlider.Value = Settings.Config.Volume;
 
-            WaveStream? stream = null;
-
             playPauseButton.Image = PlayImage;
             playPauseButton.Text = "";
 
@@ -98,16 +98,7 @@ namespace GUI.Controls
 
             try
             {
-                if (WaveStream.WaveFormat.Encoding == WaveFormatEncoding.Adpcm)
-                {
-                    stream = WaveFormatConversionStream.CreatePcmStream(WaveStream);
-                    SampleChannel = new SampleChannel(stream, true);
-                }
-                else
-                {
-                    SampleChannel = new SampleChannel(WaveStream, true);
-                }
-
+                SampleChannel = new SampleChannel(WaveStream, true);
                 SampleChannel.Volume = volumeSlider.Value;
 
                 LoopingProvider = new LoopingSampleProvider(SampleChannel, WaveStream, LoopMarkers.Start, LoopMarkers.End)
@@ -116,18 +107,18 @@ namespace GUI.Controls
                 };
                 LoopingProvider.LoopOccurred += OnLoopOccurred;
 
-                WaveOut.PlaybackStopped += OnPlaybackStopped;
-                WaveOut.Init(LoopingProvider);
-
-                stream = null;
+                // Built on the UI thread so PlaybackStopped is posted back to it
+                Player = new WasapiPlayerBuilder()
+                    .WithSharedMode()
+                    .WithEventSync()
+                    .WithLatency(PlayerLatencyMs)
+                    .Build();
+                Player.PlaybackStopped += OnPlaybackStopped;
+                Player.Init(LoopingProvider.ToWaveProvider());
             }
             catch (Exception driverCreateException)
             {
                 ErrorReport.ShowError(driverCreateException, ErrorContext);
-            }
-            finally
-            {
-                stream?.Dispose();
             }
         }
 
@@ -173,7 +164,7 @@ namespace GUI.Controls
 
             WaveStream.CurrentTime = TimeSpan.FromSeconds(WaveStream.TotalTime.TotalSeconds * progression);
 
-            if (WaveOut.PlaybackState == PlaybackState.Playing)
+            if (Player?.PlaybackState == PlaybackState.Playing)
             {
                 playbackStopwatch.Restart();
                 playbackStartPosition = WaveStream.CurrentTime;
@@ -477,9 +468,9 @@ namespace GUI.Controls
 
         private void OnPlayPauseButtonClick(object sender, EventArgs e)
         {
-            if (WaveOut.PlaybackState == PlaybackState.Playing)
+            if (Player?.PlaybackState == PlaybackState.Playing)
             {
-                WaveOut.Pause();
+                Player.Pause();
                 playbackTimer.Enabled = false;
                 playPauseButton.Image = PlayImage;
             }
@@ -491,7 +482,7 @@ namespace GUI.Controls
 
         public void Play()
         {
-            if (WaveOut.PlaybackState == PlaybackState.Playing)
+            if (Player is null || Player.PlaybackState == PlaybackState.Playing)
             {
                 return;
             }
@@ -506,7 +497,7 @@ namespace GUI.Controls
 
             SampleChannel?.Volume = volumeSlider.Value;
 
-            WaveOut.Play();
+            Player.Play();
             playbackTimer.Enabled = true;
             playPauseButton.Image = PauseImage;
             UpdateTime();
@@ -539,17 +530,16 @@ namespace GUI.Controls
             playbackStartPosition = WaveStream.CurrentTime;
         }
 
-        private void CloseWaveOut()
+        private void ClosePlayer()
         {
             playbackTimer.Enabled = false;
 
             LoopingProvider?.LoopOccurred -= OnLoopOccurred;
 
-            if (WaveOut is not null)
+            if (Player is not null)
             {
-                WaveOut.PlaybackStopped -= OnPlaybackStopped;
-                WaveOut.Stop();
-                WaveOut.Dispose();
+                Player.PlaybackStopped -= OnPlaybackStopped;
+                Player.Dispose();
             }
 
             PlayImage.Dispose();
@@ -576,7 +566,7 @@ namespace GUI.Controls
 
             var currentTime = playbackStartPosition;
 
-            if (WaveOut.PlaybackState == PlaybackState.Playing)
+            if (Player?.PlaybackState == PlaybackState.Playing)
             {
                 var elapsed = playbackStopwatch.Elapsed;
                 currentTime = playbackStartPosition + elapsed;
