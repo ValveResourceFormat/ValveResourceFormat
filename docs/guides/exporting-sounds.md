@@ -48,6 +48,8 @@ Source2Viewer-CLI -i "pak01_dir.vpk" -o "exported/" -d \
 Source 2 games store sounds in a compiled format internally. The decompiled output is standard WAV or MP3 depending on the original source format.
 :::
 
+Source 2 Viewer only decompiles. To turn an MP3 or WAV file into a `.vsnd_c`, compile it with Valve's Workshop Tools (the resource compiler) for that game.
+
 ## Sound Events
 
 Source 2 uses sound event files (`.vsndevts_c`) to define how sounds are played in-game (volume, pitch, randomization, etc.). These can be viewed and decompiled as text files in Source 2 Viewer, which is useful for understanding how the game references its audio assets.

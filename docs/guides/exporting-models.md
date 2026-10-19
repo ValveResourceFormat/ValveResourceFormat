@@ -21,6 +21,10 @@ Models are stored as `.vmdl_c` files inside VPK archives. In CS2, most assets ar
 
 Use <kbd>Ctrl</kbd>+<kbd>F</kbd> to search for files by name.
 
+### Deadlock hero models
+
+Deadlock hero models are `.vmdl_c` files under `models/heroes/`. Source 2 Viewer detects Deadlock automatically, so you can find its `pak01_dir.vpk` in the Explorer and browse to that folder from there. Double-click a model to preview it along with its animations. To use a hero in Blender, right-click the model and select **Decompile & export**, then choose glTF as described in [Exporting to glTF](#exporting-to-gltf).
+
 ## Previewing Models
 
 Double-click a `.vmdl_c` file to open the 3D model viewer.

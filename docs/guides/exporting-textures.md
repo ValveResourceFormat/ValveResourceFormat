@@ -40,6 +40,8 @@ Source2Viewer-CLI -i "pak01_dir.vpk" -o "exported/" -d \
     --vpk_filepath "materials/models/heroes/"
 ```
 
+Source 2 Viewer only decompiles. To turn a PNG or TGA image into a `.vtex_c`, compile it with Valve's Workshop Tools (the resource compiler) for that game.
+
 ## Texture Types
 
 Source 2 uses several texture types you'll encounter:

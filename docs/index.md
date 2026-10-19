@@ -1,13 +1,16 @@
 ---
+title: "Source 2 Viewer Docs: Open & Extract VPK Files, Export Models"
 titleTemplate: false
-description: "Free, open-source tool to browse VPK archives and view, extract and decompile Source 2 assets from Counter-Strike 2, Dota 2, Half-Life: Alyx and Deadlock."
+description: "Guides and FAQ for Source 2 Viewer: open and extract VPK files, export models, maps, textures and sounds from CS2, Dota 2, Deadlock and Half-Life: Alyx."
 ---
 
-# Source 2 Viewer - VPK File Viewer & Asset Extractor for Source 2 Games
+# Source 2 Viewer Documentation
 
 **Source 2 Viewer** (also known as **S2V**) is a free, open-source tool that allows you to browse VPK archives, view, extract, and decompile Source 2 assets, including maps, models, materials, textures, sounds, and particles from Counter-Strike 2, Dota 2, Half-Life: Alyx, Deadlock, and more. The project is reverse-engineered without access to an official Source 2 SDK and is not affiliated with Valve Software.
 
 [**Download Source 2 Viewer**](https://s2v.app/) | [View on GitHub](https://github.com/ValveResourceFormat/ValveResourceFormat)
+
+To get started, see [how to open and extract VPK files](guides/vpk-management.md).
 
 ## What is Source 2 Viewer?
 
@@ -119,6 +122,14 @@ Yes, Source 2 Viewer is actively maintained and regularly updated to support new
 ### Why is Source 2 Viewer not opening?
 
 If you double click the executable and nothing happens, the most likely cause is that your Windows is missing CET (Control-flow Enforcement Technology) support. Please update your Windows.
+
+### Why does a file fail to open after a game update?
+
+Games change their file formats when they update, and the stable release of Source 2 Viewer can lag behind. Files that the viewer doesn't understand yet show an error tab with the heading "This file may use a format that this version of S2V does not support". Shader files can report "Only VCS file versions X through Y are supported" with a range of versions.
+
+Try the latest development build: open the About window, set "Update channel:" to Dev and use the download button there. The development build is also available at https://s2v.app/dev/.
+
+If the error persists on the latest build, click the "Copy version" button in the About window and [report the issue](./guides/reporting-issues.md) with it.
 
 ### How do I extract models for use in Blender or other 3D software?
 

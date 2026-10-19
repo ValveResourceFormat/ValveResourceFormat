@@ -1,10 +1,10 @@
 ---
-description: Browse VPK archives in Source 2 Viewer, extract files or whole packages, and create VPKs using the GUI or the command line.
+description: How to open VPK files in Source 2 Viewer, extract files or whole packages, and create VPKs using the GUI or the command line.
 ---
 
-# VPK Management
+# How to Open and Extract VPK Files
 
-Source 2 Viewer provides tools for browsing, extracting, and creating VPK (Valve Pak) archives. VPK is the package format used by Source 2 games to store their assets.
+A VPK (Valve Pak) file is the archive format Source and Source 2 games use to package their assets. A package is split into a `pak01_dir.vpk` index plus numbered content files such as `pak01_000.vpk`. Open the `_dir` file in Source 2 Viewer to browse the package, extract files from it, or create your own VPK.
 
 ## Browsing VPK Archives
 
