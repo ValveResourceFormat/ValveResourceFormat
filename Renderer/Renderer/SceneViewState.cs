@@ -815,7 +815,10 @@ public sealed class SceneViewState : IDisposable
     /// <param name="renderContext">The render context for this pass.</param>
     public void RenderTranslucentLayer(Scene.RenderContext renderContext)
     {
+        // Or equal, as Valve's shaders test, so a translucent face drawn on an opaque one, such as a clip on a wall,
+        // shows where their depths match instead of losing to it
         using (new GLDebugGroup("Translucent Render"))
+        using (GraphicsContext.RenderState.Scope(depthFunc: RsComparison.CloserEqual))
         {
             renderContext.RenderPass = RenderPass.Translucent;
             MeshBatchRenderer.Render(renderLists[RenderPass.Translucent], renderContext);
