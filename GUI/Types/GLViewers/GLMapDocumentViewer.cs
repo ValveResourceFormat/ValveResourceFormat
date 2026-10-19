@@ -144,6 +144,8 @@ namespace GUI.Types.GLViewers
             };
         }
 
+        protected override bool HasToolsVisibilityControls => true;
+
         protected override ToolGeometry? GizmoShapes => gizmoTool?.Shapes;
 
         protected override (string Text, Color32 Color)? ModeLabel

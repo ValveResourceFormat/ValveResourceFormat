@@ -383,6 +383,11 @@ namespace GUI.Types.GLViewers
                 }
             }
 
+            if (HasToolsVisibilityControls)
+            {
+                AddToolsVisibilityToolbar();
+            }
+
             if (world != null)
             {
                 AddSimulationToolbar();
@@ -1219,7 +1224,22 @@ namespace GUI.Types.GLViewers
             Tools.ApplyCollisionVisibility(Scene.AllNodes);
         }
 
-        // Above the viewport rather than in the sidebar: how the world is run and what of the tools is drawn
+        // Above the viewport rather than in the sidebar: what of the tools is drawn
+        private void AddToolsVisibilityToolbar()
+        {
+            Debug.Assert(UiControl != null);
+
+            toolEntitiesButton = UiControl.AddToolbarToggle("Tool Entities", Tools.ShowToolEntities, v =>
+            {
+                Tools.ShowToolEntities = v;
+                RequestVisibilityUpdate();
+            });
+            toolMaterialsButton = UiControl.AddToolbarToggle("Tool Materials", Tools.ShowToolMaterials, v => Tools.ShowToolMaterials = v);
+
+            RequestVisibilityUpdate();
+        }
+
+        // Above the viewport rather than in the sidebar: how the world is run
         private void AddSimulationToolbar()
         {
             Debug.Assert(UiControl != null);
@@ -1232,19 +1252,7 @@ namespace GUI.Types.GLViewers
             playPauseButton = UiControl.AddToolbarButton(playImage, "Play", () => RequestSimulation(SimulationRequest.PlayOrPause), centered: true);
             stopButton = UiControl.AddToolbarButton(stopImage, "Stop", () => RequestSimulation(SimulationRequest.Stop), centered: true);
 
-            toolEntitiesButton = UiControl.AddToolbarToggle("Tool Entities", Tools.ShowToolEntities, v =>
-            {
-                Tools.ShowToolEntities = v;
-                RequestVisibilityUpdate();
-            });
-            toolMaterialsButton = UiControl.AddToolbarToggle("Tool Materials", Tools.ShowToolMaterials, v =>
-            {
-                Tools.ShowToolMaterials = v;
-                RequestVisibilityUpdate();
-            });
-
             UpdateSimulationButtons(simulationState);
-            RequestVisibilityUpdate();
         }
 
         private void RequestSimulation(SimulationRequest request)
