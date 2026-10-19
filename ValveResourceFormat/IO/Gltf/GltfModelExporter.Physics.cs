@@ -454,7 +454,8 @@ public partial class GltfModelExporter
             if (!usedToolMaterial)
             {
                 // Configure material as opaque with blue-tinted base color for physics visualization
-                material.WithPBRMetallicRoughness(new Vector4(0.5f, 0.5f, 1.0f, 1.0f), null, metallicFactor: 0.0f);
+                material.InitializePBRMetallicRoughness();
+                SetMetallicRoughness(material, new Vector4(0.5f, 0.5f, 1.0f, 1.0f), metallicFactor: 0.0f);
                 material.Alpha = AlphaMode.OPAQUE;
 
                 // Generate texture based on tool texture name or surface property
@@ -506,7 +507,7 @@ public partial class GltfModelExporter
                 }
             }
 
-            primitive.WithMaterial(material);
+            primitive.Material = material;
         }
 
         return mesh;

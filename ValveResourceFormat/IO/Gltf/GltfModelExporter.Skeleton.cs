@@ -30,9 +30,8 @@ public partial class GltfModelExporter
     {
         var (translation, rotation) = BakeConversion(bone.Position, bone.Angle, isRoot);
 
-        var node = parent.CreateNode(bone.Name)
-            .WithLocalTranslation(translation)
-            .WithLocalRotation(rotation);
+        var node = parent.CreateNode(bone.Name);
+        node.LocalTransform = node.LocalTransform.WithTranslation(translation).WithRotation(rotation);
         joints[bone.Index] = node;
 
         foreach (var child in bone.Children)
@@ -86,12 +85,18 @@ public partial class GltfModelExporter
         if (material == null)
         {
             material = exportedModel.CreateMaterial("skeleton_material");
-            material.WithPBRMetallicRoughness(new Vector4(0.8f, 0.8f, 0.8f, 1.0f), null, metallicFactor: 0.0f);
+            material.InitializePBRMetallicRoughness();
+            SetMetallicRoughness(material, new Vector4(0.8f, 0.8f, 0.8f, 1.0f), metallicFactor: 0.0f);
             material.Alpha = AlphaMode.OPAQUE;
         }
 
-        primitive.WithMaterial(material);
+        primitive.Material = material;
 
-        scene.CreateNode($"{skeletonName}.empty_mesh_reference").WithSkinnedMesh(mesh, Matrix4x4.Identity, joints);
+        var skin = exportedModel.CreateSkin();
+        skin.BindJoints(Matrix4x4.Identity, joints);
+
+        var meshNode = scene.CreateNode($"{skeletonName}.empty_mesh_reference");
+        meshNode.Mesh = mesh;
+        meshNode.Skin = skin;
     }
 }

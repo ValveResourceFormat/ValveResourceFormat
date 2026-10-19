@@ -120,7 +120,7 @@ public partial class GltfModelExporter
             PositionWriter.Clear();
             ScaleWriter.Clear();
 
-            var outputAnimation = model.UseAnimation(animationName ?? animation.Name);
+            var outputAnimation = UseAnimation(model, animationName ?? animation.Name);
             WriteAdditiveExtras(outputAnimation, animation, ComposeAdditive);
 
             var fps = animation.Fps;
@@ -544,6 +544,12 @@ public partial class GltfModelExporter
     // path with the .vnmclip extension stripped (the path keeps them unique across clip folders).
     private static string ClipAnimationName(string clipName) => Path.ChangeExtension(clipName, null)!;
 
+    private static SharpGLTF.Schema2.Animation UseAnimation(ModelRoot root, string name)
+    {
+        var animation = root.LogicalAnimations.FirstOrDefault(item => item.Name == name);
+        return animation ?? root.CreateAnimation(name);
+    }
+
     /// <summary>
     /// Flags an additive animation in its glTF extras. glTF has no notion of additive animation, so an
     /// uncomposed one carries per-bone deltas the consumer composes onto the bind pose itself: add the
@@ -678,7 +684,7 @@ public partial class GltfModelExporter
                     }
                 }
 
-                exportedModel.UseAnimation(animation.Name).CreateMorphChannel(meshTargets[t].Node, keyframes, meshTargets[t].MorphFlexIds.Count);
+                UseAnimation(exportedModel, animation.Name).CreateMorphChannel(meshTargets[t].Node, keyframes, meshTargets[t].MorphFlexIds.Count);
             }
         }
     }

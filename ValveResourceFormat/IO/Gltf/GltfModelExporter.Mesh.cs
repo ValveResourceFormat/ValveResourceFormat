@@ -461,7 +461,7 @@ public partial class GltfModelExporter
 
         if (material != null)
         {
-            primitive.WithMaterial(material.Value.Material);
+            primitive.Material = material.Value.Material;
         }
 
         return primitive;
@@ -513,9 +513,8 @@ public partial class GltfModelExporter
         }
 
         var renderMaterial = (VMaterial)materialResource.DataBlock!;
-        var material = exportedModel
-            .CreateMaterial(materialNameTrimmed)
-            .WithDefault();
+        var material = exportedModel.CreateMaterial(materialNameTrimmed);
+        material.InitializePBRMetallicRoughness();
 
         var exportedMaterial = new ExportedMaterialData(material, IsMaterialOverlay(renderMaterial));
         ExportedMaterials.Add(materialHashKey, exportedMaterial);
@@ -639,7 +638,8 @@ public partial class GltfModelExporter
 
             CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAttributes, exportedModel, skinMaterialTable: null, tintColor);
 
-            var newNode = scene.CreateNode(meshName).WithMesh(mesh);
+            var newNode = scene.CreateNode(meshName);
+            newNode.Mesh = mesh;
             // The conversion is baked into the geometry (CreateVertexBufferAttributes), so the placement
             // transform is conjugated by it rather than multiplied on top - otherwise it applies twice.
             newNode.WorldMatrix = GetPlacementTransform(transform);
@@ -926,23 +926,27 @@ public partial class GltfModelExporter
             maxIndex = Math.Max(maxIndex, index);
         }
 
+        var model = primitive.LogicalParent.LogicalParent;
+        var accessor = model.CreateAccessor();
+
         if (maxIndex > ushort.MaxValue - 1)
         {
-            primitive.WithIndicesAccessor(primitiveType, indices);
-            return;
+            var intView = model.CreateBufferView(sizeof(int) * indices.Length, 0, BufferMode.ELEMENT_ARRAY_BUFFER);
+            indices.CopyTo(MemoryMarshal.Cast<byte, int>(((Memory<byte>)intView.Content).Span));
+            accessor.SetIndexData(intView, 0, indices.Length, IndexEncodingType.UNSIGNED_INT);
         }
-
-        var model = primitive.LogicalParent.LogicalParent;
-        var bufferView = model.CreateBufferView(sizeof(ushort) * indices.Length, 0, BufferMode.ELEMENT_ARRAY_BUFFER);
-        var shorts = MemoryMarshal.Cast<byte, ushort>(((Memory<byte>)bufferView.Content).Span);
-
-        for (var i = 0; i < indices.Length; i++)
+        else
         {
-            shorts[i] = (ushort)indices[i];
-        }
+            var shortView = model.CreateBufferView(sizeof(ushort) * indices.Length, 0, BufferMode.ELEMENT_ARRAY_BUFFER);
+            var shorts = MemoryMarshal.Cast<byte, ushort>(((Memory<byte>)shortView.Content).Span);
 
-        var accessor = model.CreateAccessor();
-        accessor.SetIndexData(bufferView, 0, indices.Length, IndexEncodingType.UNSIGNED_SHORT);
+            for (var i = 0; i < indices.Length; i++)
+            {
+                shorts[i] = (ushort)indices[i];
+            }
+
+            accessor.SetIndexData(shortView, 0, indices.Length, IndexEncodingType.UNSIGNED_SHORT);
+        }
 
         primitive.SetIndexAccessor(accessor);
         primitive.DrawPrimitiveType = primitiveType;

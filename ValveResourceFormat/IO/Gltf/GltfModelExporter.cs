@@ -671,7 +671,8 @@ namespace ValveResourceFormat.IO
 
             if (joints == null || !hasVertexJoints)
             {
-                return newNode.WithMesh(exportedMesh);
+                newNode.Mesh = exportedMesh;
+                return newNode;
             }
 
             // Inverse bind matrices are taken from the joints' current world matrices, so the skin

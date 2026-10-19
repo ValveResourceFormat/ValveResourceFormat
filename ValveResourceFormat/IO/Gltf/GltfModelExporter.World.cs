@@ -277,9 +277,10 @@ public partial class GltfModelExporter
         var color = entity.GetColor32Property("color");
         color = ColorSpace.SrgbGammaToLinear(color);
 
-        var envLight = exportedModel
-            .CreatePunctualLight(PunctualLightType.Directional)
-            .WithColor(color, intensity * PbrWattsTolumens);
+        var envLight = exportedModel.CreatePunctualLight(PunctualLightType.Directional);
+        envLight.Color = color;
+        envLight.Intensity = intensity * PbrWattsTolumens;
+        envLight.Range = float.PositiveInfinity;
 
         return envLight;
     }

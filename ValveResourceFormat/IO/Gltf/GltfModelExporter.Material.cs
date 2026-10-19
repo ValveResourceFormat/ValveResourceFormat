@@ -52,6 +52,21 @@ public partial class GltfModelExporter
     private readonly List<Task> TextureExportingTasks = [];
     private readonly Dictionary<string, Texture> ExportedTextures = [];
 
+    private static void SetChannelColor(Material material, string channelName, Vector4 color)
+    {
+        var channel = material.FindChannel(channelName)!.Value;
+        channel.Color = color;
+    }
+
+    private static void SetMetallicRoughness(Material material, Vector4 baseColor, float metallicFactor)
+    {
+        SetChannelColor(material, "BaseColor", baseColor);
+
+        var channel = material.FindChannel("MetallicRoughness")!.Value;
+        channel.SetFactor("MetallicFactor", metallicFactor);
+        channel.SetFactor("RoughnessFactor", 1f);
+    }
+
     private void GenerateGLTFMaterialFromRenderMaterial(Material material, VMaterial renderMaterial, ModelRoot model, Vector4 modelTintColor, bool baseColorOnly = false)
     {
         renderMaterial.IntParams.TryGetValue("F_TRANSLUCENT", out var isTranslucent);
@@ -76,7 +91,7 @@ public partial class GltfModelExporter
 
         if (renderMaterial.IntParams.GetValueOrDefault("F_UNLIT") > 0)
         {
-            material.WithUnlit();
+            material.InitializeUnlit();
         }
 
         // assume non-metallic unless prompted
@@ -160,10 +175,7 @@ public partial class GltfModelExporter
             material.InitializePBRMetallicRoughness();
         }
 
-        material
-            .WithChannelColor("BaseColor", baseColor)
-            .WithChannelFactor("MetallicRoughness", "MetallicFactor", metalValue)
-            .WithChannelFactor("MetallicRoughness", "RoughnessFactor", 1f);
+        SetMetallicRoughness(material, baseColor, metalValue);
 
         var openBitmaps = new Dictionary<string, SKBitmap>();
 
@@ -203,7 +215,7 @@ public partial class GltfModelExporter
 
         if (needsSpecularMode && renderMaterial.VectorParams.TryGetValue("g_vSpecularColor", out var vSpecularColor))
         {
-            material.WithChannelColor("SpecularColor", vSpecularColor); // This might need SrgbGammaToLinear
+            SetChannelColor(material, "SpecularColor", vSpecularColor); // This might need SrgbGammaToLinear
         }
 
         // Remap vtex texture parameters into instructions that can be exported
@@ -431,7 +443,7 @@ public partial class GltfModelExporter
             else if (gltfPackedName == "Emissive")
             {
                 // The default emissive factor is black, which would hide the texture
-                material.WithChannelColor("Emissive", new Vector4(emissiveColor, 1f));
+                SetChannelColor(material, "Emissive", new Vector4(emissiveColor, 1f));
             }
         }
 

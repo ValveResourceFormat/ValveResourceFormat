@@ -135,10 +135,11 @@ public partial class GltfModelExporter
         SetIndices(primitive, PrimitiveType.TRIANGLES, [.. indices]);
 
         var material = exportedModel.CreateMaterial($"{meshName}_material");
-        material.WithPBRMetallicRoughness(color, null, metallicFactor: 0.0f);
+        material.InitializePBRMetallicRoughness();
+        SetMetallicRoughness(material, color, metallicFactor: 0.0f);
         material.Alpha = AlphaMode.OPAQUE;
         material.DoubleSided = true;
-        primitive.WithMaterial(material);
+        primitive.Material = material;
 
         return mesh;
     }
