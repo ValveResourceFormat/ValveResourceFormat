@@ -30,6 +30,12 @@ public sealed class ToolsVisibility : IDrawFilter
     public bool ShowToolMaterials { get; set; }
 
     /// <summary>
+    /// Gets or sets the groups of tools materials hidden, see <see cref="ToolBrushGroups"/>, which hide whatever else
+    /// shows tools materials. It is replaced whole, so a frame being drawn never reads it half changed.
+    /// </summary>
+    public IReadOnlySet<string> HiddenToolBrushGroups { get; set; } = FrozenSet<string>.Empty;
+
+    /// <summary>
     /// Gets or sets the collision drawn, by what it collides as, see <see cref="PhysSceneNode.CollisionLabel"/>. It is
     /// replaced whole, so a frame being drawn never reads it half changed.
     /// </summary>
@@ -88,12 +94,17 @@ public sealed class ToolsVisibility : IDrawFilter
     {
         ArgumentNullException.ThrowIfNull(material);
 
-        if (!material.IsToolsMaterial || (ShowToolMaterials && ShowToolEntities) || selectedNodes.Contains(node))
+        var hiddenGroups = HiddenToolBrushGroups;
+        var hiddenByGroup = hiddenGroups.Count > 0
+            && (ToolBrushGroups.GetGroup(material.Material.Name) ?? (material.IsToolsMaterial ? ToolBrushGroups.RootGroup : null)) is { } group
+            && hiddenGroups.Contains(group);
+
+        if ((!hiddenByGroup && (!material.IsToolsMaterial || (ShowToolMaterials && ShowToolEntities))) || selectedNodes.Contains(node))
         {
             return DrawVisibility.Drawn;
         }
 
-        // Hidden tools materials that block light still cast shadows
-        return material.BlocksLight ? DrawVisibility.ShadowOnly : DrawVisibility.Hidden;
+        // A hidden group hides its materials entirely, while hidden tools materials that block light still do
+        return !hiddenByGroup && material.BlocksLight ? DrawVisibility.ShadowOnly : DrawVisibility.Hidden;
     }
 }

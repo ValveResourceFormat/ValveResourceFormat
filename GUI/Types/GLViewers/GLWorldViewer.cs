@@ -17,6 +17,7 @@ using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.Picking;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.Input;
+using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.Utils;
@@ -353,6 +354,7 @@ namespace GUI.Types.GLViewers
 
                 SetEnabledLayers([.. worldLayers, .. unlistedEnabledLayers]);
             });
+            AddToolBrushGroupsControl();
             AddCollisionControl();
 
             using (UiControl.BeginGroup("Camera"))
@@ -1128,6 +1130,41 @@ namespace GUI.Types.GLViewers
             {
                 worldLayersComboBox.Enabled = false;
             }
+        }
+
+        // Hammer's Auto Vis Groups of tools materials, those the loaded map uses nested under the groups above them,
+        // shown until unchecked
+        private void AddToolBrushGroupsControl()
+        {
+            Debug.Assert(UiControl != null);
+
+            var nodes = Renderer.Scenes.SelectMany(static scene => scene.AllNodes).ToArray();
+            var meshMaterials = nodes
+                .OfType<MeshCollectionNode>()
+                .SelectMany(static node => node.RenderableMeshes)
+                .SelectMany(static mesh => mesh.DrawCalls)
+                .Select(static drawCall => drawCall.Material);
+            var shapeMaterials = nodes
+                .OfType<ShapeSceneNode>()
+                .Select(static node => node.ToolsMaterial)
+                .OfType<RenderMaterial>();
+
+            var groups = meshMaterials
+                .Concat(shapeMaterials)
+                .Select(static material => ToolBrushGroups.GetGroup(material.Material.Name))
+                .OfType<string>()
+                .Distinct()
+                .Order(StringComparer.Ordinal)
+                .ToArray();
+
+            if (groups.Length == 0)
+            {
+                return;
+            }
+
+            var allGroups = groups.SelectMany(ToolBrushGroups.GetGroupAndParents).ToHashSet();
+
+            UiControl.AddTreeSelection("Auto Vis Groups", groups, shown => Tools.HiddenToolBrushGroups = allGroups.Except(shown).ToFrozenSet());
         }
 
         // What the loaded map collides as, hidden until checked
