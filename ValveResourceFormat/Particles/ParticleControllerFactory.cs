@@ -120,6 +120,7 @@ namespace ValveResourceFormat.Particles
                 ["C_OP_DampenToCP"] = operatorInfo => new DampenToCP(operatorInfo),
                 ["C_OP_Decay"] = operatorInfo => new Decay(operatorInfo),
                 ["C_OP_DistanceBetweenTransforms"] = operatorInfo => new DistanceBetweenTransforms(operatorInfo),
+                ["C_OP_DistanceBetweenVecs"] = operatorInfo => new DistanceBetweenVecs(operatorInfo),
                 ["C_OP_DistanceCull"] = operatorInfo => new DistanceCull(operatorInfo),
                 ["C_OP_DistanceToTransform"] = operatorInfo => new DistanceToTransform(operatorInfo),
                 ["C_OP_EndCapDecay"] = operatorInfo => new EndCapDecay(operatorInfo),
