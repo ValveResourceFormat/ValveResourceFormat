@@ -813,6 +813,7 @@ public sealed class SceneViewState : IDisposable
     public void RenderTranslucentLayer(Scene.RenderContext renderContext)
     {
         using (new GLDebugGroup("Translucent Render"))
+        using (GraphicsContext.RenderState.Scope(depthFunc: RsComparison.CloserEqual))
         {
             renderContext.RenderPass = RenderPass.Translucent;
             MeshBatchRenderer.Render(renderLists[RenderPass.Translucent], renderContext);
