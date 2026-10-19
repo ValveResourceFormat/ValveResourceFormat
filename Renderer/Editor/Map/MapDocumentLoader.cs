@@ -497,9 +497,21 @@ public sealed class MapDocumentLoader : IDisposable
         {
             var group = meshRenderData.MaterialGroups[i];
             var material = GetMaterial(group, owner, shaderArguments);
-            var (vbib, vertexBounds) = meshRenderData.GetBuffers(i, material.Material.InputSignature);
-            var node = AddMeshNode(string.Create(CultureInfo.InvariantCulture, $"{name}_{i}"), material, vbib, vertexBounds, placedNode, mesh, owner, placedNode.Transform);
+            var nodeName = string.Create(CultureInfo.InvariantCulture, $"{name}_{i}");
+
+            // Tools materials show as tool brushes do, and those that block light cast shadows through a mesh
+            // that is drawn nowhere else
+            SceneNode node = material.IsToolsMaterial
+                ? AddToolsMaterialNode(nodeName, group, material, placedNode, owner)
+                : AddMeshNode(nodeName, material, meshRenderData.GetBuffers(i, material.Material.InputSignature), placedNode, mesh, owner, placedNode.Transform);
             AddNodeToMesh(mapMesh, node);
+
+            if (material.IsToolsMaterial && material.BlocksLight)
+            {
+                AddNodeToMesh(mapMesh, AddMeshNode($"{nodeName}_shadow", material, meshRenderData.GetBuffers(i, material.Material.InputSignature),
+                    placedNode, mesh, owner, placedNode.Transform, castsShadowOnly: true));
+            }
+
             var attributes = material.Material.IntAttributes;
 
             AddCollision(mesh, owner, group, material.Material, placedNode.Transform);
@@ -525,17 +537,18 @@ public sealed class MapDocumentLoader : IDisposable
     private RenderMaterial GetMaterial(PolygonMesh.BakedSubmesh group, MapEntity? owner, Dictionary<string, byte> shaderArguments)
         => rendererContext.MaterialLoader.GetMaterial(owner?.EntityClass?.AutoApplyMaterial ?? (group.Material.Length > 0 ? group.Material : null), shaderArguments);
 
-    private MeshSceneNode AddMeshNode(string name, RenderMaterial material, VBIB vbib, AABB bounds, PlacedMapNode placedNode, CMapMesh mesh, MapEntity? owner, Matrix4x4 transform)
+    private MeshSceneNode AddMeshNode(string name, RenderMaterial material, (VBIB Buffers, AABB Bounds) geometry, PlacedMapNode placedNode, CMapMesh mesh, MapEntity? owner, Matrix4x4 transform, bool castsShadowOnly = false)
     {
-        var node = new MeshSceneNode(scene, RenderableMesh.CreateMesh(name, material, vbib, bounds, rendererContext, sortByMaterial: true))
-        {
-            Name = name,
-            LayerName = placedNode.WorldLayer ?? (owner == null ? WorldLayerName : EntitiesLayerName),
-            TintAlpha = placedNode.Tint * new Vector4(mesh.TintColor.R, mesh.TintColor.G, mesh.TintColor.B, mesh.RenderAmount) / 255f,
-            OverlayRenderOrder = mesh is CMapStaticOverlay overlay ? overlay.RenderOrder : 0,
-            Transform = transform,
-            EntityData = owner?.KeyValues,
-        };
+        var renderableMesh = RenderableMesh.CreateMesh(name, material, geometry.Buffers, geometry.Bounds, rendererContext, sortByMaterial: true);
+        MeshSceneNode node = castsShadowOnly
+            ? new ShadowCasterSceneNode(scene, renderableMesh) { Name = name }
+            : new MeshSceneNode(scene, renderableMesh) { Name = name };
+
+        node.LayerName = GetLayerName(placedNode, owner);
+        node.TintAlpha = placedNode.Tint * new Vector4(mesh.TintColor.R, mesh.TintColor.G, mesh.TintColor.B, mesh.RenderAmount) / 255f;
+        node.OverlayRenderOrder = mesh is CMapStaticOverlay overlay ? overlay.RenderOrder : 0;
+        node.Transform = transform;
+        node.EntityData = owner?.KeyValues;
 
         if (IsShadowless(material))
         {
@@ -546,6 +559,21 @@ public sealed class MapDocumentLoader : IDisposable
 
         return node;
     }
+
+    private ToolsMaterialSceneNode AddToolsMaterialNode(string name, PolygonMesh.BakedSubmesh group, RenderMaterial material, PlacedMapNode placedNode, MapEntity? owner)
+    {
+        var node = ToolsMaterialSceneNode.Create(scene, name, group, material.Material.Name);
+        node.LayerName = GetLayerName(placedNode, owner);
+        node.Transform = placedNode.Transform;
+        node.EntityData = owner?.KeyValues;
+
+        scene.Add(node, dynamic: false);
+
+        return node;
+    }
+
+    private static string GetLayerName(PlacedMapNode placedNode, MapEntity? owner)
+        => placedNode.WorldLayer ?? (owner == null ? WorldLayerName : EntitiesLayerName);
 
     private MapMesh AddMapMesh(PlacedMapNode placedNode, CMapMesh mesh, MapEntity? owner)
     {
@@ -574,11 +602,11 @@ public sealed class MapDocumentLoader : IDisposable
             var group = groups[i];
             var lit = group.Streams.Any(static stream => stream.Stream.SemanticName == "PerVertexLighting");
             var material = GetMaterial(group, owner, scene.LightingInfo.CreateShaderArguments(hasVertexLighting: lit));
-            var (vbib, bounds) = PolygonMeshRenderData.BuildVertexAndIndexBuffers(group, material.Material.InputSignature);
+            var geometry = PolygonMeshRenderData.BuildVertexAndIndexBuffers(group, material.Material.InputSignature);
 
             hasVertexLighting |= lit;
 
-            AddNodeToMesh(mapMesh, AddMeshNode(string.Create(CultureInfo.InvariantCulture, $"{name}_{i}"), material, vbib, bounds, placedNode, overlay, owner, Matrix4x4.Identity));
+            AddNodeToMesh(mapMesh, AddMeshNode(string.Create(CultureInfo.InvariantCulture, $"{name}_{i}"), material, geometry, placedNode, overlay, owner, Matrix4x4.Identity));
         }
     }
 
