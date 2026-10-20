@@ -911,6 +911,13 @@ namespace GUI.Types.GLViewers
             // TODO: nonpow2 sizes?
             using var bitmap = ReadPixelsToBitmap();
             using var bitmapPixmap = bitmap.PeekPixels();
+
+            if (format == SKEncodedImageFormat.Jpeg)
+            {
+                bitmapPixmap.Encode(fs, new SKJpegEncoderOptions(100, SKJpegEncoderDownsample.Downsample420, SKJpegEncoderAlphaOption.BlendOnBlack));
+                return;
+            }
+
             bitmapPixmap.Encode(fs, format, 100);
         }
 
@@ -1811,15 +1818,11 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(shader != null);
 
-            var mode = SpriteSheetDisplay.FullSheet;
+            var mode = SpriteSheetDisplayMode;
 
-            if (captureFullSizeImage || !TryGetCurrentSpriteFrameRect(out var frameRect))
+            if (!TryGetCurrentSpriteFrameRect(out var frameRect) || (captureFullSizeImage && mode == SpriteSheetDisplay.OutlineFrame))
             {
-                frameRect = new Vector4(0f, 0f, 1f, 1f);
-            }
-            else
-            {
-                mode = SpriteSheetDisplayMode;
+                mode = SpriteSheetDisplay.FullSheet;
             }
 
             shader.SetUniform("g_nSpriteSheetMode", (int)mode);

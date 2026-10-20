@@ -325,7 +325,7 @@ void main()
 
         if (bWithinImageBounds)
         {
-            flBackgroundMix -= vColorOutput.a;
+            flBackgroundMix -= g_bCapturingScreenshot ? 1.0 : vColorOutput.a;
         }
 
         vColorOutput.rgb = mix(vColorOutput.rgb, vBackgroundColor, flBackgroundMix);

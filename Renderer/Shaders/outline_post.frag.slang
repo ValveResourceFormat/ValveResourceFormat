@@ -2,6 +2,7 @@
 
 #include "common/utils.slang"
 
+uniform bool g_bFlipY = false;
 uniform int g_nNumSamplesMSAA = 1;
 
 uniform float g_flOutlineSize = 1;
@@ -27,7 +28,13 @@ vec4 DrawOutline()
     int width = max(1, int(floor(2.5 * g_flOutlineSize + 0.5)));
     const int shadingRate = 1;
 
+    ivec2 maskTextureSize = textureSize(g_tOutlineMask);
     ivec2 pixelCoords = ivec2(gl_FragCoord.xy);
+
+    if (g_bFlipY)
+    {
+        pixelCoords.y = maskTextureSize.y - pixelCoords.y - 1;
+    }
 
     int totalSamples = 0;
     float insideCountCenter = 0.0;
@@ -41,7 +48,6 @@ vec4 DrawOutline()
     }
 
     float insideCount = insideCountCenter;
-    ivec2 maskTextureSize = textureSize(g_tOutlineMask);
 
     // Accumulate samples in a neighborhood and also collect positional info for inside-samples
     int insideSamplePixels = 0;
