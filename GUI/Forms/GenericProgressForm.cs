@@ -4,6 +4,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Utils;
+using Windows.Win32;
+using Windows.Win32.Foundation;
 
 namespace GUI.Forms
 {
@@ -90,7 +92,7 @@ namespace GUI.Forms
             // A single unit of work has no meaningful progression, keep the marquee
             if (barMax > 1)
             {
-                extractProgressBar.Style = ProgressBarStyle.Blocks;
+                ShowDeterminateBar();
                 extractProgressBar.Maximum = barMax;
             }
 
@@ -102,6 +104,22 @@ namespace GUI.Forms
             }
 
             UpdateTitle();
+        }
+
+        private void ShowDeterminateBar()
+        {
+            if (extractProgressBar.Style == ProgressBarStyle.Blocks)
+            {
+                return;
+            }
+
+            extractProgressBar.Style = ProgressBarStyle.Blocks;
+
+            // Changing the style recreates the handle with a visual style, which ignores the bar colors
+            if (Application.IsDarkModeEnabled)
+            {
+                PInvoke.SetWindowTheme((HWND)extractProgressBar.Handle, " ", " ");
+            }
         }
 
         private void UpdateTitle()
@@ -200,7 +218,7 @@ namespace GUI.Forms
             // Flush the last reported text and render the completed title
             ApplyPendingUpdate();
 
-            extractProgressBar.Style = ProgressBarStyle.Blocks;
+            ShowDeterminateBar();
             extractProgressBar.Value = extractProgressBar.Maximum;
             cancelButton.Text = "Close";
 

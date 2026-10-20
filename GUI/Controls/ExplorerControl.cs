@@ -106,8 +106,10 @@ namespace GUI.Controls
             };
             treeView.Nodes.Add(scanningTreeNode);
 
+            string[] listedFiles = [.. Settings.Config.RecentFiles, .. Settings.Config.BookmarkedFiles];
+
             // Scan for vpks
-            var scanTask = Task.Run(ScanForSteamGames);
+            var scanTask = Task.Run(() => ScanForSteamGames(listedFiles));
             scanTask.ContinueWith(async t =>
             {
                 Log.Error(nameof(ExplorerControl), t.Exception!.ToString());
@@ -128,7 +130,7 @@ namespace GUI.Controls
             }, CancellationToken.None, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
         }
 
-        private async Task ScanForSteamGames()
+        private async Task ScanForSteamGames(string[] listedFiles)
         {
             if (GameFolderLocator.SteamPath == null)
             {
@@ -383,7 +385,7 @@ namespace GUI.Controls
 
             // Find all games to be displayed in the recent and bookmarked files
             // to instantly load their icons before rendering the list
-            foreach (var path in Settings.Config.RecentFiles.Concat(Settings.Config.BookmarkedFiles))
+            foreach (var path in listedFiles)
             {
                 if (GameFolderLocator.FindSteamGameContainingPath(path, steamGames) is { } game)
                 {
