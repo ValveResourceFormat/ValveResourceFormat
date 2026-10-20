@@ -33,9 +33,11 @@ public sealed class ToolsVisibility : IDrawFilter
 
     /// <summary>
     /// Gets or sets the groups of tools materials hidden, see <see cref="ToolBrushGroups"/>, which hide whatever else
-    /// shows tools materials. It is replaced whole, so a frame being drawn never reads it half changed.
+    /// shows tools materials. A group with no entity class is hidden whole, and one with a class only on the brushes
+    /// of entities of that class, see <see cref="ToolBrushGroups.GetEntityClass"/>. It is replaced whole, so a frame
+    /// being drawn never reads it half changed.
     /// </summary>
-    public IReadOnlySet<string> HiddenToolBrushGroups { get; set; } = FrozenSet<string>.Empty;
+    public IReadOnlySet<(string Group, string? EntityClass)> HiddenToolBrushGroups { get; set; } = FrozenSet<(string, string?)>.Empty;
 
     /// <summary>
     /// Gets or sets the collision drawn, by what it collides as, see <see cref="PhysSceneNode.CollisionLabel"/>. It is
@@ -113,7 +115,7 @@ public sealed class ToolsVisibility : IDrawFilter
         var hiddenGroups = HiddenToolBrushGroups;
         var hiddenByGroup = hiddenGroups.Count > 0
             && (ToolBrushGroups.GetGroup(material.Material.Name) ?? (material.IsToolsMaterial ? ToolBrushGroups.RootGroup : null)) is { } group
-            && hiddenGroups.Contains(group);
+            && (hiddenGroups.Contains((group, null)) || hiddenGroups.Contains((group, ToolBrushGroups.GetEntityClass(node))));
 
         // A shape shows its faces, see ToolsMaterialSceneNode
         if (node is ShadowCasterSceneNode)

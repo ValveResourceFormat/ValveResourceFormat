@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Linq;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Editor;
 
@@ -70,6 +71,16 @@ public static class ToolBrushGroups
     /// <param name="materialName">The path of the material, such as <c>materials/tools/toolsclip.vmat</c>.</param>
     /// <returns>The group, or <see langword="null"/> for a material no group holds.</returns>
     public static string? GetGroup(string materialName) => GroupByMaterial.GetValueOrDefault(materialName);
+
+    /// <summary>Gets the class of the entity a node draws the brushes of.</summary>
+    /// <param name="node">The node.</param>
+    /// <returns>The class, <c>worldspawn</c> for brushes of no entity.</returns>
+    public static string GetEntityClass(SceneNode node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+
+        return node.EntityData?.GetStringProperty("classname") ?? "worldspawn";
+    }
 
     /// <summary>Gets a group and the groups its path continues, outermost last.</summary>
     /// <param name="group">The group, such as <c>Tool Brushes/Clip/Player Clip</c>.</param>

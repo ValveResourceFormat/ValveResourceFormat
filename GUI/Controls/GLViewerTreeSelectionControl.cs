@@ -33,7 +33,8 @@ namespace GUI.Controls
                 AccessibleName = name,
                 Dock = DockStyle.Fill,
                 Margin = new Padding(0),
-                ShowRootLines = true,
+                ShowLines = false,
+                ShowRootLines = false,
             };
 
             treeView.BeginUpdate();

@@ -1138,38 +1138,67 @@ namespace GUI.Types.GLViewers
         }
 
         // Hammer's Auto Vis Groups of tools materials, those the loaded map uses nested under the groups above them,
-        // shown until unchecked and folded until opened
+        // shown until unchecked and folded until opened. A group the brushes of several entity classes use lists
+        // each class below it.
         private void AddToolBrushGroupsControl()
         {
             Debug.Assert(UiControl != null);
 
             var nodes = Renderer.Scenes.SelectMany(static scene => scene.AllNodes).ToArray();
-            var meshMaterials = nodes
+            var meshDraws = nodes
                 .OfType<MeshCollectionNode>()
-                .SelectMany(static node => node.RenderableMeshes)
-                .SelectMany(static mesh => mesh.DrawCalls)
-                .Select(static drawCall => drawCall.Material);
-            var shapeMaterials = nodes
+                .SelectMany(static node => node.RenderableMeshes
+                    .SelectMany(static mesh => mesh.DrawCalls)
+                    .Select(drawCall => (Node: (SceneNode)node, drawCall.Material)));
+            var shapeDraws = nodes
                 .OfType<ShapeSceneNode>()
-                .Select(static node => node.ToolsMaterial)
-                .OfType<RenderMaterial>();
+                .Where(static node => node.ToolsMaterial != null)
+                .Select(static node => (Node: (SceneNode)node, Material: node.ToolsMaterial!));
 
-            var groups = meshMaterials
-                .Concat(shapeMaterials)
-                .Select(static material => ToolBrushGroups.GetGroup(material.Material.Name))
-                .OfType<string>()
-                .Distinct()
-                .Order(StringComparer.Ordinal)
-                .ToArray();
+            var classesByGroup = meshDraws
+                .Concat(shapeDraws)
+                .Select(static draw => (Group: ToolBrushGroups.GetGroup(draw.Material.Material.Name), EntityClass: ToolBrushGroups.GetEntityClass(draw.Node)))
+                .Where(static draw => draw.Group != null)
+                .GroupBy(static draw => draw.Group!, static draw => draw.EntityClass, StringComparer.Ordinal)
+                .ToDictionary(static group => group.Key, static group => group.Distinct(StringComparer.Ordinal).ToArray(), StringComparer.Ordinal);
 
-            if (groups.Length == 0)
+            if (classesByGroup.Count == 0)
             {
                 return;
             }
 
-            var allGroups = groups.SelectMany(ToolBrushGroups.GetGroupAndParents).ToHashSet();
+            // What each item hides, where a group listing its classes hides nothing of its own
+            var items = new Dictionary<string, (string Group, string? EntityClass)>(StringComparer.Ordinal);
+            var paths = new List<string>();
 
-            UiControl.AddTreeSelection("Auto Vis Groups", groups, shown => Tools.HiddenToolBrushGroups = allGroups.Except(shown).ToFrozenSet(), foldGroups: true);
+            foreach (var (group, entityClasses) in classesByGroup)
+            {
+                foreach (var parent in ToolBrushGroups.GetGroupAndParents(group).Skip(1))
+                {
+                    items.TryAdd(parent, (parent, null));
+                }
+
+                if (entityClasses is [_])
+                {
+                    items.Add(group, (group, null));
+                    paths.Add(group);
+                    continue;
+                }
+
+                foreach (var entityClass in entityClasses)
+                {
+                    var path = $"{group}/{entityClass}";
+                    items.Add(path, (group, entityClass));
+                    paths.Add(path);
+                }
+            }
+
+            paths.Sort(StringComparer.Ordinal);
+
+            UiControl.AddTreeSelection("Auto Vis Groups", paths, shown => Tools.HiddenToolBrushGroups = items
+                .ExceptBy(shown, static item => item.Key)
+                .Select(static item => item.Value)
+                .ToFrozenSet(), foldGroups: true);
         }
 
         // What the loaded map collides as, hidden until checked and folded until opened, and whether it and tools materials are drawn opaque
