@@ -77,6 +77,7 @@ namespace GUI.Controls
             WaveStream.Position = 0;
             audioData = new MemoryStream((int)WaveStream.Length);
             WaveStream.CopyTo(audioData);
+            WaveStream.Position = 0;
 
             labelCurrentTime.Text = GetCurrentTimeString(WaveStream.CurrentTime);
             volumeSlider.Value = Settings.Config.Volume;

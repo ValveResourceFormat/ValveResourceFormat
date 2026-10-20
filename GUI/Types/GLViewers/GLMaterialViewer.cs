@@ -12,6 +12,7 @@ using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.Renderer.Utils;
 using ValveResourceFormat.ResourceTypes;
 using Resource = ValveResourceFormat.Resource;
 
@@ -524,6 +525,13 @@ namespace GUI.Types.GLViewers
             if (currentPreviewObject == PreviewObjectType.Cable)
             {
                 cableFrameDelay = CableSettleTime;
+            }
+            else if (currentPreviewObject == PreviewObjectType.CustomModel)
+            {
+                var bounds = previewNode.BoundingBox;
+                var direction = CameraPlacement.PreferredDirection(bounds.Size);
+                Input.Camera.SetLocation(bounds.Center + direction * Input.Camera.GetFramingDistance(bounds.Size, -direction));
+                Input.Camera.LookAt(bounds.Center);
             }
             else if (renderMat != null && renderMat.IsCs2Water)
             {

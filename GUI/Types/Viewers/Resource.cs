@@ -346,6 +346,11 @@ namespace GUI.Types.Viewers
 
             resTabs.Disposed += OnTabDisposed;
 
+            if (!isPreview)
+            {
+                resTabs.SelectedIndexChanged += (_, _) => RefreshKeybindingsIfVisible(resTabs);
+            }
+
             var loadedResource = resource;
             var blocksByType = new Dictionary<BlockType, List<(int Index, Block Block)>>();
 
@@ -579,8 +584,17 @@ namespace GUI.Types.Viewers
             loadedGraphViewers.Add(viewer);
             loadingFile.Dispose();
             tabPage.Controls.Add(viewer.InitializeUiControls(isPreview: false));
+            RefreshKeybindingsIfVisible(tabPage);
 
             return viewer;
+        }
+
+        private static void RefreshKeybindingsIfVisible(Control control)
+        {
+            if (control.Visible)
+            {
+                Program.MainForm.ShowSelectedTabKeybindings();
+            }
         }
 
         private static bool ShowEntityInGraph(EntityLump.Entity entity, Task<GLGraphViewer?> graph, TabPage tabPage)

@@ -1,4 +1,6 @@
+using System.Linq;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Types.Exporter;
 using GUI.Types.GLViewers;
 
@@ -147,7 +149,9 @@ namespace GUI.Utils
 
             if (contents is Types.Viewers.Resource resourceViewer)
             {
-                var glViewer = resourceViewer.GLViewer;
+                var selectedSubTab = tab.Controls.OfType<TabControl>().FirstOrDefault()?.SelectedTab;
+                var glViewer = (selectedSubTab != null ? GLBaseControl.FindHostedIn(selectedSubTab) : null) ?? resourceViewer.GLViewer;
+
                 if (glViewer != null)
                 {
                     return glViewer switch
@@ -160,6 +164,11 @@ namespace GUI.Utils
                         GLSceneViewer => ViewerType.ModelViewer,
                         _ => ViewerType.Default,
                     };
+                }
+
+                if ((selectedSubTab ?? tab).Controls.OfType<AudioPlaybackPanel>().Any())
+                {
+                    return ViewerType.AudioPlayer;
                 }
 
                 return ViewerType.Default;
