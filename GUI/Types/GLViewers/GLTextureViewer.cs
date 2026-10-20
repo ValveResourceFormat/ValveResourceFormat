@@ -677,7 +677,10 @@ namespace GUI.Types.GLViewers
 
             channelsComboBox.Items.AddRange([.. ChannelsComboBoxOrder.Select(c => (object)c.ChoiceString)]);
 
-            channelsComboBox.SelectedIndex = Svg != null
+            var isParticleTexture = Resource?.FileName?.Replace('\\', '/')
+                .Contains("materials/particle/", StringComparison.OrdinalIgnoreCase) == true;
+
+            channelsComboBox.SelectedIndex = Svg != null || isParticleTexture
                 ? Array.FindIndex(ChannelsComboBoxOrder, channel => channel.Channels == ChannelMapping.RGBA)
                 : Array.FindIndex(ChannelsComboBoxOrder, channel => channel.Channels == ChannelMapping.RGB);
 
