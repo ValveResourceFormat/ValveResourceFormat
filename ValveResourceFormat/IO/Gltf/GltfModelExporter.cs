@@ -1,9 +1,11 @@
 //#define DEBUG_VALIDATE_GLTF
 
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text.Json.Nodes;
 using System.Threading;
 using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
@@ -540,6 +542,20 @@ namespace ValveResourceFormat.IO
 
             var morphedMeshNodes = new List<(Node Node, VMesh Mesh)>();
 
+            // Meshes are shared between entities using the same model, so entity properties go on the
+            // nodes that place the entity: the skeleton node, or else each mesh node.
+            JsonObject? entityExtras = null;
+
+            if (entity != null && ExportExtras)
+            {
+                entityExtras = new JsonObject();
+
+                foreach (var (key, value) in entity.Children)
+                {
+                    entityExtras[key] = KeyValueToJson(value);
+                }
+            }
+
             foreach (var m in meshes)
             {
                 var meshName = m.Name;
@@ -555,10 +571,15 @@ namespace ValveResourceFormat.IO
                 }
 
                 var boneRemapTable = model.GetRemapTable(m.MeshIndex);
-                var node = AddMeshNode(exportedModel, scene, meshName, tintColor, m.Mesh, m.Mesh.VBIB, joints, out var meshNode, boneRemapTable, skinMaterialTable, entity);
+                var node = AddMeshNode(exportedModel, scene, meshName, tintColor, m.Mesh, m.Mesh.VBIB, joints, out var meshNode, boneRemapTable, skinMaterialTable);
                 if (node != null)
                 {
                     node.WorldMatrix = nodeTransform;
+
+                    if (entityExtras != null && skeletonNode == null)
+                    {
+                        node.Extras = entityExtras.DeepClone();
+                    }
 
                     DebugValidateGLTF();
                 }
@@ -580,6 +601,11 @@ namespace ValveResourceFormat.IO
             // WorldMatrix should only be set after everything else.
             if (skeletonNode != null)
             {
+                if (entityExtras != null)
+                {
+                    skeletonNode.Extras = entityExtras;
+                }
+
                 skeletonNode.WorldMatrix = nodeTransform;
             }
         }
@@ -640,7 +666,7 @@ namespace ValveResourceFormat.IO
 
         private Node? AddMeshNode(ModelRoot exportedModel, Scene scene, string name, Vector4 tintColor,
             VMesh mesh, Blocks.VBIB vbib, Node[]? joints, out Node? meshNode, int[]? boneRemapTable = null,
-            Dictionary<string, string>? skinMaterialTable = null, EntityLump.Entity? entity = null)
+            Dictionary<string, string>? skinMaterialTable = null)
         {
             meshNode = null;
 
@@ -657,14 +683,6 @@ namespace ValveResourceFormat.IO
             {
                 exportedMesh = CreateGltfMesh(name, mesh, vbib, exportedModel, boneRemapTable, skinMaterialTable, tintColor);
                 ExportedMeshes.Add(name, exportedMesh);
-
-                if (entity != null && ExportExtras)
-                {
-                    foreach (var (key, value) in entity.Children)
-                    {
-                        exportedMesh.Extras[key] = value.ValueType == KVValueType.String ? (string)value : value.ToString();
-                    }
-                }
             }
 
             var hasVertexJoints = exportedMesh.Primitives.All(primitive => primitive.GetVertexAccessor("JOINTS_0") != null);
@@ -689,6 +707,67 @@ namespace ValveResourceFormat.IO
 
             // WorldMatrix is set only once on skeletonNode
             return null;
+        }
+
+        /// <summary>
+        /// Converts a KeyValues value to JSON, keeping its type: tables become objects, arrays (such as vectors
+        /// and colors) become arrays, and numbers and booleans stay numbers and booleans.
+        /// </summary>
+        internal static JsonNode? KeyValueToJson(KVObject value)
+        {
+            switch (value.ValueType)
+            {
+                case KVValueType.Collection:
+                {
+                    var jsonObject = new JsonObject();
+
+                    foreach (var (key, child) in value.Children)
+                    {
+                        jsonObject[key] = KeyValueToJson(child);
+                    }
+
+                    return jsonObject;
+                }
+
+                case KVValueType.Array:
+                {
+                    var jsonArray = new JsonArray();
+
+                    foreach (var item in value.AsArraySpan())
+                    {
+                        jsonArray.Add(KeyValueToJson(item));
+                    }
+
+                    return jsonArray;
+                }
+
+                case KVValueType.Null:
+                    return null;
+
+                case KVValueType.Boolean:
+                    return JsonValue.Create((bool)value);
+
+                case KVValueType.String:
+                    return JsonValue.Create((string)value);
+
+                // Entity lumps store single precision values as doubles; narrowing keeps 1.3 from printing as 1.2999999523162842.
+                case KVValueType.FloatingPoint:
+                case KVValueType.FloatingPoint64:
+                    return JsonValue.Create(Convert.ToSingle(value, CultureInfo.InvariantCulture));
+
+                case KVValueType.Int16:
+                case KVValueType.Int32:
+                case KVValueType.Int64:
+                    return JsonValue.Create(Convert.ToInt64(value, CultureInfo.InvariantCulture));
+
+                case KVValueType.UInt16:
+                case KVValueType.UInt32:
+                case KVValueType.UInt64:
+                    return JsonValue.Create(Convert.ToUInt64(value, CultureInfo.InvariantCulture));
+
+                default:
+                    return JsonValue.Create(value.ToString(CultureInfo.InvariantCulture));
+            }
         }
 
         private ModelRoot CreateModelRoot(string resourceName, out Scene scene)

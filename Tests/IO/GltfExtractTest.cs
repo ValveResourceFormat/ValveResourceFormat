@@ -1,10 +1,13 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using SharpGLTF.Schema2;
 using TUnit.Assertions.Enums;
+using ValvePak;
 using ValveResourceFormat;
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.ResourceTypes;
@@ -239,7 +242,7 @@ namespace Tests.IO
             return (scale - Vector3.One).Length();
         }
 
-        private static async Task WithExportedGlb(string fileName, Func<ModelRoot, Task> assert)
+        private static async Task WithExportedGlb(string fileName, Func<ModelRoot, Task> assert, IFileLoader? fileLoader = null, bool exportExtras = false)
         {
             using var resource = new Resource();
             resource.Read(TestFixtures.Path(fileName));
@@ -250,9 +253,10 @@ namespace Tests.IO
             try
             {
                 var outPath = Path.Combine(dir, "export.glb");
-                new GltfModelExporter(new NullFileLoader())
+                new GltfModelExporter(fileLoader ?? new NullFileLoader())
                 {
                     ExportMaterials = false,
+                    ExportExtras = exportExtras,
                     ProgressReporter = new Progress<string>(_ => { }),
                 }.Export(resource, outPath);
 
@@ -373,6 +377,105 @@ namespace Tests.IO
                 await Assert.That(normals).IsNotEmpty();
                 await Assert.That(normals.All(normal => MathF.Abs(normal.Length() - 1f) < 1e-4f)).IsTrue();
             });
+        }
+
+        [Test]
+        public async Task TestEntityVectorKeyValuesBecomeJsonArrays()
+        {
+            var vpkPath = TestFixtures.Path("entity_io_param_map_test.vpk");
+
+            using var package = new Package();
+            package.Read(vpkPath);
+            using var loader = new GameFileLoader(package, vpkPath);
+            using var resource = loader.LoadFileCompiled("maps/wtf/entities/default_ents.vents");
+
+            var entity = ((EntityLump)resource!.DataBlock!).GetEntities()
+                .First(entity => entity.TryGetValue("origin", out var value) && value.ValueType == ValveKeyValue.KVValueType.Array);
+
+            var origin = GltfModelExporter.KeyValueToJson(entity["origin"]) as JsonArray;
+            var expected = entity.GetVector3Property("origin");
+
+            await Assert.That(origin).IsNotNull();
+
+            var components = origin!.Select(component => component!.GetValue<float>());
+            await Assert.That(components).IsEquivalentTo([expected.X, expected.Y, expected.Z], CollectionOrdering.Matching);
+        }
+
+        [Test]
+        public async Task TestEntityExtrasAreWrittenPerEntityNode()
+        {
+            using var fileLoader = new FixtureModelFileLoader("wooden_crate_01.vmdl_c");
+
+            await WithExportedGlb("default_ents_kv3_v4_zstd.vents_c", async root =>
+            {
+                var entityNodes = root.LogicalNodes.Where(node => node.Extras?["classname"] != null).ToArray();
+                var uniqueIds = entityNodes.Select(node => node.Extras!["hammeruniqueid"]!.ToJsonString()).Distinct();
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(root.LogicalMeshes.All(mesh => mesh.Extras?["classname"] == null)).IsTrue();
+                    await Assert.That(entityNodes.Length).IsGreaterThan(root.LogicalMeshes.Count)
+                        .Because("entities sharing a model share its meshes");
+                    await Assert.That(uniqueIds.Count()).IsEqualTo(entityNodes.Length)
+                        .Because("each entity keeps its own properties");
+                }
+            }, fileLoader, exportExtras: true);
+        }
+
+        [Test]
+        public async Task TestMorphTargetNamesAreWrittenToMeshExtras()
+        {
+            var vpkPath = TestFixtures.Path("rubick_head_morph.vpk");
+
+            using var package = new Package();
+            package.Read(vpkPath);
+
+            using var loader = new GameFileLoader(package, vpkPath);
+            using var resource = loader.LoadFileCompiled("models/heroes/rubick/rubick_head_model.vmorf");
+            var morph = (Morph)resource!.DataBlock!;
+            morph.LoadFlexData(loader);
+
+            // Only descriptors with flex data become morph targets, so only those are named.
+            var flexData = morph.GetFlexVertexData();
+            flexData.Remove("rubick_head_blink_L");
+
+            var root = ModelRoot.CreateModel();
+            var mesh = root.CreateMesh("rubick_head");
+            mesh.Extras = new JsonObject();
+
+            var morphTargetNames = GltfModelExporter.GetMorphTargetNames(morph, flexData);
+            GltfModelExporter.AddMorphTargetNames(morphTargetNames, mesh);
+
+            var targetNames = mesh.Extras["targetNames"]!.AsArray().Select(name => name!.GetValue<string>());
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(targetNames).IsEquivalentTo(["rubick_head_blink_R"], CollectionOrdering.Matching);
+                await Assert.That(mesh.MorphWeights).IsEquivalentTo([0f], CollectionOrdering.Matching);
+            }
+        }
+
+        /// <summary>
+        /// Serves one fixture model for every model an entity lump asks for.
+        /// </summary>
+        private sealed class FixtureModelFileLoader : IFileLoader, IDisposable
+        {
+            private readonly Resource Model = new();
+
+            public FixtureModelFileLoader(string modelFixture)
+            {
+                Model.Read(TestFixtures.Path(modelFixture));
+            }
+
+            public Resource? LoadFile(string file) => null;
+
+            public Resource? LoadFileCompiled(string file) => file.EndsWith(".vmdl", StringComparison.OrdinalIgnoreCase) ? Model : null;
+
+            public ShaderCollection? LoadShader(string shaderName) => null;
+
+            public Stream? GetFileStream(string file) => null;
+
+            public void Dispose() => Model.Dispose();
         }
 
         [Test]

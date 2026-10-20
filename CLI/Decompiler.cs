@@ -135,7 +135,7 @@ namespace CLI
         /// <param name="gltf_mesh_list">Meshes to include in the glTF, example: "mesh1,mesh2". By default all meshes are included.</param>
         /// <param name="gltf_animation_list">Animations to include in the glTF, example: "idle,dropped". Implies --gltf_export_animations. By default all animations are included.</param>
         /// <param name="gltf_textures_adapt">Perform glTF spec adaptations on exported textures (e.g. split metallic map). Implies --gltf_export_materials.</param>
-        /// <param name="gltf_export_extras">Export additional mesh properties into glTF extras.</param>
+        /// <param name="gltf_export_extras">Export entity properties into glTF node extras.</param>
         /// <param name="gltf_compose_additive">Compose additive animations over the bind pose instead of exporting their delta tracks.</param>
         /// <param name="gltf_keep_all_keyframes">Write an animation key for every frame instead of dropping keys that linear interpolation reproduces within a small tolerance.</param>
         /// <param name="shader_list_combos">List every compiled variant of a shader with its combo values and bytecode hash. For a material, only the variants of its shader that the material selects.</param>

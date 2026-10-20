@@ -86,6 +86,8 @@ public partial class GltfModelExporter
         // rather than once per draw call.
         var flexData = vmesh.MorphData?.GetFlexVertexData();
         var normalData = vmesh.MorphData?.GetFlexVertexData(MorphBundleType.NormalWrinkle);
+        var hasMorphData = flexData != null && normalData != null;
+        var morphTargetNames = hasMorphData ? GetMorphTargetNames(vmesh.MorphData!, flexData!) : [];
 
         foreach (var sceneObject in vmesh.Data.GetArray("m_sceneObjects"))
         {
@@ -93,13 +95,18 @@ public partial class GltfModelExporter
             {
                 var primitive = CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAttributes, exportedModel, skinMaterialTable, tintColor);
 
-                if (flexData != null && normalData != null)
+                if (hasMorphData)
                 {
                     var vertexCount = drawCall.GetInt32Property("m_nVertexCount");
-                    AddMorphTargetsToPrimitive(vmesh.MorphData!, flexData, normalData, primitive, exportedModel, vertexOffset, vertexCount);
+                    AddMorphTargetsToPrimitive(morphTargetNames, flexData!, normalData!, primitive, exportedModel, vertexOffset, vertexCount);
                     vertexOffset += vertexCount;
                 }
             }
+        }
+
+        if (morphTargetNames.Count > 0)
+        {
+            AddMorphTargetNames(morphTargetNames, mesh);
         }
 
         return mesh;
@@ -648,22 +655,17 @@ public partial class GltfModelExporter
         return true;
     }
 
-    private static void AddMorphTargetsToPrimitive(VMorph morph, Dictionary<string, Vector3[]> flexData,
+    private static void AddMorphTargetsToPrimitive(List<string> morphTargetNames, Dictionary<string, Vector3[]> flexData,
         Dictionary<string, Vector4[]> normalData, MeshPrimitive primitive, ModelRoot model, int vertexOffset, int vertexCount)
     {
-        var morphIndex = 0;
-        var flexDesc = morph.GetFlexDescriptors();
-
         // Morph deltas are mostly zero, so targets are sparse accessors over one shared zero run.
         // A buffer view read by several accessors must declare its stride.
         var zeroes = model.CreateBufferView(3 * sizeof(float) * vertexCount, 3 * sizeof(float), BufferMode.ARRAY_BUFFER);
 
-        foreach (var morphName in flexDesc)
+        for (var morphIndex = 0; morphIndex < morphTargetNames.Count; morphIndex++)
         {
-            if (!flexData.TryGetValue(morphName, out var rectData))
-            {
-                continue;
-            }
+            var morphName = morphTargetNames[morphIndex];
+            var rectData = flexData[morphName];
 
             // Morph deltas share the base mesh's vertex space, which is baked into glTF units, so bake them too.
             // The delta grid follows a vertex count the compiler is free to change, so it can end short.
@@ -709,10 +711,45 @@ public partial class GltfModelExporter
                 }
             }
 
-            primitive.SetMorphTargetAccessors(morphIndex++, dict);
+            primitive.SetMorphTargetAccessors(morphIndex, dict);
         }
 
         DebugValidateGLTF();
+    }
+
+    /// <summary>
+    /// Gets the mesh's morph targets: the flex descriptors that have flex data, in descriptor order.
+    /// </summary>
+    internal static List<string> GetMorphTargetNames(VMorph morph, Dictionary<string, Vector3[]> flexData)
+    {
+        var targetNames = new List<string>();
+
+        foreach (var morphName in morph.GetFlexDescriptors())
+        {
+            if (flexData.ContainsKey(morphName))
+            {
+                targetNames.Add(morphName);
+            }
+        }
+
+        return targetNames;
+    }
+
+    /// <summary>
+    /// Names the mesh's morph targets in extras.targetNames, the convention importers such as Blender and three.js
+    /// read shape key names from.
+    /// </summary>
+    internal static void AddMorphTargetNames(List<string> morphTargetNames, Mesh mesh)
+    {
+        var targetNames = new JsonArray();
+
+        foreach (var morphName in morphTargetNames)
+        {
+            targetNames.Add((JsonNode)morphName);
+        }
+
+        mesh.Extras["targetNames"] = targetNames;
+        mesh.SetMorphWeights(new float[morphTargetNames.Count]);
     }
 
     /// <summary>
