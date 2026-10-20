@@ -62,6 +62,7 @@ uniform float uFeatheringFilter = 1.0;
 
 uniform bool uFogParticles = true;
 uniform bool uSaturateColor = true; // m_bSaturateColorPreAlphaBlend
+uniform bool uUnsignedBlendAlpha = false; // games with Particles/EnableParticleShaderFeatureBranching
 
 // The per particle alpha test. Opaque says whether the texture alpha (x) and the vertex alpha (y) are
 // replaced by full opacity once the test passes; softness is how far the upper (x) and lower (y) edges of
@@ -77,6 +78,7 @@ uniform sampler2D g_tSceneColor; // reserved
 uniform float uRefractAmount = 1.0;
 uniform int uRefractBlurRadius = 0;
 uniform bool uRefractBlurBox = false;
+uniform bool uRefractSolid = false;
 #endif
 
 // Per-layer mask mode, blend mode and strength (m_nTextureChannels, m_nTextureBlendMode,
@@ -468,12 +470,21 @@ void main(void) {
             / (uFeatheringRange.y - uFeatheringRange.x));
     }
 
+#if S_REFRACT
+    if (uRefractSolid)
+    {
+        alpha = saturate(alpha * 128.0);
+    }
+#endif
+
+    float blendAlphaFactor = OUTPUT_BLEND_MODE_ALPHA_FACTOR[clamp(uBlendMode, 0, 6)];
+
     if (uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_MOD2X)
     {
         // Modulate-2x is its own output, not an additive one: 0.5 is the neutral that leaves the
         // destination untouched, and the vertex colour weights each channel away from grey rather than
-        // scaling it. The lighting, overbright and fog stages are all skipped on this path.
-        vec3 mod2xColor = mix(vec3(0.5), mix(vec3(0.5), finalColor, vColor.rgb), vec3(alpha));
+        // scaling it. The lighting and fog stages are skipped on this path.
+        vec3 mod2xColor = mix(vec3(0.5), mix(vec3(0.5), finalColor * uOverbrightFactor, vColor.rgb), vec3(alpha));
 
         fragColor = vec4(saturate(mod2xColor), alpha);
     }
@@ -499,22 +510,20 @@ void main(void) {
             finalColor = saturate(finalColor);
         }
 
-        bool isAdditive = uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_ADD;
-
-        // Additive contributions fade with fog density instead of tinting toward the fog color.
+        // The fog colour is scaled by the blend mode's alpha factor, so additive output only fades with
+        // fog density. ApplyFog is affine in the colour, so fogging black gives the fog colour term.
         if (uFogParticles)
         {
-            if (isAdditive)
-            {
-                finalColor *= GetFogAttenuation(vFragPosition);
-            }
-            else
-            {
-                ApplyFog(finalColor, vFragPosition);
-            }
+            vec3 fogColor = vec3(0.0);
+            vec3 fogWhite = vec3(1.0);
+            ApplyFog(fogColor, vFragPosition);
+            ApplyFog(fogWhite, vFragPosition);
+            finalColor = finalColor * saturate(fogWhite.g - fogColor.g) + fogColor * blendAlphaFactor;
         }
 
-        fragColor = vec4(finalColor * alpha, alpha * OUTPUT_BLEND_MODE_ALPHA_FACTOR[clamp(uBlendMode, 0, 6)]);
+        fragColor = uUnsignedBlendAlpha
+            ? vec4(finalColor * mix(alpha, 1.0, saturate(-blendAlphaFactor)), alpha * abs(blendAlphaFactor))
+            : vec4(finalColor * alpha, alpha * blendAlphaFactor);
     }
 
     if (g_iRenderMode == renderMode_Color)

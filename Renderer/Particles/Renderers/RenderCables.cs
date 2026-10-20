@@ -103,14 +103,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <inheritdoc/>
         public override void UpdateBuffers(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
-            if (particles.Count < 2)
+            var scales = EvaluateScales(systemState);
+
+            if (particles.Count < 2 || scales.Radius == 0f || scales.Alpha == 0f)
             {
                 indexCount = 0;
                 lastCount = 0;
                 return;
             }
-
-            var scales = EvaluateScales(systemState);
 
             var count = particles.Count;
             chainScratch = EnsureCapacity(chainScratch, count);

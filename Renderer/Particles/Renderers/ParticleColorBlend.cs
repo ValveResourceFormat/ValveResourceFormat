@@ -39,7 +39,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             var rgb = type switch
             {
-                ParticleColorBlendType.PARTICLE_COLOR_BLEND_DIVIDE => c / s,
+                ParticleColorBlendType.PARTICLE_COLOR_BLEND_DIVIDE => FiniteOrZero(c / s),
                 ParticleColorBlendType.PARTICLE_COLOR_BLEND_ADD => c + s,
                 ParticleColorBlendType.PARTICLE_COLOR_BLEND_SUBTRACT => c - s,
                 ParticleColorBlendType.PARTICLE_COLOR_BLEND_SCREEN => White - ((White - c) * s),
@@ -54,6 +54,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             return Vector4.Clamp(new Vector4(rgb, color.W * scale.W), Vector4.Zero, new Vector4(255f));
         }
+
+        /// <summary>A division by a zero scale channel gives 0 in that channel.</summary>
+        private static Vector3 FiniteOrZero(Vector3 value)
+            => new(float.IsFinite(value.X) ? value.X : 0f, float.IsFinite(value.Y) ? value.Y : 0f, float.IsFinite(value.Z) ? value.Z : 0f);
 
         /// <summary>A colour in 0 to 1 as saturated bytes.</summary>
         public static Vector4 ToBytes(Vector3 color, float alpha)

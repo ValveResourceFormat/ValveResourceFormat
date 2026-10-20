@@ -395,6 +395,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var splits = Splits;
             var scales = EvaluateScales(systemState);
 
+            if (scales.Radius == 0f || scales.Alpha == 0f)
+            {
+                return 0;
+            }
+
             for (var i = 0; i < count; i++)
             {
                 var particleIndex = reverseOrder ? count - i - 1 : i;
@@ -405,6 +410,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     ParticleColorBlend.ToWrappedBytes(particle.Color, Math.Clamp(scales.Alpha * 255f * GetAlpha2(ref particle) * particle.Alpha, 0f, 255f)),
                     scales.Color) / 255f;
                 var alpha = color.W;
+                var alphaReference = GetAlphaReference(ref particle, radius, alpha);
 
                 if (enableFadingAndClamping)
                 {
@@ -432,7 +438,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     ScalarCoordinate = useScalarForTextureCoordinate
                         ? particle.GetScalar(scalarFieldForTextureCoordinate) * scalarAttributeTextureCoordScale
                         : 0f,
-                    AlphaReference = GetAlphaReference(ref particle, radius, alpha),
+                    AlphaReference = alphaReference,
                 };
             }
 
@@ -548,7 +554,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     if (useScalarForTextureCoordinate)
                     {
                         vStart = n1.ScalarCoordinate;
-                        vEnd = endsAtFirst ? n1.ScalarCoordinate : n2.ScalarCoordinate;
+                        vEnd = n2.ParticleIndex == 0 ? n1.ScalarCoordinate : n2.ScalarCoordinate;
                     }
 
                     var previous = EvaluateSample(n0, n1, n2, n3, 0f, camera);
@@ -635,7 +641,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 Color = Vector4.Clamp(
                     new Vector4(Vector3.Lerp(n1.Color, n2.Color, t), float.Lerp(n1.Alpha, n2.Alpha, t)),
                     Vector4.Zero, Vector4.One),
-                AlphaReference = Vector2.Lerp(n1.AlphaReference, n2.AlphaReference, t),
+                AlphaReference = n1.AlphaReference,
             };
         }
 
@@ -673,12 +679,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             for (var j = 0; j < 4; j++)
             {
                 var atStart = j is 0 or 3;
-                var alphaReference = atStart ? start.AlphaReference : end.AlphaReference;
                 ref var vertex = ref vertices[quadStart + j];
                 vertex = default;
                 vertex.Position = positions[j];
                 vertex.Color = atStart ? startColor : endColor;
-                vertex.FrameBlendAlphaReference = new Vector3(sheets[0].Blend, alphaReference.X, alphaReference.Y);
+                vertex.FrameBlendAlphaReference = new Vector3(sheets[0].Blend, start.AlphaReference.X, start.AlphaReference.Y);
                 vertex.UV = ParticleTextureLayer.PlaceCorner(coordinates[j], uvTransforms[0], sheets[0].Offset, sheets[0].Offset + sheets[0].Scale);
                 vertex.UVNextFrame = ParticleTextureLayer.PlaceCorner(coordinates[j], uvTransforms[0], sheets[0].NextOffset, sheets[0].NextOffset + sheets[0].NextScale);
 

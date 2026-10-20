@@ -71,6 +71,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// </summary>
         private bool SaturateColorPreAlphaBlend { get; } = true;
 
+        /// <summary>
+        /// Whether the blend output takes the magnitude of the blend mode's alpha factor and leaves the
+        /// colour of the blend-add modes unpremultiplied, as shaders that switch features at run time do.
+        /// </summary>
+        private bool UnsignedBlendAlpha { get; }
+
         /// <summary>Additive self-colour laid over the alpha blend; uploaded as 1 + amount.</summary>
         protected INumberProvider AddSelfAmount { get; } = new LiteralNumberProvider(0f);
 
@@ -126,6 +132,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private int RefractBlurRadius { get; }
 
         private BlurFilterType RefractBlurType { get; }
+
+        /// <summary>Whether the refraction draws opaque wherever the texture has any alpha.</summary>
+        private bool RefractSolid { get; }
 
         /// <summary>Whether this renderer samples the opaque scene colour.</summary>
         public bool WantsSceneColor => Refract && OutputIsColor;
@@ -205,6 +214,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             RefractAmount = parse.NumberProvider("m_flRefractAmount", RefractAmount);
             RefractBlurRadius = Math.Clamp(parse.Int32("m_nRefractBlurRadius", RefractBlurRadius), 0, 4);
             RefractBlurType = parse.Enum("m_nRefractBlurType", RefractBlurType);
+            RefractSolid = parse.Boolean("m_bRefractSolid", RefractSolid);
             DisableZBuffering = parse.Boolean("m_bDisableZBuffering", DisableZBuffering);
             ReverseZBuffering = parse.Boolean("m_bReverseZBuffering", ReverseZBuffering);
             PerParticleAlphaReference = parse.Enum("m_nPerParticleAlphaReference", PerParticleAlphaReference);
@@ -227,6 +237,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             {
                 MaxLuminanceFrameBlend = false;
                 SaturateColorPreAlphaBlend = false;
+                UnsignedBlendAlpha = true;
             }
 
             GammaCorrectVertexColors &= OutputIsColor;
@@ -351,9 +362,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// The state a spritecard draw runs under. The translucent pass leaves blend and depth to each
         /// draw, so blending is enabled and depth writes stopped or the card renders opaque; an opaque
         /// renderer keeps the pass defaults instead. Modulate-2x scales what is behind it and so needs
-        /// its own factors, while everything else composites premultiplied. Both faces are drawn,
-        /// since a card or ribbon can turn either one toward the camera. The lighten blend mode keeps
-        /// the depth test whatever the z buffering settings ask.
+        /// its own factors, lighten keeps the brighter of the card and what is behind it, and everything
+        /// else composites premultiplied. Both faces are drawn, since a card or ribbon can turn either
+        /// one toward the camera. The lighten blend mode keeps the depth test whatever the z buffering
+        /// settings ask.
         /// </summary>
         protected RenderPassScope SpritecardStateScope(ParticleBlendMode blendMode, bool opaque = false)
         {
@@ -369,11 +381,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
 
             var mod2x = blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X;
+            var lighten = blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_LIGHTEN;
 
             return renderState.Scope(blend: true, depthWrite: false, cullMode: RsCullMode.None,
                 depthTest: depthTest, depthFunc: depthFunc,
                 srcBlend: mod2x ? RsBlendMode.DestColor : RsBlendMode.One,
-                dstBlend: mod2x ? RsBlendMode.SrcColor : RsBlendMode.InvSrcAlpha);
+                dstBlend: lighten ? RsBlendMode.One : mod2x ? RsBlendMode.SrcColor : RsBlendMode.InvSrcAlpha,
+                blendOp: lighten ? RsBlendOp.Max : RsBlendOp.Add);
         }
 
         /// <summary>
@@ -444,6 +458,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             shader.SetUniform1("uDepthBias", DepthBias.NextNumber(systemState));
             shader.SetUniform1("uMaxLuminanceFrameBlend", MaxLuminanceFrameBlend);
             shader.SetUniform1("uSaturateColor", SaturateColorPreAlphaBlend);
+            shader.SetUniform1("uUnsignedBlendAlpha", UnsignedBlendAlpha);
             shader.SetUniform1("uLightingMode", (int)LightingMode);
             shader.SetUniform1("g_tSceneDepth", (int)ReservedTextureSlots.SceneDepth);
 
@@ -477,6 +492,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 shader.SetUniform1("uRefractAmount", RefractAmount.NextNumber(systemState));
                 shader.SetUniform1("uRefractBlurRadius", RefractBlurRadius);
                 shader.SetUniform1("uRefractBlurBox", RefractBlurType == BlurFilterType.BLURFILTER_BOX);
+                shader.SetUniform1("uRefractSolid", RefractSolid);
             }
         }
 

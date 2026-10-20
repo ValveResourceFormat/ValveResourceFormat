@@ -193,7 +193,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var headColor = headColorScale.NextVector(systemState);
             var tailColor = tailColorScale.NextVector(systemState);
             var scales = EvaluateScales(systemState);
-            var radiusScale = scales.Radius <= 0f ? 1f : scales.Radius;
+
+            if (scales.Radius == 0f)
+            {
+                return 0;
+            }
+
+            var radiusScale = scales.Radius < 0f ? 1f : scales.Radius;
 
             // Converts the moved distance to a velocity (distance / dt) before scaling by the trail-length
             // attribute. The division only applies when the previous point is the Verlet one, and the

@@ -30,7 +30,7 @@ namespace ValveResourceFormat.Particles.Initializers
             tintControlPoint = parse.Int32("m_nTintCP", tintControlPoint);
             updateThreshold = parse.Float("m_flUpdateThreshold", updateThreshold);
             lightAmplification = parse.Float("m_flLightAmplification", lightAmplification);
-            tintBlendMode = parse.EnumNormalized("m_nTintBlendMode", tintBlendMode);
+            tintBlendMode = parse.Enum("m_nTintBlendMode", tintBlendMode);
             fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
         }
 

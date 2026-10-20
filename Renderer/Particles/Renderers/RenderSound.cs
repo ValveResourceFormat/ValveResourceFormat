@@ -118,12 +118,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                 if (!slot.Played)
                 {
-                    slot.Handle = Sound.Play(soundName, slot.Position, volume: volumeScale);
+                    slot.Handle = Sound.Play(soundName, slot.Position, volume: volumeScale * slot.Volume);
                     slot.Played = true;
                 }
 
                 slot.Handle.Position = slot.Position;
-                slot.Handle.Volume = slot.Volume;
+                slot.Handle.Volume = volumeScale * slot.Volume;
             }
         }
 
