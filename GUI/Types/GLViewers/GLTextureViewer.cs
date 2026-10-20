@@ -87,6 +87,7 @@ namespace GUI.Types.GLViewers
         private ChannelSplitting ChannelSplitMode;
         private CubemapProjection CubemapProjectionType;
         private TextureCodec decodeFlags;
+        private bool hasBlueChannel = true;
         private const TextureCodec softwareDecodeOnlyOptions = TextureCodec.ForceLDR;
         private Framebuffer? SaveAsFbo;
 
@@ -423,6 +424,7 @@ namespace GUI.Types.GLViewers
                 }
 
                 decodeFlags = textureData.RetrieveCodecFromResourceEditInfo();
+                hasBlueChannel = textureData.HasBlueChannel;
             }
 
             decodeFlagsListBox = UiControl.AddMultiSelection("Texture Conversion",
@@ -1779,6 +1781,7 @@ namespace GUI.Types.GLViewers
             shader.SetUniform("g_nChannelSplitMode", (int)ChannelSplitMode);
             shader.SetUniform("g_nCubemapProjectionType", (int)CubemapProjectionType);
             shader.SetUniform("g_nDecodeFlags", (int)(decodeFlags & ~removeFlags));
+            shader.SetUniform("g_bInputHasBlueChannel", hasBlueChannel);
 
             SetSpriteSheetUniforms(captureFullSizeImage);
 

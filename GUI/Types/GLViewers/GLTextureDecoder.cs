@@ -9,6 +9,7 @@ using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Materials;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.TextureDecoders;
 using static ValveResourceFormat.ResourceTypes.Texture;
 
@@ -242,6 +243,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         shader.SetUniform("g_nSelectedCubeFace", (int)request.Face);
         shader.SetUniform("g_nSelectedChannels", request.Channels.PackedValue);
         shader.SetUniform("g_nDecodeFlags", (int)request.DecodeFlags);
+        shader.SetUniform("g_bInputHasBlueChannel", request.Resource.DataBlock is not Texture texture || texture.HasBlueChannel);
 
         // full screen triangle
         GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);

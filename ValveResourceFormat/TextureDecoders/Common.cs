@@ -80,7 +80,7 @@ namespace ValveResourceFormat.TextureDecoders
 
     internal class Common
     {
-        public static void ApplyTextureConversions(SKBitmap bitmap, TextureCodec decodeFlags)
+        public static void ApplyTextureConversions(SKBitmap bitmap, TextureCodec decodeFlags, bool hasBlueChannel = true)
         {
             var swapRA = decodeFlags.HasFlag(TextureCodec.Dxt5nm);
             var decodeYCoCg = decodeFlags.HasFlag(TextureCodec.YCoCg);
@@ -125,7 +125,7 @@ namespace ValveResourceFormat.TextureDecoders
 
                 if (decodeHemiOct)
                 {
-                    Decode_HemiOct(ref pixels[i]);
+                    Decode_HemiOct(ref pixels[i], hasBlueChannel);
                 }
 
                 if (reconstructZ)
@@ -160,14 +160,19 @@ namespace ValveResourceFormat.TextureDecoders
             color.b = ClampColor((deriveB / 2) + 128);  // unpremul B and normalize
         }
 
-        public static void Decode_HemiOct(ref Color color)
+        public static void Decode_HemiOct(ref Color color, bool hasBlueChannel)
         {
             var nx = ((color.r + color.g) / 255.0f) - 1.003922f;
             var ny = (color.r - color.g) / 255.0f;
             var nz = 1 - MathF.Abs(nx) - MathF.Abs(ny);
 
             var l = MathF.Sqrt((nx * nx) + (ny * ny) + (nz * nz));
-            color.a = color.b; //b to alpha
+
+            if (hasBlueChannel)
+            {
+                color.a = color.b; //b to alpha
+            }
+
             color.r = (byte)(((nx / l * 0.5f) + 0.5f) * 255);
             color.g = (byte)(((ny / l * 0.5f) + 0.5f) * 255);
             color.b = (byte)(((nz / l * 0.5f) + 0.5f) * 255);
