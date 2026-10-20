@@ -27,9 +27,8 @@ namespace ValveResourceFormat.Particles.Initializers
                 return particle;
             }
 
-            var sequence = (int)particle.SequenceNumber;
-            var totalTime = sequence >= 0 && sequence < durations.Length
-                ? durations[sequence]
+            var totalTime = particle.SequenceNumber >= 0 && particle.SequenceNumber < durations.Length
+                ? durations[particle.SequenceNumber]
                 : 0f;
 
             particle.Lifetime = totalTime > 0f ? totalTime / frameRate : LifetimeWithoutSequence;

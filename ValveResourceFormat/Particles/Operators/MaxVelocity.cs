@@ -1,15 +1,8 @@
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
-    /// Clamps each particle's velocity to a maximum speed and raises it to a minimum speed, by moving the
-    /// position relative to the previous position. The minimum wins when it exceeds the maximum, and a
-    /// particle at rest is first given a small random step so it can be pushed up to the minimum.
+    /// Clamps each particle's velocity to a maximum speed and raises it to a minimum speed.
     /// </summary>
-    /// <remarks>
-    /// Particles are handled in blocks of four. When a block holds a particle at rest and any particle
-    /// in it has a minimum, every particle in the block also has its Z step replaced by
-    /// <c>0.1 - x - y</c> of its own step.
-    /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_MaxVelocity">C_OP_MaxVelocity</seealso>
     class MaxVelocity : ParticleFunctionOperator
     {
@@ -24,65 +17,32 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            var current = particles.Current;
-            Span<float> maxSteps = stackalloc float[4];
-            Span<float> minSteps = stackalloc float[4];
-            Span<Vector3> steps = stackalloc Vector3[4];
-
-            for (var blockStart = 0; blockStart < current.Length; blockStart += 4)
+            foreach (ref var particle in particles.Current)
             {
-                var block = current.Slice(blockStart, Math.Min(4, current.Length - blockStart));
-                var anyMinimum = false;
-                var anyAtRest = false;
+                var maxVelocity = maxVelocityProvider.NextNumber(ref particle, particleSystemState);
+                var minVelocity = minVelocityProvider.NextNumber(ref particle, particleSystemState);
 
-                for (var lane = 0; lane < block.Length; lane++)
+                var originalVelocity = particle.Velocity;
+                var speed = originalVelocity.Length();
+
+                if (speed > maxVelocity)
                 {
-                    ref var particle = ref block[lane];
-                    var maxVelocity = maxVelocityProvider.NextNumber(ref particle, particleSystemState);
-                    var minVelocity = minVelocityProvider.NextNumber(ref particle, particleSystemState);
-
-                    maxSteps[lane] = maxVelocity * frameTime;
-                    minSteps[lane] = minVelocity * frameTime;
-                    steps[lane] = particle.Position - particle.PositionPrevious;
-                    anyMinimum |= minVelocity > 0f;
-                    anyAtRest |= steps[lane].LengthSquared() <= 0f;
+                    particle.Velocity = originalVelocity * (maxVelocity / speed);
+                }
+                else if (speed > 0f && speed < minVelocity)
+                {
+                    particle.Velocity = originalVelocity * (minVelocity / speed);
+                }
+                else
+                {
+                    continue;
                 }
 
-                if (anyMinimum && anyAtRest)
-                {
-                    for (var lane = 0; lane < block.Length; lane++)
-                    {
-                        var step = steps[lane];
+                particle.Velocity = Vector3.Lerp(originalVelocity, particle.Velocity, strength);
 
-                        if (step.LengthSquared() <= 0f)
-                        {
-                            step.X = particleSystemState.Random.NextBetween(-0.1f, 0.1f);
-                            step.Y = particleSystemState.Random.NextBetween(-0.1f, 0.1f);
-                        }
-
-                        steps[lane] = step with { Z = 0.1f - step.X - step.Y };
-                    }
-                }
-
-                for (var lane = 0; lane < block.Length; lane++)
-                {
-                    ref var particle = ref block[lane];
-                    var step = steps[lane];
-                    var length = step.Length();
-                    var scale = 1f;
-
-                    if (maxSteps[lane] < length && length > 0f)
-                    {
-                        scale = maxSteps[lane] / length;
-                    }
-
-                    if (length < minSteps[lane])
-                    {
-                        scale = minSteps[lane] / length;
-                    }
-
-                    particle.Position = BlendByStrength(particle.Position, (step * scale) + particle.PositionPrevious, strength);
-                }
+                // Motion lives in the Verlet position pair; write the clamp back so the next
+                // integration step actually uses it.
+                particle.PositionPrevious = particle.Position - (particle.Velocity * frameTime);
             }
         }
     }

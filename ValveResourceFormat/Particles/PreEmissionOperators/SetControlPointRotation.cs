@@ -19,9 +19,14 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             localCP = parse.Int32("m_nLocalCP", localCP);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
         {
-            var axis = MathUtils.SafeNormalize(this.axis.NextVector(particleSystemState), Vector3.UnitZ);
+            var authoredAxis = this.axis.NextVector(particleSystemState);
+
+            // The whole axis is replaced when its x is zero, so a pure Y axis rotates about Z
+            var axis = authoredAxis.X == 0f
+                ? Vector3.UnitZ
+                : MathUtils.SafeNormalize(authoredAxis);
 
             if (localCP > -1)
             {

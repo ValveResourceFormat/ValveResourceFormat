@@ -23,7 +23,10 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            var axis = MathUtils.SafeNormalize(rotationAxis.NextVector(particleSystemState), Vector3.UnitZ);
+            var authoredAxis = rotationAxis.NextVector(particleSystemState);
+
+            // The whole axis is replaced when its x is zero, so a pure Y axis rotates about Z
+            var axis = authoredAxis.X == 0f ? Vector3.UnitZ : MathUtils.SafeNormalize(authoredAxis);
 
             var transform = transformInput.NextTransform(particleSystemState);
 

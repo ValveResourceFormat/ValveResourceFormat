@@ -5,8 +5,7 @@ namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
     /// Places a run of control points on each child of a group, one per particle of this system,
-    /// optionally turned to match the particle. Each child gets the same points, on its own copy and
-    /// those of the systems below it.
+    /// optionally turned to match the particle. Each child gets the same points, on its own copy.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetChildControlPoints">C_OP_SetChildControlPoints</seealso>
     class SetChildControlPoints : ParticleFunctionOperator
@@ -24,9 +23,8 @@ namespace ValveResourceFormat.Particles.Operators
         public SetChildControlPoints(ParticleDefinitionParser parse) : base(parse)
         {
             childGroupId = parse.Int32("m_nChildGroupID", childGroupId);
-            var authoredFirstControlPoint = parse.Int32("m_nFirstControlPoint", firstControlPoint);
-            firstControlPoint = Math.Clamp(authoredFirstControlPoint, 0, ParticleSystemState.MaxControlPoint);
-            numControlPoints = Math.Min(parse.Int32("m_nNumControlPoints", numControlPoints), ParticleSystemState.MaxControlPoint + 1 - Math.Max(authoredFirstControlPoint, 0));
+            firstControlPoint = parse.Int32("m_nFirstControlPoint", firstControlPoint);
+            numControlPoints = parse.Int32("m_nNumControlPoints", numControlPoints);
             firstSourcePoint = parse.NumberProvider("m_nFirstSourcePoint", firstSourcePoint);
             reverse = parse.Boolean("m_bReverse", reverse);
             setOrientation = parse.Boolean("m_bSetOrientation", setOrientation);
@@ -50,68 +48,59 @@ namespace ValveResourceFormat.Particles.Operators
 
             var live = particles.Current;
             var first = (int)firstSourcePoint.NextNumber(particleSystemState);
-            var count = Math.Min(live.Length - first, numControlPoints);
 
-            foreach (var child in matchingChildren)
+            // Points past the live particles are left where they were
+            for (var i = 0; i < numControlPoints; i++)
             {
-                for (var i = 0; i < count; i++)
+                var index = reverse ? live.Length - 1 - (first + i) : first + i;
+
+                if ((uint)index >= (uint)live.Length)
                 {
-                    var index = first + i;
+                    break;
+                }
 
-                    if (reverse)
-                    {
-                        index = Math.Max(live.Length - index - 1, 0);
-                    }
+                ref var particle = ref live[index];
+                var rotation = setOrientation ? ParticleRotation(ref particle) : null;
 
-                    if ((uint)index >= (uint)live.Length)
-                    {
-                        break;
-                    }
-
-                    ref var particle = ref live[index];
-                    var controlPoint = child.GetControlPoint(firstControlPoint + i);
+                foreach (var child in matchingChildren)
+                {
+                    var controlPoint = child.OverrideControlPoint(firstControlPoint + i);
                     controlPoint.Position = particle.Position;
 
-                    if (setOrientation)
+                    if (rotation is { } turned)
                     {
-                        SetParticleOrientation(controlPoint, ref particle);
+                        controlPoint.Rotation = turned;
+                        controlPoint.Orientation = Vector3.Transform(Vector3.UnitX, turned);
                     }
                 }
             }
         }
 
-        /// <summary>Turns the control point the way the authored method takes from a particle, when it gives a way.</summary>
-        private void SetParticleOrientation(ControlPoint controlPoint, ref Particle particle)
+        /// <summary>The turn the authored method takes from a particle, or null when it gives none.</summary>
+        private Quaternion? ParticleRotation(ref Particle particle)
         {
             switch (orientationType)
             {
                 case ParticleOrientationType.PARTICLE_ORIENTATION_VELOCITY:
-                    SetForward(controlPoint, particle.Position - particle.PositionPrevious);
-                    break;
+                    var velocity = particle.Position - particle.PositionPrevious;
+                    return velocity.LengthSquared() > ParticleMath.MinimumLengthSquared
+                        ? EntityTransformHelper.ForwardDirectionToQuaternion(Vector3.Normalize(velocity))
+                        : null;
 
                 case ParticleOrientationType.PARTICLE_ORIENTATION_NORMAL:
-                    SetForward(controlPoint, particle.Normal);
-                    break;
+                    return particle.Normal.LengthSquared() > ParticleMath.MinimumLengthSquared
+                        ? EntityTransformHelper.ForwardDirectionToQuaternion(Vector3.Normalize(particle.Normal))
+                        : null;
 
                 case ParticleOrientationType.PARTICLE_ORIENTATION_ROTATION:
                     // The particle holds yaw, pitch and roll in radians
                     var angles = particle.Rotation;
-                    controlPoint.SetOrientation(EntityTransformHelper.EulerAnglesToQuaternion(new Vector3(
-                        float.RadiansToDegrees(angles.Y), float.RadiansToDegrees(angles.X), float.RadiansToDegrees(angles.Z))));
-                    break;
-            }
-        }
+                    return EntityTransformHelper.EulerAnglesToQuaternion(new Vector3(
+                        float.RadiansToDegrees(angles.Y), float.RadiansToDegrees(angles.X), float.RadiansToDegrees(angles.Z)));
 
-        private static void SetForward(ControlPoint controlPoint, Vector3 direction)
-        {
-            if (direction == Vector3.Zero)
-            {
-                return;
+                default:
+                    return null;
             }
-
-            var forward = Vector3.Normalize(direction);
-            var (left, up) = ParticleMath.VectorVectors(forward);
-            controlPoint.SetOrientation(forward, left, up);
         }
     }
 }

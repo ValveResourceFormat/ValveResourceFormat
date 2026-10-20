@@ -18,7 +18,6 @@ uniform sampler2D g_tColor; // SrgbRead(true)
 uniform float g_flRoughness = 1.0;
 uniform float g_flDiffuseAmount = 1.0;
 uniform float g_flSelfIllumAmount = 0.0;
-uniform float g_flOpacityScale = 1.0;
 
 #if (F_ALPHA_TEST == 1)
     uniform float g_flAlphaTestReference = 0.5;
@@ -116,7 +115,7 @@ void main(void)
     color *= 1.0 + g_flOverbrightness * vColorOut.a;
 #endif
 
-    outputColor = vec4(color, opacity * g_flOpacityScale);
+    outputColor = vec4(color, opacity);
 
     if (HandleMaterialRenderModes(outputColor, mat)
     || HandleLightingRenderModes(outputColor, mat, lighting)

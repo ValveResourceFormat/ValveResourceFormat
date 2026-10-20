@@ -12,7 +12,6 @@ namespace ValveResourceFormat.Particles.Operators
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
         private readonly INumberProvider lerp = new LiteralNumberProvider(1f);
         private readonly bool normalizedOutput;
-        private readonly bool clampsToUnit;
 
         public SetVec(ParticleDefinitionParser parse) : base(parse)
         {
@@ -21,7 +20,7 @@ namespace ValveResourceFormat.Particles.Operators
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
             lerp = parse.NumberProvider("m_Lerp", lerp);
             normalizedOutput = parse.Boolean("m_bNormalizedOutput", normalizedOutput);
-            clampsToUnit = outputField is ParticleField.Color or ParticleField.GlowRgb;
+
         }
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -32,11 +31,6 @@ namespace ValveResourceFormat.Particles.Operators
 
                 var currentValue = particle.ModifyVectorBySetMethod(particles, outputField, value, setMethod);
                 var initialValue = particle.GetVector(outputField);
-
-                if (clampsToUnit)
-                {
-                    currentValue = Vector3.Clamp(currentValue, Vector3.Zero, Vector3.One);
-                }
 
                 value = Vector3.Lerp(initialValue, currentValue, lerp);
 

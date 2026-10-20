@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Particles.Operators
 
         public NormalLock(ParticleDefinitionParser parse) : base(parse)
         {
-            controlPoint = parse.ControlPoint("m_nControlPointNumber", controlPoint);
+            controlPoint = parse.Int32("m_nControlPointNumber", controlPoint);
             transform = new ControlPointTransformProvider(controlPoint, true);
         }
 
@@ -49,7 +49,9 @@ namespace ValveResourceFormat.Particles.Operators
 
             foreach (ref var particle in particles.Current)
             {
-                var ratio = LivedStepFraction(particle, frameTime);
+                var ratio = frameTime > 0f
+                    ? MathUtils.Saturate(MathF.Min(particle.Age, frameTime) / frameTime)
+                    : 1f;
 
                 var rotated = Vector3.TransformNormal(particle.Normal, delta);
 

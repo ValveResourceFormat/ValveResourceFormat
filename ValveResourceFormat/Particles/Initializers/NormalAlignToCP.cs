@@ -31,7 +31,7 @@ namespace ValveResourceFormat.Particles.Initializers
             };
 
             var transform = transformInput.NextTransformAtTime(ref particle, particleSystemState, particle.CreationTime);
-            particle.Normal = Vector3.TransformNormal(axis, transform);
+            particle.Normal = MathUtils.SafeNormalize(Vector3.TransformNormal(axis, transform));
 
             return particle;
         }

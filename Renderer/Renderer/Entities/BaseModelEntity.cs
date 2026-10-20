@@ -49,7 +49,7 @@ public abstract class BaseModelEntity : BaseEntity
     public PhysAggregateData? Physics { get; private set; }
 
     /// <summary>Gets the model this entity loaded, or <see langword="null"/> when it names none or it failed to load.</summary>
-    public Model? LoadedModel { get; private set; }
+    protected Model? LoadedModel { get; private set; }
 
     /// <summary>Initializes a model entity from its keyvalues.</summary>
     protected BaseModelEntity(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)

@@ -111,20 +111,6 @@ namespace ValveResourceFormat.IO
         public bool IsCounterStrike2 => SteamAppId == CounterStrike2SteamAppId;
 
         /// <summary>
-        /// Gets whether the first game found fogs particles whose renderer leaves fog to the game, which its
-        /// <c>gameinfo.gi</c> gives as <c>Particles/ParticlesFoggedByDefault</c>.
-        /// </summary>
-        public bool ParticlesFoggedByDefault { get; private set; }
-
-        /// <summary>
-        /// Gets whether the first game found switches particle shader features at run time rather than through
-        /// static combos, which its <c>gameinfo.gi</c> gives as <c>Particles/EnableParticleShaderFeatureBranching</c>.
-        /// </summary>
-        public bool ParticleShaderFeatureBranching { get; private set; }
-
-        private bool ParticleSettingsRead;
-
-        /// <summary>
         /// Initializes a new instance of the <see cref="GameFileLoader"/> class.
         /// </summary>
         /// <param name="currentPackage">The current package to search for files in.</param>
@@ -513,17 +499,6 @@ namespace ValveResourceFormat.IO
         {
             var gameName = gameInfo.TryGetValue("game", out var game) ? game.ToString() : null;
             Logger.LogInformation("Found \"{GameName}\" from \"{GameInfo}\"", gameName, gameinfoPath);
-
-            if (!ParticleSettingsRead)
-            {
-                ParticleSettingsRead = true;
-
-                if (gameInfo.TryGetValue("Particles", out var particles))
-                {
-                    ParticlesFoggedByDefault = particles.GetBooleanProperty("ParticlesFoggedByDefault");
-                    ParticleShaderFeatureBranching = particles.GetBooleanProperty("EnableParticleShaderFeatureBranching");
-                }
-            }
 
             if (!gameInfo.TryGetValue("FileSystem", out var fileSystem))
             {

@@ -18,67 +18,33 @@ namespace ValveResourceFormat.Particles.Operators
         }
 
         /// <summary>
-        /// Advances <paramref name="field"/> of every particle by this step's spin. The rate is in degrees
-        /// per second, and the converted rate is scaled by an extra 2*pi (57 deg/s spins roughly one full
-        /// turn per second). Strength scales the rate, and a zero result spins nothing. With a stop time,
-        /// the step decays linearly to 0 over that fraction of the particle's lifetime; without one, a
-        /// step longer than a turn wraps. The minimum rate, which strength does not scale, floors the
-        /// step either way. The angle itself is kept within one turn either side of 0, except while the
-        /// step is one the drawing layer blends back from, so the blend never crosses a wrap.
+        /// Spin rate in degrees per second at the given particle age: the strength-scaled rate decays
+        /// linearly toward the min floor over the stop time, a fraction of the particle's lifetime; a
+        /// stop time of 0 means no decay. The min floor itself is not scaled by strength.
         /// </summary>
-        protected void Rotate(ParticleCollection particles, ParticleField field, float frameTime, float strength, ParticleSystemState systemState)
+        private float GetSpinRate(float age, float lifetime, float strength)
         {
-            var rate = strength * float.DegreesToRadians(spinRateDegrees);
-
-            if (rate == 0f)
-            {
-                return;
-            }
-
-            var wrap = systemState.Data?.TryGetRenderBlend(out _) != true;
-
-            var step = MathF.Abs(rate * MathF.Tau) * frameTime;
-
             if (spinRateStopTime == 0f)
             {
-                step %= MathF.Tau;
+                return spinRateDegrees * strength;
             }
 
-            if (rate < 0f)
-            {
-                step = -step;
-            }
+            var stopAge = lifetime * spinRateStopTime;
+            var remaining = stopAge != 0f ? MathF.Max(0f, 1f - (age / stopAge)) : 0f;
+            var decayed = spinRateDegrees * strength * remaining;
 
-            var minimumStep = float.DegreesToRadians(spinRateMinDegrees) * MathF.Tau * frameTime;
-
-            foreach (ref var particle in particles.Current)
-            {
-                var stopAge = particle.Lifetime * spinRateStopTime;
-                var remaining = spinRateStopTime == 0f ? 1f : stopAge != 0f ? MathF.Max(0f, 1f - (particle.Age / stopAge)) : 0f;
-                var delta = remaining * step;
-
-                delta = rate >= 0f
-                    ? (delta <= minimumStep ? minimumStep : delta)
-                    : (minimumStep <= delta ? minimumStep : delta);
-
-                var angle = particle.GetScalar(field) + delta;
-
-                if (wrap)
-                {
-                    if (angle >= MathF.Tau)
-                    {
-                        angle -= MathF.Tau;
-                    }
-
-                    if (angle <= -MathF.Tau)
-                    {
-                        angle += MathF.Tau;
-                    }
-                }
-
-                particle.SetScalar(field, angle);
-            }
+            return spinRateDegrees >= 0
+                ? MathF.Max(decayed, spinRateMinDegrees)
+                : MathF.Min(decayed, spinRateMinDegrees);
         }
+
+        /// <summary>
+        /// This frame's rotation increment in radians. Rotation is stored in radians, the spin rate
+        /// in degrees per second; the engine scales the converted rate by an extra 2*pi
+        /// (57 deg/s spins roughly one full turn per second).
+        /// </summary>
+        protected float GetSpinDelta(in Particle particle, float frameTime, float strength)
+            => float.DegreesToRadians(GetSpinRate(particle.Age, particle.Lifetime, strength)) * MathF.Tau * frameTime;
     }
 
     /// <summary>
@@ -94,7 +60,10 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            Rotate(particles, ParticleField.Roll, frameTime, strength, particleSystemState);
+            foreach (ref var particle in particles.Current)
+            {
+                particle.SetScalar(ParticleField.Roll, particle.Rotation.Z + GetSpinDelta(particle, frameTime, strength));
+            }
         }
     }
 
@@ -111,7 +80,10 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            Rotate(particles, ParticleField.Yaw, frameTime, strength, particleSystemState);
+            foreach (ref var particle in particles.Current)
+            {
+                particle.SetScalar(ParticleField.Yaw, particle.Rotation.X + GetSpinDelta(particle, frameTime, strength));
+            }
         }
     }
 }

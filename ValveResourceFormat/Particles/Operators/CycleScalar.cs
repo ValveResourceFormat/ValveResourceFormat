@@ -30,16 +30,10 @@ namespace ValveResourceFormat.Particles.Operators
             cycleTime = parse.Float("m_flCycleTime", cycleTime);
             doNotRepeatCycle = parse.Boolean("m_bDoNotRepeatCycle", doNotRepeatCycle);
             synchronizeParticles = parse.Boolean("m_bSynchronizeParticles", synchronizeParticles);
-            cpScale = Math.Clamp(parse.Int32("m_nCPScale", cpScale), -1, 64);
-            cpFieldMin = Math.Clamp(parse.Int32("m_nCPFieldMin", cpFieldMin), -1, 2);
-            cpFieldMax = Math.Clamp(parse.Int32("m_nCPFieldMax", cpFieldMax), -1, 2);
-            setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
-        }
-
-        public override void AddControlPointDefaults(ControlPointDefaults defaults)
-        {
-            defaults.AddScale(cpScale, cpFieldMin);
-            defaults.AddScale(cpScale, cpFieldMax);
+            cpScale = parse.Int32("m_nCPScale", cpScale);
+            cpFieldMin = parse.Int32("m_nCPFieldMin", cpFieldMin);
+            cpFieldMax = parse.Int32("m_nCPFieldMax", cpFieldMax);
+            setMethod = parse.EnumNormalized<ParticleSetMethod>("m_nSetMethod", setMethod);
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
@@ -53,16 +47,17 @@ namespace ValveResourceFormat.Particles.Operators
 
                 if (cpFieldMin >= 0)
                 {
-                    start *= controlPoint.GetComponent(cpFieldMin);
+                    start *= ComponentOrZero(controlPoint, cpFieldMin);
                 }
 
                 if (cpFieldMax >= 0)
                 {
-                    end *= controlPoint.GetComponent(cpFieldMax);
+                    end *= ComponentOrZero(controlPoint, cpFieldMax);
                 }
             }
 
-            // A cycle that does not repeat ramps up over the whole cycle instead of half of it
+            // The engine multiplies by a reciprocal rather than dividing, and halves the rate when the
+            // cycle does not repeat so the ramp spans the whole cycle instead of half of it.
             var rate = 1f / MathF.Max(ParticleMath.FloatEpsilon, cycleTime);
             var clamp = doNotRepeatCycle ? cycleTime : float.MaxValue;
 
@@ -75,13 +70,23 @@ namespace ValveResourceFormat.Particles.Operators
             {
                 var time = synchronizeParticles ? particleSystemState.Age : particle.Age;
                 var phase = MathF.Min(time, clamp) * rate;
-                phase -= MathF.Truncate(phase);
+                phase -= MathF.Floor(phase);
 
                 var triangle = 2f * MathF.Min(phase, 1f - phase);
-                var value = MathUtils.Lerp(start, end, triangle);
+                var value = start + ((end - start) * triangle);
 
-                particle.SetScalar(destField, particle.ModifyScalarBySetMethod(particles, destField, value, setMethod));
+                var final = particle.ModifyScalarBySetMethod(particles, destField, value, setMethod);
+
+                particle.SetScalar(destField, float.Lerp(particle.GetScalar(destField), final, strength));
             }
         }
+
+        private static float ComponentOrZero(Vector3 controlPoint, int component) => component switch
+        {
+            0 => controlPoint.X,
+            1 => controlPoint.Y,
+            2 => controlPoint.Z,
+            _ => 0f,
+        };
     }
 }

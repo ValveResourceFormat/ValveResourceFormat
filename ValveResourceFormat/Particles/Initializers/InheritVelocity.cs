@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public InheritVelocity(ParticleDefinitionParser parse) : base(parse)
         {
-            controlPointNumber = parse.ControlPoint("m_nControlPointNumber", controlPointNumber);
+            controlPointNumber = parse.Int32("m_nControlPointNumber", controlPointNumber);
             velocityScale = parse.Float("m_flVelocityScale", velocityScale);
         }
 
@@ -19,22 +19,16 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var frameTime = particles.CurrentFrameTime;
+            // The inherited velocity comes from the control point's motion over the last frame; a move
+            // of 100+ units is treated as a teleport and skipped.
+            var controlPoint = particleSystemState.GetControlPoint(controlPointNumber);
 
-            if (frameTime <= 0f)
+            if (controlPoint.StepDelta.Length() >= 100f)
             {
                 return particle;
             }
 
-            // A rescaled move of 100 units or more is treated as a teleport
-            var step = particleSystemState.GetControlPoint(controlPointNumber).StepDelta * particles.PreviousFrameTime / frameTime;
-
-            if (step.Length() >= 100f)
-            {
-                return particle;
-            }
-
-            particle.PositionPrevious -= step * velocityScale;
+            particle.Velocity += controlPoint.Velocity * velocityScale;
             return particle;
         }
     }

@@ -90,7 +90,7 @@ namespace ValveResourceFormat.Particles
                 ParticleField.CreationTime => particle.CreationTime,
                 ParticleField.LifeDuration => particle.Lifetime,
                 ParticleField.Yaw => particle.Rotation.X,
-                ParticleField.ParticleId => particle.ParticleId & 0xFFF,
+                ParticleField.ParticleId => particle.ParticleId,
                 ParticleField.Pitch => particle.Rotation.Y,
                 ParticleField.Roll => particle.Rotation.Z,
                 ParticleField.RollSpeed => particle.RotationSpeed.Z,
@@ -153,10 +153,10 @@ namespace ValveResourceFormat.Particles
                     particle.Lifetime = value;
                     break;
                 case ParticleField.SequenceNumber:
-                    particle.SequenceNumber = value;
+                    particle.SequenceNumber = (int)value;
                     break;
                 case ParticleField.SecondSequenceNumber:
-                    particle.SecondSequenceNumber = value;
+                    particle.SecondSequenceNumber = (int)value;
                     break;
                 case ParticleField.ManualAnimationFrame:
                     particle.ManualAnimationFrame = value;
@@ -392,15 +392,6 @@ namespace ValveResourceFormat.Particles
         /// </summary>
         public static bool IsOrientationField(this ParticleField field)
             => field is ParticleField.Roll or ParticleField.Yaw or ParticleField.Pitch;
-
-        /// <summary>
-        /// Whether the field holds an integer, which is copied as is and truncated when a float is
-        /// written to it.
-        /// </summary>
-        public static bool IsIntegerAttribute(this ParticleField field)
-            => field is ParticleField.ParticleId or ParticleField.HitboxIndex or ParticleField.ParentParticleIndex
-                or ParticleField.BoxFlags or ParticleField.UserEventStates or ParticleField.ParentParticleId
-                or ParticleField.RopeSegmentId;
 
         /// <summary>
         /// The range the float set operators hold a written value inside. Alpha is bounded to [0, 1],

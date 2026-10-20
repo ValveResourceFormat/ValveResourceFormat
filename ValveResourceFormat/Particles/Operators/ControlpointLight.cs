@@ -14,8 +14,7 @@ namespace ValveResourceFormat.Particles.Operators
     /// <c>1 / (c + l*d + q*d^2)</c>, fitted through 1 at the light, 1/2 at the 50% distance and 1/256
     /// at the 0% distance, with <c>d</c> at least 1. A dynamic light takes its color from the scene
     /// lighting at its position. With <c>m_bUseNormal</c> each light is weighted by <c>max(0, N.L)</c>,
-    /// where N points from the light to the particle, so it faces away from the light and no light is
-    /// ever added.
+    /// where N points from that light's control point to the particle.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_ControlpointLight">C_OP_ControlpointLight</seealso>
     class ControlpointLight : ParticleFunctionOperator
@@ -40,13 +39,13 @@ namespace ValveResourceFormat.Particles.Operators
             clampLowerRange = parse.Boolean("m_bClampLowerRange", clampLowerRange);
             clampUpperRange = parse.Boolean("m_bClampUpperRange", clampUpperRange);
 
-            // With m_bUseNormal and m_bUseHLambert every light is black.
+            // Source 2 bug: with m_bUseNormal and m_bUseHLambert the lights read a color slot that stays black.
             var blackColorSlot = useNormal && halfLambert;
             var authored = new List<Light>(LightCount);
 
             for (var i = 1; i <= LightCount; i++)
             {
-                // Spot lights have no direction and a zero cone, so they add nothing.
+                // Source 2 bug: spot lights have no direction and a zero cone, so they add nothing.
                 if (parse.Boolean($"m_bLightType{i}", false))
                 {
                     continue;
@@ -59,7 +58,7 @@ namespace ValveResourceFormat.Particles.Operators
                     !blackColorSlot && parse.Boolean($"m_bLightDynamic{i}", false),
                     Falloff.Solve(parse.Float($"m_LightFiftyDist{i}", 100f), parse.Float($"m_LightZeroDist{i}", 200f)));
 
-                // A 50% distance of 0 gives a NaN falloff, which blacks out the particle even from a black light.
+                // Source 2 bug: a 50% distance of 0 gives a NaN falloff, which blacks out the particle even from a black light.
                 if (light.Color == Vector3.Zero && !light.Dynamic && light.Falloff.IsFinite)
                 {
                     continue;
@@ -73,6 +72,7 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
+            Span<Vector3> sources = stackalloc Vector3[lights.Length];
             Span<Vector3> positions = stackalloc Vector3[lights.Length];
             Span<Vector3> colors = stackalloc Vector3[lights.Length];
             Span<Falloff.Cutoff> cutoffs = stackalloc Falloff.Cutoff[lights.Length];
@@ -80,7 +80,8 @@ namespace ValveResourceFormat.Particles.Operators
             for (var i = 0; i < lights.Length; i++)
             {
                 var light = lights[i];
-                positions[i] = particleSystemState.GetControlPoint(light.ControlPoint).Position + light.Offset;
+                sources[i] = particleSystemState.GetControlPoint(light.ControlPoint).Position;
+                positions[i] = sources[i] + light.Offset;
                 colors[i] = light.Dynamic
                     ? Vector3.Clamp(particleSystemState.Lighting.SampleAmbientLight(positions[i]), Vector3.Zero, Vector3.One)
                     : light.Color;
@@ -99,15 +100,15 @@ namespace ValveResourceFormat.Particles.Operators
 
                     if (useNormal)
                     {
-                        var fromLight = particle.Position - positions[i];
-                        var normal = fromLight / MathF.Sqrt(MathF.Max(fromLight.LengthSquared(), ParticleMath.FloatEpsilon));
+                        var fromSource = particle.Position - sources[i];
+                        var normal = fromSource / MathF.Sqrt(MathF.Max(fromSource.LengthSquared(), ParticleMath.FloatEpsilon));
                         intensity *= MathF.Max(0f, Vector3.Dot(normal, MathUtils.SafeNormalize(toLight)));
                     }
 
                     lit += colors[i] * intensity;
                 }
 
-                // A NaN sum takes the lower bound, so the particle turns black or keeps its color under m_bClampLowerRange.
+                // Source 2 bug: a NaN sum takes the lower bound, so the particle turns black or keeps its color under m_bClampLowerRange.
                 lit = MaxOrSecond(lit, clampLowerRange ? color : Vector3.Zero);
                 particle.Color = Vector3.Min(lit, clampUpperRange ? color : Vector3.One);
             }

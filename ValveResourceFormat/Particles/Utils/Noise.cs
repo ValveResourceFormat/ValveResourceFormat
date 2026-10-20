@@ -15,9 +15,13 @@ namespace ValveResourceFormat.Particles.Utils
         /// <summary>Samples the noise lattice at a point, returning a value in [-1, 1].</summary>
         public static float Value3D(float x, float y, float z)
         {
-            var ix = Cell(x, out var fx);
-            var iy = Cell(y, out var fy);
-            var iz = Cell(z, out var fz);
+            var ix = (int)MathF.Floor(x);
+            var iy = (int)MathF.Floor(y);
+            var iz = (int)MathF.Floor(z);
+
+            var fx = x - ix;
+            var fy = y - iy;
+            var fz = z - iz;
 
             var c00 = float.Lerp(Hash(ix, iy, iz), Hash(ix + 1, iy, iz), fx);
             var c10 = float.Lerp(Hash(ix, iy + 1, iz), Hash(ix + 1, iy + 1, iz), fx);
@@ -37,31 +41,23 @@ namespace ValveResourceFormat.Particles.Utils
         /// </summary>
         public static Vector3 ValueVector3(Vector3 position)
         {
-            var ix = Cell(position.X, out var fx);
-            var iy = Cell(position.Y, out var fy);
-            var iz = Cell(position.Z, out var fz);
+            var ix = (int)MathF.Floor(position.X);
+            var iy = (int)MathF.Floor(position.Y);
+            var iz = (int)MathF.Floor(position.Z);
 
-            var c00 = MathUtils.Lerp(HashVector(ix, iy, iz), HashVector(ix + 1, iy, iz), fx);
-            var c10 = MathUtils.Lerp(HashVector(ix, iy + 1, iz), HashVector(ix + 1, iy + 1, iz), fx);
-            var c01 = MathUtils.Lerp(HashVector(ix, iy, iz + 1), HashVector(ix + 1, iy, iz + 1), fx);
-            var c11 = MathUtils.Lerp(HashVector(ix, iy + 1, iz + 1), HashVector(ix + 1, iy + 1, iz + 1), fx);
+            var fx = position.X - ix;
+            var fy = position.Y - iy;
+            var fz = position.Z - iz;
 
-            var c0 = MathUtils.Lerp(c00, c10, fy);
-            var c1 = MathUtils.Lerp(c01, c11, fy);
+            var c00 = Lerp(HashVector(ix, iy, iz), HashVector(ix + 1, iy, iz), fx);
+            var c10 = Lerp(HashVector(ix, iy + 1, iz), HashVector(ix + 1, iy + 1, iz), fx);
+            var c01 = Lerp(HashVector(ix, iy, iz + 1), HashVector(ix + 1, iy, iz + 1), fx);
+            var c11 = Lerp(HashVector(ix, iy + 1, iz + 1), HashVector(ix + 1, iy + 1, iz + 1), fx);
 
-            return MathUtils.Lerp(c0, c1, fz);
-        }
+            var c0 = Lerp(c00, c10, fy);
+            var c1 = Lerp(c01, c11, fy);
 
-        /// <summary>
-        /// Splits a coordinate into its lattice cell and the fraction within it. The fraction is taken
-        /// from the float floor, so it stays in [0, 1) past the int range, where every cell index
-        /// becomes <see cref="int.MinValue"/>.
-        /// </summary>
-        private static int Cell(float x, out float fraction)
-        {
-            var floor = MathF.Floor(x);
-            fraction = x - floor;
-            return floor is >= -2147483648f and < 2147483648f ? (int)floor : int.MinValue;
+            return Lerp(c0, c1, fz);
         }
 
         /// <summary>
@@ -124,9 +120,13 @@ namespace ValveResourceFormat.Particles.Utils
         /// </summary>
         public static float Simplex3D(float x, float y, float z)
         {
-            var ix = Cell(x, out var fx);
-            var iy = Cell(y, out var fy);
-            var iz = Cell(z, out var fz);
+            var ix = (int)MathF.Floor(x);
+            var iy = (int)MathF.Floor(y);
+            var iz = (int)MathF.Floor(z);
+
+            var fx = x - ix;
+            var fy = y - iy;
+            var fz = z - iz;
 
             var u = Fade(fx);
             var v = Fade(fy);
@@ -168,10 +168,52 @@ namespace ValveResourceFormat.Particles.Utils
 
         /// <summary>
         /// Samples the cellular primitive: the squared distance to the nearest jittered feature point
-        /// of <see cref="WorleyOffset3D"/>, remapped to [-1, 1].
+        /// in the surrounding 3x3x3 cells, remapped to [-1, 1]. The offset seeds the feature hash by
+        /// its raw bit pattern rather than displacing the coordinate.
         /// </summary>
         public static float Worley3D(Vector3 position, float jitter, float offset)
-            => (MathUtils.Saturate(WorleyOffset3D(position, jitter, offset).LengthSquared()) * 2f) - 1f;
+        {
+            var seed = BitConverter.SingleToUInt32Bits(offset);
+
+            var ix = (int)MathF.Floor(position.X);
+            var iy = (int)MathF.Floor(position.Y);
+            var iz = (int)MathF.Floor(position.Z);
+
+            var fx = position.X - ix;
+            var fy = position.Y - iy;
+            var fz = position.Z - iz;
+
+            var nearest = float.MaxValue;
+
+            for (var i = -1; i <= 1; i++)
+            {
+                var dx = i - fx;
+
+                for (var j = -1; j <= 1; j++)
+                {
+                    var dy = j - fy;
+
+                    for (var k = -1; k <= 1; k++)
+                    {
+                        var dz = k - fz;
+
+                        uint h;
+                        unchecked
+                        {
+                            h = HashSeeded((ix + i) + ((iy + j) << 10) + ((iz + k) << 20), seed);
+                        }
+
+                        var px = ((h & 255) * (1f / 255f) * jitter) + dx;
+                        var py = (((h >> 8) & 255) * (1f / 255f) * jitter) + dy;
+                        var pz = (((h >> 16) & 255) * (1f / 255f) * jitter) + dz;
+
+                        nearest = MathF.Min(nearest, (pz * pz) + (py * py) + (px * px));
+                    }
+                }
+            }
+
+            return (MathUtils.Saturate(nearest) * 2f) - 1f;
+        }
 
         /// <summary>
         /// Samples the cellular primitive's vector variant: the offset from the sample point to the
@@ -182,9 +224,13 @@ namespace ValveResourceFormat.Particles.Utils
         {
             var seed = BitConverter.SingleToUInt32Bits(offset);
 
-            var ix = Cell(position.X, out var fx);
-            var iy = Cell(position.Y, out var fy);
-            var iz = Cell(position.Z, out var fz);
+            var ix = (int)MathF.Floor(position.X);
+            var iy = (int)MathF.Floor(position.Y);
+            var iz = (int)MathF.Floor(position.Z);
+
+            var fx = position.X - ix;
+            var fy = position.Y - iy;
+            var fz = position.Z - iz;
 
             var nearest = float.MaxValue;
             var best = Vector3.Zero;
@@ -207,14 +253,18 @@ namespace ValveResourceFormat.Particles.Utils
                             h = HashSeeded((ix + i) + ((iy + j) << 10) + ((iz + k) << 20), seed);
                         }
 
-                        var feature = (new Vector3(h & 255, (h >> 8) & 255, (h >> 16) & 255) * (jitter / 255f)) + new Vector3(dx, dy, dz);
-                        var distance = feature.LengthSquared();
+                        var px = ((h & 255) * (1f / 255f) * jitter) + dx;
+                        var py = (((h >> 8) & 255) * (1f / 255f) * jitter) + dy;
+                        var pz = (((h >> 16) & 255) * (1f / 255f) * jitter) + dz;
+
+                        var distance = (px * px) + (py * py) + (pz * pz);
 
                         if (distance < nearest)
                         {
-                            nearest = distance;
-                            best = feature;
+                            best = new Vector3(px, py, pz);
                         }
+
+                        nearest = MathF.Min(nearest, distance);
                     }
                 }
             }
@@ -228,9 +278,9 @@ namespace ValveResourceFormat.Particles.Utils
         /// </summary>
         public static float WorleyJitter(float noiseOffset)
         {
-            var remainder = MathF.IEEERemainder(noiseOffset + 1.7234f, 0.648326f);
+            var remainder = MathF.IEEERemainder(noiseOffset + 1.7233999967575073f, 0.6483259797096252f);
 
-            return (MathUtils.Saturate(remainder) * 0.2f) + 0.75f;
+            return (MathUtils.Saturate(remainder) * 0.19999998807907104f) + 0.75f;
         }
 
         /// <summary>
@@ -274,15 +324,15 @@ namespace ValveResourceFormat.Particles.Utils
             var cell10 = (NoiseTables.PermY[rowX1] + iz) & 0xFF;
             var cell11 = (NoiseTables.PermY[(rowX1 + 1) & 0xFF] + iz) & 0xFF;
 
-            var x0 = MathUtils.Lerp(CurlVector(cell00), CurlVector(cell10), fx);
-            var x1 = MathUtils.Lerp(CurlVector(cell01), CurlVector(cell11), fx);
-            var x2 = MathUtils.Lerp(CurlVector((cell00 + 1) & 0xFF), CurlVector((cell10 + 1) & 0xFF), fx);
-            var x3 = MathUtils.Lerp(CurlVector((cell01 + 1) & 0xFF), CurlVector((cell11 + 1) & 0xFF), fx);
+            var x0 = Lerp(CurlVector(cell00), CurlVector(cell10), fx);
+            var x1 = Lerp(CurlVector(cell01), CurlVector(cell11), fx);
+            var x2 = Lerp(CurlVector((cell00 + 1) & 0xFF), CurlVector((cell10 + 1) & 0xFF), fx);
+            var x3 = Lerp(CurlVector((cell01 + 1) & 0xFF), CurlVector((cell11 + 1) & 0xFF), fx);
 
-            var y0 = MathUtils.Lerp(x0, x1, fy);
-            var y1 = MathUtils.Lerp(x2, x3, fy);
+            var y0 = Lerp(x0, x1, fy);
+            var y1 = Lerp(x2, x3, fy);
 
-            return MathUtils.Lerp(y0, y1, fz);
+            return Lerp(y0, y1, fz);
         }
 
         private static Vector3 CurlVector(int cell)
@@ -291,6 +341,9 @@ namespace ValveResourceFormat.Particles.Utils
 
             return new Vector3(NoiseTables.CurlVectors[index], NoiseTables.CurlVectors[index + 1], NoiseTables.CurlVectors[index + 2]);
         }
+
+        /// <summary>Single-multiply blend; <see cref="Vector3.Lerp(Vector3, Vector3, float)"/> rounds differently.</summary>
+        private static Vector3 Lerp(Vector3 from, Vector3 to, float amount) => ((to - from) * amount) + from;
 
         /// <summary>
         /// Hashes one lattice corner with a seed folded in mid-chain, as the gradient and cellular

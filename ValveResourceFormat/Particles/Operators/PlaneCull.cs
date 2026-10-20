@@ -50,7 +50,7 @@ namespace ValveResourceFormat.Particles.Operators
             {
                 if (CulledByPlane(particle.Position, planeNormal, particleSystemState))
                 {
-                    KillCulled(ref particle, particles, particleSystemState);
+                    particle.Kill();
                 }
             }
         }

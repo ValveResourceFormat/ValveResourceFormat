@@ -593,7 +593,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     internal static float GetShapeExponent(float shape) => shape > 0f ? MathF.Min(shape, 1f) * 0.875f + 0.125f : 0f;
 
     /// <summary>Distance, in world units, in front of the luminaire at which a light reaches its <see cref="LinearBrightness"/>.</summary>
-    internal const float LinearBrightnessDistance = 100f;
+    private const float LinearBrightnessDistance = 100f;
 
     // Mirrored by the BARN_LIGHT_FLAG_ constants in lighting.barn.slang
     private const uint RectLuminaireFlag = 0x1000u;
@@ -875,15 +875,10 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <summary>
     /// Calculates the effective solid angle of a spotlight cone, clamped to a maximum of 4pi steradians (full sphere).
     /// </summary>
-    public float ComputeConeSolidAngle() => ComputeConeSolidAngle(SpotOuterAngle, SpotInnerAngle);
-
-    /// <inheritdoc cref="ComputeConeSolidAngle()"/>
-    /// <param name="spotOuterAngle">The outer cone angle, in degrees.</param>
-    /// <param name="spotInnerAngle">The inner cone angle, in degrees.</param>
-    public static float ComputeConeSolidAngle(float spotOuterAngle, float spotInnerAngle)
+    public float ComputeConeSolidAngle()
     {
-        var outerRad = float.DegreesToRadians(Math.Clamp(spotOuterAngle, 1f, 180f));
-        var innerRad = float.DegreesToRadians(Math.Clamp(spotInnerAngle, 0f, spotOuterAngle));
+        var outerRad = float.DegreesToRadians(Math.Clamp(SpotOuterAngle, 1f, 180f));
+        var innerRad = float.DegreesToRadians(Math.Clamp(SpotInnerAngle, 0f, SpotOuterAngle));
 
         var avgCos = (MathF.Cos(outerRad) + MathF.Cos(innerRad)) * 0.5f;
         return MathF.Min(MathF.Tau * (1f - avgCos), 4f * MathF.PI);

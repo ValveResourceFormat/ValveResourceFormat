@@ -64,11 +64,6 @@ namespace ValveResourceFormat.Particles.Operators
                 lastEndPosition = endNow;
             }
 
-            if (useParticleCount || numToAssign is not LiteralNumberProvider)
-            {
-                slotIndex = 0;
-            }
-
             var assignCount = useParticleCount ? particles.Count : numToAssign.NextNumber(particleSystemState);
             var parameterStep = assignCount <= 1f ? 0f : 1f / (assignCount - 1f);
             var maxOffset = maxDistance.NextNumber(particleSystemState);

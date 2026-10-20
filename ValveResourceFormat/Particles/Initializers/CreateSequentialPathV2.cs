@@ -27,18 +27,14 @@ namespace ValveResourceFormat.Particles.Initializers
         private float parameterStep;
         private float cachedNumToAssign = float.NaN;
 
-        private bool endpointsDistinct;
-        private (int Start, int End)? cachedSegment;
-        private (Vector3 Start, Vector3 Mid, Vector3 End) cachedPath;
-
         public CreateSequentialPathV2(ParticleDefinitionParser parse) : base(parse)
         {
             maxDistance = parse.NumberProvider("m_fMaxDistance", maxDistance);
-            numToAssign = parse.CollectionNumberProvider("m_flNumToAssign", numToAssign);
+            numToAssign = parse.NumberProvider("m_flNumToAssign", numToAssign);
             loop = parse.Boolean("m_bLoop", loop);
             cpPairs = parse.Boolean("m_bCPPairs", cpPairs);
             saveOffset = parse.Boolean("m_bSaveOffset", saveOffset);
-            pathParams = new ParticlePathParameters(parse).WithClampedControlPoints();
+            pathParams = new ParticlePathParameters(parse);
 
             spanDirection = pathParams.EndControlPointNumber >= pathParams.StartControlPointNumber ? 1 : -1;
 
@@ -67,11 +63,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.HitboxOffsetPosition);
 
-        /// <summary>
-        /// Reads the count to assign and whether a looping pair walk is open, once for every call over
-        /// a batch of new particles, and forgets the path evaluated by the previous call.
-        /// </summary>
-        protected override void BeginCall(ref Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var assignCount = numToAssign.NextNumber(particleSystemState);
             if (assignCount != cachedNumToAssign)
@@ -85,7 +77,7 @@ namespace ValveResourceFormat.Particles.Initializers
                 }
             }
 
-            endpointsDistinct = true;
+            var endpointsDistinct = true;
             if (cpPairs && loop)
             {
                 var startPos = particleSystemState.GetControlPoint(pathParams.StartControlPointNumber).Position;
@@ -95,11 +87,6 @@ namespace ValveResourceFormat.Particles.Initializers
                     || MathF.Abs(startPos.Z - endPos.Z) > 0.001f;
             }
 
-            cachedSegment = null;
-        }
-
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
             var t = pathParameter;
 
             int segmentStart;
@@ -124,13 +111,8 @@ namespace ValveResourceFormat.Particles.Initializers
                 }
             }
 
-            if (cachedSegment != (segmentStart, segmentEnd))
-            {
-                cachedSegment = (segmentStart, segmentEnd);
-                cachedPath = ParticlePath.CalculatePathValues(particleSystemState, pathParams.WithControlPoints(segmentStart, segmentEnd), particle.CreationTime);
-            }
-
-            var (start, mid, end) = cachedPath;
+            var segment = pathParams.WithControlPoints(segmentStart, segmentEnd);
+            var (start, mid, end) = ParticlePath.CalculatePathValues(particleSystemState, segment, particle.CreationTime);
 
             var position = ParticlePath.Evaluate(start, mid, end, t);
 
@@ -149,7 +131,7 @@ namespace ValveResourceFormat.Particles.Initializers
             pathParameter += parameterStep;
             var advanced = pathParameter;
 
-            if (parameterStep > PathParameterEpsilon)
+            if (parameterStep > 0f)
             {
                 if (MathF.Abs(advanced - spanLength) < PathParameterEpsilon)
                 {

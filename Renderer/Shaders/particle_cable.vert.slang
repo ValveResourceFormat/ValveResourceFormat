@@ -29,7 +29,7 @@ void main(void)
     vTexCoordOut = vTEXCOORD;
 
     // Per-node colour, whole-cable tint folded in. The CPU packs gamma-space colour raw into the byte stream,
-    // so one decode here gives the final colour.
+    // so one decode here gives the final colour. Alpha is unused by the fragment stage.
     vColorOut = vec4(SrgbGammaToLinear(vCOLOR.rgb), vCOLOR.a);
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)

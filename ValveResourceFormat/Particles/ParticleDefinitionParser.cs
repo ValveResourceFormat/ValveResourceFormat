@@ -13,13 +13,30 @@ namespace ValveResourceFormat.Particles;
 /// </summary>
 /// <param name="Data">The block being read.</param>
 /// <param name="Logger">Where parse warnings go.</param>
+/// <param name="InputOrdinal">
+/// Numbers the inputs of one particle function as they are parsed, shared by every nested block of
+/// that function. Held in a cell because the parser is copied by value.
+/// </param>
 /// <param name="BehaviorVersion">
 /// The <c>m_nBehaviorVersion</c> of the definition this block belongs to, for parse-time version gates.
 /// </param>
-internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, int BehaviorVersion = 0)
+internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, int[] InputOrdinal, int BehaviorVersion = 0)
 {
-    /// <summary>Reads a block nested in this one.</summary>
-    public readonly ParticleDefinitionParser Nested(KVObject data) => new(data, Logger, BehaviorVersion);
+    /// <summary>Reads a particle function, starting its input numbering over.</summary>
+    public ParticleDefinitionParser(KVObject data, ILogger logger, int behaviorVersion = 0) : this(data, logger, new int[1], behaviorVersion)
+    {
+    }
+
+    /// <summary>Reads a block nested in this one, continuing its input numbering.</summary>
+    public readonly ParticleDefinitionParser Nested(KVObject data) => new(data, Logger, InputOrdinal, BehaviorVersion);
+
+    /// <summary>
+    /// Claims the next displacement for an input whose draw is constant per particle, so that two
+    /// inputs of one function reading the same particle land on different slots of the shared random
+    /// table. Different functions are already separated by
+    /// <see cref="Utils.ParticleRandom.OperatorOffset"/>.
+    /// </summary>
+    public readonly int NextInputOrdinal() => InputOrdinal[0]++;
 
     private readonly T GetValueOrDefault<T>(string key, Func<string, T?> parsingMethod, T @default)
     {
@@ -42,8 +59,9 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
         }
 
         var logger = Logger; // Copy to local variable to avoid capturing 'this' in lambda
+        var ordinal = InputOrdinal;
         var behaviorVersion = BehaviorVersion;
-        return [.. Data.GetArray(k).Select(item => new ParticleDefinitionParser(item, logger, behaviorVersion))];
+        return [.. Data.GetArray(k).Select(item => new ParticleDefinitionParser(item, logger, ordinal, behaviorVersion))];
     }
 
     private readonly float Float(string k)
@@ -77,13 +95,6 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
     /// <summary>Reads an int property, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly int Int32(string key, int @default = default) => GetValueOrDefault(key, Int32, @default);
 
-    /// <summary>
-    /// Reads a control point index, clamped to 0 to <see cref="ParticleSystemState.MaxControlPoint"/>,
-    /// returning <paramref name="default"/> (also clamped) if the key is absent.
-    /// </summary>
-    public readonly int ControlPoint(string key, int @default = 0)
-        => Math.Clamp(Int32(key, @default), 0, ParticleSystemState.MaxControlPoint);
-
     private readonly long Long(string k) => Data.GetIntegerProperty(k);
     /// <summary>Reads a long property, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly long Long(string key, long @default = default) => GetValueOrDefault(key, Long, @default);
@@ -91,9 +102,6 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
     private readonly bool Boolean(string k) => Data.GetBooleanProperty(k);
     /// <summary>Reads a bool property, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly bool Boolean(string key, bool @default = default) => GetValueOrDefault(key, Boolean, @default);
-
-    /// <summary>Reads a string property, returning <paramref name="default"/> if the key is absent.</summary>
-    public readonly string String(string key, string @default = "") => Data.GetStringProperty(key, @default);
 
     private readonly Vector3 Vector3(string k)
     {
@@ -190,26 +198,6 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
 
     /// <summary>Reads and constructs an <see cref="INumberProvider"/> from the property at <paramref name="key"/>, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly INumberProvider NumberProvider(string key, INumberProvider @default) => GetValueOrDefault(key, NumberProvider, @default);
-
-    /// <summary>
-    /// Reads a <c>CParticleCollectionFloatInput</c> like <see cref="NumberProvider(string, INumberProvider)"/>,
-    /// evaluated for the whole collection even where a function reads it per particle.
-    /// </summary>
-    public readonly INumberProvider CollectionNumberProvider(string key, INumberProvider @default)
-    {
-        var provider = NumberProvider(key, @default);
-        return provider is LiteralNumberProvider ? provider : new CollectionNumberInput(provider);
-    }
-
-    /// <summary>
-    /// Reads a <c>CParticleCollectionVecInput</c> like <see cref="VectorProvider(string, IVectorProvider)"/>,
-    /// evaluated for the whole collection even where a function reads it per particle.
-    /// </summary>
-    public readonly IVectorProvider CollectionVectorProvider(string key, IVectorProvider @default)
-    {
-        var provider = VectorProvider(key, @default);
-        return provider is LiteralVectorProvider or LiteralColorVectorProvider ? provider : new CollectionVectorInput(provider);
-    }
     private readonly INumberProvider? NumberProvider(string key)
     {
         var pfParameters = Data.GetSubCollection(key);
@@ -221,7 +209,7 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
 
         if (pfParameters.IsCollection)
         {
-            var type = pfParameters.GetStringProperty("m_nType", "PF_TYPE_LITERAL");
+            var type = pfParameters.GetStringProperty("m_nType");
             var parse = Nested(pfParameters);
 
             switch (type)
@@ -234,8 +222,6 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
                     return new RandomNumberProvider(parse, false);
                 case "PF_TYPE_RANDOM_BIASED":
                     return new RandomNumberProvider(parse, true);
-                case "PF_TYPE_NAMED_VALUE":
-                    return new NamedValueNumberProvider(parse);
                 case "PF_TYPE_COLLECTION_AGE":
                     return new CollectionAgeNumberProvider(parse);
                 case "PF_TYPE_ENDCAP_AGE":
@@ -253,9 +239,8 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
                 case "PF_TYPE_PARTICLE_INITIAL_FLOAT":
                     return new PerParticleInitialNumberProvider(parse);
                 case "PF_TYPE_PARTICLE_VECTOR_COMPONENT":
-                    return new PerParticleVectorComponentNumberProvider(parse, initial: false);
                 case "PF_TYPE_PARTICLE_INITIAL_VECTOR_COMPONENT":
-                    return new PerParticleVectorComponentNumberProvider(parse, initial: true);
+                    return new PerParticleVectorComponentNumberProvider(parse);
                 case "PF_TYPE_RENDERER_CAMERA_DISTANCE":
                     return new RendererCameraDistanceNumberProvider(parse);
                 case "PF_TYPE_PARTICLE_SPEED":
@@ -281,8 +266,22 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
                 case "PF_TYPE_PARTICLE_ROPE_SEGMENT_NORMALIZED":
                     return new RopeSegmentNormalizedNumberProvider(parse);
                 // KNOWN TYPES WE DON'T SUPPORT:
+                // PF_TYPE_NAMED_VALUE (needs game VData),
                 // PF_TYPE_CLOSEST_CAMERA_DISTANCE, PF_TYPE_CONCURRENT_DEF_COUNT, PF_TYPE_RANGE
                 default:
+                    if (type == null)
+                    {
+                        // Old serialization omits every default-valued key, and the default type is the
+                        // literal one, so a block carrying a literal value is that literal.
+                        if (pfParameters.ContainsKey("m_flLiteralValue"))
+                        {
+                            return new LiteralNumberProvider(pfParameters.GetFloatProperty("m_flLiteralValue"));
+                        }
+
+                        Logger.LogWarning("Number provider has no m_nType, using the caller default");
+                        return null;
+                    }
+
                     Logger.LogWarning("Number provider of type {Type} is not supported, using its literal value", type);
                     return new LiteralNumberProvider(parse.Float("m_flLiteralValue"));
             }
@@ -300,20 +299,9 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
     {
         var pvecParameters = Data.GetSubCollection(key);
 
-        if (pvecParameters.ValueType == KVValueType.String)
+        if (pvecParameters.IsCollection && pvecParameters.ContainsKey("m_nType"))
         {
-            switch ((string)pvecParameters)
-            {
-                case "pvec_color_white":
-                    return new LiteralColorVectorProvider(new(255f, 255f, 255f));
-                case "pvec_color_black":
-                    return new LiteralColorVectorProvider(default);
-            }
-        }
-
-        if (pvecParameters.IsCollection)
-        {
-            var type = pvecParameters.GetStringProperty("m_nType", "PVEC_TYPE_LITERAL");
+            var type = pvecParameters.GetStringProperty("m_nType");
             var parse = Nested(pvecParameters);
 
             switch (type)
@@ -322,16 +310,14 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
                     return new LiteralVectorProvider(parse.Vector3("m_vLiteralValue"));
                 case "PVEC_TYPE_LITERAL_COLOR":
                     return new LiteralColorVectorProvider(parse.Vector3("m_LiteralColor"));
-                case "PVEC_TYPE_NAMED_VALUE":
-                    return new NamedValueVectorProvider(parse);
+                // The INITIAL variant reads the current value, exact for attributes nothing rewrites after spawn.
                 case "PVEC_TYPE_PARTICLE_VECTOR":
-                    return new PerParticleVectorProvider(parse, initial: false);
                 case "PVEC_TYPE_PARTICLE_INITIAL_VECTOR":
-                    return new PerParticleVectorProvider(parse, initial: true);
+                    return new PerParticleVectorProvider(parse);
                 case "PVEC_TYPE_CLOSEST_CAMERA_POSITION":
                     return new ClosestCameraPositionVectorProvider();
                 case "PVEC_TYPE_PARTICLE_VELOCITY":
-                    return new ParticleVelocityVectorProvider(parse);
+                    return new ParticleVelocityVectorProvider();
                 case "PVEC_TYPE_CP_VALUE":
                     return new CPValueVectorProvider(parse);
                 case "PVEC_TYPE_CP_DELTA":
@@ -343,18 +329,19 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
                 case "PVEC_TYPE_FLOAT_COMPONENTS":
                     return new FloatComponentsVectorProvider(parse);
                 case "PVEC_TYPE_FLOAT_INTERP_CLAMPED":
-                    return new FloatInterpolationVectorProvider(parse, isClamped: true, isGradient: false);
+                    return new FloatInterpolationVectorProvider(parse, true);
                 case "PVEC_TYPE_FLOAT_INTERP_OPEN":
-                    return new FloatInterpolationVectorProvider(parse, isClamped: false, isGradient: false);
+                    return new FloatInterpolationVectorProvider(parse, false);
                 case "PVEC_TYPE_FLOAT_INTERP_GRADIENT":
-                    return new FloatInterpolationVectorProvider(parse, isClamped: false, isGradient: true);
+                    return new ColorGradientVectorProvider(parse);
                 case "PVEC_TYPE_RANDOM_UNIFORM":
                     return new RandomUniformVectorProvider(parse);
                 case "PVEC_TYPE_RANDOM_UNIFORM_OFFSET":
                     return new RandomUniformOffsetVectorProvider(parse);
-                case "PVEC_TYPE_CP_RELATIVE_RANDOM_DIR":
-                    return new CPRelativeRandomDirectionProvider(parse);
-                // UNSUPPORTED: PVEC_TYPE_PARTICLE_GRAVITY - needs the game's gravity
+                /* UNSUPPORTED:
+                 * PVEC_TYPE_NAMED_VALUE - needs game VData
+                 * PVEC_TYPE_CP_RELATIVE_RANDOM_DIR - new in dota. presumably relative dir but the value is random per particle?
+                 */
                 default:
                     Logger.LogWarning("Vector provider of type {Type} is not supported, using its literal value", type);
                     return new LiteralVectorProvider(parse.Vector3("m_vLiteralValue"));
@@ -384,17 +371,15 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
                     return new ControlPointTransformProvider(controlPoint, useOrientation);
                 }
                 case "PT_TYPE_CONTROL_POINT_RANGE":
-                {
-                    var controlPoint = parse.Int32("m_nControlPoint");
-                    var useOrientation = parse.Boolean("m_bUseOrientation", true);
-                    var rangeMax = parse.Int32("m_nControlPointRangeMax");
-                    var endGrowthTime = parse.Float("m_flEndCPGrowthTime");
-                    return new ControlPointTransformProvider(controlPoint, useOrientation, rangeMax, endGrowthTime);
-                }
-                case "PT_TYPE_NAMED_VALUE":
-                    return new NamedValueTransformProvider(parse);
+                    // TODO: Implement range support if needed
+                    Logger.LogWarning("PT_TYPE_CONTROL_POINT_RANGE not fully supported, using first CP only");
+                    {
+                        var controlPoint = parse.Int32("m_nControlPoint");
+                        var useOrientation = parse.Boolean("m_bUseOrientation", true);
+                        return new ControlPointTransformProvider(controlPoint, useOrientation);
+                    }
                 case "PT_TYPE_INVALID":
-                    return new IdentityTransformProvider();
+                case "PT_TYPE_NAMED_VALUE":
                 default:
                     Logger.LogWarning("Transform type {Type} not supported, using identity transform", type);
                     return new IdentityTransformProvider();
@@ -404,7 +389,7 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
         // Fields that became transform inputs without a format bump still hold a bare control point number in older content.
         if (!transformParameters.IsNull)
         {
-            return new ControlPointTransformProvider(Math.Clamp(Data.GetInt32Property(key), 0, ParticleSystemState.MaxControlPoint), true);
+            return new ControlPointTransformProvider(Data.GetInt32Property(key), true);
         }
 
         return new IdentityTransformProvider();

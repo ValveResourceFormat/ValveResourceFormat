@@ -12,44 +12,9 @@ namespace ValveResourceFormat.Particles.Operators
 
         public abstract void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength);
 
-        /// <summary>Builds the per-instance running state the operator starts with.</summary>
+        /// <summary>Rebuilds any per-instance running state when the system starts or restarts.</summary>
         public virtual void Reset()
         {
         }
-
-        /// <summary>
-        /// Moves <paramref name="current"/> toward <paramref name="value"/> by <paramref name="strength"/>.
-        /// A strength of 1 or more gives <paramref name="value"/> itself rather than overshooting it.
-        /// </summary>
-        protected static float BlendByStrength(float current, float value, float strength)
-            => strength >= 1f ? value : (value * strength) + (current * (1f - strength));
-
-        /// <inheritdoc cref="BlendByStrength(float, float, float)"/>
-        protected static Vector3 BlendByStrength(Vector3 current, Vector3 value, float strength)
-            => strength >= 1f ? value : (value * strength) + (current * (1f - strength));
-
-        /// <summary>
-        /// The share of a step of <paramref name="frameTime"/> that <paramref name="particle"/> lived
-        /// through, 1 for a particle older than the step.
-        /// </summary>
-        protected static float LivedStepFraction(in Particle particle, float frameTime)
-            => MathF.Min(particle.Age, frameTime) / frameTime;
-
-        /// <summary>Kills a culled particle, raising the killed on cull event for the children that listen for it.</summary>
-        protected static void KillCulled(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            particle.Kill();
-
-            if (particleSystemState.ListensFor(ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED_ON_CULL))
-            {
-                particles.RaiseEvent(particle.Index, ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED_ON_CULL);
-            }
-        }
-
-        /// <summary>Builds the running state when the system is created or replayed; <see cref="Reset"/> unless overridden.</summary>
-        public virtual void Initialize(ParticleSystemState particleSystemState) => Reset();
-
-        /// <summary>Called when the system restarts; rebuilds the running state unless overridden.</summary>
-        public virtual void Restart(ParticleSystemState particleSystemState) => Reset();
     }
 }

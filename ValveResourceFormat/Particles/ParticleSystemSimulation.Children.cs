@@ -5,12 +5,39 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles
 {
+
     /// <summary>Child systems: creation, group selection and group restarts.</summary>
     public partial class ParticleSystemSimulation
     {
-        /// <summary>Holds every direct child tagged with <paramref name="groupId"/> before its start until a selection releases it.</summary>
-        internal void ParkChildrenInGroup(int groupId)
+        private void SnapshotChildControlPointOverrides(float frameTime)
         {
+            foreach (var child in childSimulations)
+            {
+                child.systemState.SnapshotControlPointOverrideHistory(frameTime);
+                child.SnapshotChildControlPointOverrides(frameTime);
+            }
+        }
+
+        /// <summary>
+        /// Suppresses every child system tagged with <paramref name="groupId"/> except for
+        /// <paramref name="numberOfChildren"/> randomly chosen ones. Children in other groups are untouched.
+        /// </summary>
+        internal void ChooseRandomChildrenInGroup(int groupId, int numberOfChildren)
+        {
+            var remaining = 0;
+
+            foreach (var child in childSimulations)
+            {
+                if (child.groupId == groupId)
+                {
+                    remaining++;
+                }
+            }
+
+            var needed = Math.Clamp(numberOfChildren, 0, remaining);
+
+            // Selection sampling: walk the group once, taking each candidate with probability
+            // needed/remaining. Uniform over all subsets of that size, and needs no scratch buffer.
             foreach (var child in childSimulations)
             {
                 if (child.groupId != groupId)
@@ -18,58 +45,15 @@ namespace ValveResourceFormat.Particles
                     continue;
                 }
 
-                child.finishedBeforeStartAllowed = true;
-                child.systemState.Age = float.MinValue;
-            }
-        }
+                var chosen = needed > 0 && systemState.Random.Next() * remaining < needed;
+                child.childEnabled = chosen;
 
-        /// <summary>
-        /// Restarts <paramref name="numberOfChildren"/> of the direct children tagged with
-        /// <paramref name="groupId"/>, rounded up, picked at random, and stops the rest of the group with
-        /// their particles removed. Children in other groups are untouched.
-        /// </summary>
-        internal void ChooseRandomChildrenInGroup(int groupId, float numberOfChildren)
-        {
-            ParkChildrenInGroup(groupId);
-
-            var candidates = new List<ParticleSystemSimulation>();
-
-            foreach (var child in childSimulations)
-            {
-                if (child.groupId == groupId && child.systemState.Age < 0f)
+                if (chosen)
                 {
-                    candidates.Add(child);
+                    needed--;
                 }
-            }
 
-            if (candidates.Count != 0 && numberOfChildren > 0f)
-            {
-                var picked = 0;
-
-                do
-                {
-                    if (candidates.Count != 0)
-                    {
-                        var index = (int)(candidates.Count * systemState.Random.Next());
-                        var child = candidates[index];
-
-                        child.systemState.Age = 0f;
-                        child.Restart();
-                        candidates.RemoveAt(index);
-                    }
-
-                    picked++;
-                }
-                while (numberOfChildren > picked);
-            }
-
-            foreach (var child in childSimulations)
-            {
-                if (child.groupId == groupId && child.systemState.Age == float.MinValue)
-                {
-                    child.systemState.Age = 0f;
-                    child.StopEmission(removeAllParticles: true, playEndCap: false);
-                }
+                remaining--;
             }
         }
 
@@ -88,20 +72,20 @@ namespace ValveResourceFormat.Particles
             }
         }
 
-        /// <summary>Restarts every direct child tagged with <paramref name="groupId"/>. This system and children in other groups keep running.</summary>
+        /// <summary>
+        /// Schedules every direct child tagged with <paramref name="groupId"/> to replay on its next
+        /// update. This system and children in other groups keep running.
+        /// </summary>
         internal void RestartChildrenInGroup(int groupId)
         {
             foreach (var child in childSimulations)
             {
                 if (child.groupId == groupId)
                 {
-                    child.Restart();
+                    child.systemState.SetRestartTime(0f);
                 }
             }
         }
-
-        /// <summary>Whether <paramref name="state"/> belongs to a system tagged with <paramref name="groupId"/>.</summary>
-        internal static bool IsInGroup(ParticleSystemState state, int groupId) => state.Data?.groupId == groupId;
 
         private void SetupChildParticles(IReadOnlyList<KVObject> children)
         {
@@ -112,7 +96,7 @@ namespace ValveResourceFormat.Particles
                 var childInfo = children[slot];
                 var parse = new ParticleDefinitionParser(childInfo, logger, BehaviorVersion);
 
-                if (parse.Boolean("m_bDisableChild", false))
+                if (BehaviorVersion >= 5 && parse.Boolean("m_bDisableChild", false))
                 {
                     continue;
                 }
@@ -136,13 +120,12 @@ namespace ValveResourceFormat.Particles
 
                 var childSystem = new ParticleSystemSimulation(childSystemDefinition, fileLoader, logger, null, systemState)
                 {
+                    MainControlPoint = MainControlPoint,
                     startDelay = parse.Float("m_flDelay", 0f),
-                    IsEndCapChild = parse.Boolean("m_bEndCap", false),
-                    detailLevel = parse.Enum("m_nDetailLevel", ParticleDetailLevel.PARTICLEDETAIL_LOW)
+                    isEndCapChild = parse.Boolean("m_bEndCap", false),
+                    detailLevel = parse.Enum("m_nDetailLevel", ParticleDetailLevel.PARTICLEDETAIL_LOW),
+                    childSlot = slot,
                 };
-
-                childSystem.systemState.Age = childSystem.IsEndCapChild ? float.MinValue : -childSystem.startDelay;
-                childSystem.childSlot = slot;
 
                 childSimulations.Add(childSystem);
             }
@@ -162,11 +145,27 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Whether this child is currently allowed to run under <paramref name="parentState"/>: it has
-        /// started, and its detail tier is active.
+        /// Whether the parent should advance this child this frame. An endcap child lies dormant until
+        /// the parent starts its endcap, a delayed child waits out its delay on the parent's clock, and a
+        /// child authored above the active detail tier never runs at all.
+        /// </summary>
+        /// <summary>
+        /// Whether this child is currently allowed to run under <paramref name="parentState"/>.
         /// </summary>
         /// <param name="parentState">The parent system's state.</param>
         public bool ShouldRunAsChildOf(ParticleSystemState parentState)
-            => detailLevel <= parentState.DetailLevel && systemState.Age >= 0f;
+        {
+            if (!childEnabled || detailLevel > parentState.DetailLevel)
+            {
+                return false;
+            }
+
+            if (isEndCapChild)
+            {
+                return parentState.InEndCap;
+            }
+
+            return parentState.Age >= startDelay;
+        }
     }
 }

@@ -7,12 +7,11 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
-    /// Renders the particles, in collection order, as one lit round tube. The tube tessellation is shared
-    /// with the map <c>path_particle_rope</c> rendering path via <see cref="CableMeshBuilder"/>. Geometry is
-    /// rebuilt whenever the particle positions, radii, colors, alphas, or the per-segment tessellation
-    /// levels change. Radius, alpha and colour are scaled by <c>m_flRadiusScale</c>, <c>m_flAlphaScale</c>
-    /// and <c>m_vecColorScale</c>, evaluated once for the system; the alpha scale applies twice. The tint
-    /// is truncated to bytes without a clamp, so a channel past 1 wraps around.
+    /// Renders the ordered particle chain as one lit round tube. The tube tessellation is shared with the
+    /// map <c>path_particle_rope</c> rendering path via <see cref="CableMeshBuilder"/>. Geometry is rebuilt
+    /// whenever the particle positions, radii, colors, alphas, or the per-segment tessellation levels change.
+    /// Radius and alpha are scaled by <c>m_flRadiusScale</c> and <c>m_flAlphaScale</c>, evaluated once for
+    /// the system, and nothing is drawn while either is zero.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderCables">C_OP_RenderCables</seealso>
     internal class RenderCables : ParticleFunctionRenderer
@@ -53,13 +52,16 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         // Per-frame scratch reused across frames so a settled cable allocates nothing. Grow-only,
         // sliced to the live particle (or segment) count each frame.
-        private (Vector3 Position, float Radius, Vector3 Color, float Alpha)[] chainScratch = [];
+        private (int Id, Vector3 Position, float Radius, Vector3 Color, float Alpha)[] chainScratch = [];
         private Vector3[] positionsScratch = [];
         private float[] radiiScratch = [];
         private Vector3[] colorsScratch = [];
         private float[] alphasScratch = [];
         private int[] levelsScratch = [];
         private Vector3[] directionsScratch = [];
+
+        private static readonly Comparison<(int Id, Vector3 Position, float Radius, Vector3 Color, float Alpha)> ChainComparer =
+            static (a, b) => a.Id.CompareTo(b.Id);
 
         public RenderCables(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene) : base(parse, scene)
         {
@@ -103,27 +105,27 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <inheritdoc/>
         public override void UpdateBuffers(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
-            var scales = EvaluateScales(systemState);
+            var radiusScale = RadiusScale.NextNumber(systemState);
+            var alphaScale = AlphaScale.NextNumber(systemState);
 
-            if (particles.Count < 2 || scales.Radius == 0f || scales.Alpha == 0f)
+            if (particles.Count < 2 || radiusScale == 0f || alphaScale == 0f)
             {
                 indexCount = 0;
                 lastCount = 0;
                 return;
             }
 
+            // Order the live particles along the rope by particle id; prune compaction can reshuffle slots.
             var count = particles.Count;
             chainScratch = EnsureCapacity(chainScratch, count);
             var chain = chainScratch.AsSpan(0, count);
             var index = 0;
             foreach (ref var particle in particles.Current)
             {
-                var color = ParticleColorBlend.Apply(ColorBlendType,
-                    ParticleColorBlend.ToWrappedBytes(particle.Color, Math.Clamp(scales.Alpha * 255f * particle.Alpha, 0f, 255f)),
-                    scales.Color) / 255f;
-
-                chain[index++] = (particle.Position, MathF.Max(0f, scales.Radius * particle.Radius), color.AsVector3(), color.W);
+                chain[index++] = (particle.UniqueParticleId, particle.Position, particle.Radius * radiusScale, particle.Color, particle.Alpha * alphaScale);
             }
+
+            chain.Sort(ChainComparer);
 
             positionsScratch = EnsureCapacity(positionsScratch, count);
             radiiScratch = EnsureCapacity(radiiScratch, count);
@@ -306,7 +308,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         // Expands each particle segment into 2^level rings. Position and radius follow a Catmull-Rom spline
         // through the particles, with the end particles repeated past both ends; colour and V are linear.
         // Fills exactly TotalRings entries of the (pooled, possibly larger) output arrays.
-        private static void BuildRings(ReadOnlySpan<Vector3> positions, ReadOnlySpan<(Vector3 Position, float Radius, Vector3 Color, float Alpha)> chain,
+        private static void BuildRings(ReadOnlySpan<Vector3> positions, ReadOnlySpan<(int Id, Vector3 Position, float Radius, Vector3 Color, float Alpha)> chain,
             ReadOnlySpan<int> levels, float repeats, Span<Vector3> ringPositions, Span<RopeSample> ringSamples)
         {
             var cursor = 0;

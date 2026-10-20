@@ -42,10 +42,7 @@ namespace ValveResourceFormat.Particles
         // Varying properties (read from initializers but then change afterwards)
         /// <summary>Gets or sets the current world-space position of the particle.</summary>
         public Vector3 Position { get; set; } = Vector3.Zero;
-        /// <summary>
-        /// Gets or sets the world-space position one step back. The particle's velocity is implicit: it is
-        /// <see cref="Position"/> minus this, per step.
-        /// </summary>
+        /// <summary>Gets or sets the world-space position from the previous frame, used for velocity computation.</summary>
         public Vector3 PositionPrevious { get; set; } = Vector3.Zero;
         /// <summary>Gets or sets the current age of the particle in seconds.</summary>
         public float Age { get; set; } = 0f;
@@ -81,22 +78,38 @@ namespace ValveResourceFormat.Particles
         /// </summary>
         public Vector3 RotationSpeed { get; set; } = Vector3.Zero;
 
-        /// <summary>
-        /// Gets or sets the particle's normal, the engine's own attribute rather than anything derived
-        /// from <see cref="Rotation"/>. The value is stored as given, zero included: the normal-aligned
-        /// quad basis leaves its axes un-normalized, so a longer normal widens the card.
-        /// </summary>
-        public Vector3 Normal { get; set; } = new(0f, 0f, 1f);
+        /// <summary>Gets or sets the current velocity of the particle.</summary>
+        public Vector3 Velocity { get; set; } = Vector3.Zero;
 
         /// <summary>
-        /// The particle's velocity in units per second, from its last step taken as
-        /// <paramref name="frameTime"/> seconds long. Zero for a step of no length.
+        /// Gets or sets the particle's normal, the engine's own attribute rather than anything derived
+        /// from <see cref="Rotation"/>. A zero write is ignored, and the value is stored as given: the
+        /// normal-aligned quad basis leaves its axes un-normalized, so a longer normal widens the card.
         /// </summary>
-        public readonly Vector3 GetVelocity(float frameTime)
-            => frameTime > 0f ? (Position - PositionPrevious) / frameTime : Vector3.Zero;
+        public Vector3 Normal
+        {
+            readonly get => normal;
+            set
+            {
+                if (value == Vector3.Zero)
+                {
+                    return;
+                }
+
+                normal = value;
+            }
+        }
+
+        private Vector3 normal = new(0f, 0f, 1f);
 
         /// <summary>Gets the particle's age as a fraction of its lifetime. May exceed 1 if the particle outlives its lifetime.</summary>
         public readonly float NormalizedAge => Age / Math.Max(0.0001f, Lifetime); //Old version: 1 - (Lifetime / ConstantLifetime);
+        /// <summary>Gets or sets the speed (magnitude); setting it rescales the velocity to that length, keeping its direction.</summary>
+        public float Speed
+        {
+            readonly get => Velocity.Length();
+            set => Velocity = MathUtils.SafeNormalize(Velocity) * value;
+        }
         /// <summary>
         /// Gets or sets the acceleration accumulated by force generators this frame; consumed and
         /// cleared by <see cref="Operators.BasicMovement"/>.
@@ -105,10 +118,9 @@ namespace ValveResourceFormat.Particles
 
         /// <summary>
         /// Gets or sets which of the sprite sheet's animation sequences this particle plays. One sheet
-        /// can carry several separate animations, and the renderers index into them with this. Stored as
-        /// a float like every other attribute, so a fractional value survives until it is read as an index.
+        /// can carry several separate animations, and the renderers index into them with this.
         /// </summary>
-        public float SequenceNumber { get; set; } = 0;
+        public int SequenceNumber { get; set; } = 0;
 
         /// <summary>
         /// Gets or sets the sprite sheet playback position an operator drives by hand, in sequence
@@ -123,17 +135,17 @@ namespace ValveResourceFormat.Particles
         /// Authored as <c>m_nConstantSequenceNumber1</c>, where the 1 suffix marks the second sequence.
         /// No renderer reads it yet.
         /// </summary>
-        public float SecondSequenceNumber { get; set; } = 0;
+        public int SecondSequenceNumber { get; set; } = 0;
 
         /// <summary>Gets or sets the index of the particle's parent particle in a parent system.</summary>
         public int ParentParticleIndex { get; set; } = -1;
 
         /// <summary>
         /// Gets or sets the <see cref="ParticleId"/> of the parent particle this particle was created
-        /// from, or <see cref="int.MinValue"/> when it has no parent. Unlike <see cref="ParentParticleIndex"/>
-        /// this survives the parent collection compacting around dead particles.
+        /// from, or -1 when it has no parent. Unlike <see cref="ParentParticleIndex"/> this survives the
+        /// parent collection compacting around dead particles.
         /// </summary>
-        public int ParentParticleId { get; set; } = int.MinValue;
+        public int ParentParticleId { get; set; } = -1;
 
         /// <summary>Gets or sets the identifier of the rope segment this particle belongs to.</summary>
         public int RopeSegmentId { get; set; } = 0;
@@ -179,13 +191,13 @@ namespace ValveResourceFormat.Particles
         /// <summary>Gets or sets a second general-purpose scratch vector.</summary>
         public Vector3 ScratchVector2 { get; set; } = Vector3.Zero;
         /// <summary>Gets or sets the glow color attribute.</summary>
-        public Vector3 GlowRgb { get; set; } = Vector3.One;
+        public Vector3 GlowRgb { get; set; } = Vector3.Zero;
         /// <summary>Gets or sets the glow alpha attribute.</summary>
-        public float GlowAlpha { get; set; } = 1f;
+        public float GlowAlpha { get; set; }
         /// <summary>Gets or sets the first free value handed to the renderer's shader.</summary>
-        public float ShaderExtraData1 { get; set; } = 1f;
+        public float ShaderExtraData1 { get; set; }
         /// <summary>Gets or sets the second free value handed to the renderer's shader.</summary>
-        public float ShaderExtraData2 { get; set; } = 1f;
+        public float ShaderExtraData2 { get; set; }
         /// <summary>Gets or sets the system time at which this particle was created.</summary>
         public float CreationTime { get; set; } // todo
 
@@ -203,17 +215,17 @@ namespace ValveResourceFormat.Particles
             {
                 var vectorValues = parse.Data.GetIntegerArray("m_ConstantColor");
                 Color = new Vector3(vectorValues[0], vectorValues[1], vectorValues[2]) / 255f;
-                Alpha = vectorValues.Length > 3 ? vectorValues[3] / 255f : 1f;
+                Alpha = vectorValues[3] / 255f;
             }
 
             Radius = parse.Float("m_flConstantRadius", Radius);
             Lifetime = parse.Float("m_flConstantLifespan", Lifetime);
-            // Unlike every other source of these attributes, the constants are not converted from degrees
-            Rotation = Rotation with { Z = parse.Float("m_flConstantRotation", 0f) };
-            RotationSpeed = RotationSpeed with { Z = parse.Float("m_flConstantRotationSpeed", 0f) };
+            // Rotation fields are stored in radians, but the constants are authored in degrees
+            Rotation = Rotation with { Z = float.DegreesToRadians(parse.Float("m_flConstantRotation", 0f)) };
+            RotationSpeed = RotationSpeed with { Z = float.DegreesToRadians(parse.Float("m_flConstantRotationSpeed", 0f)) };
             Normal = parse.Vector3("m_ConstantNormal", Normal);
-            SequenceNumber = parse.Float("m_nConstantSequenceNumber", SequenceNumber);
-            SecondSequenceNumber = parse.Float("m_nConstantSequenceNumber1", SecondSequenceNumber);
+            SequenceNumber = parse.Int32("m_nConstantSequenceNumber", SequenceNumber);
+            SecondSequenceNumber = parse.Int32("m_nConstantSequenceNumber1", SecondSequenceNumber);
         }
 
         /// <summary>
@@ -235,7 +247,7 @@ namespace ValveResourceFormat.Particles
             => EntityTransformHelper.EulerAnglesToRotationMatrixRadians(new Vector3(Rotation.Y, Rotation.X, Rotation.Z));
 
         /// <summary>
-        /// Marks this particle for removal once the running function returns.
+        /// Marks this particle for removal at the end of the current frame.
         /// </summary>
         public void Kill()
         {

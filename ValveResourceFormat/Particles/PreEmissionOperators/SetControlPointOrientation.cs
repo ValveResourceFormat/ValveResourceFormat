@@ -3,9 +3,8 @@ using ValveResourceFormat.ResourceTypes;
 namespace ValveResourceFormat.Particles.PreEmissionOperators
 {
     /// <summary>
-    /// Sets a control point's orientation to a QAngle, in world space or relative to a head control
-    /// point, optionally randomized and blended toward it every step. The randomized angle is drawn
-    /// once when the system is created and kept through restarts.
+    /// Sets a control point orientation based on a QAngle, optionally randomizing and interpolating.
+    /// The randomized angle is drawn once when the system starts and reused on every later frame.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetControlPointOrientation">C_OP_SetControlPointOrientation</seealso>
     class SetControlPointOrientation : ParticleFunctionPreEmissionOperator
@@ -13,90 +12,72 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
         private readonly bool useWorldLocation;
         private readonly bool randomize;
         private readonly bool setOnce;
-        private readonly int cp = 1;
+        private readonly int cp;
         private readonly int headLocation;
         private readonly Vector3 rotation;
         private readonly Vector3 rotationB;
         private readonly INumberProvider interpolation = new LiteralNumberProvider(1f);
 
         private bool hasRunBefore;
+        private bool rotationResolved;
         private Vector3 resolvedRotation;
-        private bool zeroRotation;
 
         public SetControlPointOrientation(ParticleDefinitionParser parse) : base(parse)
         {
             useWorldLocation = parse.Boolean("m_bUseWorldLocation", useWorldLocation);
             randomize = parse.Boolean("m_bRandomize", randomize);
             setOnce = parse.Boolean("m_bSetOnce", setOnce);
-            cp = parse.ControlPoint("m_nCP", cp);
-            headLocation = parse.ControlPoint("m_nHeadLocation", headLocation);
+            cp = parse.Int32("m_nCP", 1);
+            headLocation = parse.Int32("m_nHeadLocation", headLocation);
             rotation = parse.Vector3("m_vecRotation", rotation);
             rotationB = parse.Vector3("m_vecRotationB", rotationB);
             interpolation = parse.NumberProvider("m_flInterpolation", interpolation);
         }
 
-        public override void Initialize(ParticleSystemState particleSystemState)
-        {
-            resolvedRotation = randomize
-                ? particleSystemState.Random.NextBetweenPerComponent(rotation, rotationB)
-                : rotation;
-
-            hasRunBefore = false;
-            zeroRotation = rotation == Vector3.Zero && (!randomize || rotationB == Vector3.Zero);
-        }
-
-        public override void Restart(ParticleSystemState particleSystemState)
+        public override void Reset()
         {
             hasRunBefore = false;
+            rotationResolved = false;
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
         {
-            if (setOnce)
+            if (!rotationResolved)
             {
-                if (hasRunBefore)
-                {
-                    return;
-                }
-
-                hasRunBefore = true;
+                rotationResolved = true;
+                resolvedRotation = randomize
+                    ? particleSystemState.Random.NextBetweenPerComponent(rotation, rotationB)
+                    : rotation;
             }
 
-            var lerpAmount = interpolation.NextNumber(particleSystemState);
-            var target = EntityTransformHelper.EulerAnglesToQuaternion(resolvedRotation);
-            var controlPoint = particleSystemState.GetControlPoint(cp);
+            if (setOnce && hasRunBefore)
+            {
+                return;
+            }
+
+            var targetOrientation = EntityTransformHelper.EulerAnglesToForwardDirection(resolvedRotation);
 
             if (!useWorldLocation)
             {
-                if (headLocation == cp)
+                // Local orientation support is not fully accurate; use the head control point orientation as a fallback reference.
+                var referenceOrientation = particleSystemState.GetControlPoint(headLocation).Orientation;
+                if (referenceOrientation != Vector3.Zero)
                 {
-                    return;
+                    targetOrientation = MathUtils.SafeNormalize(targetOrientation + referenceOrientation);
                 }
-
-                var head = particleSystemState.GetControlPoint(headLocation);
-
-                if (zeroRotation && lerpAmount == 1f)
-                {
-                    controlPoint.SetOrientation(head.Forward, head.Left, head.Up);
-                    return;
-                }
-
-                var headRotation = head.GetRotation();
-
-                if (Quaternion.Dot(target, headRotation) < 0f)
-                {
-                    target = -target;
-                }
-
-                target = headRotation * target;
             }
 
-            if (!setOnce && lerpAmount != 1f)
+            var currentOrientation = particleSystemState.GetControlPoint(cp).Orientation;
+            var lerpAmount = interpolation.NextNumber(particleSystemState);
+            var outputOrientation = Vector3.Lerp(currentOrientation, targetOrientation, lerpAmount);
+
+            if (outputOrientation != Vector3.Zero)
             {
-                target = Quaternion.Slerp(controlPoint.GetRotation(), target, lerpAmount);
+                outputOrientation = MathUtils.SafeNormalize(outputOrientation);
             }
 
-            controlPoint.SetOrientation(target);
+            particleSystemState.SetControlPointOrientation(cp, outputOrientation);
+            hasRunBefore = true;
         }
     }
 }

@@ -18,7 +18,10 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly ParticleColorBlendMode tintBlendMode = ParticleColorBlendMode.PARTICLEBLEND_DEFAULT;
         private readonly ParticleField fieldOutput = ParticleField.Color;
 
-        private Vector3 sampledPosition;
+        // Light last sampled at the tint control point, and where that point was. Starting infinitely
+        // far away forces the first sample.
+        private Vector3 sampledPosition = new(float.PositiveInfinity);
+        private Vector3 sampledLight = Vector3.One;
 
         public RandomColor(ParticleDefinitionParser parse) : base(parse)
         {
@@ -30,7 +33,7 @@ namespace ValveResourceFormat.Particles.Initializers
             tintControlPoint = parse.Int32("m_nTintCP", tintControlPoint);
             updateThreshold = parse.Float("m_flUpdateThreshold", updateThreshold);
             lightAmplification = parse.Float("m_flLightAmplification", lightAmplification);
-            tintBlendMode = parse.Enum("m_nTintBlendMode", tintBlendMode);
+            tintBlendMode = parse.EnumNormalized("m_nTintBlendMode", tintBlendMode);
             fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
         }
 
@@ -42,10 +45,10 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (tintPercentage > 0f)
             {
-                var tint = Vector3.Clamp(SampleLight(particleSystemState), tintMin, tintMax) * lightAmplification;
+                var tint = Vector3.Clamp(SampleLight(particleSystemState) * lightAmplification, tintMin, tintMax);
                 var tinted = tintBlendMode.Blend(color, tint);
 
-                color = Vector3.Min(MathUtils.Lerp(color, tinted, tintPercentage), Vector3.One);
+                color = Vector3.Lerp(color, tinted, MathUtils.Saturate(tintPercentage));
             }
 
             particle.SetVector(fieldOutput, color);
@@ -53,38 +56,18 @@ namespace ValveResourceFormat.Particles.Initializers
             return particle;
         }
 
-        public override void Reset()
-        {
-            sampledPosition = Vector3.Zero;
-        }
-
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-        }
-
-        /// <summary>
-        /// The light at the tint control point. A parent system's sample at the same control point is
-        /// reused; otherwise the system's own sample holds until the control point moves
-        /// <c>m_flUpdateThreshold</c> away from where this initializer last sampled it.
-        /// </summary>
+        // Re-sampled only once the control point moves past m_flUpdateThreshold from the last sample.
         private Vector3 SampleLight(ParticleSystemState particleSystemState)
         {
-            if (particleSystemState.ParentSystem is { } parent && parent.TintCacheControlPoint == tintControlPoint)
-            {
-                return parent.TintCacheColor;
-            }
-
             var position = particleSystemState.GetControlPoint(tintControlPoint).Position;
 
-            if (particleSystemState.TintCacheControlPoint != tintControlPoint
-                || Vector3.DistanceSquared(position, sampledPosition) >= updateThreshold * updateThreshold)
+            if (Vector3.DistanceSquared(position, sampledPosition) > updateThreshold * updateThreshold)
             {
-                particleSystemState.TintCacheColor = particleSystemState.Lighting.SampleAmbientLight(position);
-                particleSystemState.TintCacheControlPoint = tintControlPoint;
+                sampledLight = particleSystemState.Lighting.SampleAmbientLight(position);
                 sampledPosition = position;
             }
 
-            return particleSystemState.TintCacheColor;
+            return sampledLight;
         }
     }
 }

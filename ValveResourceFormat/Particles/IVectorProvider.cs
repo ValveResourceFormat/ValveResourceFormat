@@ -1,4 +1,3 @@
-using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles
@@ -39,24 +38,6 @@ namespace ValveResourceFormat.Particles
         public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => value;
     }
 
-    /// <summary>
-    /// An input evaluated for the whole collection, as a <c>CParticleCollectionVecInput</c> is. A read
-    /// for a particle gets the collection value, which holds for the whole function call.
-    /// </summary>
-    readonly struct CollectionVectorInput : IVectorProvider
-    {
-        private readonly IVectorProvider input;
-
-        public CollectionVectorInput(IVectorProvider input)
-        {
-            this.input = input;
-        }
-
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => input.NextVector(renderState);
-
-        public Vector3 NextVector(ParticleSystemState renderState) => input.NextVector(renderState);
-    }
-
     // Literal Color
     readonly struct LiteralColorVectorProvider : IVectorProvider
     {
@@ -71,65 +52,59 @@ namespace ValveResourceFormat.Particles
         public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => value;
     }
 
-    /// <summary>
-    /// PVEC_TYPE_PARTICLE_VECTOR and PVEC_TYPE_PARTICLE_INITIAL_VECTOR. A vector attribute scaled per
-    /// component, the initial variant as the particle's initializers left it. Zero for the collection.
-    /// </summary>
+    // Per-Particle Vector
     readonly struct PerParticleVectorProvider : IVectorProvider
     {
-        private readonly ParticleField vectorAttribute = ParticleField.Color;
+        private readonly ParticleField vectorAttribute;
         private readonly Vector3 vectorAttributeScale = Vector3.One;
-        private readonly bool initial;
+        private readonly int controlPoint = -1;
+        private readonly Vector3 controlPointValueScale = Vector3.One;
+        private readonly Vector3 controlPointRelativePosition = Vector3.Zero;
+        private readonly Vector3 controlPointRelativeDirection = Vector3.Zero;
 
-        public PerParticleVectorProvider(ParticleDefinitionParser parse, bool initial)
+        public PerParticleVectorProvider(ParticleDefinitionParser parse)
         {
-            vectorAttribute = parse.ParticleField("m_nVectorAttribute", vectorAttribute);
+            vectorAttribute = parse.ParticleField("m_nVectorAttribute");
             vectorAttributeScale = parse.Vector3("m_vVectorAttributeScale", vectorAttributeScale);
-            this.initial = initial;
+            controlPoint = parse.Int32("m_nControlPoint", controlPoint);
+            controlPointValueScale = parse.Vector3("m_vCPValueScale", controlPointValueScale);
+            controlPointRelativePosition = parse.Vector3("m_vCPRelativePosition", controlPointRelativePosition);
+            controlPointRelativeDirection = parse.Vector3("m_vCPRelativeDir", controlPointRelativeDirection);
         }
 
         public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
         {
-            ref var source = ref initial ? ref renderState.InitialOf(ref particle) : ref particle;
-            return vectorAttributeScale * source.GetVector(vectorAttribute);
-        }
+            var result = vectorAttributeScale * particle.GetVector(vectorAttribute);
 
-        public Vector3 NextVector(ParticleSystemState renderState) => Vector3.Zero;
+            if (controlPoint < 0)
+            {
+                return result;
+            }
+
+            var cp = renderState.GetControlPoint(controlPoint);
+            result = cp.Position * controlPointValueScale;
+            result += controlPointRelativePosition;
+
+            if (controlPointRelativeDirection != Vector3.Zero)
+            {
+                result += cp.Orientation != Vector3.Zero
+                    ? cp.Orientation - controlPointRelativeDirection
+                    : -controlPointRelativeDirection;
+            }
+
+            return result;
+        }
     }
 
-    /// <summary>PVEC_TYPE_PARTICLE_VELOCITY. The particle's velocity scaled per component. Zero for the collection.</summary>
+    // Particle Velocity
     readonly struct ParticleVelocityVectorProvider : IVectorProvider
     {
-        private readonly Vector3 vectorAttributeScale = Vector3.One;
-
-        public ParticleVelocityVectorProvider(ParticleDefinitionParser parse)
+        // unknown if any other values are used
+        public ParticleVelocityVectorProvider()
         {
-            vectorAttributeScale = parse.Vector3("m_vVectorAttributeScale", vectorAttributeScale);
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
-            => vectorAttributeScale * particle.GetVelocity(renderState.Data?.CurrentFrameTime ?? 0f);
-
-        public Vector3 NextVector(ParticleSystemState renderState) => Vector3.Zero;
-    }
-
-    /// <summary>
-    /// PVEC_TYPE_NAMED_VALUE. The system's vector named value, as it stands now when following it and
-    /// as the system started with otherwise. Zero when it has none.
-    /// </summary>
-    readonly struct NamedValueVectorProvider : IVectorProvider
-    {
-        private readonly string name;
-        private readonly bool follow;
-
-        public NamedValueVectorProvider(ParticleDefinitionParser parse)
-        {
-            name = parse.String("m_NamedValue");
-            follow = parse.Boolean("m_bFollowNamedValue");
-        }
-
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
-            => renderState.Data?.NamedValues.GetVector(name, follow) ?? Vector3.Zero;
+        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => particle.Velocity;
     }
 
     // CP Value
@@ -170,7 +145,7 @@ namespace ValveResourceFormat.Particles
         }
     }
 
-    /// <summary>PVEC_TYPE_CP_RELATIVE_POSITION. An offset placed in the control point's frame.</summary>
+    // CP Relative Position
     readonly struct CPRelativePositionProvider : IVectorProvider
     {
         private readonly int cp;
@@ -182,14 +157,16 @@ namespace ValveResourceFormat.Particles
         }
 
         public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
-            => ControlPointTransformProvider.TransformPosition(renderState, cp, relativePosition);
+        {
+            return renderState.GetControlPoint(cp).Position + relativePosition; // this is weird as hell but its actually how it works
+        }
     }
 
-    /// <summary>PVEC_TYPE_CP_RELATIVE_DIR. A direction rotated into the control point's frame.</summary>
+    // CP Relative Direction
     readonly struct CPRelativeDirectionProvider : IVectorProvider
     {
         private readonly int cp;
-        private readonly Vector3 relativeDirection = Vector3.UnitX;
+        private readonly Vector3 relativeDirection = Vector3.Zero;
         public CPRelativeDirectionProvider(ParticleDefinitionParser parse)
         {
             cp = parse.Int32("m_nControlPoint");
@@ -197,19 +174,18 @@ namespace ValveResourceFormat.Particles
         }
 
         public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
-            => ControlPointTransformProvider.TransformDirection(renderState, cp, relativeDirection);
+        {
+            var cpDirection = renderState.GetControlPoint(cp).Orientation;
+            if (renderState.GetControlPoint(cp).Orientation == Vector3.Zero || relativeDirection == Vector3.Zero)
+            {
+                return Vector3.Zero;
+            }
+            return cpDirection - relativeDirection;
+        }
     }
 
-    /// <summary>
-    /// PVEC_TYPE_RANDOM_UNIFORM. Each block of four particles in a function call takes twelve draws,
-    /// four per axis, and a particle reads the draw of its lane in each axis. A collection read takes
-    /// one such block per call and reads its first lane.
-    /// </summary>
     class RandomUniformVectorProvider : IVectorProvider
     {
-        private const float MinimumRangeSquared = ParticleMath.FloatEpsilon;
-        private const int BlockDraws = 12;
-
         private readonly Vector3 min;
         private readonly Vector3 max;
 
@@ -219,78 +195,37 @@ namespace ValveResourceFormat.Particles
         /// </summary>
         private readonly bool isDegenerate;
 
-        private ParticleRandom.EvaluationKey? blockKey;
-        private int blockCounter;
-
         public RandomUniformVectorProvider(ParticleDefinitionParser parse)
         {
             min = parse.Vector3("m_vRandomMin");
             max = parse.Vector3("m_vRandomMax");
-            isDegenerate = Vector3.DistanceSquared(min, max) <= MinimumRangeSquared;
+            isDegenerate = min == max;
         }
 
-        public virtual Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => Draw(renderState.Random, particle.Index);
-
-        public virtual Vector3 NextVector(ParticleSystemState renderState) => Draw(renderState.Random, -1);
-
-        private Vector3 Draw(ParticleRandom random, int particleIndex)
+        public virtual Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
         {
-            if (isDegenerate)
-            {
-                return min;
-            }
-
-            var key = random.Evaluation(particleIndex);
-
-            if (blockKey != key)
-            {
-                blockKey = key;
-                blockCounter = random.Reserve(BlockDraws);
-            }
-
-            var lane = blockCounter + (particleIndex < 0 ? 0 : particleIndex & 3);
-
-            return MathUtils.Lerp(min, max, new Vector3(random.Drawn(lane), random.Drawn(lane + 4), random.Drawn(lane + 8)));
+            return isDegenerate
+                ? min
+                : renderState.Random.NextBetweenPerComponent(min, max);
         }
     }
 
     class RandomUniformOffsetVectorProvider : RandomUniformVectorProvider
     {
-        private readonly ParticleField vectorAttribute = ParticleField.Color;
+        private readonly ParticleField vectorAttribute;
         private readonly Vector3 vectorAttributeScale = Vector3.One;
 
         public RandomUniformOffsetVectorProvider(ParticleDefinitionParser parse) : base(parse)
         {
-            vectorAttribute = parse.ParticleField("m_nVectorAttribute", vectorAttribute);
+            vectorAttribute = parse.ParticleField("m_nVectorAttribute");
             vectorAttributeScale = parse.Vector3("m_vVectorAttributeScale", vectorAttributeScale);
         }
 
         public override Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
-            => (vectorAttributeScale * particle.GetVector(vectorAttribute)) + base.NextVector(ref particle, renderState);
-
-        public override Vector3 NextVector(ParticleSystemState renderState)
-            => (vectorAttributeScale * Particle.Default.GetVector(vectorAttribute)) + base.NextVector(renderState);
-    }
-
-    /// <summary>
-    /// PVEC_TYPE_CP_RELATIVE_RANDOM_DIR. A random vector rotated into the control point's frame as it
-    /// stood when the particle was created.
-    /// </summary>
-    class CPRelativeRandomDirectionProvider : RandomUniformVectorProvider
-    {
-        private readonly ControlPointTransformProvider controlPoint;
-
-        public CPRelativeRandomDirectionProvider(ParticleDefinitionParser parse) : base(parse)
         {
-            controlPoint = new ControlPointTransformProvider(parse.Int32("m_nControlPoint"), true);
+            var baseValue = vectorAttributeScale * particle.GetVector(vectorAttribute);
+            return baseValue + base.NextVector(ref particle, renderState);
         }
-
-        public override Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
-            => Vector3.TransformNormal(base.NextVector(ref particle, renderState),
-                controlPoint.NextTransformAtTime(ref particle, renderState, particle.CreationTime));
-
-        public override Vector3 NextVector(ParticleSystemState renderState)
-            => Vector3.TransformNormal(base.NextVector(renderState), controlPoint.NextTransform(ref Particle.Default, renderState));
     }
 
     // 3 Float Inputs
@@ -311,64 +246,107 @@ namespace ValveResourceFormat.Particles
             x.NextNumber(ref particle, renderState),
             y.NextNumber(ref particle, renderState),
             z.NextNumber(ref particle, renderState));
-
-        public Vector3 NextVector(ParticleSystemState renderState) => new(
-            x.NextNumber(renderState),
-            y.NextNumber(renderState),
-            z.NextNumber(renderState));
     }
 
-    /// <summary>
-    /// PVEC_TYPE_FLOAT_INTERP_CLAMPED, PVEC_TYPE_FLOAT_INTERP_OPEN and PVEC_TYPE_FLOAT_INTERP_GRADIENT.
-    /// A float input placed in its input range, then blended between the two outputs or looked up in
-    /// the gradient.
-    /// </summary>
+    // Float Interp (Clamped) & Float Interp (Open)
     readonly struct FloatInterpolationVectorProvider : IVectorProvider
     {
         private readonly INumberProvider floatInterp = new LiteralNumberProvider(0);
         private readonly float input0;
-        private readonly float input1 = 1f;
+        private readonly float input1;
         private readonly Vector3 output0;
-        private readonly Vector3 output1 = Vector3.One;
-        private readonly bool clamp;
-        private readonly ColorGradient? gradient;
+        private readonly Vector3 output1;
 
-        public FloatInterpolationVectorProvider(ParticleDefinitionParser parse, bool isClamped, bool isGradient)
+        private readonly bool clamp;
+
+        public FloatInterpolationVectorProvider(ParticleDefinitionParser parse, bool isClamped)
+        {
+            clamp = isClamped;
+            floatInterp = parse.NumberProvider("m_FloatInterp", floatInterp);
+            input0 = parse.Float("m_flInterpInput0");
+            input1 = parse.Float("m_flInterpInput1");
+
+            output0 = parse.Vector3("m_vInterpOutput0");
+            output1 = parse.Vector3("m_vInterpOutput1");
+        }
+
+        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
+        {
+            var remappedInput = MathUtils.Remap(floatInterp.NextNumber(ref particle, renderState), input0, input1);
+
+            if (clamp)
+            {
+                remappedInput = MathUtils.Saturate(remappedInput);
+            }
+            return Vector3.Lerp(output0, output1, remappedInput);
+        }
+    }
+
+    // Color Gradient
+    readonly struct ColorGradientVectorProvider : IVectorProvider
+    {
+        private struct GradientStop
+        {
+            public float Position { get; set; }
+            public Vector3 Color { get; set; }
+        }
+        private readonly GradientStop[] gradientStops;
+        private readonly INumberProvider floatInterp = new LiteralNumberProvider(0);
+        private readonly float input0;
+        private readonly float input1;
+
+        public ColorGradientVectorProvider(ParticleDefinitionParser parse)
         {
             floatInterp = parse.NumberProvider("m_FloatInterp", floatInterp);
-            input0 = parse.Float("m_flInterpInput0", input0);
-            input1 = parse.Float("m_flInterpInput1", input1);
-            output0 = parse.Vector3("m_vInterpOutput0", output0);
-            output1 = parse.Vector3("m_vInterpOutput1", output1);
-            clamp = isClamped;
+            input0 = parse.Float("m_flInterpInput0");
+            input1 = parse.Float("m_flInterpInput1");
 
-            if (isGradient)
+            var stops = parse.Data.GetSubCollection("m_Gradient")
+                .GetArray("m_Stops");
+
+            gradientStops = new GradientStop[stops.Count];
+
+            for (var i = 0; i < stops.Count; i++)
             {
-                gradient = new ColorGradient(parse.Data.GetSubCollection("m_Gradient"));
+                var position = stops[i].GetFloatProperty("m_flPosition");
+                var color = stops[i].GetArray<int>("m_Color");
+
+                var newGradientStop = new GradientStop
+                {
+                    Position = position,
+                    Color = new Vector3(color[0], color[1], color[2]) / 255.0f
+                };
+                gradientStops[i] = newGradientStop;
             }
         }
 
         public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
-            => Interpolate(floatInterp.NextNumber(ref particle, renderState));
-
-        public Vector3 NextVector(ParticleSystemState renderState)
-            => Interpolate(floatInterp.NextNumber(renderState));
-
-        private Vector3 Interpolate(float value)
         {
-            var t = (value - input0) / (input1 - input0);
+            var gradientInput = MathUtils.Remap(floatInterp.NextNumber(ref particle, renderState), input0, input1);
 
-            if (gradient != null)
+            if (gradientInput <= gradientStops[0].Position)
             {
-                return gradient.Evaluate(t);
+                return gradientStops[0].Color;
             }
-
-            if (clamp)
+            else if (gradientInput >= gradientStops[^1].Position)
             {
-                t = MathUtils.Saturate(t);
+                return gradientStops[^1].Color;
             }
+            else
+            {
+                for (var i = 0; i < gradientStops.Length - 1; i++)
+                {
+                    var stop1 = gradientStops[i];
+                    var stop2 = gradientStops[i + 1];
+                    if (gradientInput >= stop1.Position && gradientInput <= stop2.Position)
+                    {
+                        var blend = MathUtils.Remap(gradientInput, stop1.Position, stop2.Position);
+                        return Vector3.Lerp(stop1.Color, stop2.Color, blend);
+                    }
+                }
 
-            return MathUtils.Lerp(output0, output1, t);
+                throw new InvalidOperationException("Gradient error");
+            }
         }
     }
 
@@ -392,4 +370,16 @@ namespace ValveResourceFormat.Particles
 			m_flNoiseImgPreviewScale = 1.000000
 			m_bNoiseImgPreviewLive = true
     */
+
+    // Used for named value:
+    // m_bFollowNamedValue
+
+    /*ALSO NOTE
+     * ParticleTransform Types
+     * PT_TYPE_INVALID
+     * PT_TYPE_NAMED_VALUE
+     * PT_TYPE_CONTROL_POINT
+     * PT_TYPE_CONTROL_POINT_RANGE
+     */
 }
+

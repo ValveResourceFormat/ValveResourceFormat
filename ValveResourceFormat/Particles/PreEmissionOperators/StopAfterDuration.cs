@@ -5,9 +5,8 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
     /// particles immediately or playing the endcap.
     /// </summary>
     /// <remarks>
-    /// The duration is evaluated every step while the system is emitting, and the stop happens in the
-    /// step the age first exceeds it, before that step's emission. A system started again after the
-    /// stop is stopped again.
+    /// The duration is evaluated every frame and the stop happens in the frame the age first exceeds
+    /// it, before that frame's emission. <c>m_bRunOnce</c> has no effect on this operator.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_StopAfterCPDuration">C_OP_StopAfterCPDuration</seealso>
     class StopAfterDuration : ParticleFunctionPreEmissionOperator
@@ -16,6 +15,8 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
         private readonly bool destroy;
         private readonly bool playEndCap = true;
 
+        private bool stopped;
+
         public StopAfterDuration(ParticleDefinitionParser parse) : base(parse)
         {
             duration = parse.NumberProvider("m_flDuration", duration);
@@ -23,15 +24,23 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             playEndCap = parse.Boolean("m_bPlayEndCap", playEndCap);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override bool RunOnce => false;
+
+        public override void Reset()
         {
-            if (particleSystemState.EmissionStopped)
+            stopped = false;
+        }
+
+        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
+        {
+            if (stopped || particleSystemState.InEndCap)
             {
                 return;
             }
 
             if (particleSystemState.Age > duration.NextNumber(particleSystemState))
             {
+                stopped = true;
                 particleSystemState.Data?.StopEmission(destroy, playEndCap);
             }
         }

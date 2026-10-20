@@ -1,5 +1,3 @@
-using ValveResourceFormat.Particles.Utils;
-
 namespace ValveResourceFormat.Particles.PreEmissionOperators
 {
     /// <summary>
@@ -24,20 +22,15 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
         public HSVShiftToCP(ParticleDefinitionParser parse) : base(parse)
         {
-            colorCP = parse.ControlPoint("m_nColorCP", colorCP);
-            colorGemEnableCP = parse.ControlPoint("m_nColorGemEnableCP", colorGemEnableCP);
-            outputCP = parse.ControlPoint("m_nOutputCP", outputCP);
+            colorCP = parse.Int32("m_nColorCP", colorCP);
+            colorGemEnableCP = parse.Int32("m_nColorGemEnableCP", colorGemEnableCP);
+            outputCP = parse.Int32("m_nOutputCP", outputCP);
             defaultColor = parse.Color24("m_DefaultHSVColor", defaultColor);
 
-            defaultHSV = HsvColor.FromRgb(defaultColor);
+            defaultHSV = RgbToHsv(defaultColor);
         }
 
-        public override void AddControlPointDefaults(ControlPointDefaults defaults)
-        {
-            defaults.AddColor(colorCP);
-        }
-
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
         {
             if (particleSystemState.GetControlPoint(colorGemEnableCP).Position.X <= 0f)
             {
@@ -45,7 +38,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                 return;
             }
 
-            var hsv = HsvColor.FromRgb(particleSystemState.GetControlPoint(colorCP).Position / 255f);
+            var hsv = RgbToHsv(particleSystemState.GetControlPoint(colorCP).Position / 255f);
 
             var hueDelta = (hsv.X - defaultHSV.X) / 360f;
 
@@ -78,6 +71,48 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
             particleSystemState.SetControlPointValue(outputCP,
                 new Vector3(gate * hueDelta, saturationRatio - 1f, valueRatio - 1f));
+        }
+
+        /// <summary>
+        /// Converts a normalized RGB triplet to (hue in degrees, saturation, value).
+        /// </summary>
+        private static Vector3 RgbToHsv(Vector3 rgb)
+        {
+            var max = rgb.MaxComponent();
+            var min = rgb.MinComponent();
+            var chroma = max - min;
+
+            var value = max;
+            var saturation = max == 0f ? 0f : chroma / max;
+
+            if (saturation == 0f)
+            {
+                return new Vector3(0f, saturation, value);
+            }
+
+            float sextant;
+
+            if (rgb.X == max)
+            {
+                sextant = (rgb.Y - rgb.Z) / chroma;
+            }
+            else if (rgb.Y == max)
+            {
+                sextant = ((rgb.Z - rgb.X) / chroma) + 2f;
+            }
+            else
+            {
+                sextant = ((rgb.X - rgb.Y) / chroma) + 4f;
+            }
+
+            var hue = sextant * 60f;
+
+            if (hue < 0f)
+            {
+                hue += 360f;
+            }
+
+            return new Vector3(hue, saturation, value);
         }
     }
 }

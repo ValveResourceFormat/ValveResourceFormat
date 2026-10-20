@@ -39,7 +39,18 @@ namespace ValveResourceFormat.Particles.Initializers
             var sampleTime = (particle.CreationTime + offset) * noiseScale;
             var noise = Noise.Value3D(samplePosition + new Vector3(sampleTime));
 
-            var fraction = ParticleMath.ClampToUnit(CreationNoise.MapToRange(noise, absVal, absValInv, ageMin, ageMax));
+            // abs folds the signed noise into the full range; otherwise the half-span scale centers
+            // it. absValInv inverts either way.
+            var absScale = absVal ? 1f : 0.5f;
+            var normalized = absVal ? MathF.Abs(noise) : noise;
+
+            if (absValInv)
+            {
+                normalized = 1f - normalized;
+            }
+
+            var span = ageMax - ageMin;
+            var fraction = MathUtils.Saturate(ageMin + ((1f - absScale) * span) + (absScale * span * normalized));
             var age = fraction * particle.Lifetime;
 
             particle.Age += age;

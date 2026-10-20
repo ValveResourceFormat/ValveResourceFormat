@@ -57,11 +57,6 @@ namespace ValveResourceFormat.Particles.Initializers
             }
         }
 
-        public override void AddControlPointDefaults(ControlPointDefaults defaults)
-        {
-            defaults.AddScale(controlPoint, controlPointComponent);
-        }
-
         public override void Reset()
         {
             count = 0;
@@ -104,14 +99,14 @@ namespace ValveResourceFormat.Particles.Initializers
                 // The bias shapes the output value, after the lerp, and is skipped entirely at its identity
                 if (remapBias != 0.5f)
                 {
-                    output = ParticleMath.Bias(MathUtils.Saturate(output), remapBias);
+                    output = ParticleMath.Bias(output, remapBias);
                 }
 
                 output = scaleInitialRange
                     ? particle.GetScalar(fieldOutput) * output
                     : particle.ModifyScalarBySetMethodAtSpawn(particles, fieldOutput, output, setMethod);
 
-                particle.SetScalar(fieldOutput, fieldOutput.IsIntegerAttribute() ? MathF.Truncate(output) : output);
+                particle.SetScalar(fieldOutput, output);
             }
 
             count++;

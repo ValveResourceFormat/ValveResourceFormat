@@ -31,10 +31,6 @@ namespace ValveResourceFormat.Particles.Operators
             hasRun = false;
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-        }
-
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             if (hasRun || !particleSystemState.InEndCap)

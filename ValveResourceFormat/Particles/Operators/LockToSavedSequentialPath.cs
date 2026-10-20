@@ -30,8 +30,8 @@ namespace ValveResourceFormat.Particles.Operators
 
             var parsed = new ParticlePathParameters(parse);
             pathParams = parsed.WithControlPoints(
-                Math.Clamp(parsed.StartControlPointNumber, 0, ParticleSystemState.MaxControlPoint),
-                Math.Clamp(parsed.EndControlPointNumber, 0, ParticleSystemState.MaxControlPoint));
+                Math.Clamp(parsed.StartControlPointNumber, 0, 63),
+                Math.Clamp(parsed.EndControlPointNumber, 0, 63));
 
             pathCount = cpPairs
                 ? Math.Max(pathParams.EndControlPointNumber - pathParams.StartControlPointNumber, 1)
@@ -44,10 +44,6 @@ namespace ValveResourceFormat.Particles.Operators
         public override void Reset()
         {
             Array.Clear(previousPaths);
-        }
-
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
@@ -74,7 +70,9 @@ namespace ValveResourceFormat.Particles.Operators
                 var current = currentPaths[segmentIndex];
                 var previous = previousPaths[segmentIndex]!.Value;
 
-                var creationFraction = LivedStepFraction(particle, frameTime);
+                var creationFraction = frameTime > 0f
+                    ? MathF.Min(particle.Age, frameTime) / frameTime
+                    : 1f;
 
                 var delta = (ParticlePath.Evaluate(current.Start, current.Mid, current.End, saved.X)
                     - ParticlePath.Evaluate(previous.Start, previous.Mid, previous.End, saved.X)) * creationFraction;

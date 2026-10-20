@@ -22,16 +22,9 @@ namespace ValveResourceFormat.Particles.Utils
         private readonly int controlPoint;
         private readonly bool hasSubset;
 
-        /// <param name="parse">The function's definition.</param>
-        /// <param name="controlPointKey">The key holding the snapshot control point.</param>
-        /// <param name="defaultControlPoint">The control point when the key is absent, or -1 for none.</param>
-        /// <param name="clampControlPoint">Whether the control point is clamped to the valid indices.</param>
-        public SnapshotBinding(ParticleDefinitionParser parse, string controlPointKey = "m_nSnapshotControlPoint", int defaultControlPoint = -1, bool clampControlPoint = false)
+        public SnapshotBinding(ParticleDefinitionParser parse, string controlPointKey = "m_nSnapshotControlPoint", int defaultControlPoint = -1)
         {
-            controlPoint = clampControlPoint
-                ? parse.ControlPoint(controlPointKey, defaultControlPoint)
-                : parse.Int32(controlPointKey, defaultControlPoint);
-
+            controlPoint = parse.Int32(controlPointKey, defaultControlPoint);
             hasSubset = !string.IsNullOrEmpty(parse.Data.GetStringProperty("m_strSnapshotSubset"));
         }
 

@@ -12,50 +12,113 @@ namespace ValveResourceFormat.Particles.Emitters
         }
 
         /// <summary>
-        /// The emitter's position in the system's emitter list, which initializers bind to through
-        /// <c>m_nAssociatedEmitterIndex</c>.
+        /// System age the emitter was last started at. Start times and emission durations are measured
+        /// from it against <see cref="ParticleSystemState.Age"/>, which advances every frame whether or
+        /// not the operator fade left this emitter running.
         /// </summary>
-        public int EmitterIndex { get; set; }
+        protected float StartAge { get; private set; }
 
-        /// <summary>
-        /// The parent particle events this emitter spawns from, or none for an emitter that runs in
-        /// every step. An event emitter runs only when its parent hands it a matching event.
-        /// </summary>
-        public virtual ParticleEventType EventTypeMask => ParticleEventType.PARTICLE_EVENT_TYPE_MASK_NONE;
-
-        /// <summary>Builds the running state the emitter starts with.</summary>
-        public abstract void Reset();
-
-        /// <summary>Called when the system restarts without being destroyed.</summary>
-        public virtual void Restart(ParticleSystemState particleSystemState)
+        /// <summary>Starts the emitter, registering the callback used to spawn particles.</summary>
+        public void Start(Action<float> particleEmitCallback, ParticleSystemState particleSystemState)
         {
+            StartAge = particleSystemState.Age;
+            OnStart(particleEmitCallback);
         }
 
-        /// <summary>Lets the emitter emit again.</summary>
-        public abstract void StartEmission();
+        /// <summary>Resets the emitter's own state for a fresh run.</summary>
+        protected abstract void OnStart(Action<float> particleEmitCallback);
 
-        /// <summary>Stops the emitter.</summary>
-        public abstract void StopEmission();
+        /// <summary>Signals the emitter to stop spawning new particles.</summary>
+        public abstract void Stop();
 
-        /// <summary>Whether the emitter can still create particles.</summary>
-        public abstract bool MayCreateMoreParticles(ParticleSystemState particleSystemState);
+        /// <summary>Runs one frame of emission, scaled by the operator run strength.</summary>
+        public abstract void Emit(float frameTime, ParticleSystemState particleSystemState, float strength);
 
-        /// <summary>
-        /// Runs one step of emission, scaled by the operator run strength. Each particle is created by
-        /// calling <paramref name="emit"/> with its creation time.
-        /// </summary>
-        public abstract void Emit(ParticleSystemState particleSystemState, float strength, Action<float> emit);
+        /// <summary>Gets whether the emitter has finished emitting and will produce no more particles.</summary>
+        public abstract bool IsFinished { get; protected set; }
 
         /// <summary>
-        /// Called after the system jumped forward to <paramref name="time"/>, so the emitter can
-        /// simulate the span it would have emitted over.
+        /// Narrows the frame to the part of it the emitter is active for. An emission duration of 0
+        /// leaves the frame unclipped; the emitter then runs until stopped.
         /// </summary>
-        public virtual void SkipToTime(float time, ParticleSystemSimulation simulation)
+        /// <returns><c>true</c> if any of the frame falls inside the emitting window.</returns>
+        protected static bool TryGetEmissionWindow(float frameStart, float frameEnd, float startTime, float duration,
+            out float windowStart, out float windowEnd)
         {
+            windowStart = frameStart;
+            windowEnd = frameEnd;
+
+            if (startTime > frameEnd)
+            {
+                return false;
+            }
+
+            if (duration != 0f)
+            {
+                windowStart = MathF.Max(startTime, windowStart);
+                windowEnd = MathF.Min(startTime + duration, windowEnd);
+            }
+
+            return windowEnd > windowStart;
         }
 
-        /// <summary>How many more particles the system has room for.</summary>
-        protected static int FreeSlots(ParticleSystemState particleSystemState)
-            => particleSystemState.Data is { } simulation ? simulation.ParticleCapacity - simulation.Particles.Count : 0;
+        /// <summary>
+        /// Sub-frame emission accumulator, shared by the rate-driven emitters: charge it
+        /// over the active part of a frame and it spawns whole particles, staggering their creation
+        /// times evenly across the charged interval so a frame's worth of particles are not coincident.
+        /// </summary>
+        protected struct EmissionAccumulator
+        {
+            private double pending;
+            private double floorEpsilon;
+            private long flushed;
+
+            /// <summary>
+            /// Resets to the emitter's initial state. A charge of 1 emits one particle immediately so
+            /// short or slow emitters still produce something; the continuous emitter instead starts
+            /// uncharged with a small epsilon inside the flush threshold.
+            /// </summary>
+            public void Reset(double initialCharge, float flushEpsilon)
+            {
+                pending = initialCharge;
+                floorEpsilon = flushEpsilon;
+                flushed = 0;
+            }
+
+            /// <summary>Accumulates <paramref name="rate"/> particles per second across the window and spawns whatever came due.</summary>
+            /// <param name="rate">Particles per second.</param>
+            /// <param name="windowStart">Start of the charged interval.</param>
+            /// <param name="windowEnd">End of the charged interval.</param>
+            /// <param name="frameEnd">Time the creation times are measured back from.</param>
+            /// <param name="emit">Spawns one particle of the given age.</param>
+            /// <param name="minimum">Particles spawned even when fewer came due; they are taken from later charges.</param>
+            /// <param name="limit">Most particles spawned by this charge when positive; the rest stay due for later charges.</param>
+            public void Charge(float rate, float windowStart, float windowEnd, float frameEnd, Action<float>? emit, int minimum = 0, int limit = 0)
+            {
+                pending += Math.Max(0f, rate) * (windowEnd - windowStart);
+
+                var toEmit = Math.Max((long)Math.Floor(pending + floorEpsilon) - flushed, minimum);
+
+                if (limit > 0)
+                {
+                    toEmit = Math.Min(toEmit, limit);
+                }
+
+                if (toEmit <= 0)
+                {
+                    return;
+                }
+
+                flushed += toEmit;
+
+                var step = (windowEnd - windowStart) / toEmit;
+
+                for (var i = 0; i < toEmit; i++)
+                {
+                    var creationTime = MathF.Min(windowStart + ((i + 1) * step), windowEnd);
+                    emit?.Invoke(frameEnd - creationTime);
+                }
+            }
+        }
     }
 }

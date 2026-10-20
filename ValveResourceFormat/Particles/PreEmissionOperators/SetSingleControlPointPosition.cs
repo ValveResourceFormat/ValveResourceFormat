@@ -28,21 +28,18 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             hasRunBefore = false;
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
         {
-            var position = cp1Pos.NextVector(particleSystemState);
-
-            if (setOnce)
+            if (!(setOnce && hasRunBefore))
             {
-                if (hasRunBefore)
-                {
-                    return;
-                }
+                var position = cp1Pos.NextVector(particleSystemState);
+
+                position = Vector3.Transform(position, transformInput.NextTransform(ref Particle.Default, particleSystemState));
+
+                particleSystemState.SetControlPointValue(cp1, position);
 
                 hasRunBefore = true;
             }
-
-            particleSystemState.SetControlPointValue(cp1, Vector3.Transform(position, transformInput.NextTransform(particleSystemState)));
         }
     }
 }

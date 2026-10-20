@@ -37,11 +37,6 @@ namespace ValveResourceFormat.Particles.Operators
 
             foreach (ref var particle in particles.Current)
             {
-                if (particle.Lifetime <= 0f)
-                {
-                    continue;
-                }
-
                 // Eased fades draw each channel separately, uneased fades scale all three by one draw
                 var newColor = easeInOut
                     ? new Vector3(
@@ -50,9 +45,13 @@ namespace ValveResourceFormat.Particles.Operators
                         particleSystemState.Random.ForParticleBetween(particle.ParticleId, BlueOffset, colorFadeMin.Z, colorFadeMax.Z))
                     : particleSystemState.Random.ForParticleBetween(particle.ParticleId, RedOffset, colorFadeMin, colorFadeMax);
 
-                var t = ColorInterpolate.FadeFraction(particle.Age / particle.Lifetime, fadeStartTime, fadeEndTime, easeInOut);
+                var t = easeInOut
+                    ? MathUtils.Smoothstep(fadeStartTime, fadeEndTime, particle.NormalizedAge)
+                    : MathUtils.Saturate(MathUtils.Remap(particle.NormalizedAge, fadeStartTime, fadeEndTime));
 
-                particle.SetVector(fieldOutput, MathUtils.Lerp(particle.GetInitialVector(particles, fieldOutput), newColor, t));
+                var initialColor = particle.GetInitialVector(particles, fieldOutput);
+
+                particle.SetVector(fieldOutput, initialColor + ((newColor - initialColor) * t));
             }
         }
     }

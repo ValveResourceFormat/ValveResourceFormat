@@ -3,13 +3,20 @@ using ValveResourceFormat.Particles.Utils;
 
 namespace ValveResourceFormat.Particles
 {
+
     /// <summary>Snapshots this system publishes to its control points.</summary>
     public partial class ParticleSystemSimulation
     {
         /// <summary>
-        /// Binds the snapshot to its control point on this system and every child, replacing whatever
-        /// a child bound to the same control point itself. A runtime snapshot handed in at construction
-        /// (the cable node's rope points) overrides the authored <c>m_hSnapshot</c>.
+        /// The snapshot bound to each control point: the system's own <c>m_hSnapshot</c> or an injected
+        /// runtime one. Functions look it up through <see cref="ParticleSystemState"/>, which walks up
+        /// to the parent.
+        /// </summary>
+        private readonly Dictionary<int, ParticleSnapshot> controlPointSnapshots = [];
+
+        /// <summary>
+        /// Binds the snapshot to its control point. A runtime snapshot handed in at construction (the cable
+        /// node's rope points) overrides the authored <c>m_hSnapshot</c>.
         /// </summary>
         private void PublishSnapshot(ParticleDefinitionParser parse, ParticleSnapshot? runtimeSnapshot)
         {
@@ -18,15 +25,25 @@ namespace ValveResourceFormat.Particles
 
             if (snapshot != null)
             {
-                systemState.SetControlPointSnapshot(controlPoint, snapshot);
+                controlPointSnapshots[controlPoint] = snapshot;
             }
         }
 
         /// <summary>
-        /// Replaces the control point's snapshot with one built at runtime, on this system and every
-        /// child. Readers pick it up on next use.
+        /// Replaces the control point's snapshot with one built at runtime. Readers pick it up on next use.
         /// </summary>
         internal void SetControlPointSnapshot(int controlPoint, ParticleSnapshot snapshot)
-            => systemState.SetControlPointSnapshot(controlPoint, snapshot);
+        {
+            controlPointSnapshots[controlPoint] = snapshot;
+        }
+
+        /// <summary>
+        /// Gets the particle snapshot associated with the given control point, or null if none exists.
+        /// </summary>
+        internal ParticleSnapshot? GetControlPointSnapshot(int controlPoint)
+        {
+            controlPointSnapshots.TryGetValue(controlPoint, out var snap);
+            return snap;
+        }
     }
 }

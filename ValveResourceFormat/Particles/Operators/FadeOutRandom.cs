@@ -13,7 +13,7 @@ namespace ValveResourceFormat.Particles.Operators
         /// <summary>Eases the fade along a smoothstep rather than running it out linearly.</summary>
         private readonly bool easeInAndOut = true;
 
-        public FadeOutRandom(ParticleDefinitionParser parse) : base(parse, "m_flFadeOutTime", randomFromZeroIsInstant: true)
+        public FadeOutRandom(ParticleDefinitionParser parse) : base(parse, "m_flFadeOutTime")
         {
             easeInAndOut = parse.Boolean("m_bEaseInAndOut", easeInAndOut);
 
@@ -40,11 +40,7 @@ namespace ValveResourceFormat.Particles.Operators
                         elapsedFraction = MathUtils.Smoothstep(0f, 1f, elapsedFraction);
                     }
 
-                    var initialAlpha = particle.GetInitialScalar(particles, ParticleField.Alpha);
-
-                    particle.Alpha = easeInAndOut
-                        ? MathF.Max(0f, (1f - elapsedFraction) * initialAlpha)
-                        : (1f - elapsedFraction) * initialAlpha;
+                    particle.Alpha = (1f - elapsedFraction) * particle.GetInitialScalar(particles, ParticleField.Alpha);
                 }
             }
         }

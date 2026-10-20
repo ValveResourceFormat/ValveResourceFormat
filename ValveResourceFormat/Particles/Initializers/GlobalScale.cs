@@ -2,8 +2,7 @@ namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
     /// Uniformly scales a particle's radius, spawn position and velocity by a literal scale,
-    /// optionally multiplied by the X component of a scale control point. A scale control point
-    /// reading 0 is taken as unset and ignored, since games always set it and previews never do.
+    /// optionally multiplied by the value carried on a scale control point.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_GlobalScale">C_INIT_GlobalScale</seealso>
     class GlobalScale : ParticleFunctionInitializer
@@ -19,15 +18,10 @@ namespace ValveResourceFormat.Particles.Initializers
         {
             scale = parse.Float("m_flScale", scale);
             scaleControlPoint = parse.Int32("m_nScaleControlPointNumber", scaleControlPoint);
-            controlPoint = parse.ControlPoint("m_nControlPointNumber", controlPoint);
+            controlPoint = parse.Int32("m_nControlPointNumber", controlPoint);
             scaleRadius = parse.Boolean("m_bScaleRadius", scaleRadius);
             scalePosition = parse.Boolean("m_bScalePosition", scalePosition);
             scaleVelocity = parse.Boolean("m_bScaleVelocity", scaleVelocity);
-        }
-
-        public override void AddControlPointDefaults(ControlPointDefaults defaults)
-        {
-            defaults.AddScale(scaleControlPoint);
         }
 
         public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.Radius) | FieldMask(ParticleField.HitboxOffsetPosition);
@@ -38,12 +32,17 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (scaleControlPoint >= 0)
             {
+                // The scale is carried in the control point's X component, driven game-side from the
+                // effect's control point configuration. An undriven point reads zero, which would
+                // collapse the effect entirely, so treat that as "no scale supplied".
                 var controlPointScale = particleSystemState.GetControlPoint(scaleControlPoint).Position.X;
 
-                if (controlPointScale != 0f)
+                if (controlPointScale == 0f)
                 {
-                    finalScale *= controlPointScale;
+                    return particle;
                 }
+
+                finalScale *= controlPointScale;
             }
 
             if (finalScale == 1f)
@@ -56,29 +55,16 @@ namespace ValveResourceFormat.Particles.Initializers
                 particle.Radius *= finalScale;
             }
 
-            var origin = particleSystemState.GetControlPoint(controlPoint).Position;
-            var position = particle.Position;
-            var previous = particle.PositionPrevious;
-            var velocity = position - previous;
-
             if (scalePosition)
             {
-                position = origin + ((position - origin) * finalScale);
+                var origin = particleSystemState.GetControlPoint(controlPoint).Position;
+                particle.Position = origin + ((particle.Position - origin) * finalScale);
             }
 
             if (scaleVelocity)
             {
-                previous = scalePosition
-                    ? origin + ((previous - origin) * finalScale)
-                    : position - (velocity * finalScale);
+                particle.Velocity *= finalScale;
             }
-            else if (scalePosition)
-            {
-                previous = position - velocity;
-            }
-
-            particle.Position = position;
-            particle.PositionPrevious = previous;
 
             return particle;
         }

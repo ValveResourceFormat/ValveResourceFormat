@@ -1,28 +1,22 @@
-using ValveResourceFormat.Particles.Utils;
-
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
-    /// Kills a particle when its alpha, multiplied by its alternate alpha, falls to or below the
-    /// specified minimum alpha threshold.
+    /// Kills a particle when its alpha falls to or below the specified minimum alpha threshold.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_AlphaDecay">C_OP_AlphaDecay</seealso>
     class AlphaDecay : ParticleFunctionOperator
     {
         private readonly float minAlpha;
-
         public AlphaDecay(ParticleDefinitionParser parse) : base(parse)
         {
-            minAlpha = MathF.Max(0f, parse.Float("m_flMinAlpha", minAlpha));
+            minAlpha = parse.Float("m_flMinAlpha", minAlpha);
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            var threshold = minAlpha + ParticleMath.FloatEpsilon;
-
             foreach (ref var particle in particles.Current)
             {
-                if (particle.Alpha * particle.AlphaAlternate <= threshold)
+                if (particle.Alpha <= minAlpha)
                 {
                     particle.Kill();
                 }

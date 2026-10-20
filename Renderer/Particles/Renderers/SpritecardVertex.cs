@@ -14,8 +14,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         [VertexAttribute(VertexSlot.Color)] public Vector4 Color;
         [VertexAttribute(VertexSlot.TexCoord)] public Vector2 UV;
         [VertexAttribute(VertexSlot.TexCoord1)] public Vector2 UVNextFrame;
-        /// <summary>How far between its two sheet frames the card has crossed in x, and the alpha test threshold and window in y and z.</summary>
-        [VertexAttribute("vFrameBlendAlphaRef")] public Vector3 FrameBlendAlphaReference;
+        [VertexAttribute("vFrameBlend")] public float FrameBlend;
         [VertexAttribute("vLayerUv0")] public Vector4 LayerUv0;
         [VertexAttribute("vLayerUv1")] public Vector4 LayerUv1;
         [VertexAttribute("vLayerUv2")] public Vector4 LayerUv2;
@@ -31,7 +30,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             VertexAttributeLocations.GetName(VertexSlot.Color),
             VertexAttributeLocations.GetName(VertexSlot.TexCoord),
             VertexAttributeLocations.GetName(VertexSlot.TexCoord1),
-            "vFrameBlendAlphaRef",
+            "vFrameBlend",
             "vAxisU",
             "vAxisV",
             "vColorTail",

@@ -6,12 +6,10 @@ namespace ValveResourceFormat.Particles.Operators
     /// particles.
     /// </summary>
     /// <remarks>
-    /// With <c>m_bLOS</c> a trace runs from the start transform toward the end one, and a blocked
-    /// trace scales the distance by the hit fraction times <c>m_flLOSScale</c>, so with the default
-    /// scale of 0 any hit makes the distance 0. A distance longer than <c>m_flMaxTraceLength</c>
-    /// shortens the trace to that length along the direction of the end position from the world
-    /// origin, not from the start transform. <c>m_CollisionGroupName</c> and <c>m_nTraceSet</c> are
-    /// not read; the trace hits all world collision.
+    /// The line-of-sight fields (<c>m_bLOS</c>, <c>m_CollisionGroupName</c>, <c>m_nTraceSet</c>,
+    /// <c>m_flMaxTraceLength</c>, <c>m_flLOSScale</c>) gate an occlusion trace between the two
+    /// transforms. VRF performs no collision traces, so every trace is clear (fraction 1.0) and
+    /// no occlusion factor is ever applied.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_DistanceBetweenTransforms">C_OP_DistanceBetweenTransforms</seealso>
     class DistanceBetweenTransforms : ParticleFunctionOperator
@@ -24,7 +22,6 @@ namespace ValveResourceFormat.Particles.Operators
         private readonly ITransformProvider transformStart = new ControlPointTransformProvider();
         private readonly ITransformProvider transformEnd = new ControlPointTransformProvider();
         private readonly bool los;
-        private readonly float maxTraceLength = -1f;
         private readonly float losScale;
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
 
@@ -38,7 +35,6 @@ namespace ValveResourceFormat.Particles.Operators
             transformStart = parse.TransformInput("m_TransformStart", transformStart);
             transformEnd = parse.TransformInput("m_TransformEnd", transformEnd);
             los = parse.Boolean("m_bLOS", los);
-            maxTraceLength = parse.Float("m_flMaxTraceLength", maxTraceLength);
             losScale = parse.Float("m_flLOSScale", losScale);
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
         }
@@ -51,7 +47,11 @@ namespace ValveResourceFormat.Particles.Operators
 
             if (los)
             {
-                distance = LineOfSightTrace.ScaleDistance(particleSystemState.Collision, start, end, distance, maxTraceLength, losScale);
+                var fraction = TraceFraction();
+                if (fraction != 1f)
+                {
+                    distance *= fraction * losScale;
+                }
             }
 
             foreach (ref var particle in particles.Current)
@@ -70,5 +70,11 @@ namespace ValveResourceFormat.Particles.Operators
                 particle.SetScalar(outputField, float.Lerp(particle.GetScalar(outputField), finalValue, strength));
             }
         }
+
+        /// <summary>
+        /// Completed fraction of the occlusion trace. VRF has no collision tracing, so every trace
+        /// runs clear and returns 1.0.
+        /// </summary>
+        private static float TraceFraction() => 1f;
     }
 }

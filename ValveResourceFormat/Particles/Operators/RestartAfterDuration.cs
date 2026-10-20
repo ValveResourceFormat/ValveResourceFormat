@@ -1,9 +1,7 @@
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
-    /// Restarts the particle system, or only its children of one group, each time a random duration
-    /// has passed since the last restart. The duration is optionally scaled by a control point
-    /// component, read every step. Nothing restarts while the system is stopped.
+    /// Restarts the particle system after a configurable duration.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RestartAfterDuration">C_OP_RestartAfterDuration</seealso>
     class RestartAfterDuration : ParticleFunctionOperator
@@ -15,64 +13,79 @@ namespace ValveResourceFormat.Particles.Operators
         private readonly int childGroupId;
         private readonly bool onlyChildren;
 
-        private float lastRestartTime;
-        private float duration;
+        private float childInterval = -1f;
+        private float childIntervalStart;
 
         public RestartAfterDuration(ParticleDefinitionParser parse) : base(parse)
         {
             durationMin = parse.Float("m_flDurationMin", durationMin);
             durationMax = parse.Float("m_flDurationMax", durationMax);
-            controlPoint = Math.Clamp(parse.Int32("m_nCP", controlPoint), -1, 64);
-            controlPointField = Math.Clamp(parse.Int32("m_nCPField", controlPointField), -1, 2);
+            controlPoint = parse.Int32("m_nCP", controlPoint);
+            controlPointField = parse.Int32("m_nCPField", controlPointField);
             childGroupId = parse.Int32("m_nChildGroupID", childGroupId);
             onlyChildren = parse.Boolean("m_bOnlyChildren", onlyChildren);
         }
 
-        public override void AddControlPointDefaults(ControlPointDefaults defaults)
+        public override void Reset()
         {
-            defaults.AddScale(controlPoint, controlPointField);
-        }
-
-        public override void Initialize(ParticleSystemState particleSystemState)
-        {
-            lastRestartTime = 0f;
-            duration = particleSystemState.Random.NextBetween(durationMin, durationMax);
-        }
-
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
+            childInterval = -1f;
+            childIntervalStart = 0f;
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            if (particleSystemState.EmissionStopped)
-            {
-                return;
-            }
-
-            var scaled = duration;
-
-            if (controlPoint > -1 && controlPointField > -1)
-            {
-                scaled *= particleSystemState.GetControlPoint(controlPoint).Position.GetComponent(controlPointField);
-            }
-
-            if (particleSystemState.Age <= scaled + lastRestartTime)
+            if (particleSystemState.EndEarly)
             {
                 return;
             }
 
             if (onlyChildren)
             {
-                particleSystemState.Data?.RestartChildrenInGroup(childGroupId);
-            }
-            else
-            {
-                particleSystemState.Data?.Restart();
+                OperateOnChildren(particleSystemState);
+                return;
             }
 
-            lastRestartTime = particleSystemState.Age;
-            duration = particleSystemState.Random.NextBetween(durationMin, durationMax);
+            particleSystemState.SetRestartTime(ScaleDuration(SampleDuration(particleSystemState), particleSystemState));
+        }
+
+        private void OperateOnChildren(ParticleSystemState particleSystemState)
+        {
+            if (childInterval < 0f)
+            {
+                childInterval = SampleDuration(particleSystemState);
+                childIntervalStart = particleSystemState.Age;
+            }
+
+            if (particleSystemState.Age <= childIntervalStart + ScaleDuration(childInterval, particleSystemState))
+            {
+                return;
+            }
+
+            particleSystemState.Data?.RestartChildrenInGroup(childGroupId);
+
+            // The interval is re-rolled only once a restart has actually fired, not every frame
+            childIntervalStart = particleSystemState.Age;
+            childInterval = SampleDuration(particleSystemState);
+        }
+
+        /// <summary>
+        /// Draws the next duration from the shared random table, even for an empty range, to stay in
+        /// step with the other functions.
+        /// </summary>
+        private float SampleDuration(ParticleSystemState particleSystemState)
+        {
+            return particleSystemState.Random.NextBetween(durationMin, durationMax);
+        }
+
+        private float ScaleDuration(float duration, ParticleSystemState particleSystemState)
+        {
+            if (controlPoint < 0 || controlPointField < 0)
+            {
+                return duration;
+            }
+
+            var point = particleSystemState.GetControlPoint(controlPoint);
+            return duration * point.Position.GetComponent(controlPointField);
         }
     }
 }

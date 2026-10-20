@@ -42,10 +42,10 @@ namespace ValveResourceFormat.Particles.Operators
             transformInput = parse.TransformInput("m_TransformInput", transformInput);
             startTimeMin = parse.Float("m_flStartTime_min", startTimeMin);
             startTimeMax = parse.Float("m_flStartTime_max", startTimeMax);
-            startTimeExp = ParticleMath.TruncateToQuarterSteps(parse.Float("m_flStartTime_exp", startTimeExp));
+            startTimeExp = Math.Clamp(parse.Float("m_flStartTime_exp", startTimeExp), -255f, 255f);
             endTimeMin = parse.Float("m_flEndTime_min", endTimeMin);
             endTimeMax = parse.Float("m_flEndTime_max", endTimeMax);
-            endTimeExp = ParticleMath.TruncateToQuarterSteps(parse.Float("m_flEndTime_exp", endTimeExp));
+            endTimeExp = Math.Clamp(parse.Float("m_flEndTime_exp", endTimeExp), -255f, 255f);
             fadeRange = parse.Float("m_flRange", fadeRange);
             rangeBias = parse.NumberProvider("m_flRangeBias", rangeBias);
 
@@ -67,10 +67,13 @@ namespace ValveResourceFormat.Particles.Operators
             var transformPosition = transform.Translation;
             var scale = componentScale.NextVector(particleSystemState);
 
+            // Also per frame: the transform does not vary per particle, so neither does its direction
+            var hasOrientation = transformInput.TryGetOrientation(ref Particle.Default, particleSystemState, out var lockedNormal);
+
             if (previousTransformPosition.X == float.MaxValue)
             {
-                previousTransform = transformInput.NextTransformAtTime(ref Particle.Default, particleSystemState, particleSystemState.StepStartAge);
-                previousTransformPosition = previousTransform.Translation;
+                previousTransformPosition = transformPosition;
+                previousTransform = transform;
             }
 
             var delta = transformPosition - previousTransformPosition;
@@ -90,6 +93,11 @@ namespace ValveResourceFormat.Particles.Operators
             // Both sides of the test are squared distances, the threshold having been squared at load
             var instantJump = instantJumpThreshold != 0f && delta.LengthSquared() > instantJumpThreshold;
 
+            if (delta == Vector3.Zero && !lockRotation)
+            {
+                return;
+            }
+
             // A start fadeout of 1 (the default) means the lock never fades and is applied every frame
             var alwaysLocked = startTimeMin >= 1f;
 
@@ -98,7 +106,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             foreach (ref var particle in particles.Current)
             {
-                var window = 1f;
+                var timeFade = 1f;
 
                 if (!alwaysLocked)
                 {
@@ -107,49 +115,71 @@ namespace ValveResourceFormat.Particles.Operators
                     var startTime = particleSystemState.Random.NextWithExponentBetween(startTimeExp, startTimeMin, startTimeMax);
                     var endTime = particleSystemState.Random.NextWithExponentBetween(endTimeExp, endTimeMin, endTimeMax);
 
-                    var lifeFraction = ParticleMath.ClampToUnit(particle.Age / particle.Lifetime);
-                    window = instantJump ? 1f : 1f - ParticleMath.ClampToUnit((lifeFraction - startTime) / (endTime - startTime));
+                    // Fully locked until startTime, fading the lock out until endTime, using normalized lifetime
+                    timeFade = particle.NormalizedAge <= startTime
+                        ? 1f
+                        : 1f - MathUtils.Saturate(MathUtils.Remap(particle.NormalizedAge, startTime, endTime));
 
-                    if (window <= 0f)
+                    if (instantJump)
                     {
-                        continue;
+                        timeFade = 1f;
                     }
+                }
+
+                var lockStrength = strength * timeFade;
+
+                if (lockStrength <= 0f)
+                {
+                    continue;
                 }
 
                 var currentPosition = particle.GetVector(outputField);
 
-                var creationFraction = LivedStepFraction(particle, frameTime);
+                // A particle born partway through the step only travelled with the transform for the
+                // part of the step it existed for
+                var creationFraction = frameTime > 0f
+                    ? MathF.Min(particle.Age, frameTime) / frameTime
+                    : 1f;
 
-                var move = delta * (strength * creationFraction * window);
-                var rotationWeight = window;
+                var scaledDelta = delta * scale * (creationFraction * lockStrength);
 
-                if (fadeRange != 0f)
+                // Always-locked particles weight rotation by strength, others by time fade alone
+                var rotationLockStrength = alwaysLocked ? strength : timeFade;
+
+                if (fadeRange > 0f)
                 {
                     // Distance is measured against the position the particle is about to occupy
-                    var distance = Vector3.Distance(transformPosition, currentPosition + move);
-                    var fade = ParticleMath.Bias(MathF.Min(1f, distance / fadeRange), bias);
+                    var distance = Vector3.Distance(transformPosition, currentPosition + scaledDelta);
+                    var normalizedDistance = MathUtils.Saturate(distance / fadeRange);
+                    var fade = ParticleMath.Bias(normalizedDistance, bias);
 
-                    move *= 1f - fade;
-                    rotationWeight = 1f - (fade * window);
+                    scaledDelta *= 1f - fade;
+                    rotationLockStrength = 1f - (fade * rotationLockStrength);
                 }
 
                 if (lockRotation)
                 {
                     // Move both positions by the transform delta so particles follow the control point's rotation
-                    var weight = scale * (rotationWeight * creationFraction);
-
-                    particle.SetVector(outputField, currentPosition + ((Vector3.Transform(currentPosition, rotationLock) - currentPosition) * weight));
-
                     var currentPrevious = particle.GetVector(outputFieldPrev);
-                    particle.SetVector(outputFieldPrev, currentPrevious + ((Vector3.Transform(currentPrevious, rotationLock) - currentPrevious) * weight * prevPosScale));
+                    var rotatedPosition = Vector3.Transform(currentPosition, rotationLock);
+                    var rotatedPrevious = Vector3.Transform(currentPrevious, rotationLock);
+
+                    var rotationStrength = rotationLockStrength * creationFraction;
+
+                    particle.SetVector(outputFieldPrev, currentPrevious + (rotatedPrevious - currentPrevious) * (rotationStrength * prevPosScale));
+                    particle.SetVector(outputField, currentPosition + (rotatedPosition - currentPosition) * rotationStrength);
+                    // A transform with no orientation of its own has no direction to hand the normal,
+                    // so the particle keeps the one it had
+                    if (hasOrientation)
+                    {
+                        particle.Normal = lockedNormal;
+                    }
                 }
                 else
                 {
                     // Translate the particle with the transform, preserving its offset from it
-                    var scaledMove = move * scale;
-
-                    particle.SetVector(outputField, currentPosition + scaledMove);
-                    particle.SetVector(outputFieldPrev, particle.GetVector(outputFieldPrev) + (scaledMove * prevPosScale));
+                    particle.SetVector(outputFieldPrev, particle.GetVector(outputFieldPrev) + (scaledDelta * prevPosScale));
+                    particle.SetVector(outputField, currentPosition + scaledDelta);
                 }
             }
         }

@@ -156,8 +156,7 @@ namespace ValveResourceFormat.Renderer
             bool? blend = null,
             RsBlendMode? srcBlend = null,
             RsBlendMode? dstBlend = null,
-            RsColorWriteEnableBits? colorWriteMask = null,
-            RsBlendOp? blendOp = null)
+            RsColorWriteEnableBits? colorWriteMask = null)
         {
             var state = CurrentPass;
 
@@ -175,7 +174,6 @@ namespace ValveResourceFormat.Renderer
             state.BlendEnable = blend ?? state.BlendEnable;
             state.ColorWriteMask = colorWriteMask ?? state.ColorWriteMask;
             state.SetBlend(srcBlend ?? state.SrcBlend, dstBlend ?? state.DestBlend);
-            state.Blend.SetBlendOp(0, blendOp ?? state.Blend.BlendOp[0]);
 
             return new RenderPassScope(this, in state);
         }
@@ -415,8 +413,8 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        // Alpha factors and the alpha blend op are not applied yet; the alpha channel blends with the
-        // color factors and operation.
+        // Alpha factors and blend ops are not applied yet; the renderer always blends with the
+        // color factors and the add operation.
         private static void ApplyBlend(in RsBlendStateDesc blend, in RsBlendStateDesc prev, bool pushEverything)
         {
             if (pushEverything || blend.BlendEnable[0] != prev.BlendEnable[0])
@@ -428,12 +426,6 @@ namespace ValveResourceFormat.Renderer
             {
                 CountDriverCall();
                 GL.BlendFunc(ToGL(blend.SrcBlend[0]), ToGL(blend.DestBlend[0]));
-            }
-
-            if (pushEverything || blend.BlendOp[0] != prev.BlendOp[0])
-            {
-                CountDriverCall();
-                GL.BlendEquation(ToGL(blend.BlendOp[0]));
             }
 
             if (pushEverything || blend.AlphaToCoverageEnable != prev.AlphaToCoverageEnable)
@@ -485,16 +477,6 @@ namespace ValveResourceFormat.Renderer
             RsStencilOp.Incr => StencilOp.IncrWrap,
             RsStencilOp.Decr => StencilOp.DecrWrap,
             _ => throw new NotImplementedException($"Unknown stencil operation {operation}"),
-        };
-
-        private static BlendEquationMode ToGL(RsBlendOp operation) => operation switch
-        {
-            RsBlendOp.Add => BlendEquationMode.FuncAdd,
-            RsBlendOp.Subtract => BlendEquationMode.FuncSubtract,
-            RsBlendOp.RevSubtract => BlendEquationMode.FuncReverseSubtract,
-            RsBlendOp.Min => BlendEquationMode.Min,
-            RsBlendOp.Max => BlendEquationMode.Max,
-            _ => throw new NotImplementedException($"Unknown blend operation {operation}"),
         };
 
         private static BlendingFactor ToGL(RsBlendMode factor) => factor switch

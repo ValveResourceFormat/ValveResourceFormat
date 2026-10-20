@@ -54,8 +54,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly bool animateInFps;
         private readonly ParticleBlendMode blendMode = ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ALPHA;
         private readonly ParticleOrientation orientationType;
-        private readonly bool useYawWithNormalAligned;
-        private readonly INumberProvider sequenceOverride = new LiteralNumberProvider(-1f);
 
         private readonly bool outline;
         private readonly Vector4 outlineColor = Vector4.One;
@@ -67,12 +65,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
 
-            (layers, var textureName) = ParticleTextureLayer.Build(parse, rendererContext, DefaultTextureName, srgbRead: TexturesAreColor);
+            (layers, var textureName) = ParticleTextureLayer.Build(parse, rendererContext, DefaultTextureName, srgbRead: OutputIsColor);
 
             var shaderArguments = CreateShaderArguments();
             shaderArguments["S_TEXTURE_LAYERS"] = (byte)(layers.Length - 1);
             shaderArguments["S_PARTICLE_INSTANCED"] = 1;
-            AddSpritecardShaderArguments(shaderArguments);
 
             shader = rendererContext.ShaderLoader.LoadShader(ShaderName, shaderArguments);
 
@@ -82,10 +79,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             vaoHandle = SetupQuadBuffer($"{nameof(RenderSprites)}: {System.IO.Path.GetFileName(textureName)}");
 
             animateInFps = parse.Boolean("m_bAnimateInFPS", animateInFps);
-            orientationType = (ParticleOrientation)Math.Clamp((int)parse.Enum("m_nOrientationType", orientationType),
-                (int)ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED, (int)ParticleOrientation.PARTICLE_ORIENTATION_FULL_3AXIS_ROTATION);
-            useYawWithNormalAligned = parse.Boolean("m_bUseYawWithNormalAligned", useYawWithNormalAligned);
-            sequenceOverride = parse.NumberProvider("m_nSequenceOverride", sequenceOverride);
+            orientationType = parse.Enum("m_nOrientationType", orientationType);
             animationRate = parse.Float("m_flAnimationRate", animationRate);
             minSize = parse.NumberProvider("m_flMinSize", minSize);
             maxSize = parse.NumberProvider("m_flMaxSize", maxSize);
@@ -137,7 +131,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             public Vector4 Color;
             public Vector4 UvRect;
             public Vector4 UvRectNext;
-            public Vector3 FrameBlendAlphaReference;
+            public float FrameBlend;
         }
 
         private static readonly int BaseInstanceFloats = Unsafe.SizeOf<CardInstance>() / sizeof(float);
@@ -163,7 +157,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 new(VertexSlot.Color, DXGI_FORMAT.R32G32B32A32_FLOAT),
                 new(VertexSlot.TexCoord, DXGI_FORMAT.R32G32B32A32_FLOAT),
                 new(VertexSlot.TexCoord1, DXGI_FORMAT.R32G32B32A32_FLOAT),
-                new("vFrameBlendAlphaRef", DXGI_FORMAT.R32G32B32_FLOAT),
+                new("vFrameBlend", DXGI_FORMAT.R32_FLOAT),
             };
 
             for (var layer = 1; layer < layerCount; layer++)
@@ -229,11 +223,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// The frames a layer's own sheet is showing, or null when it carries no sequence.
         /// </summary>
         /// <remarks>
-        /// Layer 0 plays the particle's sequence, later layers the second sequence (0 unless set), and
-        /// a sequence override replaces both. Sequence numbers outside the sheet play sequence 0.
-        /// Layer N of a multi-image frame uses image N, and the last image covers any layers beyond that.
+        /// Layer 0 plays the particle's sequence, later layers the second sequence (0 unless set).
+        /// Sequence numbers outside the sheet play sequence 0. Layer N of a multi-image frame uses
+        /// image N, and the last image covers any layers beyond that.
         /// </remarks>
-        private LayerFrames? GetLayerFrames(int layer, ref Particle particle, int overrideSequence)
+        private LayerFrames? GetLayerFrames(int layer, ref Particle particle)
         {
             var spriteSheetData = layers[layer].Texture.SpriteSheetData;
 
@@ -242,9 +236,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return null;
             }
 
-            var sequenceNumber = overrideSequence >= 0
-                ? overrideSequence
-                : (int)(layer > 0 ? particle.SecondSequenceNumber : particle.SequenceNumber);
+            var sequenceNumber = layer > 0 ? particle.SecondSequenceNumber : particle.SequenceNumber;
             var sequence = spriteSheetData.Sequences[(uint)sequenceNumber < (uint)spriteSheetData.Sequences.Length ? sequenceNumber : 0];
 
             if (sequence.Frames.Length == 0)
@@ -367,17 +359,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private int UpdateVertices(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
             var billboardMatrix = camera.BillboardMatrix;
-            var scales = EvaluateScales(systemState);
-
-            if (scales.Radius == 0f || scales.Alpha == 0f)
-            {
-                return 0;
-            }
-
-            var overrideSequence = (int)MathF.Round(sequenceOverride.NextNumber(systemState));
-            var zeroYaw = !useYawWithNormalAligned
-                && orientationType is ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL
-                    or ParticleOrientation.PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL;
 
             // All four bounds are a radius per unit of camera distance
             var minSizeSlope = minSize.NextNumber(systemState);
@@ -400,13 +381,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             // reused across renderers.
             var instanceFloats = instanceLayout.Stride / sizeof(float);
 
-            var sorted = SortsByDistance && particles.Count > 1;
+            var sorted = SortsByDistance(blendMode) && particles.Count > 1;
 
             using (var vertexBuffer = new RentedBuffer<float>(particles.Count * instanceFloats))
             using (var drawOrder = new RentedBuffer<ulong>(sorted ? particles.Count : 0))
             {
                 var instances = vertexBuffer.Span;
-                var current = GetBlendedParticles(particles, systemState);
+                var current = particles.Current;
                 var i = 0;
 
                 var order = drawOrder.Span;
@@ -418,9 +399,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                 for (var n = 0; n < current.Length; n++)
                 {
-                    ref var particle = ref current[sorted ? (int)(uint)order[n] : current.Length - 1 - n];
-                    var radiusScale = scales.Radius;
-                    var position = BiasTowardCamera(particle.Position, camera.Location);
+                    ref var particle = ref current[sorted ? (int)(uint)order[n] : n];
+                    var radiusScale = RadiusScale.NextNumber(ref particle, systemState);
 
                     // Scales rgb and alpha alike, matching the shader's fade of the whole vertex colour.
                     var colorFade = 1f;
@@ -430,7 +410,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                     if (viewAngleFadeActive)
                     {
-                        var toCamera = camera.Location - position;
+                        var toCamera = camera.Location - particle.Position;
 
                         if (toCamera.LengthSquared() > ParticleMath.MinimumLengthSquared)
                         {
@@ -439,7 +419,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         }
                     }
 
-                    var cameraDistance = Vector3.Distance(camera.Location, position);
+                    var cameraDistance = Vector3.Distance(camera.Location, particle.Position);
                     var radius = particle.Radius * radiusScale;
                     var fadeStart = startFadeSlope * cameraDistance;
                     var fadeEnd = endFadeSlope * cameraDistance;
@@ -461,8 +441,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         radiusScale = MathF.Min(MathF.Max(radius, minSizeSlope * cameraDistance), maxSizeSlope * cameraDistance) / particle.Radius;
                     }
 
-                    var color = BlendColor(ref particle, scales);
-                    var alpha = color.W * colorFade * alphaFade;
+                    var alphaScale = AlphaScale.NextNumber(ref particle, systemState);
+                    var alpha = particle.Alpha * alphaScale * colorFade * alphaFade;
                     var halfWidth = particle.Radius * radiusScale;
 
                     // The spritecard vertex shader scales the corner offset to zero below 1/255 alpha, so
@@ -474,8 +454,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                     // Per-mode quad orientation, ported from the spritecard vertex shader. Every mode folds in
                     // roll and yaw and none of them read pitch; only FULL_3AXIS_ROTATION uses the full basis.
-                    var roll = particle.Rotation.Z * scales.Roll;
-                    var yaw = zeroYaw ? 0f : particle.Rotation.X;
+                    var roll = particle.Rotation.Z;
+                    var yaw = particle.Rotation.X;
                     var (right, up) = orientationType switch
                     {
                         ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED => ScreenAlignedBasis(billboardMatrix, roll, yaw),
@@ -483,7 +463,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         ParticleOrientation.PARTICLE_ORIENTATION_WORLD_Z_ALIGNED => WorldZAlignedBasis(roll, yaw),
                         ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL => ParticleNormalBasis(particle.Normal, roll, yaw),
                         ParticleOrientation.PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL => ScreenAlignToNormalBasis(billboardMatrix, particle.Normal, roll, yaw),
-                        _ => RotationBasis(EntityTransformHelper.EulerAnglesToRotationMatrixRadians(new Vector3(particle.Rotation.Y, yaw, roll))),
+                        _ => RotationBasis(particle.GetRotationMatrix()),
                     };
 
                     // The corner map is corner.x * right + corner.y * up + origin, so the card's axes carry
@@ -494,11 +474,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                     // The centre offset shifts the corners before the radius scales them, so it is
                     // measured in half-widths and folds into the origin along those same two axes.
-                    var origin = position
+                    var origin = particle.Position
                         + (centerOffset.X * right)
                         + (centerOffset.Y * up);
 
-                    var cardFrames = GetLayerFrames(0, ref particle, overrideSequence);
+                    var cardFrames = GetLayerFrames(0, ref particle);
                     var window = GetCardCropWindow(cardFrames);
                     var windowSize = window.Size;
 
@@ -513,17 +493,16 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     var (uvMin, uvMax, uvNextMin, uvNextMax) = GetLayerSheetUvs(cardFrames, window);
 
                     var start = i * instanceFloats;
-                    var alphaReference = GetAlphaReference(ref particle, halfWidth, alpha);
 
                     MemoryMarshal.Cast<float, CardInstance>(instances.Slice(start, BaseInstanceFloats))[0] = new CardInstance
                     {
                         Origin = origin,
                         AxisU = right,
                         AxisV = up,
-                        Color = new Vector4(color.AsVector3() * colorFade, alpha),
+                        Color = new Vector4(particle.Color * colorFade, alpha),
                         UvRect = Rect(uvMin, uvMax),
                         UvRectNext = Rect(uvNextMin, uvNextMax),
-                        FrameBlendAlphaReference = new Vector3(cardFrames?.Blend ?? 0f, alphaReference.X, alphaReference.Y),
+                        FrameBlend = cardFrames?.Blend ?? 0f,
                     };
 
                     var layerRects = MemoryMarshal.Cast<float, Vector4>(
@@ -531,7 +510,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                     for (var layer = 1; layer < layers.Length; layer++)
                     {
-                        var (layerMin, layerMax, layerNextMin, layerNextMax) = GetLayerSheetUvs(GetLayerFrames(layer, ref particle, overrideSequence), window);
+                        var (layerMin, layerMax, layerNextMin, layerNextMax) = GetLayerSheetUvs(GetLayerFrames(layer, ref particle), window);
 
                         layerRects[(layer - 1) * 2] = Rect(layerMin, layerMax);
                         layerRects[((layer - 1) * 2) + 1] = Rect(layerNextMin, layerNextMax);

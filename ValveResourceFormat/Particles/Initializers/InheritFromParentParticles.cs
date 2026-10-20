@@ -4,9 +4,8 @@ namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
     /// Copies one attribute from a parent particle to each new child particle, scaled for scalar and
-    /// vector fields and copied as is for integer fields, walking the parent list with a running index
-    /// that resets to zero past the end rather than wrapping modulo, and keeps its place across a
-    /// restart. Color and alpha class fields clamp to [0, 1] after scaling.
+    /// vector fields, walking the parent list with a running index that resets to zero past the end
+    /// rather than wrapping modulo. Color and alpha class fields clamp to [0, 1] after scaling.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_InheritFromParentParticles">C_INIT_InheritFromParentParticles</seealso>
     class InheritFromParentParticles : ParticleFunctionInitializer
@@ -17,7 +16,7 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly bool randomDistribution;
         private readonly int randomSeed;
 
-        /// <summary>The parent particle attributes are only written from behavior version 9.</summary>
+        /// <summary>The parent particle index attribute is only written from behavior version 9.</summary>
         private readonly bool writeParentIndex;
 
         private int runningIndex;
@@ -37,10 +36,6 @@ namespace ValveResourceFormat.Particles.Initializers
         {
             runningIndex = 0;
             randomCounter = 0;
-        }
-
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
         }
 
         public override ulong WrittenFields
@@ -64,8 +59,12 @@ namespace ValveResourceFormat.Particles.Initializers
             int index;
             if (randomDistribution)
             {
-                var fraction = particleSystemState.Random.NextOrSeeded(randomSeed, ref randomCounter);
-                index = (int)(count * fraction);
+                // A non-zero authored seed drives a counter private to this initializer, leaving the
+                // system's shared draw sequence untouched
+                var fraction = randomSeed != 0
+                    ? ParticleRandom.ForSample(particleSystemState.Random.Seed + randomSeed + randomCounter++)
+                    : particleSystemState.Random.Next();
+                index = Math.Clamp((int)(count * fraction), 0, count - 1);
                 runningIndex = index;
             }
             else if (runningIndex > count - 1)
@@ -91,10 +90,6 @@ namespace ValveResourceFormat.Particles.Initializers
 
                 particle.SetVector(fieldOutput, value);
             }
-            else if (fieldOutput.IsIntegerAttribute())
-            {
-                particle.SetScalar(fieldOutput, parent.GetScalar(fieldOutput));
-            }
             else
             {
                 var value = parent.GetScalar(fieldOutput) * scale;
@@ -110,7 +105,6 @@ namespace ValveResourceFormat.Particles.Initializers
             if (writeParentIndex)
             {
                 particle.ParentParticleIndex = index;
-                particle.ParentParticleId = parent.ParticleId;
             }
 
             runningIndex += increment;

@@ -8,14 +8,15 @@ namespace ValveResourceFormat.Particles.Emitters
     /// </summary>
     /// <remarks>
     /// A snapshot on <c>m_nSnapshotControlPoint</c> replaces the authored count with its row count.
-    /// The particles of one top-up are spread evenly over the step, or all created at its start with
+    /// The particles of one top-up are spread evenly over the frame, or all created at its start with
     /// <c>m_bEmitInstantaneously</c> and no emission rate. With <c>m_bFinalEmitOnStop</c> a stopped
-    /// emitter tops up once more before it finishes. The emission duration counts from
-    /// <c>m_flStartTime</c> on the system's clock, not from the last restart.
+    /// emitter tops up once more before it finishes.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_MaintainEmitter">C_OP_MaintainEmitter</seealso>
     class MaintainEmitter : ParticleFunctionEmitter
     {
+        public override bool IsFinished { get; protected set; }
+
         private readonly INumberProvider particlesToMaintain = new LiteralNumberProvider(100f);
         private readonly INumberProvider emissionDuration = new LiteralNumberProvider(0f);
         private readonly INumberProvider scale = new LiteralNumberProvider(1f);
@@ -25,12 +26,11 @@ namespace ValveResourceFormat.Particles.Emitters
         private readonly bool finalEmitOnStop;
         private readonly SnapshotBinding snapshotBinding;
 
-        private float timeBase;
+        private Action<float>? particleEmitCallback;
 
         // Fractional particles the rate has earned but not yet spent
         private float rateBudget;
 
-        private bool emitting = true;
         private bool finalEmitPending;
 
         public MaintainEmitter(ParticleDefinitionParser parse) : base(parse)
@@ -45,108 +45,85 @@ namespace ValveResourceFormat.Particles.Emitters
             snapshotBinding = new SnapshotBinding(parse);
         }
 
-        public override void Reset()
+        protected override void OnStart(Action<float> particleEmitCallback)
         {
-            timeBase = 0f;
+            this.particleEmitCallback = particleEmitCallback;
             rateBudget = 0f;
-            emitting = true;
             finalEmitPending = false;
+            IsFinished = false;
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-            timeBase = particleSystemState.Age;
-        }
-
-        public override void StartEmission()
-        {
-            emitting = true;
-        }
-
-        public override void StopEmission()
+        public override void Stop()
         {
             rateBudget = 0f;
 
-            if (finalEmitOnStop)
+            if (finalEmitOnStop && !IsFinished)
             {
                 finalEmitPending = true;
                 return;
             }
 
-            emitting = false;
+            IsFinished = true;
+            particleEmitCallback = null;
         }
 
-        public override bool MayCreateMoreParticles(ParticleSystemState particleSystemState)
+        public override void Emit(float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            var duration = emissionDuration.NextNumber(particleSystemState);
-
-            if (duration != 0f && particleSystemState.Age - particleSystemState.CurrentStep > duration + startTime)
-            {
-                return false;
-            }
-
-            return emitting && !(OpFadeOscillatePeriod != 0f && GetFunctionTime(particleSystemState) > OpEndFadeOutTime);
-        }
-
-        public override void Emit(ParticleSystemState particleSystemState, float strength, Action<float> emit)
-        {
-            if (!emitting)
+            if (IsFinished)
             {
                 return;
             }
 
             if (finalEmitPending)
             {
-                emitting = false;
-                finalEmitPending = false;
+                IsFinished = true;
             }
 
-            var time = particleSystemState.Age;
-            var start = timeBase + startTime;
+            var elapsed = particleSystemState.Age - StartAge;
+            var frameStart = elapsed - frameTime;
 
-            if (start > time)
-            {
-                return;
-            }
-
-            var target = TargetCount(particleSystemState);
-            var active = particleSystemState.Data?.Particles.Count ?? 0;
-
-            if (active >= target || target <= 0)
+            if (elapsed < startTime)
             {
                 return;
             }
 
             var duration = emissionDuration.NextNumber(particleSystemState);
 
-            if (duration != 0f && time - particleSystemState.CurrentStep > duration + startTime)
+            if (duration != 0f && frameStart > startTime + duration)
+            {
+                IsFinished = true;
+                return;
+            }
+
+            var target = TargetCount(particleSystemState);
+            var deficit = target - (int)particleSystemState.ParticleCount;
+
+            if (target <= 0 || deficit <= 0)
             {
                 return;
             }
 
-            var count = target - active;
+            var count = deficit;
 
             if (emissionRate > 0f)
             {
-                var budget = Math.Clamp(emissionRate * particleSystemState.CurrentStep, 0f, count) + rateBudget;
+                var budget = MathF.Max(0f, MathF.Min(deficit, emissionRate * frameTime)) + rateBudget;
                 count = (int)budget;
                 rateBudget = budget - count;
             }
 
-            count = Math.Max(0, Math.Min(count, FreeSlots(particleSystemState)));
-
-            if (count == 0)
+            if (count <= 0)
             {
                 return;
             }
 
-            var creationTime = MathF.Max(particleSystemState.StepStartAge, start);
-            var spacing = !emitInstantaneously || emissionRate > 0f ? (time - creationTime) / count : 0f;
+            var creationTime = MathF.Max(frameStart, startTime);
+            var spacing = emitInstantaneously && emissionRate <= 0f ? 0f : (elapsed - creationTime) / count;
 
             for (var i = 0; i < count; i++)
             {
-                creationTime = MathF.Min(creationTime, time);
-                emit(creationTime);
+                creationTime = MathF.Min(creationTime, elapsed);
+                particleEmitCallback?.Invoke(elapsed - creationTime);
                 creationTime += spacing;
             }
         }

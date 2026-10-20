@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Particles.Operators
     class SetAttributeToScalarExpression : ParticleFunctionOperator
     {
         private readonly ParticleField outputField = ParticleField.Radius;
-        private readonly INumberProvider input1 = new LiteralNumberProvider(0f);
+        private readonly INumberProvider input1 = new LiteralNumberProvider(1f);
         private readonly INumberProvider input2 = new LiteralNumberProvider(0);
         private readonly ScalarExpressionType expression = ScalarExpressionType.SCALAR_EXPRESSION_ADD;
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
@@ -33,15 +33,15 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            var (min, max) = outputField.SetFloatRange();
-
             foreach (ref var particle in particles.Current)
             {
                 var value1 = input1.NextNumber(ref particle, particleSystemState);
                 var value2 = input2.NextNumber(ref particle, particleSystemState);
 
-                float? result = expression switch
+                var output = expression switch
                 {
+                    ScalarExpressionType.SCALAR_EXPRESSION_UNINITIALIZED
+                        => 0f,
                     ScalarExpressionType.SCALAR_EXPRESSION_ADD
                         => value1 + value2,
                     ScalarExpressionType.SCALAR_EXPRESSION_SUBTRACT
@@ -57,20 +57,15 @@ namespace ValveResourceFormat.Particles.Operators
                     ScalarExpressionType.SCALAR_EXPRESSION_MAX
                         => Math.Max(value1, value2),
                     ScalarExpressionType.SCALAR_EXPRESSION_MOD // new in CS2
-                        => value1 - (value2 * (int)(value1 / value2)),
+                        => (float)(value1 % value2),
                     ScalarExpressionType.SCALAR_EXPRESSION_EQUAL
                         => value1 == value2 ? 1f : 0f,
                     ScalarExpressionType.SCALAR_EXPRESSION_GT
                         => value1 > value2 ? 1f : 0f,
                     ScalarExpressionType.SCALAR_EXPRESSION_LT
                         => value1 < value2 ? 1f : 0f,
-                    _ => null,
+                    _ => throw new NotImplementedException($"Unrecognized scalar expression type ({expression})")
                 };
-
-                if (result is not { } output)
-                {
-                    continue;
-                }
 
                 // Strength scales arithmetic results before the set method; comparisons stay 0/1
                 if (expression is not (ScalarExpressionType.SCALAR_EXPRESSION_EQUAL
@@ -85,7 +80,7 @@ namespace ValveResourceFormat.Particles.Operators
                     output = outputRemap.ApplyMapping(output);
                 }
 
-                particle.SetScalar(outputField, Math.Clamp(particle.ModifyScalarBySetMethod(particles, outputField, output, setMethod), min, max));
+                particle.SetScalar(outputField, particle.ModifyScalarBySetMethod(particles, outputField, output, setMethod));
             }
         }
     }

@@ -30,7 +30,7 @@ namespace ValveResourceFormat.Particles.Initializers
             loop = parse.Boolean("m_bLoop", loop);
             cpPairs = parse.Boolean("m_bCPPairs", cpPairs);
             saveOffset = parse.Boolean("m_bSaveOffset", saveOffset);
-            pathParams = new ParticlePathParameters(parse).WithClampedControlPoints();
+            pathParams = new ParticlePathParameters(parse);
 
             Reset();
         }

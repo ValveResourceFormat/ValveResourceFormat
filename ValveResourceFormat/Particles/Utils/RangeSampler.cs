@@ -50,7 +50,7 @@ namespace ValveResourceFormat.Particles.Utils
         {
             if (!distributeEvenly)
             {
-                return particleSystemState.Random.NextBetweenPerComponentSeededTwice(min, max);
+                return particleSystemState.Random.NextBetweenPerComponent(min, max);
             }
 
             var start = seed < 0 ? seed + particleSystemState.Random.Seed : seed;
@@ -61,7 +61,7 @@ namespace ValveResourceFormat.Particles.Utils
                 RadicalInverse(index, 3),
                 RadicalInverse(index, 5));
 
-            return MathUtils.Lerp(min, max, fractions);
+            return min + ((max - min) * fractions);
         }
 
         /// <summary>

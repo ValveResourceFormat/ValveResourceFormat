@@ -15,11 +15,6 @@ namespace ValveResourceFormat.Particles.Operators
             fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
         }
 
-        public override void AddControlPointDefaults(ControlPointDefaults defaults)
-        {
-            defaults.AddField(inputCpNumber, fieldOutput);
-        }
-
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var value = particleSystemState.GetControlPoint(inputCpNumber).Position;

@@ -13,6 +13,6 @@ namespace ValveResourceFormat.Particles
         };
 
         private static float Overlay(float color, float tint)
-            => tint < 0.5f ? 2f * color * tint : 1f - (2f * (1f - color) * (1f - tint));
+            => color < 0.5f ? 2f * color * tint : 1f - (2f * (1f - color) * (1f - tint));
     }
 }

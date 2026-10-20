@@ -3,13 +3,8 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
     /// <summary>
     /// Hands this system's control points down to the child systems tagged with a group id. Each matching
     /// child receives the next source control point in turn, and they all write it to the same destination
-    /// index on their own system and the systems below it, so siblings can hold different values at that
-    /// index.
+    /// index on their own system, so siblings can hold different values at that index.
     /// </summary>
-    /// <remarks>
-    /// At most <c>m_nNumControlPoints</c> are handed out, and never more than this system has children
-    /// of any group.
-    /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetParentControlPointsToChildCP">C_OP_SetParentControlPointsToChildCP</seealso>
     class SetParentControlPointsToChildCP : ParticleFunctionPreEmissionOperator
     {
@@ -18,6 +13,8 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
         private readonly int numControlPoints = 1;
         private readonly int firstSourcePoint;
         private readonly bool setOrientation;
+
+        private readonly List<ParticleSystemState> matchingChildren = [];
 
         public SetParentControlPointsToChildCP(ParticleDefinitionParser parse) : base(parse)
         {
@@ -28,36 +25,30 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             setOrientation = parse.Boolean("m_bSetOrientation", setOrientation);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
         {
-            var children = particleSystemState.Children;
-            var remaining = Math.Min(numControlPoints, children.Count);
-            var source = firstSourcePoint;
-
-            foreach (var child in children)
+            if (particleSystemState.Data == null)
             {
-                if (remaining <= 0)
-                {
-                    break;
-                }
+                return;
+            }
 
-                if (!ParticleSystemSimulation.IsInGroup(child, childGroupId))
-                {
-                    continue;
-                }
+            matchingChildren.Clear();
+            particleSystemState.Data.CollectChildStatesInGroup(childGroupId, matchingChildren);
 
-                var sourcePoint = particleSystemState.GetControlPoint(source);
-                var destination = child.GetControlPoint(childControlPoint);
+            var served = Math.Min(numControlPoints, matchingChildren.Count);
 
-                destination.Position = sourcePoint.Position;
+            for (var i = 0; i < served; i++)
+            {
+                var source = particleSystemState.GetControlPoint(firstSourcePoint + i);
+                var destination = matchingChildren[i].OverrideControlPoint(childControlPoint);
+
+                destination.Position = source.Position;
 
                 if (setOrientation)
                 {
-                    destination.SetOrientation(sourcePoint.Forward, sourcePoint.Left, sourcePoint.Up);
+                    destination.Orientation = source.Orientation;
+                    destination.Rotation = source.Rotation;
                 }
-
-                remaining--;
-                source++;
             }
         }
     }

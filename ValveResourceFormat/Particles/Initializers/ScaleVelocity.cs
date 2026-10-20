@@ -17,9 +17,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var scale = this.scale.NextVector(ref particle, particleSystemState);
-
-            particle.PositionPrevious = ((particle.PositionPrevious - particle.Position) * scale) + particle.Position;
+            particle.Velocity *= scale.NextVector(ref particle, particleSystemState);
 
             return particle;
         }

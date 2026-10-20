@@ -17,7 +17,7 @@ public sealed class SceneViewState : IDisposable
     /// <summary>Gets or sets the PVS bitfield for the cluster this view looks from, empty to cull nothing.</summary>
     public ReadOnlyMemory<byte> Pvs { get; set; }
 
-    /// <summary>Gets whether anything drawn after the framebuffer grab samples the scene color.</summary>
+    /// <summary>Gets whether any material drawn after the framebuffer grab samples the scene color.</summary>
     public bool WantsSceneColor { get; private set; }
 
     /// <summary>Gets whether anything drawn after the framebuffer grab samples the scene depth.</summary>
@@ -441,7 +441,6 @@ public sealed class SceneViewState : IDisposable
                 };
 
                 WantsSceneDepth |= node is ParticleSceneNode { WantsSceneDepth: true };
-                WantsSceneColor |= node is ParticleSceneNode { WantsSceneColor: true };
 
                 var customPasses = node.RenderPasses;
 

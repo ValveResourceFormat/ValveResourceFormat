@@ -1,9 +1,8 @@
 namespace ValveResourceFormat.Particles.PreEmissionOperators
 {
     /// <summary>
-    /// Stops the system with its endcap once it has run out. Without <c>m_bFireOnEmissionEnd</c> it
-    /// waits for the last particle to be one step from death; with it, the end of emission is enough.
-    /// It fires once; a restart does not arm it again.
+    /// Starts the endcap once the system has run out. Without <c>m_bFireOnEmissionEnd</c> it waits for
+    /// the last particle to be one step from death; with it, the end of emission is enough.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_PlayEndCapWhenFinished">C_OP_PlayEndCapWhenFinished</seealso>
     class PlayEndCapWhenFinished : ParticleFunctionPreEmissionOperator
@@ -26,11 +25,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             fired = false;
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-        }
-
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
         {
             if (fired || particleSystemState.Data == null)
             {
@@ -43,7 +38,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             }
 
             fired = true;
-            particleSystemState.Data.StopEmission(removeAllParticles: false, playEndCap: true);
+            particleSystemState.Data.PlayEndCap();
         }
     }
 }

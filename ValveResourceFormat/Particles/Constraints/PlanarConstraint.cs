@@ -7,11 +7,6 @@ namespace ValveResourceFormat.Particles.Constraints
     /// their radius rests on it. The plane is placed in a control point's frame unless authored global.
     /// With a maximum distance, only particles closer than it to the plane's origin are held.
     /// </summary>
-    /// <remarks>
-    /// The old code (<c>m_bUseOldCode</c>, the default) handles particles in blocks of four and tests the
-    /// maximum distance only to decide whether a block is held: once one particle in a block qualifies,
-    /// every particle of the block behind the plane is pushed out, however far it is.
-    /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_PlanarConstraint">C_OP_PlanarConstraint</seealso>
     class PlanarConstraint : ParticleFunctionConstraint
     {
@@ -22,7 +17,6 @@ namespace ValveResourceFormat.Particles.Constraints
         private readonly bool globalNormal;
         private readonly INumberProvider radiusScale = new LiteralNumberProvider(1f);
         private readonly INumberProvider maximumDistanceToControlPoint = new LiteralNumberProvider(-1f);
-        private readonly bool useOldCode = true;
 
         public PlanarConstraint(ParticleDefinitionParser parse) : base(parse)
         {
@@ -33,10 +27,9 @@ namespace ValveResourceFormat.Particles.Constraints
             globalNormal = parse.Boolean("m_bGlobalNormal", globalNormal);
             radiusScale = parse.NumberProvider("m_flRadiusScale", radiusScale);
             maximumDistanceToControlPoint = parse.NumberProvider("m_flMaximumDistanceToCP", maximumDistanceToControlPoint);
-            useOldCode = parse.Boolean("m_bUseOldCode", useOldCode);
         }
 
-        public override bool ApplyConstraint(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
+        public override bool ApplyConstraint(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState)
         {
             var origin = globalOrigin
                 ? pointOnPlane
@@ -56,42 +49,21 @@ namespace ValveResourceFormat.Particles.Constraints
             var maxDistance = maximumDistanceToControlPoint.NextNumber(particleSystemState);
 
             var moved = false;
-            var current = particles.Current;
-            Span<float> depths = stackalloc float[4];
 
-            for (var blockStart = 0; blockStart < current.Length; blockStart += 4)
+            foreach (ref var particle in particles.Current)
             {
-                var block = current.Slice(blockStart, Math.Min(4, current.Length - blockStart));
-                var anyHeld = false;
-
-                for (var lane = 0; lane < block.Length; lane++)
-                {
-                    ref var particle = ref block[lane];
-                    var radius = particle.Radius * radiusScale.NextNumber(ref particle, particleSystemState);
-                    depths[lane] = Vector3.Dot(particle.Position - origin, normal) - radius;
-
-                    var withinReach = maxDistance <= 0f || Vector3.DistanceSquared(particle.Position, origin) < maxDistance * maxDistance;
-
-                    if (!useOldCode && !withinReach)
-                    {
-                        depths[lane] = 0f;
-                    }
-
-                    anyHeld |= depths[lane] < 0f && withinReach;
-                }
-
-                if (!anyHeld)
+                if (maxDistance > 0f && Vector3.DistanceSquared(particle.Position, origin) >= maxDistance * maxDistance)
                 {
                     continue;
                 }
 
-                for (var lane = 0; lane < block.Length; lane++)
+                var radius = particle.Radius * radiusScale.NextNumber(ref particle, particleSystemState);
+                var depth = Vector3.Dot(particle.Position - origin, normal) - radius;
+
+                if (depth < 0f)
                 {
-                    if (depths[lane] < 0f)
-                    {
-                        block[lane].Position -= normal * depths[lane];
-                        moved = true;
-                    }
+                    particle.Position -= normal * depth;
+                    moved = true;
                 }
             }
 

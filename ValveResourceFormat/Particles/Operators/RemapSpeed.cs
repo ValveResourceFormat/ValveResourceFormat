@@ -4,19 +4,13 @@ namespace ValveResourceFormat.Particles.Operators
     /// Remaps each particle's current speed from an input range to an output range and writes
     /// the result to a scalar particle attribute.
     /// </summary>
-    /// <remarks>
-    /// Both input bounds are raised to at least 0.001. Equal bounds do not make a step: the remap
-    /// becomes <c>speed - min</c> clamped to [0, 1].
-    /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RemapSpeed">C_OP_RemapSpeed</seealso>
     class RemapSpeed : ParticleFunctionOperator
     {
-        private const float MinimumInput = 0.001f;
-
-        private readonly float inputMin = MinimumInput;
-        private readonly float inputMax = 1f;
-        private readonly float outputMin;
-        private readonly float outputMax = 1f;
+        private readonly INumberProvider inputMin = new LiteralNumberProvider(0);
+        private readonly INumberProvider inputMax = new LiteralNumberProvider(1);
+        private readonly INumberProvider outputMin = new LiteralNumberProvider(0);
+        private readonly INumberProvider outputMax = new LiteralNumberProvider(1);
 
         private readonly ParticleField outputField = ParticleField.Radius;
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
@@ -31,33 +25,27 @@ namespace ValveResourceFormat.Particles.Operators
         {
             outputField = parse.ParticleField("m_nFieldOutput", outputField);
             ignoreDelta = parse.Boolean("m_bIgnoreDelta", ignoreDelta);
-            inputMin = MathF.Max(MinimumInput, parse.Float("m_flInputMin", inputMin));
-            inputMax = MathF.Max(MinimumInput, parse.Float("m_flInputMax", inputMax));
-            outputMin = parse.Float("m_flOutputMin", outputMin);
-            outputMax = parse.Float("m_flOutputMax", outputMax);
+            inputMin = parse.NumberProvider("m_flInputMin", inputMin);
+            inputMax = parse.NumberProvider("m_flInputMax", inputMax);
+            outputMin = parse.NumberProvider("m_flOutputMin", outputMin);
+            outputMax = parse.NumberProvider("m_flOutputMax", outputMax);
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
-
-            if (outputField is ParticleField.Alpha or ParticleField.AlphaAlternate)
-            {
-                outputMin = MathUtils.Saturate(outputMin);
-                outputMax = MathUtils.Saturate(outputMax);
-            }
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            var divisor = ignoreDelta ? 1f : frameTime;
-            var inputRange = inputMax == inputMin ? 1f : inputMax - inputMin;
-
             foreach (ref var particle in particles.Current)
             {
-                var speed = (particle.Position - particle.PositionPrevious).Length() / divisor;
-                var fraction = MathUtils.Saturate((speed - inputMin) / inputRange);
-                var value = MathUtils.Lerp(outputMin, outputMax, fraction);
-                value = particle.ModifyScalarBySetMethod(particles, outputField, value, setMethod);
+                var inputMin = this.inputMin.NextNumber(ref particle, particleSystemState);
+                var inputMax = this.inputMax.NextNumber(ref particle, particleSystemState);
+                var outputMin = this.outputMin.NextNumber(ref particle, particleSystemState);
+                var outputMax = this.outputMax.NextNumber(ref particle, particleSystemState);
 
-                var current = particle.GetScalar(outputField);
-                particle.SetScalar(outputField, MathUtils.Lerp(current, value, strength));
+                var speed = ignoreDelta ? particle.Speed * frameTime : particle.Speed;
+                var finalValue = MathUtils.RemapValClamped(speed, inputMin, inputMax, outputMin, outputMax);
+                finalValue = particle.ModifyScalarBySetMethod(particles, outputField, finalValue, setMethod);
+
+                particle.SetScalar(outputField, float.Lerp(particle.GetScalar(outputField), finalValue, strength));
             }
         }
     }

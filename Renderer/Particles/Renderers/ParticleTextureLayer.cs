@@ -51,10 +51,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>m_flZoomScale: how fast a zoom layer sweeps between its two magnifications.</summary>
         public INumberProvider ZoomScale { get; init; } = Zero;
 
-        /// <summary>
-        /// m_flFinalTextureUVRotation: how far this layer's texture turns about the card centre, in
-        /// radians on a texture with a sheet and in degrees on one without.
-        /// </summary>
+        /// <summary>m_flFinalTextureUVRotation: radians this layer's texture turns about the card centre.</summary>
         public INumberProvider Rotation { get; init; } = Zero;
 
         /// <summary>m_bClampUVs: whether this layer stops repeating outside its own range.</summary>
@@ -85,7 +82,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 shader.SetUniform1(BlendNames[layer], source.Blend.NextNumber(systemState));
                 shader.SetUniform1(EffectModeNames[layer], (int)source.EffectMode);
                 shader.SetUniform1(DistortionNames[layer], source.Distortion.NextNumber(systemState));
-                shader.SetUniform1(ZoomScaleNames[layer], MathUtils.Wrap(source.ZoomScale.NextNumber(systemState), 0f, 10f));
+                shader.SetUniform1(ZoomScaleNames[layer], source.ZoomScale.NextNumber(systemState));
 
                 if (source.EffectMode == SpriteCardTextureType.SPRITECARD_TEXTURE_ANIMMOTIONVEC)
                 {
@@ -128,16 +125,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>Resolves this layer's transform for the frame.</summary>
-        public UvTransform ResolveUvTransform(ParticleSystemState systemState)
-        {
-            var rotation = Rotation.NextNumber(systemState);
-
-            return new(
-                new Vector2(ScaleU.NextNumber(systemState), ScaleV.NextNumber(systemState)),
-                new Vector2(OffsetU.NextNumber(systemState), OffsetV.NextNumber(systemState)),
-                Texture.SpriteSheetData != null ? rotation : float.DegreesToRadians(rotation),
-                ClampUVs);
-        }
+        public UvTransform ResolveUvTransform(ParticleSystemState systemState) => new(
+            new Vector2(ScaleU.NextNumber(systemState), ScaleV.NextNumber(systemState)),
+            new Vector2(OffsetU.NextNumber(systemState), OffsetV.NextNumber(systemState)),
+            Rotation.NextNumber(systemState),
+            ClampUVs);
 
         /// <summary>
         /// Places one card corner in the layer's texture. The card coordinate turns about the card centre,

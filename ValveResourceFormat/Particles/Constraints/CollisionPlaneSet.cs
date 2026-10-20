@@ -52,7 +52,7 @@ namespace ValveResourceFormat.Particles.Constraints
 
             if (force && nextSlot >= DirectionPlanes)
             {
-                // Retests cycle through slots 0 to 26, tracing slot n along its base 3 digits less one, which is not the order the slots were filled in.
+                // Source 2 bug: a retest traces some slots in a different direction than they were filled with, so one direction is never retested and the first confirmed plane is overwritten.
                 var slot = retestSlot > DirectionPlanes ? 0 : retestSlot;
                 retestSlot = slot + 1;
                 Trace(collision, slot, origin, new Vector3((slot % 3) - 1, (slot / 3 % 3) - 1, (slot / 9 % 3) - 1));

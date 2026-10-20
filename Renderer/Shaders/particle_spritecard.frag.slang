@@ -15,9 +15,6 @@
 #define PARTICLE_OUTPUT_BLEND_MODE_MOD2X 5
 uniform int uBlendMode = 0; // PARTICLE_OUTPUT_BLEND_MODE_ALPHA
 
-// The share of the destination each output blend mode covers, per unit of alpha, indexed by mode.
-const float OUTPUT_BLEND_MODE_ALPHA_FACTOR[7] = float[](1.0, 0.0, -1.0, 0.5, -0.5, 1.0, 1.0);
-
 // One sampler per texture layer. Layer 0 is the base texture and keeps the plain name.
 // One more colour layer than the combo's value, matching Base + Layer1..Layer4.
 #define S_TEXTURE_LAYERS 0
@@ -60,27 +57,6 @@ uniform vec4 uOutlineRanges = vec4(0.5, 0.7, 0.6, 0.8);
 uniform vec2 uFeatheringRange = vec2(0.0);
 uniform float uFeatheringFilter = 1.0;
 
-uniform bool uFogParticles = true;
-uniform bool uSaturateColor = true; // m_bSaturateColorPreAlphaBlend
-uniform bool uUnsignedBlendAlpha = false; // games with Particles/EnableParticleShaderFeatureBranching
-
-// The per particle alpha test. Opaque says whether the texture alpha (x) and the vertex alpha (y) are
-// replaced by full opacity once the test passes; softness is how far the upper (x) and lower (y) edges of
-// the band that passes fade in.
-uniform bool uAlphaReference = false;
-uniform vec2 uAlphaReferenceOpaque = vec2(0.0);
-uniform vec2 uAlphaReferenceSoftness = vec2(0.0);
-
-// The card draws the opaque scene behind it, pushed aside by its texture, rather than the texture itself.
-#define S_REFRACT 0
-#if S_REFRACT
-uniform sampler2D g_tSceneColor; // reserved
-uniform float uRefractAmount = 1.0;
-uniform int uRefractBlurRadius = 0;
-uniform bool uRefractBlurBox = false;
-uniform bool uRefractSolid = false;
-#endif
-
 // Per-layer mask mode, blend mode and strength (m_nTextureChannels, m_nTextureBlendMode,
 // m_flTextureBlend). Every entry below uLayerCount is written by the renderer each draw.
 uniform int uLayerCount = 1;
@@ -116,7 +92,6 @@ in vec2 vTexCoordNextFrameOut;
 in vec4 vLayerUvOut[S_TEXTURE_LAYERS];
 #endif
 in float vFrameBlendOut;
-flat in vec2 vAlphaReferenceOut;
 in vec2 vCardUvOut;
 in vec4 vColor;
 in vec3 vFragPosition;
@@ -254,61 +229,6 @@ vec2 SampleFlow(int layer, vec2 uv)
     return ((SampleLayer(layer, uv).yw * 2.0) - vec2(1.0)) * uMotionVectorScale;
 }
 
-#if S_REFRACT
-// The scene at the fragment, displaced by the texel's red and green signed about a half, as far as its alpha
-// and the refract amount take it, then averaged over a square of pixels with gaussian or equal weights.
-vec3 SampleRefraction(vec4 texel)
-{
-    vec2 pixelSize = 1.0 / vec2(textureSize(g_tSceneColor, 0));
-    vec2 uv = (gl_FragCoord.xy * pixelSize) - (((texel.xy - vec2(0.5)) * 2.0) * (uRefractAmount * texel.a));
-
-    if (uRefractBlurRadius <= 0)
-    {
-        return textureLod(g_tSceneColor, uv, 0.0).rgb;
-    }
-
-    float radius = float(uRefractBlurRadius);
-    float sigma = radius * 0.5;
-    vec3 sum = vec3(0.0);
-    float weights = 0.0;
-
-    for (int y = -uRefractBlurRadius; y <= uRefractBlurRadius; ++y)
-    {
-        for (int x = -uRefractBlurRadius; x <= uRefractBlurRadius; ++x)
-        {
-            vec2 offset = vec2(x, y);
-            vec2 normalized = offset / radius;
-            float weight = uRefractBlurBox ? 1.0 : exp(-dot(normalized, normalized) / (2.0 * sigma * sigma));
-
-            sum += textureLod(g_tSceneColor, uv + (offset * pixelSize), 0.0).rgb * weight;
-            weights += weight;
-        }
-    }
-
-    return sum / weights;
-}
-#endif
-
-// 0 below the edge and 1 above it, rising over width when that is positive.
-float RampAcross(float distance, float width)
-{
-    return width > 0.0 ? saturate(distance / width) : float(distance > 0.0);
-}
-
-// The alpha of a card that passes where its texture alpha lies above the particle's threshold, and below the
-// threshold plus the window.
-float AlphaReference(float textureAlpha, float vertexAlpha)
-{
-    float threshold = vAlphaReferenceOut.x;
-    float window = vAlphaReferenceOut.y;
-
-    float band = min(
-        RampAcross(textureAlpha - threshold, uAlphaReferenceSoftness.y),
-        RampAcross(threshold + window - textureAlpha, uAlphaReferenceSoftness.x));
-
-    return max(uAlphaReferenceOpaque.x, textureAlpha) * band * max(uAlphaReferenceOpaque.y, vertexAlpha);
-}
-
 void main(void) {
     // Each layer is folded into an accumulator seeded to white. Layer 0 is the base texture, so with one
     // layer and the default MULTIPLY this collapses to a straight sample.
@@ -412,10 +332,6 @@ void main(void) {
 
     vec4 color = accum;
 
-#if S_REFRACT
-    color.rgb = SampleRefraction(accum);
-#endif
-
     vec3 finalColor = vColor.rgb * color.rgb;
 
     if (uHsvShift != vec3(0.0, 1.0, 1.0))
@@ -428,13 +344,13 @@ void main(void) {
     float rawAlpha = color.a;
     float alpha = rawAlpha;
 
-    if (!uAlphaReference && uAlphaRemapRange.x < uAlphaRemapRange.y)
+    if (uAlphaRemapRange.x < uAlphaRemapRange.y)
     {
         alpha = smoothstep(uAlphaRemapRange.x, uAlphaRemapRange.y, rawAlpha);
     }
 
     // Overlay the outline colour across its alpha band. Solid between Start1 and End0, feathered outside.
-    if (!uAlphaReference && uOutline && rawAlpha >= uOutlineRanges.x && rawAlpha <= uOutlineRanges.w)
+    if (uOutline && rawAlpha >= uOutlineRanges.x && rawAlpha <= uOutlineRanges.w)
     {
         float outlineRamp = rawAlpha <= uOutlineRanges.z
             ? smoothstep(uOutlineRanges.x, uOutlineRanges.z, rawAlpha)
@@ -448,7 +364,7 @@ void main(void) {
     // everything else.
     finalColor = mix(finalColor, vec3(GetLuma(finalColor)), uDesaturation);
 
-    alpha = uAlphaReference ? AlphaReference(rawAlpha, vColor.a) : alpha * vColor.a;
+    alpha *= vColor.a;
 
     if (uFeatheringRange.y > uFeatheringRange.x)
     {
@@ -470,21 +386,12 @@ void main(void) {
             / (uFeatheringRange.y - uFeatheringRange.x));
     }
 
-#if S_REFRACT
-    if (uRefractSolid)
-    {
-        alpha = saturate(alpha * 128.0);
-    }
-#endif
-
-    float blendAlphaFactor = OUTPUT_BLEND_MODE_ALPHA_FACTOR[clamp(uBlendMode, 0, 6)];
-
     if (uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_MOD2X)
     {
         // Modulate-2x is its own output, not an additive one: 0.5 is the neutral that leaves the
         // destination untouched, and the vertex colour weights each channel away from grey rather than
-        // scaling it. The lighting and fog stages are skipped on this path.
-        vec3 mod2xColor = mix(vec3(0.5), mix(vec3(0.5), finalColor * uOverbrightFactor, vColor.rgb), vec3(alpha));
+        // scaling it. The lighting, overbright and fog stages are all skipped on this path.
+        vec3 mod2xColor = mix(vec3(0.5), mix(vec3(0.5), finalColor, vColor.rgb), vec3(alpha));
 
         fragColor = vec4(saturate(mod2xColor), alpha);
     }
@@ -505,25 +412,19 @@ void main(void) {
         // particle's own colour additively on top.
         finalColor *= uAddSelfAmount;
 
-        if (uSaturateColor)
+        bool isAdditive = uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_ADD;
+
+        // Additive contributions fade with fog density instead of tinting toward the fog color.
+        if (isAdditive)
         {
-            finalColor = saturate(finalColor);
+            finalColor *= GetFogAttenuation(vFragPosition);
+        }
+        else
+        {
+            ApplyFog(finalColor, vFragPosition);
         }
 
-        // The fog colour is scaled by the blend mode's alpha factor, so additive output only fades with
-        // fog density. ApplyFog is affine in the colour, so fogging black gives the fog colour term.
-        if (uFogParticles)
-        {
-            vec3 fogColor = vec3(0.0);
-            vec3 fogWhite = vec3(1.0);
-            ApplyFog(fogColor, vFragPosition);
-            ApplyFog(fogWhite, vFragPosition);
-            finalColor = finalColor * saturate(fogWhite.g - fogColor.g) + fogColor * blendAlphaFactor;
-        }
-
-        fragColor = uUnsignedBlendAlpha
-            ? vec4(finalColor * mix(alpha, 1.0, saturate(-blendAlphaFactor)), alpha * abs(blendAlphaFactor))
-            : vec4(finalColor * alpha, alpha * blendAlphaFactor);
+        fragColor = vec4(finalColor * alpha, isAdditive ? 0.0 : alpha);
     }
 
     if (g_iRenderMode == renderMode_Color)
