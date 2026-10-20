@@ -277,31 +277,19 @@ namespace ValveResourceFormat.Renderer.World
 
         private static void ApplyMaterialOverrides(ModelSceneNode modelNode, WorldNode.MaterialOverride[] materialOverrides)
         {
-            foreach (var materialOverride in materialOverrides)
+            if (materialOverrides.Length == 0)
             {
-                if (!materialOverride.IsWholeModel || string.IsNullOrEmpty(materialOverride.Material))
-                {
-                    continue;
-                }
-
-                foreach (var mesh in modelNode.AllRenderableMeshes)
-                {
-                    foreach (var drawCall in mesh.DrawCalls)
-                    {
-                        mesh.ReplaceMaterial(drawCall, materialOverride.Material);
-                    }
-                }
-
                 return;
             }
 
-            foreach (var materialOverride in materialOverrides)
+            foreach (var mesh in modelNode.AllRenderableMeshes)
             {
-                var (mesh, drawCall) = FindDrawCall(modelNode, materialOverride.SubSceneObject, materialOverride.DrawCallIndex);
-
-                if (mesh != null && drawCall != null)
+                foreach (var drawCall in mesh.DrawCalls)
                 {
-                    mesh.ReplaceMaterial(drawCall, materialOverride.Material);
+                    if (WorldNode.MaterialOverride.Find(materialOverrides, mesh.MeshIndex, drawCall.Index) is { } material)
+                    {
+                        mesh.ReplaceMaterial(drawCall, material);
+                    }
                 }
             }
         }

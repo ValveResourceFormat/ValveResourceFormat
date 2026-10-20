@@ -87,17 +87,6 @@ namespace ValveResourceFormat.Renderer.Materials
         Last = MorphCompositeTexture,
     }
 
-    enum BlendMode
-    {
-        Opaque,
-        AlphaTest,
-        Translucent,
-        Additive,
-        Multiply,
-        Mod2x,
-        ModThenAdd,
-    }
-
     /// <summary>
     /// Material with shader, textures, and render state for GPU rendering.
     /// </summary>
@@ -158,13 +147,13 @@ namespace ValveResourceFormat.Renderer.Materials
         public bool DoNotCastShadows { get; private set; }
 
         /// <summary>Gets a value indicating whether this material uses any blending mode that requires back-to-front ordering.</summary>
-        public bool IsTranslucent => blendMode >= BlendMode.Translucent;
+        public bool IsTranslucent => blendMode >= MaterialBlendMode.Translucent;
 
         /// <summary>Gets a value indicating whether this material only adds light over the destination, hiding nothing behind it.</summary>
-        public bool IsAdditive => blendMode == BlendMode.Additive;
+        public bool IsAdditive => blendMode == MaterialBlendMode.Additive;
 
         /// <summary>Gets a value indicating whether this material uses alpha-to-coverage alpha testing.</summary>
-        public bool IsAlphaTest => blendMode == BlendMode.AlphaTest;
+        public bool IsAlphaTest => blendMode == MaterialBlendMode.AlphaTest;
 
         /// <summary>Gets whether this material can perform early depth priming and then shade with Equal comparison.</summary>
         public bool CanPrimeDepth => !hasDepthBias && !IsOverlay && !disableDepthTest;
@@ -178,7 +167,7 @@ namespace ValveResourceFormat.Renderer.Materials
         private uint InputsVersion => unchecked(
             IntParams.Version + FloatParams.Version + VectorParams.Version + Matrices.Version + Textures.Version);
 
-        private BlendMode blendMode;
+        private MaterialBlendMode blendMode;
         private bool isRenderBackfaces;
         private bool hasDepthBias;
         private bool disableDepthTest;
@@ -267,15 +256,6 @@ namespace ValveResourceFormat.Renderer.Materials
         // Arbitrary within a shader but the same on every load, so that coplanar and blended draws resolve the same way each time
         private int GetSortId() => Shader.Program * PerShaderSortIdRange + 1 + (int)(StringToken.Get(Material.Name) % (PerShaderSortIdRange - 2));
 
-        static readonly string[] TranslucentShaders =
-        [
-            "vr_glass.vfx",
-            "vr_glass_markable.vfx",
-            "vr_energy_field.vfx",
-            "csgo_glass.vfx",
-            "csgo_effects.vfx",
-        ];
-
         // Renderer shaders are wrapped by their own name, only material shader names are normalized
         RenderMaterial(Material material, bool normalizeShaderName = true)
         {
@@ -319,14 +299,14 @@ namespace ValveResourceFormat.Renderer.Materials
         public void LoadRenderState()
         {
             var material = Material;
-            IsToolsMaterial = material.IntAttributes.ContainsKey("tools.toolsmaterial");
+            IsToolsMaterial = material.IsToolsMaterial;
             DoNotCastShadows = material.IntAttributes.GetValueOrDefault("F_DO_NOT_CAST_SHADOWS") == 1;
             isRenderBackfaces = IntParams.GetValueOrDefault("F_RENDER_BACKFACES") == 1;
             disableDepthTest = IntParams.GetValueOrDefault("F_DISABLE_Z_BUFFERING") == 1;
+            blendMode = Material.GetBlendMode(ShaderName, IntParams, material.IntAttributes);
 
             if (ShaderName == "csgo_water_fancy.vfx")
             {
-                blendMode = BlendMode.Translucent;
                 DoNotCastShadows = true;
                 IsCs2Water = true;
                 return;
@@ -344,25 +324,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
             if (ShaderName == "csgo_decalmodulate.vfx")
             {
-                blendMode = BlendMode.Mod2x;
                 return;
-            }
-
-            if (IntParams.GetValueOrDefault("F_ALPHA_TEST") > 0)
-            {
-                blendMode = BlendMode.AlphaTest;
-            }
-
-            if (IntParams.GetValueOrDefault("F_TRANSLUCENT") == 1
-            || TranslucentShaders.AsSpan().Contains(ShaderName)
-            || material.IntAttributes.ContainsKey("mapbuilder.water"))
-            {
-                blendMode = BlendMode.Translucent;
-            }
-
-            if (IntParams.GetValueOrDefault("F_ADDITIVE_BLEND") == 1)
-            {
-                blendMode = BlendMode.Additive;
             }
 
             // :MaterialIsOverlay
@@ -371,35 +333,12 @@ namespace ValveResourceFormat.Renderer.Materials
                 IsOverlay = true;
             }
 
-            var blendModeParam = 0;
-            if (ShaderName.EndsWith("static_overlay.vfx", StringComparison.Ordinal))
+            if (ShaderName.EndsWith("static_overlay.vfx", StringComparison.Ordinal) || ShaderName is "citadel_overlay.vfx")
             {
                 IsOverlay = true;
-                blendModeParam = (int)IntParams.GetValueOrDefault("F_BLEND_MODE");
-            }
-            else if (ShaderName is "citadel_overlay.vfx")
-            {
-                IsOverlay = true;
-                blendMode = BlendMode.Translucent;
             }
 
             DoNotCastShadows |= IsOverlay;
-
-            if (ShaderName == "csgo_unlitgeneric.vfx")
-            {
-                blendModeParam = (int)IntParams.GetValueOrDefault("F_BLEND_MODE");
-            }
-
-            blendMode = blendModeParam switch
-            {
-                1 => BlendMode.Translucent,
-                2 => BlendMode.AlphaTest,
-                3 => BlendMode.Mod2x,
-                4 => BlendMode.Additive,
-                5 => BlendMode.Multiply,
-                6 => BlendMode.ModThenAdd,
-                _ => blendMode,
-            };
         }
 
         /// <summary>
@@ -883,13 +822,13 @@ namespace ValveResourceFormat.Renderer.Materials
                 state.DepthStencil.DepthWriteEnable = false;
             }
 
-            if (blendMode == BlendMode.AlphaTest)
+            if (blendMode == MaterialBlendMode.AlphaTest)
             {
                 // Coverage is a single bit without multisampling, which turns this into a second,
                 // harder alpha cutout on top of the one the shader already does.
                 state.Blend.AlphaToCoverageEnable = state.Rasterizer.MultisampleEnable;
             }
-            else if (blendMode >= BlendMode.Translucent)
+            else if (blendMode >= MaterialBlendMode.Translucent)
             {
                 if (IsOverlay)
                 {
@@ -898,10 +837,10 @@ namespace ValveResourceFormat.Renderer.Materials
 
                 var (srcBlend, dstBlend) = blendMode switch
                 {
-                    BlendMode.Additive => (RsBlendMode.SrcAlpha, RsBlendMode.One),
-                    BlendMode.Multiply => (RsBlendMode.Zero, RsBlendMode.SrcColor),
-                    BlendMode.Mod2x => (RsBlendMode.DestColor, RsBlendMode.SrcColor),
-                    BlendMode.ModThenAdd => (RsBlendMode.DestColor, RsBlendMode.InvSrcAlpha),
+                    MaterialBlendMode.Additive => (RsBlendMode.SrcAlpha, RsBlendMode.One),
+                    MaterialBlendMode.Multiply => (RsBlendMode.Zero, RsBlendMode.SrcColor),
+                    MaterialBlendMode.Mod2x => (RsBlendMode.DestColor, RsBlendMode.SrcColor),
+                    MaterialBlendMode.ModThenAdd => (RsBlendMode.DestColor, RsBlendMode.InvSrcAlpha),
                     _ => (RsBlendMode.SrcAlpha, RsBlendMode.InvSrcAlpha),
                 };
                 state.SetBlend(srcBlend, dstBlend);

@@ -100,6 +100,8 @@ namespace ValveResourceFormat.IO
         private string DstDir = string.Empty;
         private CancellationToken CancellationToken;
         private Vector2 LightmapUvScale = Vector2.One;
+        private bool SkipToolsMaterials;
+        private readonly Dictionary<string, bool> ToolsMaterials = [];
         private readonly Dictionary<string, Mesh> ExportedMeshes = [];
         private readonly Dictionary<Node[], Skin> ExportedSkins = [];
         private readonly List<(PhysAggregateData Phys, string? Classname, Matrix4x4 Transform)> PhysicsToExport = [];
@@ -179,6 +181,8 @@ namespace ValveResourceFormat.IO
                 ExportedMeshes.Clear();
                 ExportedSkins.Clear();
                 LightmapUvScale = Vector2.One;
+                SkipToolsMaterials = false;
+                ToolsMaterials.Clear();
                 MaterialInputSignatures.Clear();
                 PhysicsToExport.Clear();
                 TextureExportingTasks.Clear();
@@ -476,7 +480,8 @@ namespace ValveResourceFormat.IO
         }
 
         private void LoadModel(ModelRoot exportedModel, Scene scene, VModel model, string name,
-            Matrix4x4 transform, Vector4 tintColor, string? skinName = null, EntityLump.Entity? entity = null)
+            Matrix4x4 transform, Vector4 tintColor, string? skinName = null, EntityLump.Entity? entity = null,
+            VWorldNode.MaterialOverride[]? materialOverrides = null)
         {
 #if DEBUG
             ProgressReporter?.Report($"Loading model {name}");
@@ -570,8 +575,14 @@ namespace ValveResourceFormat.IO
                     meshName = string.Concat(meshName, ".", skinName);
                 }
 
+                if (materialOverrides?.Length > 0)
+                {
+                    meshName = GetOverriddenMeshName(meshName, m.MeshIndex, materialOverrides);
+                }
+
+                var drawCallMaterials = GetDrawCallMaterials(m.Mesh, m.MeshIndex, skinMaterialTable, materialOverrides ?? []);
                 var boneRemapTable = model.GetRemapTable(m.MeshIndex);
-                var node = AddMeshNode(exportedModel, scene, meshName, tintColor, m.Mesh, m.Mesh.VBIB, joints, out var meshNode, boneRemapTable, skinMaterialTable);
+                var node = AddMeshNode(exportedModel, scene, meshName, tintColor, m.Mesh, m.Mesh.VBIB, joints, out var meshNode, boneRemapTable, drawCallMaterials);
                 if (node != null)
                 {
                     node.WorldMatrix = nodeTransform;
@@ -666,11 +677,11 @@ namespace ValveResourceFormat.IO
 
         private Node? AddMeshNode(ModelRoot exportedModel, Scene scene, string name, Vector4 tintColor,
             VMesh mesh, Blocks.VBIB vbib, Node[]? joints, out Node? meshNode, int[]? boneRemapTable = null,
-            Dictionary<string, string>? skinMaterialTable = null)
+            Dictionary<KVObject, string>? drawCallMaterials = null)
         {
             meshNode = null;
 
-            if (mesh.Data.GetArray("m_sceneObjects").Count == 0)
+            if (!HasExportedDrawCalls(mesh, drawCallMaterials))
             {
                 return null;
             }
@@ -681,7 +692,7 @@ namespace ValveResourceFormat.IO
 
             if (!ExportedMeshes.TryGetValue(name, out var exportedMesh))
             {
-                exportedMesh = CreateGltfMesh(name, mesh, vbib, exportedModel, boneRemapTable, skinMaterialTable, tintColor);
+                exportedMesh = CreateGltfMesh(name, mesh, vbib, exportedModel, boneRemapTable, drawCallMaterials, tintColor);
                 ExportedMeshes.Add(name, exportedMesh);
             }
 

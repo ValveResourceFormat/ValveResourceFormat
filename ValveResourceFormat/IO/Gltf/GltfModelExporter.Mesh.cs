@@ -24,7 +24,7 @@ public partial class GltfModelExporter
 
     // TODO: Using floats as hash key is kind of unhinged
     private readonly record struct ExportedMaterial(string Name, Vector4 Tint);
-    private readonly record struct ExportedMaterialData(Material Material, bool IsOverlay);
+    private readonly record struct ExportedMaterialData(Material Material, bool IsOverlay, bool VertexColorIsData);
     private readonly Dictionary<ExportedMaterial, ExportedMaterialData> ExportedMaterials = [];
 
     private readonly Dictionary<string, VMaterial.VsInputSignature> MaterialInputSignatures = [];
@@ -70,7 +70,7 @@ public partial class GltfModelExporter
         }
     }
 
-    private Mesh CreateGltfMesh(string meshName, VMesh vmesh, VBIB vbib, ModelRoot exportedModel, int[]? boneRemapTable, Dictionary<string, string>? skinMaterialTable, Vector4 tintColor)
+    private Mesh CreateGltfMesh(string meshName, VMesh vmesh, VBIB vbib, ModelRoot exportedModel, int[]? boneRemapTable, Dictionary<KVObject, string>? drawCallMaterials, Vector4 tintColor)
     {
         ProgressReporter?.Report($"Creating mesh: {meshName}");
 
@@ -93,14 +93,19 @@ public partial class GltfModelExporter
         {
             foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
             {
-                var primitive = CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAttributes, exportedModel, skinMaterialTable, tintColor);
+                var vertexCount = drawCall.GetInt32Property("m_nVertexCount");
 
-                if (hasMorphData)
+                if (!IsDrawCallSkipped(drawCall, drawCallMaterials))
                 {
-                    var vertexCount = drawCall.GetInt32Property("m_nVertexCount");
-                    AddMorphTargetsToPrimitive(morphTargetNames, flexData!, normalData!, primitive, exportedModel, vertexOffset, vertexCount);
-                    vertexOffset += vertexCount;
+                    var primitive = CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAttributes, exportedModel, drawCallMaterials, tintColor);
+
+                    if (hasMorphData)
+                    {
+                        AddMorphTargetsToPrimitive(morphTargetNames, flexData!, normalData!, primitive, exportedModel, vertexOffset, vertexCount);
+                    }
                 }
+
+                vertexOffset += vertexCount;
             }
         }
 
@@ -347,7 +352,7 @@ public partial class GltfModelExporter
     }
 
     private MeshPrimitive CreateMeshFromDrawCall(KVObject drawCall, Mesh mesh, VBIB vbib, Dictionary<string,
-        VertexAttribute>[] vertexBufferAttributes, ModelRoot exportedModel, Dictionary<string, string>? skinMaterialTable, Vector4 parentTintColor)
+        VertexAttribute>[] vertexBufferAttributes, ModelRoot exportedModel, Dictionary<KVObject, string>? drawCallMaterials, Vector4 parentTintColor)
     {
         CancellationToken.ThrowIfCancellationRequested();
 
@@ -355,12 +360,7 @@ public partial class GltfModelExporter
         var indexBufferIndex = indexBufferInfo.GetInt32Property("m_hBuffer");
         var indexBuffer = vbib.IndexBuffers[indexBufferIndex];
 
-        var materialPath = VMesh.GetMaterialName(drawCall)!;
-
-        if (skinMaterialTable != null && skinMaterialTable.TryGetValue(materialPath, out var skinMaterialPath))
-        {
-            materialPath = skinMaterialPath;
-        }
+        var materialPath = GetDrawCallMaterial(drawCall, drawCallMaterials);
 
         Resource? materialResource = null;
 
@@ -412,7 +412,7 @@ public partial class GltfModelExporter
                 }
                 else if (attributeKey.StartsWith("COLOR_", StringComparison.Ordinal))
                 {
-                    key = $"COLOR_{colorCounter++}";
+                    key = material?.VertexColorIsData == true ? $"_COLOR_{colorCounter++}" : $"COLOR_{colorCounter++}";
                 }
                 else
                 {
@@ -485,13 +485,43 @@ public partial class GltfModelExporter
         return element.Name is "vLightmapUV" or "vLightmapUVW";
     }
 
+    private static string GetDrawCallMaterial(KVObject drawCall, Dictionary<KVObject, string>? drawCallMaterials)
+    {
+        return drawCallMaterials?.GetValueOrDefault(drawCall) ?? VMesh.GetMaterialName(drawCall)!;
+    }
+
+    private bool IsDrawCallSkipped(KVObject drawCall, Dictionary<KVObject, string>? drawCallMaterials)
+    {
+        if (!SkipToolsMaterials)
+        {
+            return false;
+        }
+
+        var materialPath = GetDrawCallMaterial(drawCall, drawCallMaterials);
+
+        if (!ToolsMaterials.TryGetValue(materialPath, out var isToolsMaterial))
+        {
+            using var materialResource = FileLoader.LoadFileCompiled(materialPath);
+            isToolsMaterial = materialResource?.DataBlock is VMaterial { IsToolsMaterial: true };
+            ToolsMaterials.Add(materialPath, isToolsMaterial);
+        }
+
+        return isToolsMaterial;
+    }
+
+    private bool HasExportedDrawCalls(VMesh mesh, Dictionary<KVObject, string>? drawCallMaterials)
+    {
+        return mesh.Data.GetArray("m_sceneObjects")
+            .Any(sceneObject => sceneObject.GetArray("m_drawCalls").Any(drawCall => !IsDrawCallSkipped(drawCall, drawCallMaterials)));
+    }
+
     private ExportedMaterialData? GetOrCreateMaterial(KVObject drawCall, string materialPath, Resource? materialResource, ModelRoot exportedModel, Vector4 parentTintColor)
     {
         var modelTintColor = parentTintColor;
 
         if (drawCall.ContainsKey("m_vTintColor"))
         {
-            var drawCallTintColor = drawCall.GetSubCollection("m_vTintColor").ToVector3();
+            var drawCallTintColor = ColorSpace.SrgbLinearToGamma(drawCall.GetSubCollection("m_vTintColor").ToVector3());
             var dcTintColorWithAlpha = new Vector4(drawCallTintColor, 1.0f);
 
             if (drawCall.ContainsKey("m_flAlpha"))
@@ -523,7 +553,8 @@ public partial class GltfModelExporter
         var material = exportedModel.CreateMaterial(materialNameTrimmed);
         material.InitializePBRMetallicRoughness();
 
-        var exportedMaterial = new ExportedMaterialData(material, IsMaterialOverlay(renderMaterial));
+        // csgo_foliage holds wind parameters in its vertex color
+        var exportedMaterial = new ExportedMaterialData(material, IsMaterialOverlay(renderMaterial), renderMaterial.ShaderName == "csgo_foliage.vfx");
         ExportedMaterials.Add(materialHashKey, exportedMaterial);
 
         // TODO: Realistically it should export a material without a tint, and then if it needs a model tint,
@@ -630,6 +661,11 @@ public partial class GltfModelExporter
                 continue;
             }
 
+            if (IsDrawCallSkipped(drawCall, drawCallMaterials: null))
+            {
+                continue;
+            }
+
             var tintColor = Vector4.One;
 
             if (fragmentData.ContainsKey("m_vTintColor"))
@@ -643,7 +679,7 @@ public partial class GltfModelExporter
             var mesh = exportedModel.CreateMesh(meshName);
             mesh.Extras = new JsonObject();
 
-            CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAttributes, exportedModel, skinMaterialTable: null, tintColor);
+            CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAttributes, exportedModel, drawCallMaterials: null, tintColor);
 
             var newNode = scene.CreateNode(meshName);
             newNode.Mesh = mesh;

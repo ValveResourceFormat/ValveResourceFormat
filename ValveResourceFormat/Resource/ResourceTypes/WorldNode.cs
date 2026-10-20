@@ -197,6 +197,39 @@ namespace ValveResourceFormat.ResourceTypes
             /// Gets whether this override replaces the material of every draw call of the model.
             /// </summary>
             public bool IsWholeModel => DrawCallIndex == AllDrawCalls;
+
+            /// <summary>
+            /// Gets the material that replaces one draw call of a scene object's model, or <see langword="null"/> when it keeps its own.
+            /// </summary>
+            /// <param name="materialOverrides">The overrides of the scene object.</param>
+            /// <param name="meshIndex">Index of the mesh within the model.</param>
+            /// <param name="drawCallIndex">Index of the draw call within the mesh, counted over all its scene objects.</param>
+            public static string? Find(IReadOnlyList<MaterialOverride> materialOverrides, int meshIndex, int drawCallIndex)
+            {
+                ArgumentNullException.ThrowIfNull(materialOverrides);
+
+                string? material = null;
+
+                foreach (var materialOverride in materialOverrides)
+                {
+                    if (string.IsNullOrEmpty(materialOverride.Material))
+                    {
+                        continue;
+                    }
+
+                    if (materialOverride.IsWholeModel)
+                    {
+                        return materialOverride.Material;
+                    }
+
+                    if (materialOverride.SubSceneObject == meshIndex && materialOverride.DrawCallIndex == drawCallIndex)
+                    {
+                        material = materialOverride.Material;
+                    }
+                }
+
+                return material;
+            }
         }
 
         /// <summary>

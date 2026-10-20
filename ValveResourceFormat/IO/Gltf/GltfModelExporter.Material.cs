@@ -8,6 +8,7 @@ using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
 using SkiaSharp;
 using ValveResourceFormat.CompiledShader;
+using MaterialBlendMode = ValveResourceFormat.ResourceTypes.MaterialBlendMode;
 using VMaterial = ValveResourceFormat.ResourceTypes.Material;
 
 namespace ValveResourceFormat.IO;
@@ -17,6 +18,8 @@ public partial class GltfModelExporter
     private record struct RemapInstruction(string ChannelName, ChannelMapping ValveChannel, ChannelMapping GltfChannel)
     {
         public static RemapInstruction Default = new(string.Empty, ChannelMapping.RGBA, ChannelMapping.RGBA);
+        public static RemapInstruction NormalWithoutAlpha = new("Normal", ChannelMapping.RGB, ChannelMapping.RGB);
+        public static RemapInstruction AnisotropicRoughness = new("MetallicRoughness", ChannelMapping.RG, ChannelMapping.G);
     }
 
     /// <summary>
@@ -69,16 +72,17 @@ public partial class GltfModelExporter
 
     private void GenerateGLTFMaterialFromRenderMaterial(Material material, VMaterial renderMaterial, ModelRoot model, Vector4 modelTintColor, bool baseColorOnly = false)
     {
-        renderMaterial.IntParams.TryGetValue("F_TRANSLUCENT", out var isTranslucent);
-        renderMaterial.IntParams.TryGetValue("F_ALPHA_TEST", out var isAlphaTest);
+        var blendMode = renderMaterial.BlendMode;
 
-        if (renderMaterial.ShaderName.EndsWith("_glass.vfx", StringComparison.InvariantCulture))
+        material.Alpha = blendMode switch
         {
-            isTranslucent = 1;
-        }
+            MaterialBlendMode.Opaque => AlphaMode.OPAQUE,
+            MaterialBlendMode.AlphaTest => AlphaMode.MASK,
+            _ => AlphaMode.BLEND,
+        };
 
-        material.Alpha = isTranslucent > 0 ? AlphaMode.BLEND : (isAlphaTest > 0 ? AlphaMode.MASK : AlphaMode.OPAQUE);
-        if (isAlphaTest > 0 && renderMaterial.FloatParams.TryGetValue("g_flAlphaTestReference", out var alphaTestReference))
+        if (blendMode == MaterialBlendMode.AlphaTest && (renderMaterial.FloatParams.TryGetValue("g_flAlphaTestReference", out var alphaTestReference)
+            || renderMaterial.FloatParams.TryGetValue("g_flAlphaTestReference1", out alphaTestReference)))
         {
             material.AlphaCutoff = alphaTestReference;
         }
@@ -89,10 +93,7 @@ public partial class GltfModelExporter
             material.DoubleSided = true;
         }
 
-        if (renderMaterial.IntParams.GetValueOrDefault("F_UNLIT") > 0)
-        {
-            material.InitializeUnlit();
-        }
+        var isUnlit = renderMaterial.IntParams.GetValueOrDefault("F_UNLIT") > 0;
 
         // assume non-metallic unless prompted
         float metalValue = 0;
@@ -102,7 +103,7 @@ public partial class GltfModelExporter
             metalValue = float.Clamp(flMetalness, 0, 1);
         }
 
-        var baseColor = modelTintColor;
+        var baseColor = new Vector4(ColorSpace.SrgbGammaToLinear(modelTintColor.AsVector3()), modelTintColor.W);
 
         if (renderMaterial.FloatParams.TryGetValue("g_flModelTintAmount", out var flModelTintAmount))
         {
@@ -111,12 +112,10 @@ public partial class GltfModelExporter
 
         if (renderMaterial.VectorParams.TryGetValue("g_vColorTint", out var vColorTint))
         {
-            baseColor *= vColorTint;
+            baseColor *= new Vector4(ColorSpace.SrgbGammaToLinear(vColorTint.AsVector3()), 1f);
             baseColor.W = 1; //Tint only affects color
         }
 
-        var baseColorLinear = ColorSpace.SrgbGammaToLinear(baseColor.AsVector3());
-        baseColor = new Vector4(baseColorLinear, baseColor.W);
         baseColor = Vector4.Clamp(baseColor, Vector4.Zero, Vector4.One);
 
         var emissiveColor = Vector3.One;
@@ -128,22 +127,42 @@ public partial class GltfModelExporter
             emissiveColor = Vector3.Clamp(selfIllumTintLinear, Vector3.Zero, Vector3.One);
         }
 
+        var selfIllumScale = renderMaterial.FloatParams.GetValueOrDefault("g_flSelfIllumScale", renderMaterial.FloatParams.GetValueOrDefault("g_flSelfIllumScale1", 1f));
+
         var gltfChannelsCache = new Dictionary<string, List<RemapInstruction>>();
+        var texturesWithoutAlpha = new HashSet<string>();
         var needsSpecularMode = false;
         // Materials without self-illumination can still carry a default white mask
-        var selfIllumEnabled = renderMaterial.IntParams.GetValueOrDefault("F_SELF_ILLUM") != 0;
+        var selfIllumEnabled = renderMaterial.IntParams.GetValueOrDefault("F_SELF_ILLUM") != 0 && selfIllumScale > 0;
+        var hasAnisotropicRoughness = AdaptTextures && renderMaterial.IntParams.GetValueOrDefault("F_ANISOTROPIC_GLOSS") == 1
+            && renderMaterial.TextureParams.ContainsKey("g_tAnisoGloss");
 
         foreach (var (textureKey, _) in renderMaterial.TextureParams)
         {
             List<(ChannelMapping Channel, string Name)> inputImages = [.. shaderDataProvider.GetInputsForTexture(textureKey, renderMaterial)];
             var remapInstructions = RemapValveChannelsToGltf(inputImages);
 
+            if (hasAnisotropicRoughness)
+            {
+                remapInstructions.RemoveAll(static i => i.ChannelName == "MetallicRoughness" && i.GltfChannel == ChannelMapping.G);
+
+                if (textureKey == "g_tAnisoGloss")
+                {
+                    remapInstructions.Add(RemapInstruction.AnisotropicRoughness);
+                }
+            }
+
+            if (!inputImages.Any(static input => input.Channel.ValidChannels.Contains(ChannelMapping.Channel.A)))
+            {
+                texturesWithoutAlpha.Add(textureKey);
+            }
+
             if (baseColorOnly)
             {
                 remapInstructions.RemoveAll(static i => i.ChannelName != "BaseColor");
             }
 
-            if (remapInstructions.Any(static i => i.ChannelName == "SpecularFactor"))
+            if (!isUnlit && remapInstructions.Any(static i => i.ChannelName == "SpecularFactor"))
             {
                 needsSpecularMode = true;
             }
@@ -166,7 +185,11 @@ public partial class GltfModelExporter
             gltfChannelsCache[textureKey] = remapInstructions;
         }
 
-        if (needsSpecularMode)
+        if (isUnlit)
+        {
+            material.InitializeUnlit();
+        }
+        else if (needsSpecularMode)
         {
             material.InitializePBRMetallicRoughness("Specular");
         }
@@ -202,7 +225,8 @@ public partial class GltfModelExporter
 
                     ExportedTextures[textureName] = texture;
 
-                    var texTask = AddTexture(newImage, texturePath, RemapInstruction.Default);
+                    var isNormalWithoutAlpha = gltfChannels[0].ChannelName == "Normal" && texturesWithoutAlpha.Contains(textureKey);
+                    var texTask = AddTexture(newImage, texturePath, isNormalWithoutAlpha ? RemapInstruction.NormalWithoutAlpha : RemapInstruction.Default);
                     TextureExportingTasks.Add(texTask);
                 }
 
@@ -382,7 +406,8 @@ public partial class GltfModelExporter
             // Maybe GltfChannel should be preferred instead.
             var channel = mainInstruction.ValveChannel;
 
-            if (mainInstruction.ValveChannel == ChannelMapping.RGBA && mainInstruction.GltfChannel == ChannelMapping.RGB)
+            if (mainInstruction.ValveChannel == ChannelMapping.RGBA && mainInstruction.GltfChannel == ChannelMapping.RGB
+                && (mainInstruction.ChannelName != "BaseColor" || material.Alpha == AlphaMode.OPAQUE))
             {
                 // Some apps such as Blender do not like the excess alpha channel.
                 channel = ChannelMapping.RGB;
@@ -408,6 +433,14 @@ public partial class GltfModelExporter
 
                 foreach (var instruction in instructions)
                 {
+                    if (instruction == RemapInstruction.AnisotropicRoughness)
+                    {
+                        using var averageRoughness = AverageRedAndGreen(bitmap);
+                        using var averagePixels = averageRoughness.PeekPixels();
+                        occlusionRoughnessMetal.Collect(averagePixels, ChannelMapping.R, ChannelMapping.G, texturePath);
+                        continue;
+                    }
+
                     occlusionRoughnessMetal.Collect(pixels,
                         instruction.ValveChannel.Count == 1 ? instruction.ValveChannel : ChannelMapping.R,
                         instruction.GltfChannel.Count == 1 ? instruction.GltfChannel : ChannelMapping.R,
@@ -424,6 +457,22 @@ public partial class GltfModelExporter
             var pngBytes = TextureExtract.ToPngImage(occlusionRoughnessMetal.Bitmap);
 
             await LinkAndSaveImage(image, pngBytes).ConfigureAwait(false);
+        }
+
+        static SKBitmap AverageRedAndGreen(SKBitmap bitmap)
+        {
+            var average = new SKBitmap(bitmap.Info);
+            using var pixels = bitmap.PeekPixels();
+            using var averagePixels = average.PeekPixels();
+            var source = pixels.GetPixelSpan<SKColor>();
+            var destination = averagePixels.GetPixelSpan<SKColor>();
+
+            for (var i = 0; i < source.Length; i++)
+            {
+                destination[i] = source[i].WithRed((byte)((source[i].Red + source[i].Green + 1) / 2));
+            }
+
+            return average;
         }
 
         void TieTextureToMaterial(Texture tex, string gltfPackedName, bool ormRedChannelForOcclusion)
@@ -456,7 +505,7 @@ public partial class GltfModelExporter
                 // Render texture channels match the glTF channels exactly.
                 if (Enumerable.SequenceEqual(renderTextureChannels, GltfInputs, BlendInputComparer))
                 {
-                    instructions.Add(new RemapInstruction(GltfType, ChannelMapping.RGBA, ChannelMapping.RGBA));
+                    instructions.Add(GltfType == "Normal" ? RemapInstruction.NormalWithoutAlpha : new RemapInstruction(GltfType, ChannelMapping.RGBA, ChannelMapping.RGBA));
                     break;
                 }
 

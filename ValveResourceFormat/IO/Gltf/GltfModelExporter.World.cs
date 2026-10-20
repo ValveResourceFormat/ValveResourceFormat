@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using SharpGLTF.Schema2;
@@ -6,6 +7,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using Mesh = SharpGLTF.Schema2.Mesh;
 using VEntityLump = ValveResourceFormat.ResourceTypes.EntityLump;
+using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
 using VModel = ValveResourceFormat.ResourceTypes.Model;
 using VWorld = ValveResourceFormat.ResourceTypes.World;
 using VWorldNode = ValveResourceFormat.ResourceTypes.WorldNode;
@@ -28,6 +30,7 @@ public partial class GltfModelExporter
         var exportedModel = CreateModelRoot(resourceName, out var scene);
 
         LightmapUvScale = world.GetLightmapUvScale();
+        SkipToolsMaterials = true;
 
         // First the WorldNodes
         foreach (var worldNodeName in world.GetWorldNodeNames())
@@ -79,6 +82,7 @@ public partial class GltfModelExporter
     private void ExportToFile(string resourceName, string? fileName, VEntityLump entityLump)
     {
         var exportedModel = CreateModelRoot(resourceName, out var scene);
+        SkipToolsMaterials = true;
 
         LoadEntityMeshes(exportedModel, scene, entityLump, Matrix4x4.Identity);
 
@@ -150,21 +154,9 @@ public partial class GltfModelExporter
             var model = (VModel)modelResource.DataBlock!;
             var skinName = GetSkinName(entity, "skin");
 
-            // todo: rendercolor might sometimes be vec4, which holds renderamt
-            var rendercolor = entity.GetColor32Property("rendercolor");
-            var renderamt = entity.GetFloatProperty("renderamt", 1.0f);
-
-            if (renderamt > 1f)
-            {
-                renderamt /= 255f;
-            }
-
-            rendercolor = ColorSpace.SrgbGammaToLinear(rendercolor);
-            var tintColor = new Vector4(rendercolor, renderamt);
-
             // Add meshes and their skeletons
             LoadModel(exportedModel, scene, model, Path.GetFileNameWithoutExtension(modelName),
-                transform, tintColor, skinName, entity);
+                transform, entity.GetRenderTint(), skinName, entity);
 
             var phys = GetModelPhysics(model);
             if (phys != null)
@@ -204,6 +196,51 @@ public partial class GltfModelExporter
         return materialTable;
     }
 
+    private static Dictionary<KVObject, string>? GetDrawCallMaterials(VMesh mesh, int meshIndex, Dictionary<string, string>? skinMaterialTable,
+        VWorldNode.MaterialOverride[] materialOverrides)
+    {
+        if (skinMaterialTable == null && materialOverrides.Length == 0)
+        {
+            return null;
+        }
+
+        var drawCallMaterials = new Dictionary<KVObject, string>(ReferenceEqualityComparer.Instance);
+        var drawCallIndex = 0;
+
+        foreach (var sceneObject in mesh.Data.GetArray("m_sceneObjects"))
+        {
+            foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
+            {
+                var material = VWorldNode.MaterialOverride.Find(materialOverrides, meshIndex, drawCallIndex++);
+
+                if (material == null && skinMaterialTable != null && VMesh.GetMaterialName(drawCall) is { } ownMaterial)
+                {
+                    material = skinMaterialTable.GetValueOrDefault(ownMaterial);
+                }
+
+                if (material != null)
+                {
+                    drawCallMaterials[drawCall] = material;
+                }
+            }
+        }
+
+        return drawCallMaterials;
+    }
+
+    private static string GetOverriddenMeshName(string meshName, int meshIndex, VWorldNode.MaterialOverride[] materialOverrides)
+    {
+        var meshOverrides = materialOverrides
+            .Where(materialOverride => !string.IsNullOrEmpty(materialOverride.Material) && (materialOverride.IsWholeModel || materialOverride.SubSceneObject == meshIndex))
+            .Select(static materialOverride =>
+            {
+                var material = Path.GetFileNameWithoutExtension(materialOverride.Material);
+                return materialOverride.IsWholeModel ? material : string.Create(CultureInfo.InvariantCulture, $"{material}@{materialOverride.DrawCallIndex}");
+            });
+
+        return string.Join('.', [meshName, .. meshOverrides]);
+    }
+
     /// <summary>
     /// Export a Valve VWNOD to GLTF.
     /// </summary>
@@ -213,6 +250,8 @@ public partial class GltfModelExporter
     private void ExportToFile(string resourceName, string? fileName, VWorldNode worldNode)
     {
         var exportedModel = CreateModelRoot(resourceName, out var scene);
+        SkipToolsMaterials = true;
+
         LoadWorldNodeModels(exportedModel, scene, worldNode);
 
         WriteModelFile(exportedModel, fileName);
@@ -220,8 +259,11 @@ public partial class GltfModelExporter
 
     private void LoadWorldNodeModels(ModelRoot exportedModel, Scene scene, VWorldNode worldNode)
     {
-        foreach (var sceneObject in worldNode.SceneObjects)
+        var materialOverrides = worldNode.MaterialOverrides.ToLookup(static materialOverride => materialOverride.SceneObjectIndex);
+
+        for (var sceneObjectIndex = 0; sceneObjectIndex < worldNode.SceneObjects.Count; sceneObjectIndex++)
         {
+            var sceneObject = worldNode.SceneObjects[sceneObjectIndex];
             var renderableModel = sceneObject.GetStringProperty("m_renderableModel");
             if (renderableModel == null)
             {
@@ -244,7 +286,8 @@ public partial class GltfModelExporter
                 tintColor = Vector4.One;
             }
 
-            LoadModel(exportedModel, scene, model, name, matrix, tintColor, GetSkinName(sceneObject, "m_skin"));
+            LoadModel(exportedModel, scene, model, name, matrix, tintColor, GetSkinName(sceneObject, "m_skin"),
+                materialOverrides: [.. materialOverrides[(uint)sceneObjectIndex]]);
         }
 
         foreach (var sceneObject in worldNode.AggregateSceneObjects)
