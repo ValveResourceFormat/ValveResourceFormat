@@ -10,20 +10,21 @@ Source 2 Viewer can export 3D models from any Source 2 game to the standard glTF
 
 Models are stored as `.vmdl_c` files inside VPK archives. In CS2, most assets are inside `pak01_dir.vpk`. Common locations:
 
-| Game             | Path                 | Examples                                         |
-| ---------------- | -------------------- | ------------------------------------------------ |
-| Counter-Strike 2 | `weapons/models/`    | Weapon viewmodels and worldmodels                |
-| Counter-Strike 2 | `agents/models/`     | Player and agent models                          |
-| Counter-Strike 2 | `models/`            | Props, vehicles, foliage, and other world models |
-| Dota 2           | `models/heroes/`     | Hero models with cosmetics                       |
-| Deadlock         | `models/heroes/`     | Hero models                                      |
-| Half-Life: Alyx  | `models/characters/` | Characters and NPCs                              |
+| Game             | Path                                           | Examples                                         |
+| ---------------- | ---------------------------------------------- | ------------------------------------------------ |
+| Counter-Strike 2 | `weapons/models/`                              | Weapon viewmodels and worldmodels                |
+| Counter-Strike 2 | `agents/models/`                               | Player and agent models                          |
+| Counter-Strike 2 | `models/`                                      | Props, vehicles, foliage, and other world models |
+| Dota 2           | `models/heroes/`                               | Hero models                                      |
+| Dota 2           | `models/items/`                                | Cosmetic items, in a folder per hero             |
+| Deadlock         | `models/heroes_wip/`, `models/heroes_staging/` | Hero models                                      |
+| Half-Life: Alyx  | `models/characters/`                           | Characters and NPCs                              |
 
 Use <kbd>Ctrl</kbd>+<kbd>F</kbd> to search for files by name.
 
 ### Deadlock hero models
 
-Deadlock hero models are `.vmdl_c` files under `models/heroes/`. Source 2 Viewer detects Deadlock automatically, so you can find its `pak01_dir.vpk` in the Explorer and browse to that folder from there. Double-click a model to preview it along with its animations. To use a hero in Blender, right-click the model and select **Decompile & export**, then choose glTF as described in [Exporting to glTF](#exporting-to-gltf).
+Deadlock hero models are `.vmdl_c` files under `models/heroes_wip/` and `models/heroes_staging/`. Each hero has a folder named after its internal name, which can differ from its name in the game, and heroes move between these folders in game updates. See [Deadlock](../games/deadlock.md#finding-a-hero-s-model) for how to find a hero's model. Source 2 Viewer detects Deadlock automatically, so you can find its `pak01_dir.vpk` in the Explorer and browse to that folder from there. Double-click a model to preview it along with its animations. To use a hero in Blender, right-click the model and select **Decompile & export**, then choose glTF as described in [Exporting to glTF](#exporting-to-gltf).
 
 ## Previewing Models
 
@@ -54,6 +55,8 @@ The output format can be chosen in the save dialog. For 3D use, choose glTF or G
 
 The glTF export includes geometry, materials, textures, and the skeleton (if present).
 
+Textures that are self-illuminated in the game export as emissive textures, so they glow in glTF viewers and Blender.
+
 ### glTF vs GLB
 
 | Format | Description                                             | Best for                          |
@@ -67,26 +70,9 @@ GLB files are limited to 2 GB by the glTF spec. Use **glTF** instead, especially
 
 ## Importing into Blender
 
-1. Open Blender
-2. Go to **File → Import → glTF 2.0 (.gltf/.glb)**
-3. Select the exported file
-4. The model imports with materials and textures already applied
+Import the exported file with **File → Import → glTF 2.0 (.gltf/.glb)**. See [Importing Models and Maps into Blender](./importing-into-blender.md) for frame rate, characters with animations, Dota 2 cosmetics and material issues.
 
-The imported model includes the full mesh, UV maps, material assignments, and textures. If the model has a skeleton, it's imported as an Armature.
-
-Textures that are self-illuminated in the game export as emissive textures, so they glow in glTF viewers and Blender.
-
-### Bones look like big spheres in Blender
-
-If the armature is covered in large blobs, change these options in the import dialog under **Bones & Skin**:
-
-- Enable **Disable Bone Shape**, or
-- Lower **Bone Shape Scale**; the right value depends on the model, roughly 0.2 to 0.75, or
-- Set **Bone Dir** to **Temperance**, which points bones at their children and draws no spheres. Animations still play correctly.
-
-Blender remembers the last used import settings, and they can be saved as an operator preset. After import, the armature's **Viewport Display** can also be set to Stick or Wire.
-
-glTF joints have no length or direction, so Blender guesses them. The default **Bone Dir** points each bone along its local +Y axis, while Source 2 bones run along local X, and draws every bone as a sphere sized at 5% of the armature's smallest dimension. IK target, root motion, cloth and helper bones get long guessed tails that stretch the armature, which makes all the spheres large. A glTF file cannot choose import options, so this has to be changed in Blender.
+If the armature is covered in large spheres, see [Bones look like big spheres in Blender](./importing-into-blender.md#bones-look-like-big-spheres-in-blender).
 
 ## Exporting Animations
 
