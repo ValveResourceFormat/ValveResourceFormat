@@ -129,8 +129,33 @@ export default defineConfig({
                             link: "/guides/exporting-sounds",
                         },
                         {
+                            text: "Importing into Blender",
+                            link: "/guides/importing-into-blender",
+                        },
+                        {
                             text: "VPK Management",
                             link: "/guides/vpk-management",
+                        },
+                    ],
+                },
+                {
+                    text: "Games",
+                    items: [
+                        {
+                            text: "Counter-Strike 2",
+                            link: "/games/counter-strike-2",
+                        },
+                        {
+                            text: "Dota 2",
+                            link: "/games/dota-2",
+                        },
+                        {
+                            text: "Deadlock",
+                            link: "/games/deadlock",
+                        },
+                        {
+                            text: "Half-Life: Alyx",
+                            link: "/games/half-life-alyx",
                         },
                     ],
                 },

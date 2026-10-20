@@ -11,7 +11,7 @@ Source 2 Viewer can export maps in two ways: as glTF for use in 3D software like
 Maps are stored as `.vmap_c` files inside VPK archives or as standalone VPK files.
 
 - **Official maps**: Each map is stored as its own VPK file (e.g., `de_dust2.vpk`) in the game's `maps/` directory. Inside the VPK, the map data is at `maps/<mapname>.vmap_c` alongside a `maps/<mapname>/` folder containing world nodes, entities, cubemaps, and other dependencies.
-- **Workshop maps**: Stored as individual VPK files in Steam's workshop directory, which can be opened directly with Source 2 Viewer
+- **Workshop maps**: Stored as individual VPK files in Steam's workshop directory, which can be opened directly with Source 2 Viewer. Open them in place rather than from a copy, so the textures they use from the game are found. See [Game Search Paths](./game-search-paths.md)
 
 ::: warning
 Some games include map files with a `_vanity` suffix (e.g., `de_dust2_vanity.vmap_c`). These are truncated versions used for main menu backgrounds. Use the version without the suffix instead.
@@ -43,19 +43,23 @@ The export includes:
 
 - Map geometry (brushes and meshes)
 - Textures (exported as PNG files alongside the glTF)
-- Props and models placed in the map
+- Props and models placed in the map, with the animation the map sets on animated props such as spinning fans
+- Decals and overlays, offset slightly from their surface so they don't flicker
 - Basic material information
+- The sun (`light_environment`), as a directional light
+- Collision, in a separate `<map>_physics.gltf` file
 
 ::: tip
 Map exports can be large. For a typical CS2 competitive map, expect the export to produce hundreds of texture files alongside the glTF.
 :::
 
+### If the export fails
+
+Check that you picked the `.vmap_c` file and not one of the files in the map's folder. Game updates can change map data in ways older versions can't read, so follow [Reporting Issues](./reporting-issues.md), which starts with trying the latest development build.
+
 ### Importing into Blender
 
-1. Open Blender
-2. Go to **File → Import → glTF 2.0 (.gltf/.glb)**
-3. Select the exported map file
-4. The map imports as a single scene with materials and textures applied
+Import the exported map with **File → Import → glTF 2.0 (.gltf/.glb)**. The map comes in as a single scene. See [Importing Models and Maps into Blender](./importing-into-blender.md#maps) for more.
 
 ## Decompile to .vmap
 
@@ -122,6 +126,7 @@ See the [command-line utility guide](./command-line.md) for more options.
 
 ## Limitations
 
-- **glTF export** includes geometry, textures, props and the sun, but not baked lighting, point or spot lights, game logic, or navigation meshes
+- **glTF export** includes geometry, textures, props and the sun, but not the skybox, baked lighting, point or spot lights, game logic, or navigation meshes
+- **Blended materials**, such as ground that mixes two textures, keep only one texture. See [Blended ground materials](./importing-into-blender.md#blended-ground-materials-show-one-texture)
 - **vmap decompilation** may produce maps that don't compile perfectly due to data loss in the decompilation process
 - Very large maps may take significant time and memory to export
