@@ -65,7 +65,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             if (attenuationStyle == StandardLightingAttenuationStyle.LIGHT_STYLE_NEW)
             {
-                radiusScale *= Math.Clamp(zeroPercentFalloff.NextNumber(systemState), 1f / (1 << 22), 1f);
+                radiusScale *= MathF.Max(zeroPercentFalloff.NextNumber(systemState), 1f / (1 << 22));
             }
 
             var colorScale = new Vector4(ParticleColorBlend.ConvertScale(ColorBlendType, ColorScale.NextVector(systemState)), 1f);
