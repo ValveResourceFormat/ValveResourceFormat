@@ -705,26 +705,6 @@ namespace ValveResourceFormat.ResourceTypes
             or VTexFormat.BC6H;
 
         /// <summary>
-        /// Gets a value indicating whether the format of this texture stores a blue channel.
-        /// </summary>
-        public bool HasBlueChannel => Format
-            is not (VTexFormat.I8
-            or VTexFormat.IA88
-            or VTexFormat.A8
-            or VTexFormat.R8_UNORM
-            or VTexFormat.R16
-            or VTexFormat.R16F
-            or VTexFormat.R32F
-            or VTexFormat.R32_UINT
-            or VTexFormat.R11_EAC
-            or VTexFormat.ATI1N
-            or VTexFormat.RG1616
-            or VTexFormat.RG1616F
-            or VTexFormat.RG3232F
-            or VTexFormat.RG11_EAC
-            or VTexFormat.ATI2N);
-
-        /// <summary>
         /// Gets a value indicating whether this texture contains raw image data, not block data.
         /// </summary>
         public bool IsRawAnyImage => IsRawJpeg || IsRawPng || IsRawWebp;
@@ -880,7 +860,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var decoder = CreateDecoder(mipLevel);
                 decoder.Decode(skiaBitmap, span);
 
-                Common.ApplyTextureConversions(skiaBitmap, decodeFlags, HasBlueChannel);
+                Common.ApplyTextureConversions(skiaBitmap, decodeFlags);
 
                 var bitmapToReturn = skiaBitmap;
                 skiaBitmap = null;

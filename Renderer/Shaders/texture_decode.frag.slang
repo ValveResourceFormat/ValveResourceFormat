@@ -37,7 +37,6 @@ uniform int g_nSelectedMip;
 uniform int g_nSelectedDepth;
 uniform int g_nSelectedCubeFace;
 uniform int g_nDecodeFlags;
-uniform bool g_bInputHasBlueChannel = true;
 uniform uint g_nSelectedChannels = 0x03020100; // RGBA
 
 uint GetColorIndex(uint nChannelMapping, uint nChannel)
@@ -246,7 +245,7 @@ void main()
 
     if ((g_nDecodeFlags & HemiOctIsoRoughness_RG_B) != 0)
     {
-        float flRoughness = g_bInputHasBlueChannel ? vColor.b : vColor.a;
+        float flRoughness = vColor.b;
         vColor.rgb = PackToColor(hemi_oct_to_float32x3(vec2(vColor.x + vColor.y - 1.003922, vColor.x - vColor.y)));
         vColor.a = flRoughness;
     }
