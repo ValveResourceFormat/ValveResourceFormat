@@ -58,9 +58,22 @@ public class NmClipExtract
 
         var dmxFileName = Path.ChangeExtension(resource.FileName, ".dmx");
         Debug.Assert(dmxFileName != null);
+        var dmxSubFileName = Path.GetFileName(dmxFileName);
 
-        var (sourceFileName, additiveBaseFileName) = FindAuthoredSourceFiles(skeletonSourceFiles, skeletonSourcesKnown);
-        kv.Add("m_sourceFilename", sourceFileName ?? NormalizeContentPath(dmxFileName));
+        var (documentFileName, sourceFileName, additiveBaseFileName) = FindAuthoredSourceFiles(skeletonSourceFiles, skeletonSourcesKnown);
+
+        if (documentFileName != null && sourceFileName != null)
+        {
+            dmxSubFileName = ContentFile.GetSubFileName(documentFileName, sourceFileName);
+        }
+        else
+        {
+            sourceFileName = NormalizeContentPath(dmxFileName);
+        }
+
+        kv.Add("_class", "CNmClipDocument");
+        kv.Add("m_nVersion", 1L);
+        kv.Add("m_sourceFilename", sourceFileName);
         kv.Add("m_animationSkeletonName", clip.SkeletonName);
 
         if (clip.IsAdditive)
@@ -85,7 +98,7 @@ public class NmClipExtract
             kv.Add("m_bonesToSampleInModelSpace", bonesToSampleInModelSpace);
 
             contentFile.AddSubFile(
-                Path.GetFileName(dmxFileName),
+                dmxSubFileName,
                 () => ModelExtract.ToDmxAnim(skeleton, [], animation, secondaryAnimations, nmSkelAxisFixup: true)
             );
         }
@@ -159,29 +172,36 @@ public class NmClipExtract
     }
 
     /// <summary>
-    /// Recovers the animation the clip was authored from, and for an additive clip generated against
-    /// another animation, that animation. Both are input dependencies of the compiled clip, alongside
-    /// the clip document itself and the source files of every skeleton it references.
+    /// Recovers the clip document, the animation the clip was authored from, and for an additive clip
+    /// generated against another animation, that animation. All are input dependencies of the compiled
+    /// clip, alongside the source files of every skeleton it references.
     /// </summary>
     /// <param name="skeletonSourceFiles">The content files every referenced skeleton was compiled from.</param>
     /// <param name="skeletonSourcesKnown">
     /// Whether every skeleton the clip references was loaded. A skeleton that was not leaves its own
     /// source files out of <paramref name="skeletonSourceFiles"/>.
     /// </param>
-    private (string? SourceFileName, string? AdditiveBaseFileName) FindAuthoredSourceFiles(HashSet<string> skeletonSourceFiles, bool skeletonSourcesKnown)
+    private (string? DocumentFileName, string? SourceFileName, string? AdditiveBaseFileName) FindAuthoredSourceFiles(HashSet<string> skeletonSourceFiles, bool skeletonSourcesKnown)
     {
         if (resource.EditInfo == null)
         {
-            return (null, null);
+            return (null, null, null);
         }
 
+        string? documentFileName = null;
         var candidates = new List<string>();
 
         foreach (var dependency in resource.EditInfo.InputDependencies)
         {
             var file = NormalizeContentPath(dependency.ContentRelativeFilename);
 
-            if (file.EndsWith(".vnmclip", StringComparison.OrdinalIgnoreCase) || skeletonSourceFiles.Contains(file))
+            if (file.EndsWith(".vnmclip", StringComparison.OrdinalIgnoreCase))
+            {
+                documentFileName = file;
+                continue;
+            }
+
+            if (skeletonSourceFiles.Contains(file))
             {
                 continue;
             }
@@ -191,7 +211,7 @@ public class NmClipExtract
 
         if (candidates.Count == 1 && skeletonSourcesKnown)
         {
-            return (candidates[0], null);
+            return (documentFileName, candidates[0], null);
         }
 
         // An additive lists its base animation too; the clip's own source is the one named after it.
@@ -207,7 +227,7 @@ public class NmClipExtract
 
             if (sourceFileName != null)
             {
-                return (null, null);
+                return (documentFileName, null, null);
             }
 
             sourceFileName = candidate;
@@ -215,11 +235,11 @@ public class NmClipExtract
 
         if (sourceFileName == null || candidates.Count != 2 || !skeletonSourcesKnown)
         {
-            return (sourceFileName, null);
+            return (documentFileName, sourceFileName, null);
         }
 
         var additiveBaseFileName = candidates[0] == sourceFileName ? candidates[1] : candidates[0];
-        return (sourceFileName, additiveBaseFileName);
+        return (documentFileName, sourceFileName, additiveBaseFileName);
     }
 
     private void AddAdditiveProperties(KVObject kv, string? additiveBaseFileName)

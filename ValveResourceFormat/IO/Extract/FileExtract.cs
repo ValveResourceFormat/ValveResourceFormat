@@ -73,6 +73,19 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
+        /// Gets the sub-file name that places <paramref name="contentPath"/> at its content path when written
+        /// next to the content file at <paramref name="documentPath"/>. Both paths are content relative.
+        /// </summary>
+        internal static string GetSubFileName(string documentPath, string contentPath)
+        {
+            var documentFolder = Path.GetDirectoryName(documentPath);
+
+            return string.IsNullOrEmpty(documentFolder)
+                ? contentPath
+                : Path.GetRelativePath(documentFolder, contentPath).Replace('\\', '/');
+        }
+
+        /// <summary>
         /// Releases resources used by this instance.
         /// </summary>
         protected virtual void Dispose(bool disposing)

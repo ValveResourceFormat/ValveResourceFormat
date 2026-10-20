@@ -36,7 +36,18 @@ public class NmSkeletonExtract
 
         var dmxFile = Path.ChangeExtension(resource.FileName, "dmx");
         Debug.Assert(dmxFile != null);
-        kv.Add("m_sourceFilename", FindAuthoredSourceFile() ?? dmxFile.Replace('\\', '/'));
+        var sourceFileName = dmxFile.Replace('\\', '/');
+        var dmxSubFileName = Path.GetFileName(dmxFile);
+
+        if (FindAuthoredSourceFile() is var (documentFileName, authoredFileName))
+        {
+            sourceFileName = authoredFileName;
+            dmxSubFileName = ContentFile.GetSubFileName(documentFileName, authoredFileName);
+        }
+
+        kv.Add("_class", "CNmSkeletonDocument");
+        kv.Add("m_nVersion", 0L);
+        kv.Add("m_sourceFilename", sourceFileName);
 
         var rootBoneName = skel.Roots.Length == 1
             ? skel.Roots[0].Name
@@ -62,7 +73,7 @@ public class NmSkeletonExtract
         {
             Data = Encoding.UTF8.GetBytes(kv.ToKV3String())
         };
-        contentFile.AddSubFile(Path.GetFileName(dmxFile), () =>
+        contentFile.AddSubFile(dmxSubFileName, () =>
         {
             return ModelExtract.ToDmxSkeleton(skel, nmSkelAxisFixup: true, nmLowLodBoneCount: numLowLODBones);
         });
@@ -70,15 +81,16 @@ public class NmSkeletonExtract
     }
 
     /// <summary>
-    /// Finds the mesh the skeleton was authored from, an input dependency beside the skeleton document.
+    /// Finds the mesh the skeleton was authored from and the skeleton document itself, both input dependencies.
     /// </summary>
-    private string? FindAuthoredSourceFile()
+    private (string DocumentFileName, string SourceFileName)? FindAuthoredSourceFile()
     {
         if (resource.EditInfo == null)
         {
             return null;
         }
 
+        string? documentFileName = null;
         string? sourceFileName = null;
 
         foreach (var dependency in resource.EditInfo.InputDependencies)
@@ -87,6 +99,7 @@ public class NmSkeletonExtract
 
             if (file.EndsWith(".vnmskel", StringComparison.OrdinalIgnoreCase))
             {
+                documentFileName = file;
                 continue;
             }
 
@@ -98,6 +111,6 @@ public class NmSkeletonExtract
             sourceFileName = file;
         }
 
-        return sourceFileName;
+        return documentFileName != null && sourceFileName != null ? (documentFileName, sourceFileName) : null;
     }
 }
