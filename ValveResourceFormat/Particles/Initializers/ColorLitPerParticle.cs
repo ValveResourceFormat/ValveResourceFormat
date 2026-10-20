@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Particles.Initializers
             tintMin = parse.Color24("m_TintMin", tintMin);
             tintMax = parse.Color24("m_TintMax", tintMax);
             tintPercentage = parse.Float("m_flTintPerc", tintPercentage);
-            tintBlendMode = parse.EnumNormalized("m_nTintBlendMode", tintBlendMode);
+            tintBlendMode = parse.Enum("m_nTintBlendMode", tintBlendMode);
             lightAmplification = parse.Float("m_flLightAmplification", lightAmplification);
         }
 
