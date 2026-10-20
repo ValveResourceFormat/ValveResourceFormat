@@ -1392,6 +1392,7 @@ namespace ValveResourceFormat.ResourceTypes
                     "Texture Compiler Version Image NormalizeNormals" => TextureCodec.NormalizeNormals,
 
                     // Mipmap processor algorithms
+                    "Texture Compiler Version Mip HemiOctNormal" => TextureCodec.HemiOctNormal,
                     "Texture Compiler Version Mip HemiOctIsoRoughness_RG_B" => TextureCodec.HemiOctRB,
                     "Texture Compiler Version Mip HemiOctAnisoRoughness" => TextureCodec.HemiOctRB, // do we lose one of the roughness components? (anisotropic is xy)
                     _ => TextureCodec.None,
@@ -1404,6 +1405,12 @@ namespace ValveResourceFormat.ResourceTypes
                 codec &= ~(TextureCodec.HemiOctRB | TextureCodec.NormalizeNormals);
             }
 
+            // BC5 blue channel is always 0, it is not roughness
+            if (Format == VTexFormat.ATI2N)
+            {
+                codec &= ~TextureCodec.BlueToAlpha;
+            }
+
             if (codec.HasFlag(TextureCodec.YCoCg) && (Flags & VTexFlags.CUBE_TEXTURE) != 0)
             {
                 // Skybox cubemaps store YCoCg in sRGB gamma space; flat panorama textures are raw (issue #1127).
@@ -1414,7 +1421,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 codec |= TextureCodec.Dxt5nm;
             }
-            else if (Format == VTexFormat.BC7 && codec.HasFlag(TextureCodec.HemiOctRB)
+            else if (Format == VTexFormat.BC7 && codec.HasFlag(TextureCodec.HemiOctNormal)
                                               && codec.HasFlag(TextureCodec.NormalizeNormals))
             {
                 codec &= ~TextureCodec.NormalizeNormals;

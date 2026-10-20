@@ -43,9 +43,9 @@ namespace ValveResourceFormat.TextureDecoders
         RGBM = 1 << 1, // todo
 
         /// <summary>
-        /// Hemi Octahedron surface normal data in RB. Widens to RGB.
+        /// Hemi Octahedron surface normal data in RG. Widens to RGB.
         /// </summary>
-        HemiOctRB = 1 << 2,
+        HemiOctNormal = 1 << 2,
 
         /// <summary>
         /// Reconstruct normal Z from X and Y.
@@ -73,6 +73,16 @@ namespace ValveResourceFormat.TextureDecoders
         ForceLDR = 1 << 7,
 
         /// <summary>
+        /// Move blue to alpha, before other conversions overwrite blue.
+        /// </summary>
+        BlueToAlpha = 1 << 8,
+
+        /// <summary>
+        /// Hemi Octahedron surface normal data in RG and roughness in B, moved to alpha.
+        /// </summary>
+        HemiOctRB = HemiOctNormal | BlueToAlpha,
+
+        /// <summary>
         /// Automatically determine codec flags.
         /// </summary>
         Auto = 1 << 30,
@@ -85,10 +95,11 @@ namespace ValveResourceFormat.TextureDecoders
             var swapRA = decodeFlags.HasFlag(TextureCodec.Dxt5nm);
             var decodeYCoCg = decodeFlags.HasFlag(TextureCodec.YCoCg);
             var linearizeYCoCg = decodeYCoCg && decodeFlags.HasFlag(TextureCodec.ColorSpaceSrgb);
-            var decodeHemiOct = decodeFlags.HasFlag(TextureCodec.HemiOctRB);
+            var blueToAlpha = decodeFlags.HasFlag(TextureCodec.BlueToAlpha);
+            var decodeHemiOct = decodeFlags.HasFlag(TextureCodec.HemiOctNormal);
             var reconstructZ = decodeFlags.HasFlag(TextureCodec.NormalizeNormals);
 
-            if (!swapRA && !decodeYCoCg && !decodeHemiOct && !reconstructZ)
+            if (!swapRA && !decodeYCoCg && !blueToAlpha && !decodeHemiOct && !reconstructZ)
             {
                 return;
             }
@@ -121,6 +132,11 @@ namespace ValveResourceFormat.TextureDecoders
                     pixel.g = ToClampedLdrColor(rgb.Y);
                     pixel.b = ToClampedLdrColor(rgb.Z);
                     pixel.a = 255;
+                }
+
+                if (blueToAlpha)
+                {
+                    pixels[i].a = pixels[i].b;
                 }
 
                 if (decodeHemiOct)
@@ -167,7 +183,6 @@ namespace ValveResourceFormat.TextureDecoders
             var nz = 1 - MathF.Abs(nx) - MathF.Abs(ny);
 
             var l = MathF.Sqrt((nx * nx) + (ny * ny) + (nz * nz));
-            color.a = color.b; //b to alpha
             color.r = (byte)(((nx / l * 0.5f) + 0.5f) * 255);
             color.g = (byte)(((ny / l * 0.5f) + 0.5f) * 255);
             color.b = (byte)(((nz / l * 0.5f) + 0.5f) * 255);

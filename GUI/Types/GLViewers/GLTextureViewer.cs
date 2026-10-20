@@ -652,7 +652,7 @@ namespace GUI.Types.GLViewers
         }
 
         private const int TranslucencyScanPixelLimit = 2048 * 2048;
-        private const TextureCodec DataInAlphaCodecs = TextureCodec.YCoCg | TextureCodec.RGBM | TextureCodec.HemiOctRB | TextureCodec.NormalizeNormals | TextureCodec.Dxt5nm;
+        private const TextureCodec DataInAlphaCodecs = TextureCodec.YCoCg | TextureCodec.RGBM | TextureCodec.BlueToAlpha | TextureCodec.NormalizeNormals | TextureCodec.Dxt5nm;
 
         private static bool HasTranslucentPixels(Texture textureData, TextureCodec codec)
         {
