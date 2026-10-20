@@ -1379,17 +1379,18 @@ namespace ValveResourceFormat.ResourceTypes
 
             var textureCompilerDependencies = Resource.EditInfo.SpecialDependencies
                 .Where(static dependency => dependency.CompilerIdentifier == "CompileTexture");
-            var isAnisotropicRoughness = false;
+            var isNormalMap = false;
+            var isAnisoRoughness_RG = false;
 
             foreach (var processorAlgorithm in textureCompilerDependencies)
             {
-                isAnisotropicRoughness |= processorAlgorithm.String == "Texture Compiler Version Mip AnisoRoughness_RG";
+                isNormalMap |= processorAlgorithm.String == "Texture Compiler Version Image NormalizeNormals";
+                isAnisoRoughness_RG |= processorAlgorithm.String == "Texture Compiler Version Mip AnisoRoughness_RG";
 
                 codec |= processorAlgorithm.String switch
                 {
                     // Image processor algorithms
                     "Texture Compiler Version Image YCoCg Conversion" => TextureCodec.YCoCg,
-                    "Texture Compiler Version Image NormalizeNormals" => TextureCodec.NormalizeNormals,
 
                     // Mipmap processor algorithms
                     "Texture Compiler Version Mip HemiOctNormal" => TextureCodec.HemiOctNormal,
@@ -1399,10 +1400,11 @@ namespace ValveResourceFormat.ResourceTypes
                 };
             }
 
-            // Roughness generated from a normal map lists the normal map's processors, but holds the roughness itself in red and green
-            if (isAnisotropicRoughness)
+            // Roughness generated from a normal map lists the normal map's processors, but only holds roughness in red and green
+            if (isAnisoRoughness_RG)
             {
-                codec &= ~(TextureCodec.HemiOctRB | TextureCodec.NormalizeNormals);
+                isNormalMap = false;
+                codec &= ~TextureCodec.HemiOctRB;
             }
 
             // BC5 blue channel is always 0, it is not roughness
@@ -1411,20 +1413,21 @@ namespace ValveResourceFormat.ResourceTypes
                 codec &= ~TextureCodec.BlueToAlpha;
             }
 
+            // The normalize processor runs on the source image, but normal maps in these formats only store X and Y
+            if (isNormalMap && !codec.HasFlag(TextureCodec.HemiOctNormal))
+            {
+                codec |= Format switch
+                {
+                    VTexFormat.DXT5 => TextureCodec.Dxt5nm | TextureCodec.NormalizeNormals,
+                    VTexFormat.ATI2N => TextureCodec.NormalizeNormals,
+                    _ => TextureCodec.None,
+                };
+            }
+
             if (codec.HasFlag(TextureCodec.YCoCg) && (Flags & VTexFlags.CUBE_TEXTURE) != 0)
             {
                 // Skybox cubemaps store YCoCg in sRGB gamma space; flat panorama textures are raw (issue #1127).
                 codec |= TextureCodec.ColorSpaceSrgb;
-            }
-
-            if (Format == VTexFormat.DXT5 && codec.HasFlag(TextureCodec.NormalizeNormals))
-            {
-                codec |= TextureCodec.Dxt5nm;
-            }
-            else if (Format == VTexFormat.BC7 && codec.HasFlag(TextureCodec.HemiOctNormal)
-                                              && codec.HasFlag(TextureCodec.NormalizeNormals))
-            {
-                codec &= ~TextureCodec.NormalizeNormals;
             }
 
             if (IsHighDynamicRange)
