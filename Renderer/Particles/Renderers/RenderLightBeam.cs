@@ -73,17 +73,20 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var span = MathF.Max(1f, count / (float)beamCount);
             var blend = new Vector4(ParticleColorBlend.ConvertScale(ColorBlendType, colorBlend.NextVector(systemState)), 1f);
             var lumensPerMeter = brightnessLumensPerMeter.NextNumber(systemState);
-            var outerAngle = Math.Clamp(outerConeAngle.NextNumber(systemState), 0f, 180f);
+            var lightRange = range.NextNumber(systemState);
+            var lightThickness = thickness.NextNumber(systemState);
+            var keepLights = lightRange <= 0f || lightThickness <= 0f || lumensPerMeter == 0f;
+            var outerAngle = Math.Clamp(outerConeAngle.NextNumber(systemState), 1f, 180f);
             var innerAngle = Math.Clamp(innerConeAngle.NextNumber(systemState), 0f, outerAngle);
             var coneRotation = EntityTransformHelper.EulerAnglesToRotationMatrix(coneRotationOffset.NextVector(systemState));
             var light = new ParticleLightPool.LightState(
                 Color: Vector3.One,
                 LinearBrightness: 0f,
                 BrightnessScale: 0f,
-                Range: range.NextNumber(systemState),
+                Range: lightRange,
                 SpotInnerAngle: innerAngle,
                 SpotOuterAngle: outerAngle,
-                LuminaireSize: thickness.NextNumber(systemState),
+                LuminaireSize: lightThickness,
                 FallOff: skirt.NextNumber(systemState),
                 Transform: Matrix4x4.Identity);
 
@@ -101,7 +104,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                 slot.Touched = true;
 
-                if (lumensPerMeter <= 0f)
+                if (keepLights)
                 {
                     continue;
                 }
@@ -123,20 +126,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                 var color = colorSum / length;
                 var peak = color.MaxComponent();
-
-                if (peak <= 0f)
-                {
-                    continue;
-                }
-
                 var lumens = MetersPerUnit * beamLength * lumensPerMeter;
-                var solidAngle = SceneLight.ComputeConeSolidAngle(outerAngle, innerAngle);
 
                 slot.State = light with
                 {
-                    Color = ColorSpace.SrgbLinearToGamma(color / peak),
-                    LinearBrightness = lumens * 4f * MathF.PI * 10f / solidAngle / (SceneLight.LinearBrightnessDistance * SceneLight.LinearBrightnessDistance),
-                    BrightnessScale = peak,
+                    Color = peak > 0f ? ColorSpace.SrgbLinearToGamma(color / peak) : Vector3.One,
+                    LinearBrightness = lumens * 10f / (SceneLight.LinearBrightnessDistance * SceneLight.LinearBrightnessDistance),
+                    BrightnessScale = MathF.Max(peak, 0f),
                     Transform = coneRotation * Matrix4x4.CreateFromQuaternion(TransformMath.FromRotationBetweenUnitVectors(Vector3.UnitY, axis)) * Matrix4x4.CreateTranslation(center),
                     TubeHalfLength = beamLength * 0.5f,
                 };
