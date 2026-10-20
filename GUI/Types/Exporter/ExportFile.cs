@@ -131,6 +131,7 @@ namespace GUI.Types.Exporter
             var exportData = new ExportData
             {
                 VrfGuiContext = ownsContext ? new VrfGuiContext(fileName, vrfGuiContext) : vrfGuiContext,
+                BypassResourceCache = !ownsContext,
             };
 
             try

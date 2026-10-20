@@ -165,7 +165,7 @@ namespace GUI.Types.Exporter
             if (decompile)
             {
                 // We need to know what files were handled by the glTF exporter
-                gltfExporter = new GltfModelExporter(new TrackingFileLoader(exportData.VrfGuiContext))
+                gltfExporter = new GltfModelExporter(new TrackingFileLoader(exportData.FileLoader))
                 {
                     ProgressReporter = dialog,
                 };
@@ -474,7 +474,7 @@ namespace GUI.Types.Exporter
                     flatSubfiles = false;
                 }
 
-                contentFile = FileExtract.Extract(resource, exportData.VrfGuiContext, progress);
+                contentFile = FileExtract.Extract(resource, exportData.FileLoader, progress);
 
                 if (contentFile.Data != null)
                 {
