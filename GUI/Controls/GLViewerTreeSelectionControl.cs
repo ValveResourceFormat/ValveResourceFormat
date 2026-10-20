@@ -34,7 +34,6 @@ namespace GUI.Controls
                 Dock = DockStyle.Fill,
                 Margin = new Padding(0),
                 ShowLines = false,
-                ShowRootLines = false,
             };
 
             treeView.BeginUpdate();
@@ -53,6 +52,9 @@ namespace GUI.Controls
                 // A lone item at the top holds all the others, so it lists its groups, each folded away
                 root.Expand();
             }
+
+            // A lone item at the top is never folded, so only several need the arrows that fold them
+            treeView.ShowRootLines = treeView.Nodes.Count > 1 && treeView.Nodes.Cast<TreeNode>().Any(static node => node.Nodes.Count > 0);
 
             treeView.EndUpdate();
 

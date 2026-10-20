@@ -417,7 +417,7 @@ namespace GUI.Types.GLViewers
 
                 if (modelSceneNode == null || modelSceneNode.RenderableMeshes.Count == 0)
                 {
-                    Tools.ShownCollision = collision.Select(static node => node.CollisionLabel).ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+                    Tools.ShownCollision = collision.SelectMany(static node => node.CollisionLabels).ToFrozenSet(StringComparer.OrdinalIgnoreCase);
                 }
 
                 Tools.ApplyCollisionVisibility(collision);

@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
@@ -166,8 +167,8 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
             }
         }
 
-        /// <summary>Gets what the shapes collide as, see <see cref="GetCollisionLabel"/>.</summary>
-        public required string CollisionLabel { get; init; }
+        /// <summary>Gets what the shapes collide as, see <see cref="GetCollisionLabels"/>.</summary>
+        public required string[] CollisionLabels { get; init; }
 
         /// <summary>Gets the physics this node was built from.</summary>
         public required PhysAggregateData Physics { get; init; }
@@ -180,21 +181,27 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
         }
 
         /// <summary>
-        /// Gets what a group of collision collides as, which the collision drawn is chosen by: its interact-as tags,
-        /// or its collision group when it has none, and under that, as a path such as <c>default/not player</c>,
-        /// what it does not collide with.
+        /// Gets what a group of collision collides as, which the collision drawn is chosen by: a label for each of its
+        /// interact-as tags, or for its collision group when it has none, and under each, as a path such as
+        /// <c>default/not player</c>, what it does not collide with.
         /// </summary>
         /// <param name="attributes">The collision attributes of the group.</param>
-        public static string GetCollisionLabel(KVObject attributes)
+        /// <returns>The labels, at least one.</returns>
+        public static string[] GetCollisionLabels(KVObject attributes)
         {
             ArgumentNullException.ThrowIfNull(attributes);
 
             var tags = PhysAggregateData.GetInteractAsTags(attributes);
-            var label = tags.Length > 0 ? string.Join(", ", tags) : attributes.GetStringProperty("m_CollisionGroupString") ?? "default";
+            string[] labels = tags.Length > 0 ? tags : [attributes.GetStringProperty("m_CollisionGroupString") ?? "default"];
 
-            return attributes.GetArray<string>("m_InteractExcludeStrings") is { Length: > 0 } excluded
-                ? $"{label}/not {string.Join(", ", excluded)}"
-                : label;
+            if (attributes.GetArray<string>("m_InteractExcludeStrings") is not { Length: > 0 } excluded)
+            {
+                return labels;
+            }
+
+            var notLabel = $"/not {string.Join(", ", excluded)}";
+
+            return [.. labels.Select(label => label + notLabel)];
         }
 
         /// <summary>
@@ -401,7 +408,7 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
                     }
                 }
 
-                var label = GetCollisionLabel(phys.CollisionAttributes[collisionAttributeIndex]);
+                var labels = GetCollisionLabels(phys.CollisionAttributes[collisionAttributeIndex]);
                 var lineCorners = meshEdges.GetLineCorners();
                 var firstGroupNode = physSceneNodes.Count;
 
@@ -422,7 +429,7 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
                         {
                             AddMeshTriangles(chunkVerts, chunkInds, chunkLines, mesh, triangles, meshEdges, lineCorners, chunk);
 
-                            physSceneNodes.Add(CreateNode(scene, phys, chunkVerts, chunkInds, chunkLines, label, name, collisionAttributeIndex, toolsMaterial));
+                            physSceneNodes.Add(CreateNode(scene, phys, chunkVerts, chunkInds, chunkLines, labels, name, collisionAttributeIndex, toolsMaterial));
 
                             chunkVerts.Clear();
                             chunkInds.Clear();
@@ -438,7 +445,7 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
 
                 if (inds.Count > 0 || !groupHasNode)
                 {
-                    physSceneNodes.Add(CreateNode(scene, phys, verts, inds, lines, label, name, collisionAttributeIndex, toolsMaterial));
+                    physSceneNodes.Add(CreateNode(scene, phys, verts, inds, lines, labels, name, collisionAttributeIndex, toolsMaterial));
                 }
 
                 // The node uploads the vertices and does not keep them
@@ -454,7 +461,7 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
         }
 
         // The line indices are appended after the triangle indices
-        private static PhysSceneNode CreateNode(Scene scene, PhysAggregateData phys, List<SimpleVertexNormal> verts, List<int> inds, List<int> lines, string label, string? name, int collisionAttributeIndex, string? toolsMaterial)
+        private static PhysSceneNode CreateNode(Scene scene, PhysAggregateData phys, List<SimpleVertexNormal> verts, List<int> inds, List<int> lines, string[] labels, string? name, int collisionAttributeIndex, string? toolsMaterial)
         {
             inds.AddRange(lines);
 
@@ -472,7 +479,7 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
 
             var node = new PhysSceneNode(scene, verts, inds, lines.Count)
             {
-                CollisionLabel = label,
+                CollisionLabels = labels,
                 Name = name,
                 LocalBoundingBox = boundingBox,
                 OverlayRenderOrder = collisionAttributeIndex,

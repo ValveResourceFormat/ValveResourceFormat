@@ -391,7 +391,7 @@ internal sealed partial class McpTools
             node.Name,
             Entity = EntityId(entities, node.EntityData),
             Layer = node.LayerName,
-            Collision = (node as PhysSceneNode)?.CollisionLabel,
+            Collision = (node as PhysSceneNode)?.CollisionLabels,
             SpawnGroup = group?.MapName,
             Sky = Flag(group?.WorldGroup != null),
             Hidden = HiddenReason(node),

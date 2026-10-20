@@ -40,8 +40,9 @@ public sealed class ToolsVisibility : IDrawFilter
     public IReadOnlySet<(string Group, string? EntityClass)> HiddenToolBrushGroups { get; set; } = FrozenSet<(string, string?)>.Empty;
 
     /// <summary>
-    /// Gets or sets the collision drawn, by what it collides as, see <see cref="PhysSceneNode.CollisionLabel"/>. It is
-    /// replaced whole, so a frame being drawn never reads it half changed.
+    /// Gets or sets the collision drawn, by what it collides as, see <see cref="PhysSceneNode.CollisionLabels"/>.
+    /// Collision is drawn while any of its labels is. It is replaced whole, so a frame being drawn never reads it half
+    /// changed.
     /// </summary>
     public IReadOnlySet<string> ShownCollision { get; set; } = FrozenSet<string>.Empty;
 
@@ -62,7 +63,7 @@ public sealed class ToolsVisibility : IDrawFilter
         {
             if (node is PhysSceneNode { ToolsMaterial: null } collision)
             {
-                collision.Enabled = ShownCollision.Contains(collision.CollisionLabel);
+                collision.Enabled = collision.CollisionLabels.Any(ShownCollision.Contains);
             }
             else if (node.ToolsMaterial == null)
             {
@@ -75,13 +76,13 @@ public sealed class ToolsVisibility : IDrawFilter
 
     /// <summary>Gets what the collision among some nodes collides as, once each, in order.</summary>
     /// <param name="nodes">The nodes, of which only collision that shows no tools material is read.</param>
-    /// <returns>The labels, see <see cref="PhysSceneNode.CollisionLabel"/>.</returns>
+    /// <returns>The labels, see <see cref="PhysSceneNode.CollisionLabels"/>.</returns>
     public static string[] GetCollisionLabels(IEnumerable<SceneNode> nodes)
     {
         return [.. nodes
             .OfType<PhysSceneNode>()
             .Where(static node => node.ToolsMaterial == null)
-            .Select(static node => node.CollisionLabel)
+            .SelectMany(static node => node.CollisionLabels)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Order(StringComparer.OrdinalIgnoreCase)];
     }

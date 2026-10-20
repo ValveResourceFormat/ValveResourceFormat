@@ -22,7 +22,7 @@ namespace GUI.Types.GLViewers
                 info.AddProperty("Physics File", node.Name, new LinkedFile(node.Name));
             }
 
-            info.AddProperty("Collision", node.CollisionLabel);
+            info.AddProperty("Collision", string.Join(", ", node.CollisionLabels));
 
             AddGroup(info, node.Physics, node.CollisionAttributeIndex);
         }
