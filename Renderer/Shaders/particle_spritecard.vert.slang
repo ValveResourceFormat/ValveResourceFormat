@@ -14,7 +14,8 @@
 // The corner position, or the card's centre when the corners are generated.
 in vec3 vPOSITION;
 in vec4 vCOLOR;
-in float vFrameBlend;
+// How far between its two sheet frames the card has crossed in x, the alpha test threshold and window in yz.
+in vec3 vFrameBlendAlphaRef;
 
 #if S_PARTICLE_INSTANCED
 // Sheet frame rectangles as (min.xy, max.xy), for the frame this particle is on and the one after it.
@@ -80,9 +81,6 @@ flat out uint g_nObjectIndex;
 // this they are used as though they were already linear. Alpha is left alone.
 uniform bool uGammaCorrectVertexColors = true;
 
-// m_vecColorScale, a linear tint applied after the gamma correction above.
-uniform vec3 uColorScale = vec3(1.0);
-
 // m_flDepthBias, in world units along the view direction. The card keeps its drawn position and only
 // its depth is re-taken from the shifted point, so a positive bias makes the card lose the depth test
 // against geometry it is in front of, and a negative one makes it win.
@@ -131,6 +129,7 @@ out vec2 vTexCoordNextFrameOut;
 out vec4 vLayerUvOut[S_TEXTURE_LAYERS];
 #endif
 out float vFrameBlendOut;
+flat out vec2 vAlphaReferenceOut;
 out vec2 vCardUvOut;
 out vec4 vColor;
 out vec3 vFragPosition;
@@ -177,8 +176,6 @@ void main(void) {
         vColor.rgb = SrgbGammaToLinear(vColor.rgb);
     }
 
-    vColor.rgb *= uColorScale;
-
 #if S_PARTICLE_INSTANCED
     vTexCoordOut = PlaceCorner(cardUv, 0, vTEXCOORD.xy, vTEXCOORD.zw);
     vTexCoordNextFrameOut = PlaceCorner(cardUv, 0, vTEXCOORD1.xy, vTEXCOORD1.zw);
@@ -215,7 +212,8 @@ void main(void) {
 #endif
 #endif
 
-    vFrameBlendOut = vFrameBlend;
+    vFrameBlendOut = vFrameBlendAlphaRef.x;
+    vAlphaReferenceOut = vFrameBlendAlphaRef.yz;
     vCardUvOut = cardUv;
     vFragPosition = positionWs;
 

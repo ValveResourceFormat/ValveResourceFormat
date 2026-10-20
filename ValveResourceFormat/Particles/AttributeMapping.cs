@@ -73,17 +73,17 @@ namespace ValveResourceFormat.Particles
         private readonly PfInputMode inputMode = PfInputMode.Clamped;
         private readonly PfRoundType roundType = PfRoundType.Nearest;
 
-        private readonly float multFactor;
+        private readonly float multFactor = 1f;
 
         private readonly float input0;
-        private readonly float input1;
+        private readonly float input1 = 1f;
         private readonly float output0;
-        private readonly float output1;
+        private readonly float output1 = 1f;
 
         private readonly float notchedRangeMin;
-        private readonly float notchedRangeMax;
+        private readonly float notchedRangeMax = 1f;
         private readonly float notchedOutputOutside;
-        private readonly float notchedOutputInside;
+        private readonly float notchedOutputInside = 1f;
 
         private readonly ParticleFloatBiasType biasType;
         private readonly float biasParameter;
@@ -103,32 +103,17 @@ namespace ValveResourceFormat.Particles
                     break;
 
                 case PfMapType.Mult:
-                    multFactor = parse.Float("m_flMultFactor");
+                    multFactor = parse.Float("m_flMultFactor", multFactor);
                     break;
 
                 case PfMapType.Remap:
-                    input0 = parse.Float("m_flInput0");
-                    input1 = parse.Float("m_flInput1");
-                    output0 = parse.Float("m_flOutput0");
-                    output1 = parse.Float("m_flOutput1");
-
-                    // Sort the input range, swapping the outputs with it so the authored
-                    // input->output pairing (which may deliberately descend) is preserved
-                    if (input0 > input1)
-                    {
-                        (input0, input1) = (input1, input0);
-                        (output0, output1) = (output1, output0);
-                    }
-
-                    break;
-
                 case PfMapType.RemapBiased:
-                    input0 = parse.Float("m_flInput0");
-                    input1 = parse.Float("m_flInput1");
-                    output0 = parse.Float("m_flOutput0");
-                    output1 = parse.Float("m_flOutput1");
-                    biasType = parse.Enum<ParticleFloatBiasType>("m_nBiasType");
-                    biasParameter = parse.Float("m_flBiasParameter");
+                    input0 = parse.Float("m_flInput0", input0);
+                    input1 = parse.Float("m_flInput1", input1);
+                    output0 = parse.Float("m_flOutput0", output0);
+                    output1 = parse.Float("m_flOutput1", output1);
+                    biasType = parse.Enum("m_nBiasType", biasType);
+                    biasParameter = parse.Float("m_flBiasParameter", biasParameter);
                     break;
 
                 case PfMapType.Curve:
@@ -137,14 +122,18 @@ namespace ValveResourceFormat.Particles
                     break;
 
                 case PfMapType.Notched:
-                    notchedRangeMin = parse.Float("m_flNotchedRangeMin");
-                    notchedRangeMax = parse.Float("m_flNotchedRangeMax");
-                    notchedOutputOutside = parse.Float("m_flNotchedOutputOutside");
-                    notchedOutputInside = parse.Float("m_flNotchedOutputInside");
+                    var rangeMin = parse.Float("m_flNotchedRangeMin", notchedRangeMin);
+                    var rangeMax = parse.Float("m_flNotchedRangeMax", notchedRangeMax);
+                    notchedRangeMin = MathF.Min(rangeMin, rangeMax);
+                    notchedRangeMax = MathF.Max(rangeMin, rangeMax);
+                    notchedOutputOutside = parse.Float("m_flNotchedOutputOutside", notchedOutputOutside);
+                    notchedOutputInside = parse.Float("m_flNotchedOutputInside", notchedOutputInside);
                     break;
 
                 case PfMapType.Round:
-                    roundType = parse.EnumNormalized<PfRoundType>("m_nRoundType", roundType);
+                    roundType = parse.Data.ContainsKey("m_nRoundType")
+                        ? parse.EnumNormalized("m_nRoundType", PfRoundType.Invalid)
+                        : roundType;
                     break;
 
                 case PfMapType.Min:
@@ -167,26 +156,11 @@ namespace ValveResourceFormat.Particles
                     return value * multFactor;
 
                 case PfMapType.Remap:
-                    var valueIn = WrapInput(value);
-
-                    if (input0 == input1)
-                    {
-                        return valueIn >= input1 ? output1 : output0;
-                    }
-
-                    return ClampToOutputRange(
-                        MathUtils.RemapRange(valueIn, input0, input1, output0, output1));
+                    return ClampToOutputRange(MathUtils.Lerp(output0, output1, RemapFraction(value)));
 
                 case PfMapType.RemapBiased:
-                    var remappedTo0_1RangeBiased = MathUtils.Remap(WrapInput(value), input0, input1);
-
-                    // The lower end of the input range is never clamped; the output range is what bounds
-                    // the result, and the bias curve is free to run past either end on the way there
-                    remappedTo0_1RangeBiased = MathF.Min(remappedTo0_1RangeBiased, 1f);
-
-                    var biased = ParticleMath.BiasFromParameter(remappedTo0_1RangeBiased, biasParameter, biasType);
-
-                    return ClampToOutputRange(float.Lerp(output0, output1, biased));
+                    var biased = ParticleMath.BiasFromParameter(MathF.Min(RemapFraction(value), 1f), biasParameter, biasType);
+                    return ClampToOutputRange(MathUtils.Lerp(output0, output1, biased));
 
                 case PfMapType.Curve:
                     return curve!.Evaluate(value);
@@ -199,9 +173,10 @@ namespace ValveResourceFormat.Particles
                 case PfMapType.Round:
                     return roundType switch
                     {
+                        PfRoundType.Nearest => MathF.Round(value),
                         PfRoundType.Floor => MathF.Floor(value),
                         PfRoundType.Ceil => MathF.Ceiling(value),
-                        _ => MathF.Round(value),
+                        _ => value,
                     };
 
                 case PfMapType.Min:
@@ -211,8 +186,7 @@ namespace ValveResourceFormat.Particles
                     return MathF.Max(value, compareValue);
 
                 case PfMapType.Mod:
-                    // Truncated remainder, keeping the sign of the input
-                    return compareValue == 0f ? value : value % compareValue;
+                    return compareValue == 0f ? value : value - (MathF.Truncate(value / compareValue) * compareValue);
 
                 default:
                     return value;
@@ -220,18 +194,25 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Folds the input back into <c>[0, m_flInput1)</c> when the input mode is looped. The period is
-        /// the range's upper end alone, so a range that does not start at zero still wraps at
-        /// <see cref="input1"/>, and a negative input wraps forward rather than keeping its sign.
+        /// Where the input falls in the input range, unclamped. An empty range is a step at its single
+        /// value. A looped input is first folded into <c>[0, m_flInput1)</c>, so a range that does not
+        /// start at zero still wraps at its authored upper end.
         /// </summary>
-        private float WrapInput(float value)
+        private float RemapFraction(float value)
         {
-            if (inputMode != PfInputMode.Looped || input1 == 0f)
+            if (inputMode == PfInputMode.Looped && input1 != 0f)
             {
-                return value;
+                value = input1 * MathUtils.Fract(value / input1);
             }
 
-            return input1 * MathUtils.Fract(value / input1);
+            var inputRange = input1 - input0;
+
+            if (inputRange == 0f)
+            {
+                return input0 <= value ? 1f : 0f;
+            }
+
+            return (value - input0) / inputRange;
         }
 
         private float ClampToOutputRange(float value)

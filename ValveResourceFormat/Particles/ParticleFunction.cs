@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Particles.Utils;
 
@@ -69,6 +68,23 @@ namespace ValveResourceFormat.Particles
             => opEndCapState == ParticleEndCapMode.PARTICLE_ENDCAP_ALWAYS_ON
                 || systemState.InEndCap == (opEndCapState == ParticleEndCapMode.PARTICLE_ENDCAP_ENDCAP_ON);
 
+        /// <summary>
+        /// Whether removing particles must keep the survivors in order while this function is part of
+        /// the system.
+        /// </summary>
+        public virtual bool IsOrderImportant => false;
+
+        /// <summary>
+        /// Adds the control points this function reads whose use implies a nonzero preview value.
+        /// </summary>
+        public virtual void AddControlPointDefaults(ControlPointDefaults defaults)
+        {
+        }
+
+        /// <summary>Whether the fade window has closed for good, past <c>m_flOpEndFadeOutTime</c>.</summary>
+        protected bool IsPastFadeOut(ParticleSystemState systemState)
+            => OpFadeOscillatePeriod == 0f && OpEndFadeOutTime > 0f && GetFunctionTime(systemState) > OpEndFadeOutTime;
+
         public float GetOperatorRunStrength(ParticleSystemState systemState) // CheckIfOperatorShouldRun
         {
             if (StrengthFastPath)
@@ -99,14 +115,14 @@ namespace ValveResourceFormat.Particles
         /// and stretched per system instance when the time offset and scale seeds are set. An
         /// oscillating fade instead takes the phase of the system age within the period, in [0, 1).
         /// </summary>
-        private float GetFunctionTime(ParticleSystemState systemState)
+        protected float GetFunctionTime(ParticleSystemState systemState)
         {
             if (OpFadeOscillatePeriod > 0f)
             {
-                return systemState.Age / OpFadeOscillatePeriod % 1f;
+                return 1f / OpFadeOscillatePeriod * systemState.Age % 1f;
             }
 
-            var time = MathF.Max(0f, systemState.Age - systemState.RestartAge);
+            var time = MathF.Max(0f, systemState.Age - systemState.OperatorTimeBase);
 
             if (normalizeToStopTime && opEndCapState == ParticleEndCapMode.PARTICLE_ENDCAP_ENDCAP_ON)
             {
@@ -149,32 +165,15 @@ namespace ValveResourceFormat.Particles
 
             if (fadeInEnd > time && fadeInEnd > fadeInStart)
             {
-                strength = MathF.Min(strength, FLerp(0, 1, fadeInStart, fadeInEnd, time));
+                strength = MathF.Min(strength, MathUtils.Remap(time, fadeInStart, fadeInEnd));
             }
 
             if (time > fadeOutStart && fadeOutEnd > fadeOutStart)
             {
-                strength = MathF.Min(strength, FLerp(0f, 1f, fadeOutEnd, fadeOutStart, time));
+                strength = MathF.Min(strength, MathUtils.Remap(time, fadeOutEnd, fadeOutStart));
             }
 
             return strength;
-        }
-
-        // 5-argument floating point linear interpolation.
-        // FLerp(f1,f2,i1,i2,x)=
-        //    f1 at x=i1
-        //    f2 at x=i2
-        //   smooth lerp between f1 and f2 at x>i1 and x<i2
-        //   extrapolation for x<i1 or x>i2
-        //
-        //   If you know a function f(x)'s value (f1) at position i1, and its value (f2) at position i2,
-        //   the function can be linearly interpolated with FLerp(f1,f2,i1,i2,x)
-        //    i2=i1 will cause a divide by zero.
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float FLerp(float f1, float f2, float i1, float i2, float x)
-        {
-            return f1 + (f2 - f1) * (x - i1) / (i2 - i1);
         }
     }
 }

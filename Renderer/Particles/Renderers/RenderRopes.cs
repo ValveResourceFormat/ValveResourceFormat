@@ -30,6 +30,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private const int MaxQuads = 65532 / 6;
         private const int MaxTessellationLevel = 7;
 
+        /// <summary>
+        /// How many segments are written in one batch. The V offset carried over when the first particle
+        /// dies grows by the length of the last segment of the first batch.
+        /// </summary>
+        private const int SegmentBatchSize = 527;
+
         private readonly Shader shader;
         private readonly RendererContext rendererContext;
         private readonly int vaoHandle;
@@ -81,10 +87,18 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         private RopeNode[] nodeScratch = [];
         private long[] sortKeyScratch = [];
-        private readonly Dictionary<float, int> segmentRanks = [];
+        private readonly Dictionary<int, int> segmentRanks = [];
+
+        private readonly Dictionary<int, int> segmentRepeats = [];
+        private bool segmentDataDirty;
+
+        private float vOffsetAccumulator;
+        private float firstSegmentLength;
+        private int firstParticleId = -1;
 
         private struct RopeNode
         {
+            public int ParticleIndex;
             public float Segment;
             public Vector3 Position;
             public float Radius;
@@ -92,6 +106,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             public float Alpha;
             public Vector3 Orientation;
             public float ScalarCoordinate;
+            public Vector2 AlphaReference;
         }
 
         private struct RopeSample
@@ -101,6 +116,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             public Vector3 Tangent { get; init; }
             public float Radius { get; init; }
             public Vector4 Color { get; init; }
+            public Vector2 AlphaReference { get; init; }
         }
 
         public RenderRopes(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene) : base(parse, scene)
@@ -109,10 +125,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             blendMode = parse.Enum("m_nOutputBlendMode", blendMode);
 
-            (layers, var textureName) = ParticleTextureLayer.Build(parse, rendererContext, DefaultTextureName, srgbRead: OutputIsColor);
+            (layers, var textureName) = ParticleTextureLayer.Build(parse, rendererContext, DefaultTextureName, srgbRead: TexturesAreColor);
 
             var shaderArguments = CreateShaderArguments();
             shaderArguments["S_TEXTURE_LAYERS"] = (byte)(layers.Length - 1);
+            AddSpritecardShaderArguments(shaderArguments);
 
             shader = rendererContext.ShaderLoader.LoadShader(ShaderName, shaderArguments);
             (vaoHandle, vertexBufferHandle) = SetupQuadBuffer($"{nameof(RenderRopes)}: {System.IO.Path.GetFileName(textureName)}");
@@ -159,17 +176,70 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             startFadeDot = parse.Float("m_flStartFadeDot", startFadeDot);
             endFadeDot = parse.Float("m_flEndFadeDot", endFadeDot);
 
-            // Anything outside 0..4 becomes 4.
-            if ((uint)orientationType > (uint)ParticleOrientation.PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL)
-            {
-                orientationType = ParticleOrientation.PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL;
-            }
+            orientationType = (ParticleOrientation)Math.Clamp((int)orientationType,
+                (int)ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED, (int)ParticleOrientation.PARTICLE_ORIENTATION_FULL_3AXIS_ROTATION);
 
             Pass = drawAsOpaque ? RenderPass.Opaque : RenderPass.Translucent;
         }
 
         /// <inheritdoc/>
         public override Texture.SpritesheetData? SpriteSheet => ParticleTextureLayer.FindSpriteSheet(layers);
+
+        private bool Splits => splitField is >= 0 and not ParticleField.NoneDisabled;
+
+        /// <inheritdoc/>
+        public override ParticleEventType ObservedEvents => Splits
+            ? ParticleEventType.PARTICLE_EVENT_TYPE_MASK_SPAWNED | ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED
+            : ParticleEventType.PARTICLE_EVENT_TYPE_MASK_NONE;
+
+        /// <inheritdoc/>
+        public override void OnParticleEvent(ParticleCollection particles, ParticleEventType eventType, ReadOnlySpan<int> indices)
+        {
+            segmentDataDirty = true;
+        }
+
+        /// <inheritdoc/>
+        public override void Simulate(ParticleCollection particles, ParticleSystemState systemState)
+        {
+            if (!segmentDataDirty || GetOperatorRunStrength(systemState) <= 0f)
+            {
+                return;
+            }
+
+            segmentDataDirty = false;
+
+            if (sortBySegmentId)
+            {
+                UpdateSegmentData(particles.Current);
+            }
+        }
+
+        /// <summary>
+        /// Writes each particle's place in its rope segment to <see cref="Particle.RopeSegmentData"/>:
+        /// how many particles of the segment come before it in x, that as a fraction of the segment's
+        /// last place in y, and the last place in z. Segments are told apart by the bits of their value.
+        /// </summary>
+        private void UpdateSegmentData(Span<Particle> particles)
+        {
+            segmentRepeats.Clear();
+
+            foreach (ref var particle in particles)
+            {
+                var segmentBits = BitConverter.SingleToInt32Bits(particle.GetScalar(splitField));
+                var place = segmentRepeats.TryGetValue(segmentBits, out var repeats) ? repeats + 1 : 0;
+
+                segmentRepeats[segmentBits] = place;
+                particle.RopeSegmentData = new Vector3(place, 0f, 0f);
+            }
+
+            foreach (ref var particle in particles)
+            {
+                var last = segmentRepeats[BitConverter.SingleToInt32Bits(particle.GetScalar(splitField))];
+                var place = particle.RopeSegmentData.X;
+
+                particle.RopeSegmentData = new Vector3(place, last > 0 ? place / last : 0f, last);
+            }
+        }
 
         /// <inheritdoc/>
         public override void SetTextureOverride(RenderTexture texture)
@@ -269,7 +339,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             {
                 var parameters = systemState.GetControlPoint(textureVParamsControlPoint).Position;
 
-                return (parameters.Y, parameters.Z, 1f / MathF.Max(float.Epsilon, parameters.X));
+                return (parameters.Y, parameters.Z, 1f / MathF.Max(ParticleMath.FloatEpsilon, parameters.X));
             }
 
             var modulated = (scaleVSizeByControlPointDistance > 0f
@@ -300,13 +370,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 }
             }
 
-            return (scrollRate, offset, 1f / MathF.Max(float.Epsilon, worldSize));
+            return (scrollRate, offset, 1f / MathF.Max(ParticleMath.FloatEpsilon, worldSize));
         }
 
         /// <summary>
         /// Copies the live particles into the node scratch in walk order, applying the size clamp and
         /// the distance fade that <c>m_bEnableFadingAndClamping</c> gates.
         /// </summary>
+        /// <remarks>
+        /// The tint is truncated to bytes without a clamp, so a channel past 1 wraps around. The alpha
+        /// scale applies twice: once with the particle's alpha and again where the colour scale combines.
+        /// </remarks>
         private int CollectNodes(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera)
         {
             var count = particleBag.Count;
@@ -318,14 +392,25 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             var startFadeSlope = startFadeSize.NextNumber(systemState);
             var endFadeSlope = endFadeSize.NextNumber(systemState);
-            var splits = splitField is >= 0 and not ParticleField.NoneDisabled;
+            var splits = Splits;
+            var scales = EvaluateScales(systemState);
+
+            if (scales.Radius == 0f || scales.Alpha == 0f)
+            {
+                return 0;
+            }
 
             for (var i = 0; i < count; i++)
             {
-                ref var particle = ref particleBag.Current[reverseOrder ? count - i - 1 : i];
+                var particleIndex = reverseOrder ? count - i - 1 : i;
+                ref var particle = ref particleBag.Current[particleIndex];
 
-                var radius = particle.Radius * RadiusScale.NextNumber(ref particle, systemState);
-                var alpha = particle.Alpha * particle.AlphaAlternate * AlphaScale.NextNumber(ref particle, systemState);
+                var radius = particle.Radius * scales.Radius;
+                var color = ParticleColorBlend.Apply(ColorBlendType,
+                    ParticleColorBlend.ToWrappedBytes(particle.Color, Math.Clamp(scales.Alpha * 255f * GetAlpha2(ref particle) * particle.Alpha, 0f, 255f)),
+                    scales.Color) / 255f;
+                var alpha = color.W;
+                var alphaReference = GetAlphaReference(ref particle, radius, alpha);
 
                 if (enableFadingAndClamping)
                 {
@@ -343,15 +428,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                 nodeScratch[i] = new RopeNode
                 {
+                    ParticleIndex = particleIndex,
                     Segment = splits ? particle.GetScalar(splitField) : 0f,
                     Position = particle.Position,
                     Radius = radius,
-                    Color = particle.Color,
+                    Color = color.AsVector3(),
                     Alpha = alpha,
                     Orientation = particle.GetVector(orientationField),
                     ScalarCoordinate = useScalarForTextureCoordinate
                         ? particle.GetScalar(scalarFieldForTextureCoordinate) * scalarAttributeTextureCoordScale
                         : 0f,
+                    AlphaReference = alphaReference,
                 };
             }
 
@@ -365,6 +452,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         /// <summary>
         /// Stably groups the nodes by segment, ordering the groups by where each segment first appears.
+        /// Segments are told apart by the bits of their value, so 0 and -0 are separate segments.
         /// </summary>
         private void GroupBySegment(Span<RopeNode> nodes)
         {
@@ -378,10 +466,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             for (var i = 0; i < nodes.Length; i++)
             {
-                if (!segmentRanks.TryGetValue(nodes[i].Segment, out var rank))
+                var segmentBits = BitConverter.SingleToInt32Bits(nodes[i].Segment);
+
+                if (!segmentRanks.TryGetValue(segmentBits, out var rank))
                 {
                     rank = segmentRanks.Count;
-                    segmentRanks.Add(nodes[i].Segment, rank);
+                    segmentRanks.Add(segmentBits, rank);
                 }
 
                 keys[i] = ((long)rank << 32) | (uint)i;
@@ -394,7 +484,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// Builds the ribbon into the shared vertex buffer and returns how many quads were written.
         /// V is raw world arc length measured between the particles themselves, so subdividing a
         /// segment keeps the same V span as the straight chord it replaces. A segment joining two
-        /// rope segments is not drawn, but its length still advances V.
+        /// rope segments, or one of no length, is not drawn, but its length still advances V. The
+        /// segment of an open rope that ends on the first particle ends at V 0.
         /// </summary>
         private int UpdateVertices(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera)
         {
@@ -410,6 +501,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var subdivisions = 1 << ComputeTessellationLevel(nodes, camera);
 
             var (scrollRate, vOffset, oneOverWorldSize) = ResolveTextureV(systemState);
+            CarryVOffset(particleBag, oneOverWorldSize);
+
             var viewAngleFadeActive = startFadeDot < 1f && endFadeDot > startFadeDot;
             Span<SheetFrame> sheets = stackalloc SheetFrame[ParticleTextureLayer.MaxLayers];
             Span<ParticleTextureLayer.UvTransform> uvTransforms = stackalloc ParticleTextureLayer.UvTransform[ParticleTextureLayer.MaxLayers];
@@ -423,7 +516,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             var maxQuads = Math.Min(MaxQuads, segmentCount * subdivisions);
             var quadCount = 0;
-            var arcLength = scrollRate * systemState.Age;
+            var arcLength = (scrollRate * systemState.Age) + vOffsetAccumulator;
 
             using (var vertexBuffer = new RentedBuffer<SpritecardVertex>(maxQuads * 4))
             {
@@ -435,11 +528,19 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     ref readonly var n1 = ref nodes[ResolveIndex(segment, nodeCount)];
                     ref readonly var n2 = ref nodes[ResolveIndex(segment + 1, nodeCount)];
 
-                    var vStart = arcLength;
-                    var vEnd = arcLength + Vector3.Distance(n1.Position, n2.Position);
-                    arcLength = vEnd;
+                    var segmentLength = Vector3.Distance(n1.Position, n2.Position);
+                    var endsAtFirst = n2.ParticleIndex == 0 && !closedLoop;
 
-                    if (n1.Segment != n2.Segment)
+                    if (segment < SegmentBatchSize)
+                    {
+                        firstSegmentLength = segmentLength;
+                    }
+
+                    var vStart = arcLength;
+                    var vEnd = endsAtFirst ? 0f : arcLength + segmentLength;
+                    arcLength += segmentLength;
+
+                    if (n1.Segment != n2.Segment || segmentLength == 0f)
                     {
                         stripAxis = Vector3.Zero;
                         continue;
@@ -453,7 +554,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     if (useScalarForTextureCoordinate)
                     {
                         vStart = n1.ScalarCoordinate;
-                        vEnd = n2.ScalarCoordinate;
+                        vEnd = n2.ParticleIndex == 0 ? n1.ScalarCoordinate : n2.ScalarCoordinate;
                     }
 
                     var previous = EvaluateSample(n0, n1, n2, n3, 0f, camera);
@@ -482,6 +583,22 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
 
             return quadCount;
+        }
+
+        /// <summary>
+        /// Adds <see cref="firstSegmentLength"/> to the carried V offset, wrapped to the texture's world size,
+        /// whenever a different particle is first, as when the rope's oldest particle dies.
+        /// </summary>
+        private void CarryVOffset(ParticleCollection particleBag, float oneOverWorldSize)
+        {
+            var particleId = particleBag.Current[0].ParticleId;
+
+            if (firstParticleId != -1 && particleId != firstParticleId)
+            {
+                vOffsetAccumulator = (vOffsetAccumulator + firstSegmentLength) % (1f / oneOverWorldSize);
+            }
+
+            firstParticleId = particleId;
         }
 
         private float MapV(float coordinate, float oneOverWorldSize, float vOffset)
@@ -524,6 +641,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 Color = Vector4.Clamp(
                     new Vector4(Vector3.Lerp(n1.Color, n2.Color, t), float.Lerp(n1.Alpha, n2.Alpha, t)),
                     Vector4.Zero, Vector4.One),
+                AlphaReference = n1.AlphaReference,
             };
         }
 
@@ -560,12 +678,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             for (var j = 0; j < 4; j++)
             {
-                var color = j is 0 or 3 ? startColor : endColor;
+                var atStart = j is 0 or 3;
                 ref var vertex = ref vertices[quadStart + j];
                 vertex = default;
                 vertex.Position = positions[j];
-                vertex.Color = color;
-                vertex.FrameBlend = sheets[0].Blend;
+                vertex.Color = atStart ? startColor : endColor;
+                vertex.FrameBlendAlphaReference = new Vector3(sheets[0].Blend, start.AlphaReference.X, start.AlphaReference.Y);
                 vertex.UV = ParticleTextureLayer.PlaceCorner(coordinates[j], uvTransforms[0], sheets[0].Offset, sheets[0].Offset + sheets[0].Scale);
                 vertex.UVNextFrame = ParticleTextureLayer.PlaceCorner(coordinates[j], uvTransforms[0], sheets[0].NextOffset, sheets[0].NextOffset + sheets[0].NextScale);
 
@@ -633,7 +751,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
 
             ref var head = ref particleBag.Current[0];
-            var sequence = spriteSheetData.Sequences[(uint)head.SequenceNumber < (uint)spriteSheetData.Sequences.Length ? head.SequenceNumber : 0];
+            var sequenceNumber = (int)head.SequenceNumber;
+            var sequence = spriteSheetData.Sequences[(uint)sequenceNumber < (uint)spriteSheetData.Sequences.Length ? sequenceNumber : 0];
 
             if (sequence.Frames.Length == 0)
             {

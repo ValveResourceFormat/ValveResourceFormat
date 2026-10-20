@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Particles.Initializers
     /// non-0.5 bias reshapes the remapped output while clamping it into [0, 1].
     /// </summary>
     /// <remarks>
-    /// Color-type outputs (color, alpha, alternate alpha, glow color, glow alpha) are clamped to
+    /// Color-type outputs (color, alpha, glow color, glow alpha) are clamped to
     /// [0, 1] and skip the offset and accelerate paths entirely. The offset paths also add the
     /// result to <see cref="Particle.PositionPrevious"/> whatever the output field, and combining
     /// accelerate with offset multiplies the written value by one plus the frame time.
@@ -31,6 +31,11 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly bool offset;
         private readonly bool accelerate;
         private readonly float remapBias = 0.5f;
+
+        private bool callPending;
+        private Vector3 position;
+        private Vector3 outMin;
+        private Vector3 outMax;
 
         public RemapTransformToVector(ParticleDefinitionParser parse) : base(parse)
         {
@@ -57,6 +62,11 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(fieldOutput) | FieldMask(ParticleField.PositionPrevious);
 
+        protected override void BeginCall(ref Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
+        {
+            callPending = true;
+        }
+
         /// <summary>
         /// A -1 sentinel on either bound disables the time window.
         /// </summary>
@@ -68,15 +78,19 @@ namespace ValveResourceFormat.Particles.Initializers
                 return particle;
             }
 
-            var position = transformInput.NextTransform(particleSystemState).Translation;
-            var outMin = outputMin;
-            var outMax = outputMax;
-
-            if (localSpaceTransform != null)
+            if (callPending)
             {
-                var rotation = Quaternion.CreateFromRotationMatrix(localSpaceTransform.NextTransform(particleSystemState));
-                outMin = Vector3.Transform(outMin, rotation);
-                outMax = Vector3.Transform(outMax, rotation);
+                callPending = false;
+                position = transformInput.NextTransform(particleSystemState).Translation;
+                outMin = outputMin;
+                outMax = outputMax;
+
+                if (localSpaceTransform != null)
+                {
+                    var rotation = Quaternion.CreateFromRotationMatrix(localSpaceTransform.NextTransform(particleSystemState));
+                    outMin = Vector3.Transform(outMin, rotation);
+                    outMax = Vector3.Transform(outMax, rotation);
+                }
             }
 
             var value = new Vector3(
@@ -94,8 +108,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             value = particle.ModifyVectorBySetMethodAtSpawn(particles, fieldOutput, value, setMethod);
 
-            if (fieldOutput is ParticleField.Color or ParticleField.Alpha or ParticleField.AlphaAlternate
-                or ParticleField.GlowRgb or ParticleField.GlowAlpha)
+            if (fieldOutput is ParticleField.Color or ParticleField.Alpha or ParticleField.GlowRgb or ParticleField.GlowAlpha)
             {
                 particle.SetVector(fieldOutput, Vector3.Clamp(value, Vector3.Zero, Vector3.One));
             }

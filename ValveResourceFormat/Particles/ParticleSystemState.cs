@@ -1,3 +1,4 @@
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Particles.Constraints;
 using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.ResourceTypes;
@@ -9,21 +10,31 @@ namespace ValveResourceFormat.Particles
     /// </summary>
     public class ParticleSystemState
     {
+        /// <summary>The highest control point index a system holds.</summary>
+        public const int MaxControlPoint = 63;
+
         /// <summary>A state with no system behind it, read by functions evaluated outside a running system.</summary>
         public static readonly ParticleSystemState Default = new();
 
         /// <summary>The state of the system running this one as a child, or null for a root system.</summary>
         public ParticleSystemState? ParentSystem { get; }
 
+        /// <summary>The states of the systems this one runs as children, in definition order.</summary>
+        internal List<ParticleSystemState> Children { get; } = [];
+
         /// <summary>Creates the state for one system.</summary>
         /// <param name="parentSystem">The state of the system running this one as a child.</param>
         public ParticleSystemState(ParticleSystemState? parentSystem = null)
         {
             ParentSystem = parentSystem;
+            parentSystem?.Children.Add(this);
         }
 
         /// <summary>The system this state belongs to. Null for <see cref="Default"/>.</summary>
         public ParticleSystemSimulation? Data { get; init; }
+
+        /// <summary>The top of the tree this system belongs to.</summary>
+        public ParticleSystemState Root => ParentSystem?.Root ?? this;
 
         private float worldTime;
 
@@ -57,26 +68,67 @@ namespace ValveResourceFormat.Particles
         /// </summary>
         internal ParticleRandom Random { get; } = new();
 
-        /// <summary>How many particles the system has spawned over its life.</summary>
+        /// <summary>
+        /// Whether the system is running its initializers over new particles. Inputs that read a
+        /// particle's initial value read its current one meanwhile, and particle numbers count spawns.
+        /// </summary>
+        internal bool InitializingParticles { get; set; }
+
+        /// <summary>
+        /// While initializers run, the <see cref="ParticleField"/> bit mask of the attributes the
+        /// particles' creator and the initializers before the running one have declared written.
+        /// </summary>
+        internal ulong InitializedFields { get; set; }
+
+        /// <summary>
+        /// The state <paramref name="particle"/> was left in by its initializers, or the particle itself
+        /// while they still run or when no running system holds it.
+        /// </summary>
+        internal ref Particle InitialOf(ref Particle particle)
+        {
+            if (InitializingParticles || Data == null || (uint)particle.Index >= (uint)Data.Particles.Count)
+            {
+                return ref particle;
+            }
+
+            return ref Data.Particles.Initial[particle.Index];
+        }
+
+        /// <summary>How many particles the system currently holds.</summary>
         public long ParticleCount { get; set; }
-        /// <summary>How long the system has been running, in seconds.</summary>
+
+        /// <summary>
+        /// The system's clock, in seconds. It starts below zero for a delayed child, and sits at
+        /// <see cref="float.MinValue"/> for an endcap child until its parent's endcap starts it.
+        /// </summary>
         public float Age { get; set; }
 
-        /// <summary>The system's <see cref="Age"/> when it last restarted, or 0 if it never has.</summary>
-        internal float RestartAge { get; set; }
+        /// <summary>
+        /// Multiplies every frame time handed to <see cref="ParticleSystemSimulation.Update"/>, 1 by
+        /// default.
+        /// </summary>
+        public float TimeScale { get; set; } = 1f;
 
-        /// <summary>The system's <see cref="Age"/> when the frame being simulated began.</summary>
-        internal float FrameStartAge { get; private set; }
+        /// <summary>The <see cref="Age"/> at the start of the step being simulated.</summary>
+        internal float StepStartAge { get; set; } = 1e23f;
 
-        /// <summary>How much system time the frame being simulated covers, across all of its substeps.</summary>
-        internal float FrameLength { get; private set; }
+        /// <summary>
+        /// The real time the system has been asked to simulate, summed over its frames. A minimum time
+        /// step makes <see cref="Age"/> run ahead of it, and frames are skipped until it catches up.
+        /// </summary>
+        public float RequestedAge { get; internal set; }
 
-        /// <summary>Starts a frame covering <paramref name="length"/> seconds from the current age.</summary>
-        internal void BeginFrame(float length)
-        {
-            FrameStartAge = Age;
-            FrameLength = length;
-        }
+        /// <summary>The length of the step being simulated, 0 before the first one.</summary>
+        internal float CurrentStep { get; set; }
+
+        /// <summary>
+        /// The length of the previous step, which scales the inertia of the next. It also takes the
+        /// whole frame time once a frame is done.
+        /// </summary>
+        internal float PreviousStep { get; set; } = 0.05f;
+
+        /// <summary>The <see cref="Age"/> the fade window of every function is measured from, set by a restart.</summary>
+        internal float OperatorTimeBase { get; set; }
 
         /// <summary>World-space position of the render camera, updated once per simulation step.</summary>
         public Vector3 CameraPosition { get; set; }
@@ -94,6 +146,15 @@ namespace ValveResourceFormat.Particles
         /// <summary>The scene lighting</summary>
         public IParticleLighting Lighting { get; set; } = IParticleLighting.Unlit;
 
+        /// <summary>
+        /// The control point the light in <see cref="TintCacheColor"/> was last sampled at for a random
+        /// colour tint, or -1 before any was. Child systems tinting by the same control point reuse it.
+        /// </summary>
+        internal int TintCacheControlPoint { get; set; } = -1;
+
+        /// <summary>The light last sampled at <see cref="TintCacheControlPoint"/>.</summary>
+        internal Vector3 TintCacheColor { get; set; }
+
         /// <summary>The world geometry the system's collision and ground placement trace against.</summary>
         public IParticleCollision Collision { get; set; } = IParticleCollision.None;
 
@@ -106,131 +167,166 @@ namespace ValveResourceFormat.Particles
         internal CollisionPlaneSet?[] CollisionPlaneSets
             => ParentSystem?.CollisionPlaneSets ?? (collisionPlaneSets ??= new CollisionPlaneSet?[(int)ParticleCollisionMode.COLLISION_MODE_PER_PARTICLE_TRACE]);
 
-        /// <summary>Whether the system restarts at <see cref="EndTime"/>.</summary>
-        public bool EndEarly { get; set; }
-
-        /// <summary>System age at which the scheduled restart fires.</summary>
-        public float EndTime { get; private set; }
-
         /// <summary>
         /// Whether the system is playing its endcap, the phase an effect runs once it has been told to
         /// stop. Only functions whose <c>m_nOpEndCapState</c> allows it run in each phase, so an endcap
         /// swaps part of the operator list for another.
         /// </summary>
-        public bool InEndCap { get; private set; }
+        public bool InEndCap { get; internal set; }
 
-        /// <summary>System age at which the endcap began.</summary>
-        public float EndCapStartAge { get; private set; }
+        /// <summary>
+        /// System age at which the endcap began, or <see cref="float.MinValue"/> when the system was
+        /// stopped without one.
+        /// </summary>
+        public float EndCapStartAge { get; internal set; } = float.MinValue;
 
         /// <summary>How long the endcap has been running, or 0 outside it.</summary>
         public float EndCapAge => InEndCap ? Age - EndCapStartAge : 0f;
 
         /// <summary>
-        /// Whether simulation is held in place. <see cref="Operators.EndCapTimedFreeze"/> sets it when
-        /// its timer runs out, and it stays set until the system restarts.
+        /// Whether simulation is held in place, with every system below it. Set by
+        /// <see cref="Operators.EndCapTimedFreeze"/> and once the system outlives
+        /// <c>m_flStopSimulationAfterTime</c>; a stop clears it.
         /// </summary>
         public bool Frozen { get; set; }
 
-        /// <summary>Enters the endcap phase, unless the system is in it already.</summary>
-        public void StartEndCap()
+        /// <summary>Whether the system was told to stop emitting.</summary>
+        public bool EmissionStopped { get; internal set; }
+
+        /// <summary>
+        /// How many parent particles the event being handed to this system's emitters covers. Only
+        /// set while a parent applies an event list.
+        /// </summary>
+        internal int EmitterEventCount { get; set; }
+
+        /// <summary>Whether a child of this system emits from <paramref name="eventType"/>.</summary>
+        internal bool ListensFor(ParticleEventType eventType) => Data is { } simulation && (simulation.ListenedEvents & eventType) != 0;
+
+        // Control Points
+
+        private readonly ControlPoint?[] controlPoints = new ControlPoint?[MaxControlPoint + 1];
+
+        private Dictionary<int, ControlPoint.SavedState>? functionWrites;
+        private int? highestBeforeFunctionWrites;
+        private bool functionsRunning;
+
+        /// <summary>
+        /// Whether the functions of this system's tree are running, so the control point writes made
+        /// meanwhile are theirs rather than the host's. Only the root's value counts.
+        /// </summary>
+        internal bool FunctionsRunning
         {
-            if (InEndCap)
+            get => ParentSystem?.FunctionsRunning ?? functionsRunning;
+            set => functionsRunning = value;
+        }
+
+        /// <summary>
+        /// Gets one of this system's control points, creating it at its default on first use. An index
+        /// outside 0 to <see cref="MaxControlPoint"/> gives a detached point that nothing reads back.
+        /// </summary>
+        /// <param name="cp">The control point index.</param>
+        public ControlPoint GetControlPoint(int cp)
+        {
+            if ((uint)cp > MaxControlPoint)
+            {
+                return new ControlPoint();
+            }
+
+            return controlPoints[cp] ??= new ControlPoint(this, cp);
+        }
+
+        /// <summary>Gets the snapshot bound to a control point, or null when none is.</summary>
+        public ParticleSnapshot? GetControlPointSnapshot(int cp)
+            => (uint)cp <= MaxControlPoint ? controlPoints[cp]?.Snapshot : null;
+
+        /// <summary>Gets the model bound to a control point, or null when none is.</summary>
+        public Model? GetControlPointModel(int cp)
+            => (uint)cp <= MaxControlPoint ? controlPoints[cp]?.Model : null;
+
+        /// <summary>Binds a snapshot to a control point of this system and every system below it.</summary>
+        internal void SetControlPointSnapshot(int cp, ParticleSnapshot snapshot)
+        {
+            if ((uint)cp > MaxControlPoint)
             {
                 return;
             }
 
-            InEndCap = true;
-            EndCapStartAge = Age;
-        }
+            GetControlPoint(cp).Snapshot = snapshot;
 
-        /// <summary>Leaves the endcap phase and unfreezes.</summary>
-        public void ClearEndCap()
-        {
-            InEndCap = false;
-            EndCapStartAge = 0f;
-            Frozen = false;
-        }
-
-        /// <summary>
-        /// Replays the system from the beginning after <paramref name="duration"/>.
-        /// </summary>
-        public void SetRestartTime(float duration)
-        {
-            EndEarly = true;
-            EndTime = Age + duration;
-        }
-
-        // Control Points
-
-        private readonly Dictionary<int, ControlPoint> controlPoints = new(64);
-
-        // Control points this system holds in its own right rather than reading from its parent. Only
-        // C_OP_SetParentControlPointsToChildCP creates them, so it stays null for almost every system.
-        private Dictionary<int, ControlPoint>? controlPointOverrides;
-
-        /// <summary>Gets a control point, creating it on first use.</summary>
-        /// <param name="cp">The control point index.</param>
-        public ControlPoint GetControlPoint(int cp)
-        {
-            if (controlPointOverrides != null && controlPointOverrides.TryGetValue(cp, out var overridden))
+            foreach (var child in Children)
             {
-                return overridden;
+                child.SetControlPointSnapshot(cp, snapshot);
             }
-
-            if (ParentSystem != null)
-            {
-                return ParentSystem.GetControlPoint(cp);
-            }
-
-            if (controlPoints.TryGetValue(cp, out var point))
-            {
-                return point;
-            }
-
-            point = new ControlPoint();
-            StoreControlPoint(cp, point, replace: false);
-            return point;
         }
 
-        /// <summary>
-        /// Gets the snapshot bound to a control point, preferring this system's own binding and
-        /// falling back to an ancestor so a child can read a snapshot inherited from a parent control point.
-        /// </summary>
-        public ValveResourceFormat.Blocks.ParticleSnapshot? GetControlPointSnapshot(int cp)
-        {
-            return Data?.GetControlPointSnapshot(cp) ?? ParentSystem?.GetControlPointSnapshot(cp);
-        }
-
-        /// <summary>Highest control point index this system has touched; some emitters scale their rate by it.</summary>
+        /// <summary>The highest control point index any write has reached; some emitters scale their rate by it.</summary>
         public int HighestControlPoint { get; private set; }
 
-        /// <summary>
-        /// Replaces a control point, on the root system so every child sees it. Storing a different
-        /// point than the one held counts as a change of that control point.
-        /// </summary>
-        /// <param name="cp">The control point index.</param>
-        /// <param name="point">The control point to store.</param>
-        public void SetControlPoint(int cp, ControlPoint point)
-            => StoreControlPoint(cp, point, replace: true);
+        internal void RaiseHighestControlPoint(int cp) => HighestControlPoint = Math.Max(HighestControlPoint, cp);
 
-        private void StoreControlPoint(int cp, ControlPoint point, bool replace)
+        /// <summary>
+        /// Called before <paramref name="point"/> is written. A write by a function remembers the point as
+        /// it was before the first such write, and a write by the host drops that memory, so
+        /// <see cref="UndoFunctionControlPointWrites"/> keeps what the host set.
+        /// </summary>
+        internal void NoteControlPointWrite(ControlPoint point)
         {
-            if (ParentSystem != null)
+            if (!FunctionsRunning)
             {
-                ParentSystem.StoreControlPoint(cp, point, replace);
-            }
-            else
-            {
-                if (replace && (!controlPoints.TryGetValue(cp, out var previous) || previous != point))
+                functionWrites?.Remove(point.Index);
+
+                if (highestBeforeFunctionWrites is { } highest)
                 {
-                    point.ChangeTime = Age;
+                    highestBeforeFunctionWrites = Math.Max(highest, point.Index);
                 }
 
-                point.Clock = this;
+                return;
             }
 
-            HighestControlPoint = Math.Max(HighestControlPoint, cp);
-            controlPoints[cp] = point;
+            highestBeforeFunctionWrites ??= HighestControlPoint;
+            (functionWrites ??= []).TryAdd(point.Index, point.Save());
+        }
+
+        /// <summary>
+        /// Puts every control point of this system and the systems below it that functions have written
+        /// back to how it was before they first did, leaving the points the host has written since.
+        /// </summary>
+        internal void UndoFunctionControlPointWrites()
+        {
+            if (functionWrites != null)
+            {
+                foreach (var (index, state) in functionWrites)
+                {
+                    controlPoints[index]!.Restore(state);
+                }
+
+                functionWrites.Clear();
+            }
+
+            if (highestBeforeFunctionWrites is { } highest)
+            {
+                HighestControlPoint = highest;
+                highestBeforeFunctionWrites = null;
+            }
+
+            foreach (var child in Children)
+            {
+                child.UndoFunctionControlPointWrites();
+            }
+        }
+
+        /// <summary>
+        /// Copies a control point's position and orientation into this system's one at
+        /// <paramref name="cp"/> and into every system below it, and its attachment into this system's one only.
+        /// </summary>
+        /// <param name="cp">The control point index.</param>
+        /// <param name="point">The control point to copy.</param>
+        public void SetControlPoint(int cp, ControlPoint point)
+        {
+            var target = GetControlPoint(cp);
+            target.Position = point.Position;
+            target.SetOrientation(point.Forward, point.Left, point.Up);
+            target.AttachType = point.AttachType;
         }
 
         /// <summary>
@@ -253,61 +349,56 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Records every control point's current position and orientation as its previous-step state,
-        /// along with the real time the move took. The root system calls this once per frame, after all
-        /// consumers (including children, which share its control points) have run.
-        /// </summary>
-        /// <param name="elapsed">Real time covered since the previous snapshot, in seconds.</param>
-        internal void SnapshotControlPointHistory(float elapsed)
-        {
-            foreach (var point in controlPoints.Values)
-            {
-                RecordStep(point, elapsed);
-            }
-        }
-
-        /// <summary>
-        /// Records the previous-step state of the control points this system overrides, which the root's
-        /// own snapshot does not reach.
-        /// </summary>
-        /// <param name="elapsed">Real time covered since the previous snapshot, in seconds.</param>
-        internal void SnapshotControlPointOverrideHistory(float elapsed)
-        {
-            if (controlPointOverrides == null)
-            {
-                return;
-            }
-
-            foreach (var point in controlPointOverrides.Values)
-            {
-                RecordStep(point, elapsed);
-            }
-        }
-
-        private static void RecordStep(ControlPoint point, float elapsed)
-        {
-            point.PositionPrevious = point.Position;
-            point.OrientationPrevious = point.Orientation;
-            point.RotationPrevious = point.Rotation;
-            point.PreviousStepTime = elapsed;
-        }
-
-        /// <summary>
-        /// Gives this system its own control point at <paramref name="cp"/>, shadowing the one it would
-        /// otherwise read from its parent, and returns it. A new override starts as a copy of that point.
+        /// Set the orientation of a control point from a forward direction alone; left and up are
+        /// built around it.
         /// </summary>
         /// <param name="cp">Control point index.</param>
-        internal ControlPoint OverrideControlPoint(int cp)
+        /// <param name="orientation">Forward direction to assign.</param>
+        public void SetControlPointOrientation(int cp, Vector3 orientation)
         {
-            controlPointOverrides ??= [];
+            GetControlPoint(cp).Orientation = orientation;
+        }
 
-            if (!controlPointOverrides.TryGetValue(cp, out var point))
+        /// <summary>Set the full orientation of a control point.</summary>
+        /// <param name="cp">Control point index.</param>
+        /// <param name="forward">The forward axis.</param>
+        /// <param name="left">The left axis.</param>
+        /// <param name="up">The up axis.</param>
+        public void SetControlPointOrientation(int cp, Vector3 forward, Vector3 left, Vector3 up)
+        {
+            GetControlPoint(cp).SetOrientation(forward, left, up);
+        }
+
+        /// <summary>
+        /// Set the full rotation of a control point.
+        /// </summary>
+        /// <param name="cp">Control point index.</param>
+        /// <param name="rotation">Full rotation to assign.</param>
+        public void SetControlPointRotation(int cp, Quaternion rotation)
+        {
+            GetControlPoint(cp).SetOrientation(rotation);
+        }
+
+        /// <summary>The system a function's control point writes go to under <paramref name="mode"/>.</summary>
+        internal ParticleSystemState GetSetParentTarget(ParticleParentSetMode mode) => mode switch
+        {
+            ParticleParentSetMode.PARTICLE_SET_PARENT_IMMEDIATE => ParentSystem ?? this,
+            ParticleParentSetMode.PARTICLE_SET_PARENT_ROOT => Root,
+            _ => this,
+        };
+
+        /// <summary>
+        /// Records every control point's current position and orientation as its previous state, and
+        /// <paramref name="elapsed"/> as the time that move took and the previous step length.
+        /// </summary>
+        internal void UpdatePreviousControlPoints(float elapsed)
+        {
+            PreviousStep = elapsed;
+
+            foreach (var point in controlPoints)
             {
-                point = GetControlPoint(cp).CopyOnClock(this);
-                controlPointOverrides.Add(cp, point);
+                point?.RecordStep(elapsed);
             }
-
-            return point;
         }
 
         /// <summary>
@@ -316,62 +407,47 @@ namespace ValveResourceFormat.Particles
         /// </summary>
         internal void RewindControlPointChanges()
         {
-            foreach (var point in controlPoints.Values)
+            foreach (var point in controlPoints)
             {
-                Rewind(point);
-            }
+                if (point == null)
+                {
+                    continue;
+                }
 
-            if (controlPointOverrides == null)
-            {
-                return;
-            }
-
-            foreach (var point in controlPointOverrides.Values)
-            {
-                Rewind(point);
-            }
-
-            static void Rewind(ControlPoint point)
-            {
                 point.RewindChange();
-                RecordStep(point, 0f);
+                point.RecordStep(0f);
             }
-        }
-
-        /// <summary>
-        /// Set the orientation/direction of a control point in the particle system.
-        /// </summary>
-        /// <param name="cp">Control point index.</param>
-        /// <param name="orientation">Orientation direction to assign.</param>
-        public void SetControlPointOrientation(int cp, Vector3 orientation)
-        {
-            var point = GetControlPoint(cp);
-            point.Orientation = orientation;
-            // The setter only expresses a forward direction; drop any stale full rotation so
-            // consumers don't keep preferring an outdated frame.
-            point.Rotation = null;
-        }
-
-        /// <summary>
-        /// Set the full rotation of a control point, keeping its forward direction in sync.
-        /// </summary>
-        /// <param name="cp">Control point index.</param>
-        /// <param name="rotation">Full rotation to assign.</param>
-        public void SetControlPointRotation(int cp, Quaternion rotation)
-        {
-            var point = GetControlPoint(cp);
-            point.Rotation = rotation;
-            point.Orientation = Vector3.Transform(Vector3.UnitX, rotation);
         }
     }
 
     /// <summary>
-    /// Control point used in Valve particle systems. System 0 is the default spawn position.
-    /// These are used in numerous different ways, for many different effects. We only support a few of them.
+    /// Control point used in Valve particle systems. Control point 0 is the default spawn position.
+    /// Each system holds its own copy, and a write reaches the same control point of every system
+    /// below the one it is made on, never the systems above.
     /// </summary>
     public class ControlPoint
     {
         private Vector3 position;
+        private Vector3 forward = Vector3.UnitX;
+        private Vector3 left = Vector3.UnitY;
+        private Vector3 up = Vector3.UnitZ;
+
+        /// <summary>Creates a control point that belongs to no system.</summary>
+        public ControlPoint()
+        {
+        }
+
+        internal ControlPoint(ParticleSystemState owner, int index)
+        {
+            Owner = owner;
+            Index = index;
+        }
+
+        /// <summary>The system holding this control point, whose age times its changes.</summary>
+        internal ParticleSystemState? Owner { get; }
+
+        /// <summary>The control point index within <see cref="Owner"/>.</summary>
+        internal int Index { get; }
 
         /// <summary>
         /// The position of this control point. Sometimes this is used for things other than position.
@@ -382,45 +458,125 @@ namespace ValveResourceFormat.Particles
             get => position;
             set
             {
+                Owner?.NoteControlPointWrite(this);
+
                 if (value != position)
                 {
-                    ChangeTime = Clock?.Age ?? 0f;
+                    position = value;
+                    Stamp();
                 }
 
-                position = value;
+                if (Owner == null)
+                {
+                    return;
+                }
+
+                Owner.RaiseHighestControlPoint(Index);
+
+                foreach (var child in Owner.Children)
+                {
+                    child.GetControlPoint(Index).Position = value;
+                }
             }
         }
 
-        /// <summary>The system whose age times this control point's changes.</summary>
-        internal ParticleSystemState? Clock { get; set; }
+        /// <summary>The forward axis, (1, 0, 0) until something orients the control point.</summary>
+        public Vector3 Forward => forward;
+
+        /// <summary>The left axis, (0, 1, 0) until something orients the control point.</summary>
+        public Vector3 Left => left;
+
+        /// <summary>The up axis, (0, 0, 1) until something orients the control point.</summary>
+        public Vector3 Up => up;
+
+        /// <summary>Sets the three axes. A change of any of them counts as a change of the control point.</summary>
+        /// <param name="forward">The forward axis.</param>
+        /// <param name="left">The left axis.</param>
+        /// <param name="up">The up axis.</param>
+        public void SetOrientation(Vector3 forward, Vector3 left, Vector3 up)
+        {
+            Owner?.NoteControlPointWrite(this);
+
+            if (forward != this.forward || left != this.left || up != this.up)
+            {
+                this.forward = forward;
+                this.left = left;
+                this.up = up;
+                Stamp();
+            }
+
+            if (Owner == null)
+            {
+                return;
+            }
+
+            Owner.RaiseHighestControlPoint(Index);
+
+            foreach (var child in Owner.Children)
+            {
+                child.GetControlPoint(Index).SetOrientation(forward, left, up);
+            }
+        }
+
+        /// <summary>Sets the three axes from a rotation.</summary>
+        /// <param name="rotation">The rotation, which carries +X to forward.</param>
+        public void SetOrientation(Quaternion rotation)
+            => SetOrientation(Vector3.Transform(Vector3.UnitX, rotation), Vector3.Transform(Vector3.UnitY, rotation), Vector3.Transform(Vector3.UnitZ, rotation));
 
         /// <summary>
-        /// The age of <see cref="Clock"/> when the position last changed value or the control point
-        /// was replaced, or -1 when neither has happened. Reading a control point does not count.
+        /// The forward direction of this control point. Setting it builds left and up around the new
+        /// forward, and a zero direction restores the default axes.
         /// </summary>
+        public Vector3 Orientation
+        {
+            get => forward;
+            set
+            {
+                if (value == Vector3.Zero)
+                {
+                    SetOrientation(Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ);
+                    return;
+                }
+
+                var direction = Vector3.Normalize(value);
+                var (newLeft, newUp) = ParticleMath.VectorVectors(direction);
+                SetOrientation(direction, newLeft, newUp);
+            }
+        }
+
+        /// <summary>
+        /// The rotation carrying +X to <see cref="Forward"/>, +Y to <see cref="Left"/> and +Z to
+        /// <see cref="Up"/>; never null when read. Setting null restores the default axes.
+        /// </summary>
+        public Quaternion? Rotation
+        {
+            get => GetRotation();
+            set => SetOrientation(value ?? Quaternion.Identity);
+        }
+
+        /// <summary>The age of <see cref="Owner"/> when the position or orientation last changed, or -1 when neither has.</summary>
         public float ChangeTime { get; internal set; } = -1f;
 
         /// <summary>
-        /// How long ago the control point last changed. One more than the clock's age when it never has.
+        /// How long ago the control point last changed. One more than the owner's age when it never has.
         /// </summary>
-        public float ChangeAge => (Clock?.Age ?? 0f) - ChangeTime;
+        public float ChangeAge => (Owner?.Age ?? 0f) - ChangeTime;
 
-        /// <summary>
-        /// Copies this control point onto <paramref name="clock"/>, keeping how long ago it last changed.
-        /// </summary>
-        internal ControlPoint CopyOnClock(ParticleSystemState clock) => new()
+        private void Stamp() => ChangeTime = Owner?.Age ?? 0f;
+
+        /// <summary>The position, axes and change time of a control point.</summary>
+        internal readonly record struct SavedState(Vector3 Position, Vector3 Forward, Vector3 Left, Vector3 Up, float ChangeTime);
+
+        internal SavedState Save() => new(position, forward, left, up, ChangeTime);
+
+        internal void Restore(SavedState state)
         {
-            position = position,
-            Orientation = Orientation,
-            Rotation = Rotation,
-            PositionPrevious = PositionPrevious,
-            OrientationPrevious = OrientationPrevious,
-            RotationPrevious = RotationPrevious,
-            PreviousStepTime = PreviousStepTime,
-            AttachType = AttachType,
-            Clock = clock,
-            ChangeTime = ChangeTime == -1f ? -1f : clock.Age - ChangeAge,
-        };
+            position = state.Position;
+            forward = state.Forward;
+            left = state.Left;
+            up = state.Up;
+            ChangeTime = state.ChangeTime;
+        }
 
         internal void RewindChange()
         {
@@ -431,15 +587,39 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// The position this control point had on the previous simulation step, used to derive the
+        /// The position this control point had at the end of the previous frame, used to derive the
         /// control point's velocity.
         /// </summary>
-        public Vector3 PositionPrevious { get; set; }
+        public Vector3 PositionPrevious { get; private set; }
+
+        /// <summary>The forward axis at the end of the previous frame.</summary>
+        public Vector3 ForwardPrevious { get; private set; } = Vector3.UnitX;
+
+        /// <summary>The left axis at the end of the previous frame.</summary>
+        public Vector3 LeftPrevious { get; private set; } = Vector3.UnitY;
+
+        /// <summary>The up axis at the end of the previous frame.</summary>
+        public Vector3 UpPrevious { get; private set; } = Vector3.UnitZ;
+
+        /// <summary>The forward direction at the end of the previous frame.</summary>
+        public Vector3 OrientationPrevious => ForwardPrevious;
+
+        /// <summary>The rotation at the end of the previous frame.</summary>
+        public Quaternion? RotationPrevious => GetPreviousRotation();
 
         /// <summary>
         /// Real time the move recorded in <see cref="PositionPrevious"/> took, in seconds.
         /// </summary>
-        public float PreviousStepTime { get; internal set; }
+        public float PreviousStepTime { get; private set; }
+
+        internal void RecordStep(float elapsed)
+        {
+            PositionPrevious = position;
+            ForwardPrevious = forward;
+            LeftPrevious = left;
+            UpPrevious = up;
+            PreviousStepTime = elapsed;
+        }
 
         /// <summary>
         /// How far the control point moved over the last recorded step.
@@ -448,84 +628,98 @@ namespace ValveResourceFormat.Particles
 
         /// <summary>
         /// The control point's velocity in units per second, derived from <see cref="PositionPrevious"/>
-        /// over the real time that move took. Zero until a step has been recorded.
+        /// over the time that move took. Zero until a step has been recorded.
         /// </summary>
-        /// <remarks>
-        /// The move is timed by the root system's frame, not by the simulation step of whichever system
-        /// is asking - a child running finer substeps would otherwise divide a whole frame of movement by
-        /// a fraction of it and read a velocity several times too high.
-        /// </remarks>
         public Vector3 Velocity
             => PreviousStepTime > 0f ? StepDelta / PreviousStepTime : Vector3.Zero;
 
         /// <summary>
-        /// How far through the frame <paramref name="state"/> is simulating <paramref name="time"/> falls,
-        /// from 0 at the recorded previous state to 1 at the current one. Before any step has been
-        /// recorded every time reads as current.
+        /// How far from the previous to the current state <paramref name="time"/> falls within the step
+        /// <paramref name="state"/> is simulating, clamped to [0, 1]. A time at the end of the step, or a
+        /// zero step, reads as current.
         /// </summary>
         /// <param name="state">The asking system, whose clock <paramref name="time"/> is on.</param>
         /// <param name="time">The time to locate, such as a particle's creation time.</param>
-        public float StepFraction(ParticleSystemState state, float time)
-            => PreviousStepTime > 0f && state.FrameLength > 0f
-                ? Math.Clamp((time - state.FrameStartAge) / state.FrameLength, 0f, 1f)
-                : 1f;
-
-        /// <summary>
-        /// The orientation/direction of this control point.
-        /// </summary>
-        public Vector3 Orientation { get; set; }
-
-        /// <summary>
-        /// The orientation this control point had on the previous simulation step.
-        /// </summary>
-        public Vector3 OrientationPrevious { get; internal set; }
-
-        /// <summary>
-        /// The full rotation of this control point, when the source supplies one (e.g. a map entity's
-        /// angles). Consumers fall back to synthesizing a frame from <see cref="Orientation"/> when unset,
-        /// since most operators only drive the forward direction.
-        /// </summary>
-        public Quaternion? Rotation { get; set; }
-
-        /// <summary>
-        /// The full rotation this control point had on the previous simulation step, when one was recorded.
-        /// </summary>
-        public Quaternion? RotationPrevious { get; internal set; }
-
-        /// <summary>Whether the previous simulation step recorded any orientation for this control point.</summary>
-        public bool HasPreviousOrientation => RotationPrevious is not null || OrientationPrevious != Vector3.Zero;
-
-        /// <summary>
-        /// The control point's full rotation, using <see cref="Rotation"/> when present and otherwise
-        /// synthesizing a frame from the forward <see cref="Orientation"/> direction.
-        /// </summary>
-        public Quaternion GetRotation() => SynthesizeRotation(Rotation, Orientation);
-
-        /// <summary>
-        /// The control point's full rotation on the previous simulation step, derived the same way as
-        /// <see cref="GetRotation"/>.
-        /// </summary>
-        public Quaternion GetPreviousRotation() => SynthesizeRotation(RotationPrevious, OrientationPrevious);
-
-        private static Quaternion SynthesizeRotation(Quaternion? rotation, Vector3 orientation)
+        public static float StepFraction(ParticleSystemState state, float time)
         {
-            if (rotation is { } fullRotation)
+            var step = state.CurrentStep;
+
+            if (step == 0f || state.Age == time)
             {
-                return fullRotation;
+                return 1f;
             }
 
-            if (orientation == Vector3.Zero)
-            {
-                return Quaternion.Identity;
-            }
-
-            return EntityTransformHelper.ForwardDirectionToQuaternion(orientation);
+            return MathUtils.Saturate((step - (state.Age - time)) / step);
         }
+
+        /// <summary>
+        /// The position at <paramref name="time"/> within the step <see cref="Owner"/> is simulating,
+        /// between the previous and the current position. A point without an owner answers with its
+        /// current position.
+        /// </summary>
+        /// <param name="time">The time to locate, such as a particle's creation time.</param>
+        public Vector3 GetPositionAtTime(float time)
+            => Owner == null ? position : MathUtils.Lerp(PositionPrevious, position, StepFraction(Owner, time));
+
+        /// <summary>
+        /// The axes as rows and <see cref="GetPositionAtTime"/> as the translation. The axes are the
+        /// previous ones at exactly the start of the step and the current ones otherwise.
+        /// </summary>
+        /// <param name="time">The time to locate, such as a particle's creation time.</param>
+        public Matrix4x4 GetBasisAtTime(float time)
+        {
+            var atStepStart = Owner != null && Owner.CurrentStep != 0f && time == Owner.Age - Owner.CurrentStep;
+            var basis = atStepStart ? GetPreviousRotationMatrix() : GetRotationMatrix();
+            basis.Translation = GetPositionAtTime(time);
+
+            return basis;
+        }
+
+        /// <summary>The rotation matrix with <see cref="Forward"/>, <see cref="Left"/> and <see cref="Up"/> as its rows.</summary>
+        public Matrix4x4 GetRotationMatrix() => MathUtils.CreateBasis(forward, left, up);
+
+        /// <summary>The rotation matrix of the previous frame's axes.</summary>
+        public Matrix4x4 GetPreviousRotationMatrix() => MathUtils.CreateBasis(ForwardPrevious, LeftPrevious, UpPrevious);
+
+        /// <summary>The control point's rotation.</summary>
+        public Quaternion GetRotation() => Quaternion.CreateFromRotationMatrix(GetRotationMatrix());
+
+        /// <summary>The control point's rotation at the end of the previous frame.</summary>
+        public Quaternion GetPreviousRotation() => Quaternion.CreateFromRotationMatrix(GetPreviousRotationMatrix());
 
         /// <summary>
         /// Different attachment styles.
         /// </summary>
         public ParticleAttachment AttachType { get; set; }
+
+        /// <summary>The snapshot bound to this control point, or null when none is.</summary>
+        internal ParticleSnapshot? Snapshot { get; set; }
+
+        private Model? model;
+
+        /// <summary>
+        /// The model bound to this control point, such as the model an effect is attached to, or null
+        /// when none is. Model inputs of type <c>PM_TYPE_CONTROL_POINT</c> read it. Setting it does not
+        /// count as a change of the control point.
+        /// </summary>
+        public Model? Model
+        {
+            get => model;
+            set
+            {
+                model = value;
+
+                if (Owner == null)
+                {
+                    return;
+                }
+
+                foreach (var child in Owner.Children)
+                {
+                    child.GetControlPoint(Index).Model = value;
+                }
+            }
+        }
 
         /// <summary>
         /// Write potentially non positional data to the control point, for the particle to read.

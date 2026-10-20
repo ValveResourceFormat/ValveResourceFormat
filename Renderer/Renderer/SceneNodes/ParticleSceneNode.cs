@@ -20,6 +20,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Gets whether this system samples the resolved opaque depth.</summary>
         public bool WantsSceneDepth { get; }
 
+        /// <summary>Gets whether this system samples the resolved opaque colour.</summary>
+        public bool WantsSceneColor { get; }
+
         internal IEnumerable<ParticleFunctionRenderer> Renderers => particleRenderer.EnumerateRenderers();
 
         /// <summary>Gets the simulation this node draws, with its particles, control points and child systems.</summary>
@@ -88,6 +91,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             RenderPasses = particleRenderer.Passes;
             WantsSceneDepth = particleRenderer.WantsSceneDepth;
+            WantsSceneColor = particleRenderer.WantsSceneColor;
 
             Simulation = NodeSimulation.Parallel;
 
@@ -98,6 +102,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             {
                 Preview = true;
                 Loop = true;
+                ApplyControlPointDefaults();
                 PreviewModel = CreatePreviewModel(particleSystem);
                 if (PreviewModel != null)
                 {
@@ -107,6 +112,27 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             else if (!playedByEntity)
             {
                 ApplyRuntimeControlPointValues(particleSystem);
+            }
+        }
+
+        /// <summary>
+        /// Places the control points the effect reads at the defaults the particle editor previews them at,
+        /// such as white for a tint control point. The preview configuration's drivers are applied after
+        /// this and win.
+        /// </summary>
+        private void ApplyControlPointDefaults()
+        {
+            var defaults = new ControlPointDefaults();
+            particleRenderer.Simulation.AddControlPointDefaults(defaults);
+
+            foreach (var renderer in particleRenderer.EnumerateRenderers())
+            {
+                renderer.AddControlPointDefaults(defaults);
+            }
+
+            foreach (var (index, value) in defaults.Values)
+            {
+                GetControlPoint(index).Position = value;
             }
         }
 
@@ -171,7 +197,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>
         /// Creates particle nodes for the systems in a model's <c>particles_list</c> and attaches each
         /// per its <c>attachment_type</c>. Custom and world origin are placed once at spawn; the other
-        /// types track the model or its attachment point. Unknown types are skipped.
+        /// types track the model or its attachment point. Unknown types are skipped. Control point 0
+        /// of each system carries the model, for the model inputs that read it.
         /// </summary>
         /// <param name="scene">The scene the nodes belong to.</param>
         /// <param name="model">The model referencing the particle systems.</param>
@@ -221,6 +248,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         Name = particleName,
                     };
 
+                    particleNode.GetControlPoint(0).Model = model;
                     AttachOnModel(modelNode, particleNode, attachmentType, attachmentPoint, offset);
                     nodes.Add(particleNode);
                 }

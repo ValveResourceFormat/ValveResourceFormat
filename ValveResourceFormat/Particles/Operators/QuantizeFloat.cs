@@ -23,6 +23,8 @@ namespace ValveResourceFormat.Particles.Operators
         }
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
+            var (min, max) = outputField.SetFloatRange();
+
             foreach (ref var particle in particles.Current)
             {
                 var quantizeSize = this.quantizeSize.NextNumber(ref particle, particleSystemState) * strength * sizeScale;
@@ -33,7 +35,7 @@ namespace ValveResourceFormat.Particles.Operators
                     value = quantizeSize * MathF.Floor((value / quantizeSize) + 0.5f);
                 }
 
-                particle.SetScalar(outputField, value);
+                particle.SetScalar(outputField, Math.Clamp(value, min, max));
             }
         }
     }

@@ -61,77 +61,79 @@ namespace ValveResourceFormat.Particles.Initializers
             ? FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious)
             : FieldMask(fieldOutput);
 
-        private int currentNumber;
-        private Vector3 GetParticlePosition(ParticleSystemState particleSystem)
+        /// <summary>
+        /// Where the particle in collection slot <paramref name="index"/> goes, or null to leave it as it
+        /// is. Along a path the slots cycle through <c>m_nNumPointsAlongPath</c> stops spread over the
+        /// path's length, and a stop the path's length does not reach is not placed.
+        /// </summary>
+        private Vector3? GetParticlePosition(int index, ParticleSystemState particleSystem)
         {
-            if (pointList.Count == 0)
+            var pointCount = pointList.Count;
+
+            if (pointCount == 0)
             {
-                return Vector3.Zero;
+                return null;
             }
 
-            if (usePath)
+            if (!usePath || pointCount == 1)
             {
-                var pointCount = pointList.Count;
-
-                // An open path interpolates across Count - 1 segments; a closed loop has one
-                // extra segment wrapping back to the first point
-                var numPathSegments = closedLoop ? pointCount : pointCount - 1;
-
-                if (numPathSegments < 1)
-                {
-                    return pointList[0].GetPosition(particleSystem);
-                }
-
-                // An open path must place the last particle on the final point; a closed loop
-                // wraps, so full completion is one step past the last particle
-                var divisor = closedLoop ? numPointsOnPath : Math.Max(1, numPointsOnPath - 1);
-                var pathCompletion = (currentNumber++ % numPointsOnPath) / (float)divisor;
-
-                // Particles are spaced by arc length so unequal segments don't clump them
-                Span<float> segmentLengths = numPathSegments <= 64 ? stackalloc float[numPathSegments] : new float[numPathSegments];
-                var totalLength = 0f;
-
-                for (var i = 0; i < numPathSegments; i++)
-                {
-                    var a = pointList[i].GetPosition(particleSystem);
-                    var b = pointList[(i + 1) % pointCount].GetPosition(particleSystem);
-                    segmentLengths[i] = Vector3.Distance(a, b);
-                    totalLength += segmentLengths[i];
-                }
-
-                if (totalLength <= 0f)
-                {
-                    return pointList[0].GetPosition(particleSystem);
-                }
-
-                var targetLength = pathCompletion * totalLength;
-                var segment = 0;
-
-                while (segment < numPathSegments - 1 && targetLength > segmentLengths[segment])
-                {
-                    targetLength -= segmentLengths[segment];
-                    segment++;
-                }
-
-                var pos1 = pointList[segment].GetPosition(particleSystem);
-                var pos2 = pointList[(segment + 1) % pointCount].GetPosition(particleSystem);
-                var blend = segmentLengths[segment] > 0f ? targetLength / segmentLengths[segment] : 0f;
-
-                return Vector3.Lerp(pos1, pos2, blend);
+                return pointList[index % pointCount].GetPosition(particleSystem);
             }
-            else
+
+            if (numPointsOnPath == 0)
             {
-                var pointID = currentNumber++ % pointList.Count;
-
-                return pointList[pointID].GetPosition(particleSystem);
+                return null;
             }
+
+            Span<Vector3> points = pointCount <= 64 ? stackalloc Vector3[pointCount] : new Vector3[pointCount];
+
+            for (var i = 0; i < pointCount; i++)
+            {
+                points[i] = pointList[i].GetPosition(particleSystem);
+            }
+
+            var segmentCount = closedLoop ? pointCount : pointCount - 1;
+            var totalLength = 0f;
+
+            for (var segment = 1; segment <= segmentCount; segment++)
+            {
+                totalLength += Vector3.Distance(points[segment % pointCount], points[segment - 1]);
+            }
+
+            var target = (1f / (numPointsOnPath - 1)) * (index % numPointsOnPath) * totalLength;
+            var reached = 0f;
+
+            for (var segment = 1; segment <= segmentCount; segment++)
+            {
+                var start = points[segment - 1];
+                var end = points[segment % pointCount];
+                var segmentEnd = reached + Vector3.Distance(end, start);
+
+                if (segmentEnd >= target)
+                {
+                    return MathUtils.Lerp(start, end, MathUtils.RemapValClamped(target, reached, segmentEnd, 0f, 1f));
+                }
+
+                reached = segmentEnd;
+            }
+
+            return null;
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var particlePosition = GetParticlePosition(particleSystemState);
+            if (GetParticlePosition(particle.Index, particleSystemState) is not { } particlePosition)
+            {
+                return particle;
+            }
 
             particle.SetVector(fieldOutput, particlePosition);
+
+            // Placement along the path leaves the previous position as it was
+            if (fieldOutput == ParticleField.Position && (!usePath || pointList.Count == 1))
+            {
+                particle.PositionPrevious = particlePosition;
+            }
 
             return particle;
         }

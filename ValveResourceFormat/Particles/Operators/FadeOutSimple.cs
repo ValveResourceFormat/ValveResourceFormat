@@ -1,7 +1,8 @@
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
-    /// Fades a particle's alpha field out linearly over a proportional fade-out time at the end of the particle's life.
+    /// Fades a particle's alpha field out along a smoothstep over a proportional fade-out time at the end of the particle's
+    /// life. It only ever lowers the field, never raising a value another operator has already brought down.
     /// </summary>
     /// <remarks>
     /// The fade-out time is a fraction of the particle's lifetime in the 0-1 range: a setting of
@@ -22,14 +23,18 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
+            var fadeStart = 1f - fadeOutTime;
+
             foreach (ref var particle in particles.Current)
             {
-                var timeLeft = 1 - particle.NormalizedAge;
-                if (timeLeft <= fadeOutTime)
+                var time = particle.Age / particle.Lifetime;
+
+                if (fadeStart < time)
                 {
-                    var t = timeLeft / fadeOutTime;
-                    var newAlpha = t * particle.GetInitialScalar(particles, ParticleField.Alpha);
-                    particle.SetScalar(fieldOutput, newAlpha);
+                    var blend = MathUtils.Smoothstep(fadeStart, 1f, time);
+                    var faded = (1f - blend) * particle.GetInitialScalar(particles, fieldOutput);
+
+                    particle.SetScalar(fieldOutput, MathF.Min(faded, particle.GetScalar(fieldOutput)));
                 }
             }
         }

@@ -20,7 +20,7 @@ namespace ValveResourceFormat.Particles.Utils
         private readonly ParticleNoiseType noiseType;
         private readonly ParticleNoiseTurbulence turbulence;
         private readonly ParticleNoiseModifier modifier;
-        private readonly float turbulenceScale = 1.25f;
+        private readonly float turbulenceScale = 1f;
         private readonly float turbulenceMix = 0.5f;
         private readonly float worleyJitter;
 
@@ -40,11 +40,13 @@ namespace ValveResourceFormat.Particles.Utils
             worleyJitter = Noise.WorleyJitter(noiseOffset);
         }
 
-        /// <summary>Evaluates the pipeline at a sample vector, returning a value in the output range.</summary>
+        /// <summary>
+        /// Evaluates the pipeline at a sample vector and collection time, returning a value in the output range.
+        /// </summary>
         public float Evaluate(Vector3 input, float age)
         {
             var coord = ((input + Vector3.One) * (noiseScale * 0.1f))
-                + new Vector3(noiseOffset) + (age * 0.1f * offsetRate);
+                + ((offsetRate * age * 0.1f) + new Vector3(noiseOffset));
 
             var sum = 0f;
             var frequency = 1f;
@@ -89,7 +91,7 @@ namespace ValveResourceFormat.Particles.Utils
                 case ParticleNoiseTurbulence.PF_NOISE_TURB_LOOPY:
                 {
                     var magnitude = MathF.Abs(value);
-                    var triangle = ParticleMath.HalfWave(magnitude - MathF.Truncate(magnitude));
+                    var triangle = ParticleMath.HalfWave(MathUtils.Fract(magnitude));
                     var wave = MathF.CopySign(triangle, value);
 
                     if (((int)magnitude & 1) == 1)
@@ -110,7 +112,7 @@ namespace ValveResourceFormat.Particles.Utils
                         ? Noise.Simplex3D(warped)
                         : Noise.Worley3D(warped, 0.97f, 22f);
 
-                    target = ParticleMath.RoundTripThroughOne(value * resampled);
+                    target = value * resampled;
                     break;
                 }
                 default:
@@ -124,20 +126,9 @@ namespace ValveResourceFormat.Particles.Utils
         {
             ParticleNoiseModifier.PF_NOISE_MODIFIER_NONE => (value * 0.5f) + 0.5f,
             ParticleNoiseModifier.PF_NOISE_MODIFIER_LINES => ParticleMath.Square(MathF.Sin(value * (3f * MathF.PI))),
-            ParticleNoiseModifier.PF_NOISE_MODIFIER_CLUMPS => Clumps(value),
+            ParticleNoiseModifier.PF_NOISE_MODIFIER_CLUMPS => (2.5f * MathF.Abs(value)) - 0.5f,
             ParticleNoiseModifier.PF_NOISE_MODIFIER_RINGS => MathUtils.Saturate((MathF.Abs(MathF.Sin(value * MathF.PI)) + 0.25f) / 1.25f),
             _ => 1f,
         };
-
-        /// <summary>
-        /// The 2.5x gain the clumps modifier applies, summed one halving divisor at a time rather than
-        /// as a single multiply, which lands a ulp away over a third of the time.
-        /// </summary>
-        private static float Clumps(float value)
-        {
-            var magnitude = MathF.Abs(value);
-
-            return -0.5f + (magnitude / 0.75f) + (magnitude / 1.5f) + (magnitude / 3f) + (magnitude / 6f);
-        }
     }
 }

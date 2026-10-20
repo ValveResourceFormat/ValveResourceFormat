@@ -13,7 +13,7 @@ namespace ValveResourceFormat.Particles.Operators
 
         public DampenToCP(ParticleDefinitionParser parse) : base(parse)
         {
-            controlPoint = parse.Int32("m_nControlPointNumber", controlPoint);
+            controlPoint = parse.ControlPoint("m_nControlPointNumber", controlPoint);
             range = parse.Float("m_flRange", range);
             scale = parse.Float("m_flScale", scale);
         }

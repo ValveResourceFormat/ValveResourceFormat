@@ -1,14 +1,22 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
-    /// Initializes particle velocity to a random speed directed radially outward from a control point.
-    /// The speed is scaled per-axis by a local coordinate system scale vector.
+    /// Initializes particle velocity to a random speed directed radially outward from a control point,
+    /// or from a per-particle centre.
     /// </summary>
+    /// <remarks>
+    /// The local speed scale is rotated into world space by the centre's basis and then multiplies the
+    /// direction per world axis, so it only acts along the frame's axes when the frame is axis aligned.
+    /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_VelocityRadialRandom">C_INIT_VelocityRadialRandom</seealso>
     class VelocityRadialRandom : ParticleFunctionInitializer
     {
-        // unsure if this is actually a vector provider
-        private readonly IVectorProvider vectorScale = new LiteralVectorProvider(Vector3.One);
+        private readonly bool perParticleCenter;
+        private readonly IVectorProvider centerPosition = new LiteralVectorProvider(Vector3.Zero);
+        private readonly IVectorProvider centerForward = new LiteralVectorProvider(Vector3.UnitX);
+        private readonly Vector3 localSpeedScale = Vector3.One;
         private readonly INumberProvider speedMin = new LiteralNumberProvider(0f);
         private readonly INumberProvider speedMax = new LiteralNumberProvider(0f);
 
@@ -17,39 +25,71 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public VelocityRadialRandom(ParticleDefinitionParser parse) : base(parse)
         {
-            vectorScale = parse.VectorProvider("m_vecLocalCoordinateSystemSpeedScale", vectorScale);
+            perParticleCenter = parse.Boolean("m_bPerParticleCenter", perParticleCenter);
+            centerPosition = parse.VectorProvider("m_vecPosition", centerPosition);
+            centerForward = parse.VectorProvider("m_vecFwd", centerForward);
+            localSpeedScale = parse.Vector3("m_vecLocalCoordinateSystemSpeedScale", localSpeedScale);
             speedMin = parse.NumberProvider("m_fSpeedMin", speedMin);
             speedMax = parse.NumberProvider("m_fSpeedMax", speedMax);
             ignoreDelta = parse.Boolean("m_bIgnoreDelta", ignoreDelta);
-            controlPoint = parse.Int32("m_nControlPointNumber", controlPoint);
+            controlPoint = parse.ControlPoint("m_nControlPointNumber", controlPoint);
         }
 
         public override ulong WrittenFields => FieldMask(ParticleField.PositionPrevious);
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var speedmin = speedMin.NextNumber(ref particle, particleSystemState);
-            var speedmax = speedMax.NextNumber(ref particle, particleSystemState);
+            var center = perParticleCenter
+                ? centerPosition.NextVector(ref particle, particleSystemState)
+                : ParticlePath.GetControlPointAtTime(particleSystemState, controlPoint, particle.CreationTime);
 
-            var speed = particleSystemState.Random.NextBetween(speedmin, speedmax);
+            var direction = MathUtils.SafeNormalize(particle.Position - center);
 
-            // With the flag set the authored value is a raw per-step displacement, not units/second.
-            if (ignoreDelta)
+            if (localSpeedScale != Vector3.One)
             {
-                var frameTime = particleSystemState.Data?.CurrentFrameTime ?? 0f;
-                if (frameTime > 0f)
-                {
-                    speed /= frameTime;
-                }
+                direction *= WorldSpeedScale(ref particle, particleSystemState);
             }
 
-            var scale = vectorScale.NextVector(ref particle, particleSystemState);
+            var speed = particleSystemState.Random.NextBetween(
+                speedMin.NextNumber(ref particle, particleSystemState),
+                speedMax.NextNumber(ref particle, particleSystemState));
 
-            var direction = MathUtils.SafeNormalize(particle.Position - particleSystemState.GetControlPoint(controlPoint).Position);
-
-            particle.Velocity += direction * speed * scale;
+            AddVelocity(ref particle, particles, direction * speed, ignoreDelta);
 
             return particle;
+        }
+
+        /// <summary>The local speed scale rotated into world space by the centre's basis.</summary>
+        private Vector3 WorldSpeedScale(ref Particle particle, ParticleSystemState particleSystemState)
+        {
+            if (!perParticleCenter)
+            {
+                var basis = particleSystemState.GetControlPoint(controlPoint).GetBasisAtTime(particle.CreationTime);
+                return Vector3.TransformNormal(localSpeedScale, basis);
+            }
+
+            var forward = centerForward.NextVector(ref particle, particleSystemState);
+            var (left, up) = BasisFromForward(forward);
+
+            return (forward * localSpeedScale.X) + (left * localSpeedScale.Y) + (up * localSpeedScale.Z);
+        }
+
+        /// <summary>
+        /// Completes a left and up axis for <paramref name="forward"/>, with world up as the hint. A
+        /// forward too close to the hint to cross with it falls back to <see cref="ParticleMath.VectorVectors"/>.
+        /// </summary>
+        private static (Vector3 Left, Vector3 Up) BasisFromForward(Vector3 forward)
+        {
+            var left = Vector3.Cross(Vector3.UnitZ, forward);
+
+            if (left.LengthSquared() < ParticleMath.Square(ParticleMath.FloatEpsilon))
+            {
+                return ParticleMath.VectorVectors(forward);
+            }
+
+            left = Vector3.Normalize(left);
+
+            return (left, MathUtils.SafeNormalize(Vector3.Cross(forward, left)));
         }
     }
 }

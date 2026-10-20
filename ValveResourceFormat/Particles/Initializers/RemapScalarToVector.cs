@@ -1,9 +1,12 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
     /// Remaps a scalar particle field into a vector field by interpolating between a minimum and
-    /// maximum output vector. With local coordinates a spatial output is expressed in a control
-    /// point's frame, which is how muzzle flashes lay their sprites out along the barrel axis.
+    /// maximum output vector. A position output is placed around a control point, in its frame with
+    /// local coordinates, which is how muzzle flashes lay their sprites out along the barrel axis.
+    /// Other outputs are written as remapped. Creation times are measured from the last restart.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RemapScalarToVector">C_INIT_RemapScalarToVector</seealso>
     class RemapScalarToVector : ParticleFunctionInitializer
@@ -46,39 +49,71 @@ namespace ValveResourceFormat.Particles.Initializers
                 return particle;
             }
 
-            // A negative time bound means the window is unset and the remap always runs.
-            if (startTime >= 0f && endTime >= 0f && (particle.CreationTime < startTime || particle.CreationTime > endTime))
+            var timeBase = particleSystemState.OperatorTimeBase;
+            var age = MathF.Max(0f, particle.CreationTime - timeBase);
+
+            // A -1 on either time bound means the window is unset and the remap always runs.
+            if (startTime != -1f && endTime != -1f && (age < startTime || age >= endTime))
             {
                 return particle;
             }
 
-            var input = MathUtils.Saturate(MathUtils.Remap(particle.GetScalar(fieldInput), inputMin, inputMax));
+            var input = particle.GetScalar(fieldInput);
 
-            // 0.5 leaves the value untouched, lower pushes it down, higher pushes it up.
-            if (remapBias != 0.5f && remapBias > 0f)
+            if (fieldInput == ParticleField.CreationTime)
             {
-                input = MathF.Pow(input, MathF.Log(remapBias) / MathF.Log(0.5f));
+                input = MathF.Max(0f, input - timeBase);
             }
 
-            var value = Vector3.Lerp(outputMin, outputMax, input);
+            var value = new Vector3(
+                RemapComponent(input, outputMin.X, outputMax.X),
+                RemapComponent(input, outputMin.Y, outputMax.Y),
+                RemapComponent(input, outputMin.Z, outputMax.Z));
 
-            if (localCoords)
+            if (fieldOutput == ParticleField.Position)
             {
-                // Positions are offsets from the control point and directions are rotated by it;
-                // colors have no frame.
-                value = fieldOutput switch
-                {
-                    ParticleField.Position or ParticleField.PositionPrevious or ParticleField.HitboxOffsetPosition
-                        => ControlPointTransformProvider.TransformPosition(particleSystemState, controlPoint, value),
-                    ParticleField.Normal or ParticleField.ScratchVector or ParticleField.ScratchVector2
-                        => ControlPointTransformProvider.TransformDirection(particleSystemState, controlPoint, value),
-                    _ => value,
-                };
+                WritePosition(ref particle, particles, particleSystemState, value);
+                return particle;
             }
 
-            particle.SetVector(fieldOutput, particle.ModifyVectorBySetMethodAtSpawn(particles, fieldOutput, value, setMethod));
+            value = setMethod == ParticleSetMethod.PARTICLE_SET_RAMP_CURRENT_VALUE
+                ? (particles.CurrentFrameTime * particle.GetVector(fieldOutput)) + value
+                : particle.ModifyVectorBySetMethodAtSpawn(particles, fieldOutput, value, setMethod);
+
+            particle.SetVector(fieldOutput, value);
 
             return particle;
+        }
+
+        private float RemapComponent(float input, float outMin, float outMax)
+        {
+            var value = MathUtils.RemapValClamped(input, inputMin, inputMax, outMin, outMax);
+
+            return remapBias != 0.5f ? ParticleMath.Bias(MathUtils.Saturate(value), remapBias) : value;
+        }
+
+        /// <summary>
+        /// Places the particle. In local coordinates the value is a point in the control point's frame and
+        /// the particle starts at rest; otherwise it is an offset from the control point, and the set
+        /// method combines it with the position and the previous position separately.
+        /// </summary>
+        private void WritePosition(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState, Vector3 value)
+        {
+            if (localCoords)
+            {
+                var frame = particleSystemState.GetControlPoint(controlPoint).GetBasisAtTime(particle.CreationTime);
+                var position = Vector3.Transform(value, frame);
+                position = particle.ModifyVectorBySetMethodAtSpawn(particles, ParticleField.Position, position, setMethod);
+
+                particle.Position = position;
+                particle.PositionPrevious = position;
+                return;
+            }
+
+            var offset = ParticlePath.GetControlPointAtTime(particleSystemState, controlPoint, particle.CreationTime) + value;
+
+            particle.Position = particle.ModifyVectorBySetMethodAtSpawn(particles, ParticleField.Position, offset, setMethod);
+            particle.PositionPrevious = particle.ModifyVectorBySetMethodAtSpawn(particles, ParticleField.PositionPrevious, offset, setMethod);
         }
     }
 }

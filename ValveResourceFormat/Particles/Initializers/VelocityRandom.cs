@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Particles.Initializers
             vectorMax = parse.VectorProvider("m_LocalCoordinateSystemSpeedMax", vectorMax);
             speedMin = parse.NumberProvider("m_fSpeedMin", speedMin);
             speedMax = parse.NumberProvider("m_fSpeedMax", speedMax);
-            controlPoint = parse.Int32("m_nControlPointNumber", controlPoint);
+            controlPoint = parse.ControlPoint("m_nControlPointNumber", controlPoint);
             ignoreDT = parse.Boolean("m_bIgnoreDT", ignoreDT);
             rangeSampler = RangeSampler.Parse(parse);
         }
@@ -40,31 +40,20 @@ namespace ValveResourceFormat.Particles.Initializers
             if (vecMin != Vector3.Zero || vecMax != Vector3.Zero)
             {
                 var localSpeed = rangeSampler.NextVectorBetween(ref particle, particleSystemState, vecMin, vecMax);
-                velocity = ControlPointTransformProvider.TransformDirection(particleSystemState, controlPoint, localSpeed);
+                var basis = particleSystemState.GetControlPoint(controlPoint).GetBasisAtTime(particle.CreationTime);
+                velocity = Vector3.TransformNormal(localSpeed, basis);
             }
 
             var speedmin = speedMin.NextNumber(ref particle, particleSystemState);
             var speedmax = speedMax.NextNumber(ref particle, particleSystemState);
 
-            // The speed range is a per-component world space box added on top, not a multiplier
             if (speedmin != 0f || speedmax != 0f)
             {
-                velocity += particleSystemState.Random.NextBetweenPerComponent(
-                    new Vector3(speedmin),
-                    new Vector3(speedmax));
+                var direction = MathUtils.SafeNormalize(particleSystemState.Random.NextInUnitBall(out _));
+                velocity += direction * particleSystemState.Random.NextBetween(speedmin, speedmax);
             }
 
-            // With the flag set the authored value is a raw per-step displacement, not units/second.
-            if (ignoreDT)
-            {
-                var frameTime = particleSystemState.Data?.CurrentFrameTime ?? 0f;
-                if (frameTime > 0f)
-                {
-                    velocity /= frameTime;
-                }
-            }
-
-            particle.Velocity += velocity;
+            AddVelocity(ref particle, particles, velocity, ignoreDT);
 
             return particle;
         }

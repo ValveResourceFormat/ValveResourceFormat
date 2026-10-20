@@ -2,7 +2,7 @@ namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
     /// Sets the second sequence to a random index between min and max, inclusive. Always draws,
-    /// even when the range is degenerate.
+    /// even when the range is degenerate, and a max below min gives values below min.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RandomSecondSequence">C_INIT_RandomSecondSequence</seealso>
     class RandomSecondSequence : ParticleFunctionInitializer
@@ -20,11 +20,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var sample = particleSystemState.Random.Next();
-
-            particle.SecondSequenceNumber = sequenceMax > sequenceMin
-                ? Math.Min(sequenceMin + (int)(sample * (sequenceMax - sequenceMin + 1)), sequenceMax)
-                : sequenceMin;
+            particle.SecondSequenceNumber = sequenceMin + (int)((sequenceMax - sequenceMin + 1) * particleSystemState.Random.Next());
 
             return particle;
         }
