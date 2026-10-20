@@ -199,7 +199,7 @@ uniform sampler2D g_tTintMask;
     in vec2 vTexCoord2;
     uniform bool g_bUseSecondaryUvForAmbientOcclusion = true;
     #if F_TINT_MASK
-        uniform bool g_bUseSecondaryUvForTintMask = true;
+        uniform bool g_bUseSecondaryUvForTintMask = false;
     #endif
     #if defined(detail_texture_vfx_common)
         uniform bool g_bUseSecondaryUvForDetailMask = true;
@@ -221,7 +221,7 @@ uniform sampler2D g_tTintMask;
     #if (GameVfx_vr_skin == 0) // Shaders that pack the mask into another texture
         uniform sampler2D g_tSelfIllumMask;
     #endif
-    uniform float g_flSelfIllumAlbedoFactor = 0.0;
+    uniform float g_flSelfIllumAlbedoFactor = 1.0;
     uniform float g_flSelfIllumBrightness = 0.0;
     uniform float g_flSelfIllumScale = 1.0;
     uniform vec2 g_vSelfIllumScrollSpeed = vec2(0.0);
@@ -230,7 +230,9 @@ uniform sampler2D g_tTintMask;
     vec3 GetStandardSelfIllumination(float flSelfIllumMask, vec3 vAlbedo)
     {
         vec3 selfIllumScale = (exp2(g_flSelfIllumBrightness) * g_flSelfIllumScale) * g_vSelfIllumTint.rgb;
-        return selfIllumScale * flSelfIllumMask * mix(vec3(1.0), vAlbedo, g_flSelfIllumAlbedoFactor);
+        // generic has no albedo factor parameter
+        float flAlbedoFactor = (GameVfx_generic != 0) ? 0.0 : g_flSelfIllumAlbedoFactor;
+        return selfIllumScale * flSelfIllumMask * mix(vec3(1.0), vAlbedo, flAlbedoFactor);
     }
 #endif
 
