@@ -817,6 +817,7 @@ namespace ValveResourceFormat.ResourceTypes
             // GPU decoder calls into <see cref="GetEveryMipLevelTexture"/> which sets the reader offset on its own
             if (HardwareAcceleratedTextureDecoder.Decoder?.Decode(skiaBitmap, Resource, depth, face, mipLevel, decodeFlags) == true)
             {
+                FillMissingAlpha(skiaBitmap, decodeFlags);
                 return skiaBitmap;
             }
 
@@ -861,6 +862,7 @@ namespace ValveResourceFormat.ResourceTypes
                 decoder.Decode(skiaBitmap, span);
 
                 Common.ApplyTextureConversions(skiaBitmap, decodeFlags);
+                FillMissingAlpha(skiaBitmap, decodeFlags);
 
                 var bitmapToReturn = skiaBitmap;
                 skiaBitmap = null;
@@ -870,6 +872,22 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 ArrayPool<byte>.Shared.Return(buf);
                 skiaBitmap?.Dispose();
+            }
+        }
+
+        private void FillMissingAlpha(SKBitmap bitmap, TextureCodec decodeFlags)
+        {
+            // Hemi-octahedral decoding moves blue into alpha, and ATI2N has no blue
+            if (Format != VTexFormat.ATI2N || !decodeFlags.HasFlag(TextureCodec.HemiOctRB) || bitmap.ColorType != DefaultBitmapColorType)
+            {
+                return;
+            }
+
+            var pixels = bitmap.GetPixelSpan();
+
+            for (var i = 3; i < pixels.Length; i += 4)
+            {
+                pixels[i] = byte.MaxValue;
             }
         }
 
@@ -1379,9 +1397,12 @@ namespace ValveResourceFormat.ResourceTypes
 
             var textureCompilerDependencies = Resource.EditInfo.SpecialDependencies
                 .Where(static dependency => dependency.CompilerIdentifier == "CompileTexture");
+            var isAnisotropicRoughness = false;
 
             foreach (var processorAlgorithm in textureCompilerDependencies)
             {
+                isAnisotropicRoughness |= processorAlgorithm.String == "Texture Compiler Version Mip AnisoRoughness_RG";
+
                 codec |= processorAlgorithm.String switch
                 {
                     // Image processor algorithms
@@ -1393,6 +1414,12 @@ namespace ValveResourceFormat.ResourceTypes
                     "Texture Compiler Version Mip HemiOctAnisoRoughness" => TextureCodec.HemiOctRB, // do we lose one of the roughness components? (anisotropic is xy)
                     _ => TextureCodec.None,
                 };
+            }
+
+            // Roughness generated from a normal map lists the normal map's processors, but holds the roughness itself in red and green
+            if (isAnisotropicRoughness)
+            {
+                codec &= ~(TextureCodec.HemiOctRB | TextureCodec.NormalizeNormals);
             }
 
             if (codec.HasFlag(TextureCodec.YCoCg) && (Flags & VTexFlags.CUBE_TEXTURE) != 0)
