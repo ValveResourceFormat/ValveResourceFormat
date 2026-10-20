@@ -257,8 +257,7 @@ void main()
     if ((g_nDecodeFlags & NormalizeNormals) != 0)
     {
         vec2 normalXy = UnpackFromColor(vColor.rg);
-        float derivedZ = sqrt(1.0 - (normalXy.x * normalXy.x) - (normalXy.y * normalXy.y));
-        derivedZ = mix(derivedZ, 1.0, isnan(derivedZ)); // todo: becomes NaN if we are out of bounds
+        float derivedZ = sqrt(max(0.0, 1.0 - dot(normalXy, normalXy)));
         vColor.rgb = PackToColor(vec3(normalXy.xy, derivedZ));
     }
 

@@ -168,12 +168,12 @@ namespace ValveResourceFormat.TextureDecoders
 
         public static void ReconstructNormals(ref Color color)
         {
-            var swizzleR = (color.r * 2) - 255;     // premul R
-            var swizzleG = (color.g * 2) - 255;     // premul G
-            var deriveB = (int)MathF.Sqrt((255 * 255) - (swizzleR * swizzleR) - (swizzleG * swizzleG));
-            color.r = ClampColor((swizzleR / 2) + 128); // unpremul R and normalize (128 = forward, or facing viewer)
-            color.g = ClampColor((swizzleG / 2) + 128); // unpremul G and normalize
-            color.b = ClampColor((deriveB / 2) + 128);  // unpremul B and normalize
+            var x = (color.r / 255f * 2) - 1;
+            var y = (color.g / 255f * 2) - 1;
+
+            // Byte rounding can push X and Y just outside the unit circle
+            var z = MathF.Sqrt(MathF.Max(0, 1 - (x * x) - (y * y)));
+            color.b = ToClampedLdrColor((z * 0.5f) + 0.5f);
         }
 
         public static void Decode_HemiOct(ref Color color)
@@ -183,9 +183,9 @@ namespace ValveResourceFormat.TextureDecoders
             var nz = 1 - MathF.Abs(nx) - MathF.Abs(ny);
 
             var l = MathF.Sqrt((nx * nx) + (ny * ny) + (nz * nz));
-            color.r = (byte)(((nx / l * 0.5f) + 0.5f) * 255);
-            color.g = (byte)(((ny / l * 0.5f) + 0.5f) * 255);
-            color.b = (byte)(((nz / l * 0.5f) + 0.5f) * 255);
+            color.r = ToClampedLdrColor((nx / l * 0.5f) + 0.5f);
+            color.g = ToClampedLdrColor((ny / l * 0.5f) + 0.5f);
+            color.b = ToClampedLdrColor((nz / l * 0.5f) + 0.5f);
         }
 
         public static byte ClampColor(int a)
