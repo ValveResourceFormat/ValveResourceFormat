@@ -9,9 +9,11 @@ using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Audio;
+using ValveResourceFormat.Renderer.Editor;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.Picking;
 using ValveResourceFormat.Renderer.Editor.Selection;
+using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.SceneEnvironment;
@@ -92,6 +94,9 @@ namespace GUI.Types.GLViewers
         /// <summary>Gets the mode shown at the top of the viewport and its colour, or <see langword="null"/> to show none.</summary>
         protected virtual (string Text, Color32 Color)? ModeLabel => null;
 
+        /// <summary>Shapes in world space drawn over everything else, such as the gizmo of the selection.</summary>
+        protected virtual ToolGeometry? GizmoShapes => null;
+
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
         private int renderModeCurrentIndex;
         private ComboBox? renderModeComboBox;
@@ -99,6 +104,13 @@ namespace GUI.Types.GLViewers
         private bool isCubemapsRenderMode;
         private InfiniteGrid? baseGrid;
         private SelectionVisuals? selectionVisuals;
+        private ToolsPass? toolsPass;
+
+        /// <summary>The editor entities of the view, which draw what Hammer shows of them.</summary>
+        protected HammerEntityVisuals EntityVisuals { get; }
+
+        /// <summary>What tools-only content the view draws, which decides the tools materials the renderer draws.</summary>
+        protected ToolsVisibility Tools { get; } = new();
 
         static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
 
@@ -122,7 +134,9 @@ namespace GUI.Types.GLViewers
 
             Renderer = new(rendererContext);
             Input = new UserInput(Renderer);
-            Renderer.EntitySystem.ToolVisuals = new HammerEntityVisuals();
+            EntityVisuals = new HammerEntityVisuals(rendererContext.FileLoader, rendererContext.Logger);
+            Renderer.EntitySystem.ToolVisuals = EntityVisuals;
+            Renderer.DrawFilter = Tools;
             TextRenderer = new(rendererContext, Renderer.Camera);
             crosshairRenderer = new CrosshairRenderer(rendererContext);
             Scene = Renderer.Scene;
@@ -140,6 +154,9 @@ namespace GUI.Types.GLViewers
 
             selectionVisuals?.Delete();
             selectionVisuals = null;
+
+            toolsPass?.Dispose();
+            toolsPass = null;
 
             Picker?.Delete();
             Picker = null;
@@ -184,13 +201,7 @@ namespace GUI.Types.GLViewers
                 UiControl.AddCheckBox("Show Dynamic Octree", showDynamicOctree, (v) => showDynamicOctree = v);
                 if (!HasToolsVisibilityControls)
                 {
-                    UiControl.AddCheckBox("Show Tool Materials", Scene.ShowToolsMaterials, (v) =>
-                    {
-                        foreach (var scene in Renderer.Scenes)
-                        {
-                            scene.ShowToolsMaterials = v;
-                        }
-                    });
+                    UiControl.AddCheckBox("Show Tools", Tools.ShowTools, (v) => Tools.ShowTools = v);
                 }
 
                 if (Renderer.Scenes.Any(static scene => scene.LightingInfo.LightProbes.Count > 0))
@@ -515,7 +526,10 @@ namespace GUI.Types.GLViewers
             Renderer.Postprocess.ExposureCompensation = -0.4f; // eyeballed
 
             baseGrid = new InfiniteGrid(Scene);
-            selectionVisuals = new(Scene.RendererContext, Selection);
+            Debug.Assert(MainFramebuffer != null);
+
+            selectionVisuals = new(Selection, EntityVisuals, Tools, Scene.RendererContext);
+            toolsPass = new(Scene.RendererContext, MainFramebuffer);
             Picker = new(Scene.RendererContext, OnPicked);
 
             QuadOverdrawRenderer = new(Scene.RendererContext);
@@ -760,6 +774,11 @@ namespace GUI.Types.GLViewers
             });
         }
 
+        /// <summary>Lets the tools of the selection follow the cursor and move what is selected, on the render thread.</summary>
+        protected virtual void UpdateSelectionTools(Camera camera)
+        {
+        }
+
         /// <summary>Draws viewer specific lines over the scene, after the frame's camera is final.</summary>
         protected virtual void RenderOverlayLines(Scene.RenderContext renderContext)
         {
@@ -782,13 +801,10 @@ namespace GUI.Types.GLViewers
             Debug.Assert(MainFramebuffer != null);
             Debug.Assert(GLDefaultFramebuffer != null);
 
-            Renderer.PostprocessRender(MainFramebuffer, GLDefaultFramebuffer);
+            Debug.Assert(toolsPass != null && selectionVisuals != null);
 
-            // Over the final image, so the selection keeps its colors whatever the exposure
-            if (selectionVisuals != null && Renderer.ResolvedSceneDepth != null)
-            {
-                selectionVisuals.Render(Renderer.ResolvedSceneDepth);
-            }
+            // The tools are drawn over the final image, so they keep their colors whatever the exposure
+            toolsPass.Render(Renderer, GLDefaultFramebuffer, selectionVisuals, TextRenderer, GizmoShapes);
         }
 
         protected override void OnBufferSwapped(double blockedMs, double framePeriodMs)
@@ -833,6 +849,11 @@ namespace GUI.Types.GLViewers
                     Timestep = timestep,
                     Camera = Renderer.Camera,
                 };
+
+                // Before the scene updates, so what the tools move is drawn where they moved it this frame. The camera
+                // has already moved for this frame, but its matrices are only rebuilt by the update, so they are here.
+                Renderer.Camera.RecalculateMatrices();
+                UpdateSelectionTools(Renderer.Camera);
 
                 Renderer.Update(updateContext);
 
@@ -1146,6 +1167,17 @@ namespace GUI.Types.GLViewers
 
                 renderModeCurrentIndex = i;
                 SetRenderMode(renderMode.Name);
+            }
+        }
+
+        /// <summary>Selects a render mode in the dropdown, when the scene supports it.</summary>
+        protected void SelectRenderMode(string name)
+        {
+            var index = renderModes.FindIndex(mode => mode.Name == name);
+
+            if (renderModeComboBox != null && index >= 0)
+            {
+                renderModeComboBox.SelectedIndex = index;
             }
         }
 

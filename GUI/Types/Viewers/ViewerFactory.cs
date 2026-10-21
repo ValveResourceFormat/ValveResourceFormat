@@ -93,6 +93,12 @@ static class ViewerFactory
             await viewer.LoadAsync(stream).ConfigureAwait(false);
             return viewer;
         }
+        else if (MapDocumentViewer.IsAccepted(magic, vrfGuiContext.FileName))
+        {
+            var viewer = new MapDocumentViewer(vrfGuiContext);
+            await viewer.LoadAsync(stream).ConfigureAwait(false);
+            return viewer;
+        }
         else if (BinaryKeyValues2.IsAccepted(magic, vrfGuiContext.FileName))
         {
             var viewer = new BinaryKeyValues2(vrfGuiContext);

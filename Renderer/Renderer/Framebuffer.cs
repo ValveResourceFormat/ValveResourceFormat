@@ -69,6 +69,12 @@ public class Framebuffer
     public ImageFormat? DepthFormat { get; protected set; }
 
     /// <summary>
+    /// Gets or sets whether the color attachment stores sRGB encoded values, which blending decodes while
+    /// <c>GL_FRAMEBUFFER_SRGB</c> is enabled. Set before <see cref="Initialize"/>.
+    /// </summary>
+    public bool IsColorSrgb { get; set; }
+
+    /// <summary>
     /// Framebuffer completeness status set after <see cref="Initialize"/> is called.
     /// </summary>
     public FramebufferErrorCode InitialStatus { get; private set; } = FramebufferErrorCode.FramebufferUndefined;
@@ -285,7 +291,7 @@ public class Framebuffer
 
         if (ColorFormat is { } colorFormat)
         {
-            Color = CreateAttachment(colorFormat, width, height, $"{Name}Color", NumMips);
+            Color = CreateAttachment(colorFormat, width, height, $"{Name}Color", NumMips, IsColorSrgb);
             Color.AttachToFramebuffer(this, FramebufferAttachment.ColorAttachment0, 0);
 
             ApplyColorSamplerState();
@@ -320,7 +326,7 @@ public class Framebuffer
         }
     }
 
-    private RenderTexture CreateAttachment(ImageFormat format, int width, int height, string label, int numMips = 1)
+    private RenderTexture CreateAttachment(ImageFormat format, int width, int height, string label, int numMips = 1, bool srgb = false)
     {
         var attachment = new RenderTexture(Target, width, height, 1, numMips, label);
         var mipCount = Math.Min(RenderTexture.MaxMipCount(width, height), attachment.NumMipLevels);
@@ -332,11 +338,11 @@ public class Framebuffer
                 throw new InvalidOperationException("Multisample textures do not support mipmaps");
             }
 
-            GL.TextureStorage2DMultisample(attachment.Handle, NumSamples, format.ToGLSizedInternalFormat(), width, height, fixedsamplelocations: true);
+            GL.TextureStorage2DMultisample(attachment.Handle, NumSamples, format.ToGLSizedInternalFormat(srgb), width, height, fixedsamplelocations: true);
         }
         else
         {
-            GL.TextureStorage2D(attachment.Handle, mipCount, format.ToGLSizedInternalFormat(), width, height);
+            GL.TextureStorage2D(attachment.Handle, mipCount, format.ToGLSizedInternalFormat(srgb), width, height);
         }
 
         attachment.SetBaseMaxLevel(0, mipCount - 1);

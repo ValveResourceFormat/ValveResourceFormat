@@ -27,12 +27,6 @@ namespace ValveResourceFormat.Renderer
 
         internal int FirstCommand { get; set; }
 
-        // One node spans many light probe volumes, so each fragment looks up the one it stands in
-        private static readonly Dictionary<string, byte> ShaderArguments = new()
-        {
-            ["D_LPV_BLENDING"] = 1,
-        };
-
         /// <summary>Initializes a clutter node.</summary>
         /// <param name="scene">Owning scene.</param>
         /// <param name="model">Model every instance draws.</param>
@@ -41,7 +35,7 @@ namespace ValveResourceFormat.Renderer
         /// <param name="endCullSize">The clutter object's end cull size.</param>
         /// <param name="instances">The instances to draw.</param>
         public SceneClutter(Scene scene, Model model, string materialGroup, float beginCullSize, float endCullSize, Instance[] instances)
-            : base(scene, model, GetMaterialGroupTable(model, materialGroup), ShaderArguments)
+            : base(scene, model, GetMaterialGroupTable(model, materialGroup))
         {
             ArgumentNullException.ThrowIfNull(instances);
 

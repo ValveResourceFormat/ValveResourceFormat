@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Linq;
 using GUI.Forms;
+using ValveResourceFormat.Renderer.Editor.Collision;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
@@ -21,12 +22,9 @@ namespace GUI.Types.GLViewers
                 info.AddProperty("Physics File", node.Name, new LinkedFile(node.Name));
             }
 
-            info.AddProperty("Physics Group", node.PhysGroupName);
+            info.AddProperty("Collision", string.Join(", ", node.CollisionLabels));
 
-            if (node.Physics != null)
-            {
-                AddGroup(info, node.Physics, node.CollisionAttributeIndex);
-            }
+            AddGroup(info, node.Physics, node.CollisionAttributeIndex);
         }
 
         public static void AddEntityDetails(EntityInfoControl info, BaseModelEntity entity, PhysAggregateData physics)

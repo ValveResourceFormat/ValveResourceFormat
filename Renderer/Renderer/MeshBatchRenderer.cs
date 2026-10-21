@@ -138,9 +138,7 @@ namespace ValveResourceFormat.Renderer
         {
             public int EnvmapTexture = -1;
             public int LPVIrradianceTexture = -1;
-            public int MeshId = -1;
-            public int ShaderId = -1;
-            public int ShaderProgramId = -1;
+            public bool HasDrawIdentity;
 
             public Uniforms() { }
         }
@@ -203,7 +201,7 @@ namespace ValveResourceFormat.Renderer
             {
                 if (request.Call == null)
                 {
-                    if (context.RenderPass is RenderPass.Opaque or RenderPass.Translucent or RenderPass.Outline or RenderPass.DepthOnly)
+                    if (context.RenderPass is RenderPass.Opaque or RenderPass.Translucent or RenderPass.All or RenderPass.DepthOnly)
                     {
                         material?.PostRender();
 
@@ -262,12 +260,7 @@ namespace ValveResourceFormat.Renderer
                             uniforms.LPVIrradianceTexture = shader.GetUniformLocation("g_tLPV_Irradiance");
                         }
 
-                        if (shader.Name == "picking")
-                        {
-                            uniforms.MeshId = shader.GetUniformLocation("meshId");
-                            uniforms.ShaderId = shader.GetUniformLocation("shaderId");
-                            uniforms.ShaderProgramId = shader.GetUniformLocation("shaderProgramId");
-                        }
+                        uniforms.HasDrawIdentity = shader.HasDrawIdentity;
 
                         shader.Use();
 
@@ -304,11 +297,9 @@ namespace ValveResourceFormat.Renderer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void Draw(Shader shader, ref Uniforms uniforms, ref Config config, BatchRequest request)
         {
-            if (uniforms.MeshId != -1)
+            if (uniforms.HasDrawIdentity)
             {
-                GL.ProgramUniform1((uint)shader.Program, uniforms.MeshId, (uint)request.Mesh.MeshIndex);
-                GL.ProgramUniform1((uint)shader.Program, uniforms.ShaderId, request.Call.Material.Shader.NameHash);
-                GL.ProgramUniform1((uint)shader.Program, uniforms.ShaderProgramId, (uint)request.Call.Material.Shader.Program);
+                shader.SetDrawIdentity((uint)request.Mesh.MeshIndex, request.Call.Material.Shader);
             }
 
             if (config.IndirectDraw)

@@ -46,8 +46,16 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Gets whether this shape draws its back faces when translucent.</summary>
         protected virtual bool IsDoubleSided { get; } = true;
 
-        /// <summary>Gets or sets an optional tool texture overlay rendered on top of the shape.</summary>
-        protected RenderTexture? ToolTexture { get; set; }
+        /// <summary>The opacity of every fill drawn with order independent transparency, which the composite relies on.</summary>
+        protected internal const float OrderIndependentFillAlpha = 0.65f;
+
+        /// <summary>
+        /// Gets the tools material the shape stands for, such as a clip, whose texture is projected onto its faces.
+        /// Whether the shape is drawn is decided by it, see <see cref="Scene.DrawFilter"/>.
+        /// </summary>
+        public RenderMaterial? ToolsMaterial { get; private set; }
+
+        private RenderTexture? toolTexture;
 
         /// <summary>
         /// Gets whether the translucent fill is drawn with order independent transparency where the renderer supports it,
@@ -124,6 +132,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public override void SetRenderMode(string mode)
         {
             IsTranslucentRenderMode = mode is not "Color" and not "Normals" and not "VertexColor";
+        }
+
+        /// <summary>Makes the shape stand for a tools material, see <see cref="ToolsMaterial"/>.</summary>
+        /// <param name="materialName">The path of the material.</param>
+        protected void SetToolsMaterial(string materialName)
+        {
+            ToolsMaterial = Scene.RendererContext.MaterialLoader.GetMaterial(materialName, null);
+            toolTexture = ToolsMaterial.Textures.GetValueOrDefault("g_tColor");
         }
 
         private void Init(List<SimpleVertexNormal> verts, List<int> inds)
@@ -416,7 +432,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             var isTranslucent = IsTranslucent && IsTranslucentRenderMode && context.ReplacementShader == null;
             var renderPass = isTranslucent ? RenderPass.Translucent : RenderPass.Opaque;
 
-            if (context.RenderPass != renderPass && context.RenderPass != RenderPass.Outline)
+            if (context.RenderPass != renderPass && context.RenderPass != RenderPass.All)
             {
                 return;
             }
@@ -430,9 +446,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             renderShader.Use();
 
             renderShader.SetUniform("g_bNormalShaded", Shaded);
-            renderShader.SetUniform("g_bHasToolTexture", ToolTexture != null);
+            renderShader.SetUniform("g_bHasToolTexture", toolTexture != null);
 
-            renderShader.SetTexture(0, "g_tColor", ToolTexture ?? Scene.RendererContext.MaterialLoader.GetDefaultColor());
+            renderShader.SetTexture(0, "g_tColor", toolTexture ?? Scene.RendererContext.MaterialLoader.GetDefaultColor());
 
             VertexArray.Bind(vao, renderShader);
 
@@ -498,10 +514,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             fillShader.Use();
 
             fillShader.SetUniform("g_bNormalShaded", Shaded);
-            fillShader.SetUniform("g_bHasToolTexture", ToolTexture != null);
+            fillShader.SetUniform("g_bHasToolTexture", toolTexture != null);
 
             // Drawn outside the batch renderer, which rebinds the reserved units after each node it draws
-            fillShader.SetTexture(RenderMaterial.TextureUnitStart, "g_tColor", ToolTexture ?? Scene.RendererContext.MaterialLoader.GetDefaultColor());
+            fillShader.SetTexture(RenderMaterial.TextureUnitStart, "g_tColor", toolTexture ?? Scene.RendererContext.MaterialLoader.GetDefaultColor());
 
             VertexArray.Bind(vao, fillShader);
 
@@ -539,11 +555,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private void DrawLines(Shader lineShader)
         {
             lineShader.Use();
-            lineShader.SetUniform("g_bHasToolTexture", ToolTexture != null);
+            lineShader.SetUniform("g_bHasToolTexture", toolTexture != null);
 
-            if (ToolTexture != null)
+            if (toolTexture != null)
             {
-                lineShader.SetUniform("g_vToolTextureAverage", ToolTexture.Reflectivity.AsVector3());
+                lineShader.SetUniform("g_vToolTextureAverage", toolTexture.Reflectivity.AsVector3());
             }
 
             VertexArray.Bind(vao, lineShader);

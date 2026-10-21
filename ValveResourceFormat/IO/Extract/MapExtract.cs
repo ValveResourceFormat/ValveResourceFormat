@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -65,10 +66,9 @@ public sealed partial class MapExtract
     private const int AutoPhysicsMaterialWorldMapping = 16;
 
     /// <summary>
-    /// The texture size Hammer projects a material with, for faces that have no texture coordinates, in texels at
-    /// <see cref="PolygonMesh.DefaultTextureScale"/>: the units its WorldMappingWidth / WorldMappingHeight attributes
-    /// say the texture spans, else the size of its representative texture. Null when the material declares neither,
-    /// projecting it at the builder's default size.
+    /// The texture size Hammer projects a material with, for faces that have no texture coordinates, see
+    /// <see cref="GetProjectedTextureSize"/>. Null when the material declares none, projecting it at the builder's
+    /// default size.
     /// </summary>
     private Vector2? GetMaterialTextureSize(string materialName)
     {
@@ -90,10 +90,20 @@ public sealed partial class MapExtract
         }
 
         using var materialResource = FileLoader.LoadFileCompiled(materialName);
-        if (materialResource?.DataBlock is not Material material)
-        {
-            return null;
-        }
+
+        return materialResource?.DataBlock is Material material ? GetProjectedTextureSize(material) : null;
+    }
+
+    /// <summary>
+    /// Gets the texture size Hammer projects a material with, in texels at <see cref="PolygonMesh.DefaultTextureScale"/>:
+    /// the units its WorldMappingWidth / WorldMappingHeight attributes say the texture spans, else the size of its
+    /// representative texture.
+    /// </summary>
+    /// <param name="material">The material.</param>
+    /// <returns>The size, or <see langword="null"/> when the material declares neither.</returns>
+    public static Vector2? GetProjectedTextureSize(Material material)
+    {
+        ArgumentNullException.ThrowIfNull(material);
 
         int GetIntAttribute(string name) => (int)material.IntAttributes.GetValueOrDefault(name);
 
@@ -505,42 +515,37 @@ public sealed partial class MapExtract
         };
     }
 
-    /// <summary>
-    /// Maps tool texture names to their associated collision tag sets.
-    /// </summary>
-    // TODO: we should be parsing fgds and collision_*.txt files from game to remain correct.
-    public static readonly Dictionary<string, HashSet<string>> ToolTextureMultiTags = new()
+    // Tools materials by the interact-as tags their collision compiles with, sorted and comma separated. A material
+    // gets a tag of the same name from each of its "mapbuilder.<tag>" attributes that is one of ladder, blocklos,
+    // blocksound, passbullets, npcclip, playerclip, sky, water, teleportclip and navclip, or the tags of the entry in
+    // scripts/collision_properties.txt that its "mapbuilder.collisionproperties" attribute names. Where several
+    // materials compile to the same tags, the one they are usually made with is listed.
+    private static readonly FrozenDictionary<string, string> ToolsMaterialByInteractAs = new Dictionary<string, string>
     {
-        ["clip"] = ["npcclip", "playerclip"],
-        ["invisibleladder"] = ["ladder", "passbullets"],
-    };
+        ["blocklos"] = "materials/tools/toolsblock_los.vmat",
+        ["blocksound"] = "materials/tools/toolsblocksound.vmat",
+        ["csgo_grenadeclip"] = "materials/tools/toolsgrenadeclip.vmat",
+        ["ladder,npcclip,playerclip"] = "materials/tools/toolsinvisibleladder.vmat",
+        ["ladder,passbullets"] = "materials/tools/toolsinvisibleladder_wood.vmat",
+        ["navclip"] = "materials/tools/toolsnavclip.vmat",
+        ["npcclip"] = "materials/tools/toolsnpcclip.vmat",
+        ["npcclip,passbullets"] = "materials/tools/toolsinvisible.vmat",
+        ["npcclip,playerclip"] = "materials/tools/toolsclip.vmat",
+        ["playerclip"] = "materials/tools/toolsplayerclip.vmat",
+        ["sky"] = "materials/tools/toolsskybox.vmat",
+        ["teleportclip"] = "materials/tools/toolsteleportclip.vmat",
+    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Gets the tool texture material path for a given surface tag combination.
+    /// Gets the tools material that compiles to collision which interacts as the given tags.
     /// </summary>
-    public static string GetToolTextureNameForCollisionTags(SurfaceTagCombo combo)
+    /// <param name="interactAs">The interact-as tags of a group of collision, see <see cref="PhysAggregateData.GetInteractAsTags(KVObject)"/>.</param>
+    /// <returns>The path of the material, or <see langword="null"/> when no tools material compiles to exactly these tags.</returns>
+    public static string? GetToolsMaterialForInteractAs(IEnumerable<string> interactAs)
     {
-        var shortenedToolTextureName = GetToolTextureShortenedName_ForInteractStrings(combo.InteractAsStrings);
+        ArgumentNullException.ThrowIfNull(interactAs);
 
-        return $"materials/tools/tools{shortenedToolTextureName}.vmat";
-    }
-
-    /// <summary>
-    /// Gets the shortened tool texture name for a set of interact-as strings.
-    /// </summary>
-    public static string GetToolTextureShortenedName_ForInteractStrings(HashSet<string> interactAsStrings)
-    {
-        var texture = ToolTextureMultiTags.FirstOrDefault(x => x.Value.SetEquals(interactAsStrings)).Key;
-        var tag = interactAsStrings.FirstOrDefault();
-        texture ??= tag switch
-        {
-            "playerclip" or "npcclip" or "blocksound" => tag,
-            "sky" => "skybox",
-            "csgo_grenadeclip" => "grenadeclip",
-            "ladder" => "invisibleladder",
-            _ => "nodraw",
-        };
-        return texture;
+        return ToolsMaterialByInteractAs.GetValueOrDefault(string.Join(',', interactAs.Order(StringComparer.OrdinalIgnoreCase)));
     }
 
     /// <summary>
@@ -833,29 +838,30 @@ public sealed partial class MapExtract
         static int TotalMapMeshSize(CMapMesh mesh)
         {
             var meshSize = 0;
+            var meshData = mesh.MeshData!;
             // face-vertices
-            GetTotalDataStreamSizes(mesh.MeshData.FaceVertexData.Streams, ref meshSize);
+            GetTotalDataStreamSizes(meshData.FaceVertexData.Streams, ref meshSize);
 
             // vertices
-            meshSize += GetArraySize(mesh.MeshData.VertexEdgeIndices);
-            meshSize += GetArraySize(mesh.MeshData.VertexDataIndices);
-            GetTotalDataStreamSizes(mesh.MeshData.VertexData.Streams, ref meshSize);
+            meshSize += GetArraySize(meshData.VertexEdgeIndices);
+            meshSize += GetArraySize(meshData.VertexDataIndices);
+            GetTotalDataStreamSizes(meshData.VertexData.Streams, ref meshSize);
 
             // edges
-            meshSize += GetArraySize(mesh.MeshData.EdgeVertexIndices)
-                + GetArraySize(mesh.MeshData.EdgeDataIndices)
-                + GetArraySize(mesh.MeshData.EdgeOppositeIndices)
-                + GetArraySize(mesh.MeshData.EdgeNextIndices)
-                + GetArraySize(mesh.MeshData.EdgeFaceIndices)
-                + GetArraySize(mesh.MeshData.EdgeDataIndices)
-                + GetArraySize(mesh.MeshData.EdgeVertexDataIndices);
-            GetTotalDataStreamSizes(mesh.MeshData.EdgeData.Streams, ref meshSize);
+            meshSize += GetArraySize(meshData.EdgeVertexIndices)
+                + GetArraySize(meshData.EdgeDataIndices)
+                + GetArraySize(meshData.EdgeOppositeIndices)
+                + GetArraySize(meshData.EdgeNextIndices)
+                + GetArraySize(meshData.EdgeFaceIndices)
+                + GetArraySize(meshData.EdgeDataIndices)
+                + GetArraySize(meshData.EdgeVertexDataIndices);
+            GetTotalDataStreamSizes(meshData.EdgeData.Streams, ref meshSize);
 
             // faces
-            meshSize += GetArraySize(mesh.MeshData.FaceEdgeIndices);
-            meshSize += GetArraySize(mesh.MeshData.FaceDataIndices);
-            meshSize += GetArraySize(mesh.MeshData.Materials);
-            GetTotalDataStreamSizes(mesh.MeshData.FaceData.Streams, ref meshSize);
+            meshSize += GetArraySize(meshData.FaceEdgeIndices);
+            meshSize += GetArraySize(meshData.FaceDataIndices);
+            meshSize += GetArraySize(meshData.Materials);
+            GetTotalDataStreamSizes(meshData.FaceData.Streams, ref meshSize);
             return meshSize;
         }
 
@@ -1297,18 +1303,14 @@ public sealed partial class MapExtract
 
         void InsertFace(int targetSet, Vector3[] corners)
         {
-            // Newell normal and bounds
-            var normal = Vector3.Zero;
+            var normal = MeshUtils.NewellNormal(corners);
             var min = new Vector3(float.MaxValue);
             var max = new Vector3(float.MinValue);
 
-            for (var i = 0; i < corners.Length; i++)
+            foreach (var corner in corners)
             {
-                var current = corners[i];
-                var next = corners[(i + 1) % corners.Length];
-                normal += new Vector3((current.Y - next.Y) * (current.Z + next.Z), (current.Z - next.Z) * (current.X + next.X), (current.X - next.X) * (current.Y + next.Y));
-                min = Vector3.Min(min, current);
-                max = Vector3.Max(max, current);
+                min = Vector3.Min(min, corner);
+                max = Vector3.Max(max, corner);
             }
 
             if (normal.LengthSquared() < 1e-10f)
@@ -1351,7 +1353,7 @@ public sealed partial class MapExtract
 
         foreach (var mesh in candidates)
         {
-            var positions = mesh.MeshData.VertexData.Streams.OfType<CDmePolygonMeshDataStream>().FirstOrDefault(s => s.Name == "position:0")?.Data as Datamodel.Array<Vector3>;
+            var positions = mesh.MeshData!.VertexData.Streams.OfType<CDmePolygonMeshDataStream>().FirstOrDefault(s => s.Name == "position:0")?.Data as Datamodel.Array<Vector3>;
             if (positions is null)
             {
                 continue;
@@ -1568,7 +1570,7 @@ public sealed partial class MapExtract
             if (targets.Count > 0)
             {
                 overlay.ProjectionTargets.AddRange(targets);
-                overlay.ProjectionMode = 3;
+                overlay.ProjectionMode = (int)MapOverlayProjectionMode.Targets;
             }
         }
 
@@ -1665,7 +1667,7 @@ public sealed partial class MapExtract
         }
 
         static bool IsPhysicsMesh(CMapMesh mesh)
-            => mesh.MeshData.Materials.Count > 0 && mesh.MeshData.Materials.All(m =>
+            => mesh.MeshData is { Materials.Count: > 0 } meshData && meshData.Materials.All(m =>
                 m.Contains("/_vrf/physics_surfaces/", StringComparison.Ordinal) || m.StartsWith("materials/tools/", StringComparison.Ordinal));
 
         // inside the polygon in the plane, or within the tolerance of one of its edges
@@ -1945,12 +1947,6 @@ public sealed partial class MapExtract
         void SetTintAlpha(BaseEntity entity, Vector4 tint)
         {
             var color32 = ConvertToColor32(tint);
-            if (entity is CMapInstance instance)
-            {
-                instance.TintColor = color32;
-                return;
-            }
-
             entity.EntityProperties["rendercolor"] = $"{color32.R} {color32.G} {color32.B}";
             entity.EntityProperties["renderamt"] = color32.A.ToString(CultureInfo.InvariantCulture);
         }

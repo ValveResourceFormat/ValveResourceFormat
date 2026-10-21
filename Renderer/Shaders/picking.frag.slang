@@ -1,5 +1,7 @@
 #version 460
 
+#pragma IgnoreMaterialData
+
 #include "common/ViewConstants.slang"
 
 #define F_DEBUG_PICKER 0 // VRF: visualize picking IDs with colors

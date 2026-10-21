@@ -423,8 +423,7 @@ public partial class HalfEdgeMesh
     /// whole islands connected through edges: a half edge whose twin's face is not in the set becomes a
     /// boundary edge, a vertex shared with faces outside the set is duplicated.
     /// </summary>
-    public void AppendComponentsFromMesh(HalfEdgeMesh sourceMesh,
-        IReadOnlyCollection<FaceHandle> faces,
+    public void AppendComponentsFromMesh(IReadOnlyCollection<FaceHandle> faces,
         out Dictionary<VertexHandle, VertexHandle> newVertices,
         out Dictionary<HalfEdgeHandle, HalfEdgeHandle> newHalfEdges,
         out Dictionary<FaceHandle, FaceHandle> newFaces)

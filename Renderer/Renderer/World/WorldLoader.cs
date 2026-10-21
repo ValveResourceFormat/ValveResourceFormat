@@ -471,11 +471,11 @@ namespace ValveResourceFormat.Renderer.World
             {
                 Debug.Assert(physResource?.FileName != null);
 
-                foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys, physResource.FileName[..^2]))
+                foreach (var node in entitySystem.ToolVisuals?.CreateCollisionVisuals(scene, phys, physResource.FileName[..^2], null) ?? [])
                 {
-                    physSceneNode.Transform = rootTransform;
-                    physSceneNode.LayerName = PhysicsDebugLayerName;
-                    scene.Add(physSceneNode, true);
+                    node.Transform = rootTransform;
+                    node.LayerName = PhysicsDebugLayerName;
+                    scene.Add(node, false);
                 }
 
                 // Every spawn group adds its collision to the physics world of its world group, a 3D sky's included
@@ -830,6 +830,7 @@ namespace ValveResourceFormat.Renderer.World
             // Without a world group of its own the sky joins the one of the map that placed it
             var skyScene = new Scene(RendererContext)
             {
+                IsSkybox = true,
                 WorldGroup = skyboxReference.Data.GetStringProperty("worldgroupid") is { Length: > 0 } worldGroup ? worldGroup : scene.WorldGroup,
             };
 

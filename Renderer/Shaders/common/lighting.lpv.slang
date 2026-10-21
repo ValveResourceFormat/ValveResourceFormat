@@ -94,7 +94,8 @@ LightProbeBlend_t GetFragmentLPV(vec3 fragPosition)
     {
         g_bLightProbeBlendReady = true;
 
-        #if (S_SCENE_PROBE_TYPE == 2) && (defined(ENABLE_LPV_BLENDING) || (D_LPV_BLENDING == 1))
+        // The volumes of an atlas are binned, and every fragment walks the ones it is in
+        #if (S_SCENE_PROBE_TYPE == 2)
             FindLightProbeVolumes(fragPosition);
         #else
             g_LightProbeBlend.Volume[0] = GetObjectLightingData().VisibleLPV & 0xFFFFu;

@@ -36,7 +36,7 @@ namespace ValveResourceFormat.Renderer
 
         internal uint InstanceBufferIndex { get; set; }
 
-        /// <summary>Gets or sets the mesh identifier used for picking.</summary>
+        /// <summary>Gets or sets the mesh identifier, which replacement shaders can tell draws apart by.</summary>
         public int MeshId { get; set; }
 
         /// <summary>Gets or sets the index of the first meshlet for this draw call.</summary>
@@ -104,7 +104,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>Returns the VAO for this draw call, creating it if necessary. Locations are canonical,
-        /// so it serves the material shader and every replacement shader (depth only, outline, picking).</summary>
+        /// so it serves the material shader and every replacement shader.</summary>
         /// <returns>The OpenGL VAO handle.</returns>
         public int GetVertexArrayObject()
         {

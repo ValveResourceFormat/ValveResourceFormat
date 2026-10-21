@@ -1,4 +1,7 @@
+using System.Globalization;
+using System.Linq;
 using Datamodel.Format;
+using ValveResourceFormat.IO.ContentFormats.HalfEdgeMesh;
 using DMElement = Datamodel.Element;
 
 namespace ValveResourceFormat.IO.ContentFormats.ValveMap;
@@ -9,6 +12,10 @@ namespace ValveResourceFormat.IO.ContentFormats.ValveMap;
 [LowercaseProperties]
 public class CMapRootElement : DMElement
 {
+    private CStoredCamera defaultCamera = [];
+    private CMapVariableSet mapVariables = [];
+    private CVisibilityMgr visibility = [];
+
     /// <summary>
     /// Whether this file is a prefab rather than a standalone map.
     /// </summary>
@@ -53,7 +60,11 @@ public class CMapRootElement : DMElement
     /// <summary>
     /// Camera Hammer opens the map with.
     /// </summary>
-    public CStoredCamera DefaultCamera { get; init; } = [];
+    public CStoredCamera DefaultCamera
+    {
+        get => defaultCamera;
+        init => defaultCamera = value;
+    }
 
     /// <summary>
     /// Saved cameras.
@@ -70,13 +81,21 @@ public class CMapRootElement : DMElement
     /// Per node hidden state.
     /// </summary>
     [DMProperty(name: "visbility")]
-    public CVisibilityMgr Visibility { get; init; } = [];
+    public CVisibilityMgr Visibility
+    {
+        get => visibility;
+        init => visibility = value;
+    }
 
     /// <summary>
     /// Map variables and their values.
     /// </summary>
     [DMProperty(name: "mapVariables")]
-    public CMapVariableSet MapVariables { get; init; } = [];
+    public CMapVariableSet MapVariables
+    {
+        get => mapVariables;
+        init => mapVariables = value;
+    }
 
     /// <summary>
     /// Root of the selection set tree.
@@ -103,10 +122,198 @@ public class CMapRootElement : DMElement
     public bool CordonsVisible { get; set; }
 
     /// <summary>
-    /// Per node instance data.
+    /// Array of <see cref="CDmeNodeInstanceData"/>, what the editor baked for nodes at each place they are put.
     /// </summary>
     [DMProperty(name: "nodeInstanceData")]
     public Datamodel.ElementArray NodeInstanceData { get; init; } = [];
+
+    /// <summary>
+    /// Called after the map is loaded. Lets every node convert its saved data into the form it is used in at runtime.
+    /// </summary>
+    public void PostLoadFromFile()
+    {
+        // defaults for maps lacking these
+        defaultCamera ??= Adopt(new CStoredCamera { Name = "defaultcamera" });
+        mapVariables ??= Adopt(new CMapVariableSet { Name = "mapVariables" });
+        visibility ??= Adopt(new CVisibilityMgr { Name = "visbility" });
+
+        Visibility.World = World;
+
+        World.PostLoadFromFile();
+        Visibility.PostLoadFromFile();
+    }
+
+    private T Adopt<T>(T element) where T : DMElement
+    {
+        Owner?.ImportElement(element, Datamodel.Datamodel.ImportRecursionMode.Recursive, Datamodel.Datamodel.ImportOverwriteMode.None);
+
+        return element;
+    }
+
+    /// <summary>
+    /// Called before the map is saved. Lets every node rebuild its saved data.
+    /// </summary>
+    public void PreSaveToFile()
+    {
+        World.PreSaveToFile();
+        Visibility.PreSaveToFile();
+    }
+
+    /// <summary>
+    /// Called after the map is saved. Lets every node discard the saved data that <see cref="PreSaveToFile"/> rebuilt.
+    /// </summary>
+    public void PostSaveToFile()
+    {
+        World.PostSaveToFile();
+        Visibility.PostSaveToFile();
+    }
+}
+
+/// <summary>
+/// What the editor baked for a node at one place it is put. The element is named after the IDs of the instances and
+/// prefabs the node was placed through, then of the node itself, joined by dots.
+/// </summary>
+[CamelCaseProperties]
+public class CDmeNodeInstanceData : DMElement
+{
+    /// <summary>
+    /// The baked lighting of each vertex. For a mesh, one per face corner in the order of their data, or the grid
+    /// of the patch of a subdivided face corner.
+    /// </summary>
+    public Datamodel.ColorArray VertexLightingData { get; init; } = [];
+
+    /// <summary>Where each vertex was lit, in world space, empty when not kept.</summary>
+    public Datamodel.Vector3Array VertexLightingPositions { get; init; } = [];
+
+    /// <summary>The normal of each vertex when it was lit, empty when not kept.</summary>
+    public Datamodel.Vector3Array VertexLightingNormals { get; init; } = [];
+
+    /// <summary>Creates the streams that draw the mesh of the node lit by <see cref="VertexLightingData"/>.</summary>
+    /// <param name="mesh">The mesh of the node.</param>
+    /// <returns>The streams, see <see cref="PolygonMesh.Triangulate"/>, or null when the lighting does not fit the mesh.</returns>
+    public PolygonMeshStream[]? CreateVertexLightingStreams(PolygonMesh mesh)
+    {
+        ArgumentNullException.ThrowIfNull(mesh);
+
+        if (VertexLightingData.Count == 0)
+        {
+            return null;
+        }
+
+        return mesh.CreateFaceVertexStreams("PerVertexLighting", [.. VertexLightingData.Select(static color => new Vector4(color.R, color.G, color.B, color.A) / 255f)]);
+    }
+
+    /// <summary>
+    /// Lights points from the vertices of <see cref="VertexLightingPositions"/> around them, the way the editor lights
+    /// the projected triangles of a static overlay. A point takes the average lighting of up to 64 vertices in the
+    /// smallest box around it that holds any, growing from a 32nd of a unit wide up to 32 units, and none beyond that.
+    /// </summary>
+    /// <param name="positions">The points, in world space.</param>
+    /// <returns>The lighting of each point, or <see langword="null"/> when no positions were kept.</returns>
+    public Vector4[]? SampleVertexLighting(IReadOnlyList<Vector3> positions)
+    {
+        ArgumentNullException.ThrowIfNull(positions);
+
+        const float CellSize = 4f;
+        const int MaxFound = 64;
+
+        var count = Math.Min(VertexLightingPositions.Count, VertexLightingData.Count);
+
+        if (count == 0)
+        {
+            return null;
+        }
+
+        var cells = new Dictionary<(int, int, int), List<int>>();
+
+        for (var i = 0; i < count; i++)
+        {
+            var cell = GetCell(VertexLightingPositions[i]);
+
+            if (!cells.TryGetValue(cell, out var vertices))
+            {
+                cells[cell] = vertices = [];
+            }
+
+            vertices.Add(i);
+        }
+
+        var lighting = new Vector4[positions.Count];
+        var found = new List<int>(MaxFound);
+
+        for (var p = 0; p < positions.Count; p++)
+        {
+            var point = positions[p];
+
+            for (var size = 0.03125f; size <= 32f && found.Count == 0; size *= 2f)
+            {
+                FindInBox(point - new Vector3(size * 0.5f), point + new Vector3(size * 0.5f));
+            }
+
+            if (found.Count == 0)
+            {
+                continue;
+            }
+
+            // Averaged as light, which the stored colour is the square root of, scaled down by six and by its alpha
+            var sum = Vector3.Zero;
+
+            foreach (var vertex in found)
+            {
+                var color = VertexLightingData[vertex];
+                var encoded = new Vector3(color.R, color.G, color.B) / 255f * 6f * (color.A / 255f);
+
+                sum += encoded * encoded;
+            }
+
+            var linear = sum / found.Count;
+            var alpha = Math.Clamp(MathF.Ceiling(MathF.Max(MathF.Max(linear.X, MathF.Max(linear.Y, linear.Z)), 1f / 6f) * 255f) / 255f, 0f, 1f);
+            var rgb = Vector3.Clamp(Vector3.Clamp(Vector3.SquareRoot(linear) / 6f, Vector3.Zero, Vector3.One) / alpha, Vector3.Zero, Vector3.One);
+
+            lighting[p] = new Vector4(rgb, alpha);
+            found.Clear();
+        }
+
+        return lighting;
+
+        void FindInBox(Vector3 min, Vector3 max)
+        {
+            var (minX, minY, minZ) = GetCell(min);
+            var (maxX, maxY, maxZ) = GetCell(max);
+
+            for (var x = minX; x <= maxX; x++)
+            {
+                for (var y = minY; y <= maxY; y++)
+                {
+                    for (var z = minZ; z <= maxZ; z++)
+                    {
+                        if (!cells.TryGetValue((x, y, z), out var vertices))
+                        {
+                            continue;
+                        }
+
+                        foreach (var vertex in vertices)
+                        {
+                            var position = VertexLightingPositions[vertex];
+
+                            if (Vector3.Clamp(position, min, max) == position)
+                            {
+                                found.Add(vertex);
+
+                                if (found.Count == MaxFound)
+                                {
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        static (int, int, int) GetCell(Vector3 position)
+            => ((int)MathF.Floor(position.X / CellSize), (int)MathF.Floor(position.Y / CellSize), (int)MathF.Floor(position.Z / CellSize));
+    }
 }
 
 /// <summary>
@@ -151,12 +358,12 @@ public class CStoredCameras : DMElement
 public abstract class MapNode : DMElement
 {
     /// <summary>
-    /// Position of the node, relative to its parent.
+    /// Position of the node in the world. A child does not store it relative to its parent.
     /// </summary>
     public Vector3 Origin { get; set; }
 
     /// <summary>
-    /// Rotation of the node, relative to its parent.
+    /// Rotation of the node in the world.
     /// </summary>
     public Datamodel.QAngle Angles { get; set; }
 
@@ -205,56 +412,270 @@ public abstract class MapNode : DMElement
     /// Map variables driving <see cref="VariableTargetKeys"/>.
     /// </summary>
     public Datamodel.StringArray VariableNames { get; init; } = [];
+
+    /// <summary>
+    /// Enumerates every node under this one, a node before its own children. A node of a class that is not
+    /// modelled here is passed over, the nodes under it are not.
+    /// </summary>
+    public IEnumerable<MapNode> EnumerateDescendants() => EnumerateDescendantElements(this).OfType<MapNode>();
+
+    // Everything in the tree under a node. A node of a class that is not modelled here is a plain element, which
+    // keeps its children in an attribute.
+    internal static IEnumerable<DMElement> EnumerateDescendantElements(DMElement node)
+    {
+        if (GetChildren(node) is not { } children)
+        {
+            yield break;
+        }
+
+        foreach (var child in children)
+        {
+            if (child == null)
+            {
+                continue;
+            }
+
+            yield return child;
+
+            foreach (var descendant in EnumerateDescendantElements(child))
+            {
+                yield return descendant;
+            }
+        }
+    }
+
+    private static Datamodel.ElementArray? GetChildren(DMElement node)
+        => node is MapNode mapNode ? mapNode.Children : node.ContainsKey("children") ? node["children"] as Datamodel.ElementArray : null;
+
+    // The nodes right under this one, looking through nodes of classes that are not modelled here
+    private IEnumerable<MapNode> EnumerateChildNodes()
+    {
+        var pending = new Stack<DMElement>();
+        pending.Push(this);
+
+        while (pending.TryPop(out var parent))
+        {
+            if (GetChildren(parent) is not { } children)
+            {
+                continue;
+            }
+
+            foreach (var child in children)
+            {
+                if (child is MapNode node)
+                {
+                    yield return node;
+                }
+                else if (child != null)
+                {
+                    pending.Push(child);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Called after the map is loaded, for the node to convert its saved data into the form it is used in at
+    /// runtime. It is not passed on to the children, the world calls it on every node under it.
+    /// </summary>
+    public virtual void PostLoadFromFile()
+    {
+    }
+
+    /// <summary>
+    /// Called before the map is saved, for the node and its children to rebuild their saved data.
+    /// </summary>
+    public virtual void PreSaveToFile()
+    {
+        foreach (var child in EnumerateChildNodes())
+        {
+            child.PreSaveToFile();
+        }
+    }
+
+    /// <summary>
+    /// Called after the map is saved, for the node and its children to discard the saved data that
+    /// <see cref="PreSaveToFile"/> rebuilt.
+    /// </summary>
+    public virtual void PostSaveToFile()
+    {
+        foreach (var child in EnumerateChildNodes())
+        {
+            child.PostSaveToFile();
+        }
+    }
 }
 
 /// <summary>
-/// References another map file and places its contents at this node.
+/// Base of every map node that takes part in entity IO.
 /// </summary>
 [CamelCaseProperties]
-public class CMapPrefab : MapNode
+public abstract class EntityIONode : MapNode
 {
-    /// <summary>
-    /// Whether entity names inside the prefab are prefixed to keep them unique.
-    /// </summary>
-    public bool FixupEntityNames { get; set; } = true;
+    private DmePlugList? relayPlugData = [];
+    private List<EntityConnection>? connections;
+    private List<RelayPlug>? relayPlugs;
 
     /// <summary>
-    /// Whether the prefab is spawned at runtime instead of merged at compile time.
+    /// Output plugs this entity fires through, in their saved form. After loading they are in
+    /// <see cref="RelayPlugs"/> instead and this is null, except while the map is being saved.
     /// </summary>
-    public bool LoadAtRuntime { get; set; }
+    public DmePlugList? RelayPlugData
+    {
+        get => relayPlugData;
+        init => relayPlugData = value;
+    }
 
     /// <summary>
-    /// Whether the prefab still loads when it sits inside another prefab.
+    /// The entity IO connections in their saved form, one <see cref="DmeConnectionData"/> element each. After
+    /// loading they are in <see cref="Connections"/> instead and this is empty, except while the map is being saved.
     /// </summary>
-    public bool LoadIfNested { get; set; } = true;
+    public Datamodel.ElementArray ConnectionsData { get; init; } = [];
 
     /// <summary>
-    /// Path to the map file this prefab pulls in.
+    /// The entity IO connections of a node that was loaded, see <see cref="PostLoadFromFile"/>.
     /// </summary>
-    public string TargetMapPath { get; set; } = string.Empty;
+    [DMIgnore]
+    public List<EntityConnection> Connections => connections ??= [];
 
     /// <summary>
-    /// Name given to the prefab instance.
+    /// The output plugs of a node that was loaded, see <see cref="PostLoadFromFile"/>.
     /// </summary>
-    public string TargetName { get; set; } = string.Empty;
+    [DMIgnore]
+    public List<RelayPlug> RelayPlugs => relayPlugs ??= [];
+
+    /// <summary>
+    /// Converts the saved entity IO into its runtime form: <see cref="RelayPlugData"/> and
+    /// <see cref="ConnectionsData"/> are copied into <see cref="RelayPlugs"/> and <see cref="Connections"/>, and
+    /// their elements are then removed from the map.
+    /// </summary>
+    public override void PostLoadFromFile()
+    {
+        base.PostLoadFromFile();
+
+        relayPlugs = [];
+        connections = [];
+
+        if (relayPlugData is { } plugs)
+        {
+            for (var i = 0; i < plugs.Names.Count; i++)
+            {
+                relayPlugs.Add(new RelayPlug(
+                    plugs.Names[i],
+                    i < plugs.DataTypes.Count ? plugs.DataTypes[i] : 0,
+                    i < plugs.PlugTypes.Count ? plugs.PlugTypes[i] : 0,
+                    i < plugs.Descriptions.Count ? plugs.Descriptions[i] : string.Empty));
+            }
+        }
+
+        var stored = ConnectionsData.OfType<DmeConnectionData>().ToArray();
+
+        foreach (var connection in stored)
+        {
+            connections.Add(new EntityConnection
+            {
+                OutputName = connection.OutputName,
+                TargetType = (EntityIOTargetType)connection.TargetType,
+                TargetName = connection.TargetName,
+                InputName = connection.InputName,
+                OverrideParam = connection.OverrideParam,
+                Delay = connection.Delay,
+                TimesToFire = connection.TimesToFire,
+            });
+        }
+
+        ReleaseStoredConnections();
+    }
+
+    /// <summary>
+    /// Rebuilds <see cref="RelayPlugData"/> and <see cref="ConnectionsData"/> from <see cref="RelayPlugs"/> and
+    /// <see cref="Connections"/>, so that the map is saved with them.
+    /// </summary>
+    public override void PreSaveToFile()
+    {
+        base.PreSaveToFile();
+
+        // A node that was never loaded still has its saved data, so there is nothing to rebuild
+        if (connections == null || relayPlugs == null)
+        {
+            return;
+        }
+
+        relayPlugData ??= [];
+        relayPlugData.Names.Clear();
+        relayPlugData.DataTypes.Clear();
+        relayPlugData.PlugTypes.Clear();
+        relayPlugData.Descriptions.Clear();
+
+        foreach (var plug in relayPlugs)
+        {
+            relayPlugData.Names.Add(plug.Name);
+            relayPlugData.DataTypes.Add(plug.DataType);
+            relayPlugData.PlugTypes.Add(plug.PlugType);
+            relayPlugData.Descriptions.Add(plug.Description);
+        }
+
+        ConnectionsData.Clear();
+
+        foreach (var connection in connections)
+        {
+            ConnectionsData.Add(new DmeConnectionData
+            {
+                OutputName = connection.OutputName,
+                TargetType = (int)connection.TargetType,
+                TargetName = connection.TargetName,
+                InputName = connection.InputName,
+                OverrideParam = connection.OverrideParam,
+                Delay = connection.Delay,
+                TimesToFire = connection.TimesToFire,
+            });
+        }
+
+        // The map only writes elements that belong to it
+        Owner?.ImportElement(relayPlugData, Datamodel.Datamodel.ImportRecursionMode.Recursive, Datamodel.Datamodel.ImportOverwriteMode.None);
+
+        foreach (var connection in ConnectionsData)
+        {
+            Owner?.ImportElement(connection, Datamodel.Datamodel.ImportRecursionMode.Recursive, Datamodel.Datamodel.ImportOverwriteMode.None);
+        }
+    }
+
+    /// <summary>
+    /// Removes <see cref="RelayPlugData"/> and <see cref="ConnectionsData"/> again after the map is saved.
+    /// </summary>
+    public override void PostSaveToFile()
+    {
+        base.PostSaveToFile();
+
+        if (connections != null && relayPlugs != null)
+        {
+            ReleaseStoredConnections();
+        }
+    }
+
+    private void ReleaseStoredConnections()
+    {
+        var stored = ConnectionsData.OfType<DMElement>().ToArray();
+        var plugs = relayPlugData;
+
+        relayPlugData = null;
+        ConnectionsData.Clear();
+
+        plugs?.Owner?.AllElements.RemoveUnreferenced(plugs);
+
+        foreach (var connection in stored)
+        {
+            connection.Owner?.AllElements.RemoveUnreferenced(connection);
+        }
+    }
 }
 
 /// <summary>
 /// Base of every map node that carries entity key values and entity IO.
 /// </summary>
 [CamelCaseProperties]
-public abstract class BaseEntity : MapNode
+public abstract class BaseEntity : EntityIONode
 {
-    /// <summary>
-    /// Output plugs this entity fires through, one per entity IO connection.
-    /// </summary>
-    public DmePlugList RelayPlugData { get; init; } = [];
-
-    /// <summary>
-    /// List of <see cref="DmeConnectionData"/> elements, one per entity IO connection.
-    /// </summary>
-    public Datamodel.ElementArray ConnectionsData { get; init; } = [];
-
     /// <summary>
     /// The entity key values, including "classname".
     /// </summary>
@@ -322,7 +743,57 @@ public class DmePlugList : DMElement
 }
 
 /// <summary>
-/// One entity IO connection: an output firing an input on a target.
+/// One output plug of an entity, see <see cref="EntityIONode.RelayPlugs"/>.
+/// </summary>
+/// <param name="Name">Name of the plug.</param>
+/// <param name="DataType">Type of the value the plug passes on.</param>
+/// <param name="PlugType">Kind of plug.</param>
+/// <param name="Description">What the plug is for.</param>
+public readonly record struct RelayPlug(string Name, int DataType, int PlugType, string Description);
+
+/// <summary>
+/// One entity IO connection of a loaded entity: an output that fires an input on a target.
+/// </summary>
+public sealed class EntityConnection
+{
+    /// <summary>
+    /// Output that triggers the connection.
+    /// </summary>
+    public string OutputName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// How <see cref="TargetName"/> is resolved.
+    /// </summary>
+    public EntityIOTargetType TargetType { get; set; }
+
+    /// <summary>
+    /// Entity the input is sent to.
+    /// </summary>
+    public string TargetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Input fired on the target.
+    /// </summary>
+    public string InputName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Parameter passed with the input, replacing the one the output carries.
+    /// </summary>
+    public string OverrideParam { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Seconds to wait before firing.
+    /// </summary>
+    public float Delay { get; set; }
+
+    /// <summary>
+    /// How many times the connection fires, -1 for no limit.
+    /// </summary>
+    public int TimesToFire { get; set; } = -1;
+}
+
+/// <summary>
+/// One entity IO connection in its saved form: an output firing an input on a target.
 /// </summary>
 [CamelCaseProperties]
 public class DmeConnectionData : DMElement
@@ -398,6 +869,19 @@ public class CMapWorld : BaseEntity
     {
         EntityProperties["classname"] = "worldspawn";
     }
+
+    /// <summary>
+    /// Called once the map has been read from a file. The world passes it on to every node under it.
+    /// </summary>
+    public override void PostLoadFromFile()
+    {
+        base.PostLoadFromFile();
+
+        foreach (var node in EnumerateDescendants())
+        {
+            node.PostLoadFromFile();
+        }
+    }
 }
 
 /// <summary>
@@ -415,6 +899,96 @@ public class CVisibilityMgr : MapNode
     /// Hidden flags, one per entry of <see cref="Nodes"/>.
     /// </summary>
     public Datamodel.IntArray HiddenFlags { get; init; } = [];
+
+    private readonly Dictionary<DMElement, int> nodeIndices = [];
+    private int indexedNodeCount = -1;
+
+    /// <summary>
+    /// The world of the map the manager belongs to, which only nodes under it are tracked for.
+    /// </summary>
+    [DMIgnore]
+    public CMapWorld? World { get; internal set; }
+
+    /// <summary>
+    /// Brings the two lists to the same length, clears the flags that do not outlast a session and drops the
+    /// nodes that are not under <see cref="World"/>.
+    /// </summary>
+    public override void PostLoadFromFile()
+    {
+        base.PostLoadFromFile();
+
+        var count = Math.Min(Nodes.Count, HiddenFlags.Count);
+
+        while (Nodes.Count > count)
+        {
+            Nodes.RemoveAt(Nodes.Count - 1);
+        }
+
+        while (HiddenFlags.Count > count)
+        {
+            HiddenFlags.RemoveAt(HiddenFlags.Count - 1);
+        }
+
+        for (var i = 0; i < count; i++)
+        {
+            HiddenFlags[i] &= ~(int)MapNodeHiddenFlags.Transient;
+        }
+
+        if (World is { } world)
+        {
+            var nodesInWorld = EnumerateDescendantElements(world).ToHashSet();
+
+            for (var i = count - 1; i >= 0; i--)
+            {
+                if (Nodes[i] is not { } node || !nodesInWorld.Contains(node))
+                {
+                    Nodes.RemoveAt(i);
+                    HiddenFlags.RemoveAt(i);
+                }
+            }
+        }
+
+        RebuildNodeIndexMap();
+    }
+
+    /// <summary>
+    /// Gets the hidden flags of a node, 0 for a node that is not tracked.
+    /// </summary>
+    /// <param name="node">The node.</param>
+    public MapNodeHiddenFlags GetNodeHiddenFlags(DMElement node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+
+        if (indexedNodeCount != Nodes.Count)
+        {
+            RebuildNodeIndexMap();
+        }
+
+        return nodeIndices.TryGetValue(node, out var index) && index < HiddenFlags.Count ? (MapNodeHiddenFlags)HiddenFlags[index] : MapNodeHiddenFlags.None;
+    }
+
+    /// <summary>
+    /// Gets whether a node is visible going by the hidden flags in a mask. A node that is not tracked is visible.
+    /// </summary>
+    /// <param name="node">The node.</param>
+    /// <param name="hiddenFlagsMask">The flags that hide a node.</param>
+    public bool IsNodeVisible(DMElement node, MapNodeHiddenFlags hiddenFlagsMask)
+        => (GetNodeHiddenFlags(node) & hiddenFlagsMask) == 0;
+
+    private void RebuildNodeIndexMap()
+    {
+        nodeIndices.Clear();
+
+        for (var i = 0; i < Nodes.Count; i++)
+        {
+            if (Nodes[i] is { } node)
+            {
+                nodeIndices[node] = i;
+            }
+        }
+
+        indexedNodeCount = Nodes.Count;
+    }
 }
 
 /// <summary>
@@ -519,6 +1093,56 @@ public class CMapEntity : BaseEntity
     /// Whether the entity was generated by a tool rather than placed by hand.
     /// </summary>
     public bool IsProceduralEntity { get; set; }
+
+    /// <summary>
+    /// Takes over a placement the entity keeps in its key values: "origin", "angles" and "scales" are moved from
+    /// <see cref="BaseEntity.EntityProperties"/> onto the node.
+    /// </summary>
+    public override void PostLoadFromFile()
+    {
+        base.PostLoadFromFile();
+
+        if (TakeVectorKey("origin") is { } origin)
+        {
+            Origin = origin;
+        }
+
+        if (TakeVectorKey("angles") is { } angles)
+        {
+            Angles = new Datamodel.QAngle(angles.X, angles.Y, angles.Z);
+        }
+
+        if (TakeVectorKey("scales") is { } scales)
+        {
+            Scales = scales;
+        }
+    }
+
+    // Reads up to three numbers from a key and removes it, a number that is missing being zero
+    private Vector3? TakeVectorKey(string key)
+    {
+        if (!EntityProperties.ContainsKey(key) || EntityProperties[key] is not string text)
+        {
+            return null;
+        }
+
+        Span<float> components = stackalloc float[3];
+        var count = 0;
+
+        foreach (var part in text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (count == components.Length || !float.TryParse(part, NumberStyles.Float, CultureInfo.InvariantCulture, out components[count]))
+            {
+                break;
+            }
+
+            count++;
+        }
+
+        EntityProperties.Remove(key);
+
+        return new Vector3(components);
+    }
 }
 
 /// <summary>
@@ -664,7 +1288,7 @@ public class CMapCable : CMapPath
 /// Places another map group into the map with its own transform and tint.
 /// </summary>
 [CamelCaseProperties]
-public class CMapInstance : BaseEntity
+public class CMapInstance : EntityIONode
 {
     /// <summary>
     /// A target <see cref="CMapGroup"/> to instance. With custom tint and transform.
@@ -675,6 +1299,38 @@ public class CMapInstance : BaseEntity
     /// Tint applied to everything in the instance.
     /// </summary>
     public Datamodel.Color TintColor { get; set; } = new Datamodel.Color(255, 255, 255, 255);
+}
+
+/// <summary>
+/// References another map file and places its contents at this node.
+/// </summary>
+[CamelCaseProperties]
+public class CMapPrefab : CMapInstance
+{
+    /// <summary>
+    /// Whether entity names inside the prefab are prefixed to keep them unique.
+    /// </summary>
+    public bool FixupEntityNames { get; set; } = true;
+
+    /// <summary>
+    /// Whether the prefab is spawned at runtime instead of merged at compile time.
+    /// </summary>
+    public bool LoadAtRuntime { get; set; }
+
+    /// <summary>
+    /// Whether the prefab still loads when it sits inside another prefab.
+    /// </summary>
+    public bool LoadIfNested { get; set; } = true;
+
+    /// <summary>
+    /// Path to the map file this prefab pulls in.
+    /// </summary>
+    public string TargetMapPath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Name given to the prefab instance.
+    /// </summary>
+    public string TargetName { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -804,10 +1460,111 @@ public class CMapMesh : MapNode
     /// </summary>
     public string PhysicsInteractsExclude { get; set; } = string.Empty;
 
+    // Only last while a mesh is being edited, and are cleared when it is loaded
+    private const PolygonMeshFaceFlags TransientFaceFlags = PolygonMeshFaceFlags.Selected | PolygonMeshFaceFlags.CoveredByTile;
+
+    private CDmePolygonMesh? meshData = [];
+    private PolygonMesh? mesh;
+
     /// <summary>
-    /// The geometry itself.
+    /// The geometry in its saved form. After loading it is in <see cref="Mesh"/> instead and this is null, except
+    /// while the map is being saved.
     /// </summary>
-    public CDmePolygonMesh MeshData { get; init; } = [];
+    public CDmePolygonMesh? MeshData
+    {
+        get => meshData;
+        init => meshData = value;
+    }
+
+    /// <summary>
+    /// The geometry of a mesh that was loaded, see <see cref="PostLoadFromFile"/>.
+    /// </summary>
+    [DMIgnore]
+    public PolygonMesh Mesh => mesh ??= new();
+
+    /// <summary>
+    /// Converts the saved geometry into its runtime form: <see cref="MeshData"/> is copied into <see cref="Mesh"/>
+    /// and its elements are then removed from the map. Invalid parts of the mesh are removed, and the streams and
+    /// tangents every mesh is expected to have are filled in.
+    /// </summary>
+    public override void PostLoadFromFile()
+    {
+        base.PostLoadFromFile();
+
+        if (meshData is not { } stored)
+        {
+            return;
+        }
+
+        var loaded = new PolygonMesh();
+        stored.CopyToPolyMesh(loaded);
+
+        mesh = loaded;
+        meshData = null;
+        stored.Owner?.AllElements.RemoveUnreferenced(stored);
+
+        loaded.RemoveInvalidComponents();
+        loaded.RemoveIsolatedVertices();
+        loaded.InitFaceSubdivisionLevels();
+
+        // A mesh without edge flags predates smoothing by angle, and all of its edges are hard
+        if (!loaded.HasStoredStream(MeshComponentType.Edge, "flags"))
+        {
+            SmoothingAngle = 0f;
+        }
+
+        loaded.SetSmoothingAngle(SmoothingAngle);
+
+        var hadTangents = loaded.HasStoredStream(MeshComponentType.FaceVertex, "tangent");
+
+        loaded.EnsureStandardStreams();
+        loaded.ClearFaceFlags(TransientFaceFlags);
+
+        if (!hadTangents)
+        {
+            loaded.ComputeFaceVertexTangents();
+        }
+    }
+
+    /// <summary>
+    /// Rebuilds <see cref="MeshData"/> from <see cref="Mesh"/>, so that the map is saved with it.
+    /// </summary>
+    public override void PreSaveToFile()
+    {
+        base.PreSaveToFile();
+
+        // A mesh that was never loaded still has its saved data, so there is nothing to rebuild
+        if (mesh == null)
+        {
+            return;
+        }
+
+        if (meshData == null)
+        {
+            meshData = new CDmePolygonMesh { Name = "meshData" };
+
+            // The map only writes elements that belong to it
+            Owner?.ImportElement(meshData, Datamodel.Datamodel.ImportRecursionMode.Recursive, Datamodel.Datamodel.ImportOverwriteMode.None);
+        }
+
+        meshData.CopyFromPolyMesh(mesh);
+    }
+
+    /// <summary>
+    /// Removes <see cref="MeshData"/> again after the map is saved.
+    /// </summary>
+    public override void PostSaveToFile()
+    {
+        base.PostSaveToFile();
+
+        if (mesh == null || meshData is not { } stored)
+        {
+            return;
+        }
+
+        meshData = null;
+        stored.Owner?.AllElements.RemoveUnreferenced(stored);
+    }
 
     /// <summary>
     /// Whether the mesh occludes what is behind it.
@@ -873,8 +1630,7 @@ public class CMapStaticOverlay : CMapMesh
     public float BackFacingAngle { get; set; } = 90f;
 
     /// <summary>
-    /// What the overlay projects onto: everything (0), world geometry (1), models (2) or its
-    /// <see cref="ProjectionTargets"/> (3).
+    /// What the overlay projects onto, see <see cref="MapOverlayProjectionMode"/>.
     /// </summary>
     public int ProjectionMode { get; set; }
 }
@@ -925,7 +1681,7 @@ public class CMapOverlayMaterialAdjustmentParams : DMElement
 /// Hammer's editable mesh, stored as a half edge mesh with parallel index arrays and data streams.
 /// </summary>
 [CamelCaseProperties]
-public class CDmePolygonMesh : DMElement
+public partial class CDmePolygonMesh : DMElement
 {
     /// <summary>
     /// Index to one of the edges stemming from this vertex.
@@ -1043,6 +1799,28 @@ public class CDmePolygonMeshSubdivisionData : DMElement
 }
 
 /// <summary>
+/// Tells how a subdivided face fills a stream of its corners for the points of its patches.
+/// </summary>
+[CamelCaseProperties]
+public class CDmePolygonMeshSubdivisiondataBinding : DMElement
+{
+    /// <summary>
+    /// Data type of the subdivision stream the values are read from, -1 for none.
+    /// </summary>
+    public int TargetDataType { get; set; } = -1;
+
+    /// <summary>
+    /// Index of that stream among the subdivision streams of its data type, -1 for none.
+    /// </summary>
+    public int TargetStreamIndex { get; set; } = -1;
+
+    /// <summary>
+    /// Where the values come from: 0 the subdivision stream, anything else is worked out from the mesh.
+    /// </summary>
+    public int StreamSourceType { get; set; }
+}
+
+/// <summary>
 /// One named data stream of a <see cref="CDmePolygonMeshDataArray"/>, such as position, uv, or material index.
 /// </summary>
 [CamelCaseProperties]
@@ -1074,7 +1852,7 @@ public class CDmePolygonMeshDataStream : DMElement
     public int DataStateFlags { get; set; }
 
     /// <summary>
-    /// Subdivision stream this one mirrors, or null.
+    /// How a subdivided face fills this stream for its points, a <see cref="CDmePolygonMeshSubdivisiondataBinding"/>, or null.
     /// </summary>
     public DMElement? SubdivisionBinding { get; init; }
 

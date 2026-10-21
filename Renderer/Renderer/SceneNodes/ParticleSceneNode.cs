@@ -52,6 +52,15 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public bool IsPaused { get; set; }
 
         /// <summary>
+        /// Gets or sets the seconds the effect simulates for once it is first drawn, after which it holds
+        /// still and keeps drawing the particles it has, or zero to simulate it for as long as it plays.
+        /// </summary>
+        public float MaxSimulationTime { get; set; }
+
+        // When the effect was first simulated, which a restart forgets
+        private float? simulationStartTime;
+
+        /// <summary>
         /// Whether to load preview control point state, and loop playback when finished.
         /// </summary>
         public bool Preview { get; set; }
@@ -681,6 +690,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             if (pendingRestart)
             {
                 pendingRestart = false;
+                simulationStartTime = null;
 
                 // The node may have moved after Place ran, or while it was disabled and skipped it.
                 SeedControlPointFromTransform();
@@ -697,7 +707,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 }
             }
 
-            if (IsPaused)
+            if (IsPaused || HasStoppedSimulating(context.Uptime))
             {
                 return;
             }
@@ -730,6 +740,18 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             {
                 pendingRestart = true;
             }
+        }
+
+        private bool HasStoppedSimulating(float uptime)
+        {
+            if (MaxSimulationTime <= 0f)
+            {
+                return false;
+            }
+
+            simulationStartTime ??= uptime;
+
+            return uptime > simulationStartTime + MaxSimulationTime;
         }
 
         /// <summary>Whether <see cref="Simulate"/> stepped, so there is something to finish.</summary>
@@ -802,19 +824,19 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             particleRenderer.Render(context.Camera, context.RenderPass, context.Layer);
         }
 
-        /// <summary>Draws with a pass replacement shader, for picking and the selection outline.</summary>
+        /// <summary>Draws with a pass replacement shader, such as the one picking draws with.</summary>
         private void RenderReplacement(Scene.RenderContext context, Shader replacement)
         {
             if (!particleRenderer.CanRenderReplacement
                 || context.Layer != RenderLayer.Scene
-                || context.RenderPass is not (RenderPass.Opaque or RenderPass.Translucent or RenderPass.Outline))
+                || context.RenderPass is not (RenderPass.Opaque or RenderPass.Translucent or RenderPass.All))
             {
                 return;
             }
 
             replacement.Use();
 
-            replacement.SetUniform1("meshId", 0u);
+            replacement.SetDrawIdentity(0, materialShader: null);
 
             // A tube or a card can turn either face toward the camera.
             using var _ = GraphicsContext.RenderState.Scope(cullMode: RsCullMode.None);

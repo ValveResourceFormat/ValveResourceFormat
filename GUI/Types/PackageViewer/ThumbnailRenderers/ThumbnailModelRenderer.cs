@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Linq;
 using ValveResourceFormat;
+using ValveResourceFormat.Renderer.Editor.Collision;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 
@@ -25,13 +26,11 @@ internal class ThumbnailModelRenderer : ThumbnailRenderer
 
             if (phys != null)
             {
-                var physSceneNodes = PhysSceneNode.CreatePhysSceneNodes(SceneRenderer.Scene, phys, null).ToList();
-
-                foreach (var physSceneNode in physSceneNodes)
+                foreach (var node in PhysSceneNode.Create(SceneRenderer.Scene, phys, null))
                 {
-                    physSceneNode.Enabled = true;
-                    physSceneNode.IsTranslucentRenderMode = false;
-                    SceneRenderer.Scene.Add(physSceneNode, false);
+                    node.Enabled = true;
+                    node.IsTranslucentRenderMode = false;
+                    SceneRenderer.Scene.Add(node, false);
                 }
             }
         }

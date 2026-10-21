@@ -222,7 +222,7 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
     vec3 envMap = vec3(0.0);
 
     #if (S_SCENE_CUBEMAP_TYPE == 0)
-        envMap = vec3(0.3, 0.3, 0.3);
+        envMap = g_vUnbakedIndirect.rgb;
     #elif (S_SCENE_CUBEMAP_TYPE == 1)
         EnvMapData envData = envMaps[GetObjectLightingData().VisibleLPV >> 16u];
         bool isBoxProjection = envData.ProjectionType == 1u;
