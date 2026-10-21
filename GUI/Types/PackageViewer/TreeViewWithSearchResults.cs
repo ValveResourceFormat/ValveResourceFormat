@@ -67,9 +67,12 @@ namespace GUI.Types.PackageViewer
 
         private readonly ConcurrentDictionary<PackageEntry, byte> QueuedOrRenderedThumbnailItems = new();
 
+#pragma warning disable CA2213 // Disposed once the render thread stopped
         private readonly CancellationTokenSource RenderLoopCancelationTokenSource = new();
-        private readonly Thread ThumbnailRenderThread;
         private readonly BlockingCollection<Func<Task>> ThumbnailRenderQueue = [];
+#pragma warning restore CA2213
+        private readonly Thread ThumbnailRenderThread;
+        private readonly TaskCompletionSource ThumbnailRenderStopped = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         private static readonly string[] Columns = ["Name", "Size", "Type"];
 
@@ -95,6 +98,16 @@ namespace GUI.Types.PackageViewer
 
         private readonly NavigationHistory navigationHistory = new();
         private bool suppressHistoryRecording;
+
+        /// <summary>
+        /// Folder shown in the list view, or <see langword="null"/> while it shows search results.
+        /// </summary>
+        private VirtualPackageNode? DisplayedFolder;
+
+        /// <summary>
+        /// Root folder of the recovered deleted files.
+        /// </summary>
+        private VirtualPackageNode? DeletedFilesRoot;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TreeViewWithSearchResults"/> class.
@@ -216,6 +229,22 @@ namespace GUI.Types.PackageViewer
             catch (OperationCanceledException)
             {
             }
+            finally
+            {
+                foreach (var renderer in ThumbnailRenderers.Values)
+                {
+                    renderer.Dispose();
+                }
+
+                ThumbnailRenderStopped.SetResult();
+            }
+        }
+
+        private void RestartThumbnailRendering()
+        {
+            ThumbnailRenderTokenSource?.Cancel();
+            ThumbnailRenderTokenSource?.Dispose();
+            ThumbnailRenderTokenSource = new CancellationTokenSource();
         }
 
         private void MainListView_RetrieveVirtualItem(object? sender, RetrieveVirtualItemEventArgs e)
@@ -319,12 +348,12 @@ namespace GUI.Types.PackageViewer
 
         private void MainListView_DisplayNodes(VirtualPackageNode pkgNode, bool updatePath = true)
         {
-            ThumbnailRenderTokenSource?.Dispose();
-            ThumbnailRenderTokenSource = new CancellationTokenSource();
-
+            RestartThumbnailRendering();
             DrainThumbnailQueue();
 
             ListViewItems.Clear();
+
+            DisplayedFolder = pkgNode.Parent != null || pkgNode == mainTreeView.Root ? pkgNode : null;
 
             if (pkgNode.Parent != null)
             {
@@ -468,10 +497,214 @@ namespace GUI.Types.PackageViewer
             forwardButton.Enabled = navigationHistory.CanGoForward;
         }
 
-        public void PruneNavigationHistory(VirtualPackageNode removedRoot)
+        /// <summary>
+        /// Finds the folder for a directory of a package entry, see <see cref="PackageEntry.GetDirectoryPath"/>.
+        /// </summary>
+        internal VirtualPackageNode? FindFolderNode(string directoryPath) => mainTreeView.Root is { } root ? FindFolderNode(root, directoryPath) : null;
+
+        /// <summary>
+        /// Finds the folder that holds a file, in the package or in the recovered deleted files.
+        /// </summary>
+        private VirtualPackageNode? FindFolderNodeOfFile(PackageEntry entry)
         {
-            navigationHistory.RemoveSubtree(removedRoot);
+            foreach (var root in (ReadOnlySpan<VirtualPackageNode?>)[mainTreeView.Root, DeletedFilesRoot])
+            {
+                if (root != null && FindFolderNode(root, entry.GetDirectoryPath()) is { } folder && folder.Files.Contains(entry))
+                {
+                    return folder;
+                }
+            }
+
+            return null;
+        }
+
+        private static VirtualPackageNode? FindFolderNode(VirtualPackageNode root, string directoryPath)
+        {
+            var node = root;
+
+            if (directoryPath.Length == 0)
+            {
+                return node;
+            }
+
+            var directory = directoryPath.AsSpan();
+
+            foreach (var subPathRange in directory.Split([Package.DirectorySeparatorChar]))
+            {
+                if (!node.Folders.GetAlternateLookup<ReadOnlySpan<char>>().TryGetValue(directory[subPathRange], out var subNode))
+                {
+                    return null;
+                }
+
+                node = subNode;
+            }
+
+            return node;
+        }
+
+        /// <summary>
+        /// Returns all of the files in a folder and its subfolders.
+        /// </summary>
+        internal static IEnumerable<PackageEntry> EnumerateFiles(VirtualPackageNode folder)
+        {
+            foreach (var file in folder.Files)
+            {
+                yield return file;
+            }
+
+            foreach (var subFolder in folder.Folders.Values)
+            {
+                foreach (var file in EnumerateFiles(subFolder))
+                {
+                    yield return file;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removes the node of a file that was removed from the package.
+        /// </summary>
+        internal void RemoveFileNode(PackageEntry entry) => RemoveFileNode(entry, entry.GetDirectoryPath(), entry.GetFullPath());
+
+        /// <summary>
+        /// Removes the node of a file that had the given directory and path before it was moved.
+        /// </summary>
+        internal void RemoveFileNode(PackageEntry entry, string directoryPath, string path)
+        {
+            var folder = FindFolderNode(directoryPath);
+
+            if (folder == null || !folder.Files.Remove(entry))
+            {
+                return;
+            }
+
+            SubtractFolderSize(folder, entry.TotalLength);
+            BigIconImageCache.TryRemove(path, out _);
+
+            if (folder.CreatedNode == null)
+            {
+                return;
+            }
+
+            foreach (BetterTreeNode node in folder.CreatedNode.Nodes)
+            {
+                if (node.PackageEntry == entry)
+                {
+                    node.Remove();
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removes the node of a folder whose files were removed from the package.
+        /// </summary>
+        internal void RemoveFolderNode(VirtualPackageNode folder) => RemoveFolderNode(folder, EnumerateFiles(folder).Select(static file => file.GetFullPath()));
+
+        /// <summary>
+        /// Removes the node of a folder whose files had the given paths before they were moved.
+        /// </summary>
+        internal void RemoveFolderNode(VirtualPackageNode folder, IEnumerable<string> filePaths)
+        {
+            if (folder.Parent == null || !folder.Parent.Folders.Remove(folder.Name))
+            {
+                return;
+            }
+
+            SubtractFolderSize(folder.Parent, folder.TotalSize);
+
+            foreach (var path in filePaths)
+            {
+                BigIconImageCache.TryRemove(path, out _);
+            }
+
+            FindFolderTreeNode(folder.Parent.CreatedNode, folder)?.Remove();
+
+            navigationHistory.RemoveSubtree(folder);
             UpdateNavigationButtons();
+        }
+
+        private static BetterTreeNode? FindFolderTreeNode(BetterTreeNode? parentTreeNode, VirtualPackageNode folder)
+        {
+            if (parentTreeNode == null)
+            {
+                return null;
+            }
+
+            foreach (BetterTreeNode treeNode in parentTreeNode.Nodes)
+            {
+                if (treeNode.PkgNode == folder)
+                {
+                    return treeNode;
+                }
+            }
+
+            return null;
+        }
+
+        private static bool IsInPackage(VirtualPackageNode folder)
+        {
+            for (var node = folder; node.Parent != null; node = node.Parent)
+            {
+                if (!node.Parent.Folders.TryGetValue(node.Name, out var current) || current != node)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static void SubtractFolderSize(VirtualPackageNode folder, long size)
+        {
+            for (var node = folder; node != null; node = node.Parent)
+            {
+                node.TotalSize -= size;
+            }
+        }
+
+        /// <summary>
+        /// Shows the current contents of the folder in the list view after files were added or removed,
+        /// or its closest remaining parent when it was removed. Search results lose the removed files and show the current names of the others.
+        /// </summary>
+        internal void RefreshListView(IReadOnlySet<PackageEntry>? removedFiles = null)
+        {
+            if (DisplayedFolder == null)
+            {
+                ListViewItems.RemoveAll(item => item is BetterListViewItem { PackageEntry: { } entry } && removedFiles?.Contains(entry) == true);
+
+                foreach (var item in ListViewItems)
+                {
+                    if (item is BetterListViewItem { PackageEntry: { } entry })
+                    {
+                        item.Text = entry.GetFileName();
+                        item.SubItems[2].Text = entry.TypeName;
+                    }
+                }
+
+                mainListView.VirtualListSize = ListViewItems.Count;
+                AssignIcons();
+                mainListView.Invalidate();
+                return;
+            }
+
+            var folder = DisplayedFolder;
+
+            while (folder.Parent != null && !IsInPackage(folder))
+            {
+                folder = folder.Parent;
+            }
+
+            suppressHistoryRecording = true;
+
+            try
+            {
+                MainListView_DisplayNodes(folder);
+            }
+            finally
+            {
+                suppressHistoryRecording = false;
+            }
         }
 
         private void AssignIcons()
@@ -859,16 +1092,16 @@ namespace GUI.Types.PackageViewer
                 control.GenerateIconList([.. vrfGuiContext.CurrentPackage.Entries.Keys]);
             }
 
-            if (vrfGuiContext.CurrentPackage != null && !vrfGuiContext.CurrentPackage.IsDirVPK)
+            if (!Viewer.HasChunkFiles)
             {
-                // Disable recover deleted files button for non-dir packages
+                // Disable recover deleted files button for packages without chunk files
                 DeletedFilesRecovered = true;
             }
 
             var fullFilePath = vrfGuiContext.FileName.AsSpan();
             var fileName = Path.GetFileName(fullFilePath);
             var parentFolder = Path.GetFileName(Path.GetDirectoryName(fullFilePath));
-            var name = fullFilePath.Length > 0 ? $"{parentFolder}/{fileName}" : fileName.ToString();
+            var name = parentFolder.Length > 0 ? $"{parentFolder}/{fileName}" : fileName.ToString();
             var vpkImage = AppIcons.ExtensionIcons["vpk"];
 
             var root = new BetterTreeNode(name, rootVirtual)
@@ -995,7 +1228,7 @@ namespace GUI.Types.PackageViewer
                 }
 
                 var parentTreeNode = currentNode.Parent.CreatedNode;
-                var treeNode = (BetterTreeNode?)parentTreeNode.Nodes[currentNode.Name];
+                var treeNode = FindFolderTreeNode(parentTreeNode, currentNode);
 
                 if (treeNode == null && isCreating)
                 {
@@ -1041,7 +1274,10 @@ namespace GUI.Types.PackageViewer
                 return;
             }
 
+            mainTreeView.GenerateIconList([file.TypeName]);
+
             var node = BetterTreeView.AddFileNode(root, file);
+            root.TotalSize += file.TotalLength;
 
             // Realizing a folder in CreateTreeNodes already creates nodes for all of its files,
             // so only add the file node when the folder was realized before this call.
@@ -1104,6 +1340,7 @@ namespace GUI.Types.PackageViewer
 
                     var name = $"Deleted files ({foundFiles.Count} files found, names are guessed)";
                     var rootVirtual = new VirtualPackageNode(name, 0, null);
+                    DeletedFilesRoot = rootVirtual;
 
                     foreach (var file in foundFiles)
                     {
@@ -1258,6 +1495,17 @@ namespace GUI.Types.PackageViewer
             if (info.Item is not IBetterBaseItem item)
             {
                 mainListView.SelectedIndices.Clear();
+
+                if (e.Button == MouseButtons.Right && Viewer.IsEditingPackage && DisplayedFolder != null)
+                {
+                    OpenContextMenu?.Invoke(sender, new PackageContextMenuEventArgs
+                    {
+                        Location = e.Location,
+                        PkgNode = DisplayedFolder,
+                        IsBackground = true,
+                    });
+                }
+
                 return;
             }
 
@@ -1284,39 +1532,8 @@ namespace GUI.Types.PackageViewer
             if (item.PackageEntry != null)
             {
                 // When right clicking a file, select it in the tree view and ensure it is visible
-                if (mainListView.SelectedIndices.Count <= 1)
+                if (mainListView.SelectedIndices.Count <= 1 && FindFolderNodeOfFile(item.PackageEntry) is { } pkgNode)
                 {
-                    var pkgNode = mainTreeView.Root;
-
-                    if (pkgNode == null)
-                    {
-                        return;
-                    }
-
-                    var packageNodes = new List<VirtualPackageNode>(2)
-                    {
-                        pkgNode
-                    };
-
-                    // Walk up the directories in the file path to collect all the virtual nodes
-                    if (!string.IsNullOrWhiteSpace(item.PackageEntry.DirectoryName))
-                    {
-                        var directoryName = item.PackageEntry.DirectoryName.AsSpan();
-
-                        foreach (var subPathRange in directoryName.Split([Package.DirectorySeparatorChar]))
-                        {
-                            var subPath = directoryName[subPathRange].ToString();
-
-                            if (!pkgNode.Folders.TryGetValue(subPath, out var subNode))
-                            {
-                                throw new InvalidDataException("Failed to find sub path");
-                            }
-
-                            pkgNode = subNode;
-                            packageNodes.Add(subNode);
-                        }
-                    }
-
                     mainTreeView.BeginUpdate();
 
                     // Create tree nodes for the deepest folder (this also creates all ancestor nodes)
@@ -1932,16 +2149,18 @@ namespace GUI.Types.PackageViewer
             {
                 components?.Dispose();
                 BigIconsImageList.Dispose();
+                ThumbnailRenderTokenSource?.Cancel();
                 ThumbnailRenderTokenSource?.Dispose();
-                ThumbnailRenderQueue.CompleteAdding();
-                ThumbnailRenderQueue.Dispose();
-                RenderLoopCancelationTokenSource.Dispose();
+                RenderLoopCancelationTokenSource.Cancel();
                 PreviewTokenSource?.Dispose();
 
-                foreach (var renderer in ThumbnailRenderers.Values)
+                ThumbnailRenderStopped.Task.ContinueWith(_ =>
                 {
-                    renderer.Dispose();
-                }
+                    ThumbnailRenderQueue.Dispose();
+                    RenderLoopCancelationTokenSource.Dispose();
+                }, TaskScheduler.Default);
+
+                Viewer.GuiContext.DisposeAfter(ThumbnailRenderStopped.Task);
             }
 
             base.Dispose(disposing);
@@ -1955,8 +2174,7 @@ namespace GUI.Types.PackageViewer
 
                 gridSizeSlider.Enabled = false;
 
-                ThumbnailRenderTokenSource?.Dispose();
-                ThumbnailRenderTokenSource = new();
+                RestartThumbnailRendering();
                 DrainThumbnailQueue();
 
                 mainListView.View = View.Details;
@@ -2004,8 +2222,7 @@ namespace GUI.Types.PackageViewer
 
                 gridSizeSlider.Enabled = true;
 
-                ThumbnailRenderTokenSource?.Dispose();
-                ThumbnailRenderTokenSource = new CancellationTokenSource();
+                RestartThumbnailRendering();
 
                 mainListView.View = View.LargeIcon;
                 AssignIcons();
@@ -2018,8 +2235,7 @@ namespace GUI.Types.PackageViewer
 
             Settings.Config.PackageGridSize = gridSizeSlider.Value;
 
-            ThumbnailRenderTokenSource?.Dispose();
-            ThumbnailRenderTokenSource = new CancellationTokenSource();
+            RestartThumbnailRendering();
 
             // rebuild image list and clear caches
             var oldBigIconsImageList = BigIconsImageList;

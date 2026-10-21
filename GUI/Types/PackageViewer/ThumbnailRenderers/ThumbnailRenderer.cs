@@ -233,6 +233,7 @@ internal abstract class ThumbnailRenderer : IDisposable
 
         if (disposing)
         {
+            NativeWindow?.MakeCurrent();
             RendererContext?.Dispose();
             SceneRenderer?.Dispose();
             GLViewers.NativeWindowFactory.Destroy(NativeWindow);

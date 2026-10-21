@@ -14,6 +14,7 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Types.Exporter;
 using GUI.Types.GLViewers;
+using GUI.Types.PackageViewer;
 using GUI.Utils;
 using ValvePak;
 using ValveResourceFormat.IO;
@@ -169,10 +170,21 @@ internal sealed partial class McpTools
         };
     }
 
-    [Tool("Close a tab.", Redraws = true)]
-    private object CloseTab(TabPage tab)
+    [Tool("Close a tab. A package editor with unsaved changes is only closed with discard.", Redraws = true)]
+    private object CloseTab(TabPage tab, [Description("Close a package editor without saving its changes.")] bool discard = false)
     {
         var id = TabIds.IdOf(tab);
+
+        if (PackageViewer.FromTab(tab) is { HasUnsavedChanges: true } editor)
+        {
+            if (!discard)
+            {
+                throw new ToolException($"Tab {id} has unsaved changes, pass discard to close it without saving.");
+            }
+
+            editor.DiscardChanges();
+        }
+
         Program.MainForm.Tabs.CloseTab(tab);
 
         return tab.Parent == null ? new { Closed = id } : throw new ToolException($"Tab {id} cannot be closed.");

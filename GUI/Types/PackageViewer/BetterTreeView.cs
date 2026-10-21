@@ -308,7 +308,7 @@ namespace GUI.Types.PackageViewer
                     continue;
                 }
 
-                ExtensionIconList.Add(originalExtension, image);
+                ExtensionIconList.TryAdd(originalExtension, image);
             }
 
             FolderImage = AppIcons.Icons["Folder"];
@@ -341,9 +341,11 @@ namespace GUI.Types.PackageViewer
 
         public static VirtualPackageNode AddFileNode(VirtualPackageNode currentNode, PackageEntry file)
         {
-            if (!string.IsNullOrWhiteSpace(file.DirectoryName))
+            var directory = file.GetDirectoryPath();
+
+            if (directory.Length > 0)
             {
-                currentNode = AddFolderNode(currentNode, file.DirectoryName, file.TotalLength);
+                currentNode = AddFolderNode(currentNode, directory, file.TotalLength);
             }
 
             currentNode.Files.Add(file);

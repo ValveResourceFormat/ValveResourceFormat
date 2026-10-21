@@ -35,6 +35,12 @@ namespace GUI.Utils
         }
 
         public VrfGuiContext? ParentGuiContext { get; }
+
+        /// <summary>
+        /// The context at the top of the chain of parent contexts, this one when it has no parent.
+        /// </summary>
+        public VrfGuiContext RootContext => ParentGuiContext?.RootContext ?? this;
+
         public ToolsAssetInfo? ToolsAssetInfo { get; private set; }
 
         /// <summary>
@@ -138,8 +144,17 @@ namespace GUI.Utils
         private int Children;
         private bool WantsToBeDisposed;
         private bool Disposed;
+        private bool KeepsPackageOpen;
         private readonly ConcurrentDictionary<string, Resource> CachedResources = [];
         private readonly ConcurrentQueue<RendererContext> rendererContexts = [];
+        private readonly List<Task> Readers = [];
+        private readonly TaskCompletionSource DisposalCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>
+        /// Completes once this context is disposed and has closed its package and the resources loaded through it.
+        /// Disposing is deferred while contexts opened from this one are still open.
+        /// </summary>
+        public Task DisposalCompleted => DisposalCompletion.Task;
 
 #if DEBUG
         private int TotalChildren;
@@ -155,7 +170,7 @@ namespace GUI.Utils
             FileName = fileName;
             ParentGuiContext = parentGuiContext;
 
-            ParentGuiContext?.AddChildren();
+            ParentGuiContext?.AddChild();
 
             if (ParentGuiContext != null || !loadSearchPaths)
             {
@@ -168,10 +183,10 @@ namespace GUI.Utils
         /// <summary>Adds the game search paths from settings.</summary>
         public void LoadSearchPaths()
         {
-            var paths = Settings.Config.GameSearchPaths.ToList(); // Make a copy
-
             try
             {
+                var paths = Settings.Config.GameSearchPaths.ToList(); // Make a copy
+
                 // Find any gameinfo files specified by the user in settings
                 foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith("gameinfo.gi", StringComparison.InvariantCulture)).ToList())
                 {
@@ -201,7 +216,7 @@ namespace GUI.Utils
             }
         }
 
-        public void AddChildren()
+        private void AddChild()
         {
             Children++;
 
@@ -210,11 +225,25 @@ namespace GUI.Utils
 #endif
         }
 
-        public void RemoveChildren()
+        private void RemoveChild(VrfGuiContext child)
         {
+            DisposeAfter(child.DisposalCompleted);
+
             if (--Children == 0 && WantsToBeDisposed)
             {
                 Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Keeps the package of this context open and <see cref="DisposalCompleted"/> pending until <paramref name="reader"/> completes.
+        /// </summary>
+        public void DisposeAfter(Task reader)
+        {
+            lock (Readers)
+            {
+                Readers.RemoveAll(static task => task.IsCompleted);
+                Readers.Add(reader);
             }
         }
 
@@ -275,9 +304,20 @@ namespace GUI.Utils
             Log.Debug(nameof(VrfGuiContext), $"#{ContextId} Dispose (total children: {TotalChildren}, has parent: {ParentGuiContext != null}, prev: {WantsToBeDisposed})");
 #endif
             Disposed = true;
-            ParentGuiContext?.RemoveChildren();
+            ParentGuiContext?.RemoveChild(this);
 
             StopLoadingAndDispose(disposing);
+        }
+
+        /// <summary>
+        /// Leaves the package of this context open when the context is disposed, for the caller to dispose.
+        /// </summary>
+        /// <returns>The package of this context, not of a parent context.</returns>
+        public Package? ReleasePackage()
+        {
+            KeepsPackageOpen = true;
+
+            return base.CurrentPackage;
         }
 
         public RendererContext CreateRendererContext()
@@ -304,27 +344,51 @@ namespace GUI.Utils
             }
 
             // The wait cannot happen on the thread that closed the tab, so the teardown follows it here
-            Task.Run(() =>
+            Task.Run(async () =>
             {
-                foreach (var context in rendererContexts)
+                try
                 {
-                    context.WaitForLoadingToStop();
-                }
+                    foreach (var context in rendererContexts)
+                    {
+                        context.WaitForLoadingToStop();
+                    }
 
-                if (base.CurrentPackage != null)
-                {
-                    base.CurrentPackage.Dispose();
+                    Task[] pendingReaders;
+
+                    lock (Readers)
+                    {
+                        pendingReaders = [.. Readers];
+                    }
+
+                    try
+                    {
+                        await Task.WhenAll(pendingReaders).ConfigureAwait(false);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Error(nameof(VrfGuiContext), $"Failed while waiting for readers of \"{FileName}\": {e}");
+                    }
+
+                    if (!KeepsPackageOpen)
+                    {
+                        base.CurrentPackage?.Dispose();
+                    }
+
                     base.CurrentPackage = null;
-                }
 
-                foreach (var resource in CachedResources.Values)
+                    foreach (var resource in CachedResources.Values)
+                    {
+                        resource.Dispose();
+                    }
+
+                    CachedResources.Clear();
+
+                    base.Dispose(disposing);
+                }
+                finally
                 {
-                    resource.Dispose();
+                    DisposalCompletion.TrySetResult();
                 }
-
-                CachedResources.Clear();
-
-                base.Dispose(disposing);
             });
         }
 
@@ -350,23 +414,45 @@ namespace GUI.Utils
 
             if (foundFile.Package != null)
             {
-                Debug.Assert(foundFile.Package.FileName is not null);
+                var packageContext = GetPackageContext(foundFile.Package, foundFile.Context ?? this);
 
-                var parentContext = foundFile.Context ?? this;
-
-                // A package from the search paths gets a context of its own, the package of the context is already one
-                if (parentContext.CurrentPackage != foundFile.Package)
-                {
-                    parentContext = new VrfGuiContext(foundFile.Package.FileName, parentContext)
-                    {
-                        CurrentPackage = foundFile.Package
-                    };
-                }
-
-                newContext = new VrfGuiContext(foundFile.PackageEntry!.GetFullPath(), parentContext);
+                newContext = new VrfGuiContext(foundFile.PackageEntry!.GetFullPath(), packageContext);
             }
 
             return (newContext, foundFile.PackageEntry);
+        }
+
+        /// <summary>
+        /// Returns <paramref name="context"/> if it holds <paramref name="package"/>, otherwise a new context for the package
+        /// under contexts for the packages it is nested in. The new contexts leave the package open, and are disposed once
+        /// the last context opened from them is disposed.
+        /// </summary>
+        private static VrfGuiContext GetPackageContext(Package package, VrfGuiContext context)
+        {
+            if (context.CurrentPackage == package)
+            {
+                return context;
+            }
+
+            if (package is NestedPackage nested)
+            {
+                return new VrfGuiContext(nested.ParentEntry.GetFullPath(), GetPackageContext(nested.Parent, context))
+                {
+                    CurrentPackage = package,
+                    KeepsPackageOpen = true,
+                    WantsToBeDisposed = true,
+                };
+            }
+
+            var fileName = package.FilePath ?? package.FileName;
+            Debug.Assert(fileName is not null);
+
+            return new VrfGuiContext(fileName, context)
+            {
+                CurrentPackage = package,
+                KeepsPackageOpen = true,
+                WantsToBeDisposed = true,
+            };
         }
 
         // Same as FindFile, but also returns the context and package that the file was found in
