@@ -236,10 +236,51 @@ namespace ValveResourceFormat.Serialization.KeyValues
                     continue;
                 }
 
-                result[i] = (T)Convert.ChangeType(elem, typeof(T), CultureInfo.InvariantCulture);
+                result[i] = ConvertArrayElement<T>(elem);
             }
 
             return result;
+        }
+
+        // The typeof checks are resolved by the JIT for each value type, so the common types convert without boxing
+        private static T ConvertArrayElement<T>(KVObject value)
+        {
+            if (typeof(T) == typeof(int))
+            {
+                return (T)(object)(int)value;
+            }
+
+            if (typeof(T) == typeof(uint))
+            {
+                return (T)(object)(uint)value;
+            }
+
+            if (typeof(T) == typeof(long))
+            {
+                return (T)(object)(long)value;
+            }
+
+            if (typeof(T) == typeof(float))
+            {
+                return (T)(object)(float)value;
+            }
+
+            if (typeof(T) == typeof(double))
+            {
+                return (T)(object)(double)value;
+            }
+
+            if (typeof(T) == typeof(bool))
+            {
+                return (T)(object)(bool)value;
+            }
+
+            if (typeof(T) == typeof(byte))
+            {
+                return (T)(object)(byte)value;
+            }
+
+            return (T)Convert.ChangeType(value, typeof(T), CultureInfo.InvariantCulture);
         }
 
         /// <summary>

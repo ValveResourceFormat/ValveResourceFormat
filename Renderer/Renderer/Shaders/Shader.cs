@@ -542,9 +542,11 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <returns>A sequence of tuples with each uniform's name, index, type, and array size.</returns>
         public IEnumerable<(string Name, int Index, ActiveUniformType Type, int Size)> GetAllUniformNames()
         {
-            var uniformBlockMemberIndices = new List<int>();
-
+            GL.GetProgram(Program, GetProgramParameterName.ActiveUniforms, out var count);
             GL.GetProgram(Program, GetProgramParameterName.ActiveUniformBlocks, out var uniformBlockCount);
+
+            var isUniformBlockMember = new bool[count];
+            var uniformBlockMemberCount = 0;
 
             for (var i = 0; i < uniformBlockCount; i++)
             {
@@ -552,17 +554,21 @@ namespace ValveResourceFormat.Renderer.Shaders
 
                 var uniformIndices = new int[activeUniformsCount];
                 GL.GetActiveUniformBlock(Program, i, ActiveUniformBlockParameter.UniformBlockActiveUniformIndices, uniformIndices);
-                uniformBlockMemberIndices.AddRange(uniformIndices);
+
+                foreach (var uniformIndex in uniformIndices)
+                {
+                    isUniformBlockMember[uniformIndex] = true;
+                }
+
+                uniformBlockMemberCount += activeUniformsCount;
             }
 
-            GL.GetProgram(Program, GetProgramParameterName.ActiveUniforms, out var count);
-
-            Uniforms.EnsureCapacity(count - uniformBlockMemberIndices.Count);
+            Uniforms.EnsureCapacity(count - uniformBlockMemberCount);
             Uniforms.Clear();
 
             for (var i = 0; i < count; i++)
             {
-                if (uniformBlockMemberIndices.Contains(i))
+                if (isUniformBlockMember[i])
                 {
                     continue;
                 }

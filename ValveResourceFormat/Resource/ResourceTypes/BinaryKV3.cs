@@ -34,6 +34,9 @@ namespace ValveResourceFormat.ResourceTypes
     {
         private readonly BlockType KVBlockType;
 
+        // Objects up to this many members are list backed, a linear key search is cheaper than a dictionary at this size
+        private const int MaxListBackedObjectLength = 8;
+
         /// <inheritdoc/>
         public override BlockType Type => KVBlockType;
 
@@ -961,7 +964,9 @@ namespace ValveResourceFormat.ResourceTypes
                     var objectLength = context.Version >= 5
                         ? ReadLane<int>(ref context.ObjectLengths)
                         : ReadLane<int>(ref buffer.Bytes4);
-                    var newObject = KVObject.Collection(objectLength);
+                    var newObject = objectLength <= MaxListBackedObjectLength
+                        ? KVObject.ListCollection(objectLength)
+                        : KVObject.Collection(objectLength);
 
                     for (var i = 0; i < objectLength; i++)
                     {
