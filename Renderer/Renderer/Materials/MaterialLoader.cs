@@ -242,6 +242,38 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         /// <summary>
+        /// Drops a texture from the cache and deletes it, for one whose contents were copied into another, such as a
+        /// light probe volume packed into an atlas. A texture the cache does not hold is left alone.
+        /// </summary>
+        /// <param name="texture">The texture, as <see cref="GetTexture"/> returned it.</param>
+        /// <returns>Whether the cache held the texture.</returns>
+        public bool EvictTexture(RenderTexture texture)
+        {
+            ArgumentNullException.ThrowIfNull(texture);
+
+            var evicted = false;
+
+            foreach (var cache in (Dictionary<string, RenderTexture>[])[Textures, TexturesSrgb])
+            {
+                foreach (var (name, cached) in cache)
+                {
+                    if (ReferenceEquals(cached, texture))
+                    {
+                        cache.Remove(name);
+                        evicted = true;
+                    }
+                }
+            }
+
+            if (evicted)
+            {
+                texture.Delete();
+            }
+
+            return evicted;
+        }
+
+        /// <summary>
         /// Gets a sampler object for the supplied texture address modes, creating and caching one per <see cref="MaterialLoader" />.
         /// </summary>
         public int GetOrCreateSampler(RsTextureAddressMode addressModeU, RsTextureAddressMode addressModeV, bool mipmaps = true, bool anisotropicFiltering = true)

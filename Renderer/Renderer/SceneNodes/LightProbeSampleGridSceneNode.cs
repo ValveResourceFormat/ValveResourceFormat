@@ -111,17 +111,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             shader.SetUniform("g_flRoughness", Roughness);
             shader.SetUniform("g_flMetalness", Metalness);
 
-            // What the mesh renderer binds per draw when the scene has no texture arrays for these
-            var lightingInfo = Scene.LightingInfo;
-
-            if (lightingInfo.CubemapType == CubemapType.IndividualCubemaps && EnvMaps.Count > 0)
+            // What the mesh renderer binds per draw when the scene has no cube map array
+            if (Scene.LightingInfo.CubemapType == CubemapType.IndividualCubemaps && EnvMaps.Count > 0)
             {
                 GL.BindTextureUnit((int)ReservedTextureSlots.EnvironmentMap, EnvMaps[0].EnvMapTexture.Handle);
-            }
-
-            if (lightingInfo.LightProbeType == LightProbeType.IndividualProbes && LightProbeBinding is { } probe)
-            {
-                lightingInfo.BindInstanceLightProbeTextures(probe);
             }
 
             VertexArray.Bind(vao, shader);

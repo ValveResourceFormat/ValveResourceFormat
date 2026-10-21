@@ -1918,46 +1918,10 @@ namespace ValveResourceFormat.Renderer
             }
 
             LightingInfo.LightProbes.Sort((a, b) => a.HandShake.CompareTo(b.HandShake));
-
-            foreach (var node in AllNodes)
-            {
-                if (node.EntityData is { } entityData
-                    && LightingInfo.LightProbes.Find(p => ReferenceEquals(p.EntityData, entityData)) is { } selfProbe)
-                {
-                    node.LightProbeBinding = selfProbe;
-                    continue;
-                }
-
-                var precomputedHandshake = node.LightProbeVolumePrecomputedHandshake;
-                if (precomputedHandshake == 0)
-                {
-                    continue;
-                }
-
-                if (LightingInfo.LightmapGameVersionNumber == 0 && precomputedHandshake <= LightingInfo.LightProbes.Count)
-                {
-                    // SteamVR Home node handshake as probe index
-                    node.LightProbeBinding = LightingInfo.LightProbes[precomputedHandshake - 1];
-                    continue;
-                }
-
-                if (LightingInfo.ProbeHandshakes.TryGetValue(precomputedHandshake, out var precomputedProbe))
-                {
-                    node.LightProbeBinding = precomputedProbe;
-                    continue;
-                }
-            }
-
-            var isAtlas = LightingInfo.LightProbeType == LightProbeType.ProbeAtlas;
-
-            static bool IsValid(SceneLightProbe probe, bool isAtlas) => isAtlas switch
-            {
-                true => probe is { Irradiance: not null, DirectLightShadows: not null },
-                false => true,
-            };
+            LightingInfo.BuildProbeAtlas();
 
             var sortedLightProbes = LightingInfo.LightProbes
-                .Where(probe => IsValid(probe, isAtlas))
+                .Where(LightingInfo.IsInProbeAtlas)
                 .OrderByDescending(static lpv => lpv.IndoorOutdoorLevel)
                 .ThenBy(static lpv => lpv.AtlasSize.LengthSquared())
                 .Take(LightProbeVolumeArray.MAX_PROBES)
@@ -1967,7 +1931,7 @@ namespace ValveResourceFormat.Renderer
             foreach (var probe in sortedLightProbes)
             {
                 probe.ShaderIndex = i;
-                lpvBuffer.Data.Probes[i] = probe.CalculateGpuProbeData(isAtlas);
+                lpvBuffer.Data.Probes[i] = probe.CalculateGpuProbeData();
                 i++;
             }
 
@@ -1979,14 +1943,47 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
+            // A node is only bound to a volume that can be sampled, and is otherwise given the one around it
+            var boundSet = sortedLightProbes.ToHashSet();
+
             foreach (var node in AllNodes)
             {
-                node.LightProbeBinding ??= ChooseLightProbeVolume(LightingPosition(node));
+                if (FindPrecomputedLightProbe(node) is { } probe && boundSet.Contains(probe))
+                {
+                    node.LightProbeBinding = probe;
+                }
+                else if (node.LightProbeBinding == null || !boundSet.Contains(node.LightProbeBinding))
+                {
+                    node.LightProbeBinding = ChooseLightProbeVolume(LightingPosition(node));
+                }
             }
         }
 
+        private SceneLightProbe? FindPrecomputedLightProbe(SceneNode node)
+        {
+            if (node.EntityData is { } entityData
+                && LightingInfo.LightProbes.Find(p => ReferenceEquals(p.EntityData, entityData)) is { } selfProbe)
+            {
+                return selfProbe;
+            }
+
+            var precomputedHandshake = node.LightProbeVolumePrecomputedHandshake;
+            if (precomputedHandshake == 0)
+            {
+                return null;
+            }
+
+            if (LightingInfo.LightmapGameVersionNumber == 0 && precomputedHandshake <= LightingInfo.LightProbes.Count)
+            {
+                // SteamVR Home node handshake as probe index
+                return LightingInfo.LightProbes[precomputedHandshake - 1];
+            }
+
+            return LightingInfo.ProbeHandshakes.GetValueOrDefault(precomputedHandshake);
+        }
+
         internal IReadOnlyList<SceneLightProbe> ProbeAtlasVolumes
-            => LightingInfo.LightProbeType == LightProbeType.ProbeAtlas && boundLightProbes != null ? (IReadOnlyList<SceneLightProbe>)boundLightProbes : [];
+            => boundLightProbes != null ? boundLightProbes : [];
 
         /// <summary>
         /// Returns the environment map that best covers a position: one whose volume contains it, the
@@ -2447,6 +2444,7 @@ namespace ValveResourceFormat.Renderer
                 envMapBuffer?.Dispose();
                 simulationDispatch.Dispose();
                 LightingInfo.DisposeBarnLights();
+                LightingInfo.DeleteProbeAtlas();
 
                 DeleteIndirectDrawBuffers();
                 ClutterCuller?.Delete();

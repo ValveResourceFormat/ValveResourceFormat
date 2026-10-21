@@ -56,10 +56,9 @@ public class SceneLightProbe : SceneNode
     }
 
     /// <summary>
-    /// Computes the <see cref="LightProbeVolume"/> GPU data for this probe, including atlas offsets when applicable.
+    /// Computes the <see cref="LightProbeVolume"/> GPU data for this probe, placing it in the probe atlas.
     /// </summary>
-    /// <param name="isProbeAtlas">Whether the probe uses a probe atlas texture (lighting version 8.2).</param>
-    public LightProbeVolume CalculateGpuProbeData(bool isProbeAtlas)
+    public LightProbeVolume CalculateGpuProbeData()
     {
         if (!Matrix4x4.Invert(Transform, out var worldToLocal))
         {
@@ -77,26 +76,22 @@ public class SceneLightProbe : SceneNode
             InvEdgeWidth = new Vector4(LocalBoundingBox.Size / Vector3.Max(EdgeFadeDists, new Vector3(SceneEnvMap.BoundsExtend)), 0),
         };
 
-        if (isProbeAtlas)
-        {
-            Debug.Assert(Irradiance != null);
+        Debug.Assert(Irradiance != null);
 
-            var half = Vector3.One * 0.5f;
-            var depthDivide = Vector3.One with { Z = 1f / 6 };
+        var half = Vector3.One * 0.5f;
+        var depthDivide = Vector3.One with { Z = 1f / 6 };
 
-            var textureDims = new Vector3(Irradiance.Width, Irradiance.Height, Irradiance.Depth) * depthDivide;
-            var atlasDims = AtlasOffset + AtlasSize;
+        var textureDims = new Vector3(Irradiance.Width, Irradiance.Height, Irradiance.Depth) * depthDivide;
 
-            var borderMin = half * depthDivide / AtlasSize;
-            var borderMax = (AtlasSize - half) * depthDivide / AtlasSize;
-            var scale = AtlasSize / textureDims;
-            var offset = AtlasOffset / textureDims;
+        var borderMin = half * depthDivide / AtlasSize;
+        var borderMax = (AtlasSize - half) * depthDivide / AtlasSize;
+        var scale = AtlasSize / textureDims;
+        var offset = AtlasOffset / textureDims;
 
-            data.BorderMin = new Vector4(borderMin, 0);
-            data.BorderMax = new Vector4(borderMax, 0);
-            data.AtlasScale = new Vector4(scale, 0);
-            data.AtlasOffset = new Vector4(offset, 0);
-        }
+        data.BorderMin = new Vector4(borderMin, 0);
+        data.BorderMax = new Vector4(borderMax, 0);
+        data.AtlasScale = new Vector4(scale, 0);
+        data.AtlasOffset = new Vector4(offset, 0);
 
         return data;
     }

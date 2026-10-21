@@ -610,13 +610,6 @@ namespace ValveResourceFormat.Renderer.World
 
         private void LoadEntitiesFromLump(EntityLump entityLump, string originalLayerName, Matrix4x4 lumpTransform, EntityNameFixup lumpNameFixup)
         {
-            // Cubemaps and probes spawn before everything else. Meshes copy the scene's render attributes into
-            // their shader combos as they are built, and three of those come from these entities:
-            // S_SCENE_CUBEMAP_TYPE from the first cubemap's texture (a cube or a cube array),
-            // S_SCENE_PROBE_TYPE from whether a probe volume is an atlas, and HasValidLightProbes, which
-            // picks D_BAKED_LIGHTING_FROM_PROBE. A model spawned before them compiles the wrong combos.
-            // Everything else about them binds after load, in Scene.Initialize, so only this order matters.
-            // A read-only pass settling those three values from the keyvalues first would make it unneeded.
             static bool IsCubemapOrProbe(string cls)
                 => cls == "env_combined_light_probe_volume"
                 || cls == "env_light_probe_volume"

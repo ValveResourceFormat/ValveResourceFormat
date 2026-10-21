@@ -22,19 +22,6 @@ namespace ValveResourceFormat.Renderer.World
         CubemapArray,
     }
 
-    /// <summary>
-    /// Storage format for light probe irradiance data.
-    /// </summary>
-    public enum LightProbeType : byte
-    {
-        /// <summary>No light probe data.</summary>
-        None,
-        /// <summary>Each probe has its own individual irradiance texture.</summary>
-        IndividualProbes,
-        /// <summary>All probe irradiance data is packed into a single atlas texture.</summary>
-        ProbeAtlas,
-    }
-
     /// <summary>Which light face a binned barn light slot holds, so a cull bit read back later traces to
     /// the light it was about. Rebuilt every frame, so it only holds against the frame that produced it.</summary>
     /// <param name="Light">Light owning the slot.</param>
@@ -50,6 +37,8 @@ namespace ValveResourceFormat.Renderer.World
         public Dictionary<string, RenderTexture> Lightmaps { get; } = [];
         /// <summary>Gets the list of scene light probes.</summary>
         public List<SceneLightProbe> LightProbes { get; } = [];
+        /// <summary>Gets the atlas the light probes sample, once <see cref="BuildProbeAtlas"/> has run.</summary>
+        public LightProbeAtlas? ProbeAtlas { get; private set; }
         /// <summary>Gets the list of environment map probes.</summary>
         public List<SceneEnvMap> EnvMaps { get; } = [];
         /// <summary>Gets the list of real-time barn lights.</summary>
@@ -79,13 +68,6 @@ namespace ValveResourceFormat.Renderer.World
         {
             get => (CubemapType)scene.RenderAttributes.GetValueOrDefault("S_SCENE_CUBEMAP_TYPE");
             set => scene.RenderAttributes["S_SCENE_CUBEMAP_TYPE"] = (byte)value;
-        }
-
-        /// <summary>Gets or sets the storage format used for light probe irradiance data in this scene.</summary>
-        public LightProbeType LightProbeType
-        {
-            get => (LightProbeType)scene.RenderAttributes.GetValueOrDefault("S_SCENE_PROBE_TYPE");
-            set => scene.RenderAttributes["S_SCENE_PROBE_TYPE"] = (byte)value;
         }
 
         /// <summary>
@@ -178,10 +160,15 @@ namespace ValveResourceFormat.Renderer.World
                 GL.BindTextureUnit((int)lightmapSlot, texture.Handle);
             }
 
-            if (LightProbeType == LightProbeType.ProbeAtlas && LightProbes.Count > 0)
+            if (ProbeAtlas != null)
             {
-                BindProbeTexture("g_tLPV_Irradiance", LightProbes[0].Irradiance);
-                BindProbeTexture("g_tLPV_Shadows", LightProbes[0].DirectLightShadows);
+                // A texture no volume has is still sampled, and reads as no direct light and no shadow
+                var noDirectLight = scene.RendererContext.MaterialLoader.GetDefaultBlackVolume();
+
+                BindProbeTexture("g_tLPV_Irradiance", ProbeAtlas.Irradiance);
+                BindProbeTexture("g_tLPV_Indices", ProbeAtlas.DirectLightIndices ?? noDirectLight);
+                BindProbeTexture("g_tLPV_Scalars", ProbeAtlas.DirectLightScalars ?? noDirectLight);
+                BindProbeTexture("g_tLPV_Shadows", ProbeAtlas.DirectLightShadows ?? noDirectLight);
             }
 
             // Always bind something, even when the scene has no cookies: the cookie samplers are 2D arrays,
@@ -200,25 +187,47 @@ namespace ValveResourceFormat.Renderer.World
             GL.BindSampler((int)ReservedTextureSlots.LightCookieTextureWrap, CookieSamplerWrap);
         }
 
-        /// <summary>Binds the per-draw light probe volume textures. Individual-probe scenes only.</summary>
-        public void BindInstanceLightProbeTextures(SceneLightProbe lightProbe)
+        /// <summary>
+        /// Sets up the atlas the light probes sample: the one the map baked, or else one packed from the volumes that
+        /// were each baked into textures of their own. Only volumes in it are lit by, see <see cref="IsInProbeAtlas"/>.
+        /// </summary>
+        internal void BuildProbeAtlas()
         {
-            if (LightProbeType != LightProbeType.IndividualProbes)
+            if (ProbeAtlas != null || LightProbes.Count == 0)
             {
                 return;
             }
 
-            BindProbeTexture("g_tLPV_Irradiance", lightProbe.Irradiance);
+            // Shaders read one atlas, so volumes with textures of their own are not packed with a baked one
+            if (LightProbes.Find(static volume => IsInBakedAtlas(volume) && volume.Irradiance != null) is { } bakedVolume)
+            {
+                ProbeAtlas = LightProbeAtlas.FromBaked(bakedVolume);
 
-            if (LightmapGameVersionNumber == 1)
-            {
-                BindProbeTexture("g_tLPV_Indices", lightProbe.DirectLightIndices);
-                BindProbeTexture("g_tLPV_Scalars", lightProbe.DirectLightScalars);
+                if (LightProbes.Count(static volume => !IsInBakedAtlas(volume)) is > 0 and var ownTextures)
+                {
+                    scene.RendererContext.Logger.LogWarning("{Count} light probe volumes with textures of their own are left out, the map baked the others into an atlas", ownTextures);
+                }
+
+                return;
             }
-            else if (LightmapGameVersionNumber >= 2)
-            {
-                BindProbeTexture("g_tLPV_Shadows", lightProbe.DirectLightShadows);
-            }
+
+            var rendererContext = scene.RendererContext;
+            ProbeAtlas = LightProbeAtlas.Pack(LightProbes, rendererContext.MaterialLoader, rendererContext.Logger);
+        }
+
+        // A volume placed in an atlas the map baked, rather than with textures of its own
+        private static bool IsInBakedAtlas(SceneLightProbe volume) => volume.AtlasSize != Vector3.Zero;
+
+        /// <summary>Gets whether a light probe volume has a place in <see cref="ProbeAtlas"/>, and so can be sampled.</summary>
+        /// <param name="volume">The volume.</param>
+        internal bool IsInProbeAtlas(SceneLightProbe volume)
+            => ProbeAtlas != null && volume.Irradiance != null && volume.AtlasSize != Vector3.Zero;
+
+        /// <summary>Deletes the light probe atlas, when it was packed for the scene.</summary>
+        internal void DeleteProbeAtlas()
+        {
+            ProbeAtlas?.Delete();
+            ProbeAtlas = null;
         }
 
         /// <summary>Binds a light probe volume texture to the unit its sampler reads.</summary>
@@ -277,6 +286,7 @@ namespace ValveResourceFormat.Renderer.World
             EnvMapHandshakes.Clear();
             LightProbes.Clear();
             ProbeHandshakes.Clear();
+            DeleteProbeAtlas();
         }
 
         /// <summary>

@@ -6,8 +6,6 @@
 #include "features.slang"
 #include "texturing.slang"
 
-#define S_SCENE_PROBE_TYPE 0 // 1 = Individual, 2 = Atlas
-
 float GetParticleCosine(vec3 normalWs, vec3 lightDir, float directionality)
 {
     return mix(1.0, max(dot(normalWs, lightDir), 0.0), directionality);

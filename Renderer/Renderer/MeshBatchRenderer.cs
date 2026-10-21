@@ -137,7 +137,6 @@ namespace ValveResourceFormat.Renderer
         private ref struct Uniforms
         {
             public int EnvmapTexture = -1;
-            public int LPVIrradianceTexture = -1;
             public int MeshId = -1;
             public int ShaderId = -1;
             public int ShaderProgramId = -1;
@@ -150,7 +149,6 @@ namespace ValveResourceFormat.Renderer
             public bool NeedsCubemapBinding;
             public int LightmapGameVersionNumber;
             public bool IndirectDraw;
-            public LightProbeType LightProbeType;
         }
 
         /// <summary>Binds a per-draw texture over its reserved unit.</summary>
@@ -192,7 +190,6 @@ namespace ValveResourceFormat.Renderer
             {
                 NeedsCubemapBinding = context.Scene.LightingInfo.CubemapType == CubemapType.IndividualCubemaps,
                 LightmapGameVersionNumber = context.Scene.LightingInfo.LightmapGameVersionNumber,
-                LightProbeType = context.Scene.LightingInfo.LightProbeType,
                 IndirectDraw = context.Scene.DrawMeshletsIndirect
                     && context.RenderPass is RenderPass.DepthOnly or RenderPass.OpaqueAggregate or RenderPass.StaticOverlay,
             };
@@ -206,11 +203,6 @@ namespace ValveResourceFormat.Renderer
                     if (context.RenderPass is RenderPass.Opaque or RenderPass.Translucent or RenderPass.Outline or RenderPass.DepthOnly)
                     {
                         material?.PostRender();
-
-                        if (config.LightProbeType == LightProbeType.IndividualProbes && request.Node.LightProbeBinding is { } lightProbe)
-                        {
-                            request.Node.Scene.LightingInfo.BindInstanceLightProbeTextures(lightProbe);
-                        }
 
                         // Custom nodes render themselves and may issue several draws internally; count them as one draw call.
                         counters.Count(Counter.DrawCall);
@@ -255,11 +247,6 @@ namespace ValveResourceFormat.Renderer
                         if (shader.Parameters.ContainsKey("S_SCENE_CUBEMAP_TYPE"))
                         {
                             uniforms.EnvmapTexture = shader.GetUniformLocation("g_tEnvironmentMap");
-                        }
-
-                        if (shader.Parameters.ContainsKey("D_BAKED_LIGHTING_FROM_PROBE"))
-                        {
-                            uniforms.LPVIrradianceTexture = shader.GetUniformLocation("g_tLPV_Irradiance");
                         }
 
                         if (shader.Name == "picking")
@@ -339,12 +326,6 @@ namespace ValveResourceFormat.Renderer
             {
                 var envmap = request.Node.EnvMaps[0];
                 BindInstanceTexture(ReservedTextureSlots.EnvironmentMap, envmap.EnvMapTexture);
-            }
-
-            if (config.LightProbeType == LightProbeType.IndividualProbes && uniforms.LPVIrradianceTexture != -1
-                && request.Node.LightProbeBinding is { } lightProbe)
-            {
-                request.Node.Scene.LightingInfo.BindInstanceLightProbeTextures(lightProbe);
             }
 
             if (request.Node is SceneClutter clutter)

@@ -145,10 +145,6 @@ public abstract class EnvLightingVolume : BaseEntity
             lightProbe.DirectLightIndices = materialLoader.GetDefaultBlackVolume();
         }
 
-        Scene.LightingInfo.LightProbeType = KeyValues.ContainsKey("light_probe_atlas_x")
-            ? LightProbeType.ProbeAtlas
-            : LightProbeType.IndividualProbes;
-
         if (dlsdName != null)
         {
             lightProbe.DirectLightShadows = materialLoader.GetTexture(dlsdName);

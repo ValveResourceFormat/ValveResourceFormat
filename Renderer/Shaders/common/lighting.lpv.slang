@@ -94,7 +94,7 @@ LightProbeBlend_t GetFragmentLPV(vec3 fragPosition)
     {
         g_bLightProbeBlendReady = true;
 
-        #if (S_SCENE_PROBE_TYPE == 2) && (defined(ENABLE_LPV_BLENDING) || (D_LPV_BLENDING == 1))
+        #if defined(ENABLE_LPV_BLENDING) || (D_LPV_BLENDING == 1)
             FindLightProbeVolumes(fragPosition);
         #else
             g_LightProbeBlend.Volume[0] = GetObjectLightingData().VisibleLPV & 0xFFFFu;
@@ -107,15 +107,17 @@ LightProbeBlend_t GetFragmentLPV(vec3 fragPosition)
     return g_LightProbeBlend;
 }
 
+// Kept half a probe inside the volume, as the irradiance is, so filtering never reaches the next volume in the atlas
 vec3 CalculateProbeShadowCoords(uint nVolume, vec3 fragPosition)
 {
+    LightProbeVolume lpv = g_LPV[nVolume];
     vec3 vLightProbeLocalPos = CalculateProbeSampleCoords(nVolume, fragPosition);
 
-    #if (S_SCENE_PROBE_TYPE == 2)
-        vLightProbeLocalPos = fma(saturate(vLightProbeLocalPos), g_LPV[nVolume].AtlasScale.xyz, g_LPV[nVolume].AtlasOffset.xyz);
-    #endif
+    // The borders are in units of one irradiance face, a sixth of the depth
+    vec3 vFaceDepth = vec3(1.0, 1.0, 6.0);
+    vLightProbeLocalPos = clamp(vLightProbeLocalPos, lpv.BorderMin.xyz * vFaceDepth, lpv.BorderMax.xyz * vFaceDepth);
 
-    return vLightProbeLocalPos;
+    return fma(vLightProbeLocalPos, lpv.AtlasScale.xyz, lpv.AtlasOffset.xyz);
 }
 
 vec3 CalculateProbeShadowCoords(vec3 fragPosition)
@@ -145,18 +147,13 @@ vec3 CalculateProbeIndirectCoords(uint nVolume, vec3 fragPosition)
     LightProbeVolume lpv = g_LPV[nVolume];
     vec3 indirectCoords = CalculateProbeSampleCoords(nVolume, fragPosition);
 
-    #if (S_SCENE_PROBE_TYPE == 1)
-        indirectCoords.z /= 6;
-        // clamp(indirectCoords, lpv.Layer0TextureMin.xyz, lpv.Layer0TextureMax.xyz);
-    #elif (S_SCENE_PROBE_TYPE == 2)
-        indirectCoords.z /= 6;
-        indirectCoords = clamp(indirectCoords, lpv.BorderMin.xyz, lpv.BorderMax.xyz);
+    indirectCoords.z /= 6;
+    indirectCoords = clamp(indirectCoords, lpv.BorderMin.xyz, lpv.BorderMax.xyz);
 
-        indirectCoords.z *= 6;
-        indirectCoords = fma(indirectCoords, lpv.AtlasScale.xyz, lpv.AtlasOffset.xyz);
+    indirectCoords.z *= 6;
+    indirectCoords = fma(indirectCoords, lpv.AtlasScale.xyz, lpv.AtlasOffset.xyz);
 
-        indirectCoords.z /= 6;
-    #endif
+    indirectCoords.z /= 6;
 
     return indirectCoords;
 }
