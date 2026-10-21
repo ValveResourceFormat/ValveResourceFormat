@@ -52,8 +52,15 @@ public class SceneGradientFog(Scene scene) : SceneNode(scene)
 
         // this might be same as cubemap fog height calculations
         // Doesn't seem to be the case for SteamVR, it cuts off too early at the top
-        var heightScale = 1f / (heightStart - heightEnd);
-        var heightBias = -(heightEnd * heightScale);
+        var heightScale = 0f;
+        var heightBias = 1f;
+
+        // Without a height range every height is fully in the fog, rather than the scale dividing by zero
+        if (heightStart != heightEnd)
+        {
+            heightScale = 1f / (heightStart - heightEnd);
+            heightBias = -(heightEnd * heightScale);
+        }
 
         return new Vector4(distBias, heightBias, distScale, heightScale);
     }
