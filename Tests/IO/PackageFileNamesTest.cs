@@ -31,14 +31,16 @@ namespace Tests.IO
                     await Assert.That(PackageFileNames.GetDirectoryFile("addon.vpk")).IsEqualTo("addon_dir.vpk");
                     await Assert.That(PackageFileNames.GetArchiveChunkFile("C:/game/pak01", 7)).IsEqualTo("C:/game/pak01_007.vpk");
 
-                    await Assert.That(PackageFileNames.TryGetChunkDirectoryFileName("C:/game/pak01_003.vpk", out var directoryFile)).IsTrue();
-                    await Assert.That(directoryFile).IsEqualTo("C:/game/pak01_dir.vpk");
-                    await Assert.That(PackageFileNames.TryGetChunkDirectoryFileName("C:/game/pak01_dir.vpk", out _)).IsFalse();
-                    await Assert.That(PackageFileNames.TryGetChunkDirectoryFileName("_003.vpk", out _)).IsFalse();
-
                     await Assert.That(PackageFileNames.TryGetArchiveChunkDirectoryFile(Path.Join(folder, "pak01_003.vpk"), out var archiveDirectoryFile)).IsTrue();
                     await Assert.That(archiveDirectoryFile).IsEqualTo(Path.Join(folder, "pak01_dir.vpk"));
                     await Assert.That(PackageFileNames.TryGetArchiveChunkDirectoryFile(Path.Join(folder, "surf_2024.vpk"), out _)).IsFalse();
+
+                    await Assert.That(PackageFileNames.GetPackageFileNameError(Path.Join(folder, "addon.zip"), splitIntoChunks: false)).IsNotNull();
+                    await Assert.That(PackageFileNames.GetPackageFileNameError(Path.Join(folder, "pak01_003.vpk"), splitIntoChunks: false)).IsNotNull();
+                    await Assert.That(PackageFileNames.GetPackageFileNameError(Path.Join(folder, "surf_2024.vpk"), splitIntoChunks: false)).IsNull();
+                    await Assert.That(PackageFileNames.GetPackageFileNameError(Path.Join(folder, "addon_dir.vpk"), splitIntoChunks: true)).IsNull();
+                    await Assert.That(PackageFileNames.GetPackageFileNameError(Path.Join(folder, "addon_dir.vpk"), splitIntoChunks: false)).IsNotNull();
+                    await Assert.That(PackageFileNames.GetPackageFileNameError(Path.Join(folder, "addon.vpk"), splitIntoChunks: true)).IsNotNull();
                 }
             }
             finally
@@ -65,6 +67,34 @@ namespace Tests.IO
                     await Assert.That(PackageFileNames.GetPackageName(Path.Join(folder, "surf_2024.vpk"))).IsEqualTo(Path.Join(folder, "surf_2024"));
                     await Assert.That(PackageFileNames.GetPackageName("maps/de_dust2.vpk")).IsEqualTo("maps/de_dust2");
                 }
+            }
+            finally
+            {
+                Directory.Delete(folder, recursive: true);
+            }
+        }
+
+        [Test]
+        public async Task FilesToPack()
+        {
+            var folder = Directory.CreateTempSubdirectory().FullName;
+
+            try
+            {
+                Directory.CreateDirectory(Path.Join(folder, "Materials"));
+                Directory.CreateDirectory(Path.Join(folder, ".git"));
+
+                string[] names = ["Materials/Floor.vmat", "readme.txt", ".gitignore", ".git/config", "out_dir.vpk", "out_000.vpk", "out.vpk"];
+
+                foreach (var name in names)
+                {
+                    await File.WriteAllBytesAsync(Path.Join(folder, name), []);
+                }
+
+                var files = PackageFileNames.GetFilesToPack(folder, Path.Join(folder, "out_dir.vpk"), "addon/");
+
+                await Assert.That(string.Join(',', files.Select(static file => file.EntryPath).Order(StringComparer.Ordinal))).IsEqualTo("addon/Materials/Floor.vmat,addon/out.vpk,addon/readme.txt");
+                await Assert.That(files[0].PathOnDisk).StartsWith(folder);
             }
             finally
             {

@@ -20,8 +20,8 @@ The binary name is `Source2Viewer-CLI`.
 | `--vpk_filepath` (or `-f`)       | File path filter(s), matching the start of the path inside the VPK or relative to the input folder (case-insensitive), or the full path when using `*` and `?` wildcards. Example: `"panorama/,sounds/"` or `"*/entities/*"`.                                                                                    |
 | `--vpk_cache`                    | Use a cached VPK manifest to keep track of updates, only changed files are written to disk. Requires `--output`.                                                                                                                                                                                                 |
 | `--vpk_verify`                   | Verify checksums and signatures of the given VPK, or of every VPK in the given folder.                                                                                                                                                                                                                           |
-| `--vpk_create`                   | Pack all files in the input folder and its subfolders into a VPK at the given path, example: `"pak01_dir.vpk"`. File paths are lowercased, and file extension and path filters apply.                                                                                                                            |
-| `--vpk_create_chunk_size`        | When using `--vpk_create`, split file data into chunk files of this many megabytes (1 to 1024) next to the VPK, which must be named `"*_dir.vpk"`. By default everything is written into a single file.                                                                                                          |
+| `--vpk_create`                   | Pack all files in the input folder and its subfolders into a VPK at the given path, example: `"pak01.vpk"`. A split VPK must be named `"*_dir.vpk"`, see `--vpk_create_chunk_size`. File paths are lowercased, and file extension and path filters apply.                                                        |
+| `--vpk_create_chunk_size`        | When using `--vpk_create`, split file data into chunk files of this many MiB (1 to 1024) next to the VPK, which must be named `"*_dir.vpk"`. By default everything is written into a single file, which must not be named `"*_dir.vpk"`.                                                                         |
 | **Output**                       |                                                                                                                                                                                                                                                                                                                  |
 | `--output` (or `-o`)             | Output path to write to. Treated as a folder when it is an existing folder, ends with a path separator, or has no file extension, otherwise it names the file to write, which requires the input to be a single file or the filters to match one file. Use `-` to print decompiled files to the console instead. |
 | `--all` (or `-a`)                | Print the content of each resource block in the file.                                                                                                                                                                                                                                                            |
@@ -110,7 +110,9 @@ Pack compiled map files into a map VPK. The input folder contains the files at t
 ./Source2Viewer-CLI.exe -i "de_example" --vpk_create "maps/de_example.vpk"
 ```
 
-Large packages can be split into 100 MB chunk files (`pak01_000.vpk`, `pak01_001.vpk`, ...) next to the directory file:
+Files and folders starting with a dot are skipped. Nothing is written if a path can not be stored in a VPK, two files would end up at the same path, or the files are too large for a single-file VPK.
+
+Large packages can be split into chunk files of 100 MiB (`pak01_000.vpk`, `pak01_001.vpk`, ...) next to the directory file, which must be named `*_dir.vpk`:
 
 ```powershell
 ./Source2Viewer-CLI.exe -i "my_addon" --vpk_create "pak01_dir.vpk" --vpk_create_chunk_size 100
