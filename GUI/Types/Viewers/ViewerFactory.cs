@@ -46,8 +46,13 @@ static class ViewerFactory
 
         if (PackageViewer.PackageViewer.IsAccepted(magic))
         {
+            if (stream != null)
+            {
+                await stream.DisposeAsync().ConfigureAwait(false);
+            }
+
             var viewer = new PackageViewer.PackageViewer(vrfGuiContext);
-            await viewer.LoadAsync(stream).ConfigureAwait(false);
+            viewer.Load(entry);
             return viewer;
         }
         else if (CompiledShader.IsAccepted(magic))

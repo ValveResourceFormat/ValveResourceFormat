@@ -963,7 +963,7 @@ namespace CLI
             ProcessFile(path, fs, null, fileLoader);
         }
 
-        private void ProcessFile(string path, Stream stream, string? originalPath = null, IFileLoader? fileLoader = null, Package? package = null)
+        private void ProcessFile(string path, Stream stream, string? originalPath = null, IFileLoader? fileLoader = null, Package? package = null, PackageEntry? entry = null)
         {
             Span<byte> magicData = stackalloc byte[4];
 
@@ -978,7 +978,7 @@ namespace CLI
             // Packages count and print themselves, because they may expand into the files inside of them
             if (magic == Package.MAGIC)
             {
-                ParseVPK(path, stream, originalPath, fileLoader);
+                ParseVPK(path, originalPath, fileLoader, package, entry);
                 return;
             }
 
@@ -1465,7 +1465,7 @@ namespace CLI
             }
         }
 
-        private void ParseVPK(string path, Stream stream, string? originalPath, IFileLoader? parentFileLoader = null)
+        private void ParseVPK(string path, string? originalPath, IFileLoader? parentFileLoader = null, Package? parentPackage = null, PackageEntry? parentEntry = null)
         {
             // When processing the files inside of the package, they are counted and print their own header instead
             var processVpkFiles = OutputFile == null && !VerifyVPKChecksums && !ListResources && (CollectStats || ShouldPrintBlockContents || HasShaderOptions);
@@ -1477,29 +1477,10 @@ namespace CLI
 
             var packagePath = GetPathInPackage(path, originalPath);
 
-            using var package = new Package();
-            package.SetFileName(path);
-            package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
+            using var package = TryOpenPackage(path, originalPath, parentPackage, parentEntry);
 
-            try
+            if (package == null)
             {
-                package.Read(stream);
-            }
-            catch (NotSupportedException e)
-            {
-                lock (ConsoleWriterLock)
-                {
-                    Console.ForegroundColor = ConsoleColor.Cyan;
-                    Console.Error.WriteLine($"Failed to open vpk '{packagePath}' - {e.Message}");
-                    Console.ResetColor();
-                }
-
-                return;
-            }
-            catch (Exception e)
-            {
-                LogException(e, path, originalPath);
-
                 return;
             }
 
@@ -1575,13 +1556,21 @@ namespace CLI
                     // Files in the package take priority over the game files, including for packages inside of this one
                     var fileLoader = parentFileLoader != null ? new PackageFirstFileLoader(package, parentFileLoader) : null;
 
-                    Func<PackageEntry, Stream> openEntry = MaxParallelismThreads > 1
-                        ? entry => package.GetMemoryMappedStreamIfPossible(entry)
-                        : entry =>
+                    Stream OpenEntry(PackageEntry entry)
+                    {
+                        if (Package.PathComparer.Equals(entry.TypeName, "vpk"))
                         {
-                            package.ReadEntry(entry, out var output);
-                            return new MemoryStream(output);
-                        };
+                            return package.OpenEntryStream(entry);
+                        }
+
+                        if (MaxParallelismThreads > 1)
+                        {
+                            return package.GetMemoryMappedStreamIfPossible(entry);
+                        }
+
+                        package.ReadEntry(entry, out var output);
+                        return new MemoryStream(output);
+                    }
 
                     void ProcessPackageEntry(PackageEntry file)
                     {
@@ -1590,7 +1579,7 @@ namespace CLI
                         // A damaged package can fail to read a single entry, which should not stop the others
                         try
                         {
-                            entryStream = openEntry(file);
+                            entryStream = OpenEntry(file);
                         }
                         catch (Exception e)
                         {
@@ -1600,7 +1589,7 @@ namespace CLI
 
                         using (entryStream)
                         {
-                            ProcessFile(file.GetFullPath(), entryStream, packagePath, fileLoader, package);
+                            ProcessFile(file.GetFullPath(), entryStream, packagePath, fileLoader, package, file);
                         }
                     }
 
@@ -1727,6 +1716,32 @@ namespace CLI
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Opens a package on disk or in an entry of another package, or reports why it failed to open and returns null.
+        /// </summary>
+        private Package? TryOpenPackage(string path, string? originalPath, Package? parentPackage, PackageEntry? parentEntry)
+        {
+            try
+            {
+                return parentPackage != null && parentEntry != null ? NestedPackage.Open(parentPackage, parentEntry) : Package.Open(path);
+            }
+            catch (NotSupportedException e)
+            {
+                lock (ConsoleWriterLock)
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.Error.WriteLine($"Failed to open vpk '{GetPathInPackage(path, originalPath)}' - {e.Message}");
+                    Console.ResetColor();
+                }
+            }
+            catch (Exception e)
+            {
+                LogException(e, path, originalPath);
+            }
+
+            return null;
         }
 
         /// <summary>

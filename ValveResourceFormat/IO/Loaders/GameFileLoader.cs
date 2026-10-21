@@ -689,14 +689,14 @@ namespace ValveResourceFormat.IO
 
             var packageName = GetFullPackageName(searchPath);
 
-            if (IsSamePackage(CurrentFileName, packageName) || IsSamePackage(CurrentPackage?.FileName, packageName))
+            if (IsSamePackageName(CurrentFileName, packageName))
             {
                 return true;
             }
 
-            foreach (var package in EnumerateMountedPackages())
+            foreach (var package in EnumerateSearchedPackages())
             {
-                if (IsSamePackage(package.FileName, packageName))
+                if (IsSamePackageName(package.FilePath, packageName))
                 {
                     return true;
                 }
@@ -705,10 +705,62 @@ namespace ValveResourceFormat.IO
             return false;
         }
 
-        private static bool IsSamePackage(string? fileName, string packageName)
-            => fileName != null && string.Equals(GetFullPackageName(fileName), packageName, StringComparison.OrdinalIgnoreCase);
+        /// <summary>
+        /// Returns whether a package opened from the entry of the outer package is mounted, including <see cref="CurrentPackage"/>.
+        /// </summary>
+        private bool IsPackageMounted(Package outerPackage, PackageEntry entry)
+        {
+            foreach (var package in EnumerateSearchedPackages())
+            {
+                if (package is NestedPackage nested && IsSameEntry(nested.Parent, nested.ParentEntry, outerPackage, entry))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsSamePackageName(string? path, string packageName)
+            => path != null && string.Equals(GetFullPackageName(path), packageName, StringComparison.OrdinalIgnoreCase);
 
         private static string GetFullPackageName(string path) => Path.GetFullPath(PackageFileNames.GetPackageName(path));
+
+        /// <summary>
+        /// Returns whether two packages read the same file, or the same entry of the same package.
+        /// </summary>
+        private static bool IsSamePackage(Package package, Package other)
+        {
+            if (package == other)
+            {
+                return true;
+            }
+
+            if (package.FilePath is { } filePath)
+            {
+                return filePath.Equals(other.FilePath, StringComparison.OrdinalIgnoreCase);
+            }
+
+            return package is NestedPackage nested
+                && other is NestedPackage otherNested
+                && IsSameEntry(nested.Parent, nested.ParentEntry, otherNested.Parent, otherNested.ParentEntry);
+        }
+
+        private static bool IsSameEntry(Package package, PackageEntry entry, Package otherPackage, PackageEntry otherEntry)
+            => entry == otherEntry || (entry.GetFullPath() == otherEntry.GetFullPath() && IsSamePackage(package, otherPackage));
+
+        private IEnumerable<Package> EnumerateSearchedPackages()
+        {
+            if (CurrentPackage != null)
+            {
+                yield return CurrentPackage;
+            }
+
+            foreach (var package in EnumerateMountedPackages())
+            {
+                yield return package;
+            }
+        }
 
         private IEnumerable<Package> EnumerateMountedPackages()
         {
@@ -766,15 +818,14 @@ namespace ValveResourceFormat.IO
                 }
 
                 var (pathOnDisk, outerPackage, entry) = FindFile(mapPackagePath);
-                var path = pathOnDisk ?? entry?.GetFullPath();
 
-                if (path == null)
+                if (pathOnDisk == null && entry == null)
                 {
                     return false;
                 }
 
                 // The opened package, or one the game or an addon mounts, is searched already
-                if (IsPackageMounted(path))
+                if (pathOnDisk != null ? IsPackageMounted(pathOnDisk) : IsPackageMounted(outerPackage!, entry!))
                 {
                     return true;
                 }
@@ -818,26 +869,11 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        private Package ReadInnerPackage(Package outerPackage, PackageEntry entry)
+        private NestedPackage ReadInnerPackage(Package outerPackage, PackageEntry entry)
         {
-            var innerPath = entry.GetFullPath();
-            Logger.LogInformation("Preloading vpk \"{InnerPath}\" from \"{Package}\"", innerPath, outerPackage.FileName);
+            Logger.LogInformation("Preloading vpk \"{InnerPath}\" from \"{Package}\"", entry.GetFullPath(), outerPackage.FileName);
 
-            var package = new Package();
-
-            try
-            {
-                package.SetFileName(innerPath);
-                package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                package.Read(outerPackage.GetMemoryMappedStreamIfPossible(entry));
-
-                return package;
-            }
-            catch
-            {
-                package.Dispose();
-                throw;
-            }
+            return NestedPackage.Open(outerPackage, entry);
         }
 
         private void AddGamePackageToSearch(string searchPath)

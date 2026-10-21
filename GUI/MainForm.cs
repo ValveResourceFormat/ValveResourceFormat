@@ -255,13 +255,10 @@ namespace GUI
                     var nestedEntry = packageContext.CurrentPackage!.FindEntry(nestedPath)
                         ?? throw new MissingFileException($"File '{nestedPath}' does not exist in package '{packageContext.FileName}'.");
 
-                    var nestedPackage = new Package();
+                    var nestedPackage = NestedPackage.Open(packageContext.CurrentPackage!, nestedEntry);
                     try
                     {
-                        nestedPackage.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                        nestedPackage.SetFileName(nestedPath);
-                        nestedPackage.Read(packageContext.CurrentPackage!.GetMemoryMappedStreamIfPossible(nestedEntry));
-                        packageContext = new VrfGuiContext(nestedPath, packageContext)
+                        packageContext = new VrfGuiContext(nestedEntry.GetFullPath(), packageContext)
                         {
                             CurrentPackage = nestedPackage
                         };

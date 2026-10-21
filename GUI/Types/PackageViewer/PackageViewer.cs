@@ -51,34 +51,27 @@ namespace GUI.Types.PackageViewer
             return TreeView;
         }
 
-        public async Task LoadAsync(Stream? stream)
-        {
-            var package = new Package();
-            package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
+        /// <summary>
+        /// Not supported, packages are read with <see cref="Load"/>.
+        /// </summary>
+        Task IViewer.LoadAsync(Stream? stream) => throw new NotSupportedException("Packages are read with Load.");
 
-            if (stream != null)
-            {
-                package.SetFileName(vrfGuiContext.FileName);
-                package.Read(stream);
-            }
-            else
-            {
-                package.Read(vrfGuiContext.FileName);
-            }
+        /// <summary>
+        /// Reads the package file of the context, or the package in an entry of the package of the parent context.
+        /// </summary>
+        public void Load(PackageEntry? entry)
+        {
+            var package = entry != null
+                ? NestedPackage.Open(vrfGuiContext.ParentGuiContext!.CurrentPackage!, entry)
+                : Package.Open(vrfGuiContext.FileName);
 
             vrfGuiContext.CurrentPackage = package;
 
             VirtualRoot = new VirtualPackageNode("root", 0, null);
 
-            if (vrfGuiContext.CurrentPackage.Entries != null)
+            foreach (var file in package.Entries?.Values.SelectMany(static entries => entries) ?? [])
             {
-                foreach (var fileType in vrfGuiContext.CurrentPackage.Entries)
-                {
-                    foreach (var file in fileType.Value)
-                    {
-                        BetterTreeView.AddFileNode(VirtualRoot, file);
-                    }
-                }
+                BetterTreeView.AddFileNode(VirtualRoot, file);
             }
 
             foreach (var node in VirtualRoot.Folders)
