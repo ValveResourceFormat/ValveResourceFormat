@@ -1,5 +1,4 @@
 using System.IO;
-using System.IO.Enumeration;
 using ValvePak;
 using ValveResourceFormat.IO;
 
@@ -8,54 +7,27 @@ namespace CLI
     public partial class Decompiler
     {
         private string? VpkCreatePath;
-        private int VpkCreateChunkSize; // In megabytes, 0 writes everything into a single file
+        private int VpkCreateChunkSize; // In MiB, 0 writes everything into a single file
 
         private int CreateVpk()
         {
             var outputPath = Path.GetFullPath(VpkCreatePath!);
             var multiChunk = VpkCreateChunkSize > 0;
-
-            // Skip dot files and folders such as .git, which are not game files
-            var enumeration = new FileSystemEnumerable<(string Path, long Length)>(
-                InputFile,
-                (ref entry) => (entry.ToFullPath(), entry.Length),
-                new EnumerationOptions { RecurseSubdirectories = true })
-            {
-                ShouldIncludePredicate = (ref entry) => !entry.IsDirectory && !entry.FileName.StartsWith('.'),
-                ShouldRecursePredicate = (ref entry) => !entry.FileName.StartsWith('.'),
-            };
-
             var files = new SortedDictionary<string, string>(StringComparer.Ordinal);
             var lowercasedPaths = 0;
-            long totalSize = 0;
+            var lengths = new List<(string EntryPath, long Length)>();
 
-            foreach (var (path, length) in enumeration)
+            foreach (var (path, slashedPath) in PackageFileNames.GetFilesToPack(InputFile, outputPath))
             {
-                // The output may be written into the input folder, so it must not pack itself or its old chunk files
-                if (path.Equals(outputPath, StringComparison.OrdinalIgnoreCase))
+                if (IsExcludedVpkFilePath(FixPathSlashes(slashedPath)) || !MatchesExtensionFilter(Path.GetExtension(slashedPath).TrimStart('.')))
                 {
                     continue;
                 }
 
-                if (PackageFileNames.IsArchiveChunk(path) && PackageFileNames.GetDirectoryFile(path).Equals(outputPath, StringComparison.OrdinalIgnoreCase))
+                if (!Package.TryParseEntryPath(slashedPath, out var entryPath))
                 {
-                    continue;
-                }
-
-                var relativePath = Path.GetRelativePath(InputFile, path);
-
-                if (IsExcludedVpkFilePath(relativePath))
-                {
-                    continue;
-                }
-
-                // Paths in packages always use forward slashes and are lowercase
-                var slashedPath = relativePath.Replace('\\', '/');
-                var entryPath = slashedPath.ToLowerInvariant();
-
-                if (!MatchesExtensionFilter(Path.GetExtension(entryPath).TrimStart('.')))
-                {
-                    continue;
+                    Console.Error.WriteLine($"\"{path}\" can not be packed, \"{slashedPath}\" is not a valid path in a VPK.");
+                    return 1;
                 }
 
                 if (!files.TryAdd(entryPath, path))
@@ -69,13 +41,15 @@ namespace CLI
                     lowercasedPaths++;
                 }
 
-                if (length > int.MaxValue)
+                var length = new FileInfo(path).Length;
+
+                if (multiChunk && length > Package.MaxChunkFileSize)
                 {
-                    Console.Error.WriteLine($"\"{path}\" is larger than 2 GiB, which is not supported.");
+                    Console.Error.WriteLine($"\"{path}\" is larger than 4 GiB, which does not fit into a chunk file.");
                     return 1;
                 }
 
-                totalSize += length;
+                lengths.Add((entryPath, length));
             }
 
             if (files.Count == 0)
@@ -86,7 +60,7 @@ namespace CLI
                 return 1;
             }
 
-            if (!multiChunk && totalSize > int.MaxValue)
+            if (!multiChunk && !PackageFileNames.FitsIntoSingleFile(lengths))
             {
                 Console.Error.WriteLine("The files add up to more than 2 GiB, which does not fit into a single VPK. Use --vpk_create_chunk_size to split it into chunk files.");
                 return 1;
