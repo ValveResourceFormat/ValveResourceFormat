@@ -72,7 +72,7 @@ public partial class GltfModelExporter
     private void GenerateGLTFMaterialFromRenderMaterial(Material material, VMaterial renderMaterial, ModelRoot model, Vector4 modelTintColor, bool baseColorOnly = false)
     {
         var blendState = shaderDataProvider.GetBlendState(renderMaterial);
-        var isTranslucent = blendState.BlendEnable[0] || shaderDataProvider.GetIntAttributes(renderMaterial).GetValueOrDefault("translucent") == 1;
+        var isTranslucent = shaderDataProvider.GetIntAttributes(renderMaterial).GetValueOrDefault("translucent") == 1;
 
         material.Alpha = isTranslucent ? AlphaMode.BLEND
             : blendState.AlphaToCoverageEnable ? AlphaMode.MASK

@@ -313,7 +313,7 @@ namespace ValveResourceFormat.Renderer.Materials
             disableDepthTest = IntParams.GetValueOrDefault("F_DISABLE_Z_BUFFERING") == 1;
 
             var blendState = shaderDataProvider.GetBlendState(material, IntParams);
-            IsTranslucent = blendState.BlendEnable[0] || attributes.GetValueOrDefault("translucent") == 1;
+            IsTranslucent = attributes.GetValueOrDefault("translucent") == 1;
             IsAlphaTest = !IsTranslucent && blendState.AlphaToCoverageEnable;
 
             // Our shaders output color without alpha premultiplied, unlike some game shaders, so only factors

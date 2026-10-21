@@ -97,13 +97,32 @@ namespace ValveResourceFormat.IO
 
         /// <inheritdoc/>
         /// <remarks>
-        /// Returns the attributes of the basic provider if available.
+        /// Reads the constant attributes compiled into the pixel shader, falling back to basic provider
+        /// for the attributes the shader does not compile to a constant.
         /// </remarks>
         public IReadOnlyDictionary<string, long> GetIntAttributes(Material material, IReadOnlyDictionary<string, long>? combos = null)
         {
             ArgumentNullException.ThrowIfNull(material);
 
-            return basicProvider?.GetIntAttributes(material, combos) ?? material.IntAttributes;
+            var attributes = basicProvider?.GetIntAttributes(material, combos) ?? material.IntAttributes;
+            var shaderAttributes = GetIntAttributes_Internal(material, combos ?? material.IntParams);
+
+            if (shaderAttributes == null)
+            {
+                return attributes;
+            }
+
+            var combined = new Dictionary<string, long>(attributes);
+
+            foreach (var (name, value) in shaderAttributes)
+            {
+                if (!material.IntAttributes.ContainsKey(name))
+                {
+                    combined[name] = value;
+                }
+            }
+
+            return combined;
         }
 
         /// <summary>
@@ -521,14 +540,7 @@ namespace ValveResourceFormat.IO
             var shader = fileLoader.LoadShader(material.ShaderName);
             var program = shader?.PixelShaderRenderState ?? shader?.Pixel;
 
-            if (shader?.Features == null || program == null)
-            {
-                return null;
-            }
-
-            var (_, staticComboId) = ResolveStaticConfiguration(shader.Features, program, GetComboState(combos, "F_"), GetComboState(combos, "S_"));
-
-            if (!program.StaticComboEntries.ContainsKey(staticComboId))
+            if (shader == null || program == null || GetStaticCombo(shader, program, combos) is not { } staticCombo)
             {
                 return null;
             }
@@ -536,10 +548,57 @@ namespace ValveResourceFormat.IO
             var dynamicConfig = Array.ConvertAll(program.DynamicComboArray, combo => (int)combos.GetValueOrDefault(combo.Name, combo.RangeMin));
             var dynamicComboId = new ComboConfigMapping(program, isDynamic: true).CalcComboIdFromValues(dynamicConfig);
 
-            var renderState = program.StaticComboCache.Get(staticComboId).DynamicComboRenderStates
+            var renderState = staticCombo.DynamicComboRenderStates
                 .FirstOrDefault(renderState => renderState.DynamicComboId == dynamicComboId) as VfxRenderStateInfoPixelShader;
 
             return renderState?.BlendStateDesc;
+        }
+
+        /// <summary>
+        /// Gets the integer and boolean attributes compiled as constants into the pixel shader static combo.
+        /// Attributes compiled to an expression are left out.
+        /// </summary>
+        private Dictionary<string, long>? GetIntAttributes_Internal(Material material, IReadOnlyDictionary<string, long> combos)
+        {
+            var shader = fileLoader.LoadShader(material.ShaderName);
+
+            if (shader?.Pixel == null || GetStaticCombo(shader, shader.Pixel, combos) is not { } staticCombo)
+            {
+                return null;
+            }
+
+            var attributes = new Dictionary<string, long>();
+
+            foreach (var attribute in staticCombo.Attributes)
+            {
+                long? value = attribute.ConstValue switch
+                {
+                    int intValue => intValue,
+                    bool boolValue => boolValue ? 1 : 0,
+                    _ => null,
+                };
+
+                if (value.HasValue)
+                {
+                    attributes.TryAdd(attribute.Name, value.Value);
+                }
+            }
+
+            return attributes;
+        }
+
+        private static VfxStaticComboData? GetStaticCombo(ShaderCollection shader, VfxProgramData program, IReadOnlyDictionary<string, long> combos)
+        {
+            if (shader.Features == null)
+            {
+                return null;
+            }
+
+            var (_, staticComboId) = ResolveStaticConfiguration(shader.Features, program, GetComboState(combos, "F_"), GetComboState(combos, "S_"));
+
+            return program.StaticComboEntries.ContainsKey(staticComboId)
+                ? program.StaticComboCache.Get(staticComboId)
+                : null;
         }
     }
 
