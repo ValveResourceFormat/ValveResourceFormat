@@ -56,7 +56,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             Transform = probe.Transform;
             SampleSize = 4f;
 
-            AssignEnvMaps();
+            // Added after the scene assigned environment maps to its nodes, so the grid picks its own
+            Scene.UpdateNodeEnvironmentMaps(this);
 
             sampleCount = localSamples.Length;
             shader = Scene.RendererContext.ShaderLoader.LoadShader("lpv_debug_grid", Scene.LightingInfo.CreateShaderArguments());
@@ -66,32 +67,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             vao = SamplePoint.InputLayout.CreateVertexArray(nameof(LightProbeSampleGridSceneNode), vertexBuffer.Handle, indexBuffer: 0, instanceDivisor: 1);
             vertexBuffer.AttachTo(vao, SamplePoint.InputLayout.Stride);
             vertexBuffer.Upload(MemoryMarshal.AsBytes(localSamples));
-        }
-
-        // Added after the scene assigned environment maps to its nodes, so the grid picks its own: every one
-        // reaching into the volume, in the order the scene ranks them for a node
-        private void AssignEnvMaps()
-        {
-            var center = BoundingBox.Center;
-
-            foreach (var envMap in Scene.LightingInfo.EnvMaps)
-            {
-                if (envMap.BoundingBox.Intersects(BoundingBox))
-                {
-                    EnvMaps.Add(envMap);
-                }
-            }
-
-            EnvMaps.Sort((a, b) =>
-            {
-                var priority = b.IndoorOutdoorLevel.CompareTo(a.IndoorOutdoorLevel);
-
-                return priority != 0
-                    ? priority
-                    : Vector3.Distance(center, a.BoundingBox.Center).CompareTo(Vector3.Distance(center, b.BoundingBox.Center));
-            });
-
-            ShaderEnvMapVisibility = default(SceneEnvMap.EnvMapVisibility128).Store(EnvMaps);
         }
 
         /// <inheritdoc/>
@@ -110,12 +85,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             shader.SetUniform("g_vAlbedo", Albedo.ToLinearColor().AsVector3());
             shader.SetUniform("g_flRoughness", Roughness);
             shader.SetUniform("g_flMetalness", Metalness);
-
-            // What the mesh renderer binds per draw when the scene has no cube map array
-            if (Scene.LightingInfo.CubemapType == CubemapType.IndividualCubemaps && EnvMaps.Count > 0)
-            {
-                GL.BindTextureUnit((int)ReservedTextureSlots.EnvironmentMap, EnvMaps[0].EnvMapTexture.Handle);
-            }
 
             VertexArray.Bind(vao, shader);
 

@@ -284,11 +284,6 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Gets the environment maps affecting this node.
-        /// </summary>
-        public List<SceneEnvMap> EnvMaps { get; private set; } = [];
-
-        /// <summary>
         /// Gets or sets the environment map visibility bitfield for shaders.
         /// </summary>
         public SceneEnvMap.EnvMapVisibility128 ShaderEnvMapVisibility { get; set; } = SceneEnvMap.EnvMapVisibility128.Full;
@@ -317,6 +312,12 @@ namespace ValveResourceFormat.Renderer
         /// Gets or sets the bound light probe for this node.
         /// </summary>
         public SceneLightProbe? LightProbeBinding { get; set; }
+
+        /// <summary>
+        /// Gets or sets the environment map picked for a moving node, which shades what no environment map box covers.
+        /// Static nodes use the highest priority one they overlap.
+        /// </summary>
+        public SceneEnvMap? EnvMapBinding { get; set; }
 
         /// <summary>
         /// Gets or sets the associated entity data from the map.

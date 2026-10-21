@@ -14,7 +14,6 @@
 
 #include "light_cull.slang"
 
-#define S_SCENE_CUBEMAP_TYPE 0 // 0 = None, 1 = Per-batch cube map, 2 = Per-scene cube map array
 #define renderMode_Cubemaps 0
 #define renderMode_EnvmapTiles 0
 
@@ -50,13 +49,7 @@ int g_nEnvMapsIterated = 0;
 // map bound at all, where there is no reflection to scale in the first place.
 vec4 g_vEnvMapNormalizationSH = vec4(0.0);
 
-#if (S_SCENE_CUBEMAP_TYPE == 0)
-    // ...
-#elif (S_SCENE_CUBEMAP_TYPE == 1)
-    uniform samplerCube g_tEnvironmentMap; // SrgbRead(true) reserved
-#elif (S_SCENE_CUBEMAP_TYPE == 2)
-    uniform samplerCubeArray g_tEnvironmentMap; // SrgbRead(true) reserved
-#endif
+uniform samplerCubeArray g_tEnvironmentMap; // SrgbRead(true) reserved
 
 vec3 CubemapParallaxCorrection(vec3 envMapLocalPos, vec3 localReflectionVector, vec3 envMapBoxMin, vec3 envMapBoxMax)
 {
@@ -190,6 +183,26 @@ vec3 GetCorrectedSampleCoords(vec3 R, mat4x3 envMapWorldToLocal, vec3 envMapLoca
         : localReflectionVector;
 }
 
+void AddEnvMapSample(inout vec3 envMap, inout vec4 normalizationSH, EnvMapData envData, vec3 envMapLocalPos, vec3 R, float lod, float weight)
+{
+    if (g_nEnvMapDebugColors != 0u)
+    {
+        envMap += envData.Color * weight;
+        return;
+    }
+
+    vec3 coords = GetCorrectedSampleCoords(R, mat4x3(envData.WorldToLocal), envMapLocalPos, envData.ProjectionType == 1u, envData.BoxMins, envData.BoxMaxs);
+    vec4 envSample = textureLod(g_tEnvironmentMap, vec4(coords, envData.ArrayIndex), lod);
+
+    #if (S_LIGHTMAP_VERSION_MINOR == 0)
+        envMap += (g_vEnvMapSizeConstants.z != 0.0 ? DecodeBakedLightRGBM(envSample) : envSample.rgb) * weight;
+    #else
+        envMap += envSample.rgb * weight;
+    #endif
+
+    normalizationSH += envData.NormalizationSH * weight;
+}
+
 vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAmount)
 {
     #if (defined(ANISO_ROUGHNESS) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !anisoCubemapWarpOptional))
@@ -219,32 +232,13 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
 
     float lod = GetEnvMapLOD(sqrt(perceptualRoughness), R);
 
+    // A scene without environment maps
+    if (g_vEnvMapSizeConstants.y == 0.0)
+    {
+        return vec3(0.3);
+    }
+
     vec3 envMap = vec3(0.0);
-
-    #if (S_SCENE_CUBEMAP_TYPE == 0)
-        envMap = vec3(0.3, 0.3, 0.3);
-    #elif (S_SCENE_CUBEMAP_TYPE == 1)
-        EnvMapData envData = envMaps[GetObjectLightingData().VisibleLPV >> 16u];
-        bool isBoxProjection = envData.ProjectionType == 1u;
-        vec3 envMapBoxMin = envData.BoxMins;
-        vec3 envMapBoxMax = envData.BoxMaxs;
-        mat4x3 envMapWorldToLocal = mat4x3(envData.WorldToLocal);
-        vec3 envMapLocalPos = envMapWorldToLocal * vec4(vFragPosition, 1.0);
-
-        vec3 coords = GetCorrectedSampleCoords(R, envMapWorldToLocal, envMapLocalPos, isBoxProjection, envMapBoxMin, envMapBoxMax);
-        #if (S_LIGHTMAP_VERSION_MINOR == 0)
-            envMap = DecodeBakedLightRGBM(textureLod(g_tEnvironmentMap, coords, lod));
-        #else
-            envMap = textureLod(g_tEnvironmentMap, coords, lod).rgb;
-        #endif
-        g_vEnvMapNormalizationSH = envData.NormalizationSH;
-
-        if (g_nEnvMapDebugColors != 0u)
-        {
-            envMap = envData.Color;
-            g_vEnvMapNormalizationSH = vec4(0.0);
-        }
-    #elif (S_SCENE_CUBEMAP_TYPE == 2)
 
     float flTotalWeight = 0.01;
     bool bContinueLoop = true;
@@ -287,8 +281,7 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
 
             float weight = 1.0f;
 
-            const bool bUseCubemapBlending = S_LIGHTMAP_VERSION_MINOR >= 2;
-            if (bUseCubemapBlending && isBoxProjection)
+            if (S_LIGHTMAP_VERSION_MINOR >= 2 && isBoxProjection)
             {
                 vec3 envInvEdgeWidth = envData.InvEdgeWidth.xyz;
                 vec3 envmapClampedFadeMax = saturate((envMapBoxMax - envMapLocalPos) * envInvEdgeWidth);
@@ -305,19 +298,7 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
             }
 
             flTotalWeight += weight;
-
-            vec3 coords = GetCorrectedSampleCoords(R, envMapWorldToLocal, envMapLocalPos, isBoxProjection, envMapBoxMin, envMapBoxMax);
-
-            if (g_nEnvMapDebugColors != 0u)
-            {
-                // A solid colour per env map, left unnormalized so it reads as that colour
-                envMap += envData.Color * weight;
-            }
-            else
-            {
-                envMap += textureLod(g_tEnvironmentMap, vec4(coords, envData.ArrayIndex), lod).rgb * weight;
-                normalizationSH += envData.NormalizationSH * weight;
-            }
+            AddEnvMapSample(envMap, normalizationSH, envData, envMapLocalPos, R, lod, weight);
 
             if (flTotalWeight > 0.99)
             {
@@ -326,9 +307,21 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
         }
     }
 
-    g_vEnvMapNormalizationSH = normalizationSH / max(flTotalWeight, 1e-4);
+    // Before lightmap version 2, what no box covers takes the environment map picked for the object, even
+    // outside of its box
+    float remainingWeight = 1.0 - flTotalWeight;
 
-    #endif // S_SCENE_CUBEMAP_TYPE == 2
+    if (S_LIGHTMAP_VERSION_MINOR < 2 && remainingWeight > 0.0)
+    {
+        EnvMapData envData = envMaps[GetObjectLightingData().VisibleLPV >> 16u];
+        vec3 envMapLocalPos = mat4x3(envData.WorldToLocal) * vec4(vFragPosition, 1.0);
+
+        g_nEnvMapsIterated++;
+        flTotalWeight += remainingWeight;
+        AddEnvMapSample(envMap, normalizationSH, envData, envMapLocalPos, R, lod, remainingWeight);
+    }
+
+    g_vEnvMapNormalizationSH = normalizationSH / max(flTotalWeight, 1e-4);
 
     return envMap;
 }

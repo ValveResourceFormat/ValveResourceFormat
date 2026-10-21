@@ -857,9 +857,6 @@ namespace ValveResourceFormat.Renderer.Decals
         {
             var arguments = new Dictionary<string, byte>(scene.RenderAttributes);
 
-            // Decals have no env map binding of their own, and only the probe atlas is bound scene wide
-            arguments.Remove("S_SCENE_CUBEMAP_TYPE");
-
             if (scene.LightingInfo.HasValidLightProbes)
             {
                 arguments["D_BAKED_LIGHTING_FROM_PROBE"] = 1;

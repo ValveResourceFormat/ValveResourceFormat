@@ -9,19 +9,6 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer.World
 {
-    /// <summary>
-    /// Storage format for environment map cubemap textures.
-    /// </summary>
-    public enum CubemapType : byte
-    {
-        /// <summary>No environment cubemap data.</summary>
-        None,
-        /// <summary>Each probe has its own individual cubemap texture.</summary>
-        IndividualCubemaps,
-        /// <summary>All probe cubemaps are packed into a single texture array.</summary>
-        CubemapArray,
-    }
-
     /// <summary>Which light face a binned barn light slot holds, so a cull bit read back later traces to
     /// the light it was about. Rebuilt every frame, so it only holds against the frame that produced it.</summary>
     /// <param name="Light">Light owning the slot.</param>
@@ -62,13 +49,6 @@ namespace ValveResourceFormat.Renderer.World
         /// <remarks>A scene without baked lighting answers white, as the particle shaders light it; one with baked lighting answers a flat grey.</remarks>
         public Vector3 SampleAmbientLight(Vector3 position)
             => HasValidLightProbes || HasValidLightmaps ? new Vector3(0.3f) : Vector3.One;
-
-        /// <summary>Gets or sets the storage format used for environment map cubemaps in this scene.</summary>
-        public CubemapType CubemapType
-        {
-            get => (CubemapType)scene.RenderAttributes.GetValueOrDefault("S_SCENE_CUBEMAP_TYPE");
-            set => scene.RenderAttributes["S_SCENE_CUBEMAP_TYPE"] = (byte)value;
-        }
 
         /// <summary>
         /// Creates baked lighting combo args for an object, based on object and scene lighting state.
@@ -160,6 +140,10 @@ namespace ValveResourceFormat.Renderer.World
                 GL.BindTextureUnit((int)lightmapSlot, texture.Handle);
             }
 
+            // Shaders always declare the array, and sample nothing from it in a scene without environment maps
+            var envMapArray = EnvMapArray ?? scene.RendererContext.MaterialLoader.GetDefaultCubeArray();
+            GL.BindTextureUnit((int)ReservedTextureSlots.EnvironmentMap, envMapArray.Handle);
+
             if (ProbeAtlas != null)
             {
                 // A texture no volume has is still sampled, and reads as no direct light and no shadow
@@ -215,6 +199,62 @@ namespace ValveResourceFormat.Renderer.World
             ProbeAtlas = LightProbeAtlas.Pack(LightProbes, rendererContext.MaterialLoader, rendererContext.Logger);
         }
 
+        /// <summary>Gets the cubemap array the environment maps sample, once <see cref="BuildEnvMapArray"/> has run.</summary>
+        public RenderTexture? EnvMapArray { get; private set; }
+
+        private RenderTexture? packedEnvMapArray;
+
+        /// <summary>
+        /// Sets up the cubemap array the environment maps sample: the one the map baked, or else one packed from the
+        /// cubemaps baked as separate textures. Environment maps not in it are removed.
+        /// </summary>
+        internal void BuildEnvMapArray()
+        {
+            if (EnvMapArray != null || EnvMaps.Count == 0)
+            {
+                return;
+            }
+
+            // Shaders read one array, so separate cubemaps are not packed with a baked one
+            var array = EnvMaps.Find(static envMap => envMap.EnvMapTexture.Target == TextureTarget.TextureCubeMapArray)?.EnvMapTexture;
+
+            if (array == null)
+            {
+                var rendererContext = scene.RendererContext;
+                array = packedEnvMapArray = EnvironmentMapArray.Pack(EnvMaps, rendererContext.MaterialLoader, rendererContext.Logger);
+            }
+
+            if (array == null)
+            {
+                EnvMaps.Clear();
+                EnvMapHandshakes.Clear();
+                return;
+            }
+
+            if (EnvMaps.RemoveAll(envMap => envMap.EnvMapTexture != array) is > 0 and var removed)
+            {
+                scene.RendererContext.Logger.LogWarning("{Count} environment maps are not in the cubemap array and are left out", removed);
+
+                foreach (var (handshake, envMap) in EnvMapHandshakes.ToList())
+                {
+                    if (envMap.EnvMapTexture != array)
+                    {
+                        EnvMapHandshakes.Remove(handshake);
+                    }
+                }
+            }
+
+            EnvMapArray = array;
+        }
+
+        /// <summary>Deletes the cubemap array, when it was packed for the scene.</summary>
+        internal void DeleteEnvMapArray()
+        {
+            packedEnvMapArray?.Delete();
+            packedEnvMapArray = null;
+            EnvMapArray = null;
+        }
+
         // A volume placed in an atlas the map baked, rather than with textures of its own
         private static bool IsInBakedAtlas(SceneLightProbe volume) => volume.AtlasSize != Vector3.Zero;
 
@@ -243,34 +283,12 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>
-        /// Registers an environment map with the scene, setting the cubemap type on the first entry.
+        /// Registers an environment map with the scene. Separate cubemaps are packed into an array before they are
+        /// sampled, see <see cref="BuildEnvMapArray"/>.
         /// </summary>
         /// <param name="envmap">The environment map to add.</param>
         public void AddEnvironmentMap(SceneEnvMap envmap)
         {
-            if (EnvMaps.Count == 0)
-            {
-                CubemapType = envmap.EnvMapTexture.Target switch
-                {
-                    TextureTarget.TextureCubeMapArray => CubemapType.CubemapArray,
-                    TextureTarget.TextureCubeMap => CubemapType.IndividualCubemaps,
-                    _ => CubemapType.None,
-                };
-
-                if (CubemapType == CubemapType.CubemapArray)
-                {
-                    Lightmaps.TryAdd("g_tEnvironmentMap", envmap.EnvMapTexture);
-                }
-            }
-            else
-            {
-                var first = EnvMaps[0];
-                if (envmap.EnvMapTexture.Target != first.EnvMapTexture.Target)
-                {
-                    scene.RendererContext.Logger.LogError("Envmap texture type mismatch {EnvMapType} != {FirstType}", envmap.EnvMapTexture.Target, first.EnvMapTexture.Target);
-                }
-            }
-
             EnvMaps.Add(envmap);
 
             if (envmap.HandShake > 0)
@@ -287,6 +305,7 @@ namespace ValveResourceFormat.Renderer.World
             LightProbes.Clear();
             ProbeHandshakes.Clear();
             DeleteProbeAtlas();
+            DeleteEnvMapArray();
         }
 
         /// <summary>

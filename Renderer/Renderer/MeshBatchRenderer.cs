@@ -136,7 +136,6 @@ namespace ValveResourceFormat.Renderer
 
         private ref struct Uniforms
         {
-            public int EnvmapTexture = -1;
             public int MeshId = -1;
             public int ShaderId = -1;
             public int ShaderProgramId = -1;
@@ -146,15 +145,7 @@ namespace ValveResourceFormat.Renderer
 
         private ref struct Config
         {
-            public bool NeedsCubemapBinding;
-            public int LightmapGameVersionNumber;
             public bool IndirectDraw;
-        }
-
-        /// <summary>Binds a per-draw texture over its reserved unit.</summary>
-        private static void BindInstanceTexture(ReservedTextureSlots slot, RenderTexture texture)
-        {
-            GL.BindTextureUnit((int)slot, texture.Handle);
         }
 
         /// <summary>Picks the program a draw runs with: the pass's replacement shader, the material's mode for this pass, or the material's own.</summary>
@@ -188,8 +179,6 @@ namespace ValveResourceFormat.Renderer
             Uniforms uniforms = new();
             Config config = new()
             {
-                NeedsCubemapBinding = context.Scene.LightingInfo.CubemapType == CubemapType.IndividualCubemaps,
-                LightmapGameVersionNumber = context.Scene.LightingInfo.LightmapGameVersionNumber,
                 IndirectDraw = context.Scene.DrawMeshletsIndirect
                     && context.RenderPass is RenderPass.DepthOnly or RenderPass.OpaqueAggregate or RenderPass.StaticOverlay,
             };
@@ -243,11 +232,6 @@ namespace ValveResourceFormat.Renderer
                     {
                         shader = requestShader;
                         uniforms = new Uniforms();
-
-                        if (shader.Parameters.ContainsKey("S_SCENE_CUBEMAP_TYPE"))
-                        {
-                            uniforms.EnvmapTexture = shader.GetUniformLocation("g_tEnvironmentMap");
-                        }
 
                         if (shader.Name == "picking")
                         {
@@ -320,12 +304,6 @@ namespace ValveResourceFormat.Renderer
                     GL.MultiDrawElementsIndirect(request.Call.PrimitiveType, request.Call.IndexType, agg.IndirectDrawByteOffset, agg.IndirectDrawCount, 0);
                     return;
                 }
-            }
-
-            if (config.NeedsCubemapBinding && uniforms.EnvmapTexture != -1 && request.Node.EnvMaps.Count > 0)
-            {
-                var envmap = request.Node.EnvMaps[0];
-                BindInstanceTexture(ReservedTextureSlots.EnvironmentMap, envmap.EnvMapTexture);
             }
 
             if (request.Node is SceneClutter clutter)

@@ -142,7 +142,7 @@ uniform uint g_nLightProbeIndex;
 
 ObjectDataStandard GetObjectLightingData()
 {
-    return ObjectDataStandard(g_nLightProbeIndex, 0u, 0u, 0u, uvec4(0u));
+    return ObjectDataStandard(g_nLightProbeIndex, 0u, 0u, 0u, uvec4(0xFFFFFFFFu));
 }
 
 // Must be last

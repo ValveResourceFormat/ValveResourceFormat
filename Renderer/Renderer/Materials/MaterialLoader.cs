@@ -30,6 +30,7 @@ namespace ValveResourceFormat.Renderer.Materials
         private RenderTexture? DefaultColor;
         private RenderTexture? DefaultVolume;
         private RenderTexture? DefaultBlackVolume;
+        private RenderTexture? DefaultCubeArray;
         private RenderTexture? DefaultTextureArray;
         /// <summary>Gets or sets the maximum anisotropy level applied to newly loaded textures when anisotropic filtering is enabled.</summary>
         public static float MaxTextureMaxAnisotropy { get; set; }
@@ -721,6 +722,21 @@ namespace ValveResourceFormat.Renderer.Materials
         /// Returns a lazily created 1x1x1 black volume texture.
         /// </summary>
         public RenderTexture GetDefaultBlackVolume() => DefaultBlackVolume ??= CreateSolidVolume("DefaultBlackVolume", BlackTexel);
+
+        /// <summary>
+        /// Returns a lazily created 1x1 black cube map array with a single cube.
+        /// </summary>
+        public RenderTexture GetDefaultCubeArray()
+        {
+            if (DefaultCubeArray == null)
+            {
+                DefaultCubeArray = RenderTexture.Create3D(TextureTarget.TextureCubeMapArray, 1, 1, 6, ImageFormat.RGBA8888, 1, "DefaultCubeArray");
+                DefaultCubeArray.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
+                GL.ClearTexImage(DefaultCubeArray.Handle, 0, PixelFormat.Rgba, PixelType.UnsignedByte, IntPtr.Zero);
+            }
+
+            return DefaultCubeArray;
+        }
 
         private static RenderTexture CreateSolidVolume(string label, byte[] texel)
         {

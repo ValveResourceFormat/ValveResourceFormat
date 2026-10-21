@@ -224,7 +224,13 @@ namespace GUI.Types.GLViewers
             {
                 base.LoadDefaultLighting();
 
-                Scene.LightingInfo.CubemapType = CubemapType.None; // default envmap actually looks bad
+                // The default cubemap looks wrong on maps, so they keep the flat reflection
+                foreach (var envMap in Scene.LightingInfo.EnvMaps)
+                {
+                    envMap.EnvMapTexture.Delete();
+                }
+
+                Scene.LightingInfo.EnvMaps.Clear();
                 Scene.LightingInfo.UseSceneBoundsForSunLightFrustum = false;
                 Scene.LightingInfo.SunLightShadowCoverageScale = 2f;
 

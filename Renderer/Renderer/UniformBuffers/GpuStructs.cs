@@ -103,8 +103,7 @@ public struct ObjectDataStandard
 {
     /// <summary>
     /// Light probe volume index in the low 16 bits, env map index in the high 16. Both arrays cap far
-    /// below 65535, so they share a word. Only the legacy per batch cube map path reads the env map half;
-    /// the array path culls probes per screen tile instead.
+    /// below 65535, so they share a word.
     /// </summary>
     public uint VisibleLPV;
     private readonly uint padding0;

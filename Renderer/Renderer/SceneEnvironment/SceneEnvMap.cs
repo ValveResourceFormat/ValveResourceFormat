@@ -17,13 +17,14 @@ public class SceneEnvMap : SceneNode
     /// <summary>Gets the handshake value used to match this env map to scene nodes during precomputation.</summary>
     public int HandShake { get; init; }
 
-    /// <summary>Gets the cubemap or cubemap-array texture for this environment map.</summary>
-    public required RenderTexture EnvMapTexture { get; init; }
-
     /// <summary>
-    /// If <see cref="EnvMapTexture"/> is an array, this is the depth index.
+    /// Gets or sets the cubemap or cubemap array texture for this environment map. A cubemap of its own is replaced by
+    /// the array it is packed into.
     /// </summary>
-    public int ArrayIndex { get; init; }
+    public required RenderTexture EnvMapTexture { get; set; }
+
+    /// <summary>Gets or sets the index of the cube in <see cref="EnvMapTexture"/> when it is an array.</summary>
+    public int ArrayIndex { get; set; }
 
     /// <summary>
     /// If multiple volumes contain an object, the highest priority volume takes precedence.
@@ -54,6 +55,8 @@ public class SceneEnvMap : SceneNode
 
     /// <summary>Gets or sets the shader-side index assigned to this env map for UBO packing.</summary>
     public int ShaderIndex { get; set; }
+
+    internal Matrix4x4 WorldToLocal = Matrix4x4.Identity;
 
     /// <summary>
     /// Reduces one probe's baked radiance to the harmonic <see cref="NormalizationSH"/> holds.
@@ -159,8 +162,7 @@ public class SceneEnvMap : SceneNode
         /// <summary>
         /// Returns the array index of the lowest env map set here, or zero when empty. Since
         /// <see cref="SceneEnvMap.ShaderIndex"/> is assigned in indoor priority order, that is the highest
-        /// priority probe the node sees, which is what the legacy per batch cube map path binds. Ties
-        /// resolve arbitrarily.
+        /// priority probe the node sees. Ties resolve arbitrarily.
         /// </summary>
         public readonly uint GetFirstShaderIndex()
         {
