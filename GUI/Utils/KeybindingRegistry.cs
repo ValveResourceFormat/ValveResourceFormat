@@ -3,6 +3,7 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Types.Exporter;
 using GUI.Types.GLViewers;
+using GUI.Types.PackageViewer;
 
 namespace GUI.Utils
 {
@@ -25,6 +26,7 @@ namespace GUI.Utils
         GraphViewer,
         AudioPlayer,
         //PackageViewer,
+        PackageEditor,
     }
 
     /// <summary>
@@ -32,6 +34,17 @@ namespace GUI.Utils
     /// </summary>
     public static class KeybindingRegistry
     {
+        private static readonly List<KeybindingInfo> AppKeybindings =
+        [
+            new("Ctrl+F", "Find"),
+            new("Ctrl+O", "Open"),
+            new("Ctrl+W", "Close tab"),
+            new("Ctrl+Q", "Close all tabs"),
+            new("Ctrl+E", "Close tabs right"),
+            //new("Ctrl+R", "Reload"),
+            //new("F5", "Reload"),
+        ];
+
         private static readonly Dictionary<ViewerType, List<KeybindingInfo>> Registry = new()
         {
             [ViewerType.TextureViewer] =
@@ -121,16 +134,13 @@ namespace GUI.Utils
                 new("L", "Loop"),
             ],
 
-            [ViewerType.Default] =
+            [ViewerType.PackageEditor] =
             [
-                new("Ctrl+F", "Find"),
-                new("Ctrl+O", "Open"),
-                new("Ctrl+W", "Close tab"),
-                new("Ctrl+Q", "Close all tabs"),
-                new("Ctrl+E", "Close tabs right"),
-                //new("Ctrl+R", "Reload"),
-                //new("F5", "Reload"),
+                new("Ctrl+S", "Save"),
+                .. AppKeybindings,
             ],
+
+            [ViewerType.Default] = AppKeybindings,
         };
 
         /// <summary>
@@ -142,7 +152,7 @@ namespace GUI.Utils
         {
             if (tab?.Tag is not ExportData exportData)
             {
-                return ViewerType.Default;
+                return tab != null && PackageViewer.FromTab(tab) is { IsEditingPackage: true } ? ViewerType.PackageEditor : ViewerType.Default;
             }
 
             var contents = exportData.DisposableContents;

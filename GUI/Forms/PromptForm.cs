@@ -4,17 +4,19 @@ namespace GUI.Forms
     {
         public string ResultText => inputTextBox.Text;
 
-        public PromptForm(string title)
+        public PromptForm(string title, string initialText = "")
         {
             InitializeComponent();
 
             Text = title;
             textLabel.Text = string.Concat(title, ":");
+            inputTextBox.Text = initialText;
         }
 
         private void PromptForm_Load(object sender, EventArgs e)
         {
             ActiveControl = inputTextBox;
+            inputTextBox.SelectAll();
         }
     }
 }

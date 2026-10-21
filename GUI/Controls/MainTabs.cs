@@ -145,16 +145,35 @@ internal class MainTabs : ThemedTabControl
         return -1;
     }
 
-    public void CloseTab(TabPage tab)
+    /// <summary>
+    /// Asked before a tab is closed, returns whether to close it.
+    /// </summary>
+    public Func<TabPage, bool>? ConfirmClose { get; set; }
+
+    /// <returns><see langword="false"/> when closing the tab was cancelled.</returns>
+    public bool CloseTab(TabPage tab, bool skipConfirmation = false)
     {
         var tabIndex = GetTabIndex(tab);
-        var isClosingCurrentTab = tabIndex == SelectedIndex;
 
         //The console cannot be closed!
-        if (tabIndex == 0)
+        if (tabIndex < 1)
         {
-            return;
+            return true;
         }
+
+        if (!skipConfirmation && ConfirmClose?.Invoke(tab) == false)
+        {
+            return false;
+        }
+
+        tabIndex = GetTabIndex(tab);
+
+        if (tabIndex < 1)
+        {
+            return true;
+        }
+
+        var isClosingCurrentTab = tabIndex == SelectedIndex;
 
         Log.Info(nameof(MainForm), $"Closing {tab.Text}");
 
@@ -172,6 +191,8 @@ internal class MainTabs : ThemedTabControl
 
         TabPages.Remove(tab);
         tab.Dispose();
+
+        return true;
     }
 
     protected override void OnMouseClick(MouseEventArgs e)

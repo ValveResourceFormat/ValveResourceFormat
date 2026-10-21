@@ -19,6 +19,7 @@ namespace GUI.Forms
         private long startTimestamp;
         private string? baseTitle;
         private bool completed;
+        private bool workFinished;
         private Task? workCompletion;
 
         public Func<CancellationToken, Task>? OnProcess { get; set; }
@@ -27,6 +28,25 @@ namespace GUI.Forms
         /// When set, the dialog stays open after the work completes and shows a completed state instead of closing itself.
         /// </summary>
         public bool StayOpenOnCompletion { get; set; }
+
+        /// <summary>
+        /// When set, cancelling asks the work to stop and keeps the dialog open until it has, instead of closing right away.
+        /// </summary>
+        public bool WaitForWorkToStop { get; set; }
+
+        /// <summary>
+        /// When cleared, the dialog can not be cancelled and closes once the work completes.
+        /// </summary>
+        public bool CanCancel
+        {
+            get;
+            set
+            {
+                field = value;
+                ControlBox = value;
+                cancelButton.Visible = value;
+            }
+        } = true;
 
         /// <summary>
         /// Time elapsed since the dialog was shown.
@@ -200,6 +220,8 @@ namespace GUI.Forms
 
         private void OnWorkFinished()
         {
+            workFinished = true;
+
             // Cancelling already closed the dialog, there is no completed state to show for work that did not finish
             if (cancellationTokenSource.IsCancellationRequested || !StayOpenOnCompletion)
             {
@@ -228,6 +250,20 @@ namespace GUI.Forms
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
+            if (!workFinished && workCompletion != null && (!CanCancel || WaitForWorkToStop))
+            {
+                e.Cancel = true;
+
+                if (CanCancel)
+                {
+                    cancellationTokenSource.Cancel();
+                    cancelButton.Enabled = false;
+                    SetProgress("Cancelling…");
+                }
+
+                return;
+            }
+
             updateTimer.Stop();
             cancellationTokenSource.Cancel();
             base.OnFormClosing(e);
