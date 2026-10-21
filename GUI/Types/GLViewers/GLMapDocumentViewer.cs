@@ -76,9 +76,6 @@ namespace GUI.Types.GLViewers
 
             gizmoTool = new GizmoTool(Selection, loadedMapDocument.FindTransformable);
 
-            // Hammer shows tools materials until they are hidden
-            Tools.ShowToolMaterials = true;
-
             // No exposure is added on top of what the tonemapping scale gives
             Renderer.Postprocess.ExposureCompensation = 0f;
             ApplyTonemapMode();

@@ -46,8 +46,7 @@ namespace GUI.Types.GLViewers
         private System.Drawing.Image? playImage;
         private System.Drawing.Image? pauseImage;
         private System.Drawing.Image? stopImage;
-        private ThemedToggleButton? toolEntitiesButton;
-        private ThemedToggleButton? toolMaterialsButton;
+        private ThemedToggleButton? toolsButton;
         private SimulationState simulationState;
         private int simulationRequest;
         private bool ignoreLayersChangeEvents = true;
@@ -119,8 +118,7 @@ namespace GUI.Types.GLViewers
             playImage?.Dispose();
             pauseImage?.Dispose();
             stopImage?.Dispose();
-            toolEntitiesButton?.Dispose();
-            toolMaterialsButton?.Dispose();
+            toolsButton?.Dispose();
         }
 
         private void AddSceneExposureSlider()
@@ -685,10 +683,10 @@ namespace GUI.Types.GLViewers
 
         private void EnsureNodeVisible(SceneNode node)
         {
-            if (node.LayerName != null && ToolsVisibility.IsToolEntityLayer(node.LayerName) && !Tools.ShowToolEntities)
+            if (node.LayerName != null && ToolsVisibility.IsToolEntityLayer(node.LayerName) && !Tools.ShowTools)
             {
-                Tools.ShowToolEntities = true;
-                toolEntitiesButton?.Checked = true;
+                Tools.ShowTools = true;
+                toolsButton?.Checked = true;
                 RequestVisibilityUpdate();
             }
 
@@ -1260,12 +1258,11 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(UiControl != null);
 
-            toolEntitiesButton = UiControl.AddToolbarToggle("Tool Entities", Tools.ShowToolEntities, v =>
+            toolsButton = UiControl.AddToolbarToggle("Show Tools", Tools.ShowTools, v =>
             {
-                Tools.ShowToolEntities = v;
+                Tools.ShowTools = v;
                 RequestVisibilityUpdate();
             });
-            toolMaterialsButton = UiControl.AddToolbarToggle("Tool Materials", Tools.ShowToolMaterials, v => Tools.ShowToolMaterials = v);
 
             RequestVisibilityUpdate();
         }
@@ -1297,6 +1294,8 @@ namespace GUI.Types.GLViewers
         private void UpdateSimulationButtons(SimulationState state)
         {
             var playing = state == SimulationState.Playing;
+
+            toolsButton?.Checked = Tools.ShowTools;
 
             playPauseButton?.Image = playing ? pauseImage : playImage;
             playPauseButton?.AccessibleName = playing ? "Pause" : "Play";
@@ -1354,6 +1353,10 @@ namespace GUI.Types.GLViewers
                     ResetScene();
                     entitySystem.StartRound();
                     Input.SetWalkMode(true);
+
+                    // Plays as the game looks
+                    Tools.ShowTools = false;
+                    RequestVisibilityUpdate();
                     break;
 
                 case (SimulationRequest.Play, SimulationState.Paused):

@@ -201,7 +201,7 @@ namespace GUI.Types.GLViewers
                 UiControl.AddCheckBox("Show Dynamic Octree", showDynamicOctree, (v) => showDynamicOctree = v);
                 if (!HasToolsVisibilityControls)
                 {
-                    UiControl.AddCheckBox("Show Tool Materials", Tools.ShowToolMaterials, (v) => Tools.ShowToolMaterials = v);
+                    UiControl.AddCheckBox("Show Tools", Tools.ShowTools, (v) => Tools.ShowTools = v);
                 }
 
                 if (Renderer.Scenes.Any(static scene => scene.LightingInfo.LightProbes.Count > 0))

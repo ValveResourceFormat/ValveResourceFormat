@@ -23,13 +23,10 @@ public sealed class ToolsVisibility : IDrawFilter
     private readonly HashSet<SceneNode> selectedNodes = [];
 
     /// <summary>
-    /// Gets or sets whether entities that only exist in the editor are drawn. Off, only what the game shows is
-    /// drawn, which hides tools materials too.
+    /// Gets or sets whether what only the tools draw is drawn: entities that only exist in the editor and tools
+    /// materials. Off, only what the game shows is drawn.
     /// </summary>
-    public bool ShowToolEntities { get; set; } = true;
-
-    /// <summary>Gets or sets whether tools materials are drawn.</summary>
-    public bool ShowToolMaterials { get; set; }
+    public bool ShowTools { get; set; } = true;
 
     /// <summary>
     /// Gets or sets the groups of tools materials hidden, see <see cref="ToolBrushGroups"/>, which hide whatever else
@@ -95,7 +92,7 @@ public sealed class ToolsVisibility : IDrawFilter
     /// <param name="chosenLayers">The layers chosen to be shown.</param>
     public HashSet<string> FilterLayers(IEnumerable<string> chosenLayers)
     {
-        return ShowToolEntities
+        return ShowTools
             ? [.. chosenLayers]
             : [.. chosenLayers.Where(static layer => !IsToolEntityLayer(layer))];
     }
@@ -124,7 +121,7 @@ public sealed class ToolsVisibility : IDrawFilter
             return hiddenByGroup ? DrawVisibility.Hidden : DrawVisibility.ShadowOnly;
         }
 
-        if ((!hiddenByGroup && (!material.IsToolsMaterial || (ShowToolMaterials && ShowToolEntities))) || selectedNodes.Contains(node))
+        if ((!hiddenByGroup && (!material.IsToolsMaterial || ShowTools)) || selectedNodes.Contains(node))
         {
             return DrawVisibility.Drawn;
         }
