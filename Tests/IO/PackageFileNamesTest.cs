@@ -10,30 +10,65 @@ namespace Tests.IO
         [Test]
         public async Task ArchiveChunks()
         {
-            using (Assert.Multiple())
-            {
-                await Assert.That(PackageFileNames.IsArchiveChunk("C:/game/pak01_003.vpk")).IsTrue();
-                await Assert.That(PackageFileNames.IsArchiveChunk("dota_683.VPK")).IsTrue();
-                await Assert.That(PackageFileNames.IsArchiveChunk("pak01_dir.vpk")).IsFalse();
-                await Assert.That(PackageFileNames.IsArchiveChunk("de_dust2.vpk")).IsFalse();
-                await Assert.That(PackageFileNames.IsArchiveChunk("_003.vpk")).IsFalse();
+            var folder = Directory.CreateTempSubdirectory().FullName;
 
-                await Assert.That(PackageFileNames.GetDirectoryFile("C:/game/pak01_003.vpk")).IsEqualTo("C:/game/pak01_dir.vpk");
-                await Assert.That(PackageFileNames.GetDirectoryFile("C:/game/pak01_dir.vpk")).IsEqualTo("C:/game/pak01_dir.vpk");
-                await Assert.That(PackageFileNames.GetDirectoryFile("addon.vpk")).IsEqualTo("addon_dir.vpk");
-                await Assert.That(PackageFileNames.GetArchiveChunkFile("C:/game/pak01", 7)).IsEqualTo("C:/game/pak01_007.vpk");
+            try
+            {
+                await File.WriteAllBytesAsync(Path.Join(folder, "pak01_dir.vpk"), []);
+                await File.WriteAllBytesAsync(Path.Join(folder, "dota_dir.vpk"), []);
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(PackageFileNames.IsArchiveChunk(Path.Join(folder, "pak01_003.vpk"))).IsTrue();
+                    await Assert.That(PackageFileNames.IsArchiveChunk(Path.Join(folder, "dota_683.VPK"))).IsTrue();
+                    await Assert.That(PackageFileNames.IsArchiveChunk(Path.Join(folder, "pak01_1000.vpk"))).IsTrue();
+                    await Assert.That(PackageFileNames.IsArchiveChunk(Path.Join(folder, "pak01_0001.vpk"))).IsFalse();
+                    await Assert.That(PackageFileNames.IsArchiveChunk(Path.Join(folder, "pak01_dir.vpk"))).IsFalse();
+                    await Assert.That(PackageFileNames.IsArchiveChunk(Path.Join(folder, "surf_2024.vpk"))).IsFalse();
+
+                    await Assert.That(PackageFileNames.GetDirectoryFile(Path.Join(folder, "pak01_003.vpk"))).IsEqualTo(Path.Join(folder, "pak01_dir.vpk"));
+                    await Assert.That(PackageFileNames.GetDirectoryFile("C:/game/pak01_dir.vpk")).IsEqualTo("C:/game/pak01_dir.vpk");
+                    await Assert.That(PackageFileNames.GetDirectoryFile("addon.vpk")).IsEqualTo("addon_dir.vpk");
+                    await Assert.That(PackageFileNames.GetArchiveChunkFile("C:/game/pak01", 7)).IsEqualTo("C:/game/pak01_007.vpk");
+
+                    await Assert.That(PackageFileNames.TryGetChunkDirectoryFileName("C:/game/pak01_003.vpk", out var directoryFile)).IsTrue();
+                    await Assert.That(directoryFile).IsEqualTo("C:/game/pak01_dir.vpk");
+                    await Assert.That(PackageFileNames.TryGetChunkDirectoryFileName("C:/game/pak01_dir.vpk", out _)).IsFalse();
+                    await Assert.That(PackageFileNames.TryGetChunkDirectoryFileName("_003.vpk", out _)).IsFalse();
+
+                    await Assert.That(PackageFileNames.TryGetArchiveChunkDirectoryFile(Path.Join(folder, "pak01_003.vpk"), out var archiveDirectoryFile)).IsTrue();
+                    await Assert.That(archiveDirectoryFile).IsEqualTo(Path.Join(folder, "pak01_dir.vpk"));
+                    await Assert.That(PackageFileNames.TryGetArchiveChunkDirectoryFile(Path.Join(folder, "surf_2024.vpk"), out _)).IsFalse();
+                }
+            }
+            finally
+            {
+                Directory.Delete(folder, recursive: true);
             }
         }
 
         [Test]
         public async Task PackageNames()
         {
-            using (Assert.Multiple())
+            var folder = Directory.CreateTempSubdirectory().FullName;
+
+            try
             {
-                await Assert.That(PackageFileNames.GetPackageName("C:/game/pak01_dir.vpk")).IsEqualTo("C:/game/pak01");
-                await Assert.That(PackageFileNames.GetPackageName("C:/game/pak01_dir")).IsEqualTo("C:/game/pak01");
-                await Assert.That(PackageFileNames.GetPackageName("C:/game/pak01_003.vpk")).IsEqualTo("C:/game/pak01");
-                await Assert.That(PackageFileNames.GetPackageName("maps/de_dust2.vpk")).IsEqualTo("maps/de_dust2");
+                await File.WriteAllBytesAsync(Path.Join(folder, "pak01_dir.vpk"), []);
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(PackageFileNames.GetPackageName("C:/game/pak01_dir.vpk")).IsEqualTo("C:/game/pak01");
+                    await Assert.That(PackageFileNames.GetPackageName("C:/game/pak01_dir")).IsEqualTo("C:/game/pak01");
+                    await Assert.That(PackageFileNames.GetPackageName(Path.Join(folder, "pak01_003.vpk"))).IsEqualTo(Path.Join(folder, "pak01"));
+                    await Assert.That(PackageFileNames.GetPackageName(Path.Join(folder, "pak01_12345.vpk"))).IsEqualTo(Path.Join(folder, "pak01"));
+                    await Assert.That(PackageFileNames.GetPackageName(Path.Join(folder, "surf_2024.vpk"))).IsEqualTo(Path.Join(folder, "surf_2024"));
+                    await Assert.That(PackageFileNames.GetPackageName("maps/de_dust2.vpk")).IsEqualTo("maps/de_dust2");
+                }
+            }
+            finally
+            {
+                Directory.Delete(folder, recursive: true);
             }
         }
 

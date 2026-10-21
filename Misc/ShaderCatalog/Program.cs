@@ -25,12 +25,10 @@ foreach (var game in games)
     foreach (var vpkPath in vpkFiles)
     {
         using var package = new Package();
-        package.SetFileName(vpkPath);
 
         try
         {
-            using var stream = File.OpenRead(vpkPath);
-            package.Read(stream);
+            package.Read(vpkPath);
         }
         catch (Exception e)
         {
@@ -78,11 +76,8 @@ foreach (var game in games)
 
             try
             {
-                package.ReadEntry(entry, out var bytes);
-
                 using var shader = new VfxProgramData();
-                using var memStream = new MemoryStream(bytes);
-                shader.Read(fullPath, memStream);
+                shader.Read(fullPath, package.GetMemoryMappedStreamIfPossible(entry));
 
                 foreach (var combo in shader.StaticComboArray)
                 {

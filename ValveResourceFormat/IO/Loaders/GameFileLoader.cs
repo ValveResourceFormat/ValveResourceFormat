@@ -281,12 +281,11 @@ namespace ValveResourceFormat.IO
             // Check additional packages
             foreach (var package in CurrentGamePackages)
             {
-                entry = package?.FindEntry(file);
+                entry = package.FindEntry(file);
 
                 if (entry != null)
                 {
 #if DEBUG_FILE_LOAD
-                    Debug.Assert(package != null);
                     Logger.LogDebug("Loaded \"{File}\" from preloaded vpk \"{Package}\"", file, package.FileName);
 #endif
 
@@ -351,7 +350,7 @@ namespace ValveResourceFormat.IO
                     }
                     else if (foundFile.PackageEntry != null)
                     {
-                        var stream = GetPackageEntryStream(foundFile.Package!, foundFile.PackageEntry);
+                        var stream = foundFile.Package!.GetMemoryMappedStreamIfPossible(foundFile.PackageEntry);
                         shaderFile.Read(fileName, stream);
                     }
 
@@ -428,7 +427,7 @@ namespace ValveResourceFormat.IO
             }
             else if (foundFile.PackageEntry != null)
             {
-                return GetPackageEntryStream(foundFile.Package!, foundFile.PackageEntry);
+                return foundFile.Package!.GetMemoryMappedStreamIfPossible(foundFile.PackageEntry);
             }
             else
             {
@@ -460,7 +459,7 @@ namespace ValveResourceFormat.IO
                 }
                 else if (foundFile.PackageEntry != null)
                 {
-                    var stream = GetPackageEntryStream(foundFile.Package!, foundFile.PackageEntry);
+                    var stream = foundFile.Package!.GetMemoryMappedStreamIfPossible(foundFile.PackageEntry);
                     resource.Read(stream);
                     resourceToReturn = resource;
                     resource = null;
@@ -830,7 +829,7 @@ namespace ValveResourceFormat.IO
             {
                 package.SetFileName(innerPath);
                 package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                package.Read(GetPackageEntryStream(outerPackage, entry));
+                package.Read(outerPackage.GetMemoryMappedStreamIfPossible(entry));
 
                 return package;
             }
@@ -853,11 +852,7 @@ namespace ValveResourceFormat.IO
         {
             Logger.LogInformation("Preloading vpk \"{SearchPath}\"", searchPath);
 
-            var package = new Package();
-            package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-            package.Read(searchPath);
-
-            return package;
+            return Package.Open(searchPath);
         }
 
         /// <summary>
@@ -1150,7 +1145,7 @@ namespace ValveResourceFormat.IO
             }
 
             // Check if vpk with same file name exists in addons folder
-            var fileName = Path.GetFileNameWithoutExtension(CurrentFileName);
+            var fileName = CurrentPackage?.FileName is { } packageName ? Path.GetFileName(packageName) : Path.GetFileNameWithoutExtension(CurrentFileName);
 
             foreach (var officialAddonPath in CurrentGameOfficialAddonsPaths)
             {
@@ -1438,13 +1433,5 @@ namespace ValveResourceFormat.IO
                 }
             }
         }
-
-        /// <summary>
-        /// Gets a stream for reading a package entry.
-        /// </summary>
-        /// <remarks>
-        /// Do not use this method, it will be removed in the future in favor of a method in the ValvePak library.
-        /// </remarks>
-        public static Stream GetPackageEntryStream(Package package, PackageEntry entry) => package.GetMemoryMappedStreamIfPossible(entry);
     }
 }

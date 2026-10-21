@@ -373,7 +373,7 @@ namespace GUI.Types.Exporter
                 {
                     EnsureDirectoryExists(outFilePath);
 
-                    using var stream = GameFileLoader.GetPackageEntryStream(currentPackage, packageFile);
+                    using var stream = currentPackage.GetMemoryMappedStreamIfPossible(packageFile);
 
                     if (!decompile || !packageFile.TypeName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
                     {

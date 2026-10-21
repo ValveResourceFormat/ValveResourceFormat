@@ -25,15 +25,20 @@ namespace GUI.Types.PackageViewer
     /// </summary>
     partial class TreeViewWithSearchResults : UserControl
     {
-        // Counts reports into the progress bar without the thread pool hop of Progress<T>
-        private sealed class CountingProgress(GenericProgressForm dialog) : IProgress<string>
+        /// <summary>
+        /// Shows the steps of <see cref="Package.Verify"/> in the dialog, without the thread pool hop of <see cref="Progress{T}"/>.
+        /// </summary>
+        private sealed class VerifyProgress(GenericProgressForm dialog) : IProgress<(int Step, int StepCount, string Message)>
         {
-            private int processed;
-
-            public void Report(string value)
+            public void Report((int Step, int StepCount, string Message) value)
             {
-                dialog.SetBarValue(++processed);
-                dialog.SetProgress(value);
+                if (value.Step == 1)
+                {
+                    dialog.SetBarMax(value.StepCount);
+                }
+
+                dialog.SetBarValue(value.Step);
+                dialog.SetProgress(value.Message);
             }
         }
 
@@ -1141,43 +1146,16 @@ namespace GUI.Types.PackageViewer
             {
                 try
                 {
-                    if (!package.IsSignatureValid())
-                    {
-                        throw new InvalidDataException("The signature in this package is not valid.");
-                    }
+                    progressDialog.SetProgress("Verifying package…");
 
-                    progressDialog.SetProgress("Verifying hashes…");
+                    package.Verify(new VerifyProgress(progressDialog), cancellationToken);
 
-                    package.VerifyHashes();
+                    var message = package.IsSigned ? "Successfully verified package contents." : "Successfully verified package contents. This package is not signed.";
 
-                    // This does not need to be perfect, ValvePak reports a string per file, and success strings.
-                    var maximum = package.AccessPackFileHashes.Count + 2;
-
-                    if (package.AccessPackFileHashes.Count == 0)
-                    {
-                        maximum += package.Entries.Sum(x => x.Value.Count);
-                    }
-
-                    progressDialog.SetBarMax(maximum);
-
-                    var progressReporter = new CountingProgress(progressDialog);
-
-                    if (!cancellationToken.IsCancellationRequested)
-                    {
-                        package.VerifyChunkHashes(progressReporter);
-                    }
-
-                    if (!cancellationToken.IsCancellationRequested && package.AccessPackFileHashes.Count == 0)
-                    {
-                        package.VerifyFileChecksums(progressReporter);
-                    }
-
-                    if (!cancellationToken.IsCancellationRequested)
-                    {
-                        progressDialog.SetBarValue(maximum);
-
-                        _ = AppMessageDialogs.ShowMessageAsync("Successfully verified package contents.", "Verified package contents");
-                    }
+                    _ = AppMessageDialogs.ShowMessageAsync(message, "Verified package contents");
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
                 }
                 catch (Exception e)
                 {

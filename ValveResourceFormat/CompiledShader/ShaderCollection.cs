@@ -68,13 +68,11 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
                 // vcsEntry.FileName is in the form bloom_dota_pcgl_30_ps (without vcs extension)
                 if (vcsEntry.FileName.AsSpan().StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
                 {
-                    vrfPackage.ReadEntry(vcsEntry, out var shaderData);
-
                     var relatedShaderFile = new VfxProgramData();
 
                     try
                     {
-                        relatedShaderFile.Read(vcsEntry.GetFileName(), new MemoryStream(shaderData));
+                        relatedShaderFile.Read(vcsEntry.GetFileName(), vrfPackage.GetMemoryMappedStreamIfPossible(vcsEntry));
                         shaderCollection.Add(relatedShaderFile);
                         relatedShaderFile = null;
                     }
