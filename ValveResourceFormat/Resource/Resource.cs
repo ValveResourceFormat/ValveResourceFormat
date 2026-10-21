@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Threading;
+using ValvePak;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.CompiledShader;
@@ -213,7 +214,7 @@ namespace ValveResourceFormat
 
             FileSize = Reader.ReadUInt32();
 
-            if (FileSize == ValvePak.Package.MAGIC)
+            if (FileSize == Package.MAGIC)
             {
                 throw new InvalidDataException("Use ValvePak library to parse VPK files.\nSee https://github.com/ValveResourceFormat/ValvePak");
             }

@@ -359,8 +359,7 @@ internal sealed partial class McpTools
         {
             return await Task.Run(() =>
             {
-                using var onDisk = new Package();
-                onDisk.Read(package);
+                using var onDisk = Package.Open(package);
                 return List(onDisk, VpkLink.Create([Path.GetFullPath(package)]));
             }, cancellationToken).ConfigureAwait(false);
         }

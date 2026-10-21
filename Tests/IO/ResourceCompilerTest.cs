@@ -128,8 +128,7 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
                 Skip.Test($"{pakPath} does not exist.");
             }
 
-            var package = new Package();
-            package.Read(pakPath);
+            var package = Package.Open(pakPath);
 
             var installation = new GameInstallation
             {

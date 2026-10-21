@@ -8,7 +8,6 @@ using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using ValvePak;
 using ValveResourceFormat;
-using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.SceneEnvironment;
@@ -139,7 +138,7 @@ internal abstract class ThumbnailRenderer : IDisposable
 
     public static Resource? LoadResourceFromPackageEntry(VrfGuiContext context, PackageEntry entry)
     {
-        var stream = GameFileLoader.GetPackageEntryStream(context.CurrentPackage!, entry);
+        var stream = context.CurrentPackage!.GetMemoryMappedStreamIfPossible(entry);
 
         if (stream == null)
         {

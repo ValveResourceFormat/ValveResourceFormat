@@ -27,7 +27,7 @@ namespace CLI
 
             try
             {
-                resource.Read(GameFileLoader.GetPackageEntryStream(package, entry));
+                resource.Read(package.GetMemoryMappedStreamIfPossible(entry));
                 return resource;
             }
             catch
@@ -45,7 +45,7 @@ namespace CLI
         {
             var entry = package.FindEntry(file);
 
-            return entry != null ? GameFileLoader.GetPackageEntryStream(package, entry) : fallback.GetFileStream(file);
+            return entry != null ? package.GetMemoryMappedStreamIfPossible(entry) : fallback.GetFileStream(file);
         }
     }
 }

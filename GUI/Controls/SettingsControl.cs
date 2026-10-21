@@ -105,9 +105,9 @@ namespace GUI.Controls
                 return;
             }
 
-            if (PackageFileNames.IsArchiveChunk(fileName))
+            if (PackageFileNames.TryGetArchiveChunkDirectoryFile(fileName, out var directoryFile))
             {
-                fileName = PackageFileNames.GetDirectoryFile(fileName);
+                fileName = directoryFile;
             }
 
             if (Settings.Config.GameSearchPaths.Contains(fileName))

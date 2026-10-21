@@ -235,11 +235,9 @@ namespace GUI
 
             try
             {
-                var package = new Package();
+                var package = Package.Open(file);
                 try
                 {
-                    package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                    package.Read(file);
                     packageContext = new VrfGuiContext(file, null)
                     {
                         CurrentPackage = package
@@ -262,7 +260,7 @@ namespace GUI
                     {
                         nestedPackage.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
                         nestedPackage.SetFileName(nestedPath);
-                        nestedPackage.Read(GameFileLoader.GetPackageEntryStream(packageContext.CurrentPackage!, nestedEntry));
+                        nestedPackage.Read(packageContext.CurrentPackage!.GetMemoryMappedStreamIfPossible(nestedEntry));
                         packageContext = new VrfGuiContext(nestedPath, packageContext)
                         {
                             CurrentPackage = nestedPackage
@@ -699,15 +697,10 @@ namespace GUI
 
         public TabPage OpenFile(string fileName)
         {
-            if (PackageFileNames.IsArchiveChunk(fileName))
+            if (PackageFileNames.TryGetArchiveChunkDirectoryFile(fileName, out var fixedPackage))
             {
-                var fixedPackage = PackageFileNames.GetDirectoryFile(fileName);
-
-                if (File.Exists(fixedPackage))
-                {
-                    Log.Warn(nameof(MainForm), $"You opened \"{Path.GetFileName(fileName)}\" but there is \"{Path.GetFileName(fixedPackage)}\"");
-                    fileName = fixedPackage;
-                }
+                Log.Warn(nameof(MainForm), $"You opened \"{Path.GetFileName(fileName)}\" but there is \"{Path.GetFileName(fixedPackage)}\"");
+                fileName = fixedPackage;
             }
 
             var vrfGuiContext = new VrfGuiContext(fileName, null, loadSearchPaths: false);

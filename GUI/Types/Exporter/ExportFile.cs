@@ -30,7 +30,7 @@ namespace GUI.Types.Exporter
 
             try
             {
-                stream = GameFileLoader.GetPackageEntryStream(currentPackage, file);
+                stream = currentPackage.GetMemoryMappedStreamIfPossible(file);
             }
             catch (Exception e)
             {

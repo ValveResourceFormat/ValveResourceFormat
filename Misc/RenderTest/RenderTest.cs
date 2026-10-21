@@ -80,8 +80,7 @@ internal class RenderTestWindow : GameWindow
         }
 
 #pragma warning disable CA2000 // Dispose objects before losing scope
-        var vpk = new Package();
-        vpk.Read(mapVpk);
+        var vpk = Package.Open(mapVpk);
         var fileLoader = new GameFileLoader(vpk, mapVpk);
 #pragma warning restore CA2000 // Dispose objects before losing scope
 
