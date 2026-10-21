@@ -84,15 +84,14 @@ namespace ValveResourceFormat.IO
 
         /// <inheritdoc/>
         /// <remarks>
-        /// Reads the blend state compiled into the shader, falling back to basic provider if available.
+        /// Returns the basic provider's guess if available. The blend state compiled into the shader is not used,
+        /// see <see cref="GetCompiledBlendState"/>.
         /// </remarks>
         public RsBlendStateDesc GetBlendState(Material material, IReadOnlyDictionary<string, long>? combos = null)
         {
             ArgumentNullException.ThrowIfNull(material);
 
-            return GetBlendState_Internal(material, combos ?? material.IntParams)
-                ?? basicProvider?.GetBlendState(material, combos)
-                ?? default;
+            return basicProvider?.GetBlendState(material, combos) ?? default;
         }
 
         /// <inheritdoc/>
@@ -533,10 +532,21 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Gets the blend state compiled into the pixel shader render state.
+        /// Gets the blend state compiled into the pixel shader render state for the default dynamic combo.
         /// </summary>
-        private RsBlendStateDesc? GetBlendState_Internal(Material material, IReadOnlyDictionary<string, long> combos)
+        /// <remarks>
+        /// This is the state of the pass the combo was compiled for, not how the material blends:
+        /// deferred shaders compile their GBuffer write state, translucent combos may leave blending off for the pass to set,
+        /// and alpha tested combos that discard do not enable alpha to coverage.
+        /// </remarks>
+        /// <param name="material">The material.</param>
+        /// <param name="combos">Integer parameters overriding those of the material, as F_ features or S_ and D_ combos.</param>
+        /// <returns>The compiled blend state, or null if the shader or its static combo is not available.</returns>
+        public RsBlendStateDesc? GetCompiledBlendState(Material material, IReadOnlyDictionary<string, long>? combos = null)
         {
+            ArgumentNullException.ThrowIfNull(material);
+
+            combos ??= material.IntParams;
             var shader = fileLoader.LoadShader(material.ShaderName);
             var program = shader?.PixelShaderRenderState ?? shader?.Pixel;
 
