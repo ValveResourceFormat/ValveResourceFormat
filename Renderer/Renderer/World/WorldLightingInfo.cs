@@ -112,7 +112,7 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>Gets a value indicating whether the lightmap contains baked shadow data.</summary>
-        public bool HasBakedShadowsFromLightmap => scene.RenderAttributes.GetValueOrDefault("S_LIGHTMAP_VERSION_MINOR") > 0;
+        public bool HasBakedShadowsFromLightmap => HasValidLightmaps && scene.RenderAttributes.GetValueOrDefault("S_LIGHTMAP_VERSION_MINOR") > 0;
         /// <summary>Gets or sets a value indicating whether dynamic shadow rendering is enabled.</summary>
         public bool EnableDynamicShadows { get; set; } = true;
 

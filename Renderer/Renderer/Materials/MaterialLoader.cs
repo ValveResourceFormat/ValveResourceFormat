@@ -29,6 +29,7 @@ namespace ValveResourceFormat.Renderer.Materials
         private RenderTexture? DefaultMask;
         private RenderTexture? DefaultColor;
         private RenderTexture? DefaultVolume;
+        private RenderTexture? DefaultBlackVolume;
         private RenderTexture? DefaultTextureArray;
         /// <summary>Gets or sets the maximum anisotropy level applied to newly loaded textures when anisotropic filtering is enabled.</summary>
         public static float MaxTextureMaxAnisotropy { get; set; }
@@ -682,20 +683,25 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>
         /// Returns a lazily created 1x1x1 white volume texture.
         /// </summary>
-        public RenderTexture GetDefaultVolume()
-        {
-            if (DefaultVolume == null)
-            {
-                DefaultVolume = RenderTexture.Create3D(TextureTarget.Texture3D, 1, 1, 1, ImageFormat.RGBA8888, 1, "DefaultVolume");
-                DefaultVolume.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
-                DefaultVolume.SetWrapMode(RsTextureAddressMode.Clamp);
-                GL.TextureSubImage3D(DefaultVolume.Handle, 0, 0, 0, 0, 1, 1, 1, PixelFormat.Rgb, PixelType.UnsignedByte, WhiteTexel);
-            }
+        public RenderTexture GetDefaultVolume() => DefaultVolume ??= CreateSolidVolume("DefaultVolume", WhiteTexel);
 
-            return DefaultVolume;
+        /// <summary>
+        /// Returns a lazily created 1x1x1 black volume texture.
+        /// </summary>
+        public RenderTexture GetDefaultBlackVolume() => DefaultBlackVolume ??= CreateSolidVolume("DefaultBlackVolume", BlackTexel);
+
+        private static RenderTexture CreateSolidVolume(string label, byte[] texel)
+        {
+            var volume = RenderTexture.Create3D(TextureTarget.Texture3D, 1, 1, 1, ImageFormat.RGBA8888, 1, label);
+            volume.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
+            volume.SetWrapMode(RsTextureAddressMode.Clamp);
+            GL.TextureSubImage3D(volume.Handle, 0, 0, 0, 0, 1, 1, 1, PixelFormat.Rgb, PixelType.UnsignedByte, texel);
+
+            return volume;
         }
 
         private static readonly byte[] WhiteTexel = [255, 255, 255];
+        private static readonly byte[] BlackTexel = [0, 0, 0];
 
         /// <summary>Returns the readback format appropriate for exporting a rendered image: 8-bit BGRA, or 32-bit float RGBA for HDR.</summary>
         /// <param name="hdr">Whether to use the HDR (32-bit float) format.</param>

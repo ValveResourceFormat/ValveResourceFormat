@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace ValveResourceFormat.Renderer.SceneEnvironment;
 
 /// <summary>
@@ -21,10 +23,10 @@ public class SceneLightProbe : SceneNode
     /// <summary>Gets or sets the direct light shadow texture (lighting version 8.2).</summary>
     public RenderTexture? DirectLightShadows { get; set; }
 
-    /// <summary>Gets or sets the probe atlas size in texels (lighting version 8.2).</summary>
+    /// <summary>Gets or sets the size of the volume's probe grid in the probe atlas, in probes.</summary>
     public Vector3 AtlasSize { get; set; }
 
-    /// <summary>Gets or sets the probe atlas offset in texels (lighting version 8.2).</summary>
+    /// <summary>Gets or sets where the volume's probe grid starts in the probe atlas, in probes.</summary>
     public Vector3 AtlasOffset { get; set; }
 
     /// <summary>
@@ -77,19 +79,16 @@ public class SceneLightProbe : SceneNode
 
         if (isProbeAtlas)
         {
-            if (DirectLightShadows == null)
-            {
-                throw new InvalidOperationException("DirectLightShadows is null but probe atlas is expected");
-            }
+            Debug.Assert(Irradiance != null);
 
             var half = Vector3.One * 0.5f;
             var depthDivide = Vector3.One with { Z = 1f / 6 };
 
-            var textureDims = new Vector3(DirectLightShadows.Width, DirectLightShadows.Height, DirectLightShadows.Depth);
+            var textureDims = new Vector3(Irradiance.Width, Irradiance.Height, Irradiance.Depth) * depthDivide;
             var atlasDims = AtlasOffset + AtlasSize;
 
-            var borderMin = half * depthDivide / textureDims;
-            var borderMax = (textureDims - half) * depthDivide / textureDims;
+            var borderMin = half * depthDivide / AtlasSize;
+            var borderMax = (AtlasSize - half) * depthDivide / AtlasSize;
             var scale = AtlasSize / textureDims;
             var offset = AtlasOffset / textureDims;
 

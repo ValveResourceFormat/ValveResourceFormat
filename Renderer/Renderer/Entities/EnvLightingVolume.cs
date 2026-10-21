@@ -109,6 +109,15 @@ public abstract class EnvLightingVolume : BaseEntity
             IndoorOutdoorLevel = indoorOutdoorLevel,
             EdgeFadeDists = edgeFadeDists,
             VoxelSize = KeyValues.GetFloatProperty("voxel_size"),
+
+            AtlasSize = new Vector3(
+                KeyValues.GetFloatProperty("light_probe_size_x"),
+                KeyValues.GetFloatProperty("light_probe_size_y"),
+                KeyValues.GetFloatProperty("light_probe_size_z")),
+            AtlasOffset = new Vector3(
+                KeyValues.GetFloatProperty("light_probe_atlas_x"),
+                KeyValues.GetFloatProperty("light_probe_atlas_y"),
+                KeyValues.GetFloatProperty("light_probe_atlas_z")),
         };
 
         var dliName = KeyValues.GetStringProperty("lightprobetexture_dli");
@@ -120,12 +129,20 @@ public abstract class EnvLightingVolume : BaseEntity
             lightProbe.DirectLightScalars = materialLoader.GetTexture(dlsName);
             lightProbe.DirectLightScalars.SetWrapMode(RsTextureAddressMode.Clamp);
         }
+        else
+        {
+            lightProbe.DirectLightScalars = materialLoader.GetDefaultBlackVolume();
+        }
 
         if (dliName != null)
         {
             lightProbe.DirectLightIndices = materialLoader.GetTexture(dliName);
             lightProbe.DirectLightIndices.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
             lightProbe.DirectLightIndices.SetWrapMode(RsTextureAddressMode.Clamp);
+        }
+        else
+        {
+            lightProbe.DirectLightIndices = materialLoader.GetDefaultBlackVolume();
         }
 
         Scene.LightingInfo.LightProbeType = KeyValues.ContainsKey("light_probe_atlas_x")
@@ -136,18 +153,10 @@ public abstract class EnvLightingVolume : BaseEntity
         {
             lightProbe.DirectLightShadows = materialLoader.GetTexture(dlsdName);
             lightProbe.DirectLightShadows.SetWrapMode(RsTextureAddressMode.Clamp);
-
-            lightProbe.AtlasSize = new Vector3(
-                KeyValues.GetFloatProperty("light_probe_size_x"),
-                KeyValues.GetFloatProperty("light_probe_size_y"),
-                KeyValues.GetFloatProperty("light_probe_size_z")
-            );
-
-            lightProbe.AtlasOffset = new Vector3(
-                KeyValues.GetFloatProperty("light_probe_atlas_x"),
-                KeyValues.GetFloatProperty("light_probe_atlas_y"),
-                KeyValues.GetFloatProperty("light_probe_atlas_z")
-            );
+        }
+        else
+        {
+            lightProbe.DirectLightShadows = materialLoader.GetDefaultBlackVolume();
         }
 
         Scene.LightingInfo.AddProbe(lightProbe);
