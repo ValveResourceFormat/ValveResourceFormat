@@ -32,7 +32,7 @@ namespace ValveResourceFormat.IO
         /// Gets the blend state of a material for the default dynamic combo.
         /// </summary>
         /// <param name="material">The material.</param>
-        /// <param name="combos">Overrides for the integer parameters of the material.</param>
+        /// <param name="combos">Integer parameters overriding those of the material, as F_ features or S_ and D_ combos.</param>
         public RsBlendStateDesc GetBlendState(Material material, IReadOnlyDictionary<string, long>? combos = null);
 
         /// <summary>
@@ -84,11 +84,15 @@ namespace ValveResourceFormat.IO
 
         /// <inheritdoc/>
         /// <remarks>
-        /// Returns the basic provider's guess if available.
+        /// Reads the blend state compiled into the shader, falling back to basic provider if available.
         /// </remarks>
         public RsBlendStateDesc GetBlendState(Material material, IReadOnlyDictionary<string, long>? combos = null)
         {
-            return basicProvider?.GetBlendState(material, combos) ?? default;
+            ArgumentNullException.ThrowIfNull(material);
+
+            return GetBlendState_Internal(material, combos ?? material.IntParams)
+                ?? basicProvider?.GetBlendState(material, combos)
+                ?? default;
         }
 
         /// <inheritdoc/>
@@ -108,8 +112,11 @@ namespace ValveResourceFormat.IO
         /// <param name="material">The material to extract feature state from.</param>
         /// <returns>A dictionary of feature names (with 'F_' prefix) and their values.</returns>
         public static IDictionary<string, byte> GetMaterialFeatureState(Material material)
-            => material.IntParams
-                .Where(p => p.Key.StartsWith("F_", StringComparison.Ordinal))
+            => GetComboState(material.IntParams, "F_");
+
+        private static Dictionary<string, byte> GetComboState(IReadOnlyDictionary<string, long> combos, string prefix)
+            => combos
+                .Where(p => p.Key.StartsWith(prefix, StringComparison.Ordinal))
                 .ToDictionary(p => p.Key, p => (byte)p.Value);
 
         /// <summary>
@@ -504,6 +511,35 @@ namespace ValveResourceFormat.IO
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Gets the blend state compiled into the pixel shader render state.
+        /// </summary>
+        private RsBlendStateDesc? GetBlendState_Internal(Material material, IReadOnlyDictionary<string, long> combos)
+        {
+            var shader = fileLoader.LoadShader(material.ShaderName);
+            var program = shader?.PixelShaderRenderState ?? shader?.Pixel;
+
+            if (shader?.Features == null || program == null)
+            {
+                return null;
+            }
+
+            var (_, staticComboId) = ResolveStaticConfiguration(shader.Features, program, GetComboState(combos, "F_"), GetComboState(combos, "S_"));
+
+            if (!program.StaticComboEntries.ContainsKey(staticComboId))
+            {
+                return null;
+            }
+
+            var dynamicConfig = Array.ConvertAll(program.DynamicComboArray, combo => (int)combos.GetValueOrDefault(combo.Name, combo.RangeMin));
+            var dynamicComboId = new ComboConfigMapping(program, isDynamic: true).CalcComboIdFromValues(dynamicConfig);
+
+            var renderState = program.StaticComboCache.Get(staticComboId).DynamicComboRenderStates
+                .FirstOrDefault(renderState => renderState.DynamicComboId == dynamicComboId) as VfxRenderStateInfoPixelShader;
+
+            return renderState?.BlendStateDesc;
         }
     }
 
