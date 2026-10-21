@@ -1,85 +1,115 @@
 ---
-description: How to open VPK files in Source 2 Viewer, extract files or whole packages, and create VPKs using the GUI or the command line.
+description: How to open VPK files in Source 2 Viewer, extract files or whole packages, and create or edit VPKs using the GUI or the command line.
 ---
 
-# How to Open and Extract VPK Files
+# How to Open, Extract and Edit VPK Files
 
-A VPK (Valve Pak) file is the archive format Source and Source 2 games use to package their assets. A package is split into a `pak01_dir.vpk` index plus numbered content files such as `pak01_000.vpk`. Open the `_dir` file in Source 2 Viewer to browse the package, extract files from it, or create your own VPK.
+VPK (Valve Pak) is the archive format Source and Source 2 games pack their files into. Large packages are split into a `pak01_dir.vpk` index and numbered chunk files such as `pak01_000.vpk`. Source 2 Viewer can open, extract, create and edit them.
 
 ## Browsing VPK Archives
 
-- Open any `.vpk` file via File > Open or the Explorer
-- The directory file (e.g., `pak01_dir.vpk`) acts as an index for all content archives (`pak01_000.vpk`, `pak01_001.vpk`, etc.)
-- You only need to open the `_dir.vpk` file. Source 2 Viewer reads the content archives automatically
-- The file tree shows the full directory structure inside the VPK
+- Open a VPK with File > Open or from the Explorer. For a split package, open the `_dir.vpk`; its chunk files are read automatically.
+- VPKs inside other VPKs, such as maps in workshop items, open directly.
+- To check a package, right-click the root and select **Verify package contents**, or use `--vpk_verify`.
+
+![CS2 pak01 open in Source 2 Viewer](./images/vpk-management-package.png)
 
 ## Extracting Files
 
-There are several ways to extract files from a VPK:
+Right-click a file, a folder, or the root of the tree for the whole VPK, then choose:
 
-### Extract individual files
+- **Export as is** to save it unchanged
+- **Decompile & export** to convert it to formats you can edit
 
-- Right-click a file → **Export as is** (raw format) or **Decompile & export** (converted format)
+![Export as is in the context menu](./images/vpk-management-export-as-is.png)
 
-### Extract folders
+![Export as is on the tree root](./images/vpk-management-root-menu.png)
 
-- Right-click a folder → choose export option to extract everything inside
-
-### Extract entire VPK
-
-- Right-click the root of the file tree → export to extract the complete archive
+**Decompile & export** on a folder or the whole VPK first asks which format to use for each file type, see [Getting Started](./getting-started.md#batch-operations).
 
 ### Using the CLI
 
-For large or automated extractions:
+To extract a whole VPK from a script:
 
 ```sh
 Source2Viewer-CLI -i "pak01_dir.vpk" -o "output_folder/"
 ```
 
-Add `-d` to decompile files during extraction:
+Add `-d` to decompile the files:
 
 ```sh
 Source2Viewer-CLI -i "pak01_dir.vpk" -o "output_folder/" -d
 ```
 
-Create a VPK from a folder with `--vpk_create`, or check a package with `--vpk_verify`. See the [command-line utility](./command-line.md).
+## Creating and Editing VPK Archives
 
-## Creating VPK Archives
+1. In the **File** menu, choose:
 
-Source 2 Viewer can create new VPK archives:
+    - **Create VPK** to start an empty VPK
+    - **Create VPK from folder** to pack everything inside a folder
+    - **Edit VPK** to change an existing VPK
 
-1. Go to **File → Create VPK from folder**
-2. A new tab opens with an empty VPK. Right-click to add files and folders from disk, create virtual folders, or remove entries
-3. When ready, right-click and select **Save VPK to disk** to write a single `.vpk` file
+    You can also right-click the root of an open VPK and select **Edit this VPK**.
 
-::: warning
-The VPK creation UI is very rudimentary.
-:::
+    ![Create VPK from folder in the File menu](./images/vpk-management-create-file-menu.png)
+
+    Editing a signed VPK first warns that saving removes the signature.
+
+2. Right-click in the editing tab to add files and folders, create folders, or rename and remove them. Paths are lowercased.
+
+    ![Add existing files in the context menu](./images/vpk-management-create-context-menu.png)
+
+    - **Add existing folder** adds the folder itself, not just its contents, and you can pick several.
+    - Adding a file that already exists asks whether to **Replace** or **Skip** it.
+    - Renaming a folder to the name of an existing one asks whether to merge them.
+    - Removing does not ask for confirmation.
+    - Empty folders are not saved.
+
+3. Press Ctrl+S, or right-click and select **Save** or **Save as**. Tabs with unsaved changes show `*` in their title. To split the VPK into chunk files, pick **Valve Pak split into chunk files** as the type and name it `*_dir.vpk`.
+
+    ![Save in the context menu](./images/vpk-management-create-save-menu.png)
+
+    ![Save VPK package dialog](./images/vpk-management-create-save-dialog.png)
+
+### Using the CLI
+
+To pack a folder into a VPK from a script:
+
+```sh
+Source2Viewer-CLI -i "my_addon" --vpk_create "my_addon.vpk"
+```
+
+To split it into chunk files of 100 MiB, name it `*_dir.vpk`:
+
+```sh
+Source2Viewer-CLI -i "my_addon" --vpk_create "my_addon_dir.vpk" --vpk_create_chunk_size 100
+```
+
+See the [command-line utility](./command-line.md#create-a-vpk-from-a-folder) for more.
+
+### Good to Know
+
+- Saving removes the VPK's signature, so games that check signatures won't load it.
+- A single-file VPK must stay under 2 GiB; save bigger ones split into chunk files.
+- In a split VPK, added files go into chunk files right away and stay there even if you don't save.
 
 ## Recovering Deleted Files
 
-VPK archives can contain remnants of deleted files. Valve keeps empty space in VPK content archives to reduce Steam differential update sizes, so that overall content doesn't shift between updates. When files are removed or replaced, the old data may still exist in the content archives even though it's no longer referenced by the directory file.
+Chunk files can still contain files that a game update removed or replaced. Recovering them lets you compare assets across updates.
 
-Source 2 Viewer can discover and recover these deleted files:
+1. Open a split package such as `pak01_dir.vpk`. Single-file VPKs don't have this option.
+2. Right-click the root and select **Recover deleted files**.
 
-1. Open a VPK archive
-2. Right-click the root node in the file tree and select **Recover deleted files**
-3. Recovered files appear in the tree, though they may lack their original file paths
+    ![Recover deleted files in the context menu](./images/vpk-management-recover-menu.png)
+
+3. Recovered files appear under **Deleted files**; files whose names can't be guessed are under **Undetected filenames**.
+
+    ![Deleted files node after recovery](./images/vpk-management-recovered.png)
 
 ::: warning
-Recovered files may be incomplete, corrupted, or from old game versions. They lack original path information, so identifying them requires inspecting their contents.
+Recovered files can be incomplete, corrupted or from older game versions.
 :::
-
-This feature is useful for game researchers studying how assets have changed across game updates.
 
 ## VPK File Format
 
-VPK archives consist of:
-
-- A **directory file** (`pak01_dir.vpk`) containing the file index with paths, sizes, and offsets
-- One or more **content archives** (`pak01_000.vpk`, `pak01_001.vpk`, etc.) containing the actual file data
-
-Source 2 Viewer supports all VPK versions, including both Source 1 and Source 2 formats. See the [VPK file format](<https://developer.valvesoftware.com/wiki/VPK_(file_format)>) page on the Valve Developer Community wiki for more details.
-
-For programmatic VPK access, see the [ValvePak](https://www.nuget.org/packages/ValvePak/) NuGet library.
+Source 2 Viewer uses the [ValvePak](https://www.nuget.org/packages/ValvePak/) library to read and write VPKs, which you can also use in your own programs. The [Source 2 Wiki](https://www.source2.wiki/FileFormats/vpk) describes the format in detail.
