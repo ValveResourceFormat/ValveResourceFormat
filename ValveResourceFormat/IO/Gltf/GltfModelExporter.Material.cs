@@ -8,7 +8,6 @@ using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
 using SkiaSharp;
 using ValveResourceFormat.CompiledShader;
-using MaterialBlendMode = ValveResourceFormat.ResourceTypes.MaterialBlendMode;
 using VMaterial = ValveResourceFormat.ResourceTypes.Material;
 
 namespace ValveResourceFormat.IO;
@@ -72,16 +71,13 @@ public partial class GltfModelExporter
 
     private void GenerateGLTFMaterialFromRenderMaterial(Material material, VMaterial renderMaterial, ModelRoot model, Vector4 modelTintColor, bool baseColorOnly = false)
     {
-        var blendMode = renderMaterial.BlendMode;
+        var blendState = shaderDataProvider.GetBlendState(renderMaterial);
 
-        material.Alpha = blendMode switch
-        {
-            MaterialBlendMode.Opaque => AlphaMode.OPAQUE,
-            MaterialBlendMode.AlphaTest => AlphaMode.MASK,
-            _ => AlphaMode.BLEND,
-        };
+        material.Alpha = blendState.BlendEnable[0] ? AlphaMode.BLEND
+            : blendState.AlphaToCoverageEnable ? AlphaMode.MASK
+            : AlphaMode.OPAQUE;
 
-        if (blendMode == MaterialBlendMode.AlphaTest && (renderMaterial.FloatParams.TryGetValue("g_flAlphaTestReference", out var alphaTestReference)
+        if (material.Alpha == AlphaMode.MASK && (renderMaterial.FloatParams.TryGetValue("g_flAlphaTestReference", out var alphaTestReference)
             || renderMaterial.FloatParams.TryGetValue("g_flAlphaTestReference1", out alphaTestReference)))
         {
             material.AlphaCutoff = alphaTestReference;

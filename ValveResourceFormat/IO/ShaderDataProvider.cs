@@ -27,6 +27,13 @@ namespace ValveResourceFormat.IO
         /// <param name="material">The material containing the texture.</param>
         /// <returns>The suffix string for the input texture, or null if not found.</returns>
         public string? GetSuffixForInputTexture(string inputName, Material material);
+
+        /// <summary>
+        /// Gets the blend state of a material for the default dynamic combo.
+        /// </summary>
+        /// <param name="material">The material.</param>
+        /// <param name="combos">Overrides for the integer parameters of the material.</param>
+        public RsBlendStateDesc GetBlendState(Material material, IReadOnlyDictionary<string, long>? combos = null);
     }
 
     /// <summary>
@@ -66,6 +73,15 @@ namespace ValveResourceFormat.IO
         public string? GetSuffixForInputTexture(string inputName, Material material)
         {
             return GetSuffixForInputTexture_Internal(inputName, material) ?? basicProvider?.GetSuffixForInputTexture(inputName, material);
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Returns the basic provider's guess if available.
+        /// </remarks>
+        public RsBlendStateDesc GetBlendState(Material material, IReadOnlyDictionary<string, long>? combos = null)
+        {
+            return basicProvider?.GetBlendState(material, combos) ?? default;
         }
 
         /// <summary>
@@ -636,6 +652,68 @@ namespace ValveResourceFormat.IO
             { "TextureReflectance", "_refl"},
             { "TextureTranslucency", "_trans"},
         };
+
+        private static readonly string[] TranslucentShaders =
+        [
+            "vr_glass",
+            "vr_glass_markable",
+            "vr_energy_field",
+            "csgo_glass",
+            "csgo_effects",
+            "citadel_overlay",
+        ];
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Guesses the blend state from material flags and a few known shaders.
+        /// </remarks>
+        public RsBlendStateDesc GetBlendState(Material material, IReadOnlyDictionary<string, long>? combos = null)
+        {
+            ArgumentNullException.ThrowIfNull(material);
+
+            combos ??= material.IntParams;
+            var shaderName = Path.GetFileNameWithoutExtension(material.ShaderName);
+
+            if (shaderName == "csgo_decalmodulate")
+            {
+                return CreateBlendState(RsBlendMode.DestColor, RsBlendMode.SrcColor);
+            }
+
+            var blendModeParam = shaderName.EndsWith("static_overlay", StringComparison.Ordinal) || shaderName == "csgo_unlitgeneric"
+                ? combos.GetValueOrDefault("F_BLEND_MODE")
+                : 0;
+
+            return blendModeParam switch
+            {
+                2 => new RsBlendStateDesc { AlphaToCoverageEnable = true },
+                3 => CreateBlendState(RsBlendMode.DestColor, RsBlendMode.SrcColor),
+                5 => CreateBlendState(RsBlendMode.Zero, RsBlendMode.SrcColor),
+                6 => CreateBlendState(RsBlendMode.DestColor, RsBlendMode.InvSrcAlpha),
+                > 0 => GetPassBlendState(combos),
+                _ when combos.GetValueOrDefault("F_TRANSLUCENT") == 1
+                    || combos.GetValueOrDefault("F_ADDITIVE_BLEND") == 1
+                    || TranslucentShaders.AsSpan().Contains(shaderName)
+                    || material.IntAttributes.ContainsKey("mapbuilder.water") => GetPassBlendState(combos),
+                _ => new RsBlendStateDesc { AlphaToCoverageEnable = combos.GetValueOrDefault("F_ALPHA_TEST") > 0 },
+            };
+        }
+
+        /// <summary>
+        /// Gets the blend state of the pass that draws translucent materials, additive when the material asks for it.
+        /// </summary>
+        private static RsBlendStateDesc GetPassBlendState(IReadOnlyDictionary<string, long> combos)
+            => combos.GetValueOrDefault("F_ADDITIVE_BLEND") == 1 || combos.GetValueOrDefault("F_BLEND_MODE") == 4
+                ? CreateBlendState(RsBlendMode.SrcAlpha, RsBlendMode.One)
+                : CreateBlendState(RsBlendMode.SrcAlpha, RsBlendMode.InvSrcAlpha);
+
+        private static RsBlendStateDesc CreateBlendState(RsBlendMode src, RsBlendMode dest)
+        {
+            var blendState = new RsBlendStateDesc();
+            blendState.SetBlendEnable(0, true);
+            blendState.SetSrcBlend(0, src);
+            blendState.SetDestBlend(0, dest);
+            return blendState;
+        }
 
         /// <summary>
         /// Gets hardcoded texture inputs. If no mappings are found it will be a single guessed RGBA input.

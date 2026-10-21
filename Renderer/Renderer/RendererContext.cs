@@ -21,6 +21,11 @@ public class RendererContext : IDisposable
     public GameFileLoader FileLoader { get; }
 
     /// <summary>
+    /// Information lookup from compiled shaders (.vcs).
+    /// </summary>
+    public ShaderDataProvider ShaderDataProvider { get; }
+
+    /// <summary>
     /// Owns the GPU objects created for this renderer. Creation goes through the static methods on
     /// <see cref="GraphicsDevice"/> rather than through this property.
     /// </summary>
@@ -82,6 +87,7 @@ public class RendererContext : IDisposable
     public RendererContext(GameFileLoader fileLoader, ILogger logger)
     {
         FileLoader = fileLoader;
+        ShaderDataProvider = new ShaderDataProvider(fileLoader);
         Logger = logger;
         Device = GraphicsDevice.Create();
 
