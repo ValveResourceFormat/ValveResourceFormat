@@ -61,6 +61,9 @@ public class Scene
     private readonly List<SceneNode> staticNodes = [];
     private readonly List<SceneNode> dynamicNodes = [];
 
+    // VKTODO: Views draw every dynamic node until culling is ported
+    internal IReadOnlyList<SceneNode> DynamicNodes => dynamicNodes;
+
     /// <summary>Gets the render attribute overrides applied to all draw calls in this scene.</summary>
     public Dictionary<string, byte> RenderAttributes { get; } = [];
 
@@ -178,45 +181,10 @@ public class Scene
         cmd.BufferBarrier(VkPipelineStageFlags2.Transfer, VkAccessFlags2.TransferWrite, ShaderStages, VkAccessFlags2.UniformRead, lightingBuffer, sceneBuffers);
     }
 
-    /// <summary>
-    /// Renders the opaque pass, optionally with a depth prepass, followed by aggregate indirect draws and static overlay geometry.
-    /// </summary>
-    /// <param name="renderContext">The render context for this pass.</param>
-    /// <param name="depthOnlyShader">Optional depth-only shader; <see langword="null"/> for a pass that replaces material shaders.</param>
-    //VKTODO: The inputs need considering.
-    public void RenderOpaqueLayer(ViewContext viewContext, CommandList cmd)
+    /// <summary>Binds the lighting buffer for the draws recorded after it.</summary>
+    /// <param name="cmd">The command list the draws are recorded into.</param>
+    internal void SetSceneBuffers(CommandList cmd)
     {
-        var camera = viewContext.Camera;
-
         cmd.PushConstants(SceneBuffersHandle, SceneBuffersPushConstantOffset);
-
-        //using (new GLDebugGroup("Opaque Render"))
-        //{
-        //MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
-        //}
-
-        foreach (var node in dynamicNodes)
-        {
-            if (node is ModelSceneNode modelNode)
-            {
-                foreach (var renderableMesh in modelNode.RenderableMeshes)
-                {
-                    foreach (var drawCall in renderableMesh.DrawCallsOpaque)
-                    {
-                        // Read once, so the bound pipeline and the layout the parameters are filled for cannot differ
-                        var pipeline = drawCall.Material.Pipeline.Current;
-
-                        cmd.BindGraphicsPipeline(pipeline);
-                        cmd.PushConstants(drawCall.Material.PrepareParameterBuffer(pipeline), RenderMaterial.ParameterBufferPushConstantOffset);
-
-                        cmd.BindVertexBuffer(drawCall.VertexBuffers[0]);
-
-                        cmd.BindIndexBuffer(drawCall.IndexBuffer, VkIndexType.Uint16);
-
-                        cmd.DrawIndexed((uint)drawCall.IndexCount, 1, (uint)drawCall.StartIndex / 2, drawCall.VertexOffset, 0);
-                    }
-                }
-            }
-        }
     }
 }

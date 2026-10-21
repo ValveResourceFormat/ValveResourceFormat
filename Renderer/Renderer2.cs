@@ -51,6 +51,15 @@ public class Renderer2
 
     private ResourceHandle<PipelineGraphics>? GridPipeline;
 
+    // VKTODO: Two once the 3D sky is ported
+    private readonly SceneView[] frameViews = new SceneView[1];
+
+    private readonly Dictionary<Scene, SceneViewState> mainViewStates = [];
+    private readonly List<SceneViewState> mainViewSceneStates = [];
+
+    private readonly ViewConstants viewConstants = new();
+    private readonly byte[] viewConstantsUpload = new byte[Marshal.SizeOf<ViewConstants>()];
+
     /// <summary>
     /// Total time elapsed since the renderer was started, in seconds.
     /// </summary>
@@ -121,9 +130,10 @@ public class Renderer2
     public void Update(float deltaTime)
     {
         Uptime += deltaTime;
+        viewConstants.Time = Uptime;
     }
 
-    public unsafe void Render(ViewContext viewContext)
+    public void Render(ViewContext viewContext)
     {
         var Frame = InFlightFrames.StartNextFrame();
         RendererContext.CurrentFrame = InFlightFrames.FramesSubmitted;
@@ -138,16 +148,9 @@ public class Renderer2
 
         viewContext.Camera.RecalculateMatrices();
 
-        var viewConstants = Frame.viewConstantsCPU;
-        viewContext.Camera.SetViewConstants(viewConstants);
-        viewConstants.ViewportSize = new Vector2(WindowSwapchain.Extent.width, WindowSwapchain.Extent.height);
-        viewConstants.InvViewportSize = Vector2.One / viewConstants.ViewportSize;
-        viewConstants.Time = Uptime;
-
-        void* mapped = Frame.viewConstantBuffer.Map();
-        Marshal.StructureToPtr(Frame.viewConstantsCPU, (nint)mapped, false);
-
-        Frame.viewConstantBuffer.Unmap();
+        var views = CollectViews(viewContext.Camera);
+        var mainView = views[0];
+        var mainState = mainView.States[0];
 
         cmd.Begin();
 
@@ -158,6 +161,17 @@ public class Renderer2
         if (texturesChanged)
         {
             RendererContext.MaterialLoader.PatchTextureHandles(cmd);
+        }
+
+        SetViewportConstants((int)WindowSwapchain.Extent.width, (int)WindowSwapchain.Extent.height);
+
+        foreach (var view in views)
+        {
+            foreach (var state in view.States)
+            {
+                SetViewConstants(view, state);
+                UploadViewConstants(view, state, cmd);
+            }
         }
 
         // Reverse Z, so the far plane is at 0
@@ -183,14 +197,13 @@ public class Renderer2
         cmd.SetViewport(viewport);
         cmd.SetScissor(scissor);
 
-        cmd.PushConstants(Frame.viewConstantBuffer.DescriptorHandle);
-
-        RenderScenesWithView(viewContext);
+        RenderOpaqueLayer(mainView, cmd);
 
         // VKTODO: Draw the +X/-X/+Y/-Y axis labels once world space text is ported
         if (ShowGrid && GridPipeline != null)
         {
             cmd.BeginDebugLabel("Grid");
+            DrawThrough(mainView, mainState, cmd);
             cmd.BindGraphicsPipeline(GridPipeline.Current);
             cmd.Draw(3, 1, 0, 0);
             cmd.EndDebugLabel();
@@ -216,9 +229,83 @@ public class Renderer2
 
     }
 
-    public void RenderScenesWithView(ViewContext viewContext)
+    /// <summary>
+    /// The views this frame draws, main view first, valid until the next call.
+    /// </summary>
+    private ReadOnlySpan<SceneView> CollectViews(Camera camera)
     {
-        Scene.RenderOpaqueLayer(viewContext, InFlightFrames.CurrentFrame.CommandList);
+        // VKTODO: Add the spawn group scenes, and the 3D sky as a second view
+        mainViewSceneStates.Clear();
+        mainViewSceneStates.Add(ViewStateFor(mainViewStates, Scene));
+
+        frameViews[0] = new SceneView
+        {
+            States = mainViewSceneStates,
+            Camera = camera,
+        };
+
+        return frameViews;
+    }
+
+    private static SceneViewState ViewStateFor(Dictionary<Scene, SceneViewState> states, Scene scene)
+    {
+        if (states.TryGetValue(scene, out var state))
+        {
+            return state;
+        }
+
+        state = new SceneViewState(scene);
+        states.Add(scene, state);
+
+        return state;
+    }
+
+    /// <summary>
+    /// Switches drawing to a view: its view constants and its scene's buffers. These must always change together.
+    /// </summary>
+    private static void DrawThrough(in SceneView view, SceneViewState state, CommandList cmd)
+    {
+        cmd.PushConstants(state.ViewBuffer.DescriptorHandle);
+        state.Scene.SetSceneBuffers(cmd);
+    }
+
+    private void SetViewConstants(in SceneView view, SceneViewState state)
+    {
+        view.Camera.SetViewConstants(viewConstants);
+    }
+
+    /// <summary>
+    /// Uploads the view constants of one scene drawn through a view. Must be recorded outside a render pass
+    /// instance, which is why every view is uploaded up front rather than as it is drawn.
+    /// </summary>
+    private unsafe void UploadViewConstants(in SceneView view, SceneViewState state, CommandList cmd)
+    {
+        fixed (byte* pUpload = viewConstantsUpload)
+        {
+            Marshal.StructureToPtr(viewConstants, (nint)pUpload, false);
+        }
+
+        const VkPipelineStageFlags2 ShaderStages = VkPipelineStageFlags2.VertexShader | VkPipelineStageFlags2.FragmentShader | VkPipelineStageFlags2.ComputeShader;
+
+        // The previous frame may still be reading the previous contents
+        cmd.BufferBarrier(ShaderStages, VkAccessFlags2.None, VkPipelineStageFlags2.Transfer, VkAccessFlags2.TransferWrite, state.ViewBuffer);
+        cmd.UpdateBuffer(state.ViewBuffer, viewConstantsUpload);
+        cmd.BufferBarrier(VkPipelineStageFlags2.Transfer, VkAccessFlags2.TransferWrite, ShaderStages, VkAccessFlags2.UniformRead, state.ViewBuffer);
+    }
+
+    private void SetViewportConstants(int width, int height)
+    {
+        viewConstants.ViewportSize = new Vector2(width, height);
+        viewConstants.InvViewportSize = Vector2.One / viewConstants.ViewportSize;
+    }
+
+    private static void RenderOpaqueLayer(in SceneView view, CommandList cmd)
+    {
+        foreach (var state in view.States)
+        {
+            DrawThrough(view, state, cmd);
+            state.RenderOpaqueLayer(cmd);
+        }
     }
 
     /// <summary>
