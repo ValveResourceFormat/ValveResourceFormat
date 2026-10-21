@@ -70,7 +70,7 @@ The exit code is `0` on success, `1` for invalid arguments, and `2` when any fil
 - References to other files (materials, meshes, textures) are loaded from the game the input belongs to. A file copied out of the game folder will be missing them unless you pass `--game` (see [game search paths](./game-search-paths.md)).
 - `--block` output starts with a summary of the file (type, external references, block list) before the block contents.
 - Folder input does not look inside VPK files unless `--recursive_vpk` is given. This is the easiest way to process all maps of a game, for example `-i <game>/maps --recursive_vpk -e vents_c`.
-- VPKs inside other VPKs (such as 3D skybox prefabs inside map VPKs, or map VPKs inside workshop items) are only processed by `--test`. Otherwise they are treated as regular files, so extract them first with `--vpk_extensions vpk --output <folder>` and run the CLI on the extracted files.
+- VPKs inside other VPKs (such as 3D skybox prefabs inside map VPKs, or map VPKs inside workshop items) are only processed by `--block` and `--all`, by `--test` with `--recursive_vpk`, and by the shader options when `--vpk_extensions` includes `vpk`. Otherwise they are treated as regular files, so extract them first with `--vpk_extensions vpk --output <folder>` and run the CLI on the extracted files.
 - Compiled shaders are split into multiple files (`<name>_<platform>_<model>_features.vcs`, `_vs.vcs`, `_ps.vcs`, ...). Decompiling to `.vfx` only works from the shader VPK, which writes one `.vfx` per shader from the highest shader model among the matched files. A loose `.vcs` file only prints a summary.
 - All `--gltf_*` options require `--gltf_export_format`.
 

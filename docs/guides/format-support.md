@@ -28,8 +28,8 @@ When data does not survive, the reason falls into one of three categories:
 
 Decompiled `.vmdl` and `.vmap` files are expected to load and recompile in ModelDoc and
 Hammer; the sections below list exactly what the recompiled asset will be missing. There
-is also basic support for writing VPKs and re-serializing resources back to their binary
-format. Parsing network/demo formats such as `.dem` is out of scope
+is also support for creating and editing VPKs and re-serializing resources back to their
+binary format. Parsing network/demo formats such as `.dem` is out of scope
 ([#1122](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/1122)).
 
 ## Support Matrix
@@ -105,7 +105,7 @@ in the Dump column.
 
 | Format                             | Support                                                                                                                                                                                                       |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| vpk (Valve Pak)                    | Browse, extract, create, and edit, handled by [ValvePak](https://github.com/ValveResourceFormat/ValvePak)                                                                                                     |
+| vpk (Valve Pak)                    | Browse and extract, handled by [ValvePak](https://github.com/ValveResourceFormat/ValvePak); create and edit in the GUI; create in the CLI; saved VPKs are unsigned; VPKs inside VPKs open at any depth        |
 | vcs (compiled shader)              | Combo/parameter browser; `.vfx` reconstruction; per-stage source for GL and Vulkan platforms (see [Shaders](#shaders-vcs))                                                                                    |
 | SPIR-V `.spv`                      | Decompiled via SPIRV-Cross to HLSL (or GLSL), same as Vulkan vcs stages                                                                                                                                       |
 | dat (VCCD closed captions)         | Grid view; export to `.txt` KV1 (caption keys are lost, see [below](#choreo-captions-and-ui))                                                                                                                 |
