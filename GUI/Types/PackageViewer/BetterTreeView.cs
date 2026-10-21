@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -127,69 +128,78 @@ namespace GUI.Types.PackageViewer
                 throw new ArgumentException("Search input is too short.", nameof(pattern));
             }
 
-            if (VrfGuiContext == null)
-            {
-                return;
-            }
-
-            if (VrfGuiContext.ParentGuiContext != null)
-            {
-                throw new InvalidOperationException("Inner paks are not supported.");
-            }
-
-            if (VrfGuiContext.CurrentPackage?.Entries == null)
+            if (VrfGuiContext?.CurrentPackage is not { } package)
             {
                 return;
             }
 
             using var progressDialog = new GenericProgressForm
             {
-                Text = "Searching file contents…"
+                Text = "Searching file contents…",
+                WaitForWorkToStop = true,
             };
-            progressDialog.OnProcess = _ =>
+            progressDialog.OnProcess = cancellationToken =>
             {
                 Log.Info(nameof(BetterTreeView), "Pattern search");
 
                 var maxArchiveIndex = -1;
                 var sortedEntriesPerArchive = new Dictionary<int, List<PackageEntry>>();
+                var unreadableEntries = 0;
 
-                foreach (var extensions in VrfGuiContext.CurrentPackage.Entries.Values)
+                foreach (var entry in package.Entries?.Values.SelectMany(static entries => entries) ?? [])
                 {
-                    foreach (var entry in extensions)
-                    {
-                        if (entry.ArchiveIndex != 0x7FFF && entry.ArchiveIndex > maxArchiveIndex)
-                        {
-                            maxArchiveIndex = entry.ArchiveIndex;
-                        }
+                    cancellationToken.ThrowIfCancellationRequested();
 
-                        if (entry.Length == 0)
+                    if (package is NestedPackage && entry.ArchiveIndex != Package.DirectoryArchiveIndex)
+                    {
+                        unreadableEntries++;
+                        continue;
+                    }
+
+                    if (entry.SmallData.Length > 0 || entry.ArchiveIndex == Package.DirectoryArchiveIndex)
+                    {
+                        if (entry.TotalLength == 0)
                         {
                             continue;
                         }
 
-                        if (!sortedEntriesPerArchive.TryGetValue(entry.ArchiveIndex, out var archiveEntries))
+                        package.ReadEntry(entry, out var entryData, validateCrc: false);
+
+                        if (entryData.AsSpan().IndexOf(pattern) >= 0)
                         {
-                            archiveEntries = [];
-                            sortedEntriesPerArchive.Add(entry.ArchiveIndex, archiveEntries);
+                            results.Add(entry);
                         }
 
-                        archiveEntries.Add(entry);
+                        continue;
                     }
+
+                    if (entry.ArchiveIndex > maxArchiveIndex)
+                    {
+                        maxArchiveIndex = entry.ArchiveIndex;
+                    }
+
+                    if (entry.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    if (!sortedEntriesPerArchive.TryGetValue(entry.ArchiveIndex, out var archiveEntries))
+                    {
+                        archiveEntries = [];
+                        sortedEntriesPerArchive.Add(entry.ArchiveIndex, archiveEntries);
+                    }
+
+                    archiveEntries.Add(entry);
+                }
+
+                if (unreadableEntries > 0)
+                {
+                    Log.Warn(nameof(BetterTreeView), string.Create(CultureInfo.InvariantCulture, $"Not searching {unreadableEntries} files in chunk files of a package inside of another package"));
                 }
 
                 foreach (var archiveEntries in sortedEntriesPerArchive.Values)
                 {
                     archiveEntries.Sort((a, b) => a.Offset.CompareTo(b.Offset));
-                }
-
-                if (sortedEntriesPerArchive.TryGetValue(0x7FFF, out var sortedEntriesInDirVpk))
-                {
-                    var fileName = $"{VrfGuiContext.CurrentPackage.FileName}{(VrfGuiContext.CurrentPackage.IsDirVPK ? "_dir" : "")}.vpk";
-
-                    progressDialog.SetProgress($"Searching '{Path.GetFileName(fileName)}'");
-
-                    var archiveMatches = SearchForContentsInFile(fileName, pattern, sortedEntriesInDirVpk);
-                    results.AddRange(archiveMatches);
                 }
 
                 if (maxArchiveIndex > -1)
@@ -202,7 +212,8 @@ namespace GUI.Types.PackageViewer
                         maxArchiveIndex + 1,
                         new ParallelOptions
                         {
-                            MaxDegreeOfParallelism = 3
+                            MaxDegreeOfParallelism = 3,
+                            CancellationToken = cancellationToken,
                         },
                         archiveIndex =>
                         {
@@ -213,9 +224,8 @@ namespace GUI.Types.PackageViewer
                                 return;
                             }
 
-                            var fileName = PackageFileNames.GetArchiveChunkFile(VrfGuiContext.CurrentPackage.FileName!, archiveIndex);
-
-                            var archiveMatches = SearchForContentsInFile(fileName, pattern, archiveEntries);
+                            using var archive = package.OpenArchiveStream((ushort)archiveIndex);
+                            var archiveMatches = SearchForContentsInArchive(archive, pattern, archiveEntries, cancellationToken);
 
                             if (archiveMatches.Count > 0)
                             {
@@ -231,8 +241,8 @@ namespace GUI.Types.PackageViewer
                                 }
                             }
 
-                            Interlocked.Increment(ref archivesScanned);
-                            progressDialog.SetProgress($"Searched {archivesScanned} vpks out of {maxArchiveIndex}, found {results.Count} matches so far");
+                            var scanned = Interlocked.Increment(ref archivesScanned);
+                            progressDialog.SetProgress(string.Create(CultureInfo.InvariantCulture, $"Searched {scanned} vpks out of {maxArchiveIndex + 1}, found {results.Count} matches so far"));
                         }
                     );
                 }
@@ -246,51 +256,71 @@ namespace GUI.Types.PackageViewer
             progressDialog.ShowDialog();
         }
 
-        private static HashSet<PackageEntry> SearchForContentsInFile(string fileName, byte[] pattern, List<PackageEntry> archiveEntries)
+        private static HashSet<PackageEntry> SearchForContentsInArchive(Stream archive, byte[] pattern, List<PackageEntry> archiveEntries, CancellationToken cancellationToken)
         {
+            const int BufferSize = 4 * 1024 * 1024;
+
             var matches = new HashSet<PackageEntry>();
+            var buffer = ArrayPool<byte>.Shared.Rent(Math.Max(BufferSize, pattern.Length));
 
-            //using var fs = new FileStream(fileName, FileMode.Open, FileAccess.Read);
-            var data = File.ReadAllBytes(fileName).AsSpan(); // TODO: stream it
-
-            var match = -1;
-            var offset = 0;
-            var lastEntryId = 0;
-
-            do
+            try
             {
-                match = data.IndexOf(pattern);
+                var bufferStart = 0L;
+                var bufferLength = 0;
+                var position = 0L;
+                var entryIndex = 0;
 
-                if (match < 0)
+                while (true)
                 {
-                    break;
-                }
+                    var bufferOffset = position - bufferStart;
 
-                match += pattern.Length;
-                offset += match;
-                data = data[match..];
-
-                PackageEntry? packageEntry = null;
-
-                for (var entryId = lastEntryId; entryId < archiveEntries.Count; entryId++)
-                {
-                    if (offset >= archiveEntries[entryId].Offset)
+                    if (bufferOffset < 0 || bufferOffset + pattern.Length > bufferLength)
                     {
-                        lastEntryId = entryId;
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        archive.Position = position;
+                        bufferStart = position;
+                        bufferOffset = 0;
+                        bufferLength = archive.ReadAtLeast(buffer, buffer.Length, throwOnEndOfStream: false);
+
+                        if (bufferLength < pattern.Length)
+                        {
+                            break;
+                        }
+                    }
+
+                    var match = buffer.AsSpan((int)bufferOffset, bufferLength - (int)bufferOffset).IndexOf(pattern);
+
+                    if (match < 0)
+                    {
+                        position = bufferStart + bufferLength - pattern.Length + 1;
                         continue;
                     }
 
-                    break;
-                }
+                    var start = position + match;
 
-                packageEntry = archiveEntries[lastEntryId];
+                    while (entryIndex + 1 < archiveEntries.Count && archiveEntries[entryIndex + 1].Offset <= start)
+                    {
+                        entryIndex++;
+                    }
 
-                if (offset <= packageEntry.Offset + packageEntry.Length)
-                {
-                    matches.Add(packageEntry);
+                    var entry = archiveEntries[entryIndex];
+                    var entryEnd = (long)entry.Offset + entry.Length;
+
+                    if (entry.Offset > start || start + pattern.Length > entryEnd)
+                    {
+                        position = start + 1;
+                        continue;
+                    }
+
+                    matches.Add(entry);
+                    position = entryEnd;
                 }
             }
-            while (true);
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
 
             return matches;
         }

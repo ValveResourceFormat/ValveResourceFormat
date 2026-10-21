@@ -29,7 +29,6 @@ namespace Tests.IO
                     await Assert.That(PackageFileNames.GetDirectoryFile(Path.Join(folder, "pak01_003.vpk"))).IsEqualTo(Path.Join(folder, "pak01_dir.vpk"));
                     await Assert.That(PackageFileNames.GetDirectoryFile("C:/game/pak01_dir.vpk")).IsEqualTo("C:/game/pak01_dir.vpk");
                     await Assert.That(PackageFileNames.GetDirectoryFile("addon.vpk")).IsEqualTo("addon_dir.vpk");
-                    await Assert.That(PackageFileNames.GetArchiveChunkFile("C:/game/pak01", 7)).IsEqualTo("C:/game/pak01_007.vpk");
 
                     await Assert.That(PackageFileNames.TryGetArchiveChunkDirectoryFile(Path.Join(folder, "pak01_003.vpk"), out var archiveDirectoryFile)).IsTrue();
                     await Assert.That(archiveDirectoryFile).IsEqualTo(Path.Join(folder, "pak01_dir.vpk"));

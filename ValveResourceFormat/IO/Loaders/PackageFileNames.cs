@@ -92,14 +92,6 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Gets the file name of an archive chunk of a split package, such as <c>pak01_003.vpk</c>.
-        /// </summary>
-        /// <param name="packageName">The package name, see <see cref="GetPackageName"/>.</param>
-        /// <param name="archiveIndex">The index of the chunk.</param>
-        public static string GetArchiveChunkFile(string packageName, int archiveIndex)
-            => string.Create(CultureInfo.InvariantCulture, $"{packageName}_{archiveIndex:D3}{Extension}");
-
-        /// <summary>
         /// Gets the existing <c>_dir.vpk</c> directory file of an archive chunk, such as <c>pak01_dir.vpk</c> for
         /// <c>pak01_003.vpk</c>, see <see cref="IsArchiveChunk"/>.
         /// </summary>
