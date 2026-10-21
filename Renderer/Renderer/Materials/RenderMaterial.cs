@@ -305,54 +305,39 @@ namespace ValveResourceFormat.Renderer.Materials
         public void LoadRenderState()
         {
             var material = Material;
-            IsToolsMaterial = material.IntAttributes.ContainsKey("tools.toolsmaterial");
-            DoNotCastShadows = material.IntAttributes.GetValueOrDefault("F_DO_NOT_CAST_SHADOWS") == 1;
+            var attributes = shaderDataProvider.GetIntAttributes(material, IntParams);
+            IsToolsMaterial = attributes.ContainsKey("tools.toolsmaterial");
+            DoNotCastShadows = attributes.GetValueOrDefault("DoNotCastShadows") == 1;
+            IsCs2Water = attributes.GetValueOrDefault("bCsgoWater") == 1;
             isRenderBackfaces = IntParams.GetValueOrDefault("F_RENDER_BACKFACES") == 1;
             disableDepthTest = IntParams.GetValueOrDefault("F_DISABLE_Z_BUFFERING") == 1;
 
-            if (ShaderName == "csgo_water_fancy.vfx")
-            {
-                IsTranslucent = true;
-                IsAlphaTest = false;
-                (srcBlend, destBlend) = (RsBlendMode.SrcAlpha, RsBlendMode.InvSrcAlpha);
-                DoNotCastShadows = true;
-                IsCs2Water = true;
-                return;
-            }
-
             var blendState = shaderDataProvider.GetBlendState(material, IntParams);
-            IsAlphaTest = !blendState.BlendEnable[0] && blendState.AlphaToCoverageEnable;
-            IsTranslucent = blendState.BlendEnable[0];
+            IsTranslucent = blendState.BlendEnable[0] || attributes.GetValueOrDefault("translucent") == 1;
+            IsAlphaTest = !IsTranslucent && blendState.AlphaToCoverageEnable;
 
             // Our shaders output color without alpha premultiplied, unlike some game shaders, so only factors
-            // that multiply the background are used as compiled.
+            // that multiply the background are used as compiled. Translucency that is not baked blends normally.
             (srcBlend, destBlend) = (blendState.SrcBlend[0], blendState.DestBlend[0]) switch
             {
+                _ when !blendState.BlendEnable[0] => (RsBlendMode.SrcAlpha, RsBlendMode.InvSrcAlpha),
                 (_, RsBlendMode.One) => (RsBlendMode.SrcAlpha, RsBlendMode.One),
                 (RsBlendMode.DestColor or RsBlendMode.Zero, _) and var modulate => modulate,
                 _ => (RsBlendMode.SrcAlpha, RsBlendMode.InvSrcAlpha),
             };
+
+            if (IsCs2Water)
+            {
+                return;
+            }
 
             VertexAnimation = ShaderName == "csgo_foliage.vfx"
                 || IntParams.GetValueOrDefault("F_VERTEX_ANIMATION") > 0
                 || IntParams.GetValueOrDefault("F_FOLIAGE_ANIMATION") > 0
                 || IntParams.GetValueOrDefault("F_JITTER_VERTICES") > 0;
 
-            // :MaterialIsOverlay
             hasDepthBias = IntParams.GetValueOrDefault("F_DEPTHBIAS") == 1 || IntParams.GetValueOrDefault("F_DEPTH_BIAS") == 1;
-            IsOverlay = IntParams.GetValueOrDefault("F_OVERLAY") == 1;
-
-            // :MaterialIsOverlay
-            if (IsTranslucent && hasDepthBias && ShaderName is "csgo_vertexlitgeneric.vfx" or "csgo_complex.vfx")
-            {
-                IsOverlay = true;
-            }
-
-            if (ShaderName.EndsWith("static_overlay.vfx", StringComparison.Ordinal) || ShaderName is "citadel_overlay.vfx")
-            {
-                IsOverlay = true;
-            }
-
+            IsOverlay = attributes.GetValueOrDefault("overlay") == 1;
             DoNotCastShadows |= IsOverlay;
         }
 

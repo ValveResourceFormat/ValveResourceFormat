@@ -34,6 +34,13 @@ namespace ValveResourceFormat.IO
         /// <param name="material">The material.</param>
         /// <param name="combos">Overrides for the integer parameters of the material.</param>
         public RsBlendStateDesc GetBlendState(Material material, IReadOnlyDictionary<string, long>? combos = null);
+
+        /// <summary>
+        /// Gets the integer attributes of a material combined with those of its shader, the material taking precedence.
+        /// </summary>
+        /// <param name="material">The material.</param>
+        /// <param name="combos">Overrides for the integer parameters of the material.</param>
+        public IReadOnlyDictionary<string, long> GetIntAttributes(Material material, IReadOnlyDictionary<string, long>? combos = null);
     }
 
     /// <summary>
@@ -82,6 +89,17 @@ namespace ValveResourceFormat.IO
         public RsBlendStateDesc GetBlendState(Material material, IReadOnlyDictionary<string, long>? combos = null)
         {
             return basicProvider?.GetBlendState(material, combos) ?? default;
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Returns the attributes of the basic provider if available.
+        /// </remarks>
+        public IReadOnlyDictionary<string, long> GetIntAttributes(Material material, IReadOnlyDictionary<string, long>? combos = null)
+        {
+            ArgumentNullException.ThrowIfNull(material);
+
+            return basicProvider?.GetIntAttributes(material, combos) ?? material.IntAttributes;
         }
 
         /// <summary>
@@ -696,6 +714,50 @@ namespace ValveResourceFormat.IO
                     || material.IntAttributes.ContainsKey("mapbuilder.water") => GetPassBlendState(combos),
                 _ => new RsBlendStateDesc { AlphaToCoverageEnable = combos.GetValueOrDefault("F_ALPHA_TEST") > 0 },
             };
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Adds the attributes that material flags and a few known shaders would compile to.
+        /// </remarks>
+        public IReadOnlyDictionary<string, long> GetIntAttributes(Material material, IReadOnlyDictionary<string, long>? combos = null)
+        {
+            ArgumentNullException.ThrowIfNull(material);
+
+            combos ??= material.IntParams;
+            var shaderName = Path.GetFileNameWithoutExtension(material.ShaderName);
+            var attributes = new Dictionary<string, long>(material.IntAttributes);
+
+            if (shaderName == "csgo_water_fancy")
+            {
+                attributes.TryAdd("bCsgoWater", 1);
+                attributes.TryAdd("DoNotCastShadows", 1);
+                attributes.TryAdd("translucent", 1);
+            }
+
+            var isTranslucent = GetBlendState(material, combos).BlendEnable[0];
+            var hasDepthBias = combos.GetValueOrDefault("F_DEPTHBIAS") == 1 || combos.GetValueOrDefault("F_DEPTH_BIAS") == 1;
+
+            // :MaterialIsOverlay
+            if (combos.GetValueOrDefault("F_OVERLAY") == 1
+                || shaderName.EndsWith("static_overlay", StringComparison.Ordinal)
+                || shaderName == "citadel_overlay"
+                || (isTranslucent && hasDepthBias && shaderName is "csgo_vertexlitgeneric" or "csgo_complex"))
+            {
+                attributes.TryAdd("overlay", 1);
+            }
+
+            if (combos.GetValueOrDefault("F_DO_NOT_CAST_SHADOWS") == 1 || material.IntAttributes.GetValueOrDefault("F_DO_NOT_CAST_SHADOWS") == 1)
+            {
+                attributes.TryAdd("DoNotCastShadows", 1);
+            }
+
+            if (isTranslucent)
+            {
+                attributes.TryAdd("translucent", 1);
+            }
+
+            return attributes;
         }
 
         /// <summary>

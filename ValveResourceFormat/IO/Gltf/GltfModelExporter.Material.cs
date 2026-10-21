@@ -72,8 +72,9 @@ public partial class GltfModelExporter
     private void GenerateGLTFMaterialFromRenderMaterial(Material material, VMaterial renderMaterial, ModelRoot model, Vector4 modelTintColor, bool baseColorOnly = false)
     {
         var blendState = shaderDataProvider.GetBlendState(renderMaterial);
+        var isTranslucent = blendState.BlendEnable[0] || shaderDataProvider.GetIntAttributes(renderMaterial).GetValueOrDefault("translucent") == 1;
 
-        material.Alpha = blendState.BlendEnable[0] ? AlphaMode.BLEND
+        material.Alpha = isTranslucent ? AlphaMode.BLEND
             : blendState.AlphaToCoverageEnable ? AlphaMode.MASK
             : AlphaMode.OPAQUE;
 
@@ -629,25 +630,11 @@ public partial class GltfModelExporter
     }
 
     // :MaterialIsOverlay
-    private static bool IsMaterialOverlay(VMaterial material)
+    private bool IsMaterialOverlay(VMaterial material)
     {
-        if (material.IntParams.GetValueOrDefault("F_OVERLAY") == 1)
-        {
-            return true;
-
-        }
-
         // Renderer only assumes depth bias is overlay for transparent materials of specific shader - but for gltf it should be fine for all
-        if (material.IntParams.GetValueOrDefault("F_DEPTHBIAS") == 1 || material.IntParams.GetValueOrDefault("F_DEPTH_BIAS") == 1)
-        {
-            return true;
-        }
-
-        if (material.ShaderName.EndsWith("static_overlay.vfx", StringComparison.Ordinal) || material.ShaderName is "citadel_overlay.vfx")
-        {
-            return true;
-        }
-
-        return false;
+        return shaderDataProvider.GetIntAttributes(material).GetValueOrDefault("overlay") == 1
+            || material.IntParams.GetValueOrDefault("F_DEPTHBIAS") == 1
+            || material.IntParams.GetValueOrDefault("F_DEPTH_BIAS") == 1;
     }
 }
