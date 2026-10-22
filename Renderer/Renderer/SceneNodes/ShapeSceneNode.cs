@@ -28,6 +28,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Number of triangles in a full capsule (two hemispheres plus the connecting cylinder band).</summary>
         public const int CapsuleTriangles = 2 * HemisphereTriangles + 2 * SphereSegments;
 
+        /// <summary>Number of line vertices <see cref="AddBox(List{SimpleVertex}, in AABB, Color32)"/> appends, two per edge.</summary>
+        public const int BoxLineVertexCount = 2 * 12;
+
         /// <summary>Gets the shader used to render this shape.</summary>
         protected Shader shader { get; init; }
 
@@ -361,7 +364,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public static void AddBox(List<SimpleVertex> vertices, in AABB box, Color32 color)
         {
             // Adding a box will add many vertices, so ensure the required capacity for it up front
-            vertices.EnsureCapacity(vertices.Count + 2 * 12);
+            vertices.EnsureCapacity(vertices.Count + BoxLineVertexCount);
 
             AddLine(vertices, new Vector3(box.Min.X, box.Min.Y, box.Min.Z), new Vector3(box.Max.X, box.Min.Y, box.Min.Z), color);
             AddLine(vertices, new Vector3(box.Max.X, box.Min.Y, box.Min.Z), new Vector3(box.Max.X, box.Max.Y, box.Min.Z), color);

@@ -26,10 +26,18 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <inheritdoc/>
         protected override List<SimpleVertex> BuildLines()
         {
-            var vertices = new List<SimpleVertex>();
-            var ranges = new List<ClusterDrawRange>();
+            var clusterChildBounds = voxelVisibility.BuildClusterChildBounds();
+            var boxCount = 0;
 
-            foreach (var (clusterId, children) in voxelVisibility.BuildClusterChildBounds())
+            foreach (var children in clusterChildBounds.Values)
+            {
+                boxCount += children.Count;
+            }
+
+            var vertices = new List<SimpleVertex>(boxCount * ShapeSceneNode.BoxLineVertexCount);
+            var ranges = new List<ClusterDrawRange>(clusterChildBounds.Count);
+
+            foreach (var (clusterId, children) in clusterChildBounds)
             {
                 var start = vertices.Count;
                 var color = GetIdColor(clusterId);

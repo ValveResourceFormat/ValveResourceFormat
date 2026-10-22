@@ -49,12 +49,20 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private static List<SimpleVertex> BuildBlockLines(NavSpaceFile navSpaceFile)
         {
-            var vertices = new List<SimpleVertex>();
+            var maxEdgeCount = 0;
+
+            foreach (var block in navSpaceFile.Blocks)
+            {
+                maxEdgeCount += ConvexHull.GetMaxEdgeCount(block.Vertices.Length);
+            }
+
+            var vertices = new List<SimpleVertex>(maxEdgeCount * 2);
+            var hull = new ConvexHull();
             var edges = new List<int>();
 
             foreach (var block in navSpaceFile.Blocks)
             {
-                AddConvexHull(vertices, block.Vertices, GetIdColor(block.Id), edges);
+                AddConvexHull(vertices, hull, block.Vertices, GetIdColor(block.Id), edges);
             }
 
             return vertices;
@@ -62,12 +70,20 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private static List<SimpleVertex> BuildTransitionLines(NavSpaceFile navSpaceFile)
         {
-            var vertices = new List<SimpleVertex>();
+            var maxEdgeCount = 0;
+
+            foreach (var transition in navSpaceFile.Transitions)
+            {
+                maxEdgeCount += ConvexHull.GetMaxEdgeCount(transition.Vertices.Length);
+            }
+
+            var vertices = new List<SimpleVertex>(maxEdgeCount * 2);
+            var hull = new ConvexHull();
             var edges = new List<int>();
 
             foreach (var transition in navSpaceFile.Transitions)
             {
-                AddConvexHull(vertices, transition.Vertices, TransitionColor, edges);
+                AddConvexHull(vertices, hull, transition.Vertices, TransitionColor, edges);
             }
 
             return vertices;
@@ -75,7 +91,17 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private static List<SimpleVertex> BuildCellLines(NavSpaceFile navSpaceFile)
         {
-            var vertices = new List<SimpleVertex>();
+            var occupiedCellCount = 0;
+
+            foreach (var cell in navSpaceFile.Cells)
+            {
+                if (cell.Length > 0)
+                {
+                    occupiedCellCount++;
+                }
+            }
+
+            var vertices = new List<SimpleVertex>(occupiedCellCount * ShapeSceneNode.BoxLineVertexCount);
             var (sizeX, sizeY, _) = navSpaceFile.GridSize;
 
             for (var cell = 0; cell < navSpaceFile.Cells.Length; cell++)
@@ -94,10 +120,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             return vertices;
         }
 
-        private static void AddConvexHull(List<SimpleVertex> vertices, Vector3[] points, Color32 color, List<int> edges)
+        private static void AddConvexHull(List<SimpleVertex> vertices, ConvexHull hull, Vector3[] points, Color32 color, List<int> edges)
         {
             edges.Clear();
-            ConvexHull.GetEdges(points, edges);
+            hull.GetEdges(points, edges);
 
             for (var i = 0; i < edges.Count; i += 2)
             {
