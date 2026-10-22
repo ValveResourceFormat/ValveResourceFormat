@@ -124,7 +124,7 @@ namespace CLI
         /// <param name="all">-a, Print the content of each resource block in the file.</param>
         /// <param name="block">-b, Print the content of specific block(s), example: "DATA" or "RERL,RED2".</param>
         /// <param name="decompile">-d|--vpk_decompile, Decompile supported resource files. Requires --output.</param>
-        /// <param name="texture_decode_flags">Decompile textures with the specified decode flags, example: "none", "auto" (default), "ForceLDR". Requires --output.</param>
+        /// <param name="texture_decode_flags">Decompile textures with the specified decode flags, example: "none", "auto" (default), "ForceLDR" (on top of the automatic flags). Requires --output.</param>
         /// <param name="skip_softbody_reconstruction">Skip reconstructing soft-body (cloth) physics when decompiling models.</param>
         /// <param name="vpk_list">-l, List all files in the given VPK or folder. File extension and path filters apply.</param>
         /// <param name="vpk_dir">Same as --vpk_list, but also print the archive index, offset and metadata size of each file.</param>
@@ -359,7 +359,7 @@ namespace CLI
                     return 1;
                 }
 
-                TextureDecodeFlags = decodeFlags;
+                TextureDecodeFlags = decodeFlags == TextureCodec.ForceLDR ? decodeFlags | TextureCodec.Auto : decodeFlags;
             }
 
             var blockNames = Enum.GetNames<BlockType>().Where(name => name != nameof(BlockType.Undefined)).ToArray();

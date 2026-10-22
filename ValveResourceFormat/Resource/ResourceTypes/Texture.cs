@@ -761,7 +761,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <param name="depth">The depth to extract.</param>
         /// <param name="face">The face to extract for cube textures.</param>
         /// <param name="mipLevel">The mip level to extract.</param>
-        /// <param name="decodeFlags">The preferred codec to use when decoding the texture.</param>
+        /// <param name="decodeFlags">The preferred codec to use when decoding the texture. Flags set alongside <see cref="TextureCodec.Auto"/> are added to the detected ones.</param>
         /// <returns>Skia bitmap.</returns>
         public SKBitmap GenerateBitmap(uint depth = 0, CubemapFace face = 0, uint mipLevel = 0, TextureCodec decodeFlags = TextureCodec.Auto)
         {
@@ -800,12 +800,12 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             var isHdrBitmap = IsHighDynamicRange && !decodeFlags.HasFlag(TextureCodec.ForceLDR);
-            var removeDecodeFlags = isHdrBitmap
+            var removeDecodeFlags = IsHighDynamicRange
                 ? (TextureCodec.ColorSpaceLinear | TextureCodec.ColorSpaceSrgb)
                 : TextureCodec.None;
 
-            decodeFlags = decodeFlags == TextureCodec.Auto
-                ? RetrieveCodecFromResourceEditInfo() & ~removeDecodeFlags
+            decodeFlags = decodeFlags.HasFlag(TextureCodec.Auto)
+                ? (RetrieveCodecFromResourceEditInfo() & ~removeDecodeFlags) | (decodeFlags & ~TextureCodec.Auto)
                 : decodeFlags;
 
             var colorType = isHdrBitmap

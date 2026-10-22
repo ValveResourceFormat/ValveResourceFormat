@@ -94,7 +94,7 @@ public sealed class TextureExtract
     public TextureDecoders.TextureCodec DecodeFlags { get; set; } = TextureDecoders.TextureCodec.Auto;
 
     /// <summary>
-    /// Whether to combine cubemap faces into a single latlong image. Only applies to high dynamic range cubemaps.
+    /// Whether to combine cubemap faces into a single latlong image. Only applies to cubemaps exported as EXR.
     /// </summary>
     public bool LatLongCombineCubemap { get; set; } = true;
 
@@ -167,7 +167,7 @@ public sealed class TextureExtract
                     continue;
                 }
 
-                if (LatLongCombineCubemap && texture.IsHighDynamicRange)
+                if (LatLongCombineCubemap && ExportExr)
                 {
                     var currentDepth = depth;
                     contentFile.AddSubFile($"{outTextureName}{ImageOutputExtension}", () =>

@@ -277,8 +277,8 @@ Compile-time transforms (YCoCg, hemi-octahedral normals, DXT5nm, normal Z-recons
 are reversed on export. LDR textures export as PNG and HDR as EXR, except textures that
 store a whole JPEG/PNG/WebP file, which are copied out byte-exact instead. Sprite sheets
 reconstruct a compilable `.mks` plus per-frame images; LDR cubemaps export one image per
-face, HDR cubemaps combine into a single equirectangular map; arrays and volumes export
-per slice.
+face, HDR cubemaps combine into a single equirectangular map, or one image per face with
+`ForceLDR`; arrays and volumes export per slice.
 
 | What                                       | Why                   | Details                                                                                                                                                                                                                                                                                                                                             |
 | ------------------------------------------ | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

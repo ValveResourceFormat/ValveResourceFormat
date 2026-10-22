@@ -83,7 +83,7 @@ namespace ValveResourceFormat.TextureDecoders
         HemiOctRB = HemiOctNormal | BlueToAlpha,
 
         /// <summary>
-        /// Automatically determine codec flags.
+        /// Determine codec flags from the texture's edit info. Other flags set alongside it are added on top.
         /// </summary>
         Auto = 1 << 30,
     }
