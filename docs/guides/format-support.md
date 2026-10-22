@@ -49,14 +49,14 @@ in the Dump column.
 | vanim    | Animation                  | text                          | generic | - (legacy, animation data now lives inside vmdl)                                                             |
 | vanmgrph | Animation Graph            | graph                         | yes     | editable graph document                                                                                      |
 | vcd      | Choreo Scene               | text                          | generic | KV3 text (no dedicated parsing; vcdlist scenes are separate)                                                 |
-| vcdlist  | Choreo Scene File Data     | text                          | yes     | per-scene `.vcd` as KV3 text (see [Choreo](#choreo-captions-and-ui))                                         |
+| vcdlist  | Choreo Scene File Data     | scene list, text              | yes     | per-scene `.vcd` as KV3 text (see [Choreo](#choreo-captions-and-ui))                                         |
 | vcompmat | Composite Material         | text                          | generic | KV3 text (no compositing preview)                                                                            |
 | vcss     | Panorama Style             | text                          | yes     | `.css` (prettified minified text)                                                                            |
 | vdata    | Data                       | text (3D for CS2 bomb damage) | generic | KV3 text                                                                                                     |
 | vdpn     | Dota Patch Notes           | text                          | generic | KV3 text                                                                                                     |
 | vdsp     | DSP Presets                | text                          | generic | KV3 text                                                                                                     |
 | vdvn     | Dota Visual Novels         | text                          | generic | KV3 text                                                                                                     |
-| vents    | Entity Lump                | graph, text                   | yes     | entity dump; glTF/GLB; included in map exports                                                               |
+| vents    | Entity Lump                | list, graph, text, FGD        | yes     | entity dump; glTF/GLB; included in map exports                                                               |
 | vjs      | Panorama Script            | text                          | yes     | `.js` (byte-exact; see [Panorama](#choreo-captions-and-ui))                                                  |
 | vmap     | Map                        | 3D                            | yes     | `.vmap` (Hammer); glTF/GLB                                                                                   |
 | vmat     | Material                   | 3D                            | yes     | `.vmat` + unpacked texture inputs                                                                            |
@@ -121,6 +121,7 @@ in the Dump column.
 | DMX / KeyValues2                   | Normalized text dump                                                                                                                                                                                          |
 | VBKV / binary KeyValues1           | Text dump                                                                                                                                                                                                     |
 | Binary KeyValues3 (all versions)   | Text dump; backbone of the generic fallback above; writing supported                                                                                                                                          |
+| KeyValues3 text                    | Highlighted text view; Animgraph 1 graph documents also open in the graph viewer                                                                                                                              |
 | Binary resource writing            | Basic re-serialization of resources back to the compiled binary format (`Resource.Serialize`), for a subset of block types (binary KV3, plaintext, Panorama, external reference lists, and raw binary blocks) |
 
 ## Models (vmdl)
@@ -298,19 +299,19 @@ retarget clips authored on a different skeleton.
 
 Animation _graphs_ are decompiled to editable documents and visualized, for both Animgraph 1
 and Animgraph 2. Animgraph 2 graphs (`vnmgraph`) are also executed in the model viewer.
-The viewer evaluates bone constraints, including constraint-driven morphs, on every pose; IK
+The viewer evaluates bone constraints, including constraint-driven morphs, on every pose, and
+solves the two-bone and foot IK nodes of an executed Animgraph 2 graph; the model's own IK
 chains are not solved, and glTF export does not apply constraints. `vnmikrig` files have no
 dedicated support beyond the generic dump.
 
 ### Animgraph Playback
 
-| Gap                                 | Category              | Detail                                                                                               |
-| ----------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------- |
-| Control parameter values            | Not in compiled files | Set at runtime. The viewer exposes every parameter as a control and guesses starting values.         |
-| External graph, pose and data slots | Not in compiled files | Slots filled at runtime stay empty, and the branches reading them contribute no pose.                |
-| Animgraph 1 execution               | Not implemented       | Only Animgraph 2 graphs are executed.                                                                |
-| Orientation warp translation        | Not implemented       | The translation warp flag of `OrientationWarpNode` is not applied.                                   |
-| Target selector alignment bone      | Not implemented       | `TargetSelectorNode` scores its options by where their root motion ends, without the alignment bone. |
+| Gap                                 | Category              | Detail                                                                                       |
+| ----------------------------------- | --------------------- | -------------------------------------------------------------------------------------------- |
+| Control parameter values            | Not in compiled files | Set at runtime. The viewer exposes every parameter as a control and guesses starting values. |
+| External graph, pose and data slots | Not in compiled files | Slots filled at runtime stay empty, and the branches reading them contribute no pose.        |
+| Animgraph 1 execution               | Not implemented       | Only Animgraph 2 graphs are executed.                                                        |
+| Orientation warp translation        | Not implemented       | The translation warp flag of `OrientationWarpNode` is not applied.                           |
 
 Animgraph 2 system is taken from the [Esoterica](https://www.esotericaengine.com/) animation system. Source 2 adds a couple of new nodes: `ChainLookatNode`,
 `FollowBoneNode`, `BodyGroupNode` and `IsInactiveBranchConditionNode`, and a few ones that are game specific.
@@ -385,9 +386,7 @@ interpreted.
 - **Dota 2**: the uncompiled VGrass format found in map VPKs is entirely unparsed
   ([#83](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/83)). Hero list,
   patch notes and visual novel resources are text dumps only.
-- **Deadlock**: viewer shading is a work in progress; environment blend materials in
-  particular do not render their texture layers correctly yet
-  ([#1092](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/1092)).
+- **Deadlock**: viewer shading is a work in progress.
 - **s&box**: compiled shaders are not supported. Managed resources extract as plaintext.
 - **Source 1 leftovers**: `vfont` (VFONT1), `uifont` packages, VBKV, closed captions, and
   flex scene `.vfe` files are supported even where they appear in Source 1 games. Source 1

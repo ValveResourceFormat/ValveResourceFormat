@@ -10,7 +10,7 @@ description: "Guides and FAQ for Source 2 Viewer: open and extract VPK files, ex
 
 [**Download Source 2 Viewer**](https://s2v.app/) | [View on GitHub](https://github.com/ValveResourceFormat/ValveResourceFormat)
 
-To get started, see [how to open and extract VPK files](guides/vpk-management.md).
+To get started, see [Getting Started](guides/getting-started.md).
 
 ## What is Source 2 Viewer?
 
@@ -20,7 +20,7 @@ Source 2 Viewer is a modern, actively maintained tool for browsing, extracting, 
 
 - **3D Rendering** - Interactive viewer for maps, models, physics, and particles with PBR shaders, animation playback
 - **Texture Tools** - Channel isolation, cubemap/HDR support, normal map visualization, SVG rasterization, and export capabilities
-- **VPK Management** - Browse and extract archives with advanced search, deleted file recovery, and archive creation
+- **VPK Management** - Browse and extract archives with advanced search, deleted file recovery, and creating and editing archives
 - **Export Systems** - glTF 2.0 compatibility for maps, models, physics, and animations with batch export functionality
 - **Decompilers** - Maps, models, and materials conversion to editable formats for Hammer editor and ModelDoc
 - **Audio Player** - Built-in player supporting WAV, MP3, and Source 2 formats with waveform visualization
@@ -31,19 +31,13 @@ Source 2 Viewer is a modern, actively maintained tool for browsing, extracting, 
 
 ## What is ValveResourceFormat?
 
-ValveResourceFormat (VRF) is the underlying library that powers Source 2 Viewer. It's a comprehensive Source 2 resource file format parser, decompiler, and exporter. The project consists of four main components:
-
-1. **Library** - Public API for parsing and decompiling Source 2 resources
-2. **GUI Viewer (Source 2 Viewer)** - User-friendly interface for browsing VPK archives and viewing assets
-3. **CLI Decompiler** - Command-line tool for batch processing and automation
-4. **Renderer** - OpenGL renderer library, published to NuGet as `ValveResourceFormat.Renderer`
-
-Developers can integrate ValveResourceFormat into their own projects via [NuGet](https://www.nuget.org/packages/ValveResourceFormat/) to programmatically work with Source 2 game files.
+ValveResourceFormat (VRF) is the library behind Source 2 Viewer and its [command-line utility](guides/command-line.md). It parses, decompiles and exports Source 2 files, and developers can use it in their own projects from [NuGet](https://www.nuget.org/packages/ValveResourceFormat/), together with its OpenGL renderer, [ValveResourceFormat.Renderer](https://www.nuget.org/packages/ValveResourceFormat.Renderer/).
 
 ### Related Libraries
 
 - **[ValvePak](https://www.nuget.org/packages/ValvePak/)** - VPK archive reading library for .NET
-- **[ValveKeyValue](https://www.nuget.org/packages/ValveKeyValue/)** - KeyValues format support library (KV1/KV2/KV3)
+- **[ValveKeyValue](https://www.nuget.org/packages/ValveKeyValue/)** - KeyValues1 and KeyValues3 text library for .NET
+- **[Datamodel.NET](https://www.nuget.org/packages/KeyValues2/)** - Datamodel Exchange (DMX) and KeyValues2 library for .NET
 
 ## Supported Games
 
@@ -86,7 +80,7 @@ In their [asset system](https://sbox.game/news/asset-system#asset-information), 
 - **Extract and verify metadata** from models and materials
 - **[Retroactively tag and sort assets](https://sbox.game/news/march2022)** in their marketplace
 
-This demonstrates VRF's reliability—even developers with official Source 2 SDK access choose VRF for programmatic asset processing.
+This demonstrates VRF's reliability: even developers with official Source 2 SDK access choose VRF for programmatic asset processing.
 
 ## Crediting Source 2 Viewer
 
@@ -105,15 +99,19 @@ If it crashes on startup under Wine or Proton with a `stack overflow` error, che
 
 ### How do I open VPK files?
 
-Simply launch Source 2 Viewer and use the Game Explorer to automatically detect installed games, or use File > Open to manually browse for .vpk files.
+Simply launch Source 2 Viewer and use the Game Explorer to automatically detect installed games, or use File > Open to manually browse for .vpk files. See [Getting Started](./guides/getting-started.md) and [VPK Management](./guides/vpk-management.md).
+
+Under Wine, the Explorer only finds games installed by a Windows Steam in the same Wine prefix, so games from a native Linux or macOS Steam are not listed. Open their packages with File > Open instead, from your Steam library on the `Z:` drive. Files opened from a game's folder still load the textures and models they use from that game, and **Add to Bookmarks** keeps a package in the Explorer for next time.
+
+### Why does a file fail to open after a game update?
+
+Games change their file formats when they update, and the stable release of Source 2 Viewer can lag behind. Files that fail to load show an error tab, which says when the file may use a newer format and whether a newer build is available.
+
+Try the latest development build, as [Getting the Latest Dev Build](./guides/reporting-issues.md#getting-the-latest-dev-build) shows. If the error persists on the latest build, [report the issue](./guides/reporting-issues.md) and paste the whole error text, which includes your version.
 
 ### Can I extract textures and convert them to PNG/JPG?
 
-Yes, Source 2 Viewer can preview .vtex files and export them to common image formats.
-
-### Can I extract files from Counter-Strike 2 (CS2)?
-
-Yes, Source 2 Viewer fully supports CS2, including models, textures, materials, maps, and sounds.
+Yes, Source 2 Viewer can preview .vtex files and export them to common image formats. See [Exporting Textures](./guides/exporting-textures.md).
 
 ### Is Source 2 Viewer still being updated?
 
@@ -123,25 +121,15 @@ Yes, Source 2 Viewer is actively maintained and regularly updated to support new
 
 If you double click the executable and nothing happens, the most likely cause is that your Windows is missing CET (Control-flow Enforcement Technology) support. Please update your Windows.
 
-### Why does a file fail to open after a game update?
-
-Games change their file formats when they update, and the stable release of Source 2 Viewer can lag behind. Files that the viewer doesn't understand yet show an error tab with the heading "This file may use a format that this version of S2V does not support". Shader files can report "Only VCS file versions X through Y are supported" with a range of versions.
-
-Try the latest development build: open the About window, set "Update channel:" to Dev and use the download button there. The development build is also available at https://s2v.app/dev/.
-
-If the error persists on the latest build, click the "Copy version" button in the About window and [report the issue](./guides/reporting-issues.md) with it.
-
 ### How do I extract models for use in Blender or other 3D software?
 
-Source 2 Viewer can export models, meshes, maps, physics shapes, animation clips and navigation meshes into a standard glTF format which is supported by a lot of software including Blender.
+Source 2 Viewer can export models, meshes, maps, physics shapes, animation clips and navigation meshes into a standard glTF format which is supported by a lot of software including Blender. See [Exporting Models](./guides/exporting-models.md) and [Exporting Maps](./guides/exporting-maps.md).
 
 ### Does Source 2 Viewer support Source 1 games like Team Fortress 2 or Half-Life 2?
 
 No, Source 2 Viewer only supports Source 2 games. For Source 1 and GoldSrc games, check out **[VPKEdit](https://github.com/craftablescience/VPKEdit)**. It's basically Source 2 Viewer but for older games on Source and GoldSource engines.
 
-### Does Source 2 use BSP files like Source 1?
-
-No, Source 2 does not use the traditional BSP (Binary Space Partitioning) format. Source 1 games used .bsp files for compiled maps with BSP tree structures for rendering optimization. Source 2 instead uses mesh-based maps. This represents a fundamental shift in how Source 2 handles level geometry and rendering.
+Source 2 does not use the Source 1 BSP (Binary Space Partitioning) format.
 
 ## Alternative to GCFScape
 

@@ -1,63 +1,97 @@
 ---
-description: Preview Source 2 .vtex_c textures in Source 2 Viewer and export them as PNG, JPG or EXR, individually or in batches.
+description: Preview Source 2 .vtex_c textures in Source 2 Viewer, look at their channels, and export them as PNG or EXR images, one at a time or a whole folder at once.
 ---
 
 # Exporting Textures
 
-Source 2 Viewer can preview and export textures from any Source 2 game to standard image formats.
+Source 2 Viewer shows textures and exports them as images. The examples use files from Counter-Strike 2's `game/csgo/pak01_dir.vpk`.
 
 ## Finding Textures
 
-- Textures are `.vtex_c` files, usually in `materials/` folders inside VPK archives
-- Use <kbd>Ctrl</kbd>+<kbd>F</kbd> to search for textures by name
-- Textures are also referenced by materials (`.vmat_c`). Opening a material shows which textures it uses
+Textures are `.vtex_c` files, mostly in `materials/` folders or next to a model, such as `weapons/models/ak47/materials/`. Interface images are in `panorama/images/`.
+
+A texture is named after the image it was made from, followed by a hash: `ak47_default_color_psd_5b66a23b.vtex_c` was made from `ak47_default_color.psd`. The [References](./finding-files.md#references) tab of a material lists its textures.
 
 ## Texture Viewer
 
-Double-click a `.vtex_c` to open the texture viewer. Features:
+Double-click a `.vtex_c` file to open it. Scroll to zoom and drag to pan.
 
-- View individual channels: RGB, Red, Green, Blue, Alpha
-- Toggle between mip levels to see different resolutions
-- For cubemaps, set **Projection type** to **None** to browse individual faces
-- For texture arrays, browse individual slices
-- HDR textures are shown gamma encoded, so values above 1.0 clip
+![The texture viewer showing the magazine cover, with the sidebar on the left](./images/exporting-textures-viewer.webp)
 
-![Texture viewer with channel controls](./images/exporting-textures-viewer.png)
+### Channels
 
-## Exporting
+Many textures keep different data in each channel, such as roughness in red and metalness in green. The texture itself does not say what its channels hold: the shader of the material that uses it decides that. Pick what to show in **Channels**:
 
-- Right-click a `.vtex_c` and select **Decompile & export** to write a `.vtex` compile config with the image next to it. HDR textures write `.exr`, others `.png`; textures stored as JPEG, PNG or WebP keep that format
-- Or open the texture and use the save button in the viewer toolbar to save just the image as **PNG**, **JPG**, or **EXR** (for HDR textures)
+![The Channels list of the texture viewer, with RGBA (Transparent) highlighted](./images/screenshots-texture-channels.webp)
 
-For batch export:
+- **Red**, **Green**, **Blue** and **Alpha** show one channel in gray.
+- **RGB (Opaque)** ignores the alpha channel, and **RGBA (Transparent)** uses it as transparency.
+- **RGB | A** and **R | G | B | A** show the channels next to each other, or one above the other for textures wider than they are tall.
 
-- Right-click a folder containing textures → **Decompile & export**, and pick which file types to export in the dialog
-- Use the CLI for large-scale extraction:
+Textures open as **RGB (Opaque)**, except vector graphics and particle textures, which open as **RGBA (Transparent)**.
 
-```sh
-Source2Viewer-CLI -i "pak01_dir.vpk" -o "exported/" -d \
-    --vpk_extensions "vtex_c" \
-    --vpk_filepath "materials/models/heroes/"
+### Cubemaps
+
+Skies use cubemaps, such as `materials/skybox/sky_de_dust2_exr_908a35ba.vtex_c`. **Projection type** shows them as a panorama, a cross of six faces, or one face at a time.
+
+![The Projection type list of the Dust II sky, open with Equirectangular highlighted, next to the sky as a panorama](./images/exporting-textures-projection.webp)
+
+HDR textures, such as this sky, export as EXR with their full brightness range.
+
+## Saving What the Viewer Shows
+
+**Save to disk...** in the sidebar saves the texture as the viewer shows it, with the picked channels or projection. HDR textures can also be saved as EXR. See [Saving Textures as Images](./screenshots.md#saving-textures-as-images).
+
+## Exporting a Texture
+
+1. Right-click the texture and choose **Decompile & export**.
+
+    ![Context menu on the magazine cover texture with Decompile & export highlighted](./images/exporting-textures-export-menu.webp)
+
+2. Choose a folder and click **Save**.
+
+    ![The save dialog in a folder named Textures, with the file name shoots_magazine_color_psd_c0170b69.png and the Save as type list open, showing png file](./images/exporting-textures-save-dialog.webp)
+
+3. A window shows when the export is done.
+
+    ![Export window showing Export completed](./images/getting-started-export-progress.webp)
+
+Textures are written as PNG, HDR textures as EXR, and textures stored as JPEG or WebP keep that format. A texture compiled from a `.vtex` file of its own is saved as that `.vtex`, with the image next to it. The exported image keeps the alpha channel.
+
+**Decompile & export** on a material writes the `.vmat` and its textures, with textures that pack several maps split into one image each.
+
+## Exporting a Folder
+
+1. Right-click a folder and choose **Decompile & export**.
+
+    ![Context menu on the ak47 folder with Decompile & export highlighted](./images/getting-started-folder-export-menu.webp)
+
+2. Keep **image** for `vtex_c`. Set `vmat_c` to `* Do not export *` to get every texture under its own name instead of through its materials.
+
+    ![Select output file types window for the ak47 folder, with the list for vtex_c open, showing Do not export, image and vtex](./images/exporting-textures-folder-types.webp)
+
+3. Click **Continue** and choose the folder to export to.
+
+    ![Folder picker for choosing which folder to extract files to](./images/getting-started-folder-picker.webp)
+
+## Command Line
+
+This exports every texture in the AK-47's folder with the [command-line utility](./command-line.md):
+
+```powershell
+./Source2Viewer-CLI.exe -i "steam:730/game/csgo/pak01_dir.vpk" -o "exported" -d --vpk_extensions "vtex_c" --vpk_filepath "weapons/models/ak47/"
 ```
 
-Source 2 Viewer only decompiles. To turn a PNG or TGA image into a `.vtex_c`, compile it with Valve's Workshop Tools (the resource compiler) for that game.
+Add `--texture_decode_flags "ForceLDR"` to write HDR textures as PNG.
 
-## Texture Types
+To turn an image into a `.vtex_c`, compile it with the game's Workshop Tools.
 
-Source 2 uses several texture types you'll encounter:
+## Texture Names
 
-- **Color/Albedo** (`_color`): The base color/diffuse texture
-- **Normal map** (`_normal`): Surface detail for lighting. These appear purple/blue in the viewer
-- **Roughness/Metalness**: PBR material properties, often packed into channels of a single texture
-- **Mask textures**: Various masks packed into RGBA channels (detail mask, self-illum, specular, etc.)
-- **AO** (`_ao`): Ambient occlusion
+The end of a texture's name usually tells what it holds:
 
-::: tip
-Normal maps and mask textures may look wrong if you view only the RGB channels. Switch to individual channel view to understand what data each channel contains.
-:::
-
-## HDR and Cubemap Textures
-
-- HDR textures (used for skyboxes and environment probes) are stored in higher precision formats
-- Cubemap textures have 6 faces. Set **Projection type** to **None** to browse them
-- HDR textures can be exported as EXR to preserve the full dynamic range, or as PNG/JPG, which clip values above 1.0
+- `_color`: the base color
+- `_normal`: the normal map
+- `_rough`: roughness
+- `_ao`: ambient occlusion
+- `_mask`: masks
