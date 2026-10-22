@@ -15,6 +15,9 @@ public sealed class EnvSky : BaseEntity
 {
     private readonly bool isGlobalLight;
 
+    // Where the angular fog fades below and above the horizon, while the entity does not say
+    private static readonly Vector4 DefaultAngularFog = new(-25f, -35f, 25f, 35f);
+
     /// <summary>Gets the sky material, or <see langword="null"/> when the entity names none.</summary>
     public string? SkyMaterialName { get; private set; }
 
@@ -73,6 +76,12 @@ public sealed class EnvSky : BaseEntity
             {
                 Translation = Vector3.Zero
             },
+            FogType = (SkyFogType)KeyValues.GetInt32Property("fog_type", (int)SkyFogType.Distance),
+            AngularFog = new Vector4(
+                KeyValues.GetFloatProperty("angular_fog_min_start", DefaultAngularFog.X),
+                KeyValues.GetFloatProperty("angular_fog_min_end", DefaultAngularFog.Y),
+                KeyValues.GetFloatProperty("angular_fog_max_start", DefaultAngularFog.Z),
+                KeyValues.GetFloatProperty("angular_fog_max_end", DefaultAngularFog.W)),
         };
     }
 

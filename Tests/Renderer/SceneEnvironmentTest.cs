@@ -11,6 +11,19 @@ namespace Tests.Renderer
         private const float Tolerance = 1e-4f;
 
         [Test]
+        public async Task LinearFogRaisesTheFractionToTheExponentUpToTheMax()
+        {
+            var fog = new LinearFog(Vector3.One, Start: 500f, End: 2000f, MaxDensity: 0.8f, Exponent: 2f);
+
+            await Assert.That(fog.GetAmount(100f)).IsEqualTo(0f);
+            await Assert.That(fog.GetAmount(1250f)).IsEqualTo(0.25f).Within(Tolerance);
+            await Assert.That(fog.GetAmount(float.PositiveInfinity)).IsEqualTo(0.8f).Within(Tolerance);
+
+            // Start past the end thins with distance
+            await Assert.That((fog with { Start = 2000f, End = 500f }).GetAmount(float.PositiveInfinity)).IsEqualTo(0f);
+        }
+
+        [Test]
         public async Task PatternBlendsLettersAndLoops()
         {
             var style = new PatternLightStyle("amz");

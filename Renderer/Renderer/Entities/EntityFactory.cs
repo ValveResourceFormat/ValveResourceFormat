@@ -65,6 +65,7 @@ public static class EntityFactory
         Register<EnvCubemap>("env_cubemap", static (system, spawnInfo) => new EnvCubemap(system, spawnInfo, isSphere: true));
         Register<EnvCubemap>("env_cubemap_box", static (system, spawnInfo) => new EnvCubemap(system, spawnInfo, isSphere: false));
         Register<EnvCubemapFog>("env_cubemap_fog", static (system, spawnInfo) => new EnvCubemapFog(system, spawnInfo));
+        Register<EnvFogController>("env_fog_controller", static (system, spawnInfo) => new EnvFogController(system, spawnInfo));
         Register<EnvLightProbeVolume>("env_combined_light_probe_volume", static (system, spawnInfo) => new EnvLightProbeVolume(system, spawnInfo, bakesCubemap: true));
         Register<EnvLightProbeVolume>("env_light_probe_volume", static (system, spawnInfo) => new EnvLightProbeVolume(system, spawnInfo, bakesCubemap: false));
         Register<EnvGradientFog>("env_gradient_fog", static (system, spawnInfo) => new EnvGradientFog(system, spawnInfo));

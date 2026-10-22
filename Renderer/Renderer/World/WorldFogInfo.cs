@@ -23,6 +23,12 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>Gets or sets the active cubemap fog parameters.</summary>
         public SceneCubemapFog? CubemapFog { get; set; }
 
+        /// <summary>
+        /// Gets or sets the fog of an <c>env_fog_controller</c> the 2D sky is fogged with, or
+        /// <see langword="null"/> to leave the sky without it.
+        /// </summary>
+        public LinearFog? LinearFog { get; set; }
+
         /*
         // VOLUMETRIC FOG
         // Volumetric fog is a vital part of the look of Half-Life: Alyx, and it's very much possible to implement... but it's hard.

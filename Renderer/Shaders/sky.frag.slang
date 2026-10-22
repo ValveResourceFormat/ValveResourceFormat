@@ -35,6 +35,15 @@ uniform float g_flBrightnessExposureBias;
 uniform float g_flRenderOnlyExposureBias;
 uniform vec3 g_vTint = vec3(1.0, 1.0, 1.0);
 
+// 0 is no fog, 1 fogs the sky as far away as the far plane, 2 fogs it by its angle above the horizon
+uniform int g_nSkyFogType;
+uniform vec3 g_vSkyFogColor;
+uniform float g_flSkyDistanceFog;
+
+// Where the angular fog starts and ends below and above the horizon, as heights of the view direction
+uniform vec4 g_vSkyFogMinMaxDots;
+uniform bool g_bSkyMinAngularFog;
+
 const float g_flToneMapScalarLinear = 1.0;
 
 
@@ -56,6 +65,23 @@ void main()
     vColor.rgb *= g_vTint;
 
     vColor.rgb = ClampToPositive(vColor.rgb);
+
+    if (g_nSkyFogType == 1)
+    {
+        vColor.rgb = mix(vColor.rgb, g_vSkyFogColor, g_flSkyDistanceFog);
+    }
+    else if (g_nSkyFogType == 2)
+    {
+        float flHeight = vEyeToSkyDirWs.z;
+        float flFog = 1.0 - saturate((flHeight - g_vSkyFogMinMaxDots.z) / max(0.001, g_vSkyFogMinMaxDots.w - g_vSkyFogMinMaxDots.z));
+
+        if (g_bSkyMinAngularFog)
+        {
+            flFog = min(saturate((flHeight - g_vSkyFogMinMaxDots.y) / max(0.0001, g_vSkyFogMinMaxDots.x - g_vSkyFogMinMaxDots.y)), flFog);
+        }
+
+        vColor.rgb = mix(vColor.rgb, g_vSkyFogColor, flFog);
+    }
 
     // Every render mode draws the sky as it is, shown as it is written without post processing
     if (g_iRenderMode != 0)

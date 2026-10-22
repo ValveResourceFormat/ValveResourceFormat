@@ -1268,7 +1268,7 @@ public class Renderer : ISpawnGroupHost
             {
                 using (new GLDebugGroup("2D Sky Render"))
                 {
-                    BackgroundFor(views)?.Render();
+                    BackgroundFor(views)?.Render(Scene.FogEnabled ? Scene.FogInfo.LinearFog : null, mainView.Camera);
                 }
             }
 
