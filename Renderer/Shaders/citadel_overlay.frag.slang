@@ -13,8 +13,7 @@ in vec3 vFragPosition;
 
 centroid in vec3 vCentroidNormalOut;
 in vec3 vNormalOut;
-in vec3 vTangentOut;
-in vec3 vBitangentOut;
+in vec4 vTangentOut;
 in vec2 vTexCoordOut;
 centroid in vec4 vVertexColorOut;
 
@@ -76,12 +75,12 @@ float RemapTranslucency(float translucency, vec2 inputRange, vec2 outputRange)
 MaterialProperties_t GetMaterial(vec3 vertexNormal)
 {
     MaterialProperties_t mat;
-    InitProperties(mat, vertexNormal, vFragPosition, vTangentOut, vBitangentOut);
+    InitProperties(mat, vertexNormal, vFragPosition, vTangentOut.xyz, GetBitangent(vNormalOut, vTangentOut));
 
     #if (F_DECAL_SPACE_NORMALS == 1)
         // The decal brings its own frame, so its normal map reads the same whatever it
         // was projected onto.
-        mat.GeometricNormal = normalize(cross(vProjectionDir.xyz, vTangentOut));
+        mat.GeometricNormal = normalize(cross(vProjectionDir.xyz, vTangentOut.xyz));
     #endif
 
     vec2 albedoTexCoord = ScrollTexCoord(g_vAlbedoTexcoordUVOffset, g_vAlbedoScrollSpeed);

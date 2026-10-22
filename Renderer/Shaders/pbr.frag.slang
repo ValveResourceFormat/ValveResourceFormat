@@ -21,8 +21,7 @@ in vec3 vFragPosition;
 
 centroid in vec3 vCentroidNormalOut;
 in vec3 vNormalOut;
-in vec3 vTangentOut;
-in vec3 vBitangentOut;
+in vec4 vTangentOut;
 in vec4 vTexCoord; // UV1 in xy, UV2 in zw
 centroid in vec4 vVertexColorOut;
 
@@ -222,7 +221,7 @@ vec2 GetAlbedoTexCoord()
 MaterialProperties_t GetMaterial(vec3 vertexNormal)
 {
     MaterialProperties_t mat;
-    InitProperties(mat, vertexNormal, vFragPosition, vTangentOut, vBitangentOut);
+    InitProperties(mat, vertexNormal, vFragPosition, vTangentOut.xyz, GetBitangent(vNormalOut, vTangentOut));
 
     vec2 albedoTexCoord = GetAlbedoTexCoord();
     vec2 normalTexCoord = ScrollTexCoord(vTexCoord.xy, g_vNormalAndRoughnessScrollSpeed1, g_flNormalAndRoughnessScrollQuantize1);

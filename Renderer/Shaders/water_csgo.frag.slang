@@ -10,8 +10,7 @@
 in vec3 vFragPosition;
 in vec2 vTexCoordOut;
 in vec3 vNormalOut;
-in vec3 vTangentOut;
-in vec3 vBitangentOut;
+in vec4 vTangentOut;
 in vec4 vColorBlendValues;
 
 #include "common/lighting_common.slang"
@@ -128,7 +127,7 @@ vec2 WaterEffectsUV(vec4 clipPos)
 void main()
 {
     MaterialProperties_t mat;
-    InitProperties(mat, vNormalOut, vFragPosition, vTangentOut, vBitangentOut);
+    InitProperties(mat, vNormalOut, vFragPosition, vTangentOut.xyz, GetBitangent(vNormalOut, vTangentOut));
 
     vec4 blueNoiseZeroToOne = texelFetch(g_tBlueNoise, ivec2(mod(gl_FragCoord.xy, textureSize(g_tBlueNoise, 0))), 0);
     vec2 blueNoiseNegHalfToHalf = blueNoiseZeroToOne.xy - 0.5;
@@ -690,8 +689,8 @@ void main()
     float waterOpacity = (saturate((1.0 - debrisEdgeFactor) + noClue) * saturate(fma(-combinedfinalFoamIntensity, 4.0, 1.0))) * inverseWaterFogAlpha;
 
     mat.Albedo = mix(mix((baseFogColor * waterFogAlpha) * g_flWaterFogShadowStrength, finalFoamColor.xyz, vec3(combinedfinalFoamIntensity)), vec4(debrisColorHeightSample.xyz * fma(finalDebrisFactor, 0.5, 0.5), debrisEdgeFactor).xyz * g_vDebrisTint.xyz, vec3(saturate(debrisEdgeFactor - noClue))).xyz;
-    mat.Tangent = vTangentOut;
-    mat.Bitangent = vBitangentOut;
+    mat.Tangent = vTangentOut.xyz;
+    mat.Bitangent = GetBitangent(vNormalOut, vTangentOut);
     mat.Normal = calculateWorldNormal(mat.NormalMap, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
 
     vec3 vDynamicShadowsPositionOffset = (vec3(-finalDebrisFoamHeightContrib) + (((mix(blueNoiseZeroToOne.xxx, vec3(blueNoiseZeroToOne.xy, 0.0), vec3(0.1)) * 90.0) * pow2(waterOpacity)) + vec3(g_flWaterPlaneOffset)));

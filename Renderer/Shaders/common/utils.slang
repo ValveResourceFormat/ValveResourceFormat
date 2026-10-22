@@ -9,6 +9,12 @@
 
 #define INCH_TO_M 0.0254
 
+// The bitangent of a tangent that carries the bitangent sign in w
+vec3 GetBitangent(vec3 normal, vec4 tangent)
+{
+    return cross(normal, tangent.xyz) * (tangent.w > 0.0 ? 1.0 : -1.0);
+}
+
 // clamp(value, 0.0, 1.0)
 T saturate<T : IFloat>(T val)
 {

@@ -18,8 +18,7 @@ in vec3 vFragPosition;
 
 centroid in vec3 vCentroidNormalOut;
 in vec3 vNormalOut;
-in vec3 vTangentOut;
-in vec3 vBitangentOut;
+in vec4 vTangentOut;
 in vec4 vTexCoord;
 in vec4 vTexCoord2;
 in vec4 vTintColor_ModelAmount;
@@ -742,7 +741,7 @@ uniform float g_flReflectance = 0.04;
 MaterialProperties_t GetMaterial(vec3 vertexNormals)
 {
     MaterialProperties_t mat;
-    InitProperties(mat, vertexNormals, vFragPosition, vTangentOut, vBitangentOut);
+    InitProperties(mat, vertexNormals, vFragPosition, vTangentOut.xyz, GetBitangent(vNormalOut, vTangentOut));
 
     // vTexCoord = Layer1 (xy) shared color overlay (zw)
     // vTexCoord2 = Layer2 (xy) UV2 (zw)

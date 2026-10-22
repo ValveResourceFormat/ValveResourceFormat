@@ -16,8 +16,7 @@ in vec4 vTEXCOORD3;
 out vec3 vFragPosition;
 
 out vec3 vNormalOut;
-out vec3 vTangentOut;
-out vec3 vBitangentOut;
+out vec4 vTangentOut;
 
 out vec4 vBlendWeights;
 out vec4 vBlendAlphas;
@@ -69,7 +68,7 @@ void main()
     gl_Position = g_matWorldToProjection * vec4(fragPosition, 1.0);
     vFragPosition = fragPosition;
 
-    ComputeWorldTangentFrame(skinTransform, vNormalOut, vTangentOut, vBitangentOut);
+    ComputeWorldTangentFrame(skinTransform, vNormalOut, vTangentOut);
 
     vTexCoordOut = getTexCoord(g_flTexCoordScale0, g_flTexCoordRotate0, g_vTexCoordOffset0, g_vTexCoordScroll0);
     vTexCoord1Out = getTexCoord(g_flTexCoordScale1, g_flTexCoordRotate1, g_vTexCoordOffset1, g_vTexCoordScroll1);

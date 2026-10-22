@@ -29,8 +29,7 @@ in vec2 vTEXCOORD;
 
 out vec3 vFragPosition;
 out vec3 vNormalOut;
-out vec3 vTangentOut;
-out vec3 vBitangentOut;
+out vec4 vTangentOut;
 centroid out vec3 vCentroidNormalOut;
 out vec4 vTexCoord; // UV1 in xy, UV2 in zw
 centroid out vec4 vVertexColorOut;
@@ -125,7 +124,7 @@ void main()
 
     // Normals are deliberately not recomputed against the displacement.
 
-    ComputeWorldTangentFrame(skinTransform, vNormalOut, vTangentOut, vBitangentOut);
+    ComputeWorldTangentFrame(skinTransform, vNormalOut, vTangentOut);
     vCentroidNormalOut = vNormalOut;
 
     #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1

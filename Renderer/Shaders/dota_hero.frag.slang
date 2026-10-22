@@ -25,8 +25,7 @@
 in vec3 vFragPosition;
 
 in vec3 vNormalOut;
-in vec3 vTangentOut;
-in vec3 vBitangentOut;
+in vec4 vTangentOut;
 in vec2 vTexCoordOut;
 flat in vec4 vTintColorFadeOut;
 
@@ -53,7 +52,7 @@ vec3 calculateWorldNormal(vec3 vNormalTs)
 {
     vec3 normal = normalize(vNormalOut);
     vec3 tangent = normalize(vTangentOut.xyz);
-    vec3 bitangent = normalize(vBitangentOut);
+    vec3 bitangent = normalize(GetBitangent(vNormalOut, vTangentOut));
 
     mat3 tangentSpace = mat3(tangent, bitangent, normal);
 

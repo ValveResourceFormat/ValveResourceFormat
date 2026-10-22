@@ -14,8 +14,7 @@ in vec2 vTEXCOORD;
 centroid out vec4 vVertexColorOut;
 out vec3 vFragPosition;
 out vec3 vNormalOut;
-out vec3 vTangentOut;
-out vec3 vBitangentOut;
+out vec4 vTangentOut;
 out vec2 vTexCoordOut;
 
 uniform vec3 g_vColorTint = vec3(1.0); // SrgbRead(true)

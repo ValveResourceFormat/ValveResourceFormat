@@ -26,8 +26,7 @@ in vec2 vTEXCOORD;
 
 out vec3 vFragPosition;
 out vec3 vNormalOut;
-out vec3 vTangentOut;
-out vec3 vBitangentOut;
+out vec4 vTangentOut;
 centroid out vec3 vCentroidNormalOut;
 out vec2 vTexCoordOut;
 centroid out vec4 vVertexColorOut;
@@ -44,7 +43,7 @@ void main()
     gl_Position = g_matWorldToProjection * vec4(fragPosition, 1.0);
     vFragPosition = fragPosition;
 
-    ComputeWorldTangentFrame(skinTransform, vNormalOut, vTangentOut, vBitangentOut);
+    ComputeWorldTangentFrame(skinTransform, vNormalOut, vTangentOut);
     vCentroidNormalOut = vNormalOut;
 
     #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1

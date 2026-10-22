@@ -8,7 +8,6 @@ out vec3 vFragPosition;
 
 out vec3 vNormalOut;
 out vec4 vTangentOut;
-out vec3 vBitangentOut;
 
 out vec2 vTexCoordOut;
 

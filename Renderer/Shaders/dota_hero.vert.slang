@@ -9,8 +9,7 @@ in vec2 vTEXCOORD;
 
 out vec3 vFragPosition;
 out vec3 vNormalOut;
-out vec3 vTangentOut;
-out vec3 vBitangentOut;
+out vec4 vTangentOut;
 out vec2 vTexCoordOut;
 flat out vec4 vTintColorFadeOut;
 
@@ -23,7 +22,7 @@ void main()
     gl_Position = g_matWorldToProjection * vec4(fragPosition, 1.0);
     vFragPosition = fragPosition;
 
-    ComputeWorldTangentFrame(skinTransform, vNormalOut, vTangentOut, vBitangentOut);
+    ComputeWorldTangentFrame(skinTransform, vNormalOut, vTangentOut);
 
     vTintColorFadeOut = GetObjectTintSrgb();
 

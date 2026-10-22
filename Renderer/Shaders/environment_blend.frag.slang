@@ -13,8 +13,7 @@ in vec3 vFragPosition;
 
 centroid in vec3 vCentroidNormalOut;
 in vec3 vNormalOut;
-in vec3 vTangentOut;
-in vec3 vBitangentOut;
+in vec4 vTangentOut;
 in vec4 vTexCoord; // UV1 in xy, UV2 in zw
 centroid in vec4 vVertexColorOut;
 in vec3 vColorBlendValues;
@@ -240,8 +239,8 @@ LayerFrame_t GetMeshFrame(vec2 texCoord)
 {
     LayerFrame_t frame;
     frame.TexCoord = texCoord;
-    frame.Tangent = vTangentOut;
-    frame.Bitangent = vBitangentOut;
+    frame.Tangent = vTangentOut.xyz;
+    frame.Bitangent = GetBitangent(vNormalOut, vTangentOut);
     return frame;
 }
 
@@ -501,7 +500,7 @@ vec3 ApplyBorderTint(vec3 albedo, vec4 tint, float amount, int blendMode)
 MaterialProperties_t GetMaterial(vec3 vertexNormal)
 {
     MaterialProperties_t mat;
-    InitProperties(mat, vertexNormal, vFragPosition, vTangentOut, vBitangentOut);
+    InitProperties(mat, vertexNormal, vFragPosition, vTangentOut.xyz, GetBitangent(vNormalOut, vTangentOut));
 
     vec4 color = texture(g_tColor, vTexCoord.xy);
 
@@ -528,7 +527,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
 MaterialProperties_t GetMaterial(vec3 vertexNormal)
 {
     MaterialProperties_t mat;
-    InitProperties(mat, vertexNormal, vFragPosition, vTangentOut, vBitangentOut);
+    InitProperties(mat, vertexNormal, vFragPosition, vTangentOut.xyz, GetBitangent(vNormalOut, vTangentOut));
 
     // Every layer above the first is revealed by its own mask weighed against a channel of
     // the vertex paint.
@@ -667,8 +666,8 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
         // primary UVs, in which case the mesh frame is what the layers already use.
         bool derived = g_bUseSecondaryUvForOverlay || any(notEqual(g_vOverlayScaleRotationTranslation, vec4(1.0, 0.0, 0.0, 0.0)));
         LayerFrame_t overlayFrame = GetDerivedFrame(overlayTexCoord, mat.GeometricNormal);
-        vec3 overlayTangent = derived ? overlayFrame.Tangent : vTangentOut;
-        vec3 overlayBitangent = derived ? overlayFrame.Bitangent : vBitangentOut;
+        vec3 overlayTangent = derived ? overlayFrame.Tangent : vTangentOut.xyz;
+        vec3 overlayBitangent = derived ? overlayFrame.Bitangent : GetBitangent(vNormalOut, vTangentOut);
 
         vec4 overlayColor = texture(g_tColorOverlay, overlayTexCoord);
         vec4 overlayNormalRoughness = texture(g_tNormalRoughnessOverlay, overlayTexCoord);
@@ -730,7 +729,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
 
     // The layers accumulate world space surface gradients, so the tangent space normal is
     // recovered from the total rather than blended per layer.
-    vec2 gradient = vec2(dot(result.NormalOffset, vTangentOut), dot(result.NormalOffset, vBitangentOut));
+    vec2 gradient = vec2(dot(result.NormalOffset, vTangentOut.xyz), dot(result.NormalOffset, GetBitangent(vNormalOut, vTangentOut)));
     mat.NormalMap = normalize(vec3(-gradient, 1.0));
     mat.Normal = normalize(mat.GeometricNormal - result.NormalOffset);
 

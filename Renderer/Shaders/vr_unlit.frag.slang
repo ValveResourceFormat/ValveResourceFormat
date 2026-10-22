@@ -9,8 +9,7 @@
 
 in vec3 vFragPosition;
 in vec3 vNormalOut;
-in vec3 vTangentOut;
-in vec3 vBitangentOut;
+in vec4 vTangentOut;
 in vec2 vTexCoordOut;
 centroid in vec4 vVertexColorOut;
 
@@ -44,7 +43,7 @@ uniform sampler2D g_tTintMask;
 MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 {
     MaterialProperties_t mat;
-    InitProperties(mat, vertexNormals, vFragPosition, vTangentOut, vBitangentOut);
+    InitProperties(mat, vertexNormals, vFragPosition, vTangentOut.xyz, GetBitangent(vNormalOut, vTangentOut));
 
     #if (translucent || alphatest)
         vec4 color = texture(g_tColor, texCoord);

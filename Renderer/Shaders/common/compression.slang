@@ -126,19 +126,19 @@ void GetOptionallyCompressedNormalTangent(out vec3 normal, out vec4 tangent)
     #endif
 }
 
-void ComputeWorldTangentFrame(mat3x4 objectToWorld, vec3 normal, vec4 tangent, out vec3 normalWs, out vec3 tangentWs, out vec3 bitangentWs)
+// The tangent keeps the bitangent sign in w, for GetBitangent to rebuild the bitangent per pixel
+void ComputeWorldTangentFrame(mat3x4 objectToWorld, vec3 normal, vec4 tangent, out vec3 normalWs, out vec4 tangentWs)
 {
     normalWs = TransformDirectionToWorld(objectToWorld, normal);
-    tangentWs = TransformDirectionToWorld(objectToWorld, tangent.xyz);
-    bitangentWs = tangent.w * cross(normalWs, tangentWs);
+    tangentWs = vec4(TransformDirectionToWorld(objectToWorld, tangent.xyz), tangent.w);
 }
 
-void ComputeWorldTangentFrame(mat3x4 objectToWorld, out vec3 normalWs, out vec3 tangentWs, out vec3 bitangentWs)
+void ComputeWorldTangentFrame(mat3x4 objectToWorld, out vec3 normalWs, out vec4 tangentWs)
 {
     vec3 normal;
     vec4 tangent;
     GetOptionallyCompressedNormalTangent(normal, tangent);
-    ComputeWorldTangentFrame(objectToWorld, normal, tangent, normalWs, tangentWs, bitangentWs);
+    ComputeWorldTangentFrame(objectToWorld, normal, tangent, normalWs, tangentWs);
 }
 
 #endif

@@ -29,8 +29,7 @@ uniform int F_MODULATE_SPECULAR_BY_ALPHA; // citycrawl_building_anim, global_lit
 in vec3 vFragPosition;
 
 in vec3 vNormalOut;
-in vec3 vTangentOut;
-in vec3 vBitangentOut;
+in vec4 vTangentOut;
 in vec2 vTexCoordOut;
 #if (F_PAINT_VERTEX_COLORS == 1)
     in vec4 vVertexColorOut;
@@ -81,7 +80,7 @@ vec3 calculateWorldNormal(vec3 vNormalTs)
 {
     vec3 normal = vNormalOut;
     vec3 tangent = vTangentOut.xyz;
-    vec3 bitangent = vBitangentOut;
+    vec3 bitangent = GetBitangent(vNormalOut, vTangentOut);
 
     mat3 tangentSpace = mat3(tangent, bitangent, normal);
 

@@ -9,8 +9,7 @@ in vec4 vTEXCOORD4;
 out vec3 vFragPosition;
 out vec2 vTexCoordOut;
 out vec3 vNormalOut;
-out vec3 vTangentOut;
-out vec3 vBitangentOut;
+out vec4 vTangentOut;
 out vec4 vColorBlendValues;
 
 uniform float g_flWaterPlaneOffset;
@@ -33,8 +32,7 @@ void main()
 {
     vec4 tangent;
     GetOptionallyCompressedNormalTangent(vNormalOut, tangent);
-    vTangentOut = tangent.xyz;
-    vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
+    vTangentOut = tangent;
 
     vec3 vPositionWs = vec4(vPOSITION, 1.0) * CalculateObjectToWorldMatrix();
 

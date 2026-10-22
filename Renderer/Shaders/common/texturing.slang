@@ -81,9 +81,10 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal, vec3 Pos
 {
     mat.PositionWS = PositionWS;
     mat.ViewDir = normalize(g_vCameraPositionWs - PositionWS);
-    mat.GeometricNormal = normalize(GeometricNormal);
-    mat.Tangent = normalize(Tangent);
-    mat.Bitangent = normalize(Bitangent);
+    float invNormalLength = 1.0 / length(GeometricNormal);
+    mat.GeometricNormal = GeometricNormal * invNormalLength;
+    mat.Tangent = Tangent * invNormalLength;
+    mat.Bitangent = Bitangent * invNormalLength;
 
     mat.Albedo = vec3(0.0);
     mat.Opacity = 1.0;

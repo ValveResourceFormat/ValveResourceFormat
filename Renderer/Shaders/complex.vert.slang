@@ -151,8 +151,7 @@ uniform int F_TEXTURE_ANIMATION_MODE; // csgo_complex, csgo_static_overlay, csgo
 centroid out vec4 vVertexColorOut;
 out vec3 vFragPosition;
 out vec3 vNormalOut;
-out vec3 vTangentOut;
-out vec3 vBitangentOut;
+out vec4 vTangentOut;
 centroid out vec3 vCentroidNormalOut;
 out vec2 vTexCoordOut;
 
@@ -287,7 +286,7 @@ void main()
     vec4 tangent;
     GetOptionallyCompressedNormalTangent(normal, tangent);
     normal = applyMorphNormal(normal);
-    ComputeWorldTangentFrame(skinTransform, normal, tangent, vNormalOut, vTangentOut, vBitangentOut);
+    ComputeWorldTangentFrame(skinTransform, normal, tangent, vNormalOut, vTangentOut);
 
     #if defined(foliage_vfx_common)
         // Interpolate out for debug visualization

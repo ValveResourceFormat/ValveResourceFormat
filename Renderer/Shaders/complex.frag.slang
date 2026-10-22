@@ -97,8 +97,7 @@ uniform int F_SSS_MASK; // vr_skin
 in vec3 vFragPosition;
 in vec3 vNormalOut;
 centroid in vec3 vCentroidNormalOut;
-in vec3 vTangentOut;
-in vec3 vBitangentOut;
+in vec4 vTangentOut;
 in vec2 vTexCoordOut;
 centroid in vec4 vVertexColorOut;
 
@@ -352,7 +351,7 @@ uniform float g_flNormalMapScaleFactor = 1.0;
 MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 {
     MaterialProperties_t mat;
-    InitProperties(mat, vertexNormals, vFragPosition, vTangentOut, vBitangentOut);
+    InitProperties(mat, vertexNormals, vFragPosition, vTangentOut.xyz, GetBitangent(vNormalOut, vTangentOut));
 
 #if (GameVfx_csgo_simple_3layer_parallax != 0)
     vec4 normalTexture = texture(g_tNormal, texCoord);

@@ -22,8 +22,7 @@
 in vec3 vFragPosition;
 
 in vec3 vNormalOut;
-in vec3 vTangentOut;
-in vec3 vBitangentOut;
+in vec4 vTangentOut;
 
 in vec4 vBlendWeights;
 in vec4 vBlendAlphas;
@@ -182,7 +181,7 @@ void main()
 
     vec3 normal = normalize(vNormalOut.xyz);
     vec3 tangent = normalize(vTangentOut.xyz);
-    vec3 bitangent = normalize(vBitangentOut.xyz);
+    vec3 bitangent = normalize(GetBitangent(vNormalOut, vTangentOut));
 
     vec3 finalNormal = calculateWorldNormal(finalBumpNormal, normal, tangent, bitangent);
 #else
