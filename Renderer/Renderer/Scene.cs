@@ -1034,14 +1034,9 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                if (rebindProbes && node.LightProbeVolumePrecomputedHandshake == 0)
+                if (rebindProbes || rebindEnvMaps)
                 {
-                    node.LightProbeBinding = ChooseLightProbeVolume(LightingPosition(node))!;
-                }
-
-                if (rebindEnvMaps && node.CubeMapPrecomputedHandshake == 0)
-                {
-                    node.EnvMapBinding = ChooseEnvironmentMap(LightingPosition(node));
+                    RebindMovedNodeLighting(node, rebindProbes, rebindEnvMaps);
                 }
 
                 objectDataCpu[node.Id] = ObjectEntry(node);
@@ -1086,6 +1081,28 @@ namespace ValveResourceFormat.Renderer
             transformUploadStart = Math.Min(transformUploadStart, dynamicTransformStart);
             UploadRange(TransformBufferGpu, transforms, transformUploadStart, transforms.Length);
             transformUploadStart = int.MaxValue;
+        }
+
+        private void RebindMovedNodeLighting(SceneNode node, bool rebindProbes, bool rebindEnvMaps)
+        {
+            var lightingPosition = LightingPosition(node);
+
+            if (node.LightingBindPosition == lightingPosition)
+            {
+                return;
+            }
+
+            node.LightingBindPosition = lightingPosition;
+
+            if (rebindProbes && node.LightProbeVolumePrecomputedHandshake == 0)
+            {
+                node.LightProbeBinding = ChooseLightProbeVolume(lightingPosition)!;
+            }
+
+            if (rebindEnvMaps && node.CubeMapPrecomputedHandshake == 0)
+            {
+                node.EnvMapBinding = ChooseEnvironmentMap(lightingPosition);
+            }
         }
 
         private static void UploadRange<T>(StorageBuffer buffer, ReadOnlySpan<T> data, int start, int end) where T : unmanaged
@@ -1961,6 +1978,8 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var node in AllNodes)
             {
+                node.LightingBindPosition = new Vector3(float.NaN);
+
                 if (FindPrecomputedLightProbe(node) is { } probe && boundSet.Contains(probe))
                 {
                     node.LightProbeBinding = probe;
@@ -2008,69 +2027,82 @@ namespace ValveResourceFormat.Renderer
         public SceneEnvMap? ChooseEnvironmentMap(Vector3 position)
         {
             SceneEnvMap? best = null;
-            var bestInside = false;
             var bestPriority = int.MinValue;
             var bestScore = float.MaxValue;
 
-            var envMaps = LightingInfo.EnvMaps;
-
             // Only the uploaded ones, which have their inverse transform and a shader index
-            for (var i = 0; i < Math.Min(envMaps.Count, EnvMapArray.MAX_ENVMAPS); i++)
+            var envMaps = CollectionsMarshal.AsSpan(LightingInfo.EnvMaps);
+            envMaps = envMaps[..Math.Min(envMaps.Length, EnvMapArray.MAX_ENVMAPS)];
+
+            foreach (var envMap in envMaps)
             {
-                var envMap = envMaps[i];
-                var local = Vector3.Transform(position, envMap.WorldToLocal);
-                var score = local.LengthSquared();
-                bool inside;
-
-                if (envMap.ProjectionMode == 0)
+                // The world bounds enclose the volume, so outside them the position cannot be inside it
+                if (!envMap.BoundingBox.Contains(position))
                 {
-                    // A sphere's bounds are its influence radius on every side
-                    var radius = envMap.LocalBoundingBox.Max.X;
-                    inside = score < radius * radius;
-
-                    if (!inside)
-                    {
-                        var outside = MathF.Sqrt(score) - radius;
-                        score = outside * outside;
-                    }
-                }
-                else
-                {
-                    var distance = envMap.LocalBoundingBox.DistanceSquared(local);
-                    inside = distance == 0f;
-
-                    if (!inside)
-                    {
-                        score = distance;
-                    }
+                    continue;
                 }
 
-                if (inside != bestInside)
-                {
-                    if (!inside)
-                    {
-                        continue;
-                    }
-                }
-                else if (inside && envMap.IndoorOutdoorLevel != bestPriority)
-                {
-                    if (envMap.IndoorOutdoorLevel < bestPriority)
-                    {
-                        continue;
-                    }
-                }
-                else if (score > bestScore)
+                var score = EnvMapDistanceSquared(envMap, position, out var inside);
+
+                if (!inside
+                    || envMap.IndoorOutdoorLevel < bestPriority
+                    || (envMap.IndoorOutdoorLevel == bestPriority && score > bestScore))
                 {
                     continue;
                 }
 
                 best = envMap;
-                bestInside = inside;
                 bestPriority = envMap.IndoorOutdoorLevel;
                 bestScore = score;
             }
 
+            if (best != null)
+            {
+                return best;
+            }
+
+            // No volume contains it, so choose the nearest one
+            foreach (var envMap in envMaps)
+            {
+                var score = EnvMapDistanceSquared(envMap, position, out _);
+
+                if (score > bestScore)
+                {
+                    continue;
+                }
+
+                best = envMap;
+                bestScore = score;
+            }
+
             return best;
+        }
+
+        // Squared distance from the env map's volume, or from its origin when the volume contains the position
+        private static float EnvMapDistanceSquared(SceneEnvMap envMap, Vector3 position, out bool inside)
+        {
+            var local = Vector3.Transform(position, envMap.WorldToLocal);
+            var originDistance = local.LengthSquared();
+
+            if (envMap.ProjectionMode == 0)
+            {
+                // A sphere's bounds are its influence radius on every side
+                var radius = envMap.LocalBoundingBox.Max.X;
+                inside = originDistance < radius * radius;
+
+                if (inside)
+                {
+                    return originDistance;
+                }
+
+                var outside = MathF.Sqrt(originDistance) - radius;
+                return outside * outside;
+            }
+
+            var distance = envMap.LocalBoundingBox.DistanceSquared(local);
+            inside = distance == 0f;
+
+            return inside ? originDistance : distance;
         }
 
         /// <summary>
@@ -2222,6 +2254,7 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var node in AllNodes)
             {
+                node.LightingBindPosition = new Vector3(float.NaN);
                 AssignEnvironmentMaps(node, overlapping.GetValueOrDefault(node) ?? []);
             }
         }

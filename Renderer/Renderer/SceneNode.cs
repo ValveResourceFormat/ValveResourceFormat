@@ -319,6 +319,9 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public SceneEnvMap? EnvMapBinding { get; set; }
 
+        /// <summary>Where a moving node's lighting bindings were last picked from, NaN when they have to be picked again.</summary>
+        internal Vector3 LightingBindPosition { get; set; } = new(float.NaN);
+
         /// <summary>
         /// Gets or sets the associated entity data from the map.
         /// </summary>
