@@ -510,11 +510,34 @@ namespace ValveResourceFormat.Renderer.World
             if (usesUniformLightStore)
             {
                 StoreLightMappedLights_V1(lights);
+
+                // Not in the store itself, which light styles run every tick
+                scene.RendererContext.Logger.LogDebug(
+                    "Lightmap version {Major}.{Minor}: {Stationary} stationary and {Dynamic} per-pixel lights of {Total} light entities",
+                    LightmapVersionNumber, LightmapGameVersionNumber, LightingData.StaticLightCount,
+                    LightingData.DynamicLightCount - LightingData.StaticLightCount, lights.Count);
             }
             else
             {
                 StoreLightMappedLights_V2(lights);
             }
+        }
+
+        private bool storedLightsChanged;
+
+        /// <summary>Marks the stored lights for <see cref="StoreChangedLights"/>.</summary>
+        public void MarkStoredLightsChanged() => storedLightsChanged = true;
+
+        /// <summary>Stores the lights again if they changed since they were last stored.</summary>
+        public void StoreChangedLights()
+        {
+            if (!storedLightsChanged)
+            {
+                return;
+            }
+
+            storedLightsChanged = false;
+            UpdateGpuLightBuffers();
         }
 
         /// <summary>Re-stores the GPU light properties.</summary>
@@ -556,7 +579,7 @@ namespace ValveResourceFormat.Renderer.World
                 // The strength texels hold plain sqrt(saturate(attenuation) * visibility); lights that
                 // look far dimmer than their surroundings in baked cubemaps (like the "light_disabled"
                 // prefabs) are scripted to raise their brightness at runtime, not scaled at load.
-                var premultipliedColor = ColorSpace.SrgbGammaToLinear(light.Color) * light.Brightness * light.BrightnessScale;
+                var premultipliedColor = ColorSpace.SrgbGammaToLinear(light.Color) * light.Brightness * light.BrightnessScale * light.StyleBrightness;
                 LightingData.LightColor_Brightness[index] = new Vector4(premultipliedColor, light.RenderSpecular ? 1f : 0f);
 
                 // zw carry the remaining render gates (diffuse, transmissive); specular sits in the color
@@ -630,11 +653,6 @@ namespace ValveResourceFormat.Renderer.World
 
             LightingData.DynamicLightCount = currentLightIndex;
 
-            scene.RendererContext.Logger.LogDebug(
-                "Lightmap version {Major}.{Minor}: {Stationary} stationary and {Dynamic} per-pixel lights of {Total} light entities",
-                LightmapVersionNumber, LightmapGameVersionNumber, LightingData.StaticLightCount,
-                currentLightIndex - LightingData.StaticLightCount, lights.Count);
-
             var envLight = lights.FirstOrDefault(static l => l.Entity == SceneLight.EntityType.Environment);
             if (envLight != null)
             {
@@ -689,7 +707,7 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         private void StoreSunLight(SceneLight envLight, Vector4 bakedShadowData)
         {
-            var premultipliedColor = ColorSpace.SrgbGammaToLinear(envLight.Color) * envLight.Brightness * envLight.BrightnessScale;
+            var premultipliedColor = ColorSpace.SrgbGammaToLinear(envLight.Color) * envLight.Brightness * envLight.BrightnessScale * envLight.StyleBrightness;
 
             LightingData.SunDirection = new Vector4(-envLight.Direction, GetSunMinRoughness(envLight.MinRoughness));
             LightingData.SunColor = new Vector4(premultipliedColor, envLight.RenderSpecular ? 1f : 0f);
@@ -831,6 +849,8 @@ namespace ValveResourceFormat.Renderer.World
                     continue;
                 }
 
+                var colorScale = lightFade * light.StyleBrightness;
+
                 var anyFaceDropped = false;
                 var hasRangeCutoff = light.UsesOmni2Faces && light.FallOff > 0f;
 
@@ -859,7 +879,7 @@ namespace ValveResourceFormat.Renderer.World
                         data.BarnLightShadowScale = shadowFade;
                     }
 
-                    data.BarnLightColor_flCookie *= new Vector4(lightFade, lightFade, lightFade, 1f);
+                    data.BarnLightColor_flCookie *= new Vector4(colorScale, colorScale, colorScale, 1f);
 
                     BinnedBarnLightFaceSlots[LightingData.NumBarnLights] = new BarnLightFaceSlot(light, faceIndex);
 

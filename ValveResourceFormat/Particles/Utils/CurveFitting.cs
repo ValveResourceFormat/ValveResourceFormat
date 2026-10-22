@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Animation;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Utils
@@ -178,7 +179,6 @@ namespace ValveResourceFormat.Particles.Utils
             var start = end - 1;
 
             var dx = keyX[end] - keyX[start];
-            var dy = keyY[end] - keyY[start];
             var t = value - keyX[start];
 
             if (dx != 0f)
@@ -188,12 +188,7 @@ namespace ValveResourceFormat.Particles.Utils
 
             t = MathUtils.Saturate(t);
 
-            var m0 = slopeOutgoing[start];
-            var m1 = slopeIncoming[end];
-
-            var cubic = (((m0 + m1) * dx) - (dy + dy)) * t;
-            var quadratic = (cubic + ((-m1 - (m0 + m0)) * dx) + (dy * 3f)) * t;
-            var y = ((quadratic + (m0 * dx)) * t) + keyY[start];
+            var y = CubicHermite.GetPoint(keyY[start], slopeOutgoing[start] * dx, keyY[end], slopeIncoming[end] * dx, t);
 
             return MathF.Min(MathF.Max(y, curveDomainMin.Y), curveDomainMax.Y);
         }

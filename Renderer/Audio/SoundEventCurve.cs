@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using ValveKeyValue;
+using ValveResourceFormat.Animation;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Audio;
@@ -299,18 +300,7 @@ public sealed class SoundEventCurve
         var right = points[low];
         var width = right.X - left.X;
         var t = (x - left.X) / width;
-        var t2 = t * t;
-        var t3 = t2 * t;
-
-        var h00 = 2f * t3 - 3f * t2 + 1f;
-        var h10 = t3 - 2f * t2 + t;
-        var h01 = -2f * t3 + 3f * t2;
-        var h11 = t3 - t2;
-
-        var value = h00 * left.Y
-            + h10 * width * left.OutTangent
-            + h01 * right.Y
-            + h11 * width * right.InTangent;
+        var value = CubicHermite.GetPoint(left.Y, left.OutTangent * width, right.Y, right.InTangent * width, t);
 
         return float.ClampNative(value, outputMin, outputMax);
     }

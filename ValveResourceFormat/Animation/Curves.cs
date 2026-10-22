@@ -74,6 +74,20 @@ public static class CubicHermite
         return a + b + c + d;
     }
 
+    /// <summary>Gets the value at <paramref name="t"/> along a scalar segment, tangents scaled by its width.</summary>
+    public static float GetPoint(float point0, float tangent0, float point1, float tangent1, float t)
+    {
+        var tSquared = t * t;
+        var tCubed = tSquared * t;
+        var threeTSquared = 3 * tSquared;
+        var twoTCubed = tCubed * 2;
+
+        return (point0 * (twoTCubed - threeTSquared + 1))
+            + (tangent0 * (tCubed - (2 * tSquared) + t))
+            + (tangent1 * (tCubed - tSquared))
+            + (point1 * (threeTSquared - twoTCubed));
+    }
+
     /// <summary>The point and the (unnormalized) tangent at a parameter on the spline.</summary>
     public static (Vector3 Point, Vector3 Tangent) GetPointAndTangent(Vector3 point0, Vector3 tangent0, Vector3 point1, Vector3 tangent1, float t)
     {

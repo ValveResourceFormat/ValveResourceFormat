@@ -690,6 +690,8 @@ namespace ValveResourceFormat.Renderer
 
             pendingRemovals.Clear();
 
+            LightingInfo.StoreChangedLights();
+
             foreach (var node in dynamicNodes)
             {
                 DynamicOctree.Update(node);

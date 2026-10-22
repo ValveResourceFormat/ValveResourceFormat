@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using Entity = ValveResourceFormat.ResourceTypes.EntityLump.Entity;
@@ -68,6 +69,11 @@ public sealed class EntitySystem
 
     /// <summary>Gets the loader for entity models and physics.</summary>
     public IFileLoader FileLoader => RendererContext.FileLoader;
+
+    private Dictionary<string, CurveLightStyle>? lightStyles;
+
+    /// <summary>Gets the light styles of the game by name.</summary>
+    internal IReadOnlyDictionary<string, CurveLightStyle> LightStyles => lightStyles ??= CurveLightStyle.LoadAll(FileLoader);
 
     /// <summary>Gets the logger for entity problems.</summary>
     public ILogger Logger => RendererContext.Logger;

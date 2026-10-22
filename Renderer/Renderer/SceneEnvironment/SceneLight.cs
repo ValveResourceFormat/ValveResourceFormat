@@ -147,6 +147,9 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <summary>Gets or sets the additional brightness scale multiplier.</summary>
     public float BrightnessScale { get; set; } = 1.0f;
 
+    /// <summary>Gets or sets the brightness multiplier of the current light style.</summary>
+    public float StyleBrightness { get; set; } = 1.0f;
+
     /// <summary>Gets or sets the maximum range of the light in world units.</summary>
     public float Range { get; set; } = 512.0f;
 
