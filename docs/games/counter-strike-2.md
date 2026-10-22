@@ -4,118 +4,156 @@ description: Extract Counter-Strike 2 weapon, agent and knife models, skins, sti
 
 # Extract Counter-Strike 2 Files, Models and Maps
 
-Counter-Strike 2 stores its models, textures, sounds and maps in VPK archives. Source 2 Viewer opens these archives and exports their contents to formats you can use in Blender, image editors and audio players. This page shows where CS2 keeps each kind of asset. The general steps are in the [guides](#see-also).
-
-Guides written for CS:GO or for older tools often use folder names and file formats that no longer apply. CS2 files are compiled: their extensions end in `_c` (such as `.vmdl_c` or `.vtex_c`), and they need Source 2 Viewer to decompile them.
+This page shows where Counter-Strike 2 keeps its files and how to find the files of an item you know from the game. To open a package and find a file in it, see [Finding Game Files](../guides/finding-files.md).
 
 ## Where the Files Are
 
-CS2 is installed in `steamapps\common\Counter-Strike Global Offensive` in your Steam library. The game files are in `game\csgo`.
+Counter-Strike 2 installs into `steamapps/common/Counter-Strike Global Offensive/`, with its files in `game/csgo/`.
 
-| What                          | Where                                                     |
-| ----------------------------- | --------------------------------------------------------- |
-| Models, textures, sounds, UI  | `game\csgo\pak01_dir.vpk`                                 |
-| Official maps                 | `game\csgo\maps\<map>.vpk`, such as `de_dust2.vpk`        |
-| Workshop maps                 | `steamapps\workshop\content\730\<item id>\`               |
-
-Open `pak01_dir.vpk`, not the numbered `pak01_000.vpk`, `pak01_001.vpk` files next to it. The `_dir` file is the index, and Source 2 Viewer reads the numbered files from it. You can also find CS2 in the **Explorer** tab, which lists installed games and their workshop content. See [How to Open and Extract VPK Files](../guides/vpk-management.md).
-
-Press <kbd>Ctrl</kbd>+<kbd>F</kbd> to search for a file by name.
+| What                                               | Where                                                             |
+| -------------------------------------------------- | ----------------------------------------------------------------- |
+| Models, textures, sounds, the interface, item data | `game/csgo/pak01_dir.vpk`                                         |
+| Official maps                                      | `game/csgo/maps/<map>.vpk`, such as `game/csgo/maps/de_dust2.vpk` |
+| Models and materials of community maps             | `game/csgo_community_addons/<map>/<map>_dir.vpk`                  |
+| Workshop items                                     | `steamapps/workshop/content/730/<item id>/`                       |
 
 ## What's Inside pak01_dir.vpk
 
-| Asset                  | Path inside the VPK                                    | Example                                                    |
-| ---------------------- | ------------------------------------------------------ | ---------------------------------------------------------- |
-| Weapons                | `weapons/models/<weapon>/`                             | `weapons/models/ak47/weapon_rif_ak47.vmdl_c`               |
-| Knives                 | `weapons/models/knife/<knife>/`                        | `weapons/models/knife/knife_karambit/weapon_knife_karambit.vmdl_c` |
-| Agents (player models) | `agents/models/<agent>/`                               | `agents/models/ctm_sas/ctm_sas.vmdl_c`                     |
-| Gloves and arms        | `agents/models/shared/arms/`                           | `agents/models/shared/arms/glove_bloodhound/glove_bloodhound.vmdl_c` |
-| Props and world models | `models/`                                              |                                                            |
-| Skin finishes          | `weapons/paints/<collection>/`                         | `weapons/paints/legacy/aq_ak47_cartel.vcompmat_c`          |
-| Skin textures          | `materials/models/weapons/customization/paints/`       |                                                            |
-| Stickers               | `stickers/<event or collection>/`                      | `stickers/cologne2026/`                                    |
-| Charms (keychains)     | `weapons/keychains/`, textures in `items/assets/keychains/` |                                                       |
-| Coins and pins         | `models/inventory_items/`                              | `models/inventory_items/10_year_coin.vmdl_c`               |
-| Inventory icons        | `panorama/images/econ/`                                |                                                            |
-| Weapon sounds          | `sounds/weapons/`                                      |                                                            |
-| Player sounds          | `sounds/player/`                                       |                                                            |
-| Music kits             | `sounds/music/<kit>/`                                  | `sounds/music/3kliksphilip_01/`                            |
-| Voice lines            | `sounds/vo/agents/`, `sounds/vo/announcer/`            | `sounds/vo/agents/balkan/affirmative01.vsnd_c`             |
-| Item definitions       | `scripts/items/items_game.txt`                         |                                                            |
-| Item names             | `resource/csgo_english.txt`                            | Other languages are `resource/csgo_<language>.txt`         |
-
-## Weapons and Knives
-
-Each weapon has a folder in `weapons/models/` with its model and a `materials/` folder. The folder names are short (`ak47`, `awp`, `m4a1_silencer`), and the model files inside use longer names such as `weapon_rif_ak47.vmdl_c` and `weapon_snip_awp.vmdl_c`. Some weapons have their magazine as a separate model, such as `weapon_rif_ak47_mag.vmdl_c`.
-
-Knives are in `weapons/models/knife/`, one folder per knife, such as `knife_karambit`, `knife_butterfly` and `knife_m9`.
-
-Double-click a model to preview it, then right-click it and select **Decompile & export** to save it as glTF. See [Exporting Models](../guides/exporting-models.md).
-
-Weapon models such as the AK-47 hold two versions of the weapon, `body_hd` (the default) and `body_legacy`, which overlap in the exported file. Delete the mesh you don't need after import. The weapon's own animations, such as `reload` and `inventory_inspect`, are included.
+| Files                        | Path inside the package                                                        |
+| ---------------------------- | ------------------------------------------------------------------------------ |
+| Weapons                      | `weapons/models/<weapon>/`, such as `weapons/models/ak47/`                     |
+| Knives                       | `weapons/models/knife/<knife>/`                                                |
+| Grenades                     | `weapons/models/grenade/<grenade>/`                                            |
+| Agents (player models)       | `agents/models/<faction>/`, such as `agents/models/ctm_sas/`                   |
+| Agent materials and textures | `characters/models/<faction>/materials/`                                       |
+| Gloves                       | `agents/models/shared/arms/<glove>/`                                           |
+| Props and world models       | `models/`                                                                      |
+| Weapon finishes (skins)      | `weapons/paints/<folder>/`, such as `weapons/paints/legacy/`                   |
+| Glove finishes               | `gloves/paints/`                                                               |
+| Finish textures              | `materials/models/weapons/customization/paints/` and `items/assets/paintkits/` |
+| Stickers                     | `stickers/<tournament or collection>/`, such as `stickers/cologne2026/`        |
+| Charms                       | `weapons/keychains/<collection>/`                                              |
+| Coins, pins and trophies     | `models/inventory_items/`                                                      |
+| Inventory icons              | `panorama/images/econ/`                                                        |
+| Weapon sounds                | `sounds/weapons/<weapon>/`                                                     |
+| Player sounds                | `sounds/player/`                                                               |
+| Music kits                   | `sounds/music/<kit>/`, such as `sounds/music/3kliksphilip_01/`                 |
+| Voice lines                  | `sounds/vo/agents/<voice>/`                                                    |
+| Announcer                    | `sounds/vo/announcer/`                                                         |
+| Item definitions             | `scripts/items/items_game.txt`                                                 |
+| Item names                   | `resource/csgo_english.txt`, other languages in `resource/csgo_<language>.txt` |
 
 ## Agents
 
-Player models are in `agents/models/`, one folder per agent family, such as `ctm_sas`, `ctm_fbi`, `tm_phoenix` and `tm_balkan`. Variants of an agent are separate models in the same folder, such as `ctm_sas_variantf.vmdl_c`.
+Player models are in `agents/models/`, one folder per faction, such as `ctm_sas` and `tm_phoenix`. Each agent is a model in its faction's folder, such as `ctm_sas_variantf.vmdl_c` for B Squadron Officer. To find an agent by name, see [Finding an Item by Its Name](#finding-an-item-by-its-name).
+
+![The agent ctm_sas_variantf in a model tab, with its animations in the Animation list and its mesh groups in the Mesh Group list](../guides/images/games-counter-strike-2-agent.webp)
 
 ::: warning
-Older guides point at `characters/models/`. The models in that folder are now only placeholders. Use the models in `agents/models/` instead.
+The agent models in `characters/models/`, such as `characters/models/ctm_sas/`, are only placeholder cubes. Use the ones in `agents/models/`.
 :::
 
-When you export an agent with **Decompile & export**, its animations are included in the same glTF file, including the shared player animations. You don't need to export animation sets separately.
+The export includes all of the agent's animations, which makes it large, see [Exporting Animations](../guides/exporting-models.md#exporting-animations). It also includes the first-person arms and a defuse kit, see [Extra meshes in Blender](../guides/exporting-models.md#extra-meshes-in-blender).
 
-Agents have no separate eye models or materials. The eyes are part of the head mesh and texture.
+## Gloves
 
-Gloves and bare arms are separate models in `agents/models/shared/arms/`. A glove model's own colour texture is a grey placeholder, because its look comes from its finish in `gloves/paints/`. See [Weapon Skins](#weapon-skins).
+Gloves are separate models in `agents/models/shared/arms/`:
+
+| Folder              | Gloves             |
+| ------------------- | ------------------ |
+| `glove_bloodhound`  | Bloodhound Gloves  |
+| `glove_brokenfang`  | Broken Fang Gloves |
+| `glove_fingerless`  | Default T Gloves   |
+| `glove_handwrap`    | Hand Wraps         |
+| `glove_hardknuckle` | Default CT Gloves  |
+| `glove_hydra`       | Hydra Gloves       |
+| `glove_motorcycle`  | Moto Gloves        |
+| `glove_slick`       | Driver Gloves      |
+| `glove_specialist`  | Specialist Gloves  |
+| `glove_sporty`      | Sport Gloves       |
+
+Apart from the default gloves, they look plain dark gray, because the game paints them with a [finish](#weapon-skins).
+
+## Weapons and Knives
+
+Each gun has a folder in `weapons/models/`, such as `ak47` with `weapon_rif_ak47.vmdl_c`. Most guns have their magazine as a separate model. Some folders are named differently from the game: `elite` is the Dual Berettas, `hkp2000` the P2000, `revolver` the R8 Revolver, `sg556` the SG 553, `taser` the Zeus x27 and `healthshot` the Medi-Shot.
+
+Grenades are in `weapons/models/grenade/`, and knives in `weapons/models/knife/`. Most knife folders are named after the knife, such as `knife_karambit`. These are not:
+
+| Folder                                | Knife                       |
+| ------------------------------------- | --------------------------- |
+| `knife_canis`                         | Survival Knife              |
+| `knife_cord`                          | Paracord Knife              |
+| `knife_css`                           | Classic Knife               |
+| `knife_m9`                            | M9 Bayonet                  |
+| `knife_outdoor`                       | Nomad Knife                 |
+| `knife_push`                          | Shadow Daggers              |
+| `knife_tactical`                      | Huntsman Knife              |
+| `knife_default_ct`, `knife_default_t` | The default CT and T knives |
+
+To use a weapon in Blender, see [Exporting Models](../guides/exporting-models.md). The export includes its animations, such as `reload` and `inventory_inspect`.
 
 ## Weapon Skins
 
-A skin finish is a composite material: a `.vcompmat_c` file that tells the game how to combine paint textures with a weapon's base material. The finishes are in `weapons/paints/`, grouped in folders such as `legacy`, `community` and one folder per collection. Glove finishes are in `gloves/paints/`.
+A skin's finish is a composite material (`.vcompmat_c`) in `weapons/paints/`, or `gloves/paints/` for gloves. It is named after its paint kit, such as `aq_ak47_cartel.vcompmat_c` for the AK-47 | Cartel.
 
-The textures that the finishes use are in `materials/models/weapons/customization/paints/`, and some finishes use textures from `items/assets/paintkits/`. These are `.vtex_c` textures that you can export to PNG. See [Exporting Textures](../guides/exporting-textures.md).
+Double-click a finish to read it. In older finishes, `m_strSpecificContainerMaterial` names a material in `materials/models/weapons/customization/paints/vmats/`, whose [References](../guides/finding-files.md#references) tab lists the textures:
 
-**Decompile & export** on a `.vcompmat_c` file saves it as a `.vcompmat` text file that lists the materials and textures it uses. Source 2 Viewer does not apply a finish to a weapon model, so it cannot export a weapon with a skin already on it.
+![The References tab of aq_ak47_cartel.vmat_c, listing default textures and the ak47_cartel and ak47_cartel_normal textures in materials/models/weapons/customization/paints/antiqued/workshop](../guides/images/games-counter-strike-2-finish-references.webp)
 
-Inventory icons of weapon skins are in `panorama/images/econ/default_generated/`.
+Newer finishes list their textures themselves, mostly in `items/assets/paintkits/`. See [Exporting Textures](../guides/exporting-textures.md).
 
-## Item Names in items_game.txt
+Source 2 Viewer cannot show or export a weapon with a skin applied.
 
-Files in the VPK use internal names. To find which file belongs to an item you know from the game, open these two text files:
+The inventory icons of the finishes are in `panorama/images/econ/default_generated/`, one per wear level, such as `weapon_ak47_aq_ak47_cartel_light_png.vtex_c`.
 
-- `scripts/items/items_game.txt` defines every item. Agents have a `model_player` line with the path to their model. Skins are listed under `paint_kits`, where `name` is the file name of the finish in `weapons/paints/`, and newer entries also have a `composite_material_path`.
-- `resource/csgo_english.txt` turns the `#` tokens in `items_game.txt` into the names you see in the game. For example, a paint kit's `description_tag` of `#PaintKit_aq_p250_cartel_Tag` is "Cartel" in `csgo_english.txt`.
+## Finding an Item by Its Name
 
-Both files can be read directly in Source 2 Viewer. Use <kbd>Ctrl</kbd>+<kbd>F</kbd> with **File Contents (Case Sensitive)** to find which file mentions a name.
+Files use internal names, not the names you see in the game. Two text files in `pak01_dir.vpk` connect them. This example finds the files of the AK-47 | Cartel:
+
+1. Type `resource/csgo_english.txt` into the box above the tree, press <kbd>Enter</kbd> and double-click the file. Other languages are in files such as `csgo_german.txt`.
+
+    ![The box above the tree reading resource/csgo_english.txt, and csgo_english.txt selected in the resource folder](../guides/images/games-counter-strike-2-english-select.webp)
+
+2. Press <kbd>Ctrl</kbd>+<kbd>F</kbd> and search for `"Cartel"`. On its left is its key, `PaintKit_aq_p250_cartel_Tag`.
+
+    ![csgo_english.txt with the Find window searching for "Cartel", and the line PaintKit_aq_p250_cartel_Tag "Cartel" found](../guides/images/games-counter-strike-2-english-find.webp)
+
+3. Open `scripts/items/items_game.txt` and search for the key. **Find next** goes through every finish named Cartel. The AK-47's entry has `name` `aq_ak47_cartel`.
+
+    ![items_game.txt with the Find window searching for PaintKit_aq_p250_cartel_Tag, and the paint kit entry 394 found, whose name is aq_ak47_cartel](../guides/images/games-counter-strike-2-items-game-find.webp)
+
+4. In the package tab, search for `ak47_cartel`.
+
+    ![The package search window with ak47_cartel typed in and File Name (Partial Match) selected](../guides/images/games-counter-strike-2-finish-search-dialog.webp)
+
+The results are the finish, its material and textures, and its inventory icons:
+
+![Search results for ak47_cartel: the two ak47_cartel textures, aq_ak47_cartel.vcompmat_c, aq_ak47_cartel.vmat_c and the heavy, light and medium inventory icons](../guides/images/games-counter-strike-2-finish-search.webp)
+
+For other items, these lines of their entry name the files:
+
+- Agents, gloves and knives: `model_player`
+- Stickers: `sticker_material`, a material in `stickers/`
+- Music kits: `name`, their folder in `sounds/music/`
+- Charms: `pedestal_display_model`, and for community charms `keychain_material`
 
 ## Stickers, Charms and Coins
 
-- **Stickers** are materials and textures in `stickers/`, with one folder per tournament or sticker collection.
-- **Charms** (keychains) are models in `weapons/keychains/`, with their textures in `items/assets/keychains/`.
+- **Stickers** are materials in `stickers/`, one folder per tournament or collection. Community sticker textures are in `items/assets/stickers/community/`.
+- **Charms** are models in `weapons/keychains/`. Community charms share one blank model and differ by their material, with textures in `items/assets/keychains/`.
 - **Coins, pins and trophies** are models in `models/inventory_items/`.
+
+Their inventory icons are in `panorama/images/econ/`.
 
 ## Music Kits and Voice Lines
 
-Each music kit has a folder in `sounds/music/`, named after the artist with a number, such as `3kliksphilip_01`. The files in it are named after when they play, such as `mainmenu.vsnd_c`, `startround_01.vsnd_c`, `roundmvpanthem_01.vsnd_c` and `wonround.vsnd_c`.
+Each music kit has a folder in `sounds/music/`, such as `3kliksphilip_01`, with sounds such as `mainmenu.vsnd_c` and `wonround.vsnd_c`.
 
-Agent voice lines are in `sounds/vo/agents/`, one folder per voice, such as `balkan`, `fbihrt` and `gsg9`. These voice names don't always match the agent model folders. The announcer is in `sounds/vo/announcer/`.
-
-Right-click a sound or a whole folder and select **Decompile & export** to save it as WAV or MP3. See [Exporting Sounds](../guides/exporting-sounds.md).
+Agent voice lines are in `sounds/vo/agents/`, one folder per voice, such as `balkan` and `gsg9`. The announcer is in `sounds/vo/announcer/`. To save sounds, see [Exporting Sounds](../guides/exporting-sounds.md).
 
 ## Maps
 
-Each official map is its own VPK in `game\csgo\maps\`, such as `de_dust2.vpk` or `de_mirage.vpk`. Open the map's VPK and find `maps/<map>.vmap_c` inside it.
+Each official map is a package in `game/csgo/maps/`, such as `de_dust2.vpk`, with the map in `maps/<map>.vmap_c`. See [Exporting Maps](../guides/exporting-maps.md).
 
-Many maps also have a `_vanity` VPK, such as `de_dust2_vanity.vpk`. These are cut-down versions used as main menu backgrounds, so use the VPK without the suffix to get the whole map.
-
-Maps can be exported to glTF for Blender or decompiled to `.vmap` for Hammer. See [Exporting Maps](../guides/exporting-maps.md).
-
-## See Also
-
-- [Getting Started](../guides/getting-started.md)
-- [How to Open and Extract VPK Files](../guides/vpk-management.md)
-- [Exporting Models](../guides/exporting-models.md)
-- [Importing into Blender](../guides/importing-into-blender.md)
-- [Exporting Maps](../guides/exporting-maps.md)
-- [Exporting Textures](../guides/exporting-textures.md)
-- [Exporting Sounds](../guides/exporting-sounds.md)
-- [Command-line utility](../guides/command-line.md)
+Community maps that come with the game, such as `de_boulder`, keep their models and materials in a second package in `game/csgo_community_addons/`. Open the map from `game/csgo/maps/`, and Source 2 Viewer loads the second package with it.
