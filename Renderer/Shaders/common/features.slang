@@ -12,6 +12,8 @@
 #define S_LIGHTMAP_VERSION_MAJOR 0
 #define S_LIGHTMAP_VERSION_MINOR 0
 
+#include "lighting_profile.slang"
+
 uniform int F_RENDER_BACKFACES; // most shaders
 uniform int F_DONT_FLIP_BACKFACE_NORMALS; // most shaders
 // uniform uint F_USE_FRONT_FACE_NORMALS_FOR_BACK_FACES // citadel pbr, same as above

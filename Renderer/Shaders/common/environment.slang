@@ -13,45 +13,18 @@
 #include "object_data.slang"
 
 #include "light_cull.slang"
+#include "envmap_data.slang"
 
 #define renderMode_Cubemaps 0
 #define renderMode_EnvmapTiles 0
 
-struct EnvMapData
-{
-    mat4 WorldToLocal;
-    vec3 BoxMins;
-    uint ArrayIndex;
-    vec3 BoxMaxs;
-    uint _padding1;
-    vec4 InvEdgeWidth;
-    vec3 Origin;
-    uint ProjectionType;
-    vec3 Color;
-    uint AssociatedLPV;
-    vec4 NormalizationSH;
-};
-
-// Maximum number of environment maps supported
-#define MAX_ENVMAPS 320
-
-layout(std140, binding = 2) uniform EnvMapArray
-{
-    EnvMapData envMaps[MAX_ENVMAPS];
-};
-
-int g_nEnvMapsIterated = 0;
-
-// Filled by GetEnvironmentNoBRDF: the blended L1 luminance harmonic of the probes that were
-// sampled, weighted exactly as their radiance was. It evaluates to a radiance, so there is no
-// value here that means "leave reflections alone"; the zero below instead marks it unfilled,
-// and the normalization skips itself on a non positive result. Only reachable with no cube
-// map bound at all, where there is no reflection to scale in the first place.
-vec4 g_vEnvMapNormalizationSH = vec4(0.0);
-
 uniform samplerCubeArray g_tEnvironmentMap; // SrgbRead(true) reserved
 
-vec3 CubemapParallaxCorrection(vec3 envMapLocalPos, vec3 localReflectionVector, vec3 envMapBoxMin, vec3 envMapBoxMax)
+int g_nEnvMapsIterated = 0;
+vec4 g_vEnvMapNormalizationSH = vec4(0.0);
+
+// Where the reflection ray leaves the box, relative to the probe
+vec3 CubemapBoxIntersection(vec3 envMapLocalPos, vec3 localReflectionVector, vec3 envMapBoxMin, vec3 envMapBoxMax)
 {
     // https://seblagarde.wordpress.com/2012/09/29/image-based-lighting-approaches-and-parallax-corrected-cubemap/
     // Following is the parallax-correction code
@@ -65,7 +38,22 @@ vec3 CubemapParallaxCorrection(vec3 envMapLocalPos, vec3 localReflectionVector, 
     float Distance = abs(min3(FurthestPlane));
 
     // Get the intersection position
-    return normalize(envMapLocalPos + localReflectionVector * Distance);
+    return envMapLocalPos + localReflectionVector * Distance;
+}
+
+// Where a reflection ray leaves the sphere, in world space
+vec3 CubemapSphereIntersection(vec3 positionWs, vec3 R, vec3 center, float radius)
+{
+    vec3 fromCenter = positionWs - center;
+    float b = dot(fromCenter, R);
+    float discriminant = b * b - (dot(fromCenter, fromCenter) - radius * radius);
+
+    if (discriminant <= 0.0)
+    {
+        return R;
+    }
+
+    return normalize(fromCenter + R * (sqrt(discriminant) - b));
 }
 
 
@@ -87,13 +75,13 @@ float GetEnvMapLOD(float roughness, vec3 R)
 // Ceiling on brightening only, rising with roughness. A rough reflection is nearly an
 // irradiance integral so it tolerates being pushed; a mirror is showing one direction and
 // should not be. Darkening is not capped, because that is the occlusion this exists for.
-const vec2 CubemapNormalizationParams = vec2(2.0, 1.0);
 
-// Specular occlusion.
+// Specular occlusion: the ratio of the irradiance here to the irradiance the reflection was
+// captured with, given as its luminance along the normal.
 // With no baked lighting the irradiance falls back to this same cube map at roughness 1, so
 // both sides become the same quantity and the ratio settles at 1. Nothing to compare, nothing
 // to correct.
-float GetEnvMapNormalization(float rough, vec3 N, vec3 irradiance)
+float GetEnvMapNormalization(float rough, float bakedLuma, vec3 irradiance)
 {
     if (g_iRenderMode == renderMode_Cubemaps)
     {
@@ -101,20 +89,33 @@ float GetEnvMapNormalization(float rough, vec3 N, vec3 irradiance)
     }
 
     #if (bUseCubemapNormalization == 1)
-        float bakedLuma = dot(vec4(N, 1.0), g_vEnvMapNormalizationSH);
-
         if (bakedLuma <= 0.0)
         {
             return 1.0;
         }
 
-        float ceiling = max(rough * CubemapNormalizationParams.x + CubemapNormalizationParams.y, 1.0);
+        float ceiling = RemapValClamped(rough, CUBEMAP_NORMALIZATION_ROUGHNESS_BEGIN, 1.0, 1.0, CUBEMAP_NORMALIZATION_MAX);
         return min(GetLuma(irradiance) / bakedLuma, ceiling);
     #else
         return 1.0;
     #endif
 }
 
+
+// Lightmapped non-metals switch from the environment maps to the lightmap's own lighting as their
+// roughness goes from 0.2 to 0.3, as a bias and scale on roughness.
+const vec2 LightmapReflectionRoughnessRange = vec2(-0.2 / (0.3 - 0.2), 1.0 / (0.3 - 0.2));
+
+// The reflection bent toward the normal as the surface gets rougher, where most of what it reflects comes from
+vec3 GetDominantReflectionDirection(MaterialProperties_t mat, vec3 reflectionNormal)
+{
+    vec3 R = reflect(-mat.ViewDir, reflectionNormal);
+
+    float roughnessSquared = pow2(max(mat.Roughness.x, mat.Roughness.y));
+    float smoothness = saturate(1.0 - roughnessSquared);
+
+    return mix(reflectionNormal, R, smoothness * (sqrt(smoothness) + roughnessSquared));
+}
 
 // BRDF
 // Split sum, kept apart so the caller can take the energy the specular claims back off the
@@ -123,7 +124,7 @@ float GetEnvMapNormalization(float rough, vec3 N, vec3 irradiance)
 struct EnvBRDF_t
 {
     vec3 SingleScatter; // FssEss
-    vec3 MultiScatter;  // FmsEms, lit by the irradiance rather than the cube map
+    vec3 MultiScatter;  // FmsEms
 };
 
 float EnvBRDFCloth(float perceptualRoughness, vec3 N, vec3 V)
@@ -175,15 +176,36 @@ EnvBRDF_t EnvBRDF(vec3 specColor, float perceptualRoughness, vec3 N, vec3 V, flo
     }
 #endif
 
-vec3 GetCorrectedSampleCoords(vec3 R, mat4x3 envMapWorldToLocal, vec3 envMapLocalPos, bool isBoxProjection, vec3 envMapBoxMin, vec3 envMapBoxMax)
+vec3 GetCorrectedSampleCoords(vec3 R, EnvMapData envData, vec3 envMapLocalPos, float roughness)
 {
-    vec3 localReflectionVector = envMapWorldToLocal * vec4(R, 0.0);
-    return isBoxProjection
-        ? CubemapParallaxCorrection(envMapLocalPos, localReflectionVector, envMapBoxMin, envMapBoxMax)
-        : localReflectionVector;
+    #if (ENVMAP_SPHERES)
+        // Spheres are parallax corrected in world space, ignoring the probe's rotation
+        if (envData.ProjectionType == 0u)
+        {
+            vec3 sphereIntersection = CubemapSphereIntersection(vFragPosition, R, envData.Origin, envData.BoxMaxs.x);
+            return mix(sphereIntersection, R, roughness);
+        }
+    #endif
+
+    vec3 localReflectionVector = mat4x3(envData.WorldToLocal) * vec4(R, 0.0);
+
+    #if (ENVMAP_PARALLAX_ROUGHNESS_MIX)
+        // Parallax corrected against the box, giving way to the plain reflection as the surface gets rougher
+        vec3 boxIntersection = CubemapBoxIntersection(envMapLocalPos, localReflectionVector, envData.BoxMins, envData.BoxMaxs);
+
+        #if (ENVMAP_PARALLAX_NORMALIZED)
+            boxIntersection = normalize(boxIntersection);
+        #endif
+
+        return mix(boxIntersection, localReflectionVector, roughness);
+    #else
+        return envData.ProjectionType == 1u
+            ? normalize(CubemapBoxIntersection(envMapLocalPos, localReflectionVector, envData.BoxMins, envData.BoxMaxs))
+            : localReflectionVector;
+    #endif
 }
 
-void AddEnvMapSample(inout vec3 envMap, inout vec4 normalizationSH, EnvMapData envData, vec3 envMapLocalPos, vec3 R, float lod, float weight)
+void AddEnvMapSample(inout vec3 envMap, inout vec4 normalizationSH, EnvMapData envData, vec3 envMapLocalPos, vec3 R, float roughness, float lod, float weight)
 {
     if (g_nEnvMapDebugColors != 0u)
     {
@@ -191,16 +213,141 @@ void AddEnvMapSample(inout vec3 envMap, inout vec4 normalizationSH, EnvMapData e
         return;
     }
 
-    vec3 coords = GetCorrectedSampleCoords(R, mat4x3(envData.WorldToLocal), envMapLocalPos, envData.ProjectionType == 1u, envData.BoxMins, envData.BoxMaxs);
+    vec3 coords = GetCorrectedSampleCoords(R, envData, envMapLocalPos, roughness);
     vec4 envSample = textureLod(g_tEnvironmentMap, vec4(coords, envData.ArrayIndex), lod);
 
-    #if (S_LIGHTMAP_VERSION_MINOR == 0)
+    #if (BAKED_LIGHTING_RGBM)
         envMap += (g_vEnvMapSizeConstants.z != 0.0 ? DecodeBakedLightRGBM(envSample) : envSample.rgb) * weight;
     #else
         envMap += envSample.rgb * weight;
     #endif
 
     normalizationSH += envData.NormalizationSH * weight;
+}
+
+// The environment map picked for the whole object
+EnvMapData GetObjectEnvMap()
+{
+    return envMaps[GetObjectLightingData().VisibleLPV >> 16u];
+}
+
+// The object's environment map alone, with no blending between environment maps
+vec3 SampleObjectEnvMap(vec3 R, vec3 reflectionNormal, float perceptualRoughness, float lod)
+{
+    EnvMapData envData = GetObjectEnvMap();
+
+    g_nEnvMapsIterated++;
+    g_vEnvMapNormalizationSH = envData.NormalizationSH;
+
+    if (g_nEnvMapDebugColors != 0u)
+    {
+        return envData.Color;
+    }
+
+    vec3 envMapLocalPos = mat4x3(envData.WorldToLocal) * vec4(vFragPosition, 1.0);
+    vec3 localReflectionVector = mat4x3(envData.WorldToLocal) * vec4(R, 0.0);
+    vec3 boxIntersection = CubemapBoxIntersection(envMapLocalPos, localReflectionVector, envData.BoxMins, envData.BoxMaxs);
+
+    // Parallax corrected against the box, giving way to the normal as the surface gets rougher
+    vec3 coords = normalize(mix(boxIntersection, reflectionNormal, sqrt(perceptualRoughness)));
+
+    return textureLod(g_tEnvironmentMap, vec4(coords, envData.ArrayIndex), lod).rgb;
+}
+
+vec3 BlendEnvMaps(vec3 R, float perceptualRoughness, float lod)
+{
+    vec3 envMap = vec3(0.0);
+
+    // Bit order is priority order, so each environment map only gets what the ones before it left
+    // uncovered. Where the sky takes the remainder, the coverage starts empty.
+    float flTotalWeight = SKY_FILLS_UNCOVERED ? 0.0 : 0.01;
+    bool bContinueLoop = true;
+    vec4 normalizationSH = vec4(0.0);
+
+    CullMasks_t masks = GetEnvMapCullMasks(vFragPosition);
+    uvec4 objectEnvMaps = GetObjectLightingData().EnvMapVisibility;
+
+    // Otherwise every environment map the tile reaches is taken
+    bool bUseObjectEnvMaps = ENVMAP_OBJECT_VISIBILITY;
+
+    for (uint word = 0u; word < masks.m_nWords && AnyLaneWantsMore(bContinueLoop); word++)
+    {
+        uint objectMask = (word < 4u && bUseObjectEnvMaps) ? objectEnvMaps[word] : 0xFFFFFFFFu;
+
+        uint mask = GetCullMaskWord(masks, word, objectMask & GetEnvMapLiveMask(word));
+
+        int baseIndex = int(word * 32u);
+
+        while (mask != 0 && bContinueLoop)
+        {
+            // Find index of least significant set bit
+            int bit = findLSB(mask);
+
+            // Clear the processed bit
+            mask &= ~(1u << bit);
+
+            int envMapIndex = baseIndex + bit;
+
+            g_nEnvMapsIterated++;
+
+            EnvMapData envData = envMaps[envMapIndex];
+            vec3 envMapLocalPos = mat4x3(envData.WorldToLocal) * vec4(vFragPosition, 1.0);
+
+            float weight = 1.0;
+
+            #if (ENVMAP_EDGE_FADE)
+                float fade = GetEnvMapEdgeFade(envData, vFragPosition, envMapLocalPos);
+
+                if (fade == 0.0)
+                {
+                    continue;
+                }
+
+                weight = smoothstep(0.0, 1.0, fade) * (1.0 - flTotalWeight);
+            #else
+                if (any(lessThan(envMapLocalPos, envData.BoxMins)) || any(greaterThan(envMapLocalPos, envData.BoxMaxs)))
+                {
+                    continue;
+                }
+            #endif
+
+            flTotalWeight += weight;
+            AddEnvMapSample(envMap, normalizationSH, envData, envMapLocalPos, R, perceptualRoughness, lod, weight);
+
+            if (flTotalWeight > 0.99)
+            {
+                bContinueLoop = false;
+            }
+        }
+    }
+
+    #if (SKY_FILLS_UNCOVERED)
+        float skyWeight = 1.0 - flTotalWeight;
+        envMap += GetSkyAmbientLighting(R) * skyWeight;
+        normalizationSH += GetSkyAmbientLuminanceSH() * skyWeight;
+    #elif (ENVMAP_COVERAGE_NORMALIZED)
+        envMap /= flTotalWeight;
+        normalizationSH /= flTotalWeight;
+    #else
+        // What no box covers takes the environment map picked for the object, even outside of its box
+        float remainingWeight = 1.0 - flTotalWeight;
+
+        if (remainingWeight > 0.0)
+        {
+            EnvMapData envData = GetObjectEnvMap();
+            vec3 envMapLocalPos = mat4x3(envData.WorldToLocal) * vec4(vFragPosition, 1.0);
+
+            g_nEnvMapsIterated++;
+            flTotalWeight += remainingWeight;
+            AddEnvMapSample(envMap, normalizationSH, envData, envMapLocalPos, R, perceptualRoughness, lod, remainingWeight);
+        }
+
+        normalizationSH /= max(flTotalWeight, 1e-4);
+    #endif
+
+    g_vEnvMapNormalizationSH = normalizationSH;
+
+    return envMap;
 }
 
 vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAmount)
@@ -222,13 +369,15 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
     // Reflection Vector
     vec3 R = normalize(reflect(-mat.ViewDir, reflectionNormal));
 
-    // Roughness rather than the perceptual remap, so that a caller raising mat.Roughness to 1
-    // for the diffuse lookup lands exactly on the normal.
-    float roughnessSquared = pow2(max(mat.Roughness.x, mat.Roughness.y));
-    float smoothness = saturate(1.0 - roughnessSquared);
-    float dominantDirection = smoothness * (sqrt(smoothness) + roughnessSquared);
+    #if !(ENVMAP_PER_OBJECT)
+        // Roughness rather than the perceptual remap, so that a caller raising mat.Roughness to 1
+        // for the diffuse lookup lands exactly on the normal.
+        float roughnessSquared = pow2(max(mat.Roughness.x, mat.Roughness.y));
+        float smoothness = saturate(1.0 - roughnessSquared);
+        float dominantDirection = smoothness * (sqrt(smoothness) + roughnessSquared);
 
-    R = normalize(mix(reflectionNormal, R, mix(1.0, dominantDirection, reflectionCorrectionAmount)));
+        R = normalize(mix(reflectionNormal, R, mix(1.0, dominantDirection, reflectionCorrectionAmount)));
+    #endif
 
     float lod = GetEnvMapLOD(sqrt(perceptualRoughness), R);
 
@@ -238,92 +387,11 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
         return vec3(0.3);
     }
 
-    vec3 envMap = vec3(0.0);
-
-    float flTotalWeight = 0.01;
-    bool bContinueLoop = true;
-    vec4 normalizationSH = vec4(0.0);
-
-    CullMasks_t masks = GetEnvMapCullMasks(vFragPosition);
-    uvec4 objectEnvMaps = GetObjectLightingData().EnvMapVisibility;
-
-    for (uint word = 0u; word < masks.m_nWords && AnyLaneWantsMore(bContinueLoop); word++)
-    {
-        uint objectMask = word < 4u ? objectEnvMaps[word] : 0xFFFFFFFFu;
-
-        uint mask = GetCullMaskWord(masks, word, objectMask & GetEnvMapLiveMask(word));
-
-        int baseIndex = int(word * 32u);
-
-        while (mask != 0 && bContinueLoop)
-        {
-            // Find index of least significant set bit
-            int bit = findLSB(mask);
-
-            // Clear the processed bit
-            mask &= ~(1u << bit);
-
-            int envMapIndex = baseIndex + bit;
-
-            g_nEnvMapsIterated++;
-
-            EnvMapData envData = envMaps[envMapIndex];
-            bool isBoxProjection = envData.ProjectionType == 1u;
-            vec3 envMapBoxMin = envData.BoxMins;
-            vec3 envMapBoxMax = envData.BoxMaxs;
-            mat4x3 envMapWorldToLocal = mat4x3(envData.WorldToLocal);
-            vec3 envMapLocalPos = envMapWorldToLocal * vec4(vFragPosition, 1.0);
-
-            if (any(lessThan(envMapLocalPos, envMapBoxMin)) || any(greaterThan(envMapLocalPos, envMapBoxMax)))
-            {
-                continue;
-            }
-
-            float weight = 1.0f;
-
-            if (S_LIGHTMAP_VERSION_MINOR >= 2 && isBoxProjection)
-            {
-                vec3 envInvEdgeWidth = envData.InvEdgeWidth.xyz;
-                vec3 envmapClampedFadeMax = saturate((envMapBoxMax - envMapLocalPos) * envInvEdgeWidth);
-                vec3 envmapClampedFadeMin = saturate((envMapLocalPos - envMapBoxMin) * envInvEdgeWidth);
-                float distanceFromEdge = min(min3(envmapClampedFadeMin), min3(envmapClampedFadeMax));
-
-                if (distanceFromEdge == 0.0)
-                {
-                    continue;
-                }
-
-                // blend using a smooth curve
-                weight = (pow2(distanceFromEdge) * (3.0 - (2.0 * distanceFromEdge))) * (1.0 - flTotalWeight);
-            }
-
-            flTotalWeight += weight;
-            AddEnvMapSample(envMap, normalizationSH, envData, envMapLocalPos, R, lod, weight);
-
-            if (flTotalWeight > 0.99)
-            {
-                bContinueLoop = false;
-            }
-        }
-    }
-
-    // Before lightmap version 2, what no box covers takes the environment map picked for the object, even
-    // outside of its box
-    float remainingWeight = 1.0 - flTotalWeight;
-
-    if (S_LIGHTMAP_VERSION_MINOR < 2 && remainingWeight > 0.0)
-    {
-        EnvMapData envData = envMaps[GetObjectLightingData().VisibleLPV >> 16u];
-        vec3 envMapLocalPos = mat4x3(envData.WorldToLocal) * vec4(vFragPosition, 1.0);
-
-        g_nEnvMapsIterated++;
-        flTotalWeight += remainingWeight;
-        AddEnvMapSample(envMap, normalizationSH, envData, envMapLocalPos, R, lod, remainingWeight);
-    }
-
-    g_vEnvMapNormalizationSH = normalizationSH / max(flTotalWeight, 1e-4);
-
-    return envMap;
+    #if (ENVMAP_PER_OBJECT)
+        return SampleObjectEnvMap(R, reflectionNormal, perceptualRoughness, lod);
+    #else
+        return BlendEnvMaps(R, perceptualRoughness, lod);
+    #endif
 }
 
 vec3 GetEnvironment(MaterialProperties_t mat, float reflectionCorrectionAmount)
@@ -345,10 +413,6 @@ vec3 GetEnvironment(MaterialProperties_t mat)
     return GetEnvironment(mat, 1.0);
 }
 
-// Heat map for renderMode_EnvmapTiles: blue to red as the probe list the tile and depth bin masks hand
-// this fragment grows. Counts probes reached, not probes blended, so the containment rejects inside the
-// loop show up as heat with no visible reflection change - which is the cost the masks are letting
-// through. Returns false where no probe reaches the fragment so the caller leaves it normally shaded.
 bool GetEnvMapTileHeatmap(out vec3 color)
 {
     const float kBusyTile = 4.0;

@@ -1023,8 +1023,9 @@ namespace ValveResourceFormat.Renderer
             }
 
             var transforms = CollectionsMarshal.AsSpan(transformDataCpu);
-            var rebindProbes = boundLightProbes is { Count: > 0 } && LightingInfo.LightmapGameVersionNumber < 3;
-            var rebindEnvMaps = LightingInfo.EnvMaps.Count > 0 && LightingInfo.LightmapGameVersionNumber < 2;
+            var readsNodeBindings = LightingInfo.LightmapGameVersionNumber < 2;
+            var rebindProbes = readsNodeBindings && boundLightProbes is { Count: > 0 };
+            var rebindEnvMaps = readsNodeBindings && LightingInfo.EnvMaps.Count > 0;
 
             foreach (var node in dynamicNodes)
             {
@@ -1503,7 +1504,7 @@ namespace ValveResourceFormat.Renderer
                         : default;
 
                     scene.CollectShadowDrawCalls(sun.SunLightFrustums[cascade],
-                        includeStatic: !scene.LightingInfo.HasBakedShadowsFromLightmap,
+                        includeStatic: !scene.LightingInfo.HasBakedShadowsFromLightmap || !scene.LightingInfo.IsSunShadowBaked,
                         includeDynamic: true, skipFlags: ObjectTypeFlags.NoShadows,
                         scene.CulledShadowDrawCallsCascades[cascade],
                         sun.SunCastDirection, out var sceneDepthMin, out var sceneDepthMax,
@@ -1953,7 +1954,7 @@ namespace ValveResourceFormat.Renderer
             var sortedLightProbes = LightingInfo.LightProbes
                 .Where(LightingInfo.IsInProbeAtlas)
                 .OrderByDescending(static lpv => lpv.IndoorOutdoorLevel)
-                .ThenBy(static lpv => lpv.AtlasSize.LengthSquared())
+                .ThenBy(static lpv => lpv.LocalBoundingBox.Size.X * lpv.LocalBoundingBox.Size.Y * lpv.LocalBoundingBox.Size.Z)
                 .Take(LightProbeVolumeArray.MAX_PROBES)
                 .ToList();
 
@@ -2213,7 +2214,13 @@ namespace ValveResourceFormat.Renderer
             static int IndoorPriorityCompare(SceneEnvMap a, SceneEnvMap b)
             {
                 var indoor = b.IndoorOutdoorLevel.CompareTo(a.IndoorOutdoorLevel);
-                return indoor != 0 ? indoor : a.ArrayIndex.CompareTo(b.ArrayIndex);
+                if (indoor != 0)
+                {
+                    return indoor;
+                }
+
+                var volume = a.InfluenceVolume.CompareTo(b.InfluenceVolume);
+                return volume != 0 ? volume : a.ArrayIndex.CompareTo(b.ArrayIndex);
             }
 
             static int HandShakeCompare(SceneEnvMap a, SceneEnvMap b) => a.HandShake.CompareTo(b.HandShake);
@@ -2404,12 +2411,26 @@ namespace ValveResourceFormat.Renderer
                 BoxMins = envMap.LocalBoundingBox.Min - boundsExtend,
                 ArrayIndex = (uint)envMap.ArrayIndex,
                 BoxMaxs = envMap.LocalBoundingBox.Max + boundsExtend,
-                InvEdgeWidth = new Vector4(Vector3.One / (envMap.EdgeFadeDists + boundsExtend), 0),
+                InvEdgeWidth = new Vector4(SceneEnvMap.GetInverseEdgeFade(envMap.EdgeFadeDists), 0),
                 Origin = envMap.Transform.Translation,
                 ProjectionType = (uint)envMap.ProjectionMode,
                 Color = envMap.Tint,
+                AssociatedLPV = GetBoundLightProbeIndex(LightingInfo.ProbeHandshakes.GetValueOrDefault(envMap.HandShake)),
                 NormalizationSH = envMap.NormalizationSH
             };
+        }
+
+        private int GetBoundLightProbeIndex(SceneLightProbe? probe)
+        {
+            if (probe == null || boundLightProbes == null)
+            {
+                return -1;
+            }
+
+            var index = probe.ShaderIndex;
+            var isBound = index < boundLightProbes.Count && boundLightProbes[index] == probe;
+
+            return isBound ? index : -1;
         }
 
         /// <summary>

@@ -73,7 +73,8 @@ public class SceneLightProbe : SceneNode
                 Matrix4x4.CreateTranslation(-LocalBoundingBox.Min) *
                 Matrix4x4.CreateScale(Vector3.One / LocalBoundingBox.Size),
 
-            InvEdgeWidth = new Vector4(LocalBoundingBox.Size / Vector3.Max(EdgeFadeDists, new Vector3(SceneEnvMap.BoundsExtend)), 0),
+            InvEdgeWidth = new Vector4(SceneEnvMap.GetInverseEdgeFade(EdgeFadeDists / LocalBoundingBox.Size), 0),
+            BoundsExtend = new Vector4(new Vector3(SceneEnvMap.BoundsExtend) / LocalBoundingBox.Size, 0),
         };
 
         Debug.Assert(Irradiance != null);

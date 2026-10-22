@@ -20,6 +20,8 @@ namespace ValveResourceFormat.Renderer.Buffers
         public Vector4 AtlasOffset;
         /// <summary>Reciprocal of the edge fade width on each axis, in normalized local volume space.</summary>
         public Vector4 InvEdgeWidth;
+        /// <summary>How far the volume reaches past its box on each side, in normalized local volume space.</summary>
+        public Vector4 BoundsExtend;
     }
 
     /// <summary>

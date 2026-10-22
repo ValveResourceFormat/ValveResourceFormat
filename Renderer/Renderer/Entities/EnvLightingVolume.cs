@@ -51,13 +51,13 @@ public abstract class EnvLightingVolume : BaseEntity
         {
             var radius = KeyValues.GetFloatProperty("influenceradius");
             bounds = new AABB(-radius, -radius, -radius, radius, radius, radius);
+            edgeFadeDists = new Vector3(KeyValues.GetFloatProperty("edge_fade_dist"));
         }
         else
         {
             bounds = new AABB(KeyValues.GetVector3Property("box_mins"), KeyValues.GetVector3Property("box_maxs"));
+            edgeFadeDists = KeyValues.GetVector3Property("edge_fade_dists");
         }
-
-        edgeFadeDists = KeyValues.GetVector3Property("edge_fade_dists"); // TODO: Not available on all entities
     }
 
     /// <summary>Registers the cubemap the volume baked, if it has one and it is not a custom texture.</summary>
@@ -94,7 +94,8 @@ public abstract class EnvLightingVolume : BaseEntity
     }
 
     /// <summary>Registers the light probe the volume baked.</summary>
-    protected void AddLightProbe()
+    /// <param name="fadesAtEdges">Whether the probe fades out over the edge fade distances, otherwise it ends at its box.</param>
+    protected void AddLightProbe(bool fadesAtEdges)
     {
         var materialLoader = Scene.RendererContext.MaterialLoader;
         var lightProbeTextureName = KeyValues.GetStringProperty("lightprobetexture");
@@ -107,7 +108,7 @@ public abstract class EnvLightingVolume : BaseEntity
             HandShake = handShake,
             Irradiance = lightProbeTextureName != null ? materialLoader.GetTexture(lightProbeTextureName, srgbRead: true) : null,
             IndoorOutdoorLevel = indoorOutdoorLevel,
-            EdgeFadeDists = edgeFadeDists,
+            EdgeFadeDists = fadesAtEdges ? edgeFadeDists : Vector3.Zero,
             VoxelSize = KeyValues.GetFloatProperty("voxel_size"),
 
             AtlasSize = new Vector3(

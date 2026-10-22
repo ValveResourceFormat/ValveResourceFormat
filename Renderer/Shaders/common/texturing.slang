@@ -19,8 +19,9 @@ float CalculateGeometricRoughnessFactor(vec3 geometricNormal)
 {
     vec3 normalDerivX = dFdx(geometricNormal);
     vec3 normalDerivY = dFdy(geometricNormal);
-    float geometricRoughnessFactor = pow(saturate(max(length_squared(normalDerivX), length_squared(normalDerivY))), 0.5); // s2 uses 0.333
-    return geometricRoughnessFactor;
+    float normalChange = saturate(max(length_squared(normalDerivX), length_squared(normalDerivY)));
+
+    return pow(normalChange, 0.333);
 }
 
 // Struct full of everything needed for lighting, for easy access around the shader.
@@ -215,6 +216,12 @@ vec3 calculateWorldNormal(vec3 normalMap, vec3 normal, vec3 tangent, vec3 bitang
 
     //Calculate the tangent normal in world space and return it
     return normalize(tangentSpace * normalMap);
+}
+
+// The inverse of calculateWorldNormal
+vec3 calculateTangentNormal(vec3 normalWs, vec3 normal, vec3 tangent, vec3 bitangent)
+{
+    return normalize(vec3(dot(normalWs, tangent), dot(normalWs, bitangent), dot(normalWs, normal)));
 }
 
 #if (F_USE_BENT_NORMALS == 1)

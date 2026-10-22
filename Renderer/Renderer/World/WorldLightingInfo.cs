@@ -333,7 +333,7 @@ namespace ValveResourceFormat.Renderer.World
 
             if (lightProbe.HandShake > 0)
             {
-                scene.LightingInfo.ProbeHandshakes.Add(lightProbe.HandShake, lightProbe);
+                scene.LightingInfo.ProbeHandshakes[lightProbe.HandShake] = lightProbe;
             }
         }
 
@@ -718,11 +718,18 @@ namespace ValveResourceFormat.Renderer.World
             UpdateAmbientLighting();
 
             HasOwnSun = true;
+            IsSunShadowBaked = envLight.StationaryLightIndex >= 0 && envLight.CastShadows == 1;
             isSunBorrowed = false;
         }
 
         /// <summary>Gets whether the source map has an environment light.</summary>
         public bool HasOwnSun { get; private set; }
+
+        /// <summary>
+        /// Gets whether the map's own sun is a mixed light. Static geometry's shadows from it are baked,
+        /// so static geometry stays out of its shadow cascades.
+        /// </summary>
+        public bool IsSunShadowBaked { get; private set; }
 
         private bool isSunBorrowed;
 

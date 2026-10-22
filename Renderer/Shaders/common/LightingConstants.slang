@@ -3,6 +3,8 @@
 #ifndef VRF_LIGHTINGCONSTANTS_INCLUDE
 #define VRF_LIGHTINGCONSTANTS_INCLUDE
 
+#include "utils.slang"
+
 #define MAX_LIGHTS 256
 
 layout(std140, binding = 1) uniform LightingConstants {
@@ -24,5 +26,22 @@ layout(std140, binding = 1) uniform LightingConstants {
 
     vec4 g_vAmbientLightingSH[3];    // per color channel, xyz: against the normal, w: constant
 };
+
+// The sky's irradiance arriving around a direction
+vec3 GetSkyAmbientLighting(vec3 direction)
+{
+    return vec4(direction, 1.0) * mat3x4(g_vAmbientLightingSH[0], g_vAmbientLightingSH[1], g_vAmbientLightingSH[2]);
+}
+
+// The luminance of GetSkyAmbientLighting, packed like an environment map's normalization harmonic
+vec4 GetSkyAmbientLuminanceSH()
+{
+    vec4 luminance = GetLuma(g_vAmbientLightingSH[0], g_vAmbientLightingSH[1], g_vAmbientLightingSH[2]);
+
+    // Kept from turning negative opposite the sky
+    luminance.z = min(luminance.z, 0.95 * luminance.w);
+
+    return luminance;
+}
 
 #endif

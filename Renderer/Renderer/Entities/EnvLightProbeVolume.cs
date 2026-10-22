@@ -28,6 +28,6 @@ public sealed class EnvLightProbeVolume : EnvLightingVolume
             AddEnvironmentMap();
         }
 
-        AddLightProbe();
+        AddLightProbe(fadesAtEdges: bakesCubemap);
     }
 }

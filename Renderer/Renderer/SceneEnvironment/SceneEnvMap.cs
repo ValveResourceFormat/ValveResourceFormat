@@ -12,7 +12,37 @@ public class SceneEnvMap : SceneNode
     /// Skin added to the probe's box on every side. The shader tests fragments against the grown box, so
     /// anything deciding where the probe reaches must grow it by the same amount.
     /// </summary>
-    public const float BoundsExtend = 0.02f;
+    public const float BoundsExtend = 0.1f;
+
+    /// <summary>
+    /// Reciprocal of an edge fade distance per axis, for the shader to scale distances from the edge by.
+    /// No fade gives a hard edge rather than a division by zero.
+    /// </summary>
+    /// <param name="edgeFadeDists">The fade distance on each axis.</param>
+    public static Vector3 GetInverseEdgeFade(Vector3 edgeFadeDists)
+    {
+        static float Inverse(float distance) => distance > 0f ? 1f / distance : float.MaxValue;
+
+        return new Vector3(Inverse(edgeFadeDists.X), Inverse(edgeFadeDists.Y), Inverse(edgeFadeDists.Z));
+    }
+
+    /// <summary>
+    /// Gets the volume of the probe's influence, which orders probes of the same priority, smaller first.
+    /// </summary>
+    public float InfluenceVolume
+    {
+        get
+        {
+            if (ProjectionMode == 0)
+            {
+                var radius = LocalBoundingBox.Max.X;
+                return 4f / 3f * MathF.PI * radius * radius * radius;
+            }
+
+            var size = LocalBoundingBox.Size;
+            return size.X * size.Y * size.Z;
+        }
+    }
 
     /// <summary>Gets the handshake value used to match this env map to scene nodes during precomputation.</summary>
     public int HandShake { get; init; }

@@ -71,7 +71,7 @@ ParticleLight_t CalculateParticleLighting(vec3 positionWs, vec3 normalWs, float 
 
     light.Direct = g_vSunColor.rgb * sunVisibility;
 
-    #if (S_LIGHTMAP_VERSION_MINOR != 1)
+    #if !(BAKED_LIGHT_INDICES)
         MaterialProperties_t mat;
         mat.PositionWS = positionWs;
         mat.Normal = normalWs;
