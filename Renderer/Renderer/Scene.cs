@@ -1021,8 +1021,8 @@ namespace ValveResourceFormat.Renderer
             }
 
             var transforms = CollectionsMarshal.AsSpan(transformDataCpu);
-            var rebindProbes = boundLightProbes is { Count: > 0 };
-            var rebindEnvMaps = LightingInfo.EnvMaps.Count > 0;
+            var rebindProbes = boundLightProbes is { Count: > 0 } && LightingInfo.LightmapGameVersionNumber < 3;
+            var rebindEnvMaps = LightingInfo.EnvMaps.Count > 0 && LightingInfo.LightmapGameVersionNumber < 2;
 
             foreach (var node in dynamicNodes)
             {

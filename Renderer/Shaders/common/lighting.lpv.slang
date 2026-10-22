@@ -94,7 +94,7 @@ LightProbeBlend_t GetFragmentLPV(vec3 fragPosition)
     {
         g_bLightProbeBlendReady = true;
 
-        #if defined(ENABLE_LPV_BLENDING) || (D_LPV_BLENDING == 1)
+        #if defined(ENABLE_LPV_BLENDING) || (D_LPV_BLENDING == 1) || (S_LIGHTMAP_VERSION_MINOR >= 3)
             FindLightProbeVolumes(fragPosition);
         #else
             g_LightProbeBlend.Volume[0] = GetObjectLightingData().VisibleLPV & 0xFFFFu;
