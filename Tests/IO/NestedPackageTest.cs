@@ -30,7 +30,7 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
-                await Assert.That(data).IsEquivalentTo(text);
+                await Assert.That(data.AsSpan().SequenceEqual(text)).IsTrue();
                 await Assert.That(loader.TryMountMapPackage("maps/inner.vpk")).IsTrue();
                 await Assert.That(loader.FindFile("materials/a.txt").Package).IsSameReferenceAs(inner);
             }
