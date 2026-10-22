@@ -299,9 +299,9 @@ namespace ValveResourceFormat.ResourceTypes
                 }
 
                 var name = embeddedMesh.GetStringProperty("name");
-                var meshIndex = (int)embeddedMesh.GetIntegerProperty("mesh_index");
-                var dataBlockIndex = (int)embeddedMesh.GetIntegerProperty("data_block");
-                var vbibBlockIndex = (int)embeddedMesh.GetIntegerProperty("vbib_block");
+                var meshIndex = embeddedMesh.GetInt32Property("mesh_index");
+                var dataBlockIndex = embeddedMesh.GetInt32Property("data_block");
+                var vbibBlockIndex = embeddedMesh.GetInt32Property("vbib_block");
 
                 var mesh = Resource.GetBlockByIndex(dataBlockIndex) as Mesh;
                 Debug.Assert(mesh is not null);
@@ -310,7 +310,7 @@ namespace ValveResourceFormat.ResourceTypes
                 mesh.VBIB = vbib;
                 mesh.Name = $"{Resource.FileName}:{name}";
 
-                var morphBlockIndex = (int)embeddedMesh.GetIntegerProperty("morph_block");
+                var morphBlockIndex = embeddedMesh.GetInt32Property("morph_block");
                 if (morphBlockIndex >= 0)
                 {
                     mesh.MorphData = Resource.GetBlockByIndex(morphBlockIndex) as Morph;
@@ -318,7 +318,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 if (embeddedMesh.ContainsKey("tools_vb_block"))
                 {
-                    var toolsVbBlockIndex = (int)embeddedMesh.GetIntegerProperty("tools_vb_block");
+                    var toolsVbBlockIndex = embeddedMesh.GetInt32Property("tools_vb_block");
                     if (toolsVbBlockIndex >= 0 && Resource.GetBlockByIndex(toolsVbBlockIndex) is TBUF toolsBuffer)
                     {
                         mesh.VBIB.AddToolsBuffers(toolsBuffer.VertexBuffers);
@@ -335,8 +335,8 @@ namespace ValveResourceFormat.ResourceTypes
         private ModelMesh ParseEmbeddedMesh2(KVObject embeddedMesh)
         {
             var name = embeddedMesh.GetStringProperty("m_Name");
-            var meshIndex = (int)embeddedMesh.GetIntegerProperty("m_nMeshIndex");
-            var dataBlockIndex = (int)embeddedMesh.GetIntegerProperty("m_nDataBlock");
+            var meshIndex = embeddedMesh.GetInt32Property("m_nMeshIndex");
+            var dataBlockIndex = embeddedMesh.GetInt32Property("m_nDataBlock");
 
             var mesh = Resource.GetBlockByIndex(dataBlockIndex) as Mesh;
             Debug.Assert(mesh is not null);
@@ -346,7 +346,7 @@ namespace ValveResourceFormat.ResourceTypes
             };
             mesh.Name = $"{Resource.FileName}:{name}";
 
-            var morphBlockIndex = (int)embeddedMesh.GetIntegerProperty("m_nMorphBlock");
+            var morphBlockIndex = embeddedMesh.GetInt32Property("m_nMorphBlock");
             if (morphBlockIndex >= 0)
             {
                 mesh.MorphData = Resource.GetBlockByIndex(morphBlockIndex) as Morph;
@@ -369,7 +369,7 @@ namespace ValveResourceFormat.ResourceTypes
                 return null;
             }
 
-            var physBlockIndex = (int)embeddedPhys.GetIntegerProperty("phys_data_block");
+            var physBlockIndex = embeddedPhys.GetInt32Property("phys_data_block");
             return (PhysAggregateData)Resource.GetBlockByIndex(physBlockIndex);
         }
 
@@ -585,7 +585,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>Enumerable of attribute name and channel count pairs.</returns>
         public IEnumerable<(string AttributeName, int NumChannels)> GetAnimatedMaterialAttributes()
             => (Data.GetArray("m_AnimatedMaterialAttributes") ?? [])
-                .Select(attr => (attr.GetStringProperty("m_AttributeName"), (int)attr.GetIntegerProperty("m_nNumChannels")));
+                .Select(attr => (attr.GetStringProperty("m_AttributeName"), attr.GetInt32Property("m_nNumChannels")));
 
         KVObject? ParseKeyValuesText()
         {

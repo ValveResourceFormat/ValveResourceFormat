@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -144,11 +145,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// <summary>
         /// Gets a byte property from the key-value object.
         /// </summary>
-        public static byte GetByteProperty(this KVObject obj, string name)
+        public static byte GetByteProperty(this KVObject obj, string name, byte defaultValue = 0)
         {
             if (!TryGetScalar(obj, name, out var value))
             {
-                return default;
+                return defaultValue;
             }
 
             return (byte)value;
@@ -186,7 +187,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 return null!;
             }
 
-            return (IReadOnlyList<KVObject>)child.Values;
+            return child.Elements;
         }
 
         /// <summary>
@@ -223,100 +224,105 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 return null!;
             }
 
-            var span = child.AsArraySpan();
-            var result = new T[span.Length];
-
-            for (var i = 0; i < span.Length; i++)
+            if (child.IsPackedArray)
             {
-                var elem = span[i];
+                return child.ToArray<T>();
+            }
 
-                if (elem.ValueType is KVValueType.Null or KVValueType.Collection or KVValueType.Array)
+            var elements = child.AsArraySpan();
+            var result = new T[elements.Length];
+
+            for (var i = 0; i < elements.Length; i++)
+            {
+                // Some files leave components null (e.g. [null, null, null]), these read as the default
+                if (elements[i].ValueType is KVValueType.Null or KVValueType.Collection or KVValueType.Array)
                 {
-                    result[i] = default!;
                     continue;
                 }
 
-                result[i] = ConvertArrayElement<T>(elem);
+                result[i] = child.GetElement<T>(i);
             }
 
             return result;
         }
 
-        // The typeof checks are resolved by the JIT for each value type, so the common types convert without boxing
-        private static T ConvertArrayElement<T>(KVObject value)
-        {
-            if (typeof(T) == typeof(int))
-            {
-                return (T)(object)(int)value;
-            }
-
-            if (typeof(T) == typeof(uint))
-            {
-                return (T)(object)(uint)value;
-            }
-
-            if (typeof(T) == typeof(long))
-            {
-                return (T)(object)(long)value;
-            }
-
-            if (typeof(T) == typeof(float))
-            {
-                return (T)(object)(float)value;
-            }
-
-            if (typeof(T) == typeof(double))
-            {
-                return (T)(object)(double)value;
-            }
-
-            if (typeof(T) == typeof(bool))
-            {
-                return (T)(object)(bool)value;
-            }
-
-            if (typeof(T) == typeof(byte))
-            {
-                return (T)(object)(byte)value;
-            }
-
-            return (T)Convert.ChangeType(value, typeof(T), CultureInfo.InvariantCulture);
-        }
-
         /// <summary>
-        /// Gets an unsigned integer array, with unchecked int-to-ulong conversion for binary KV3 compatibility.
+        /// Gets an unsigned integer array of 64-bit bit patterns, with unchecked int-to-ulong conversion for binary KV3 compatibility.
         /// </summary>
         public static ulong[] GetUnsignedIntegerArray(this KVObject obj, string name)
+            => obj.GetUnsignedIntegerArray<ulong>(name);
+
+        /// <summary>
+        /// Gets an unsigned integer array whose elements are bit patterns, such as flags, masks or hashes.
+        /// Elements are truncated to <typeparamref name="T"/> instead of range checked, so negative values keep their bits.
+        /// </summary>
+        public static T[] GetUnsignedIntegerArray<T>(this KVObject obj, string name)
+            where T : unmanaged, IBinaryInteger<T>, IUnsignedNumber<T>
         {
-            if (!obj.TryGetValue(name, out var child) || !child.IsArray)
+            if (!obj.TryGetValue(name, out var child))
             {
                 return [];
             }
 
-            var span = child.AsArraySpan();
-            var result = new ulong[span.Length];
-
-            for (var i = 0; i < span.Length; i++)
+            if (child.ValueType == KVValueType.BinaryBlob)
             {
-                var elem = span[i];
+                var bytes = child.AsBlob();
+                var blobResult = new T[bytes.Length];
 
-                if (elem.ValueType == KVValueType.Int32)
+                for (var i = 0; i < bytes.Length; i++)
                 {
-                    unchecked
-                    {
-                        result[i] = (ulong)(int)elem;
-                    }
+                    blobResult[i] = T.CreateTruncating(bytes[i]);
                 }
-                else if (elem.ValueType == KVValueType.Int64)
+
+                return blobResult;
+            }
+
+            if (!child.IsArray)
+            {
+                return [];
+            }
+
+            if (child.TryGetArraySpan<T>(out var values))
+            {
+                return values.ToArray();
+            }
+
+            var result = new T[child.Count];
+
+            if (child.IsPackedArray)
+            {
+                // Every packed element type except ulong fits in a long
+                if (child.TryGetArraySpan<ulong>(out var unsignedValues))
                 {
-                    unchecked
+                    for (var i = 0; i < result.Length; i++)
                     {
-                        result[i] = (ulong)(long)elem;
+                        result[i] = T.CreateTruncating(unsignedValues[i]);
                     }
+
+                    return result;
+                }
+
+                for (var i = 0; i < result.Length; i++)
+                {
+                    result[i] = T.CreateTruncating(child.GetElement<long>(i));
+                }
+
+                return result;
+            }
+
+            var elements = child.AsArraySpan();
+
+            for (var i = 0; i < elements.Length; i++)
+            {
+                var element = elements[i];
+
+                if (element.ValueType == KVValueType.UInt64)
+                {
+                    result[i] = T.CreateTruncating((ulong)element);
                 }
                 else
                 {
-                    result[i] = (ulong)elem;
+                    result[i] = T.CreateTruncating((long)element);
                 }
             }
 
@@ -341,11 +347,26 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
             var enumString = (string)value;
 
-            if (normalize)
+            if (!normalize)
             {
-                enumString = NormalizeEnumName<TEnum>(enumString, stripExtension);
+                return ParseEnumName<TEnum>(enumString);
             }
 
+            // Scene objects repeat the same few flag names, so normalizing every one would be wasted work
+            return NormalizedEnumValues<TEnum>.Cache.GetOrAdd(
+                (enumString, stripExtension),
+                static key => ParseEnumName<TEnum>(NormalizeEnumName<TEnum>(key.Name, key.StripExtension)));
+        }
+
+        private static class NormalizedEnumValues<TEnum>
+            where TEnum : struct, Enum
+        {
+            public static readonly ConcurrentDictionary<(string Name, string StripExtension), TEnum> Cache = new();
+        }
+
+        private static TEnum ParseEnumName<TEnum>(string enumString)
+            where TEnum : struct, Enum
+        {
             if (Enum.TryParse<TEnum>(enumString, false, out var result))
             {
                 return result;
@@ -423,54 +444,51 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// Converts the key-value object to a Vector2.
         /// </summary>
         public static Vector2 ToVector2(this KVObject obj) => new(
-            (float)obj[0],
-            (float)obj[1]);
+            obj.GetElement<float>(0),
+            obj.GetElement<float>(1));
 
         /// <summary>
         /// Converts the key-value object to a Vector3.
         /// </summary>
         public static Vector3 ToVector3(this KVObject obj) => new(
-            (float)obj[0],
-            (float)obj[1],
-            (float)obj[2]);
+            obj.GetElement<float>(0),
+            obj.GetElement<float>(1),
+            obj.GetElement<float>(2));
 
         /// <summary>
         /// Converts the key-value object to a Vector4.
         /// </summary>
         public static Vector4 ToVector4(this KVObject obj) => new(
-            (float)obj[0],
-            (float)obj[1],
-            (float)obj[2],
-            (float)obj[3]);
+            obj.GetElement<float>(0),
+            obj.GetElement<float>(1),
+            obj.GetElement<float>(2),
+            obj.GetElement<float>(3));
 
         /// <summary>
         /// Converts the key-value object to a Quaternion.
         /// </summary>
         public static Quaternion ToQuaternion(this KVObject obj) => new(
-            (float)obj[0],
-            (float)obj[1],
-            (float)obj[2],
-            (float)obj[3]);
+            obj.GetElement<float>(0),
+            obj.GetElement<float>(1),
+            obj.GetElement<float>(2),
+            obj.GetElement<float>(3));
 
         /// <summary>
         /// Converts the key-value object to a tuple containing Position, Uniform Scale, and Rotation.
         /// </summary>
         public static (Vector3 Position, float Scale, Quaternion Rotation) ToTransform(this KVObject obj)
         {
-            var position = new Vector3(
-                (float)obj[0],
-                (float)obj[1],
-                (float)obj[2]);
+            var position = obj.ToVector3();
 
             var compact = obj.Count == 7;
-            var scale = compact ? 1f : (float)obj[3];
+            var scale = compact ? 1f : obj.GetElement<float>(3);
             var rotationOffset = compact ? 3 : 4;
 
             var rotation = new Quaternion(
-                (float)obj[rotationOffset],
-                (float)obj[rotationOffset + 1],
-                (float)obj[rotationOffset + 2],
-                (float)obj[rotationOffset + 3]);
+                obj.GetElement<float>(rotationOffset),
+                obj.GetElement<float>(rotationOffset + 1),
+                obj.GetElement<float>(rotationOffset + 2),
+                obj.GetElement<float>(rotationOffset + 3));
 
             return (position, scale, rotation);
         }
@@ -494,13 +512,13 @@ namespace ValveResourceFormat.Serialization.KeyValues
         public static Matrix4x4 ToMatrix4x4(this KVObject array)
         {
             var column4 = array.Count > 12
-                ? new Vector4((float)array[12], (float)array[13], (float)array[14], (float)array[15])
+                ? new Vector4(array.GetElement<float>(12), array.GetElement<float>(13), array.GetElement<float>(14), array.GetElement<float>(15))
                 : new Vector4(0, 0, 0, 1);
             return new Matrix4x4(
-                (float)array[0], (float)array[4], (float)array[8], column4.X,
-                (float)array[1], (float)array[5], (float)array[9], column4.Y,
-                (float)array[2], (float)array[6], (float)array[10], column4.Z,
-                (float)array[3], (float)array[7], (float)array[11], column4.W
+                array.GetElement<float>(0), array.GetElement<float>(4), array.GetElement<float>(8), column4.X,
+                array.GetElement<float>(1), array.GetElement<float>(5), array.GetElement<float>(9), column4.Y,
+                array.GetElement<float>(2), array.GetElement<float>(6), array.GetElement<float>(10), column4.Z,
+                array.GetElement<float>(3), array.GetElement<float>(7), array.GetElement<float>(11), column4.W
             );
         }
 

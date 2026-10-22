@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Runtime.InteropServices;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -128,8 +127,8 @@ public sealed class SoundEventCurve
             return null;
         }
 
-        var array = soundEventData.GetArray(name);
-        if (array == null || array.Count == 0)
+        var array = value.Elements;
+        if (array.Count == 0)
         {
             return null;
         }
@@ -148,22 +147,22 @@ public sealed class SoundEventCurve
                 continue;
             }
 
-            var y = Convert.ToSingle(point[1], CultureInfo.InvariantCulture);
+            var y = point.GetElement<float>(1);
 
             points.Add(new AuthoredPoint(
                 new Knot
                 {
-                    X = Convert.ToSingle(point[0], CultureInfo.InvariantCulture),
+                    X = point.GetElement<float>(0),
                     Y = decibels ? MathUtils.DecibelsToLinear(y) : y,
-                    InTangent = point.Count > 2 ? Convert.ToSingle(point[2], CultureInfo.InvariantCulture) : 0f,
-                    OutTangent = point.Count > 3 ? Convert.ToSingle(point[3], CultureInfo.InvariantCulture) : 0f,
+                    InTangent = point.Count > 2 ? point.GetElement<float>(2) : 0f,
+                    OutTangent = point.Count > 3 ? point.GetElement<float>(3) : 0f,
                 },
                 decibels || point.Count <= 4
                     ? CurveTangentType.Linear
-                    : (CurveTangentType)Convert.ToInt32(point[4], CultureInfo.InvariantCulture),
+                    : (CurveTangentType)point.GetElement<int>(4),
                 decibels || point.Count <= 5
                     ? CurveTangentType.Linear
-                    : (CurveTangentType)Convert.ToInt32(point[5], CultureInfo.InvariantCulture),
+                    : (CurveTangentType)point.GetElement<int>(5),
                 points.Count));
         }
 

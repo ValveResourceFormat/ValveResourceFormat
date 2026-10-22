@@ -52,7 +52,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets the surface property hashes for collision materials.
         /// </summary>
         public uint[] SurfacePropertyHashes
-            => surfacePropertyHashes ??= Data.GetArray<object>("m_surfacePropertyHashes").Select(Convert.ToUInt32).ToArray();
+            => surfacePropertyHashes ??= Data.GetArray<uint>("m_surfacePropertyHashes");
 
         /// <summary>
         /// Gets the collision attributes.

@@ -82,7 +82,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     // model resource, so read the embedded mesh buffers while it is still open
                     model?.GetEmbeddedMeshes();
 
-                    var weight = entry.ContainsKey("m_flRelativeProbabilityOfSpawn") ? entry.GetFloatProperty("m_flRelativeProbabilityOfSpawn") : 1f;
+                    var weight = entry.GetFloatProperty("m_flRelativeProbabilityOfSpawn", 1f);
                     models.Add((model, weight, MaterialGroupNames(model)));
                 }
             }

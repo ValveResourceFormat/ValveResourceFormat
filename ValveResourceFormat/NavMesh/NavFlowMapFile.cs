@@ -76,7 +76,7 @@ namespace ValveResourceFormat.NavMesh
                 NodeIndex = connection.GetInt32Property("node_index"),
                 AreaId = connection.GetUInt32Property("nav_id"),
             })],
-            FlowMap = [.. node.GetIntegerArray("flow_map").Select(static entry => unchecked((ushort)entry))],
+            FlowMap = node.GetUnsignedIntegerArray<ushort>("flow_map"),
         };
     }
 

@@ -48,15 +48,13 @@ partial class ModelExtract
         {
             if (typeof(T) == typeof(Quaternion))
             {
-                var value = sourceObject.GetFloatArray(sourceName);
-                var rot = new Quaternion(value[0], value[1], value[2], value[3]);
+                var rot = sourceObject.GetSubCollection(sourceName).ToQuaternion();
                 var angles = EntityTransformHelper.ToEulerAngles(rot);
                 targetObject.Add(targetName, ToKVArray(angles));
             }
             else if (typeof(T) == typeof(Vector3))
             {
-                var value = sourceObject.GetFloatArray(sourceName);
-                var pos = new Vector3(value[0], value[1], value[2]);
+                var pos = sourceObject.GetSubCollection(sourceName).ToVector3();
                 targetObject.Add(targetName, ToKVArray(pos));
             }
             else
@@ -144,8 +142,7 @@ partial class ModelExtract
 
             // This field is in RadianEuler component order (roll, pitch, yaw), the reverse of the
             // QAngle order (pitch, yaw, roll) that ToEulerAngles returns
-            var rotArray = constrainedBoneData.GetFloatArray("m_qBaseOrientation");
-            var rot = new Quaternion(rotArray[0], rotArray[1], rotArray[2], rotArray[3]);
+            var rot = constrainedBoneData.GetSubCollection("m_qBaseOrientation").ToQuaternion();
             var angles = EntityTransformHelper.ToEulerAngles(rot);
             angles = new Vector3(angles.Z, angles.X, angles.Y);
             node.Add("rotation_offset_xyz", ToKVArray(angles));
@@ -560,8 +557,7 @@ partial class ModelExtract
         {
             var boneArray = scaleSet.GetIntegerArray("m_nLocalBoneArray");
             var boneScaleArray = scaleSet.GetFloatArray("m_flBoneScaleArray");
-            var rootOffsetArray = scaleSet.GetFloatArray("m_vRootOffset");
-            var rootOffset = new Vector3(rootOffsetArray[0], rootOffsetArray[1], rootOffsetArray[2]);
+            var rootOffset = scaleSet.GetSubCollection("m_vRootOffset").ToVector3();
 
             // A compiled bone scale is the authored one divided by its nearest scaled ancestor's within
             // the same set, 1 with no such ancestor. Invert that walk to recover the authored value.

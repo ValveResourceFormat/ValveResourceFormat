@@ -61,7 +61,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         {
             Name = data.GetStringProperty("m_sEventName");
             Frame = data.GetInt32Property("m_nFrame");
-            EndFrame = data.ContainsKey("m_nEndFrame") ? data.GetInt32Property("m_nEndFrame") : -1;
+            EndFrame = data.GetInt32Property("m_nEndFrame", -1);
             Cycle = data.GetFloatProperty("m_flCycle");
             Duration = data.GetFloatProperty("m_flDuration");
             EventData = data.GetSubCollection("m_EventData");

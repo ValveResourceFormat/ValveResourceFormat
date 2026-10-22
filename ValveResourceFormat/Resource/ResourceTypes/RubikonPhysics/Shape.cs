@@ -45,8 +45,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             Hulls = LoadShapeDescriptorArray<HullDescriptor, Shapes.Hull>(data, "m_hulls");
             Meshes = LoadShapeDescriptorArray<MeshDescriptor, Shapes.Mesh>(data, "m_meshes");
             Compounds = LoadShapeDescriptorArray<CompoundDescriptor, Shapes.Compound>(data, "m_compounds");
-            CollisionAttributeIndices = data.GetArray<object>("m_CollisionAttributeIndices")!
-                .Select(Convert.ToInt32).ToArray();
+            CollisionAttributeIndices = data.GetArray<int>("m_CollisionAttributeIndices")!;
         }
 
         /// <summary>Enumerates every sphere, root ones and compound children.</summary>

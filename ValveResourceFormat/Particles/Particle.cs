@@ -219,11 +219,10 @@ namespace ValveResourceFormat.Particles
         /// </summary>
         internal Particle(ParticleDefinitionParser parse)
         {
-            if (parse.Data.ContainsKey("m_ConstantColor"))
+            if (parse.Data.TryGetValue("m_ConstantColor", out var constantColor))
             {
-                var vectorValues = parse.Data.GetIntegerArray("m_ConstantColor");
-                Color = new Vector3(vectorValues[0], vectorValues[1], vectorValues[2]) / 255f;
-                Alpha = vectorValues.Length > 3 ? vectorValues[3] / 255f : 1f;
+                Color = constantColor.ToVector3() / 255f;
+                Alpha = constantColor.Count > 3 ? constantColor.GetElement<int>(3) / 255f : 1f;
             }
 
             Radius = parse.Float("m_flConstantRadius", Radius);

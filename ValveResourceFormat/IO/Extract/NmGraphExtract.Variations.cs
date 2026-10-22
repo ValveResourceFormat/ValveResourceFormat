@@ -27,8 +27,9 @@ public sealed partial class NmGraphExtract
                 ?? throw new InvalidDataException("Variation graph DataBlock is not a BinaryKV3.");
             Graph = resourceData.Data;
             VariationId = Graph.GetRequiredStringProperty("m_variationID");
-            CompiledNodes = Graph.GetArray("m_nodes")?.Select(value => value).ToArray()
+            var compiledNodes = Graph.GetArray("m_nodes")
                 ?? throw new InvalidDataException("Variation NmGraph is missing m_nodes.");
+            CompiledNodes = [.. compiledNodes];
             Definition = new GraphDefinition(Graph);
         }
 

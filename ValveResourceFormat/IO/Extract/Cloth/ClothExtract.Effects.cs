@@ -383,7 +383,7 @@ internal sealed partial class ClothExtract
             node.Add("cloth_air_density", 1f / airToCloth);
         }
 
-        var localSpace = parameters.ContainsKey("LocalSpace") ? parameters.GetFloatProperty("LocalSpace") : 0f;
+        var localSpace = parameters.GetFloatProperty("LocalSpace");
         if (localSpace != 0f)
         {
             node.Add("local_space", localSpace);

@@ -33,7 +33,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public AnimationDataChannel(Skeleton skeleton, FlexController[] flexControllers, string[] userNames, KVObject dataChannel)
         {
             var elementNameArray = dataChannel.GetArray<string>("m_szElementNameArray");
-            var elementIndexArray = dataChannel.GetIntegerArray("m_nElementIndexArray");
+            var elementIndexArray = dataChannel.GetArray<int>("m_nElementIndexArray") ?? [];
 
             var channelClass = dataChannel.GetStringProperty("m_szChannelClass");
             var channelAttribute = dataChannel.GetStringProperty("m_szVariableName");
@@ -67,7 +67,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             for (var i = 0; i < elementIndexArray.Length; i++)
             {
                 var elementName = elementNameArray![i];
-                var elementIndex = (int)elementIndexArray[i];
+                var elementIndex = elementIndexArray[i];
 
                 var id = Attribute switch
                 {

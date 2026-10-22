@@ -77,7 +77,7 @@ namespace ValveResourceFormat.Renderer
             var packedMax = packedBounds.GetUInt32Property("m_nMax");
 
             var coneData = data.GetSubCollection("m_CullingData");
-            var coneAxis = coneData.GetIntegerArray("m_ConeAxis");
+            var coneAxis = coneData.GetSubCollection("m_ConeAxis");
 
             PackedAABB = new MeshletBounds()
             {
@@ -87,9 +87,9 @@ namespace ValveResourceFormat.Renderer
 
             CullingData = new MeshletCone()
             {
-                ConeAxis0 = (sbyte)coneAxis[0],
-                ConeAxis1 = (sbyte)coneAxis[1],
-                ConeAxis2 = (sbyte)coneAxis[2],
+                ConeAxis0 = (sbyte)coneAxis.GetElement<int>(0),
+                ConeAxis1 = (sbyte)coneAxis.GetElement<int>(1),
+                ConeAxis2 = (sbyte)coneAxis.GetElement<int>(2),
                 ConeCutoff = (sbyte)coneData.GetInt32Property("m_ConeCutoff"),
             };
 

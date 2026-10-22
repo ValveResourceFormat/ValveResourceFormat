@@ -110,7 +110,7 @@ public sealed class AnimGraphModelInfo
         }
 
         var ikdata = keyvalues.GetSubCollection("ikdata");
-        return ikdata.ContainsKey("m_IKChains") ? ikdata.GetArray("m_IKChains") : null;
+        return ikdata.GetArray("m_IKChains");
     }
 
     /// <summary>
@@ -133,7 +133,7 @@ public sealed class AnimGraphModelInfo
         }
 
         var rig = ikdata.GetSubCollection("m_ControlRigData");
-        return (rig, rig.ContainsKey("m_ChainData") ? rig.GetArray("m_ChainData") : []);
+        return (rig, rig.GetArray("m_ChainData") ?? []);
     }
 
     private string[] LoadIKChainNames()
@@ -351,7 +351,7 @@ public sealed class AnimGraphModelInfo
         var influenceIndices = compiledAttachment.GetArray<int>("m_influenceIndices");
         var influenceRotations = compiledAttachment.GetArray("m_influenceRotations").Select(v => v.ToQuaternion()).ToArray();
         var influenceOffsets = compiledAttachment.GetArray("m_influenceOffsets").Select(v => v.ToVector3()).ToArray();
-        var influenceWeights = compiledAttachment.GetArray<double>("m_influenceWeights");
+        var influenceWeights = compiledAttachment.GetArray<float>("m_influenceWeights");
 
         var influenceCount = compiledAttachment.GetInt32Property("m_numInfluences");
         if (influenceCount == 0 || influenceIndices.Length < influenceCount)
@@ -368,7 +368,7 @@ public sealed class AnimGraphModelInfo
                 Name = boneName,
                 Rotation = influenceRotations[i],
                 Offset = influenceOffsets[i],
-                Weight = (float)influenceWeights[i]
+                Weight = influenceWeights[i]
             };
         }
 
@@ -421,7 +421,7 @@ public sealed class AnimGraphModelInfo
 
         for (var i = 0; i < compiledBonesArray.Count; i++)
         {
-            var boneIndex = (int)compiledBonesArray[i].GetIntegerProperty("m_index");
+            var boneIndex = compiledBonesArray[i].GetInt32Property("m_index");
             boneNames[i] = GetBoneName(boneIndex);
         }
         return boneNames;

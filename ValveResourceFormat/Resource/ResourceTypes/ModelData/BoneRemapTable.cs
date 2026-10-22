@@ -28,20 +28,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         {
             ArgumentNullException.ThrowIfNull(data);
 
-            var compiledStarts = data.GetIntegerArray("m_remappingTableStarts");
-            var compiledTable = data.GetIntegerArray("m_remappingTable");
-
-            starts = new int[compiledStarts.Length];
-            for (var i = 0; i < compiledStarts.Length; i++)
-            {
-                starts[i] = (int)compiledStarts[i];
-            }
-
-            table = new int[compiledTable.Length];
-            for (var i = 0; i < compiledTable.Length; i++)
-            {
-                table[i] = (int)compiledTable[i];
-            }
+            starts = data.GetArray<int>("m_remappingTableStarts") ?? [];
+            table = data.GetArray<int>("m_remappingTable") ?? [];
         }
 
         /// <summary>

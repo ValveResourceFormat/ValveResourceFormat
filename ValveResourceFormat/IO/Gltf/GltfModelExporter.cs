@@ -744,7 +744,7 @@ namespace ValveResourceFormat.IO
                 {
                     var jsonArray = new JsonArray();
 
-                    foreach (var item in value.AsArraySpan())
+                    foreach (var item in value.Values)
                     {
                         jsonArray.Add(KeyValueToJson(item));
                     }
@@ -764,17 +764,17 @@ namespace ValveResourceFormat.IO
                 // Entity lumps store single precision values as doubles; narrowing keeps 1.3 from printing as 1.2999999523162842.
                 case KVValueType.FloatingPoint:
                 case KVValueType.FloatingPoint64:
-                    return JsonValue.Create(Convert.ToSingle(value, CultureInfo.InvariantCulture));
+                    return JsonValue.Create((float)value);
 
                 case KVValueType.Int16:
                 case KVValueType.Int32:
                 case KVValueType.Int64:
-                    return JsonValue.Create(Convert.ToInt64(value, CultureInfo.InvariantCulture));
+                    return JsonValue.Create((long)value);
 
                 case KVValueType.UInt16:
                 case KVValueType.UInt32:
                 case KVValueType.UInt64:
-                    return JsonValue.Create(Convert.ToUInt64(value, CultureInfo.InvariantCulture));
+                    return JsonValue.Create((ulong)value);
 
                 default:
                     return JsonValue.Create(value.ToString(CultureInfo.InvariantCulture));

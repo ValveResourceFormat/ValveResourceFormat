@@ -181,9 +181,9 @@ public class VfxVariableDescription : ShaderDataBlock
         }
         else if (data.ContainsKey("m_intDefault"))
         {
-            IntDefs = [.. data.GetIntegerArray("m_intDefault").Select(l => (int)l)];
-            IntMins = [.. data.GetIntegerArray("m_intMin").Select(l => (int)l)];
-            IntMaxs = [.. data.GetIntegerArray("m_intMax").Select(l => (int)l)];
+            IntDefs = data.GetArray<int>("m_intDefault") ?? [];
+            IntMins = data.GetArray<int>("m_intMin") ?? [];
+            IntMaxs = data.GetArray<int>("m_intMax") ?? [];
 
             if (RegisterType is VfxRegisterType.Float4)
             {

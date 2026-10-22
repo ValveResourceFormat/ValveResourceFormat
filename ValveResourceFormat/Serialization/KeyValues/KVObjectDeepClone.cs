@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Linq;
 using ValveKeyValue;
 
 namespace ValveResourceFormat.Serialization.KeyValues;
@@ -42,17 +40,17 @@ public static class KVObjectDeepClone
             clone = value.ValueType switch
             {
                 KVValueType.Null => KVObject.Null(),
-                KVValueType.BinaryBlob => KVObject.Blob(value.AsBlob().ToArray()),
-                KVValueType.Boolean => new KVObject(value.ToBoolean(CultureInfo.InvariantCulture)),
-                KVValueType.String => new KVObject(value.ToString(CultureInfo.InvariantCulture)),
-                KVValueType.Int16 => new KVObject(value.ToInt16(CultureInfo.InvariantCulture)),
-                KVValueType.UInt16 => new KVObject(value.ToUInt16(CultureInfo.InvariantCulture)),
-                KVValueType.Int32 => new KVObject(value.ToInt32(CultureInfo.InvariantCulture)),
-                KVValueType.UInt32 => new KVObject(value.ToUInt32(CultureInfo.InvariantCulture)),
-                KVValueType.Int64 => new KVObject(value.ToInt64(CultureInfo.InvariantCulture)),
-                KVValueType.UInt64 => new KVObject(value.ToUInt64(CultureInfo.InvariantCulture)),
-                KVValueType.FloatingPoint => new KVObject(value.ToSingle(CultureInfo.InvariantCulture)),
-                KVValueType.FloatingPoint64 => new KVObject(value.ToDouble(CultureInfo.InvariantCulture)),
+                KVValueType.BinaryBlob => KVObject.Blob(value.AsBlob().AsSpan().ToArray()),
+                KVValueType.Boolean => new KVObject((bool)value),
+                KVValueType.String => new KVObject((string)value),
+                KVValueType.Int16 => new KVObject((short)value),
+                KVValueType.UInt16 => new KVObject((ushort)value),
+                KVValueType.Int32 => new KVObject((int)value),
+                KVValueType.UInt32 => new KVObject((uint)value),
+                KVValueType.Int64 => new KVObject((long)value),
+                KVValueType.UInt64 => new KVObject((ulong)value),
+                KVValueType.FloatingPoint => new KVObject((float)value),
+                KVValueType.FloatingPoint64 => new KVObject((double)value),
                 KVValueType.Pointer => new KVObject((IntPtr)value),
                 _ => throw new NotSupportedException($"Cannot clone KV value of type {value.ValueType}"),
             };

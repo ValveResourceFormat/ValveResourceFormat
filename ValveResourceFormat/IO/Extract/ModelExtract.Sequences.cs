@@ -86,12 +86,12 @@ partial class ModelExtract
         HashSet<string> nodeNames, bool blendAnimEvents)
     {
         var fetch = animation.Fetch!.Value;
-        var rows = fetch.GroupSize.Length > 0 ? (int)fetch.GroupSize[0] : 0;
-        var columns = fetch.GroupSize.Length > 1 ? (int)fetch.GroupSize[1] : 0;
+        var rows = fetch.GroupSize.Length > 0 ? fetch.GroupSize[0] : 0;
+        var columns = fetch.GroupSize.Length > 1 ? fetch.GroupSize[1] : 0;
 
         string PoseParam(int dimension)
         {
-            var index = fetch.LocalPose.Length > dimension ? (int)fetch.LocalPose[dimension] : -1;
+            var index = fetch.LocalPose.Length > dimension ? fetch.LocalPose[dimension] : -1;
             return index >= 0 && index < poseParamNames.Length ? poseParamNames[index] : string.Empty;
         }
 
@@ -109,7 +109,7 @@ partial class ModelExtract
             {
                 var reference = row + (rows * column);
                 var localReference = reference < fetch.LocalReferenceArray.Length
-                    ? (int)fetch.LocalReferenceArray[reference]
+                    ? fetch.LocalReferenceArray[reference]
                     : -1;
 
                 rowAnimations.Add(localReference >= 0 && localReference < localSequenceNameArray.Length
@@ -182,7 +182,7 @@ partial class ModelExtract
             return Process2DBlendSequence(animation, localSequenceNameArray, poseParamNames, nodeNames, blendAnimEvents);
         }
 
-        var poseParamIndex = fetch.LocalPose.Length > 0 ? (int)fetch.LocalPose[0] : -1;
+        var poseParamIndex = fetch.LocalPose.Length > 0 ? fetch.LocalPose[0] : -1;
         var poseParam = poseParamIndex >= 0 && poseParamIndex < poseParamNames.Length
             ? poseParamNames[poseParamIndex]
             : string.Empty;
@@ -191,7 +191,7 @@ partial class ModelExtract
 
         for (var i = 0; i < fetch.LocalReferenceArray.Length; i++)
         {
-            var reference = (int)fetch.LocalReferenceArray[i];
+            var reference = fetch.LocalReferenceArray[i];
 
             if (reference < 0 || reference >= localSequenceNameArray.Length)
             {
@@ -527,15 +527,15 @@ partial class ModelExtract
             {
                 if (sequenceKeyValues.GetSubCollection("faceposer_folders") is KVObject faceposerFolders)
                 {
-                    foreach (var (folderName, _) in faceposerFolders)
+                    foreach (var (folderName, folderAnimations) in faceposerFolders)
                     {
-                        var animationNames = faceposerFolders.GetArray<string>(folderName);
+                        var animationNames = folderAnimations.ToArray<string>();
 
                         var (folderNode, children) = MakeListNode("Folder");
                         folderNode.Add("name", folderName);
                         lists.Animations.Add(folderNode);
 
-                        foreach (var animationName in animationNames!)
+                        foreach (var animationName in animationNames)
                         {
                             animationToFolder.Add(animationName, children);
                         }

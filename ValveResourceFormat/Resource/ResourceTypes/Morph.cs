@@ -179,8 +179,8 @@ namespace ValveResourceFormat.ResourceTypes
 
                         var rectU = (int)MathF.Round(bundleData.GetFloatProperty("m_flULeftSrc") * texWidth, 0);
                         var rectV = (int)MathF.Round(bundleData.GetFloatProperty("m_flVTopSrc") * texHeight, 0);
-                        var ranges = new Vector4(bundleData.GetFloatArray("m_ranges"));
-                        var offsets = new Vector4(bundleData.GetFloatArray("m_offsets"));
+                        var ranges = bundleData.GetSubCollection("m_ranges").ToVector4();
+                        var offsets = bundleData.GetSubCollection("m_offsets").ToVector4();
 
                         // Offsets put zero on a quantization level, but decoding that level leaves float
                         // rounding of up to about 1e-7. Only that level decodes within half a step of zero.

@@ -1100,7 +1100,7 @@ public sealed partial class MapExtract
                 }
 
                 var tintColor = sceneObject.GetSubCollection("m_vTintColor").ToVector4();
-                var renderOrder = (int)sceneObject.GetIntegerProperty("m_nOverlayRenderOrder");
+                var renderOrder = sceneObject.GetInt32Property("m_nOverlayRenderOrder");
                 var group = new OverlayGroup(material, renderOrder, tintColor, objectFlags & OverlayFlags);
 
                 if (!WorldOverlayGeometry.TryGetValue(group, out var pieces))
@@ -2133,9 +2133,7 @@ public sealed partial class MapExtract
             var drawCenters = Array.Empty<Vector3>();
 
             var transformIndex = 0;
-            var fragmentTransforms = agg.ContainsKey("m_fragmentTransforms")
-                ? agg.GetArray("m_fragmentTransforms")
-                : [];
+            var fragmentTransforms = agg.GetArray("m_fragmentTransforms") ?? [];
 
             var aggregateHasTransforms = fragmentTransforms.Count > 0;
 
@@ -2163,7 +2161,7 @@ public sealed partial class MapExtract
             {
                 if (!aggregateHasTransforms)
                 {
-                    drawCenters = (sceneObject.ContainsKey("m_drawBounds") ? sceneObject.GetArray("m_drawBounds") : [])
+                    drawCenters = (sceneObject.GetArray("m_drawBounds") ?? [])
                         .Select(aabb => (aabb.GetSubCollection("m_vMinBounds").ToVector3() + aabb.GetSubCollection("m_vMaxBounds").ToVector3()) / 2f)
                         .ToArray();
                 }
@@ -2293,7 +2291,7 @@ public sealed partial class MapExtract
 
         foreach (var aggregateSceneObject in node.AggregateSceneObjects)
         {
-            var layerIndex = (int)aggregateSceneObject.GetIntegerProperty("m_nLayer");
+            var layerIndex = aggregateSceneObject.GetInt32Property("m_nLayer");
             ProcessAggregate(aggregateSceneObject, layerIndex, layerNodes);
         }
 
@@ -2797,7 +2795,7 @@ public sealed partial class MapExtract
                 return element;
 
             case KVValueType.Array:
-                var items = (IReadOnlyList<KVObject>)value.Values;
+                var items = value.Elements;
 
                 if (ToDmeTypedArray(items) is { } typedArray)
                 {
@@ -2909,7 +2907,7 @@ public sealed partial class MapExtract
                 return null;
             }
 
-            var components = (IReadOnlyList<KVObject>)item.Values;
+            var components = item.Elements;
 
             if ((vectors.Count > 0 && components.Count != vectors[0].Length) || !components.All(static component => IsKeyValues3Float(component.ValueType)))
             {

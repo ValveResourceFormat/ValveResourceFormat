@@ -77,14 +77,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return false;
             }
 
-            var baseRadius = entity.ContainsKey("radius") ? entity.GetFloatProperty("radius") : DefaultRadius;
-            var particleSpacing = entity.ContainsKey("particle_spacing") ? entity.GetFloatProperty("particle_spacing") : DefaultParticleSpacing;
+            var baseRadius = entity.GetFloatProperty("radius", DefaultRadius);
+            var particleSpacing = entity.GetFloatProperty("particle_spacing", DefaultParticleSpacing);
             if (baseRadius <= 0f || particleSpacing <= 0f)
             {
                 return false;
             }
 
-            var slack = entity.ContainsKey("slack") ? entity.GetFloatProperty("slack") : DefaultSlack;
+            var slack = entity.GetFloatProperty("slack", DefaultSlack);
 
             var geometry = new CableGeometry
             {

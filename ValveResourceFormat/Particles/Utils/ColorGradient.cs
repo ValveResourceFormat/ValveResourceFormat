@@ -25,16 +25,14 @@ namespace ValveResourceFormat.Particles.Utils
 
             var sorted = stops
                 .Select(stop => (
-                    Position: Math.Clamp(stop.ContainsKey("m_flPosition") ? stop.GetFloatProperty("m_flPosition") : 0f, 0f, 1f),
-                    Color: stop.ContainsKey("m_Color") ? ReadColor(stop.GetArray<int>("m_Color")) : Vector3.Zero))
+                    Position: Math.Clamp(stop.GetFloatProperty("m_flPosition"), 0f, 1f),
+                    Color: stop.TryGetValue("m_Color", out var color) ? color.ToVector3() : Vector3.Zero))
                 .OrderBy(stop => stop.Position)
                 .ToArray();
 
             positions = [.. sorted.Select(stop => stop.Position)];
             colors = [.. sorted.Select(stop => stop.Color)];
         }
-
-        private static Vector3 ReadColor(int[] color) => new(color[0], color[1], color[2]);
 
         /// <summary>
         /// The colour at <paramref name="t"/>, normalized to [0, 1]. Positions outside the stops take

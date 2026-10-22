@@ -810,6 +810,77 @@ namespace ValveResourceFormat.ResourceTypes
             return value;
         }
 
+        private static ReadOnlySpan<T> ReadLaneSpan<T>(ref ArraySegment<byte> lane, int count) where T : unmanaged
+        {
+            var byteCount = count * Unsafe.SizeOf<T>();
+            var values = MemoryMarshal.Cast<byte, T>(lane.AsSpan(0, byteCount));
+            lane = lane[byteCount..];
+            return values;
+        }
+
+        // Typed arrays of values stored in a lane are kept packed, so their elements are not separate objects.
+        // Elements unpack to the same values ReadValue returns, so 8-bit integers widen to int and uint.
+        private static KVObject? ReadPackedArray(KV3BinaryNodeType elementType, KVFlag elementFlag, Buffers lane, int count)
+        {
+            switch (elementType)
+            {
+                case KV3BinaryNodeType.BOOLEAN:
+                {
+                    var bytes = ReadLaneSpan<byte>(ref lane.Bytes1, count);
+                    var values = new bool[count];
+
+                    for (var i = 0; i < count; i++)
+                    {
+                        values[i] = bytes[i] != 0;
+                    }
+
+                    return KVObject.PackedArray(values, elementFlag);
+                }
+                case KV3BinaryNodeType.INT8:
+                {
+                    var bytes = ReadLaneSpan<sbyte>(ref lane.Bytes1, count);
+                    var values = new int[count];
+
+                    for (var i = 0; i < count; i++)
+                    {
+                        values[i] = bytes[i];
+                    }
+
+                    return KVObject.PackedArray(values, elementFlag);
+                }
+                case KV3BinaryNodeType.UINT8:
+                {
+                    var bytes = ReadLaneSpan<byte>(ref lane.Bytes1, count);
+                    var values = new uint[count];
+
+                    for (var i = 0; i < count; i++)
+                    {
+                        values[i] = bytes[i];
+                    }
+
+                    return KVObject.PackedArray(values, elementFlag);
+                }
+                case KV3BinaryNodeType.INT16:
+                    return KVObject.PackedArray(ReadLaneSpan<short>(ref lane.Bytes2, count).ToArray(), elementFlag);
+                case KV3BinaryNodeType.UINT16:
+                    return KVObject.PackedArray(ReadLaneSpan<ushort>(ref lane.Bytes2, count).ToArray(), elementFlag);
+                case KV3BinaryNodeType.INT32:
+                    return KVObject.PackedArray(ReadLaneSpan<int>(ref lane.Bytes4, count).ToArray(), elementFlag);
+                case KV3BinaryNodeType.UINT32:
+                    return KVObject.PackedArray(ReadLaneSpan<uint>(ref lane.Bytes4, count).ToArray(), elementFlag);
+                case KV3BinaryNodeType.FLOAT:
+                    return KVObject.PackedArray(ReadLaneSpan<float>(ref lane.Bytes4, count).ToArray(), elementFlag);
+                case KV3BinaryNodeType.INT64:
+                    return KVObject.PackedArray(ReadLaneSpan<long>(ref lane.Bytes8, count).ToArray(), elementFlag);
+                case KV3BinaryNodeType.UINT64:
+                    return KVObject.PackedArray(ReadLaneSpan<ulong>(ref lane.Bytes8, count).ToArray(), elementFlag);
+                case KV3BinaryNodeType.DOUBLE:
+                    return KVObject.PackedArray(ReadLaneSpan<double>(ref lane.Bytes8, count).ToArray(), elementFlag);
+                default:
+                    return null;
+            }
+        }
+
         private static KVObject ReadBinaryValue(Context context, KV3BinaryNodeType datatype, KVFlag flagInfo, Buffers lane)
         {
             var result = ReadValue(context, datatype, lane);
@@ -948,8 +1019,15 @@ namespace ValveResourceFormat.ResourceTypes
                     }
 
                     var (subType, subFlagInfo) = ReadType(context);
-                    var typedArray = KVObject.Array(arrayLength);
                     var elementLane = datatype == KV3BinaryNodeType.ARRAY_TYPE_AUXILIARY_BUFFER ? context.AuxiliaryBuffer : buffer;
+                    var packedArray = ReadPackedArray(subType, subFlagInfo, elementLane, arrayLength);
+
+                    if (packedArray != null)
+                    {
+                        return packedArray;
+                    }
+
+                    var typedArray = KVObject.Array(arrayLength);
 
                     for (var i = 0; i < arrayLength; i++)
                     {

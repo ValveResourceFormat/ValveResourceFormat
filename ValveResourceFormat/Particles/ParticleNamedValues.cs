@@ -1,4 +1,3 @@
-using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -180,11 +179,8 @@ namespace ValveResourceFormat.Particles
                 }
                 case ParticleNamedValueType.Transform when value.IsArray && value.Count is 7 or 8:
                 {
-                    var floats = value.Values.Select(component => (float)component).ToArray();
-                    var rotation = floats.Length == 7
-                        ? new Quaternion(floats[3], floats[4], floats[5], floats[6])
-                        : new Quaternion(floats[4], floats[5], floats[6], floats[7]);
-                    return ParticleNamedValue.FromTransform(new Vector3(floats[0], floats[1], floats[2]), rotation);
+                    var (position, _, rotation) = value.ToTransform();
+                    return ParticleNamedValue.FromTransform(position, rotation);
                 }
                 default:
                     return null;

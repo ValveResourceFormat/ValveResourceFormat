@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -146,13 +147,13 @@ namespace ValveResourceFormat.Blocks
             for (var i = 0; i < nodeCount; i++)
             {
                 var node = nodes[i];
-                var children = node.GetIntegerArray("m_nChildren");
+                var children = node.GetArray<int>("m_nChildren") ?? [];
 
                 Nodes[i] = new Node(
                     node.GetSubCollection("m_vSplitNormal").ToVector3(),
                     node.GetFloatProperty("m_flDist"),
-                    children.Length > 0 ? (int)children[0] : 0,
-                    children.Length > 1 ? (int)children[1] : 0);
+                    children.Length > 0 ? children[0] : 0,
+                    children.Length > 1 ? children[1] : 0);
             }
 
             if (!IsTree())
@@ -160,13 +161,8 @@ namespace ValveResourceFormat.Blocks
                 Nodes = [];
             }
 
-            var dwords = data.GetIntegerArray("m_visDataDwords");
-            VisData = new byte[dwords.Length * sizeof(uint)];
-
-            for (var i = 0; i < dwords.Length; i++)
-            {
-                BitConverter.TryWriteBytes(VisData.AsSpan(i * sizeof(uint)), (uint)dwords[i]);
-            }
+            var dwords = data.GetUnsignedIntegerArray<uint>("m_visDataDwords");
+            VisData = MemoryMarshal.AsBytes(dwords.AsSpan()).ToArray();
         }
 
         /// <summary>

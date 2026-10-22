@@ -59,7 +59,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
             ArgumentNullException.ThrowIfNull(data);
 
             Names = data.GetArray<string>("m_meshGroups") ?? [];
-            meshMasks = data.GetUnsignedIntegerArray("m_refMeshGroupMasks") ?? [];
+            meshMasks = data.GetUnsignedIntegerArray("m_refMeshGroupMasks");
             defaultMask = data.GetUnsignedIntegerProperty("m_nDefaultMeshGroupMask");
             hiddenInTools = [.. data.GetArray<string>("m_BodyGroupsHiddenInTools") ?? []];
 

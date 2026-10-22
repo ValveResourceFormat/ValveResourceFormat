@@ -57,15 +57,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
                 return;
             }
 
-            animationGroupBlock = resource.GetBlockByIndex((int)embeddedAnimation.GetIntegerProperty("group_data_block")) as KeyValuesOrNTRO;
-            animationDataBlock = resource.GetBlockByIndex((int)embeddedAnimation.GetIntegerProperty("anim_data_block")) as KeyValuesOrNTRO;
+            animationGroupBlock = resource.GetBlockByIndex(embeddedAnimation.GetInt32Property("group_data_block")) as KeyValuesOrNTRO;
+            animationDataBlock = resource.GetBlockByIndex(embeddedAnimation.GetInt32Property("anim_data_block")) as KeyValuesOrNTRO;
 
             // Index zero is the model's own data block.
-            var sequenceBlockIndex = embeddedAnimation.GetIntegerProperty("seqgroup_data_block");
+            var sequenceBlockIndex = embeddedAnimation.GetInt32Property("seqgroup_data_block");
 
             if (sequenceBlockIndex > 0)
             {
-                SequenceData = (resource.GetBlockByIndex((int)sequenceBlockIndex) as KeyValuesOrNTRO)?.Data;
+                SequenceData = (resource.GetBlockByIndex(sequenceBlockIndex) as KeyValuesOrNTRO)?.Data;
             }
         }
 
@@ -91,9 +91,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
 
             foreach (var folder in faceposerFolders)
             {
-                var animationNames = faceposerFolders.GetArray<string>(folder.Key);
+                var animationNames = folder.Value.ToArray<string>();
 
-                foreach (var animationName in animationNames ?? [])
+                foreach (var animationName in animationNames)
                 {
                     animationToFolder[animationName] = folder.Key;
                 }
@@ -120,7 +120,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
 
             foreach (var boneMask in boneMaskArray)
             {
-                var boneIndices = boneMask.GetIntegerArray("m_nLocalBoneArray");
+                var boneIndices = boneMask.GetArray<int>("m_nLocalBoneArray") ?? [];
 
                 if (boneIndices.Length == 0)
                 {
@@ -132,7 +132,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
 
                 for (var i = 0; i < boneIndices.Length; i++)
                 {
-                    weights[boneNameArray[(int)boneIndices[i]]] = boneWeights[i];
+                    weights[boneNameArray[boneIndices[i]]] = boneWeights[i];
                 }
 
                 masks[boneMask.GetStringProperty("m_sName")] = weights;

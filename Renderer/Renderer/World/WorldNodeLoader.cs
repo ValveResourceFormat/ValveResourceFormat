@@ -83,7 +83,7 @@ namespace ValveResourceFormat.Renderer.World
                 var visClusters = node.GetSceneObjectVisClusters(sceneObject);
 
                 // Per-placement forced LoD baked by the compiler (-1 = automatic).
-                var lodOverride = sceneObject.ContainsKey("m_nLODOverride") ? sceneObject.GetInt32Property("m_nLODOverride") : -1;
+                var lodOverride = sceneObject.GetInt32Property("m_nLODOverride", -1);
 
                 var tintColor = sceneObject.GetSubCollection("m_vTintColor").ToVector4();
                 if (tintColor.W == 0)

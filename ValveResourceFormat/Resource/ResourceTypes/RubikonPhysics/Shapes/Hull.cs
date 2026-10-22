@@ -134,7 +134,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             {
                 if (Data.IsNotBlobType("m_Nodes"))
                 {
-                    return Data.GetArray<object>("m_Nodes").Select(Convert.ToUInt32).ToArray();
+                    return Data.GetArray<uint>("m_Nodes");
                 }
 
                 return MemoryMarshal.Cast<byte, uint>(Data.GetArray<byte>("m_Nodes"));

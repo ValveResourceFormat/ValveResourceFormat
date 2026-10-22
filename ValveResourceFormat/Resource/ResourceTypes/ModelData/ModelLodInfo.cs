@@ -58,8 +58,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         {
             ArgumentNullException.ThrowIfNull(data);
 
-            meshLodMasks = data.GetIntegerArray("m_refLODGroupMasks") ?? [];
-            SwitchDistances = data.GetFloatArray("m_lodGroupSwitchDistances") ?? [];
+            meshLodMasks = data.GetIntegerArray("m_refLODGroupMasks");
+            SwitchDistances = data.GetFloatArray("m_lodGroupSwitchDistances");
 
             var combined = 0L;
             foreach (var mask in meshLodMasks)

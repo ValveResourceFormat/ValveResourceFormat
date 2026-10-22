@@ -796,7 +796,7 @@ public class AnimationGraphExtract : IDisposable
     {
         var id = reference.GetSubCollection("m_nodeID") is { } nodeRef
             ? nodeRef.GetIntegerProperty("m_id")
-            : reference.ContainsKey("m_id") ? reference.GetIntegerProperty("m_id") : InvalidEditorNodeId;
+            : reference.GetIntegerProperty("m_id", InvalidEditorNodeId);
 
         return id == InvalidEditorNodeId ? null : id;
     }
@@ -2499,9 +2499,7 @@ public class AnimationGraphExtract : IDisposable
         if (className == "CCPPScriptComponentUpdater")
         {
             component.Add("m_sName", compiledComponent.GetStringProperty("m_name", string.Empty));
-            var scripts = compiledComponent.ContainsKey("m_scriptsToRun")
-                ? compiledComponent.GetArray("m_scriptsToRun").Select(s => (KVObject)(s.GetStringProperty("") ?? string.Empty)).ToArray()
-                : [];
+            var scripts = (compiledComponent.GetArray("m_scriptsToRun") ?? []).Select(s => new KVObject((string)s)).ToArray();
             component.Add("m_scriptsToRun", MakeArray(scripts));
             return component;
         }
@@ -2717,9 +2715,7 @@ public class AnimationGraphExtract : IDisposable
 
         blendNode.Add("m_blendValueSource", "Parameter");
 
-        var paramIndex = compiledMotionNode.ContainsKey("m_nParamIndex")
-            ? (int)compiledMotionNode.GetIntegerProperty("m_nParamIndex")
-            : -1;
+        var paramIndex = compiledMotionNode.GetInt32Property("m_nParamIndex", -1);
         var motionParamId = paramIndex >= 0 && paramIndex < motionParamIds.Count
             ? motionParamIds[paramIndex]
             : -1L;
@@ -3064,7 +3060,7 @@ public class AnimationGraphExtract : IDisposable
 
                     if (opFixedData.ContainsKey("m_boneIndex"))
                     {
-                        node.Add("m_boneName", GetBoneName((int)opFixedData.GetIntegerProperty("m_boneIndex")));
+                        node.Add("m_boneName", GetBoneName(opFixedData.GetInt32Property("m_boneIndex")));
                     }
 
                     if (opFixedData.ContainsKey("m_attachment"))
@@ -3106,15 +3102,15 @@ public class AnimationGraphExtract : IDisposable
                             var convertedItem = new KVObject();
                             if (footInfo.ContainsKey("m_nFootIndex"))
                             {
-                                AddIfNotEmpty(convertedItem, "m_footName", GetFootName((int)footInfo.GetIntegerProperty("m_nFootIndex")));
+                                AddIfNotEmpty(convertedItem, "m_footName", GetFootName(footInfo.GetInt32Property("m_nFootIndex")));
                             }
                             if (footInfo.ContainsKey("m_nTargetBoneIndex"))
                             {
-                                AddIfNotEmpty(convertedItem, "m_targetBoneName", GetBoneName((int)footInfo.GetIntegerProperty("m_nTargetBoneIndex")));
+                                AddIfNotEmpty(convertedItem, "m_targetBoneName", GetBoneName(footInfo.GetInt32Property("m_nTargetBoneIndex")));
                             }
                             if (footInfo.ContainsKey("m_ikChainIndex"))
                             {
-                                AddIfNotEmpty(convertedItem, "m_ikChainName", GetIKChainName((int)footInfo.GetIntegerProperty("m_ikChainIndex")));
+                                AddIfNotEmpty(convertedItem, "m_ikChainName", GetIKChainName(footInfo.GetInt32Property("m_ikChainIndex")));
                             }
                             if (footInfo.ContainsKey("m_nTagIndex"))
                             {
@@ -3131,7 +3127,7 @@ public class AnimationGraphExtract : IDisposable
                     CopyIfPresent(poseOpFixedData, node, "m_flMaxLegTwist");
                     if (poseOpFixedData.ContainsKey("m_nHipBoneIndex"))
                     {
-                        AddIfNotEmpty(node, "m_hipBoneName", GetBoneName((int)poseOpFixedData.GetIntegerProperty("m_nHipBoneIndex")));
+                        AddIfNotEmpty(node, "m_hipBoneName", GetBoneName(poseOpFixedData.GetInt32Property("m_nHipBoneIndex")));
                     }
                     CopyBoolIfPresent(poseOpFixedData, node, "m_bApplyLegTwistLimits");
                     CopyBoolIfPresent(poseOpFixedData, node, "m_bApplyFootRotationLimits");
@@ -3165,7 +3161,7 @@ public class AnimationGraphExtract : IDisposable
                         var convertedItem = new KVObject();
                         if (trigger.ContainsKey("m_nFootIndex"))
                         {
-                            var footIndex = (int)trigger.GetIntegerProperty("m_nFootIndex");
+                            var footIndex = trigger.GetInt32Property("m_nFootIndex");
                             var footName = GetFootName(footIndex);
                             if (!string.IsNullOrEmpty(footName))
                             {
@@ -3204,7 +3200,7 @@ public class AnimationGraphExtract : IDisposable
                             var convertedItem = new KVObject();
                             if (boneSetting.ContainsKey("m_nBoneIndex"))
                             {
-                                AddIfNotEmpty(convertedItem, "m_boneName", GetBoneName((int)boneSetting.GetIntegerProperty("m_nBoneIndex")));
+                                AddIfNotEmpty(convertedItem, "m_boneName", GetBoneName(boneSetting.GetInt32Property("m_nBoneIndex")));
                             }
                             CopyIfPresent(boneSetting, convertedItem, "m_flSpringStrength");
                             if (boneSetting.ContainsKey("m_flMaxTimeStep"))
@@ -3290,7 +3286,7 @@ public class AnimationGraphExtract : IDisposable
                     }
                     if (opFixedSettings.ContainsKey("m_nHipBoneIndex"))
                     {
-                        AddIfNotEmpty(node, "m_hipBoneName", GetBoneName((int)opFixedSettings.GetIntegerProperty("m_nHipBoneIndex")));
+                        AddIfNotEmpty(node, "m_hipBoneName", GetBoneName(opFixedSettings.GetInt32Property("m_nHipBoneIndex")));
                     }
                     string[] settingsToCopy =
                     [
@@ -3339,7 +3335,7 @@ public class AnimationGraphExtract : IDisposable
 
                         if (chainData.ContainsKey("m_nChainIndex"))
                         {
-                            ikChain.Add("m_IkChain", GetIKChainName((int)chainData.GetIntegerProperty("m_nChainIndex")));
+                            ikChain.Add("m_IkChain", GetIKChainName(chainData.GetInt32Property("m_nChainIndex")));
                         }
 
                         ikChain.Add("m_SolverSettingSource", "SOLVEIKCHAINANIMNODESETTINGSOURCE_Default");
@@ -3463,7 +3459,7 @@ public class AnimationGraphExtract : IDisposable
 
                     if (opFixedSettings.ContainsKey("m_nHipBoneIndex"))
                     {
-                        AddIfNotEmpty(node, "m_hipBoneName", GetBoneName((int)opFixedSettings.GetIntegerProperty("m_nHipBoneIndex")));
+                        AddIfNotEmpty(node, "m_hipBoneName", GetBoneName(opFixedSettings.GetInt32Property("m_nHipBoneIndex")));
                     }
 
                     CopyIfPresent(opFixedSettings, node, "m_ikSolverType");
@@ -3509,17 +3505,17 @@ public class AnimationGraphExtract : IDisposable
 
                         if (footSetting.ContainsKey("m_nFootIndex"))
                         {
-                            AddIfNotEmpty(item, "m_footName", GetFootName((int)footSetting.GetIntegerProperty("m_nFootIndex")));
+                            AddIfNotEmpty(item, "m_footName", GetFootName(footSetting.GetInt32Property("m_nFootIndex")));
                         }
 
                         if (footInfo?.ContainsKey("m_nTargetBoneIndex") == true)
                         {
-                            AddIfNotEmpty(item, "m_targetBoneName", GetBoneName((int)footInfo.GetIntegerProperty("m_nTargetBoneIndex")));
+                            AddIfNotEmpty(item, "m_targetBoneName", GetBoneName(footInfo.GetInt32Property("m_nTargetBoneIndex")));
                         }
 
                         if (footInfo?.ContainsKey("m_ikChainIndex") == true)
                         {
-                            AddIfNotEmpty(item, "m_ikChainName", GetIKChainName((int)footInfo.GetIntegerProperty("m_ikChainIndex")));
+                            AddIfNotEmpty(item, "m_ikChainName", GetIKChainName(footInfo.GetInt32Property("m_ikChainIndex")));
                         }
 
                         if (footSetting.ContainsKey("m_nDisableTagIndex"))
@@ -3601,9 +3597,9 @@ public class AnimationGraphExtract : IDisposable
                         opFixedData.ContainsKey("m_nEndBoneIndex"))
                     {
                         foundChainName = GetIKChainNameByBoneIndices(
-                            (int)opFixedData.GetIntegerProperty("m_nFixedBoneIndex"),
-                            (int)opFixedData.GetIntegerProperty("m_nMiddleBoneIndex"),
-                            (int)opFixedData.GetIntegerProperty("m_nEndBoneIndex"));
+                            opFixedData.GetInt32Property("m_nFixedBoneIndex"),
+                            opFixedData.GetInt32Property("m_nMiddleBoneIndex"),
+                            opFixedData.GetInt32Property("m_nEndBoneIndex"));
                     }
                     node.Add("m_ikChainName", foundChainName);
 
@@ -3628,7 +3624,7 @@ public class AnimationGraphExtract : IDisposable
 
                     if (opFixedData.ContainsKey("m_targetBoneIndex"))
                     {
-                        var targetBoneIndex = (int)opFixedData.GetIntegerProperty("m_targetBoneIndex");
+                        var targetBoneIndex = opFixedData.GetInt32Property("m_targetBoneIndex");
                         node.Add("m_targetBoneName", targetBoneIndex != -1 ? GetBoneName(targetBoneIndex) : "");
                     }
 
@@ -3917,7 +3913,7 @@ public class AnimationGraphExtract : IDisposable
 
                     if (opFixedSettings.ContainsKey("m_nChainIndex"))
                     {
-                        node.Add("m_ikChain", GetIKChainName((int)opFixedSettings.GetIntegerProperty("m_nChainIndex")));
+                        node.Add("m_ikChain", GetIKChainName(opFixedSettings.GetInt32Property("m_nChainIndex")));
                     }
 
                     (string compiledKey, string sourceKey)[] boneProperties =
@@ -3933,7 +3929,7 @@ public class AnimationGraphExtract : IDisposable
                     {
                         if (opFixedSettings.ContainsKey(compiledKey))
                         {
-                            node.Add(sourceKey, GetBoneName((int)opFixedSettings.GetIntegerProperty(compiledKey)));
+                            node.Add(sourceKey, GetBoneName(opFixedSettings.GetInt32Property(compiledKey)));
                         }
                     }
 
@@ -3997,7 +3993,7 @@ public class AnimationGraphExtract : IDisposable
 
                     if (opFixedData.ContainsKey("m_boneIndex"))
                     {
-                        node.Add("m_boneName", GetBoneName((int)opFixedData.GetIntegerProperty("m_boneIndex")));
+                        node.Add("m_boneName", GetBoneName(opFixedData.GetInt32Property("m_boneIndex")));
                     }
 
                     var targetSettings = new KVObject
@@ -4011,7 +4007,7 @@ public class AnimationGraphExtract : IDisposable
                     var boneNameAndIndex = new KVObject();
                     if (opFixedData.ContainsKey("m_boneTargetIndex"))
                     {
-                        var boneTargetIndex = (int)opFixedData.GetIntegerProperty("m_boneTargetIndex");
+                        var boneTargetIndex = opFixedData.GetInt32Property("m_boneTargetIndex");
                         if (boneTargetIndex != -1)
                         {
                             boneNameAndIndex.Add("m_Name", GetBoneName(boneTargetIndex));

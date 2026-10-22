@@ -23,33 +23,25 @@ namespace ValveResourceFormat.ResourceTypes
         /// Value may be null if the node has no layer system.
         /// </summary>
         public IReadOnlyList<long>? SceneObjectLayerIndices
-            => Data.ContainsKey("m_sceneObjectLayerIndices")
-                ? Data.GetIntegerArray("m_sceneObjectLayerIndices")
-                : null;
+            => Data.GetArray<long>("m_sceneObjectLayerIndices");
 
         /// <summary>
         /// Gets the aggregate scene objects.
         /// </summary>
         public IReadOnlyList<KVObject> AggregateSceneObjects
-            => Data.ContainsKey("m_aggregateSceneObjects")
-                ? Data.GetArray("m_aggregateSceneObjects")
-                : [];
+            => Data.GetArray("m_aggregateSceneObjects") ?? [];
 
         /// <summary>
         /// Gets the decals placed with the map, each a box that projects a material onto what is inside it.
         /// </summary>
         public IReadOnlyList<KVObject> InfoOverlays
-            => Data.ContainsKey("m_infoOverlays")
-                ? Data.GetArray("m_infoOverlays")
-                : [];
+            => Data.GetArray("m_infoOverlays") ?? [];
 
         /// <summary>
         /// Gets the clutter scene objects.
         /// </summary>
         public IReadOnlyList<KVObject> ClutterSceneObjects
-            => Data.ContainsKey("m_clutterSceneObjects")
-                ? Data.GetArray("m_clutterSceneObjects")
-                : [];
+            => Data.GetArray("m_clutterSceneObjects") ?? [];
 
         /// <summary>
         /// One entry of <see cref="ClutterSceneObjects"/>: a model drawn at many compiled instance
@@ -117,7 +109,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 InstancePositions = [.. data.GetArray("m_instancePositions").Select(static position => position.ToVector3())];
                 InstanceScales = data.GetFloatArray("m_instanceScales");
-                InstanceOrientations = [.. data.GetIntegerArray("m_InstanceOrientations32").Select(static packed => UnpackQuaternion32(unchecked((uint)packed)))];
+                InstanceOrientations = [.. data.GetUnsignedIntegerArray<uint>("m_InstanceOrientations32").Select(UnpackQuaternion32)];
                 InstanceTints = [.. data.GetArray("m_instanceTintSrgb").Select(static tint => tint.ToVector3())];
                 Tiles = [.. data.GetArray("m_tiles").Select(static tile => new Tile(tile.GetInt32Property("m_nFirstInstance"), tile.GetInt32Property("m_nLastInstance")))];
             }
@@ -246,12 +238,10 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets the visibility cluster ids that scene objects and aggregate fragments with precomputed
         /// cluster membership index into.
         /// </summary>
-        public IReadOnlyList<long> VisClusterMembership
-            => visClusterMembership ??= Data.ContainsKey("m_visClusterMembership")
-                ? Data.GetIntegerArray("m_visClusterMembership")
-                : [];
+        public IReadOnlyList<ushort> VisClusterMembership
+            => visClusterMembership ??= Data.GetArray<ushort>("m_visClusterMembership") ?? [];
 
-        private long[]? visClusterMembership;
+        private ushort[]? visClusterMembership;
 
         /// <summary>
         /// Gets the visibility clusters the compiler assigned to one of <see cref="SceneObjects"/>, or
@@ -307,7 +297,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             for (var i = 0; i < clusters.Length; i++)
             {
-                clusters[i] = (ushort)membership[offset + i];
+                clusters[i] = membership[offset + i];
             }
 
             return clusters;
@@ -317,8 +307,6 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets the layer names.
         /// </summary>
         public IReadOnlyList<string> LayerNames
-            => Data.ContainsKey("m_layerNames")
-                ? Data.GetArray<string>("m_layerNames")
-                : [];
+            => Data.GetArray<string>("m_layerNames") ?? [];
     }
 }

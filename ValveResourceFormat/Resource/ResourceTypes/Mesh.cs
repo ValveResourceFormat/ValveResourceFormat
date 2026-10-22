@@ -117,18 +117,19 @@ namespace ValveResourceFormat.ResourceTypes
 
             Name = Resource.FileName ?? string.Empty;
 
-            if (Data.ContainsKey("m_attachments"))
+            var attachmentsData = Data.GetArray("m_attachments");
+            if (attachmentsData != null)
             {
-                var attachmentsData = Data.GetArray("m_attachments");
                 for (var i = 0; i < attachmentsData.Count; i++)
                 {
                     var attachment = new Attachment(attachmentsData[i]);
                     Attachments.Add(attachment.Name, attachment);
                 }
             }
-            if (Data.ContainsKey("m_hitboxsets"))
+
+            var hitboxSetsData = Data.GetArray("m_hitboxsets");
+            if (hitboxSetsData != null)
             {
-                var hitboxSetsData = Data.GetArray("m_hitboxsets");
                 for (var i = 0; i < hitboxSetsData.Count; i++)
                 {
                     var hitboxSet = hitboxSetsData[i].GetSubCollection("value") ?? hitboxSetsData[i];
@@ -201,8 +202,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <param name="drawCall">The draw call data.</param>
         /// <returns>True if baked lighting from lightmap is present.</returns>
         public static bool HasBakedLightingFromLightMap(KVObject drawCall)
-            => drawCall.ContainsKey("m_bHasBakedLightingFromLightMap")
-                && drawCall.GetBooleanProperty("m_bHasBakedLightingFromLightMap");
+            => drawCall.GetBooleanProperty("m_bHasBakedLightingFromLightMap");
 
         /// <summary>
         /// Determines if the draw call has baked lighting from vertex stream.
@@ -210,8 +210,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <param name="drawCall">The draw call data.</param>
         /// <returns>True if baked lighting from vertex stream is present.</returns>
         public static bool HasBakedLightingFromVertexStream(KVObject drawCall)
-            => drawCall.ContainsKey("m_bHasBakedLightingFromVertexStream")
-                && drawCall.GetBooleanProperty("m_bHasBakedLightingFromVertexStream");
+            => drawCall.GetBooleanProperty("m_bHasBakedLightingFromVertexStream");
 
         /// <summary>
         /// Determines if the draw call is an occluder.
@@ -219,8 +218,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <param name="drawCall">The draw call data.</param>
         /// <returns>True if the draw call is an occluder.</returns>
         public static bool IsOccluder(KVObject drawCall)
-            => drawCall.ContainsKey("m_bIsOccluder")
-                && drawCall.GetBooleanProperty("m_bIsOccluder");
+            => drawCall.GetBooleanProperty("m_bIsOccluder");
 
         /// <summary>
         /// Gets the material a draw call renders with, or <see langword="null"/> when it names none.

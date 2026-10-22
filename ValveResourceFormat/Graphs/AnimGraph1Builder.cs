@@ -476,7 +476,7 @@ internal sealed class AnimGraph1Builder : IDisposable
         foreach (var parameters in new[]
         {
             animGraphData.GetSubCollection("m_pParameterList")?.GetArray("m_Parameters"),
-            animGraphData.ContainsKey("m_localParameters") ? animGraphData.GetArray("m_localParameters") : null,
+            animGraphData.GetArray("m_localParameters"),
         })
         {
             if (parameters == null)
@@ -652,7 +652,7 @@ internal sealed class AnimGraph1Builder : IDisposable
 
                 // animgraph19 wraps the conditions in a container; animgraph1 lists them inline.
                 var conditions = transition.GetSubCollection("m_conditionList")?.GetArray("m_conditions")
-                    ?? (transition.ContainsKey("m_conditions") ? transition.GetArray("m_conditions") : null);
+                    ?? transition.GetArray("m_conditions");
 
                 string? label = null;
 
@@ -1011,7 +1011,7 @@ internal sealed class AnimGraph1Builder : IDisposable
         if (value.ValueType == KVValueType.Array)
         {
             var array = obj.GetFloatArray(key);
-            if (array != null && array.Length >= 2)
+            if (array.Length >= 2)
             {
                 return (array[0], array[1]);
             }
@@ -1146,7 +1146,7 @@ internal sealed class AnimGraph1Builder : IDisposable
                         }
 
                         var childRef = stateData.GetSubCollection("m_pChild");
-                        return childRef.ContainsKey("m_nodeIndex") ? childRef.GetInt32Property("m_nodeIndex") : -1;
+                        return childRef.GetInt32Property("m_nodeIndex", -1);
                     }
 
                     for (var s = 0; s < stateDataArray.Count; s++)
@@ -1184,8 +1184,8 @@ internal sealed class AnimGraph1Builder : IDisposable
             if (className == "CChoiceUpdateNode" && compiledNode.ContainsKey("m_children"))
             {
                 var children = compiledNode.GetArray("m_children");
-                var weights = compiledNode.ContainsKey("m_weights") ? compiledNode.GetFloatArray("m_weights") : null;
-                var blendTimes = compiledNode.ContainsKey("m_blendTimes") ? compiledNode.GetFloatArray("m_blendTimes") : null;
+                var weights = compiledNode.GetFloatArray("m_weights");
+                var blendTimes = compiledNode.GetFloatArray("m_blendTimes");
 
                 var newConnections = new List<(int, string)>();
                 for (var c = 0; c < children.Count; c++)
@@ -1193,8 +1193,8 @@ internal sealed class AnimGraph1Builder : IDisposable
                     var idx = GetChildNodeIndex(children[c]);
                     if (idx >= 0)
                     {
-                        var w = (weights != null && c < weights.Length) ? weights[c] : 1.0f;
-                        var bt = (blendTimes != null && c < blendTimes.Length) ? blendTimes[c] : 0.0f;
+                        var w = c < weights.Length ? weights[c] : 1.0f;
+                        var bt = c < blendTimes.Length ? blendTimes[c] : 0.0f;
                         newConnections.Add((idx, string.Create(CultureInfo.InvariantCulture, $"Item {c} (W:{w:F2} BT:{bt:F2})")));
                     }
                 }
@@ -1512,9 +1512,9 @@ internal sealed class AnimGraph1Builder : IDisposable
                     node.AddText($"Transitions: {stateMachine.GetArray("m_transitions").Count}");
                 }
             }
-            if (compiledNode.ContainsKey("m_transitionData") && compiledNode.GetArray("m_transitionData").Count > 0)
+            if (compiledNode.GetArray("m_transitionData") is { Count: > 0 } transitionData)
             {
-                var first = compiledNode.GetArray("m_transitionData")[0];
+                var first = transitionData[0];
                 if (first.ContainsKey("m_blendDuration"))
                 {
                     var blend = first.GetSubCollection("m_blendDuration");

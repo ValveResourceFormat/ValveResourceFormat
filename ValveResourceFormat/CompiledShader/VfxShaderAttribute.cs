@@ -41,7 +41,7 @@ public class VfxShaderAttribute
                 VfxVariableType.Int => (int)value,
                 VfxVariableType.Bool => (bool)value,
                 VfxVariableType.String => (string)value,
-                VfxVariableType.Float when value.IsArray => (float)value[0],
+                VfxVariableType.Float when value.IsArray => value.GetElement<float>(0),
                 VfxVariableType.Float => (float)value,
                 VfxVariableType.Float2 when value.IsArray => value.ToVector2(),
                 VfxVariableType.Float3 when value.IsArray => value.ToVector3(),

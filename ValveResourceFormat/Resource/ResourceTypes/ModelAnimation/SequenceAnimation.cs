@@ -265,7 +265,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 var blendReferenceNames = new string[localReferenceArray.Length];
                 for (var i = 0; i < blendReferenceNames.Length; i++)
                 {
-                    var refIndex = (int)localReferenceArray[i];
+                    var refIndex = localReferenceArray[i];
                     blendReferenceNames[i] = refIndex >= 0 && refIndex < sequenceNameArray.Length
                         ? sequenceNameArray[refIndex]
                         : string.Empty;
@@ -276,7 +276,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 var poseParameterNames = new string[localPose.Length];
                 for (var i = 0; i < poseParameterNames.Length; i++)
                 {
-                    var poseIndex = (int)localPose[i];
+                    var poseIndex = localPose[i];
                     poseParameterNames[i] = poseIndex >= 0 && poseIndex < poseParamNames.Length
                         ? poseParamNames[poseIndex]
                         : string.Empty;
@@ -362,14 +362,14 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             static KVObject? FirstReference(KVObject seqDesc, string[] sequenceNameArray, Dictionary<string, KVObject> animLookup)
             {
-                var localRefArray = seqDesc.GetSubCollection("m_fetch").GetIntegerArray("m_localReferenceArray");
+                var localRefArray = seqDesc.GetSubCollection("m_fetch").GetSubCollection("m_localReferenceArray");
 
-                if (localRefArray.Length == 0)
+                if (localRefArray is not { Count: > 0 })
                 {
                     return null;
                 }
 
-                var refIndex = (int)localRefArray[0];
+                var refIndex = localRefArray.GetElement<int>(0);
 
                 if (refIndex < 0 || refIndex >= sequenceNameArray.Length)
                 {
@@ -393,14 +393,14 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             {
                 var fetch = seqDesc.GetSubCollection("m_fetch");
 
-                var localRefArray = fetch.GetIntegerArray("m_localReferenceArray");
-                if (localRefArray.Length == 0)
+                var localRefArray = fetch.GetSubCollection("m_localReferenceArray");
+                if (localRefArray is not { Count: > 0 })
                 {
                     continue;
                 }
 
                 // A blend plays all of its references at once; the first stands in for the sequence.
-                var refIndex = (int)localRefArray[0];
+                var refIndex = localRefArray.GetElement<int>(0);
 
                 if (refIndex < 0 || refIndex >= sequenceNameArray.Length)
                 {
@@ -411,7 +411,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
                 if (!animLookup.TryGetValue(refAnimName, out var animDesc)
                     && !sequenceLookup.TryGetValue(refAnimName, out animDesc)
-                    && localRefArray.Length == 1)
+                    && localRefArray.Count == 1)
                 {
                     continue;
                 }

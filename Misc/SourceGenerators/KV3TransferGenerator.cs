@@ -89,6 +89,16 @@ public sealed partial class KV3TransferGenerator : IIncrementalGenerator
             }
 
             var key = Literal(GetKey(property));
+
+            // Scalar getters take the initializer value as their default, so they need a single lookup
+            var scalarRead = ScalarReadExpression(property.Type);
+
+            if (scalarRead != null)
+            {
+                body.Append(FormattableString.Invariant($"        {property.Name} = {string.Format(CultureInfo.InvariantCulture, scalarRead, key, property.Name)};\n\n"));
+                continue;
+            }
+
             var read = ReadExpression(property.Type);
 
             if (read == null)
@@ -170,25 +180,28 @@ public sealed partial class KV3TransferGenerator : IIncrementalGenerator
             : DefaultKey(property.Name, property.Type.ToDisplayString());
     }
 
+    // A format string with {0} standing for the key literal and {1} for the property holding the default,
+    // or null when the type is not a scalar
+    private static string? ScalarReadExpression(ITypeSymbol type) => type.SpecialType switch
+    {
+        SpecialType.System_Boolean => "data.GetBooleanProperty({0}, {1})",
+        SpecialType.System_String => "data.GetStringProperty({0}, {1})",
+        SpecialType.System_Byte => "data.GetByteProperty({0}, {1})",
+        SpecialType.System_SByte => "(sbyte)data.GetIntegerProperty({0}, {1})",
+        SpecialType.System_Int16 => "(short)data.GetIntegerProperty({0}, {1})",
+        SpecialType.System_UInt16 => "(ushort)data.GetIntegerProperty({0}, {1})",
+        SpecialType.System_Int32 => "data.GetInt32Property({0}, {1})",
+        SpecialType.System_UInt32 => "data.GetUInt32Property({0}, {1})",
+        SpecialType.System_Int64 => "data.GetIntegerProperty({0}, {1})",
+        SpecialType.System_UInt64 => "data.GetUnsignedIntegerProperty({0}, {1})",
+        SpecialType.System_Single => "data.GetFloatProperty({0}, {1})",
+        SpecialType.System_Double => "data.GetDoubleProperty({0}, {1})",
+        _ => null,
+    };
+
     // A format string with {0} standing for the key literal, or null when the type is not supported
     private static string? ReadExpression(ITypeSymbol type)
     {
-        switch (type.SpecialType)
-        {
-            case SpecialType.System_Boolean: return "data.GetBooleanProperty({0})";
-            case SpecialType.System_String: return "data.GetStringProperty({0})";
-            case SpecialType.System_Byte: return "data.GetByteProperty({0})";
-            case SpecialType.System_SByte: return "(sbyte)data.GetIntegerProperty({0})";
-            case SpecialType.System_Int16: return "(short)data.GetIntegerProperty({0})";
-            case SpecialType.System_UInt16: return "(ushort)data.GetIntegerProperty({0})";
-            case SpecialType.System_Int32: return "data.GetInt32Property({0})";
-            case SpecialType.System_UInt32: return "data.GetUInt32Property({0})";
-            case SpecialType.System_Int64: return "data.GetIntegerProperty({0})";
-            case SpecialType.System_UInt64: return "data.GetUnsignedIntegerProperty({0})";
-            case SpecialType.System_Single: return "data.GetFloatProperty({0})";
-            case SpecialType.System_Double: return "data.GetDoubleProperty({0})";
-        }
-
         if (type.TypeKind == TypeKind.Enum)
         {
             return $"data.GetEnumValue<{FullName(type)}>({{0}})";

@@ -94,7 +94,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public static Skeleton FromSkeletonData(KVObject nmSkeleton)
         {
             var boneNames = nmSkeleton.GetArray<string>("m_boneIDs");
-            var boneParents = nmSkeleton.GetIntegerArray("m_parentIndices");
+            var boneParents = nmSkeleton.GetArray<int>("m_parentIndices") ?? [];
             var boneTransforms = nmSkeleton.GetArray("m_parentSpaceReferencePose");
 
             var boneCount = boneNames.Length;
@@ -138,7 +138,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             var modelSpaceBindPose = new Matrix4x4[boneEntries.Count];
-            var boneParents = new long[boneEntries.Count];
+            var boneParents = new int[boneEntries.Count];
 
             for (var i = 0; i < boneEntries.Count; i++)
             {
@@ -190,7 +190,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         private Skeleton(KVObject skeletonData)
         {
             var boneNames = skeletonData.GetArray<string>("m_boneName");
-            var boneParents = skeletonData.GetIntegerArray("m_nParent");
+            var boneParents = skeletonData.GetArray<int>("m_nParent") ?? [];
             var boneFlags = skeletonData.GetIntegerArray("m_nFlag")
                 .Select(flags => (ModelSkeletonBoneFlags)flags)
                 .ToArray();
@@ -220,7 +220,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             SetBoneParents(boneParents);
         }
 
-        private void SetBoneParents(long[] boneParents)
+        private void SetBoneParents(int[] boneParents)
         {
             var roots = new List<Bone>();
             foreach (var bone in Bones)

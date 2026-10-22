@@ -168,14 +168,9 @@ namespace ValveResourceFormat.Renderer
 
         private void LoadLodSetups(KVObject aggregateSceneObject, Matrix4x4 rootTransform)
         {
-            if (!aggregateSceneObject.ContainsKey("m_lodSetups"))
-            {
-                return;
-            }
-
             var lodSetups = aggregateSceneObject.GetArray("m_lodSetups");
 
-            if (lodSetups.Count == 0)
+            if (lodSetups == null || lodSetups.Count == 0)
             {
                 return;
             }
@@ -186,7 +181,7 @@ namespace ValveResourceFormat.Renderer
             {
                 LodSetups[i] = new LodSetup(
                     Vector3.Transform(lodSetups[i].GetSubCollection("m_vLODOrigin").ToVector3(), rootTransform),
-                    (float)lodSetups[i].GetFloatProperty("m_fMaxObjectScale"),
+                    lodSetups[i].GetFloatProperty("m_fMaxObjectScale"),
                     lodSetups[i].GetFloatArray("m_fSwitchDistances")
                 );
             }

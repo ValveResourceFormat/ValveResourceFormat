@@ -66,8 +66,9 @@ public sealed partial class NmGraphExtract : IDisposable
         var resourceData = resource.DataBlock as BinaryKV3
             ?? throw new InvalidDataException("Resource DataBlock is not a BinaryKV3.");
         _graph = resourceData.Data;
-        _compiledNodes = _graph.GetArray("m_nodes")?.Select(value => value).ToArray()
+        var compiledNodes = _graph.GetArray("m_nodes")
             ?? throw new InvalidDataException("NmGraph is missing m_nodes.");
+        _compiledNodes = [.. compiledNodes];
         _definitions = new Animation.GraphNode?[_compiledNodes.Length];
         _definitionCreated = new bool[_compiledNodes.Length];
         _definition = new GraphDefinition(_graph);
@@ -2075,8 +2076,8 @@ public sealed partial class NmGraphExtract : IDisposable
         var node = CreateBaseNode("CnmGraphDocConstTargetNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Value", "Target", AllowMultipleOutConnections: true)]));
-        node.Add("m_rotation", CloneVector3(targetValue?.GetArray("m_rotation")?.ToArray()));
-        node.Add("m_translation", CloneVector3(targetValue?.GetArray("m_translation")?.ToArray()));
+        node.Add("m_rotation", CloneVector3(targetValue?.GetArray<float>("m_rotation")));
+        node.Add("m_translation", CloneVector3(targetValue?.GetArray<float>("m_translation")));
         return node;
     }
 
@@ -2503,7 +2504,7 @@ public sealed partial class NmGraphExtract : IDisposable
         return vector;
     }
 
-    private static KVObject CloneVector3(KVObject[]? source)
+    private static KVObject CloneVector3(float[]? source)
     {
         var vector = KVObject.Array();
         vector.Add(source is not null && source.Length > 0 ? source[0] : 0.0f);

@@ -47,14 +47,11 @@ namespace ValveResourceFormat.Particles.Utils
         {
             this.isLooped = isLooped;
 
-            var domainMin = curveInfo.GetFloatArray("m_vDomainMins");
-            var domainMax = curveInfo.GetFloatArray("m_vDomainMaxs");
-
-            curveDomainMin = new Vector2(domainMin[0], domainMin[1]);
-            curveDomainMax = new Vector2(domainMax[0], domainMax[1]);
+            curveDomainMin = curveInfo.GetSubCollection("m_vDomainMins").ToVector2();
+            curveDomainMax = curveInfo.GetSubCollection("m_vDomainMaxs").ToVector2();
 
             var splines = curveInfo.GetArray("m_spline");
-            var tangents = curveInfo.ContainsKey("m_tangents") ? curveInfo.GetArray("m_tangents") : [];
+            var tangents = curveInfo.GetArray("m_tangents") ?? [];
             var count = Math.Min(splines.Count, tangents.Count);
 
             keyX = new float[count];

@@ -84,9 +84,11 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
             return;
         }
 
-        if (renderState.ContainsKey("rasterizerStateDesc"))
+        var rasterizerStateDesc = renderState.GetArray<int>("rasterizerStateDesc");
+
+        if (rasterizerStateDesc != null)
         {
-            RasterizerStateDesc = new RsRasterizerStateDesc(renderState.GetArray<int>("rasterizerStateDesc"));
+            RasterizerStateDesc = new RsRasterizerStateDesc(rasterizerStateDesc);
         }
 
         if (renderState.ContainsKey("depthStencilStateDesc"))
@@ -95,9 +97,11 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
         }
 
         // PSRS only has blendStateDesc
-        if (renderState.ContainsKey("blendStateDesc"))
+        var blendStateDesc = renderState.GetArray<int>("blendStateDesc");
+
+        if (blendStateDesc != null)
         {
-            BlendStateDesc = new RsBlendStateDesc(renderState.GetArray<int>("blendStateDesc"));
+            BlendStateDesc = new RsBlendStateDesc(blendStateDesc);
         }
     }
 

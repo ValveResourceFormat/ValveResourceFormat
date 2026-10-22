@@ -289,7 +289,7 @@ namespace ValveResourceFormat.ResourceTypes
         private static string ToPropertyKey(string name) => name.ToLowerInvariant();
 
         private static KVObject MakeColor32(byte[] bytes)
-            => KVObject.Array(bytes.Select(b => (KVObject)(long)b));
+            => KVObject.PackedArray(Array.ConvertAll(bytes, static b => (long)b));
 
         private static void ReadValues(Entity entity, KVObject? values)
         {

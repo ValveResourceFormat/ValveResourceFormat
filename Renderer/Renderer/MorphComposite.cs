@@ -236,7 +236,7 @@ namespace ValveResourceFormat.Renderer
                 => bundle == null ? default : (bundle.GetFloatProperty("m_flULeftSrc"), bundle.GetFloatProperty("m_flVTopSrc"));
 
             static Vector4 BundleVector(KVObject? bundle, string name)
-                => bundle == null ? default : new Vector4(bundle.GetFloatArray(name));
+                => bundle == null ? default : bundle.GetSubCollection(name).ToVector4();
         }
     }
 }

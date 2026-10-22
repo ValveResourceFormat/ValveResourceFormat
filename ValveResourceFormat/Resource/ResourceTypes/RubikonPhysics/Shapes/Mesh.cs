@@ -100,16 +100,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             /// </summary>
             public Triangle(KVObject data)
             {
-                var indices = data.GetArray<object>("m_nIndex")!.Select(Convert.ToInt32).ToArray();
+                var indices = data.GetSubCollection("m_nIndex");
 
-                if (indices.Length != 3)
+                if (indices.Count != 3)
                 {
                     throw new InvalidDataException("Triangle must have 3 indices");
                 }
 
-                X = indices[0];
-                Y = indices[1];
-                Z = indices[2];
+                X = indices.GetElement<int>(0);
+                Y = indices.GetElement<int>(1);
+                Z = indices.GetElement<int>(2);
             }
         }
 
@@ -153,15 +153,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             Min = data.GetSubCollection("m_vMin").ToVector3();
             Max = data.GetSubCollection("m_vMax").ToVector3();
 
-            var materials = data.GetArray<object>("m_Materials"); // This might be binary blob or an array in different models
-            if (materials != null)
-            {
-                Materials = [.. materials.Select(Convert.ToInt32)];
-            }
-            else
-            {
-                Materials = [];
-            }
+            Materials = data.GetArray<int>("m_Materials") ?? []; // This might be binary blob or an array in different models
 
             OrthographicAreas = data.GetSubCollection("m_vOrthographicAreas").ToVector3();
             Flags = data.GetUInt32Property("m_nFlags");

@@ -551,9 +551,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public FeTaperedCapsuleRigid[] TaperedCapsuleRigids => taperedCapsuleRigids ??= ReadArray(Data, "m_TaperedCapsuleRigids", static o =>
         {
             Vector4[] spheres = [];
-            if (o.GetArray("vSphere") is { Count: >= 2 })
+            if (o.GetArray("vSphere") is { Count: >= 2 } sphereArray)
             {
-                spheres = ReadArray(o, "vSphere", static s => s.ToVector4());
+                spheres = [.. sphereArray.Select(static s => s.ToVector4())];
             }
             else if (o.GetArray("vCenter") is { Count: >= 2 } centres && o.GetArray<float>("flRadius") is { Length: >= 2 } radii)
             {
@@ -622,7 +622,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public FeRigidColliderIndices[] RigidColliderPriorities => rigidColliderPriorities ??= ReadArray(Data, "m_RigidColliderPriorities", static o => new FeRigidColliderIndices(
             o.GetInt32Property("m_nTaperedCapsuleRigidIndex"), o.GetInt32Property("m_nSphereRigidIndex"),
             o.GetInt32Property("m_nBoxRigidIndex"), o.GetInt32Property("m_nSDFRigidIndex"),
-            o.GetInt32Property("m_nCollisionPlaneIndex"), o.ContainsKey("m_nCollisionSphereIndex") ? ReadInt32Array(o, "m_nCollisionSphereIndex") : null));
+            o.GetInt32Property("m_nCollisionPlaneIndex"), o.GetArray<int>("m_nCollisionSphereIndex")));
 
         /// <summary>Gets <c>m_AntiTunnelProbes</c>.</summary>
         public FeAntiTunnelProbe[] AntiTunnelProbes => antiTunnelProbes ??= ReadArray(Data, "m_AntiTunnelProbes", static o => new FeAntiTunnelProbe(
@@ -700,14 +700,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         private static int[] ReadInt32Array(KVObject data, string key)
-            => [.. data.GetIntegerArray(key).Select(static value => (int)value)];
+            => data.GetArray<int>(key) ?? [];
 
         /// <summary>Reads an integer array as unsigned values, keeping the bits of a negative entry.</summary>
         private static uint[] ReadUInt32Array(KVObject data, string key)
-            => [.. data.GetIntegerArray(key).Select(static value => unchecked((uint)value))];
+            => data.GetUnsignedIntegerArray<uint>(key);
 
         private static byte[] ReadByteArray(KVObject data, string key)
-            => [.. data.GetIntegerArray(key).Select(static value => unchecked((byte)value))];
+            => data.GetUnsignedIntegerArray<byte>(key);
 
         private static float? ReadOptionalFloat(KVObject data, string key) => data.ContainsKey(key) ? data.GetFloatProperty(key) : null;
 
@@ -742,21 +742,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             var flat = new List<int>();
-            foreach (var row in nNode.AsArraySpan())
-            {
-                if (row.IsArray)
-                {
-                    foreach (var lane in row.AsArraySpan())
-                    {
-                        flat.Add((int)(long)lane);
-                    }
-                }
-                else
-                {
-                    flat.Add((int)(long)row);
-                }
-            }
-
+            Flatten(nNode, flat);
             return [.. flat.Chunk(4)];
         }
 
@@ -772,19 +758,31 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         private static float[] FlattenFloats(KVObject value)
         {
             var flat = new List<float>();
-            foreach (var item in value.AsArraySpan())
+            Flatten(value, flat);
+            return [.. flat];
+        }
+
+        /// <summary>Appends the elements of <paramref name="value"/> to <paramref name="flat"/>, descending into nested arrays.</summary>
+        private static void Flatten<T>(KVObject value, List<T> flat)
+        {
+            if (value.IsPackedArray)
             {
+                flat.AddRange(value.ToArray<T>());
+                return;
+            }
+
+            for (var i = 0; i < value.Count; i++)
+            {
+                var item = value[i];
                 if (item.IsArray)
                 {
-                    flat.AddRange(FlattenFloats(item));
+                    Flatten(item, flat);
                 }
                 else
                 {
-                    flat.Add((float)item);
+                    flat.Add(value.GetElement<T>(i));
                 }
             }
-
-            return [.. flat];
         }
 
         /// <summary>
@@ -830,17 +828,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return components;
             }
 
-            var items = value.AsArraySpan();
-            if (items.Length > 0 && items[0].IsArray)
+            if (value.Count > 0 && value[0].IsArray)
             {
                 for (var c = 0; c < componentCount; c++)
                 {
-                    var lanes = new List<float>(items.Length);
-                    foreach (var lane in items)
+                    var lanes = new List<float>(value.Count);
+                    foreach (var lane in value.Values)
                     {
                         if (c < lane.Count)
                         {
-                            lanes.Add((float)lane[c]);
+                            lanes.Add(lane.GetElement<float>(c));
                         }
                     }
 

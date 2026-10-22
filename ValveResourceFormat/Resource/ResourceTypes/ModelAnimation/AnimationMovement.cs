@@ -84,8 +84,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             V0 = frameBlock.GetFloatProperty("v0");
             V1 = frameBlock.GetFloatProperty("v1");
             Angle = frameBlock.GetFloatProperty("angle");
-            Vector = new Vector3(frameBlock.GetFloatArray("vector"));
-            Position = new Vector3(frameBlock.GetFloatArray("position"));
+            Vector = frameBlock.GetSubCollection("vector").ToVector3();
+            Position = frameBlock.GetSubCollection("position").ToVector3();
         }
 
         /// <summary>

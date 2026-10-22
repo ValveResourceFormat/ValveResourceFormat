@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.IO;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
@@ -71,14 +70,10 @@ namespace ValveResourceFormat.Blocks
 
                 list.EnsureCapacity(container.Count);
 
-                var items = kv3.Data.Root.GetArray(key);
-                if (items != null)
+                foreach (var item in container.Values)
                 {
-                    foreach (var item in items)
-                    {
-                        var newItem = constructor.Invoke(item);
-                        list.Add(newItem);
-                    }
+                    var newItem = constructor.Invoke(item);
+                    list.Add(newItem);
                 }
             }
 
@@ -125,7 +120,7 @@ namespace ValveResourceFormat.Blocks
 
                     foreach (var (childKey, child) in property)
                     {
-                        perTypeReferences.Add(childKey, Convert.ToInt32(child, CultureInfo.InvariantCulture));
+                        perTypeReferences.Add(childKey, (int)child);
                     }
 
                     SubassetReferences.Add(propertyKey, perTypeReferences);

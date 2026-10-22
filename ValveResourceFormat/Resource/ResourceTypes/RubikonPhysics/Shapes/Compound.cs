@@ -95,8 +95,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             ShapeCount = data.GetInt32Property("m_nShapeCount");
             StartIterationIndex = data.GetSubCollection("m_Tree").GetUInt32Property("m_nStartIterationIndex");
 
-            var materialIndices = data.GetArray<object>("m_CompoundMaterialIndices");
-            MaterialIndices = materialIndices == null ? [] : [.. materialIndices.Select(Convert.ToByte)];
+            MaterialIndices = data.GetArray<byte>("m_CompoundMaterialIndices") ?? [];
 
             var bounds = data.GetSubCollection("m_Bounds");
             Min = bounds.GetSubCollection("m_vMinBounds").ToVector3();

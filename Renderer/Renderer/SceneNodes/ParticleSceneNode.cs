@@ -180,7 +180,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             foreach (var driver in drivers)
             {
-                var controlPoint = driver.ContainsKey("m_iControlPoint") ? driver.GetInt32Property("m_iControlPoint") : 0;
+                var controlPoint = driver.GetInt32Property("m_iControlPoint");
                 if (controlPoint == 0)
                 {
                     continue;
@@ -536,7 +536,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             foreach (var driver in drivers)
             {
-                var controlPoint = driver.ContainsKey("m_iControlPoint") ? driver.GetInt32Property("m_iControlPoint") : 0;
+                var controlPoint = driver.GetInt32Property("m_iControlPoint");
                 // Deadlock drivers commonly omit m_iAttachType entirely.
                 var attachType = driver.ContainsKey("m_iAttachType")
                     ? driver.GetEnumValue<ParticleAttachment>("m_iAttachType")

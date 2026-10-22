@@ -38,7 +38,7 @@ internal class KVGraphNode : GraphNode
         var sb = new StringBuilder("[");
         var first = true;
 
-        foreach (var element in array.AsArraySpan())
+        foreach (var element in array.Values)
         {
             if (!first)
             {

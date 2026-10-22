@@ -89,14 +89,14 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// <param name="tonemapParams">The KV object containing tonemapping parameters.</param>
         public TonemapSettings(KVObject tonemapParams)
         {
-            ExposureBias = (float)tonemapParams.GetDoubleProperty("m_flExposureBias");
-            ShoulderStrength = (float)tonemapParams.GetDoubleProperty("m_flShoulderStrength");
-            LinearStrength = (float)tonemapParams.GetDoubleProperty("m_flLinearStrength");
-            LinearAngle = (float)tonemapParams.GetDoubleProperty("m_flLinearAngle");
-            ToeStrength = (float)tonemapParams.GetDoubleProperty("m_flToeStrength");
-            ToeNum = (float)tonemapParams.GetDoubleProperty("m_flToeNum");
-            ToeDenom = (float)tonemapParams.GetDoubleProperty("m_flToeDenom");
-            WhitePoint = (float)tonemapParams.GetDoubleProperty("m_flWhitePoint");
+            ExposureBias = tonemapParams.GetFloatProperty("m_flExposureBias");
+            ShoulderStrength = tonemapParams.GetFloatProperty("m_flShoulderStrength");
+            LinearStrength = tonemapParams.GetFloatProperty("m_flLinearStrength");
+            LinearAngle = tonemapParams.GetFloatProperty("m_flLinearAngle");
+            ToeStrength = tonemapParams.GetFloatProperty("m_flToeStrength");
+            ToeNum = tonemapParams.GetFloatProperty("m_flToeNum");
+            ToeDenom = tonemapParams.GetFloatProperty("m_flToeDenom");
+            WhitePoint = tonemapParams.GetFloatProperty("m_flWhitePoint");
         }
         /// <summary>Linearly interpolates between two <see cref="TonemapSettings"/> by a given weight.</summary>
         /// <param name="weight">Blend factor in the range [0, 1]; 0 returns <paramref name="TonemapSettings1"/>, 1 returns <paramref name="TonemapSettings2"/>.</param>

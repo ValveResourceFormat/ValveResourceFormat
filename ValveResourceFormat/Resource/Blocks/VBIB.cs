@@ -1,7 +1,6 @@
 using System.Buffers;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -373,8 +372,11 @@ namespace ValveResourceFormat.Blocks
             };
 
             var inputLayoutFields = data.GetArray("m_inputLayoutFields");
-            buffer.InputLayoutFields = [.. inputLayoutFields.Select(static il =>
+            buffer.InputLayoutFields = new RenderInputLayoutField[inputLayoutFields.Count];
+
+            for (var i = 0; i < buffer.InputLayoutFields.Length; i++)
             {
+                var il = inputLayoutFields[i];
                 var semanticName = il["m_pSemanticName"];
                 var semanticNameStr = string.Empty;
 
@@ -391,7 +393,7 @@ namespace ValveResourceFormat.Blocks
                     Debug.Assert(false);
                 }
 
-                return new RenderInputLayoutField
+                buffer.InputLayoutFields[i] = new RenderInputLayoutField
                 {
                     SemanticName = semanticNameStr.ToUpperInvariant(),
                     SemanticIndex = il.GetInt32Property("m_nSemanticIndex"),
@@ -402,11 +404,12 @@ namespace ValveResourceFormat.Blocks
                     InstanceStepRate = il.GetInt32Property("m_nInstanceStepRate"),
                     ShaderSemantic = il.GetStringProperty("m_szShaderSemantic"),
                 };
-            })];
+            }
 
-            if (data.ContainsKey("m_pData"))
+            var bufferData = data.GetArray<byte>("m_pData");
+
+            if (bufferData != null)
             {
-                var bufferData = data.GetArray<byte>("m_pData");
                 var decompressedSize = (int)buffer.TotalSizeInBytes;
 
                 buffer.Data = bufferData.Length == decompressedSize

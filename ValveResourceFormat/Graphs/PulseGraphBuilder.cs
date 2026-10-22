@@ -577,7 +577,7 @@ internal sealed class PulseGraphBuilder
                 }
                 else if (value.IsArray)
                 {
-                    foreach (var elem in value.AsArraySpan())
+                    foreach (var elem in value.Values)
                     {
                         if (elem.IsCollection)
                         {

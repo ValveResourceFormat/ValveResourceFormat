@@ -58,6 +58,15 @@ internal static class UpgradeKV
             return defaultValue;
         }
 
+        return value.CoerceDouble(defaultValue);
+    }
+
+    /// <summary>
+    /// Coerces a value like <see cref="GetDouble"/>, falling back to <paramref name="defaultValue"/>
+    /// for types that are not numeric, boolean or string.
+    /// </summary>
+    public static double CoerceDouble(this KVObject value, double defaultValue)
+    {
         return value.ValueType switch
         {
             KVValueType.Boolean => value.ToBoolean(CultureInfo.InvariantCulture) ? 1.0 : 0.0,
@@ -304,16 +313,7 @@ internal static class UpgradeKV
         => obj.SetMember(name, new KVObject(value));
 
     public static void SetFloatArray(this KVObject obj, string name, params float[] values)
-    {
-        var array = KVObject.Array(values.Length);
-
-        foreach (var value in values)
-        {
-            array.Add(new KVObject(value));
-        }
-
-        obj.SetMember(name, array);
-    }
+        => obj.SetMember(name, KVObject.PackedArray(values));
 
     /// <summary>
     /// Finds or creates the named member and resets its value to an empty object,
