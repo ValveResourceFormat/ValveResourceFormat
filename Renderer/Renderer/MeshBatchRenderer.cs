@@ -197,9 +197,6 @@ namespace ValveResourceFormat.Renderer
                         counters.Count(Counter.DrawCall);
                         request.Node.Render(context);
 
-                        // Custom nodes bind over the reserved units, so restore them.
-                        BindReservedTextures(context);
-
                         if (context.ReplacementShader?.IgnoreMaterialData == true)
                         {
                             // The node's scope left its own state latched, and the stateless draws

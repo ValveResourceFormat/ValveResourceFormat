@@ -435,7 +435,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             renderShader.SetUniform("g_bNormalShaded", Shaded);
             renderShader.SetUniform("g_bHasToolTexture", ToolTexture != null);
 
-            renderShader.SetTexture(0, "g_tColor", ToolTexture ?? Scene.RendererContext.MaterialLoader.GetDefaultColor());
+            renderShader.SetTexture(RenderMaterial.TextureUnitStart, "g_tColor", ToolTexture ?? Scene.RendererContext.MaterialLoader.GetDefaultColor());
 
             VertexArray.Bind(vao, renderShader);
 
