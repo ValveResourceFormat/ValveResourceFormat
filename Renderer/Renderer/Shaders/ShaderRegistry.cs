@@ -122,7 +122,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                     continue;
                 }
 
-                return File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                return File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             }
 
             return null;
