@@ -4,67 +4,58 @@ description: "Extract Half-Life: Alyx character, creature and weapon models, voi
 
 # Extract Half-Life: Alyx Models, Sounds and Maps
 
-Half-Life: Alyx stores its models, textures, sounds and maps in VPK archives. Source 2 Viewer opens these archives and exports their contents to formats you can use in Blender, image editors and audio players. This page shows where the game keeps each kind of asset. The general steps are in the [guides](#see-also).
-
-Half-Life: Alyx files are compiled: their extensions end in `_c` (such as `.vmdl_c` or `.vsnd_c`), and they need Source 2 Viewer to decompile them. Guides written for Source 1 Half-Life games or older tools use paths and formats that don't apply here.
+This page shows where Half-Life: Alyx keeps its models, sounds and maps. To open a package and browse it, see [Finding Game Files](../guides/finding-files.md).
 
 ## Where the Files Are
 
-Half-Life: Alyx is installed in `steamapps\common\Half-Life Alyx` in your Steam library. The game files are in `game\hlvr`.
+Half-Life: Alyx installs into `steamapps/common/Half-Life Alyx/`, with its files in `game/hlvr/`.
 
-| What                      | Where                                                  |
-| ------------------------- | ------------------------------------------------------ |
-| Models, textures, sounds  | `game\hlvr\pak01_dir.vpk`                              |
-| Maps                      | `game\hlvr\maps\<map>.vpk`, such as `a1_intro_world.vpk` |
-| Workshop addons           | `steamapps\workshop\content\546560\`                   |
-
-Open `pak01_dir.vpk`, not the numbered `pak01_000.vpk`, `pak01_001.vpk` files next to it. The `_dir` file is the index, and Source 2 Viewer reads the numbered files from it. You can also find the game and its workshop addons in the **Explorer** tab. See [How to Open and Extract VPK Files](../guides/vpk-management.md).
+| What                     | Where                                                    |
+| ------------------------ | -------------------------------------------------------- |
+| Models, textures, sounds | `game/hlvr/pak01_dir.vpk`                                |
+| Maps                     | `game/hlvr/maps/<map>.vpk`, such as `a1_intro_world.vpk` |
+| Workshop addons          | `steamapps/workshop/content/546560/<item id>/`           |
 
 ## What's Inside pak01_dir.vpk
 
-| Asset       | Path inside the VPK           | Example                                          |
-| ----------- | ----------------------------- | ------------------------------------------------ |
-| Characters  | `models/characters/<name>/`   | `models/characters/alyx/alyx.vmdl_c`             |
-| Creatures   | `models/creatures/<name>/`    | `models/creatures/headcrab_classic/`             |
-| Weapons     | `models/weapons/<name>/`      | `models/weapons/vr_alyxgun/vr_alyxgun.vmdl_c`    |
-| Props       | `models/props/` and other `models/props_*` folders |                             |
-| Voice lines | `sounds/vo/<character>/`      | `sounds/vo/alyx/`, `sounds/vo/russell/`          |
-| Music       | `sounds/music/places/`, `sounds/music/ambient/` |                                |
+| Files                | Path inside the package                                    | Example                                       |
+| -------------------- | ---------------------------------------------------------- | --------------------------------------------- |
+| Characters           | `models/characters/<name>/`                                | `models/characters/alyx/alyx.vmdl_c`          |
+| Creatures            | `models/creatures/<name>/`                                 | `models/creatures/headcrab_classic/`          |
+| Weapons              | `models/weapons/<name>/`                                   | `models/weapons/vr_alyxgun/vr_alyxgun.vmdl_c` |
+| Hands and gloves     | `models/hands/`                                            | `models/hands/alyx_glove_left.vmdl_c`         |
+| Props                | `models/props/` and the `models/props_*` folders           | `models/props_combine/`                       |
+| Voice lines          | `sounds/vo/<character>/`                                   | `sounds/vo/alyx/`, `sounds/vo/russell/`       |
+| Music                | `sounds/music/places/<place>/` and `sounds/music/ambient/` | `sounds/music/places/hideout/`                |
+| Developer commentary | `sounds/commentary/`                                       | `sounds/commentary/a2_03_mural.vsnd_c`        |
 
 ## Characters, Creatures and Weapons
 
-- **Characters** are in `models/characters/`, such as `alyx`, `eli`, `gman`, `larry`, `olga` and the Combine soldiers (`combine_grunt`, `combine_soldier`, `combine_soldier_captain`).
-- **Creatures** are in `models/creatures/`, such as `headcrab_classic`, `antlion`, `barnacle`, `strider`, `vortigaunt` and `zombie_classic`.
-- **Weapons** are in `models/weapons/`, such as `vr_alyxgun`, `vr_shotgun` and `vr_irifle`.
+- **Characters** are in `models/characters/`, such as `alyx`, `eli`, `gman` and `combine_grunt`.
+- **Creatures** are in `models/creatures/`, such as `headcrab_classic`, `antlion` and `zombie_classic`.
+- **Weapons** are in `models/weapons/`. Alyx's pistol is `vr_alyxgun`, the shotgun `vr_shotgun` and the Rapidfire `vr_ipistol`.
 
-Double-click a model to preview it with its animations. Right-click it and select **Decompile & export**, then choose glTF to use it in Blender. Animations are included in the same file. See [Exporting Models](../guides/exporting-models.md).
+Some models have optional parts, such as the gas tanks of the Combine grunt, which the **Mesh Group** list switches on and off.
+
+![The Combine grunt in a model tab playing an idle animation, with the Mesh Group list in the sidebar showing gas_tank_@0 and grenadeholster_@0 ticked](../guides/images/games-half-life-alyx-model.webp)
+
+To use a model in Blender, see [Exporting Models](../guides/exporting-models.md) and [Posing Characters in Blender](../guides/characters-in-blender.md). The export includes all optional parts at once, see [Extra meshes in Blender](../guides/exporting-models.md#extra-meshes-in-blender).
 
 ## Voice Lines and Music
 
-Voice lines are in `sounds/vo/`, one folder per character, such as `alyx`, `russell`, `eli`, `gman`, `vortigaunt` and `combine`.
-
-Music is in `sounds/music/places/` and `sounds/music/ambient/`.
-
-Right-click a sound or a whole folder and select **Decompile & export** to save it as WAV or MP3. See [Exporting Sounds](../guides/exporting-sounds.md).
+Voice lines are in `sounds/vo/`, one folder per character, with the Combine soldiers in `sounds/vo/combine/`. Music is in `sounds/music/places/`, one folder per place, and `sounds/music/ambient/`. To save sounds, see [Exporting Sounds](../guides/exporting-sounds.md).
 
 ## Maps
 
-Each level is its own VPK in `game\hlvr\maps\`, such as `a1_intro_world.vpk`, `a2_hideout.vpk` and `a5_vault.vpk`. Open the map's VPK and find `maps/<map>.vmap_c` inside it.
+Each level is a package in `game/hlvr/maps/`, such as `a2_hideout.vpk`, with the map in `maps/<map>.vmap_c`. Next to most levels are:
 
-Most levels also have a `_commentary` VPK, such as `a2_hideout_commentary.vpk`, for the developer commentary mode. These are small and hold only a few entities, not the level itself, so open the VPK without the suffix to get the level.
+- `<map>_commentary.vpk`, which only holds the developer commentary nodes
+- a folder named after the level, with its 3D skybox
 
-Maps can be exported to glTF for Blender or decompiled to `.vmap` for Hammer. See [Exporting Maps](../guides/exporting-maps.md).
+![Explorer filtered to a2_train, showing a2_train_yard.vpk, a2_train_yard/a2_train_yard_skybox.vpk and a2_train_yard_commentary.vpk](../guides/images/finding-files-explorer-filter.webp)
+
+See [Exporting Maps](../guides/exporting-maps.md).
 
 ## Workshop Addons
 
-Steam downloads workshop addons to `steamapps\workshop\content\546560\`, one folder per item. They show up in the **Explorer** tab, and their models and materials load the textures they need from the game. See [Game Search Paths](../guides/game-search-paths.md).
-
-## See Also
-
-- [Getting Started](../guides/getting-started.md)
-- [How to Open and Extract VPK Files](../guides/vpk-management.md)
-- [Exporting Models](../guides/exporting-models.md)
-- [Importing into Blender](../guides/importing-into-blender.md)
-- [Exporting Maps](../guides/exporting-maps.md)
-- [Exporting Sounds](../guides/exporting-sounds.md)
-- [Game Search Paths](../guides/game-search-paths.md)
+The Explorer lists subscribed addons under Half-Life: Alyx as `[Workshop <id>]`. Open them there rather than from a copy, so the textures they use from the game are found. A map in an addon is a package inside the addon's package, `maps/<map>.vpk`. Double-click it to open it.

@@ -4,108 +4,126 @@ description: Extract Dota 2 hero models, cosmetic items, particles, icons, music
 
 # Extract Dota 2 Hero Models, Cosmetics and Files
 
-Dota 2 stores its heroes, cosmetic items, particles, sounds and maps in VPK archives. Source 2 Viewer opens these archives and exports their contents to formats you can use in Blender, image editors and audio players. This page shows where Dota 2 keeps each kind of asset. The general steps are in the [guides](#see-also).
-
-Guides written for older tools often use folder names and file formats that no longer apply. Dota 2 files are compiled: their extensions end in `_c` (such as `.vmdl_c` or `.vtex_c`), and they need Source 2 Viewer to decompile them.
+This page shows where Dota 2 keeps its files, and how to find a hero or an item. To open a package and browse it, see [Finding Game Files](../guides/finding-files.md).
 
 ## Where the Files Are
 
-Dota 2 is installed in `steamapps\common\dota 2 beta` in your Steam library. The game files are in `game\dota`.
+Dota 2 installs into `steamapps/common/dota 2 beta/`, with its files in `game/dota/`.
 
-| What                            | Where                                       |
-| ------------------------------- | ------------------------------------------- |
-| Heroes, items, particles, sounds | `game\dota\pak01_dir.vpk`                  |
-| The main map                    | `game\dota\maps\dota.vpk`                   |
-| Workshop content                | `steamapps\workshop\content\570\<item id>\` |
-
-Open `pak01_dir.vpk`, not the numbered `pak01_000.vpk`, `pak01_001.vpk` files next to it. The `_dir` file is the index, and Source 2 Viewer reads the numbered files from it. You can also find Dota 2 in the **Explorer** tab, which lists installed games and their workshop content. See [How to Open and Extract VPK Files](../guides/vpk-management.md).
+| What                                      | Where                                       |
+| ----------------------------------------- | ------------------------------------------- |
+| Heroes, items, particles, sounds, scripts | `game/dota/pak01_dir.vpk`                   |
+| The map                                   | `game/dota/maps/dota.vpk`                   |
+| Custom games from the Workshop            | `steamapps/workshop/content/570/<item id>/` |
 
 ## What's Inside pak01_dir.vpk
 
-| Asset               | Path inside the VPK                                   | Example                                                     |
-| ------------------- | ----------------------------------------------------- | ----------------------------------------------------------- |
-| Heroes              | `models/heroes/<hero>/`                               | `models/heroes/axe/axe.vmdl_c`                              |
-| Cosmetic items      | `models/items/<hero>/<item>/`                         | `models/items/axe/aghsbp_2021_axe_belt/`                    |
-| Couriers            | `models/courier/`                                     |                                                             |
-| Hero particles      | `particles/units/heroes/hero_<hero>/`                 | `particles/units/heroes/hero_axe/axe_armor.vpcf_c`          |
-| Cosmetic particles  | `particles/econ/items/<hero>/`                        | `particles/econ/items/axe/`                                 |
-| Hero icons          | `panorama/images/heroes/icons/`                       | `panorama/images/heroes/icons/npc_dota_hero_axe_png.vtex_c` |
-| Hero portraits      | `panorama/images/heroes/`                             | `panorama/images/heroes/npc_dota_hero_axe_png.vtex_c`       |
-| Item icons          | `panorama/images/econ/items/<hero>/`                  |                                                             |
-| Loading screens     | `panorama/images/loadingscreens/`, `panorama/images/econ/loading_screens/` |                                        |
-| Voice lines         | `sounds/vo/<hero>/`                                   | `sounds/vo/axe/`                                            |
-| Announcers          | `sounds/vo/announcer/`, `sounds/vo/announcer_dlc_<name>/` | `sounds/vo/announcer_dlc_axe/`                          |
-| Music packs         | `sounds/music/<pack>/`                                | `sounds/music/valve_dota_001/`                              |
-| Item definitions    | `scripts/items/items_game.txt`                        |                                                             |
-| Item names          | `resource/localization/items_english.txt`             |                                                             |
-| Hero names          | `resource/localization/dota_english.txt`              |                                                             |
+| Files              | Path inside the package                                      |
+| ------------------ | ------------------------------------------------------------ |
+| Hero models        | `models/heroes/<hero>/`                                      |
+| Cosmetic items     | `models/items/<hero>/<item>/`                                |
+| Couriers           | `models/courier/` and `models/items/courier/`                |
+| Creeps and Roshan  | `models/creeps/`                                             |
+| Hero particles     | `particles/units/heroes/hero_<hero>/`                        |
+| Cosmetic particles | `particles/econ/items/<hero>/`                               |
+| Hero icons         | `panorama/images/heroes/icons/`                              |
+| Hero images        | `panorama/images/heroes/` and its `selection/` folder        |
+| Item icons         | `panorama/images/econ/items/<hero>/`                         |
+| Loading screens    | `panorama/images/loadingscreens/`                            |
+| Voice lines        | `sounds/vo/<hero>/`                                          |
+| Announcers         | `sounds/vo/announcer/` and `sounds/vo/announcer_dlc_<name>/` |
+| Music              | `sounds/music/<pack>/`                                       |
+| Hero scripts       | `scripts/npc/heroes/`                                        |
+| Item definitions   | `scripts/items/items_game.txt`                               |
+| Hero names         | `resource/localization/abilities_english.txt`                |
+| Item names         | `resource/localization/items_english.txt`                    |
 
 ## Hero Names
 
-Hero folders use internal names, which are sometimes old names of the hero. A few examples:
+Each hero has an internal name, such as `nevermore` for Shadow Fiend, and its folders can use other spellings:
 
-| In the game     | Folder name  |
-| --------------- | ------------ |
-| Shadow Fiend    | `nevermore`  |
-| Clockwerk       | `rattletrap` |
-| Nature's Prophet | `furion`    |
-| Io              | `wisp`       |
-| Timbersaw       | `shredder`   |
+| Hero             | Internal name      | Model folder in `models/heroes/` | Voice lines in `sounds/vo/` |
+| ---------------- | ------------------ | -------------------------------- | --------------------------- |
+| Clockwerk        | `rattletrap`       | `rattletrap`                     | `rattletrap`                |
+| Io               | `wisp`             | `wisp`                           | `wisp`                      |
+| Shadow Fiend     | `nevermore`        | `shadow_fiend`                   | `nevermore`                 |
+| Templar Assassin | `templar_assassin` | `lanaya`                         | `templar_assassin`          |
+| Wraith King      | `skeleton_king`    | `wraith_king`                    | `skeleton_king`             |
+| Zeus             | `zuus`             | `zeus`                           | `zuus`                      |
 
-The same name is used in `models/heroes/`, `sounds/vo/` and the icon file names. To look up any other hero, search `resource/localization/dota_english.txt` for its name: each hero has a `npc_dota_hero_<name>__name_alias` line with its internal name.
+### Finding a Hero's Model
+
+For a hero not in the table:
+
+1. Open `resource/localization/abilities_english.txt` and search for the hero's name. Its id is on the left, such as `npc_dota_hero_nevermore` for Shadow Fiend.
+
+    ![abilities_english.txt open in Source 2 Viewer, with the Find window searching for Shadow Fiend and the line "npc_dota_hero_nevermore:n" "Shadow Fiend" found](../guides/images/games-dota-2-hero-name.webp)
+
+2. Open the hero's script, such as `scripts/npc/heroes/npc_dota_hero_nevermore.txt`. Its `Model` line is the hero's model.
+
+    ![npc_dota_hero_nevermore.txt open in Source 2 Viewer, with the line "Model" "models/heroes/shadow_fiend/shadow_fiend.vmdl" near the top](../guides/images/games-dota-2-hero-script.webp)
+
+3. Type the model's folder, such as `models/heroes/shadow_fiend`, into the box above the tree and press <kbd>Enter</kbd>.
+
+    ![The box above the tree reading models/heroes/shadow_fiend, with shadow_fiend.vmdl_c selected among the models of the folder](../guides/images/games-dota-2-shadow-fiend-folder.webp)
 
 ## Hero Models and Their Parts
 
-A hero folder holds the hero's body and its default items as separate models. For example, `models/heroes/axe/` has `axe.vmdl_c` for the body and `axe_armor.vmdl_c`, `axe_belt.vmdl_c`, `axe_hair.vmdl_c`, `axe_ponytail.vmdl_c` and `axe_weapon.vmdl_c` for the parts he wears.
+Most heroes wear their default items as separate models in the hero's folder, such as `axe_armor.vmdl_c` and `axe_weapon.vmdl_c` next to `axe.vmdl_c`.
 
-Double-click a model to preview it with its animations. To use it in Blender, right-click it and select **Decompile & export**, then choose glTF. The hero's animations are included in the same file. See [Exporting Models](../guides/exporting-models.md).
-
-Some animation names start with `@` or `@@`, such as `@run` next to `run`. They are separate animations and export under the same names.
-
-Hero materials use a Dota-specific shader with rim light and specular masks that standard glTF materials can't hold. The export keeps the colour, normal, metalness and specular textures, so heroes look flatter in Blender than in the game. See [Known Limitations](../guides/importing-into-blender.md#known-limitations).
-
-Export the body and each part you want. Every part is its own model with its own skeleton, so the parts don't follow the hero's animations by themselves after import. The bone names match the hero's skeleton, so in Blender you can point each part's **Armature** modifier at the hero's armature and delete the part's own armature. See [Importing into Blender](../guides/importing-into-blender.md).
+To use a hero in Blender, see [Exporting Models](../guides/exporting-models.md) and [Posing Characters in Blender](../guides/characters-in-blender.md). Export the parts too, and attach them as described in [Attaching Items in Blender](#attaching-items-in-blender).
 
 ## Cosmetic Items
 
-Cosmetic items are in `models/items/<hero>/`, with one folder per item. Like the default parts, each item is a separate model that you export and attach in the same way.
+Cosmetic items are in `models/items/<hero>/`, one folder per item. To find an item by its name:
 
-To find which folder belongs to an item you know from the game, open `scripts/items/items_game.txt`. Each item entry has:
+1. Open `scripts/items/items_game.txt` and search for the item's name, such as `Carnage of the Endless Hunt - Belt`.
 
-- `name`: the item's name, such as "Carnage of the Endless Hunt - Belt"
-- `item_slot`: where the hero wears it, such as `belt`
-- `model_player`: the path to its model, such as `models/items/axe/aghsbp_2021_axe_belt/aghsbp_2021_axe_belt.vmdl`
-- `item_name`: a `#` token that `resource/localization/items_english.txt` turns into the name shown in the game
+    ![The entry of item 18546 in items_game.txt, with the Find window searching for Carnage of the Endless Hunt - Belt and its name line found, above its image_inventory, item_name, item_slot and model_player lines](../guides/images/games-dota-2-items-game.webp)
 
-`items_game.txt` is very large. Use <kbd>Ctrl</kbd>+<kbd>F</kbd> with **File Contents (Case Sensitive)** to find which file mentions a name, or export the file and search it in a text editor.
+2. Its `model_player` line is the model. Type its folder into the box above the tree and press <kbd>Enter</kbd>.
+
+    ![The box above the tree reading models/items/axe/aghsbp_2021_axe_belt, with aghsbp_2021_axe_belt.vmdl_c selected in the folder](../guides/images/games-dota-2-item-folder.webp)
+
+The `image_inventory` line names the item's icon in `panorama/images/`.
+
+### Attaching Items in Blender
+
+Each hero, part and item has its own armature. To make an item follow the hero:
+
+1. Import the hero and the item into the same scene.
+2. Select the item's mesh, and in its **Armature** modifier (the wrench), set **Object** to the hero's armature.
+
+    ![The Modifiers tab of Axe's weapon in Blender, with the Object list of its Armature modifier open and the hero's armature axe highlighted above axe_armor and axe_weapon](../guides/images/games-dota-2-item-armature.webp)
+
+3. Delete the item's own armature.
+
+    ![The Outliner with the item's armature axe_weapon selected and its context menu open, with Delete highlighted](../guides/images/games-dota-2-outliner-delete.webp)
+
+The item now moves with the hero. Bone names must match exactly, and some items name bones in lowercase, such as `clavicle_r` for Axe's `clavicle_R`. Rename those under **Vertex Groups** in the **Object Data** properties.
 
 ## Particles
 
-Hero ability effects are in `particles/units/heroes/hero_<hero>/`, and effects of cosmetic items are in `particles/econ/items/<hero>/`. Double-click a `.vpcf_c` file to preview the effect. **Decompile & export** saves it as a `.vpcf` text file.
+Hero effects are in `particles/units/heroes/hero_<hero>/`, and cosmetic effects in `particles/econ/items/<hero>/`. Double-click a `.vpcf_c` file to preview it.
 
-## Icons and Loading Screens
+![The particle tab of axe_battle_hunger.vpcf_c, with the burning skull of Battle Hunger, and the sidebar listing the functions of the effect, some of them in red](../guides/images/games-dota-2-particle.webp)
 
-Hero icons are in `panorama/images/heroes/icons/`, larger portraits are in `panorama/images/heroes/`, and item icons are in `panorama/images/econ/items/`. Loading screens are in `panorama/images/loadingscreens/` and `panorama/images/econ/loading_screens/`. These are textures that you can export to PNG. See [Exporting Textures](../guides/exporting-textures.md).
+Functions in red are not simulated by the viewer, so the preview can differ from the game.
 
-## Voice Lines and Music
+## Icons, Portraits and Loading Screens
 
-Each hero's voice lines are in `sounds/vo/<hero>/`, using the internal hero name. Music packs are in `sounds/music/`, one folder per pack, such as `valve_dota_001` or `deadmau5_01`.
+- Hero icons are in `panorama/images/heroes/icons/`, wide images in `panorama/images/heroes/`, and tall portraits in `panorama/images/heroes/selection/`.
+- Item icons are in `panorama/images/econ/items/<hero>/`.
+- Loading screens are in `panorama/images/loadingscreens/`.
 
-Right-click a sound or a whole folder and select **Decompile & export** to save it as WAV or MP3. See [Exporting Sounds](../guides/exporting-sounds.md).
+The **Grid** view shows them as thumbnails. To save them as PNG, see [Exporting Textures](../guides/exporting-textures.md).
+
+![The package tab at panorama/images/heroes/selection in grid view, scrolled to thumbnails of hero portraits, and the heroes folder in the tree with its icons, large and selection folders](../guides/images/games-dota-2-hero-images.webp)
+
+## Voice Lines, Announcers and Music
+
+Voice lines are in `sounds/vo/<hero>/`, announcers in `sounds/vo/announcer/` and folders such as `sounds/vo/announcer_dlc_glados/`, and music in `sounds/music/`. To save sounds, see [Exporting Sounds](../guides/exporting-sounds.md).
 
 ## Maps
 
-The main map is `game\dota\maps\dota.vpk`. Open it and find `maps/dota.vmap_c` inside. The other VPK files in `game\dota\maps\` hold other maps and variants of the main map.
-
-Maps can be exported to glTF for Blender or decompiled to `.vmap` for Hammer. See [Exporting Maps](../guides/exporting-maps.md).
-
-## See Also
-
-- [Getting Started](../guides/getting-started.md)
-- [How to Open and Extract VPK Files](../guides/vpk-management.md)
-- [Exporting Models](../guides/exporting-models.md)
-- [Importing into Blender](../guides/importing-into-blender.md)
-- [Exporting Maps](../guides/exporting-maps.md)
-- [Exporting Textures](../guides/exporting-textures.md)
-- [Exporting Sounds](../guides/exporting-sounds.md)
-- [Command-line utility](../guides/command-line.md)
+The map is `maps/dota.vmap_c` in `game/dota/maps/dota.vpk`. The other `dota` packages hold older versions and seasonal terrains. See [Exporting Maps](../guides/exporting-maps.md).
