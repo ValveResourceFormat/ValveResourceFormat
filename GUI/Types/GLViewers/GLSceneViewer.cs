@@ -558,6 +558,9 @@ namespace GUI.Types.GLViewers
             Debug.Assert(MainFramebuffer != null);
 
             Scene.RendererContext.ShaderLoader.LinkLoadedShaders();
+
+            // Culling is off, but hidden layers stay out, as their nodes may build their geometry on first draw
+            ApplyPendingVisibility();
             Renderer.DisableAllCulling = true;
 
             Renderer.Camera.CopyFrom(Input.Camera);
@@ -662,11 +665,7 @@ namespace GUI.Types.GLViewers
 
             Input.EnableMouseLook = true;
 
-            if (visibilityDirty)
-            {
-                visibilityDirty = false;
-                ApplyVisibility();
-            }
+            ApplyPendingVisibility();
 
             if (loadedDefaultLighting && Input.NoClip && (CurrentlyPressedKeys & TrackedKeys.Control) != 0)
             {
@@ -1228,6 +1227,15 @@ namespace GUI.Types.GLViewers
         /// thread, so they are only walked there.
         /// </summary>
         protected void RequestVisibilityUpdate() => visibilityDirty = true;
+
+        private void ApplyPendingVisibility()
+        {
+            if (visibilityDirty)
+            {
+                visibilityDirty = false;
+                ApplyVisibility();
+            }
+        }
 
         /// <summary>Applies the chosen layers. Runs on the render thread.</summary>
         protected virtual void ApplyVisibility()

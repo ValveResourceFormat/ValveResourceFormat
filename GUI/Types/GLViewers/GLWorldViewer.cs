@@ -272,6 +272,9 @@ namespace GUI.Types.GLViewers
                 NavMeshSceneNode.AddFlowMapNodesToScene(LoadedWorld.NavFlowMap, LoadedWorld.NavMesh, Scene, LoadedWorld.NavigationHullNames);
                 CS2BombDamageSceneNode.AddBakedBombDamageToScene(LoadedWorld.BombDamage, Scene);
 
+                // Prewarm draws before the sidebar picks the layers, so it starts from the same defaults
+                SetEnabledLayers(LoadedWorld.DefaultEnabledLayers);
+
                 if (LoadedWorld.CameraMatrices.Count > 0)
                 {
                     CameraMatrices = LoadedWorld.CameraMatrices;
