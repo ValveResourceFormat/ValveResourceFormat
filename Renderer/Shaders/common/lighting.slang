@@ -20,7 +20,7 @@
 #define renderMode_Subgroups 0
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-    centroid in vec3 vLightmapUVScaled;
+    centroid in vec4 vLightmapUVScaled; // GetLightmapCoordinates
     uniform sampler2DArray g_tIrradiance; // reserved
     uniform sampler2DArray g_tLightmapDebugCharts; // reserved
     #if (LIGHTMAP_SH)
@@ -177,6 +177,55 @@ void CalculateDynamicLightV1(inout LightingTerms_t lighting, MaterialProperties_
     CalculateShadingGated(lighting, vLightVector, GetLightColor(nLightIndex) * flAttenuation, mat, nLightIndex);
 }
 
+#if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1) && (BAKED_LIGHT_SHADOW_MASK)
+    // Cubic B-spline filtering from four bilinear taps, to soften the texel steps of baked shadows
+    vec4 SampleLightmapShadowsBicubic(vec2 uv, vec2 size)
+    {
+        vec2 texel = uv * size - 0.5;
+        vec2 base = floor(texel);
+        vec2 f = texel - base;
+        vec2 f2 = f * f;
+        vec2 f3 = f2 * f;
+
+        vec2 w0 = (-f3 + 3.0 * f2 - 3.0 * f + 1.0) / 6.0;
+        vec2 w1 = (3.0 * f3 - 6.0 * f2 + 4.0) / 6.0;
+        vec2 w2 = (-3.0 * f3 + 3.0 * f2 + 3.0 * f + 1.0) / 6.0;
+        vec2 w3 = f3 / 6.0;
+
+        vec2 weight0 = w0 + w1;
+        vec2 weight1 = w2 + w3;
+
+        // The taps sit a texel below the usual B-spline positions
+        vec2 uv0 = (base + w1 / weight0 - 1.5) / size;
+        vec2 uv1 = (base + w3 / weight1 + 0.5) / size;
+
+        vec4 shadows = textureLod(g_tDirectLightShadows, vec3(uv0.x, uv0.y, 0.0), 0.0) * weight0.x * weight0.y;
+        shadows += textureLod(g_tDirectLightShadows, vec3(uv1.x, uv0.y, 0.0), 0.0) * weight1.x * weight0.y;
+        shadows += textureLod(g_tDirectLightShadows, vec3(uv0.x, uv1.y, 0.0), 0.0) * weight0.x * weight1.y;
+        shadows += textureLod(g_tDirectLightShadows, vec3(uv1.x, uv1.y, 0.0), 0.0) * weight1.x * weight1.y;
+
+        return shadows;
+    }
+
+    vec4 SampleLightmapShadows(vec2 uv)
+    {
+        #if (LIGHTMAP_BICUBIC_SHADOWS)
+            vec2 size = vec2(textureSize(g_tDirectLightShadows, 0).xy);
+
+            // Triangles with collapsed lightmap coordinates keep the plain sample
+            vec2 hashChange = fwidth(vLightmapUVScaled.zw);
+            bool bicubic = min(hashChange.x, hashChange.y) > 0.1 && size.x > LIGHTMAP_BICUBIC_SHADOWS_MIN_WIDTH;
+
+            if (bicubic)
+            {
+                return SampleLightmapShadowsBicubic(uv, size);
+            }
+        #endif
+
+        return textureLod(g_tDirectLightShadows, vec3(uv, 0.0), 0.0);
+    }
+#endif
+
 void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialProperties_t mat)
 {
     // Unshadowed where nothing baked the shadows, such as per vertex lighting
@@ -227,7 +276,7 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
 
     #elif (BAKED_LIGHT_SHADOW_MASK)
         #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-            dlsh = textureLod(g_tDirectLightShadows, mat.LightmapUv, 0.0);
+            dlsh = SampleLightmapShadows(mat.LightmapUv.xy);
         #elif (D_BAKED_LIGHTING_FROM_PROBE == 1)
             dlsh = SampleProbeDirectLightShadows(mat.PositionWS, mat.AmbientNormal);
         #endif
@@ -510,7 +559,7 @@ LightingTerms_t CalculateLighting(inout MaterialProperties_t mat)
     #endif
 
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-        mat.LightmapUv = vLightmapUVScaled;
+        mat.LightmapUv = vec3(vLightmapUVScaled.xy, 0.0);
     #endif
 
     CalculateDirectLighting(lighting, mat);
@@ -591,7 +640,7 @@ bool _HandleLightingRenderModes(inout vec4 outputColor, MaterialProperties_t mat
             return true;
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1) && (BAKED_LIGHT_SHADOW_MASK)
         case renderMode_LightmapShadows:
-            vec4 dlsh = texture(g_tDirectLightShadows, mat.LightmapUv);
+            vec4 dlsh = SampleLightmapShadows(mat.LightmapUv.xy);
             outputColor = vec4(vec3(1.0 - dlsh.x) + vec3(1.0 - min3(dlsh.yzw)) * vec3(0.5, 0.5, 0), 1.0);
             return true;
     #endif

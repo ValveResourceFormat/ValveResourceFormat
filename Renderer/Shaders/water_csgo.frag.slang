@@ -704,7 +704,7 @@ void main()
 
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
         vec2 vLightmapDither = (((((((fwidth(vLightmapUVScaled.xy) * 1200.0) / vec2(distanceToFrag)) * cosNormAngle) * (-viewParallaxFactor)) * vec2(-1.0, 1.0)) * (vec2(finalDebrisFoamHeightContrib * (-2.0)) + ((mix(blueNoiseZeroToOne.yy, blueNoiseZeroToOne.yx, vec2(0.1)) * 20.0) * squaredWaterOpacity))) * _12400);
-        mat.LightmapUv = vLightmapUVScaled;
+        mat.LightmapUv = vec3(vLightmapUVScaled.xy, 0.0);
         mat.LightmapUv.xy += vLightmapDither;
     #endif
 

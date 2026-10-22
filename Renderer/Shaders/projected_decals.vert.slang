@@ -3,7 +3,7 @@
 #include "common/features.slang"
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-    out vec3 vLightmapUVScaled;
+    out vec4 vLightmapUVScaled;
 #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
     out vec3 vPerVertexLightingOut;
 #endif
@@ -14,7 +14,7 @@ void main()
     gl_Position = vec4(uv * 2.0 - 1.0, 0.0, 1.0);
 
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-        vLightmapUVScaled = vec3(0.0);
+        vLightmapUVScaled = vec4(0.0);
     #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
         vPerVertexLightingOut = vec3(0.0);
     #endif

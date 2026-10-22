@@ -20,7 +20,7 @@ uniform int F_TEXTURE_ANIMATION_MODE;
 
 #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
     in vec2 vLightmapUV;
-    centroid out vec3 vLightmapUVScaled;
+    centroid out vec4 vLightmapUVScaled;
 #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
     in vec4 vCOLOR1;
     out vec3 vPerVertexLightingOut;
@@ -90,7 +90,7 @@ void main()
     vTexCoordOut = GetAnimatedUVs(vTEXCOORD.xy);
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-    vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);
+    vLightmapUVScaled = GetLightmapCoordinates(vLightmapUV);
 #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
     vec4 vPerVertexLighting = vCOLOR1;
     vec3 Light = vPerVertexLighting.rgb * 6.0 * vPerVertexLighting.a;

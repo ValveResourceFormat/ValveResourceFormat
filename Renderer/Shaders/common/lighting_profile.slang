@@ -24,6 +24,14 @@
 #define LIGHTMAP_FLATNESS_BOOST (LIGHTMAP_DIRECTION_CLAMP && !VR_SHADING)
 #define LIGHTMAP_SPECULAR_OCCLUSION ((S_LIGHTMAP_VERSION_MINOR < 2) || VR_SHADING)
 
+// Baked shadows are filtered bicubically, in the shadow mask of lightmaps wider than this
+#define LIGHTMAP_BICUBIC_SHADOWS (BAKED_LIGHT_SHADOW_MASK && !VR_SHADING)
+#if (S_LIGHTMAP_VERSION_MINOR == 2)
+    #define LIGHTMAP_BICUBIC_SHADOWS_MIN_WIDTH 4096.0
+#else
+    #define LIGHTMAP_BICUBIC_SHADOWS_MIN_WIDTH 0.0
+#endif
+
 // Environment maps
 #define ENVMAP_PER_OBJECT (S_LIGHTMAP_VERSION_MINOR == 1) // One map per object, the plain reflection, no blending
 #define ENVMAP_EDGE_FADE (S_LIGHTMAP_VERSION_MINOR >= 2) // Rather than a hard edge

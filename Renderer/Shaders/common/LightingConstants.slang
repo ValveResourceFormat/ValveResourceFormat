@@ -27,6 +27,20 @@ layout(std140, binding = 1) uniform LightingConstants {
     vec4 g_vAmbientLightingSH[3];    // per color channel, xyz: against the normal, w: constant
 };
 
+// The lightmap atlas coordinates in xy, and a hash of the unscaled coordinates in zw. The hash only
+// interpolates to a constant across a triangle whose vertices all share one lightmap position.
+vec4 GetLightmapCoordinates(vec2 lightmapUV)
+{
+    uvec2 bits = floatBitsToUint(lightmapUV);
+    bits ^= bits << 13u;
+    bits ^= bits >> 17u;
+    bits ^= bits << 5u;
+
+    vec2 hash = (uintBitsToFloat(0x3F800000u | (bits >> 9u)) - 1.0) * 65535.0;
+
+    return vec4(lightmapUV * g_vLightmapUvScale, hash);
+}
+
 // The sky's irradiance arriving around a direction
 vec3 GetSkyAmbientLighting(vec3 direction)
 {

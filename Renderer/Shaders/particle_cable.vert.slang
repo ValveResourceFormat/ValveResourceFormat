@@ -10,7 +10,7 @@ in vec4 vCOLOR;
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     // Cables carry no lightmap coordinates; these combos exist only so the shared lighting include links.
-    centroid out vec3 vLightmapUVScaled;
+    centroid out vec4 vLightmapUVScaled;
 #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
     out vec3 vPerVertexLightingOut;
 #endif
@@ -33,7 +33,7 @@ void main(void)
     vColorOut = vec4(SrgbGammaToLinear(vCOLOR.rgb), vCOLOR.a);
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-    vLightmapUVScaled = vec3(0.0);
+    vLightmapUVScaled = vec4(0.0);
 #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
     vPerVertexLightingOut = vec3(0.0);
 #endif

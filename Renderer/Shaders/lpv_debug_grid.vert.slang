@@ -13,7 +13,7 @@ flat out uint g_nObjectIndex;
 
 // Never written, the grid is lit from its probe; declared so the shared lighting links in every combo
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-    centroid out vec3 vLightmapUVScaled;
+    centroid out vec4 vLightmapUVScaled;
 #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
     out vec3 vPerVertexLightingOut;
 #endif
