@@ -240,14 +240,9 @@ namespace GUI.Types.Exporter
 
                     messageString =
                     """
-                    Decompiling Source2 maps is a difficult process, as such the output will be messy and imperfect, and will not resemble how
-                    real .vmap files are made!
-
-                    - Models will be merged by material across the map.
-                    - Parts of the skybox mesh might be missing.
-                    - The collision of the map will be merged into one mesh using special materials.
-                    - The map will lack lightmap resolution volumes.
-                    - Hammer meshes will be triangulated.
+                    Compiling a map throws away much of how it was built, so the decompiled map is only an approximation:
+                    props the compiler merged come back as one prop per material, meshes come back as triangles and quads,
+                    and prefabs and groups are gone.
 
                     It is NOT ADVISED to work on decompiled maps as your first map if you are new to mapping!
                     """;
