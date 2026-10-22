@@ -37,6 +37,8 @@ namespace ValveResourceFormat.ResourceTypes
         // Objects up to this many members are list backed, a linear key search is cheaper than a dictionary at this size
         private const int MaxListBackedObjectLength = 8;
 
+        private const int ZstdStreamInputSize = 128 * 1024;
+
         /// <inheritdoc/>
         public override BlockType Type => KVBlockType;
 
@@ -126,8 +128,8 @@ namespace ValveResourceFormat.ResourceTypes
             public int Version;
             public ArraySegment<byte> Types;
             public ArraySegment<byte> ObjectLengths;
-            public ArraySegment<byte> BinaryBlobs;
-            public ArraySegment<byte> BinaryBlobLengths;
+            public byte[][] BinaryBlobs = [];
+            public int NextBinaryBlob;
             public string[] Strings = null!;
             public Buffers Buffer = null!;
             public Buffers AuxiliaryBuffer = null!;
@@ -230,6 +232,65 @@ namespace ValveResourceFormat.ResourceTypes
                 if (!zstdDecompressor.TryUnwrap(input, output, out var written) || output.Length != written)
                 {
                     throw new InvalidDataException($"Failed to decompress ZSTD (expected {output.Length} bytes, got {written})");
+                }
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(inputBuf);
+            }
+        }
+
+        // Streams the compressed blobs in chunks straight into each blob, so neither side needs one large buffer
+        private static void DecompressZSTDBinaryBlobs(ZstdSharp.Decompressor zstdDecompressor, BinaryReader reader, byte[][] blobs, int compressedSize)
+        {
+            var inputBuf = ArrayPool<byte>.Shared.Rent(Math.Min(compressedSize, ZstdStreamInputSize));
+            var input = new ArraySegment<byte>(inputBuf, 0, 0);
+            var remainingInput = compressedSize;
+            var status = OperationStatus.NeedMoreData;
+
+            int Unwrap(Span<byte> output)
+            {
+                if (input.Count == 0)
+                {
+                    var length = Math.Min(remainingInput, inputBuf.Length);
+                    reader.BaseStream.ReadExactly(inputBuf, 0, length);
+                    remainingInput -= length;
+                    input = new ArraySegment<byte>(inputBuf, 0, length);
+                }
+
+                status = zstdDecompressor.UnwrapStream(input, output, out var consumed, out var written);
+
+                if (status == OperationStatus.InvalidData || (consumed == 0 && written == 0))
+                {
+                    throw new InvalidDataException("Failed to decompress ZSTD binary blobs");
+                }
+
+                input = input[consumed..];
+                return written;
+            }
+
+            try
+            {
+                foreach (var blob in blobs)
+                {
+                    var blobOffset = 0;
+
+                    while (blobOffset < blob.Length)
+                    {
+                        blobOffset += Unwrap(blob.AsSpan(blobOffset));
+                    }
+                }
+
+                // The end of the frame, such as its checksum, may still be unread after the last blob is filled.
+                // Decoding into an empty span makes no progress, so a single byte is given to catch excess data.
+                Span<byte> excess = stackalloc byte[1];
+
+                while (status != OperationStatus.Done || input.Count > 0 || remainingInput > 0)
+                {
+                    if (Unwrap(excess) > 0)
+                    {
+                        throw new InvalidDataException("ZSTD binary blobs decompress to more than the blob lengths");
+                    }
                 }
             }
             finally
@@ -348,7 +409,6 @@ namespace ValveResourceFormat.ResourceTypes
                 : sizeUncompressedBuffer1;
             var buffer1Raw = ArrayPool<byte>.Shared.Rent(sizeDecompressedBuffer1);
             byte[]? buffer2Raw = null;
-            byte[]? binaryBlobsRaw = null;
             ZstdSharp.Decompressor? zstdDecompressor = null;
 
             try
@@ -616,25 +676,44 @@ namespace ValveResourceFormat.ResourceTypes
 
                     {
                         var end = countBlocks * sizeof(int);
-                        context.BinaryBlobLengths = bufferWithBinaryBlobSizes[..end];
+                        var blobLengths = MemoryMarshal.Cast<byte, int>(bufferWithBinaryBlobSizes[..end]);
                         bufferWithBinaryBlobSizes = bufferWithBinaryBlobSizes[end..];
 
                         var trailer = MemoryMarshal.Read<uint>(bufferWithBinaryBlobSizes);
                         bufferWithBinaryBlobSizes = bufferWithBinaryBlobSizes[sizeof(int)..];
                         UnexpectedMagicException.Assert(trailer == 0xFFEEDD00, trailer);
+
+                        context.BinaryBlobs = new byte[countBlocks][];
+                        var remainingBlobBytes = sizeBinaryBlobsBytes;
+
+                        for (var i = 0; i < countBlocks; i++)
+                        {
+                            var blobLength = blobLengths[i];
+
+                            if (blobLength < 0 || blobLength > remainingBlobBytes)
+                            {
+                                throw new InvalidDataException($"Binary blob length {blobLength} exceeds the remaining {remainingBlobBytes} bytes");
+                            }
+
+                            remainingBlobBytes -= blobLength;
+                            context.BinaryBlobs[i] = blobLength > 0 ? GC.AllocateUninitializedArray<byte>(blobLength) : [];
+                        }
+
+                        if (remainingBlobBytes != 0)
+                        {
+                            throw new InvalidDataException($"Binary blob lengths are {remainingBlobBytes} bytes short of {sizeBinaryBlobsBytes}");
+                        }
                     }
 
                     if (compressionMethod == KV3BinaryCompressionMethod.Uncompressed)
                     {
-                        binaryBlobsRaw = ArrayPool<byte>.Shared.Rent(sizeBinaryBlobsBytes);
-                        context.BinaryBlobs = new ArraySegment<byte>(binaryBlobsRaw, 0, sizeBinaryBlobsBytes);
-                        reader.Read(context.BinaryBlobs);
+                        foreach (var blob in context.BinaryBlobs)
+                        {
+                            reader.BaseStream.ReadExactly(blob);
+                        }
                     }
                     else if (compressionMethod == KV3BinaryCompressionMethod.Lz4)
                     {
-                        binaryBlobsRaw = ArrayPool<byte>.Shared.Rent(sizeBinaryBlobsBytes);
-                        context.BinaryBlobs = new ArraySegment<byte>(binaryBlobsRaw, 0, sizeBinaryBlobsBytes);
-
                         // Each blob is split into frames of up to compressionFrameSize bytes, a frame never spans two blobs,
                         // and the frames are chained so that later frames can reference earlier blobs
                         using var lz4decoder = new LZ4ChainDecoder(compressionFrameSize, 0);
@@ -642,13 +721,11 @@ namespace ValveResourceFormat.ResourceTypes
 
                         try
                         {
-                            var blobOffset = 0;
-
-                            foreach (var blobLength in MemoryMarshal.Cast<byte, int>(context.BinaryBlobLengths.AsSpan()))
+                            foreach (var blob in context.BinaryBlobs)
                             {
-                                var blobEnd = blobOffset + blobLength;
+                                var blobOffset = 0;
 
-                                while (blobOffset < blobEnd)
+                                while (blobOffset < blob.Length)
                                 {
                                     var compressedBlockLength = MemoryMarshal.Read<ushort>(bufferWithBinaryBlobSizes);
                                     bufferWithBinaryBlobSizes = bufferWithBinaryBlobSizes[sizeof(ushort)..];
@@ -656,7 +733,7 @@ namespace ValveResourceFormat.ResourceTypes
                                     var input = inputBuf.AsSpan(0, compressedBlockLength);
                                     reader.Read(input);
 
-                                    if (!lz4decoder.DecodeAndDrain(input, context.BinaryBlobs.AsSpan(blobOffset, blobEnd - blobOffset), out var decoded) || decoded < 1)
+                                    if (!lz4decoder.DecodeAndDrain(input, blob.AsSpan(blobOffset), out var decoded) || decoded < 1)
                                     {
                                         throw new InvalidDataException("Failed to decompress LZ4 binary blob frame");
                                     }
@@ -680,17 +757,20 @@ namespace ValveResourceFormat.ResourceTypes
 
                             var sizeCompressedBinaryBlobs = sizeCompressedTotal - sizeCompressedBuffer1 - sizeCompressedBuffer2;
 
-                            binaryBlobsRaw = ArrayPool<byte>.Shared.Rent(sizeBinaryBlobsBytes);
-                            context.BinaryBlobs = new ArraySegment<byte>(binaryBlobsRaw, 0, sizeBinaryBlobsBytes);
-
                             zstdDecompressor ??= new ZstdSharp.Decompressor();
 
-                            DecompressZSTD(zstdDecompressor, reader, context.BinaryBlobs, sizeCompressedBinaryBlobs);
+                            DecompressZSTDBinaryBlobs(zstdDecompressor, reader, context.BinaryBlobs, sizeCompressedBinaryBlobs);
                         }
                         else
                         {
                             // The blob frame was already decompressed together with the buffer frame above
-                            context.BinaryBlobs = new ArraySegment<byte>(buffer1Raw, sizeUncompressedBuffer1, sizeBinaryBlobsBytes);
+                            var blobOffset = sizeUncompressedBuffer1;
+
+                            foreach (var blob in context.BinaryBlobs)
+                            {
+                                buffer1Raw.AsSpan(blobOffset, blob.Length).CopyTo(blob);
+                                blobOffset += blob.Length;
+                            }
                         }
                     }
                     {
@@ -705,8 +785,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 Debug.Assert(context.Types.Count == 0);
                 Debug.Assert(context.ObjectLengths.Count == 0);
-                Debug.Assert(context.BinaryBlobs.Count == 0);
-                Debug.Assert(context.BinaryBlobLengths.Count == 0);
+                Debug.Assert(context.NextBinaryBlob == context.BinaryBlobs.Length);
                 Debug.Assert(context.Buffer.Bytes1.Count == 0);
                 Debug.Assert(context.Buffer.Bytes2.Count == 0);
                 Debug.Assert(context.Buffer.Bytes4.Count == 0);
@@ -727,11 +806,6 @@ namespace ValveResourceFormat.ResourceTypes
                 if (buffer2Raw != null)
                 {
                     ArrayPool<byte>.Shared.Return(buffer2Raw);
-                }
-
-                if (binaryBlobsRaw != null)
-                {
-                    ArrayPool<byte>.Shared.Return(binaryBlobsRaw);
                 }
 
                 zstdDecompressor?.Dispose();
@@ -977,22 +1051,7 @@ namespace ValveResourceFormat.ResourceTypes
                     return output;
                 }
                 case KV3BinaryNodeType.BINARY_BLOB:
-                {
-                    var blockLength = ReadLane<int>(ref context.BinaryBlobLengths);
-                    byte[] output;
-
-                    if (blockLength > 0)
-                    {
-                        output = context.BinaryBlobs.AsSpan(0, blockLength).ToArray();
-                        context.BinaryBlobs = context.BinaryBlobs[blockLength..];
-                    }
-                    else
-                    {
-                        output = [];
-                    }
-
-                    return output;
-                }
+                    return context.BinaryBlobs[context.NextBinaryBlob++];
                 case KV3BinaryNodeType.ARRAY:
                 {
                     var arrayLength = ReadLane<int>(ref buffer.Bytes4);
