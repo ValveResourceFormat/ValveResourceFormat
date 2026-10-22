@@ -99,6 +99,11 @@ namespace ValveResourceFormat.Particles
         public float MaxDrawDistanceSquared { get; }
 
         /// <summary>
+        /// Seconds the system keeps simulating after it was last drawn (<c>m_flNoDrawTimeToGoToSleep</c>).
+        /// </summary>
+        public float NoDrawTimeToGoToSleep { get; }
+
+        /// <summary>
         /// Whether the camera is near enough for the system to draw. Measured to the nearest point of
         /// its bounds rather than to their centre, so a system wide enough to reach the camera is kept
         /// wherever its centre happens to sit.
@@ -302,6 +307,10 @@ namespace ValveResourceFormat.Particles
             MaxDrawDistanceSquared = maxDrawDistance is <= 0f or >= 1e10f
                 ? float.MaxValue
                 : maxDrawDistance * maxDrawDistance;
+
+            // A negative time keeps the system awake for practically ever
+            var noDrawTimeToGoToSleep = parse.Float("m_flNoDrawTimeToGoToSleep", 8f);
+            NoDrawTimeToGoToSleep = noDrawTimeToGoToSleep < 0f ? 65536f : noDrawTimeToGoToSleep;
 
             currentFrameTime = maximumTimeStep;
 

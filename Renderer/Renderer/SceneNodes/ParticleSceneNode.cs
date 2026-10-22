@@ -676,6 +676,13 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             {
                 isSeeded = true;
                 particleRenderer.Simulation.SeedRandom(PlacementSeed());
+                lastDrawnUptime = context.Uptime;
+            }
+
+            if (drawnSinceSimulate)
+            {
+                drawnSinceSimulate = false;
+                lastDrawnUptime = context.Uptime;
             }
 
             if (pendingRestart)
@@ -697,7 +704,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 }
             }
 
-            if (IsPaused)
+            if (IsPaused || IsAsleep(context.Uptime))
             {
                 return;
             }
@@ -734,6 +741,28 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         /// <summary>Whether <see cref="Simulate"/> stepped, so there is something to finish.</summary>
         private bool stepped;
+
+        /// <summary>Set when the effect is drawn, and taken by the next <see cref="Simulate"/>.</summary>
+        private bool drawnSinceSimulate;
+
+        private float lastDrawnUptime;
+
+        /// <summary>
+        /// Whether the effect has gone undrawn for long enough to stop simulating. It holds where it is
+        /// until it is drawn again, without catching up. An effect with no particles stays awake, so it
+        /// can start emitting, and so does one playing its end cap.
+        /// </summary>
+        private bool IsAsleep(float uptime)
+        {
+            var simulation = particleRenderer.Simulation;
+
+            if (Preview || endCapPlayed || simulation.Particles.Count == 0)
+            {
+                return false;
+            }
+
+            return uptime - lastDrawnUptime > simulation.NoDrawTimeToGoToSleep;
+        }
 
         /// <summary>
         /// Finishes the step, on the particles it left and where reaching past the effect is safe, and
@@ -776,6 +805,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             if (IsDrawable && LayerEnabled)
             {
+                drawnSinceSimulate = true;
                 particleRenderer.UpdateBuffers(camera);
             }
         }
