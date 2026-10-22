@@ -1,132 +1,123 @@
 ---
-description: Export Source 2 maps to glTF for Blender or decompile them to .vmap for Hammer Editor, and preview them in Source 2 Viewer.
+description: Find Source 2 maps, preview them in Source 2 Viewer, export them to glTF for Blender or decompile them to .vmap for Hammer Editor.
 ---
 
 # Exporting Maps
 
-Source 2 Viewer can export maps in two ways: as glTF for use in 3D software like Blender, or decompiled to `.vmap` for editing in Hammer Editor.
+Source 2 Viewer exports maps to glTF for Blender and other 3D software, or decompiles them to `.vmap` for Hammer. The examples use Dust II from Counter-Strike 2, `maps/de_dust2.vmap_c` in `game/csgo/maps/de_dust2.vpk`, and Blender 5.2.
 
 ## Finding Maps
 
-Maps are stored as `.vmap_c` files inside VPK archives or as standalone VPK files.
+Each official map has its own package in the game's `maps/` folder. Workshop maps are listed in the Explorer under their game as `[Workshop <id>]`. Open them there rather than from a copy, so the textures they use from the game are found.
 
-- **Official maps**: Each map is stored as its own VPK file (e.g., `de_dust2.vpk`) in the game's `maps/` directory. Inside the VPK, the map data is at `maps/<mapname>.vmap_c` alongside a `maps/<mapname>/` folder containing world nodes, entities, cubemaps, and other dependencies.
-- **Workshop maps**: Stored as individual VPK files in Steam's workshop directory, which can be opened directly with Source 2 Viewer. Open them in place rather than from a copy, so the textures they use from the game are found. See [Game Search Paths](./game-search-paths.md)
+1. In the **Explorer** tab, type the map's name into the filter box and double-click its package.
+
+    ![Explorer filtered to csgo/maps/de_dust2, showing game/csgo/maps/de_dust2.vpk selected and game/csgo/maps/de_dust2_vanity.vpk below it](./images/exporting-maps-explorer.webp)
+
+2. Open the `maps` folder. `de_dust2.vmap_c` is the map.
+
+    ![The de_dust2.vpk package tab with the maps folder open, showing the de_dust2 folder with cubemaps, entities, lightmaps and worldnodes, and de_dust2.vmap_c selected](./images/exporting-maps-package.webp)
 
 ::: warning
-Some games include map files with a `_vanity` suffix (e.g., `de_dust2_vanity.vmap_c`). These are truncated versions used for main menu backgrounds. Use the version without the suffix instead.
+Counter-Strike 2's `_vanity` packages, such as `de_dust2_vanity.vpk`, only hold the menu background scene, and Half-Life: Alyx's [`_commentary` packages](../games/half-life-alyx.md#maps) only the developer commentary. Use the package without the suffix.
 :::
 
 ## Previewing Maps
 
-Double-click a `.vmap_c` file to open the 3D map viewer. The viewer renders the full map with textures, props, and lighting.
+Double-click `de_dust2.vmap_c` to open it.
 
-The map viewer uses free-flight camera by default. Move the mouse to look around, and use <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> to move. Hold <kbd>Alt</kbd>+drag to orbit around a point, <kbd>Shift</kbd>+drag to pan, and scroll to adjust movement speed.
+![Dust II in a map tab of Source 2 Viewer, with the sidebar on the left](./images/exporting-maps-viewer.webp)
 
-Press <kbd>X</kbd> to toggle walk mode, which enables FPS-style movement with collision and gravity. Click on objects in the scene to select and inspect their entity properties.
+Click the 3D view, then:
 
-Two toggles control how the map is culled. **PVS Culling** (shown on maps with precomputed visibility) hides what that visibility data says cannot be seen from the camera, and **Visibility Boxes** (shown on maps that have `info_visibility_box` entities) applies the map's culling boxes. Turn them off to see everything at once.
-
-![Map viewer showing a Source 2 map](./images/exporting-maps-viewer.png)
+- Drag to look around, and use <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> to move.
+- Scroll to fly faster or slower.
+- Hold <kbd>Alt</kbd> and drag to orbit, or <kbd>Shift</kbd> and drag to pan.
 
 ## Export to glTF
 
-Use this workflow when you want to view or render the map in Blender or other 3D software.
+1. Right-click `de_dust2.vmap_c` and select **Decompile & export**.
 
-1. Open the map's VPK file in Source 2 Viewer
-2. Navigate to the `.vmap_c` file
-3. Right-click and select **Decompile & export**
-4. Choose **glTF** as the format (GLB is also available but has a 2 GB size limit)
-5. Select a save location and click Save
+    ![Context menu of de_dust2.vmap_c with Decompile & export highlighted](./images/exporting-maps-context-menu.webp)
 
-The export includes:
+2. Click **OK** in the warning about decompiling maps.
 
-- Map geometry (brushes and meshes)
-- Textures (exported as PNG files alongside the glTF)
-- Props and models placed in the map, with the animation the map sets on animated props such as spinning fans
-- Decals and overlays, offset slightly from their surface so they don't flicker
-- Basic material information
-- The sun (`light_environment`), as a directional light
-- Collision, in a separate `<map>_physics.gltf` file
+3. Choose an empty folder, set **Save as type** to **glTF** and click **Save**.
 
-::: tip
-Map exports can be large. For a typical CS2 competitive map, expect the export to produce hundreds of texture files alongside the glTF.
-:::
+    ![Save dialog in the folder Dust2 glTF with the file name de_dust2_d.vmap and the Save as type list open, offering vmap file, glTF and glTF Binary](./images/exporting-maps-save-dialog.webp)
 
-### If the export fails
+4. When the window says **Export completed**, click **Close**.
 
-Check that you picked the `.vmap_c` file and not one of the files in the map's folder. Game updates can change map data in ways older versions can't read, so follow [Reporting Issues](./reporting-issues.md), which starts with trying the latest development build.
+    ![Export progress window saying Export completed in 0:10](./images/exporting-maps-export-completed.webp)
+
+The export is large, with hundreds of textures for a map like Dust II. It holds the world, the props, decals, the materials and the sun. Brush entities such as bombsites and buy zones go into a second file, `de_dust2_d_physics.gltf`.
+
+It leaves out baked lighting, point and spot lights, the sky and the 3D skybox. Blended materials, such as ground that mixes two textures, keep only their first texture.
 
 ### Importing into Blender
 
-Import the exported map with **File → Import → glTF 2.0 (.gltf/.glb)**. The map comes in as a single scene. See [Importing Models and Maps into Blender](./importing-into-blender.md#maps) for more.
+1. Delete the default cube.
+2. Select **File > Import > glTF 2.0 (.glb/.gltf)**.
+
+    ![Blender's File > Import menu with glTF 2.0 highlighted](./images/characters-in-blender-import-menu.webp)
+
+3. Select `de_dust2_d.gltf`, not the `_physics` file, and click **Import glTF 2.0**. A large map takes a while.
+
+    ![The path of the export folder at the top of Blender's import file browser, with de_dust2_d.gltf selected above de_dust2_d_physics.gltf](./images/exporting-maps-blender-file-browser.webp)
+
+    ![Import options at their defaults, with Pack Images checked and Bone Shape Scale 1.00](./images/exporting-maps-blender-import-options.webp)
+
+4. With the mouse over the viewport, press <kbd>Home</kbd> to see the whole map.
+5. Press <kbd>Z</kbd> and pick **Material Preview** to see the textures.
+
+    ![The shading buttons at the top right of the viewport header, with Material Preview, the third of four, selected](./images/exporting-maps-blender-shading.webp)
+
+![The whole of Dust II imported into Blender, framed with Frame All in Material Preview, with the Outliner and Properties editor on the right](./images/exporting-maps-blender.webp)
+
+To fly through the map, select **View > Navigation > Walk Navigation** and move with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>.
+
+![Long A of Dust II in Blender's Material Preview, with its shop signs, green palm trees and teal umbrellas](./images/exporting-maps-blender-detail.webp)
 
 ## Decompile to .vmap
 
-Use this workflow when you want to open the map in Hammer Editor for editing or study.
+Hammer comes with the game's Workshop Tools. In Steam, enable them under the game's **Properties > DLC**, launch them and create an addon.
 
-1. Open the map file in Source 2 Viewer
-2. Right-click the `.vmap_c` file and select **Decompile & export**
-3. Choose **vmap** as the file type
-4. Save to your Workshop Tools addon content directory (see folder structure below)
-5. Launch Hammer Editor through Workshop Tools and open the decompiled `.vmap`
+1. Right-click `de_dust2.vmap_c`, select **Decompile & export** and click **OK** in the warning.
+2. Go to the `maps` folder of your addon's content folder, keep **Save as type** at **vmap file** and click **Save**.
 
-### Folder Structure
+    ![Save dialog in the folder my_addon > maps with the file name de_dust2_d.vmap and Save as type vmap file](./images/exporting-maps-vmap-save-dialog.webp)
 
-The exported `.vmap` file and its dependency folder must be placed correctly inside your addon content directory. Your folder structure should look like this:
+3. When the export is done, open `de_dust2_d.vmap` in Hammer.
+
+The export writes a `de_dust2` folder next to the `.vmap`, with the models and materials made from the map:
 
 ```
-Counter-Strike Global Offensive/content/csgo_addons/your_addon/
+Counter-Strike Global Offensive/content/csgo_addons/my_addon/
 └── maps/
-    ├── cs_office.vmap
-    └── cs_office/
-        └── <map dependencies>
+    ├── de_dust2_d.vmap
+    └── de_dust2/
 ```
 
-The `.vmap` file sits right next to its matching folder, both inside `maps/` in your addon content. The file is saved as `<map>_d.vmap`; very large maps are split into additional `_d_autosplit_partN.vmap` files, which the main map references.
-
-::: warning
-If a `maps/` folder was exported alongside your `.vmap` file, you may need to move the `.vmap` file inside that `maps/` folder. Exporting outside addon content may not work as expected.
-:::
+The 3D skybox is a separate map and is not decompiled with it.
 
 ::: danger
 Do not use a decompiled map as your first mapping project if you are new to mapping! Decompiled output is messy and does not resemble how real `.vmap` files are made. Learn the basics of Hammer Editor first.
 :::
 
 ::: warning
-Map decompilation is not a perfect round-trip. The output will be imperfect:
-
-- Models will be merged by material across the map
-- Parts of the skybox mesh might be missing
-- Collision will be merged into one mesh using special materials
-- The map will lack lightmap resolution volumes
-- Hammer meshes come back mostly triangulated (adjacent coplanar triangles are merged into quads where possible)
-
-The decompiled map is useful for learning and reference, but should not be expected to recompile identically.
+Compiling a map throws away much of how it was built, so decompiling can only rebuild an approximation. Props the compiler merged come back as one prop per material, and meshes come back as triangles and quads. [Format support](./format-support.md#maps-vmap) lists what the map compiler removes for good.
 :::
-
-### Prerequisites for Hammer
-
-To open decompiled maps in Hammer, you need the game's Workshop Tools installed:
-
-1. In Steam, right-click the game → **Properties → DLC**
-2. Enable and install the Workshop Tools DLC (available for CS2, Half-Life: Alyx, etc.)
-3. Launch the Workshop Tools and create an addon if you haven't already
-4. Save your decompiled `.vmap` into the addon's `maps/` folder
 
 ## Batch Map Export
 
-For exporting multiple maps or automating the process, use the command-line utility:
+The [command-line utility](./command-line.md) exports maps without opening Source 2 Viewer. This exports Dust II to glTF:
 
-```sh
-Source2Viewer-CLI -i "maps/de_dust2.vpk" -o "exported/" -d
+```powershell
+./Source2Viewer-CLI.exe -i "steam:730/game/csgo/maps/de_dust2.vpk" -f "maps/de_dust2.vmap_c" -o "de_dust2/de_dust2.gltf" --gltf_export_format gltf --gltf_textures_adapt
 ```
 
-See the [command-line utility guide](./command-line.md) for more options.
+This exports every map of Counter-Strike 2, which takes tens of GB:
 
-## Limitations
-
-- **glTF export** includes geometry, textures, props and the sun, but not the skybox, baked lighting, point or spot lights, game logic, or navigation meshes
-- **Blended materials**, such as ground that mixes two textures, keep only one texture. See [Blended ground materials](./importing-into-blender.md#blended-ground-materials-show-one-texture)
-- **vmap decompilation** may produce maps that don't compile perfectly due to data loss in the decompilation process
-- Very large maps may take significant time and memory to export
+```powershell
+./Source2Viewer-CLI.exe -i "steam:730/game/csgo/maps" --recursive_vpk -e vmap_c -o "exported" --gltf_export_format gltf --gltf_textures_adapt
+```

@@ -94,9 +94,6 @@ export default defineConfig({
             "/api/": apiSidebar,
             "/": [
                 { text: "Introduction", link: "/" },
-                { text: "Reporting Issues", link: "/guides/reporting-issues" },
-                { text: "Help Write Guides", link: "/guides/contributing" },
-                { text: "Privacy", link: "/guides/privacy" },
                 {
                     text: "Source 2 Viewer",
                     items: [
@@ -105,20 +102,20 @@ export default defineConfig({
                             link: "/guides/getting-started",
                         },
                         {
-                            text: "Game Search Paths",
-                            link: "/guides/game-search-paths",
-                        },
-                        {
-                            text: "Format Support",
-                            link: "/guides/format-support",
-                        },
-                        {
-                            text: "Exporting Maps",
-                            link: "/guides/exporting-maps",
+                            text: "Finding Game Files",
+                            link: "/guides/finding-files",
                         },
                         {
                             text: "Exporting Models",
                             link: "/guides/exporting-models",
+                        },
+                        {
+                            text: "Posing Characters in Blender",
+                            link: "/guides/characters-in-blender",
+                        },
+                        {
+                            text: "Exporting Maps",
+                            link: "/guides/exporting-maps",
                         },
                         {
                             text: "Exporting Textures",
@@ -129,12 +126,20 @@ export default defineConfig({
                             link: "/guides/exporting-sounds",
                         },
                         {
-                            text: "Importing into Blender",
-                            link: "/guides/importing-into-blender",
+                            text: "Screenshots",
+                            link: "/guides/screenshots",
                         },
                         {
                             text: "VPK Management",
                             link: "/guides/vpk-management",
+                        },
+                        {
+                            text: "Game Search Paths",
+                            link: "/guides/game-search-paths",
+                        },
+                        {
+                            text: "Format Support",
+                            link: "/guides/format-support",
                         },
                     ],
                 },
@@ -176,6 +181,9 @@ export default defineConfig({
                         },
                     ],
                 },
+                { text: "Reporting Issues", link: "/guides/reporting-issues" },
+                { text: "Help Write Guides", link: "/guides/contributing" },
+                { text: "Privacy", link: "/guides/privacy" },
             ],
         },
 

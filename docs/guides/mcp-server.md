@@ -1,3 +1,7 @@
+---
+description: Run the opt-in MCP server of a Source 2 Viewer Debug build, so an agent can drive the real viewer window.
+---
+
 # MCP Automation Server
 
 Source 2 Viewer has an opt-in loopback server that lets an agent drive the real viewer window over the Model Context Protocol. The agent can open files, move the camera, change sidebar controls, and inspect entities, models and particle systems. It can also pick, trace, pause and step simulation time, read the log and render stats, and take screenshots.
@@ -26,4 +30,4 @@ claude mcp add --transport http source2viewer http://127.0.0.1:13338/mcp
 
 When the viewer runs with `--mcp`, the agent sees the tools and their descriptions, and uses them to drive the viewer.
 
-While an agent drives the viewer, settings changes stay in memory and the viewer does not save them. The viewer reports errors to the agent instead of opening the error dialog.
+While the viewer runs with `--mcp`, settings changes stay in memory and are not saved, and errors go to the agent instead of opening the error dialog.

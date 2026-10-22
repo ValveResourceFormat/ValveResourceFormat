@@ -27,7 +27,7 @@ The binary name is `Source2Viewer-CLI`.
 | `--all` (or `-a`)                | Print the content of each resource block in the file.                                                                                                                                                                                                                                                            |
 | `--block` (or `-b`)              | Print the content of specific block(s), example: `"DATA"` or `"RERL,RED2"`.                                                                                                                                                                                                                                      |
 | `--vpk_decompile` (or `-d`)      | Decompile supported resource files. Requires `--output`.                                                                                                                                                                                                                                                         |
-| `--texture_decode_flags`         | Decompile textures with the specified decode flags, example: `"none"`, `"auto"` (default), `"ForceLDR"`. Requires `--output`.                                                                                                                                                                                    |
+| `--texture_decode_flags`         | Decompile textures with the specified decode flags, example: `"none"`, `"auto"` (default), `"ForceLDR"` (on top of the automatic flags). Requires `--output`.                                                                                                                                                    |
 | `--skip_softbody_reconstruction` | Skip reconstructing soft-body (cloth) physics when decompiling models.                                                                                                                                                                                                                                           |
 | `--vpk_list` (or `-l`)           | List all files in the given VPK or folder. File extension and path filters apply.                                                                                                                                                                                                                                |
 | `--vpk_dir`                      | Same as `--vpk_list`, but also print the archive index, offset and metadata size of each file.                                                                                                                                                                                                                   |
@@ -56,12 +56,12 @@ There are also `--test` and `--test_*` options for running every file through th
 
 ### Exit codes
 
-The exit code is `0` on success, `1` for invalid arguments, and `2` when any file failed to process. Errors for individual files are printed to stderr and appended to `exceptions.txt` in the current working directory.
+The exit code is `0` on success, `2` when any file failed to process, and `1` for invalid arguments or when there is nothing to process, such as a missing input or a folder without matching files. Errors are printed to stderr, and exceptions are also appended to `exceptions.txt` in the current working directory, or to `exceptions.<extension>.txt` with `--test`.
 
 ### Good to know
 
 - Only one of `--output`, `--vpk_list` (or `--vpk_dir`), `--vpk_verify`, `--vpk_create`, `--block` (or `--all`), `--test`, `--kv_flatten`, and the shader options can be used at a time.
-- Paths starting with `steam:<appid>/` are relative to the installation folder of that Steam app, so `-i steam:730/game/csgo/pak01_dir.vpk` works on any computer with Counter-Strike 2 installed. **Copy URL** in Source 2 Viewer copies `vpk:` links in this form, which can be passed to `--input` to process the file or folder they point to.
+- Paths starting with `steam:<appid>/` are relative to the installation folder of that Steam app, so `-i steam:730/game/csgo/pak01_dir.vpk` works on any computer with Counter-Strike 2 installed. **Copy URL** in Source 2 Viewer copies `vpk:` links in this form, which can be passed to `--input` to process the file or folder they point to, unless they point into a VPK inside of another VPK.
 - Pass the `_dir.vpk` of a multi-chunk package (`pak01_dir.vpk`), not one of the numbered `pak01_000.vpk` chunks.
 - Use `--vpk_list` to find the exact path of a file, then filter on it with `--vpk_filepath`. The filter matches the start of the path, so `models/chicken/` works but `chicken` does not, use `*chicken*` instead.
 - For VPK input, `--output` without `--vpk_decompile` writes the compiled files as they are stored. A single compiled file on disk is decompiled whenever `--output` is given.
@@ -181,7 +181,7 @@ Decompile a single file from a VPK to a specific path:
 Export a model with only specific animations included:
 
 ```powershell
-./Source2Viewer-CLI.exe -i "model.vmdl_c" -o "output.glb" -d --gltf_export_format glb --gltf_export_animations --gltf_animation_list "idle,walk,run"
+./Source2Viewer-CLI.exe -i "steam:570/game/dota/pak01_dir.vpk" -f models/creeps/roshan/roshan.vmdl_c -o "roshan/roshan.glb" --gltf_export_format glb --gltf_textures_adapt --gltf_animation_list "roshan_idle,roshan_run"
 ```
 
 ### Test all files in Steam libraries
