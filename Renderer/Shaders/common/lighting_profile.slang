@@ -3,7 +3,7 @@
 #ifndef VRF_LIGHTING_PROFILE_INCLUDE
 #define VRF_LIGHTING_PROFILE_INCLUDE
 
-// Lightmap Version Minor 0: SteamVR Home and scenes with no lightmaps; 1: hlvr; 2: cs2, steampal; 3-4: citadel.
+// Lightmap Version Minor 0: SteamVR Home and scenes with no lightmaps; 1: hlvr; 2: cs2, steampal; 3-5: citadel.
 
 // Shaders of the vr family define this first. At version 2 they keep the shading of version 1, and only
 // take the environment map blending and the baked shadow mask of version 2, as Aperture Desk Job does.
@@ -18,6 +18,7 @@
 #define BAKED_LIGHT_INDICES (S_LIGHTMAP_VERSION_MINOR == 1) // Up to four baked lights per texel, by index and strength
 #define BAKED_LIGHT_SHADOW_MASK (S_LIGHTMAP_VERSION_MINOR >= 2) // The baked shadows of up to four lights per texel
 #define LIGHTMAP_SH (S_LIGHTMAP_VERSION_MINOR >= 3) // Spherical harmonics rather than one dominant direction
+#define LIGHTMAP_SH_LUMINANCE (S_LIGHTMAP_VERSION_MINOR == 5) // One set of directions for every channel
 
 // Directional lightmaps
 #define LIGHTMAP_DIRECTION_CLAMP (S_LIGHTMAP_VERSION_MINOR >= 2) // Instead of the per material minimum z

@@ -36,8 +36,8 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Baked irradiance, from the lightmap or the light probe volume.</summary>
         [SamplerName("g_tIrradiance", "g_tLPV_Irradiance")]
         Lightmap1,
-        /// <summary>Baked directional irradiance, whole or red split.</summary>
-        [SamplerName("g_tDirectionalIrradiance", "g_tDirectionalIrradianceR")]
+        /// <summary>Baked directional irradiance, whole, red split, or a luminance direction.</summary>
+        [SamplerName("g_tDirectionalIrradiance", "g_tDirectionalIrradianceR", "g_tDirectionalIrradianceLum")]
         Lightmap2,
         /// <summary>Baked direct light indices, or green split directional irradiance.</summary>
         [SamplerName("g_tDirectLightIndices", "g_tLPV_Indices", "g_tDirectionalIrradianceG")]

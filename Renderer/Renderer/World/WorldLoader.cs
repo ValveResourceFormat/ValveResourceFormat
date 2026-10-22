@@ -530,6 +530,7 @@ namespace ValveResourceFormat.Renderer.World
             {"directional_irradiance_sh2_r", "g_tDirectionalIrradianceR"},
             {"directional_irradiance_sh2_g", "g_tDirectionalIrradianceG"},
             {"directional_irradiance_sh2_b", "g_tDirectionalIrradianceB"},
+            {"directional_irradiance_sh2_lum", "g_tDirectionalIrradianceLum"},
             {"direct_light_shadows", "g_tDirectLightShadows"},
             {"direct_light_indices", "g_tDirectLightIndices"},
             {"direct_light_strengths", "g_tDirectLightStrengths"},
@@ -540,6 +541,7 @@ namespace ValveResourceFormat.Renderer.World
         private readonly string[] LightmapSetV81 = ["g_tIrradiance", "g_tDirectionalIrradiance", "g_tDirectLightIndices", "g_tDirectLightStrengths"];
         private readonly string[] LightmapSetV82 = ["g_tIrradiance", "g_tDirectionalIrradiance", "g_tDirectLightShadows"];
         private readonly string[] LightmapSetV83 = ["g_tIrradiance", "g_tDirectionalIrradianceR", "g_tDirectionalIrradianceG", "g_tDirectionalIrradianceB", "g_tDirectLightShadows"];
+        private readonly string[] LightmapSetV85 = ["g_tIrradiance", "g_tDirectionalIrradianceLum", "g_tDirectLightShadows"];
 
         /// <summary>
         /// Loads lightmap and lighting information from the world into the scene.
@@ -592,6 +594,7 @@ namespace ValveResourceFormat.Renderer.World
                 (8, 1) => LightmapSetV81.All(lightmapPresent),
                 (8, 2) => LightmapSetV82.All(lightmapPresent),
                 (8, 3 or 4) => LightmapSetV83.All(lightmapPresent),
+                (8, 5) => LightmapSetV85.All(lightmapPresent),
                 _ => false,
             };
 

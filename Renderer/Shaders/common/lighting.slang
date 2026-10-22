@@ -23,7 +23,9 @@
     centroid in vec4 vLightmapUVScaled; // GetLightmapCoordinates
     uniform sampler2DArray g_tIrradiance; // reserved
     uniform sampler2DArray g_tLightmapDebugCharts; // reserved
-    #if (LIGHTMAP_SH)
+    #if (LIGHTMAP_SH_LUMINANCE)
+        uniform sampler2DArray g_tDirectionalIrradianceLum; // reserved
+    #elif (LIGHTMAP_SH)
         uniform sampler2DArray g_tDirectionalIrradianceR; // reserved
         uniform sampler2DArray g_tDirectionalIrradianceG; // reserved
         uniform sampler2DArray g_tDirectionalIrradianceB; // reserved
@@ -426,7 +428,12 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
         lighting.DiffuseIndirect = irradiance;
     } else {
         vec3 irradiance = texture(g_tIrradiance, mat.LightmapUv).rgb;
-        #if (LIGHTMAP_SH)
+        #if (LIGHTMAP_SH_LUMINANCE)
+            // One direction relative to luminance, shared by every channel
+            vec3 packedDirection = texture(g_tDirectionalIrradianceLum, mat.LightmapUv).rgb;
+            g_LightmapSH = DecodeLightmapSH(irradiance, packedDirection, packedDirection, packedDirection);
+            lighting.DiffuseIndirect = EvaluateLightmapSH(g_LightmapSH, mat.AmbientNormal);
+        #elif (LIGHTMAP_SH)
             g_LightmapSH = DecodeLightmapSH(irradiance,
                 texture(g_tDirectionalIrradianceR, mat.LightmapUv).rgb,
                 texture(g_tDirectionalIrradianceG, mat.LightmapUv).rgb,
