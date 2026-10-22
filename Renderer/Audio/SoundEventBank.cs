@@ -45,9 +45,9 @@ public sealed class SoundEventBank
     /// <summary>Adds all sound event definitions from a parsed soundevents file.</summary>
     public void AddSoundEvents(KVObject soundEventsFile)
     {
-        foreach (var soundEvent in soundEventsFile)
+        foreach (var (name, soundEventData) in soundEventsFile)
         {
-            AddSoundEvent(soundEvent.Key, soundEventsFile.GetSubCollection(soundEvent.Key));
+            AddSoundEvent(name, soundEventData);
         }
     }
 
