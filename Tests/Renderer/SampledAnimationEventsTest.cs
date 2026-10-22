@@ -49,15 +49,15 @@ namespace Tests.Renderer
 
             using (Assert.Multiple())
             {
-                await Assert.That(Sampled(Sample(animation, 0f, 0.1f))).IsEquivalentTo(ClipStartEvents, CollectionOrdering.Matching).Because("events at the very start fire on the first update");
+                await Assert.That(Sampled(Sample(animation, 0f, 0.1f))).IsEquivalentTo(ClipStartEvents, EqualityComparer<float>.Default, CollectionOrdering.Matching).Because("events at the very start fire on the first update");
                 await Assert.That(Sampled(Sample(animation, 0.1f, 0.2f))).IsEmpty();
-                await Assert.That(Sampled(Sample(animation, 0.2f, 0.3f))).IsEquivalentTo(PumpSoundEvent, CollectionOrdering.Matching);
-                await Assert.That(Sampled(Sample(animation, 0.7f, 0.9f))).IsEquivalentTo(ClipStartEvents, CollectionOrdering.Matching).Because("looping playback wraps around the end of the clip");
+                await Assert.That(Sampled(Sample(animation, 0.2f, 0.3f))).IsEquivalentTo(PumpSoundEvent, EqualityComparer<float>.Default, CollectionOrdering.Matching);
+                await Assert.That(Sampled(Sample(animation, 0.7f, 0.9f))).IsEquivalentTo(ClipStartEvents, EqualityComparer<float>.Default, CollectionOrdering.Matching).Because("looping playback wraps around the end of the clip");
                 await Assert.That(Sampled(Sample(animation, 0f, 1.5f))).Count().IsEqualTo(4).Because("a range longer than the clip fires everything once");
                 await Assert.That(Sampled(Sample(animation, 0.4f, 0.2f))).IsEmpty().Because("a restart does not re-fire events");
                 await Assert.That(Sampled(Sample(animation, 1f, 1f))).IsEmpty().Because("a paused clip does not re-fire the events it is sitting on");
                 await Assert.That(Sampled(Sample(animation, 0f, 0f))).IsEmpty();
-                await Assert.That(Sampled(Sample(animation, 0.3f, 0.35f, finished: true))).IsEquivalentTo(ShellCasingEvent, CollectionOrdering.Matching).Because("the last update of a non looping clip fires the events up to its end");
+                await Assert.That(Sampled(Sample(animation, 0.3f, 0.35f, finished: true))).IsEquivalentTo(ShellCasingEvent, EqualityComparer<float>.Default, CollectionOrdering.Matching).Because("the last update of a non looping clip fires the events up to its end");
             }
         }
 
@@ -113,8 +113,7 @@ namespace Tests.Renderer
             fired.Clear();
             player.Update(0.15f, Matrix4x4.Identity);
 
-            await Assert.That(fired.Select(e => e.StartSeconds)).IsEquivalentTo(PumpSoundEvent, CollectionOrdering.Matching)
-                .Using((a, b) => MathF.Abs(a - b) <= 0.0001f);
+            await Assert.That(fired.Select(e => e.StartSeconds)).IsEquivalentTo(PumpSoundEvent, TestFixtures.FloatComparer, CollectionOrdering.Matching);
         }
     }
 }

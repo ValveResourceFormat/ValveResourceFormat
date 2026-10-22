@@ -14,6 +14,7 @@ namespace ValveResourceFormat.SourceGenerators;
 /// <remarks>
 /// A node is a top level, non abstract class deriving from <c>GraphNode</c>. It is registered under the
 /// compiled class named after it and is created through its constructor taking the compiled definition.
+/// A nested or generic node is an error, since it could not be registered.
 /// </remarks>
 [Generator(LanguageNames.CSharp)]
 public sealed class GraphNodeRegistrationGenerator : IIncrementalGenerator
@@ -21,42 +22,82 @@ public sealed class GraphNodeRegistrationGenerator : IIncrementalGenerator
     private const string AnimationNamespace = "ValveResourceFormat.Animation";
     private const string GraphNodeName = AnimationNamespace + ".GraphNode";
 
+    private static readonly DiagnosticDescriptor UnregisterableNode = new(
+        "VRFNODE001",
+        "Graph node cannot be registered",
+        "Graph node '{0}' is nested or generic, so it is not registered with the node factory; make it a top level, non generic class or mark it abstract",
+        "GraphNodeRegistration",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     /// <inheritdoc/>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var nodes = context.SyntaxProvider.CreateSyntaxProvider(
-            static (node, _) => node is ClassDeclarationSyntax { BaseList: not null, Parent: not TypeDeclarationSyntax },
-            static (context, cancellationToken) => GetNodeTypeName((ClassDeclarationSyntax)context.Node, context.SemanticModel, cancellationToken))
-            .Where(static name => name != null)
+            static (node, _) => node is ClassDeclarationSyntax { BaseList: not null },
+            static (context, cancellationToken) => GetNode((ClassDeclarationSyntax)context.Node, context.SemanticModel, cancellationToken))
+            .Where(static node => node != null)
             .Collect();
 
-        context.RegisterSourceOutput(nodes, static (context, names) =>
+        context.RegisterSourceOutput(nodes, static (context, nodes) =>
         {
-            if (names.IsEmpty)
+            var names = ImmutableArray.CreateBuilder<string>();
+
+            foreach (var node in nodes)
+            {
+                if (node!.Diagnostic != null)
+                {
+                    context.ReportDiagnostic(node.Diagnostic);
+                }
+                else
+                {
+                    names.Add(node.Name);
+                }
+            }
+
+            if (names.Count == 0)
             {
                 return;
             }
 
-            context.AddSource("GraphNodeRegistration.g.cs", SourceText.From(Generate(names!), Encoding.UTF8));
+            context.AddSource("GraphNodeRegistration.g.cs", SourceText.From(Generate(names.ToImmutable()), Encoding.UTF8));
         });
     }
 
-    private static string? GetNodeTypeName(ClassDeclarationSyntax declaration, SemanticModel model, System.Threading.CancellationToken cancellationToken)
+    private sealed class Node(string name, Diagnostic? diagnostic)
     {
-        if (model.GetDeclaredSymbol(declaration, cancellationToken) is not INamedTypeSymbol type || type.IsAbstract || type.IsGenericType)
+        public string Name { get; } = name;
+        public Diagnostic? Diagnostic { get; } = diagnostic;
+    }
+
+    private static Node? GetNode(ClassDeclarationSyntax declaration, SemanticModel model, System.Threading.CancellationToken cancellationToken)
+    {
+        if (model.GetDeclaredSymbol(declaration, cancellationToken) is not INamedTypeSymbol type || type.IsAbstract || !DerivesFromGraphNode(type))
         {
             return null;
         }
 
+        var name = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+
+        if (type.ContainingType != null || type.IsGenericType)
+        {
+            return new Node(name, Diagnostic.Create(UnregisterableNode, declaration.Identifier.GetLocation(), type.Name));
+        }
+
+        return new Node(name, null);
+    }
+
+    private static bool DerivesFromGraphNode(INamedTypeSymbol type)
+    {
         for (var baseType = type.BaseType; baseType != null; baseType = baseType.BaseType)
         {
             if (baseType.ToDisplayString() == GraphNodeName)
             {
-                return type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                return true;
             }
         }
 
-        return null;
+        return false;
     }
 
     private static string Generate(ImmutableArray<string> names)

@@ -523,6 +523,25 @@ namespace ValveResourceFormat.Serialization.KeyValues
         }
 
         /// <summary>
+        /// Creates a collection keyed by item index, the KeyValues1 text form of a list.
+        /// </summary>
+        internal static KVObject ToIndexedCollection<T>(this IReadOnlyList<T> items, Func<T, KVObject> convertItem)
+        {
+            var collection = KVObject.ListCollection(items.Count);
+
+            for (var i = 0; i < items.Count; i++)
+            {
+                collection.Add(i.ToString(CultureInfo.InvariantCulture), convertItem(items[i]));
+            }
+
+            return collection;
+        }
+
+        /// <inheritdoc cref="ToIndexedCollection{T}(IReadOnlyList{T}, Func{T, KVObject})"/>
+        internal static KVObject ToIndexedCollection(this IReadOnlyList<string> items)
+            => items.ToIndexedCollection(static item => item);
+
+        /// <summary>
         /// Deserializes KeyValues1 text that keeps several keys at its top level rather than a single root.
         /// </summary>
         /// <param name="serializer">A KeyValues1 text serializer.</param>

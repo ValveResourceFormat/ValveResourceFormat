@@ -32,7 +32,7 @@ namespace Tests.IO
             };
 
             var result = new BasicShaderDataProvider().GetInputsForTexture("g_tColor", GetMockMaterial(translucent));
-            await Assert.That(result).IsEquivalentTo(vr_complex_expected_inputs);
+            await Assert.That(result).IsEquivalentTo(vr_complex_expected_inputs, EqualityComparer<(ChannelMapping, string)>.Default);
         }
 
         [Test]
@@ -56,7 +56,7 @@ namespace Tests.IO
 
             var result = new MaterialExtract(GetMockMaterial(translucent), null, null, new BasicShaderDataProvider())
                 .GetTextureUnpackInfos("g_tColor", "test_color_jpg_65b7aff5.vtex", null, false, false);
-            await Assert.That(result).IsEquivalentTo(vr_complex_expected_inputs);
+            await Assert.That(result).IsEquivalentTo(vr_complex_expected_inputs, EqualityComparer<MaterialExtract.UnpackInfo>.Default);
         }
 
         [Test]

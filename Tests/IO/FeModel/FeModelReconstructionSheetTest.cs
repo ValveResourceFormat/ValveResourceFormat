@@ -296,8 +296,8 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
-                await Assert.That(cloth.VertexMapAliases("alias1")).IsEquivalentTo(AliasPair, CollectionOrdering.Matching);
-                await Assert.That(cloth.VertexMapAliases("half")).IsEquivalentTo(HalfOnly, CollectionOrdering.Matching);
+                await Assert.That(cloth.VertexMapAliases("alias1")).IsEquivalentTo(AliasPair, StringComparer.Ordinal, CollectionOrdering.Matching);
+                await Assert.That(cloth.VertexMapAliases("half")).IsEquivalentTo(HalfOnly, StringComparer.Ordinal, CollectionOrdering.Matching);
                 await Assert.That(cloth.VertexMapAliases("missing").Count).IsEqualTo(0);
             }
         }
@@ -328,10 +328,10 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
-                await Assert.That(rebuilt).IsEquivalentTo(["vertex_set_0", "vertex_set_1"], CollectionOrdering.Matching);
-                await Assert.That(Names(defaultSet)).IsEquivalentTo(["vertex_set_0"]);
-                await Assert.That(Names(otherModel)).IsEquivalentTo(["vertex_set_0", "vertex_set_1"], CollectionOrdering.Matching);
-                await Assert.That(Names(shipped)).IsEquivalentTo(["chain"]);
+                await Assert.That(rebuilt).IsEquivalentTo(["vertex_set_0", "vertex_set_1"], StringComparer.Ordinal, CollectionOrdering.Matching);
+                await Assert.That(Names(defaultSet)).IsEquivalentTo(["vertex_set_0"], StringComparer.Ordinal);
+                await Assert.That(Names(otherModel)).IsEquivalentTo(["vertex_set_0", "vertex_set_1"], StringComparer.Ordinal, CollectionOrdering.Matching);
+                await Assert.That(Names(shipped)).IsEquivalentTo(["chain"], StringComparer.Ordinal);
             }
         }
 
@@ -352,8 +352,8 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
-                await Assert.That(Names(rebuilt)).IsEquivalentTo(["vertex_set_1"]);
-                await Assert.That(Names(shipped)).IsEquivalentTo(["jiggles"]);
+                await Assert.That(Names(rebuilt)).IsEquivalentTo(["vertex_set_1"], StringComparer.Ordinal);
+                await Assert.That(Names(shipped)).IsEquivalentTo(["jiggles"], StringComparer.Ordinal);
             }
         }
 
@@ -399,7 +399,7 @@ namespace Tests.IO
                 await Assert.That(Model(0.01f).QuadBendTolerance).IsEqualTo(0.05f);
                 await Assert.That(Model(1f, rod).QuadBendTolerance).IsEqualTo(0.05f);
                 await Assert.That(ClothReconstruction.BentQuadRodsFromFaces(faces, nearlyPlanar.Index.InitPosePositions, static node => node == 0, 0f))
-                    .IsEquivalentTo(splitRod);
+                    .IsEquivalentTo(splitRod, EqualityComparer<(int, int)>.Default);
                 await Assert.That(ClothReconstruction.BentQuadRodsFromFaces(faces, nearlyPlanar.Index.InitPosePositions, static node => node == 0, 0.05f))
                     .IsEmpty();
             }
@@ -687,10 +687,10 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
-                await Assert.That(ordered).IsEquivalentTo(winnersFirst, CollectionOrdering.Matching);
-                await Assert.That(unconstrained).IsEquivalentTo(names, CollectionOrdering.Matching);
-                await Assert.That(cyclic).IsEquivalentTo(names, CollectionOrdering.Matching);
-                await Assert.That(partial).IsEquivalentTo(charlieLast, CollectionOrdering.Matching);
+                await Assert.That(ordered).IsEquivalentTo(winnersFirst, StringComparer.Ordinal, CollectionOrdering.Matching);
+                await Assert.That(unconstrained).IsEquivalentTo(names, StringComparer.Ordinal, CollectionOrdering.Matching);
+                await Assert.That(cyclic).IsEquivalentTo(names, StringComparer.Ordinal, CollectionOrdering.Matching);
+                await Assert.That(partial).IsEquivalentTo(charlieLast, StringComparer.Ordinal, CollectionOrdering.Matching);
                 await Assert.That(string.Join(",", ordered)).IsEqualTo("alpha,bravo,charlie");
             }
         }
@@ -982,7 +982,7 @@ namespace Tests.IO
                 await Assert.That(unfitted.DeferredOffsetSkinWeights.ContainsKey(Fitless)).IsTrue();
 
                 await Assert.That(fitted.RecoveredSkinWeights.GetValueOrDefault(Fitless, []).Select(static influence => influence.Bone))
-                    .IsEquivalentTo(["bone_1", "bone_2"]);
+                    .IsEquivalentTo(["bone_1", "bone_2"], StringComparer.Ordinal);
             }
         }
 
@@ -1086,7 +1086,7 @@ namespace Tests.IO
                 CtrlSoftOffsets = [new FeCtrlSoftOffset(-1, 1, Vector3.Zero, 0.5f)],
             }.Reconstruct();
 
-            await Assert.That(cloth.RecoveredSkinWeights[1].Select(static influence => influence.Bone)).IsEquivalentTo(["bone_0"]);
+            await Assert.That(cloth.RecoveredSkinWeights[1].Select(static influence => influence.Bone)).IsEquivalentTo(["bone_0"], StringComparer.Ordinal);
         }
 
         /// <summary>
@@ -1136,7 +1136,7 @@ namespace Tests.IO
             }.Reconstruct();
 
             await Assert.That(cloth.RecoveredSkinWeights[3].Select(static influence => influence.Bone))
-                .IsEquivalentTo(["b", "s0", "s1"]);
+                .IsEquivalentTo(["b", "s0", "s1"], StringComparer.Ordinal);
         }
     }
 }

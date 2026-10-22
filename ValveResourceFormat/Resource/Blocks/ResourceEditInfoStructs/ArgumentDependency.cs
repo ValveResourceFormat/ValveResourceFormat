@@ -51,5 +51,15 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
             Fingerprint = data.GetUInt32Property("m_nFingerprint");
             FingerprintDefault = data.GetUInt32Property("m_nFingerprintDefault");
         }
+
+        internal KVObject ToKeyValues()
+        {
+            var kv = KVObject.ListCollection();
+            kv.Add(nameof(ParameterName), ParameterName);
+            kv.Add(nameof(ParameterType), ParameterType);
+            kv.Add(nameof(Fingerprint), Fingerprint);
+            kv.Add(nameof(FingerprintDefault), FingerprintDefault);
+            return kv;
+        }
     }
 }

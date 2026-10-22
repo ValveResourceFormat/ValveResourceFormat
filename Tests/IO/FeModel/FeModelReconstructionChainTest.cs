@@ -75,9 +75,9 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
-                await Assert.That(split[0].Joints[0].RingNodes).IsEquivalentTo([1, 2]);
-                await Assert.That(split[1].Joints[0].RingNodes).IsEquivalentTo([3, 4]);
-                await Assert.That(single[0].Joints[0].RingNodes).IsEquivalentTo([1, 2, 3, 4]);
+                await Assert.That(split[0].Joints[0].RingNodes).IsEquivalentTo([1, 2], EqualityComparer<int>.Default);
+                await Assert.That(split[1].Joints[0].RingNodes).IsEquivalentTo([3, 4], EqualityComparer<int>.Default);
+                await Assert.That(single[0].Joints[0].RingNodes).IsEquivalentTo([1, 2, 3, 4], EqualityComparer<int>.Default);
             }
         }
 
@@ -577,7 +577,7 @@ namespace Tests.IO
             using (Assert.Multiple())
             {
                 await Assert.That(mixed.IsImportedCloth).IsFalse();
-                await Assert.That(mixed.ImportedStripNodes.Order()).IsEquivalentTo([0, 1, 2, 3]);
+                await Assert.That(mixed.ImportedStripNodes.Order()).IsEquivalentTo([0, 1, 2, 3], EqualityComparer<int>.Default);
                 await Assert.That(joints.Overlaps([0, 1, 2, 3])).IsFalse();
                 await Assert.That(joints.Contains(5)).IsTrue();
                 await Assert.That(alone.IsImportedCloth).IsTrue();
@@ -979,20 +979,20 @@ namespace Tests.IO
             {
                 await Assert.That(cloth.Index.NodeBases.Count).IsEqualTo(2);
                 await Assert.That(cloth.Index.NodeBases[1]).IsEqualTo(new FeModelIndex.NodeBasis(1, 0, 2, 0));
-                await Assert.That(cloth.Index.TwistNodes.Order()).IsEquivalentTo([0, 1, 2], CollectionOrdering.Matching);
+                await Assert.That(cloth.Index.TwistNodes.Order()).IsEquivalentTo([0, 1, 2], EqualityComparer<int>.Default, CollectionOrdering.Matching);
 
                 await Assert.That(cloth.Fe.Twists).IsEquivalentTo(
                     [
                         new FeModel.FeTwistConstraint(1, 0, 0.618f, 0f),
                         new FeModel.FeTwistConstraint(1, 2, 0.382f, 1f),
                         new FeModel.FeTwistConstraint(1, 0, 0.2163f, 0.5f),
-                    ], CollectionOrdering.Matching);
+                    ], EqualityComparer<FeModel.FeTwistConstraint>.Default, CollectionOrdering.Matching);
                 await Assert.That(cloth.Index.NodeBaseRecords).IsEquivalentTo(
                     [
                         (1, new FeModelIndex.NodeBasis(1, 2, 0, 2)),
                         (1, new FeModelIndex.NodeBasis(1, 0, 2, 0)),
                         (2, new FeModelIndex.NodeBasis(2, 1, 0, 1)),
-                    ], CollectionOrdering.Matching);
+                    ], EqualityComparer<(int, FeModelIndex.NodeBasis)>.Default, CollectionOrdering.Matching);
             }
         }
 
@@ -1103,6 +1103,7 @@ namespace Tests.IO
             {
                 await Assert.That(chains.Count).IsEqualTo(1);
                 await Assert.That(chains[0].Joints.Select(static joint => joint.Node)).IsEquivalentTo(Enumerable.Range(0, Depth),
+                    EqualityComparer<int>.Default,
                     CollectionOrdering.Matching);
             }
         }

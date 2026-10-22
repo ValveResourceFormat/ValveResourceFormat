@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ToolsAssetInfo
 {
@@ -80,6 +81,17 @@ namespace ValveResourceFormat.ToolsAssetInfo
                 /// Gets a value indicating whether the file exists.
                 /// </summary>
                 public bool FileExists { get; init; }
+
+                internal KVObject ToKeyValues()
+                {
+                    var kv = KVObject.ListCollection();
+                    kv.Add(nameof(Filename), Filename);
+                    kv.Add(nameof(Location), (int)Location);
+                    kv.Add(nameof(FileCRC), FileCRC);
+                    kv.Add(nameof(Optional), Optional);
+                    kv.Add(nameof(FileExists), FileExists);
+                    return kv;
+                }
             }
 
             /// <summary>
@@ -111,7 +123,6 @@ namespace ValveResourceFormat.ToolsAssetInfo
                 /// Gets the last modification time of the file as a FILETIME. It has a resolution
                 /// of 102.4 microseconds because the low 10 bits are not stored.
                 /// </summary>
-                [KVIgnore]
                 public long ModificationTimeFileTime { get; init; }
 
                 /// <summary>
@@ -123,6 +134,18 @@ namespace ValveResourceFormat.ToolsAssetInfo
                 /// Gets the size of the file in bytes.
                 /// </summary>
                 public long FileSize { get; init; }
+
+                internal KVObject ToKeyValues()
+                {
+                    var kv = KVObject.ListCollection();
+                    kv.Add(nameof(Filename), Filename);
+                    kv.Add(nameof(FileCRC), FileCRC);
+                    kv.Add(nameof(HasCRC), HasCRC);
+                    kv.Add(nameof(Writable), Writable);
+                    kv.Add(nameof(ModificationTime), ModificationTime);
+                    kv.Add(nameof(FileSize), FileSize);
+                    return kv;
+                }
             }
 
             /// <summary>
@@ -149,6 +172,16 @@ namespace ValveResourceFormat.ToolsAssetInfo
                 /// Gets or sets the user data.
                 /// </summary>
                 public uint UserData { get; set; }
+
+                internal readonly KVObject ToKeyValues()
+                {
+                    var kv = KVObject.ListCollection();
+                    kv.Add(nameof(String), String);
+                    kv.Add(nameof(CompilerIdentifier), CompilerIdentifier);
+                    kv.Add(nameof(Fingerprint), Fingerprint);
+                    kv.Add(nameof(UserData), UserData);
+                    return kv;
+                }
             }
 
             /// <summary>
@@ -185,6 +218,18 @@ namespace ValveResourceFormat.ToolsAssetInfo
                 /// Gets the fingerprint.
                 /// </summary>
                 public uint Fingerprint { get; init; }
+
+                internal KVObject ToKeyValues()
+                {
+                    var kv = KVObject.ListCollection();
+                    kv.Add(nameof(CompilerIdentifier), CompilerIdentifier);
+                    kv.Add(nameof(Special), Special);
+                    kv.Add(nameof(UserData), UserData);
+                    kv.Add(nameof(Filename), Filename);
+                    kv.Add(nameof(Location), (int)Location);
+                    kv.Add(nameof(Fingerprint), Fingerprint);
+                    return kv;
+                }
             }
 
             /// <summary>
@@ -272,6 +317,60 @@ namespace ValveResourceFormat.ToolsAssetInfo
             /// Gets the subasset references.
             /// </summary>
             public Dictionary<string, Dictionary<string, int>> SubassetReferences { get; } = [];
+
+            internal KVObject ToKeyValues()
+            {
+                var searchableUserData = KVObject.ListCollection(SearchableUserData.Count);
+                foreach (var (key, value) in SearchableUserData)
+                {
+                    KVObject kvValue = value switch
+                    {
+                        string text => text,
+                        float number => number,
+                        int number => number,
+                        _ => value.ToString()!,
+                    };
+                    searchableUserData.Add(key, kvValue);
+                }
+
+                var subassetDefinitions = KVObject.ListCollection(SubassetDefinitions.Count);
+                foreach (var (key, names) in SubassetDefinitions)
+                {
+                    subassetDefinitions.Add(key, names.ToIndexedCollection());
+                }
+
+                var subassetReferences = KVObject.ListCollection(SubassetReferences.Count);
+                foreach (var (key, references) in SubassetReferences)
+                {
+                    var referenceCounts = KVObject.ListCollection(references.Count);
+                    foreach (var (name, count) in references)
+                    {
+                        referenceCounts.Add(name, count);
+                    }
+
+                    subassetReferences.Add(key, referenceCounts);
+                }
+
+                var kv = KVObject.ListCollection();
+                kv.Add(nameof(NeedsRefresh), NeedsRefresh);
+                kv.Add(nameof(DependencyInfo), (int)DependencyInfo);
+                kv.Add(nameof(ForcedUpToDate), ForcedUpToDate);
+                kv.Add(nameof(CompileFailed), CompileFailed);
+                kv.Add(nameof(SearchPathsGameRoot), SearchPathsGameRoot.ToIndexedCollection(static path => path.ToKeyValues()));
+                kv.Add(nameof(SearchPathsContentRoot), SearchPathsContentRoot.ToIndexedCollection(static path => path.ToKeyValues()));
+                kv.Add(nameof(InputDependencies), InputDependencies.ToIndexedCollection(static dependency => dependency.ToKeyValues()));
+                kv.Add(nameof(AdditionalInputDependencies), AdditionalInputDependencies.ToIndexedCollection(static dependency => dependency.ToKeyValues()));
+                kv.Add(nameof(ExternalReferences), ExternalReferences.ToIndexedCollection());
+                kv.Add(nameof(ChildResources), ChildResources.ToIndexedCollection());
+                kv.Add(nameof(AdditionalRelatedFiles), AdditionalRelatedFiles.ToIndexedCollection());
+                kv.Add(nameof(WeakReferences), WeakReferences.ToIndexedCollection());
+                kv.Add(nameof(SpecialDependencies), SpecialDependencies.ToIndexedCollection(static dependency => dependency.ToKeyValues()));
+                kv.Add(nameof(SpecialInputDependencies), SpecialInputDependencies.ToIndexedCollection(static dependency => dependency.ToKeyValues()));
+                kv.Add(nameof(SearchableUserData), searchableUserData);
+                kv.Add(nameof(SubassetDefinitions), subassetDefinitions);
+                kv.Add(nameof(SubassetReferences), subassetReferences);
+                return kv;
+            }
         }
 
         /// <summary>
@@ -757,9 +856,15 @@ namespace ValveResourceFormat.ToolsAssetInfo
         /// <inheritdoc/>
         public override string ToString()
         {
+            var files = KVObject.ListCollection(Files.Count);
+            foreach (var (name, file) in Files)
+            {
+                files.Add(name, file.ToKeyValues());
+            }
+
             using var ms = new MemoryStream();
-            KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, Files, nameof(ToolsAssetInfo));
-            return Encoding.UTF8.GetString(ms.ToArray());
+            KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, files, nameof(ToolsAssetInfo));
+            return Encoding.UTF8.GetString(ms.GetBuffer(), 0, (int)ms.Length);
         }
     }
 }

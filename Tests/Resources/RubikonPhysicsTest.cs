@@ -115,14 +115,14 @@ namespace Tests.Resources
 
             using (Assert.Multiple())
             {
-                await Assert.That(PhysAggregateData.GetInteractAsTags(modern)).IsEquivalentTo(["solid", "player"], CollectionOrdering.Matching);
-                await Assert.That(PhysAggregateData.GetInteractAsTags(legacy)).IsEquivalentTo(["solid", "player"], CollectionOrdering.Matching);
+                await Assert.That(PhysAggregateData.GetInteractAsTags(modern)).IsEquivalentTo(["solid", "player"], StringComparer.Ordinal, CollectionOrdering.Matching);
+                await Assert.That(PhysAggregateData.GetInteractAsTags(legacy)).IsEquivalentTo(["solid", "player"], StringComparer.Ordinal, CollectionOrdering.Matching);
 
                 // No tags at all is empty, never null.
                 await Assert.That(PhysAggregateData.GetInteractAsTags(neither)).IsEmpty();
 
                 await Assert.That(phys.GetInteractAsTags(0))
-                    .IsEquivalentTo(PhysAggregateData.GetInteractAsTags(phys.CollisionAttributes[0]), CollectionOrdering.Matching);
+                    .IsEquivalentTo(PhysAggregateData.GetInteractAsTags(phys.CollisionAttributes[0]), StringComparer.Ordinal, CollectionOrdering.Matching);
                 await Assert.That(phys.GetInteractAsTags(phys.CollisionAttributes.Count)).IsEmpty();
                 await Assert.That(phys.GetInteractAsTags(-1)).IsEmpty();
             }

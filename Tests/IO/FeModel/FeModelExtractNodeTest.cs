@@ -87,8 +87,8 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
-                await Assert.That(grouped).IsEquivalentTo(DeclaredCapsules, CollectionOrdering.Matching);
-                await Assert.That(ungrouped).IsEquivalentTo(ArrayOrderCapsules, CollectionOrdering.Matching);
+                await Assert.That(grouped).IsEquivalentTo(DeclaredCapsules, StringComparer.Ordinal, CollectionOrdering.Matching);
+                await Assert.That(ungrouped).IsEquivalentTo(ArrayOrderCapsules, StringComparer.Ordinal, CollectionOrdering.Matching);
             }
         }
 
@@ -409,8 +409,8 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
-                await Assert.That(Classes(cloth, static _ => false)).IsEquivalentTo(["ClothNode", "ClothChain", "ClothChain"]);
-                await Assert.That(Classes(cloth, static _ => true)).IsEquivalentTo(["ClothChain", "ClothChain", "ClothChain"]);
+                await Assert.That(Classes(cloth, static _ => false)).IsEquivalentTo(["ClothNode", "ClothChain", "ClothChain"], StringComparer.Ordinal);
+                await Assert.That(Classes(cloth, static _ => true)).IsEquivalentTo(["ClothChain", "ClothChain", "ClothChain"], StringComparer.Ordinal);
             }
         }
 
@@ -473,9 +473,9 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
-                await Assert.That(bones).IsEquivalentTo(declaredBones, CollectionOrdering.Matching);
+                await Assert.That(bones).IsEquivalentTo(declaredBones, StringComparer.Ordinal, CollectionOrdering.Matching);
                 await Assert.That(added.Select(static node => node.GetStringProperty("name")).ToArray())
-                    .IsEquivalentTo(declaredBones, CollectionOrdering.Matching);
+                    .IsEquivalentTo(declaredBones, StringComparer.Ordinal, CollectionOrdering.Matching);
                 await Assert.That(added.Count(static node => node.GetStringProperty("_class") == "ClothNode"
                     && node.GetBooleanProperty("is_static_node") && !node.ContainsKey("goal_strength"))).IsEqualTo(1);
 
@@ -570,9 +570,9 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
-                await Assert.That(RopeAlignments(bare)).IsEquivalentTo(NoRopeAlignments, CollectionOrdering.Matching);
+                await Assert.That(RopeAlignments(bare)).IsEquivalentTo(NoRopeAlignments, EqualityComparer<int>.Default, CollectionOrdering.Matching);
 
-                await Assert.That(RopeAlignments(roped)).IsEquivalentTo(RopedAlignments, CollectionOrdering.Matching);
+                await Assert.That(RopeAlignments(roped)).IsEquivalentTo(RopedAlignments, EqualityComparer<int>.Default, CollectionOrdering.Matching);
             }
         }
 
@@ -617,7 +617,7 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
-                await Assert.That(into.Keys.Order()).IsEquivalentTo(["cape", "tip"]);
+                await Assert.That(into.Keys.Order()).IsEquivalentTo(["cape", "tip"], StringComparer.Ordinal);
                 await Assert.That(MathF.Abs(Quaternion.Dot(turned.GetValueOrDefault("cape"), turn))).IsEqualTo(1f).Within(1e-6f);
                 await Assert.That(MathF.Abs(Quaternion.Dot(turn * into.GetValueOrDefault("tip"), Quaternion.Identity)))
                     .IsEqualTo(1f).Within(1e-6f);
@@ -704,7 +704,7 @@ namespace Tests.IO
                 await Assert.That(foreign.Parent.Children.Count).IsEqualTo(0);
 
                 await Assert.That(nested.Model.Children.Select(static c => c.Name)).DoesNotContain("collar_1");
-                await Assert.That(nested.Parent.Children.Select(static c => c.Name)).IsEquivalentTo(["collar_1"]);
+                await Assert.That(nested.Parent.Children.Select(static c => c.Name)).IsEquivalentTo(["collar_1"], StringComparer.Ordinal);
                 await Assert.That(Vector3.Distance(nested.Culled.Transform.Position, new Vector3(4f, 0f, 0f))).IsLessThan(1e-4f);
             }
         }
@@ -752,13 +752,13 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
-                await Assert.That(unparented.Pelvis.Children.Select(static c => c.Name)).IsEquivalentTo(["leg_upper", "leg_lower"]);
-                await Assert.That(ancestral.Pelvis.Children.Select(static c => c.Name)).IsEquivalentTo(["leg_upper", "leg_lower"]);
-                await Assert.That(cyclic.Model.Children.Select(static c => c.Name)).IsEquivalentTo(["pelvis"]);
-                await Assert.That(cyclic.Pelvis.Children.Select(static c => c.Name)).IsEquivalentTo(["leg_upper", "leg_lower"]);
+                await Assert.That(unparented.Pelvis.Children.Select(static c => c.Name)).IsEquivalentTo(["leg_upper", "leg_lower"], StringComparer.Ordinal);
+                await Assert.That(ancestral.Pelvis.Children.Select(static c => c.Name)).IsEquivalentTo(["leg_upper", "leg_lower"], StringComparer.Ordinal);
+                await Assert.That(cyclic.Model.Children.Select(static c => c.Name)).IsEquivalentTo(["pelvis"], StringComparer.Ordinal);
+                await Assert.That(cyclic.Pelvis.Children.Select(static c => c.Name)).IsEquivalentTo(["leg_upper", "leg_lower"], StringComparer.Ordinal);
 
-                await Assert.That(nested.Pelvis.Children.Select(static c => c.Name)).IsEquivalentTo(["leg_upper"]);
-                await Assert.That(nested.Upper.Children.Select(static c => c.Name)).IsEquivalentTo(["leg_lower"]);
+                await Assert.That(nested.Pelvis.Children.Select(static c => c.Name)).IsEquivalentTo(["leg_upper"], StringComparer.Ordinal);
+                await Assert.That(nested.Upper.Children.Select(static c => c.Name)).IsEquivalentTo(["leg_lower"], StringComparer.Ordinal);
                 await Assert.That(Vector3.Distance(nested.Lower.Transform.Position, new Vector3(0f, -20f, 0f))).IsLessThan(1e-4f);
             }
         }
@@ -786,7 +786,7 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
-                await Assert.That(turned.Keys.Order()).IsEquivalentTo(["neck"]);
+                await Assert.That(turned.Keys.Order()).IsEquivalentTo(["neck"], StringComparer.Ordinal);
 
                 await Assert.That(into.ContainsKey("fish")).IsFalse();
             }
@@ -810,9 +810,9 @@ namespace Tests.IO
             using (Assert.Multiple())
             {
                 await Assert.That(viaClothNode.Select(static node => node.GetStringProperty("name")))
-                    .IsEquivalentTo(["a0", "a1", "a2"], CollectionOrdering.Matching);
+                    .IsEquivalentTo(["a0", "a1", "a2"], StringComparer.Ordinal, CollectionOrdering.Matching);
                 await Assert.That(viaClothNode.Select(static node => node.GetStringProperty("cloth_node_root_bone")))
-                    .IsEquivalentTo(["a0", "a1", "a2"], CollectionOrdering.Matching);
+                    .IsEquivalentTo(["a0", "a1", "a2"], StringComparer.Ordinal, CollectionOrdering.Matching);
                 await Assert.That(viaClothNode.Count(static node => node.ContainsKey("transform_alignment"))).IsEqualTo(2);
                 await Assert.That(viaClothNode.Count > 0 && viaClothNode[0].GetInt32Property("transform_alignment") == 3).IsTrue();
                 await Assert.That(viaClothNode.Count > 0 ? viaClothNode[0].GetStringProperty("node_base_x1") : null).IsEqualTo("side");

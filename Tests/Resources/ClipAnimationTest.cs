@@ -118,7 +118,7 @@ namespace Tests.Resources
             using (Assert.Multiple())
             {
                 await Assert.That(animation.Duration).IsEqualTo(0.8f).Within(0.0001f);
-                await Assert.That(animation.Events.Select(e => e.ClassName)).IsEquivalentTo(ClipEventClasses, CollectionOrdering.Matching);
+                await Assert.That(animation.Events.Select(e => e.ClassName)).IsEquivalentTo(ClipEventClasses, StringComparer.Ordinal, CollectionOrdering.Matching);
 
                 // Times are stored normalized in the resource, they are exposed in seconds
                 await Assert.That(soundEvent.Name).IsEqualTo("Weapon_Nova.Pump_Q");

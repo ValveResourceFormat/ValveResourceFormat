@@ -26,7 +26,7 @@ namespace Tests.Resources
             using (Assert.Multiple())
             {
                 await Assert.That(morph.TextureResource).IsNotNull();
-                await Assert.That(morph.FlexControllers!.Select(c => c.Name)).IsEquivalentTo(["rubick_head_blink_L", "rubick_head_blink_R"]);
+                await Assert.That(morph.FlexControllers!.Select(c => c.Name)).IsEquivalentTo(["rubick_head_blink_L", "rubick_head_blink_R"], StringComparer.Ordinal);
                 await Assert.That(morph.FlexControllers!.Select(c => (c.Min, c.Max))).All(range => range == (0f, 1f));
                 await Assert.That(morph.FlexRules!.Length).IsEqualTo(2);
             }
@@ -35,7 +35,7 @@ namespace Tests.Resources
 
             using (Assert.Multiple())
             {
-                await Assert.That(flexVertexData.Keys).IsEquivalentTo(["rubick_head_blink_L", "rubick_head_blink_R"]);
+                await Assert.That(flexVertexData.Keys).IsEquivalentTo(["rubick_head_blink_L", "rubick_head_blink_R"], StringComparer.Ordinal);
 
                 foreach (var (name, vertices) in flexVertexData)
                 {

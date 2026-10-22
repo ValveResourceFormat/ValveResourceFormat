@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.IO.Hashing;
 using System.Text;
@@ -131,19 +132,19 @@ namespace ValveResourceFormat.ClosedCaptions
         {
             Debug.Assert(FileName != null);
 
-            var captionsToExport = new Dictionary<uint, string>(Captions.Count);
+            var captionsToExport = KVObject.ListCollection(Captions.Count);
 
             foreach (var caption in Captions)
             {
                 if (caption.Text != null)
                 {
-                    captionsToExport.Add(caption.Hash, caption.Text);
+                    captionsToExport.Add(caption.Hash.ToString(CultureInfo.InvariantCulture), caption.Text);
                 }
             }
 
             using var ms = new MemoryStream();
             KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, captionsToExport, FileName);
-            return Encoding.UTF8.GetString(ms.ToArray());
+            return Encoding.UTF8.GetString(ms.GetBuffer(), 0, (int)ms.Length);
         }
     }
 }

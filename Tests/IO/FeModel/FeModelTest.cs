@@ -108,7 +108,7 @@ namespace Tests.IO
             var cloth = LoadFeModel(RopeClothFixture);
 
             await Assert.That(cloth.HasCompiledSkelParents).IsFalse();
-            await Assert.That(cloth.SkelParents).IsEquivalentTo(RopeClothParents);
+            await Assert.That(cloth.SkelParents).IsEquivalentTo(RopeClothParents, EqualityComparer<int>.Default);
         }
 
         /// <summary>
@@ -212,7 +212,7 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
-                await Assert.That(ringSizes.Keys.Order()).IsEquivalentTo(ChainClothJointNodes);
+                await Assert.That(ringSizes.Keys.Order()).IsEquivalentTo(ChainClothJointNodes, EqualityComparer<int>.Default);
 
                 foreach (var (joint, size) in ringSizes)
                 {
@@ -287,7 +287,7 @@ namespace Tests.IO
             {
                 await Assert.That(cloth.Fe.NodeCount).IsEqualTo(-3);
                 await Assert.That(cloth.Index.NodeCount).IsEqualTo(0);
-                await Assert.That(cloth.Index.InitPosePositions).IsEquivalentTo([Vector3.Zero, new Vector3(0f, 0f, 5f)], CollectionOrdering.Matching);
+                await Assert.That(cloth.Index.InitPosePositions).IsEquivalentTo([Vector3.Zero, new Vector3(0f, 0f, 5f)], EqualityComparer<Vector3>.Default, CollectionOrdering.Matching);
                 await Assert.That(cloth.Fe.VertexMaps[0].VertexCount).IsEqualTo(-1);
                 await Assert.That(cloth.Index.VertexMaps[0].Weights.Length).IsEqualTo(0);
                 await Assert.That(cloth.Fe.LockToParent[0].Offset).IsEqualTo(Vector3.Zero);
@@ -300,7 +300,7 @@ namespace Tests.IO
         {
             var cloth = (TwoNodes with { RopeCount = 1, Ropes = [3, 0, 1], Twists = [Twist(-1, 1, 0f, 0f)] }).Reconstruct();
 
-            await Assert.That(cloth.SkelParents).IsEquivalentTo([-1, 0], CollectionOrdering.Matching);
+            await Assert.That(cloth.SkelParents).IsEquivalentTo([-1, 0], EqualityComparer<int>.Default, CollectionOrdering.Matching);
         }
 
         /// <summary>A follow node that would close a cycle with a rope run is not adopted.</summary>
@@ -309,7 +309,7 @@ namespace Tests.IO
         {
             var cloth = (TwoNodes with { RopeCount = 1, Ropes = [3, 0, 1], FollowNodes = [new FeFollowNode(1, 0, 1f)] }).Reconstruct();
 
-            await Assert.That(cloth.SkelParents).IsEquivalentTo([-1, 0], CollectionOrdering.Matching);
+            await Assert.That(cloth.SkelParents).IsEquivalentTo([-1, 0], EqualityComparer<int>.Default, CollectionOrdering.Matching);
         }
 
         /// <summary>A negative entry of an unsigned array keeps its bits instead of failing the parse.</summary>
@@ -320,7 +320,7 @@ namespace Tests.IO
             data["m_VertexSetNames"] = Ints(-1, 7);
             var fe = new FeModel(data);
 
-            await Assert.That(fe.VertexSetNames).IsEquivalentTo([uint.MaxValue, 7u], CollectionOrdering.Matching);
+            await Assert.That(fe.VertexSetNames).IsEquivalentTo([uint.MaxValue, 7u], EqualityComparer<uint>.Default, CollectionOrdering.Matching);
         }
 
         /// <summary><c>m_LocalForce</c> and <c>m_LocalRotation</c> hold one value per dynamic node, after the static nodes.</summary>
@@ -409,11 +409,12 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
-                await Assert.That(cloth.Fe.SimdRodsAnim[0].Nodes[1]).IsEquivalentTo([2, 2, 2, 2], CollectionOrdering.Matching);
-                await Assert.That(cloth.Fe.SimdRodsAnim[1].Nodes[0]).IsEquivalentTo([0, 1, 1, 1], CollectionOrdering.Matching);
+                await Assert.That(cloth.Fe.SimdRodsAnim[0].Nodes[1]).IsEquivalentTo([2, 2, 2, 2], EqualityComparer<int>.Default, CollectionOrdering.Matching);
+                await Assert.That(cloth.Fe.SimdRodsAnim[1].Nodes[0]).IsEquivalentTo([0, 1, 1, 1], EqualityComparer<int>.Default, CollectionOrdering.Matching);
                 await Assert.That(cloth.Fe.SimdRodsAnim[1].Weight0.Length).IsEqualTo(0);
                 await Assert.That(cloth.Index.AnimRods).IsEquivalentTo(
                     [new FeModelIndex.AnimRod(0, 2, 0.25f), new FeModelIndex.AnimRod(1, 2, 0.5f), new FeModelIndex.AnimRod(0, 2, 0.5f)],
+                    EqualityComparer<FeModelIndex.AnimRod>.Default,
                     CollectionOrdering.Matching);
 
                 await Assert.That(cloth.Fe.CollisionPlanes[0].Plane).IsEqualTo(new FeModel.RnPlane(Vector3.UnitZ, 2f));

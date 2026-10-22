@@ -96,7 +96,7 @@ namespace Tests.Renderer
             if (mapped == 0)
             {
                 // No bone name is shared between the two skeletons, so every bone falls back to bind pose.
-                await Assert.That(controller.Pose).IsEquivalentTo(controller.BindPose, CollectionOrdering.Matching);
+                await Assert.That(controller.Pose).IsEquivalentTo(controller.BindPose, EqualityComparer<Matrix4x4>.Default, CollectionOrdering.Matching);
             }
 
             controller.SetAnimation(idle);

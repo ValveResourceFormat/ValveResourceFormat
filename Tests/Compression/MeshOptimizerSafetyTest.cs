@@ -63,7 +63,7 @@ namespace Tests.Compression
         {
             var decoded = MeshOptimizerIndexDecoder.DecodeIndexBuffer(kIndexBuffer.Length, sizeof(ushort), kIndexDataV0);
             var expected = Array.ConvertAll(kIndexBuffer, i => (ushort)i);
-            await Assert.That(MemoryMarshal.Cast<byte, ushort>(decoded).ToArray()).IsEquivalentTo(expected, CollectionOrdering.Matching);
+            await Assert.That(MemoryMarshal.Cast<byte, ushort>(decoded).ToArray()).IsEquivalentTo(expected, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
         }
 
         [Test]
@@ -175,7 +175,7 @@ namespace Tests.Compression
         public async Task DecodeVertexBitGroupSentinelCount(bool useSimd)
         {
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(13, 4, kVertexSentinelCountData, useSimd);
-            await Assert.That(decoded).IsEquivalentTo(kVertexSentinelCountExpected, CollectionOrdering.Matching);
+            await Assert.That(decoded).IsEquivalentTo(kVertexSentinelCountExpected, EqualityComparer<byte>.Default, CollectionOrdering.Matching);
         }
 
         [Test]
@@ -185,7 +185,7 @@ namespace Tests.Compression
         public async Task DecodeVertexV1BitXorRotate(bool useSimd)
         {
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(4, 16, kVertexBitXorRotateData, useSimd);
-            await Assert.That(MemoryMarshal.Cast<byte, uint>(decoded).ToArray()).IsEquivalentTo(kVertexBitXorRotateExpected, CollectionOrdering.Matching);
+            await Assert.That(MemoryMarshal.Cast<byte, uint>(decoded).ToArray()).IsEquivalentTo(kVertexBitXorRotateExpected, EqualityComparer<uint>.Default, CollectionOrdering.Matching);
         }
 
         [Test]

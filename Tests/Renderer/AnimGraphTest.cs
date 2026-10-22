@@ -52,7 +52,7 @@ namespace Tests.Renderer
                 var weight = result.Weight01;
 
                 // The centre and that direction, not the two rim points of the nearest hull edge
-                await Assert.That(sources).IsEquivalentTo([1, 0, -1]);
+                await Assert.That(sources).IsEquivalentTo([1, 0, -1], EqualityComparer<int>.Default);
                 await Assert.That(weight).IsBetween(0.87f, 0.88f);
             }
         }
@@ -68,35 +68,6 @@ namespace Tests.Renderer
             {
                 var className = nodes[i].GetStringProperty("_class");
                 await Assert.That(GraphNodeFactory.Create(nodes[i])).IsNotNull().Because($"node {i} ({className})");
-            }
-        }
-
-        [Test]
-        public async Task NodeFactoryKnowsEveryNodeType()
-        {
-            var nodeTypes = typeof(GraphNode).Assembly.GetTypes()
-                .Where(static type => type.IsSubclassOf(typeof(GraphNode)) && !type.IsAbstract);
-
-            foreach (var nodeType in nodeTypes)
-            {
-                var nodeData = KVObject.Collection();
-                nodeData["_class"] = new KVObject($"CNm{nodeType.Name}::CDefinition");
-
-                // Constructors may reject the empty data, the factory just has to reach them
-                string? unknownTypeError = null;
-                try
-                {
-                    GraphNodeFactory.Create(nodeData);
-                }
-                catch (InvalidOperationException e) when (e.Message.StartsWith("Unknown graph node type", StringComparison.Ordinal))
-                {
-                    unknownTypeError = e.Message;
-                }
-                catch (Exception)
-                {
-                }
-
-                await Assert.That(unknownTypeError).IsNull().Because(nodeType.Name);
             }
         }
     }

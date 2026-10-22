@@ -37,11 +37,11 @@ namespace Tests.IO
             {
                 await Assert.That(cluster.GetStringProperty("_class")).IsEqualTo("ClothSelfCollisionCluster");
                 await Assert.That(joints.Select(static joint => joint.GetStringProperty("joint_name")).ToArray())
-                    .IsEquivalentTo(ClusterTieMembers, CollectionOrdering.Matching);
+                    .IsEquivalentTo(ClusterTieMembers, StringComparer.Ordinal, CollectionOrdering.Matching);
                 await Assert.That(joints[0].GetFloatProperty("collision_radius")).IsEqualTo(6f);
                 await Assert.That(joints[0].GetFloatProperty("stray_radius")).IsEqualTo(24f);
                 await Assert.That(doubled.Select(static child => child.Value.GetStringProperty("_class")).ToArray())
-                    .IsEquivalentTo(ClusterTieControlClasses, CollectionOrdering.Matching);
+                    .IsEquivalentTo(ClusterTieControlClasses, StringComparer.Ordinal, CollectionOrdering.Matching);
             }
         }
 
@@ -90,8 +90,8 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
-                await Assert.That(Ties(recorded, [1, 2])).IsEquivalentTo(["spring:coattail_0_L|coattail_1_R"]);
-                await Assert.That(Ties(unrecorded, [1, 2])).IsEquivalentTo(["cluster:coattail_0_L|coattail_1_R"]);
+                await Assert.That(Ties(recorded, [1, 2])).IsEquivalentTo(["spring:coattail_0_L|coattail_1_R"], StringComparer.Ordinal);
+                await Assert.That(Ties(unrecorded, [1, 2])).IsEquivalentTo(["cluster:coattail_0_L|coattail_1_R"], StringComparer.Ordinal);
                 await Assert.That(Ties(unrecorded, null)).IsEmpty();
             }
         }
@@ -151,15 +151,15 @@ namespace Tests.IO
             using (Assert.Multiple())
             {
                 await Assert.That(emitted.Select(static node => node.GetStringProperty("_class")).ToArray())
-                    .IsEquivalentTo(RingClusterTieClasses, CollectionOrdering.Matching);
+                    .IsEquivalentTo(RingClusterTieClasses, StringComparer.Ordinal, CollectionOrdering.Matching);
                 await Assert.That(emitted.Select(static node => node.GetStringProperty("name")).ToArray())
-                    .IsEquivalentTo(RingClusterTieNames, CollectionOrdering.Matching);
+                    .IsEquivalentTo(RingClusterTieNames, StringComparer.Ordinal, CollectionOrdering.Matching);
                 await Assert.That(Members(emitted).Select(static joint => joint.GetStringProperty("joint_name")).ToArray())
-                    .IsEquivalentTo(RingClusterTieMembers, CollectionOrdering.Matching);
+                    .IsEquivalentTo(RingClusterTieMembers, StringComparer.Ordinal, CollectionOrdering.Matching);
                 await Assert.That(Members(emitted).Select(static joint => joint.GetFloatProperty("collision_radius")).ToArray())
-                    .IsEquivalentTo(RingClusterTieRadii, CollectionOrdering.Matching);
+                    .IsEquivalentTo(RingClusterTieRadii, EqualityComparer<float>.Default, CollectionOrdering.Matching);
                 await Assert.That(Members(emitted).Select(static joint => joint.GetFloatProperty("stray_radius")).ToArray())
-                    .IsEquivalentTo(RingClusterTieStrays, CollectionOrdering.Matching);
+                    .IsEquivalentTo(RingClusterTieStrays, EqualityComparer<float>.Default, CollectionOrdering.Matching);
 
                 await Assert.That(restBand.Count).IsEqualTo(0);
                 await Assert.That(sameJoint.Count).IsEqualTo(0);
@@ -248,10 +248,10 @@ namespace Tests.IO
             {
                 await Assert.That(chain.GetSubCollection("joints")
                     .Select(j => ((KVObject)j.Value!).GetStringProperty("joint_name")))
-                    .IsEquivalentTo(expectedMembers);
+                    .IsEquivalentTo(expectedMembers, StringComparer.Ordinal);
                 await Assert.That(chain.GetInt32Property("version")).IsEqualTo(0);
-                await Assert.That(Keys(chain.GetSubCollection("attrs"))).IsEquivalentTo(expectedKeys);
-                await Assert.That(Numbers(chain.GetSubCollection("attrs"))).IsEquivalentTo(expectedNumbers);
+                await Assert.That(Keys(chain.GetSubCollection("attrs"))).IsEquivalentTo(expectedKeys, StringComparer.Ordinal);
+                await Assert.That(Numbers(chain.GetSubCollection("attrs"))).IsEquivalentTo(expectedNumbers, EqualityComparer<float>.Default);
             }
         }
 
@@ -270,10 +270,10 @@ namespace Tests.IO
             {
                 await Assert.That(SurplusClasses(recorded)).DoesNotContain("ClothSelfCollisionCluster");
 
-                await Assert.That(SurplusClasses(rest)).IsEquivalentTo(SpringOnly, CollectionOrdering.Matching);
+                await Assert.That(SurplusClasses(rest)).IsEquivalentTo(SpringOnly, StringComparer.Ordinal, CollectionOrdering.Matching);
 
-                await Assert.That(SurplusClasses(tieModel)).IsEquivalentTo(ClusterOnly, CollectionOrdering.Matching);
-                await Assert.That(SurplusClusterMembers(tieModel)).IsEquivalentTo(ReversedTie, CollectionOrdering.Matching);
+                await Assert.That(SurplusClasses(tieModel)).IsEquivalentTo(ClusterOnly, StringComparer.Ordinal, CollectionOrdering.Matching);
+                await Assert.That(SurplusClusterMembers(tieModel)).IsEquivalentTo(ReversedTie, StringComparer.Ordinal, CollectionOrdering.Matching);
             }
         }
 
@@ -415,7 +415,7 @@ namespace Tests.IO
                 await Assert.That(covered.Count).IsEqualTo(6);
                 await Assert.That(across.Select(static child => string.Join("|", child.Value.GetSubCollection("chain").GetArray("joints")
                     .Select(static joint => $"{joint.GetStringProperty("joint_name")}:{joint.GetFloatProperty("collision_radius")}:{joint.GetFloatProperty("stray_radius")}"))).ToArray())
-                    .IsEquivalentTo(ClusterCliqueMembers, CollectionOrdering.Matching);
+                    .IsEquivalentTo(ClusterCliqueMembers, StringComparer.Ordinal, CollectionOrdering.Matching);
             }
         }
 
@@ -488,7 +488,7 @@ namespace Tests.IO
 
                 await Assert.That(folded.Select(static child => string.Join("|", child.Value.GetSubCollection("chain").GetArray("joints")
                     .Select(static joint => joint.GetStringProperty("joint_name")))).ToArray())
-                    .IsEquivalentTo(FoldedCliqueMembers, CollectionOrdering.Matching);
+                    .IsEquivalentTo(FoldedCliqueMembers, StringComparer.Ordinal, CollectionOrdering.Matching);
             }
         }
 
@@ -554,7 +554,7 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
-                await Assert.That(suspended.SuspenderNodes).IsEquivalentTo([0, 6], CollectionOrdering.Any);
+                await Assert.That(suspended.SuspenderNodes).IsEquivalentTo([0, 6], EqualityComparer<int>.Default, CollectionOrdering.Any);
                 await Assert.That(suspended.Derived.Contains((0, 6))).IsTrue();
                 await Assert.That(folded.Derived.Contains((4, 8)) && folded.Derived.Contains((5, 9))).IsTrue();
                 await Assert.That(declared.Derived.Contains((4, 8))).IsFalse();

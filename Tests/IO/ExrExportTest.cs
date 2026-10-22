@@ -47,7 +47,7 @@ namespace Tests.IO
                 // A, B, G, R, each FLOAT, linear, sampled at every pixel
                 await Assert.That(header["channels"].Length).IsEqualTo(ChannelCount * ChannelEntrySize + 1);
                 await Assert.That(Encoding.ASCII.GetString(header["channels"].AsSpan(0, 2))).IsEqualTo("A\0");
-                await Assert.That(header["compression"]).IsEquivalentTo(new byte[] { 3 });
+                await Assert.That(header["compression"]).IsEquivalentTo(new byte[] { 3 }, EqualityComparer<byte>.Default);
 
                 var window = header["dataWindow"];
                 await Assert.That(BinaryPrimitives.ReadInt32LittleEndian(window.AsSpan(8))).IsEqualTo(bitmap.Width - 1);
@@ -67,7 +67,7 @@ namespace Tests.IO
             var exr = TextureExtract.ToExrImage(bitmap);
             var decoded = Decode(exr, Width, Height);
 
-            await Assert.That(decoded).IsEquivalentTo(expected);
+            await Assert.That(decoded).IsEquivalentTo(expected, EqualityComparer<float>.Default);
         }
 
         private static float[] FillPixels(SKBitmap bitmap)

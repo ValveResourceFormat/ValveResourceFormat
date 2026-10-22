@@ -124,7 +124,7 @@ namespace Tests.Compression
         public async Task DecodeIndexV0()
         {
             var decoded = MeshOptimizerIndexDecoder.DecodeIndexBuffer(kIndexBuffer.Length, sizeof(int), kIndexDataV0);
-            await Assert.That(MemoryMarshal.Cast<byte, int>(decoded).ToArray()).IsEquivalentTo(kIndexBuffer, CollectionOrdering.Matching);
+            await Assert.That(MemoryMarshal.Cast<byte, int>(decoded).ToArray()).IsEquivalentTo(kIndexBuffer, EqualityComparer<int>.Default, CollectionOrdering.Matching);
         }
 
         [Test]
@@ -132,7 +132,7 @@ namespace Tests.Compression
         public async Task DecodeIndexV1()
         {
             var decoded = MeshOptimizerIndexDecoder.DecodeIndexBuffer(kIndexBufferTricky.Length, sizeof(int), kIndexDataV1);
-            await Assert.That(MemoryMarshal.Cast<byte, int>(decoded).ToArray()).IsEquivalentTo(kIndexBufferTricky, CollectionOrdering.Matching);
+            await Assert.That(MemoryMarshal.Cast<byte, int>(decoded).ToArray()).IsEquivalentTo(kIndexBufferTricky, EqualityComparer<int>.Default, CollectionOrdering.Matching);
         }
 
         [Test]
@@ -140,7 +140,7 @@ namespace Tests.Compression
         public async Task DecodeIndexV1More()
         {
             var decoded = MeshOptimizerIndexDecoder.DecodeIndexBuffer(kIndexBuffer.Length, sizeof(int), kIndexBufferV1MoreData);
-            await Assert.That(MemoryMarshal.Cast<byte, int>(decoded).ToArray()).IsEquivalentTo(kIndexBuffer, CollectionOrdering.Matching);
+            await Assert.That(MemoryMarshal.Cast<byte, int>(decoded).ToArray()).IsEquivalentTo(kIndexBuffer, EqualityComparer<int>.Default, CollectionOrdering.Matching);
         }
 
         [Test]
@@ -148,7 +148,7 @@ namespace Tests.Compression
         public async Task DecodeIndexV1ThreeEdges()
         {
             var decoded = MeshOptimizerIndexDecoder.DecodeIndexBuffer(kIndexBufferV1ThreeEdgesExpected.Length, sizeof(int), kIndexBufferV1ThreeEdgesData);
-            await Assert.That(MemoryMarshal.Cast<byte, int>(decoded).ToArray()).IsEquivalentTo(kIndexBufferV1ThreeEdgesExpected, CollectionOrdering.Matching);
+            await Assert.That(MemoryMarshal.Cast<byte, int>(decoded).ToArray()).IsEquivalentTo(kIndexBufferV1ThreeEdgesExpected, EqualityComparer<int>.Default, CollectionOrdering.Matching);
         }
 
         [Test]
@@ -156,7 +156,7 @@ namespace Tests.Compression
         public async Task DecodeVertexV0()
         {
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(kVertexBuffer.Length, Marshal.SizeOf<PV>(), kVertexDataV0, useSimd: false);
-            await Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray()).IsEquivalentTo(kVertexBuffer, CollectionOrdering.Matching);
+            await Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray()).IsEquivalentTo(kVertexBuffer, EqualityComparer<PV>.Default, CollectionOrdering.Matching);
         }
 
         [Test]
@@ -169,7 +169,7 @@ namespace Tests.Compression
             }
 
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(kVertexBuffer.Length, Marshal.SizeOf<PV>(), kVertexDataV0, useSimd: true);
-            await Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray()).IsEquivalentTo(kVertexBuffer, CollectionOrdering.Matching);
+            await Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray()).IsEquivalentTo(kVertexBuffer, EqualityComparer<PV>.Default, CollectionOrdering.Matching);
         }
 
         [Test]
@@ -177,7 +177,7 @@ namespace Tests.Compression
         public async Task DecodeVertexV1()
         {
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(kVertexBuffer.Length, Marshal.SizeOf<PV>(), kVertexDataV1, useSimd: false);
-            await Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray()).IsEquivalentTo(kVertexBuffer, CollectionOrdering.Matching);
+            await Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray()).IsEquivalentTo(kVertexBuffer, EqualityComparer<PV>.Default, CollectionOrdering.Matching);
         }
 
         [Test]
@@ -190,7 +190,7 @@ namespace Tests.Compression
             }
 
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(kVertexBuffer.Length, Marshal.SizeOf<PV>(), kVertexDataV1, useSimd: true);
-            await Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray()).IsEquivalentTo(kVertexBuffer, CollectionOrdering.Matching);
+            await Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray()).IsEquivalentTo(kVertexBuffer, EqualityComparer<PV>.Default, CollectionOrdering.Matching);
         }
 
         [Test]
@@ -198,7 +198,7 @@ namespace Tests.Compression
         public async Task DecodeVertexV1Custom()
         {
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(kVertexBuffer.Length, Marshal.SizeOf<PV>(), kVertexDataV1Custom, useSimd: false);
-            await Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray()).IsEquivalentTo(kVertexBuffer, CollectionOrdering.Matching);
+            await Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray()).IsEquivalentTo(kVertexBuffer, EqualityComparer<PV>.Default, CollectionOrdering.Matching);
         }
 
         [Test]
@@ -211,7 +211,7 @@ namespace Tests.Compression
             }
 
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(kVertexBuffer.Length, Marshal.SizeOf<PV>(), kVertexDataV1Custom, useSimd: true);
-            await Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray()).IsEquivalentTo(kVertexBuffer, CollectionOrdering.Matching);
+            await Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray()).IsEquivalentTo(kVertexBuffer, EqualityComparer<PV>.Default, CollectionOrdering.Matching);
         }
 
         [Test]
@@ -219,7 +219,7 @@ namespace Tests.Compression
         public async Task DecodeVertexMore()
         {
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(16, 4, kVertexMoreData, useSimd: false);
-            await Assert.That(decoded).IsEquivalentTo(kVertexMoreExpected, CollectionOrdering.Matching);
+            await Assert.That(decoded).IsEquivalentTo(kVertexMoreExpected, EqualityComparer<byte>.Default, CollectionOrdering.Matching);
         }
 
         [Test]
@@ -232,7 +232,7 @@ namespace Tests.Compression
             }
 
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(16, 4, kVertexMoreData, useSimd: true);
-            await Assert.That(decoded).IsEquivalentTo(kVertexMoreExpected, CollectionOrdering.Matching);
+            await Assert.That(decoded).IsEquivalentTo(kVertexMoreExpected, EqualityComparer<byte>.Default, CollectionOrdering.Matching);
         }
 
         [Test]
@@ -240,7 +240,7 @@ namespace Tests.Compression
         public async Task DecodeVertexMode2()
         {
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(16, 4, kVertexMode2Data, useSimd: false);
-            await Assert.That(decoded).IsEquivalentTo(kVertexMode2Expected, CollectionOrdering.Matching);
+            await Assert.That(decoded).IsEquivalentTo(kVertexMode2Expected, EqualityComparer<byte>.Default, CollectionOrdering.Matching);
         }
 
         [Test]
@@ -253,7 +253,7 @@ namespace Tests.Compression
             }
 
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(16, 4, kVertexMode2Data, useSimd: true);
-            await Assert.That(decoded).IsEquivalentTo(kVertexMode2Expected, CollectionOrdering.Matching);
+            await Assert.That(decoded).IsEquivalentTo(kVertexMode2Expected, EqualityComparer<byte>.Default, CollectionOrdering.Matching);
         }
 
         [Test]
@@ -261,7 +261,7 @@ namespace Tests.Compression
         public async Task DecodeVertexV1Deltas()
         {
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(16, 8, kVertexV1Deltas, useSimd: false);
-            await Assert.That(MemoryMarshal.Cast<byte, short>(decoded).ToArray()).IsEquivalentTo(kVertexV1DeltasExpected, CollectionOrdering.Matching);
+            await Assert.That(MemoryMarshal.Cast<byte, short>(decoded).ToArray()).IsEquivalentTo(kVertexV1DeltasExpected, EqualityComparer<short>.Default, CollectionOrdering.Matching);
         }
 
         [Test]
@@ -274,7 +274,7 @@ namespace Tests.Compression
             }
 
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(16, 8, kVertexV1Deltas, useSimd: true);
-            await Assert.That(MemoryMarshal.Cast<byte, short>(decoded).ToArray()).IsEquivalentTo(kVertexV1DeltasExpected, CollectionOrdering.Matching);
+            await Assert.That(MemoryMarshal.Cast<byte, short>(decoded).ToArray()).IsEquivalentTo(kVertexV1DeltasExpected, EqualityComparer<short>.Default, CollectionOrdering.Matching);
         }
     }
 }

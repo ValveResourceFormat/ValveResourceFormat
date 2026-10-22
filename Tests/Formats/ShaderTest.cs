@@ -74,7 +74,7 @@ namespace Tests.Formats
                     await Assert.That(combo2.FeatureComparisonValue).IsEqualTo(combo1.FeatureComparisonValue);
                     await Assert.That(combo2.RangeMin).IsEqualTo(combo1.RangeMin);
                     await Assert.That(combo2.RangeMax).IsEqualTo(combo1.RangeMax);
-                    await Assert.That(combo2.StateNames).IsEquivalentTo(combo1.StateNames);
+                    await Assert.That(combo2.StateNames).IsEquivalentTo(combo1.StateNames, StringComparer.Ordinal);
                 }
             }
 
@@ -88,10 +88,10 @@ namespace Tests.Formats
 
                     await Assert.That(rule2.RuleMethod).IsEqualTo(rule1.RuleMethod);
                     await Assert.That(rule2.RuleType).IsEqualTo(rule1.RuleType);
-                    await Assert.That(rule2.ArgTypes).IsEquivalentTo(rule1.ArgTypes);
-                    await Assert.That(rule2.ArgIndices).IsEquivalentTo(rule1.ArgIndices);
-                    await Assert.That(rule2.ArgValues).IsEquivalentTo(rule1.ArgValues);
-                    await Assert.That(rule2.ExtraRuleData).IsEquivalentTo(rule1.ExtraRuleData);
+                    await Assert.That(rule2.ArgTypes).IsEquivalentTo(rule1.ArgTypes, EqualityComparer<VfxRuleType>.Default);
+                    await Assert.That(rule2.ArgIndices).IsEquivalentTo(rule1.ArgIndices, EqualityComparer<int>.Default);
+                    await Assert.That(rule2.ArgValues).IsEquivalentTo(rule1.ArgValues, EqualityComparer<int>.Default);
+                    await Assert.That(rule2.ExtraRuleData).IsEquivalentTo(rule1.ExtraRuleData, EqualityComparer<int>.Default);
                     await Assert.That(rule2.ErrorString).IsEqualTo(rule1.ErrorString);
                 }
                 await Assert.That(shader2.VariableDescriptions).Count().IsEqualTo(shader1.VariableDescriptions.Length);
@@ -106,8 +106,8 @@ namespace Tests.Formats
                     await Assert.That(var2.UiType).IsEqualTo(var1.UiType);
                     await Assert.That(var2.UiStep).IsEqualTo(var1.UiStep);
                     await Assert.That(var2.VariableSource).IsEqualTo(var1.VariableSource);
-                    await Assert.That(var2.CompiledExpression).IsEquivalentTo(var1.CompiledExpression);
-                    await Assert.That(var2.UiVisibilityExpression).IsEquivalentTo(var1.UiVisibilityExpression);
+                    await Assert.That(var2.CompiledExpression).IsEquivalentTo(var1.CompiledExpression, EqualityComparer<byte>.Default);
+                    await Assert.That(var2.UiVisibilityExpression).IsEquivalentTo(var1.UiVisibilityExpression, EqualityComparer<byte>.Default);
                     await Assert.That(var2.SourceIndex).IsEqualTo(var1.SourceIndex);
                     await Assert.That(var2.VfxType).IsEqualTo(var1.VfxType);
                     await Assert.That(var2.RegisterType).IsEqualTo(var1.RegisterType);
@@ -115,15 +115,15 @@ namespace Tests.Formats
                     await Assert.That(var2.RegisterElements).IsEqualTo(var1.RegisterElements);
                     await Assert.That(var2.TypeSpecificBits).IsEqualTo(var1.TypeSpecificBits);
                     await Assert.That(var2.DefaultInputTexture).IsEqualTo(var1.DefaultInputTexture);
-                    await Assert.That(var2.IntDefs).IsEquivalentTo(var1.IntDefs).Because(var2.Name);
-                    await Assert.That(var2.IntMins).IsEquivalentTo(var1.IntMins).Because(var2.Name);
-                    await Assert.That(var2.IntMaxs).IsEquivalentTo(var1.IntMaxs).Because(var2.Name);
-                    await Assert.That(var2.FloatDefs).IsEquivalentTo(var1.FloatDefs).Because(var2.Name);
-                    await Assert.That(var2.FloatMins).IsEquivalentTo(var1.FloatMins).Because(var2.Name);
-                    await Assert.That(var2.FloatMaxs).IsEquivalentTo(var1.FloatMaxs).Because(var2.Name);
+                    await Assert.That(var2.IntDefs).IsEquivalentTo(var1.IntDefs, EqualityComparer<int>.Default).Because(var2.Name);
+                    await Assert.That(var2.IntMins).IsEquivalentTo(var1.IntMins, EqualityComparer<int>.Default).Because(var2.Name);
+                    await Assert.That(var2.IntMaxs).IsEquivalentTo(var1.IntMaxs, EqualityComparer<int>.Default).Because(var2.Name);
+                    await Assert.That(var2.FloatDefs).IsEquivalentTo(var1.FloatDefs, EqualityComparer<float>.Default).Because(var2.Name);
+                    await Assert.That(var2.FloatMins).IsEquivalentTo(var1.FloatMins, EqualityComparer<float>.Default).Because(var2.Name);
+                    await Assert.That(var2.FloatMaxs).IsEquivalentTo(var1.FloatMaxs, EqualityComparer<float>.Default).Because(var2.Name);
                     await Assert.That(var2.OutputTextureFormat).IsEqualTo(var1.OutputTextureFormat);
                     await Assert.That(var2.ChannelCount).IsEqualTo(var1.ChannelCount);
-                    await Assert.That(var2.ChannelInfoIndices).IsEquivalentTo(var1.ChannelInfoIndices);
+                    await Assert.That(var2.ChannelInfoIndices).IsEquivalentTo(var1.ChannelInfoIndices, EqualityComparer<int>.Default);
                     await Assert.That(var2.InputColorSpace).IsEqualTo(var1.InputColorSpace);
                     await Assert.That(var2.TextureFileEnding).IsEqualTo(var1.TextureFileEnding);
                     await Assert.That(var2.InputProcessingCommand).IsEqualTo(var1.InputProcessingCommand);
@@ -147,9 +147,9 @@ namespace Tests.Formats
                 const int OneLessItemKV3 = 1;
 
                 await Assert.That(combo2.StaticComboId).IsEqualTo(combo1.StaticComboId);
-                await Assert.That(combo2.VsInputSignatureIndices).IsEquivalentTo(combo1.VsInputSignatureIndices, CollectionOrdering.Matching);
-                await Assert.That(combo2.ConstantBufferBindingFlags).IsEquivalentTo(combo1.ConstantBufferBindingFlags[..^OneLessItemKV3], CollectionOrdering.Matching);
-                await Assert.That(combo2.ConstantBufferBindingSlots).IsEquivalentTo(combo1.ConstantBufferBindingSlots[..^OneLessItemKV3], CollectionOrdering.Matching);
+                await Assert.That(combo2.VsInputSignatureIndices).IsEquivalentTo(combo1.VsInputSignatureIndices, EqualityComparer<int>.Default, CollectionOrdering.Matching);
+                await Assert.That(combo2.ConstantBufferBindingFlags).IsEquivalentTo(combo1.ConstantBufferBindingFlags[..^OneLessItemKV3], EqualityComparer<byte>.Default, CollectionOrdering.Matching);
+                await Assert.That(combo2.ConstantBufferBindingSlots).IsEquivalentTo(combo1.ConstantBufferBindingSlots[..^OneLessItemKV3], EqualityComparer<byte>.Default, CollectionOrdering.Matching);
                 await Assert.That(combo2.ConstantBufferSize).IsEqualTo(combo1.ConstantBufferSize);
                 await Assert.That(combo2.StaticCB).IsEqualTo(combo1.StaticCB);
                 await Assert.That(combo2.GlobalsBDA).IsEqualTo(combo1.GlobalsBDA);
@@ -161,7 +161,7 @@ namespace Tests.Formats
                     await Assert.That(kv3.Index).IsEqualTo(binary.Index);
                     await Assert.That(kv3.FirstRenderStateElement).IsEqualTo(binary.FirstRenderStateElement);
                     await Assert.That(kv3.FirstConstantElement).IsEqualTo(binary.FirstConstantElement);
-                    await Assert.That(kv3.Fields).IsEquivalentTo(binary.Fields, CollectionOrdering.Matching);
+                    await Assert.That(kv3.Fields).IsEquivalentTo(binary.Fields, EqualityComparer<VfxVariableIndexData>.Default, CollectionOrdering.Matching);
                 }
 
                 await TestVfxVariableIndexArray(combo1.AllVariables, combo2.AllVariables);
@@ -234,7 +234,28 @@ namespace Tests.Formats
                     }
                 }
 
-                await Assert.That(combo2.Attributes).IsEquivalentTo(combo1.Attributes, CollectionOrdering.Matching);
+                await Assert.That(combo2.Attributes).Count().IsEqualTo(combo1.Attributes.Length);
+                for (var i = 0; i < combo1.Attributes.Length; i++)
+                {
+                    var attribute1 = combo1.Attributes[i];
+                    var attribute2 = combo2.Attributes[i];
+
+                    await Assert.That(attribute2.Name).IsEqualTo(attribute1.Name);
+                    await Assert.That(attribute2.Murmur32).IsEqualTo(attribute1.Murmur32);
+                    await Assert.That(attribute2.VfxType).IsEqualTo(attribute1.VfxType);
+                    await Assert.That(attribute2.VariableBinding).IsEqualTo(attribute1.VariableBinding);
+                    await Assert.That(attribute2.ConstValue).IsEqualTo(attribute1.ConstValue);
+
+                    if (attribute1.DynExpression is null)
+                    {
+                        await Assert.That(attribute2.DynExpression).IsNull();
+                    }
+                    else
+                    {
+                        await Assert.That(attribute2.DynExpression).IsEquivalentTo(attribute1.DynExpression, EqualityComparer<byte>.Default, CollectionOrdering.Matching);
+                    }
+                }
+
                 await Assert.That(combo2.ShaderFiles).Count().IsEqualTo(combo1.ShaderFiles.Length);
             }
         }
@@ -302,7 +323,7 @@ namespace Tests.Formats
             };
 
             // Only the block to sequence mapping matters, not the order the entries come out in.
-            await Assert.That(indexToSequence).IsEquivalentTo(expected);
+            await Assert.That(indexToSequence).IsEquivalentTo(expected, EqualityComparer<KeyValuePair<int, int>>.Default);
         }
 
         [Test]
@@ -326,12 +347,12 @@ namespace Tests.Formats
                 await Assert.That(ChannelMapping.RG.Count).IsEqualTo(2);
                 await Assert.That(ChannelMapping.G.Count).IsEqualTo(1);
                 await Assert.That(ChannelMapping.NULL.Count).IsZero();
-                await Assert.That(ChannelMapping.RGBA.ValidChannels).IsEquivalentTo([ChannelMapping.Channel.R, ChannelMapping.Channel.G, ChannelMapping.Channel.B, ChannelMapping.Channel.A], CollectionOrdering.Matching);
-                await Assert.That(ChannelMapping.RGB.ValidChannels).IsEquivalentTo([ChannelMapping.Channel.R, ChannelMapping.Channel.G, ChannelMapping.Channel.B], CollectionOrdering.Matching);
-                await Assert.That(ChannelMapping.RG.ValidChannels).IsEquivalentTo([ChannelMapping.Channel.R, ChannelMapping.Channel.G], CollectionOrdering.Matching);
-                await Assert.That(ChannelMapping.AG.ValidChannels).IsEquivalentTo([ChannelMapping.Channel.A, ChannelMapping.Channel.G], CollectionOrdering.Matching);
-                await Assert.That(ChannelMapping.A.ValidChannels).IsEquivalentTo([ChannelMapping.Channel.A], CollectionOrdering.Matching);
-                await Assert.That(ChannelMapping.R.ValidChannels).IsEquivalentTo([ChannelMapping.Channel.R], CollectionOrdering.Matching);
+                await Assert.That(ChannelMapping.RGBA.ValidChannels).IsEquivalentTo([ChannelMapping.Channel.R, ChannelMapping.Channel.G, ChannelMapping.Channel.B, ChannelMapping.Channel.A], EqualityComparer<byte>.Default, CollectionOrdering.Matching);
+                await Assert.That(ChannelMapping.RGB.ValidChannels).IsEquivalentTo([ChannelMapping.Channel.R, ChannelMapping.Channel.G, ChannelMapping.Channel.B], EqualityComparer<byte>.Default, CollectionOrdering.Matching);
+                await Assert.That(ChannelMapping.RG.ValidChannels).IsEquivalentTo([ChannelMapping.Channel.R, ChannelMapping.Channel.G], EqualityComparer<byte>.Default, CollectionOrdering.Matching);
+                await Assert.That(ChannelMapping.AG.ValidChannels).IsEquivalentTo([ChannelMapping.Channel.A, ChannelMapping.Channel.G], EqualityComparer<byte>.Default, CollectionOrdering.Matching);
+                await Assert.That(ChannelMapping.A.ValidChannels).IsEquivalentTo([ChannelMapping.Channel.A], EqualityComparer<byte>.Default, CollectionOrdering.Matching);
+                await Assert.That(ChannelMapping.R.ValidChannels).IsEquivalentTo([ChannelMapping.Channel.R], EqualityComparer<byte>.Default, CollectionOrdering.Matching);
 
                 await Assert.That((byte)ChannelMapping.R).IsZero();
                 await Assert.That((byte)ChannelMapping.G).IsEqualTo((byte)0x01);
@@ -346,16 +367,16 @@ namespace Tests.Formats
                 await Assert.That(ChannelMapping.RGBA).IsEqualTo(ChannelMapping.FromUInt32(0x33221100, packedDestinations: true));
                 await Assert.That(ChannelMapping.AG).IsEqualTo(ChannelMapping.FromUInt32(0xFFFF1130, packedDestinations: true));
 
-                await Assert.That(ChannelMapping.RGBA.Destinations).IsEquivalentTo(new byte[] { 0, 1, 2, 3 }, CollectionOrdering.Matching);
-                await Assert.That(ChannelMapping.AG.Destinations).IsEquivalentTo(new byte[] { 0, 1 }, CollectionOrdering.Matching);
+                await Assert.That(ChannelMapping.RGBA.Destinations).IsEquivalentTo(new byte[] { 0, 1, 2, 3 }, EqualityComparer<byte>.Default, CollectionOrdering.Matching);
+                await Assert.That(ChannelMapping.AG.Destinations).IsEquivalentTo(new byte[] { 0, 1 }, EqualityComparer<byte>.Default, CollectionOrdering.Matching);
 
                 var rotated = ChannelMapping.FromUInt32(0x23120130, packedDestinations: true);
-                await Assert.That(rotated.ValidChannels).IsEquivalentTo([ChannelMapping.Channel.A, ChannelMapping.Channel.R, ChannelMapping.Channel.G, ChannelMapping.Channel.B], CollectionOrdering.Matching);
-                await Assert.That(rotated.Destinations).IsEquivalentTo(new byte[] { 0, 1, 2, 3 }, CollectionOrdering.Matching);
+                await Assert.That(rotated.ValidChannels).IsEquivalentTo([ChannelMapping.Channel.A, ChannelMapping.Channel.R, ChannelMapping.Channel.G, ChannelMapping.Channel.B], EqualityComparer<byte>.Default, CollectionOrdering.Matching);
+                await Assert.That(rotated.Destinations).IsEquivalentTo(new byte[] { 0, 1, 2, 3 }, EqualityComparer<byte>.Default, CollectionOrdering.Matching);
 
                 var offset = ChannelMapping.FromUInt32(0xFFFF1201, packedDestinations: true);
-                await Assert.That(offset.ValidChannels).IsEquivalentTo([ChannelMapping.Channel.R, ChannelMapping.Channel.G], CollectionOrdering.Matching);
-                await Assert.That(offset.Destinations).IsEquivalentTo(new byte[] { 1, 2 }, CollectionOrdering.Matching);
+                await Assert.That(offset.ValidChannels).IsEquivalentTo([ChannelMapping.Channel.R, ChannelMapping.Channel.G], EqualityComparer<byte>.Default, CollectionOrdering.Matching);
+                await Assert.That(offset.Destinations).IsEquivalentTo(new byte[] { 1, 2 }, EqualityComparer<byte>.Default, CollectionOrdering.Matching);
 
                 await Assert.That(ChannelMapping.R.ToString()).IsEqualTo("R");
                 await Assert.That(ChannelMapping.G.ToString()).IsEqualTo("G");

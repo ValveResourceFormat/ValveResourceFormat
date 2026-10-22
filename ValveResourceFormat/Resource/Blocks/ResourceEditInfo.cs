@@ -1,8 +1,9 @@
+using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Blocks
 {
@@ -139,22 +140,31 @@ namespace ValveResourceFormat.Blocks
         /// <inheritdoc/>
         public override void WriteText(IndentedTextWriter writer)
         {
-            using var ms = new MemoryStream();
-            var serializer = ValveKeyValue.KVSerializer.Create(ValveKeyValue.KVSerializationFormat.KeyValues1Text);
-            var serializedProps = new
+            var searchableUserData = KVObject.ListCollection(SearchableUserData.Count);
+            var index = 0;
+
+            foreach (var (key, value) in SearchableUserData)
             {
-                InputDependencies,
-                AdditionalInputDependencies,
-                ArgumentDependencies,
-                SpecialDependencies,
-                AdditionalRelatedFiles,
-                ChildResourceList,
-                SearchableUserData = SearchableUserData.Select(c => new { c.Key, Value = c.Value.ToString() ?? string.Empty }),
-            };
+                var entry = KVObject.ListCollection();
+                entry.Add("Key", key);
+                entry.Add("Value", value.ToString() ?? string.Empty);
+                searchableUserData.Add(index.ToString(CultureInfo.InvariantCulture), entry);
+                index++;
+            }
 
-            serializer.Serialize(ms, serializedProps, "ResourceEditInfo");
+            var root = KVObject.ListCollection();
+            root.Add(nameof(InputDependencies), InputDependencies.ToIndexedCollection(static dependency => dependency.ToKeyValues()));
+            root.Add(nameof(AdditionalInputDependencies), AdditionalInputDependencies.ToIndexedCollection(static dependency => dependency.ToKeyValues()));
+            root.Add(nameof(ArgumentDependencies), ArgumentDependencies.ToIndexedCollection(static dependency => dependency.ToKeyValues()));
+            root.Add(nameof(SpecialDependencies), SpecialDependencies.ToIndexedCollection(static dependency => dependency.ToKeyValues()));
+            root.Add(nameof(AdditionalRelatedFiles), AdditionalRelatedFiles.ToIndexedCollection(static file => file.ToKeyValues()));
+            root.Add(nameof(ChildResourceList), ChildResourceList.ToIndexedCollection());
+            root.Add(nameof(SearchableUserData), searchableUserData);
 
-            writer.Write(Encoding.UTF8.GetString(ms.ToArray()));
+            using var ms = new MemoryStream();
+            KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, root, nameof(ResourceEditInfo));
+
+            writer.Write(Encoding.UTF8.GetString(ms.GetBuffer(), 0, (int)ms.Length));
         }
     }
 }

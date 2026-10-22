@@ -41,7 +41,7 @@ namespace Tests.Resources
             using (Assert.Multiple())
             {
                 await Assert.That(lod.LowestLevel).IsEqualTo(0);
-                await Assert.That(lod.AvailableLevels).IsEquivalentTo(TruckLevels, CollectionOrdering.Matching);
+                await Assert.That(lod.AvailableLevels).IsEquivalentTo(TruckLevels, EqualityComparer<int>.Default, CollectionOrdering.Matching);
                 await Assert.That(lod.LevelCount).IsEqualTo(3);
 
                 await Assert.That(lod.IsMeshInLevel(0, 0)).IsTrue();
@@ -121,7 +121,7 @@ namespace Tests.Resources
             {
                 await Assert.That(lod.CombinedMask).IsEqualTo(0xFF);
                 await Assert.That(lod.LowestLevel).IsEqualTo(0);
-                await Assert.That(lod.AvailableLevels).IsEquivalentTo(AlchemistLevels, CollectionOrdering.Matching);
+                await Assert.That(lod.AvailableLevels).IsEquivalentTo(AlchemistLevels, EqualityComparer<int>.Default, CollectionOrdering.Matching);
                 await Assert.That(lod.LevelCount).IsEqualTo(8);
 
                 await Assert.That(lod.IsMeshInLevel(0, 0)).IsTrue();
@@ -161,7 +161,7 @@ namespace Tests.Resources
             using (Assert.Multiple())
             {
                 await Assert.That(lod.LowestLevel).IsEqualTo(1);
-                await Assert.That(lod.AvailableLevels).IsEquivalentTo(EmptyLod0Levels, CollectionOrdering.Matching);
+                await Assert.That(lod.AvailableLevels).IsEquivalentTo(EmptyLod0Levels, EqualityComparer<int>.Default, CollectionOrdering.Matching);
                 await Assert.That(lod.LevelCount).IsEqualTo(3);
                 // With no switch values, automatic selection stays at the lowest populated level.
                 await Assert.That(lod.SelectLevel(1000f)).IsEqualTo(1);
@@ -198,9 +198,9 @@ namespace Tests.Resources
             using (Assert.Multiple())
             {
                 await Assert.That(lod.LowestLevel).IsEqualTo(0);
-                await Assert.That(lod.AvailableLevels).IsEquivalentTo(FixtureLevels, CollectionOrdering.Matching);
+                await Assert.That(lod.AvailableLevels).IsEquivalentTo(FixtureLevels, EqualityComparer<int>.Default, CollectionOrdering.Matching);
                 await Assert.That(lod.LevelCount).IsEqualTo(5);
-                await Assert.That(lod.SwitchDistances).IsEquivalentTo(FixtureSwitches, CollectionOrdering.Matching);
+                await Assert.That(lod.SwitchDistances).IsEquivalentTo(FixtureSwitches, EqualityComparer<float>.Default, CollectionOrdering.Matching);
 
             }
         }
@@ -225,30 +225,30 @@ namespace Tests.Resources
                     "necro_gear1_@0_#&necro_archer_gear1",
                     "necro_gear1_@1_#&necro_archer_gear2",
                     "necro_gear1_@2_#&necro_archer_gear3",
-                ], CollectionOrdering.Matching);
+                ], StringComparer.Ordinal, CollectionOrdering.Matching);
 
                 // A group holding one choice is compiled without the choice index.
                 await Assert.That(groups.BodyGroups).Count().IsEqualTo(2);
                 await Assert.That(lone.Name).IsEqualTo("default");
                 await Assert.That(lone.Choices.Select(choice => choice.Name))
-                    .IsEquivalentTo(["necro_archer_model"], CollectionOrdering.Matching);
+                    .IsEquivalentTo(["necro_archer_model"], StringComparer.Ordinal, CollectionOrdering.Matching);
                 await Assert.That(lone.Choices[0].Indexed).IsFalse();
 
                 await Assert.That(gear.Name).IsEqualTo("necro_gear1");
                 await Assert.That(gear.Choices.Select(choice => choice.Indexed))
-                    .IsEquivalentTo([true, true, true], CollectionOrdering.Matching);
+                    .IsEquivalentTo([true, true, true], EqualityComparer<bool>.Default, CollectionOrdering.Matching);
                 await Assert.That(gear.Choices.Select(choice => choice.Name))
-                    .IsEquivalentTo(["necro_archer_gear1", "necro_archer_gear2", "necro_archer_gear3"], CollectionOrdering.Matching);
+                    .IsEquivalentTo(["necro_archer_gear1", "necro_archer_gear2", "necro_archer_gear3"], StringComparer.Ordinal, CollectionOrdering.Matching);
 
                 // A choice's index is the bit it occupies in a mesh's group mask.
                 await Assert.That(gear.Choices.Select(choice => choice.GroupIndex))
-                    .IsEquivalentTo([1, 2, 3], CollectionOrdering.Matching);
+                    .IsEquivalentTo([1, 2, 3], EqualityComparer<int>.Default, CollectionOrdering.Matching);
                 await Assert.That(gear.Choices.Select(choice => groups.Names[choice.GroupIndex]))
-                    .IsEquivalentTo(gear.Choices.Select(choice => choice.FullName), CollectionOrdering.Matching);
+                    .IsEquivalentTo(gear.Choices.Select(choice => choice.FullName), StringComparer.Ordinal, CollectionOrdering.Matching);
 
                 // The default mask picks the base model plus the first gear choice.
                 await Assert.That(groups.Defaults)
-                    .IsEquivalentTo(["default_#&necro_archer_model", "necro_gear1_@0_#&necro_archer_gear1"], CollectionOrdering.Matching);
+                    .IsEquivalentTo(["default_#&necro_archer_model", "necro_gear1_@0_#&necro_archer_gear1"], StringComparer.Ordinal, CollectionOrdering.Matching);
 
                 // A model that declares no groups draws everything.
                 using var noGroups = TestFixtures.Load("box_creature_ik_model.vmdl_c");
@@ -291,7 +291,7 @@ namespace Tests.Resources
                 // Every entry addresses a real skeleton bone.
                 await Assert.That(remap.Table.ToArray()).All(index => index >= 0 && index < boneCount);
 
-                await Assert.That(model.GetRemapTable(1)).IsEquivalentTo(remap.GetMeshTable(1)!, CollectionOrdering.Matching);
+                await Assert.That(model.GetRemapTable(1)).IsEquivalentTo(remap.GetMeshTable(1)!, EqualityComparer<int>.Default, CollectionOrdering.Matching);
                 await Assert.That(model.GetRemapTable(remap.MeshCount)).IsNull();
             }
         }
@@ -321,14 +321,14 @@ namespace Tests.Resources
                 }
 
                 await Assert.That(meshes.Select(mesh => mesh.LodMask).Order())
-                    .IsEquivalentTo([1L, 2L, 4L, 8L, 16L], CollectionOrdering.Matching);
+                    .IsEquivalentTo([1L, 2L, 4L, 8L, 16L], EqualityComparer<long>.Default, CollectionOrdering.Matching);
 
                 for (var level = 0; level < 5; level++)
                 {
                     var atLevel = model.GetEmbeddedMeshesForLod(level).Select(mesh => mesh.MeshIndex).ToList();
                     var expected = meshes.Where(mesh => lod.IsMeshInLevel(mesh.MeshIndex, level)).Select(mesh => mesh.MeshIndex).ToList();
 
-                    await Assert.That(atLevel).IsEquivalentTo(expected, CollectionOrdering.Matching);
+                    await Assert.That(atLevel).IsEquivalentTo(expected, EqualityComparer<int>.Default, CollectionOrdering.Matching);
                 }
             }
         }

@@ -50,7 +50,7 @@ namespace Tests
 
             var fullReferences = fullResource.ExternalReferences?.ResourceRefInfoList.Select(static reference => reference.Name).ToList();
             var partialReferences = partialResource.ExternalReferences?.ResourceRefInfoList.Select(static reference => reference.Name).ToList();
-            await Assert.That(partialReferences).IsEquivalentTo(fullReferences!);
+            await Assert.That(partialReferences).IsEquivalentTo(fullReferences!, StringComparer.Ordinal);
         }
 
         [Test]
@@ -178,7 +178,7 @@ namespace Tests
                 }
             })));
 
-            await Assert.That(partialResource.Blocks.Select(static block => block.ToString()).ToList()).IsEquivalentTo(expected);
+            await Assert.That(partialResource.Blocks.Select(static block => block.ToString()).ToList()).IsEquivalentTo(expected, StringComparer.Ordinal);
         }
 
         [Test]

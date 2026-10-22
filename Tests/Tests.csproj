@@ -3,6 +3,8 @@
     <RollForward>LatestMajor</RollForward>
     <OutputType>Exe</OutputType>
     <PublishReadyToRun>false</PublishReadyToRun>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="TUnit" Version="1.75.0" />

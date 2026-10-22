@@ -77,7 +77,7 @@ namespace Tests.Resources
 
             using (Assert.Multiple())
             {
-                await Assert.That(animations.Select(a => a.Name)).IsEquivalentTo(["idle_to_fist"]);
+                await Assert.That(animations.Select(a => a.Name)).IsEquivalentTo(["idle_to_fist"], StringComparer.Ordinal);
                 await Assert.That(animations[0]).IsTypeOf<SequenceAnimation>();
                 await Assert.That(animations[0].Fps).IsEqualTo(30);
                 await Assert.That(animations[0].FrameCount).IsEqualTo(10);
@@ -117,7 +117,7 @@ namespace Tests.Resources
 
             using (Assert.Multiple())
             {
-                await Assert.That(animations.Select(a => a.Name)).IsEquivalentTo(["@idle"]);
+                await Assert.That(animations.Select(a => a.Name)).IsEquivalentTo(["@idle"], StringComparer.Ordinal);
                 await Assert.That(animations[0].Fps).IsEqualTo(12);
                 await Assert.That(animations[0].FrameCount).IsEqualTo(31);
                 await Assert.That(((SequenceAnimation)animations[0]).IsLooping).IsTrue();

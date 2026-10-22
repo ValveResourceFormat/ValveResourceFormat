@@ -353,10 +353,10 @@ namespace Tests.IO
             {
                 await Assert.That(cleared.Count).IsEqualTo(1);
                 await Assert.That(cleared[0].Layer).IsEqualTo(1);
-                await Assert.That(cleared[0].Painted).IsEquivalentTo(ClearedLayerPaint, CollectionOrdering.Matching);
+                await Assert.That(cleared[0].Painted).IsEquivalentTo(ClearedLayerPaint, EqualityComparer<float>.Default, CollectionOrdering.Matching);
                 await Assert.That(whole.Count).IsEqualTo(0);
                 await Assert.That(lowFour.Select(static paint => paint.Layer).ToArray())
-                    .IsEquivalentTo(LowFourLayers, CollectionOrdering.Matching);
+                    .IsEquivalentTo(LowFourLayers, EqualityComparer<int>.Default, CollectionOrdering.Matching);
             }
         }
 
@@ -495,13 +495,13 @@ namespace Tests.IO
             {
                 await Assert.That(redeclared).Contains("coattail_0_L_second");
                 await Assert.That(members.Select(bone => LastSimulate(redeclared, bone)))
-                    .IsEquivalentTo(simulating, CollectionOrdering.Matching);
+                    .IsEquivalentTo(simulating, StringComparer.Ordinal, CollectionOrdering.Matching);
 
                 await Assert.That(LastSimulate(redeclared, "coattail_0_L")).IsEqualTo("false");
 
                 await Assert.That(single).DoesNotContain("_second");
                 await Assert.That(members.Select(bone => LastSimulate(single, bone)))
-                    .IsEquivalentTo(simulating, CollectionOrdering.Matching);
+                    .IsEquivalentTo(simulating, StringComparer.Ordinal, CollectionOrdering.Matching);
             }
         }
 

@@ -189,7 +189,7 @@ namespace Tests.Resources
                 var e = new[] { expected[t * 3], expected[t * 3 + 1], expected[t * 3 + 2] };
                 Array.Sort(d);
                 Array.Sort(e);
-                await Assert.That(d).IsEquivalentTo(e, CollectionOrdering.Matching).Because($"triangle {t}");
+                await Assert.That(d).IsEquivalentTo(e, EqualityComparer<int>.Default, CollectionOrdering.Matching).Because($"triangle {t}");
             }
         }
     }

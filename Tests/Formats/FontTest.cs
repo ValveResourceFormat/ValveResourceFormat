@@ -21,7 +21,7 @@ namespace Tests.Formats
                 var decryptedFont = font.Read(file);
                 var expected = await File.ReadAllBytesAsync(Path.ChangeExtension(file, "ttf"));
 
-                await Assert.That(decryptedFont).IsEquivalentTo(expected, CollectionOrdering.Matching);
+                await Assert.That(decryptedFont).IsEquivalentTo(expected, EqualityComparer<byte>.Default, CollectionOrdering.Matching);
             }
         }
 
@@ -55,7 +55,7 @@ namespace Tests.Formats
             using (Assert.Multiple())
             {
                 await Assert.That(vfont!.FileName).IsEqualTo("resource/hl2crosshairs.ttf");
-                await Assert.That(vfont.Data).IsEquivalentTo(await File.ReadAllBytesAsync(Path.ChangeExtension(vfontPath, "ttf")), CollectionOrdering.Matching);
+                await Assert.That(vfont.Data).IsEquivalentTo(await File.ReadAllBytesAsync(Path.ChangeExtension(vfontPath, "ttf")), EqualityComparer<byte>.Default, CollectionOrdering.Matching);
                 await Assert.That(vfontStream.CanRead).IsTrue();
 
                 await Assert.That(uifont!.FileName).IsEqualTo("panorama/fonts/broadcast.otf");

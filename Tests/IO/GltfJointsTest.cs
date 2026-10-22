@@ -16,9 +16,8 @@ public class GltfJointsTest
         GltfModelExporter.FixDuplicateJoints(joints, weights, 4);
         using (Assert.Multiple())
         {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, CollectionOrdering.Matching)
-                .Using((a, b) => MathF.Abs(a - b) <= 0.0001f);
+            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
+            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
         }
     }
 
@@ -32,9 +31,8 @@ public class GltfJointsTest
         GltfModelExporter.FixDuplicateJoints(joints, weights, 4);
         using (Assert.Multiple())
         {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, CollectionOrdering.Matching)
-                .Using((a, b) => MathF.Abs(a - b) <= 0.0001f);
+            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
+            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
         }
     }
 
@@ -48,9 +46,8 @@ public class GltfJointsTest
         GltfModelExporter.FixDuplicateJoints(joints, weights, 4);
         using (Assert.Multiple())
         {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, CollectionOrdering.Matching)
-                .Using((a, b) => MathF.Abs(a - b) <= 0.0001f);
+            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
+            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
         }
     }
 
@@ -64,9 +61,8 @@ public class GltfJointsTest
         GltfModelExporter.FixDuplicateJoints(joints, weights, 4);
         using (Assert.Multiple())
         {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, CollectionOrdering.Matching)
-                .Using((a, b) => MathF.Abs(a - b) <= 0.0001f);
+            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
+            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
         }
     }
 
@@ -80,9 +76,8 @@ public class GltfJointsTest
         GltfModelExporter.FixDuplicateJoints(joints, weights, 4);
         using (Assert.Multiple())
         {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, CollectionOrdering.Matching)
-                .Using((a, b) => MathF.Abs(a - b) <= 0.0001f);
+            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
+            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
         }
     }
 
@@ -96,9 +91,8 @@ public class GltfJointsTest
         GltfModelExporter.FixDuplicateJoints(joints, weights, 8);
         using (Assert.Multiple())
         {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, CollectionOrdering.Matching)
-                .Using((a, b) => MathF.Abs(a - b) <= 0.0001f);
+            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
+            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
         }
     }
 
@@ -112,9 +106,8 @@ public class GltfJointsTest
         GltfModelExporter.FixDuplicateJoints(joints, weights, 8);
         using (Assert.Multiple())
         {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, CollectionOrdering.Matching)
-                .Using((a, b) => MathF.Abs(a - b) <= 0.0001f);
+            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
+            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
         }
     }
 
@@ -128,9 +121,8 @@ public class GltfJointsTest
         GltfModelExporter.FixDuplicateJoints(joints, weights, 8);
         using (Assert.Multiple())
         {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, CollectionOrdering.Matching)
-                .Using((a, b) => MathF.Abs(a - b) <= 0.0001f);
+            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
+            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
         }
     }
 
@@ -144,9 +136,8 @@ public class GltfJointsTest
         GltfModelExporter.FixDuplicateJoints(joints, weights, 8);
         using (Assert.Multiple())
         {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, CollectionOrdering.Matching)
-                .Using((a, b) => MathF.Abs(a - b) <= 0.0001f);
+            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
+            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
         }
     }
 
@@ -160,9 +151,8 @@ public class GltfJointsTest
         GltfModelExporter.FixDuplicateJoints(joints, weights, 8);
         using (Assert.Multiple())
         {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, CollectionOrdering.Matching)
-                .Using((a, b) => MathF.Abs(a - b) <= 0.0001f);
+            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
+            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
         }
     }
 
@@ -176,9 +166,8 @@ public class GltfJointsTest
         GltfModelExporter.FixDuplicateJoints(joints, weights, 8);
         using (Assert.Multiple())
         {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, CollectionOrdering.Matching)
-                .Using((a, b) => MathF.Abs(a - b) <= 0.0001f);
+            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
+            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
         }
     }
 
@@ -192,9 +181,8 @@ public class GltfJointsTest
         GltfModelExporter.FixDuplicateJoints(joints, weights, 4);
         using (Assert.Multiple())
         {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, CollectionOrdering.Matching)
-                .Using((a, b) => MathF.Abs(a - b) <= 0.0001f);
+            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
+            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
         }
     }
 
@@ -214,9 +202,8 @@ public class GltfJointsTest
 
         using (Assert.Multiple())
         {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, CollectionOrdering.Matching)
-                .Using((a, b) => MathF.Abs(a - b) <= 0.0001f);
+            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
+            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
         }
     }
 
@@ -258,9 +245,8 @@ public class GltfJointsTest
 
         using (Assert.Multiple())
         {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, CollectionOrdering.Matching)
-                .Using((a, b) => MathF.Abs(a - b) <= 0.0001f);
+            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
+            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
         }
     }
 
@@ -294,9 +280,8 @@ public class GltfJointsTest
 
         using (Assert.Multiple())
         {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, CollectionOrdering.Matching)
-                .Using((a, b) => MathF.Abs(a - b) <= 0.0001f);
+            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
+            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
         }
     }
 
@@ -309,7 +294,7 @@ public class GltfJointsTest
         GltfModelExporter.SplitEightBoneJoints(joints, output);
 
         // First half is JOINTS_0 (indices 0..3), second half is JOINTS_1 (indices 4..7).
-        await Assert.That(output).IsEquivalentTo(new ushort[] { 1, 2, 3, 4, 5, 6, 7, 8 }, CollectionOrdering.Matching);
+        await Assert.That(output).IsEquivalentTo(new ushort[] { 1, 2, 3, 4, 5, 6, 7, 8 }, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -329,7 +314,7 @@ public class GltfJointsTest
             1,  2,  3,  4,  11, 12, 13, 14, 21, 22, 23, 24,
             5,  6,  7,  8,  15, 16, 17, 18, 25, 26, 27, 28,
         ];
-        await Assert.That(output).IsEquivalentTo(expected, CollectionOrdering.Matching);
+        await Assert.That(output).IsEquivalentTo(expected, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -362,9 +347,8 @@ public class GltfJointsTest
 
         using (Assert.Multiple())
         {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, CollectionOrdering.Matching)
-                .Using((a, b) => MathF.Abs(a - b) <= 0.0001f);
+            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
+            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
         }
     }
 }

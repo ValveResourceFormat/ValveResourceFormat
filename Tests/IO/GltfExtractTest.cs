@@ -332,7 +332,7 @@ namespace Tests.IO
 
                 // Joints are ordered by compiled bone index
                 var jointNames = Enumerable.Range(0, skin.JointsCount).Select(i => skin.GetJoint(i).Joint.Name);
-                await Assert.That(jointNames).IsEquivalentTo(boneIds, CollectionOrdering.Matching);
+                await Assert.That(jointNames).IsEquivalentTo(boneIds, StringComparer.Ordinal, CollectionOrdering.Matching);
             });
         }
 
@@ -398,7 +398,7 @@ namespace Tests.IO
             await Assert.That(origin).IsNotNull();
 
             var components = origin!.Select(component => component!.GetValue<float>());
-            await Assert.That(components).IsEquivalentTo([expected.X, expected.Y, expected.Z], CollectionOrdering.Matching);
+            await Assert.That(components).IsEquivalentTo([expected.X, expected.Y, expected.Z], EqualityComparer<float>.Default, CollectionOrdering.Matching);
         }
 
         [Test]
@@ -450,8 +450,8 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
-                await Assert.That(targetNames).IsEquivalentTo(["rubick_head_blink_R"], CollectionOrdering.Matching);
-                await Assert.That(mesh.MorphWeights).IsEquivalentTo([0f], CollectionOrdering.Matching);
+                await Assert.That(targetNames).IsEquivalentTo(["rubick_head_blink_R"], StringComparer.Ordinal, CollectionOrdering.Matching);
+                await Assert.That(mesh.MorphWeights).IsEquivalentTo([0f], EqualityComparer<float>.Default, CollectionOrdering.Matching);
             }
         }
 

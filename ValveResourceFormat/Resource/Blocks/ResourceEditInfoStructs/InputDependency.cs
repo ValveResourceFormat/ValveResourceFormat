@@ -67,5 +67,17 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
             FileExists = data.GetBooleanProperty("m_bExists");
             IsGameFile = data.GetBooleanProperty("m_bIsGameFile");
         }
+
+        internal KVObject ToKeyValues()
+        {
+            var kv = KVObject.ListCollection();
+            kv.Add(nameof(ContentRelativeFilename), ContentRelativeFilename);
+            kv.Add(nameof(ContentSearchPath), ContentSearchPath);
+            kv.Add(nameof(FileCRC), FileCRC);
+            kv.Add(nameof(Optional), Optional);
+            kv.Add(nameof(FileExists), FileExists);
+            kv.Add(nameof(IsGameFile), IsGameFile);
+            return kv;
+        }
     }
 }

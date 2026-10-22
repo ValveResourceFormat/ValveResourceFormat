@@ -31,7 +31,7 @@ public class GltfKeyframeReductionTest
 
         var kept = ReduceTranslations(values);
 
-        await Assert.That(kept).IsEquivalentTo([0, 19], CollectionOrdering.Matching);
+        await Assert.That(kept).IsEquivalentTo([0, 19], EqualityComparer<int>.Default, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -45,7 +45,7 @@ public class GltfKeyframeReductionTest
 
         var kept = ReduceTranslations(values);
 
-        await Assert.That(kept).IsEquivalentTo([0], CollectionOrdering.Matching);
+        await Assert.That(kept).IsEquivalentTo([0], EqualityComparer<int>.Default, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -61,7 +61,7 @@ public class GltfKeyframeReductionTest
 
         var kept = ReduceTranslations(values);
 
-        await Assert.That(kept).IsEquivalentTo([0, 10], CollectionOrdering.Matching);
+        await Assert.That(kept).IsEquivalentTo([0, 10], EqualityComparer<int>.Default, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -77,7 +77,7 @@ public class GltfKeyframeReductionTest
 
         var kept = ReduceTranslations(values);
 
-        await Assert.That(kept).IsEquivalentTo([0, 4, 5, 6, 10], CollectionOrdering.Matching);
+        await Assert.That(kept).IsEquivalentTo([0, 4, 5, 6, 10], EqualityComparer<int>.Default, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -93,7 +93,7 @@ public class GltfKeyframeReductionTest
 
         var kept = GltfModelExporter.ReduceKeyframes(FrameTimes(values.Count), values, GltfModelExporter.RotationTolerance, GltfModelExporter.RotationError);
 
-        await Assert.That(kept).IsEquivalentTo([0, 4, 5, 6, 10], CollectionOrdering.Matching);
+        await Assert.That(kept).IsEquivalentTo([0, 4, 5, 6, 10], EqualityComparer<int>.Default, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -123,7 +123,7 @@ public class GltfKeyframeReductionTest
 
         var kept = GltfModelExporter.ReduceKeyframes(FrameTimes(values.Count), values, GltfModelExporter.MorphWeightTolerance, GltfModelExporter.WeightsError);
 
-        await Assert.That(kept).IsEquivalentTo([0, 9], CollectionOrdering.Matching);
+        await Assert.That(kept).IsEquivalentTo([0, 9], EqualityComparer<int>.Default, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -137,8 +137,8 @@ public class GltfKeyframeReductionTest
 
         using (Assert.Multiple())
         {
-            await Assert.That(rotations).IsEquivalentTo([rotation, rotation, rotation, rotation], CollectionOrdering.Matching);
-            await Assert.That(kept).IsEquivalentTo([0], CollectionOrdering.Matching);
+            await Assert.That(rotations).IsEquivalentTo([rotation, rotation, rotation, rotation], EqualityComparer<Quaternion>.Default, CollectionOrdering.Matching);
+            await Assert.That(kept).IsEquivalentTo([0], EqualityComparer<int>.Default, CollectionOrdering.Matching);
         }
     }
 
@@ -149,6 +149,6 @@ public class GltfKeyframeReductionTest
 
         var kept = GltfModelExporter.CollapseRepeatedKeyframes(values);
 
-        await Assert.That(kept).IsEquivalentTo([0, 1, 3, 4, 5], CollectionOrdering.Matching);
+        await Assert.That(kept).IsEquivalentTo([0, 1, 3, 4, 5], EqualityComparer<int>.Default, CollectionOrdering.Matching);
     }
 }

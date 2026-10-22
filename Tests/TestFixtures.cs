@@ -14,6 +14,9 @@ namespace Tests
     /// </summary>
     internal static class TestFixtures
     {
+        /// <summary>Treats floats within 0.0001 of each other as equal. It cannot be used to hash.</summary>
+        public static IEqualityComparer<float> FloatComparer { get; } = EqualityComparer<float>.Create(static (a, b) => MathF.Abs(a - b) <= 0.0001f, static _ => 0);
+
         /// <summary>The full path of a fixture, given its name relative to <c>Files/</c>.</summary>
         public static string Path(string fileName)
             => System.IO.Path.Combine(FilesDirectory, fileName);

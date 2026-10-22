@@ -43,5 +43,14 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
             ContentSearchPath = data.GetStringProperty("m_SearchPath");
             IsGameFile = data.GetBooleanProperty("m_bIsGameFile");
         }
+
+        internal KVObject ToKeyValues()
+        {
+            var kv = KVObject.ListCollection();
+            kv.Add(nameof(ContentRelativeFilename), ContentRelativeFilename);
+            kv.Add(nameof(ContentSearchPath), ContentSearchPath);
+            kv.Add(nameof(IsGameFile), IsGameFile);
+            return kv;
+        }
     }
 }

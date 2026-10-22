@@ -61,11 +61,11 @@ namespace Tests.Resources
         {
             var floats = PathParticleRope.ParseFloatBlob("[\"1\",\t2\r\n3\f4\v5 6]");
             float[] expected = [1f, 2f, 3f, 4f, 5f, 6f];
-            await Assert.That(floats).IsEquivalentTo(expected, CollectionOrdering.Matching);
+            await Assert.That(floats).IsEquivalentTo(expected, EqualityComparer<float>.Default, CollectionOrdering.Matching);
 
             var pins = PathParticleRope.ParsePins("[\"true\",\t\"false\"\r\n\"1\"]");
             bool[] expectedPins = [true, false, true];
-            await Assert.That(pins).IsEquivalentTo(expectedPins, CollectionOrdering.Matching);
+            await Assert.That(pins).IsEquivalentTo(expectedPins, EqualityComparer<bool>.Default, CollectionOrdering.Matching);
         }
 
         [Test]
@@ -73,7 +73,7 @@ namespace Tests.Resources
         {
             var scales = PathParticleRope.ParseRadiusScales("[ 1.4, 1.0, 2.0, ]");
             float[] expected = [1.4f, 1.0f, 2.0f];
-            await Assert.That(scales).IsEquivalentTo(expected, CollectionOrdering.Matching);
+            await Assert.That(scales).IsEquivalentTo(expected, EqualityComparer<float>.Default, CollectionOrdering.Matching);
         }
 
         [Test]
@@ -90,8 +90,8 @@ namespace Tests.Resources
         {
             bool[] expectedWords = [true, false];
             bool[] expectedDigits = [true, false, true];
-            await Assert.That(PathParticleRope.ParsePins("[ true, false ]")).IsEquivalentTo(expectedWords, CollectionOrdering.Matching);
-            await Assert.That(PathParticleRope.ParsePins("[ 1, 0, 1 ]")).IsEquivalentTo(expectedDigits, CollectionOrdering.Matching);
+            await Assert.That(PathParticleRope.ParsePins("[ true, false ]")).IsEquivalentTo(expectedWords, EqualityComparer<bool>.Default, CollectionOrdering.Matching);
+            await Assert.That(PathParticleRope.ParsePins("[ 1, 0, 1 ]")).IsEquivalentTo(expectedDigits, EqualityComparer<bool>.Default, CollectionOrdering.Matching);
         }
 
         [Test]
@@ -99,12 +99,12 @@ namespace Tests.Resources
         {
             // Float-encoded pins (1.0 / 0.0) must map to pinned / unpinned, not be dropped.
             bool[] expectedFloats = [true, false, true];
-            await Assert.That(PathParticleRope.ParsePins("[ 1.0, 0.0, 1.0 ]")).IsEquivalentTo(expectedFloats, CollectionOrdering.Matching);
+            await Assert.That(PathParticleRope.ParsePins("[ 1.0, 0.0, 1.0 ]")).IsEquivalentTo(expectedFloats, EqualityComparer<bool>.Default, CollectionOrdering.Matching);
 
             // An unrecognized token must keep the array aligned with the node list (default pinned)
             // instead of silently shortening it and misaligning every later node.
             bool[] expectedAligned = [true, true, false];
-            await Assert.That(PathParticleRope.ParsePins("[ true, nonsense, false ]")).IsEquivalentTo(expectedAligned, CollectionOrdering.Matching);
+            await Assert.That(PathParticleRope.ParsePins("[ true, nonsense, false ]")).IsEquivalentTo(expectedAligned, EqualityComparer<bool>.Default, CollectionOrdering.Matching);
         }
     }
 }

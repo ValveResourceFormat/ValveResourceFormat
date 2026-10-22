@@ -130,6 +130,7 @@ jobs:
         path: |
           CLI/bin/Release/linux-x64/publish
           !**/*.pdb
+          !**/*.dbg
 
     - name: Upload CLI (Linux arm64)
       uses: actions/upload-artifact@v7
@@ -139,6 +140,7 @@ jobs:
         path: |
           CLI/bin/Release/linux-arm64/publish
           !**/*.pdb
+          !**/*.dbg
 
     - name: Upload CLI (macOS arm64)
       uses: actions/upload-artifact@v7
@@ -148,6 +150,7 @@ jobs:
         path: |
           CLI/bin/Release/osx-arm64/publish
           !**/*.pdb
+          !**/*.dSYM/**
 
     - name: Upload test coverage
       uses: codecov/codecov-action@v7

@@ -37,7 +37,7 @@ namespace Tests.IO
             {
                 await Assert.That(map.GetStringProperty("name")).IsEqualTo("vmap0");
                 await Assert.That(map.GetFloatProperty("volumetric_solve")).IsEqualTo(0.5f);
-                await Assert.That(nodes.Select(static n => n.Key).ToArray()).IsEquivalentTo(VolumetricMembers, CollectionOrdering.Any);
+                await Assert.That(nodes.Select(static n => n.Key).ToArray()).IsEquivalentTo(VolumetricMembers, StringComparer.Ordinal, CollectionOrdering.Any);
                 await Assert.That(nodes.GetSubCollection("coattail_2_L").GetFloatProperty("weight")).IsEqualTo(128f / 255f).Within(1e-5f);
             }
         }
@@ -64,7 +64,7 @@ namespace Tests.IO
             ClothExtract.AddClothJointLocks(children, cloth, static (_, name) => name != "declared");
 
             await Assert.That(children.Select(static c => c.Value.GetStringProperty("feeder_bone")).ToArray())
-                .IsEquivalentTo(LockedJoints, CollectionOrdering.Matching);
+                .IsEquivalentTo(LockedJoints, StringComparer.Ordinal, CollectionOrdering.Matching);
         }
 
         private static readonly string[] LockedJoints = ["locked_goal", "locked_parent"];
@@ -114,7 +114,7 @@ namespace Tests.IO
                 await Assert.That(cluster.GetStringProperty("_class")).IsEqualTo("ClothRigidCloudCluster");
                 await Assert.That(cluster.GetInt32Property("algorithm")).IsEqualTo(0);
                 await Assert.That(cluster.GetStringProperty("parent_node")).IsEqualTo("coattail_0_L");
-                await Assert.That(members).IsEquivalentTo(["coattail_1_L", "coattail_1_R"], CollectionOrdering.Matching);
+                await Assert.That(members).IsEquivalentTo(["coattail_1_L", "coattail_1_R"], StringComparer.Ordinal, CollectionOrdering.Matching);
                 await Assert.That(ClothReconstruction.IsRigidCloudClusterLock(locked, chain)).IsFalse();
                 await Assert.That(ClothReconstruction.LockedJointsWithChildren(unlocked, chain).Any()).IsFalse();
 
@@ -168,9 +168,9 @@ namespace Tests.IO
             {
                 await Assert.That(splitChains.Count).IsEqualTo(2);
                 await Assert.That(Owning(splitChains, "a1").Joints.Select(static j => j.Name).ToArray())
-                    .IsEquivalentTo(ThinSubChain, CollectionOrdering.Matching);
+                    .IsEquivalentTo(ThinSubChain, StringComparer.Ordinal, CollectionOrdering.Matching);
                 await Assert.That(Owning(splitChains, "b1").Joints.Select(static j => j.Name).ToArray())
-                    .IsEquivalentTo(WideSubChain, CollectionOrdering.Matching);
+                    .IsEquivalentTo(WideSubChain, StringComparer.Ordinal, CollectionOrdering.Matching);
                 await Assert.That(Owning(splitChains, "a1").Joints[0].RingNodes.Count).IsEqualTo(1);
                 await Assert.That(Owning(splitChains, "b1").Joints[0].RingNodes.Count).IsEqualTo(0);
                 await Assert.That(ClothReconstruction.ClothChainVersion(split, Owning(splitChains, "a1"))).IsEqualTo(0);
@@ -421,10 +421,10 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
-                await Assert.That(Members(line)).IsEquivalentTo(["joint_1", "joint_2"], CollectionOrdering.Matching);
-                await Assert.That(Members(fork)).IsEquivalentTo(["joint_1", "joint_2"], CollectionOrdering.Matching);
-                await Assert.That(Members(pair)).IsEquivalentTo(["joint_0", "joint_1"], CollectionOrdering.Matching);
-                await Assert.That(declared).IsEquivalentTo(["joint_1", "joint_2"], CollectionOrdering.Matching);
+                await Assert.That(Members(line)).IsEquivalentTo(["joint_1", "joint_2"], StringComparer.Ordinal, CollectionOrdering.Matching);
+                await Assert.That(Members(fork)).IsEquivalentTo(["joint_1", "joint_2"], StringComparer.Ordinal, CollectionOrdering.Matching);
+                await Assert.That(Members(pair)).IsEquivalentTo(["joint_0", "joint_1"], StringComparer.Ordinal, CollectionOrdering.Matching);
+                await Assert.That(declared).IsEquivalentTo(["joint_1", "joint_2"], StringComparer.Ordinal, CollectionOrdering.Matching);
             }
         }
 
@@ -697,15 +697,16 @@ namespace Tests.IO
             using (Assert.Multiple())
             {
                 await Assert.That(Roots(voiced)).IsEquivalentTo(
-                    ["root", "root", "root", "root", "root"], CollectionOrdering.Matching);
+                    ["root", "root", "root", "root", "root"], StringComparer.Ordinal, CollectionOrdering.Matching);
                 await Assert.That(voiced.BuildBoneChains()[0].Joints.Select(static joint => joint.Name))
-                    .IsEquivalentTo(VoicedRunMembers, CollectionOrdering.Any);
+                    .IsEquivalentTo(VoicedRunMembers, StringComparer.Ordinal, CollectionOrdering.Any);
 
                 await Assert.That(Declared(voiced, "a", second: false)).IsEqualTo(0.8f).Within(1e-3f);
                 await Assert.That(Declared(voiced, "a", second: true)).IsEqualTo(0.35f).Within(1e-3f);
 
                 await Assert.That(Roots(bothSimulating)).IsEquivalentTo(
                     ["<unmarked>", "<unmarked>", "<unmarked>", "<unmarked>", "<unmarked>"],
+                    StringComparer.Ordinal,
                     CollectionOrdering.Matching);
             }
         }

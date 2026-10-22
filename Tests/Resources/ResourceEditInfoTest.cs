@@ -25,7 +25,7 @@ namespace Tests.Resources
 
             using (Assert.Multiple())
             {
-                await Assert.That(editInfo.ChildResourceList).IsEquivalentTo(AlchemistChildResources, CollectionOrdering.Matching);
+                await Assert.That(editInfo.ChildResourceList).IsEquivalentTo(AlchemistChildResources, StringComparer.Ordinal, CollectionOrdering.Matching);
 
                 await Assert.That(editInfo.ChildResourceIds).Count().IsEqualTo(editInfo.ChildResourceList.Count);
                 await Assert.That(editInfo.ChildResourceIds).All(x => x != 0);

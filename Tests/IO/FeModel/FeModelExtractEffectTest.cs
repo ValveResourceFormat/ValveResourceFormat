@@ -25,11 +25,11 @@ namespace Tests.IO
             using (Assert.Multiple())
             {
                 await Assert.That(AntiTunnelSources(children))
-                    .IsEquivalentTo(SwappedProbeSources, CollectionOrdering.Matching);
+                    .IsEquivalentTo(SwappedProbeSources, StringComparer.Ordinal, CollectionOrdering.Matching);
                 await Assert.That(AntiTunnelTargets(children, 0))
-                    .IsEquivalentTo(SwappedProbeFirstTargets, CollectionOrdering.Matching);
+                    .IsEquivalentTo(SwappedProbeFirstTargets, StringComparer.Ordinal, CollectionOrdering.Matching);
                 await Assert.That(AntiTunnelTargets(children, 1))
-                    .IsEquivalentTo(SwappedProbeSecondTargets, CollectionOrdering.Matching);
+                    .IsEquivalentTo(SwappedProbeSecondTargets, StringComparer.Ordinal, CollectionOrdering.Matching);
             }
         }
 
@@ -43,7 +43,7 @@ namespace Tests.IO
             ClothExtract.AddClothAntiTunnelProbes(children, ShuffledAntiTunnelTargets(), null);
 
             await Assert.That(AntiTunnelTargets(children, 0))
-                .IsEquivalentTo(ShuffledProbeTargets, CollectionOrdering.Matching);
+                .IsEquivalentTo(ShuffledProbeTargets, StringComparer.Ordinal, CollectionOrdering.Matching);
         }
 
         private static readonly string[] SwappedProbeSources = ["body", "tip"];
@@ -191,7 +191,7 @@ namespace Tests.IO
                 await Assert.That(Vector3.Distance(nested[0].GetSubCollection("angles").ToVector3(), new Vector3(0f, 45f, 0f)))
                     .IsLessThan(1e-3f);
                 await Assert.That(top.Select(static child => child.GetStringProperty("name")).ToArray())
-                    .IsEquivalentTo(["gravity1"], CollectionOrdering.Matching);
+                    .IsEquivalentTo(["gravity1"], StringComparer.Ordinal, CollectionOrdering.Matching);
                 await Assert.That(top[0].GetFloatProperty("strength")).IsEqualTo(2f).Within(1e-5f);
                 await Assert.That(Vector3.Distance(top[0].GetSubCollection("angles").ToVector3(), new Vector3(90f, 0f, 0f)))
                     .IsLessThan(1e-3f);
@@ -232,6 +232,7 @@ namespace Tests.IO
 
             await Assert.That(Names(top)).IsEquivalentTo(
                 ["spine_2", "coattail_1_L", "coattail_0_L_effects", "coattail_1_L_effects", "gravity_top", "gravity_generated"],
+                StringComparer.Ordinal,
                 CollectionOrdering.Matching);
 
             using (Assert.Multiple())
@@ -244,9 +245,10 @@ namespace Tests.IO
                 }
 
                 await Assert.That(Names(top[2].GetArray("children"))).IsEquivalentTo(["gravity_root", "gravity_root2"],
+                    StringComparer.Ordinal,
                     CollectionOrdering.Matching);
-                await Assert.That(Names(top[3].GetArray("children"))).IsEquivalentTo(["gravity_joint"]);
-                await Assert.That(Names(top[0].GetArray("children"))).IsEquivalentTo(["gravity_static"]);
+                await Assert.That(Names(top[3].GetArray("children"))).IsEquivalentTo(["gravity_joint"], StringComparer.Ordinal);
+                await Assert.That(Names(top[0].GetArray("children"))).IsEquivalentTo(["gravity_static"], StringComparer.Ordinal);
                 await Assert.That(top[1].ContainsKey("children")).IsFalse();
             }
         }
@@ -280,7 +282,7 @@ namespace Tests.IO
                 await Assert.That(groups.Length).IsEqualTo(1);
                 await Assert.That(groups[0].GetStringProperty("_class")).IsEqualTo("ClothAntiTunnelColliderGroup");
                 await Assert.That(groups[0].GetSubCollection("data").GetSubCollection("nodes").Select(static member => member.Key))
-                    .IsEquivalentTo(["spine_2_clothCapsule", "coattail_0_L"], CollectionOrdering.Matching);
+                    .IsEquivalentTo(["spine_2_clothCapsule", "coattail_0_L"], StringComparer.Ordinal, CollectionOrdering.Matching);
                 await Assert.That(withoutBytecode.Count).IsEqualTo(0);
             }
         }

@@ -92,7 +92,7 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
-                await Assert.That(compilerOrder).IsEquivalentTo(boneIds, CollectionOrdering.Matching);
+                await Assert.That(compilerOrder).IsEquivalentTo(boneIds, StringComparer.Ordinal, CollectionOrdering.Matching);
                 await Assert.That(roots).Count().IsEqualTo(1);
                 await Assert.That(roots[0].Name).IsEqualTo("root_motion");
                 await Assert.That(MathF.Abs(dot)).IsEqualTo(1f).Within(0.0001f);

@@ -35,7 +35,7 @@ namespace Tests.IO
                 await Assert.That(vmdl).DoesNotContain("MaterialGroupList");
 
                 await Assert.That(content.SubFiles.Select(subFile => subFile.FileName))
-                    .IsEquivalentTo(["chen_weapon.dmx"]);
+                    .IsEquivalentTo(["chen_weapon.dmx"], StringComparer.Ordinal);
                 await Assert.That(content.SubFiles.Single().Extract!.Invoke()).IsNotEmpty();
             }
         }
@@ -51,23 +51,28 @@ namespace Tests.IO
             {
                 await Assert.That(RootSections("necro_archer.vmdl_c")).IsEquivalentTo(
                     ["BoneMarkupList", "RenderMeshList", "BodyGroupList", "AttachmentList", "PoseParamList", "AnimationList", "HitboxSetList", "Skeleton"],
+                    StringComparer.Ordinal,
                     CollectionOrdering.Matching);
 
                 await Assert.That(RootSections("box_creature_ik_model.vmdl_c")).IsEquivalentTo(
                     ["BoneMarkupList", "RenderMeshList", "AttachmentList", "WeightListList", "AnimationList", "IKData", "GameDataList", "Skeleton"],
+                    StringComparer.Ordinal,
                     CollectionOrdering.Matching);
 
                 await Assert.That(RootSections("alyx_hand_left.vmdl_c")).IsEquivalentTo(
                     ["BoneMarkupList", "RenderMeshList", "AttachmentList", "WeightListList", "PoseParamList", "AnimationList", "IKData", "HitboxSetList", "Skeleton", "PhysicsBodyMarkupList", "PhysicsShapeList"],
+                    StringComparer.Ordinal,
                     CollectionOrdering.Matching);
 
                 await Assert.That(RootSections("lod_test.vmdl_c")).IsEquivalentTo(
                     ["BoneMarkupList", "RenderMeshList", "LODGroupList"],
+                    StringComparer.Ordinal,
                     CollectionOrdering.Matching);
 
                 // Every mesh of this one is an external reference the null loader cannot resolve.
                 await Assert.That(RootSections("alchemist.vmdl_c")).IsEquivalentTo(
                     ["BoneMarkupList", "Skeleton"],
+                    StringComparer.Ordinal,
                     CollectionOrdering.Matching);
             }
         }
@@ -95,14 +100,14 @@ namespace Tests.IO
             {
                 await Assert.That(blendSequence.IsBlend).IsTrue();
                 await Assert.That(blendSequence.Fetch!.Value.LocalReferenceArray).Count().IsEqualTo(3);
-                await Assert.That(blendSequence.Fetch!.Value.PoseKeyArray).IsEquivalentTo([-1f, 0f, 1f]);
+                await Assert.That(blendSequence.Fetch!.Value.PoseKeyArray).IsEquivalentTo([-1f, 0f, 1f], EqualityComparer<float>.Default);
 
                 await Assert.That(blend.GetStringProperty("name")).IsEqualTo("archer_turns");
                 await Assert.That(blend.GetStringProperty("poseParam")).IsEqualTo("turn");
                 await Assert.That(proxies.Select(proxy => proxy.GetStringProperty("name")))
-                    .IsEquivalentTo(["@archer_turns_lookFrame_0", "@archer_turns_lookFrame_1", "@archer_turns_lookFrame_2"]);
+                    .IsEquivalentTo(["@archer_turns_lookFrame_0", "@archer_turns_lookFrame_1", "@archer_turns_lookFrame_2"], StringComparer.Ordinal);
                 await Assert.That(proxies.Select(proxy => proxy.GetFloatProperty("weight")))
-                    .IsEquivalentTo([-1f, 0f, 1f]);
+                    .IsEquivalentTo([-1f, 0f, 1f], EqualityComparer<float>.Default);
 
                 await Assert.That(TestFixtures.FindNode(animationList, "AnimBindPose")?.GetStringProperty("name"))
                     .IsEqualTo("bindPose");
@@ -123,8 +128,8 @@ namespace Tests.IO
             {
                 await Assert.That(blend.GetStringProperty("row_pose_param_name")).IsEqualTo("up_down");
                 await Assert.That(blend.GetStringProperty("col_pose_param_name")).IsEqualTo("left_right");
-                await Assert.That(blend.GetFloatArray("row_weight_list")).IsEquivalentTo([-1f, 0f, 1f]);
-                await Assert.That(blend.GetFloatArray("col_weight_list")).IsEquivalentTo([-1f, 0f, 1f]);
+                await Assert.That(blend.GetFloatArray("row_weight_list")).IsEquivalentTo([-1f, 0f, 1f], EqualityComparer<float>.Default);
+                await Assert.That(blend.GetFloatArray("col_weight_list")).IsEquivalentTo([-1f, 0f, 1f], EqualityComparer<float>.Default);
                 await Assert.That(rows).Count().IsEqualTo(3);
                 await Assert.That(string.Join(',', rows[0].Select(cell => cell.Value)))
                     .IsEqualTo("@gem_lina_coordinates_right_up,@gem_lina_coordinates_up,@gem_lina_coordinates_left_up");
@@ -331,7 +336,7 @@ namespace Tests.IO
             using (Assert.Multiple())
             {
                 await Assert.That(perLevel.Select(group => group.GetFloatProperty("switch_threshold")))
-                    .IsEquivalentTo([0f, 1f], CollectionOrdering.Matching);
+                    .IsEquivalentTo([0f, 1f], EqualityComparer<float>.Default, CollectionOrdering.Matching);
 
                 // The mesh belongs to every level, so LODGroupAll names it and the per-level groups do not.
                 await Assert.That(perLevel.TrueForAll(group => group.GetArray("mesh_references").Count == 0)).IsTrue();

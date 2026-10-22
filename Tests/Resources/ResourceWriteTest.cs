@@ -89,7 +89,7 @@ namespace Tests.Resources
             using (Assert.Multiple())
             {
                 await Assert.That(reparsed.CRC32).IsEqualTo(block.CRC32);
-                await Assert.That(reparsed.Data).IsEquivalentTo(block.Data, CollectionOrdering.Matching);
+                await Assert.That(reparsed.Data).IsEquivalentTo(block.Data, EqualityComparer<byte>.Default, CollectionOrdering.Matching);
                 await Assert.That(reparsed.Images).Count().IsEqualTo(block.Images.Count);
 
                 for (var i = 0; i < block.Images.Count; i++)
@@ -134,7 +134,7 @@ namespace Tests.Resources
             using (Assert.Multiple())
             {
                 await Assert.That(reparsed.CRC32).IsEqualTo(block.CRC32);
-                await Assert.That(reparsed.Data).IsEquivalentTo(block.Data, CollectionOrdering.Matching);
+                await Assert.That(reparsed.Data).IsEquivalentTo(block.Data, EqualityComparer<byte>.Default, CollectionOrdering.Matching);
                 await Assert.That(reparsed.Images).Count().IsEqualTo(block.Images.Count);
             }
         }
