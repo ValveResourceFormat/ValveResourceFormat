@@ -1148,7 +1148,7 @@ namespace GUI.Types.GLViewers
                             }
                         };
 
-                        Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
+                        Program.MainForm.BeginInvoke(() => Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry));
                     }
                 }
             }

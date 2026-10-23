@@ -44,7 +44,8 @@ namespace GUI.Types.GLViewers
 
             if (!firstTime && skeletonSceneNode != null)
             {
-                skeletonSceneNode.ShowBones = false; // scene.Remove?
+                Scene.Remove(skeletonSceneNode, true);
+                skeletonSceneNode.Delete();
             }
 
             skeletonSceneNode = new SkeletonSceneNode(Scene, animationController.Pose, skeleton)

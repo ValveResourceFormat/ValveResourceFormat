@@ -12,6 +12,9 @@ namespace GUI.Controls
     {
         private string keyText = string.Empty;
         private string description = string.Empty;
+        private Font? boldFont;
+
+        private Font BoldFont => boldFont ??= new Font(Font, FontStyle.Bold);
 
         /// <summary>
         /// The key combination text displayed in the keycap (e.g., "WASD", "Ctrl+C", "F11").
@@ -75,9 +78,7 @@ namespace GUI.Controls
             graphics.SmoothingMode = SmoothingMode.AntiAlias;
             graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
 
-            using var boldFont = new Font(Font, FontStyle.Bold);
-
-            var keySize = TextRenderer.MeasureText(KeyText, boldFont);
+            var keySize = TextRenderer.MeasureText(KeyText, BoldFont);
             var descSize = TextRenderer.MeasureText(Description, Font);
 
             var keycapWidth = keySize.Width + this.AdjustForDPI(KeycapPadding * 2);
@@ -103,7 +104,7 @@ namespace GUI.Controls
             TextRenderer.DrawText(
                 graphics,
                 KeyText,
-                boldFont,
+                BoldFont,
                 keycapRect,
                 Themer.CurrentThemeColors.Contrast,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter
@@ -138,9 +139,7 @@ namespace GUI.Controls
                 return;
             }
 
-            using var boldFont = new Font(Font, FontStyle.Bold);
-
-            var keySize = TextRenderer.MeasureText(KeyText, boldFont);
+            var keySize = TextRenderer.MeasureText(KeyText, BoldFont);
             var descSize = TextRenderer.MeasureText(Description, Font);
 
             var keycapWidth = keySize.Width + this.AdjustForDPI(KeycapPadding * 2);
@@ -157,7 +156,19 @@ namespace GUI.Controls
         protected override void OnFontChanged(EventArgs e)
         {
             base.OnFontChanged(e);
+            boldFont?.Dispose();
+            boldFont = null;
             UpdateSize();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                boldFont?.Dispose();
+            }
+
+            base.Dispose(disposing);
         }
     }
 }
