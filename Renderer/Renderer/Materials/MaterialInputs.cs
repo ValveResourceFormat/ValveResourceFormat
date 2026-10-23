@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.Renderer.Materials
 {
@@ -25,9 +26,10 @@ namespace ValveResourceFormat.Renderer.Materials
             get => Items[key];
             set
             {
-                var changed = !Items.TryGetValue(key, out var existing) || !EqualityComparer<T>.Default.Equals(existing, value);
+                ref var slot = ref CollectionsMarshal.GetValueRefOrAddDefault(Items, key, out var exists);
+                var changed = !exists || !EqualityComparer<T>.Default.Equals(slot, value);
 
-                Items[key] = value;
+                slot = value;
 
                 if (changed)
                 {

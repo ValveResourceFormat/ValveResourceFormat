@@ -125,6 +125,7 @@ namespace ValveResourceFormat.Renderer.World
         private RenderTexture? DefaultCookieAtlas;
         private int CookieSamplerClampBorder;
         private int CookieSamplerWrap;
+        private bool WarnedAboutTooManyLights;
 
         /// <summary>Binds the scene's lightmap, light probe atlas, and barn light cookie textures to their reserved units.</summary>
         public void BindLightmapTextures()
@@ -644,7 +645,12 @@ namespace ValveResourceFormat.Renderer.World
             {
                 if (currentLightIndex >= LightingConstants.MAX_LIGHTS)
                 {
-                    scene.RendererContext.Logger.LogWarning("Too many lights in scene. Some lights were removed");
+                    if (!WarnedAboutTooManyLights)
+                    {
+                        WarnedAboutTooManyLights = true;
+                        scene.RendererContext.Logger.LogWarning("Too many lights in scene. Some lights were removed");
+                    }
+
                     break;
                 }
 

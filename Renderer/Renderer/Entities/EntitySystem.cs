@@ -131,6 +131,7 @@ public sealed class EntitySystem
     private static readonly List<BaseEntity> NoEntities = [];
 
     private readonly List<QueuedInput> inputQueue = [];
+    private bool warnedAboutRunawayInputs;
     private readonly Dictionary<EntityLump.Connection, int> firedCounts = [];
     private readonly HashSet<BaseEntity> playerImpacts = [];
     private long sequence;
@@ -1003,7 +1004,12 @@ public sealed class EntitySystem
 
             if (--budget < 0)
             {
-                Logger.LogWarning("Entity I/O ran away: more than {Limit} inputs in one tick, dropping the rest", MaxInputsPerTick);
+                if (!warnedAboutRunawayInputs)
+                {
+                    warnedAboutRunawayInputs = true;
+                    Logger.LogWarning("Entity I/O ran away: more than {Limit} inputs in one tick, dropping the rest", MaxInputsPerTick);
+                }
+
                 inputQueue.Clear();
                 return;
             }

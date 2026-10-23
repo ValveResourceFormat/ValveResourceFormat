@@ -257,7 +257,17 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     public Vector3 PrecomputedObbAngles { get; set; }
 
     /// <summary>Gets or sets the axis-aligned precomputed world bounds.</summary>
-    public AABB PrecomputedBounds { get; set; }
+    public AABB PrecomputedBounds
+    {
+        get;
+        set
+        {
+            field = value;
+            PrecomputedBoundsDiagonal = Vector3.Distance(value.Min, value.Max);
+        }
+    }
+
+    private float PrecomputedBoundsDiagonal;
 
     /// <summary>Gets or sets the number of precomputed sub-frusta for omni lights.</summary>
     public int PrecomputedSubfrusta { get; set; }
@@ -900,7 +910,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     internal (float Light, float Shadow) ComputeScreenSizeFades(Vector3 cameraPosition, float tanHalfHorizontalFov)
     {
         var bounds = PrecomputedFieldsValid ? PrecomputedBounds : new AABB(Position, Range);
-        var diagonal = Vector3.Distance(bounds.Min, bounds.Max);
+        var diagonal = PrecomputedFieldsValid ? PrecomputedBoundsDiagonal : Vector3.Distance(bounds.Min, bounds.Max);
         var distanceSq = Vector3.DistanceSquared(cameraPosition, bounds.Center);
 
         // Covers the whole screen with the camera close enough to be inside the bounds

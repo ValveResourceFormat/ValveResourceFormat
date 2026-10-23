@@ -33,7 +33,17 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// Gets the angles in degrees an angular fog fades over: below the horizon where it starts and where
         /// it is full (X, Y), and above it where it is full and where it ends (Z, W).
         /// </summary>
-        public Vector4 AngularFog { get; init; }
+        public Vector4 AngularFog
+        {
+            get;
+            init
+            {
+                field = value;
+                AngularFogMinMaxDots = new Vector4(ToHeight(value.X), ToHeight(value.Y), ToHeight(value.Z), ToHeight(value.W));
+            }
+        }
+
+        private Vector4 AngularFogMinMaxDots;
 
         /// <summary>Gets or sets the material used to render the skybox.</summary>
         public RenderMaterial Material { get; set; }
@@ -91,13 +101,13 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             Material.SetUniform("g_vSkyFogColor", linearFog.GetColor(camera.Forward));
             Material.SetUniform("g_flSkyDistanceFog", linearFog.GetAmount(skyDistance));
 
-            // Each angle is halved before it is turned into the height of a direction at that angle
-            static float ToHeight(float degrees) => MathF.Sin(degrees * MathF.PI / 360f);
-
-            Material.SetUniform("g_vSkyFogMinMaxDots", new Vector4(ToHeight(AngularFog.X), ToHeight(AngularFog.Y), ToHeight(AngularFog.Z), ToHeight(AngularFog.W)));
+            Material.SetUniform("g_vSkyFogMinMaxDots", AngularFogMinMaxDots);
 
             // The fog below the horizon is only there while both of its angles are above minus one degree
             Material.SetUniform("g_bSkyMinAngularFog", AngularFog.X > -1f && AngularFog.Y > -1f);
         }
+
+        // Each angle is halved before it is turned into the height of a direction at that angle
+        private static float ToHeight(float degrees) => MathF.Sin(degrees * MathF.PI / 360f);
     }
 }

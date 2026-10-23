@@ -25,6 +25,7 @@ namespace ValveResourceFormat.Renderer.Materials
         private readonly Dictionary<(RsTextureAddressMode AddressU, RsTextureAddressMode AddressV, bool Mipmaps, bool AnisotropicFiltering), int> Samplers = [];
         private readonly RendererContext RendererContext;
         private RenderTexture? ErrorTexture;
+        private RenderMaterial? ErrorMaterial;
         private RenderTexture? DefaultNormal;
         private RenderTexture? DefaultMask;
         private RenderTexture? DefaultColor;
@@ -79,6 +80,7 @@ namespace ValveResourceFormat.Renderer.Materials
             }
 
             OwnedMaterials.Clear();
+            ErrorMaterial = null;
             Materials.Clear();
 
             foreach (var item in Textures)
@@ -658,9 +660,14 @@ namespace ValveResourceFormat.Renderer.Materials
 
         private RenderMaterial GetErrorMaterial()
         {
-            var errorMat = new RenderMaterial(RendererContext.ShaderLoader.LoadShader("error"));
-            OwnedMaterials.Add(errorMat);
-            return errorMat;
+            if (ErrorMaterial != null)
+            {
+                return ErrorMaterial;
+            }
+
+            ErrorMaterial = new RenderMaterial(RendererContext.ShaderLoader.LoadShader("error"));
+            OwnedMaterials.Add(ErrorMaterial);
+            return ErrorMaterial;
         }
 
         /// <summary>Returns a lazily created 4x4 checkerboard error texture used as a fallback for missing textures.</summary>

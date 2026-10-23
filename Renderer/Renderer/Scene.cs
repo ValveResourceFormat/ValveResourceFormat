@@ -1601,7 +1601,6 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 List<RenderableMesh> meshes;
-                DrawCall? singleCall = null;
 
                 if (node is MeshCollectionNode meshCollection)
                 {
@@ -1624,9 +1623,9 @@ namespace ValveResourceFormat.Renderer
                         continue;
                     }
 
-                    listWithSingleMesh[0] = fragment.RenderMesh;
-                    meshes = listWithSingleMesh;
-                    singleCall = fragment.DrawCall;
+                    AccumulateDepthFit(node);
+                    AddShadowDrawCall(fragment.RenderMesh, fragment.DrawCall, node, drawBuckets);
+                    continue;
                 }
                 else if (node is SceneAggregate aggregate)
                 {
@@ -1664,24 +1663,7 @@ namespace ValveResourceFormat.Renderer
                 {
                     foreach (var opaqueCall in mesh.DrawCallsOpaque)
                     {
-                        if (singleCall != null && opaqueCall != singleCall)
-                        {
-                            continue;
-                        }
-
-                        if (opaqueCall.Material.DoNotCastShadows)
-                        {
-                            continue;
-                        }
-
-                        var bucket = GetDepthOnlyBucket(opaqueCall);
-
-                        drawBuckets[bucket].Add(new MeshBatchRenderer.Request
-                        {
-                            Mesh = mesh,
-                            Call = opaqueCall,
-                            Node = node,
-                        });
+                        AddShadowDrawCall(mesh, opaqueCall, node, drawBuckets);
                     }
                 }
             }
@@ -1690,6 +1672,23 @@ namespace ValveResourceFormat.Renderer
 
             casterDepthMin = depthMin;
             casterDepthMax = depthMax;
+        }
+
+        private static void AddShadowDrawCall(RenderableMesh mesh, DrawCall opaqueCall, SceneNode node, Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> drawBuckets)
+        {
+            if (opaqueCall.Material.DoNotCastShadows)
+            {
+                return;
+            }
+
+            var bucket = GetDepthOnlyBucket(opaqueCall);
+
+            drawBuckets[bucket].Add(new MeshBatchRenderer.Request
+            {
+                Mesh = mesh,
+                Call = opaqueCall,
+                Node = node,
+            });
         }
 
         // The skinning variant is picked per draw, so the bucket only says which shader draws it

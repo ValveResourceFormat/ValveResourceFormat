@@ -391,12 +391,13 @@ public abstract class BaseEntity
         ModelName = data.GetStringProperty("model");
 
         // Authored in the world of the map they were compiled in, and moved with whatever placed it
-        var authored = EntityTransformHelper.ToRigidTransformationMatrix(data.GetVector3Property("angles"), data.GetVector3Property("origin"))
+        var authoredAngles = data.GetVector3Property("angles");
+        var authored = EntityTransformHelper.ToRigidTransformationMatrix(authoredAngles, data.GetVector3Property("origin"))
             * spawnInfo.ParentTransform;
 
         origin = authored.Translation;
         angles = spawnInfo.ParentTransform.IsIdentity
-            ? data.GetVector3Property("angles")
+            ? authoredAngles
             : EntityTransformHelper.ToEulerAngles(Quaternion.CreateFromRotationMatrix(authored));
         previousOrigin = origin;
         previousAngles = angles;

@@ -576,12 +576,22 @@ namespace ValveResourceFormat.Renderer.Shaders
             CachedShaders.Clear();
         }
 
-        private static IEnumerable<KeyValuePair<string, byte>> SortAndFilterArguments(Dictionary<string, byte> defines, IReadOnlyDictionary<string, byte> arguments)
+        private static List<KeyValuePair<string, byte>> SortAndFilterArguments(Dictionary<string, byte> defines, IReadOnlyDictionary<string, byte> arguments)
         {
-            return arguments
-                .Where(p => defines.ContainsKey(p.Key))
-                .Where(static p => p.Value != 0) // Shader defines should already default to zero
-                .OrderBy(static p => p.Key);
+            var result = new List<KeyValuePair<string, byte>>(arguments.Count);
+
+            foreach (var argument in arguments)
+            {
+                // Shader defines should already default to zero
+                if (argument.Value != 0 && defines.ContainsKey(argument.Key))
+                {
+                    result.Add(argument);
+                }
+            }
+
+            result.Sort(static (a, b) => string.CompareOrdinal(a.Key, b.Key));
+
+            return result;
         }
 
         private static string GetArgumentDescription(IEnumerable<KeyValuePair<string, byte>> arguments)
