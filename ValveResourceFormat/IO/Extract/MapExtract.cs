@@ -2826,17 +2826,7 @@ public sealed partial class MapExtract
                 // The compiler prefixes entity names used as literals, like it does targetnames
                 var text = ApplyNameFixup((string)value, string.Empty, string.Empty);
 
-                // TODO: Use value.Flag.SerializeFlagName() once ValveKeyValue with KVFlagExtensions is released
-                var specificType = value.Flag switch
-                {
-                    KVFlag.Resource => "resource",
-                    KVFlag.ResourceName => "resource_name",
-                    KVFlag.Panorama => "panorama",
-                    KVFlag.SoundEvent => "soundevent",
-                    KVFlag.SubClass => "subclass",
-                    KVFlag.EntityName => "entity_name",
-                    _ => null,
-                };
+                var specificType = value.Flag.SerializeFlagName();
 
                 if (specificType == null)
                 {
