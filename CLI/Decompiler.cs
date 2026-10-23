@@ -2126,7 +2126,20 @@ namespace CLI
                 return !filePath.Equals(LinkedFilePath, StringComparison.OrdinalIgnoreCase);
             }
 
-            return FileFilter.Length > 0 && FileFilter.All(filter => !IsVpkFilePathMatch(filter, filePath));
+            if (FileFilter.Length == 0)
+            {
+                return false;
+            }
+
+            foreach (var filter in FileFilter)
+            {
+                if (IsVpkFilePathMatch(filter, filePath))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private static bool IsVpkFilePathMatch(string filter, string filePath)

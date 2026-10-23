@@ -20,7 +20,7 @@ internal class ConsoleStringWriter : StringWriter
 
         if (sb.Length >= MaxLength)
         {
-            Console.Write(sb.ToString());
+            WriteChunks(sb);
             sb.Clear();
         }
     }
@@ -33,8 +33,16 @@ internal class ConsoleStringWriter : StringWriter
 
         if (sb.Length > 0)
         {
-            Console.Write(sb.ToString());
+            WriteChunks(sb);
             sb.Clear();
+        }
+    }
+
+    private static void WriteChunks(StringBuilder sb)
+    {
+        foreach (var chunk in sb.GetChunks())
+        {
+            Console.Out.Write(chunk.Span);
         }
     }
 }
