@@ -85,6 +85,9 @@ namespace ValveResourceFormat.IO
         private readonly record struct AddonSearchPath(Package? Package, string? Folder);
 
         private readonly string? CurrentFileName;
+
+        // Where the gameinfo of the current file is looked for from, which for a source file is the compiled side
+        private readonly string? GameSearchFileName;
         private readonly ILogger Logger;
         private string? PreferredAddonFolderOnDisk;
         private string? WorkshopContentFolder;
@@ -137,6 +140,7 @@ namespace ValveResourceFormat.IO
         {
             CurrentPackage = currentPackage;
             CurrentFileName = currentFileName;
+            GameSearchFileName = GetGamePathForContentFile(currentFileName);
             Logger = logger ?? NullLogger.Instance;
 
             // Find gameinfo.gi by walking up from the current file, preload vpks and add folders to search paths
@@ -1011,9 +1015,34 @@ namespace ValveResourceFormat.IO
             }
         }
 
+        // A source file sits under "content", beside the "game" folder holding what it compiles to, with the
+        // same folders below both. The game side is the one with the gameinfo and the compiled files.
+        private static string? GetGamePathForContentFile(string? fileName)
+        {
+            var directory = Path.GetDirectoryName(fileName);
+
+            while (!string.IsNullOrEmpty(directory))
+            {
+                var parent = Path.GetDirectoryName(directory);
+
+                if (parent != null && Path.GetFileName(directory).Equals("content", StringComparison.OrdinalIgnoreCase))
+                {
+                    var gameDirectory = Path.Join(parent, "game");
+
+                    return Directory.Exists(gameDirectory)
+                        ? Path.Join(gameDirectory, fileName![(directory.Length + 1)..])
+                        : fileName;
+                }
+
+                directory = parent;
+            }
+
+            return fileName;
+        }
+
         private string? GetModIdentifierFile()
         {
-            var directory = CurrentFileName!;
+            var directory = GameSearchFileName!;
             string? childDirectory = null;
             var i = 10;
             var isLastWorkshop = false;
@@ -1094,7 +1123,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         private string? FindGameInfoMountingCurrentFolder()
         {
-            var childDirectory = CurrentFileName!;
+            var childDirectory = GameSearchFileName!;
 
             if (!Path.IsPathFullyQualified(childDirectory) && !childDirectory.StartsWith('/'))
             {
