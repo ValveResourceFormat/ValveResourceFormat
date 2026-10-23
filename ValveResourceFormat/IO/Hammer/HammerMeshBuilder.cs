@@ -219,6 +219,9 @@ namespace ValveResourceFormat.IO
     /// </remarks>
     public class HammerMeshBuilder
     {
+        // What collision is drawn with when no tools material or surface property names a material for it
+        private const string NodrawMaterial = "materials/tools/toolsnodraw.vmat";
+
         /// <summary>
         /// How an edge shades across its two faces.
         /// </summary>
@@ -736,7 +739,7 @@ namespace ValveResourceFormat.IO
             var attributes = phys.CollisionAttributes[desc.CollisionAttributeIndex];
             var tags = PhysAggregateData.GetInteractAsTags(attributes);
             var group = attributes.GetStringProperty("m_CollisionGroupString");
-            var material = materialOverride ?? MapExtract.GetToolTextureNameForCollisionTags(new SurfaceTagCombo(group, tags));
+            var material = materialOverride ?? MapExtract.GetToolsMaterialForInteractAs(tags) ?? NodrawMaterial;
 
             if (group == "Default")
             {
@@ -786,7 +789,7 @@ namespace ValveResourceFormat.IO
             var attributes = phys.CollisionAttributes[desc.CollisionAttributeIndex];
             var tags = PhysAggregateData.GetInteractAsTags(attributes);
             var group = attributes.GetStringProperty("m_CollisionGroupString");
-            var material = materialOverride ?? MapExtract.GetToolTextureNameForCollisionTags(new SurfaceTagCombo(group, tags));
+            var material = materialOverride ?? MapExtract.GetToolsMaterialForInteractAs(tags) ?? NodrawMaterial;
 
             var physicsSurfaceNames = phys.SurfacePropertyHashes.Select(StringToken.GetKnownString).ToArray();
 
@@ -843,7 +846,7 @@ namespace ValveResourceFormat.IO
 
                     // default is just nodraw, ignore it
                     material = surfaceProperty.Equals("default", StringComparison.OrdinalIgnoreCase)
-                        ? "materials/tools/toolsnodraw.vmat"
+                        ? NodrawMaterial
                         : materialNameProvider.Invoke(surfaceProperty);
                 }
 

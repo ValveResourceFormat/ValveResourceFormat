@@ -1,3 +1,4 @@
+using System.IO;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
@@ -392,7 +393,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 var tags = PhysAggregateData.GetInteractAsTags(attributes);
                 var group = attributes.GetStringProperty("m_CollisionGroupString");
 
-                var tooltexture = MapExtract.GetToolTextureShortenedName_ForInteractStrings([.. tags]);
+                var toolsMaterial = MapExtract.GetToolsMaterialForInteractAs(tags);
 
                 var physName = string.Empty;
 
@@ -419,9 +420,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         physName = $"[{string.Join(", ", tags)}]" + physName;
                     }
 
-                    if (tooltexture != "nodraw")
+                    if (toolsMaterial != null)
                     {
-                        physName = $"- {tooltexture} {physName}";
+                        physName = $"- {Path.GetFileNameWithoutExtension(toolsMaterial)} {physName}";
                     }
                 }
 
@@ -435,9 +436,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         toolMaterialName = toolTexture;
                     }
                 }
-                else if (tooltexture != "nodraw")
+                else
                 {
-                    toolMaterialName = $"materials/tools/tools{tooltexture}.vmat";
+                    toolMaterialName = toolsMaterial;
                 }
 
                 var lineCorners = meshEdges.GetLineCorners();
