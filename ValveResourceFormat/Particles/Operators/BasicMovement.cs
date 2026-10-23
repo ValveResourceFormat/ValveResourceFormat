@@ -50,20 +50,14 @@ namespace ValveResourceFormat.Particles.Operators
             var stepRatio = particles.PreviousFrameTime > 0f ? frameTime / particles.PreviousFrameTime : 1f;
             var dragFactor = stepRatio * MathF.Pow(1f - dragValue, frameTime * 30f);
 
-            var current = particles.Current;
-            var positions = current.Position;
-            var previousPositions = current.PositionPrevious;
-            var forces = current.ForceAccumulator;
-            var forceScales = current.ForceScale;
-
-            for (var i = 0; i < positions.Length; i++)
+            foreach (var particle in particles.Current)
             {
                 // ForceScale (per-particle) weights the applied forces; 0 = pinned/immovable.
-                var acceleration = gravityAcceleration + forces[i];
-                var step = ((positions[i] - previousPositions[i]) * dragFactor) + (forceScales[i] * (timeStepSquared * acceleration));
-                forces[i] = Vector3.Zero;
-                previousPositions[i] = positions[i];
-                positions[i] += step;
+                var acceleration = gravityAcceleration + particle.ForceAccumulator;
+                var step = ((particle.Position - particle.PositionPrevious) * dragFactor) + (particle.ForceScale * (timeStepSquared * acceleration));
+                particle.ForceAccumulator = Vector3.Zero;
+                particle.PositionPrevious = particle.Position;
+                particle.Position += step;
             }
 
             particleSystemState.Data?.RunConstraints(particles, frameTime, maxConstraintPasses);
