@@ -46,6 +46,9 @@ public abstract class BaseModelEntity : BaseEntity
     /// </summary>
     public ModelSceneNode? ModelNode { get; private set; }
 
+    /// <summary>Gets the model node on show, which an entity that swaps its model, such as a damaged door, replaces.</summary>
+    public virtual ModelSceneNode? ShownModelNode => ModelNode;
+
     /// <summary>Gets the physics of the model, or <see langword="null"/> when it has none.</summary>
     public PhysAggregateData? Physics { get; private set; }
 
@@ -327,7 +330,7 @@ public abstract class BaseModelEntity : BaseEntity
     [EntityInput("Color")]
     protected void InputColor(EntityInputData data)
     {
-        if (ModelNode is not { } node)
+        if (ShownModelNode is not { } node)
         {
             return;
         }
@@ -345,7 +348,7 @@ public abstract class BaseModelEntity : BaseEntity
     [EntityInput("Alpha")]
     protected void InputAlpha(EntityInputData data)
     {
-        if (ModelNode is not { } node)
+        if (ShownModelNode is not { } node)
         {
             return;
         }

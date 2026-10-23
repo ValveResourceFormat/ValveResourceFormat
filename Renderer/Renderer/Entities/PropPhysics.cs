@@ -348,6 +348,11 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
                 spawned.OverrideHealth(piece.Health);
             }
 
+            if (owner.ShownModelNode is { } shown && spawned.ModelNode is { } pieceNode)
+            {
+                pieceNode.TintAlpha = shown.TintAlpha;
+            }
+
             if (piece.IsDebris)
             {
                 spawned.collisionCategory = PhysicsSimulation.DebrisCategory;

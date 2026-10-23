@@ -133,6 +133,9 @@ public class PropDoorRotating : BaseToggle, IDamageable
     private SceneNodes.ModelSceneNode? stageNode;
     private PropBreakData? stageBreakData;
 
+    /// <inheritdoc/>
+    public override SceneNodes.ModelSceneNode? ShownModelNode => stageNode ?? ModelNode;
+
     private readonly List<PropDoorRotating> slaves = [];
 
     private Vector3 angleClosed;
@@ -299,7 +302,7 @@ public class PropDoorRotating : BaseToggle, IDamageable
             node.SetAnimationForWorldPreview("ref");
         }
 
-        var previousNode = stageNode ?? ModelNode;
+        var previousNode = ShownModelNode;
 
         if (previousNode != null)
         {
@@ -344,7 +347,7 @@ public class PropDoorRotating : BaseToggle, IDamageable
             return;
         }
 
-        var center = (stageNode ?? ModelNode)?.BoundingBox.Center ?? Origin;
+        var center = ShownModelNode?.BoundingBox.Center ?? Origin;
         PropPhysics.BreakApart(this, stageBreakData, Origin, EntityTransformHelper.EulerAnglesToQuaternion(Angles),
             Vector3.Zero, Vector3.Zero, center, direction);
     }
