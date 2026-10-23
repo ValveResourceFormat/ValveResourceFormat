@@ -5,10 +5,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
     /// </summary>
     internal class FlexOpFetch2 : FlexOp
     {
+        private readonly int FlexId;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="FlexOpFetch2"/> class.
         /// </summary>
-        public FlexOpFetch2(float data) : base(data) { }
+        public FlexOpFetch2(float data) : base(data)
+        {
+            FlexId = (int)MathF.Round(data);
+        }
 
         /// <inheritdoc/>
         /// <remarks>
@@ -16,8 +21,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
         /// </remarks>
         public override void Run(in FlexRuleContext context)
         {
-            var flexId = (int)MathF.Round(Data);
-            context.Stack.Push(context.GetFlexValue(flexId));
+            context.Stack.Push(context.GetFlexValue(FlexId));
         }
     }
 }

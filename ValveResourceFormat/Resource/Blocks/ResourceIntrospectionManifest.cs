@@ -437,7 +437,7 @@ namespace ValveResourceFormat.Blocks
                         field.TypeData = reader.ReadUInt32();
                         field.Type = (SchemaFieldType)reader.ReadInt16();
 
-                        reader.ReadBytes(2); // alignment bytes
+                        reader.BaseStream.Position += 2; // alignment bytes
 
                         diskStruct.FieldIntrospection.Add(field);
                     }
@@ -447,7 +447,7 @@ namespace ValveResourceFormat.Blocks
 
                 diskStruct.StructFlags = reader.ReadByte();
 
-                reader.ReadBytes(3); // alignment bytes
+                reader.BaseStream.Position += 3; // alignment bytes
 
                 ReferencedStructs.Add(diskStruct);
             }

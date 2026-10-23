@@ -161,7 +161,6 @@ namespace ValveResourceFormat.ResourceTypes
                 }
 
                 var rectData = new Vector4[height * width];
-                rectData.Initialize();
 
                 foreach (var rect in morphData.GetArray("m_morphRectDatas") ?? [])
                 {

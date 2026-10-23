@@ -41,12 +41,12 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the referenced bone names.
         /// </summary>
-        public string[] BoneNames => Data.GetArray<string>("m_boneNames");
+        public string[] BoneNames => boneNames ??= Data.GetArray<string>("m_boneNames");
 
         /// <summary>
         /// Gets the bone parent indices for each part.
         /// </summary>
-        public uint[] BoneParents => Data.GetArray<uint>("m_boneParents");
+        public uint[] BoneParents => boneParents ??= Data.GetArray<uint>("m_boneParents");
 
         /// <summary>
         /// Gets the surface property hashes for collision materials.
@@ -106,6 +106,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         private Matrix4x4[]? bindPose;
         private Part[]? parts;
+        private string[]? boneNames;
+        private uint[]? boneParents;
         private Joint[]? joints;
         private uint[]? surfacePropertyHashes;
         private IReadOnlyList<KVObject>? collisionAttributes;

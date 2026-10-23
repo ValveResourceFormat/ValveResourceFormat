@@ -8,6 +8,16 @@ namespace ValveResourceFormat.Serialization.VfxEval
         // Rec. 709 luminance coefficients, normalized to unit length for axis-angle rotation
         private static readonly Vector3 LuminanceCoefficientsNormalised = Vector3.Normalize(new Vector3(0.2126f, 0.7152f, 0.0722f));
 
+        // Rotation taking the luminance axis onto the Z axis
+        private static readonly Matrix4x4 LuminanceRotation = CreateLuminanceRotation();
+
+        private static Matrix4x4 CreateLuminanceRotation()
+        {
+            var cross = Vector3.Cross(LuminanceCoefficientsNormalised, Vector3.UnitZ);
+            var angle = MathF.Atan2(cross.Length(), Vector3.Dot(LuminanceCoefficientsNormalised, Vector3.UnitZ));
+            return Matrix4x4.CreateFromAxisAngle(Vector3.Normalize(cross), angle);
+        }
+
         private static float RgbSaturation(Vector3 rgb)
         {
             var max = rgb.MaxComponent();
@@ -22,9 +32,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
         /// <param name="colorOffset">Pivot point for the contrast adjustment.</param>
         public static Matrix4x4 MatrixColorCorrect2(Vector3 CSB, Vector3 colorOffset)
         {
-            var cross = Vector3.Cross(LuminanceCoefficientsNormalised, Vector3.UnitZ);
-            var angle = MathF.Atan2(cross.Length(), Vector3.Dot(LuminanceCoefficientsNormalised, Vector3.UnitZ));
-            var rotation = Matrix4x4.CreateFromAxisAngle(Vector3.Normalize(cross), angle);
+            var rotation = LuminanceRotation;
 
             // T(-offset) * Scale(contrast) * T(offset) * Scale(brightness) * Scale(lum) * R * Scale(sat,sat,1) * R^-1 * Scale(1/lum)
             var result = Matrix4x4.CreateTranslation(-colorOffset) * Matrix4x4.CreateScale(CSB.X) * Matrix4x4.CreateTranslation(colorOffset);
@@ -47,9 +55,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
         {
             var saturation = RgbSaturation(rgb);
 
-            var cross = Vector3.Cross(LuminanceCoefficientsNormalised, Vector3.UnitZ);
-            var angle = MathF.Atan2(cross.Length(), Vector3.Dot(LuminanceCoefficientsNormalised, Vector3.UnitZ));
-            var rotation = Matrix4x4.CreateFromAxisAngle(Vector3.Normalize(cross), angle);
+            var rotation = LuminanceRotation;
             var lumScale = Matrix4x4.CreateScale(LuminanceCoefficientsNormalised);
             var gray = Vector3.Transform(rgb, lumScale * rotation);
 

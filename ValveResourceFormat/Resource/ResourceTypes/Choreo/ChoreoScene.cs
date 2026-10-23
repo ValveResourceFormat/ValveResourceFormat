@@ -79,7 +79,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
 
             if (Events.Length > 0)
             {
-                var events = KVObject.Array();
+                var events = KVObject.Array(Events.Length);
                 foreach (var choreoEvent in Events)
                 {
                     events.Add(choreoEvent.ToKeyValues());
@@ -90,7 +90,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
 
             if (Actors.Length > 0)
             {
-                var actors = KVObject.Array();
+                var actors = KVObject.Array(Actors.Length);
                 foreach (var actor in Actors)
                 {
                     actors.Add(actor.ToKeyValues());

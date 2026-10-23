@@ -12,6 +12,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnShapeDesc_t">RnShapeDesc_t</seealso>
     public class ShapeDescriptor<T> where T : struct
     {
+        private static readonly string TypeName = typeof(T).Name;
+        private static readonly string ShapeMemberName = "m_" + TypeName;
+
         /// <summary>
         /// Gets or sets the collision attribute index.
         /// </summary>
@@ -51,8 +54,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             UserFriendlyName = data.GetStringProperty("m_UserFriendlyName");
             HitGroupName = data.GetStringProperty("m_sHitGroupName");
 
-            var memberName = typeof(T).Name;
-            var shapeData = data.GetSubCollection("m_" + memberName) ?? throw new InvalidDataException("Member name is not correct for shape type: " + memberName);
+            var shapeData = data.GetSubCollection(ShapeMemberName) ?? throw new InvalidDataException("Member name is not correct for shape type: " + TypeName);
             Shape = DeserializeShape(shapeData);
         }
 

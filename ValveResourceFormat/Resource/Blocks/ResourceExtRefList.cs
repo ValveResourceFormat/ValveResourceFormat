@@ -1,5 +1,4 @@
 using System.IO;
-using System.Linq;
 using System.Text;
 
 namespace ValveResourceFormat.Blocks
@@ -54,9 +53,15 @@ namespace ValveResourceFormat.Blocks
         {
             get
             {
-                var value = ResourceRefInfoList.FirstOrDefault(c => c.Id == id);
+                foreach (var info in ResourceRefInfoList)
+                {
+                    if (info.Id == id)
+                    {
+                        return info.Name;
+                    }
+                }
 
-                return value?.Name;
+                return null;
             }
         }
 

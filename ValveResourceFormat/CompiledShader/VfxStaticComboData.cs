@@ -217,7 +217,14 @@ namespace ValveResourceFormat.CompiledShader
             );
 
             VsInputSignatureIndices = data.GetArray<int>("m_vsInputSignatureIndexArray") ?? [];
-            Attributes = [.. data.GetIntegerArray("m_attribIdx").Select(i => attributes[i])];
+
+            var attributeIndices = data.GetIntegerArray("m_attribIdx");
+            Attributes = new VfxShaderAttribute[attributeIndices.Length];
+
+            for (var i = 0; i < attributeIndices.Length; i++)
+            {
+                Attributes[i] = attributes[attributeIndices[i]];
+            }
         }
 
         /// <summary>

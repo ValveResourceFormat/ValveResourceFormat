@@ -5,10 +5,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
     /// </summary>
     internal class FlexOpNWay : FlexOp
     {
+        private readonly int ValueController;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="FlexOpNWay"/> class.
         /// </summary>
-        public FlexOpNWay(float data) : base(data) { }
+        public FlexOpNWay(float data) : base(data)
+        {
+            ValueController = (int)MathF.Round(data);
+        }
 
         /// <inheritdoc/>
         /// <remarks>
@@ -17,10 +22,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
         public override void Run(in FlexRuleContext context)
         {
             var tController = context.PopIndex();
-            var valueController = (int)MathF.Round(Data);
 
             var tCurrent = context.GetControllerValue(tController);
-            var value = context.GetControllerValue(valueController);
+            var value = context.GetControllerValue(ValueController);
 
             var t4 = context.Pop();
             var t3 = context.Pop();

@@ -5,10 +5,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
     /// </summary>
     internal class FlexOpDmeLowerEyelid : FlexOp
     {
+        private readonly int CloseLidVController;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="FlexOpDmeLowerEyelid"/> class.
         /// </summary>
-        public FlexOpDmeLowerEyelid(float data) : base(data) { }
+        public FlexOpDmeLowerEyelid(float data) : base(data)
+        {
+            CloseLidVController = (int)MathF.Round(data);
+        }
 
         /// <inheritdoc/>
         /// <remarks>
@@ -16,7 +21,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
         /// </remarks>
         public override void Run(in FlexRuleContext context)
         {
-            var closeLidV = context.GetRemappedControllerValue((int)MathF.Round(Data), 0f, 1f);
+            var closeLidV = context.GetRemappedControllerValue(CloseLidVController, 0f, 1f);
             var closeLid = context.GetRemappedControllerValue(context.PopIndex(), 0f, 1f);
             var blinkIndex = context.PopIndex();
             var eyeUpDownIndex = context.PopIndex();

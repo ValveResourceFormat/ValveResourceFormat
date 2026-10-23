@@ -64,24 +64,32 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var remapTable = new int[domain];
             Array.Fill(remapTable, -1);
 
+            // The first entry wins when names repeat
+            var domainIndices = new Dictionary<string, int>(domain, StringComparer.OrdinalIgnoreCase);
+
+            for (var i = 0; i < domain; i++)
+            {
+                var domainName = Attribute switch
+                {
+                    AnimationChannelAttribute.Data => flexControllers[i].Name,
+                    AnimationChannelAttribute.User => userNames[i],
+                    _ => skeleton.Bones[i].Name,
+                };
+
+                domainIndices.TryAdd(domainName, i);
+            }
+
             for (var i = 0; i < elementIndexArray.Length; i++)
             {
                 var elementName = elementNameArray![i];
                 var elementIndex = elementIndexArray[i];
 
-                var id = Attribute switch
+                if (elementName is null || !domainIndices.TryGetValue(elementName, out var id))
                 {
-                    AnimationChannelAttribute.Data
-                        => Array.FindIndex(flexControllers, ctrl => ctrl.Name.Equals(elementName, StringComparison.OrdinalIgnoreCase)),
-                    AnimationChannelAttribute.User
-                        => Array.FindIndex(userNames, name => name.Equals(elementName, StringComparison.OrdinalIgnoreCase)),
-                    _ => Array.FindIndex(skeleton.Bones, bone => bone.Name.Equals(elementName, StringComparison.OrdinalIgnoreCase)),
-                };
-
-                if (id != -1)
-                {
-                    remapTable[id] = elementIndex;
+                    continue;
                 }
+
+                remapTable[id] = elementIndex;
             }
 
             RemapTable = remapTable;

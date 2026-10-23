@@ -325,9 +325,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case SchemaFieldType.ExternalReference:
                 case SchemaFieldType.Unused:
                     var id = Reader.ReadUInt64();
-                    var value = id > 0
-                        ? Resource.ExternalReferences?.ResourceRefInfoList.FirstOrDefault(c => c.Id == id)?.Name
-                        : null;
+                    var value = id > 0 ? Resource.ExternalReferences?[id] : null;
 
                     if (value == null)
                     {

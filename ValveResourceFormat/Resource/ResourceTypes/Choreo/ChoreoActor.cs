@@ -44,7 +44,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             var kv = KVObject.Collection();
             kv.Add("name", Name);
 
-            var channels = KVObject.Array();
+            var channels = KVObject.Array(Channels.Length);
             foreach (var channel in Channels)
             {
                 channels.Add(channel.ToKeyValues());

@@ -5,10 +5,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
     /// </summary>
     internal class FlexOpDominate : FlexOp
     {
+        private readonly int Count;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="FlexOpDominate"/> class.
         /// </summary>
-        public FlexOpDominate(float data) : base(data) { }
+        public FlexOpDominate(float data) : base(data)
+        {
+            Count = (int)MathF.Round(data);
+        }
 
         /// <inheritdoc/>
         /// <remarks>
@@ -16,10 +21,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
         /// </remarks>
         public override void Run(in FlexRuleContext context)
         {
-            var count = (int)MathF.Round(Data);
             var dominators = 1f;
 
-            for (var i = 0; i < count; i++)
+            for (var i = 0; i < Count; i++)
             {
                 dominators *= context.Pop();
             }

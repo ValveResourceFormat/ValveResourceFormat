@@ -213,6 +213,8 @@ public static class KV3IDLookup
         { "text", new Guid([0x3C, 0x7F, 0x1C, 0xE2, 0x33, 0x8A, 0xC5, 0x41, 0x99, 0x77, 0xA7, 0x6D, 0x3A, 0x32, 0xAA, 0x0D]) },
     }.ToFrozenDictionary();
 
+    private static readonly FrozenDictionary<Guid, string> NamesByValue = Table.ToFrozenDictionary(static pair => pair.Value, static pair => pair.Key);
+
     /// <summary>
     /// Looks up a <see cref="KV3ID"/> in the lookup table, will throw <see cref="ArgumentException"/> if not found.
     /// </summary>
@@ -231,12 +233,9 @@ public static class KV3IDLookup
     /// </summary>
     public static KV3ID GetByValue(Guid value)
     {
-        foreach (var (name, guid) in KV3IDLookup.Table)
+        if (NamesByValue.TryGetValue(value, out var name))
         {
-            if (value == guid)
-            {
-                return new KV3ID(name, value);
-            }
+            return new KV3ID(name, value);
         }
 
         return new KV3ID("vrfunknown", value);

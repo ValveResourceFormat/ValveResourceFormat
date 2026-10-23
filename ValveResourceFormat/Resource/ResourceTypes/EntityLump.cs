@@ -246,20 +246,27 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (connections.Count > 0)
             {
-                entity.Connections = connections.Select((connection) => new Connection
+                var entityConnections = new List<Connection>(connections.Count);
+
+                foreach (var connection in connections)
                 {
-                    SourceEntity = entity,
-                    TargetName = connection.GetStringProperty("m_targetName"),
-                    OutputName = connection.GetStringProperty("m_outputName"),
-                    InputName = connection.GetStringProperty("m_inputName"),
-                    OverrideParam = connection.GetStringProperty("m_overrideParam"),
-                    Delay = connection.GetFloatProperty("m_flDelay"),
-                    TimesToFire = connection.GetInt32Property("m_nTimesToFire"),
-                    TargetType = connection.GetEnumValue<EntityIOTargetType>("m_targetType"),
-                    ParamMap = connection.TryGetValue("m_paramMap", out var paramMap) && paramMap.ValueType == KVValueType.Collection
-                        ? paramMap
-                        : null,
-                }).ToList();
+                    entityConnections.Add(new Connection
+                    {
+                        SourceEntity = entity,
+                        TargetName = connection.GetStringProperty("m_targetName"),
+                        OutputName = connection.GetStringProperty("m_outputName"),
+                        InputName = connection.GetStringProperty("m_inputName"),
+                        OverrideParam = connection.GetStringProperty("m_overrideParam"),
+                        Delay = connection.GetFloatProperty("m_flDelay"),
+                        TimesToFire = connection.GetInt32Property("m_nTimesToFire"),
+                        TargetType = connection.GetEnumValue<EntityIOTargetType>("m_targetType"),
+                        ParamMap = connection.TryGetValue("m_paramMap", out var paramMap) && paramMap.ValueType == KVValueType.Collection
+                            ? paramMap
+                            : null,
+                    });
+                }
+
+                entity.Connections = entityConnections;
             }
 
             return entity;

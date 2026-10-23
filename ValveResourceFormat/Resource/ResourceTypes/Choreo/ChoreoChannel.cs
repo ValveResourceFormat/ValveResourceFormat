@@ -44,7 +44,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             var kv = KVObject.Collection();
             kv.Add("name", Name);
 
-            var events = KVObject.Array();
+            var events = KVObject.Array(Events.Length);
             foreach (var choreoEvent in Events)
             {
                 events.Add(choreoEvent.ToKeyValues());

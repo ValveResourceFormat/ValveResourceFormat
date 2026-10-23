@@ -247,7 +247,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                 return;
             }
 
-            var tagList = KVObject.Array();
+            var tagList = KVObject.Array(tags.Length);
 
             foreach (var tag in tags)
             {

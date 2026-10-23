@@ -5,10 +5,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
     /// </summary>
     internal class FlexOpTwoWay1 : FlexOp
     {
+        private readonly int ControllerId;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="FlexOpTwoWay1"/> class.
         /// </summary>
-        public FlexOpTwoWay1(float data) : base(data) { }
+        public FlexOpTwoWay1(float data) : base(data)
+        {
+            ControllerId = (int)MathF.Round(data);
+        }
 
         /// <inheritdoc/>
         /// <remarks>
@@ -16,7 +21,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
         /// </remarks>
         public override void Run(in FlexRuleContext context)
         {
-            var value = context.GetControllerValue((int)MathF.Round(Data));
+            var value = context.GetControllerValue(ControllerId);
             context.Stack.Push(MathUtils.RemapValClamped(value, 0f, 1f, 0f, 1f));
         }
     }
