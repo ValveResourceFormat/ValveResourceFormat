@@ -151,8 +151,9 @@ public sealed class PhysicsSimulation : IDisposable
     /// </returns>
     public BaseEntity? ApplyImpactImpulse(Vector3 from, Vector3 direction, float distance, float impulse)
     {
+        // Not as the player, whom debris pieces are filtered against
         var hit = World.RaycastClosest(from, direction * distance,
-            new QueryFilter(PlayerCategory, StaticCategory | PropCategory | DebrisCategory | MoverCategory));
+            new QueryFilter(~PlayerCategory, StaticCategory | PropCategory | DebrisCategory | MoverCategory));
 
         if (!hit.Hit || !hit.Shape.IsValid)
         {
