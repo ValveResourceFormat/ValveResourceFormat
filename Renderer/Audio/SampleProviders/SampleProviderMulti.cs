@@ -1,3 +1,5 @@
+using System.Numerics.Tensors;
+
 namespace ValveResourceFormat.Renderer.Audio.SampleProviders;
 
 /// <summary>
@@ -223,18 +225,13 @@ public class SampleProviderMulti : AudioSampleProvider
                         var next = node.Next;
 
                         var read = node.Value.Read(readBuffer, 0, count);
-                        var index = offset;
-                        for (var i = 0; i < read; i++)
-                        {
-                            if (i >= maxRead)
-                            {
-                                buffer[index++] = readBuffer[i];
-                            }
-                            else
-                            {
-                                buffer[index++] += readBuffer[i];
-                            }
-                        }
+
+                        // Sum over what earlier providers wrote, copy past it
+                        var overlap = Math.Min(read, maxRead);
+                        var mixed = buffer.AsSpan(offset, overlap);
+                        var incoming = readBuffer.AsSpan(0, overlap);
+                        TensorPrimitives.Add(mixed, incoming, mixed);
+                        readBuffer.AsSpan(overlap, read - overlap).CopyTo(buffer.AsSpan(offset + overlap));
 
                         if (read < count && node.List == providers)
                         {
@@ -282,10 +279,8 @@ public class SampleProviderMulti : AudioSampleProvider
             else if (maxRead > 0 && liveTarget != 1f)
             {
                 // Steady gain is a plain scale; the ramp is only for the chunk the gain changed in
-                for (var i = 0; i < maxRead; i++)
-                {
-                    buffer[offset + i] *= liveTarget;
-                }
+                var mixed = buffer.AsSpan(offset, maxRead);
+                TensorPrimitives.Multiply(mixed, liveTarget, mixed);
             }
 
             appliedLiveVolume = liveTarget;

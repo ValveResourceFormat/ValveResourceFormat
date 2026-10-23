@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Numerics.Tensors;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -268,11 +269,9 @@ namespace ValveResourceFormat.Blocks
                 {
                     var cluster = mergeClusters[j];
                     var row = cluster < ClusterCount ? RowMemory(ClusterRowOffsets[cluster]).Span : [];
+                    var target = merged[..row.Length];
 
-                    for (var b = 0; b < row.Length; b++)
-                    {
-                        merged[b] |= row[b];
-                    }
+                    TensorPrimitives.BitwiseOr(target, row, target);
                 }
             }
         }

@@ -1,3 +1,5 @@
+using System.Numerics.Tensors;
+
 namespace ValveResourceFormat.IO;
 
 public partial class GltfModelExporter
@@ -80,6 +82,11 @@ public partial class GltfModelExporter
 
     private static void SanitizeNonFinite(Span<float> values)
     {
+        if (TensorPrimitives.IsFiniteAll<float>(values))
+        {
+            return;
+        }
+
         for (var i = 0; i < values.Length; i++)
         {
             if (!float.IsFinite(values[i]))

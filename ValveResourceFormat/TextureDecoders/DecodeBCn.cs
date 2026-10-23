@@ -32,12 +32,7 @@ internal readonly struct DecodeBCn : ITextureDecoder
                 var decoder = BlockDecoder.Create(BlockFormat.BC6HUf16);
                 decoder.Decode(input, w, h, dataHalf, bitmap.Width, bitmap.Height);
 
-                var halfComponents = MemoryMarshal.Cast<byte, Half>(dataHalf);
-
-                for (var i = 0; i < data.Length; i++)
-                {
-                    data[i] = Common.ToClampedLdrColor((float)halfComponents[i]);
-                }
+                Common.ToClampedLdrColor(MemoryMarshal.Cast<byte, Half>(dataHalf), data);
             }
             finally
             {

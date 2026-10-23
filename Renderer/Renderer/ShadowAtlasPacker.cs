@@ -1,3 +1,5 @@
+using System.Numerics.Tensors;
+
 namespace ValveResourceFormat.Renderer;
 
 /// <summary>Describes the position and size of a shadow map region within the atlas texture.</summary>
@@ -93,10 +95,7 @@ public class ShadowAtlasPacker
         for (var r = y + 1; r < y + hCells; r++)
         {
             var row = occupancy.AsSpan(r * wordsPerRow, wordsPerRow);
-            for (var w = 0; w < combined.Length; w++)
-            {
-                combined[w] |= row[w];
-            }
+            TensorPrimitives.BitwiseOr(combined, row, combined);
         }
 
         combined[^1] |= lastWordOccupiedTail;

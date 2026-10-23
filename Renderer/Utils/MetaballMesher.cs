@@ -211,11 +211,17 @@ namespace ValveResourceFormat.Renderer.Utils
 
             var reach = new Vector3(cutoffRadius);
             var last = new Vector3(sizeX - 1, sizeY - 1, sizeZ - 1);
+            var originX = new Vector<float>(origin.X);
+            var stepX = new Vector<float>(step.X);
+            var cutoffSquaredVector = new Vector<float>(cutoffSquared);
+            var falloffVector = new Vector<float>(falloff);
+            var half = new Vector<float>(0.5f);
 
             foreach (var center in centers.AsSpan(0, centerCount))
             {
                 var low = Vector3.Max(Vector3.Zero, Ceiling((center - reach - origin) / step));
                 var high = Vector3.Min(last, Floor((center + reach - origin) / step));
+                var centerX = new Vector<float>(center.X);
 
                 for (var z = (int)low.Z; z <= (int)high.Z; z++)
                 {
@@ -225,8 +231,24 @@ namespace ValveResourceFormat.Renderer.Utils
                     {
                         var dy = origin.Y + (y * step.Y) - center.Y;
                         var row = GridIndex(0, y, z);
+                        var x = (int)low.X;
 
-                        for (var x = (int)low.X; x <= (int)high.X; x++)
+                        // Same operations in the same order as the scalar loop below, so the field is unchanged
+                        var dySquared = new Vector<float>(dy * dy);
+                        var dzSquared = new Vector<float>(dz * dz);
+
+                        for (; x + Vector<float>.Count - 1 <= (int)high.X; x += Vector<float>.Count)
+                        {
+                            var dx = originX + (Vector.ConvertToSingle(new Vector<int>(x) + Vector<int>.Indices) * stepX) - centerX;
+                            var distanceSquared = (dx * dx) + dySquared + dzSquared;
+                            var kernel = half - (distanceSquared * falloffVector);
+                            var contribution = Vector.ConditionalSelect(Vector.LessThanOrEqual(distanceSquared, cutoffSquaredVector), kernel * kernel, Vector<float>.Zero);
+
+                            var slot = field.AsSpan(row + x, Vector<float>.Count);
+                            (new Vector<float>(slot) + contribution).CopyTo(slot);
+                        }
+
+                        for (; x <= (int)high.X; x++)
                         {
                             var dx = origin.X + (x * step.X) - center.X;
                             var distanceSquared = (dx * dx) + (dy * dy) + (dz * dz);

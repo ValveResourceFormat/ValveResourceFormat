@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Numerics.Tensors;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -578,10 +579,7 @@ namespace ValveResourceFormat.Blocks
                 }
                 else
                 {
-                    for (var i = 0; i < row.Length; i++)
-                    {
-                        pvsBuffer[i] |= row[i];
-                    }
+                    TensorPrimitives.BitwiseOr(pvsBuffer, row, pvsBuffer);
                 }
             }
 

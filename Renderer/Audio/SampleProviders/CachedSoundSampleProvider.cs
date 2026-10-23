@@ -1,3 +1,6 @@
+using System.Numerics.Tensors;
+using System.Runtime.InteropServices;
+
 namespace ValveResourceFormat.Renderer.Audio.SampleProviders;
 
 /// <summary>
@@ -143,11 +146,12 @@ public sealed class CachedSoundSampleProvider : AudioSampleProvider
             }
 
             var toCopy = Math.Min(available, count - read);
-            var dst = offset + read;
-            for (var i = 0; i < toCopy; i++)
-            {
-                buffer[dst + i] = samples[sampleOffset + position + i] * PcmScale;
-            }
+            var source = samples.AsSpan(sampleOffset + position, toCopy);
+            var destination = buffer.AsSpan(offset + read, toCopy);
+
+            TensorPrimitives.ConvertToSingle(source, destination);
+            TensorPrimitives.Multiply(destination, PcmScale, destination);
+
             position += toCopy;
             read += toCopy;
         }

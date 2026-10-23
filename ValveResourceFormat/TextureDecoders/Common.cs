@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Linq;
+using System.Numerics.Tensors;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using SkiaSharp;
@@ -201,6 +202,26 @@ namespace ValveResourceFormat.TextureDecoders
         public static byte ToClampedLdrColor(float a)
         {
             return (byte)(ClampHighRangeColor(a) * 255 + 0.5f);
+        }
+
+        /// <summary>
+        /// Same as <see cref="ToClampedLdrColor(float)"/> for every element.
+        /// </summary>
+        public static void ToClampedLdrColor(ReadOnlySpan<Half> source, Span<byte> destination)
+        {
+            const int ChunkSize = 1024;
+            Span<float> values = stackalloc float[ChunkSize];
+
+            for (var offset = 0; offset < destination.Length; offset += ChunkSize)
+            {
+                var count = Math.Min(ChunkSize, destination.Length - offset);
+                var sourceChunk = source.Slice(offset, count);
+                var valuesChunk = values[..count];
+                var destinationChunk = destination.Slice(offset, count);
+
+                TensorPrimitives.ConvertToSingle(sourceChunk, valuesChunk);
+                TensorPrimitives.ConvertToClampedUnorm8(valuesChunk, destinationChunk);
+            }
         }
 
         private static byte[] CreateSimdSwizzleMask(int[] swizzle) =>

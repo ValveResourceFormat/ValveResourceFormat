@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Numerics.Tensors;
 using System.Runtime.CompilerServices;
 
 namespace ValveResourceFormat.Animation
@@ -238,23 +239,19 @@ namespace ValveResourceFormat.Animation
                     case BoneMaskTask.TaskType.Combine:
                     case BoneMaskTask.TaskType.Blend:
                     {
-                        var sourceBuffer = pool.GetBuffer(maskBufferIndices[task.SourceTaskIdx]);
-                        var targetBuffer = pool.GetBuffer(maskBufferIndices[task.TargetTaskIdx]);
+                        var sourceBuffer = pool.GetBuffer(maskBufferIndices[task.SourceTaskIdx]).AsSpan(0, result.Length);
+                        var targetBuffer = pool.GetBuffer(maskBufferIndices[task.TargetTaskIdx]).AsSpan(0, result.Length);
                         maskBufferIndices[i] = maskBufferIndices[task.TargetTaskIdx];
 
                         if (task.Type == BoneMaskTask.TaskType.Combine)
                         {
-                            for (var b = 0; b < targetBuffer.Length; b++)
-                            {
-                                targetBuffer[b] *= sourceBuffer[b];
-                            }
+                            TensorPrimitives.Multiply(targetBuffer, sourceBuffer, targetBuffer);
                         }
-                        else // Blend: lerp from the source result towards the target result
+                        else // Blend: lerp from the source result towards the target result, unfused as MathUtils.Lerp
                         {
-                            for (var b = 0; b < targetBuffer.Length; b++)
-                            {
-                                targetBuffer[b] = MathUtils.Lerp(sourceBuffer[b], targetBuffer[b], task.Weight);
-                            }
+                            TensorPrimitives.Subtract(targetBuffer, sourceBuffer, targetBuffer);
+                            TensorPrimitives.Multiply(targetBuffer, task.Weight, targetBuffer);
+                            TensorPrimitives.Add(targetBuffer, sourceBuffer, targetBuffer);
                         }
 
                         break;

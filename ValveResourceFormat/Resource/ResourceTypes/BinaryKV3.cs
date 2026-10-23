@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Numerics.Tensors;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using K4os.Compression.LZ4;
@@ -903,11 +904,10 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     var bytes = ReadLaneSpan<byte>(ref lane.Bytes1, count);
                     var values = new bool[count];
+                    var valueBytes = MemoryMarshal.Cast<bool, byte>(values.AsSpan());
 
-                    for (var i = 0; i < count; i++)
-                    {
-                        values[i] = bytes[i] != 0;
-                    }
+                    // Any non-zero byte is true, and a bool must hold exactly 1
+                    TensorPrimitives.Min(bytes, (byte)1, valueBytes);
 
                     return KVObject.PackedArray(values, elementFlag);
                 }
@@ -916,10 +916,7 @@ namespace ValveResourceFormat.ResourceTypes
                     var bytes = ReadLaneSpan<sbyte>(ref lane.Bytes1, count);
                     var values = new int[count];
 
-                    for (var i = 0; i < count; i++)
-                    {
-                        values[i] = bytes[i];
-                    }
+                    TensorPrimitives.ConvertToInt32(bytes, values);
 
                     return KVObject.PackedArray(values, elementFlag);
                 }
@@ -928,10 +925,7 @@ namespace ValveResourceFormat.ResourceTypes
                     var bytes = ReadLaneSpan<byte>(ref lane.Bytes1, count);
                     var values = new uint[count];
 
-                    for (var i = 0; i < count; i++)
-                    {
-                        values[i] = bytes[i];
-                    }
+                    TensorPrimitives.ConvertTruncating<byte, uint>(bytes, values);
 
                     return KVObject.PackedArray(values, elementFlag);
                 }

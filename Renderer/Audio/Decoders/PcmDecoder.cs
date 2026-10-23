@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Numerics.Tensors;
 using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.Renderer.Audio.Decoders;
@@ -43,11 +44,10 @@ internal static class PcmDecoder
 
                 case 16:
                 {
-                    var samples = MemoryMarshal.Cast<byte, short>(data);
-                    for (var i = 0; i < count; i++)
-                    {
-                        scratch[i] = samples[start + i] / 32768f;
-                    }
+                    var samples = MemoryMarshal.Cast<byte, short>(data).Slice(start, count);
+                    var destination = scratch.AsSpan(0, count);
+                    TensorPrimitives.ConvertToSingle(samples, destination);
+                    TensorPrimitives.Divide(destination, 32768f, destination);
 
                     break;
                 }
@@ -64,11 +64,10 @@ internal static class PcmDecoder
 
                 case 32:
                 {
-                    var samples = MemoryMarshal.Cast<byte, int>(data);
-                    for (var i = 0; i < count; i++)
-                    {
-                        scratch[i] = samples[start + i] / 2147483648f;
-                    }
+                    var samples = MemoryMarshal.Cast<byte, int>(data).Slice(start, count);
+                    var destination = scratch.AsSpan(0, count);
+                    TensorPrimitives.ConvertTruncating(samples, destination);
+                    TensorPrimitives.Divide(destination, 2147483648f, destination);
 
                     break;
                 }

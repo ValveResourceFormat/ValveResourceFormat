@@ -43,6 +43,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="$(BundledNETCoreAppPackageVersion)" />
     <PackageReference Include="NLayer" Version="3.0.0" />
     <PackageReference Include="OpenTK.Graphics" Version="4.9.4" />
+    <PackageReference Include="System.Numerics.Tensors" Version="$(BundledNETCoreAppPackageVersion)" />
   </ItemGroup>
 
   <ItemGroup>

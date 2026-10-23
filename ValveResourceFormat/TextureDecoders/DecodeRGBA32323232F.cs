@@ -1,3 +1,4 @@
+using System.Numerics.Tensors;
 using System.Runtime.InteropServices;
 using SkiaSharp;
 using RGBA32323232F = (float R, float G, float B, float A);
@@ -28,17 +29,11 @@ namespace ValveResourceFormat.TextureDecoders
 
         private static void DecodeLdr(SKPixmap pixels, ReadOnlySpan<RGBA32323232F> inputPixels)
         {
-            var ldrColors = pixels.GetPixelSpan<SKColor>();
+            var ldrColors = pixels.GetPixelSpan<byte>();
+            var components = MemoryMarshal.Cast<RGBA32323232F, float>(inputPixels)[..ldrColors.Length];
 
-            for (var i = 0; i < ldrColors.Length; i++)
-            {
-                ldrColors[i] = new SKColor(
-                    Common.ToClampedLdrColor(inputPixels[i].R),
-                    Common.ToClampedLdrColor(inputPixels[i].G),
-                    Common.ToClampedLdrColor(inputPixels[i].B),
-                    Common.ToClampedLdrColor(inputPixels[i].A)
-                );
-            }
+            TensorPrimitives.ConvertToClampedUnorm8(components, ldrColors);
+            Common.SwapRB(ldrColors);
         }
     }
 }

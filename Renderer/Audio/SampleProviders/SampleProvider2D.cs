@@ -1,3 +1,5 @@
+using System.Numerics.Tensors;
+
 namespace ValveResourceFormat.Renderer.Audio.SampleProviders;
 
 /// <summary>
@@ -21,10 +23,8 @@ public class SampleProvider2D : AudioSampleProvider
 
         if (VolumeMultiplier != 1f)
         {
-            for (var i = 0; i < read; i++)
-            {
-                buffer[offset + i] *= VolumeMultiplier;
-            }
+            var samples = buffer.AsSpan(offset, read);
+            TensorPrimitives.Multiply(samples, VolumeMultiplier, samples);
         }
 
         if (read < count)

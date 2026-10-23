@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Numerics.Tensors;
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 using SharpGLTF.Memory;
@@ -840,18 +841,13 @@ public partial class GltfModelExporter
         if (indexBuffer.ElementSizeInBytes == 4)
         {
             System.Buffer.BlockCopy(indexBuffer.Data, byteStart, indices, 0, byteCount);
-            for (var i = 0; i < count; i++)
-            {
-                indices[i] += baseVertex;
-            }
+            TensorPrimitives.Add(indices, baseVertex, indices);
         }
         else if (indexBuffer.ElementSizeInBytes == 2)
         {
             var shortIndices = MemoryMarshal.Cast<byte, ushort>(indexBuffer.Data).Slice(start, count);
-            for (var i = 0; i < count; i++)
-            {
-                indices[i] = baseVertex + shortIndices[i];
-            }
+            TensorPrimitives.ConvertTruncating(shortIndices, indices.AsSpan());
+            TensorPrimitives.Add(indices, baseVertex, indices);
         }
 
         return indices;
@@ -939,7 +935,7 @@ public partial class GltfModelExporter
 
         for (var i = 0; i < floats.Length; i++)
         {
-            bytes[i] = (byte)MathF.Round(floats[i] * 255f);
+            bytes[i] = (byte)Math.Clamp(MathF.Round(floats[i] * 255f), 0f, 255f);
         }
 
         var accessor = exportedModel.CreateAccessor();
@@ -953,12 +949,7 @@ public partial class GltfModelExporter
     /// </summary>
     private static Accessor CreateJointsAccessor(ModelRoot exportedModel, ushort[] joints)
     {
-        var maxJoint = 0;
-
-        foreach (var joint in joints)
-        {
-            maxJoint = Math.Max(maxJoint, joint);
-        }
+        var maxJoint = joints.Length > 0 ? TensorPrimitives.Max<ushort>(joints) : 0;
 
         var accessor = exportedModel.CreateAccessor();
         var count = joints.Length / 4;
@@ -966,12 +957,7 @@ public partial class GltfModelExporter
         if (maxJoint <= byte.MaxValue)
         {
             var bytesView = exportedModel.CreateBufferView(joints.Length, 4 * sizeof(byte), BufferMode.ARRAY_BUFFER);
-            var bytes = ((Memory<byte>)bytesView.Content).Span;
-
-            for (var i = 0; i < joints.Length; i++)
-            {
-                bytes[i] = (byte)joints[i];
-            }
+            TensorPrimitives.ConvertTruncating<ushort, byte>(joints, ((Memory<byte>)bytesView.Content).Span);
 
             accessor.SetVertexData(bytesView, 0, count, new AttributeFormat(DimensionType.VEC4, EncodingType.UNSIGNED_BYTE));
 
@@ -992,12 +978,7 @@ public partial class GltfModelExporter
     /// </summary>
     private static void SetIndices(MeshPrimitive primitive, PrimitiveType primitiveType, int[] indices)
     {
-        var maxIndex = 0;
-
-        foreach (var index in indices)
-        {
-            maxIndex = Math.Max(maxIndex, index);
-        }
+        var maxIndex = indices.Length > 0 ? TensorPrimitives.Max<int>(indices) : 0;
 
         var model = primitive.LogicalParent.LogicalParent;
         var accessor = model.CreateAccessor();
@@ -1013,10 +994,7 @@ public partial class GltfModelExporter
             var shortView = model.CreateBufferView(sizeof(ushort) * indices.Length, 0, BufferMode.ELEMENT_ARRAY_BUFFER);
             var shorts = MemoryMarshal.Cast<byte, ushort>(((Memory<byte>)shortView.Content).Span);
 
-            for (var i = 0; i < indices.Length; i++)
-            {
-                shorts[i] = (ushort)indices[i];
-            }
+            TensorPrimitives.ConvertToUInt16(indices, shorts);
 
             accessor.SetIndexData(shortView, 0, indices.Length, IndexEncodingType.UNSIGNED_SHORT);
         }
@@ -1151,13 +1129,13 @@ public partial class GltfModelExporter
 
         var positions = (Vector3[])positionAttribute.Data;
         var normals = (Vector3[])normalAttribute.Data;
-
         var updatedPositions = new Vector3[positions.Length];
 
-        for (var i = 0; i < positions.Length; i++)
-        {
-            updatedPositions[i] = positions[i] + normals[i] * OverlayNormalOffsetDistance;
-        }
+        var positionFloats = MemoryMarshal.Cast<Vector3, float>(positions);
+        var normalFloats = MemoryMarshal.Cast<Vector3, float>(normals.AsSpan(0, positions.Length));
+        var updatedFloats = MemoryMarshal.Cast<Vector3, float>(updatedPositions.AsSpan());
+
+        TensorPrimitives.MultiplyAddEstimate(normalFloats, OverlayNormalOffsetDistance, positionFloats, updatedFloats);
 
         offsetAccessor = CreateAccessor(exportedModel, updatedPositions);
         positionAttribute.OverlayPositionAccessors.Add(normalAttribute, offsetAccessor);

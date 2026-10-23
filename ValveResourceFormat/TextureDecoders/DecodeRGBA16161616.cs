@@ -1,3 +1,4 @@
+using System.Numerics.Tensors;
 using System.Runtime.InteropServices;
 using SkiaSharp;
 using RGBA16161616 = (ushort R, ushort G, ushort B, ushort A);
@@ -23,16 +24,11 @@ namespace ValveResourceFormat.TextureDecoders
 
         private static void DecodeHdr(SKPixmap pixels, ReadOnlySpan<RGBA16161616> inputPixels)
         {
-            var hdrColors = pixels.GetPixelSpan<SKColorF>();
-            for (var i = 0; i < hdrColors.Length; i++)
-            {
-                hdrColors[i] = new SKColorF(
-                    ((float)inputPixels[i].R) / ushort.MaxValue,
-                    ((float)inputPixels[i].G) / ushort.MaxValue,
-                    ((float)inputPixels[i].B) / ushort.MaxValue,
-                    ((float)inputPixels[i].A) / ushort.MaxValue
-                );
-            }
+            var hdrColors = MemoryMarshal.Cast<SKColorF, float>(pixels.GetPixelSpan<SKColorF>());
+            var components = MemoryMarshal.Cast<RGBA16161616, ushort>(inputPixels)[..hdrColors.Length];
+
+            TensorPrimitives.ConvertToSingle(components, hdrColors);
+            TensorPrimitives.Divide(hdrColors, ushort.MaxValue, hdrColors);
         }
 
         public static void DecodeLdr(SKPixmap pixels, ReadOnlySpan<RGBA16161616> inputPixels)
