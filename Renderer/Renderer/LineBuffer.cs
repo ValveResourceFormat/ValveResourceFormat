@@ -48,14 +48,14 @@ namespace ValveResourceFormat.Renderer
             VertexCount = 0;
         }
 
-        /// <summary>Draws the lines, with the object id as instancing base for picking.</summary>
-        /// <param name="objectId">Object id used as instancing base for picking.</param>
+        /// <summary>Draws the lines, with the object id as instancing base, which replacement shaders read.</summary>
+        /// <param name="objectId">Object id used as instancing base.</param>
         public void Draw(uint objectId = 0) => Draw(0, VertexCount, objectId);
 
-        /// <summary>Draws a range of the uploaded vertices, with the object id as instancing base for picking.</summary>
+        /// <summary>Draws a range of the uploaded vertices, with the object id as instancing base, which replacement shaders read.</summary>
         /// <param name="first">Index of the first vertex to draw.</param>
         /// <param name="count">Number of vertices to draw, two per segment or three per triangle.</param>
-        /// <param name="objectId">Object id used as instancing base for picking.</param>
+        /// <param name="objectId">Object id used as instancing base.</param>
         /// <param name="primitive">What the vertices make up.</param>
         public void Draw(int first, int count, uint objectId = 0, PrimitiveType primitive = PrimitiveType.Lines)
         {

@@ -190,8 +190,6 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the GPU thinning of the scene's clutter, or <see langword="null"/> when it has none.</summary>
         internal ClutterCuller? ClutterCuller { get; private set; }
 
-        internal Shader? OutlineShader { get; private set; }
-
         internal LightBinner? ShadingLightBinner { get; set; }
 
         /// <summary>Gets the renderer context providing shared GPU resources and shader loading.</summary>
@@ -302,7 +300,6 @@ namespace ValveResourceFormat.Renderer
 
             UpdateBuffers();
 
-            OutlineShader = RendererContext.ShaderLoader.LoadShader("outline");
             FrustumCullShader = RendererContext.ShaderLoader.LoadShader("frustum_cull");
             CompactionShader = RendererContext.ShaderLoader.LoadShader("compact_indirect_draws");
 

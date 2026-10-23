@@ -72,7 +72,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <inheritdoc/>
         public override void Render(Scene.RenderContext context)
         {
-            // The quads have nothing for depth, picking or outline shaders to draw
+            // The quads have nothing for depth or replacement shaders to draw
             if (context.RenderPass != RenderPass.Opaque || context.ReplacementShader != null)
             {
                 return;

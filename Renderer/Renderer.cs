@@ -193,14 +193,6 @@ public class Renderer : ISpawnGroupHost
     public Framebuffer? BarnLightShadowBuffer { get; private set; }
 
     /// <summary>
-    /// Single channel coverage mask written by the outline geometry pass and read by the outline edge post pass.
-    /// Lazily created to match <see cref="MainFramebuffer"/>'s dimensions and sample count.
-    /// </summary>
-    public Framebuffer? OutlineMaskBuffer { get; private set; }
-
-    private const ImageFormat OutlineMaskFormat = ImageFormat.I8;
-
-    /// <summary>
     /// Resolved (non-MSAA) scene color in rgba16f format, used for refraction, bloom input, and luminance computation.
     /// Filled by <see cref="GrabFramebufferCopy"/>.
     /// </summary>
@@ -1178,10 +1170,7 @@ public class Renderer : ISpawnGroupHost
 
         var isMainFramebuffer = ReferenceEquals(renderContext.Framebuffer, MainFramebuffer);
         var isMaterialPass = renderContext.ReplacementShader == null && isMainFramebuffer;
-
-        // The outline has its own program and its own mask, so a replacement shader does not stop it
-        var drawsOutline = isMainFramebuffer && renderContext.OverdrawShader == null;
-        var isStandardPass = isMaterialPass && drawsOutline;
+        var isStandardPass = isMaterialPass && renderContext.OverdrawShader == null;
 
         if (!isStandardPass)
         {
@@ -1363,26 +1352,6 @@ public class Renderer : ISpawnGroupHost
         if (isStandardPass && computeFramebufferLuminance)
         {
             ComputeAverageLuminance(renderContext);
-        }
-
-        if (drawsOutline)
-        {
-            var hasOutlineObjects = false;
-
-            foreach (var view in views)
-            {
-                foreach (var state in view.States)
-                {
-                    hasOutlineObjects |= state.HasOutlineObjects;
-                }
-            }
-
-            Postprocess.HasOutlineObjects = hasOutlineObjects;
-
-            if (Postprocess.HasOutlineObjects)
-            {
-                RenderOutlineLayer(renderContext, views);
-            }
         }
 
         if (isStandardPass)
@@ -1575,62 +1544,6 @@ public class Renderer : ISpawnGroupHost
         var output = Vector4.Zero;
         histogramBuffers[1].Read(ref output);
         Postprocess.AverageLuminance = output.X;
-    }
-
-    private void RenderOutlineLayer(Scene.RenderContext renderContext, ReadOnlySpan<SceneView> views)
-    {
-        using var _ = new GLDebugGroup("Outline Mask Write");
-
-        var sceneFramebuffer = renderContext.Framebuffer;
-        var maskBuffer = GetOutlineMaskBuffer(sceneFramebuffer);
-
-        Postprocess.OutlineMask = maskBuffer.Color;
-
-        // Custom scene nodes may leave state changed, and the outline layer is drawn mid frame.
-        using var maskState = GraphicsContext.RenderState.Scope(cullMode: RsCullMode.None,
-            multisampleEnable: maskBuffer.NumSamples > 1, depthTest: false, depthWrite: false, blend: false);
-
-        GL.Viewport(0, 0, maskBuffer.Width, maskBuffer.Height);
-        maskBuffer.BindAndClear();
-
-        // Backwards, so the sky's outlines are drawn first and the main view is the one left bound
-        for (var i = views.Length - 1; i >= 0; i--)
-        {
-            var states = views[i].States;
-
-            for (var j = states.Count - 1; j >= 0; j--)
-            {
-                DrawThrough(views[i], states[j], ref renderContext);
-                states[j].RenderOutlineLayer(renderContext);
-            }
-        }
-
-        sceneFramebuffer.Bind(FramebufferTarget.Framebuffer);
-        GL.Viewport(0, 0, sceneFramebuffer.Width, sceneFramebuffer.Height);
-    }
-
-    /// <summary>
-    /// Returns the outline mask framebuffer, creating or resizing it to match the scene framebuffer.
-    /// </summary>
-    private Framebuffer GetOutlineMaskBuffer(Framebuffer sceneFramebuffer)
-    {
-        var (width, height, msaa) = (sceneFramebuffer.Width, sceneFramebuffer.Height, sceneFramebuffer.NumSamples);
-
-        // The edge detection pass reads the mask per sample, so the mask has to be multisampled the same way.
-        Debug.Assert(msaa > 0);
-
-        if (OutlineMaskBuffer == null)
-        {
-            OutlineMaskBuffer = Framebuffer.Prepare(nameof(OutlineMaskBuffer), width, height, msaa, OutlineMaskFormat, null);
-            OutlineMaskBuffer.ClearMask = ClearBufferMask.ColorBufferBit;
-            OutlineMaskBuffer.Initialize();
-        }
-        else
-        {
-            OutlineMaskBuffer.Resize(width, height, msaa);
-        }
-
-        return OutlineMaskBuffer;
     }
 
     private void UpdateMorphAtlas()
@@ -1923,6 +1836,72 @@ public class Renderer : ISpawnGroupHost
     }
 
     /// <summary>
+    /// Binds every scene the main camera sees in turn, the 3D sky first and the main scene last, with the view
+    /// constants and buffers it was rendered with, for drawing in the world over a frame that has already been
+    /// rendered. The scene textures stay bound. The caller binds the target and sets the render state.
+    /// </summary>
+    /// <param name="framebuffer">What is drawn into, the size of the scene.</param>
+    /// <param name="draw">Draws into one scene, given a render context with the view state it was culled with.</param>
+    public void DrawOverScenes(Framebuffer framebuffer, Action<Scene.RenderContext> draw)
+    {
+        ArgumentNullException.ThrowIfNull(framebuffer);
+        ArgumentNullException.ThrowIfNull(draw);
+
+        var renderContext = new Scene.RenderContext
+        {
+            Scene = Scene,
+            Camera = Camera,
+            Framebuffer = framebuffer,
+            Textures = Textures,
+        };
+
+        GL.Viewport(0, 0, framebuffer.Width, framebuffer.Height);
+        SetViewportConstants(framebuffer.Width, framebuffer.Height, Vector2.One);
+
+        var views = CollectViews(Camera);
+
+        for (var i = views.Length - 1; i >= 0; i--)
+        {
+            var states = views[i].States;
+
+            for (var j = states.Count - 1; j >= 0; j--)
+            {
+                DrawThrough(views[i], states[j], ref renderContext);
+                draw(renderContext);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Draws some nodes of the last frame again over every scene they were drawn in, each all at once with a shader
+    /// that replaces their materials, which can test against the resolved scene depth. The caller binds and
+    /// clears the target and sets the render state.
+    /// </summary>
+    /// <param name="framebuffer">What is drawn into, the size of the scene.</param>
+    /// <param name="shader">The shader every draw is made with.</param>
+    /// <param name="nodes">The nodes to draw. Those the last frame did not draw are left out.</param>
+    /// <returns>Whether anything was drawn.</returns>
+    public bool RenderNodes(Framebuffer framebuffer, Shader shader, IReadOnlySet<SceneNode> nodes)
+    {
+        ArgumentNullException.ThrowIfNull(shader);
+        ArgumentNullException.ThrowIfNull(nodes);
+
+        if (nodes.Count == 0)
+        {
+            return false;
+        }
+
+        var drewAny = false;
+
+        DrawOverScenes(framebuffer, context =>
+        {
+            drewAny |= context.View!.RenderNodes(context with { ReplacementShader = shader }, nodes);
+        });
+
+        return drewAny;
+    }
+
+    /// <summary>
     /// Multisampling resolve, postprocess the image, and convert to gamma.
     /// </summary>
     public void PostprocessRender(Framebuffer inputFramebuffer, Framebuffer outputFramebuffer, bool flipY = false)
@@ -1972,7 +1951,6 @@ public class Renderer : ISpawnGroupHost
         ResolvedSceneColor?.Delete();
         ResolvedSceneDepth?.Delete();
         TranslucentDepthBuffer?.Delete();
-        OutlineMaskBuffer?.Delete();
         orderIndependentLayers?.Delete();
         ShadowDepthBuffer?.Delete();
         BarnLightShadowBuffer?.Delete();

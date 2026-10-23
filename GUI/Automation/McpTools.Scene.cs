@@ -467,7 +467,7 @@ internal sealed partial class McpTools
                 Distance = distance,
                 Node = DescribeNode(viewer, MapEntities(viewer), node),
                 Mesh = DescribeMesh(node, result.Pixel.MeshId),
-                Selected = action is PickAction.Select or PickAction.Add ? node.IsSelected : (bool?)null,
+                Selected = action is PickAction.Select or PickAction.Add ? viewer.Selection.Nodes.Contains(node) : (bool?)null,
             };
         }, cancellationToken).ConfigureAwait(false);
 

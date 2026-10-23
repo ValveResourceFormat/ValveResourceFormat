@@ -837,7 +837,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             if (!particleRenderer.CanRenderReplacement
                 || context.Layer != RenderLayer.Scene
-                || context.RenderPass is not (RenderPass.Opaque or RenderPass.Translucent or RenderPass.Outline))
+                || context.RenderPass is not (RenderPass.Opaque or RenderPass.Translucent or RenderPass.All))
             {
                 return;
             }

@@ -778,9 +778,14 @@ namespace GUI.Types.GLViewers
             Renderer.PostprocessRender(MainFramebuffer, GLDefaultFramebuffer);
 
             // Over the final image, so the selection keeps its colors whatever the exposure
-            if (selectionVisuals != null && Renderer.ResolvedSceneDepth != null)
+            if (selectionVisuals != null)
             {
-                selectionVisuals.Render(Renderer.ResolvedSceneDepth);
+                selectionVisuals.RenderOutline(Renderer, MainFramebuffer, GLDefaultFramebuffer);
+
+                if (Renderer.ResolvedSceneDepth != null)
+                {
+                    selectionVisuals.Render(Renderer.ResolvedSceneDepth);
+                }
             }
         }
 

@@ -23,18 +23,12 @@ public sealed class SelectionSet
     {
         using var _ = changeLock.EnterScope();
 
-        foreach (var selected in nodes)
-        {
-            selected.IsSelected = false;
-        }
-
         if (node == null)
         {
             Volatile.Write(ref nodes, []);
             return;
         }
 
-        node.IsSelected = true;
         Volatile.Write(ref nodes, [node]);
     }
 
@@ -53,12 +47,10 @@ public sealed class SelectionSet
 
         if (index >= 0)
         {
-            node.IsSelected = false;
             Volatile.Write(ref nodes, [.. nodes.AsSpan(0, index), .. nodes.AsSpan(index + 1)]);
             return;
         }
 
-        node.IsSelected = true;
         Volatile.Write(ref nodes, [.. nodes, node]);
     }
 }

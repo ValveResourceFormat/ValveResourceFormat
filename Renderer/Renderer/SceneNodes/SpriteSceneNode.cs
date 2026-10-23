@@ -74,13 +74,13 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         public override void Render(Scene.RenderContext context)
         {
-            if (context.RenderPass is not RenderPass.Opaque and not RenderPass.Outline and not RenderPass.DepthOnly)
+            if (context.RenderPass is not RenderPass.Opaque and not RenderPass.All and not RenderPass.DepthOnly)
             {
                 return;
             }
 
             var renderShader = context.DepthOnlyShader?.WithAlphaTest(material.IsAlphaTest)
-                ?? context.ReplacementShader
+                ?? context.ReplacementShader?.WithAlphaTest(material.IsAlphaTest)
                 ?? material.Shader;
 
             renderShader.Use();

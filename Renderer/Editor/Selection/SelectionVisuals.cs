@@ -25,7 +25,7 @@ public enum LightingBindingDisplay
 /// Draws the helpers for a <see cref="SelectionSet"/> over the final image, so their colors show as given:
 /// bounds with edge lengths, the shapes a selected entity's class declares, the node's name, and optionally
 /// the lighting it uses. Lines and faces are solid where the scene does not hide them, and faint over it.
-/// The outline itself is drawn by the renderer for every node with <see cref="SceneNode.IsSelected"/>.
+/// The selected nodes are outlined by <see cref="RenderOutline"/>.
 /// </summary>
 public sealed class SelectionVisuals
 {
@@ -40,6 +40,7 @@ public sealed class SelectionVisuals
     private readonly LineBuffer overlayLines;
     private readonly LineBuffer faces;
     private readonly LineBuffer overlayFaces;
+    private readonly SelectionOutline outline;
 
     /// <summary>Gets or sets which lighting is shown linked to each selected node.</summary>
     public LightingBindingDisplay LightingBindings { get; set; }
@@ -57,6 +58,7 @@ public sealed class SelectionVisuals
         overlayLines = new LineBuffer(rendererContext, nameof(SelectionVisuals) + " overlay", Shader);
         faces = new LineBuffer(rendererContext, nameof(SelectionVisuals) + " faces", Shader);
         overlayFaces = new LineBuffer(rendererContext, nameof(SelectionVisuals) + " overlay faces", Shader);
+        outline = new SelectionOutline(rendererContext);
     }
 
     /// <summary>Rebuilds the helper shapes and labels for the current selection.</summary>
@@ -116,6 +118,19 @@ public sealed class SelectionVisuals
         overlayLines.Draw();
     }
 
+    /// <summary>Outlines the selected nodes as the last frame drew them.</summary>
+    /// <param name="renderer">The renderer of the frame, which resolved the scene depth.</param>
+    /// <param name="sceneFramebuffer">What the scene was rendered into.</param>
+    /// <param name="target">What the outline is drawn over, the size of the scene.</param>
+    public void RenderOutline(Renderer renderer, Framebuffer sceneFramebuffer, Framebuffer target)
+    {
+        ArgumentNullException.ThrowIfNull(renderer);
+        ArgumentNullException.ThrowIfNull(sceneFramebuffer);
+        ArgumentNullException.ThrowIfNull(target);
+
+        outline.Render(renderer, sceneFramebuffer, target, selection.Nodes);
+    }
+
     /// <summary>Deletes the GL objects.</summary>
     public void Delete()
     {
@@ -123,6 +138,7 @@ public sealed class SelectionVisuals
         overlayLines.Delete();
         faces.Delete();
         overlayFaces.Delete();
+        outline.Delete();
     }
 
     private void ClearBuffers()
