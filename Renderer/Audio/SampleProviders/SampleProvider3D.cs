@@ -146,8 +146,8 @@ public class SampleProvider3D : SampleProviderSpatial
         if (stereoMix > 0f)
         {
             var centerVolume = Volume * attenuation;
-            LeftVolume = float.Lerp(LeftVolume, centerVolume, stereoMix);
-            RightVolume = float.Lerp(RightVolume, centerVolume, stereoMix);
+            LeftVolume = MathUtils.Lerp(LeftVolume, centerVolume, stereoMix);
+            RightVolume = MathUtils.Lerp(RightVolume, centerVolume, stereoMix);
         }
 
         SnapVolumesOnFirstUpdate();
@@ -165,7 +165,7 @@ public class SampleProvider3D : SampleProviderSpatial
         }
         else if (deltaTime > 0f)
         {
-            occlusion = float.Lerp(occlusion, OcclusionTarget, MathUtils.ExponentialSmoothing(deltaTime, OcclusionSmoothingSeconds));
+            occlusion = MathUtils.Lerp(occlusion, OcclusionTarget, MathUtils.ExponentialSmoothing(deltaTime, OcclusionSmoothingSeconds));
         }
     }
 

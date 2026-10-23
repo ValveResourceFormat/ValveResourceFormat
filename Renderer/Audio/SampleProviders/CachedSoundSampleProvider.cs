@@ -197,7 +197,7 @@ public sealed class CachedSoundSampleProvider : AudioSampleProvider
             {
                 var s0 = samples[sampleOffset + frame0 * ChannelCount + ch] * PcmScale;
                 var s1 = samples[sampleOffset + frame1 * ChannelCount + ch] * PcmScale;
-                buffer[offset + read++] = float.Lerp(s0, s1, t);
+                buffer[offset + read++] = MathUtils.Lerp(s0, s1, t);
             }
 
             framePosition += rate;

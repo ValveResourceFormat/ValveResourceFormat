@@ -63,7 +63,7 @@ namespace ValveResourceFormat.Particles.Operators
                 }
 
                 var divisor = inputMax == inputMin ? 1f : inputMax - inputMin;
-                var finalValue = float.Lerp(outputMin, outputMax, MathUtils.Saturate((percentage - inputMin) / divisor));
+                var finalValue = MathUtils.Lerp(outputMin, outputMax, MathUtils.Saturate((percentage - inputMin) / divisor));
 
                 finalValue = particle.ModifyScalarBySetMethod(particles, outputField, finalValue, setMethod);
 

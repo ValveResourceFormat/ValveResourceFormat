@@ -237,7 +237,7 @@ public sealed class PlayerAnimationState
                 var previousHeading = PreviousHorizontalSpeed > 0.01f ? previousVelocity / PreviousHorizontalSpeed : Vector2.Zero;
                 var heading = Vector2.Lerp(previousHeading, moveHeading, blend);
 
-                LocalVelocity = heading * float.Lerp(PreviousHorizontalSpeed, HorizontalSpeed, blend);
+                LocalVelocity = heading * MathUtils.Lerp(PreviousHorizontalSpeed, HorizontalSpeed, blend);
                 HorizontalSpeed = LocalVelocity.Length();
             }
         }

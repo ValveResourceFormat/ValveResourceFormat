@@ -77,7 +77,7 @@ namespace ValveResourceFormat.Particles.Operators
                     _ => input,
                 };
 
-                particle.SetScalar(outputField, Math.Clamp(float.Lerp(current, target, blend), min, max));
+                particle.SetScalar(outputField, Math.Clamp(MathUtils.Lerp(current, target, blend), min, max));
             }
         }
     }

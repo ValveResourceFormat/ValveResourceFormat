@@ -149,13 +149,16 @@ public class SampleProviderMulti : AudioSampleProvider
         var startGain = evaluate(startSeconds);
         var endGain = evaluate(endSeconds);
 
-        // The last sample must land exactly on endGain so consecutive chunks join without a step
-        var lastIndex = Math.Max(count - 1, 1);
+        // The last sample must land exactly on endGain so consecutive chunks join without a step,
+        // so it is scaled directly: the lerp at 1 can round off the end value
+        var lastIndex = count - 1;
 
-        for (var i = 0; i < count; i++)
+        for (var i = 0; i < lastIndex; i++)
         {
-            buffer[offset + i] *= float.Lerp(startGain, endGain, (float)i / lastIndex);
+            buffer[offset + i] *= MathUtils.Lerp(startGain, endGain, (float)i / lastIndex);
         }
+
+        buffer[offset + lastIndex] *= endGain;
 
         elapsedFrames += count / 2.0;
         return endSeconds >= duration;
@@ -265,13 +268,16 @@ public class SampleProviderMulti : AudioSampleProvider
 
             if (maxRead > 0 && appliedLiveVolume != liveTarget)
             {
-                // The last sample must land exactly on the target so consecutive chunks join without a step
-                var lastIndex = Math.Max(maxRead - 1, 1);
+                // The last sample must land exactly on the target so consecutive chunks join without a step,
+                // so it is scaled directly: the lerp at 1 can round off the end value
+                var lastIndex = maxRead - 1;
 
-                for (var i = 0; i < maxRead; i++)
+                for (var i = 0; i < lastIndex; i++)
                 {
-                    buffer[offset + i] *= float.Lerp(appliedLiveVolume, liveTarget, (float)i / lastIndex);
+                    buffer[offset + i] *= MathUtils.Lerp(appliedLiveVolume, liveTarget, (float)i / lastIndex);
                 }
+
+                buffer[offset + lastIndex] *= liveTarget;
             }
             else if (maxRead > 0 && liveTarget != 1f)
             {

@@ -292,8 +292,8 @@ namespace ValveResourceFormat.Animation
             // Update layer weights
             //-------------------------------------------------------------------------
 
-            sourceAndResultLayerContext.Weight = float.Lerp(sourceAndResultLayerContext.Weight, targetContext.Weight, BlendWeight);
-            sourceAndResultLayerContext.RootMotionWeight = float.Lerp(sourceAndResultLayerContext.RootMotionWeight, targetContext.RootMotionWeight, BlendWeight);
+            sourceAndResultLayerContext.Weight = MathUtils.Lerp(sourceAndResultLayerContext.Weight, targetContext.Weight, BlendWeight);
+            sourceAndResultLayerContext.RootMotionWeight = MathUtils.Lerp(sourceAndResultLayerContext.RootMotionWeight, targetContext.RootMotionWeight, BlendWeight);
 
             // Update final bone mask
             //-------------------------------------------------------------------------
@@ -624,7 +624,7 @@ namespace ValveResourceFormat.Animation
                 {
                     PreviousTime = 0f;
                     CurrentTime = 0f;
-                    BlendedDuration = float.Lerp(SourceNode.Duration, TargetStateNode.Duration, BlendWeight);
+                    BlendedDuration = MathUtils.Lerp(SourceNode.Duration, TargetStateNode.Duration, BlendWeight);
                     blendedSyncTrack = TargetStateNode.SyncTrack;
                 }
             }
@@ -827,7 +827,7 @@ namespace ValveResourceFormat.Animation
             }
             else
             {
-                BlendedDuration = float.Lerp(SourceNode?.Duration ?? 0f, TargetStateNode.Duration, BlendWeight);
+                BlendedDuration = MathUtils.Lerp(SourceNode?.Duration ?? 0f, TargetStateNode.Duration, BlendWeight);
 
                 if (BlendedDuration > 0f)
                 {

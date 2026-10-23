@@ -52,9 +52,9 @@ namespace ValveResourceFormat.Particles.Operators
 
             foreach (ref var particle in particles.Current)
             {
-                var target = float.Lerp(particle.GetInitialScalar(particles, outputField), output, t);
+                var target = MathUtils.Lerp(particle.GetInitialScalar(particles, outputField), output, t);
 
-                particle.SetScalar(outputField, float.Lerp(particle.GetScalar(outputField), target, strength));
+                particle.SetScalar(outputField, MathUtils.Lerp(particle.GetScalar(outputField), target, strength));
             }
         }
     }

@@ -19,15 +19,15 @@ namespace ValveResourceFormat.Particles.Utils
             var iy = Cell(y, out var fy);
             var iz = Cell(z, out var fz);
 
-            var c00 = float.Lerp(Hash(ix, iy, iz), Hash(ix + 1, iy, iz), fx);
-            var c10 = float.Lerp(Hash(ix, iy + 1, iz), Hash(ix + 1, iy + 1, iz), fx);
-            var c01 = float.Lerp(Hash(ix, iy, iz + 1), Hash(ix + 1, iy, iz + 1), fx);
-            var c11 = float.Lerp(Hash(ix, iy + 1, iz + 1), Hash(ix + 1, iy + 1, iz + 1), fx);
+            var c00 = MathUtils.Lerp(Hash(ix, iy, iz), Hash(ix + 1, iy, iz), fx);
+            var c10 = MathUtils.Lerp(Hash(ix, iy + 1, iz), Hash(ix + 1, iy + 1, iz), fx);
+            var c01 = MathUtils.Lerp(Hash(ix, iy, iz + 1), Hash(ix + 1, iy, iz + 1), fx);
+            var c11 = MathUtils.Lerp(Hash(ix, iy + 1, iz + 1), Hash(ix + 1, iy + 1, iz + 1), fx);
 
-            var c0 = float.Lerp(c00, c10, fy);
-            var c1 = float.Lerp(c01, c11, fy);
+            var c0 = MathUtils.Lerp(c00, c10, fy);
+            var c1 = MathUtils.Lerp(c01, c11, fy);
 
-            return (float.Lerp(c0, c1, fz) - 0.5f) * 2f;
+            return (MathUtils.Lerp(c0, c1, fz) - 0.5f) * 2f;
         }
 
         /// <summary>

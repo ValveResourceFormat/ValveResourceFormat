@@ -113,7 +113,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                     var divisor = outer == inner ? 1f : outer - inner;
                     var remapped = MathUtils.Saturate((distance - inner) / divisor);
-                    values[lane] = float.Lerp(outputMin, outputMax, remapped);
+                    values[lane] = MathUtils.Lerp(outputMin, outputMax, remapped);
                 }
 
                 if (!anyPass)

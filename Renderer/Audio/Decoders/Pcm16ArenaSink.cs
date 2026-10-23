@@ -139,7 +139,7 @@ internal sealed class Pcm16ArenaSink : IPcm16Sink
                     : samples[(int)(frame0 - consumedFrames) * sourceChannels + sourceChannel];
                 var s1 = samples[(int)(frame0 + 1 - consumedFrames) * sourceChannels + sourceChannel];
 
-                slab[offset + written++] = Quantize(float.Lerp(s0, s1, t), random);
+                slab[offset + written++] = Quantize(MathUtils.Lerp(s0, s1, t), random);
             }
 
             nextSourcePos += step;

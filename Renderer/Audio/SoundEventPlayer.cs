@@ -239,14 +239,15 @@ public sealed class SoundEventPlayer : IDisposable
             if (startMul != 1f || endMul != 1f)
             {
                 // Interpolate the gain across the chunk so a fade (or master volume change) does not step;
-                // the last frame must land exactly on endMul so chunks join without a gain step
+                // the last frame must land exactly on endMul so chunks join without a gain step, so it takes
+                // endMul directly: the lerp at 1 can round off the end value
                 var frames = buffer.Length / channelCount;
-                var lastFrame = Math.Max(frames - 1, 1);
+                var lastFrame = frames - 1;
                 var index = 0;
 
                 for (var frame = 0; frame < frames; frame++)
                 {
-                    var mul = float.Lerp(startMul, endMul, (float)frame / lastFrame);
+                    var mul = frame == lastFrame ? endMul : MathUtils.Lerp(startMul, endMul, (float)frame / lastFrame);
 
                     for (var ch = 0; ch < channelCount; ch++)
                     {
@@ -281,7 +282,7 @@ public sealed class SoundEventPlayer : IDisposable
         // reads this at an unrelated rate
         const float Smoothing = 0.05f;
 
-        mixMilliseconds = float.Lerp(mixMilliseconds, elapsedMilliseconds, Smoothing);
+        mixMilliseconds = MathUtils.Lerp(mixMilliseconds, elapsedMilliseconds, Smoothing);
         mixDutyCycle = chunkMilliseconds > 0 ? mixMilliseconds / chunkMilliseconds : 0f;
     }
 

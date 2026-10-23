@@ -244,7 +244,7 @@ public abstract class SoundEvent
             return false;
         }
 
-        var retriggerAt = float.Lerp(interval.Min, interval.Max, Random.NextSingle()) * intervalScale;
+        var retriggerAt = MathUtils.Lerp(interval.Min, interval.Max, Random.NextSingle()) * intervalScale;
         retriggerTimestamp = Stopwatch.GetTimestamp() + (long)(retriggerAt * Stopwatch.Frequency);
         waitingForRetrigger = true;
         return true;
@@ -444,7 +444,7 @@ public abstract class SoundEvent
 
         if (randomMin != 0f || randomMax != 0f)
         {
-            pitch += float.Lerp(randomMin, randomMax, Random.NextSingle());
+            pitch += MathUtils.Lerp(randomMin, randomMax, Random.NextSingle());
         }
 
         return Math.Clamp(pitch, 0.25f, 4f);
@@ -457,7 +457,7 @@ public abstract class SoundEvent
 
         if (randomMin != 0f || randomMax != 0f)
         {
-            volume += float.Lerp(randomMin, randomMax, Random.NextSingle());
+            volume += MathUtils.Lerp(randomMin, randomMax, Random.NextSingle());
         }
 
         return MathUtils.Saturate(volume) * VolumeScale * Mixer.Player.GetMixGroupVolume(mixGroup);

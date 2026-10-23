@@ -99,7 +99,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                     var divisor = inputMaxSquared == inputMinSquared ? 1f : inputMaxSquared - inputMinSquared;
                     var remapped = MathUtils.Saturate((distanceSquared - inputMinSquared) / divisor);
-                    values[lane] = float.Lerp(outputMin, outputMax, remapped);
+                    values[lane] = MathUtils.Lerp(outputMin, outputMax, remapped);
                 }
 
                 if (!anyPass)

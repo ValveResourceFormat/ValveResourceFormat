@@ -70,14 +70,14 @@ namespace ValveResourceFormat.Particles.Operators
                 {
                     var blend = MathUtils.Smoothstep(startFadeInTime, endFadeInTime, time);
 
-                    alpha = initialAlpha * float.Lerp(startAlpha, 1f, blend);
+                    alpha = initialAlpha * MathUtils.Lerp(startAlpha, 1f, blend);
                 }
 
                 if (time >= startFadeOutTime && time < endFadeOutTime)
                 {
                     var blend = MathUtils.Smoothstep(startFadeOutTime, endFadeOutTime, time);
 
-                    alpha = initialAlpha * float.Lerp(1f, endAlpha, blend);
+                    alpha = initialAlpha * MathUtils.Lerp(1f, endAlpha, blend);
                 }
 
                 particle.Alpha = BlendsWithStrength ? BlendByStrength(particle.Alpha, alpha, strength) : alpha;

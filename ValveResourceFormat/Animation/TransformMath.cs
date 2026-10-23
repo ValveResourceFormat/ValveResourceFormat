@@ -177,7 +177,7 @@ public static class TransformMath
 
     /// <summary>Interpolates translation and scale linearly and rotation with a normalized lerp.</summary>
     public static Transform Lerp(Transform from, Transform to, float t)
-        => new(Vector3.Lerp(from.Position, to.Position, t), float.Lerp(from.Scale, to.Scale, t), NLerp(from.Angle, to.Angle, t));
+        => new(Vector3.Lerp(from.Position, to.Position, t), MathUtils.Lerp(from.Scale, to.Scale, t), NLerp(from.Angle, to.Angle, t));
 
     /// <summary>Whether two transforms are equal within an angle and a translation and scale tolerance.</summary>
     public static bool IsNearEqual(Transform a, Transform b, float angleThreshold = MathF.PI / 180f, float translationScaleThreshold = Epsilon)

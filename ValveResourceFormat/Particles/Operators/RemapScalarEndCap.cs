@@ -54,7 +54,7 @@ namespace ValveResourceFormat.Particles.Operators
                 // A degenerate input range is a threshold, inclusive on the high side
                 var remapped = MathUtils.RemapValClamped(particle.GetScalar(inputField), inputMin, inputMax, outputMin, outputMax);
 
-                particle.SetScalar(outputField, float.Lerp(particle.GetScalar(outputField), remapped, strength));
+                particle.SetScalar(outputField, MathUtils.Lerp(particle.GetScalar(outputField), remapped, strength));
             }
         }
     }

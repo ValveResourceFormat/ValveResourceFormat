@@ -128,7 +128,7 @@ partial class Skeleton
                 for (var i = numBonesInChain - 2; i > 0; i--)
                 {
                     var percentageThrough = (float)i / (numBonesInChain - 1);
-                    weights[boneChainIndices[i]] = startWeight != UnsetWeight ? float.Lerp(endWeight, startWeight, percentageThrough) : 0f;
+                    weights[boneChainIndices[i]] = startWeight != UnsetWeight ? MathUtils.Lerp(endWeight, startWeight, percentageThrough) : 0f;
                 }
             }
         }

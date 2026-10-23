@@ -56,7 +56,7 @@ namespace ValveResourceFormat.Particles.Operators
                 var interp = MathUtils.Saturate(interpolation.NextNumber(ref particle, particleSystemState) * strength);
                 var from = fromIsVector ? particle.GetVector(fieldInputFrom).Length() : particle.GetScalar(fieldInputFrom);
                 var to = toIsVector ? particle.GetVector(fieldInput).Length() : particle.GetScalar(fieldInput);
-                particle.SetScalar(fieldOutput, float.Lerp(from, to, interp));
+                particle.SetScalar(fieldOutput, MathUtils.Lerp(from, to, interp));
             }
         }
 

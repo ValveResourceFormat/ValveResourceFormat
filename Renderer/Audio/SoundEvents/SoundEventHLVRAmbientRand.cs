@@ -105,7 +105,7 @@ internal sealed class SoundEventHLVRAmbientRand : SoundEvent
     private Vector3 PickRandomPosition(Vector3 anchor)
     {
         var angle = Random.NextSingle() * MathF.Tau;
-        var distance = float.Lerp(radiusMin, radiusMax, Random.NextSingle());
+        var distance = MathUtils.Lerp(radiusMin, radiusMax, Random.NextSingle());
 
         return anchor + new Vector3(MathF.Cos(angle) * distance, MathF.Sin(angle) * distance, 0f);
     }

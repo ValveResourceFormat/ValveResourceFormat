@@ -659,7 +659,7 @@ namespace ValveResourceFormat.Renderer
                     var previous = current;
                     var t = constrained.Weight;
                     current.Position = Vector3.Lerp(current.Position, blended.Position, t);
-                    current.Scale = float.Lerp(current.Scale, blended.Scale, t);
+                    current.Scale = MathUtils.Lerp(current.Scale, blended.Scale, t);
                     current.Angle = Quaternion.Normalize(Quaternion.Lerp(current.Angle, Align(current.Angle, blended.Angle), t));
                     WriteBack(pose, constrained, current, previous);
                 }

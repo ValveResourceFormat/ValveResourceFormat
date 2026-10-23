@@ -48,7 +48,7 @@ namespace ValveResourceFormat.Particles.Operators
             {
                 var value = particleSystemState.Random.NextBetween(outputMin, outputMax);
 
-                particle.SetScalar(outputField, float.Lerp(particle.GetScalar(outputField), value, strength));
+                particle.SetScalar(outputField, MathUtils.Lerp(particle.GetScalar(outputField), value, strength));
             }
         }
     }

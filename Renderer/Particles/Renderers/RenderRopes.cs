@@ -567,8 +567,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         AlignWidthAxis(ref current, ref stripAxis);
 
                         WriteQuad(vertices, quadCount, previous, current,
-                            MapV(float.Lerp(vStart, vEnd, (step - 1) / (float)subdivisions), oneOverWorldSize, vOffset),
-                            MapV(float.Lerp(vStart, vEnd, t), oneOverWorldSize, vOffset),
+                            MapV(MathUtils.Lerp(vStart, vEnd, (step - 1) / (float)subdivisions), oneOverWorldSize, vOffset),
+                            MapV(MathUtils.Lerp(vStart, vEnd, t), oneOverWorldSize, vOffset),
                             sheets, uvTransforms, viewAngleFadeActive, camera);
 
                         quadCount++;
@@ -639,7 +639,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 Tangent = tangent,
                 Radius = radius,
                 Color = Vector4.Clamp(
-                    new Vector4(Vector3.Lerp(n1.Color, n2.Color, t), float.Lerp(n1.Alpha, n2.Alpha, t)),
+                    new Vector4(Vector3.Lerp(n1.Color, n2.Color, t), MathUtils.Lerp(n1.Alpha, n2.Alpha, t)),
                     Vector4.Zero, Vector4.One),
                 AlphaReference = n1.AlphaReference,
             };

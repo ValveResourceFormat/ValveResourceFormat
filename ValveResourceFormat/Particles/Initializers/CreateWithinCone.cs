@@ -36,7 +36,7 @@ namespace ValveResourceFormat.Particles.Initializers
             var particleSpeed = speed.NextNumber(ref particle, particleSystemState);
             var particleOffset = offset.NextNumber(ref particle, particleSystemState);
 
-            var halfAngle = float.DegreesToRadians(float.Lerp(inner, outer, particleSystemState.Random.Next())) * 0.5f;
+            var halfAngle = float.DegreesToRadians(MathUtils.Lerp(inner, outer, particleSystemState.Random.Next())) * 0.5f;
 
             // The ring is placed at least one unit along the axis so a zero offset still yields a
             // direction at the drawn angle; a negative offset flips the cone backwards.

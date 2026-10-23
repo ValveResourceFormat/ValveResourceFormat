@@ -46,7 +46,7 @@ namespace ValveResourceFormat.Particles.Operators
                     ? (time - endTime < 0f ? initial : lerpTarget)
                     : MathUtils.Lerp(initial, lerpTarget, MathUtils.Saturate((time - startTime) / (endTime - startTime)));
 
-                particle.SetScalar(fieldOutput, float.Lerp(particle.GetScalar(fieldOutput), scalarOutput, strength));
+                particle.SetScalar(fieldOutput, MathUtils.Lerp(particle.GetScalar(fieldOutput), scalarOutput, strength));
             }
         }
     }

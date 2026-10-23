@@ -510,7 +510,7 @@ namespace ValveResourceFormat.Renderer
 
                     BlendedFrame.Datas[i] = clip.IsAdditive
                         ? BlendedFrame.Datas[i] + frame.Datas[i] * weightedDataBlendFactor
-                        : float.Lerp(BlendedFrame.Datas[i], frame.Datas[i], weightedDataBlendFactor);
+                        : MathUtils.Lerp(BlendedFrame.Datas[i], frame.Datas[i], weightedDataBlendFactor);
                 }
 
                 totalWeight += clip.Weight;

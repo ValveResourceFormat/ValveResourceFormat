@@ -72,7 +72,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                 finalValue = particle.ModifyScalarBySetMethod(particles, outputField, finalValue, setMethod);
 
-                particle.SetScalar(outputField, float.Lerp(particle.GetScalar(outputField), finalValue, strength));
+                particle.SetScalar(outputField, MathUtils.Lerp(particle.GetScalar(outputField), finalValue, strength));
             }
         }
     }

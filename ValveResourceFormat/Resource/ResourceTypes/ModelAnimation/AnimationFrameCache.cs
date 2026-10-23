@@ -87,14 +87,14 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 var frame1Data = frame1.Datas[i];
                 var frame2Data = frame2.Datas[i];
 
-                InterpolatedFrame.Datas[i] = float.Lerp(frame1Data, frame2Data, t);
+                InterpolatedFrame.Datas[i] = MathUtils.Lerp(frame1Data, frame2Data, t);
             }
 
             if (anim.HasMovementData())
             {
                 InterpolatedFrame.Movement = new(
                     Vector3.Lerp(frame1.Movement.Position, frame2.Movement.Position, t),
-                    float.Lerp(frame1.Movement.Angle, frame2.Movement.Angle, t)
+                    MathUtils.Lerp(frame1.Movement.Angle, frame2.Movement.Angle, t)
                 );
             }
 

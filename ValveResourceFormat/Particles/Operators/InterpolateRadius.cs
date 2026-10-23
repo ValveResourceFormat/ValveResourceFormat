@@ -74,7 +74,7 @@ namespace ValveResourceFormat.Particles.Operators
                         timeScale = ParticleMath.Bias(timeScale, bias);
                     }
 
-                    var radiusScale = MathUtils.Clamp(float.Lerp(startScale, endScale, timeScale), startScale, endScale);
+                    var radiusScale = MathUtils.Clamp(MathUtils.Lerp(startScale, endScale, timeScale), startScale, endScale);
 
                     particle.Radius = particle.GetInitialScalar(particles, ParticleField.Radius) * radiusScale;
                 }

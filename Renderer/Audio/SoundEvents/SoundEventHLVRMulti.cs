@@ -57,7 +57,7 @@ internal sealed class SoundEventHLVRMulti : SoundEvent
     {
         if (hasRandomDelay)
         {
-            child.DelayOverride = float.Lerp(randDelayMin, randDelayMax, Random.NextSingle());
+            child.DelayOverride = MathUtils.Lerp(randDelayMin, randDelayMax, Random.NextSingle());
         }
 
         if (index < childVolumes.Length && childVolumes[index] >= 0f)

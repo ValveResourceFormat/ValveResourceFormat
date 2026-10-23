@@ -63,11 +63,11 @@ namespace ValveResourceFormat.Particles.Operators
 
                 var divisor = inputMax == inputMin ? 1f : inputMax - inputMin;
                 var remapped = MathUtils.Saturate((distance - inputMin) / divisor);
-                var finalValue = float.Lerp(outputMin, outputMax, remapped);
+                var finalValue = MathUtils.Lerp(outputMin, outputMax, remapped);
 
                 finalValue = particle.ModifyScalarBySetMethod(particles, outputField, finalValue, setMethod);
 
-                particle.SetScalar(outputField, float.Lerp(particle.GetScalar(outputField), finalValue, strength));
+                particle.SetScalar(outputField, MathUtils.Lerp(particle.GetScalar(outputField), finalValue, strength));
             }
         }
     }

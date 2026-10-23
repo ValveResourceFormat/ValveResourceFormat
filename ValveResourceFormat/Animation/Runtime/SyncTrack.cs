@@ -79,7 +79,7 @@ partial class SyncTrack
             var event0Duration = event0.Duration.Value * durationScale0;
             var event1Duration = event1.Duration.Value * durationScale1;
 
-            var blendedDuration = float.Lerp(event0Duration, event1Duration, blendWeight);
+            var blendedDuration = MathUtils.Lerp(event0Duration, event1Duration, blendWeight);
             SyncEvents[i] = new SyncTrack.Event(blendWeight > 0.5f ? event1.ID : event0.ID, blendedStartPercent, blendedDuration);
             blendedStartPercent += blendedDuration;
         }
@@ -120,7 +120,7 @@ partial class SyncTrack
         Debug.Assert(numEvents0 > 0 && numEvents1 > 0 && eventsLCM > 0);
         var scaledDuration0 = duration0 * ((float)eventsLCM / numEvents0);
         var scaledDuration1 = duration1 * ((float)eventsLCM / numEvents1);
-        return float.Lerp(scaledDuration0, scaledDuration1, blendWeight);
+        return MathUtils.Lerp(scaledDuration0, scaledDuration1, blendWeight);
     }
 
     /// <summary>Gets the lowest common multiple of two integers.</summary>

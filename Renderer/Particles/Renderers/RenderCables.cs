@@ -328,7 +328,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     ringSamples[cursor] = new RopeSample(position,
                         CableMeshBuilder.CatmullRom(chain[before].Radius, chain[i].Radius, chain[i + 1].Radius, chain[after].Radius, t),
                         Vector3.Lerp(chain[i].Color, chain[i + 1].Color, t),
-                        (i + t) * repeats, false, float.Lerp(chain[i].Alpha, chain[i + 1].Alpha, t));
+                        (i + t) * repeats, false, MathUtils.Lerp(chain[i].Alpha, chain[i + 1].Alpha, t));
                     cursor++;
                 }
             }

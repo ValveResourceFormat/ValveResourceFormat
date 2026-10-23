@@ -400,10 +400,10 @@ sealed class AimCSSolver
 
         if (value < 0f)
         {
-            return MathF.Abs(range.X) < float.Epsilon ? 0f : float.Lerp(range.X, 0f, MathUtils.Saturate((value + 90f) / 90f));
+            return MathF.Abs(range.X) < float.Epsilon ? 0f : MathUtils.Lerp(range.X, 0f, MathUtils.Saturate((value + 90f) / 90f));
         }
 
-        return MathF.Abs(range.Y) < float.Epsilon ? 0f : float.Lerp(0f, range.Y, MathUtils.Saturate(value / 90f));
+        return MathF.Abs(range.Y) < float.Epsilon ? 0f : MathUtils.Lerp(0f, range.Y, MathUtils.Saturate(value / 90f));
     }
 
     static Quaternion AxisAngle(Vector3 axis, float degrees) => Quaternion.CreateFromAxisAngle(axis, float.DegreesToRadians(degrees));
@@ -429,7 +429,7 @@ sealed class AimCSSolver
         if (p.ActionWeight > 0f)
         {
             var a = 40f * p.ActionWeight;
-            pitch = float.Lerp(a - 90f, 90f - a, MathUtils.Saturate((p.Pitch + 90f) / 180f));
+            pitch = MathUtils.Lerp(a - 90f, 90f - a, MathUtils.Saturate((p.Pitch + 90f) / 180f));
         }
 
         // Undoes the weapon's own rotation when the pivot takes over the weapon's model rotation

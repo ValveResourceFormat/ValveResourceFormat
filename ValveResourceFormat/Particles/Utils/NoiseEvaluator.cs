@@ -119,7 +119,7 @@ namespace ValveResourceFormat.Particles.Utils
                     return value;
             }
 
-            return float.Lerp(value, target, turbulenceMix);
+            return MathUtils.Lerp(value, target, turbulenceMix);
         }
 
         private float ApplyModifier(float value) => modifier switch

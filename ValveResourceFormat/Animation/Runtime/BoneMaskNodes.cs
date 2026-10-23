@@ -253,7 +253,7 @@ namespace ValveResourceFormat.Animation
                         {
                             for (var b = 0; b < targetBuffer.Length; b++)
                             {
-                                targetBuffer[b] = float.Lerp(sourceBuffer[b], targetBuffer[b], task.Weight);
+                                targetBuffer[b] = MathUtils.Lerp(sourceBuffer[b], targetBuffer[b], task.Weight);
                             }
                         }
 

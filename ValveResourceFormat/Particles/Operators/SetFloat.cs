@@ -50,7 +50,7 @@ namespace ValveResourceFormat.Particles.Operators
                 }
 
                 var target = particle.ModifyScalarBySetMethod(particles, outputField, value, setMethod);
-                var blended = Math.Clamp(float.Lerp(currentValue, target, lerp), min, max);
+                var blended = Math.Clamp(MathUtils.Lerp(currentValue, target, lerp), min, max);
 
                 // Strength lerps from the spawn initial for the two initial-value set methods
                 var strengthBase = setMethod is ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_ADD_TO_INITIAL_VALUE

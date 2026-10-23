@@ -111,7 +111,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         private static MovementData Lerp(Vector3 aPos, float aAngle, Vector3 bPos, float bAngle, float t)
         {
             var position = Vector3.Lerp(aPos, bPos, t);
-            var angle = float.Lerp(aAngle, bAngle, t);
+            var angle = MathUtils.Lerp(aAngle, bAngle, t);
 
             return new MovementData(position, angle);
         }

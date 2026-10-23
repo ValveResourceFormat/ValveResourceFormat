@@ -27,15 +27,18 @@ public abstract class SampleProviderSpatial : SampleProvider2D
         var read = Provider.Read(buffer, offset, count);
 
         // Interpolate across the samples actually returned, so the final written sample reaches the
-        // target volume even when the provider ends mid-buffer
-        var lastIndex = Math.Max(read - 1, 1);
+        // target volume even when the provider ends mid-buffer. That sample is scaled directly, the lerp
+        // at 1 can round off the end value
+        var lastIndex = read - 1;
 
         for (var i = 0; i < read; i++)
         {
             var left = i % 2 == 0;
             var lastVolume = left ? LastLeftVolume : LastRightVolume;
             var volume = left ? LeftVolume : RightVolume;
-            buffer[offset + i] = float.Lerp(buffer[offset + i] * lastVolume, buffer[offset + i] * volume, (float)i / lastIndex);
+            buffer[offset + i] = i == lastIndex
+                ? buffer[offset + i] * volume
+                : MathUtils.Lerp(buffer[offset + i] * lastVolume, buffer[offset + i] * volume, (float)i / lastIndex);
         }
 
         // Elevation and front/back cues, which no arrangement of the two gains can express.
@@ -106,7 +109,7 @@ public abstract class SampleProviderSpatial : SampleProvider2D
         else
         {
             cueFilters.SetTarget(0f, 0f, 0f);
-            gain *= float.Lerp(1f, RearVolumeScale, (1f - forwardDot) * 0.5f);
+            gain *= MathUtils.Lerp(1f, RearVolumeScale, (1f - forwardDot) * 0.5f);
         }
 
         // How much of the sound each ear is pointed at, (1 -/+ cos) / 2. The ratio between the two is
