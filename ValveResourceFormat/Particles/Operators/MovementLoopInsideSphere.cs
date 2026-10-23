@@ -40,7 +40,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             if ((axisScale * move).LengthSquared() > radiusSquared)
             {
-                foreach (ref var particle in particles.Current)
+                foreach (var particle in particles.Current)
                 {
                     var carried = move * (MathF.Min(particle.Age, frameTime) / frameTime);
 
@@ -51,7 +51,7 @@ namespace ValveResourceFormat.Particles.Operators
                 return;
             }
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var offset = particle.Position - center;
                 var distanceSquared = (axisScale * offset).LengthSquared();

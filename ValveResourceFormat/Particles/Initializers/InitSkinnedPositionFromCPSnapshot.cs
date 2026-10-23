@@ -79,7 +79,7 @@ namespace ValveResourceFormat.Particles.Initializers
             }
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             if (snapshot.Resolve(particleSystemState) is not { } columns
                 || (setNormal && columns.Normals == null)
@@ -90,7 +90,7 @@ namespace ValveResourceFormat.Particles.Initializers
                 return particle;
             }
 
-            var row = SelectRow(ref particle, particleSystemState, columns.Count);
+            var row = SelectRow(particle, particleSystemState, columns.Count);
 
             if ((uint)row >= (uint)columns.Count)
             {
@@ -128,7 +128,7 @@ namespace ValveResourceFormat.Particles.Initializers
                 return particle;
             }
 
-            columns.Bind(ref particle, row, modelObject.Model, cache.Count);
+            columns.Bind(particle, row, modelObject.Model, cache.Count);
 
             var withBoneVelocity = boneVelocity != 0f && cache.PreviousUpdateTime != -1f;
             cache.ComputeSkinningMatrix(particle.BoneIndices, particle.BoneWeights, withBoneVelocity, out var skin, out var previousSkin);
@@ -183,11 +183,11 @@ namespace ValveResourceFormat.Particles.Initializers
             return particle;
         }
 
-        private int SelectRow(ref Particle particle, ParticleSystemState particleSystemState, int count)
+        private int SelectRow(Particle particle, ParticleSystemState particleSystemState, int count)
         {
             if (indexType == SnapshotIndexType.SNAPSHOT_INDEX_DIRECT)
             {
-                return (int)readIndex.NextNumber(ref particle, particleSystemState) % count;
+                return (int)readIndex.NextNumber(particle, particleSystemState) % count;
             }
 
             if (random)

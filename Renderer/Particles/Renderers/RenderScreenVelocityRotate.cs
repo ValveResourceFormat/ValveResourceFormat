@@ -29,7 +29,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var view = camera.CameraViewMatrix;
             var forward = float.DegreesToRadians(forwardDegrees);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var screen = Vector3.Transform(particle.Position, view);
 

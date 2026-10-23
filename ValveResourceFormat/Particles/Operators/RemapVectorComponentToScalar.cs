@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Particles.Operators
         {
             var clamp = fieldOutput.IsNormalizedField();
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var value = particle.GetVectorComponent(fieldInput, component);
                 particle.SetScalar(fieldOutput, clamp ? MathUtils.Saturate(value) : value);

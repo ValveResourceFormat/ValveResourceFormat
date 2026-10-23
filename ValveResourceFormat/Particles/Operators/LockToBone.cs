@@ -68,7 +68,7 @@ namespace ValveResourceFormat.Particles.Operators
             var previous = cache.Previous;
 
             var position = transformInput.NextTransform(particleSystemState).Translation;
-            var previousPosition = transformInput.NextTransformAtTime(ref Particle.Default, particleSystemState, particleSystemState.StepStartAge).Translation;
+            var previousPosition = transformInput.NextTransformAtTime(Particle.Default, particleSystemState, particleSystemState.StepStartAge).Translation;
             var jumped = Vector3.DistanceSquared(position, previousPosition) > jumpThreshold;
 
             var fadeEnd = lifeTimeFadeEnd > 0f ? lifeTimeFadeEnd : 1e20f;
@@ -84,7 +84,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             var time = particleSystemState.Age;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var age = time - particle.CreationTime;
                 var index = particle.HitboxIndex;
@@ -127,7 +127,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                 if (lockRotation)
                 {
-                    LockRotation(ref particle, particleSystemState, boxRotations[index], weight * stepFraction);
+                    LockRotation(particle, particleSystemState, boxRotations[index], weight * stepFraction);
                 }
             }
         }
@@ -151,13 +151,13 @@ namespace ValveResourceFormat.Particles.Operators
             }
         }
 
-        private void LockRotation(ref Particle particle, ParticleSystemState particleSystemState, Quaternion boxRotation, float weight)
+        private void LockRotation(Particle particle, ParticleSystemState particleSystemState, Quaternion boxRotation, float weight)
         {
             if (rigidRotationLock)
             {
-                var angles = rotation.NextVector(ref particle, particleSystemState);
+                var angles = rotation.NextVector(particle, particleSystemState);
                 boxRotation *= EntityTransformHelper.EulerAnglesToQuaternion(new Vector3(angles.Y, angles.Z, angles.X));
-                weight = rotationLerp.NextNumber(ref particle, particleSystemState);
+                weight = rotationLerp.NextNumber(particle, particleSystemState);
             }
 
             if (rotationSetType == RotationLockType.PARTICLE_ROTATION_LOCK_NORMAL)

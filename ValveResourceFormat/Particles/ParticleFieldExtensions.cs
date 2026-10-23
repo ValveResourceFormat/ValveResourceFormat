@@ -79,7 +79,7 @@ namespace ValveResourceFormat.Particles
         }
 
         // Scalar fields
-        public static float GetScalar(this ref Particle particle, ParticleField field)
+        public static float GetScalar(this Particle particle, ParticleField field)
         {
             return field switch
             {
@@ -113,7 +113,7 @@ namespace ValveResourceFormat.Particles
                 _ => 0f,
             };
         }
-        public static void SetScalar(this ref Particle particle, ParticleField field, float value)
+        public static void SetScalar(this Particle particle, ParticleField field, float value)
         {
             switch (field)
             {
@@ -204,7 +204,7 @@ namespace ValveResourceFormat.Particles
         }
 
         // Vector field
-        public static Vector3 GetVector(this ref Particle particle, ParticleField field)
+        public static Vector3 GetVector(this Particle particle, ParticleField field)
         {
             return field switch
             {
@@ -229,13 +229,13 @@ namespace ValveResourceFormat.Particles
             };
         }
 
-        public static float GetVectorComponent(this ref Particle particle, ParticleField field, int component)
+        public static float GetVectorComponent(this Particle particle, ParticleField field, int component)
         {
             var vector = particle.GetVector(field);
             return vector.GetComponent(component);
         }
 
-        public static void SetVectorComponent(this ref Particle particle, ParticleField field, float value, int component)
+        public static void SetVectorComponent(this Particle particle, ParticleField field, float value, int component)
         {
 
             var joinedVector = particle.GetVector(field);
@@ -258,7 +258,7 @@ namespace ValveResourceFormat.Particles
             particle.SetVector(field, joinedVector);
         }
 
-        public static void SetVector(this ref Particle particle, ParticleField field, Vector3 value)
+        public static void SetVector(this Particle particle, ParticleField field, Vector3 value)
         {
             switch (field)
             {
@@ -310,32 +310,32 @@ namespace ValveResourceFormat.Particles
         }
 
         // Initial Scalars
-        public static float GetInitialScalar(this in Particle particle, ParticleCollection particles, ParticleField field)
+        public static float GetInitialScalar(this Particle particle, ParticleCollection particles, ParticleField field)
         {
-            ref var initialParticle = ref particles.Initial[particle.Index];
+            var initialParticle = particles.Initial[particle.Index];
             return initialParticle.GetScalar(field);
         }
 
         // Initial vector
-        public static Vector3 GetInitialVector(this in Particle particle, ParticleCollection particles, ParticleField field)
+        public static Vector3 GetInitialVector(this Particle particle, ParticleCollection particles, ParticleField field)
         {
-            ref var initialParticle = ref particles.Initial[particle.Index];
+            var initialParticle = particles.Initial[particle.Index];
             return initialParticle.GetVector(field);
         }
 
         /// <summary>
         /// Rewrites the spawn snapshot for endcap lerps, so a mid-life fade runs from the current value.
         /// </summary>
-        public static void SetInitialScalar(this ref Particle particle, ParticleCollection particles, ParticleField field, float value)
+        public static void SetInitialScalar(this Particle particle, ParticleCollection particles, ParticleField field, float value)
             => particles.Initial[particle.Index].SetScalar(field, value);
 
         /// <inheritdoc cref="SetInitialScalar"/>
-        public static void SetInitialVector(this ref Particle particle, ParticleCollection particles, ParticleField field, Vector3 value)
+        public static void SetInitialVector(this Particle particle, ParticleCollection particles, ParticleField field, Vector3 value)
             => particles.Initial[particle.Index].SetVector(field, value);
 
         // Set methods, shared by a bunch of different operators and initializers.
         // The operator form: the particle has a spawn snapshot, so "initial" and "current" differ.
-        public static float ModifyScalarBySetMethod(this ref Particle particle, ParticleCollection particles, ParticleField field, float value, ParticleSetMethod setMethod)
+        public static float ModifyScalarBySetMethod(this Particle particle, ParticleCollection particles, ParticleField field, float value, ParticleSetMethod setMethod)
         {
             var initial = ReadsInitialValue(setMethod) ? particle.GetInitialScalar(particles, field) : 0f;
             return ApplySetMethod(value, initial, particle.GetScalar(field), particles.CurrentFrameTime, setMethod);
@@ -349,7 +349,7 @@ namespace ValveResourceFormat.Particles
         /// constant template), so the "initial value" is what earlier initializers in the same pass
         /// wrote to the particle.
         /// </summary>
-        public static float ModifyScalarBySetMethodAtSpawn(this ref Particle particle, ParticleCollection particles, ParticleField field, float value, ParticleSetMethod setMethod)
+        public static float ModifyScalarBySetMethodAtSpawn(this Particle particle, ParticleCollection particles, ParticleField field, float value, ParticleSetMethod setMethod)
         {
             var current = particle.GetScalar(field);
             return ApplySetMethod(value, current, current, particles.CurrentFrameTime, setMethod);
@@ -367,14 +367,14 @@ namespace ValveResourceFormat.Particles
                 _ => throw new NotImplementedException($"Unknown particle set type {Enum.GetName(setMethod)}!"),
             };
 
-        public static Vector3 ModifyVectorBySetMethod(this ref Particle particle, ParticleCollection particles, ParticleField field, Vector3 value, ParticleSetMethod setMethod)
+        public static Vector3 ModifyVectorBySetMethod(this Particle particle, ParticleCollection particles, ParticleField field, Vector3 value, ParticleSetMethod setMethod)
         {
             var initial = ReadsInitialValue(setMethod) ? particle.GetInitialVector(particles, field) : Vector3.Zero;
             return ApplySetMethod(value, initial, particle.GetVector(field), particles.CurrentFrameTime, setMethod);
         }
 
         /// <inheritdoc cref="ModifyScalarBySetMethodAtSpawn"/>
-        public static Vector3 ModifyVectorBySetMethodAtSpawn(this ref Particle particle, ParticleCollection particles, ParticleField field, Vector3 value, ParticleSetMethod setMethod)
+        public static Vector3 ModifyVectorBySetMethodAtSpawn(this Particle particle, ParticleCollection particles, ParticleField field, Vector3 value, ParticleSetMethod setMethod)
         {
             var current = particle.GetVector(field);
             return ApplySetMethod(value, current, current, particles.CurrentFrameTime, setMethod);

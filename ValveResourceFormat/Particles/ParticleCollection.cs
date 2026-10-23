@@ -12,15 +12,15 @@ namespace ValveResourceFormat.Particles
         public const int MAX_GPU_PARTICLES = 100000;
 
         /// <summary>Gets a span over the initial (spawn-time) particle states.</summary>
-        public Span<Particle> Initial => new(initial, 0, Count);
+        public ParticleSpan Initial => new(initial, 0, Count);
         /// <summary>Gets a span over the current (this-frame) particle states.</summary>
-        public Span<Particle> Current => new(current, 0, Count);
+        public ParticleSpan Current => new(current, 0, Count);
 
         /// <summary>Gets the constant attribute template used when spawning new particles.</summary>
         public Particle Constants { get; }
-        private Particle[] initial;
-        private Particle[] current;
-        private Particle[]? previousStep;
+        private readonly ParticleBuffer initial;
+        private readonly ParticleBuffer current;
+        private ParticleBuffer? previousStep;
         private bool previousStepCaptured;
 
         /// <summary>Gets the maximum number of particles this collection can hold.</summary>
@@ -55,12 +55,13 @@ namespace ValveResourceFormat.Particles
             Capacity = Math.Clamp(maxParticles, 1, MAX_GPU_PARTICLES);
 
             var allocated = Math.Min(Capacity, 64);
-            initial = new Particle[allocated];
-            current = new Particle[allocated];
+            initial = new ParticleBuffer(allocated);
+            current = new ParticleBuffer(allocated);
         }
 
         /// <summary>
-        /// Adds a new particle slot and returns its index, or -1 if the collection is full.
+        /// Adds a new particle slot holding the <see cref="Constants"/> and returns its index, or -1 if
+        /// the collection is full. Its initial state is left unset until <see cref="SaveInitial"/>.
         /// </summary>
         public int Add()
         {
@@ -69,19 +70,15 @@ namespace ValveResourceFormat.Particles
                 return -1;
             }
 
-            if (Count == current.Length)
+            if (Count == current.Capacity)
             {
-                var size = Math.Min(Capacity, current.Length * 2);
-                Array.Resize(ref current, size);
-                Array.Resize(ref initial, size);
-
-                if (previousStep != null)
-                {
-                    Array.Resize(ref previousStep, size);
-                }
+                var size = Math.Min(Capacity, current.Capacity * 2);
+                current.Resize(size);
+                initial.Resize(size);
+                previousStep?.Resize(size);
             }
 
-            initial[Count] = Constants;
+            current.Copy(Constants.Buffer, Constants.Index, Count);
             return Count++;
         }
 
@@ -102,9 +99,11 @@ namespace ValveResourceFormat.Particles
             if (PreserveOrderOnKill)
             {
                 var alive = 0;
+                var killed = current.MarkedAsKilled;
+
                 for (var i = 0; i < Count; i++)
                 {
-                    if (!current[i].MarkedAsKilled)
+                    if (!killed[i])
                     {
                         if (i != alive)
                         {
@@ -119,15 +118,16 @@ namespace ValveResourceFormat.Particles
             else
             {
                 var end = Count;
+                var killed = current.MarkedAsKilled;
 
                 for (var i = 0; i < end; i++)
                 {
-                    if (!current[i].MarkedAsKilled)
+                    if (!killed[i])
                     {
                         continue;
                     }
 
-                    while (end - 1 > i && current[end - 1].MarkedAsKilled)
+                    while (end - 1 > i && killed[end - 1])
                     {
                         end--;
                     }
@@ -156,30 +156,28 @@ namespace ValveResourceFormat.Particles
 
         private void MoveParticleIndex(int currentIndex, int newIndex)
         {
-            initial[newIndex] = initial[currentIndex];
-            initial[newIndex].Index = newIndex;
-            current[newIndex] = current[currentIndex];
-            current[newIndex].Index = newIndex;
+            initial.Move(currentIndex, newIndex);
+            current.Move(currentIndex, newIndex);
 
             if (previousStepCaptured)
             {
-                previousStep![newIndex] = previousStep[currentIndex];
-                previousStep[newIndex].Index = newIndex;
+                previousStep!.Move(currentIndex, newIndex);
             }
         }
 
         /// <summary>
         /// The particles as they were before the step that carried the system past the time it was
         /// asked to reach, indexed like <see cref="Current"/>. Empty unless such a step was the last one
-        /// simulated. A particle created during that step holds its state at creation.
+        /// simulated. A particle created during that step holds its state at creation. Only the
+        /// attributes renderers blend are kept, see <see cref="ParticleBuffer.CopyBlendedAttributes"/>.
         /// </summary>
-        public ReadOnlySpan<Particle> PreviousStep => previousStepCaptured ? new(previousStep, 0, Count) : default;
+        public ParticleSpan PreviousStep => previousStepCaptured ? new(previousStep!, 0, Count) : default;
 
         /// <summary>Copies the current particles as the state before the step about to run.</summary>
         internal void CapturePreviousStep()
         {
-            previousStep ??= new Particle[current.Length];
-            Array.Copy(current, previousStep, Count);
+            previousStep ??= new ParticleBuffer(current.Capacity);
+            previousStep.CopyBlendedAttributes(current, 0, Count);
             previousStepCaptured = true;
         }
 
@@ -197,12 +195,18 @@ namespace ValveResourceFormat.Particles
         /// <summary>The queued events, in the order they were raised.</summary>
         internal List<(ParticleEventType Type, int Index)> PendingEvents => pendingEvents;
 
+        /// <summary>
+        /// Takes the current state of the <paramref name="count"/> particles from <paramref name="first"/>
+        /// as their initial state.
+        /// </summary>
+        internal void SaveInitial(int first, int count) => initial.Copy(current, first, first, count);
+
         /// <summary>Records a particle created during the step as its own previous state.</summary>
         internal void SetPreviousStep(int index)
         {
             if (previousStepCaptured)
             {
-                previousStep![index] = current[index];
+                previousStep!.CopyBlendedAttributes(current, index, 1);
             }
         }
     }

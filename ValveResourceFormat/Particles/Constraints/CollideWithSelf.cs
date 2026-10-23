@@ -38,7 +38,7 @@ namespace ValveResourceFormat.Particles.Constraints
 
             for (var i = 0; i < current.Length; i++)
             {
-                radii[i] = radiusScale.NextNumber(ref current[i], particleSystemState) * current[i].Radius;
+                radii[i] = radiusScale.NextNumber(current[i], particleSystemState) * current[i].Radius;
             }
 
             var changed = false;
@@ -62,7 +62,7 @@ namespace ValveResourceFormat.Particles.Constraints
         /// Pushes the particles of one block, one per lane, out of every particle in turn. A block
         /// particle is read from its lane while the block runs, so later pushes see earlier ones.
         /// </summary>
-        private bool PushBlock(Span<Particle> particles, int blockStart, int blockLength)
+        private bool PushBlock(ParticleSpan particles, int blockStart, int blockLength)
         {
             Span<float> x = stackalloc float[BlockSize];
             Span<float> y = stackalloc float[BlockSize];
@@ -129,12 +129,12 @@ namespace ValveResourceFormat.Particles.Constraints
             return changed;
         }
 
-        private bool AnyFastEnough(Span<Particle> current, int blockStart, int blockEnd, float frameTime, ParticleSystemState particleSystemState)
+        private bool AnyFastEnough(ParticleSpan current, int blockStart, int blockEnd, float frameTime, ParticleSystemState particleSystemState)
         {
             for (var i = blockStart; i < blockEnd; i++)
             {
-                ref var particle = ref current[i];
-                var speed = minimumSpeed.NextNumber(ref particle, particleSystemState);
+                var particle = current[i];
+                var speed = minimumSpeed.NextNumber(particle, particleSystemState);
 
                 if (speed * speed * frameTime < Vector3.DistanceSquared(particle.Position, particle.PositionPrevious))
                 {

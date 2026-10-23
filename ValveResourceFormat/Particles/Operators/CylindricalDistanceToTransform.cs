@@ -66,12 +66,12 @@ namespace ValveResourceFormat.Particles.Operators
 
                 for (var lane = 0; lane < lanes; lane++)
                 {
-                    ref var particle = ref particleSpan[head + lane];
+                    var particle = particleSpan[head + lane];
 
-                    var inner = innerRadius.NextNumber(ref particle, particleSystemState);
-                    var outer = outerRadius.NextNumber(ref particle, particleSystemState);
-                    var outputMin = this.outputMin.NextNumber(ref particle, particleSystemState);
-                    var outputMax = this.outputMax.NextNumber(ref particle, particleSystemState);
+                    var inner = innerRadius.NextNumber(particle, particleSystemState);
+                    var outer = outerRadius.NextNumber(particle, particleSystemState);
+                    var outputMin = this.outputMin.NextNumber(particle, particleSystemState);
+                    var outputMax = this.outputMax.NextNumber(particle, particleSystemState);
 
                     var t = axisLengthSquared < 1e-5f ? 0f : Vector3.Dot(axis, particle.Position - end) / axisLengthSquared;
                     var closest = end + axis * t;
@@ -123,7 +123,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                 for (var lane = 0; lane < lanes; lane++)
                 {
-                    ref var particle = ref particleSpan[head + lane];
+                    var particle = particleSpan[head + lane];
 
                     var finalValue = particle.ModifyScalarBySetMethod(particles, outputField, values[lane], setMethod);
                     var current = particle.GetScalar(outputField);

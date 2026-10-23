@@ -22,10 +22,10 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
-                var min = outputMin.NextVector(ref particle, particleSystemState);
-                var max = outputMax.NextVector(ref particle, particleSystemState);
+                var min = outputMin.NextVector(particle, particleSystemState);
+                var max = outputMax.NextVector(particle, particleSystemState);
 
                 var current = particle.GetVector(fieldOutput);
                 var clamped = Vector3.Min(max, Vector3.Max(min, current));

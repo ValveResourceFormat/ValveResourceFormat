@@ -30,13 +30,13 @@ namespace ValveResourceFormat.Particles.Constraints
             var parentParticles = parentData.CurrentParticles;
             var changed = false;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
-                var radius = particle.Radius * radiusScale.NextNumber(ref particle, particleSystemState);
+                var radius = particle.Radius * radiusScale.NextNumber(particle, particleSystemState);
 
-                foreach (ref var parent in parentParticles)
+                foreach (var parent in parentParticles)
                 {
-                    var reach = (parent.Radius * parentRadiusScale.NextNumber(ref parent, particleSystemState)) + radius;
+                    var reach = (parent.Radius * parentRadiusScale.NextNumber(parent, particleSystemState)) + radius;
                     var delta = particle.Position - parent.Position;
                     var distanceSquared = delta.LengthSquared();
 

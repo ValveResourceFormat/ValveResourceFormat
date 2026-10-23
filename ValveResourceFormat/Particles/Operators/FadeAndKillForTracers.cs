@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Particles.Operators
         /// <summary>The alpha is written outright; this operator does not read its run strength.</summary>
         protected override bool BlendsWithStrength => false;
 
-        protected override void Expire(ref Particle particle, float frameTime)
+        protected override void Expire(Particle particle, float frameTime)
         {
             var ageAtFrameStart = particle.Age - frameTime;
 

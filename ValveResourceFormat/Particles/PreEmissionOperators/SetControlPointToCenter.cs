@@ -44,7 +44,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             {
                 var sum = Vector3.Zero;
 
-                foreach (ref var particle in particles)
+                foreach (var particle in particles)
                 {
                     sum += particle.Position;
                 }

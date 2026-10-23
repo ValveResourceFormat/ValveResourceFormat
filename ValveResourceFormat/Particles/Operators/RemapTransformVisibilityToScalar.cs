@@ -41,7 +41,7 @@ namespace ValveResourceFormat.Particles.Operators
         {
             var value = MathUtils.RemapValClamped(FullyVisible, inputMin, inputMax, outputMin, outputMax);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var current = particle.GetScalar(outputField);
                 var final = particle.ModifyScalarBySetMethod(particles, outputField, value, setMethod);

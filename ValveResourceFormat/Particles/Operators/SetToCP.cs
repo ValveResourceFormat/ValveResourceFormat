@@ -26,7 +26,7 @@ namespace ValveResourceFormat.Particles.Operators
                 ? cp.Position + Vector3.Transform(offset, cp.GetRotation())
                 : cp.Position + offset;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 particle.Position = position;
                 particle.PositionPrevious = position;

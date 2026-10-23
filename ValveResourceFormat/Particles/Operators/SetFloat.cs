@@ -27,10 +27,10 @@ namespace ValveResourceFormat.Particles.Operators
         {
             var (min, max) = outputField.SetFloatRange();
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
-                var value = this.value.NextNumber(ref particle, particleSystemState);
-                var lerp = MathUtils.Saturate(this.lerp.NextNumber(ref particle, particleSystemState));
+                var value = this.value.NextNumber(particle, particleSystemState);
+                var lerp = MathUtils.Saturate(this.lerp.NextNumber(particle, particleSystemState));
 
                 // Angles are authored in degrees and stored in radians, as in InitFloat. The scaling
                 // set methods take a unitless multiplier, not an angle, so they are left alone.

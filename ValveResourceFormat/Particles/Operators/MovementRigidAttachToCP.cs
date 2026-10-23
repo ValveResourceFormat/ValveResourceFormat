@@ -42,7 +42,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             var frame = point.GetTransform();
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var offset = particle.GetVector(fieldInput) * scale;
                 particle.SetVector(fieldOutput, offsetLocal ? Vector3.Transform(offset, frame) : offset + point.Position);

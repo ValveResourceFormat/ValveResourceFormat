@@ -29,7 +29,7 @@ namespace ValveResourceFormat.Particles.Initializers
         public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.LifeDuration)
             | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.Normal);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var cache = particleSystemState.ParentSystem == null ? null : particleSystemState.CollisionPlaneSets[0];
 

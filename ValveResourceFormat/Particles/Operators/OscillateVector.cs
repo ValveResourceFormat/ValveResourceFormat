@@ -70,7 +70,7 @@ namespace ValveResourceFormat.Particles.Operators
         {
             var step = strength * frameTime;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 if (particle.Lifetime <= 0f)
                 {
@@ -99,9 +99,9 @@ namespace ValveResourceFormat.Particles.Operators
                     particleSystemState.Random.ForParticleBetween(particle.ParticleId, FrequencyOffsetY, frequencyMin.Y, frequencyMax.Y),
                     particleSystemState.Random.ForParticleBetween(particle.ParticleId, FrequencyOffsetZ, frequencyMin.Z, frequencyMax.Z));
 
-                var multiplier = oscillationMultiplier.NextNumber(ref particle, particleSystemState);
-                var offset = oscillationOffset.NextNumber(ref particle, particleSystemState);
-                var scale = step * rateScale.NextNumber(ref particle, particleSystemState);
+                var multiplier = oscillationMultiplier.NextNumber(particle, particleSystemState);
+                var offset = oscillationOffset.NextNumber(particle, particleSystemState);
+                var scale = step * rateScale.NextNumber(particle, particleSystemState);
 
                 Vector3 delta;
 
@@ -180,7 +180,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             var value = new Vector3(rate.X * step * delta.X, rate.Y * step * delta.Y, rate.Z * step * delta.Z);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var oscillated = particle.GetVector(outputField) + value;
 

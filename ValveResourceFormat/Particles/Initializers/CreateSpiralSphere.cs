@@ -48,7 +48,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious);
 
-        public override void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override void Initialize(ParticleSpan batch, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var (head, blocks, tail) = SplitIntoCalls(batch);
 
@@ -57,18 +57,18 @@ namespace ValveResourceFormat.Particles.Initializers
             InitializeCall(batch[tail], particles, particleSystemState);
         }
 
-        private void InitializeCall(Span<Particle> call, ParticleCollection particles, ParticleSystemState particleSystemState)
+        private void InitializeCall(ParticleSpan call, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             densityScale = useParticleCount ? call.Length : 1f;
             InitializeEach(call, particles, particleSystemState);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var radius = initialRadius.NextNumber(ref particle, particleSystemState);
-            var speedMin = initialSpeedMin.NextNumber(ref particle, particleSystemState);
-            var speedMax = initialSpeedMax.NextNumber(ref particle, particleSystemState);
-            var pointCount = density.NextNumber(ref particle, particleSystemState) * densityScale;
+            var radius = initialRadius.NextNumber(particle, particleSystemState);
+            var speedMin = initialSpeedMin.NextNumber(particle, particleSystemState);
+            var speedMax = initialSpeedMax.NextNumber(particle, particleSystemState);
+            var pointCount = density.NextNumber(particle, particleSystemState) * densityScale;
             var heightStep = 2f / MathF.Max(1f, pointCount);
 
             if (index > pointCount || index == 0)
@@ -78,7 +78,7 @@ namespace ValveResourceFormat.Particles.Initializers
                 height = 1f - (heightStep * 0.5f);
             }
 
-            var transform = transformInput.NextTransformAtTime(ref particle, particleSystemState, particle.CreationTime);
+            var transform = transformInput.NextTransformAtTime(particle, particleSystemState, particle.CreationTime);
             var ring = MathF.Sqrt(MathF.Max(0f, 1f - (height * height)));
             var local = new Vector3(MathF.Cos(azimuth) * ring, MathF.Sin(azimuth) * ring, height) * radius;
             var position = Vector3.Transform(local, transform);

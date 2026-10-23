@@ -46,7 +46,7 @@ namespace ValveResourceFormat.Particles.Utils
         /// asked for, from a stratified sample that takes nothing from that table. A negative authored seed
         /// is displaced by the system's own seed, giving each instance of an effect its own sequence.
         /// </summary>
-        public Vector3 NextVectorBetween(ref Particle particle, ParticleSystemState particleSystemState, Vector3 min, Vector3 max)
+        public Vector3 NextVectorBetween(Particle particle, ParticleSystemState particleSystemState, Vector3 min, Vector3 max)
         {
             if (!distributeEvenly)
             {

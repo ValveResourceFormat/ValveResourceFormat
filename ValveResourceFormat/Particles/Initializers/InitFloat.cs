@@ -22,9 +22,9 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(outputField);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var value = inputValue.NextNumber(ref particle, particleSystemState);
+            var value = inputValue.NextNumber(particle, particleSystemState);
 
             // Angles are authored in degrees and stored in radians, the same conversion the dedicated
             // rotation initializers do. The scaling set methods take a unitless multiplier, not an angle,
@@ -40,7 +40,7 @@ namespace ValveResourceFormat.Particles.Initializers
             // The strength blends the attribute toward what the set method produced; it is not a
             // multiplier on the input, so at zero the attribute keeps the value it already had
             var current = particle.GetScalar(outputField);
-            var strength = inputStrength.NextNumber(ref particle, particleSystemState);
+            var strength = inputStrength.NextNumber(particle, particleSystemState);
 
             var result = MathUtils.Lerp(current, target, strength);
 

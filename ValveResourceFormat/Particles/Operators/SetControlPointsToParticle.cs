@@ -39,19 +39,19 @@ namespace ValveResourceFormat.Particles.Operators
             for (var i = 0; i < count; i++)
             {
                 var source = reverse ? live.Length - i - firstSourcePoint - 1 : i + firstSourcePoint;
-                ref var particle = ref live[Math.Clamp(source, 0, live.Length - 1)];
+                var particle = live[Math.Clamp(source, 0, live.Length - 1)];
 
                 var controlPoint = target.GetControlPoint(firstControlPoint + i);
                 controlPoint.Position = particle.Position;
 
                 if (setOrientation)
                 {
-                    SetParticleOrientation(controlPoint, ref particle);
+                    SetParticleOrientation(controlPoint, particle);
                 }
             }
         }
 
-        private void SetParticleOrientation(ControlPoint controlPoint, ref Particle particle)
+        private void SetParticleOrientation(ControlPoint controlPoint, Particle particle)
         {
             switch (orientationMode)
             {

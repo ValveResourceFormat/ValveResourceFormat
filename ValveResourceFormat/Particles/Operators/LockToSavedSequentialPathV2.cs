@@ -51,7 +51,7 @@ namespace ValveResourceFormat.Particles.Operators
         {
             Array.Clear(evaluatedThisFrame);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var saved = particle.HitboxOffsetPosition;
                 var startControlPoint = Math.Clamp((int)saved.Y, 0, ControlPointCount - 1);

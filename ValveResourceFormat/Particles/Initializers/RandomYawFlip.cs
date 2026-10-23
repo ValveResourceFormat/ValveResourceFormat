@@ -17,7 +17,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.Yaw);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             if (particleSystemState.Random.Next() < percent)
             {

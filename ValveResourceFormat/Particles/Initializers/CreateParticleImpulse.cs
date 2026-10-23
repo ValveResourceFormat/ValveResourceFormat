@@ -21,12 +21,12 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => 0;
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             // Read only for the draws a random input takes from the system's sequence
-            _ = inputRadius.NextNumber(ref particle, particleSystemState);
-            _ = inputMagnitude.NextNumber(ref particle, particleSystemState);
-            _ = inputFalloffExp.NextNumber(ref particle, particleSystemState);
+            _ = inputRadius.NextNumber(particle, particleSystemState);
+            _ = inputMagnitude.NextNumber(particle, particleSystemState);
+            _ = inputFalloffExp.NextNumber(particle, particleSystemState);
 
             return particle;
         }

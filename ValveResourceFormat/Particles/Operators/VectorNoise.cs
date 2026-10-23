@@ -33,7 +33,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             var timeOffset = noiseAnimationTimeScale * particleSystemState.Age;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 // The engine scrolls the field along X only, and walks the second and third
                 // channels cumulatively away from the first to decorrelate them

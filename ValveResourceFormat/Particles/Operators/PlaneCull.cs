@@ -46,11 +46,11 @@ namespace ValveResourceFormat.Particles.Operators
 
             var planeNormal = MathUtils.SafeNormalize(direction);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 if (CulledByPlane(particle.Position, planeNormal, particleSystemState))
                 {
-                    KillCulled(ref particle, particles, particleSystemState);
+                    KillCulled(particle, particles, particleSystemState);
                 }
             }
         }

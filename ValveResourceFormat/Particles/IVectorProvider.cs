@@ -12,19 +12,19 @@ namespace ValveResourceFormat.Particles
         /// <summary>
         /// Returns the next vector value, evaluated per particle.
         /// </summary>
-        Vector3 NextVector(ref Particle particle, ParticleSystemState renderState);
+        Vector3 NextVector(Particle particle, ParticleSystemState renderState);
 
         /// <summary>
         /// Returns the next vector value using system-level state only.
         /// </summary>
         Vector3 NextVector(ParticleSystemState renderState)
-            => NextVector(ref Particle.Default, renderState);
+            => NextVector(Particle.Default, renderState);
     }
 
     /// <summary>The single render camera is always the closest one.</summary>
     class ClosestCameraPositionVectorProvider : IVectorProvider
     {
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => renderState.CameraPosition;
+        public Vector3 NextVector(Particle particle, ParticleSystemState renderState) => renderState.CameraPosition;
     }
 
     readonly struct LiteralVectorProvider : IVectorProvider
@@ -36,7 +36,7 @@ namespace ValveResourceFormat.Particles
             this.value = value;
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => value;
+        public Vector3 NextVector(Particle particle, ParticleSystemState renderState) => value;
     }
 
     /// <summary>
@@ -52,7 +52,7 @@ namespace ValveResourceFormat.Particles
             this.input = input;
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => input.NextVector(renderState);
+        public Vector3 NextVector(Particle particle, ParticleSystemState renderState) => input.NextVector(renderState);
 
         public Vector3 NextVector(ParticleSystemState renderState) => input.NextVector(renderState);
     }
@@ -68,7 +68,7 @@ namespace ValveResourceFormat.Particles
             this.value = value / 255.0f;
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => value;
+        public Vector3 NextVector(Particle particle, ParticleSystemState renderState) => value;
     }
 
     /// <summary>
@@ -88,9 +88,9 @@ namespace ValveResourceFormat.Particles
             this.initial = initial;
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
+        public Vector3 NextVector(Particle particle, ParticleSystemState renderState)
         {
-            ref var source = ref initial ? ref renderState.InitialOf(ref particle) : ref particle;
+            var source = initial ? renderState.InitialOf(particle) : particle;
             return vectorAttributeScale * source.GetVector(vectorAttribute);
         }
 
@@ -112,7 +112,7 @@ namespace ValveResourceFormat.Particles
             vectorAttributeScale = parse.Vector3("m_vVectorAttributeScale", vectorAttributeScale);
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
+        public Vector3 NextVector(Particle particle, ParticleSystemState renderState)
             => vectorAttributeScale * particle.GetVelocity(renderState.Data?.CurrentFrameTime ?? 0f);
 
         public Vector3 NextVector(ParticleSystemState renderState) => Vector3.Zero;
@@ -133,7 +133,7 @@ namespace ValveResourceFormat.Particles
             follow = parse.Boolean("m_bFollowNamedValue");
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
+        public Vector3 NextVector(Particle particle, ParticleSystemState renderState)
             => renderState.Data?.NamedValues.GetVector(name, follow) ?? Vector3.Zero;
     }
 
@@ -153,7 +153,7 @@ namespace ValveResourceFormat.Particles
             cp = controlPoint;
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
+        public Vector3 NextVector(Particle particle, ParticleSystemState renderState)
         {
             return renderState.GetControlPoint(cp).Position * scale;
         }
@@ -169,7 +169,7 @@ namespace ValveResourceFormat.Particles
             deltaCP = parse.Int32("m_nDeltaControlPoint");
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
+        public Vector3 NextVector(Particle particle, ParticleSystemState renderState)
         {
             return renderState.GetControlPoint(cp).Position - renderState.GetControlPoint(deltaCP).Position;
         }
@@ -186,7 +186,7 @@ namespace ValveResourceFormat.Particles
             relativePosition = parse.Vector3("m_vCPRelativePosition", relativePosition);
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
+        public Vector3 NextVector(Particle particle, ParticleSystemState renderState)
             => ControlPointTransformProvider.TransformPosition(renderState, cp, relativePosition);
     }
 
@@ -201,7 +201,7 @@ namespace ValveResourceFormat.Particles
             relativeDirection = parse.Vector3("m_vCPRelativeDir", relativeDirection);
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
+        public Vector3 NextVector(Particle particle, ParticleSystemState renderState)
             => ControlPointTransformProvider.TransformDirection(renderState, cp, relativeDirection);
     }
 
@@ -234,7 +234,7 @@ namespace ValveResourceFormat.Particles
             isDegenerate = Vector3.DistanceSquared(min, max) <= MinimumRangeSquared;
         }
 
-        public virtual Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => Draw(renderState.Random, particle.Index);
+        public virtual Vector3 NextVector(Particle particle, ParticleSystemState renderState) => Draw(renderState.Random, particle.Index);
 
         public virtual Vector3 NextVector(ParticleSystemState renderState) => Draw(renderState.Random, -1);
 
@@ -270,8 +270,8 @@ namespace ValveResourceFormat.Particles
             vectorAttributeScale = parse.Vector3("m_vVectorAttributeScale", vectorAttributeScale);
         }
 
-        public override Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
-            => (vectorAttributeScale * particle.GetVector(vectorAttribute)) + base.NextVector(ref particle, renderState);
+        public override Vector3 NextVector(Particle particle, ParticleSystemState renderState)
+            => (vectorAttributeScale * particle.GetVector(vectorAttribute)) + base.NextVector(particle, renderState);
 
         public override Vector3 NextVector(ParticleSystemState renderState)
             => (vectorAttributeScale * Particle.Default.GetVector(vectorAttribute)) + base.NextVector(renderState);
@@ -290,12 +290,12 @@ namespace ValveResourceFormat.Particles
             controlPoint = new ControlPointTransformProvider(parse.Int32("m_nControlPoint"), true);
         }
 
-        public override Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
-            => Vector3.TransformNormal(base.NextVector(ref particle, renderState),
-                controlPoint.NextTransformAtTime(ref particle, renderState, particle.CreationTime));
+        public override Vector3 NextVector(Particle particle, ParticleSystemState renderState)
+            => Vector3.TransformNormal(base.NextVector(particle, renderState),
+                controlPoint.NextTransformAtTime(particle, renderState, particle.CreationTime));
 
         public override Vector3 NextVector(ParticleSystemState renderState)
-            => Vector3.TransformNormal(base.NextVector(renderState), controlPoint.NextTransform(ref Particle.Default, renderState));
+            => Vector3.TransformNormal(base.NextVector(renderState), controlPoint.NextTransform(Particle.Default, renderState));
     }
 
     // 3 Float Inputs
@@ -312,10 +312,10 @@ namespace ValveResourceFormat.Particles
             z = parse.NumberProvider("m_FloatComponentZ", z);
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => new(
-            x.NextNumber(ref particle, renderState),
-            y.NextNumber(ref particle, renderState),
-            z.NextNumber(ref particle, renderState));
+        public Vector3 NextVector(Particle particle, ParticleSystemState renderState) => new(
+            x.NextNumber(particle, renderState),
+            y.NextNumber(particle, renderState),
+            z.NextNumber(particle, renderState));
 
         public Vector3 NextVector(ParticleSystemState renderState) => new(
             x.NextNumber(renderState),
@@ -353,8 +353,8 @@ namespace ValveResourceFormat.Particles
             }
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
-            => Interpolate(floatInterp.NextNumber(ref particle, renderState));
+        public Vector3 NextVector(Particle particle, ParticleSystemState renderState)
+            => Interpolate(floatInterp.NextNumber(particle, renderState));
 
         public Vector3 NextVector(ParticleSystemState renderState)
             => Interpolate(floatInterp.NextNumber(renderState));

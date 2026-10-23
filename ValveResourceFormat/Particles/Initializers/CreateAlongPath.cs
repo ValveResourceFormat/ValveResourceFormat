@@ -39,7 +39,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.HitboxOffsetPosition);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var path = pathParams;
 
@@ -52,13 +52,13 @@ namespace ValveResourceFormat.Particles.Initializers
 
             var (start, mid, end) = ParticlePath.CalculatePathValues(particleSystemState, path, particle.CreationTime);
 
-            var t = pathParameter.NextNumber(ref particle, particleSystemState);
-            var distance = maxDistance.NextNumber(ref particle, particleSystemState);
+            var t = pathParameter.NextNumber(particle, particleSystemState);
+            var distance = maxDistance.NextNumber(particle, particleSystemState);
 
             var position = ParticlePath.Evaluate(start, mid, end, t);
             position += particleSystemState.Random.NextBetweenPerComponent(new Vector3(-distance), new Vector3(distance));
 
-            SetSpawnPosition(ref particle, particleSystemState, position, position);
+            SetSpawnPosition(particle, particleSystemState, position, position);
 
             if (saveOffset)
             {

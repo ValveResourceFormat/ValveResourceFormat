@@ -21,10 +21,10 @@ namespace ValveResourceFormat.Particles.Operators
         }
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
-                var vec1 = inputVec1.NextVector(ref particle, particleSystemState);
-                var vec2 = inputVec2.NextVector(ref particle, particleSystemState);
+                var vec1 = inputVec1.NextVector(particle, particleSystemState);
+                var vec2 = inputVec2.NextVector(particle, particleSystemState);
 
                 var cross = Vector3.Cross(vec1, vec2);
 

@@ -74,7 +74,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             var normalize = fieldOutput == ParticleField.Normal;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var value = baseValue;
 

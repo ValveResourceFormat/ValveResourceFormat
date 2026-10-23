@@ -33,7 +33,7 @@ namespace ValveResourceFormat.Particles.Operators
         {
             var value = MathUtils.RemapValClamped(RemapTransformVisibilityToScalar.FullyVisible, inputMin, inputMax, outputMin, outputMax);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 particle.SetScalar(fieldOutput, MathUtils.Lerp(particle.GetScalar(fieldOutput), value, strength));
             }

@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Particles.Operators
         {
             var step = transformInput.NextTransform(particleSystemState).Translation * frameTime;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 particle.PositionPrevious = particle.Position - step;
             }

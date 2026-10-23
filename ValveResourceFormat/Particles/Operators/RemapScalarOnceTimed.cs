@@ -46,14 +46,14 @@ namespace ValveResourceFormat.Particles.Operators
         {
             if (proportional)
             {
-                foreach (ref var particle in particles.Current)
+                foreach (var particle in particles.Current)
                 {
                     var lifetime = particle.Lifetime + ParticleMath.FloatEpsilon;
                     var normalizedAge = particle.Age / lifetime;
 
                     if (normalizedAge > remapTime && (frameTime / lifetime) + remapTime > normalizedAge)
                     {
-                        Remap(ref particle, strength);
+                        Remap(particle, strength);
                     }
                 }
 
@@ -67,13 +67,13 @@ namespace ValveResourceFormat.Particles.Operators
 
             done = true;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
-                Remap(ref particle, strength);
+                Remap(particle, strength);
             }
         }
 
-        private void Remap(ref Particle particle, float strength)
+        private void Remap(Particle particle, float strength)
         {
             var value = MathUtils.RemapValClamped(particle.GetScalar(fieldInput), inputMin, inputMax, outputMin, outputMax);
             particle.SetScalar(fieldOutput, MathUtils.Lerp(particle.GetScalar(fieldOutput), value, strength));

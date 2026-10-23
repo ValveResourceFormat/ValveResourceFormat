@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Particles
         /// <summary>
         /// Returns the next number value, evaluated per particle.
         /// </summary>
-        float NextNumber(ref Particle particle, ParticleSystemState renderState);
+        float NextNumber(Particle particle, ParticleSystemState renderState);
 
         /// <summary>
         /// ONLY use this in emitters and renderers, where per-particle values can't be accessed. Otherwise, use the other version.
@@ -24,13 +24,13 @@ namespace ValveResourceFormat.Particles
         /// return 0 here.
         /// </summary>
         public float NextNumber(ParticleSystemState renderState)
-            => NextNumber(ref Particle.Default, renderState);
+            => NextNumber(Particle.Default, renderState);
 
         /// <summary>
         /// Returns the next number value truncated to an integer.
         /// </summary>
-        public int NextInt(ref Particle particle, ParticleSystemState renderState)
-            => (int)NextNumber(ref particle, renderState);
+        public int NextInt(Particle particle, ParticleSystemState renderState)
+            => (int)NextNumber(particle, renderState);
     }
 
     // Literal Number
@@ -46,7 +46,7 @@ namespace ValveResourceFormat.Particles
             this.value = value;
         }
 
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState) => value;
+        public float NextNumber(Particle particle, ParticleSystemState renderState) => value;
     }
 
     /// <summary>
@@ -62,7 +62,7 @@ namespace ValveResourceFormat.Particles
             this.input = input;
         }
 
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState) => input.NextNumber(renderState);
+        public float NextNumber(Particle particle, ParticleSystemState renderState) => input.NextNumber(renderState);
 
         public float NextNumber(ParticleSystemState renderState) => input.NextNumber(renderState);
     }
@@ -109,7 +109,7 @@ namespace ValveResourceFormat.Particles
             }
         }
 
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+        public float NextNumber(Particle particle, ParticleSystemState renderState)
             => Evaluate(renderState.Random, particle.Index, particle.ParticleId);
 
         public float NextNumber(ParticleSystemState renderState)
@@ -175,7 +175,7 @@ namespace ValveResourceFormat.Particles
             attributeMapping = new AttributeMapping(parse);
         }
 
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+        public float NextNumber(Particle particle, ParticleSystemState renderState)
         {
             if (renderState.Data?.NamedValues is not { } namedValues || !namedValues.TryGetFloat(name, out var value))
             {
@@ -191,7 +191,7 @@ namespace ValveResourceFormat.Particles
     {
         private readonly AttributeMapping attributeMapping;
         public CollectionAgeNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState) => attributeMapping.ApplyMapping(renderState.Age);
+        public float NextNumber(Particle particle, ParticleSystemState renderState) => attributeMapping.ApplyMapping(renderState.Age);
 
         /// <summary>Evaluates the input as if the system were <paramref name="age"/> seconds old.</summary>
         public float AtAge(float age) => attributeMapping.ApplyMapping(age);
@@ -202,7 +202,7 @@ namespace ValveResourceFormat.Particles
     {
         private readonly AttributeMapping attributeMapping;
         public EndCapAgeNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState) => attributeMapping.ApplyMapping(renderState.EndCapAge);
+        public float NextNumber(Particle particle, ParticleSystemState renderState) => attributeMapping.ApplyMapping(renderState.EndCapAge);
     }
 
     class DetailLevelNumberProvider : INumberProvider
@@ -214,7 +214,7 @@ namespace ValveResourceFormat.Particles
             tiers = [parse.Float("m_flLOD0"), parse.Float("m_flLOD1"), parse.Float("m_flLOD2"), parse.Float("m_flLOD3")];
         }
 
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+        public float NextNumber(Particle particle, ParticleSystemState renderState)
         {
             return tiers[Math.Clamp((int)renderState.DetailLevel, 0, tiers.Length - 1)];
         }
@@ -225,7 +225,7 @@ namespace ValveResourceFormat.Particles
     {
         private readonly AttributeMapping attributeMapping;
         public ParticleAgeNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState) => attributeMapping.ApplyMapping(particle.Age);
+        public float NextNumber(Particle particle, ParticleSystemState renderState) => attributeMapping.ApplyMapping(particle.Age);
         public float NextNumber(ParticleSystemState renderState) => 0f;
     }
 
@@ -235,7 +235,7 @@ namespace ValveResourceFormat.Particles
         private readonly AttributeMapping attributeMapping;
         public ParticleAgeNormalizedNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
 
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+        public float NextNumber(Particle particle, ParticleSystemState renderState)
             => attributeMapping.ApplyMapping(particle.Lifetime <= 0f ? 0f : particle.Age / particle.Lifetime);
 
         public float NextNumber(ParticleSystemState renderState) => 0f;
@@ -254,11 +254,11 @@ namespace ValveResourceFormat.Particles
             mapping = new AttributeMapping(parse);
         }
 
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState) => mapping.ApplyMapping(Read(ref particle, field));
+        public float NextNumber(Particle particle, ParticleSystemState renderState) => mapping.ApplyMapping(Read(particle, field));
 
         public float NextNumber(ParticleSystemState renderState) => 0f;
 
-        public static float Read(ref Particle particle, ParticleField field)
+        public static float Read(Particle particle, ParticleField field)
         {
             var value = particle.GetScalar(field);
             return field.IsAngleField() ? float.RadiansToDegrees(value) : value;
@@ -281,8 +281,8 @@ namespace ValveResourceFormat.Particles
             mapping = new AttributeMapping(parse);
         }
 
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
-            => mapping.ApplyMapping(PerParticleNumberProvider.Read(ref renderState.InitialOf(ref particle), field));
+        public float NextNumber(Particle particle, ParticleSystemState renderState)
+            => mapping.ApplyMapping(PerParticleNumberProvider.Read(renderState.InitialOf(particle), field));
 
         public float NextNumber(ParticleSystemState renderState) => 0f;
     }
@@ -307,9 +307,9 @@ namespace ValveResourceFormat.Particles
             mapping = new AttributeMapping(parse);
         }
 
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+        public float NextNumber(Particle particle, ParticleSystemState renderState)
         {
-            ref var source = ref initial ? ref renderState.InitialOf(ref particle) : ref particle;
+            var source = initial ? renderState.InitialOf(particle) : particle;
             return mapping.ApplyMapping(source.GetVectorComponent(field, component));
         }
 
@@ -321,7 +321,7 @@ namespace ValveResourceFormat.Particles
     {
         private readonly AttributeMapping attributeMapping;
         public PerParticleSpeedNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+        public float NextNumber(Particle particle, ParticleSystemState renderState)
             => attributeMapping.ApplyMapping(particle.GetVelocity(renderState.Data?.CurrentFrameTime ?? 0f).Length());
         public float NextNumber(ParticleSystemState renderState) => 0f;
     }
@@ -342,7 +342,7 @@ namespace ValveResourceFormat.Particles
             reverseOrder = parse.Boolean("m_bReverseOrder");
         }
 
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+        public float NextNumber(Particle particle, ParticleSystemState renderState)
         {
             var number = reverseOrder ? renderState.ParticleCount - particle.Index
                 : renderState.InitializingParticles ? particle.UniqueParticleId
@@ -359,7 +359,7 @@ namespace ValveResourceFormat.Particles
     {
         private readonly AttributeMapping attributeMapping;
         public PerParticleCountNormalizedNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+        public float NextNumber(Particle particle, ParticleSystemState renderState)
         {
             var divisor = renderState.Data?.BehaviorVersion >= 12
                 ? Math.Max(renderState.ParticleCount - 1, 1)
@@ -385,7 +385,7 @@ namespace ValveResourceFormat.Particles
             reverseOrder = parse.Boolean("m_bReverseOrder");
         }
 
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+        public float NextNumber(Particle particle, ParticleSystemState renderState)
         {
             var data = particle.RopeSegmentData;
             return attributeMapping.ApplyMapping(reverseOrder ? data.Z - data.X : data.X);
@@ -404,7 +404,7 @@ namespace ValveResourceFormat.Particles
             attributeMapping = new AttributeMapping(parse);
         }
 
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState) => attributeMapping.ApplyMapping(particle.RopeSegmentData.Y);
+        public float NextNumber(Particle particle, ParticleSystemState renderState) => attributeMapping.ApplyMapping(particle.RopeSegmentData.Y);
 
         public float NextNumber(ParticleSystemState renderState) => 0f;
     }
@@ -423,7 +423,7 @@ namespace ValveResourceFormat.Particles
             vectorComponent = parse.Int32("m_nVectorComponent");
         }
 
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+        public float NextNumber(Particle particle, ParticleSystemState renderState)
         {
             // Control points carry raw switches and scalars that the mapping turns into the value the
             // effect actually wants - an unset point commonly has to read as a multiplier of 1, not 0.
@@ -448,7 +448,7 @@ namespace ValveResourceFormat.Particles
             useBoundsCenter = parse.Boolean("m_bUseBoundsCenter");
         }
 
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+        public float NextNumber(Particle particle, ParticleSystemState renderState)
         {
             var target = useBoundsCenter && renderState.Data is { } system
                 ? system.LocalBoundingBox.Center + system.MainControlPoint.Position
@@ -479,7 +479,7 @@ namespace ValveResourceFormat.Particles
             mapping = new AttributeMapping(parse);
         }
 
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+        public float NextNumber(Particle particle, ParticleSystemState renderState)
             => mapping.ApplyMapping(noise.Evaluate(particle.GetVector(inputField), renderState.Age));
 
         public float NextNumber(ParticleSystemState renderState)
@@ -505,7 +505,7 @@ namespace ValveResourceFormat.Particles
             cp = parse.Int32("m_nControlPoint");
         }
 
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+        public float NextNumber(Particle particle, ParticleSystemState renderState)
         {
             var point = renderState.GetControlPoint(cp);
             var step = renderState.Data?.CurrentFrameTime ?? 0f;
@@ -534,7 +534,7 @@ namespace ValveResourceFormat.Particles
             cp = parse.Int32("m_nControlPoint");
         }
 
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+        public float NextNumber(Particle particle, ParticleSystemState renderState)
             => attributeMapping.ApplyMapping(renderState.Age - renderState.GetControlPoint(cp).ChangeTime);
     }
 
@@ -550,7 +550,7 @@ namespace ValveResourceFormat.Particles
             cp = parse.Int32("m_nControlPoint");
         }
 
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+        public float NextNumber(Particle particle, ParticleSystemState renderState)
         {
             var isSet = cp != -1 && renderState.GetControlPoint(cp).ChangeTime != -1f;
             return attributeMapping.ApplyMapping(isSet ? 1f : 0f);
@@ -572,7 +572,7 @@ namespace ValveResourceFormat.Particles
             snapshot = new SnapshotBinding(parse, "m_nControlPoint", 0);
         }
 
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+        public float NextNumber(Particle particle, ParticleSystemState renderState)
             => attributeMapping.ApplyMapping(snapshot.Count(renderState));
     }
 
@@ -587,7 +587,7 @@ namespace ValveResourceFormat.Particles
             cp = parse.Int32("m_nControlPoint");
         }
 
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+        public float NextNumber(Particle particle, ParticleSystemState renderState)
         {
             var distance = Vector3.Distance(particle.Position, renderState.GetControlPoint(cp).Position);
             return attributeMapping.ApplyMapping(distance);

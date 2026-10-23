@@ -37,10 +37,10 @@ namespace ValveResourceFormat.Particles.Operators
         {
             var scale = strength * outputScale;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
-                var value1 = input1.NextVector(ref particle, particleSystemState);
-                var value2 = input2.NextVector(ref particle, particleSystemState);
+                var value1 = input1.NextVector(particle, particleSystemState);
+                var value2 = input2.NextVector(particle, particleSystemState);
 
                 if (expression.Evaluate(value1, value2) is not { } result)
                 {

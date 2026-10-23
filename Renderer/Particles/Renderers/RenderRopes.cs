@@ -219,11 +219,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// how many particles of the segment come before it in x, that as a fraction of the segment's
         /// last place in y, and the last place in z. Segments are told apart by the bits of their value.
         /// </summary>
-        private void UpdateSegmentData(Span<Particle> particles)
+        private void UpdateSegmentData(ParticleSpan particles)
         {
             segmentRepeats.Clear();
 
-            foreach (ref var particle in particles)
+            foreach (var particle in particles)
             {
                 var segmentBits = BitConverter.SingleToInt32Bits(particle.GetScalar(splitField));
                 var place = segmentRepeats.TryGetValue(segmentBits, out var repeats) ? repeats + 1 : 0;
@@ -232,7 +232,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 particle.RopeSegmentData = new Vector3(place, 0f, 0f);
             }
 
-            foreach (ref var particle in particles)
+            foreach (var particle in particles)
             {
                 var last = segmentRepeats[BitConverter.SingleToInt32Bits(particle.GetScalar(splitField))];
                 var place = particle.RopeSegmentData.X;
@@ -403,14 +403,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             for (var i = 0; i < count; i++)
             {
                 var particleIndex = reverseOrder ? count - i - 1 : i;
-                ref var particle = ref particleBag.Current[particleIndex];
+                var particle = particleBag.Current[particleIndex];
 
                 var radius = particle.Radius * scales.Radius;
                 var color = ParticleColorBlend.Apply(ColorBlendType,
-                    ParticleColorBlend.ToWrappedBytes(particle.Color, Math.Clamp(scales.Alpha * 255f * GetAlpha2(ref particle) * particle.Alpha, 0f, 255f)),
+                    ParticleColorBlend.ToWrappedBytes(particle.Color, Math.Clamp(scales.Alpha * 255f * GetAlpha2(particle) * particle.Alpha, 0f, 255f)),
                     scales.Color) / 255f;
                 var alpha = color.W;
-                var alphaReference = GetAlphaReference(ref particle, radius, alpha);
+                var alphaReference = GetAlphaReference(particle, radius, alpha);
 
                 if (enableFadingAndClamping)
                 {
@@ -750,7 +750,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return identity;
             }
 
-            ref var head = ref particleBag.Current[0];
+            var head = particleBag.Current[0];
             var sequenceNumber = (int)head.SequenceNumber;
             var sequence = spriteSheetData.Sequences[(uint)sequenceNumber < (uint)spriteSheetData.Sequences.Length ? sequenceNumber : 0];
 
@@ -758,7 +758,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             {
                 return identity;
             }
-            var (frame, nextFrame, blend) = GetSheetFrame(ref head, sequence, animationRate, animationType, animateInFps);
+            var (frame, nextFrame, blend) = GetSheetFrame(head, sequence, animationRate, animationType, animateInFps);
 
             var currentImage = sequence.Frames[frame].Images[0];
             var nextImage = sequence.Frames[nextFrame].Images[0];

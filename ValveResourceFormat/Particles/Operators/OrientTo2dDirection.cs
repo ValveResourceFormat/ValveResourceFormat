@@ -26,9 +26,9 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
-                var direction = input.NextVector(ref particle, particleSystemState);
+                var direction = input.NextVector(particle, particleSystemState);
 
                 if (direction.X == 0f && direction.Y == 0f)
                 {

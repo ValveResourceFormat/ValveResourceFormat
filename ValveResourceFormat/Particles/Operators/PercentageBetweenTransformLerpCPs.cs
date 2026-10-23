@@ -51,7 +51,7 @@ namespace ValveResourceFormat.Particles.Operators
             var outputMin = particleSystemState.GetControlPoint(outputStartCP).Position.GetComponent(outputStartField);
             var outputMax = particleSystemState.GetControlPoint(outputEndCP).Position.GetComponent(outputEndField);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var percentage = PercentageBetweenTransforms.Percentage(particle.Position, start, end, length, radialCheck);
 

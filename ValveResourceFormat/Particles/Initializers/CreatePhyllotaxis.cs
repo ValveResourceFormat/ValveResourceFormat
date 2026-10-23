@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using ValveResourceFormat.Particles.Utils;
 
 namespace ValveResourceFormat.Particles.Initializers
@@ -69,13 +68,13 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.Radius);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            Initialize(MemoryMarshal.CreateSpan(ref particle, 1), particles, particleSystemState);
+            Initialize(particle.AsSpan(), particles, particleSystemState);
             return particle;
         }
 
-        public override void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override void Initialize(ParticleSpan batch, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var (head, blocks, tail) = SplitIntoCalls(batch);
 
@@ -84,7 +83,7 @@ namespace ValveResourceFormat.Particles.Initializers
             InitializeCall(batch[tail], particleSystemState);
         }
 
-        private void InitializeCall(Span<Particle> batch, ParticleSystemState particleSystemState)
+        private void InitializeCall(ParticleSpan batch, ParticleSystemState particleSystemState)
         {
             if (batch.IsEmpty || radPerPoint == 0f || radPerPointTo == 0f)
             {
@@ -108,7 +107,7 @@ namespace ValveResourceFormat.Particles.Initializers
             var size = MathF.Abs(sizeOverall) * scale;
             var rotation = controlPoint.GetRotationMatrix();
 
-            foreach (ref var particle in batch)
+            foreach (var particle in batch)
             {
                 float n = pointIndex;
                 var fraction = n / totalPoints;

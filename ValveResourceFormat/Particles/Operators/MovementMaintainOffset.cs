@@ -36,7 +36,7 @@ namespace ValveResourceFormat.Particles.Operators
             var sum = Vector3.Zero;
             var sumPrevious = Vector3.Zero;
 
-            foreach (ref var particle in current)
+            foreach (var particle in current)
             {
                 sum += particle.Position;
                 sumPrevious += particle.PositionPrevious;
@@ -47,7 +47,7 @@ namespace ValveResourceFormat.Particles.Operators
             var meanPrevious = sumPrevious * inverseCount;
             var placement = step * (current.Length - 1) * 0.5f;
 
-            foreach (ref var particle in current)
+            foreach (var particle in current)
             {
                 var scaled = radiusScale ? placement * particle.Radius : placement;
 

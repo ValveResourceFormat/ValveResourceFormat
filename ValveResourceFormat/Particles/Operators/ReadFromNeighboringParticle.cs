@@ -32,11 +32,11 @@ namespace ValveResourceFormat.Particles.Operators
 
             for (var i = 0; i < live.Length; i++)
             {
-                ref var particle = ref live[i];
-                ref var neighbor = ref live[Math.Max(Math.Min(i + increment, live.Length - 1), 0)];
+                var particle = live[i];
+                var neighbor = live[Math.Max(Math.Min(i + increment, live.Length - 1), 0)];
 
-                var maxDistance = distanceCheck.NextNumber(ref particle, particleSystemState);
-                var amount = interpolation.NextNumber(ref particle, particleSystemState);
+                var maxDistance = distanceCheck.NextNumber(particle, particleSystemState);
+                var amount = interpolation.NextNumber(particle, particleSystemState);
                 var maxDistanceSquared = maxDistance * maxDistance;
 
                 if (maxDistanceSquared > 0f && Vector3.DistanceSquared(particle.Position, neighbor.Position) > maxDistanceSquared)

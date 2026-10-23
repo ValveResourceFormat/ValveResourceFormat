@@ -56,22 +56,22 @@ namespace ValveResourceFormat.Particles.Initializers
             => FieldMask(ParticleField.Position) | FieldMask(ParticleField.LifeDuration) | FieldMask(ParticleField.PositionPrevious)
                 | FieldMask(ParticleField.HitboxIndex) | FieldMask(ParticleField.HitboxOffsetPosition);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var cache = HitBoxCache.Refresh(particleSystemState, controlPoint, hitboxSetName, useBones);
             var point = particleSystemState.GetControlPoint(controlPoint);
             var height = (heightControlPoint >= 0 ? particleSystemState.GetControlPoint(heightControlPoint).Position.Z : point.Position.Z)
-                + desiredHeight.NextNumber(ref particle, particleSystemState);
-            var scale = hitBoxScale.NextVector(ref particle, particleSystemState);
-            var bias = directionBias.NextVector(ref particle, particleSystemState);
+                + desiredHeight.NextNumber(particle, particleSystemState);
+            var scale = hitBoxScale.NextVector(particle, particleSystemState);
+            var bias = directionBias.NextVector(particle, particleSystemState);
 
             if (localCoords)
             {
                 bias = Vector3.TransformNormal(bias, point.GetBasisAtTime(particleSystemState.Age));
             }
 
-            var velocityScale = hitboxVelocityScale.NextNumber(ref particle, particleSystemState);
-            var maxVelocity = maxBoneVelocity.NextNumber(ref particle, particleSystemState);
+            var velocityScale = hitboxVelocityScale.NextNumber(particle, particleSystemState);
+            var maxVelocity = maxBoneVelocity.NextNumber(particle, particleSystemState);
 
             if (cache == null || !TryPick(cache, particleSystemState, point.Position, height, scale, bias, out var position, out var fraction, out var index))
             {

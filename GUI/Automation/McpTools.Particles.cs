@@ -163,7 +163,7 @@ internal sealed partial class McpTools
         };
     }
 
-    private static object AverageParticle(ReadOnlySpan<Particle> particles, Matrix4x4 toViewerWorld)
+    private static object AverageParticle(ParticleSpan particles, Matrix4x4 toViewerWorld)
     {
         var color = Vector3.Zero;
         var alpha = 0f;

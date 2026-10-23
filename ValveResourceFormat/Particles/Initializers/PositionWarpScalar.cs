@@ -35,7 +35,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.Radius);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var rampStart = warpMin;
             var rampEnd = warpMax;
@@ -47,7 +47,7 @@ namespace ValveResourceFormat.Particles.Initializers
                 rampEnd *= scale;
             }
 
-            var warp = MathUtils.Lerp(rampStart, rampEnd, inputValue.NextNumber(ref particle, particleSystemState));
+            var warp = MathUtils.Lerp(rampStart, rampEnd, inputValue.NextNumber(particle, particleSystemState));
 
             var frame = particleSystemState.GetControlPoint(controlPointNumber).GetBasisAtTime(particle.CreationTime);
             var origin = frame.Translation;

@@ -63,7 +63,7 @@ namespace ValveResourceFormat.Particles.Operators
             var weightSum = 0f;
             var tintedVolume = Vector3.Zero;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var volume = particle.Radius * particle.Radius * particle.Radius;
                 var tint = particle.Color * particle.Alpha;

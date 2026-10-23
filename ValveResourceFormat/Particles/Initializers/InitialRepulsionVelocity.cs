@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using ValveResourceFormat.Particles.Utils;
 
 namespace ValveResourceFormat.Particles.Initializers
@@ -56,13 +55,13 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            Initialize(MemoryMarshal.CreateSpan(ref particle, 1), particles, particleSystemState);
+            Initialize(particle.AsSpan(), particles, particleSystemState);
             return particle;
         }
 
-        public override void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override void Initialize(ParticleSpan batch, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var (head, blocks, tail) = SplitIntoCalls(batch);
 
@@ -71,16 +70,16 @@ namespace ValveResourceFormat.Particles.Initializers
             InitializeCall(batch[tail], particleSystemState);
         }
 
-        private void InitializeCall(Span<Particle> call, ParticleSystemState particleSystemState)
+        private void InitializeCall(ParticleSpan call, ParticleSystemState particleSystemState)
         {
             if (call.IsEmpty)
             {
                 return;
             }
 
-            BeginRun(ref call[0], particleSystemState);
+            BeginRun(call[0], particleSystemState);
 
-            foreach (ref var particle in call)
+            foreach (var particle in call)
             {
                 var offset = perParticle
                     ? Repulse(particleSystemState.Collision, particle.Position, perParticleTraceLength ? particle.Radius : traceLength, out _, out _)
@@ -100,7 +99,7 @@ namespace ValveResourceFormat.Particles.Initializers
             }
         }
 
-        private void BeginRun(ref Particle first, ParticleSystemState particleSystemState)
+        private void BeginRun(Particle first, ParticleSystemState particleSystemState)
         {
             Axes.CopyTo(directions, 0);
 

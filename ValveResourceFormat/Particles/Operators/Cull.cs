@@ -26,7 +26,7 @@ namespace ValveResourceFormat.Particles.Operators
         {
             var chance = strength * cullPercentage;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 // Both draws are taken for every particle, whether or not it goes on to be culled
                 var cullChance = particleSystemState.Random.Next();
@@ -41,7 +41,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                 if (age >= cullStart && cullEnd >= age && age >= cullTime)
                 {
-                    KillCulled(ref particle, particles, particleSystemState);
+                    KillCulled(particle, particles, particleSystemState);
                 }
             }
         }

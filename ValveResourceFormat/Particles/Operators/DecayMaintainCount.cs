@@ -56,7 +56,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             for (var n = 0; n < current.Length; n++)
             {
-                ref var particle = ref current[killNewest ? current.Length - 1 - n : n];
+                var particle = current[killNewest ? current.Length - 1 - n : n];
                 var lifetime = particle.Lifetime;
 
                 var expired = (lifespanDecay || (decayDelay != 0f && lifetime < 0f)) && particle.Age > MathF.Abs(lifetime);

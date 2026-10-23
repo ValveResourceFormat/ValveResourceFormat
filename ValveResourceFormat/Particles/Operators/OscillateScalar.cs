@@ -59,7 +59,7 @@ namespace ValveResourceFormat.Particles.Operators
             var systemPhase = (oscillationMultiplier * particleSystemState.Age) + oscillationOffset;
             var step = strength * frameTime;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 if (particle.Lifetime <= 0f)
                 {
@@ -131,7 +131,7 @@ namespace ValveResourceFormat.Particles.Operators
             var delta = ParticleMath.SinPi(frequency * ((oscillationMultiplier * particleSystemState.Age) + oscillationOffset));
             var finalScalar = delta * (rate * (strength * frameTime));
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var oscillated = particle.GetScalar(outputField) + finalScalar;
                 particle.SetScalar(outputField, Math.Clamp(oscillated, clampMin, clampMax));

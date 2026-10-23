@@ -65,14 +65,14 @@ namespace ValveResourceFormat.Particles.Operators
             var count = columns.Count;
             var model = cache is { Count: > 0 } ? cache.Object?.Model : null;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
-                var weight = interpolation.NextNumber(ref particle, particleSystemState);
+                var weight = interpolation.NextNumber(particle, particleSystemState);
                 int row;
 
                 if (indexType == SnapshotIndexType.SNAPSHOT_INDEX_DIRECT)
                 {
-                    row = (int)readIndex.NextNumber(ref particle, particleSystemState) % count;
+                    row = (int)readIndex.NextNumber(particle, particleSystemState) % count;
                 }
                 else if (random)
                 {
@@ -95,7 +95,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                 if (model != null)
                 {
-                    columns.Bind(ref particle, row, model, cache!.Count);
+                    columns.Bind(particle, row, model, cache!.Count);
 
                     cache.ComputeSkinningMatrix(particle.BoneIndices, particle.BoneWeights, false, out var skin, out _);
                     target = Vector3.Transform(target, skin);

@@ -15,9 +15,9 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.PositionPrevious);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var scale = this.scale.NextVector(ref particle, particleSystemState);
+            var scale = this.scale.NextVector(particle, particleSystemState);
 
             particle.PositionPrevious = ((particle.PositionPrevious - particle.Position) * scale) + particle.Position;
 

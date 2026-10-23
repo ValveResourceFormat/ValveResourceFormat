@@ -18,7 +18,7 @@ namespace ValveResourceFormat.Particles.Operators
             maxOutputValue = parse.Vector3("m_vMaxOutputValue", maxOutputValue);
         }
 
-        protected override void Write(ref Particle particle, float fraction)
+        protected override void Write(Particle particle, float fraction)
             => particle.SetVector(fieldOutput, MathUtils.Lerp(minOutputValue, maxOutputValue, fraction));
     }
 }

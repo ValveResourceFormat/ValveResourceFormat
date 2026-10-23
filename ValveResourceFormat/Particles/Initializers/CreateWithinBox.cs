@@ -28,12 +28,12 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var posMin = min.NextVector(ref particle, particleSystemState);
-            var posMax = max.NextVector(ref particle, particleSystemState);
+            var posMin = min.NextVector(particle, particleSystemState);
+            var posMax = max.NextVector(particle, particleSystemState);
 
-            var position = rangeSampler.NextVectorBetween(ref particle, particleSystemState, posMin, posMax);
+            var position = rangeSampler.NextVectorBetween(particle, particleSystemState, posMin, posMax);
 
             var controlPoint = particleSystemState.GetControlPoint(controlPointNumber);
 
@@ -41,7 +41,7 @@ namespace ValveResourceFormat.Particles.Initializers
                 ? Vector3.Transform(position, controlPoint.GetBasisAtTime(particle.CreationTime))
                 : position + controlPoint.GetPositionAtTime(particle.CreationTime);
 
-            SetSpawnPosition(ref particle, particleSystemState, position, position);
+            SetSpawnPosition(particle, particleSystemState, position, position);
 
             return particle;
         }

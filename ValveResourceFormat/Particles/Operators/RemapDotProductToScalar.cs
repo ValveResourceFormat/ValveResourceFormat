@@ -46,7 +46,7 @@ namespace ValveResourceFormat.Particles.Operators
                 ? (MathUtils.Saturate(outputMin), MathUtils.Saturate(outputMax))
                 : (outputMin, outputMax);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var first = (useParticleVelocity, useParticleNormal) switch
                 {

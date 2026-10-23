@@ -25,9 +25,9 @@ namespace ValveResourceFormat.Particles.Operators
         {
             var (min, max) = outputField.SetFloatRange();
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
-                var quantizeSize = this.quantizeSize.NextNumber(ref particle, particleSystemState) * strength * sizeScale;
+                var quantizeSize = this.quantizeSize.NextNumber(particle, particleSystemState) * strength * sizeScale;
                 var value = particle.GetScalar(outputField);
 
                 if (quantizeSize != 0)

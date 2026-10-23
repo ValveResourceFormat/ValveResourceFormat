@@ -19,11 +19,11 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.PositionPrevious);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var velocity = particle.GetVector(ParticleField.Normal) * particleSystemState.Random.NextBetween(speedMin, speedMax);
 
-            AddVelocity(ref particle, particles, velocity, ignoreDt);
+            AddVelocity(particle, particles, velocity, ignoreDt);
 
             return particle;
         }

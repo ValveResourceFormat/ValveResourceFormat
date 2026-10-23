@@ -64,11 +64,11 @@ namespace ValveResourceFormat.Particles.Operators
             var tracksState = userEventBit == 1;
             risen.Clear();
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
-                var value = input.NextNumber(ref particle, particleSystemState);
-                var rising = risingEdge.NextNumber(ref particle, particleSystemState);
-                var falling = fallingEdge.NextNumber(ref particle, particleSystemState);
+                var value = input.NextNumber(particle, particleSystemState);
+                var rising = risingEdge.NextNumber(particle, particleSystemState);
+                var falling = fallingEdge.NextNumber(particle, particleSystemState);
                 var isSet = tracksState && (particle.UserEventStates & userEventBit) != 0;
 
                 if (rising <= value && !isSet)

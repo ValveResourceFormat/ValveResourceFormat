@@ -48,7 +48,7 @@ namespace ValveResourceFormat.Particles.Operators
             var end = lifeTimeLerpEnd > 0f ? lifeTimeLerpEnd : 1e20f;
             var inverseWindow = lifeTimeLerpEnd > lifeTimeLerpStart ? 1f / (lifeTimeLerpEnd - lifeTimeLerpStart) : 0f;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 if ((uint)particle.HitboxIndex >= (uint)boxes.Length)
                 {
@@ -60,7 +60,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                 if (lerpType == HitboxLerpType.HITBOX_LERP_CONSTANT)
                 {
-                    fraction = strength * interpolation.NextNumber(ref particle, particleSystemState);
+                    fraction = strength * interpolation.NextNumber(particle, particleSystemState);
                 }
                 else
                 {

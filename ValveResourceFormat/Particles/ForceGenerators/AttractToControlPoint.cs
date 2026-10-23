@@ -39,18 +39,18 @@ class AttractToControlPoint : ParticleFunctionForceGenerator
         var target = transform.Translation;
         var scale = Vector3.TransformNormal(componentScale, transform) * strength;
 
-        foreach (ref var particle in particles.Current)
+        foreach (var particle in particles.Current)
         {
-            var amount = forceAmount.NextNumber(ref particle, particleSystemState);
+            var amount = forceAmount.NextNumber(particle, particleSystemState);
             if (applyMinForce)
             {
-                amount = MathF.Max(amount, forceAmountMin.NextNumber(ref particle, particleSystemState));
+                amount = MathF.Max(amount, forceAmountMin.NextNumber(particle, particleSystemState));
             }
 
             var diff = particle.Position - target;
             var distance = diff.Length();
 
-            if (distance < minimumDistance.NextNumber(ref particle, particleSystemState))
+            if (distance < minimumDistance.NextNumber(particle, particleSystemState))
             {
                 distance = 1f;
             }

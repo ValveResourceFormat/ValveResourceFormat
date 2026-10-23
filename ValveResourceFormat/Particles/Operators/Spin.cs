@@ -51,7 +51,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             var minimumStep = float.DegreesToRadians(spinRateMinDegrees) * MathF.Tau * frameTime;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var stopAge = particle.Lifetime * spinRateStopTime;
                 var remaining = spinRateStopTime == 0f ? 1f : stopAge != 0f ? MathF.Max(0f, 1f - (particle.Age / stopAge)) : 0f;

@@ -36,7 +36,7 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var peerParticles = ParticlesOf(peer);
 
@@ -52,13 +52,13 @@ namespace ValveResourceFormat.Particles.Operators
                     }
                 }
 
-                InheritFromParentParticles.CopyAttribute(ref particle, ref peerParticles[peerParticle], fieldInput, fieldOutput, 1f);
+                InheritFromParentParticles.CopyAttribute(particle, peerParticles[peerParticle], fieldInput, fieldOutput, 1f);
                 peerParticle++;
             }
         }
 
-        private static Span<Particle> ParticlesOf(ParticleSystemState? state)
-            => state?.Data is { } simulation ? simulation.CurrentParticles : [];
+        private static ParticleSpan ParticlesOf(ParticleSystemState? state)
+            => state?.Data is { } simulation ? simulation.CurrentParticles : default;
 
         /// <summary>
         /// The first sibling tagged with the group after the current peer, wrapping round to the

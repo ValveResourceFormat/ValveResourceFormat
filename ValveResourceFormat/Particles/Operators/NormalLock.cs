@@ -28,7 +28,7 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            var current = transform.NextTransform(ref Particle.Default, particleSystemState);
+            var current = transform.NextTransform(Particle.Default, particleSystemState);
 
             if (!hasPrevious)
             {
@@ -47,7 +47,7 @@ namespace ValveResourceFormat.Particles.Operators
                 delta = previousInverse * current;
             }
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var ratio = LivedStepFraction(particle, frameTime);
 

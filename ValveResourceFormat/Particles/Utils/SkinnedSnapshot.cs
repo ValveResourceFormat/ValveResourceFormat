@@ -45,7 +45,7 @@ namespace ValveResourceFormat.Particles.Utils
             /// <param name="row">The snapshot point.</param>
             /// <param name="model">The model whose skeleton names the bones.</param>
             /// <param name="boneCount">How many boxes the bone cache holds.</param>
-            public void Bind(ref Particle particle, int row, Model model, int boneCount)
+            public void Bind(Particle particle, int row, Model model, int boneCount)
             {
                 particle.BoneIndices = BoneIndices(row, model, boneCount);
                 particle.HitboxOffsetPosition = Positions[row];

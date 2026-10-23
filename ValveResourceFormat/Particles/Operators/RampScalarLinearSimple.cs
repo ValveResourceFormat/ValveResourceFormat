@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Particles.Operators
             var step = rate * (strength * frameTime);
             var (min, max) = field.SetFloatRange();
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 if (particle.Lifetime <= 0f)
                 {

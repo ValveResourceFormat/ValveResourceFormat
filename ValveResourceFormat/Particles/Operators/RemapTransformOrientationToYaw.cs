@@ -33,7 +33,7 @@ namespace ValveResourceFormat.Particles.Operators
             var yaw = MathF.Atan2(forward.Y, forward.X) + MathF.PI + float.DegreesToRadians(rotOffset);
             var weight = strength * spinStrength;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var current = particle.GetScalar(outputField);
                 particle.SetScalar(outputField, current + ((yaw - current) * weight));

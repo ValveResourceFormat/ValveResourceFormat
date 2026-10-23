@@ -144,15 +144,15 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// weighted by alpha. Indices past the last particle read the last particle. Returns false when a
         /// particle of the span filters the beam out.
         /// </summary>
-        private bool SumSpan(Span<Particle> current, ParticleSystemState systemState, int first, int length, Vector4 blend, out Vector3 colorSum)
+        private bool SumSpan(ParticleSpan current, ParticleSystemState systemState, int first, int length, Vector4 blend, out Vector3 colorSum)
         {
             colorSum = Vector3.Zero;
 
             for (var i = 0; i < length; i++)
             {
-                ref var particle = ref current[Math.Min(first + i, current.Length - 1)];
+                var particle = current[Math.Min(first + i, current.Length - 1)];
 
-                if (renderFilter.NextNumber(ref particle, systemState) < 1f)
+                if (renderFilter.NextNumber(particle, systemState) < 1f)
                 {
                     return false;
                 }

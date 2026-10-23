@@ -233,7 +233,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// a sequence override replaces both. Sequence numbers outside the sheet play sequence 0.
         /// Layer N of a multi-image frame uses image N, and the last image covers any layers beyond that.
         /// </remarks>
-        private LayerFrames? GetLayerFrames(int layer, ref Particle particle, int overrideSequence)
+        private LayerFrames? GetLayerFrames(int layer, Particle particle, int overrideSequence)
         {
             var spriteSheetData = layers[layer].Texture.SpriteSheetData;
 
@@ -252,7 +252,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return null;
             }
 
-            var (frame, nextFrame, blend) = GetSheetFrame(ref particle, sequence, animationRate, animationType, animateInFps);
+            var (frame, nextFrame, blend) = GetSheetFrame(particle, sequence, animationRate, animationType, animateInFps);
 
             return new LayerFrames(LayerImage(sequence.Frames[frame], layer), LayerImage(sequence.Frames[nextFrame], layer), blend);
         }
@@ -418,7 +418,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                 for (var n = 0; n < current.Length; n++)
                 {
-                    ref var particle = ref current[sorted ? (int)(uint)order[n] : current.Length - 1 - n];
+                    var particle = current[sorted ? (int)(uint)order[n] : current.Length - 1 - n];
                     var radiusScale = scales.Radius;
                     var position = BiasTowardCamera(particle.Position, camera.Location);
 
@@ -461,7 +461,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         radiusScale = MathF.Min(MathF.Max(radius, minSizeSlope * cameraDistance), maxSizeSlope * cameraDistance) / particle.Radius;
                     }
 
-                    var color = BlendColor(ref particle, scales);
+                    var color = BlendColor(particle, scales);
                     var alpha = color.W * colorFade * alphaFade;
                     var halfWidth = particle.Radius * radiusScale;
 
@@ -498,7 +498,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         + (centerOffset.X * right)
                         + (centerOffset.Y * up);
 
-                    var cardFrames = GetLayerFrames(0, ref particle, overrideSequence);
+                    var cardFrames = GetLayerFrames(0, particle, overrideSequence);
                     var window = GetCardCropWindow(cardFrames);
                     var windowSize = window.Size;
 
@@ -513,7 +513,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     var (uvMin, uvMax, uvNextMin, uvNextMax) = GetLayerSheetUvs(cardFrames, window);
 
                     var start = i * instanceFloats;
-                    var alphaReference = GetAlphaReference(ref particle, halfWidth, alpha);
+                    var alphaReference = GetAlphaReference(particle, halfWidth, alpha);
 
                     MemoryMarshal.Cast<float, CardInstance>(instances.Slice(start, BaseInstanceFloats))[0] = new CardInstance
                     {
@@ -531,7 +531,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                     for (var layer = 1; layer < layers.Length; layer++)
                     {
-                        var (layerMin, layerMax, layerNextMin, layerNextMax) = GetLayerSheetUvs(GetLayerFrames(layer, ref particle, overrideSequence), window);
+                        var (layerMin, layerMax, layerNextMin, layerNextMax) = GetLayerSheetUvs(GetLayerFrames(layer, particle, overrideSequence), window);
 
                         layerRects[(layer - 1) * 2] = Rect(layerMin, layerMax);
                         layerRects[((layer - 1) * 2) + 1] = Rect(layerNextMin, layerNextMax);

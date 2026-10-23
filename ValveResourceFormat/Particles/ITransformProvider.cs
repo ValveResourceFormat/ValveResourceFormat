@@ -11,29 +11,29 @@ namespace ValveResourceFormat.Particles
         /// <summary>
         /// Returns a transformation matrix from the provider.
         /// </summary>
-        Matrix4x4 NextTransform(ref Particle particle, ParticleSystemState renderState);
+        Matrix4x4 NextTransform(Particle particle, ParticleSystemState renderState);
 
         /// <summary>
         /// Returns a transformation matrix using system-level state only.
         /// </summary>
         Matrix4x4 NextTransform(ParticleSystemState renderState)
-            => NextTransform(ref Particle.Default, renderState);
+            => NextTransform(Particle.Default, renderState);
 
         /// <summary>
         /// Returns the transform as it stood at <paramref name="time"/> within the step being simulated, so a
         /// particle spawned part way through a step starts from where its source was at that moment.
         /// Providers without a history answer with their current transform.
         /// </summary>
-        Matrix4x4 NextTransformAtTime(ref Particle particle, ParticleSystemState renderState, float time)
-            => NextTransform(ref particle, renderState);
+        Matrix4x4 NextTransformAtTime(Particle particle, ParticleSystemState renderState, float time)
+            => NextTransform(particle, renderState);
 
         /// <summary>
         /// Returns the current rotation of the transform with its position as it stood at
         /// <paramref name="time"/> within the step being simulated. Providers without a history answer
         /// with their current transform.
         /// </summary>
-        Matrix4x4 NextTransformWithPositionAtTime(ref Particle particle, ParticleSystemState renderState, float time)
-            => NextTransform(ref particle, renderState);
+        Matrix4x4 NextTransformWithPositionAtTime(Particle particle, ParticleSystemState renderState, float time)
+            => NextTransform(particle, renderState);
 
         /// <summary>
         /// Gets the orientation, meaning the forward direction, that this provider carries.
@@ -44,7 +44,7 @@ namespace ValveResourceFormat.Particles
         /// Returning false is the default, so a provider opts in to having an orientation.
         /// </remarks>
         /// <returns>Whether the provider has an orientation to report.</returns>
-        bool TryGetOrientation(ref Particle particle, ParticleSystemState renderState, out Vector3 orientation)
+        bool TryGetOrientation(Particle particle, ParticleSystemState renderState, out Vector3 orientation)
         {
             orientation = Vector3.Zero;
             return false;
@@ -136,7 +136,7 @@ namespace ValveResourceFormat.Particles
             => useOrientation ? cp.GetRotationMatrix() : Matrix4x4.Identity;
 
         /// <inheritdoc/>
-        public Matrix4x4 NextTransform(ref Particle particle, ParticleSystemState renderState)
+        public Matrix4x4 NextTransform(Particle particle, ParticleSystemState renderState)
         {
             var cp = renderState.GetControlPoint(PickControlPoint(renderState));
             var transform = Rotation(cp);
@@ -146,7 +146,7 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <inheritdoc/>
-        public Matrix4x4 NextTransformAtTime(ref Particle particle, ParticleSystemState renderState, float time)
+        public Matrix4x4 NextTransformAtTime(Particle particle, ParticleSystemState renderState, float time)
         {
             var cp = renderState.GetControlPoint(PickControlPoint(renderState));
             var fraction = ControlPoint.StepFraction(renderState, time);
@@ -160,7 +160,7 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <inheritdoc/>
-        public Matrix4x4 NextTransformWithPositionAtTime(ref Particle particle, ParticleSystemState renderState, float time)
+        public Matrix4x4 NextTransformWithPositionAtTime(Particle particle, ParticleSystemState renderState, float time)
         {
             var cp = renderState.GetControlPoint(PickControlPoint(renderState));
             var transform = Rotation(cp);
@@ -170,7 +170,7 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <inheritdoc/>
-        public bool TryGetOrientation(ref Particle particle, ParticleSystemState renderState, out Vector3 orientation)
+        public bool TryGetOrientation(Particle particle, ParticleSystemState renderState, out Vector3 orientation)
         {
             if (!useOrientation)
             {
@@ -186,7 +186,7 @@ namespace ValveResourceFormat.Particles
         /// Transforms a local offset into control point <paramref name="cp"/>'s frame (rotation + translation).
         /// </summary>
         public static Vector3 TransformPosition(ParticleSystemState state, int cp, Vector3 localOffset)
-            => Vector3.Transform(localOffset, new ControlPointTransformProvider(cp, true).NextTransform(ref Particle.Default, state));
+            => Vector3.Transform(localOffset, new ControlPointTransformProvider(cp, true).NextTransform(Particle.Default, state));
 
         /// <summary>
         /// Rotates a local direction into control point <paramref name="cp"/>'s frame (rotation only, no translation).
@@ -269,14 +269,14 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <inheritdoc/>
-        public Matrix4x4 NextTransform(ref Particle particle, ParticleSystemState renderState)
+        public Matrix4x4 NextTransform(Particle particle, ParticleSystemState renderState)
         {
             TryGet(renderState, out var value, out _);
             return Compose(value.Rotation, value.Vector);
         }
 
         /// <inheritdoc/>
-        public Matrix4x4 NextTransformAtTime(ref Particle particle, ParticleSystemState renderState, float time)
+        public Matrix4x4 NextTransformAtTime(Particle particle, ParticleSystemState renderState, float time)
         {
             TryGet(renderState, out var value, out var previous);
             var fraction = ControlPoint.StepFraction(renderState, time);
@@ -285,7 +285,7 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <inheritdoc/>
-        public Matrix4x4 NextTransformWithPositionAtTime(ref Particle particle, ParticleSystemState renderState, float time)
+        public Matrix4x4 NextTransformWithPositionAtTime(Particle particle, ParticleSystemState renderState, float time)
         {
             TryGet(renderState, out var value, out var previous);
             var fraction = ControlPoint.StepFraction(renderState, time);
@@ -294,7 +294,7 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <inheritdoc/>
-        public bool TryGetOrientation(ref Particle particle, ParticleSystemState renderState, out Vector3 orientation)
+        public bool TryGetOrientation(Particle particle, ParticleSystemState renderState, out Vector3 orientation)
         {
             TryGet(renderState, out var value, out _);
             orientation = Vector3.Transform(Vector3.UnitX, value.Rotation);
@@ -308,7 +308,7 @@ namespace ValveResourceFormat.Particles
     readonly struct IdentityTransformProvider : ITransformProvider
     {
         /// <inheritdoc/>
-        public Matrix4x4 NextTransform(ref Particle particle, ParticleSystemState renderState)
+        public Matrix4x4 NextTransform(Particle particle, ParticleSystemState renderState)
         {
             return Matrix4x4.Identity;
         }

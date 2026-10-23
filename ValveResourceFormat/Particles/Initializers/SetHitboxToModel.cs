@@ -43,13 +43,13 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.HitboxIndex) | FieldMask(ParticleField.HitboxOffsetPosition);
 
-        protected override void BeginCall(ref Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void BeginCall(Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             callParticles = 0;
             haltonIndex = first.UniqueParticleId;
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             if (callParticles++ % BatchSize == 0)
             {
@@ -61,8 +61,8 @@ namespace ValveResourceFormat.Particles.Initializers
                 return particle;
             }
 
-            var scale = hitBoxScale.NextVector(ref particle, particleSystemState);
-            var shell = shellSize.NextNumber(ref particle, particleSystemState);
+            var scale = hitBoxScale.NextVector(particle, particleSystemState);
+            var shell = shellSize.NextNumber(particle, particleSystemState);
             var desired = maintainHitbox ? batchHitbox : desiredHitbox;
             var sampling = new HitBoxSampling(forceInModel, desired, scale, directionBias, shell, evenDistribution, WeightByVolume: false);
             var origin = particleSystemState.GetControlPoint(controlPoint).Position;

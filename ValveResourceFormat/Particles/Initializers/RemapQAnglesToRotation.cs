@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.Roll) | FieldMask(ParticleField.Yaw) | FieldMask(ParticleField.Pitch);
 
-        public override void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override void Initialize(ParticleSpan batch, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var degrees = transformInput.NextTransform(particleSystemState).Translation;
             angles = new Vector3(float.DegreesToRadians(degrees.X), float.DegreesToRadians(degrees.Y), float.DegreesToRadians(degrees.Z));
@@ -30,7 +30,7 @@ namespace ValveResourceFormat.Particles.Initializers
             base.Initialize(batch, particles, particleSystemState);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             particle.SetScalar(ParticleField.Pitch, angles.X);
             particle.SetScalar(ParticleField.Yaw, angles.Y);

@@ -71,7 +71,7 @@ namespace ValveResourceFormat.Particles.Operators
             var vectors = column as Vector3[];
             var floats = column as float[];
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 int row;
                 var walked = cursor;
@@ -110,16 +110,16 @@ namespace ValveResourceFormat.Particles.Operators
                     continue;
                 }
 
-                var value = ReadVector(ref particle, vectors, row, frameTime, particleSystemState);
+                var value = ReadVector(particle, vectors, row, frameTime, particleSystemState);
 
                 if (subSample && !random)
                 {
                     var neighbour = MathUtils.WrapIndex(walked - subSampleOffset, rowCount);
-                    var other = ReadVector(ref particle, vectors, reverse ? rowCount - neighbour - 1 : neighbour, frameTime, particleSystemState);
+                    var other = ReadVector(particle, vectors, reverse ? rowCount - neighbour - 1 : neighbour, frameTime, particleSystemState);
                     value = MathUtils.Lerp(other, value, fraction);
                 }
 
-                var blend = interpolation.NextNumber(ref particle, particleSystemState);
+                var blend = interpolation.NextNumber(particle, particleSystemState);
                 particle.SetVector(field, MathUtils.Lerp(particle.GetVector(field), value, blend));
 
                 if (writePrevious && field == ParticleField.Position)
@@ -133,7 +133,7 @@ namespace ValveResourceFormat.Particles.Operators
         /// A snapshot row moved into the local space control point's frame. A previous position row
         /// is a velocity, turned into the position one step back from the current one.
         /// </summary>
-        private Vector3 ReadVector(ref Particle particle, Vector3[] vectors, int row, float frameTime, ParticleSystemState particleSystemState)
+        private Vector3 ReadVector(Particle particle, Vector3[] vectors, int row, float frameTime, ParticleSystemState particleSystemState)
         {
             var value = vectors[row];
             var field = snapshot.AttributeToWrite;

@@ -45,7 +45,7 @@ namespace ValveResourceFormat.Particles.Operators
             var prevScale = jumped ? 1f : prevPosScale;
             var time = particleSystemState.Age;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var age = time - particle.CreationTime;
                 var weight = frameTime >= age ? 0f : 1f;

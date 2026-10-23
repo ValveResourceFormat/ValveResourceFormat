@@ -36,7 +36,7 @@ namespace ValveResourceFormat.Particles.Operators
             var angle = float.DegreesToRadians(rotationRate.NextNumber(particleSystemState)) * frameTime;
             var rotation = Matrix4x4.CreateFromAxisAngle(axis, angle);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var rotated = center + Vector3.Transform(particle.Position - center, rotation);
                 var rotatedPrevious = center + Vector3.Transform(particle.PositionPrevious - center, rotation);

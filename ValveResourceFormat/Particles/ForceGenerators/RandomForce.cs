@@ -18,7 +18,7 @@ class RandomForce : ParticleFunctionForceGenerator
 
     public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
     {
-        foreach (ref var particle in particles.Current)
+        foreach (var particle in particles.Current)
         {
             particle.ForceAccumulator += particleSystemState.Random.NextBetweenPerComponent(min, max) * strength;
         }

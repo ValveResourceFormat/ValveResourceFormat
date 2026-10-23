@@ -54,12 +54,12 @@ namespace ValveResourceFormat.Particles.Operators
                 distance = LineOfSightTrace.ScaleDistance(particleSystemState.Collision, start, end, distance, maxTraceLength, losScale);
             }
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
-                var inputMin = this.inputMin.NextNumber(ref particle, particleSystemState);
-                var inputMax = this.inputMax.NextNumber(ref particle, particleSystemState);
-                var outputMin = this.outputMin.NextNumber(ref particle, particleSystemState);
-                var outputMax = this.outputMax.NextNumber(ref particle, particleSystemState);
+                var inputMin = this.inputMin.NextNumber(particle, particleSystemState);
+                var inputMax = this.inputMax.NextNumber(particle, particleSystemState);
+                var outputMin = this.outputMin.NextNumber(particle, particleSystemState);
+                var outputMax = this.outputMax.NextNumber(particle, particleSystemState);
 
                 var divisor = inputMax == inputMin ? 1f : inputMax - inputMin;
                 var remapped = MathUtils.Saturate((distance - inputMin) / divisor);

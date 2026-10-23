@@ -47,7 +47,7 @@ namespace ValveResourceFormat.Particles.Operators
                 outputMax = MathUtils.Saturate(outputMax);
             }
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 if (activeRange && (particle.Index < inputMin || particle.Index >= inputMax))
                 {

@@ -26,9 +26,9 @@ namespace ValveResourceFormat.Particles.Initializers
             ? FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious)
             : FieldMask(outputField);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var input = inputValue.NextVector(ref particle, particleSystemState);
+            var input = inputValue.NextVector(particle, particleSystemState);
             var value = particle.ModifyVectorBySetMethodAtSpawn(particles, outputField, input, setMethod);
 
             if (normalizedOutput)

@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
@@ -24,7 +22,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override bool ShouldRun(ParticleSystemState particleSystemState) => particleSystemState.EmitterEventParticles != null;
 
-        public override void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override void Initialize(ParticleSpan batch, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var parentIndices = particleSystemState.EmitterEventParticles;
 
@@ -40,9 +38,9 @@ namespace ValveResourceFormat.Particles.Initializers
             var isVector = attributeToCopy.FieldType() == "vector";
             var next = 0;
 
-            foreach (ref var particle in batch)
+            foreach (var particle in batch)
             {
-                ref var source = ref parentParticles[parentIndices[next]];
+                var source = parentParticles[parentIndices[next]];
                 next = next + 1 < parentIndices.Count ? next + 1 : 0;
 
                 if (isVector)
@@ -56,9 +54,9 @@ namespace ValveResourceFormat.Particles.Initializers
             }
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            Initialize(MemoryMarshal.CreateSpan(ref particle, 1), particles, particleSystemState);
+            Initialize(particle.AsSpan(), particles, particleSystemState);
             return particle;
         }
     }

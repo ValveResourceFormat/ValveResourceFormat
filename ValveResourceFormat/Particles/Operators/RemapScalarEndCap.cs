@@ -49,7 +49,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             hasRun = true;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 // A degenerate input range is a threshold, inclusive on the high side
                 var remapped = MathUtils.RemapValClamped(particle.GetScalar(inputField), inputMin, inputMax, outputMin, outputMax);

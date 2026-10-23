@@ -66,7 +66,7 @@ namespace ValveResourceFormat.Particles.Operators
                 previousPaths[i] ??= ParticlePath.CalculatePathValues(particleSystemState, segment, particleSystemState.Age - frameTime);
             }
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var saved = particle.HitboxOffsetPosition;
                 var segmentIndex = Math.Clamp((int)(saved.Y - pathParams.StartControlPointNumber), 0, pathCount - 1);

@@ -42,7 +42,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(fieldOutput) | FieldMask(ParticleField.PositionPrevious);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             if (fieldOutput.FieldType() != "vector")
             {
@@ -72,7 +72,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (fieldOutput == ParticleField.Position)
             {
-                WritePosition(ref particle, particles, particleSystemState, value);
+                WritePosition(particle, particles, particleSystemState, value);
                 return particle;
             }
 
@@ -97,7 +97,7 @@ namespace ValveResourceFormat.Particles.Initializers
         /// the particle starts at rest; otherwise it is an offset from the control point, and the set
         /// method combines it with the position and the previous position separately.
         /// </summary>
-        private void WritePosition(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState, Vector3 value)
+        private void WritePosition(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState, Vector3 value)
         {
             if (localCoords)
             {

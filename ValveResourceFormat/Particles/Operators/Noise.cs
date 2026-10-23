@@ -50,7 +50,7 @@ namespace ValveResourceFormat.Particles.Operators
             // The animation time offset moves the sample point along X only.
             var timeOffset = animationTimeScale * particleSystemState.Age;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var samplePoint = particle.Position * noiseScale;
                 var noiseValue = Utils.Noise.Value3D(samplePoint.X + timeOffset, samplePoint.Y, samplePoint.Z);

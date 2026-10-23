@@ -116,7 +116,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             chainScratch = EnsureCapacity(chainScratch, count);
             var chain = chainScratch.AsSpan(0, count);
             var index = 0;
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var color = ParticleColorBlend.Apply(ColorBlendType,
                     ParticleColorBlend.ToWrappedBytes(particle.Color, Math.Clamp(scales.Alpha * 255f * particle.Alpha, 0f, 255f)),

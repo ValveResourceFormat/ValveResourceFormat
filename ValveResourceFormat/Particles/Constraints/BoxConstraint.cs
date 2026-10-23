@@ -52,7 +52,7 @@ namespace ValveResourceFormat.Particles.Constraints
 
             var moved = false;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var local = Vector3.Transform(particle.Position, toBox);
 

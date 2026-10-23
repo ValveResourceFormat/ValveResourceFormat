@@ -37,7 +37,7 @@ class LocalAccelerationForce : ParticleFunctionForceGenerator
             force = ControlPointTransformProvider.TransformDirection(particleSystemState, controlPoint, force);
         }
 
-        foreach (ref var particle in particles.Current)
+        foreach (var particle in particles.Current)
         {
             particle.ForceAccumulator += force;
         }

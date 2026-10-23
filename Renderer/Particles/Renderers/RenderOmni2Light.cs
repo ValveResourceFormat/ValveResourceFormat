@@ -56,12 +56,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             var blend = new Vector4(ParticleColorBlend.ConvertScale(ColorBlendType, colorBlend.NextVector(systemState)), 1f);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
-                var lightRange = range.NextNumber(ref particle, systemState);
+                var lightRange = range.NextNumber(particle, systemState);
                 var brightness = brightnessUnit == ParticleLightUnitChoiceList.PARTICLE_LIGHT_UNIT_CANDELAS
-                    ? brightnessCandelas.NextNumber(ref particle, systemState)
-                    : brightnessLumens.NextNumber(ref particle, systemState);
+                    ? brightnessCandelas.NextNumber(particle, systemState)
+                    : brightnessLumens.NextNumber(particle, systemState);
 
                 if (lightRange <= 0f || brightness == 0f || Lights.Claim(particle.ParticleId) is not { } slot)
                 {
@@ -69,7 +69,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 }
 
                 slot.Touched = true;
-                slot.State = BuildLight(ref particle, systemState, blend, lightRange, brightness);
+                slot.State = BuildLight(particle, systemState, blend, lightRange, brightness);
             }
 
             return true;
@@ -97,7 +97,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// The light's frame, facing along its first row: the particle's angles, its normal or the way to
         /// its target, the roll variants turning that about the facing direction by the particle's roll.
         /// </summary>
-        private Matrix4x4 LightRotation(ref Particle particle, ParticleSystemState systemState)
+        private Matrix4x4 LightRotation(Particle particle, ParticleSystemState systemState)
         {
             if (orientationType == ParticleOmni2LightOrientationChoiceList.PARTICLE_OMNI2_LIGHT_ORIENTATION_ROTATIONS)
             {
@@ -106,8 +106,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             var direction = orientationType is ParticleOmni2LightOrientationChoiceList.PARTICLE_OMNI2_LIGHT_ORIENTATION_TARGET
                     or ParticleOmni2LightOrientationChoiceList.PARTICLE_OMNI2_LIGHT_ORIENTATION_TARGET_ROLL
-                ? MathUtils.SafeNormalize(target.NextVector(ref particle, systemState) - particle.Position, -Vector3.UnitZ)
-                : MathUtils.SafeNormalize(normal?.NextVector(ref particle, systemState) ?? particle.Normal);
+                ? MathUtils.SafeNormalize(target.NextVector(particle, systemState) - particle.Position, -Vector3.UnitZ)
+                : MathUtils.SafeNormalize(normal?.NextVector(particle, systemState) ?? particle.Normal);
 
             var frame = EntityTransformHelper.ForwardDirectionToRotationMatrix(direction);
 
@@ -117,13 +117,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 : frame;
         }
 
-        private ParticleLightPool.LightState BuildLight(ref Particle particle, ParticleSystemState systemState, Vector4 blend, float lightRange, float brightness)
+        private ParticleLightPool.LightState BuildLight(Particle particle, ParticleSystemState systemState, Vector4 blend, float lightRange, float brightness)
         {
             var color = ParticleColorBlend.Apply(ColorBlendType, ParticleColorBlend.ToWrappedBytes(particle.Color, 255f), blend);
 
-            var outerAngle = Math.Clamp(outerConeAngle.NextNumber(ref particle, systemState), 0f, 180f);
-            var innerAngle = Math.Clamp(innerConeAngle.NextNumber(ref particle, systemState), 0f, outerAngle);
-            var luminaireSize = luminaireRadius.NextNumber(ref particle, systemState);
+            var outerAngle = Math.Clamp(outerConeAngle.NextNumber(particle, systemState), 0f, 180f);
+            var innerAngle = Math.Clamp(innerConeAngle.NextNumber(particle, systemState), 0f, outerAngle);
+            var luminaireSize = luminaireRadius.NextNumber(particle, systemState);
 
             // Lumens spread over the cone, as the intensity the faces are lit with 100 units away
             var solidAngle = SceneLight.ComputeConeSolidAngle(outerAngle, innerAngle);
@@ -139,8 +139,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 SpotInnerAngle: innerAngle,
                 SpotOuterAngle: outerAngle,
                 LuminaireSize: luminaireSize,
-                FallOff: skirt.NextNumber(ref particle, systemState),
-                Transform: LightRotation(ref particle, systemState) * Matrix4x4.CreateTranslation(particle.Position));
+                FallOff: skirt.NextNumber(particle, systemState),
+                Transform: LightRotation(particle, systemState) * Matrix4x4.CreateTranslation(particle.Position));
         }
     }
 }

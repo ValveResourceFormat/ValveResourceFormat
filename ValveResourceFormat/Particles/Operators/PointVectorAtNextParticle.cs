@@ -42,9 +42,9 @@ namespace ValveResourceFormat.Particles.Operators
                     continue;
                 }
 
-                ref var particle = ref current[i];
+                var particle = current[i];
                 var direction = current[i + step].Position - particle.Position;
-                var interp = interpolation.NextNumber(ref current[processed++], particleSystemState);
+                var interp = interpolation.NextNumber(current[processed++], particleSystemState);
                 var pointed = Vector3.Lerp(particle.GetVector(outputField), MathUtils.SafeNormalize(direction), interp);
                 particle.SetVector(outputField, pointed);
             }

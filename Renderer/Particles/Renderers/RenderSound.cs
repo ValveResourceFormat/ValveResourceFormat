@@ -75,7 +75,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             if (drawn && GetOperatorRunStrength(systemState) > 0f)
             {
-                foreach (ref var particle in particles.Current)
+                foreach (var particle in particles.Current)
                 {
                     var index = FindSlot(particle.ParticleId);
 

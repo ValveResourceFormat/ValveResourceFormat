@@ -69,7 +69,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             if (previousTransformPosition.X == float.MaxValue)
             {
-                previousTransform = transformInput.NextTransformAtTime(ref Particle.Default, particleSystemState, particleSystemState.StepStartAge);
+                previousTransform = transformInput.NextTransformAtTime(Particle.Default, particleSystemState, particleSystemState.StepStartAge);
                 previousTransformPosition = previousTransform.Translation;
             }
 
@@ -96,7 +96,7 @@ namespace ValveResourceFormat.Particles.Operators
             // The range bias is a collection-scope input, evaluated once for the whole frame
             var bias = rangeBias.NextNumber(particleSystemState);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var window = 1f;
 

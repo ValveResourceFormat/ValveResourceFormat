@@ -29,7 +29,7 @@ namespace ValveResourceFormat.Particles.Operators
             TransformOrientationMath.Compute(transformInput, particleSystemState, rotationOffset, useQuat,
                 out var anglesRadians, out var forward);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 if (writeNormal)
                 {

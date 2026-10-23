@@ -68,20 +68,20 @@ namespace ValveResourceFormat.Particles.Operators
                         break;
                     }
 
-                    ref var particle = ref live[index];
+                    var particle = live[index];
                     var controlPoint = child.GetControlPoint(firstControlPoint + i);
                     controlPoint.Position = particle.Position;
 
                     if (setOrientation)
                     {
-                        SetParticleOrientation(controlPoint, ref particle);
+                        SetParticleOrientation(controlPoint, particle);
                     }
                 }
             }
         }
 
         /// <summary>Turns the control point the way the authored method takes from a particle, when it gives a way.</summary>
-        private void SetParticleOrientation(ControlPoint controlPoint, ref Particle particle)
+        private void SetParticleOrientation(ControlPoint controlPoint, Particle particle)
         {
             switch (orientationType)
             {

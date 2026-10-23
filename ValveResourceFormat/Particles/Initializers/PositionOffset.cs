@@ -32,7 +32,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious);
 
-        protected override void BeginCall(ref Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void BeginCall(Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             if (localCoords)
             {
@@ -40,12 +40,12 @@ namespace ValveResourceFormat.Particles.Initializers
             }
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var posMin = offsetMin.NextVector(ref particle, particleSystemState);
-            var posMax = offsetMax.NextVector(ref particle, particleSystemState);
+            var posMin = offsetMin.NextVector(particle, particleSystemState);
+            var posMax = offsetMax.NextVector(particle, particleSystemState);
 
-            var offset = rangeSampler.NextVectorBetween(ref particle, particleSystemState, posMin, posMax);
+            var offset = rangeSampler.NextVectorBetween(particle, particleSystemState, posMin, posMax);
 
             if (proportional)
             {

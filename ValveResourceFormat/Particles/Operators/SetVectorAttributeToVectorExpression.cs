@@ -36,11 +36,11 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
-                var value1 = input1.NextVector(ref particle, particleSystemState);
-                var value2 = input2.NextVector(ref particle, particleSystemState);
-                var lerpAmount = lerp.NextNumber(ref particle, particleSystemState);
+                var value1 = input1.NextVector(particle, particleSystemState);
+                var value2 = input2.NextVector(particle, particleSystemState);
+                var lerpAmount = lerp.NextNumber(particle, particleSystemState);
 
                 if (expression.Evaluate(value1, value2, lerpAmount, clampLerp: true) is not { } result)
                 {

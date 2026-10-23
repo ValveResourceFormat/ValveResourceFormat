@@ -40,9 +40,9 @@ namespace ValveResourceFormat.Particles.Operators
                     return;
                 }
 
-                foreach (ref var particle in particles.Current)
+                foreach (var particle in particles.Current)
                 {
-                    var interp = MathUtils.Saturate(interpolation.NextNumber(ref particle, particleSystemState) * strength);
+                    var interp = MathUtils.Saturate(interpolation.NextNumber(particle, particleSystemState) * strength);
                     var from = fromIsVector ? particle.GetVector(fieldInputFrom) : new Vector3(particle.GetScalar(fieldInputFrom));
                     var to = toIsVector ? particle.GetVector(fieldInput) : new Vector3(particle.GetScalar(fieldInput));
                     particle.SetVector(fieldOutput, Vector3.Lerp(from, to, interp));
@@ -51,9 +51,9 @@ namespace ValveResourceFormat.Particles.Operators
                 return;
             }
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
-                var interp = MathUtils.Saturate(interpolation.NextNumber(ref particle, particleSystemState) * strength);
+                var interp = MathUtils.Saturate(interpolation.NextNumber(particle, particleSystemState) * strength);
                 var from = fromIsVector ? particle.GetVector(fieldInputFrom).Length() : particle.GetScalar(fieldInputFrom);
                 var to = toIsVector ? particle.GetVector(fieldInput).Length() : particle.GetScalar(fieldInput);
                 particle.SetScalar(fieldOutput, MathUtils.Lerp(from, to, interp));

@@ -66,7 +66,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             for (var i = rangeStart; i < rangeEnd; i++)
             {
-                ref var particle = ref particles.Current[i];
+                var particle = particles.Current[i];
 
                 var finalValue = MathUtils.RemapValClamped(i, rangeStart, inputEnd, first, last);
 

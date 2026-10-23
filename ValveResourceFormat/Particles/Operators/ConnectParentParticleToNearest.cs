@@ -72,7 +72,7 @@ namespace ValveResourceFormat.Particles.Operators
                     continue;
                 }
 
-                ref var particle = ref current[nearest];
+                var particle = current[nearest];
                 var first = parentPosition;
                 var second = particle.Position;
 

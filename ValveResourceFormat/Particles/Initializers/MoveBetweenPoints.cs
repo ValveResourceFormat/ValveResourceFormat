@@ -31,11 +31,11 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.LifeDuration);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var start = particle.Position;
             var end = particleSystemState.GetControlPoint(endControlPoint).GetPositionAtTime(particle.CreationTime);
-            var spread = endSpread.NextNumber(ref particle, particleSystemState);
+            var spread = endSpread.NextNumber(particle, particleSystemState);
 
             if (spread > 0f)
             {
@@ -45,7 +45,7 @@ namespace ValveResourceFormat.Particles.Initializers
             var delta = end - start;
             var length = delta.Length();
 
-            var endDistance = endOffset.NextNumber(ref particle, particleSystemState);
+            var endDistance = endOffset.NextNumber(particle, particleSystemState);
             if (endDistance != 0f)
             {
                 end += delta * (endDistance / (length + ParticleMath.FloatEpsilon));
@@ -53,7 +53,7 @@ namespace ValveResourceFormat.Particles.Initializers
                 length = delta.Length();
             }
 
-            var startDistance = startOffset.NextNumber(ref particle, particleSystemState);
+            var startDistance = startOffset.NextNumber(particle, particleSystemState);
             if (startDistance != 0f)
             {
                 start += delta * (startDistance / (length + ParticleMath.FloatEpsilon));
@@ -63,8 +63,8 @@ namespace ValveResourceFormat.Particles.Initializers
             }
 
             var speed = particleSystemState.Random.NextBetween(
-                speedMin.NextNumber(ref particle, particleSystemState),
-                speedMax.NextNumber(ref particle, particleSystemState));
+                speedMin.NextNumber(particle, particleSystemState),
+                speedMax.NextNumber(particle, particleSystemState));
 
             particle.Lifetime = (length / (speed + ParticleMath.FloatEpsilon)) + (trailBias ? particle.TrailLength : 0f);
             particle.PositionPrevious = particle.Position - (delta * (speed / (length + ParticleMath.FloatEpsilon)) * particles.PreviousFrameTime);

@@ -53,7 +53,7 @@ namespace ValveResourceFormat.Particles.Operators
             var end = transformEnd.NextTransform(particleSystemState).Translation;
             var length = Vector3.Distance(start, end);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var percentage = Percentage(particle.Position, start, end, length, radialCheck);
 

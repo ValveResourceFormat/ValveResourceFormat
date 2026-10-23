@@ -46,7 +46,7 @@ namespace ValveResourceFormat.Particles.Operators
             var end = transformEnd.NextTransform(particleSystemState).Translation;
             var length = Vector3.Distance(start, end);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var percentage = radialCheck
                     ? 1f / (length / (Vector3.Distance(particle.Position, start) + ParticleMath.FloatEpsilon))

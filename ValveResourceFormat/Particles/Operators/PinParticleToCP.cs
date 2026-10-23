@@ -77,7 +77,7 @@ namespace ValveResourceFormat.Particles.Operators
                 return;
             }
 
-            ref var particle = ref particles.Current[pinnedParticle];
+            var particle = particles.Current[pinnedParticle];
 
             if (IsBroken(particles, frameTime, particleSystemState, cp))
             {
@@ -91,7 +91,7 @@ namespace ValveResourceFormat.Particles.Operators
             var pinOffset = offset.NextVector(particleSystemState);
             var target = cp.Position + (offsetLocal ? Vector3.TransformNormal(pinOffset, cp.GetRotationMatrix()) : pinOffset);
 
-            particle.Position = MathUtils.Lerp(particle.Position, target, interpolation.NextNumber(ref particle, particleSystemState));
+            particle.Position = MathUtils.Lerp(particle.Position, target, interpolation.NextNumber(particle, particleSystemState));
             particle.PositionPrevious = particle.Position;
         }
 
@@ -219,7 +219,7 @@ namespace ValveResourceFormat.Particles.Operators
             return GetPinDistance(particles.Current, particleSystemState, cp) / initialDistance > maxStretch;
         }
 
-        private float GetPinDistance(Span<Particle> positions, ParticleSystemState particleSystemState, ControlPoint cp)
+        private float GetPinDistance(ParticleSpan positions, ParticleSystemState particleSystemState, ControlPoint cp)
         {
             var pinned = positions[pinnedParticle].Position;
 

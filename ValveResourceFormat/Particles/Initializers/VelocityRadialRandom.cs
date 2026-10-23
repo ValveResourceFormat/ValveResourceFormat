@@ -37,30 +37,30 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.PositionPrevious);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var center = perParticleCenter
-                ? centerPosition.NextVector(ref particle, particleSystemState)
+                ? centerPosition.NextVector(particle, particleSystemState)
                 : ParticlePath.GetControlPointAtTime(particleSystemState, controlPoint, particle.CreationTime);
 
             var direction = MathUtils.SafeNormalize(particle.Position - center);
 
             if (localSpeedScale != Vector3.One)
             {
-                direction *= WorldSpeedScale(ref particle, particleSystemState);
+                direction *= WorldSpeedScale(particle, particleSystemState);
             }
 
             var speed = particleSystemState.Random.NextBetween(
-                speedMin.NextNumber(ref particle, particleSystemState),
-                speedMax.NextNumber(ref particle, particleSystemState));
+                speedMin.NextNumber(particle, particleSystemState),
+                speedMax.NextNumber(particle, particleSystemState));
 
-            AddVelocity(ref particle, particles, direction * speed, ignoreDelta);
+            AddVelocity(particle, particles, direction * speed, ignoreDelta);
 
             return particle;
         }
 
         /// <summary>The local speed scale rotated into world space by the centre's basis.</summary>
-        private Vector3 WorldSpeedScale(ref Particle particle, ParticleSystemState particleSystemState)
+        private Vector3 WorldSpeedScale(Particle particle, ParticleSystemState particleSystemState)
         {
             if (!perParticleCenter)
             {
@@ -68,7 +68,7 @@ namespace ValveResourceFormat.Particles.Initializers
                 return Vector3.TransformNormal(localSpeedScale, basis);
             }
 
-            var forward = centerForward.NextVector(ref particle, particleSystemState);
+            var forward = centerForward.NextVector(particle, particleSystemState);
             var (left, up) = BasisFromForward(forward);
 
             return (forward * localSpeedScale.X) + (left * localSpeedScale.Y) + (up * localSpeedScale.Z);

@@ -85,7 +85,7 @@ namespace ValveResourceFormat.Particles.Initializers
             ? FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(velocityField)
             : FieldMask(outputField) | FieldMask(velocityField);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var randomVector = particleSystemState.Random.NextInUnitBall(out var radiusFraction);
 
@@ -102,19 +102,19 @@ namespace ValveResourceFormat.Particles.Initializers
                 randomVector.Z = MathF.Abs(randomVector.Z);
             }
 
-            var bias = distanceBias.NextVector(ref particle, particleSystemState);
+            var bias = distanceBias.NextVector(particle, particleSystemState);
 
             var direction = MathUtils.SafeNormalize(randomVector * bias);
 
-            var transform = transformInput.NextTransformWithPositionAtTime(ref particle, particleSystemState, particle.CreationTime);
+            var transform = transformInput.NextTransformWithPositionAtTime(particle, particleSystemState, particle.CreationTime);
 
             if (localCoords && (bias != Vector3.One || distanceBiasAbs != Vector3.Zero))
             {
                 direction = Vector3.TransformNormal(direction, transform);
             }
 
-            var radiusMinValue = radiusMin.NextNumber(ref particle, particleSystemState);
-            var radiusMaxValue = radiusMax.NextNumber(ref particle, particleSystemState);
+            var radiusMinValue = radiusMin.NextNumber(particle, particleSystemState);
+            var radiusMaxValue = radiusMax.NextNumber(particle, particleSystemState);
             var distance = MathUtils.Lerp(radiusMinValue, radiusMaxValue, radiusFraction);
 
             var worldOffset = transform.Translation + (direction * distance);
@@ -128,12 +128,12 @@ namespace ValveResourceFormat.Particles.Initializers
 
             var speed = particleSystemState.Random.NextWithExponentBetween(
                 speedRandExp,
-                speedMin.NextNumber(ref particle, particleSystemState),
-                speedMax.NextNumber(ref particle, particleSystemState));
+                speedMin.NextNumber(particle, particleSystemState),
+                speedMax.NextNumber(particle, particleSystemState));
 
             var localCoordinateSystemSpeed = particleSystemState.Random.NextBetweenPerComponent(
-                localCoordinateSystemSpeedMin.NextVector(ref particle, particleSystemState),
-                localCoordinateSystemSpeedMax.NextVector(ref particle, particleSystemState));
+                localCoordinateSystemSpeedMin.NextVector(particle, particleSystemState),
+                localCoordinateSystemSpeedMax.NextVector(particle, particleSystemState));
 
             var velocityLocal = Vector3.TransformNormal(localCoordinateSystemSpeed, transform);
             var velocity = -(direction * speed) - velocityLocal;

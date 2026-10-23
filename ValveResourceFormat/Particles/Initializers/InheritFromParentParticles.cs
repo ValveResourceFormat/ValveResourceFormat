@@ -46,7 +46,7 @@ namespace ValveResourceFormat.Particles.Initializers
         public override ulong WrittenFields
             => FieldMask(fieldOutput) | FieldMask(ParticleField.ParentParticleIndex) | FieldMask(ParticleField.ParentParticleId);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var parentData = particleSystemState.ParentSystem?.Data;
             if (parentData == null)
@@ -78,7 +78,7 @@ namespace ValveResourceFormat.Particles.Initializers
                 index = runningIndex;
             }
 
-            ref var parent = ref parentParticles[index];
+            var parent = parentParticles[index];
 
             if (fieldOutput == ParticleField.BoneIndices)
             {

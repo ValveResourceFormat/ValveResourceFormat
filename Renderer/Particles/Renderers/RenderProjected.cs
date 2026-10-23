@@ -67,7 +67,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             placed.BeginFrame();
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var width = particle.Radius * scales.Radius * 2f;
 
@@ -76,7 +76,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     continue;
                 }
 
-                var material = materials[Math.Clamp((int)materialSelection.NextNumber(ref particle, systemState), 0, materials.Length - 1)];
+                var material = materials[Math.Clamp((int)materialSelection.NextNumber(particle, systemState), 0, materials.Length - 1)];
 
                 if (material < 0)
                 {
@@ -84,8 +84,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     continue;
                 }
 
-                var box = DecalBox(ref particle, width, scales.Roll);
-                var tint = BlendColor(ref particle, scales);
+                var box = DecalBox(particle, width, scales.Roll);
+                var tint = BlendColor(particle, scales);
 
                 if (placed.TryGetValue(particle.UniqueParticleId, out var entry))
                 {
@@ -122,7 +122,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// turned back about the projection axis by the particle's roll. The depth range, when enabled,
         /// places the box along the projection axis instead of centring it on the particle.
         /// </summary>
-        private Matrix4x4 DecalBox(ref Particle particle, float width, float roll)
+        private Matrix4x4 DecalBox(Particle particle, float width, float roll)
         {
             var normal = orientToNormal ? particle.Normal : Vector3.UnitZ;
             var top = orientToNormal

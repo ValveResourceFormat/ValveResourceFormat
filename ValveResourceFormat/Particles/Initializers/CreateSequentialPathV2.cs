@@ -71,7 +71,7 @@ namespace ValveResourceFormat.Particles.Initializers
         /// Reads the count to assign and whether a looping pair walk is open, once for every call over
         /// a batch of new particles, and forgets the path evaluated by the previous call.
         /// </summary>
-        protected override void BeginCall(ref Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void BeginCall(Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var assignCount = numToAssign.NextNumber(particleSystemState);
             if (assignCount != cachedNumToAssign)
@@ -98,7 +98,7 @@ namespace ValveResourceFormat.Particles.Initializers
             cachedSegment = null;
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var t = pathParameter;
 
@@ -139,7 +139,7 @@ namespace ValveResourceFormat.Particles.Initializers
                 particle.HitboxOffsetPosition = new Vector3(t, segmentStart, segmentEnd);
             }
 
-            var jitter = maxDistance.NextNumber(ref particle, particleSystemState);
+            var jitter = maxDistance.NextNumber(particle, particleSystemState);
             position += particleSystemState.Random.NextBetweenPerComponent(new Vector3(-jitter), new Vector3(jitter));
 
             particle.Position = position;

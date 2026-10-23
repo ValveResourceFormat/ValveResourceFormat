@@ -29,23 +29,23 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.PositionPrevious);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var vecMin = vectorMin.NextVector(ref particle, particleSystemState);
-            var vecMax = vectorMax.NextVector(ref particle, particleSystemState);
+            var vecMin = vectorMin.NextVector(particle, particleSystemState);
+            var vecMax = vectorMax.NextVector(particle, particleSystemState);
 
             var velocity = Vector3.Zero;
 
             // The authored speed vector is expressed in the control point's local coordinate system.
             if (vecMin != Vector3.Zero || vecMax != Vector3.Zero)
             {
-                var localSpeed = rangeSampler.NextVectorBetween(ref particle, particleSystemState, vecMin, vecMax);
+                var localSpeed = rangeSampler.NextVectorBetween(particle, particleSystemState, vecMin, vecMax);
                 var basis = particleSystemState.GetControlPoint(controlPoint).GetBasisAtTime(particle.CreationTime);
                 velocity = Vector3.TransformNormal(localSpeed, basis);
             }
 
-            var speedmin = speedMin.NextNumber(ref particle, particleSystemState);
-            var speedmax = speedMax.NextNumber(ref particle, particleSystemState);
+            var speedmin = speedMin.NextNumber(particle, particleSystemState);
+            var speedmax = speedMax.NextNumber(particle, particleSystemState);
 
             if (speedmin != 0f || speedmax != 0f)
             {
@@ -53,7 +53,7 @@ namespace ValveResourceFormat.Particles.Initializers
                 velocity += direction * particleSystemState.Random.NextBetween(speedmin, speedmax);
             }
 
-            AddVelocity(ref particle, particles, velocity, ignoreDT);
+            AddVelocity(particle, particles, velocity, ignoreDT);
 
             return particle;
         }

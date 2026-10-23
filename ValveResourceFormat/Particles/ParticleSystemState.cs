@@ -85,14 +85,14 @@ namespace ValveResourceFormat.Particles
         /// The state <paramref name="particle"/> was left in by its initializers, or the particle itself
         /// while they still run or when no running system holds it.
         /// </summary>
-        internal ref Particle InitialOf(ref Particle particle)
+        internal Particle InitialOf(Particle particle)
         {
             if (InitializingParticles || Data == null || (uint)particle.Index >= (uint)Data.Particles.Count)
             {
-                return ref particle;
+                return particle;
             }
 
-            return ref Data.Particles.Initial[particle.Index];
+            return Data.Particles.Initial[particle.Index];
         }
 
         /// <summary>How many particles the system currently holds.</summary>

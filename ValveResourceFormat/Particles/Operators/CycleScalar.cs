@@ -71,7 +71,7 @@ namespace ValveResourceFormat.Particles.Operators
                 rate *= 0.5f;
             }
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var time = synchronizeParticles ? particleSystemState.Age : particle.Age;
                 var phase = MathF.Min(time, clamp) * rate;

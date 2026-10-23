@@ -47,7 +47,7 @@ namespace ValveResourceFormat.Particles.Operators
             {
                 startAge = particleSystemState.Age;
 
-                foreach (ref var particle in particles.Current)
+                foreach (var particle in particles.Current)
                 {
                     var initial = particle.GetInitialVector(particles, outputField);
                     particle.SetInitialVector(particles, outputField, initial with { X = particle.GetVector(outputField).X });
@@ -62,7 +62,7 @@ namespace ValveResourceFormat.Particles.Operators
                 return;
             }
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 t *= strength;
                 particle.SetVector(outputField, MathUtils.Lerp(particle.GetInitialVector(particles, outputField), output, t));

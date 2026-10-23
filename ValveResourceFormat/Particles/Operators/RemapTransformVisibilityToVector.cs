@@ -35,7 +35,7 @@ namespace ValveResourceFormat.Particles.Operators
             var fraction = MathUtils.RemapValClamped(RemapTransformVisibilityToScalar.FullyVisible, inputMin, inputMax, 0f, 1f);
             var value = Vector3.Lerp(outputMin, outputMax, fraction);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var current = particle.GetVector(outputField);
                 var final = particle.ModifyVectorBySetMethod(particles, outputField, value, setMethod);

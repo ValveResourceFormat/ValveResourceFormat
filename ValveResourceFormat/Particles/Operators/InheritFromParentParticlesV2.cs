@@ -54,7 +54,7 @@ namespace ValveResourceFormat.Particles.Operators
             {
                 if (missingParentBehavior == ParticleMissingParentBehavior.MISSING_PARENT_KILL)
                 {
-                    foreach (ref var particle in particles.Current)
+                    foreach (var particle in particles.Current)
                     {
                         particle.Kill();
                     }
@@ -66,7 +66,7 @@ namespace ValveResourceFormat.Particles.Operators
             var walk = reverse ? count - 1 : 0;
             var carried = 0f;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 if (randomDistribution)
                 {
@@ -77,7 +77,7 @@ namespace ValveResourceFormat.Particles.Operators
                     walk = reverse ? count - 1 : 0;
                 }
 
-                var step = increment.NextNumber(ref particle, particleSystemState);
+                var step = increment.NextNumber(particle, particleSystemState);
                 var fractionalStep = subSample && step < 1f;
 
                 if (particle.ParentParticleId < 0 && particle.ParentParticleIndex < 0)
@@ -97,10 +97,10 @@ namespace ValveResourceFormat.Particles.Operators
                             copy = false;
                             break;
                         case ParticleMissingParentBehavior.MISSING_PARENT_FIND_NEW:
-                            Rebind(ref particle, parentParticles, particleSystemState.Random.NextIndex(count));
+                            Rebind(particle, parentParticles, particleSystemState.Random.NextIndex(count));
                             break;
                         case ParticleMissingParentBehavior.MISSING_PARENT_SAME_INDEX:
-                            Rebind(ref particle, parentParticles, Math.Clamp(particle.ParentParticleIndex, 0, count - 1));
+                            Rebind(particle, parentParticles, Math.Clamp(particle.ParentParticleIndex, 0, count - 1));
                             break;
                         default:
                             copy = false;
@@ -110,8 +110,8 @@ namespace ValveResourceFormat.Particles.Operators
 
                 if (copy && (uint)particle.ParentParticleIndex < (uint)count)
                 {
-                    CopyParentAttribute(ref particle, parentParticles, particle.ParentParticleIndex,
-                        scale.NextNumber(ref particle, particleSystemState), interpolation.NextNumber(ref particle, particleSystemState), carried);
+                    CopyParentAttribute(particle, parentParticles, particle.ParentParticleIndex,
+                        scale.NextNumber(particle, particleSystemState), interpolation.NextNumber(particle, particleSystemState), carried);
                 }
 
                 if (fractionalStep)
@@ -131,7 +131,7 @@ namespace ValveResourceFormat.Particles.Operators
             }
         }
 
-        private static void Rebind(ref Particle particle, Span<Particle> parentParticles, int index)
+        private static void Rebind(Particle particle, ParticleSpan parentParticles, int index)
         {
             particle.ParentParticleIndex = index;
             particle.ParentParticleId = parentParticles[index].ParticleId;
@@ -143,10 +143,10 @@ namespace ValveResourceFormat.Particles.Operators
         /// toward the scaled value of the parent after it in the walk direction. Integer attributes and
         /// bone indices are copied as is.
         /// </summary>
-        private void CopyParentAttribute(ref Particle particle, Span<Particle> parentParticles, int index, float scaleValue, float blend, float toNext)
+        private void CopyParentAttribute(Particle particle, ParticleSpan parentParticles, int index, float scaleValue, float blend, float toNext)
         {
-            ref var source = ref parentParticles[index];
-            ref var next = ref parentParticles[reverse ? Math.Max(index - 1, 0) : Math.Min(index + 1, parentParticles.Length - 1)];
+            var source = parentParticles[index];
+            var next = parentParticles[reverse ? Math.Max(index - 1, 0) : Math.Min(index + 1, parentParticles.Length - 1)];
 
             if (fieldOutput == ParticleField.BoneIndices)
             {

@@ -95,7 +95,7 @@ namespace ValveResourceFormat.Particles.Constraints
             var listened = particleSystemState.Data?.ListenedEvents ?? ParticleEventType.PARTICLE_EVENT_TYPE_MASK_NONE;
             var hitEvent = killOnContact ? ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED_ON_COLLISION : ParticleEventType.PARTICLE_EVENT_TYPE_MASK_COLLISION;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 // The confirmation trace budget is counted per block of four particles
                 if (index++ % ConfirmationBlockSize == 0)
@@ -103,16 +103,16 @@ namespace ValveResourceFormat.Particles.Constraints
                     confirmations = 0;
                 }
 
-                var bounce = bounceAmount.NextNumber(ref particle, particleSystemState);
+                var bounce = bounceAmount.NextNumber(particle, particleSystemState);
 
                 if ((listened & ParticleEventType.PARTICLE_EVENT_TYPE_MASK_COLLISION) != 0)
                 {
                     bounce += ParticleMath.FloatEpsilon;
                 }
 
-                var slide = slideAmount.NextNumber(ref particle, particleSystemState);
-                var scatter = randomDirectionScale.NextNumber(ref particle, particleSystemState);
-                var scale = radiusScale.NextNumber(ref particle, particleSystemState);
+                var slide = slideAmount.NextNumber(particle, particleSystemState);
+                var scatter = randomDirectionScale.NextNumber(particle, particleSystemState);
+                var scale = radiusScale.NextNumber(particle, particleSystemState);
 
                 var stuckAt = stickField != ParticleField.NoneDisabled ? particle.GetVector(stickField) : Vector3.Zero;
 
@@ -192,7 +192,7 @@ namespace ValveResourceFormat.Particles.Constraints
 
                     if (stickField != ParticleField.NoneDisabled)
                     {
-                        stopped = Stick(ref particle, frameTime, particleSystemState);
+                        stopped = Stick(particle, frameTime, particleSystemState);
                         writeNormal = stopped && setNormal;
                     }
                 }
@@ -202,13 +202,13 @@ namespace ValveResourceFormat.Particles.Constraints
                     particle.SetVector(ParticleField.Normal, normal);
                 }
 
-                RaiseCollisionEvents(particles, ref particle, listened, hitEvent, stopped);
+                RaiseCollisionEvents(particles, particle, listened, hitEvent, stopped);
             }
 
             return hitAny;
         }
 
-        private static void RaiseCollisionEvents(ParticleCollection particles, ref Particle particle, ParticleEventType listened, ParticleEventType hitEvent, bool stopped)
+        private static void RaiseCollisionEvents(ParticleCollection particles, Particle particle, ParticleEventType listened, ParticleEventType hitEvent, bool stopped)
         {
             if ((listened & (ParticleEventType.PARTICLE_EVENT_TYPE_MASK_COLLISION | ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED_ON_COLLISION)) != 0)
             {
@@ -331,9 +331,9 @@ namespace ValveResourceFormat.Particles.Constraints
         /// stop speed is negative, by caching its position in the stick field, which holds it there on later
         /// steps. Returns whether it stuck; with a stick field only particles that stick take the contact normal.
         /// </summary>
-        private bool Stick(ref Particle particle, float frameTime, ParticleSystemState particleSystemState)
+        private bool Stick(Particle particle, float frameTime, ParticleSystemState particleSystemState)
         {
-            var stop = stopSpeed.NextNumber(ref particle, particleSystemState) * frameTime;
+            var stop = stopSpeed.NextNumber(particle, particleSystemState) * frameTime;
 
             if (stop >= 0f && Vector3.DistanceSquared(particle.Position, particle.PositionPrevious) >= stop * stop)
             {

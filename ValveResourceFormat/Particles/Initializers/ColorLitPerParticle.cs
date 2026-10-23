@@ -33,7 +33,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.Color);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var light = Vector3.Clamp(particleSystemState.Lighting.SampleAmbientLight(particle.Position), Vector3.Zero, Vector3.One);
             var tint = Vector3.Max(Vector3.Min(light, tintMax), tintMin) * lightAmplification;

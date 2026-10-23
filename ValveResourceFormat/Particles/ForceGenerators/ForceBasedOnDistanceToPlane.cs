@@ -39,7 +39,7 @@ class ForceBasedOnDistanceToPlane : ParticleFunctionForceGenerator
         var inverseRange = range != 0f ? 1f / range : 0f;
         var origin = particleSystemState.GetControlPoint(controlPoint).Position;
 
-        foreach (ref var particle in particles.Current)
+        foreach (var particle in particles.Current)
         {
             var distance = Vector3.Dot(particle.Position - origin, planeNormal);
             var t = MathUtils.Saturate((distance - minDist) * inverseRange);

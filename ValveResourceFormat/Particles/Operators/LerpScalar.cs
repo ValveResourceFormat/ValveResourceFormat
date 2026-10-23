@@ -30,7 +30,7 @@ namespace ValveResourceFormat.Particles.Operators
             var particleSpan = particles.Current;
             var inWindowCount = 0;
 
-            foreach (ref var particle in particleSpan)
+            foreach (var particle in particleSpan)
             {
                 var time = particle.Age / (particle.Lifetime + ParticleMath.FloatEpsilon);
 
@@ -39,7 +39,7 @@ namespace ValveResourceFormat.Particles.Operators
                     continue;
                 }
 
-                var lerpTarget = output.NextNumber(ref particleSpan[inWindowCount++], particleSystemState);
+                var lerpTarget = output.NextNumber(particleSpan[inWindowCount++], particleSystemState);
                 var initial = particle.GetInitialScalar(particles, fieldOutput);
 
                 var scalarOutput = startTime == endTime

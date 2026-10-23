@@ -25,10 +25,10 @@ namespace ValveResourceFormat.Particles.Operators
         }
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
-                var value = this.value.NextVector(ref particle, particleSystemState);
-                var lerp = MathUtils.Saturate(this.lerp.NextNumber(ref particle, particleSystemState) * strength);
+                var value = this.value.NextVector(particle, particleSystemState);
+                var lerp = MathUtils.Saturate(this.lerp.NextNumber(particle, particleSystemState) * strength);
 
                 var currentValue = particle.ModifyVectorBySetMethod(particles, outputField, value, setMethod);
                 var initialValue = particle.GetVector(outputField);

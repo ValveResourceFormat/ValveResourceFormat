@@ -51,7 +51,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             for (var i = 0; i < current.Length; i++)
             {
-                ref var particle = ref current[i];
+                var particle = current[i];
                 var value = particle.GetVector(fieldInput);
 
                 if (previous != new Vector3(float.MaxValue))
@@ -69,7 +69,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                     if (setPreviousParticle)
                     {
-                        ref var previousParticle = ref current[previousIndex];
+                        var previousParticle = current[previousIndex];
                         previousParticle.SetScalar(fieldOutput, output * previousParticle.GetScalar(fieldOutput));
                     }
                 }

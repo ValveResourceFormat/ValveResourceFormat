@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Particles.Operators
         {
             var value = particleSystemState.GetControlPoint(inputCpNumber).Position;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 particle.SetVector(fieldOutput, value);
             }

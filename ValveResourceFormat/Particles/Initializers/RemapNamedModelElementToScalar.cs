@@ -56,7 +56,7 @@ namespace ValveResourceFormat.Particles.Initializers
         {
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var position = ModelElements.PlaceOf(indices, range, (int)particle.GetScalar(fieldInput), values.Length - 1);
             var value = (uint)position < (uint)values.Length ? values[position] : 0f;
