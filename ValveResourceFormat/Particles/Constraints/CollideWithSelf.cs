@@ -1,3 +1,5 @@
+using System.Runtime.Intrinsics;
+
 namespace ValveResourceFormat.Particles.Constraints
 {
     /// <summary>
@@ -50,30 +52,78 @@ namespace ValveResourceFormat.Particles.Constraints
                     continue;
                 }
 
-                for (var j = 0; j < current.Length; j++)
+                changed |= PushBlock(current, blockStart, blockEnd - blockStart);
+            }
+
+            return changed;
+        }
+
+        /// <summary>
+        /// Pushes the particles of one block, one per lane, out of every particle in turn. A block
+        /// particle is read from its lane while the block runs, so later pushes see earlier ones.
+        /// </summary>
+        private bool PushBlock(Span<Particle> particles, int blockStart, int blockLength)
+        {
+            Span<float> x = stackalloc float[BlockSize];
+            Span<float> y = stackalloc float[BlockSize];
+            Span<float> z = stackalloc float[BlockSize];
+            Span<float> r = stackalloc float[BlockSize];
+
+            for (var lane = 0; lane < blockLength; lane++)
+            {
+                var position = particles[blockStart + lane].Position;
+                x[lane] = position.X;
+                y[lane] = position.Y;
+                z[lane] = position.Z;
+                r[lane] = radii[blockStart + lane];
+            }
+
+            var blockX = Vector128.Create<float>(x);
+            var blockY = Vector128.Create<float>(y);
+            var blockZ = Vector128.Create<float>(z);
+            var blockRadii = Vector128.Create<float>(r);
+            var used = Vector128.LessThan(Vector128.Create(0f, 1f, 2f, 3f), Vector128.Create((float)blockLength));
+            var changed = false;
+
+            for (var j = 0; j < particles.Length; j++)
+            {
+                var otherLane = j - blockStart;
+                var other = (uint)otherLane < (uint)blockLength
+                    ? new Vector3(blockX[otherLane], blockY[otherLane], blockZ[otherLane])
+                    : particles[j].Position;
+
+                var otherX = Vector128.Create(other.X);
+                var otherY = Vector128.Create(other.Y);
+                var otherZ = Vector128.Create(other.Z);
+                var reach = Vector128.Create(radii[j]) + blockRadii;
+                var deltaX = blockX - otherX;
+                var deltaY = blockY - otherY;
+                var deltaZ = blockZ - otherZ;
+
+                // Summed in the order Vector3.LengthSquared uses, and without fused multiply-adds,
+                // so each lane matches the scalar push bit for bit
+                var distanceSquared = (deltaX * deltaX) + (deltaY * deltaY) + (deltaZ * deltaZ);
+
+                // Negated rather than LessThan, so a NaN distance counts as touching as it does in scalar code
+                var touching = ~Vector128.GreaterThanOrEqual(distanceSquared, reach * reach) & used;
+
+                if (touching == Vector128<float>.Zero)
                 {
-                    var other = current[j].Position;
-
-                    for (var i = blockStart; i < blockEnd; i++)
-                    {
-                        ref var particle = ref current[i];
-                        var reach = radii[j] + radii[i];
-                        var delta = particle.Position - other;
-                        var distanceSquared = delta.LengthSquared();
-
-                        if (distanceSquared >= reach * reach)
-                        {
-                            continue;
-                        }
-
-                        changed = true;
-
-                        if (distanceSquared > 0f)
-                        {
-                            particle.Position = (delta * (reach / MathF.Sqrt(distanceSquared))) + other;
-                        }
-                    }
+                    continue;
                 }
+
+                changed = true;
+
+                var pushed = touching & Vector128.GreaterThan(distanceSquared, Vector128<float>.Zero);
+                var scale = reach / Vector128.Sqrt(distanceSquared);
+                blockX = Vector128.ConditionalSelect(pushed, (deltaX * scale) + otherX, blockX);
+                blockY = Vector128.ConditionalSelect(pushed, (deltaY * scale) + otherY, blockY);
+                blockZ = Vector128.ConditionalSelect(pushed, (deltaZ * scale) + otherZ, blockZ);
+            }
+
+            for (var lane = 0; lane < blockLength; lane++)
+            {
+                particles[blockStart + lane].Position = new Vector3(blockX[lane], blockY[lane], blockZ[lane]);
             }
 
             return changed;
