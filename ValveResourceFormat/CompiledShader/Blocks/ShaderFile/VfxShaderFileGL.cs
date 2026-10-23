@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.CompiledShader;
 
@@ -30,7 +31,7 @@ public class VfxShaderFileGL : VfxShaderFile
             datareader.BaseStream.Position += 1;
         }
 
-        HashMD5 = new Guid(datareader.ReadBytes(16));
+        HashMD5 = datareader.ReadGuid();
     }
 
     /// <inheritdoc/>

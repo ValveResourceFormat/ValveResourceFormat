@@ -48,7 +48,7 @@ public class MeshletBuffer : RawBinary
             lock (Resource.ReaderLock)
             {
                 Resource.Reader.BaseStream.Position = Offset + (long)entryOffset * sizeof(uint);
-                Resource.Reader.Read(buffer);
+                Resource.Reader.ReadExactly(buffer);
             }
 
             var entries = MemoryMarshal.Cast<byte, uint>(buffer);

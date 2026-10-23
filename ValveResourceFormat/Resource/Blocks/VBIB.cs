@@ -292,7 +292,7 @@ namespace ValveResourceFormat.Blocks
                 try
                 {
                     var span = temp.AsSpan(0, totalSize);
-                    reader.Read(span);
+                    reader.ReadExactly(span);
 
                     buffer.Data = DecompressData(buffer, span, decompressedSize, isVertex, isZstdCompressed, isMeshoptCompressed);
                 }
@@ -434,7 +434,7 @@ namespace ValveResourceFormat.Blocks
                     lock (Resource.ReaderLock)
                     {
                         Resource.Reader.BaseStream.Position = dataBlock.Offset;
-                        Resource.Reader.Read(span);
+                        Resource.Reader.ReadExactly(span);
                     }
 
                     if (isZstdCompressed || isMeshoptCompressed)

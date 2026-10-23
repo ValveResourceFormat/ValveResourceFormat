@@ -38,7 +38,7 @@ namespace ValveResourceFormat.Compression
 
             if (!info.IsCompressed)
             {
-                reader.Read(result[0..info.Size]);
+                reader.ReadExactly(result[0..info.Size]);
                 return;
             }
 

@@ -9,6 +9,7 @@ using K4os.Compression.LZ4.Encoders;
 using ValveKeyValue;
 using ValveKeyValue.KeyValues3;
 using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -306,7 +307,7 @@ namespace ValveResourceFormat.ResourceTypes
                 Version = version,
             };
 
-            var format = KV3IDLookup.GetByValue(new Guid(reader.ReadBytes(16)));
+            var format = KV3IDLookup.GetByValue(reader.ReadGuid());
 
             var compressionMethod = (KV3BinaryCompressionMethod)reader.ReadUInt32();
 
@@ -440,7 +441,7 @@ namespace ValveResourceFormat.ResourceTypes
                             Debug.Assert(sizeCompressedBuffer1 == sizeUncompressedBuffer1);
                         }
 
-                        reader.Read(buffer1Span);
+                        reader.ReadExactly(buffer1Span);
                     }
                     else if (compressionMethod == KV3BinaryCompressionMethod.Lz4)
                     {
@@ -593,7 +594,7 @@ namespace ValveResourceFormat.ResourceTypes
                     {
                         Debug.Assert(sizeCompressedBuffer2 == 0);
 
-                        reader.Read(buffer2Span);
+                        reader.ReadExactly(buffer2Span);
                     }
                     else if (compressionMethod == KV3BinaryCompressionMethod.Lz4)
                     {
@@ -731,7 +732,7 @@ namespace ValveResourceFormat.ResourceTypes
                                     bufferWithBinaryBlobSizes = bufferWithBinaryBlobSizes[sizeof(ushort)..];
 
                                     var input = inputBuf.AsSpan(0, compressedBlockLength);
-                                    reader.Read(input);
+                                    reader.ReadExactly(input);
 
                                     if (!lz4decoder.DecodeAndDrain(input, blob.AsSpan(blobOffset), out var decoded) || decoded < 1)
                                     {

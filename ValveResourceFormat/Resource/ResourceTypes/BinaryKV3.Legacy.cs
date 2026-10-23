@@ -3,6 +3,7 @@ using System.IO;
 using ValveKeyValue;
 using ValveResourceFormat.Compression;
 using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -15,8 +16,8 @@ namespace ValveResourceFormat.ResourceTypes
                 Version = 0,
             };
 
-            var encoding = KV3IDLookup.GetByValue(new Guid(reader.ReadBytes(16)));
-            var format = KV3IDLookup.GetByValue(new Guid(reader.ReadBytes(16)));
+            var encoding = KV3IDLookup.GetByValue(reader.ReadGuid());
+            var format = KV3IDLookup.GetByValue(reader.ReadGuid());
 
             // Valve's implementation lives in LoadKV3Binary()
             // KV3_ENCODING_BINARY_BLOCK_COMPRESSED calls CBlockCompress::FastDecompress()
@@ -49,7 +50,7 @@ namespace ValveResourceFormat.ResourceTypes
                     // Only block compression and LZ4 were ever implemented for this header, other binary encodings are stored as is
                     outBufferLength = (int)(Size - (reader.BaseStream.Position - Offset));
                     outputBuf = ArrayPool<byte>.Shared.Rent(outBufferLength);
-                    reader.Read(outputBuf.AsSpan(0, outBufferLength));
+                    reader.ReadExactly(outputBuf.AsSpan(0, outBufferLength));
                 }
                 else
                 {

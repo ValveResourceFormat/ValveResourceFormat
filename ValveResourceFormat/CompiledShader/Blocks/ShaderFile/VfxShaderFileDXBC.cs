@@ -1,4 +1,5 @@
 using System.IO;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.CompiledShader;
 
@@ -22,7 +23,7 @@ public class VfxShaderFileDXBC : VfxShaderFile
             Bytecode = datareader.ReadBytes(Size);
         }
 
-        HashMD5 = new Guid(datareader.ReadBytes(16));
+        HashMD5 = datareader.ReadGuid();
     }
 
     /// <summary>

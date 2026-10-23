@@ -32,6 +32,27 @@ internal sealed class PooledMemoryStream : MemoryStream
 
     /// <inheritdoc/>
     /// <remarks>
+    /// Copies straight from the pooled buffer, the base implementation of a derived type goes through a temporary array.
+    /// </remarks>
+    public override int Read(Span<byte> destination)
+    {
+        var position = (int)Position;
+        var remaining = (int)Length - position;
+
+        if (remaining <= 0)
+        {
+            return 0;
+        }
+
+        var count = Math.Min(remaining, destination.Length);
+        MemoryExtensions.AsSpan(Buffer, position, count).CopyTo(destination);
+        Position = position + count;
+
+        return count;
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
     /// Returns the pooled buffer to the ArrayPool when disposing.
     /// </remarks>
     protected override void Dispose(bool disposing)

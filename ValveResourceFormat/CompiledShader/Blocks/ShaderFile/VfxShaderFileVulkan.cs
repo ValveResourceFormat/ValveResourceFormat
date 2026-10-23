@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Globalization;
 using System.IO;
+using ValveResourceFormat.Utils;
 using Vortice.SpirvCross;
 
 namespace ValveResourceFormat.CompiledShader;
@@ -134,7 +135,7 @@ public class VfxShaderFileVulkan : VfxShaderFile
 
         datareader.BaseStream.Position = end;
 
-        HashMD5 = new Guid(datareader.ReadBytes(16));
+        HashMD5 = datareader.ReadGuid();
     }
 
     /// <summary>

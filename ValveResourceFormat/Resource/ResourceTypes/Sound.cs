@@ -554,49 +554,17 @@ namespace ValveResourceFormat.ResourceTypes
                 return [];
             }
 
-            using var sound = GetSoundStream();
-            return sound.ToArray();
-        }
-
-        /// <summary>
-        /// Reads the raw streaming data as stored, without the container header <see cref="GetSoundStream"/> synthesizes,
-        /// into <paramref name="buffer"/>, which must be exactly <see cref="StreamingDataSize"/> bytes.
-        /// The format is given by <see cref="SoundType"/>, <see cref="AudioFormat"/>, <see cref="Bits"/>,
-        /// <see cref="Channels"/>, <see cref="SampleRate"/> and (for ADPCM) <see cref="Header"/>, so decoders
-        /// can use the data directly without a round-trip through a synthesized RIFF header.
-        /// </summary>
-        public void ReadStreamingData(Span<byte> buffer)
-        {
-            Debug.Assert(buffer.Length == StreamingDataSize);
-            Debug.Assert(Reader != null);
-
-            lock (Resource.ReaderLock)
-            {
-                Reader.BaseStream.Position = Resource.FileSize;
-                Reader.BaseStream.ReadExactly(buffer);
-            }
-        }
-
-        /// <summary>
-        /// Returns fully playable sound data.
-        /// In case of WAV files, header is automatically generated as Valve removes it when compiling.
-        /// </summary>
-        /// <returns>Memory stream containing sound data.</returns>
-        public MemoryStream GetSoundStream()
-        {
-            if (StreamingDataSize == 0)
-            {
-                return new MemoryStream();
-            }
-
             const int WaveHeaderSizeWithoutFmt = 28;
-            var waveHeaderSize = WaveHeaderSizeWithoutFmt + (AudioFormat == WaveAudioFormat.ADPCM ? Header.Length : 16);
-            var totalSize = (int)StreamingDataSize + (SoundType == AudioFileType.WAV ? waveHeaderSize : 0);
-
-            var stream = new MemoryStream(capacity: totalSize);
+            var waveHeaderSize = SoundType == AudioFileType.WAV
+                ? WaveHeaderSizeWithoutFmt + (AudioFormat == WaveAudioFormat.ADPCM ? Header.Length : 16)
+                : 0;
+            var totalSize = (int)StreamingDataSize + waveHeaderSize;
+            var data = new byte[totalSize];
 
             if (SoundType == AudioFileType.WAV)
             {
+                using var stream = new MemoryStream(data);
+
                 // http://soundfile.sapp.org/doc/WaveFormat/
                 // http://www.codeproject.com/Articles/129173/Writing-a-Proper-Wave-File
                 // https://github.com/microsoft/DirectXTK/wiki/Wave-Formats
@@ -627,23 +595,39 @@ namespace ValveResourceFormat.ResourceTypes
                 stream.Write("data"u8);
                 stream.Write(MemoryMarshal.AsBytes([StreamingDataSize]));
 
-                Debug.Assert(stream.Length == waveHeaderSize);
+                Debug.Assert(stream.Position == waveHeaderSize);
             }
 
+            ReadStreamingData(data.AsSpan(waveHeaderSize));
+
+            return data;
+        }
+
+        /// <summary>
+        /// Reads the raw streaming data as stored, without the container header <see cref="GetSoundStream"/> synthesizes,
+        /// into <paramref name="buffer"/>, which must be exactly <see cref="StreamingDataSize"/> bytes.
+        /// The format is given by <see cref="SoundType"/>, <see cref="AudioFormat"/>, <see cref="Bits"/>,
+        /// <see cref="Channels"/>, <see cref="SampleRate"/> and (for ADPCM) <see cref="Header"/>, so decoders
+        /// can use the data directly without a round-trip through a synthesized RIFF header.
+        /// </summary>
+        public void ReadStreamingData(Span<byte> buffer)
+        {
+            Debug.Assert(buffer.Length == StreamingDataSize);
             Debug.Assert(Reader != null);
+
             lock (Resource.ReaderLock)
             {
                 Reader.BaseStream.Position = Resource.FileSize;
-                Reader.BaseStream.CopyTo(stream);
+                Reader.BaseStream.ReadExactly(buffer);
             }
-            Debug.Assert(stream.Length == totalSize);
-
-            // Flush and reset position so that consumers can read it
-            stream.Flush();
-            stream.Seek(0, SeekOrigin.Begin);
-
-            return stream;
         }
+
+        /// <summary>
+        /// Returns fully playable sound data.
+        /// In case of WAV files, header is automatically generated as Valve removes it when compiling.
+        /// </summary>
+        /// <returns>Memory stream containing sound data.</returns>
+        public MemoryStream GetSoundStream() => new(GetSound());
 
         /// <inheritdoc/>
         public override void Serialize(Stream stream)

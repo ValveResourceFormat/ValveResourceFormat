@@ -380,7 +380,7 @@ namespace ValveResourceFormat.IO
             }
 
             Span<byte> buffer = stackalloc byte[4];
-            var read = stream.Read(buffer);
+            var read = stream.ReadAtLeast(buffer, buffer.Length, throwOnEndOfStream: false);
             stream.Seek(-read, SeekOrigin.Current);
             if (read != 4)
             {

@@ -7,6 +7,14 @@ namespace ValveResourceFormat.Utils
 {
     internal static class StreamHelpers
     {
+        public static Guid ReadGuid(this BinaryReader reader)
+        {
+            Span<byte> bytes = stackalloc byte[16];
+            reader.ReadExactly(bytes);
+
+            return new Guid(bytes);
+        }
+
         /// <summary>
         /// Reads a null terminated string.
         /// </summary>
@@ -29,7 +37,7 @@ namespace ValveResourceFormat.Utils
             while (true)
             {
                 data.Clear();
-                stream.Read(data);
+                stream.BaseStream.ReadAtLeast(data, data.Length, throwOnEndOfStream: false);
 
                 if (!data.ContainsAnyExcept((byte)0))
                 {

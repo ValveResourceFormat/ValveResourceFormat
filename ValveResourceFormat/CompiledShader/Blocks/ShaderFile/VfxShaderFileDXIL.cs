@@ -1,4 +1,5 @@
 using System.IO;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.CompiledShader;
 
@@ -35,7 +36,7 @@ public class VfxShaderFileDXIL : VfxShaderFile
             Bytecode = datareader.ReadBytes(Size - 8);
         }
 
-        HashMD5 = new Guid(datareader.ReadBytes(16));
+        HashMD5 = datareader.ReadGuid();
     }
 
     /// <inheritdoc/>
