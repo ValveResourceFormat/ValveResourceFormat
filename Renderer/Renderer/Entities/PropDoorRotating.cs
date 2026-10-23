@@ -128,8 +128,10 @@ public class PropDoorRotating : BaseToggle, IDamageable
     private float maxHealth;
     private string[] damageModels = [];
 
-    // The stage model on show, replacing the door's own model once it is damaged
+    // The stage model on show, replacing the door's own model once it is damaged, and the break data of
+    // the model on show, whose pieces fall when it gives way to the next stage or breaks
     private SceneNodes.ModelSceneNode? stageNode;
+    private PropBreakData? stageBreakData;
 
     private readonly List<PropDoorRotating> slaves = [];
 
@@ -203,7 +205,7 @@ public class PropDoorRotating : BaseToggle, IDamageable
 
             if (data.IsBreakable && (damageModels.Length > 0 || data.Pieces.Count > 0))
             {
-                breakData = data;
+                breakData = stageBreakData = data;
                 maxHealth = Health = data.Health;
             }
         }
@@ -267,13 +269,13 @@ public class PropDoorRotating : BaseToggle, IDamageable
         // The stages divide the health evenly, the last one showing before the final break
         var stage = Math.Clamp((int)((1f - (Health / maxHealth)) * (damageModels.Length + 1)), 0, damageModels.Length);
 
-        if (stage > DamageStage)
+        while (DamageStage < stage)
         {
-            ShowDamageStage(stage);
+            ShowDamageStage(DamageStage + 1, info.Direction);
         }
     }
 
-    private void ShowDamageStage(int stage)
+    private void ShowDamageStage(int stage, Vector3 direction)
     {
         DamageStage = stage;
 
@@ -281,6 +283,9 @@ public class PropDoorRotating : BaseToggle, IDamageable
         {
             return;
         }
+
+        BreakShownModel(direction);
+        stageBreakData = EntitySystem.PropData.Resolve(model);
 
         var node = new SceneNodes.ModelSceneNode(Scene, model, Data?.GetStringProperty("skin"))
         {
@@ -327,13 +332,23 @@ public class PropDoorRotating : BaseToggle, IDamageable
 
         EntitySystem.TriggerOutput(this, "OnBreak", attacker);
 
-        var center = (stageNode ?? ModelNode)?.BoundingBox.Center ?? Origin;
-        PropPhysics.BreakApart(this, breakData, Origin, EntityTransformHelper.EulerAnglesToQuaternion(Angles),
-            Vector3.Zero, Vector3.Zero, center, direction);
+        BreakShownModel(direction);
 
         StopMoveSound();
         IsDrawn = false;
         IsSolid = false;
+    }
+
+    private void BreakShownModel(Vector3 direction)
+    {
+        if (stageBreakData == null)
+        {
+            return;
+        }
+
+        var center = (stageNode ?? ModelNode)?.BoundingBox.Center ?? Origin;
+        PropPhysics.BreakApart(this, stageBreakData, Origin, EntityTransformHelper.EulerAnglesToQuaternion(Angles),
+            Vector3.Zero, Vector3.Zero, center, direction);
     }
 
     [EntityInput("Break")]
