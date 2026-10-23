@@ -69,7 +69,7 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
         // such content still loads.
         if (value.IsCollection)
         {
-            Logger.LogWarning("Field {Key} is authored as a number provider, but is parsed as a literal float; it should be read with NumberProvider", key);
+            Logger.LogUniqueWarning("Field {Key} is authored as a number provider, but is parsed as a literal float; it should be read with NumberProvider", key);
             return ReadNumberProvider(value)?.NextNumber() ?? 0f;
         }
 
@@ -86,7 +86,7 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
 
         if (value.IsCollection)
         {
-            Logger.LogWarning("Field {Key} is authored as a number provider, but is parsed as a literal int; it should be read with NumberProvider", key);
+            Logger.LogUniqueWarning("Field {Key} is authored as a number provider, but is parsed as a literal int; it should be read with NumberProvider", key);
             return (int)(ReadNumberProvider(value)?.NextNumber() ?? 0f);
         }
 
@@ -138,7 +138,7 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
         // must read those with VectorProvider instead of as a literal.
         if (value.ContainsKey("m_nType"))
         {
-            Logger.LogWarning("Field {Key} is authored as a vector provider, but is parsed as a literal vector; it should be read with VectorProvider", key);
+            Logger.LogUniqueWarning("Field {Key} is authored as a vector provider, but is parsed as a literal vector; it should be read with VectorProvider", key);
         }
 
         return value.ToVector3();
@@ -312,7 +312,7 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
                 // KNOWN TYPES WE DON'T SUPPORT:
                 // PF_TYPE_CLOSEST_CAMERA_DISTANCE, PF_TYPE_CONCURRENT_DEF_COUNT, PF_TYPE_RANGE
                 default:
-                    Logger.LogWarning("Number provider of type {Type} is not supported, using its literal value", type);
+                    Logger.LogUniqueWarning("Number provider of type {Type} is not supported, using its literal value", type);
                     return new LiteralNumberProvider(parse.Float("m_flLiteralValue"));
             }
         }
@@ -385,7 +385,7 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
                     return new CPRelativeRandomDirectionProvider(parse);
                 // UNSUPPORTED: PVEC_TYPE_PARTICLE_GRAVITY - needs the game's gravity
                 default:
-                    Logger.LogWarning("Vector provider of type {Type} is not supported, using its literal value", type);
+                    Logger.LogUniqueWarning("Vector provider of type {Type} is not supported, using its literal value", type);
                     return new LiteralVectorProvider(parse.Vector3("m_vLiteralValue"));
             }
         }
@@ -425,7 +425,7 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
                 case "PT_TYPE_INVALID":
                     return new IdentityTransformProvider();
                 default:
-                    Logger.LogWarning("Transform type {Type} not supported, using identity transform", type);
+                    Logger.LogUniqueWarning("Transform type {Type} not supported, using identity transform", type);
                     return new IdentityTransformProvider();
             }
         }

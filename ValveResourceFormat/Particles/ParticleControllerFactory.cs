@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using ValveKeyValue;
@@ -21,8 +22,8 @@ namespace ValveResourceFormat.Particles
         // pre-emission first, then emit/init/operate, forces, constraints, and renderers last.
 
         // Register particle pre-emission operators (mostly stuff with control points)
-        internal static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionPreEmissionOperator>> PreEmissionOperatorDictionary
-            = new()
+        internal static readonly FrozenDictionary<string, Func<ParticleDefinitionParser, ParticleFunctionPreEmissionOperator>> PreEmissionOperatorDictionary
+            = new Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionPreEmissionOperator>>()
             {
                 ["C_OP_ChooseRandomChildrenInGroup"] = preEmissionOperatorInfo => new ChooseRandomChildrenInGroup(preEmissionOperatorInfo),
                 ["C_OP_ControlPointToRadialScreenSpace"] = preEmissionOperatorInfo => new ControlPointToRadialScreenSpace(preEmissionOperatorInfo),
@@ -62,21 +63,21 @@ namespace ValveResourceFormat.Particles
                 ["C_OP_SetSimulationRate"] = preEmissionOperatorInfo => new SetSimulationRate(preEmissionOperatorInfo),
                 ["C_OP_SetSingleControlPointPosition"] = preEmissionOperatorInfo => new SetSingleControlPointPosition(preEmissionOperatorInfo),
                 ["C_OP_StopAfterCPDuration"] = preEmissionOperatorInfo => new StopAfterDuration(preEmissionOperatorInfo),
-            };
+            }.ToFrozenDictionary();
 
         // Register particle emitters
-        internal static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionEmitter>> EmitterDictionary
-            = new()
+        internal static readonly FrozenDictionary<string, Func<ParticleDefinitionParser, ParticleFunctionEmitter>> EmitterDictionary
+            = new Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionEmitter>>()
             {
                 ["C_OP_InstantaneousEmitter"] = (emitterInfo) => new InstantaneousEmitter(emitterInfo),
                 ["C_OP_ContinuousEmitter"] = (emitterInfo) => new ContinuousEmitter(emitterInfo),
                 ["C_OP_MaintainEmitter"] = emitterInfo => new MaintainEmitter(emitterInfo),
                 ["C_OP_NoiseEmitter"] = (emitterInfo) => new NoiseEmitter(emitterInfo),
-            };
+            }.ToFrozenDictionary();
 
         // Register particle initializers
-        internal static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionInitializer>> InitializerDictionary
-            = new()
+        internal static readonly FrozenDictionary<string, Func<ParticleDefinitionParser, ParticleFunctionInitializer>> InitializerDictionary
+            = new Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionInitializer>>()
             {
                 ["C_INIT_AgeNoise"] = initializerInfo => new AgeNoise(initializerInfo),
                 ["C_INIT_ColorLitPerParticle"] = initializerInfo => new ColorLitPerParticle(initializerInfo),
@@ -165,11 +166,11 @@ namespace ValveResourceFormat.Particles
                 ["C_INIT_VelocityFromNormal"] = initializerInfo => new VelocityFromNormal(initializerInfo),
                 ["C_INIT_VelocityRadialRandom"] = initializerInfo => new VelocityRadialRandom(initializerInfo),
                 ["C_INIT_VelocityRandom"] = initializerInfo => new VelocityRandom(initializerInfo),
-            };
+            }.ToFrozenDictionary();
 
         // Register particle operators
-        internal static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionOperator>> OperatorDictionary
-            = new()
+        internal static readonly FrozenDictionary<string, Func<ParticleDefinitionParser, ParticleFunctionOperator>> OperatorDictionary
+            = new Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionOperator>>()
             {
                 ["C_OP_AlphaDecay"] = operatorInfo => new AlphaDecay(operatorInfo),
                 ["C_OP_BasicMovement"] = operatorInfo => new BasicMovement(operatorInfo),
@@ -319,11 +320,11 @@ namespace ValveResourceFormat.Particles
                 ["C_OP_UpdateLightSource"] = operatorInfo => new UpdateLightSource(operatorInfo),
                 ["C_OP_VelocityDecay"] = operatorInfo => new VelocityDecay(operatorInfo),
                 ["C_OP_VelocityMatchingForce"] = operatorInfo => new VelocityMatchingForce(operatorInfo),
-            };
+            }.ToFrozenDictionary();
 
         // Register particle force generators
-        internal static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionForceGenerator>> ForceGeneratorDictionary
-            = new()
+        internal static readonly FrozenDictionary<string, Func<ParticleDefinitionParser, ParticleFunctionForceGenerator>> ForceGeneratorDictionary
+            = new Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionForceGenerator>>()
             {
                 ["C_OP_AttractToControlPoint"] = forceGeneratorInfo => new AttractToControlPoint(forceGeneratorInfo),
                 ["C_OP_CPVelocityForce"] = forceGeneratorInfo => new CPVelocityForce(forceGeneratorInfo),
@@ -340,11 +341,11 @@ namespace ValveResourceFormat.Particles
                 ["C_OP_TurbulenceForce"] = forceGeneratorInfo => new TurbulenceForce(forceGeneratorInfo),
                 ["C_OP_TwistAroundAxis"] = forceGeneratorInfo => new TwistAroundAxis(forceGeneratorInfo),
                 ["C_OP_WindForce"] = forceGeneratorInfo => new WindForce(forceGeneratorInfo),
-            };
+            }.ToFrozenDictionary();
 
         // Register particle constraints (run after operators each frame to relax particle positions)
-        internal static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionConstraint>> ConstraintDictionary
-            = new()
+        internal static readonly FrozenDictionary<string, Func<ParticleDefinitionParser, ParticleFunctionConstraint>> ConstraintDictionary
+            = new Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionConstraint>>()
             {
                 ["C_OP_BoxConstraint"] = constraintInfo => new BoxConstraint(constraintInfo),
                 ["C_OP_CollideWithParentParticles"] = constraintInfo => new CollideWithParentParticles(constraintInfo),
@@ -357,13 +358,13 @@ namespace ValveResourceFormat.Particles
                 ["C_OP_RopeSpringConstraint"] = constraintInfo => new RopeSpringConstraint(constraintInfo),
                 ["C_OP_WorldCollideConstraint"] = constraintInfo => new WorldCollideConstraint(constraintInfo),
                 ["C_OP_WorldTraceConstraint"] = constraintInfo => new WorldTraceConstraint(constraintInfo),
-            };
+            }.ToFrozenDictionary();
 
         /// <summary>
         /// Shared lookup+construct logic behind every TryCreateX method below.
         /// </summary>
         private static bool TryCreate<TFunction>(
-            Dictionary<string, Func<ParticleDefinitionParser, TFunction>> dictionary,
+            FrozenDictionary<string, Func<ParticleDefinitionParser, TFunction>> dictionary,
             string name,
             KVObject info,
             ILogger logger,
