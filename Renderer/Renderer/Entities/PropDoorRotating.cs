@@ -294,9 +294,15 @@ public class PropDoorRotating : BaseToggle, IDamageable
             node.SetAnimationForWorldPreview("ref");
         }
 
-        AddNode(node);
+        var previousNode = stageNode ?? ModelNode;
 
-        (stageNode ?? ModelNode)?.Visible = false;
+        if (previousNode != null)
+        {
+            node.TintAlpha = previousNode.TintAlpha;
+            previousNode.Visible = false;
+        }
+
+        AddNode(node);
         stageNode = node;
     }
 
