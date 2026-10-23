@@ -123,11 +123,11 @@ namespace ValveResourceFormat.Animation
             result.Pose.AsSpan(0, PoseTransforms.Length).CopyTo(PoseTransforms);
             result.Pose = PoseTransforms;
 
-            if (Array.TrueForAll(maskWeights, w => w == 0f))
+            if (!maskWeights.AsSpan().ContainsAnyExcept(0f))
             {
                 PoseTransforms[0].Scale = 0f;
             }
-            else if (!Array.TrueForAll(maskWeights, w => w == 1f))
+            else if (maskWeights.AsSpan().ContainsAnyExcept(1f))
             {
                 for (var i = 0; i < PoseTransforms.Length; i++)
                 {

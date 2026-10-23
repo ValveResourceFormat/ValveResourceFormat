@@ -16,6 +16,7 @@ namespace ValveResourceFormat.Renderer
         internal AnimationController? BoneMergeParent { get; set; }
 
         private Matrix4x4[]? fullPose;
+        private int? spine0BoneIndex;
 
         /// <summary>
         /// Gets the pose as it was before <see cref="EnableFirstPersonLegs"/> hid the upper body, which is
@@ -59,7 +60,9 @@ namespace ValveResourceFormat.Renderer
             fullPose ??= new Matrix4x4[Pose.Length];
             Pose.CopyTo(fullPose, 0);
 
-            var spine0 = Skeleton.GetBoneIndex("spine_0");
+            spine0BoneIndex ??= Skeleton.GetBoneIndex("spine_0");
+
+            var spine0 = spine0BoneIndex.Value;
             if (spine0 != -1)
             {
                 ZeroBoneAndChildren(Pose, Skeleton.Bones[spine0]);

@@ -367,6 +367,7 @@ namespace ValveResourceFormat.Renderer
         private sealed class Twist(TwistConstraint definition, Constrained[] constrainedBones, int childBone, int parentBone, int grandparentBone) : Constraint
         {
             private readonly Quaternion[] results = new Quaternion[constrainedBones.Length];
+            private readonly Quaternion baseInverse = Quaternion.Inverse(definition.Inverse ? definition.ParentBindRotation : definition.ChildBindRotation);
 
             public static Twist? Create(TwistConstraint definition, BuildContext context)
             {
@@ -399,7 +400,6 @@ namespace ValveResourceFormat.Renderer
                         : parent.Angle;
                 }
 
-                var baseInverse = Quaternion.Inverse(definition.Inverse ? definition.ParentBindRotation : definition.ChildBindRotation);
                 Solve(parentRotation, child, baseInverse);
 
                 for (var i = 0; i < constrainedBones.Length; i++)
@@ -532,8 +532,9 @@ namespace ValveResourceFormat.Renderer
                     var local = look * Align(look, definition.AimOffset);
                     var rotation = parent.Angle * Align(parent.Angle, local);
 
+                    var previous = current;
                     current.Angle = MathF.Abs(weight - 1f) <= 0.0001f ? rotation : Quaternion.Slerp(current.Angle, rotation, weight);
-                    WriteBack(pose, constrained, current);
+                    WriteBack(pose, constrained, current, previous);
                 }
             }
 
@@ -575,8 +576,9 @@ namespace ValveResourceFormat.Renderer
                     }
 
                     var current = FrameBone.FromMatrix(pose[constrained.Bone]);
+                    var previous = current;
                     current.Angle = MathF.Abs(weight - 1f) <= 0.0001f ? rotation : Quaternion.Slerp(current.Angle, rotation, weight);
-                    WriteBack(pose, constrained, current);
+                    WriteBack(pose, constrained, current, previous);
                 }
             }
         }
@@ -601,8 +603,9 @@ namespace ValveResourceFormat.Renderer
                     }
 
                     var current = FrameBone.FromMatrix(pose[constrained.Bone]);
+                    var previous = current;
                     current.Position = MathF.Abs(weight - 1f) <= 0.0001f ? position : Vector3.Lerp(current.Position, position, weight);
-                    WriteBack(pose, constrained, current);
+                    WriteBack(pose, constrained, current, previous);
                 }
             }
         }
@@ -653,11 +656,12 @@ namespace ValveResourceFormat.Renderer
 
                     // Source 2 blends by the bone's own weight alone here, not by the target weight sum.
                     var current = FrameBone.FromMatrix(pose[constrained.Bone]);
+                    var previous = current;
                     var t = constrained.Weight;
                     current.Position = Vector3.Lerp(current.Position, blended.Position, t);
                     current.Scale = float.Lerp(current.Scale, blended.Scale, t);
                     current.Angle = Quaternion.Normalize(Quaternion.Lerp(current.Angle, Align(current.Angle, blended.Angle), t));
-                    WriteBack(pose, constrained, current);
+                    WriteBack(pose, constrained, current, previous);
                 }
             }
         }
@@ -1191,19 +1195,21 @@ namespace ValveResourceFormat.Renderer
 
             if (constrained.Parent < 0)
             {
+                var previous = current;
                 current.Angle = localRotation;
-                WriteBack(pose, constrained, current);
+                WriteBack(pose, constrained, current, previous);
                 return;
             }
 
             var parent = FrameBone.FromMatrix(pose[constrained.Parent]);
             var local = parent.Inverse().Concat(current);
             local.Angle = localRotation;
-            WriteBack(pose, constrained, parent.Concat(local));
+            WriteBack(pose, constrained, parent.Concat(local), current);
         }
 
-        // Moves the bone and carries its descendants along.
-        private static void WriteBack(Matrix4x4[] pose, Constrained constrained, FrameBone model)
+        // Moves the bone and carries its descendants along. previousBone is the bone's pose before the write,
+        // when the caller already has it decomposed.
+        private static void WriteBack(Matrix4x4[] pose, Constrained constrained, FrameBone model, FrameBone? previousBone = null)
         {
             var previous = pose[constrained.Bone];
             var next = model.ToMatrix();
@@ -1215,7 +1221,8 @@ namespace ValveResourceFormat.Renderer
             }
 
             // Source 2 leaves the descendants in place when the change looks like identity, which tolerates ~11 degrees of rotation.
-            var delta = model.Concat(FrameBone.FromMatrix(previous).Inverse());
+            var previousDecomposed = previousBone ?? FrameBone.FromMatrix(previous);
+            var delta = model.Concat(previousDecomposed.Inverse());
             if (IsApproxIdentity(delta) || !Matrix4x4.Invert(previous, out var previousInverse))
             {
                 return;

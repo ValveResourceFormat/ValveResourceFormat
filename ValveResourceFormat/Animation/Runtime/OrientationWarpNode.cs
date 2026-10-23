@@ -42,6 +42,11 @@ namespace ValveResourceFormat.Animation
 
         RootMotionData GetWarpBuffer(int length)
         {
+            if (warpBuffers.TryGetValue(length, out var buffer))
+            {
+                return buffer;
+            }
+
             AddWarpBuffer(length);
             return warpBuffers[length];
         }
