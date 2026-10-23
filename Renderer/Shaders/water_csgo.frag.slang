@@ -636,7 +636,7 @@ void main()
                 currWaveSampleSum1 += (((((SafePow(rawSample, exponent) * factor) * (vec3(1.0) + (currWaveSampleSum1 * 2.0))) * causticDepthFalloff) * waveSampleCausticDepthFalloff) * 2.0);
 
                 currWaveScale1 *= g_flWavesPhaseOffset;
-                currWaveDir += (3.5 / (i + 1));
+                currWaveDir1 += (3.5 / (i + 1));
             }
 
             vec3 subPart = (causticRayTarget.xyz + ((vec3(currWaveNormalXY, 0.0) * 60.0) * currWaveSampleSum1.x));

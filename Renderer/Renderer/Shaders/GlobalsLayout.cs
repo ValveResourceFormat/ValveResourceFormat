@@ -414,11 +414,6 @@ public sealed class GlobalsLayout
             return 0d;
         }
 
-        if (text.EndsWith("f", StringComparison.OrdinalIgnoreCase))
-        {
-            text = text[..^1];
-        }
-
         var negative = text.StartsWith("-", StringComparison.Ordinal);
 
         if (negative)
@@ -434,6 +429,11 @@ public sealed class GlobalsLayout
             }
 
             return negative ? -(double)hex : hex;
+        }
+
+        if (text.EndsWith("f", StringComparison.OrdinalIgnoreCase))
+        {
+            text = text[..^1];
         }
 
         if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))

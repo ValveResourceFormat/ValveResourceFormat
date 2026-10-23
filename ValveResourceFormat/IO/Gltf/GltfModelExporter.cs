@@ -102,7 +102,7 @@ namespace ValveResourceFormat.IO
         private Vector2 LightmapUvScale = Vector2.One;
         private bool SkipToolsMaterials;
         private readonly Dictionary<string, bool> ToolsMaterials = [];
-        private readonly Dictionary<string, Mesh> ExportedMeshes = [];
+        private readonly Dictionary<(string Name, Vector4 TintColor), Mesh> ExportedMeshes = [];
         private readonly Dictionary<Node[], Skin> ExportedSkins = [];
         private readonly List<(PhysAggregateData Phys, string? Classname, Matrix4x4 Transform)> PhysicsToExport = [];
         private bool IsExporting;
@@ -690,10 +690,11 @@ namespace ValveResourceFormat.IO
             meshNode = newNode;
             mesh.LoadExternalMorphData(FileLoader);
 
-            if (!ExportedMeshes.TryGetValue(name, out var exportedMesh))
+            // Tint is baked into the mesh's materials
+            if (!ExportedMeshes.TryGetValue((name, tintColor), out var exportedMesh))
             {
                 exportedMesh = CreateGltfMesh(name, mesh, vbib, exportedModel, boneRemapTable, drawCallMaterials, tintColor);
-                ExportedMeshes.Add(name, exportedMesh);
+                ExportedMeshes.Add((name, tintColor), exportedMesh);
             }
 
             var hasVertexJoints = exportedMesh.Primitives.All(primitive => primitive.GetVertexAccessor("JOINTS_0") != null);

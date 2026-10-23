@@ -708,7 +708,7 @@ namespace Tests.Formats
         {
             // --3
             var exampleStr = "07 00 00 40 40 18 18 00";
-            var expectedResult = "return --3;";
+            var expectedResult = "return -(-3);";
             await Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult).IsEqualTo(expectedResult);
         }
 

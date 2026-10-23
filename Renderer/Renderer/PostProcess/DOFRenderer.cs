@@ -220,7 +220,7 @@ public class DOFRenderer
             sample++;
         }
 
-        DOF.SetUniform4Array("g_vSampleOffsetsRadMinMax", Offsets.Length, Offsets);
+        DOF.SetUniform4Array("g_vSampleOffsetsRadMinMax", sample, Offsets);
         DOF.SetUniform("g_nSamples", sample);
     }
 }

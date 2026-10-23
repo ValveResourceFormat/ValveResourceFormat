@@ -67,7 +67,7 @@ namespace GUI.Controls
 
         public void RefreshSavedPositions()
         {
-            var previousCamera = cmbPositions.SelectedText;
+            var previousCamera = cmbPositions.SelectedItem?.ToString();
 
             cmbPositions.BeginUpdate();
             cmbPositions.Items.Clear();

@@ -161,7 +161,8 @@ public sealed class TextureExtract
 
                     contentFile.AddSubFile(outTextureName + ImageOutputExtension, () =>
                     {
-                        return ImageEncode(texture.GenerateBitmap(depth: currentDepth, decodeFlags: DecodeFlags));
+                        using var bitmap = texture.GenerateBitmap(depth: currentDepth, decodeFlags: DecodeFlags);
+                        return ImageEncode(bitmap);
                     });
 
                     continue;

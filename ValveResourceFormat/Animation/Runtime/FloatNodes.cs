@@ -448,7 +448,7 @@ namespace ValveResourceFormat.Animation
                 FloatMathNode.OperatorType.Floor => MathF.Floor(a),
                 FloatMathNode.OperatorType.Ceiling => MathF.Ceiling(a),
 
-                // integer / fractional decomposition uses floor so fractional part is in [0,1)
+                // integer part floors, fractional part truncates, so the fractional part is negative for negative inputs
                 FloatMathNode.OperatorType.IntegerPart => MathF.Floor(a),
                 FloatMathNode.OperatorType.FractionalPart => a - MathF.Truncate(a),
                 FloatMathNode.OperatorType.InverseFractionalPart => 1f - (a - MathF.Truncate(a)),

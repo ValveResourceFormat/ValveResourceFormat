@@ -32,10 +32,12 @@ namespace Tests.Resources
             GC.WaitForPendingFinalizers();
             GC.Collect();
 
+            var data = clip.Data;
+
             using (Assert.Multiple())
             {
-                await Assert.That(clip.Data.Root.ContainsKey("m_trackCompressionSettings")).IsTrue();
-                await Assert.That(clip.Data).IsSameReferenceAs(clip.Data).Because("the data is only read again once");
+                await Assert.That(data.Root.ContainsKey("m_trackCompressionSettings")).IsTrue();
+                await Assert.That(clip.Data).IsSameReferenceAs(data).Because("the data is only read again once");
             }
         }
 

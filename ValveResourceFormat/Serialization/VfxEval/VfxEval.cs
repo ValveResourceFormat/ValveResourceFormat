@@ -333,8 +333,18 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
                 case OPCODE.NOT:
                 case OPCODE.NEGATE:
-                    Push($"{GetOperator(op).Symbol}{PopExpression(dataReader).Operand(Precedence.Unary)}", Precedence.Unary);
+                {
+                    var operand = PopExpression(dataReader).Operand(Precedence.Unary);
+
+                    // Negating a negative operand would otherwise print as a decrement
+                    if (op == OPCODE.NEGATE && operand.StartsWith('-'))
+                    {
+                        operand = $"({operand})";
+                    }
+
+                    Push($"{GetOperator(op).Symbol}{operand}", Precedence.Unary);
                     return;
+                }
 
                 case >= OPCODE.EQUALS and <= OPCODE.MODULO:
                 {

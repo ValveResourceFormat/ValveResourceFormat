@@ -534,8 +534,8 @@ public class UserInput
             var speed = deltaTime * OrbitDistance / 2;
             var panOffset = Camera.Right * speed * -MouseDelta2D.X;
 
-            OrbitTarget += panOffset;
             Camera.Location += panOffset;
+            OrbitTarget += panOffset;
         }
 
         if ((keyboardState & TrackedKeys.MouseLeft) != 0 || mouseLook)

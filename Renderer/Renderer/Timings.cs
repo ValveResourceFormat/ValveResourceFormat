@@ -140,7 +140,7 @@ public class Timings
             if (activeQuery.Name != name)
             {
                 activeQuery = activeQuery with { Name = name };
-                for (var i = currentIndex; i < activeQueries.Count; i++)
+                for (var i = currentIndex; i <= activeQueries.Count; i++)
                 {
                     gpuTimingsCache.Remove(i);
                     previousMax.Remove(i);

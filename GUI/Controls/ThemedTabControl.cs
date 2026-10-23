@@ -70,7 +70,7 @@ namespace GUI.Controls
             set { tabTopRadius = this.AdjustForDPI(Math.Max(value, 0)); }
         }
 
-        [Description("Roundness of the corners of the top of tabs"), Category("Appearance")]
+        [Description("Draw an accent line on the selected tab"), Category("Appearance")]
         public bool SelectionLine { get; set; } = true;
 
         [Description("Hide the tab strip entirely and let the selected page fill the whole control"), Category("Appearance")]

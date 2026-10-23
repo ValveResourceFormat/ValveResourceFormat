@@ -57,7 +57,7 @@ namespace GUI.Types.GLViewers
 
                             if (pickOneClass != "CSmartPropElement_Model")
                             {
-                                Log.Warn(nameof(GLSingleNodeViewer), $"Unhandled smart prop class {className}");
+                                Log.Warn(nameof(GLSingleNodeViewer), $"Unhandled smart prop class {pickOneClass}");
                                 continue;
                             }
 

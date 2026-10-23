@@ -396,9 +396,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>A formatted string containing all entities and their properties.</returns>
         public string ToEntityDumpString()
         {
-            var knownKeys = StringToken.InvertedTable;
             var builder = new StringBuilder();
-            var unknownKeys = new Dictionary<uint, uint>();
 
             using var valueStream = new MemoryStream();
 
@@ -464,17 +462,6 @@ namespace ValveResourceFormat.ResourceTypes
                 }
 
                 builder.AppendLine();
-            }
-
-            if (unknownKeys.Count > 0)
-            {
-                builder.AppendLine($"@@@@@ UNKNOWN KEY LOOKUPS:");
-                builder.AppendLine($"If you know what these are, add them to EntityLumpKnownKeys.cs");
-
-                foreach (var unknownKey in unknownKeys)
-                {
-                    builder.AppendLine(CultureInfo.InvariantCulture, $"key={unknownKey.Key} hits={unknownKey.Value}");
-                }
             }
 
             return builder.ToString();

@@ -270,7 +270,7 @@ namespace ValveResourceFormat.CompiledShader
                 nameof(VfxVariableDescription.OutputTextureFormat),
                 nameof(VfxVariableDescription.TextureFileEnding),
                 nameof(VfxVariableDescription.DefaultInputTexture),
-                nameof(VfxVariableDescription.CompiledExpression),
+                nameof(VfxVariableDescription.HasDynamicExpression),
                 nameof(VfxVariableDescription.LayerId),
                 nameof(VfxVariableDescription.AllowLayerOverride),
                 nameof(VfxVariableDescription.MaxRes),

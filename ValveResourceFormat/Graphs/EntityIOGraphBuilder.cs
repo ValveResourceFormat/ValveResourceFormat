@@ -299,7 +299,9 @@ internal static class EntityIOGraphBuilder
             }
         }
 
-        foreach (var node in entityNodes.Values.Concat(syntheticNodes.Values))
+        var nodes = entityNodes.Values.Distinct().Concat(syntheticNodes.Values).ToList();
+
+        foreach (var node in nodes)
         {
             node.PairSocketRows();
         }
@@ -310,6 +312,6 @@ internal static class EntityIOGraphBuilder
             node.AddAnnotation(text, SpecialTargetHue);
         }
 
-        progressReporter?.Report($"Created {entityNodes.Count + syntheticNodes.Count} nodes from {connections.Count} connections ({entities.Count} entities).");
+        progressReporter?.Report($"Created {nodes.Count} nodes from {connections.Count} connections ({entities.Count} entities).");
     }
 }

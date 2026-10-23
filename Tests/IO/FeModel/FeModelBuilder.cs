@@ -393,9 +393,9 @@ namespace Tests.IO
             {
                 kv[key] = v switch
                 {
-                    int i => i,
-                    uint u => u,
-                    float f => f,
+                    int i => (KVObject)i,
+                    uint u => (KVObject)u,
+                    float f => (KVObject)f,
                     _ => throw new ArgumentException(key),
                 };
             }

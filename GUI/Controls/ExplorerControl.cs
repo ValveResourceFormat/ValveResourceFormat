@@ -367,13 +367,15 @@ namespace GUI.Controls
 
                     TreeData.Insert(dataIndex, newNode);
 
-                    treeView.BeginUpdate();
-                    treeView.Nodes.Insert(dataIndex, treeNode);
-                    treeView.EndUpdate();
-
                     if (filterTextBox.Text.Length > 0)
                     {
                         OnFilterTextBoxTextChanged(null, EventArgs.Empty); // Hack: re-filter
+                    }
+                    else
+                    {
+                        treeView.BeginUpdate();
+                        treeView.Nodes.Insert(dataIndex, treeNode);
+                        treeView.EndUpdate();
                     }
                 }, cancellationToken).ConfigureAwait(false);
             });

@@ -237,7 +237,9 @@ void ParseFile(string file)
                 {
                     foreach (var baseClass in _class.BaseClasses)
                     {
-                        if (allEntities.TryGetValue(baseClass, out var colorEntity) && colorEntity.Color != null)
+                        var colorEntity = baseEntities.GetValueOrDefault(baseClass) ?? allEntities.GetValueOrDefault(baseClass);
+
+                        if (colorEntity?.Color != null)
                         {
                             color = colorEntity.Color;
                             Console.WriteLine($"Found {_class.Name} base color from {baseClass}");

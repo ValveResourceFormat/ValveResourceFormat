@@ -522,8 +522,8 @@ internal sealed partial class ClothExtract
 
                 worst = MathF.Max(worst, capped
                     ? candidates.Max(candidate => HingeSum(candidate.Fraction, addCurvature) - assigned(candidate.Hinge))
-                    : MathF.Abs(candidates.Min(candidate
-                        => assigned(candidate.Hinge) - HingeSum(candidate.Fraction, addCurvature))));
+                    : candidates.Min(candidate
+                        => MathF.Abs(assigned(candidate.Hinge) - HingeSum(candidate.Fraction, addCurvature))));
             }
 
             return worst;

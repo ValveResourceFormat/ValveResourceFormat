@@ -608,7 +608,7 @@ namespace GUI.Types.GLViewers
             controlsContainer.Controls.Add(RendererControl.CreateFloatInput("Near blurry", val =>
             {
                 Renderer.Postprocess.DOF.NearBlurry = -val;
-            }, Renderer.Postprocess.DOF.NearBlurry, 0, 100));
+            }, -Renderer.Postprocess.DOF.NearBlurry, 0, 100));
 
             controlsContainer.Controls.Add(RendererControl.CreateFloatInput("Near crisp", val =>
             {

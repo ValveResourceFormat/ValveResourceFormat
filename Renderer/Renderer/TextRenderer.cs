@@ -409,7 +409,7 @@ namespace ValveResourceFormat.Renderer
                             if (cNext == '#')
                             {
                                 j += 2;
-                                if (j + 8 < text.Length)
+                                if (j + 8 <= text.Length)
                                 {
                                     if (byte.TryParse(text.Slice(j + 0, 2), System.Globalization.NumberStyles.HexNumber, null, out var r)
                                     && byte.TryParse(text.Slice(j + 2, 2), System.Globalization.NumberStyles.HexNumber, null, out var g)

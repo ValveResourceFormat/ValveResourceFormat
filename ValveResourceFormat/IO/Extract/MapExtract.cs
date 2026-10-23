@@ -753,8 +753,8 @@ public sealed partial class MapExtract
 
     private List<CMapRootElement> SplitLargeMapDocument()
     {
-        const int OneGiB = 1024 * 1024 * 1024;
-        var accumulatedMapMeshSize = 0;
+        const long OneGiB = 1024 * 1024 * 1024;
+        var accumulatedMapMeshSize = 0L;
 
         List<CMapRootElement> additionalMaps = [];
 
@@ -847,7 +847,6 @@ public sealed partial class MapExtract
                 + GetArraySize(mesh.MeshData.EdgeOppositeIndices)
                 + GetArraySize(mesh.MeshData.EdgeNextIndices)
                 + GetArraySize(mesh.MeshData.EdgeFaceIndices)
-                + GetArraySize(mesh.MeshData.EdgeDataIndices)
                 + GetArraySize(mesh.MeshData.EdgeVertexDataIndices);
             GetTotalDataStreamSizes(mesh.MeshData.EdgeData.Streams, ref meshSize);
 
