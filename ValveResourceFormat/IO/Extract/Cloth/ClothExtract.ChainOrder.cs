@@ -588,11 +588,14 @@ internal sealed partial class ClothExtract
                 }
 
                 var head = lanes[band][lanePos[band]];
-                foreach (var index in owners.GetValueOrDefault(head, []))
+                if (owners.TryGetValue(head, out var headOwners))
                 {
-                    if (index != natural && TryStep(index))
+                    foreach (var index in headOwners)
                     {
-                        return true;
+                        if (index != natural && TryStep(index))
+                        {
+                            return true;
+                        }
                     }
                 }
 

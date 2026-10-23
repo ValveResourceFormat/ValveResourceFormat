@@ -264,11 +264,7 @@ public sealed partial class MapExtract
             }
 
             var stream = streams.VertexBuffers[streamOverride.BufferIndex];
-            var drawCall = model.GetEmbeddedMeshes()
-                .Where(mesh => mesh.MeshIndex == streamOverride.SubSceneObject)
-                .SelectMany(static mesh => mesh.Mesh.Data.GetArray("m_sceneObjects"))
-                .SelectMany(static meshSceneObject => meshSceneObject.GetArray("m_drawCalls"))
-                .ElementAtOrDefault((int)streamOverride.DrawCallIndex);
+            var drawCall = FindEmbeddedDrawCall(model, streamOverride);
 
             // Streams painted on an older version of the model no longer match its vertex count
             if (drawCall is null || drawCall.GetInt32Property("m_nVertexCount") != stream.ElementCount
@@ -311,6 +307,34 @@ public sealed partial class MapExtract
         }
 
         return extraVertexData.ExtraStreams.Count > 0 ? extraVertexData : null;
+    }
+
+    private static KVObject? FindEmbeddedDrawCall(Model model, WorldNode.ExtraVertexStreamOverride streamOverride)
+    {
+        var remaining = (int)streamOverride.DrawCallIndex;
+
+        foreach (var embeddedMesh in model.GetEmbeddedMeshes())
+        {
+            if (embeddedMesh.MeshIndex != streamOverride.SubSceneObject)
+            {
+                continue;
+            }
+
+            foreach (var meshSceneObject in embeddedMesh.Mesh.Data.GetArray("m_sceneObjects"))
+            {
+                foreach (var drawCall in meshSceneObject.GetArray("m_drawCalls"))
+                {
+                    if (remaining == 0)
+                    {
+                        return drawCall;
+                    }
+
+                    remaining--;
+                }
+            }
+        }
+
+        return null;
     }
 
     private readonly Dictionary<string, Material.VsInputSignature> ExtraVertexStreamInputSignatures = [];
@@ -1822,7 +1846,7 @@ public sealed partial class MapExtract
 
             foreach (var mesh in meshes)
             {
-                var deletedTriangles = PhysTriangleMatcher?.PhysicsMeshes.FirstOrDefault(physicsMesh => physicsMesh.Mesh == mesh)?.DeletedTriangles;
+                var deletedTriangles = PhysTriangleMatcher?.GetDeletedTriangles(mesh);
                 physicsMeshBuilder.AddPhysMesh(mesh, phys, GetAndExportAutoPhysicsMaterialName, deletedTriangles, transform, materialOverride);
             }
 

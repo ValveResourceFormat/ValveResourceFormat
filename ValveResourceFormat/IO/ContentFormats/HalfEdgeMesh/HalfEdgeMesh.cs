@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.IO.ContentFormats.HalfEdgeMesh;
 
@@ -148,6 +149,12 @@ public readonly record struct VertexHandle
     }
 
     /// <inheritdoc/>
+    public bool Equals(VertexHandle other) => Index == other.Index && ReferenceEquals(Mesh, other.Mesh);
+
+    /// <inheritdoc/>
+    public override int GetHashCode() => Index;
+
+    /// <inheritdoc/>
     public override string ToString() => $"{Index}";
 }
 
@@ -187,6 +194,12 @@ public readonly record struct FaceHandle
         get => new(Mesh is null ? -1 : Mesh[this].Edge, Mesh);
         set => Mesh?.SetFaceEdge(this, value);
     }
+
+    /// <inheritdoc/>
+    public bool Equals(FaceHandle other) => Index == other.Index && ReferenceEquals(Mesh, other.Mesh);
+
+    /// <inheritdoc/>
+    public override int GetHashCode() => Index;
 
     /// <inheritdoc/>
     public override string ToString() => $"{Index}";
@@ -444,18 +457,19 @@ public partial class HalfEdgeMesh
             var hEdge = hFace.Edge;
             do
             {
-                if (!newHalfEdges.ContainsKey(hEdge))
+                ref var hNewEdge = ref CollectionsMarshal.GetValueRefOrAddDefault(newHalfEdges, hEdge, out var edgeExists);
+                if (!edgeExists)
                 {
                     var hOpposite = hEdge.OppositeEdge;
-                    var hNewEdge = AllocateHalfEdge(HalfEdge.Invalid);
+                    hNewEdge = AllocateHalfEdge(HalfEdge.Invalid);
                     var hNewOpposite = AllocateHalfEdge(HalfEdge.Invalid);
-                    newHalfEdges.Add(hEdge, hNewEdge);
                     newHalfEdges.Add(hOpposite, hNewOpposite);
                 }
 
-                if (!newVertices.ContainsKey(hEdge.Vertex))
+                ref var hNewVertex = ref CollectionsMarshal.GetValueRefOrAddDefault(newVertices, hEdge.Vertex, out var vertexExists);
+                if (!vertexExists)
                 {
-                    newVertices.Add(hEdge.Vertex, AllocateVertex(Vertex.Invalid));
+                    hNewVertex = AllocateVertex(Vertex.Invalid);
                 }
 
                 hEdge = hEdge.NextEdge;
@@ -861,16 +875,12 @@ public partial class HalfEdgeMesh
         }
 
         var pEdgeHandles = new HalfEdgeHandle[nNumVertices];
-        var pVerticesB = new VertexHandle[nNumVertices];
-        for (var iVertex = 0; iVertex < nNumVertices; ++iVertex)
-        {
-            pVerticesB[iVertex] = pVerticesA[(iVertex + 1) % nNumVertices];
-        }
 
         // Existing edges must be open and the new edges must be addable
         for (var iVertex = 0; iVertex < nNumVertices; ++iVertex)
         {
-            pEdgeHandles[iVertex] = FindHalfEdgeConnectingVertices(pVerticesA[iVertex], pVerticesB[iVertex]);
+            var hVertexB = pVerticesA[(iVertex + 1) % nNumVertices];
+            pEdgeHandles[iVertex] = FindHalfEdgeConnectingVertices(pVerticesA[iVertex], hVertexB);
 
             var pEdge = pEdgeHandles[iVertex];
             if (pEdge.IsValid)
@@ -881,9 +891,9 @@ public partial class HalfEdgeMesh
                     return false;
                 }
             }
-            else if (pVerticesB[iVertex].Edge != HalfEdgeHandle.Invalid)
+            else if (hVertexB.Edge != HalfEdgeHandle.Invalid)
             {
-                var nNumOpenEdges = ComputeNumOpenEdgesInVertexLoop(pVerticesB[iVertex]);
+                var nNumOpenEdges = ComputeNumOpenEdgesInVertexLoop(hVertexB);
 
                 // A new edge at a vertex with other edges needs an open edge to insert it after
                 if (nNumOpenEdges == 0)
@@ -894,7 +904,7 @@ public partial class HalfEdgeMesh
                 // With two open edges, the next edge must already exist or the face is ambiguous
                 if (nNumOpenEdges >= 2)
                 {
-                    if (!FindHalfEdgeConnectingVertices(pVerticesB[iVertex], pVerticesB[(iVertex + 1) % nNumVertices]).IsValid)
+                    if (!FindHalfEdgeConnectingVertices(hVertexB, pVerticesA[(iVertex + 2) % nNumVertices]).IsValid)
                     {
                         return false;
                     }
@@ -924,11 +934,14 @@ public partial class HalfEdgeMesh
         {
             if (!pEdgeHandles[iVertex].IsValid)
             {
+                var hStartVertex = pVerticesA[iVertex];
+                var hEndVertex = pVerticesA[(iVertex + 1) % nNumVertices];
+
                 // An interior edge may already connect the vertices in the opposite direction
                 for (var iEdge = 0; iEdge < iVertex; ++iEdge)
                 {
                     GetVerticesConnectedToHalfEdge(pEdgeHandles[iEdge], out var hVertexA, out var hVertexB);
-                    if ((hVertexA == pVerticesB[iVertex]) && (hVertexB == pVerticesA[iVertex]))
+                    if ((hVertexA == hEndVertex) && (hVertexB == hStartVertex))
                     {
                         pEdgeHandles[iVertex] = pEdgeHandles[iEdge].OppositeEdge;
                     }
@@ -936,7 +949,7 @@ public partial class HalfEdgeMesh
 
                 if (!pEdgeHandles[iVertex].IsValid)
                 {
-                    pEdgeHandles[iVertex] = ConstructHalfEdgePair(pVerticesA[iVertex], pVerticesB[iVertex]);
+                    pEdgeHandles[iVertex] = ConstructHalfEdgePair(hStartVertex, hEndVertex);
                 }
 
                 Debug.Assert(pEdgeHandles[iVertex].IsValid);

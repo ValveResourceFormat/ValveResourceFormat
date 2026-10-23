@@ -296,7 +296,7 @@ internal sealed class ClothRenderBinding
                     reached[vertex] = true;
                     newlyReached.Add(vertex);
 
-                    if (boundNodes.Exists(unbound.Contains))
+                    if (unbound.Overlaps(boundNodes))
                     {
                         paint[vertex] = ClothEnableGrowthPaint;
                         unbound.ExceptWith(certainNodes);

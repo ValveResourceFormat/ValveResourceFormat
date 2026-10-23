@@ -28,7 +28,7 @@ namespace ValveResourceFormat.IO
             get => outFileName;
             set
             {
-                outFileName = value.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.InvariantCultureIgnoreCase)
+                outFileName = value.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.OrdinalIgnoreCase)
                 ? value[..^2]
                 : value;
             }

@@ -263,14 +263,14 @@ partial class HalfEdgeMesh
         {
             GetVerticesConnectedToFullEdge(edgeList[iEdge], out var hVertexA, out var hVertexB);
 
-            if (!uniqueVertices.ContainsKey(hVertexA))
+            if (uniqueVertices.TryAdd(hVertexA, i))
             {
-                uniqueVertices.Add(hVertexA, i++);
+                i++;
             }
 
-            if (!uniqueVertices.ContainsKey(hVertexB))
+            if (uniqueVertices.TryAdd(hVertexB, i))
             {
-                uniqueVertices.Add(hVertexB, i++);
+                i++;
             }
         }
 
@@ -832,14 +832,14 @@ partial class HalfEdgeMesh
         {
             GetFacesConnectedToFullEdge(edgeList[i], out var faceA, out var faceB);
 
-            if (faceA.IsValid && !uniqueFaces.ContainsKey(faceA))
+            if (faceA.IsValid)
             {
-                uniqueFaces.Add(faceA, uniqueFaces.Count);
+                uniqueFaces.TryAdd(faceA, uniqueFaces.Count);
             }
 
-            if (faceB.IsValid && !uniqueFaces.ContainsKey(faceB))
+            if (faceB.IsValid)
             {
-                uniqueFaces.Add(faceB, uniqueFaces.Count);
+                uniqueFaces.TryAdd(faceB, uniqueFaces.Count);
             }
         }
 

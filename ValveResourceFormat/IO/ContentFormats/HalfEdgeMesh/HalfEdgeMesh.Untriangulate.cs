@@ -50,12 +50,13 @@ partial class HalfEdgeMesh
                 continue;
             }
 
-            if (!EdgeShouldBeRemoved(hEdge, positions, angleFaceCos, angleShape))
+            EdgeToQuadVerts(hEdge, positions, out var v1, out var v2, out var v3, out var v4);
+
+            if (!EdgeShouldBeRemoved(v1, v2, v3, v4, angleFaceCos, angleShape))
             {
                 continue;
             }
 
-            EdgeToQuadVerts(hEdge, positions, out var v1, out var v2, out var v3, out var v4);
             candidates.Add((QuadCalcError(v1, v2, v3, v4), hEdge));
         }
 
@@ -99,11 +100,9 @@ partial class HalfEdgeMesh
     }
 
     // check if we pass the angle constraints
-    private static bool EdgeShouldBeRemoved(HalfEdgeHandle hEdge, VertexData<Vector3> positions, float angleFaceCos, float angleShape)
+    private static bool EdgeShouldBeRemoved(Vector3 v1, Vector3 v2, Vector3 v3, Vector3 v4, float angleFaceCos, float angleShape)
     {
         const float HalfPi = MathF.PI / 2f;
-
-        EdgeToQuadVerts(hEdge, positions, out var v1, out var v2, out var v3, out var v4);
 
         // the triangles must be within the face angle limit of each other
         var normalA = TriangleNormal(v2, v4, v1);

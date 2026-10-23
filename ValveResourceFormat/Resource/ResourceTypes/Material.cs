@@ -248,7 +248,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             var inputSignatureString = (string)inputSignatureValue;
 
-            if (!inputSignatureString.StartsWith("<!-- kv3", StringComparison.InvariantCulture))
+            if (!inputSignatureString.StartsWith("<!-- kv3", StringComparison.Ordinal))
             {
                 return null;
             }

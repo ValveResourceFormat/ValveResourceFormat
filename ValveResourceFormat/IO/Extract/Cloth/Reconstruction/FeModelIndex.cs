@@ -326,6 +326,7 @@ namespace ValveResourceFormat.IO
         private List<AnimRod> BuildAnimRods()
         {
             var rods = new List<AnimRod>();
+            var seen = new HashSet<AnimRod>();
             foreach (var entry in fe.SimdRodsAnim)
             {
                 var flat = FlattenSimdNodes(entry.Nodes);
@@ -340,7 +341,7 @@ namespace ValveResourceFormat.IO
                 {
                     var rod = new AnimRod(flat[lane], flat[4 + lane], lane < weights.Length ? weights[lane] : 0.5f,
                         lane < relaxations.Length ? relaxations[lane] : 1f);
-                    if (rod.NodeA != rod.NodeB && !rods.Contains(rod))
+                    if (rod.NodeA != rod.NodeB && seen.Add(rod))
                     {
                         rods.Add(rod);
                     }

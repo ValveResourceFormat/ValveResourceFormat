@@ -533,10 +533,7 @@ partial class HalfEdgeMesh
 
             foreach (var hFace in facesConnectedToVertex)
             {
-                if (!uniqueFaces.ContainsKey(hFace))
-                {
-                    uniqueFaces.Add(hFace, uniqueFaces.Count);
-                }
+                uniqueFaces.TryAdd(hFace, uniqueFaces.Count);
             }
         }
 
@@ -584,10 +581,7 @@ partial class HalfEdgeMesh
 
             foreach (var hEdge in edgesConnectedToVertex)
             {
-                if (!uniqueEdges.ContainsKey(hEdge))
-                {
-                    uniqueEdges.Add(hEdge, uniqueEdges.Count);
-                }
+                uniqueEdges.TryAdd(hEdge, uniqueEdges.Count);
             }
         }
 

@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -29,6 +30,17 @@ public sealed class MaterialExtract
 
     private static bool IsDefaultTexture(string textureFileName)
         => textureFileName.StartsWith("materials/default/", StringComparison.OrdinalIgnoreCase);
+
+    private static readonly FrozenSet<string> SystemAttributeNames = new[]
+    {
+        "physicssurfaceproperties",
+        "physicssurfaceproperties1",
+        "physicssurfaceproperties2",
+        "physicssurfaceproperties3",
+        "physicssurfaceproperties4",
+        "worldmappingwidth",
+        "worldmappingheight",
+    }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
     private readonly Material material;
     private readonly ResourceEditInfo? editInfo;
@@ -68,16 +80,14 @@ public sealed class MaterialExtract
             Data = Encoding.UTF8.GetBytes(ToValveMaterial())
         };
 
-        var handledTextures = new List<string>(material.TextureParams.Count);
+        var handledTextures = new HashSet<string>(material.TextureParams.Count);
         foreach (var (type, filePath) in material.TextureParams)
         {
             var textureCompiledName = filePath + GameFileLoader.CompiledFileSuffix;
-            if (handledTextures.Contains(textureCompiledName))
+            if (!handledTextures.Add(textureCompiledName))
             {
                 continue;
             }
-
-            handledTextures.Add(textureCompiledName);
 
             var texture = fileLoader?.LoadFile(textureCompiledName);
             if (texture is null)
@@ -262,7 +272,7 @@ public sealed class MaterialExtract
         foreach (var (key, value) in material.FloatAttributes)
         {
             // Skip `int` definition if there is a `float` definition
-            attributes = attributes.Where(existing_key => existing_key.Key != key).ToList();
+            attributes.RemoveAll(existing => existing.Key == key);
             attributes.Add(new(key, value));
         }
 
@@ -276,21 +286,10 @@ public sealed class MaterialExtract
             attributes.Add(new(key, value ?? string.Empty));
         }
 
-        var attributesThatAreSystemAttributes = new HashSet<string>
-        {
-            "physicssurfaceproperties",
-            "physicssurfaceproperties1",
-            "physicssurfaceproperties2",
-            "physicssurfaceproperties3",
-            "physicssurfaceproperties4",
-            "worldmappingwidth",
-            "worldmappingheight"
-        };
-
         if (attributes.Count > 0)
         {
             // Some attributes are actually SystemAttributes
-            var systemAttributes = attributes.Where(attribute => attributesThatAreSystemAttributes.Contains(attribute.Key.ToLowerInvariant())).ToList();
+            var systemAttributes = attributes.Where(attribute => SystemAttributeNames.Contains(attribute.Key)).ToList();
             attributes = attributes.Except(systemAttributes).ToList();
 
             if (attributes.Count > 0)

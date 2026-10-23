@@ -903,9 +903,8 @@ internal sealed class AnimGraph1Builder : IDisposable
             var def = paramObj.GetFloatProperty("m_fDefaultValue");
             result += string.Create(CultureInfo.InvariantCulture, $" (default: {def:F2})");
         }
-        else if (paramObj.ContainsKey("m_defaultValue"))
+        else if (paramObj.TryGetValue("m_defaultValue", out var def))
         {
-            var def = paramObj["m_defaultValue"];
             if (def.ValueType == KVValueType.Int32 || def.ValueType == KVValueType.UInt32)
             {
                 result += $" (default: {def.ToInt32()})";
@@ -1087,9 +1086,8 @@ internal sealed class AnimGraph1Builder : IDisposable
 
             foreach (var prop in ChildProperties)
             {
-                if (compiledNode.ContainsKey(prop))
+                if (compiledNode.TryGetValue(prop, out var childRef))
                 {
-                    var childRef = compiledNode[prop];
                     if (childRef.ValueType == KVValueType.Collection && childRef.ContainsKey("m_nodeIndex"))
                     {
                         var idx = childRef.GetInt32Property("m_nodeIndex");
@@ -1355,9 +1353,8 @@ internal sealed class AnimGraph1Builder : IDisposable
             node.AddText($"Tag Behavior: {compiledNode.GetStringProperty("m_eTagBehavior")}");
         }
 
-        if (compiledNode.ContainsKey("m_tags"))
+        if (compiledNode.TryGetValue("m_tags", out var tagsValue))
         {
-            var tagsValue = compiledNode["m_tags"];
             if (tagsValue.ValueType == KVValueType.Array)
             {
                 var tagIndices = compiledNode.GetIntegerArray("m_tags");
@@ -1570,9 +1567,8 @@ internal sealed class AnimGraph1Builder : IDisposable
             string[] extraProps = ["m_bAlwaysUseFallbackHinge", "m_vLsFallbackHingeAxis", "m_bMatchTargetOrientation", "m_bConstrainTwist", "m_flMaxTwist"];
             foreach (var prop in extraProps)
             {
-                if (opFixedData.ContainsKey(prop))
+                if (opFixedData.TryGetValue(prop, out var val))
                 {
-                    var val = opFixedData[prop];
                     if (!val.IsCollection && !val.IsArray)
                     {
                         node.AddText($"{prop}: {val}");

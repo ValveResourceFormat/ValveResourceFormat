@@ -97,14 +97,18 @@ internal sealed partial class ClothExtract
                 ? recovered
                 : cloth.ResolveSkinBone(node) is { } skinBone ? [new(skinBone, 1f)] : [];
 
-            var registeredAnchors = influences
-                .Where(i => i.Weight > 0f && ctrlIndexByName.ContainsKey(i.Bone))
-                .Select(i => ctrlIndexByName[i.Bone])
-                .ToArray();
+            var registeredAnchors = new List<int>();
+            foreach (var influence in influences)
+            {
+                if (influence.Weight > 0f && ctrlIndexByName.TryGetValue(influence.Bone, out var anchorIndex))
+                {
+                    registeredAnchors.Add(anchorIndex);
+                }
+            }
 
             if (!faced.Contains(v))
             {
-                if (registeredAnchors.Length > 0)
+                if (registeredAnchors.Count > 0)
                 {
                     return false;
                 }
@@ -117,7 +121,7 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            if ((registeredAnchors.Length > 0) != cloth.Index.AllowsRotation(node))
+            if ((registeredAnchors.Count > 0) != cloth.Index.AllowsRotation(node))
             {
                 return false;
             }

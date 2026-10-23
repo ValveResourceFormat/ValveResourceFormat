@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -98,8 +97,8 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public byte[] GetRAWData()
         {
-            var lut = GetColorCorrectionLUT().Clone() as byte[];
-            Debug.Assert(lut != null);
+            var lut = GetColorCorrectionLUT();
+            var raw = new byte[lut.Length - lut.Length / 4];
 
             var j = 0;
             for (var i = 0; i < lut.Length; i++)
@@ -110,10 +109,10 @@ namespace ValveResourceFormat.ResourceTypes
                     continue;
                 }
 
-                lut[j++] = lut[i];
+                raw[j++] = lut[i];
             }
 
-            return lut[..j];
+            return raw;
         }
 
         /// <summary>

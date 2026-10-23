@@ -68,9 +68,11 @@ internal class KVHelpers
 
     internal static void AddIfPresent(KVObject target, string targetKey, KVObject? source, string sourceKey)
     {
-        if (source?.ContainsKey(sourceKey) == true)
+        if (source is null || !source.TryGetValue(sourceKey, out var value))
         {
-            target.Add(targetKey, source[sourceKey]);
+            return;
         }
+
+        target.Add(targetKey, value);
     }
 }

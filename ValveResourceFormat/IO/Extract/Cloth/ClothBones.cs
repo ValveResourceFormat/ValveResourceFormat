@@ -50,6 +50,12 @@ internal static partial class ClothBones
             compaction[bone.Index] = IsGeneratedProxyBone(bone) ? int.MinValue : emitted++;
         }
 
+        var eligible = new bool[skeleton.Bones.Length];
+        foreach (var bone in skeleton.Bones)
+        {
+            eligible[bone.Index] = compaction[bone.Index] >= 0 && !IsProxyName(bone.Name);
+        }
+
         foreach (var bone in skeleton.Bones)
         {
             if (compaction[bone.Index] != int.MinValue)
@@ -63,7 +69,7 @@ internal static partial class ClothBones
 
             foreach (var candidate in skeleton.Bones)
             {
-                if (compaction[candidate.Index] < 0 || IsProxyName(candidate.Name))
+                if (!eligible[candidate.Index])
                 {
                     continue;
                 }

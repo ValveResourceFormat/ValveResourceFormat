@@ -320,9 +320,9 @@ namespace ValveResourceFormat.IO
                 spec.RingOf ??= [];
                 spec.ChildrenOf ??= [];
 
-                var resolved = spec.RingOf.ContainsKey(bone);
+                var resolved = spec.RingOf.TryGetValue(bone, out var resolvedGroup);
                 var keep = resolved
-                    ? groups.FindIndex(group => ReferenceEquals(group, spec.RingOf[bone]))
+                    ? groups.FindIndex(group => ReferenceEquals(group, resolvedGroup))
                     : bone == spec.Root ? 0 : BestGroup(groups, SideOf(realParent[bone]));
 
                 var kids = KeptChildren(spec, children, bone);
@@ -358,9 +358,9 @@ namespace ValveResourceFormat.IO
                         var next = 0;
                         for (var g = 0; g < groups.Count && next < free.Count; g++)
                         {
-                            if (!byGroup.ContainsKey(g))
+                            if (byGroup.TryAdd(g, free[next]))
                             {
-                                byGroup[g] = free[next++];
+                                next++;
                             }
                         }
                     }

@@ -54,6 +54,8 @@ namespace ValveResourceFormat.IO
         /// <summary>Gets the list of physics meshes.</summary>
         public List<PhysMeshData> PhysicsMeshes { get; } = [];
 
+        private readonly Dictionary<MeshDescriptor, PhysMeshData> PhysicsMeshByDescriptor = new(ReferenceEqualityComparer.Instance);
+
         // a physics triangle is covered when it lies in the plane of a render triangle, within this distance and its centre falls inside that triangle
         private const float PlaneDistance = 0.125f;
 
@@ -67,9 +69,17 @@ namespace ValveResourceFormat.IO
         {
             for (var i = 0; i < meshes.Length; i++)
             {
-                PhysicsMeshes.Add(new PhysMeshData(meshes[i]));
+                var meshData = new PhysMeshData(meshes[i]);
+                PhysicsMeshes.Add(meshData);
+                PhysicsMeshByDescriptor.TryAdd(meshes[i], meshData);
             }
         }
+
+        /// <summary>
+        /// Gets the covered triangles of a physics mesh, or <see langword="null"/> when the mesh was not given to this matcher.
+        /// </summary>
+        public HashSet<int>? GetDeletedTriangles(MeshDescriptor mesh)
+            => PhysicsMeshByDescriptor.GetValueOrDefault(mesh)?.DeletedTriangles;
 
         record struct RnMeshNodeWithIndex(int Index, Node Node);
 
@@ -1092,21 +1102,12 @@ namespace ValveResourceFormat.IO
 
         internal static IList<T>? GetElementArraySafe<T>(Element Element, string elementName)
         {
-            if (Element.ContainsKey(elementName))
+            if (!Element.TryGetValue(elementName, out var arrayElement))
             {
-                Element.TryGetValue(elementName, out var arrayElement);
-                if (arrayElement == null)
-                {
-                    return null;
-                }
-
-                if (arrayElement is IList<T> typedArrayElement)
-                {
-                    return typedArrayElement;
-                }
+                return null;
             }
 
-            return null;
+            return arrayElement as IList<T>;
         }
     }
 }

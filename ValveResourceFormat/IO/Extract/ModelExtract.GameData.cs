@@ -269,9 +269,9 @@ partial class ModelExtract
             // Map compiled field names to source field names
             foreach (var (compiledName, sourceName) in footFieldMappings)
             {
-                if (footEntry.ContainsKey(compiledName))
+                if (footEntry.TryGetValue(compiledName, out var footValue))
                 {
-                    footNode.Add(sourceName, footEntry[compiledName]);
+                    footNode.Add(sourceName, footValue);
                 }
             }
 
@@ -299,9 +299,9 @@ partial class ModelExtract
         // Add parent-level properties if they exist
         foreach (var (compiledName, sourceName) in parentFieldMappings)
         {
-            if (feetSettings.ContainsKey(compiledName))
+            if (feetSettings.TryGetValue(compiledName, out var feetValue))
             {
-                feetNode.Add(sourceName, feetSettings[compiledName]);
+                feetNode.Add(sourceName, feetValue);
             }
         }
 

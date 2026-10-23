@@ -1126,9 +1126,9 @@ public class AnimationGraphExtract : IDisposable
     {
         var name = destKey ?? key;
 
-        if (source.ContainsKey(key) && !target.ContainsKey(name))
+        if (source.TryGetValue(key, out var value) && !target.ContainsKey(name))
         {
-            target.Add(name, source[key]);
+            target.Add(name, value);
         }
     }
 

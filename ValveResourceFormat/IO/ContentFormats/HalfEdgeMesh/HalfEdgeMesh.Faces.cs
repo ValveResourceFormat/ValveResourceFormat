@@ -231,7 +231,7 @@ partial class HalfEdgeMesh
     /// </summary>
     public static void FindVerticesConnectedToFaces(IReadOnlyList<FaceHandle> pFaceList, int nNumFaces, out VertexHandle[] outVertices)
     {
-        var uniqueVertices = new Dictionary<VertexHandle, int>();
+        var uniqueVertices = new Dictionary<VertexHandle, int>(nNumFaces * 4);
         var i = 0;
         for (var iFace = 0; iFace < nNumFaces; ++iFace)
         {
@@ -246,9 +246,9 @@ partial class HalfEdgeMesh
             var hCurrentEdge = hStartEdge;
             do
             {
-                if (!uniqueVertices.ContainsKey(hCurrentEdge.Vertex))
+                if (uniqueVertices.TryAdd(hCurrentEdge.Vertex, i))
                 {
-                    uniqueVertices.Add(hCurrentEdge.Vertex, i++);
+                    i++;
                 }
 
                 hCurrentEdge = GetNextEdgeInFaceLoop(hCurrentEdge);
@@ -289,10 +289,7 @@ partial class HalfEdgeMesh
             do
             {
                 var hFullEdge = GetFullEdgeForHalfEdge(hCurrentEdge);
-                if (!uniqueEdges.ContainsKey(hFullEdge))
-                {
-                    uniqueEdges.Add(hFullEdge, uniqueEdges.Count);
-                }
+                uniqueEdges.TryAdd(hFullEdge, uniqueEdges.Count);
 
                 hCurrentEdge = GetNextEdgeInFaceLoop(hCurrentEdge);
             }
