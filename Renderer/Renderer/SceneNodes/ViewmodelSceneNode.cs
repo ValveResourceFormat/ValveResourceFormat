@@ -876,7 +876,8 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// <param name="uptime"></param>
     public void ProcessInput(UserInput input, float uptime)
     {
-        if (input.NoClip && wasWalking)
+        // Not when walk mode ends because the simulation stopped, which resets the world
+        if (input.NoClip && wasWalking && entitySystem.Enabled)
         {
             SpawnRagdoll(input);
         }
