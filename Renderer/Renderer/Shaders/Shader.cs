@@ -115,8 +115,11 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets the renderer context this shader was loaded for.</summary>
         internal RendererContext RendererContext { get; }
 
-        /// <summary>Gets a value indicating whether material data (textures and params) should be skipped during rendering.</summary>
-        public bool IgnoreMaterialData { get; }
+        /// <summary>
+        /// Gets a value indicating whether material data (textures and params) should be skipped during rendering,
+        /// as the source marks with <c>#pragma IgnoreMaterialData</c>.
+        /// </summary>
+        public bool IgnoreMaterialData { get; init; }
 
         /// <summary>Gets whether this variant alpha tests, which makes it read the material's color texture.</summary>
         public bool IsAlphaTestVariant => Parameters.GetValueOrDefault(AlphaTestCombo) == 1;
@@ -217,11 +220,6 @@ namespace ValveResourceFormat.Renderer.Shaders
             MaterialLoader = rendererContext.MaterialLoader;
             Logger = rendererContext.Logger;
             shaderLoader = rendererContext.ShaderLoader;
-
-            IgnoreMaterialData = Name is "picking"
-                                      or "outline"
-                                      or "depth_only"
-                                      or "quad_overdraw";
         }
 
         /// <summary>Ensures the shader program has been linked and its uniforms have been cached.</summary>

@@ -20,6 +20,9 @@ namespace ValveResourceFormat.Renderer.Shaders
         public const string ExpectedShaderVersion = "#version 460";
         private const string RenderModeDefinePrefix = "renderMode_";
 
+        // Marks a shader that draws every material the same way, see Shader.IgnoreMaterialData
+        private const string IgnoreMaterialDataPragma = "#pragma IgnoreMaterialData";
+
         [GeneratedRegex("^#include \"(?<IncludeName>[^\"]+)\"")]
         private static partial Regex RegexInclude();
         [GeneratedRegex("^#define (?<ParamName>(?:renderMode|GameVfx|F|S|D)_\\S+) (?<DefaultValue>[0-9]+)")]
@@ -216,6 +219,12 @@ namespace ValveResourceFormat.Renderer.Shaders
                         }
 
                         line = line.Trim(); // we will be outputting trimmed lines to compile too
+
+                        if (line == IgnoreMaterialDataPragma)
+                        {
+                            parsedData.IgnoreMaterialData = true;
+                            continue;
+                        }
 
                         // Includes
                         var match = RegexInclude().Match(line);

@@ -79,6 +79,12 @@ namespace ValveResourceFormat.Renderer.Shaders
             public HashSet<string> Uniforms { get; } = [];
 
             /// <summary>
+            /// Gets or sets whether the source is marked with <c>#pragma IgnoreMaterialData</c>, see
+            /// <see cref="Shader.IgnoreMaterialData"/>.
+            /// </summary>
+            public bool IgnoreMaterialData { get; set; }
+
+            /// <summary>
             /// Gets the <c>#extension</c> directives hoisted out of the shader source. They have to precede
             /// every non-preprocessor token, and the packed uniform block is one, so the header emits them.
             /// </summary>
@@ -295,6 +301,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                     Program = shaderProgram,
                     ShaderObjects = shaderObjects,
                     RenderModes = parsedData.RenderModes,
+                    IgnoreMaterialData = parsedData.IgnoreMaterialData,
                     UniformNames = parsedData.Uniforms,
                     SrgbUniforms = parsedData.SrgbUniforms,
                     SamplerUserConfigUniforms = parsedData.SamplerUserConfigUniforms,
