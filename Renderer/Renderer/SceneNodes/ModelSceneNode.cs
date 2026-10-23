@@ -295,6 +295,18 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private IEnumerable<AnimationBase> GetAllAnimations(Model model)
         {
+            if (model.Resource.FileName is not { } fileName)
+            {
+                return LoadAllAnimations(model);
+            }
+
+            return Scene.RendererContext.ModelAnimations
+                .GetOrAdd(fileName, _ => new Lazy<List<AnimationBase>>(() => [.. LoadAllAnimations(model)]))
+                .Value;
+        }
+
+        private IEnumerable<AnimationBase> LoadAllAnimations(Model model)
+        {
             var fileLoader = Scene.RendererContext.FileLoader;
 
             try

@@ -1,7 +1,9 @@
+using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace ValveResourceFormat.Renderer;
 
@@ -73,6 +75,8 @@ public class RendererContext : IDisposable
     /// Holds the morph composites of every mesh loaded through this context.
     /// </summary>
     public MorphCompositeAtlas MorphAtlas { get; }
+
+    internal ConcurrentDictionary<string, Lazy<List<AnimationBase>>> ModelAnimations { get; } = new();
 
     /// <summary>
     /// Whether scene nodes simulate across the thread pool, published by the renderer each frame.
