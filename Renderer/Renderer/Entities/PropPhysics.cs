@@ -404,21 +404,44 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
         Health = health;
     }
 
+    // A piece that goes away fades out over this long once its fade time is up
+    private const float FadeOutDuration = 1f;
+
     private void RemoveAfter(float seconds)
     {
-        removeTime = EntitySystem.CurrentTime + seconds;
-        SetNextThink(removeTime);
+        fadeStartTime = EntitySystem.CurrentTime + seconds;
+        SetNextThink(fadeStartTime);
     }
 
-    private float removeTime = -1f;
+    private float fadeStartTime = -1f;
+    private float? fadeFromAlpha;
 
     /// <inheritdoc/>
     public override void Think()
     {
-        if (removeTime >= 0f && EntitySystem.CurrentTime >= removeTime && !IsCarried)
+        if (fadeStartTime < 0f)
+        {
+            return;
+        }
+
+        if (ModelNode is not { } node)
         {
             EntitySystem.Remove(this);
+            return;
         }
+
+        fadeFromAlpha ??= node.Alpha;
+
+        var fade = (EntitySystem.CurrentTime - fadeStartTime) / FadeOutDuration;
+
+        if (fade >= 1f)
+        {
+            EntitySystem.Remove(this);
+            return;
+        }
+
+        node.Alpha = fadeFromAlpha.Value * (1f - fade);
+        SetNextThink(EntitySystem.CurrentTime + EntitySystem.TickInterval);
     }
 
     [EntityInput("Break")]
