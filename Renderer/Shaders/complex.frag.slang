@@ -227,12 +227,10 @@ uniform sampler2D g_tTintMask;
     uniform vec2 g_vSelfIllumScrollSpeed = vec2(0.0);
     uniform vec3 g_vSelfIllumTint = vec3(1.0); // SrgbRead(true)
 
-    vec3 GetStandardSelfIllumination(float flSelfIllumMask, vec3 vAlbedo)
+    vec3 GetStandardSelfIllumination(vec3 vSelfIllumMask, vec3 vAlbedo)
     {
         vec3 selfIllumScale = (exp2(g_flSelfIllumBrightness) * g_flSelfIllumScale) * g_vSelfIllumTint.rgb;
-        // generic has no albedo factor parameter
-        float flAlbedoFactor = (GameVfx_generic != 0) ? 0.0 : g_flSelfIllumAlbedoFactor;
-        return selfIllumScale * flSelfIllumMask * mix(vec3(1.0), vAlbedo, flAlbedoFactor);
+        return selfIllumScale * vSelfIllumMask * mix(vec3(1.0), vAlbedo, g_flSelfIllumAlbedoFactor);
     }
 #endif
 
@@ -462,7 +460,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     normalTexture = mix(normalTexture, normalTexture2, blendFactor);
 #endif
 
-    float flSelfIllumMask = 0.0;
+    vec3 vSelfIllumMask = vec3(0.0);
 
     // Vr_skin unique stuff
     #if (GameVfx_vr_skin != 0)
@@ -473,7 +471,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         mat.AmbientOcclusion = combinedMasks.y;
 
         #if (F_SELF_ILLUM == 1)
-            flSelfIllumMask = combinedMasks.z;
+            vSelfIllumMask = vec3(combinedMasks.z);
         #elif (F_TINT_MASK == 1)
             //float flTintMask = combinedMasks.z;
         #endif
@@ -549,10 +547,17 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
             #endif
 
             vSelfIllumMaskCoords += fract(g_vSelfIllumScrollSpeed.xy * g_flTime);
-            flSelfIllumMask = texture(g_tSelfIllumMask, vSelfIllumMaskCoords).r;
+            vSelfIllumMask = texture(g_tSelfIllumMask, vSelfIllumMaskCoords).rgb;
         #endif
 
-        mat.IllumColor = GetStandardSelfIllumination(flSelfIllumMask, mat.Albedo);
+        #if (GameVfx_generic != 0)
+            // Generic glows with its albedo instead of its lighting where the mask is
+            vSelfIllumMask = vec3(vSelfIllumMask.g);
+            mat.IllumColor = g_flSelfIllumScale * g_vSelfIllumTint.rgb * mat.Albedo * vSelfIllumMask;
+            mat.Albedo *= 1.0 - vSelfIllumMask;
+        #else
+            mat.IllumColor = GetStandardSelfIllumination(vSelfIllumMask, mat.Albedo);
+        #endif
     #endif
 
     #if (unlit)
