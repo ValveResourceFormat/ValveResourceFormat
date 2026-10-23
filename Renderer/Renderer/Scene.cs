@@ -209,6 +209,12 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the occlusion debug renderer, or <see langword="null"/> if not initialized.</summary>
         public OcclusionDebugRenderer? OcclusionDebug { get; set; }
 
+        /// <summary>
+        /// Gets or sets whether dynamic nodes pick their light probe volume again every update.
+        /// Turn it off for scenes whose shaders blend the volumes per fragment and ignore the node's own.
+        /// </summary>
+        public bool RebindDynamicLightProbes { get; set; } = true;
+
         internal bool DrawMeshletsIndirect { get; private set; }
         internal bool CompactMeshletDraws { get; private set; }
 
@@ -997,7 +1003,7 @@ namespace ValveResourceFormat.Renderer
 
             var transforms = CollectionsMarshal.AsSpan(transformDataCpu);
             var readsNodeBindings = LightingInfo.LightmapGameVersionNumber < 2;
-            var rebindProbes = readsNodeBindings && boundLightProbes is { Count: > 0 };
+            var rebindProbes = RebindDynamicLightProbes && readsNodeBindings && boundLightProbes is { Count: > 0 };
             var rebindEnvMaps = readsNodeBindings && LightingInfo.EnvMaps.Count > 0;
 
             foreach (var node in dynamicNodes)

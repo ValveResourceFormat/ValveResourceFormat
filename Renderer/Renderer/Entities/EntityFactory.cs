@@ -50,6 +50,8 @@ public static class EntityFactory
         Register<TriggerOnce>("trigger_once", static (system, spawnInfo) => new TriggerOnce(system, spawnInfo));
         Register<TriggerLook>("trigger_look", static (system, spawnInfo) => new TriggerLook(system, spawnInfo));
         Register<TriggerTeleport>("trigger_teleport", static (system, spawnInfo) => new TriggerTeleport(system, spawnInfo));
+        Register<TriggerCatapult>("trigger_catapult", static (system, spawnInfo) => new TriggerCatapult(system, spawnInfo));
+        Register<CitadelTriggerClimbRope>("citadel_trigger_climb_rope", static (system, spawnInfo) => new CitadelTriggerClimbRope(system, spawnInfo));
         Register<PointTeleport>("point_teleport", static (system, spawnInfo) => new PointTeleport(system, spawnInfo));
 
         // lights

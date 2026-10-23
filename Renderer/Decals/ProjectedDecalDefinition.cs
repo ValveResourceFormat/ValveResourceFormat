@@ -152,7 +152,7 @@ namespace ValveResourceFormat.Renderer.Decals
             using var resource = fileLoader.LoadFileCompiled(materialPath);
 
             if (resource?.DataBlock is not Material data
-                || data.ShaderName is not ("csgo_projected_decals.vfx" or "vr_projected_decals.vfx")
+                || data.ShaderName is not ("csgo_projected_decals.vfx" or "vr_projected_decals.vfx" or "projected_decals.vfx")
                 || !data.TextureParams.TryGetValue("g_tColor", out var colorTexture))
             {
                 return null;

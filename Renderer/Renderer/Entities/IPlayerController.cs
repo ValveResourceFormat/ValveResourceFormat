@@ -36,6 +36,12 @@ public interface IPlayerController
     /// </summary>
     Vector3 HullCenter { get; }
 
+    /// <summary>Gets the downward acceleration of gravity on the player, in units per second squared.</summary>
+    float Gravity { get; }
+
+    /// <summary>Throws the player: replaces its velocity and takes it off the ground.</summary>
+    void Launch(Vector3 velocity);
+
     /// <summary>Sweeps the collision hull between two centers against the world and all collidable entities.</summary>
     Rubikon.TraceResult TraceHull(Vector3 startCenter, Vector3 endCenter);
 

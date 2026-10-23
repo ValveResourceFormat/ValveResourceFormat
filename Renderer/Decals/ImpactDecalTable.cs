@@ -215,6 +215,18 @@ namespace ValveResourceFormat.Renderer.Decals
         public string? FindEffect(uint surfacePropertyHash)
             => FindImpact(surfacePropertyHash, static impact => impact.Effect != null).Effect;
 
+        // The surface itself, then the surfaces it inherits from in turn
+        public IEnumerable<string> GetSurfaceLineage(uint surfacePropertyHash)
+        {
+            var name = surfaceNamesByHash.GetValueOrDefault(surfacePropertyHash, "default");
+
+            for (var depth = 0; depth < 16 && name != null; depth++)
+            {
+                yield return name;
+                name = surfaceBases.GetValueOrDefault(name);
+            }
+        }
+
         // A surface without what is asked for inherits it through its base surface
         private SurfaceImpact FindImpact(uint surfacePropertyHash, Func<SurfaceImpact, bool> has)
         {

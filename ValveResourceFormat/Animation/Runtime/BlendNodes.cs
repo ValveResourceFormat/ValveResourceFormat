@@ -112,6 +112,16 @@ namespace ValveResourceFormat.Animation
         // Matches Esoterica: only the input parameter is required, sources may be individually invalid.
         public override bool IsValid => SourceNodes is { Length: > 1 } && InputParameterValueNode != null;
 
+        // Esoterica blends the reference pose in for a source without a clip, so a blend of only such sources
+        // would stamp the reference pose over a layer. Heroes ship upper body layers built of nothing else and
+        // are expected to keep the pose below them, so this reports no pose instead.
+        private GraphPoseNodeResult NoSourcePose(GraphContext ctx)
+        {
+            var result = base.Update(ctx);
+            result.NoPose = true;
+            return result;
+        }
+
         SyncTrack? blendedSyncTrack;
         readonly SyncTrack ownedSyncTrack = SyncTrack.CreateBlendScratch();
 
@@ -213,13 +223,19 @@ namespace ValveResourceFormat.Animation
             {
                 if (blendSource0 is not { IsValid: true })
                 {
-                    return base.Update(ctx);
+                    return NoSourcePose(ctx);
                 }
 
                 var single = blendSource0.Update(ctx, range);
                 PreviousTime = SyncTrack.GetPercentageThrough(range.StartTime);
                 CurrentTime = SyncTrack.GetPercentageThrough(range.EndTime);
                 return single;
+            }
+
+            // Neither source has a clip, as when the data leaves a slot for one to be filled at runtime
+            if (!blendSource0!.IsValid && !blendSource1.IsValid)
+            {
+                return NoSourcePose(ctx);
             }
 
             // 2-way blend into our own buffer: both sources advance through the same sync range

@@ -462,6 +462,9 @@ namespace ValveResourceFormat.Renderer.Decals
         /// <returns>The effect, or null when the game names none.</returns>
         public string? FindImpactEffect(uint surfacePropertyHash) => ImpactDecals.FindEffect(surfacePropertyHash);
 
+        // The hit surface property name, then the names of the surfaces it inherits from
+        internal IEnumerable<string> GetSurfaceLineage(uint surfacePropertyHash) => ImpactDecals.GetSurfaceLineage(surfacePropertyHash);
+
         /// <summary>
         /// Moves and retints a decal added without a parent, such as one following a particle.
         /// </summary>
@@ -591,7 +594,7 @@ namespace ValveResourceFormat.Renderer.Decals
             // Grazing marks streak toward the bottom of their texture, so their top faces back along the shot
             var up = isGrazing
                 ? -direction
-                : RotateAround(normal, GetOrthogonal(normal), Random.Shared.NextSingle() * MathF.Tau);
+                : RotateAround(normal, MathUtils.GetOrthogonal(normal), Random.Shared.NextSingle() * MathF.Tau);
 
             return SpawnFromGroup(groupName, position, normal, up, parent);
         }
@@ -635,7 +638,7 @@ namespace ValveResourceFormat.Renderer.Decals
         public ProjectedDecalHandle SpawnGroupDecal(string groupName, Vector3 position, Vector3 normal, BaseEntity? parent = null, float sizeOverride = 0f)
         {
             normal = Vector3.Normalize(normal);
-            var up = RotateAround(normal, GetOrthogonal(normal), Random.Shared.NextSingle() * MathF.Tau);
+            var up = RotateAround(normal, MathUtils.GetOrthogonal(normal), Random.Shared.NextSingle() * MathF.Tau);
 
             return SpawnFromGroup(groupName, position, normal, up, parent, sizeOverride);
         }
@@ -715,7 +718,7 @@ namespace ValveResourceFormat.Renderer.Decals
 
             axisY = axisY.LengthSquared() > 1e-8f
                 ? Vector3.Normalize(axisY)
-                : GetOrthogonal(axisZ);
+                : MathUtils.GetOrthogonal(axisZ);
 
             var axisX = Vector3.Cross(axisY, axisZ);
 
@@ -728,12 +731,6 @@ namespace ValveResourceFormat.Renderer.Decals
                 axisY.X, axisY.Y, axisY.Z, 0f,
                 axisZ.X, axisZ.Y, axisZ.Z, 0f,
                 center.X, center.Y, center.Z, 1f);
-        }
-
-        private static Vector3 GetOrthogonal(Vector3 direction)
-        {
-            var reference = MathF.Abs(direction.Z) < 0.9f ? Vector3.UnitZ : Vector3.UnitX;
-            return Vector3.Normalize(Vector3.Cross(direction, reference));
         }
 
         private static Vector3 RotateAround(Vector3 axis, Vector3 vector, float angle)

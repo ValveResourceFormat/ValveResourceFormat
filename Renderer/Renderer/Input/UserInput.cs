@@ -102,7 +102,36 @@ public class UserInput
     /// Gets whether to draw the walk mode crosshair. The viewmodel hides itself outside walk mode and while
     /// the camera is detached, so it decides. With no viewmodel there is nothing to aim at.
     /// </summary>
-    public bool ShowCrosshair => Viewmodel is { ShowCrosshair: true };
+    public bool ShowCrosshair => Viewmodel is { ShowCrosshair: true } || (WalkMode && PlayerModel != null);
+
+    // Aiming starts from the camera the view is drawn from, which in third person is the rig
+    internal Vector3 AimOrigin => ThirdPersonMode && WalkMode ? ThirdPersonLocation : Camera.Location;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether walk mode uses a Deadlock-style third-person
+    /// camera: an over-the-shoulder rig framing the character on the left of the screen.
+    /// </summary>
+    public bool ThirdPersonMode { get; set; }
+
+    // Deadlock camera rig: the look-at pivot sits 63 units up and to the right of the hero,
+    // and the camera hangs back from it, pulled in by a fat trace so it does not clip walls.
+    // Closer and further right than the citadel_camera_dist 150 and citadel_camera_offset 25
+    // defaults, so the hero fills more of the view and stands clear of the crosshair.
+    private const float ThirdPersonCameraDistance = 115f;
+    private const float ThirdPersonCameraHeight = 63f;      // citadel_camera_height
+    private const float ThirdPersonCameraSideOffset = 40f;
+    private const float ThirdPersonCameraTraceSize = 8f;    // citadel_camera_hard_trace_radius 16 diameter
+    private const float ThirdPersonCameraFov = 75f;         // citadel_camera_fov, the view the rig is laid out for
+
+    // How long the view takes to settle onto the rig when walking starts somewhere the hero does not fit
+    private const float ThirdPersonSettleTime = 0.5f;
+
+    // How far short of whatever stops it the hero is placed when walking starts
+    private const float ThirdPersonSeedClearance = 2f;
+
+    private float ThirdPersonSettle;
+    private Vector3 ThirdPersonSettleOffset;
+    private Vector3 ThirdPersonLocation;
 
     /// <summary>The buttons down as of this frame's sample, which movement folds into its own tick state.</summary>
     internal TrackedKeys Keys { get; private set; }
@@ -317,7 +346,12 @@ public class UserInput
             Camera.ClampRotation();
         }
 
+        ThirdPersonSettle = ThirdPersonMode && WalkMode
+            ? MathF.Min(1f, ThirdPersonSettle + (deltaTime / ThirdPersonSettleTime))
+            : 0f;
+
         Viewmodel?.ProcessInput(this, Renderer.Uptime);
+        PlayerModel?.ProcessInput(this, deltaTime);
 
         ApplyToRenderCamera(renderCamera);
 
@@ -343,6 +377,102 @@ public class UserInput
         renderCamera.ClampRotation();
 
         renderCamera.Roll = Camera.Roll;
+
+        if (ThirdPersonMode && !NoClip && !OrbitMode && !following)
+        {
+            PlaceThirdPersonCamera(renderCamera);
+        }
+    }
+
+    /// <summary>
+    /// Swings the render camera back onto the Deadlock third-person rig: pivot above and to
+    /// the right of the hero, camera behind it, clipped against the world so it never goes
+    /// through walls. The aim camera (and everything simulated from it) stays first-person.
+    /// </summary>
+    private void PlaceThirdPersonCamera(Camera renderCamera)
+    {
+        renderCamera.RecalculateDirectionVectors();
+
+        var feet = PlayerMovement.Position;
+        var anchor = feet + new Vector3(0, 0, ThirdPersonCameraHeight);
+        var (distance, sideOffset) = ThirdPersonRigOffsets(renderCamera);
+
+        var pivot = anchor + renderCamera.Right * sideOffset;
+        var desired = pivot - renderCamera.Forward * distance;
+
+        if (PhysicsWorld != null)
+        {
+            var halfExtents = new Vector3(ThirdPersonCameraTraceSize);
+
+            // Two legs so the side offset cannot start the trace inside a wall: out to the
+            // pivot first, then back from it
+            var sideTrace = PhysicsWorld.TraceAABB(anchor, pivot, halfExtents, Rubikon.CameraCollisionName);
+            if (sideTrace.Hit)
+            {
+                pivot = sideTrace.HitPosition;
+                desired = pivot - renderCamera.Forward * distance;
+            }
+
+            var backTrace = PhysicsWorld.TraceAABB(pivot, desired, halfExtents, Rubikon.CameraCollisionName);
+            if (backTrace.Hit)
+            {
+                desired = backTrace.HitPosition;
+            }
+        }
+
+        ThirdPersonLocation = desired + (ThirdPersonSettleOffset * (1f - MathUtils.Smoothstep(0f, 1f, ThirdPersonSettle)));
+        renderCamera.Location = ThirdPersonLocation;
+    }
+
+    // The rig is laid out for a narrower view than the viewer may be set to. Pulling it in by
+    // the ratio of the two keeps the hero as large on screen, and in the same place
+    private static (float Distance, float SideOffset) ThirdPersonRigOffsets(Camera camera)
+    {
+        var scale = MathF.Min(1f, MathF.Tan(float.DegreesToRadians(ThirdPersonCameraFov) * 0.5f)
+            / MathF.Tan(float.DegreesToRadians(camera.FieldOfView) * 0.5f));
+
+        return (ThirdPersonCameraDistance * scale, ThirdPersonCameraSideOffset * scale);
+    }
+
+    /// <summary>
+    /// Moves the camera, which the body is about to be seeded from, to where the eyes of a hero are whose
+    /// rig would put the view right where the camera is now. Walking then starts without the view moving,
+    /// and leaving again gives the camera back where it was. Where the world is in the way the hero stops
+    /// short, and the view eases onto the rig by what it fell short by.
+    /// </summary>
+    private void StepInFrontOfCamera()
+    {
+        Camera.RecalculateDirectionVectors();
+
+        var view = Camera.Location;
+        var (distance, sideOffset) = ThirdPersonRigOffsets(Camera);
+        var wanted = view + (Camera.Forward * distance) - (Camera.Right * sideOffset)
+            + new Vector3(0, 0, PlayerMovement.StandingEyeHeight - ThirdPersonCameraHeight);
+        var eyes = wanted;
+
+        if (PhysicsWorld != null)
+        {
+            // The hero's whole hull has to fit wherever it ends up, so its hull is what is swept out there
+            var hull = PlayerMovement.StandingHull;
+            var eyesToCenter = new Vector3(0f, 0f, hull.Z - PlayerMovement.StandingEyeHeight);
+            var trace = PhysicsWorld.TraceAABB(view + eyesToCenter, eyes + eyesToCenter, hull, Rubikon.Cs2PlayerCollisionFilter, detectStartSolid: true);
+
+            if (trace.StartSolid)
+            {
+                eyes = view;
+            }
+            else if (trace.Hit)
+            {
+                // A little short of the contact, which movement keeps a margin from
+                var direction = Vector3.Normalize(wanted - view);
+                eyes = trace.HitPosition - eyesToCenter - (direction * ThirdPersonSeedClearance);
+            }
+        }
+
+        // Only what the hero fell short by is left to settle, so the view follows the rig from the start
+        Camera.Location = eyes;
+        ThirdPersonSettleOffset = wanted - eyes;
+        ThirdPersonSettle = 0f;
     }
 
     /// <summary>
@@ -380,6 +510,8 @@ public class UserInput
 
     private ViewmodelSceneNode? Viewmodel { get; set; }
 
+    private DeadlockPlayerSceneNode? PlayerModel { get; set; }
+
     /// <summary>
     /// Switches between walking as the player and flying the camera. Entering seeds the player from the
     /// camera on the next tick; leaving lifts the camera a little and restores a flying speed.
@@ -399,6 +531,19 @@ public class UserInput
         {
             // The body is about to be seeded from the camera, so the view has to stop trailing it first
             SettleCamera();
+
+            if (ThirdPersonMode)
+            {
+                StepInFrontOfCamera();
+            }
+        }
+        else if (ThirdPersonSettle > 0f)
+        {
+            // The view was on the rig, not at the eyes, and flies on from where it was
+            SaveCameraForTransition();
+            StartingCamera = StartingCamera with { Location = ThirdPersonLocation };
+            Camera.Location = ThirdPersonLocation;
+            CurrentSpeedModifier = 7;
         }
         else
         {
@@ -424,8 +569,15 @@ public class UserInput
             return;
         }
 
+        var leavingRig = WalkMode && ThirdPersonSettle > 0f;
+
         WalkMode = false;
         TransitionCamera(transitionDuration);
+
+        if (leavingRig)
+        {
+            StartingCamera = StartingCamera with { Location = ThirdPersonLocation };
+        }
     }
 
     /// <summary>
@@ -759,5 +911,22 @@ public class UserInput
     {
         Viewmodel = ViewmodelSceneNode.TryLoadCs2Viewmodel(scene, entitySystem);
         return Viewmodel != null;
+    }
+
+    /// <summary>
+    /// Try and load a Deadlock hero to walk as: its movement stats, and its third-person model.
+    /// </summary>
+    /// <param name="scene">The scene the hero is shown in.</param>
+    /// <param name="heroName">The name of the hero in the game data, such as <c>hero_unicorn</c>.</param>
+    public bool TryLoadDeadlockPlayer(Scene scene, string heroName)
+    {
+        if (DeadlockHero.TryLoad(scene.RendererContext.FileLoader, heroName) is not { ModelName: { } modelName } hero)
+        {
+            return false;
+        }
+
+        PlayerMovement.Hero = hero;
+        PlayerModel = DeadlockPlayerSceneNode.TryLoad(scene, modelName);
+        return PlayerModel != null;
     }
 }

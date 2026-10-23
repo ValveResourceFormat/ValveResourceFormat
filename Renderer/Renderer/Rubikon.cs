@@ -1119,6 +1119,13 @@ public class Rubikon
 
     internal const string Cs2PlayerCollisionFilter = "player";
 
+    // What a third person camera is kept out of, which is not all that stops the player
+    internal const string CameraCollisionName = "camera";
+
+    // What stops a Deadlock bullet: solid geometry, including what the camera passes through,
+    // unless it excludes bullets
+    internal const string DeadlockBulletCollisionName = "Citadel_Bullet";
+
     /// <summary>Which shapes a query collides with, decided from each shape's interaction tags.</summary>
     private readonly struct CollisionFilter
     {
@@ -1177,9 +1184,17 @@ public class Rubikon
 
         return collisionName switch
         {
-            Cs2PlayerCollisionFilter => !ContainsString(interactAs, "playerclip")
+            Cs2PlayerCollisionFilter => !ContainsString(interactAs, "solid")
+                && !ContainsString(interactAs, "playerclip")
                 && !ContainsString(interactAs, "passbullets")
                 && !ContainsString(interactAs, "window"),
+
+            DeadlockBulletCollisionName => !ContainsString(interactAs, "solid")
+                && !ContainsString(interactAs, "CONTENTS_SOLID")
+                && !ContainsString(interactAs, "window"),
+
+            CameraCollisionName => ContainsString(interactAs, "Citadel_Camera_Can_Pass_Through")
+                || (!ContainsString(interactAs, "solid") && !ContainsString(interactAs, "Citadel_BlockCamera")),
 
             GrenadeCollisionName => !ContainsString(interactAs, "csgo_grenadeclip")
                 && !ContainsString(interactAs, "passbullets")

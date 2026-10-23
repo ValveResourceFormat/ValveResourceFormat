@@ -13,7 +13,7 @@ public partial class PlayerMovement : IPlayerController
     private static readonly Vector3 DuckedHullHalfExtents = new(16, 16, 24);
 
     // Movement constants from Source engine (movevars_shared.cpp)
-    private const float GravityValue = 800f;              // sv_gravity
+    internal const float GravityValue = 800f;             // sv_gravity
     private const float FrictionValue = 5.2f;             // sv_friction
     private const float StopSpeedValue = 80f;             // sv_stopspeed
     private const float AccelerateValue = 5.5f;           // sv_accelerate
@@ -30,6 +30,12 @@ public partial class PlayerMovement : IPlayerController
     private const float ViewHeightOffset = 8f;
     private static readonly float ViewHeightStanding = StandingHullHalfExtents.Z * 2f - ViewHeightOffset;
     private const float ViewHeightDucked = 46f;
+
+    // How far above the feet a standing player is seeded to look from
+    internal static float StandingEyeHeight => ViewHeightStanding;
+
+    // The hull a standing player is seeded with
+    internal static Vector3 StandingHull => StandingHullHalfExtents;
 
     private const float BunnyjumpMaxSpeedFactor = 1.1f;   // Only allow bunny jumping up to 1.1x max speed
 
@@ -179,7 +185,7 @@ public partial class PlayerMovement : IPlayerController
     private TrackedKeys HeldButtons;
     private TrackedKeys LastCollectedButtons;
 
-    private float DuckSpeedModifierActive => float.Lerp(1f, DuckSpeedModifier, CrouchBlend);
+    private float DuckSpeedModifierActive => float.Lerp(1f, DeadlockMode ? MathF.Min(1f, hero.CrouchSpeed / RunSpeed) : DuckSpeedModifier, CrouchBlend);
     private Vector3 SnappedHullHalfExtents => HoldingCtrl ? DuckedHullHalfExtents : StandingHullHalfExtents;
 
     /// <summary>
@@ -231,6 +237,21 @@ public partial class PlayerMovement : IPlayerController
     /// <summary>Gets or sets sv_airaccelerate, the air-control acceleration rate.</summary>
     public float AirAccelerate { get; set; } = AirAccelerateMovementMaps;
 
+    /// <summary>Gets or sets the gravity multiplier (Deadlock heroes can scale gravity; 1 for CS).</summary>
+    public float GravityScale { get; set; } = 1f;
+
+    /// <inheritdoc/>
+    public float Gravity => GravityValue * GravityScale;
+
+    /// <summary>
+    /// Gets or sets the air-control wishspeed cap. CS clamps it to 30 u/s (strafe-only air
+    /// control); Deadlock allows far more direct steering.
+    /// </summary>
+    public float AirWishSpeedCap { get; set; } = AirMaxWishSpeed;
+
+    /// <summary>Maximum step/obstacle height the ground move can climb.</summary>
+    private float StepHeight => DeadlockMode ? hero.StepHeight : StepSize;
+
     /// <summary>
     /// Gets or sets view_punch_decay, the exponential rate the landing punch recovers at.
     /// </summary>
@@ -268,8 +289,25 @@ public partial class PlayerMovement : IPlayerController
         SlopeClipNormalZ = 1f;
         HasPreviousYaw = false;
         Effects.Reset();
+        ResetDeadlockState();
 
         CacheSounds();
+    }
+
+    /// <inheritdoc/>
+    public void Launch(Vector3 velocity)
+    {
+        if (DeadlockMode && OnGround)
+        {
+            TracePosition = DeadlockLeaveGround(TracePosition, HullHalfExtents);
+            NoteMove(DeadlockMove.Launched, Horizontal(velocity));
+        }
+
+        DlLaunched = DeadlockMode;
+
+        Velocity = velocity;
+        OnGround = false;
+        SlopeClipNormalZ = 1f;
     }
 
     /// <summary>
@@ -357,6 +395,26 @@ public partial class PlayerMovement : IPlayerController
 
         SampleButtons();
 
+        // An active mantle owns the whole frame: the player is locked out and carried
+        if (DeadlockMode && DlMantleActive)
+        {
+            DeadlockMantleFrame(camera, MathF.Min(deltaTime, MaxFrameDeltaTime));
+            return;
+        }
+
+        // So does a rope or a zipline
+        if (DeadlockMode && IsOnRope)
+        {
+            DeadlockRopeFrame(camera, MathF.Min(deltaTime, MaxFrameDeltaTime));
+            return;
+        }
+
+        if (DeadlockMode && ZiplineState != DeadlockZiplineState.None)
+        {
+            DeadlockZiplineFrame(camera, MathF.Min(deltaTime, MaxFrameDeltaTime));
+            return;
+        }
+
         var position = TracePosition;
         var yaw = camera.Yaw;
 
@@ -370,7 +428,7 @@ public partial class PlayerMovement : IPlayerController
         Effects.DecayViewPunch(deltaTime, ViewPunchDecay);
 
         var isDucking = HoldingCtrl;
-        var isWalking = !HoldingCtrl && HoldingShift;
+        var isWalking = !DeadlockMode && !HoldingCtrl && HoldingShift; // Shift dashes in Deadlock
 
         BlendDuckedHull(deltaTime, ref position, isDucking);
 
@@ -385,7 +443,14 @@ public partial class PlayerMovement : IPlayerController
 
         DecayPushViewLag(deltaTime);
 
-        CategorizePosition(ref position, playerHull);
+        if (DeadlockMode)
+        {
+            DeadlockCategorizePosition(position, playerHull);
+        }
+        else
+        {
+            CategorizePosition(ref position, playerHull);
+        }
 
         var justLanded = !WasOnGroundLastFrame && OnGround;
 
@@ -402,6 +467,24 @@ public partial class PlayerMovement : IPlayerController
         if (!LadderMove(ref position, playerHull, camera))
         {
             OnLadder = false;
+        }
+
+        if (DeadlockMode && !OnLadder)
+        {
+            // Deadlock handles all jump inputs itself (ground, air, wall, mantle, dash jump)
+            wantsToJump = false;
+
+            var groundedBeforeMoves = OnGround;
+
+            if (DeadlockFrame(camera, deltaTime, position, playerHull))
+            {
+                return;
+            }
+
+            if (groundedBeforeMoves && !OnGround)
+            {
+                position = DeadlockLeaveGround(position, playerHull);
+            }
         }
 
         if (wantsToJump && OnGround && !OnLadder)
@@ -448,7 +531,7 @@ public partial class PlayerMovement : IPlayerController
             var strafeGain = Velocity - preAirVelocity;
             Velocity = preAirVelocity;
 
-            airVelocityDelta = strafeGain - new Vector3(0f, 0f, GravityValue * deltaTime);
+            airVelocityDelta = strafeGain - new Vector3(0f, 0f, Gravity * deltaTime);
 
             // The frame's displacement if nothing is in the way: (v + dv/2) * dt.
             //
@@ -476,8 +559,16 @@ public partial class PlayerMovement : IPlayerController
         else if (OnGround)
         {
             HasWalkMovedSinceLastJump = true;
-            position = GroundMove(position, wishdir, wishspeed, deltaTime, DuckSpeedModifierActive, isWalking, playerHull);
-            StayOnGround(ref position, playerHull);
+
+            if (DeadlockMode)
+            {
+                position = DeadlockGroundMove(position, wishdir, wishspeed, deltaTime, playerHull);
+            }
+            else
+            {
+                position = GroundMove(position, wishdir, wishspeed, deltaTime, DuckSpeedModifierActive, isWalking, playerHull);
+                StayOnGround(ref position, playerHull);
+            }
         }
         else
         {
@@ -485,9 +576,22 @@ public partial class PlayerMovement : IPlayerController
             RewindToGroundBandEntry(ref position, moveStart, airMoveDelta, playerHull);
         }
 
-        CategorizePosition(ref position, playerHull);
-
-        CheckStuck(ref position, playerHull);
+        if (!DeadlockMode)
+        {
+            CategorizePosition(ref position, playerHull);
+            CheckStuck(ref position, playerHull);
+        }
+        else if (!OnGround)
+        {
+            // The ground move already found its floor; a fall is caught once the feet come within reach
+            DeadlockCategorizePosition(position, playerHull);
+            CheckStuck(ref position, playerHull);
+        }
+        else
+        {
+            // Walking, the feet may sit in the floor the spring is still rising to; only the body has to be free
+            CheckStuck(ref position, DeadlockBodyHalfExtents(playerHull), DeadlockBodyCenter(Vector3.Zero));
+        }
 
         // The other landing path: airborne at the start of the frame, grounded by the move
         // above. justLanded already handled the start-of-frame categorize path.
@@ -545,6 +649,12 @@ public partial class PlayerMovement : IPlayerController
     /// <summary>Plays footstep sounds periodically based on ground speed.</summary>
     private void UpdateStepSounds(Vector3 position, Vector3 halfExtents, float deltaTime)
     {
+        // A Deadlock hero steps where its animation puts a foot down
+        if (DeadlockMode)
+        {
+            return;
+        }
+
         var speedSqr = Velocity.LengthSquared();
         var walkSpeed = RunSpeed * WalkSpeedModifier;
 
@@ -600,11 +710,11 @@ public partial class PlayerMovement : IPlayerController
         }
     }
 
-    private void PlaySound(string soundEventName, Vector3 position, Vector3 halfExtents, float? volume = null)
+    private void PlaySound(string soundEventName, Vector3 position, Vector3 halfExtents, float? volume = null, float volumeScale = 1f)
     {
         // Convert from hull center to feet position; the sound event applies its own position offset
         var feetPosition = position - new Vector3(0, 0, halfExtents.Z);
-        var handle = Sound.Play(soundEventName, feetPosition, volume: volume);
+        var handle = Sound.Play(soundEventName, feetPosition, volume: volume, volumeScale: volumeScale);
 
         if (handle.IsValid)
         {
@@ -636,9 +746,10 @@ public partial class PlayerMovement : IPlayerController
     /// <summary>
     /// Remembers the last clear position and restores it when a tick ends embedded.
     /// </summary>
-    private void CheckStuck(ref Vector3 position, Vector3 halfExtents)
+    // The box that has to be clear may sit off the hull centre, but the position kept is always the centre
+    private void CheckStuck(ref Vector3 position, Vector3 halfExtents, Vector3 probeOffset = default)
     {
-        if (!IsStuck(position, halfExtents))
+        if (!IsStuck(position + probeOffset, halfExtents))
         {
             LastValidPosition = position;
             HasValidPosition = true;
@@ -660,7 +771,7 @@ public partial class PlayerMovement : IPlayerController
             {
                 var nudged = position + direction * distance;
 
-                if (!IsStuck(nudged, halfExtents))
+                if (!IsStuck(nudged + probeOffset, halfExtents))
                 {
                     position = nudged;
                     LastValidPosition = nudged;
@@ -729,6 +840,15 @@ public partial class PlayerMovement : IPlayerController
     private bool UncrouchBlocked(Vector3 position, bool feetAnchored)
     {
         var growth = new Vector3(0, 0, feetAnchored ? CrouchHeightDifference : -CrouchHeightDifference);
+
+        // A grounded Deadlock hero's feet may sit in the floor the spring is rising to, so only the
+        // headroom above its body is tested
+        if (DeadlockMode && OnGround && feetAnchored)
+        {
+            var body = DeadlockBodyCenter(position);
+            return TraceBBox(body, body + growth, DeadlockBodyHalfExtents(DuckedHullHalfExtents)).Hit;
+        }
+
         return TraceBBox(position, position + growth, DuckedHullHalfExtents).Hit;
     }
 
@@ -737,7 +857,7 @@ public partial class PlayerMovement : IPlayerController
     /// </summary>
     private void StayOnGround(ref Vector3 position, Vector3 halfExtents)
     {
-        var trace = TraceBBox(position, position + new Vector3(0, 0, -StepSize), halfExtents);
+        var trace = TraceBBox(position, position + new Vector3(0, 0, -StepHeight), halfExtents);
 
         if (IsWalkableGroundHit(trace))
         {
@@ -1112,7 +1232,7 @@ public partial class PlayerMovement : IPlayerController
             // recent one.
             if (timeLeft > 0f && planeCount > 0)
             {
-                velocityDelta = ClipAcceleration(new Vector3(0f, 0f, -GravityValue * timeLeft), planes[..planeCount]);
+                velocityDelta = ClipAcceleration(new Vector3(0f, 0f, -Gravity * timeLeft), planes[..planeCount]);
 
                 if (wishspeed > 0f)
                 {
@@ -1557,7 +1677,7 @@ public partial class PlayerMovement : IPlayerController
         var directLateral = LateralProgress(start, directPosition, delta);
 
         // Stepped branch: step up as far as headroom allows, sweep, then settle back down
-        var stepUpEnd = start + new Vector3(0, 0, StepSize);
+        var stepUpEnd = start + new Vector3(0, 0, StepHeight);
         var upTrace = TraceBBox(start, stepUpEnd, halfExtents);
         var steppedStart = upTrace.Hit ? upTrace.HitPosition : stepUpEnd;
 
@@ -1578,7 +1698,7 @@ public partial class PlayerMovement : IPlayerController
 
         var steppedSlide = steppedSweep.Hit ? steppedSweep.HitPosition : steppedStart + delta;
 
-        var downEnd = steppedSlide + new Vector3(0, 0, -(StepSize + GroundProbeDistance));
+        var downEnd = steppedSlide + new Vector3(0, 0, -(StepHeight + GroundProbeDistance));
         var downTrace = TraceBBox(steppedSlide, downEnd, halfExtents);
 
         // Reject unwalkable or embedded landings; the down tolerance keeps a low ceiling
@@ -2231,7 +2351,7 @@ public partial class PlayerMovement : IPlayerController
     /// </summary>
     private Vector3 AirAccelerateClipped(Vector3 velocity, Vector3 wishdir, float wishspeed, float segTime, ReadOnlySpan<Vector3> planes)
     {
-        var cap = MathF.Min(wishspeed, AirMaxWishSpeed);
+        var cap = MathF.Min(wishspeed, AirWishSpeedCap);
 
         // Note: the accel rate uses the original wishspeed, NOT the capped value
         var accelRate = AirAccelerate * wishspeed * SurfaceFriction;
@@ -2275,7 +2395,7 @@ public partial class PlayerMovement : IPlayerController
             return;
         }
 
-        var cap = Math.Min(wishspeed, AirMaxWishSpeed);
+        var cap = Math.Min(wishspeed, AirWishSpeedCap);
 
         // Note: the accel rate uses original wishspeed, NOT the capped value
         var accelRate = AirAccelerate * wishspeed * SurfaceFriction;

@@ -95,6 +95,26 @@ namespace ValveResourceFormat.Utils
         public static Vector3 Lerp(Vector3 from, Vector3 to, Vector3 amount) => ((to - from) * amount) + from;
 
         /// <summary>
+        /// Steps a critically damped spring pulling <paramref name="offset"/> to zero: it closes as
+        /// fast as it can without overshooting, whatever the size of the step.
+        /// </summary>
+        /// <param name="offset">How far the value is from its target.</param>
+        /// <param name="velocity">The rate the offset changes at, carried from step to step.</param>
+        /// <param name="strength">How stiff the spring is; the offset decays at about this rate per second.</param>
+        /// <param name="deltaTime">Length of the step, in seconds.</param>
+        /// <returns>The offset after the step.</returns>
+        public static float CriticallyDampedSpring(float offset, ref float velocity, float strength, float deltaTime)
+        {
+            var decay = MathF.Exp(-strength * deltaTime);
+            var pull = velocity + (strength * offset);
+            var next = (offset + (pull * deltaTime)) * decay;
+
+            velocity = (pull * decay) - (strength * next);
+
+            return next;
+        }
+
+        /// <summary>
         /// Scales <paramref name="value"/> to unit length, returning <see cref="Vector3.Zero"/> for a
         /// vector with no length rather than the NaN a plain divide would give.
         /// </summary>
@@ -467,6 +487,13 @@ namespace ValveResourceFormat.Utils
             }
 
             return result;
+        }
+
+        /// <summary>Gets a unit vector perpendicular to <paramref name="direction"/>.</summary>
+        public static Vector3 GetOrthogonal(Vector3 direction)
+        {
+            var reference = MathF.Abs(direction.Z) < 0.9f ? Vector3.UnitZ : Vector3.UnitX;
+            return Vector3.Normalize(Vector3.Cross(direction, reference));
         }
     }
 }

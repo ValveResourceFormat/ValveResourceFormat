@@ -108,6 +108,7 @@ namespace GUI.Types.GLViewers
 
         private readonly ValveResourceFormat.Renderer.TextRenderer.TextBuffer fpsText = new("FPS: 10000  CPU: 10000.0ms  GPU: 10000.0ms");
         private readonly ValveResourceFormat.Renderer.TextRenderer.TextBuffer speedText = new("Speed: 100000.0 u/s");
+        private readonly ValveResourceFormat.Renderer.TextRenderer.TextBuffer staminaText = new("Stamina: 0.0 / 0");
         private int frametimeQuery1;
         private int frametimeQuery2;
 
@@ -1000,6 +1001,19 @@ namespace GUI.Types.GLViewers
                     Text = speedText.Format($"Speed: {Input.Velocity.AsVector2().Length():0.0} u/s"),
                     CenterHorizontal = true,
                 }, Renderer.Camera);
+
+                if (Input.PlayerMovement.DeadlockMode && !Input.NoClip)
+                {
+                    TextRenderer.AddTextRelative(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
+                    {
+                        X = 0.5f,
+                        Y = 0.88f,
+                        Scale = 12f,
+                        Color = new Color32(120, 220, 255, 255),
+                        Text = staminaText.Format($"Stamina: {Input.PlayerMovement.DeadlockStamina:0.0} / {Input.PlayerMovement.DeadlockStaminaMax:0}"),
+                        CenterHorizontal = true,
+                    }, Renderer.Camera);
+                }
             }
 
             if (showVisDebug && Scene.VoxelVisibility != null)

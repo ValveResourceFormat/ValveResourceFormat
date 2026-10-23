@@ -30,6 +30,9 @@ namespace GUI.Types.GLViewers
     /// </summary>
     class GLWorldViewer : GLSceneViewer
     {
+        /// <summary>Hero shown in Deadlock walk mode (Paradox).</summary>
+        private const string DeadlockHero = "hero_chrono";
+
         private readonly World? world;
         private readonly WorldNode? worldNode;
         private readonly ResourceExtRefList? mapExternalReferences;
@@ -148,8 +151,10 @@ namespace GUI.Types.GLViewers
         {
             if (!isSetRequest)
             {
-                var loc = Renderer.Camera.Location;
-                var cameraAngles = Renderer.Camera.GetQAngle();
+                // Walking, it is where the player is that matters: the view may be a third person camera behind them
+                var camera = Input.NoClip ? Renderer.Camera : Input.Camera;
+                var loc = camera.Location;
+                var cameraAngles = camera.GetQAngle();
 
                 AppClipboard.SetText(string.Create(CultureInfo.InvariantCulture, $"setpos {loc.X:F6} {loc.Y:F6} {loc.Z:F6}; setang {cameraAngles.X:F6} {cameraAngles.Y:F6} {cameraAngles.Z:F6}"));
 
@@ -288,18 +293,39 @@ namespace GUI.Types.GLViewers
 
                 ReportLoadingStatus("Loading player model…");
 
-                Input.TryLoadViewmodel(Scene, Renderer.EntitySystem);
+                var mapName = Path.GetFileName(LoadedWorld.MapName);
+                var isDeadlockMap = mapName.StartsWith("dl_", StringComparison.OrdinalIgnoreCase);
+
+                if (isDeadlockMap)
+                {
+                    // Deadlock maps get Deadlock movement: third-person hero, stamina
+                    // dashes/slides/mantles, and the third-person camera rig
+                    Input.PlayerMovement.DeadlockMode = true;
+                    Input.ThirdPersonMode = true;
+                    Input.TryLoadDeadlockPlayer(Scene, DeadlockHero);
+                    ShowSpeed = true;
+
+                    // Deadlock shaders blend probe volumes per fragment
+                    Scene.RebindDynamicLightProbes = false;
+                }
+                else
+                {
+                    Input.TryLoadViewmodel(Scene, Renderer.EntitySystem);
+                }
 
                 var kzMapPrefixes = new[] { "bhop", "surf", "kz", "dr" };
-                var mapName = Path.GetFileName(LoadedWorld.MapName);
-                var isKzMap = kzMapPrefixes.Any(prefix => mapName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+                var isKzMap = !isDeadlockMap
+                    && kzMapPrefixes.Any(prefix => mapName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
 
-                ShowSpeed = isKzMap;
-                Input.PlayerMovement.PrestrafeEnabled = isKzMap;
-                Input.PlayerMovement.AutoBunnyHop = isKzMap;
-                Input.PlayerMovement.AirAccelerate = isKzMap
-                    ? PlayerMovement.AirAccelerateMovementMaps
-                    : PlayerMovement.AirAccelerateCompetitive;
+                if (!isDeadlockMap)
+                {
+                    ShowSpeed = isKzMap;
+                    Input.PlayerMovement.PrestrafeEnabled = isKzMap;
+                    Input.PlayerMovement.AutoBunnyHop = isKzMap;
+                    Input.PlayerMovement.AirAccelerate = isKzMap
+                        ? PlayerMovement.AirAccelerateMovementMaps
+                        : PlayerMovement.AirAccelerateCompetitive;
+                }
 
                 Input.EntitySystem = Renderer.EntitySystem;
                 Renderer.EntitySystem.SpawnPlayer(Input.PlayerMovement, Scene);
