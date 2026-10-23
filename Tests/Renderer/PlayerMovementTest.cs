@@ -682,5 +682,66 @@ namespace Tests.Renderer
             await Assert.That(Spread(horizontal)).IsLessThan(6e-3).Because("overhang bounce invariance regressed");
             await Assert.That(Spread(apex)).IsLessThan(1.5e-2).Because("overhang apex invariance regressed");
         }
+
+        [Test]
+        public async Task GroundDuckLowersEyesBeforeHull()
+        {
+            const float Fps = 128f;
+            var (input, renderCamera) = await CreateHeadlessFpsInput(100f);
+            await SettleOntoGround(input, renderCamera, Fps);
+
+            var movement = input.PlayerMovement;
+            var feet = movement.Position.Z;
+
+            for (var i = 0; i < 10; i++)
+            {
+                input.Tick(1f / Fps, TrackedKeys.Control, Vector2.Zero, renderCamera);
+            }
+
+            await Assert.That(movement.CrouchBlend).IsGreaterThan(0f).And.IsLessThan(1f);
+            await Assert.That(movement.HullHalfExtents.Z).IsEqualTo(36f).Because("hull switched before the duck finished");
+            await Assert.That(movement.Position.Z).IsEqualTo(feet).Within(1e-3f);
+            await Assert.That(movement.BlendedEyeHeight).IsLessThan(64f).And.IsGreaterThan(46f);
+
+            for (var i = 0; i < 30; i++)
+            {
+                input.Tick(1f / Fps, TrackedKeys.Control, Vector2.Zero, renderCamera);
+            }
+
+            await Assert.That(movement.CrouchBlend).IsEqualTo(1f);
+            await Assert.That(movement.HullHalfExtents.Z).IsEqualTo(27f);
+            await Assert.That(movement.Position.Z).IsEqualTo(feet).Within(1e-3f);
+            await Assert.That(movement.BlendedEyeHeight).IsEqualTo(46f).Within(1e-3f);
+        }
+
+        [Test]
+        public async Task AirDuckTucksLegs()
+        {
+            const float Fps = 128f;
+            var feet = new float[2];
+            var eye = new float[2];
+
+            for (var run = 0; run < 2; run++)
+            {
+                var (input, renderCamera) = await CreateHeadlessFpsInput(1000f);
+                var keys = run == 1 ? TrackedKeys.Control : TrackedKeys.None;
+
+                for (var i = 0; i < 64; i++)
+                {
+                    input.Tick(1f / Fps, keys, Vector2.Zero, renderCamera);
+                }
+
+                var movement = input.PlayerMovement;
+                await Assert.That(movement.OnGround).IsFalse();
+                await Assert.That(movement.HullHalfExtents.Z).IsEqualTo(run == 1 ? 27f : 36f);
+
+                feet[run] = movement.Position.Z;
+                eye[run] = movement.EyePosition.Z;
+            }
+
+            // Ducking in the air raises the feet by half the height difference and lowers the eyes by the rest
+            await Assert.That(feet[1] - feet[0]).IsEqualTo(9f).Within(1e-2f);
+            await Assert.That(eye[1] - eye[0]).IsEqualTo(-9f).Within(1e-2f);
+        }
     }
 }

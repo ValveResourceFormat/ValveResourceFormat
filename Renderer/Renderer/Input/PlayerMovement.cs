@@ -8,9 +8,9 @@ namespace ValveResourceFormat.Renderer.Input;
 /// </summary>
 public partial class PlayerMovement : IPlayerController
 {
-    // Half-extents around the hull center. Standing 32x32x72, ducked 32x32x48.
+    // Half-extents around the hull center. Standing 32x32x72, ducked 32x32x54.
     private static readonly Vector3 StandingHullHalfExtents = new(16, 16, 36);
-    private static readonly Vector3 DuckedHullHalfExtents = new(16, 16, 24);
+    private static readonly Vector3 DuckedHullHalfExtents = new(16, 16, 27);
 
     // Movement constants from Source engine (movevars_shared.cpp)
     private const float GravityValue = 800f;              // sv_gravity
@@ -29,7 +29,6 @@ public partial class PlayerMovement : IPlayerController
 
     private const float ViewHeightOffset = 8f;
     private static readonly float ViewHeightStanding = StandingHullHalfExtents.Z * 2f - ViewHeightOffset;
-    private const float ViewHeightDucked = 46f;
 
     private const float BunnyjumpMaxSpeedFactor = 1.1f;   // Only allow bunny jumping up to 1.1x max speed
 
@@ -38,11 +37,16 @@ public partial class PlayerMovement : IPlayerController
     private const float ContactNudge = SurfaceEpsilon / 4f; // Clearance kept short of a degenerate opposing surface in the margin-restore push
     private const float UntraceableDistanceSquared = Rubikon.Epsilon * Rubikon.Epsilon;
     private const float StepSize = 18f;                   // Maximum height of steps/obstacles player can climb
-    private const float AirStepSize = StepSize / 3f;      // Lower bar for stepping up while airborne
     private const float GroundProbeDistance = 2f;         // How far below the hull to look for ground contact
     private const float StepDownTolerance = 2f;           // A step may end at most this far below where it started
 
-    private const float CrouchBlendTime = 0.2f;           // Time to complete crouch/uncrouch animation (seconds)
+    private const float DuckSpeedIdeal = 8f;              // CS_PLAYER_DUCK_SPEED_IDEAL, duck amount per second
+    private const float DuckSpeedMin = 1.5f;              // Below this a new duck cannot start, and unducking never runs slower
+    private const float DuckSpamPenalty = 2f;             // Duck speed lost each time the duck key changes state
+    private const float TimeBetweenDucks = 0.4f;          // sv_timebetweenducks
+    private const float DuckUnflagAmount = 0.75f;         // Unducking drops the ducked flag once the amount falls to this
+    private const float DuckSpeedRecoveryDistance = 64f;  // Moving this far from the last full duck speed spot recovers it faster
+    private const int CrouchStuckMaxRise = 36;            // How far a freshly ducked hull may be lifted out of the floor
     private static readonly float CrouchHeightDifference = (StandingHullHalfExtents.Z - DuckedHullHalfExtents.Z) * 2f;
 
     /// <summary>Gets the current player velocity in world units per second.</summary>
@@ -158,9 +162,32 @@ public partial class PlayerMovement : IPlayerController
     public List<Vector4> DebugCollisionPlanes { get; } = [];
 
     /// <summary>
-    /// Linear value from 0 to 1 representing how much the player is crouched.  0 = standing, 1 = fully crouched.
+    /// Gets the duck amount from 0 (standing) to 1 (fully crouched). It animates the view and pose; the
+    /// collision hull only switches to ducked once it reaches 1, or straight away in the air.
     /// </summary>
     public float CrouchBlend { get; private set; }
+
+    // Ducked selects the hull; DuckingFlag is FL_DUCKING, which unducking drops early
+    private bool Ducked;
+    private bool Ducking;
+    private bool DuckingFlag;
+    private bool DesiresDuck;
+    private float DuckSpeed = DuckSpeedIdeal;
+    private float TimeSinceDuck = TimeBetweenDucks;
+    private Vector2 LastPositionAtFullDuckSpeed;
+
+    // Eye height relative to standing, eased toward the duck amount and away from DuckRootOffset
+    private float DuckViewOffset;
+
+    // Both offsets ease at the hull height difference per 0.2 seconds
+    private static readonly float DuckOffsetSpeed = CrouchHeightDifference / 0.2f;
+
+    /// <summary>
+    /// Gets how far the rendered body sits from <see cref="Position"/>. An airborne hull switch moves
+    /// the feet by half the hull height difference; this takes it back out and eases it away, so the
+    /// body does not jump.
+    /// </summary>
+    public float DuckRootOffset { get; private set; }
 
     /// <summary>
     /// Gets the current eye height blended between standing and crouched positions.
@@ -180,16 +207,10 @@ public partial class PlayerMovement : IPlayerController
     private TrackedKeys LastCollectedButtons;
 
     private float DuckSpeedModifierActive => float.Lerp(1f, DuckSpeedModifier, CrouchBlend);
-    private Vector3 SnappedHullHalfExtents => HoldingCtrl ? DuckedHullHalfExtents : StandingHullHalfExtents;
-
     /// <summary>
-    /// Gets the current collision hull half-extents, with height blended between the standing
-    /// and ducked hulls by <see cref="CrouchBlend"/>.
+    /// Gets the current collision hull half-extents, either the standing or the ducked hull.
     /// </summary>
-    public Vector3 HullHalfExtents => new(
-        StandingHullHalfExtents.X,
-        StandingHullHalfExtents.Y,
-        float.Lerp(StandingHullHalfExtents.Z, DuckedHullHalfExtents.Z, CrouchBlend));
+    public Vector3 HullHalfExtents => Ducked ? DuckedHullHalfExtents : StandingHullHalfExtents;
 
     private float SurfaceFriction = 1.0f;
     private const float JumpFriction = 0.25f;
@@ -211,6 +232,10 @@ public partial class PlayerMovement : IPlayerController
 
     // A ladder just walked off the top of is grabbed again, but only after a ground move, not after a jump
     private bool HasWalkMovedSinceLastJump;
+
+    // Highest a step taken in the air may lift the feet to: the last ground plus a step, so a jump is
+    // never blocked by what a ground move would have walked over, and nothing taller can be climbed
+    private float AirStepCeiling = float.NegativeInfinity;
 
     /// <summary>Gets or sets a value indicating whether the controller should reinitialize its position from the camera on the next tick.</summary>
     public bool Initialize { get; set; }
@@ -267,7 +292,17 @@ public partial class PlayerMovement : IPlayerController
         pushViewLagTimeLeft = 0f;
         SlopeClipNormalZ = 1f;
         HasPreviousYaw = false;
+        AirStepCeiling = float.NegativeInfinity;
         Effects.Reset();
+
+        CrouchBlend = 0f;
+        Ducked = false;
+        Ducking = false;
+        DuckingFlag = false;
+        DuckSpeed = DuckSpeedIdeal;
+        TimeSinceDuck = TimeBetweenDucks;
+        DuckViewOffset = 0f;
+        DuckRootOffset = 0f;
 
         CacheSounds();
     }
@@ -291,6 +326,7 @@ public partial class PlayerMovement : IPlayerController
         HasValidPosition = false; // Do not restore positions from before the teleport
         pushViewLag = Vector3.Zero;
         pushViewLagTimeLeft = 0f;
+        AirStepCeiling = float.NegativeInfinity;
         Effects.ClearStepOffset();
 
         if (angles is { } viewAngles)
@@ -344,7 +380,7 @@ public partial class PlayerMovement : IPlayerController
         if (Initialize)
         {
             ResetPosition(camera);
-            TryUnstuck(ref TracePosition, SnappedHullHalfExtents);
+            TryUnstuck(ref TracePosition, HullHalfExtents);
             Velocity = Input.Velocity;
             Initialize = false;
 
@@ -369,10 +405,9 @@ public partial class PlayerMovement : IPlayerController
 
         Effects.DecayViewPunch(deltaTime, ViewPunchDecay);
 
-        var isDucking = HoldingCtrl;
-        var isWalking = !HoldingCtrl && HoldingShift;
+        Duck(deltaTime, ref position);
 
-        BlendDuckedHull(deltaTime, ref position, isDucking);
+        var isWalking = HoldingShift && !HoldingCtrl && !Ducking && !DuckingFlag;
 
         var playerHull = HullHalfExtents;
 
@@ -496,6 +531,11 @@ public partial class PlayerMovement : IPlayerController
             OnLanded(fallSpeed, wantsToJump, position, playerHull);
         }
 
+        if (OnGround || OnLadder)
+        {
+            AirStepCeiling = position.Z - playerHull.Z + StepSize;
+        }
+
         UpdateStepSounds(position, playerHull, deltaTime);
 
         TracePosition = position;
@@ -505,7 +545,9 @@ public partial class PlayerMovement : IPlayerController
 
         TracePositionSmooth = TracePosition - new Vector3(0, 0, Effects.StepOffset) + pushViewLag;
 
-        BlendedEyeHeight = ViewHeightStanding + (ViewHeightDucked - ViewHeightStanding) * CrouchBlend;
+        DuckRootOffset = MathUtils.Approach(DuckRootOffset, 0f, DuckOffsetSpeed * deltaTime);
+        DuckViewOffset = MathUtils.Approach(DuckViewOffset, -CrouchHeightDifference * CrouchBlend - DuckRootOffset, DuckOffsetSpeed * deltaTime);
+        BlendedEyeHeight = ViewHeightStanding + DuckViewOffset;
         EyePosition = Position + Vector3.UnitZ * BlendedEyeHeight;
         camera.Location = EyePosition;
         camera.Roll = float.DegreesToRadians(Effects.LandingRollDegrees);
@@ -594,7 +636,7 @@ public partial class PlayerMovement : IPlayerController
     {
         StepSoundTime = walking ? 0.4f : 0.3f;
 
-        if (HoldingCtrl)
+        if (DuckingFlag)
         {
             StepSoundTime += 0.1f;
         }
@@ -684,52 +726,197 @@ public partial class PlayerMovement : IPlayerController
         SlopeClipNormalZ = 1f; // zeroed Z has no slope provenance
     }
 
-    private void BlendDuckedHull(float deltaTime, ref Vector3 position, bool isDucking)
+    /// <summary>
+    /// Animates the duck amount toward the duck key and switches the hull at either end. On the
+    /// ground the feet stay put; in the air the hull shrinks and grows around its center.
+    /// </summary>
+    private void Duck(float deltaTime, ref Vector3 position)
     {
-        var crouchDelta = isDucking ? 1f : -1f;
-        crouchDelta = crouchDelta / CrouchBlendTime * deltaTime;
+        var duckHeld = HoldingCtrl;
 
-        var goalCrouch = MathUtils.Saturate(CrouchBlend + crouchDelta);
-        crouchDelta = goalCrouch - CrouchBlend;
-
-        // On ground the feet stay anchored as the hull resizes; in air the head does
-        var feetAnchored = OnGround;
-
-        if (crouchDelta != 0f)
+        if (DesiresDuck != duckHeld)
         {
-            // Uncrouching needs clearance in the direction the hull grows
-            if (crouchDelta < 0f)
-            {
-                if (UncrouchBlocked(position, feetAnchored))
-                {
-                    // Blocked head-anchored? Try anchoring the feet so the player can still stand up
-                    if (!feetAnchored && !UncrouchBlocked(position, feetAnchored: true))
-                    {
-                        feetAnchored = true;
-                    }
-                    else
-                    {
-                        crouchDelta = 0f;
-                    }
-                }
-            }
-
-            // Move the hull center so the anchored end stays in place
-            var bboxPositionDelta = CrouchHeightDifference * crouchDelta / 2f;
-            bboxPositionDelta *= feetAnchored ? -1f : 1f;
-            position += new Vector3(0, 0, bboxPositionDelta);
+            DesiresDuck = duckHeld;
+            DuckSpeed = MathF.Max(0f, DuckSpeed - DuckSpamPenalty);
         }
 
-        CrouchBlend = MathUtils.Saturate(CrouchBlend + crouchDelta);
+        TimeSinceDuck += deltaTime;
+
+        var canStartDuck = DuckSpeed >= DuckSpeedMin && (DuckingFlag || TimeSinceDuck >= TimeBetweenDucks);
+        var wantsDuck = duckHeld && canStartDuck;
+
+        DuckSpeed = MathUtils.Approach(DuckSpeed, DuckSpeedIdeal, deltaTime * 3f);
+
+        var horizontalPosition = new Vector2(position.X, position.Y);
+
+        if (DuckSpeed >= DuckSpeedIdeal)
+        {
+            LastPositionAtFullDuckSpeed = horizontalPosition;
+        }
+        else if (CrouchBlend is <= 0f or >= 1f
+            && Vector2.DistanceSquared(LastPositionAtFullDuckSpeed, horizontalPosition) > DuckSpeedRecoveryDistance * DuckSpeedRecoveryDistance)
+        {
+            DuckSpeed = MathUtils.Approach(DuckSpeed, DuckSpeedIdeal, deltaTime * 6f);
+        }
+
+        if (wantsDuck)
+        {
+            if (CrouchBlend < 1f)
+            {
+                Ducking = true;
+            }
+
+            if (Ducking)
+            {
+                // Ducking is a little slower than unducking
+                CrouchBlend = MathUtils.Approach(CrouchBlend, 1f, DuckSpeed * 0.8f * deltaTime);
+
+                if (CrouchBlend >= 1f || !OnGround)
+                {
+                    FinishDuck(ref position);
+                }
+            }
+        }
+        else
+        {
+            if (CrouchBlend > 0f)
+            {
+                Ducking = true;
+            }
+
+            if (Ducking)
+            {
+                if (CanUnduck(position))
+                {
+                    CrouchBlend = MathUtils.Approach(CrouchBlend, 0f, MathF.Max(DuckSpeedMin, DuckSpeed) * deltaTime);
+                    SetDuckedHull(false, ref position);
+
+                    if (CrouchBlend <= 0f || !OnGround)
+                    {
+                        FinishUnduck(ref position);
+                    }
+
+                    if (CrouchBlend <= DuckUnflagAmount)
+                    {
+                        DuckingFlag = false;
+                    }
+                }
+                else
+                {
+                    // Stay fully ducked under the obstruction and try again once clear of it
+                    CrouchBlend = 1f;
+                    SetDuckedHull(true, ref position);
+                    Ducking = false;
+                    DuckingFlag = true;
+                }
+            }
+        }
+    }
+
+    private void FinishDuck(ref Vector3 position)
+    {
+        SetDuckedHull(true, ref position);
+
+        // Airborne, the legs tuck up instead of the head coming down
+        if (!OnGround && !OnLadder)
+        {
+            ShiftFeet(CrouchHeightDifference / 2f, ref position);
+        }
+
+        Ducking = false;
+        DuckingFlag = true;
+        TimeSinceDuck = 0f;
+        CrouchBlend = 1f;
+
+        FixCrouchStuck(ref position);
+    }
+
+    private void FinishUnduck(ref Vector3 position)
+    {
+        SetDuckedHull(false, ref position);
+
+        if (!OnGround && !OnLadder)
+        {
+            ShiftFeet(-CrouchHeightDifference / 2f, ref position);
+        }
+
+        Ducking = false;
+        DuckingFlag = false;
+        CrouchBlend = 0f;
     }
 
     /// <summary>
-    /// Whether a full uncrouch is obstructed, tested by sweeping the ducked hull toward the growth direction.
+    /// Moves the hull for an airborne duck or unduck, leaving the body and the eyes where they were
+    /// to ease after it.
     /// </summary>
-    private bool UncrouchBlocked(Vector3 position, bool feetAnchored)
+    private void ShiftFeet(float shift, ref Vector3 position)
     {
-        var growth = new Vector3(0, 0, feetAnchored ? CrouchHeightDifference : -CrouchHeightDifference);
-        return TraceBBox(position, position + growth, DuckedHullHalfExtents).Hit;
+        position.Z += shift;
+        DuckRootOffset -= shift;
+        DuckViewOffset -= shift;
+    }
+
+    /// <summary>
+    /// Switches the collision hull, keeping the feet where they are.
+    /// </summary>
+    private void SetDuckedHull(bool ducked, ref Vector3 position)
+    {
+        if (Ducked == ducked)
+        {
+            return;
+        }
+
+        var feet = position.Z - HullHalfExtents.Z;
+        Ducked = ducked;
+        position.Z = feet + HullHalfExtents.Z;
+    }
+
+    /// <summary>
+    /// Whether the standing hull fits: at the feet on the ground, or swept down to where an
+    /// airborne unduck puts the feet.
+    /// </summary>
+    /// <remarks>
+    /// Tested with the hull grown slightly rather than shrunk as <see cref="IsStuck"/> does. A
+    /// shrunk probe lets the player stand up with a ceiling edge just inside the hull's side, and
+    /// every move after that starts solid.
+    /// </remarks>
+    private bool CanUnduck(Vector3 position)
+    {
+        var standingCenter = position + new Vector3(0, 0, StandingHullHalfExtents.Z - HullHalfExtents.Z);
+        var clearance = StandingHullHalfExtents + new Vector3(StuckProbeShrink);
+
+        if (OnGround || OnLadder)
+        {
+            return !TraceBBox(standingCenter, standingCenter + Vector3.UnitZ, clearance, detectStartSolid: true).StartSolid;
+        }
+
+        var drop = new Vector3(0, 0, CrouchHeightDifference / 2f);
+        var trace = TraceBBox(standingCenter, standingCenter - drop, clearance, detectStartSolid: true);
+        return !trace.Hit && !trace.StartSolid;
+    }
+
+    /// <summary>
+    /// Lifts a freshly ducked hull out of whatever it landed in, a unit at a time.
+    /// </summary>
+    private void FixCrouchStuck(ref Vector3 position)
+    {
+        var halfExtents = HullHalfExtents;
+
+        if (!IsStuck(position, halfExtents))
+        {
+            return;
+        }
+
+        for (var rise = 1; rise <= CrouchStuckMaxRise; rise++)
+        {
+            var test = position + new Vector3(0, 0, rise);
+
+            if (!IsStuck(test, halfExtents))
+            {
+                position = test;
+                return;
+            }
+        }
     }
 
     /// <summary>
@@ -1138,15 +1325,23 @@ public partial class PlayerMovement : IPlayerController
 
     /// <summary>
     /// Airborne counterpart of the stepped branch in <see cref="StepSweep"/>: lifts the move by up
-    /// to <see cref="AirStepSize"/>, and takes it only if the lifted sweep clears the whole of
+    /// to <see cref="AirStepCeiling"/>, and takes it only if the lifted sweep clears the whole of
     /// <paramref name="delta"/> and settling back down by the same lift lands on walkable ground
     /// or on nothing at all. The landing never sits below where the unobstructed move would have ended.
+    /// Only a rising player steps, so the apex and the fall never climb anything.
     /// </summary>
     private bool TryAirStep(Vector3 start, Vector3 delta, Vector3 halfExtents, out Vector3 landed)
     {
         landed = start;
 
-        var stepUpEnd = start + new Vector3(0, 0, AirStepSize);
+        var maxLift = AirStepCeiling - (start.Z - halfExtents.Z);
+
+        if (Velocity.Z <= 0f || maxLift <= SurfaceEpsilon)
+        {
+            return false;
+        }
+
+        var stepUpEnd = start + new Vector3(0, 0, maxLift);
         var upTrace = TraceBBox(start, stepUpEnd, halfExtents);
         var raised = upTrace.Hit ? upTrace.HitPosition : stepUpEnd;
         var lift = raised.Z - start.Z;
