@@ -984,7 +984,7 @@ namespace ValveResourceFormat.IO
                 {
                     FindGameFoldersForWorkshopFile(folders);
 
-                    if (assumedGameRoot.EndsWith(AddonsSuffix, StringComparison.InvariantCultureIgnoreCase))
+                    if (assumedGameRoot.EndsWith(AddonsSuffix, StringComparison.OrdinalIgnoreCase))
                     {
                         var mainGameDir = assumedGameRoot[..^AddonsSuffix.Length];
                         var mainGameInfo = Path.Join(mainGameDir, GameinfoGi);
@@ -1041,7 +1041,7 @@ namespace ValveResourceFormat.IO
                 Logger.LogDebug("Scanning \"{Directory}\"", directory);
 #endif
 
-                if (directory.EndsWith(AddonsSuffix, StringComparison.InvariantCultureIgnoreCase))
+                if (directory.EndsWith(AddonsSuffix, StringComparison.OrdinalIgnoreCase))
                 {
                     var mainGameDir = directory[..^AddonsSuffix.Length];
                     var mainGameInfo = Path.Join(mainGameDir, GameinfoGi);
@@ -1310,7 +1310,7 @@ namespace ValveResourceFormat.IO
             // If we're loading a file from steamapps/workshop folder, attempt to discover gameinfos and load vpks for the game
             const string STEAMAPPS_WORKSHOP_CONTENT = "steamapps/workshop/content";
             var filePath = CurrentFileName!.Replace('\\', '/');
-            var contentIndex = filePath.IndexOf(STEAMAPPS_WORKSHOP_CONTENT, StringComparison.InvariantCultureIgnoreCase);
+            var contentIndex = filePath.IndexOf(STEAMAPPS_WORKSHOP_CONTENT, StringComparison.OrdinalIgnoreCase);
 
             if (contentIndex == -1)
             {

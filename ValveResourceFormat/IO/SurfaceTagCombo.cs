@@ -26,5 +26,5 @@ public sealed record SurfaceTagCombo(string SurfacePropName, HashSet<string> Int
     /// <summary>
     /// Determines whether the specified <see cref="SurfaceTagCombo"/> is equal to the current instance.
     /// </summary>
-    public bool Equals(SurfaceTagCombo? other) => other is not null && GetHashCode() == other.GetHashCode();
+    public bool Equals(SurfaceTagCombo? other) => other is not null && string.Equals(StringMaterial, other.StringMaterial, StringComparison.OrdinalIgnoreCase);
 }

@@ -66,7 +66,7 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
             foreach (var vcsEntry in vcsEntries)
             {
                 // vcsEntry.FileName is in the form bloom_dota_pcgl_30_ps (without vcs extension)
-                if (vcsEntry.FileName.AsSpan().StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
+                if (vcsEntry.FileName.AsSpan().StartsWith(vcsCollectionName, StringComparison.Ordinal))
                 {
                     var relatedShaderFile = new VfxProgramData();
 
@@ -88,7 +88,7 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
             // search file-system
             foreach (var vcsFile in Directory.GetFiles(Path.GetDirectoryName(targetFilename)!))
             {
-                if (Path.GetFileName(vcsFile.AsSpan()).StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
+                if (Path.GetFileName(vcsFile.AsSpan()).StartsWith(vcsCollectionName, StringComparison.Ordinal))
                 {
                     VfxProgramData? program = null;
                     Stream? stream = null;

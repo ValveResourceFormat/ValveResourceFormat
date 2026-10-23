@@ -190,7 +190,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (flags.ValueType == KVValueType.String)
             {
-                return ((string)flags).Contains("MESH_DRAW_FLAGS_USE_COMPRESSED_NORMAL_TANGENT", StringComparison.InvariantCulture);
+                return ((string)flags).Contains("MESH_DRAW_FLAGS_USE_COMPRESSED_NORMAL_TANGENT", StringComparison.Ordinal);
             }
 
             return ((RenderMeshDrawPrimitiveFlags)(int)flags & RenderMeshDrawPrimitiveFlags.UseCompressedNormalTangent) != 0;

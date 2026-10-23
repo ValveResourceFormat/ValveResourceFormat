@@ -2733,7 +2733,7 @@ public sealed partial class MapExtract
                 var hammerUniqueIdString = compiledEntity.TryGetValue(key, out var hammerValue) ? ToEditString(hammerValue) : null;
                 if (!string.IsNullOrEmpty(hammerUniqueIdString))
                 {
-                    lineage = Array.ConvertAll(hammerUniqueIdString.Split(':'), int.Parse);
+                    lineage = Array.ConvertAll(hammerUniqueIdString.Split(':'), static part => int.Parse(part, CultureInfo.InvariantCulture));
                 }
             }
             catch (FormatException)

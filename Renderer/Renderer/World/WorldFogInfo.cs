@@ -1,3 +1,4 @@
+using System.Globalization;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 
 namespace ValveResourceFormat.Renderer.World
@@ -41,7 +42,7 @@ namespace ValveResourceFormat.Renderer.World
             var fogStrength = entity.GetFloatProperty("fogstrength");
             var boxMins = entity.GetStringProperty("box_mins");
             var boxMaxs = entity.GetStringProperty("box_maxs");
-            var indirectVoxelDim = float.Parse(entity.GetStringProperty("indirectvoxeldim"));
+            var indirectVoxelDim = float.Parse(entity.GetStringProperty("indirectvoxeldim"), CultureInfo.InvariantCulture);
             var indirectStrength = entity.GetFloatProperty("indirectstrength");
             var indirectEnabled = entity.GetBooleanProperty("indirectenabled");
 
@@ -66,7 +67,7 @@ namespace ValveResourceFormat.Renderer.World
             {
                 var fogVol = new FogVolume
                 {
-                    Shape = int.Parse(entity.GetStringProperty("shape")),
+                    Shape = int.Parse(entity.GetStringProperty("shape"), CultureInfo.InvariantCulture),
                     Strength = entity.GetFloatProperty("fogstrength"),
                     Exponent = entity.GetFloatProperty("falloffexponent"),
                     //Transform = SceneLightingInfo.BoxToTransform(entity)

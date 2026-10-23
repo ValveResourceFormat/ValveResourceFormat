@@ -411,7 +411,7 @@ namespace ValveResourceFormat.CompiledShader
         /// <returns>The parsed expression string.</returns>
         public static string ParseDynamicExpression(byte[] bytecode)
         {
-            return new VfxEval(bytecode, omitReturnStatement: true).DynamicExpressionResult.Replace("UNKNOWN", "VAR", StringComparison.InvariantCulture);
+            return new VfxEval(bytecode, omitReturnStatement: true).DynamicExpressionResult.Replace("UNKNOWN", "VAR", StringComparison.Ordinal);
         }
 
         // This must be in sync with VfxVariableType without gaps
