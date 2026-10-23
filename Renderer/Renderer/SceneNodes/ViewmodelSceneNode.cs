@@ -259,7 +259,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     private static Rubikon.TraceResult? TraceKnifeSwing(UserInput input, Vector3 from, Vector3 forward, float range)
     {
         var to = from + forward * range;
-        var trace = TraceWorldAndEntities(input, from, to);
+        var trace = TraceShot(input, from, to);
 
         if (trace.Hit)
         {
@@ -306,7 +306,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         // Swept hits carry no surface property, so find the struck surface with a ray toward the contact
         var direction = Vector3.Normalize(toContact);
-        var surface = TraceWorldAndEntities(input, from, contactPoint + direction * KnifeDecalTraceOvershoot);
+        var surface = TraceShot(input, from, contactPoint + direction * KnifeDecalTraceOvershoot);
 
         if (!surface.Hit)
         {
@@ -340,7 +340,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             0f);
 
         var end = camera.Location + direction * BulletRange;
-        var trace = TraceWorldAndEntities(input, camera.Location, end);
+        var trace = TraceShot(input, camera.Location, end);
 
         if (trace.Hit)
         {
@@ -394,6 +394,31 @@ public class ViewmodelSceneNode : ModelSceneNode
     {
         var trace = input.PhysicsWorld?.TraceRay(from, to, collisionName) ?? new Rubikon.TraceResult();
         input.EntitySystem?.TraceRay(from, to, collisionName, ref trace);
+
+        return trace;
+    }
+
+    // What a shot meets, physics props included: they and their pieces are only in the rigid body world
+    private static Rubikon.TraceResult TraceShot(UserInput input, Vector3 from, Vector3 to)
+    {
+        var trace = TraceWorldAndEntities(input, from, to);
+
+        if (input.EntitySystem?.PhysicsOrNull is { } physics)
+        {
+            // Not as the player, whom debris pieces are filtered against
+            var hit = physics.World.RaycastClosest(from, to - from,
+                new Box3D.QueryFilter(~PhysicsSimulation.PlayerCategory, PhysicsSimulation.PropCategory | PhysicsSimulation.DebrisCategory));
+
+            if (hit.Hit && hit.Shape.IsValid)
+            {
+                trace.MinimizeWith(new Rubikon.TraceResult(true, hit.Point, hit.Normal, Vector3.Distance(from, hit.Point), -1)
+                {
+                    ContactPoint = hit.Point,
+                    HitEntity = physics.GetOwner(hit.Shape.Body),
+                    SurfacePropertyHash = (uint)hit.UserMaterialId,
+                });
+            }
+        }
 
         return trace;
     }
