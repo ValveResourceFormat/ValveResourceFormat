@@ -71,7 +71,8 @@ public sealed record PropBreakData(float Health, float BulletScale, float ClubSc
 /// <param name="Health">Its own health, overriding its model's; zero keeps the model's.</param>
 /// <param name="SpawnChance">Chance from 0 to 1 that it spawns at all.</param>
 /// <param name="IsDebris">Whether it stays out of the player's way.</param>
-public sealed record BreakPiece(string Model, Vector3 Offset, Vector3 Angles, float FadeTime, float Health, float SpawnChance, bool IsDebris);
+/// <param name="CanPlayerPickup">Whether the player may pick it up.</param>
+public sealed record BreakPiece(string Model, Vector3 Offset, Vector3 Angles, float FadeTime, float Health, float SpawnChance, bool IsDebris, bool CanPlayerPickup);
 
 /// <summary>
 /// An effect a broken model bursts into, from a <c>break_create_particle</c> in its
@@ -224,7 +225,8 @@ public sealed class PropDataTable
                 entry.GetFloatProperty("fadetime"),
                 entry.GetFloatProperty("health_override"),
                 entry.ContainsKey("random_spawn_chance") ? entry.GetFloatProperty("random_spawn_chance") : 1f,
-                string.Equals(entry.GetStringProperty("collision_group_override"), "debris", StringComparison.OrdinalIgnoreCase)));
+                string.Equals(entry.GetStringProperty("collision_group_override"), "debris", StringComparison.OrdinalIgnoreCase),
+                !entry.ContainsKey("can_player_pickup_piece") || entry.GetBooleanProperty("can_player_pickup_piece")));
         }
 
         return pieces;
