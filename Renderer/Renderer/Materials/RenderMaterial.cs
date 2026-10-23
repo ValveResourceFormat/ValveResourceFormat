@@ -4,6 +4,7 @@ using System.IO;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.Renderer.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.VfxEval;
 
@@ -395,34 +396,63 @@ namespace ValveResourceFormat.Renderer.Materials
         /// The shader being drawn with, whose layout the buffer is filled for. Usually <see cref="Shader"/>,
         /// but a few renderers draw a material through a shader of their own.
         /// </param>
-        internal void BindGlobals(Shader shader)
+        /// <param name="attributes">Node render attributes to bake in, if any.</param>
+        internal void BindGlobals(Shader shader, RenderAttributes? attributes = null)
         {
             if (shader.GlobalsLayout.Size == 0)
             {
                 return;
             }
 
-            EnsureGlobals(shader).Bind();
+            var buffer = attributes?.Overrides(shader.GlobalsLayout) == true
+                ? EnsureGlobals(shader, attributes)
+                : EnsureGlobals(shader);
+
+            buffer.Bind();
         }
 
         private Globals EnsureGlobals(Shader shader)
         {
             var layout = shader.GlobalsLayout;
 
-            globals ??= new Globals(Material.Name.Length > 0 ? Material.Name : shader.Name);
+            globals ??= new Globals(GetGlobalsName(shader));
 
             if (filledLayout != layout || filledVersion != InputsVersion)
             {
                 filledLayout = layout;
                 filledVersion = InputsVersion;
 
-                FillGlobals(shader, layout, globals);
+                FillGlobals(shader, layout, globals, attributes: null);
             }
 
             return globals;
         }
 
-        private void FillGlobals(Shader shader, GlobalsLayout layout, Globals buffer)
+        private Globals EnsureGlobals(Shader shader, RenderAttributes attributes)
+        {
+            var layout = shader.GlobalsLayout;
+
+            if (!attributes.Baked.TryGetValue((this, layout), out var baked))
+            {
+                baked = new RenderAttributes.BakedGlobals(new Globals(GetGlobalsName(shader)));
+                attributes.Baked.Add((this, layout), baked);
+            }
+
+            if (baked.MaterialVersion != InputsVersion || baked.AttributesVersion != attributes.Version)
+            {
+                baked.MaterialVersion = InputsVersion;
+                baked.AttributesVersion = attributes.Version;
+
+                FillGlobals(shader, layout, baked.Buffer, attributes);
+            }
+
+            return baked.Buffer;
+        }
+
+        private string GetGlobalsName(Shader shader) => Material.Name.Length > 0 ? Material.Name : shader.Name;
+
+        /// <summary>Fills <paramref name="buffer"/> with material values, then render attributes last so they beat derived constants.</summary>
+        private void FillGlobals(Shader shader, GlobalsLayout layout, Globals buffer, RenderAttributes? attributes)
         {
             buffer.BeginFill(layout);
 
@@ -475,6 +505,33 @@ namespace ValveResourceFormat.Renderer.Materials
             else if (ShaderName.EndsWith("static_overlay.vfx", StringComparison.Ordinal) || ShaderName == "csgo_foliage.vfx")
             {
                 EvalStaticOverlayColorAdjust(shader, buffer);
+            }
+
+            if (attributes != null)
+            {
+                foreach (var (name, value) in attributes.Values)
+                {
+                    if (!members.TryGetValue(name, out var constant))
+                    {
+                        continue;
+                    }
+
+                    switch (value.Type)
+                    {
+                        case Variant.VariantType.Int:
+                            buffer.SetScalar(constant, value.Int);
+                            break;
+                        case Variant.VariantType.Float:
+                            buffer.SetScalar(constant, value.Vector.X);
+                            break;
+                        case Variant.VariantType.Vector:
+                            var vector = value.Vector;
+                            buffer.SetVector(constant, shader.SrgbUniforms.Contains(name)
+                                ? new Vector4(ColorSpace.SrgbGammaToLinear(vector.AsVector3()), vector.W)
+                                : vector);
+                            break;
+                    }
+                }
             }
 
             buffer.EndFill();
@@ -595,7 +652,8 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Binds textures, sets material uniforms, and applies blend/depth render state for this material.</summary>
         /// <param name="shader">The shader to use for this draw call, or <see langword="null"/> to use <see cref="Shader"/>.</param>
         /// <param name="depthPass">Whether the draw only lays down depth. A shared depth shader still gets the render state of this material.</param>
-        public void Render(Shader? shader = default, bool depthPass = false)
+        /// <param name="attributes">Node render attributes. Ignored by shaders without material data.</param>
+        public void Render(Shader? shader = default, bool depthPass = false, RenderAttributes? attributes = null)
         {
             textureUnit = TextureUnitStart;
 
@@ -622,7 +680,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 return;
             }
 
-            BindGlobals(shader);
+            BindGlobals(shader, attributes);
 
             boundSamplerUnits.Clear();
 

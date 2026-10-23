@@ -377,7 +377,7 @@ public sealed class SceneViewState
                 }
                 else if (Scene.Settings.EnableDepthPrepass)
                 {
-                    depthOnlyDraws[GetDepthOnlyBucket(request.Call)].Add(request);
+                    depthOnlyDraws[GetDepthOnlyBucket(request.Call, request.Node)].Add(request);
                 }
             }
         }
@@ -439,7 +439,7 @@ public sealed class SceneViewState
                 else
                 {
                     var depthDraws = isViewmodelLayer ? viewmodelDepthOnlyDraws : depthOnlyDraws;
-                    depthDraws[GetDepthOnlyBucket(request.Call)].Add(request);
+                    depthDraws[GetDepthOnlyBucket(request.Call, request.Node)].Add(request);
                 }
             }
         }
@@ -894,7 +894,7 @@ public sealed class SceneViewState
             // Drawn indirectly, after its fragments passed the material test
             case SceneAggregate { InstanceTransforms.Count: 0 } aggregate:
                 var call = aggregate.RenderMesh.DrawCallsOpaque[0];
-                draws[GetDepthOnlyBucket(call)].Add(new MeshBatchRenderer.Request
+                draws[GetDepthOnlyBucket(call, node)].Add(new MeshBatchRenderer.Request
                 {
                     Mesh = aggregate.RenderMesh,
                     Call = call,
@@ -928,7 +928,7 @@ public sealed class SceneViewState
             return;
         }
 
-        draws[GetDepthOnlyBucket(opaqueCall)].Add(new MeshBatchRenderer.Request
+        draws[GetDepthOnlyBucket(opaqueCall, node)].Add(new MeshBatchRenderer.Request
         {
             Mesh = mesh,
             Call = opaqueCall,
@@ -936,10 +936,13 @@ public sealed class SceneViewState
         });
     }
 
-    private static DepthOnlyBucket GetDepthOnlyBucket(DrawCall opaqueCall)
+    // The shared depth only shader has no material data, so no vertex animation or render attributes
+    private static DepthOnlyBucket GetDepthOnlyBucket(DrawCall opaqueCall, SceneNode node)
         => opaqueCall.Material switch
         {
             { VertexAnimation: true } => DepthOnlyBucket.MaterialDepthMode,
+            var material when node.RenderAttributesOrNull?.Overrides(material.Shader.GlobalsLayout) == true
+                => DepthOnlyBucket.MaterialDepthMode,
             { IsAlphaTest: true } material => material.Shader.DepthMode != null
                 ? DepthOnlyBucket.MaterialDepthMode
                 : DepthOnlyBucket.AlphaTest,
