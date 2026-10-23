@@ -157,6 +157,38 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
+        /// Gets the direction from the camera through a point of its viewport.
+        /// </summary>
+        /// <param name="screenPoint">The point, in pixels from the top left of the viewport.</param>
+        public Vector3 ScreenPointToDirection(Vector2 screenPoint)
+        {
+            var ndcX = (2f * screenPoint.X / WindowSize.X) - 1f;
+            var ndcY = 1f - (2f * screenPoint.Y / WindowSize.Y);
+
+            return Vector3.Normalize(Forward
+                + (Right * (ndcX / ProjectionMatrix.M11))
+                + (Up * (ndcY / ProjectionMatrix.M22)));
+        }
+
+        /// <summary>
+        /// Gets where a point of the world is in the viewport.
+        /// </summary>
+        /// <param name="position">The point.</param>
+        /// <returns>The point in pixels from the top left of the viewport, or <see langword="null"/> when it is behind the camera.</returns>
+        public Vector2? WorldToScreenPoint(Vector3 position)
+        {
+            var clip = Vector4.Transform(new Vector4(position, 1f), ViewProjectionMatrix);
+
+            if (clip.W <= 0f)
+            {
+                return null;
+            }
+
+            var ndc = new Vector2(clip.X, clip.Y) / clip.W;
+            return new Vector2((ndc.X + 1f) * 0.5f * WindowSize.X, (1f - ndc.Y) * 0.5f * WindowSize.Y);
+        }
+
+        /// <summary>
         /// Writes camera matrices and direction vectors into the provided view constants object.
         /// </summary>
         /// <param name="viewConstants">View constants object to populate.</param>
