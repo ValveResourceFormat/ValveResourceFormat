@@ -64,8 +64,12 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                 initialized = true;
             }
 
-            foreach (var child in simulation.Children)
+            var children = simulation.Children;
+
+            for (var i = 0; i < children.Count; i++)
             {
+                var child = children[i];
+
                 if (child.GroupId == childGroupId && child.IsFinished())
                 {
                     child.Hold(finishedWhileHeld: true);
@@ -79,12 +83,14 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
             candidates.Clear();
 
-            foreach (var child in simulation.Children)
+            for (var i = 0; i < children.Count; i++)
             {
                 if (limitChildCount && candidates.Count >= particleSystemState.ParticleCount)
                 {
                     break;
                 }
+
+                var child = children[i];
 
                 if (child.GroupId == childGroupId && child.RenderState.Age < 0f)
                 {

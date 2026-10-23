@@ -1214,9 +1214,9 @@ public class Rubikon
 
         while (triangles.MoveNext(out var v0, out var v1, out var v2))
         {
-            if (RayIntersectsTriangle(ray, v0, v1, v2, out var intersection) && intersection.Distance < closestHit.Distance)
+            if (RayIntersectsTriangle(ray, v0, v1, v2, out var distance) && distance < closestHit.Distance)
             {
-                closestHit = new(true, ray.Origin + ray.Direction * intersection.Distance, intersection.Normal, intersection.Distance, -1)
+                closestHit = new(true, ray.Origin + ray.Direction * distance, GetTriangleNormal(v0, v1, v2), distance, -1)
                 {
                     SurfacePropertyHash = hull.SurfacePropertyHash,
                 };
@@ -1344,14 +1344,14 @@ public class Rubikon
                 var v1 = mesh.VertexPositions[triangle.Y];
                 var v2 = mesh.VertexPositions[triangle.Z];
 
-                if (!RayIntersectsTriangle(ray, v0, v1, v2, out var intersection))
+                if (!RayIntersectsTriangle(ray, v0, v1, v2, out var distance))
                 {
                     continue;
                 }
 
-                if (intersection.Distance < ClosestHit.Distance)
+                if (distance < ClosestHit.Distance)
                 {
-                    ClosestHit = new(true, ray.Origin + ray.Direction * intersection.Distance, intersection.Normal, intersection.Distance, i)
+                    ClosestHit = new(true, ray.Origin + ray.Direction * distance, GetTriangleNormal(v0, v1, v2), distance, i)
                     {
                         SurfacePropertyHash = mesh.GetSurfacePropertyHash(i),
                     };
@@ -1381,7 +1381,10 @@ public class Rubikon
         return intersects;
     }
 
-    private static bool RayIntersectsTriangle(in RayTraceContext ray, Vector3 v0, Vector3 v1, Vector3 v2, out (float Distance, Vector3 Normal) intersection)
+    private static Vector3 GetTriangleNormal(Vector3 v0, Vector3 v1, Vector3 v2)
+        => Vector3.Normalize(MathUtils.TriangleCross(v0, v1, v2));
+
+    private static bool RayIntersectsTriangle(in RayTraceContext ray, Vector3 v0, Vector3 v1, Vector3 v2, out float distance)
     {
         // Möller-Trumbore ray-triangle intersection algorithm
         var edge1 = v1 - v0;
@@ -1389,7 +1392,7 @@ public class Rubikon
         var h = Vector3.Cross(ray.Direction, edge2);
         var a = Vector3.Dot(edge1, h);
 
-        intersection = (-1, Vector3.Zero);
+        distance = -1;
 
         // Ray is parallel to triangle
         if (Math.Abs(a) < Epsilon)
@@ -1424,7 +1427,7 @@ public class Rubikon
             return false;
         }
 
-        intersection = (t, Vector3.Normalize(Vector3.Cross(edge1, edge2)));
+        distance = t;
         return true;
     }
 

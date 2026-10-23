@@ -47,14 +47,17 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                 return;
             }
 
+            var children = simulation.Children;
             var group = (int)childGroupId.NextNumber(particleSystemState);
             var first = (int)firstChild.NextNumber(particleSystemState);
             var count = Math.Max(0, (int)numChildrenToEnable.NextNumber(particleSystemState));
 
             if (!initialized)
             {
-                foreach (var child in simulation.Children)
+                for (var i = 0; i < children.Count; i++)
                 {
+                    var child = children[i];
+
                     if (child.GroupId == group)
                     {
                         groupChildCount++;
@@ -67,8 +70,10 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
             var enable = Math.Min(count, groupChildCount - first);
 
-            foreach (var child in simulation.Children)
+            for (var i = 0; i < children.Count; i++)
             {
+                var child = children[i];
+
                 if (child.GroupId == group && child.IsFinished())
                 {
                     child.Hold(finishedWhileHeld: true);
@@ -84,8 +89,10 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             var enabled = 0;
             var remaining = enable;
 
-            foreach (var child in simulation.Children)
+            for (var i = 0; i < children.Count; i++)
             {
+                var child = children[i];
+
                 if (child.GroupId != group)
                 {
                     continue;

@@ -45,7 +45,7 @@ partial struct Target
         Debug.Assert(pose != null && pose.Skeleton != null);
         var skeleton = pose.Skeleton;
 
-        var boneIdx = Array.IndexOf(skeleton.BoneIDs, BoneID);
+        var boneIdx = skeleton.GetBoneIndex(BoneID);
         if (boneIdx < 0)
         {
             result = default;

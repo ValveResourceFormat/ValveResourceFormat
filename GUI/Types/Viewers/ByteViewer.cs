@@ -84,12 +84,9 @@ namespace GUI.Types.Viewers
 
             // Check if everything after first null byte is also null
             var remainingBytes = span[(firstNullByte + 1)..];
-            foreach (var b in remainingBytes)
+            if (remainingBytes.ContainsAnyExcept((byte)0))
             {
-                if (b != 0)
-                {
-                    return null; // Has embedded null bytes
-                }
+                return null; // Has embedded null bytes
             }
 
             // Only trailing nulls, trim them and decode as UTF-8

@@ -108,23 +108,21 @@ namespace ValveResourceFormat.Particles.Constraints
         private bool TryGetPathPosition(float t, int count, out Vector3 position)
         {
             position = Vector3.Zero;
-            var matched = false;
-            var previous = 0f;
 
-            for (var k = 1; k < count; k++)
+            for (var k = count - 1; k >= 1; k--)
             {
+                var previous = k > 1 ? pointTimes[k - 1] : 0f;
+
                 if (previous <= t && t <= pointTimes[k])
                 {
                     var span = pointTimes[k] - previous;
                     var fraction = span != 0f ? (t - previous) / span : 1f;
                     position = MathUtils.Lerp(pointPositions[k - 1], pointPositions[k], fraction);
-                    matched = true;
+                    return true;
                 }
-
-                previous = pointTimes[k];
             }
 
-            return matched;
+            return false;
         }
     }
 }
