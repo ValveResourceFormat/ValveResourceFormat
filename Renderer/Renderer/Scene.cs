@@ -134,11 +134,6 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the transform from scene space into the space <see cref="VoxelVisibility"/> was compiled in.</summary>
         public Matrix4x4 WorldToVisibility { get; set; } = Matrix4x4.Identity;
 
-        /// <summary>
-        /// Gets or sets whether PVS culling is enabled. Only the value on the main scene is read, for every scene.
-        /// </summary>
-        public bool EnablePvsCulling { get; set; } = true;
-
         /// <summary>Gets the <c>info_visibility_box</c> volumes spawned in this scene.</summary>
         public VisibilityBoxSet VisibilityBoxes { get; } = new();
 
@@ -208,33 +203,11 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the flat spatial set holding dynamic scene nodes.</summary>
         public SpatialNodeSet DynamicOctree { get; } = new();
 
-        /// <summary>Gets or sets whether materials flagged as tools-only are rendered.</summary>
-        public bool ShowToolsMaterials { get; set; }
-
-        /// <summary>Gets or sets whether scene fog is applied during rendering.</summary>
-        public bool FogEnabled { get; set; } = true;
-
-        /// <summary>Gets or sets whether a depth-only prepass is performed before the opaque pass to reduce overdraw.</summary>
-        public bool EnableDepthPrepass { get; set; }
-
-        /// <summary>Gets or sets whether GPU occlusion culling is enabled.</summary>
-        public bool EnableOcclusionCulling { get; set; } = true;
-
-        /// <summary>Gets or sets whether occlusion culling debug visualization is active.</summary>
-        public bool OcclusionDebugEnabled { get; set; }
+        /// <summary>Gets the rendering toggles.</summary>
+        public RenderSettings Settings { get; internal set; } = new();
 
         /// <summary>Gets or sets the occlusion debug renderer, or <see langword="null"/> if not initialized.</summary>
         public OcclusionDebugRenderer? OcclusionDebug { get; set; }
-
-        /// <summary>Gets or sets whether GPU indirect drawing is used for eligible aggregate scene nodes.</summary>
-        public bool EnableIndirectDraws { get; set; } = true;
-
-        /// <summary>Gets or sets whether GPU draw compaction is applied after frustum culling to remove empty indirect draw commands.</summary>
-        public bool EnableCompaction { get; set; } = true;
-
-        /// <summary>Gets or sets whether lights are binned to screen tiles so shaders iterate only what reaches them.</summary>
-        /// <remarks>Only the value on the main scene is read, for every scene.</remarks>
-        public bool EnableTiledLightCulling { get; set; } = true;
 
         internal bool DrawMeshletsIndirect { get; private set; }
         internal bool CompactMeshletDraws { get; private set; }
@@ -1499,7 +1472,7 @@ namespace ValveResourceFormat.Renderer
                         continue;
                     }
 
-                    var sunVisibility = shadowMapSize != -1 && scene.EnablePvsCulling && scene.VoxelVisibility != null
+                    var sunVisibility = shadowMapSize != -1 && scene.Settings.EnablePvsCulling && scene.VoxelVisibility != null
                         ? scene.VoxelVisibility.SunVisibility
                         : default;
 
@@ -1710,11 +1683,11 @@ namespace ValveResourceFormat.Renderer
         internal void UpdateIndirectRenderingState()
         {
             CompactMeshletDraws = false;
-            DrawMeshletsIndirect = EnableIndirectDraws && SceneMeshletCount > 0 && IndirectDrawTemplate != null;
+            DrawMeshletsIndirect = Settings.EnableIndirectDraws && SceneMeshletCount > 0 && IndirectDrawTemplate != null;
 
             if (DrawMeshletsIndirect)
             {
-                CompactMeshletDraws = GLEnvironment.IndirectCountSupported && EnableCompaction;
+                CompactMeshletDraws = GLEnvironment.IndirectCountSupported && Settings.EnableCompaction;
             }
         }
 
@@ -1929,7 +1902,7 @@ namespace ValveResourceFormat.Renderer
         {
             ArgumentNullException.ThrowIfNull(fog);
 
-            fog.SetFogUniforms(viewConstants, FogEnabled, fogSpace);
+            fog.SetFogUniforms(viewConstants, Settings.FogEnabled, fogSpace);
 
             viewConstants.EnvWetness = EnvironmentWetness;
             viewConstants.EnvWetnessRipple = new Vector4(PuddleWindDirection, 0f, 0f, 0f);

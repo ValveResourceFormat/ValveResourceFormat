@@ -184,13 +184,7 @@ namespace GUI.Types.GLViewers
                 UiControl.AddCheckBox("Show Dynamic Octree", showDynamicOctree, (v) => showDynamicOctree = v);
                 if (!HasToolsVisibilityControls)
                 {
-                    UiControl.AddCheckBox("Show Tool Materials", Scene.ShowToolsMaterials, (v) =>
-                    {
-                        foreach (var scene in Renderer.Scenes)
-                        {
-                            scene.ShowToolsMaterials = v;
-                        }
-                    });
+                    UiControl.AddCheckBox("Show Tool Materials", Renderer.Settings.ShowToolsMaterials, (v) => Renderer.Settings.ShowToolsMaterials = v);
                 }
 
                 if (Renderer.Scenes.Any(static scene => scene.LightingInfo.LightProbes.Count > 0))
@@ -233,7 +227,7 @@ namespace GUI.Types.GLViewers
 
                 if (this is GLWorldViewer)
                 {
-                    UiControl.AddCheckBox("Show Occluded Bounds", Scene.OcclusionDebugEnabled, (v) => Scene.OcclusionDebugEnabled = v);
+                    UiControl.AddCheckBox("Show Occluded Bounds", Renderer.Settings.OcclusionDebugEnabled, (v) => Renderer.Settings.OcclusionDebugEnabled = v);
 
                     if (Scene.VoxelVisibility != null)
                     {
@@ -561,7 +555,7 @@ namespace GUI.Types.GLViewers
 
             // Culling is off, but hidden layers stay out, as their nodes may build their geometry on first draw
             ApplyPendingVisibility();
-            Renderer.DisableAllCulling = true;
+            Renderer.Settings.DisableAllCulling = true;
 
             Renderer.Camera.CopyFrom(Input.Camera);
             Renderer.Prewarming = true;
@@ -583,7 +577,7 @@ namespace GUI.Types.GLViewers
             {
                 decals.Remove(prewarmDecal);
 
-                Renderer.DisableAllCulling = false;
+                Renderer.Settings.DisableAllCulling = false;
                 Renderer.Prewarming = false;
             }
         }
@@ -907,7 +901,7 @@ namespace GUI.Types.GLViewers
                     Scene.DynamicOctree.DebugRenderer.Render();
                 }
 
-                if (Scene.OcclusionDebugEnabled && Scene.OcclusionDebug != null)
+                if (Renderer.Settings.OcclusionDebugEnabled && Scene.OcclusionDebug != null)
                 {
                     Scene.OcclusionDebug.Render();
                 }
@@ -1276,10 +1270,7 @@ namespace GUI.Types.GLViewers
 
             Renderer.Postprocess.Enabled = Renderer.ViewBuffer.Data.RenderMode == 0;
 
-            foreach (var scene in Renderer.Scenes)
-            {
-                scene.EnableCompaction = renderMode != "Meshlets";
-            }
+            Renderer.Settings.EnableCompaction = renderMode != "Meshlets";
 
             Picker.Texture.SetRenderMode(renderMode);
             QuadOverdrawRenderer?.SetRenderMode(renderMode);

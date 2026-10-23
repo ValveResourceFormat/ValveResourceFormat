@@ -287,12 +287,6 @@ public class Renderer : ISpawnGroupHost
     /// </summary>
     public Vector3? LockedCullPosition { get; set; }
 
-    /// <summary>
-    /// When <see langword="true"/>, every form of culling (CPU frustum, GPU meshlet, occlusion, PVS, shadow
-    /// frustum) is bypassed so the whole scene is submitted.
-    /// </summary>
-    public bool DisableAllCulling { get; set; }
-
     // Reused so the frustum cull results stay cached across pre-warm calls
     private readonly Frustum noCullFrustum = Frustum.CreateEmpty();
 
@@ -316,6 +310,9 @@ public class Renderer : ISpawnGroupHost
     private readonly Dictionary<SpawnGroup, Entities.SkyCamera?> skyCameras = [];
     private readonly List<Scene> sunCasters = [];
 
+    /// <summary>Gets the rendering toggles for all scenes.</summary>
+    public RenderSettings Settings { get; } = new();
+
     /// <summary>
     /// Width and height in texels of the shadow depth buffers.
     /// </summary>
@@ -325,16 +322,6 @@ public class Renderer : ISpawnGroupHost
     /// When <see langword="true"/>, geometry is rendered as wireframe lines.
     /// </summary>
     public bool IsWireframe { get; set; }
-
-    /// <summary>
-    /// When <see langword="true"/>, the 3D sky is drawn. Does not affect the 2D skybox.
-    /// </summary>
-    public bool ShowSkybox { get; set; } = true;
-
-    /// <summary>
-    /// Enable barn light types in shaders.
-    /// </summary>
-    public bool EnableBarnLights { get; set; } = true;
 
     /// <summary>
     /// Whether scene nodes simulate across the thread pool. Off runs them in scene order.
@@ -354,7 +341,7 @@ public class Renderer : ISpawnGroupHost
         Camera = new Camera(rendererContext.FieldOfView);
         ViewmodelCamera = new Camera();
         SkyCamera = new Camera();
-        Scene = new Scene(rendererContext);
+        Scene = new Scene(rendererContext) { Settings = Settings };
         EntitySystem = new EntitySystem(rendererContext)
         {
             SpawnGroupHost = this,
@@ -370,6 +357,7 @@ public class Renderer : ISpawnGroupHost
     {
         ArgumentNullException.ThrowIfNull(group);
 
+        group.Scene.Settings = Settings;
         spawnGroups.Add(group);
         group.Scene.PhysicsWorld ??= EntitySystem.GetPhysicsWorld(group.Scene.WorldGroup);
         scenes.Add(group.Scene);
@@ -515,7 +503,7 @@ public class Renderer : ISpawnGroupHost
     }
 
     /// <summary>The frustum a view's CPU cull runs against, or <see langword="null"/> for the camera's own.</summary>
-    private Frustum? CullFrustumFor(in SceneView view) => DisableAllCulling ? noCullFrustum : view.LockedCullFrustum;
+    private Frustum? CullFrustumFor(in SceneView view) => Settings.DisableAllCulling ? noCullFrustum : view.LockedCullFrustum;
 
     /// <summary>
     /// The frustum a view's GPU meshlet cull runs against, or <see langword="null"/> to leave its
@@ -524,7 +512,7 @@ public class Renderer : ISpawnGroupHost
     /// </summary>
     private Frustum? MeshletCullFrustumFor(in SceneView view)
     {
-        if (DisableAllCulling)
+        if (Settings.DisableAllCulling)
         {
             return noCullFrustum;
         }
@@ -863,7 +851,7 @@ public class Renderer : ISpawnGroupHost
         var cullHeight = (int)ViewBuffer.Data.ViewportSize.Y;
 
         // The main scene's tile culling toggle applies to every view
-        state.LightBinner.Update(ViewBuffer.Data, cullWidth, cullHeight, Scene.EnableTiledLightCulling);
+        state.LightBinner.Update(ViewBuffer.Data, cullWidth, cullHeight, Settings.EnableTiledLightCulling);
 
         UploadViewConstants(view, state);
 
@@ -1240,7 +1228,7 @@ public class Renderer : ISpawnGroupHost
         {
             GraphicsContext.RenderState.SetDepthRange(DepthRange.Sky);
 
-            SceneView? skyView = ShowSkybox && views.Length > 1 ? views[1] : null;
+            SceneView? skyView = Settings.ShowSkybox && views.Length > 1 ? views[1] : null;
             var copyColor = false;
             var copyDepth = ForceResolveSceneDepth;
 
@@ -1268,7 +1256,7 @@ public class Renderer : ISpawnGroupHost
             {
                 using (new GLDebugGroup("2D Sky Render"))
                 {
-                    BackgroundFor(views)?.Render(Scene.FogEnabled ? Scene.FogInfo.LinearFog : null, mainView.Camera);
+                    BackgroundFor(views)?.Render(Settings.FogEnabled ? Scene.FogInfo.LinearFog : null, mainView.Camera);
                 }
             }
 
@@ -1276,15 +1264,15 @@ public class Renderer : ISpawnGroupHost
 
             if (isMainFramebuffer)
             {
-                var generateDepthPyramid = Scene.EnableOcclusionCulling
+                var generateDepthPyramid = Settings.EnableOcclusionCulling
                     && Scene.DrawMeshletsIndirect
                     && LockedCullFrustum == null
-                    && !DisableAllCulling
+                    && !Settings.DisableAllCulling
                     && Uptime >= OcclusionCullWarmupSeconds;
 
                 copyDepth |= generateDepthPyramid || NeedsWaterEffectsMap(mainView) || NeedsEffectsBloomMap(mainView);
 
-                var depthPyramidValid = !DisableAllCulling && (generateDepthPyramid || LockedCullFrustum != null);
+                var depthPyramidValid = !Settings.DisableAllCulling && (generateDepthPyramid || LockedCullFrustum != null);
 
                 foreach (var view in views)
                 {
@@ -2039,7 +2027,7 @@ public class Renderer : ISpawnGroupHost
                 if (scenesUpdated.Add(state.Scene))
                 {
                     state.Scene.Update(updateContext with { Camera = view.Camera });
-                    state.Scene.VisibilityBoxes.PrepareView(DisableAllCulling ? null : view.Sky?.ToSky(boxEye) ?? boxEye);
+                    state.Scene.VisibilityBoxes.PrepareView(Settings.DisableAllCulling || !Settings.EnableVisBoxCulling ? null : view.Sky?.ToSky(boxEye) ?? boxEye);
                 }
             }
         }
@@ -2061,9 +2049,9 @@ public class Renderer : ISpawnGroupHost
 
         LendSun(views[0]);
 
-        Scene.SetupSunShadows(Scene.LightingInfo, SceneCasters(views[0]), updateContext.Camera, DisableAllCulling ? -1 : ShadowDepthBuffer.Width);
+        Scene.SetupSunShadows(Scene.LightingInfo, SceneCasters(views[0]), updateContext.Camera, Settings.DisableAllCulling ? -1 : ShadowDepthBuffer.Width);
 
-        if (EnableBarnLights)
+        if (Settings.EnableBarnLights)
         {
             Scene.LightingInfo.BinBarnLights(Camera, ShadowTextureSize);
         }
@@ -2073,7 +2061,7 @@ public class Renderer : ISpawnGroupHost
         }
 
         var pvsPosition = LockedCullPosition ?? updateContext.Camera.Location;
-        var pvsEnabled = !DisableAllCulling && Scene.EnablePvsCulling;
+        var pvsEnabled = !Settings.DisableAllCulling && Settings.EnablePvsCulling;
 
         foreach (var view in views)
         {

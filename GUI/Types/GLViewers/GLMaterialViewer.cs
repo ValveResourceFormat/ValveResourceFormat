@@ -88,7 +88,7 @@ namespace GUI.Types.GLViewers
         {
             base.LoadScene();
 
-            Scene.ShowToolsMaterials = true;
+            Renderer.Settings.ShowToolsMaterials = true;
             renderMat = Renderer.RendererContext.MaterialLoader.LoadMaterial(Resource, Scene.RenderAttributes);
             renderMat.Shader.EnsureLoaded();
             renderMat.IsOverlay = false; // render without trying to overlay on empty space

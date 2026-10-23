@@ -471,45 +471,33 @@ namespace GUI.Types.GLViewers
                 {
                     if (Renderer.SkyGroup != null)
                     {
-                        UiControl.AddCheckBox("Show Skybox", Renderer.ShowSkybox, (v) => Renderer.ShowSkybox = v);
+                        UiControl.AddCheckBox("Show Skybox", Renderer.Settings.ShowSkybox, (v) => Renderer.Settings.ShowSkybox = v);
                     }
 
-                    UiControl.AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
+                    UiControl.AddCheckBox("Show Fog", Renderer.Settings.FogEnabled, v => Renderer.Settings.FogEnabled = v);
 
                     UiControl.AddCheckBox("Color Correction", Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
 
                     if (Scene.VoxelVisibility != null)
                     {
-                        UiControl.AddCheckBox("PVS Culling", Scene.EnablePvsCulling, v => Scene.EnablePvsCulling = v);
+                        UiControl.AddCheckBox("PVS Culling", Renderer.Settings.EnablePvsCulling, v => Renderer.Settings.EnablePvsCulling = v);
                     }
 
                     if (Renderer.Scenes.Any(static scene => scene.VisibilityBoxes.Count > 0))
                     {
-                        UiControl.AddCheckBox("Visibility Boxes", Scene.VisibilityBoxes.Enabled, v =>
-                        {
-                            foreach (var scene in Renderer.Scenes)
-                            {
-                                scene.VisibilityBoxes.Enabled = v;
-                            }
-                        });
+                        UiControl.AddCheckBox("Visibility Boxes", Renderer.Settings.EnableVisBoxCulling, v => Renderer.Settings.EnableVisBoxCulling = v);
                     }
 
                     CheckBox? occlusionCullingCheckBox = null;
 
                     if (GLEnvironment.SlowMultiDrawIndirect)
                     {
-                        foreach (var scene in Renderer.Scenes)
-                        {
-                            scene.EnableIndirectDraws = false;
-                        }
+                        Renderer.Settings.EnableIndirectDraws = false;
                     }
 
-                    UiControl.AddCheckBox("GPU Culling", Scene.EnableIndirectDraws, v =>
+                    UiControl.AddCheckBox("GPU Culling", Renderer.Settings.EnableIndirectDraws, v =>
                     {
-                        foreach (var scene in Renderer.Scenes)
-                        {
-                            scene.EnableIndirectDraws = v;
-                        }
+                        Renderer.Settings.EnableIndirectDraws = v;
 
                         if (occlusionCullingCheckBox != null)
                         {
@@ -517,13 +505,13 @@ namespace GUI.Types.GLViewers
                         }
                     });
 
-                    occlusionCullingCheckBox = UiControl.AddCheckBox("GPU Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
-                    occlusionCullingCheckBox.Enabled = Scene.EnableIndirectDraws;
+                    occlusionCullingCheckBox = UiControl.AddCheckBox("GPU Occlusion Culling", Renderer.Settings.EnableOcclusionCulling, (v) => Renderer.Settings.EnableOcclusionCulling = v);
+                    occlusionCullingCheckBox.Enabled = Renderer.Settings.EnableIndirectDraws;
 
-                    UiControl.AddCheckBox("Depth Prepass", Scene.EnableDepthPrepass, (v) => Scene.EnableDepthPrepass = v);
+                    UiControl.AddCheckBox("Depth Prepass", Renderer.Settings.EnableDepthPrepass, (v) => Renderer.Settings.EnableDepthPrepass = v);
 
-                    UiControl.AddCheckBox("Barn Lights", Renderer.EnableBarnLights, v => Renderer.EnableBarnLights = v);
-                    UiControl.AddCheckBox("Tiled Light Culling", Scene.EnableTiledLightCulling, v => Scene.EnableTiledLightCulling = v);
+                    UiControl.AddCheckBox("Barn Lights", Renderer.Settings.EnableBarnLights, v => Renderer.Settings.EnableBarnLights = v);
+                    UiControl.AddCheckBox("Tiled Light Culling", Renderer.Settings.EnableTiledLightCulling, v => Renderer.Settings.EnableTiledLightCulling = v);
 
                     AddSceneExposureSlider();
                 }
@@ -1223,10 +1211,7 @@ namespace GUI.Types.GLViewers
         {
             if (HasToolsVisibilityControls)
             {
-                foreach (var scene in Renderer.Scenes)
-                {
-                    scene.ShowToolsMaterials = tools.ShowToolMaterials;
-                }
+                Renderer.Settings.ShowToolsMaterials = tools.ShowToolMaterials;
             }
 
             base.ApplyVisibility();

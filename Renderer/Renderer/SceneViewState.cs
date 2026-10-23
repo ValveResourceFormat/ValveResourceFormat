@@ -186,7 +186,7 @@ public sealed class SceneViewState : IDisposable
     {
         Debug.Assert(request.Call is not null);
 
-        if (!Scene.ShowToolsMaterials && request.Call.Material.IsToolsMaterial)
+        if (!Scene.Settings.ShowToolsMaterials && request.Call.Material.IsToolsMaterial)
         {
             return;
         }
@@ -216,7 +216,7 @@ public sealed class SceneViewState : IDisposable
                     alphaTestAggregateDraws.Add(request);
                     return;
                 }
-                else if (Scene.EnableDepthPrepass && material.CanPrimeDepth)
+                else if (Scene.Settings.EnableDepthPrepass && material.CanPrimeDepth)
                 {
                     var bucket = Scene.GetDepthOnlyBucket(request.Call);
                     depthOnlyDraws[bucket].Add(request);
@@ -637,7 +637,7 @@ public sealed class SceneViewState : IDisposable
 
         cullShader.SetUniform("g_bCpuHiddenEnabled", cpuHiddenActive);
 
-        var occlusionDebugEnabled = scene.OcclusionDebugEnabled && scene.OcclusionDebug != null;
+        var occlusionDebugEnabled = scene.Settings.OcclusionDebugEnabled && scene.OcclusionDebug != null;
 
         // Bind debug buffer for occluded bounds visualization
         if (occlusionDebugEnabled)
@@ -698,7 +698,7 @@ public sealed class SceneViewState : IDisposable
         using var passScope = GraphicsContext.RenderState.Scope();
 
         var drawIndirect = Scene.DrawMeshletsIndirect;
-        var depthPrepass = depthOnlyShader != null && Scene.EnableDepthPrepass;
+        var depthPrepass = depthOnlyShader != null && Scene.Settings.EnableDepthPrepass;
 
         if (drawIndirect)
         {

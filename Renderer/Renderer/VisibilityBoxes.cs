@@ -200,9 +200,6 @@ public sealed class VisibilityBoxSet
     private readonly List<VisibilityBox> boxes = [];
     private Vector3? viewEye;
 
-    /// <summary>Gets or sets whether the boxes cull at all.</summary>
-    public bool Enabled { get; set; } = true;
-
     /// <summary>Gets how many boxes the scene has, enabled or not.</summary>
     public int Count => boxes.Count;
 
@@ -222,7 +219,7 @@ public sealed class VisibilityBoxSet
     /// <param name="eye">Where the view is, or <see langword="null"/> when nothing may be culled this frame.</param>
     public void PrepareView(Vector3? eye)
     {
-        viewEye = Enabled ? eye : null;
+        viewEye = eye;
         View.Build(boxes, viewEye);
     }
 

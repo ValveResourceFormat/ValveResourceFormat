@@ -14,7 +14,7 @@ internal class ThumbnailMaterialRenderer : ThumbnailRenderer
     {
         Debug.Assert(SceneRenderer != null);
 
-        SceneRenderer.Scene.ShowToolsMaterials = true;
+        SceneRenderer.Settings.ShowToolsMaterials = true;
         var renderMat = SceneRenderer.RendererContext.MaterialLoader.LoadMaterial(resource);
         renderMat.Shader.EnsureLoaded();
         renderMat.IsOverlay = false;

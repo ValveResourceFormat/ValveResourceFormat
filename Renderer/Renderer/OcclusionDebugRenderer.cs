@@ -67,7 +67,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Renders wireframe bounding boxes for all occluded meshlets, color-coded by whether occlusion was correct.</summary>
         public void Render()
         {
-            if (!scene.DrawMeshletsIndirect || !scene.EnableOcclusionCulling || OccludedBoundsDebugGpu == null)
+            if (!scene.DrawMeshletsIndirect || !scene.Settings.EnableOcclusionCulling || OccludedBoundsDebugGpu == null)
             {
                 return;
             }
