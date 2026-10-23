@@ -694,13 +694,32 @@ namespace GUI
                 return;
             }
 
-            foreach (var file in files)
-            {
-                OpenFile(file);
-            }
+            OpenFiles(files);
         }
 
         public TabPage OpenFile(string fileName)
+        {
+            var tab = OpenFileAndTrackRecent(fileName);
+            Settings.Save();
+            return tab;
+        }
+
+        private void OpenFiles(IReadOnlyCollection<string> fileNames)
+        {
+            if (fileNames.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var fileName in fileNames)
+            {
+                OpenFileAndTrackRecent(fileName);
+            }
+
+            Settings.Save();
+        }
+
+        private TabPage OpenFileAndTrackRecent(string fileName)
         {
             if (PackageFileNames.TryGetArchiveChunkDirectoryFile(fileName, out var fixedPackage))
             {
@@ -1015,22 +1034,23 @@ namespace GUI
             // Despite us setting drag effect only on FileDrop this can still be null on drop
             if (e.Data?.GetData(DataFormats.FileDrop) is string[] files)
             {
-                foreach (var fileName in files)
-                {
-                    OpenFile(fileName);
-                }
+                OpenFiles(files);
             }
             else if (e.Data?.GetData(DataFormats.UnicodeText) is string text) // Dropping files from web based apps such as VS code
             {
+                var existingFiles = new List<string>();
+
                 foreach (var line in text.AsSpan().EnumerateLines())
                 {
                     var fileName = line.ToString();
 
                     if (File.Exists(fileName))
                     {
-                        OpenFile(fileName);
+                        existingFiles.Add(fileName);
                     }
                 }
+
+                OpenFiles(existingFiles);
             }
         }
 

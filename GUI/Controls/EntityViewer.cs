@@ -148,6 +148,9 @@ namespace GUI.Types.Viewers
         {
             var filteredEntities = new List<(Entity Entity, string Classname, string Targetname)>(Entities.Count);
 
+            var isKeyEmpty = string.IsNullOrEmpty(SearchData.Key);
+            var isValueEmpty = string.IsNullOrEmpty(SearchData.Value);
+
             foreach (var entity in Entities)
             {
                 var classname = entity.GetStringProperty("classname", string.Empty);
@@ -179,9 +182,6 @@ namespace GUI.Types.Viewers
                         }
                         break;
                 }
-
-                var isKeyEmpty = string.IsNullOrEmpty(SearchData.Key);
-                var isValueEmpty = string.IsNullOrEmpty(SearchData.Value);
 
                 // match key and value together
                 if (!isKeyEmpty && !isValueEmpty)

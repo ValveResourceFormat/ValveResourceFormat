@@ -134,6 +134,8 @@ namespace GUI.Utils
             control.ResumeLayout(true);
         }
 
+        private static readonly Dictionary<Type, PropertyInfo?> BorderStyleProperties = [];
+
         private static void ThemeControlInternal(Control control)
         {
             if (control is ExplorerControl or TreeViewWithSearchResults)
@@ -141,7 +143,13 @@ namespace GUI.Utils
                 return;
             }
 
-            var borderStyleInfo = control.GetType().GetProperty("BorderStyle");
+            var controlType = control.GetType();
+            if (!BorderStyleProperties.TryGetValue(controlType, out var borderStyleInfo))
+            {
+                borderStyleInfo = controlType.GetProperty("BorderStyle");
+                BorderStyleProperties[controlType] = borderStyleInfo;
+            }
+
             if (borderStyleInfo != null)
             {
                 var borderStyle = (BorderStyle?)borderStyleInfo.GetValue(control);

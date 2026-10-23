@@ -212,49 +212,42 @@ namespace GUI.Types.GLViewers
                 }
 
                 // Handle float parameters
-                if (previewMaterial.FloatParams.ContainsKey(paramName) || shaderParams.FloatParams.ContainsKey(paramName))
+                if (previewMaterial.FloatParams.TryGetValue(paramName, out var floatValue) || shaderParams.FloatParams.TryGetValue(paramName, out floatValue))
                 {
-                    var value = previewMaterial.FloatParams.GetValueOrDefault(paramName,
-                        shaderParams.FloatParams.GetValueOrDefault(paramName));
-                    allParams.Add((paramName, (value, parameterPresence), ParamType.Float, vfxDescription));
+                    allParams.Add((paramName, (floatValue, parameterPresence), ParamType.Float, vfxDescription));
                     continue;
                 }
 
                 // Handle int/bool parameters
-                if (previewMaterial.IntParams.ContainsKey(paramName) || shaderParams.IntParams.ContainsKey(paramName))
+                if (previewMaterial.IntParams.TryGetValue(paramName, out var intValue) || shaderParams.IntParams.TryGetValue(paramName, out intValue))
                 {
-                    var value = previewMaterial.IntParams.GetValueOrDefault(paramName,
-                        shaderParams.IntParams.GetValueOrDefault(paramName));
-
                     if (previewMaterial.Shader.IsBooleanParameter(paramName)
-                        || paramName.StartsWith("F_", StringComparison.OrdinalIgnoreCase) && value is 0 or 1)
+                        || paramName.StartsWith("F_", StringComparison.OrdinalIgnoreCase) && intValue is 0 or 1)
                     {
-                        var boolValue = Convert.ToBoolean(value);
+                        var boolValue = Convert.ToBoolean(intValue);
                         allParams.Add((paramName, (boolValue, parameterPresence), ParamType.Bool, vfxDescription));
                     }
                     else
                     {
-                        var int32Value = Convert.ToInt32(value);
+                        var int32Value = Convert.ToInt32(intValue);
                         allParams.Add((paramName, (int32Value, parameterPresence), ParamType.Int, vfxDescription));
                     }
                     continue;
                 }
 
                 // Handle vector parameters
-                if (previewMaterial.VectorParams.ContainsKey(paramName) || shaderParams.VectorParams.ContainsKey(paramName))
+                if (previewMaterial.VectorParams.TryGetValue(paramName, out var vectorValue) || shaderParams.VectorParams.TryGetValue(paramName, out vectorValue))
                 {
-                    var value = previewMaterial.VectorParams.GetValueOrDefault(paramName,
-                        shaderParams.VectorParams.GetValueOrDefault(paramName));
                     var componentCount = previewMaterial.Shader.GetRegisterSize(paramName);
 
                     if (vfxDescription?.UiType == UiType.Color)
                     {
-                        value.W = 1f;
-                        allParams.Add((paramName, (value, parameterPresence), ParamType.Color, vfxDescription));
+                        vectorValue.W = 1f;
+                        allParams.Add((paramName, (vectorValue, parameterPresence), ParamType.Color, vfxDescription));
                     }
                     else
                     {
-                        allParams.Add((paramName, (value, componentCount, parameterPresence), ParamType.Vector, vfxDescription));
+                        allParams.Add((paramName, (vectorValue, componentCount, parameterPresence), ParamType.Vector, vfxDescription));
                     }
                 }
             }

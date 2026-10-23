@@ -15,17 +15,31 @@ namespace GUI.Controls
         private static SolidBrush? AttentionBrush;
         private static TextStyle? AttentionStyle;
 
+        private static Font? MonospaceFont;
+
+        /// <summary>
+        /// Returns a font shared by all callers for the configured size, so callers must not dispose it.
+        /// </summary>
         public static Font GetMonospaceFont()
         {
+            var size = Settings.Config.TextViewerFontSize;
+
+            if (MonospaceFont != null && MonospaceFont.Size == size)
+            {
+                return MonospaceFont;
+            }
+
             try
             {
                 using var fontFamily = new FontFamily("Cascadia Mono");
-                return new Font(fontFamily, Settings.Config.TextViewerFontSize);
+                MonospaceFont = new Font(fontFamily, size);
             }
             catch
             {
-                return new Font(FontFamily.GenericMonospace, Settings.Config.TextViewerFontSize);
+                MonospaceFont = new Font(FontFamily.GenericMonospace, size);
             }
+
+            return MonospaceFont;
         }
 
         private const int MaxLengthForCodeBox = 50 * 1024 * 1024;

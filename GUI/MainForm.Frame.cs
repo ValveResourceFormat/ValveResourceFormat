@@ -209,8 +209,7 @@ partial class MainForm
 
             if (command == SC_WEBSITE)
             {
-                using var aboutForm = new Forms.AboutForm();
-                aboutForm.OnWebsiteClick(this, EventArgs.Empty);
+                Forms.AboutForm.OpenUrl("https://s2v.app/");
                 m.Result = 0;
                 return;
             }

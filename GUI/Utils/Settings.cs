@@ -358,7 +358,8 @@ namespace GUI.Utils
 
         /// <summary>
         /// Appends <paramref name="path"/> to the end of the recent files list (most recent last),
-        /// removing any duplicate entry, trimming the oldest entries to <see cref="RecentFilesLimit"/>, then saves.
+        /// removing any duplicate entry and trimming the oldest entries to <see cref="RecentFilesLimit"/>.
+        /// The caller is responsible for calling <see cref="Save"/>.
         /// </summary>
         /// <param name="path">The absolute file path to record as recently opened.</param>
         public static void TrackRecentFile(string path)
@@ -370,8 +371,6 @@ namespace GUI.Utils
             {
                 Config.RecentFiles.RemoveRange(0, Config.RecentFiles.Count - RecentFilesLimit);
             }
-
-            Save();
         }
 
         /// <summary>

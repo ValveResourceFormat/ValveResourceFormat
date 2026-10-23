@@ -591,7 +591,6 @@ namespace GUI.Controls
                     _ => TextRenderingFlags | TextFormatFlags.HorizontalCenter,
                 };
 
-                using var textBrush = new SolidBrush(textColor);
                 TextRenderer.DrawText(g, tabText, Font, textRect, textColor, formatFlags);
             }
         }
