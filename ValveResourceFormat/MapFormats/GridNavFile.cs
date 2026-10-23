@@ -124,7 +124,7 @@ namespace ValveResourceFormat.MapFormats
         /// </remarks>
         public override string ToString()
         {
-            var sb = new StringBuilder();
+            var sb = new StringBuilder(256 + (Width + Environment.NewLine.Length) * Height);
 
             sb.AppendLine(CultureInfo.InvariantCulture, $"GridNav: {Width}x{Height}");
             sb.AppendLine(CultureInfo.InvariantCulture, $"World bounds: ({MinX * EdgeSize:F1},{MinY * EdgeSize:F1}) to ({MaxX * EdgeSize:F1},{MaxY * EdgeSize:F1})");

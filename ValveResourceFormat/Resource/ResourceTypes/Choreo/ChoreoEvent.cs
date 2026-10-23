@@ -261,7 +261,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             parent.Add(name, tagList);
         }
 
-        private static void AddKVFlag(KVObject kv, string name, Enum setFlags, Enum flag, bool defaultValue = false)
+        private static void AddKVFlag<T>(KVObject kv, string name, T setFlags, T flag, bool defaultValue = false)
+            where T : struct, Enum
         {
             var set = setFlags.HasFlag(flag);
             if (set == defaultValue)

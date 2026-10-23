@@ -50,10 +50,7 @@ namespace ValveResourceFormat.FlexSceneFile
             for (var i = 0; i < KeyNames.Length; i++)
             {
                 var weight = setting.GetWeight(i);
-                sb.Append(weight.Weight.ToString("0.000#", CultureInfo.InvariantCulture));
-                sb.Append(' ');
-                sb.Append(weight.Influence.ToString("0.000#", CultureInfo.InvariantCulture));
-                sb.Append(' ');
+                sb.Append(CultureInfo.InvariantCulture, $"{weight.Weight:0.000#} {weight.Influence:0.000#} ");
             }
 
             //Description

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 using ValveResourceFormat.Serialization.VfxEval;
 
 namespace ValveResourceFormat.CompiledShader
@@ -256,12 +257,13 @@ namespace ValveResourceFormat.CompiledShader
                 return $"_";
             }
 
-            var valueString = "";
+            var builder = new StringBuilder();
             foreach (var i in values)
             {
-                valueString += $"{i},";
+                builder.Append(i.ToString(CultureInfo.InvariantCulture)).Append(',');
             }
-            valueString = valueString[0..^1];
+            builder.Length--;
+            var valueString = builder.ToString();
             return includeParenth ? $"({valueString})" : $"{valueString}";
         }
 
@@ -278,13 +280,13 @@ namespace ValveResourceFormat.CompiledShader
                 return $"_".PadLeft(padding);
             }
 
-            var valueString = "";
+            var builder = new StringBuilder();
             foreach (var v in values)
             {
-                var intPadded = $"{(v != 0 ? v : "_")}".PadLeft(padding);
-                valueString += $"{intPadded}";
+                var text = v != 0 ? v.ToString(CultureInfo.InvariantCulture) : "_";
+                builder.Append(text.PadLeft(padding));
             }
-            return $"{valueString}";
+            return builder.ToString();
         }
 
         /// <summary>
@@ -311,12 +313,12 @@ namespace ValveResourceFormat.CompiledShader
         /// <returns>A padded string representation of the string array.</returns>
         public static string CombineStringsSpaceSep(string[] strings, int padding = 5)
         {
-            var combinedString = "";
+            var builder = new StringBuilder();
             foreach (var s in strings)
             {
-                combinedString += s.PadLeft(padding);
+                builder.Append(s.PadLeft(padding));
             }
-            return combinedString;
+            return builder.ToString();
         }
 
         /// <summary>
@@ -332,12 +334,7 @@ namespace ValveResourceFormat.CompiledShader
                 return $"_";
             }
 
-            var combinedString = "";
-            foreach (var s in strings)
-            {
-                combinedString += $"{s}, ";
-            }
-            combinedString = combinedString[0..^2];
+            var combinedString = string.Join(", ", strings);
             return includeParenth ? $"({combinedString})" : $"{combinedString}";
         }
 
@@ -392,16 +389,16 @@ namespace ValveResourceFormat.CompiledShader
                 breakLen = int.MaxValue;
             }
             var count = 0;
-            var bytestring = "";
+            var builder = new StringBuilder(bytes.Length * 3);
             for (var i = 0; i < bytes.Length; i++)
             {
-                bytestring += $"{bytes[i]:X02} ";
+                builder.Append(bytes[i].ToString("X02", CultureInfo.InvariantCulture)).Append(' ');
                 if (++count % breakLen == 0)
                 {
-                    bytestring += "\n";
+                    builder.Append('\n');
                 }
             }
-            return bytestring.Trim();
+            return builder.ToString().Trim();
         }
 
         /// <summary>
@@ -529,16 +526,18 @@ namespace ValveResourceFormat.CompiledShader
                 List<List<string>> additionalRows = [];
                 for (var i = 0; i < rowMembers.Length; i++)
                 {
-                    var multipleLines = rowMembers[i].Split("\n");
-                    if (multipleLines.Length > 1)
+                    var firstLine = rowMembers[i];
+                    if (firstLine.Contains('\n', StringComparison.Ordinal))
                     {
+                        var multipleLines = firstLine.Split("\n");
                         AddExtraLines(additionalRows, multipleLines, i);
+                        firstLine = multipleLines[0];
                     }
 
-                    newRow.Add(multipleLines[0]);
-                    if (multipleLines[0].Length > columnWidths[i])
+                    newRow.Add(firstLine);
+                    if (firstLine.Length > columnWidths[i])
                     {
-                        columnWidths[i] = multipleLines[0].Length;
+                        columnWidths[i] = firstLine.Length;
                     }
                 }
                 tabulatedValues.Add(newRow);
@@ -580,17 +579,18 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     return tabbedRows;
                 }
+                var tabbedRow = new StringBuilder();
                 foreach (var rowTokens in tabulatedValues)
                 {
-                    var tabbedRow = "";
+                    tabbedRow.Clear();
                     for (var i = 0; i < rowTokens.Count; i++)
                     {
                         var pad = columnWidths[i] + spacing;
-                        tabbedRow += $"{rowTokens[i].PadRight(pad)}";
+                        tabbedRow.Append(rowTokens[i].PadRight(pad));
                     }
                     if (tabbedRow.Length > 0)
                     {
-                        tabbedRows.Add(tabbedRow[..^spacing]);
+                        tabbedRows.Add(tabbedRow.ToString(0, tabbedRow.Length - spacing));
                     }
                 }
                 if (reverse)

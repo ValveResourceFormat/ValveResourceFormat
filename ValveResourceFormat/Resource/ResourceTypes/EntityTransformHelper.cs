@@ -280,16 +280,14 @@ namespace ValveResourceFormat.ResourceTypes
                 return false;
             }
 
-            var split = input.Split(' ');
+            Span<float> components = stackalloc float[2];
 
-            if (split.Length != 2
-                || !float.TryParse(split[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var x)
-                || !float.TryParse(split[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var y))
+            if (!TryParseComponents(input, components))
             {
                 return false;
             }
 
-            value = new Vector2(x, y);
+            value = new Vector2(components[0], components[1]);
             return true;
         }
 
@@ -321,18 +319,33 @@ namespace ValveResourceFormat.ResourceTypes
                 return false;
             }
 
-            var split = input.Split(' ');
+            Span<float> components = stackalloc float[3];
 
-            if (split.Length != 3
-                || !float.TryParse(split[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var x)
-                || !float.TryParse(split[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var y)
-                || !float.TryParse(split[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var z))
+            if (!TryParseComponents(input, components))
             {
                 return false;
             }
 
-            value = new Vector3(x, y, z);
+            value = new Vector3(components[0], components[1], components[2]);
             return true;
+        }
+
+        private static bool TryParseComponents(ReadOnlySpan<char> input, Span<float> components)
+        {
+            var count = 0;
+
+            foreach (var range in input.Split(' '))
+            {
+                if (count == components.Length
+                    || !float.TryParse(input[range], NumberStyles.Float, CultureInfo.InvariantCulture, out components[count]))
+                {
+                    return false;
+                }
+
+                count++;
+            }
+
+            return count == components.Length;
         }
     }
 }
