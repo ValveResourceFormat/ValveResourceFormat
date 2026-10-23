@@ -4,6 +4,7 @@ using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using ConvexHull = Box3D.ConvexHull;
+using RnShape = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shape;
 
 namespace ValveResourceFormat.Renderer;
 
@@ -88,6 +89,10 @@ public sealed class PhysicsSimulation : IDisposable
     // Bodies carry only a ulong, so entity lookup for raycast hits goes through this table
     private readonly Dictionary<ulong, BaseEntity> bodyOwners = [];
     private ulong nextBodyId;
+
+    // The bounds of each simulated body's shapes in the body's own space. The solver only reports
+    // broadphase bounds, which gain and lose a margin as the body moves.
+    private readonly Dictionary<ulong, BoundingBox> bodyBounds = [];
 
     // The game's surface table, or null when the game offers none; every shape then simulates as
     // the fallback surface
@@ -183,23 +188,16 @@ public sealed class PhysicsSimulation : IDisposable
     /// <returns>The reach, shortened when the ray meets something first.</returns>
     public float ClearReach(Vector3 from, Vector3 direction, float reach, Body body)
     {
-        Span<Shape> shapes = stackalloc Shape[body.ShapeCount];
-        var count = body.GetShapes(shapes);
-
-        if (count == 0)
+        if (!bodyBounds.TryGetValue(body.UserData, out var bounds))
         {
             return reach;
         }
 
-        var bounds = shapes[0].Bounds;
-
-        for (var i = 1; i < count; i++)
-        {
-            bounds = bounds.Union(shapes[i].Bounds);
-        }
-
-        // How far the body's bounds stick out toward what the ray meets
-        var extent = Vector3.Dot(Vector3.Abs(direction), bounds.Extents);
+        // How far the body's bounds stick out from its mass center toward what the ray meets
+        var localDirection = Vector3.Transform(direction, Quaternion.Inverse(body.Rotation));
+        var extent = Vector3.Dot(bounds.Center - body.LocalCenterOfMass, localDirection)
+            + Vector3.Dot(Vector3.Abs(localDirection), bounds.Extents)
+            + ClearReachMargin;
 
         var hit = World.RaycastClosest(from, direction * (reach + extent),
             new QueryFilter(PlayerCategory, StaticCategory | MoverCategory));
@@ -211,6 +209,10 @@ public sealed class PhysicsSimulation : IDisposable
 
         return MathF.Min(reach, MathF.Max(Vector3.Distance(from, hit.Point) - extent, MinClearReach));
     }
+
+    // Held bodies stop this far short of what the ray meets, so a view swept onto the floor does not
+    // strike it at the sweep's speed: held flush against it, fragile props broke on contact
+    private const float ClearReachMargin = 2f;
 
     // However cramped, a held body is not pulled into the carrier's face
     private const float MinClearReach = 16f;
@@ -454,8 +456,7 @@ public sealed class PhysicsSimulation : IDisposable
         }
 
         var body = World.CreateBody(definition);
-
-        AddAggregateShapes(body, phys, PropCategory);
+        var shapeBounds = AddAggregateShapes(body, phys, PropCategory);
 
         if (body.ShapeCount == 0)
         {
@@ -467,9 +468,11 @@ public sealed class PhysicsSimulation : IDisposable
 
             body.AddBox(new Box3D.Box(localBounds.Size * 0.5f, localBounds.Center),
                 MakeShapeDefinition(0, PropCategory));
+            shapeBounds = new BoundingBox(localBounds.Min, localBounds.Max);
         }
 
         Register(body, owner);
+        bodyBounds[body.UserData] = shapeBounds!.Value;
         return body;
     }
 
@@ -501,32 +504,8 @@ public sealed class PhysicsSimulation : IDisposable
             AngularDamping = angularDamping,
         });
 
-        var shape = part.Shape;
-
-        foreach (var sphere in shape.GetAllSpheres())
-        {
-            body.AddSphere(new Sphere(sphere.Shape.Center, sphere.Shape.Radius),
-                MakeShapeDefinition(GetSurfaceHash(phys, sphere.SurfacePropertyIndex), DebrisCategory));
-        }
-
-        foreach (var capsule in shape.GetAllCapsules())
-        {
-            var center = capsule.Shape.Center;
-            body.AddCapsule(new Capsule(center[0], center[1], capsule.Shape.Radius),
-                MakeShapeDefinition(GetSurfaceHash(phys, capsule.SurfacePropertyIndex), DebrisCategory));
-        }
-
-        foreach (var hullDesc in shape.GetAllHulls())
-        {
-            if (BuildHull(hullDesc.Shape.GetVertexPositions(), Matrix4x4.Identity) is { } hull)
-            {
-                using (hull)
-                {
-                    body.AddHull(hull,
-                        MakeShapeDefinition(GetSurfaceHash(phys, hullDesc.SurfacePropertyIndex), DebrisCategory));
-                }
-            }
-        }
+        BoundingBox? shapeBounds = null;
+        AddPartShapes(body, phys, part.Shape, Matrix4x4.Identity, DebrisCategory, ref shapeBounds);
 
         if (body.ShapeCount == 0)
         {
@@ -549,6 +528,7 @@ public sealed class PhysicsSimulation : IDisposable
         }
 
         Register(body, owner);
+        bodyBounds[body.UserData] = shapeBounds!.Value;
         return body;
     }
 
@@ -700,47 +680,65 @@ public sealed class PhysicsSimulation : IDisposable
     }
 
     // Attaches every sphere, capsule and convex hull of an aggregate to a body, in the model's
-    // local space. Meshes are left out on purpose: dynamic bodies cannot carry triangle meshes,
-    // and the movers this also serves are hull-compiled brush models.
-    private void AddAggregateShapes(Body body, PhysAggregateData phys, ulong categories)
+    // local space, and returns the bounds they cover there. Meshes are left out on purpose: dynamic
+    // bodies cannot carry triangle meshes, and the movers this also serves are hull-compiled brush
+    // models.
+    private BoundingBox? AddAggregateShapes(Body body, PhysAggregateData phys, ulong categories)
     {
         var bindPose = phys.BindPose;
+        BoundingBox? bounds = null;
 
         for (var p = 0; p < phys.Parts.Length; p++)
         {
-            var shape = phys.Parts[p].Shape;
             var pose = bindPose.Length > p ? bindPose[p] : Matrix4x4.Identity;
+            AddPartShapes(body, phys, phys.Parts[p].Shape, pose, categories, ref bounds);
+        }
 
-            foreach (var sphere in shape.GetAllSpheres())
-            {
-                body.AddSphere(new Sphere(Vector3.Transform(sphere.Shape.Center, pose), sphere.Shape.Radius),
-                    MakeShapeDefinition(GetSurfaceHash(phys, sphere.SurfacePropertyIndex), categories));
-            }
+        return bounds;
+    }
 
-            foreach (var capsule in shape.GetAllCapsules())
-            {
-                var center = capsule.Shape.Center;
-                body.AddCapsule(new Capsule(
-                    Vector3.Transform(center[0], pose),
-                    Vector3.Transform(center[1], pose),
-                    capsule.Shape.Radius),
-                    MakeShapeDefinition(GetSurfaceHash(phys, capsule.SurfacePropertyIndex), categories));
-            }
+    private void AddPartShapes(Body body, PhysAggregateData phys, RnShape shape, Matrix4x4 pose, ulong categories, ref BoundingBox? bounds)
+    {
+        foreach (var sphere in shape.GetAllSpheres())
+        {
+            var center = Vector3.Transform(sphere.Shape.Center, pose);
+            var radius = new Vector3(sphere.Shape.Radius);
 
-            foreach (var hullDesc in shape.GetAllHulls())
+            body.AddSphere(new Sphere(center, sphere.Shape.Radius),
+                MakeShapeDefinition(GetSurfaceHash(phys, sphere.SurfacePropertyIndex), categories));
+            GrowBounds(ref bounds, new BoundingBox(center - radius, center + radius));
+        }
+
+        foreach (var capsule in shape.GetAllCapsules())
+        {
+            var center0 = Vector3.Transform(capsule.Shape.Center[0], pose);
+            var center1 = Vector3.Transform(capsule.Shape.Center[1], pose);
+            var radius = new Vector3(capsule.Shape.Radius);
+
+            body.AddCapsule(new Capsule(center0, center1, capsule.Shape.Radius),
+                MakeShapeDefinition(GetSurfaceHash(phys, capsule.SurfacePropertyIndex), categories));
+            GrowBounds(ref bounds, new BoundingBox(Vector3.Min(center0, center1) - radius, Vector3.Max(center0, center1) + radius));
+        }
+
+        foreach (var hullDesc in shape.GetAllHulls())
+        {
+            if (BuildHull(hullDesc.Shape.GetVertexPositions(), pose) is { } hull)
             {
-                if (BuildHull(hullDesc.Shape.GetVertexPositions(), pose) is { } hull)
+                // Copied on attach, unlike the compound path, so nothing to keep alive
+                using (hull)
                 {
-                    // Copied on attach, unlike the compound path, so nothing to keep alive
-                    using (hull)
-                    {
-                        body.AddHull(hull,
-                            MakeShapeDefinition(GetSurfaceHash(phys, hullDesc.SurfacePropertyIndex), categories));
-                    }
+                    body.AddHull(hull,
+                        MakeShapeDefinition(GetSurfaceHash(phys, hullDesc.SurfacePropertyIndex), categories));
+                    GrowBounds(ref bounds, hull.Bounds);
                 }
             }
         }
     }
+
+    private static void GrowBounds(ref BoundingBox? bounds, BoundingBox other)
+        => bounds = bounds is { } current
+            ? new BoundingBox(Vector3.Min(current.Min, other.Min), Vector3.Max(current.Max, other.Max))
+            : other;
 
     /// <summary>
     /// Creates the kinematic body that stands where the player stands, so walking into a prop shoves
@@ -777,6 +775,7 @@ public sealed class PhysicsSimulation : IDisposable
     public void Forget(Body body)
     {
         bodyOwners.Remove(body.UserData);
+        bodyBounds.Remove(body.UserData);
         impactSounds?.Forget(body.UserData);
     }
 
