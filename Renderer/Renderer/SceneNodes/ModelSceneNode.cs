@@ -93,11 +93,23 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             // Read after LoadMeshes, which fills them in from external meshes.
             Attachments = model.Attachments;
             AnimationController.BoneConstraints = new BoneConstraintSolver(model);
+            AnimationController.Cloth = CreateClothSimulation(model);
 
             // GetChildFrame already falls back to this node's own world Transform for an empty/
             // unmatched name - AnimationController.Transform is not it (see its doc comment), so route through here.
             AnimationController.ResolvePosition = attachmentName => GetChildFrame(attachmentName).Translation;
             AnimationController.AnimationLookup = animationName => Animations.GetValueOrDefault(animationName);
+        }
+
+        private ClothSimulation? CreateClothSimulation(Model model)
+        {
+            if (!model.Skeleton.Bones.Any(static bone => bone.IsProceduralCloth))
+            {
+                return null;
+            }
+
+            var feModel = Entities.EntityCollider.LoadPhysics(model, Scene.RendererContext.FileLoader)?.FeModel;
+            return feModel != null ? new ClothSimulation(feModel, model.Skeleton) : null;
         }
 
         readonly struct CharacterEyeParameters
@@ -206,6 +218,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             UpdateAutoLod(context.Camera);
             var animationUpdated = AnimationController.Update(context.Timestep);
+
+            // Cloth keeps moving while the animation holds still
+            if (AnimationController.Cloth is { } cloth && IsAnimated)
+            {
+                cloth.GroundHeight = Transform.Translation.Z;
+                cloth.Update(AnimationController.Pose, Transform, context.Timestep);
+                animationUpdated = true;
+            }
 
             if (!animationUpdated)
             {

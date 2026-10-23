@@ -45,6 +45,9 @@ namespace ValveResourceFormat.Renderer
         // model player is active.
         private SkeletonRetargeter? externalRetargeter;
 
+        /// <summary>Gets or sets the cloth simulation that poses the model's procedural cloth bones, if any.</summary>
+        public ClothSimulation? Cloth { get; set; }
+
         /// <summary>Gets or sets the playback speed multiplier applied to the animation timestep.</summary>
         public float FrametimeMultiplier { get; set; } = 1.0f;
 
@@ -503,7 +506,7 @@ namespace ValveResourceFormat.Renderer
             {
                 foreach (var clothNode in Skeleton.Roots)
                 {
-                    if (clothNode.IsProceduralCloth)
+                    if (clothNode.IsProceduralCloth && Cloth?.IsBoneSimulated(clothNode.Index) != true)
                     {
                         modelBones[clothNode.Index] = modelBones[clothSimRoot.Index];
                     }
