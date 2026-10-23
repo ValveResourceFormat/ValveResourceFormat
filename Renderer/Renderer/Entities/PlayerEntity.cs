@@ -358,8 +358,16 @@ public sealed class PlayerEntity : BaseEntity
 
         if (holdRotation is not null)
         {
+            var wasSoft = carrySoftTime > 0f;
             carrySoftTime = blocked ? CarrySoftDuration : MathF.Max(carrySoftTime - deltaTime, 0f);
             soft = carrySoftTime > 0f;
+
+            // Free of contacts again, whatever gap they left is travelled back like a fresh
+            // pickup rather than closed in one rigid step
+            if (wasSoft && !soft && Vector3.Distance(body.Position, holdPosition) > PickupArriveDistance)
+            {
+                carryArrived = false;
+            }
 
             // The world re-shaping the grip: while contacts are acting, the grip continuously
             // relaxes toward the orientation the world is forcing, rather than springing back
