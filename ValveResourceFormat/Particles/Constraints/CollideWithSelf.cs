@@ -42,6 +42,7 @@ namespace ValveResourceFormat.Particles.Constraints
             }
 
             var changed = false;
+            var positions = current.Position;
 
             for (var blockStart = 0; blockStart < current.Length; blockStart += BlockSize)
             {
@@ -52,7 +53,7 @@ namespace ValveResourceFormat.Particles.Constraints
                     continue;
                 }
 
-                changed |= PushBlock(current, blockStart, blockEnd - blockStart);
+                changed |= PushBlock(positions, blockStart, blockEnd - blockStart);
             }
 
             return changed;
@@ -62,7 +63,7 @@ namespace ValveResourceFormat.Particles.Constraints
         /// Pushes the particles of one block, one per lane, out of every particle in turn. A block
         /// particle is read from its lane while the block runs, so later pushes see earlier ones.
         /// </summary>
-        private bool PushBlock(ParticleSpan particles, int blockStart, int blockLength)
+        private bool PushBlock(Span<Vector3> positions, int blockStart, int blockLength)
         {
             Span<float> x = stackalloc float[BlockSize];
             Span<float> y = stackalloc float[BlockSize];
@@ -71,7 +72,7 @@ namespace ValveResourceFormat.Particles.Constraints
 
             for (var lane = 0; lane < blockLength; lane++)
             {
-                var position = particles[blockStart + lane].Position;
+                var position = positions[blockStart + lane];
                 x[lane] = position.X;
                 y[lane] = position.Y;
                 z[lane] = position.Z;
@@ -85,12 +86,12 @@ namespace ValveResourceFormat.Particles.Constraints
             var used = Vector128.LessThan(Vector128.Create(0f, 1f, 2f, 3f), Vector128.Create((float)blockLength));
             var changed = false;
 
-            for (var j = 0; j < particles.Length; j++)
+            for (var j = 0; j < positions.Length; j++)
             {
                 var otherLane = j - blockStart;
                 var other = (uint)otherLane < (uint)blockLength
                     ? new Vector3(blockX[otherLane], blockY[otherLane], blockZ[otherLane])
-                    : particles[j].Position;
+                    : positions[j];
 
                 var otherX = Vector128.Create(other.X);
                 var otherY = Vector128.Create(other.Y);
@@ -123,7 +124,7 @@ namespace ValveResourceFormat.Particles.Constraints
 
             for (var lane = 0; lane < blockLength; lane++)
             {
-                particles[blockStart + lane].Position = new Vector3(blockX[lane], blockY[lane], blockZ[lane]);
+                positions[blockStart + lane] = new Vector3(blockX[lane], blockY[lane], blockZ[lane]);
             }
 
             return changed;
