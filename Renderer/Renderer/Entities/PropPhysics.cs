@@ -40,11 +40,14 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
     public bool HasBody { get; private set; }
 
     /// <summary>
-    /// Gets whether the player can pick this prop up: it has a body, and the map did not forbid
-    /// it. A motion-disabled prop counts - grabbing it is what enables its motion, the way the
+    /// Gets whether the player can pick this prop up: it has a body, and neither the map nor, for a
+    /// break piece, the broken model forbids it. A motion-disabled prop counts - grabbing it is what enables its motion, the way the
     /// gravity gloves free a prop pinned in place.
     /// </summary>
-    public bool CanBeCarried => HasBody && !HasSpawnFlags(PropSpawnFlags.PreventPickup);
+    public bool CanBeCarried => HasBody && !HasSpawnFlags(PropSpawnFlags.PreventPickup) && !isPickupPrevented;
+
+    // A break piece its model forbids the player to pick up
+    private bool isPickupPrevented;
 
     /// <summary>Gets the player carrying this prop, or <see langword="null"/> when nobody is.</summary>
     public PlayerEntity? Carrier { get; private set; }
@@ -371,6 +374,7 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
             }
 
             spawned.isBreakPiece = true;
+            spawned.isPickupPrevented = !piece.CanPlayerPickup;
             spawned.SetCollidesWithPlayer(!piece.IsDebris);
 
             // No push of its own: a piece goes where its part of the prop was going, and only a
