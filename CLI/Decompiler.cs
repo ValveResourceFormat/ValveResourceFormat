@@ -119,7 +119,7 @@ namespace CLI
         /// <param name="vpk_cache">Use a cached VPK manifest to keep track of updates, only changed files are written to disk. Requires --output.</param>
         /// <param name="vpk_verify">Verify checksums and signatures of the given VPK, or of every VPK in the given folder.</param>
         /// <param name="vpk_create">Pack all files in the input folder and its subfolders into a VPK at the given path, example: "pak01.vpk". A split VPK must be named "*_dir.vpk", see --vpk_create_chunk_size. File paths are lowercased, and file extension and path filters apply.</param>
-        /// <param name="vpk_create_chunk_size">When using --vpk_create, split file data into chunk files of this many MiB (1 to 1024) next to the VPK, which must be named "*_dir.vpk". By default everything is written into a single file, which must not be named "*_dir.vpk".</param>
+        /// <param name="vpk_create_chunk_size">When using --vpk_create, split file data into chunk files of this many MiB (1 to 1024) next to the VPK, which must be named "*_dir.vpk". By default everything is written into a single file, which may also be named "*_dir.vpk".</param>
         /// <param name="output">-o, Output path to write to. Treated as a folder when it is an existing folder, ends with a path separator, or has no file extension, otherwise it names the file to write, which requires the input to be a single file or the filters to match one file. Use "-" to print decompiled files to the console instead.</param>
         /// <param name="all">-a, Print the content of each resource block in the file.</param>
         /// <param name="block">-b, Print the content of specific block(s), example: "DATA" or "RERL,RED2".</param>

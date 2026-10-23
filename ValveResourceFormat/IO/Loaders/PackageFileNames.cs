@@ -25,7 +25,8 @@ namespace ValveResourceFormat.IO
         /// <summary>
         /// Returns why a package can not be written to a path, or <see langword="null"/> when it can. The name must end in
         /// <c>.vpk</c>, must not be an archive chunk (see <see cref="IsArchiveChunk"/>), and must end in <c>_dir.vpk</c>
-        /// exactly when the package is split into chunk files.
+        /// when the package is split into chunk files. A single file package may also be named <c>_dir.vpk</c>, which games
+        /// need to mount it, such as a <c>pakNN_dir.vpk</c> addon.
         /// </summary>
         /// <param name="path">The path to write the package to.</param>
         /// <param name="splitIntoChunks">Whether the package is written split into chunk files.</param>
@@ -43,9 +44,9 @@ namespace ValveResourceFormat.IO
                 return $"The file name is taken by a chunk file of \"{Path.GetFileName(directoryFile)}\".";
             }
 
-            if (splitIntoChunks != Path.GetFileNameWithoutExtension(path).EndsWith(DirectorySuffix, StringComparison.OrdinalIgnoreCase))
+            if (splitIntoChunks && !Path.GetFileNameWithoutExtension(path).EndsWith(DirectorySuffix, StringComparison.OrdinalIgnoreCase))
             {
-                return splitIntoChunks ? "A VPK split into chunk files must be named \"*_dir.vpk\"." : "A single file VPK must not be named \"*_dir.vpk\".";
+                return "A VPK split into chunk files must be named \"*_dir.vpk\".";
             }
 
             return null;

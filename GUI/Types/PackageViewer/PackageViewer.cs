@@ -71,8 +71,9 @@ namespace GUI.Types.PackageViewer
 
         /// <summary>
         /// Whether the package is split into chunk files, which added files are written to right away.
+        /// A <c>_dir.vpk</c> without chunk files is a single file package, as mods name them to be mounted.
         /// </summary>
-        public bool HasChunkFiles => vrfGuiContext.CurrentPackage is { } package && (package.IsDirVPK || package.HasChunkFiles);
+        public bool HasChunkFiles => vrfGuiContext.CurrentPackage?.HasChunkFiles == true;
 
         public bool IsSigned => vrfGuiContext.CurrentPackage?.IsSigned == true;
 

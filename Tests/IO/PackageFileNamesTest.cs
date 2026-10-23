@@ -38,7 +38,7 @@ namespace Tests.IO
                     await Assert.That(PackageFileNames.GetPackageFileNameError(Path.Join(folder, "pak01_003.vpk"), splitIntoChunks: false)).IsNotNull();
                     await Assert.That(PackageFileNames.GetPackageFileNameError(Path.Join(folder, "surf_2024.vpk"), splitIntoChunks: false)).IsNull();
                     await Assert.That(PackageFileNames.GetPackageFileNameError(Path.Join(folder, "addon_dir.vpk"), splitIntoChunks: true)).IsNull();
-                    await Assert.That(PackageFileNames.GetPackageFileNameError(Path.Join(folder, "addon_dir.vpk"), splitIntoChunks: false)).IsNotNull();
+                    await Assert.That(PackageFileNames.GetPackageFileNameError(Path.Join(folder, "addon_dir.vpk"), splitIntoChunks: false)).IsNull();
                     await Assert.That(PackageFileNames.GetPackageFileNameError(Path.Join(folder, "addon.vpk"), splitIntoChunks: true)).IsNotNull();
                 }
             }

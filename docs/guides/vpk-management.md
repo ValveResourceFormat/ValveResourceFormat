@@ -65,7 +65,7 @@ Source2Viewer-CLI -i "pak01_dir.vpk" -o "output_folder/" -d
     - Removing does not ask for confirmation.
     - Empty folders are not saved.
 
-3. Press Ctrl+S, or right-click and select **Save** or **Save as**. Tabs with unsaved changes show `*` in their title. To split the VPK into chunk files, pick **Valve Pak split into chunk files** as the type and name it `*_dir.vpk`.
+3. Press Ctrl+S, or right-click and select **Save** or **Save as**. Tabs with unsaved changes show `*` in their title. To split the VPK into chunk files, pick **Valve Pak split into chunk files** as the type and name it `*_dir.vpk`. A single-file VPK can also be named `*_dir.vpk`, such as `pak05_dir.vpk` for a mod, and stays a single file when you add files and save.
 
     ![Save in the context menu](./images/vpk-management-create-save-menu.png)
 
@@ -91,7 +91,7 @@ See the [command-line utility](./command-line.md#create-a-vpk-from-a-folder) for
 
 - Saving removes the VPK's signature, so games that check signatures won't load it.
 - A single-file VPK must stay under 2 GiB; save bigger ones split into chunk files.
-- In a split VPK, added files go into chunk files right away and stay there even if you don't save.
+- In a split VPK, added files go into chunk files right away and stay there even if you don't save. A `*_dir.vpk` without chunk files counts as a single file.
 
 ## Recovering Deleted Files
 
