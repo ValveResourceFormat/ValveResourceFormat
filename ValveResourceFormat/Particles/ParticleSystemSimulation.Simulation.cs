@@ -1,3 +1,4 @@
+using System.Numerics.Tensors;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.Particles.Utils;
 
@@ -515,13 +516,7 @@ namespace ValveResourceFormat.Particles
             // Age is not stored by the engine, only derived, so recompute it from the creation
             // stamp before operators read it; particles born later this step carry their own age
             var current = particleCollection.Current;
-            var ages = current.Age;
-            var creationTimes = current.CreationTime;
-
-            for (var i = 0; i < ages.Length; i++)
-            {
-                ages[i] = systemState.Age - creationTimes[i];
-            }
+            TensorPrimitives.Subtract(systemState.Age, current.CreationTime, current.Age);
 
             // Each function that runs displaces the per-particle draws of the ones after it. emitters
             // and initializers inherit whatever the pre-emission walk left behind.
