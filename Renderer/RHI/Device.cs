@@ -225,6 +225,26 @@ namespace ValveResourceFormat.Renderer.RHI
             return 0;
         }
 
+        private static unsafe HashSet<string> GetAvailableInstanceLayers()
+        {
+            uint count = 0;
+            vkEnumerateInstanceLayerProperties(&count, null).CheckResult();
+
+            var layers = new VkLayerProperties[count];
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            fixed (VkLayerProperties* layersPtr = layers)
+            {
+                vkEnumerateInstanceLayerProperties(&count, layersPtr).CheckResult();
+
+                for (var i = 0u; i < count; i++)
+                {
+                    names.Add(Marshal.PtrToStringUTF8((nint)layersPtr[i].layerName)!);
+                }
+            }
+
+            return names;
+        }
+
         unsafe public Device()
         {
             // Vortice loads the loader by bare name with NativeLibrary.TryLoad, which fails once the DLL search has been
@@ -266,9 +286,10 @@ namespace ValveResourceFormat.Renderer.RHI
                 pfnUserCallback = &DebugCallback
             };
 
-            var layerNamesPtr = (byte*)Marshal.StringToHGlobalAnsi("VK_LAYER_KHRONOS_validation");
-
-            string[] layerNames = new string[] { "VK_LAYER_KHRONOS_validation" };
+            // Layers are missing when not installed, and always under Wine, which only lets the host loader inject them.
+            string[] wantedLayers = ["VK_LAYER_KHRONOS_validation"];
+            var availableLayers = GetAvailableInstanceLayers();
+            var layerNames = Array.FindAll(wantedLayers, availableLayers.Contains);
 
             VkStringArray VkLayerNames = new VkStringArray(layerNames);
 
