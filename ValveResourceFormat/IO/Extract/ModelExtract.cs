@@ -256,6 +256,6 @@ public partial class ModelExtract
             || (includePhysics && (PhysHullsToExtract.Exists(hull => Same(hull.FileName))
                 || PhysMeshesToExtract.Exists(mesh => Same(mesh.FileName))))
             || (cloth is not null && cloth.ProxyMeshes.Exists(proxy => Same(proxy.FileName)))
-            || (includeAnimations && AnimationsToExtract.Exists(entry => Same(entry.FileName)));
+            || (includeAnimations && animationFileNames.Contains(name));
     }
 }

@@ -16,6 +16,7 @@ partial class ModelExtract
     public List<(SequenceAnimation Anim, string FileName)> AnimationsToExtract { get; } = [];
 
     private readonly HashSet<SequenceAnimation> animationGroupAnimations = [];
+    private readonly HashSet<string> animationFileNames = new(StringComparer.OrdinalIgnoreCase);
     private SequenceTables? sequenceTables;
     private Dictionary<string, string>? aliasedSequences;
 
@@ -56,7 +57,7 @@ partial class ModelExtract
 
         foreach (var anim in model.GetEmbeddedAnimations())
         {
-            AnimationsToExtract.Add((anim, GetDmxFileName_ForAnimation(anim.Name)));
+            QueueAnimation(anim);
         }
 
         EnqueueAnimationGroups(model);
@@ -90,8 +91,15 @@ partial class ModelExtract
             }
 
             animationGroupAnimations.Add(anim);
-            AnimationsToExtract.Add((anim, GetDmxFileName_ForAnimation(anim.Name)));
+            QueueAnimation(anim);
         }
+    }
+
+    private void QueueAnimation(SequenceAnimation anim)
+    {
+        var fileName = GetDmxFileName_ForAnimation(anim.Name);
+        AnimationsToExtract.Add((anim, fileName));
+        animationFileNames.Add(fileName);
     }
 
     private void AddAnimationGraphClips(ContentFile vmdl)

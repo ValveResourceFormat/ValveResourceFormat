@@ -2952,7 +2952,7 @@ public sealed partial class MapExtract
 
             using var ms = new MemoryStream();
             KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, new KVDocument(null, null, kvObject));
-            return System.Text.Encoding.UTF8.GetString(ms.ToArray());
+            return System.Text.Encoding.UTF8.GetString(ms.GetBuffer(), 0, (int)ms.Length);
         }
 
         return data switch

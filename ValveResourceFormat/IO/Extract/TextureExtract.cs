@@ -879,7 +879,7 @@ public sealed class TextureExtract
 
         using var stream = new MemoryStream();
         datamodel.Save(stream, "keyvalues2_noids", 1);
-        return Encoding.UTF8.GetString(stream.ToArray());
+        return Encoding.UTF8.GetString(stream.GetBuffer(), 0, (int)stream.Length);
     }
 
     /// <summary>

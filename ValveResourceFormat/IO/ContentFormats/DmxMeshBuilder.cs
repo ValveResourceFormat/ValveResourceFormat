@@ -218,7 +218,7 @@ internal static class DmxMeshBuilder
                 }
 
                 var vectorWeights = VBIB.GetBlendWeightsArray(vertexBuffer, attribute);
-                var flatWeights = MemoryMarshal.Cast<Vector4, float>(vectorWeights).ToArray();
+                var flatWeights = MemoryMarshal.Cast<Vector4, float>(vectorWeights);
 
                 var compactWeights = new float[flatWeights.Length / boneArrayComponents * boneWeightCount];
                 for (var i = 0; i < flatWeights.Length; i += boneArrayComponents)
