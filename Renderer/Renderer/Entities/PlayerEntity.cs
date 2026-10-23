@@ -44,6 +44,12 @@ public sealed class PlayerEntity : BaseEntity
     private const float ContactStepTolerance = 0.05f;
     private const float CarrySoftDuration = 0.2f;
 
+    // While soft, the carry still follows the hold pose's own motion, but closes the gap a contact
+    // left no faster than this, well under the solver's restitution threshold: closing it at the
+    // acceleration cap bounced a prop held into a wall off it, to be pressed back every other
+    // frame, which shows as a shake
+    private const float MaxCarryCatchUpSpeed = 20f;
+
     // A fresh pickup travels to the hold pose at these caps, braking to arrive rather than
     // snapping there, and the rigid chase only takes over once it has arrived
     private const float PickupTravelSpeed = 500f;
@@ -97,6 +103,9 @@ public sealed class PlayerEntity : BaseEntity
     private float carryExpectedTurn;
     private bool hasCarryExpectation;
     private float carrySoftTime;
+
+    // Where last frame's hold pose was, which says how fast the hold pose itself moves
+    private Vector3 previousHoldPosition;
 
     // Whether the pickup has reached the hold pose, after which the chase is rigid
     private bool carryArrived;
@@ -371,7 +380,22 @@ public sealed class PlayerEntity : BaseEntity
             : carryArrived ? (float.PositiveInfinity, float.PositiveInfinity)
             : (PickupTravelAcceleration, PickupTurnAcceleration);
 
-        var velocity = SteerVelocity(body.LinearVelocity, holdPosition - body.Position, deltaTime, maxSpeed, maxAcceleration);
+        var error = holdPosition - body.Position;
+
+        if (soft && carryArrived && hasCarryExpectation)
+        {
+            var catchUp = previousHoldPosition - body.Position;
+            var maxCatchUp = MaxCarryCatchUpSpeed * deltaTime;
+
+            if (catchUp.Length() > maxCatchUp)
+            {
+                error += (Vector3.Normalize(catchUp) * maxCatchUp) - catchUp;
+            }
+        }
+
+        previousHoldPosition = holdPosition;
+
+        var velocity = SteerVelocity(body.LinearVelocity, error, deltaTime, maxSpeed, maxAcceleration);
         body.LinearVelocity = velocity;
 
         carryExpectedPosition = body.Position + velocity * deltaTime;
