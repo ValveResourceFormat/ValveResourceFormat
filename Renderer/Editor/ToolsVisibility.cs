@@ -16,7 +16,8 @@ public sealed class ToolsVisibility : IDrawFilter
 {
     // What only the editor draws, and the entities a template spawns, which are not in the world until it does
     private static readonly FrozenSet<string> ToolEntityLayerNames =
-        FrozenSet.Create(StringComparer.Ordinal, HammerEntityVisuals.MarkerLayerName, HammerEntityVisuals.ConnectionsLayerName, WorldLoader.TemplateLayerName);
+        FrozenSet.Create(StringComparer.Ordinal, HammerEntityVisuals.MarkerLayerName, HammerEntityVisuals.ConnectionsLayerName,
+            HammerEntityVisuals.HelpersLayerName, WorldLoader.TemplateLayerName);
 
     private readonly HashSet<SceneNode> selectedNodes = [];
 

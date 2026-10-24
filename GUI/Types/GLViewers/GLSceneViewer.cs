@@ -106,6 +106,9 @@ namespace GUI.Types.GLViewers
         /// <summary>What tools-only content the view draws, which decides the tools materials the renderer draws.</summary>
         protected ToolsVisibility Tools { get; } = new();
 
+        /// <summary>The editor entities of the view, which draw what Hammer shows of them.</summary>
+        protected HammerEntityVisuals EntityVisuals { get; }
+
         static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
 
         private readonly float[] frameTimes = new float[30];
@@ -128,7 +131,8 @@ namespace GUI.Types.GLViewers
 
             Renderer = new(rendererContext);
             Input = new UserInput(Renderer);
-            Renderer.EntitySystem.ToolVisuals = new HammerEntityVisuals();
+            EntityVisuals = new HammerEntityVisuals(rendererContext.FileLoader, rendererContext.Logger);
+            Renderer.EntitySystem.ToolVisuals = EntityVisuals;
             Renderer.Settings.DrawFilter = Tools;
             TextRenderer = new(rendererContext, Renderer.Camera);
             crosshairRenderer = new CrosshairRenderer(rendererContext);
@@ -521,7 +525,7 @@ namespace GUI.Types.GLViewers
             baseGrid = new InfiniteGrid(Scene);
             Debug.Assert(MainFramebuffer != null);
 
-            selectionVisuals = new(Scene.RendererContext, Selection);
+            selectionVisuals = new(Selection, EntityVisuals, Tools, Scene.RendererContext);
             toolsPass = new(Scene.RendererContext, MainFramebuffer);
             Picker = new(Scene.RendererContext, OnPicked);
 
@@ -792,11 +796,6 @@ namespace GUI.Types.GLViewers
 
             // The tools are drawn over the final image, so they keep their colors whatever the exposure
             toolsPass.Render(Renderer, GLDefaultFramebuffer, selectionVisuals, TextRenderer);
-
-            if (Renderer.ResolvedSceneDepth != null)
-            {
-                selectionVisuals.Render(Renderer.ResolvedSceneDepth);
-            }
         }
 
         protected override void OnBufferSwapped(double blockedMs, double framePeriodMs)
@@ -856,9 +855,6 @@ namespace GUI.Types.GLViewers
                         Text = ScreenDebugText,
                     }, Renderer.Camera);
                 }
-
-                // A selected node draws its tools materials even while they are hidden
-                Tools.SetSelectedNodes(Selection.Nodes);
                 selectionVisuals.Update(renderContext, updateContext);
             }
 

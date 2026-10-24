@@ -411,10 +411,13 @@ namespace GUI.Types.GLViewers
 
                     worldLayersComboBox.BeginUpdate();
 
-                    SetAvailableLayers(uniqueWorldLayers);
+                    // Showing helpers also decides what a selected entity shows, so it can be chosen even while nothing
+                    // unselected needs it
+                    var listedLayers = uniqueWorldLayers.Append(HammerEntityVisuals.HelpersLayerName).Distinct().ToArray();
+                    SetAvailableLayers(listedLayers);
 
                     // Layers that have no nodes yet, such as particles spawned later, are not listed and stay enabled
-                    unlistedEnabledLayers = [.. LoadedWorld.DefaultEnabledLayers.Where(layer => !uniqueWorldLayers.Contains(layer))];
+                    unlistedEnabledLayers = [.. LoadedWorld.DefaultEnabledLayers.Where(layer => !listedLayers.Contains(layer))];
 
                     foreach (var worldLayer in LoadedWorld.DefaultEnabledLayers)
                     {

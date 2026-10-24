@@ -1,4 +1,5 @@
 using System.Globalization;
+using ValveResourceFormat.Renderer.Editor.Helpers;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 
 namespace ValveResourceFormat.Renderer.Editor.Selection;
@@ -11,8 +12,6 @@ namespace ValveResourceFormat.Renderer.Editor.Selection;
 internal static class SelectionBounds
 {
     private const float DimensionLineWidth = 2f;
-
-    private static readonly Color32 BoxColor = new(255, 255, 0);
 
     private static readonly Color32 AxisX = new(255, 140, 140);
     private static readonly Color32 AxisY = new(140, 255, 140);
@@ -29,7 +28,7 @@ internal static class SelectionBounds
         context.PushTransform(transform);
         context.PushRenderMode(ToolRenderMode.WireframeNoZ);
 
-        context.DrawColor = BoxColor;
+        context.DrawColor = EntityHelper.SelectionColor;
         context.DrawWireBox(box.Min, box.Max);
 
         // The dimensions are drawn over the edges they run along
