@@ -12,6 +12,7 @@ in vec3 vPOSITION;
 
 #include "common/instancing.slang"
 #include "common/animation.slang"
+#include "common/morph.slang"
 
 void main(void)
 {
@@ -19,5 +20,5 @@ void main(void)
         texCoord = vTEXCOORD;
     #endif
 
-    gl_Position = g_matWorldToProjection * vec4(vec4(vPOSITION, 1.0) * CalculateSkinTransform(), 1.0);
+    gl_Position = g_matWorldToProjection * vec4(vec4(vPOSITION + getMorphOffset(), 1.0) * CalculateSkinTransform(), 1.0);
 }

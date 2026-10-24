@@ -10,8 +10,8 @@ namespace ValveResourceFormat.Renderer.Editor.Selection;
 internal sealed class SelectionOutline
 {
     // The image is already display encoded when the edges are drawn over it
-    private static readonly Vector4 VisibleColor = new(255f / 255f, 183f / 255f, 45f / 255f, 1f);
-    private static readonly Vector4 OccludedColor = new(228f / 255f, 210f / 255f, 176f / 255f, 0.5f);
+    private static readonly Vector4 VisibleColor = new(1f, 1f, 0.2f, 1f);
+    private static readonly Vector4 OccludedColor = new(1f, 1f, 0.65f, 0.85f);
 
     private readonly RendererContext rendererContext;
     private readonly Shader maskShader;
@@ -45,22 +45,36 @@ internal sealed class SelectionOutline
             return;
         }
 
-        Debug.Assert(sceneFramebuffer.NumSamples > 0);
+        Debug.Assert(sceneFramebuffer.NumSamples > 0 && sceneFramebuffer.Depth != null);
 
         outlinedNodes.Clear();
         outlinedNodes.UnionWith(nodes);
 
         mask.Resize(sceneFramebuffer.Width, sceneFramebuffer.Height, sceneFramebuffer.NumSamples);
 
+        // Tested per sample against the depth the scene left, which a resolved copy cannot do at the silhouette.
+        // Only color is cleared, so the scene's depth is left as it is.
+        sceneFramebuffer.Depth.AttachToFramebuffer(mask, FramebufferAttachment.DepthAttachment, 0);
+
         using (new GLDebugGroup("Selection Outline Mask"))
-        using (GraphicsContext.RenderState.Scope(cullMode: RsCullMode.None, multisampleEnable: mask.NumSamples > 1,
-            depthTest: false, depthWrite: false, blend: false))
         {
             mask.BindAndClear();
 
-            if (!renderer.RenderNodes(mask, maskShader, outlinedNodes))
+            using (GraphicsContext.RenderState.Scope(cullMode: RsCullMode.None, multisampleEnable: mask.NumSamples > 1,
+                depthTest: false, depthWrite: false, blend: false, colorWriteMask: RsColorWriteEnableBits.R))
             {
-                return;
+                if (!renderer.RenderNodes(mask, maskShader, outlinedNodes))
+                {
+                    return;
+                }
+            }
+
+            // Nudged closer, since another shader drew the depth and its result may differ in the last bits
+            using (GraphicsContext.RenderState.Scope(cullMode: RsCullMode.None, multisampleEnable: mask.NumSamples > 1,
+                depthTest: true, depthFunc: RsComparison.CloserEqual, depthWrite: false, depthBias: 8, blend: false,
+                colorWriteMask: RsColorWriteEnableBits.G))
+            {
+                renderer.RenderNodes(mask, maskShader, outlinedNodes);
             }
         }
 
