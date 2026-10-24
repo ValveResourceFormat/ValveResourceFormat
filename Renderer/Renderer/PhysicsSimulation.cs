@@ -177,9 +177,10 @@ public sealed class PhysicsSimulation : IDisposable
     }
 
     /// <summary>
-    /// Shortens a reach along a ray so that a body held at its end fits in front of the world and
-    /// the movers there, rather than being asked to stand inside them. Other props are left out:
-    /// they get pushed aside.
+    /// Shortens a reach along a ray so that a body held at its end is not asked to stand deeper in
+    /// the world and the movers there than its thinnest side allows: pressed into a wall, a held
+    /// body may be pushed in until it lies flat against it. Other props are left out: they get
+    /// pushed aside.
     /// </summary>
     /// <param name="from">Ray start, the eyes.</param>
     /// <param name="direction">Normalized ray direction.</param>
@@ -193,12 +194,36 @@ public sealed class PhysicsSimulation : IDisposable
             return reach;
         }
 
+        var extents = bounds.Extents;
+        return ShortenReach(from, direction, reach, MathF.Min(extents.X, MathF.Min(extents.Y, extents.Z)));
+    }
+
+    /// <summary>
+    /// Shortens a reach along a ray so that a body held at its end, turned as it is now, stops just
+    /// short of the world and the movers there.
+    /// </summary>
+    /// <param name="from">Ray start, the eyes.</param>
+    /// <param name="direction">Normalized ray direction.</param>
+    /// <param name="reach">How far along the ray the body would like to be held.</param>
+    /// <param name="body">The held body, whose bounds say how much room it needs.</param>
+    /// <returns>The reach, shortened when the ray meets something first.</returns>
+    public float TouchReach(Vector3 from, Vector3 direction, float reach, Body body)
+    {
+        if (!bodyBounds.TryGetValue(body.UserData, out var bounds))
+        {
+            return reach;
+        }
+
         // How far the body's bounds stick out from its mass center toward what the ray meets
         var localDirection = Vector3.Transform(direction, Quaternion.Inverse(body.Rotation));
         var extent = Vector3.Dot(bounds.Center - body.LocalCenterOfMass, localDirection)
-            + Vector3.Dot(Vector3.Abs(localDirection), bounds.Extents)
-            + ClearReachMargin;
+            + Vector3.Dot(Vector3.Abs(localDirection), bounds.Extents);
 
+        return ShortenReach(from, direction, reach, extent + ClearReachMargin);
+    }
+
+    private float ShortenReach(Vector3 from, Vector3 direction, float reach, float extent)
+    {
         var hit = World.RaycastClosest(from, direction * (reach + extent),
             new QueryFilter(PlayerCategory, StaticCategory | MoverCategory));
 
