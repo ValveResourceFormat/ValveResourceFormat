@@ -509,7 +509,7 @@ namespace ValveResourceFormat.IO
 
             if (FoundGameSettings == null)
             {
-                FoundGameSettings = new GameInfoSettings();
+                FoundGameSettings = new GameInfoSettings { GameInfoPath = gameinfoPath };
 
                 if (gameInfo.TryGetValue("Particles", out var particles))
                 {

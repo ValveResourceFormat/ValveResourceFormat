@@ -1,3 +1,5 @@
+using System.IO;
+
 namespace ValveResourceFormat.IO
 {
     /// <summary>
@@ -28,5 +30,20 @@ namespace ValveResourceFormat.IO
         /// which its <c>gameinfo.gi</c> gives as <c>Particles/EnableParticleShaderFeatureBranching</c>.
         /// </summary>
         public bool ParticleShaderFeatureBranching { get; internal set; }
+
+        /// <summary>Gets the path of the <c>gameinfo.gi</c> of the game, or <see langword="null"/> where no game was found.</summary>
+        internal string? GameInfoPath { get; init; }
+
+        private int? CachedInstalledSteamAppId;
+
+        /// <summary>
+        /// Gets the installed Steam app whose folder the game is in, such as 570 for Dota 2, or zero when no game was
+        /// found or it is not in the folder of an installed app. Where several apps share the folder, it is the one
+        /// with the lowest app id.
+        /// </summary>
+        public int InstalledSteamAppId => GameInfoPath == null ? 0 : CachedInstalledSteamAppId ??= FindInstalledSteamAppId(GameInfoPath);
+
+        private static int FindInstalledSteamAppId(string gameInfoPath)
+            => GameFolderLocator.FindSteamGameContainingPath(Path.GetFullPath(gameInfoPath), GameFolderLocator.FindAllSteamGames()) is { } game ? game.AppID : 0;
     }
 }
