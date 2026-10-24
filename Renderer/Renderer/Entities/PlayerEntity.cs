@@ -56,6 +56,18 @@ public sealed class PlayerEntity : BaseEntity
     // fast as the view moves, so it keeps up.
     private const float MaxCarryCatchUpSpeed = 20f;
 
+    // Once touching something or held still, the hold may press the prop into what the view meets,
+    // as deep as its thinnest side allows, so a prop pushed into a wall turns to lie flat against it.
+    // Past where the prop would just touch, the hold leads the prop by no more than this speed. A
+    // prop swept along by a moving view is held where it would just touch, so it is not driven into
+    // the floor at the sweep's speed.
+    private const float MaxCarryPressSpeed = 20f;
+    private const float MaxCarryPressHoldSpeed = 50f;
+
+    // A held prop takes part of its impact damage, so pressing it into the world as it turns to fit
+    // does not shatter everything fragile
+    private const float CarriedImpactDamageScale = 0.4f;
+
     // A fresh pickup travels to the hold pose at these caps, braking to arrive rather than
     // snapping there, and the rigid chase only takes over once it has arrived
     private const float PickupTravelSpeed = 500f;
@@ -112,6 +124,9 @@ public sealed class PlayerEntity : BaseEntity
 
     // Where last frame's hold pose was, which says how fast the hold pose itself moves
     private Vector3 previousHoldPosition;
+
+    // Where last frame's hold pose was before the press limit, which says whether the view is moving
+    private Vector3 previousRawHoldPosition;
 
     // Last frame's hold orientation, which says how fast the hold pose itself turns
     private Quaternion previousHoldRotation;
@@ -336,6 +351,11 @@ public sealed class PlayerEntity : BaseEntity
 
         var body = carried.CarryBody;
         var (holdPosition, holdRotation) = carried.ComputeHoldPose();
+        var holdStill = hasCarryExpectation
+            && Vector3.Distance(holdPosition, previousRawHoldPosition) < MaxCarryPressHoldSpeed * deltaTime;
+        previousRawHoldPosition = holdPosition;
+        holdPosition = LimitCarryPress(body, holdPosition, deltaTime, pressing: carrySoftTime > 0f || holdStill);
+
         var blocked = IsCarryBlocked(body);
 
         carryArrived = carryArrived
@@ -439,6 +459,29 @@ public sealed class PlayerEntity : BaseEntity
             carryExpectedRotation = Turn(body.Rotation, angularVelocity * deltaTime);
             carryExpectedTurn = angularVelocity.Length() * deltaTime;
         }
+    }
+
+    // Holds the pose back along the view to where the body, turned as it is, would just touch what
+    // the view meets, or while pressing, to a step of the press speed past where the body is,
+    // whichever is deeper
+    private Vector3 LimitCarryPress(Body body, Vector3 holdPosition, float deltaTime, bool pressing)
+    {
+        var (eyePosition, forward, _) = GetHoldView();
+        var massCenterOffset = Vector3.Transform(body.LocalCenterOfMass, body.Rotation);
+        var reach = Vector3.Dot(holdPosition + massCenterOffset - eyePosition, forward);
+        var touchReach = EntitySystem.Physics.TouchReach(eyePosition, forward, reach, body);
+
+        if (reach <= touchReach)
+        {
+            return holdPosition;
+        }
+
+        var bodyReach = Vector3.Dot(body.Position + massCenterOffset - eyePosition, forward);
+        var allowedReach = pressing
+            ? MathF.Max(touchReach, MathF.Min(reach, bodyReach + (MaxCarryPressSpeed * deltaTime)))
+            : touchReach;
+
+        return holdPosition - (forward * (reach - allowedReach));
     }
 
     // Whether a contact took part of last frame's step: the body fell short of where its own
@@ -637,6 +680,11 @@ public sealed class PlayerEntity : BaseEntity
         hasPreviousHoldRotation = false;
         carryArrived = false;
         carryable.BeginCarry(this, HoldDistance + Vector3.Distance(hit.Point, grabbedBody.CenterOfMass), grabbedBody);
+
+        if (carryable is PropPhysics prop)
+        {
+            prop.ImpactDamageScale *= CarriedImpactDamageScale;
+        }
     }
 
     private void Drop()
@@ -647,6 +695,11 @@ public sealed class PlayerEntity : BaseEntity
             // the player's own motion plus whatever a view flick added - which the carry's speed
             // cap already bounds
             carried.EndCarry();
+
+            if (carried is PropPhysics prop)
+            {
+                prop.ImpactDamageScale /= CarriedImpactDamageScale;
+            }
         }
 
         carryStrainTime = 0f;
