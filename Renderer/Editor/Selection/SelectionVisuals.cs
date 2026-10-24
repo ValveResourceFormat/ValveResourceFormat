@@ -224,13 +224,10 @@ public sealed class SelectionVisuals
 
         context.PushAbsoluteTransform(toWorld);
 
+        // Selecting an entity shows every helper it has, whichever layers hide them while it is not
         foreach (var helper in entity.Helpers)
         {
-            // Selecting an entity shows every helper it has, whichever layers hide them while it is not
-            if (helper.IsAvailable)
-            {
-                helper.Render(context, state);
-            }
+            helper.Render(context, state);
         }
 
         context.PopTransform();
@@ -245,7 +242,7 @@ public sealed class SelectionVisuals
 
         foreach (var helper in path.Helpers)
         {
-            if (helper.IsSelectedWithPathNodes && helper.IsAvailable)
+            if (helper.IsSelectedWithPathNodes)
             {
                 helper.Render(context, state);
             }

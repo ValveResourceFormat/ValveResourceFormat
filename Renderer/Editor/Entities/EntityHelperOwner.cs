@@ -45,8 +45,6 @@ internal sealed class EntityHelperOwner : IHelperOwner
     /// <summary>Gets or sets the node the helpers stand in for the entity with, which the entity took as its own.</summary>
     public SceneNode? StandIn { get; set; }
 
-    public bool IsInSkybox => entity.Scene.IsSkybox;
-
     // What the game draws the entity with, unless the helpers stand in for it
     public AABB? LocalBounds => entity.RootNode is { IsPointMarker: false } root ? root.LocalBoundingBox : null;
 

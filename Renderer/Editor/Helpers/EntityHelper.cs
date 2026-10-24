@@ -82,12 +82,6 @@ public abstract class EntityHelper
     public virtual AABB? GetObjectBounds(in Matrix4x4 worldToSpace) => ObjectBounds?.Transform(worldToSpace);
 
     /// <summary>
-    /// Gets whether the helper is drawn for its entity at all. Of the entities of a 3D sky placed into the map,
-    /// only the helpers that show what the game does are, never the ones the editor's options hide.
-    /// </summary>
-    public bool IsAvailable => !Owner.IsInSkybox || !(NeedsShowHelpers || HiddenInGameObjectsOnly);
-
-    /// <summary>
     /// Gets the visibility layer of what the helper adds to the scene, which stands in for the options of the
     /// editor: the helpers layer for a helper only drawn while helpers are shown, the editor-only entities layer
     /// for one hidden while only what the game shows is, and <see langword="null"/>, the layer of the entity,
@@ -138,7 +132,7 @@ public abstract class EntityHelper
     /// </param>
     private protected void AddShapes(Matrix4x4? placement = null, string? layerName = null)
     {
-        if (RequiresSelection || !IsAvailable)
+        if (RequiresSelection)
         {
             return;
         }

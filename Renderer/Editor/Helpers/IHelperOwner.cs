@@ -30,9 +30,6 @@ public interface IHelperOwner
     /// <summary>Gets the visibility layer of what the entity draws.</summary>
     string LayerName { get; }
 
-    /// <summary>Gets whether the entity is part of a 3D sky placed into the map, rather than of the map itself.</summary>
-    bool IsInSkybox { get; }
-
     /// <summary>
     /// Gets the bounds of what the entity is made of besides its helpers, such as the meshes of a solid entity
     /// or the model the game draws it with, in the world, or <see langword="null"/> where there is nothing.

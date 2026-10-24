@@ -826,7 +826,6 @@ namespace ValveResourceFormat.Renderer.World
             // Without a world group of its own the sky joins the one of the map that placed it
             var skyScene = new Scene(RendererContext)
             {
-                IsSkybox = true,
                 WorldGroup = skyboxReference.Data.GetStringProperty("worldgroupid") is { Length: > 0 } worldGroup ? worldGroup : scene.WorldGroup,
             };
 

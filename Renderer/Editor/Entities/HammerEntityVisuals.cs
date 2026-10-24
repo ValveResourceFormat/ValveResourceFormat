@@ -123,7 +123,7 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
 
         foreach (var helper in owner.Helpers)
         {
-            if (helper.IsStandIn && helper.IsAvailable)
+            if (helper.IsStandIn)
             {
                 helper.AddToScene();
             }
@@ -184,7 +184,7 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
 
         foreach (var helper in helpers)
         {
-            if (helper.IsToolShape && helper.IsAvailable)
+            if (helper.IsToolShape)
             {
                 helper.AddToScene();
             }
