@@ -25,7 +25,7 @@ public abstract class BaseTrigger : BaseModelEntity
         /// <summary>Pushable props may touch this trigger. Nothing here is pushable yet.</summary>
         AllowPushables = 4,
 
-        /// <summary>Physics props may touch this trigger. Nothing here is a physics prop yet.</summary>
+        /// <summary>Physics props may touch this trigger. Only a <c>trigger_push</c> acts on them.</summary>
         AllowPhysics = 8,
 
         /// <summary>Only players in a vehicle may touch this trigger. No player here drives one.</summary>

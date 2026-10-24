@@ -61,6 +61,7 @@ public static class EntityFactory
         Register<TriggerOnce>("trigger_once", static (system, spawnInfo) => new TriggerOnce(system, spawnInfo));
         Register<TriggerLook>("trigger_look", static (system, spawnInfo) => new TriggerLook(system, spawnInfo));
         Register<TriggerTeleport>("trigger_teleport", static (system, spawnInfo) => new TriggerTeleport(system, spawnInfo));
+        Register<TriggerPush>("trigger_push", static (system, spawnInfo) => new TriggerPush(system, spawnInfo));
         Register<PointTeleport>("point_teleport", static (system, spawnInfo) => new PointTeleport(system, spawnInfo));
 
         // lights

@@ -525,9 +525,17 @@ public class PlayerMovement : IPlayerController
             var halfGravity = new Vector3(0f, 0f, GravityValue * TickInterval * 0.5f);
             Velocity -= halfGravity;
             deferredVelocity -= halfGravity;
+
+            // An upward push acts as an acceleration against gravity rather than a velocity
+            Velocity += new Vector3(0f, 0f, BaseVelocity.Z * TickInterval);
         }
 
         ClampVelocity();
+
+        // A push, such as a trigger_push, carries the player along for the move on top of their own
+        // velocity, which friction and acceleration have already acted on
+        var pushVelocity = BaseVelocity with { Z = 0f };
+        Velocity += pushVelocity;
 
         // The freshest impact speed for a landing the move below may produce is the tick's midpoint
         fallSpeed = MathF.Max(fallSpeed, -Velocity.Z);
@@ -556,10 +564,11 @@ public class PlayerMovement : IPlayerController
             position = TryPlayerMove(position, playerHull);
         }
 
-        // A move stopped dead also drops the rest of the tick's acceleration
+        // A move stopped dead also drops the rest of the tick's acceleration. The push was the move's
+        // alone and comes back out of the player's own velocity.
         if (Velocity != Vector3.Zero)
         {
-            Velocity += deferredVelocity;
+            Velocity += deferredVelocity - pushVelocity;
         }
 
         CategorizePosition(ref position, playerHull);
@@ -1832,6 +1841,32 @@ public class PlayerMovement : IPlayerController
         // moving there over the same interval
         pushViewLag -= delta;
         pushViewLagTimeLeft = TickInterval;
+    }
+
+    // The push of a trigger_push, set every tick it acts
+    private Vector3 BaseVelocity;
+
+    /// <inheritdoc/>
+    public void SetBaseVelocity(Vector3 velocity)
+    {
+        if (velocity == Vector3.Zero)
+        {
+            // Nothing pushes any more: the push carries on as the player's own momentum. Its upward
+            // part acted as an acceleration and is in the velocity already.
+            Velocity += BaseVelocity with { Z = 0f };
+            BaseVelocity = Vector3.Zero;
+            return;
+        }
+
+        // Lifted a unit off the ground, or the next ground probe would hold the player down
+        if (velocity.Z > 0f && OnGround)
+        {
+            OnGround = false;
+            GroundEntity = null;
+            Push(Vector3.UnitZ);
+        }
+
+        BaseVelocity = velocity;
     }
 
     // How far the view still trails the hull the entity tick pushed, and how much of the tick interval
