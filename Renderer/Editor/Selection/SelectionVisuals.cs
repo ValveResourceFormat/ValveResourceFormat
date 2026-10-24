@@ -1,5 +1,6 @@
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Editor.Entities;
+using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.ResourceTypes;
@@ -23,9 +24,9 @@ public enum LightingBindingDisplay
 
 /// <summary>
 /// Draws the helpers for a <see cref="SelectionSet"/> over the final image, so their colors show as given:
-/// bounds with edge lengths, the shapes a selected entity's class declares, the node's name, and optionally
-/// the lighting it uses. Lines and faces are solid where the scene does not hide them, and faint over it.
-/// The selected nodes are outlined by <see cref="RenderOutline"/>.
+/// bounds with edge lengths and optionally the lighting each node uses as tool <see cref="Shapes"/>, the shapes a
+/// selected entity's class declares, and the node's name. The class shapes are solid where the scene does not
+/// hide them, and faint over it. The selected nodes are outlined by <see cref="RenderOutline"/>.
 /// </summary>
 public sealed class SelectionVisuals
 {
@@ -41,6 +42,9 @@ public sealed class SelectionVisuals
     private readonly LineBuffer faces;
     private readonly LineBuffer overlayFaces;
     private readonly SelectionOutline outline;
+
+    /// <summary>Gets the shapes of the selection, in world space, as the last <see cref="Update"/> drew them.</summary>
+    public ToolGeometry Shapes { get; } = new();
 
     /// <summary>Gets or sets which lighting is shown linked to each selected node.</summary>
     public LightingBindingDisplay LightingBindings { get; set; }
@@ -66,6 +70,8 @@ public sealed class SelectionVisuals
     /// <param name="updateContext">Update context providing the text renderer.</param>
     public void Update(Scene.RenderContext renderContext, Scene.UpdateContext updateContext)
     {
+        Shapes.Clear();
+
         var nodes = selection.Nodes;
 
         if (nodes.Count == 0)
@@ -75,9 +81,11 @@ public sealed class SelectionVisuals
             return;
         }
 
+        var context = new ToolRenderContext(Shapes);
+
         foreach (var node in nodes)
         {
-            AddNodeHelpers(renderContext.Camera, updateContext.TextRenderer, node);
+            AddNodeHelpers(context, renderContext.Camera, updateContext.TextRenderer, node);
         }
 
         lines.Upload(vertices.Lines);
@@ -138,6 +146,7 @@ public sealed class SelectionVisuals
         overlayLines.Delete();
         faces.Delete();
         overlayFaces.Delete();
+        Shapes.Delete();
         outline.Delete();
     }
 
@@ -149,7 +158,7 @@ public sealed class SelectionVisuals
         overlayFaces.Clear();
     }
 
-    private void AddNodeHelpers(Camera camera, TextRenderer textRenderer, SceneNode node)
+    private void AddNodeHelpers(ToolRenderContext context, Camera camera, TextRenderer textRenderer, SceneNode node)
     {
         var nodeName = node.Name ?? node.GetType().Name;
 
@@ -176,10 +185,10 @@ public sealed class SelectionVisuals
         // The helpers show the entity better than the bounds of its editor model
         if (!(hasHelpers && node.LayerName == HammerEntityVisuals.MarkerLayerName) && !node.IsPointMarker)
         {
-            BoxLines.AddWithSize(vertices, node.Transform * toWorld, node.LocalBoundingBox, Color32.White, camera, textRenderer);
+            SelectionBounds.Draw(context, node.Transform * toWorld, node.LocalBoundingBox, camera, textRenderer);
         }
 
-        AddLightingBindings(node, toWorld, bounds.Center);
+        DrawLightingBindings(context, node, toWorld, bounds.Center);
 
         // draw node name above the bounding box
         var position = bounds.Center;
@@ -194,7 +203,7 @@ public sealed class SelectionVisuals
         }, camera);
     }
 
-    private void AddLightingBindings(SceneNode node, in Matrix4x4 toWorld, Vector3 nodeCenter)
+    private void DrawLightingBindings(ToolRenderContext context, SceneNode node, in Matrix4x4 toWorld, Vector3 nodeCenter)
     {
         switch (LightingBindings)
         {
@@ -204,23 +213,30 @@ public sealed class SelectionVisuals
 
                 foreach (var envMap in envMaps)
                 {
-                    AddLink(envMap, toWorld, nodeCenter);
+                    DrawLink(context, envMap, toWorld, nodeCenter);
                 }
 
                 break;
 
             case LightingBindingDisplay.LightProbe when node.LightProbeBinding is { } probe:
-                AddLink(probe, toWorld, nodeCenter);
+                DrawLink(context, probe, toWorld, nodeCenter);
                 break;
         }
     }
 
-    /// <summary>Outlines a lighting volume and connects it to the node that uses it.</summary>
-    private void AddLink(SceneNode source, in Matrix4x4 toWorld, Vector3 nodeCenter)
+    /// <summary>Outlines a lighting volume and connects it to the node that uses it, over the scene.</summary>
+    private static void DrawLink(ToolRenderContext context, SceneNode source, in Matrix4x4 toWorld, Vector3 nodeCenter)
     {
         var transform = source.Transform * toWorld;
 
-        BoxLines.Add(vertices, transform, source.LocalBoundingBox, LightingBindingColor);
-        BoxLines.AddLine(vertices, transform.Translation, nodeCenter, LightingBindingColor);
+        context.PushRenderMode(ToolRenderMode.WireframeNoZ);
+        context.DrawColor = LightingBindingColor;
+
+        context.PushTransform(transform);
+        context.DrawWireBox(source.LocalBoundingBox.Min, source.LocalBoundingBox.Max);
+        context.PopTransform();
+
+        context.DrawLine(transform.Translation, nodeCenter);
+        context.PopRenderMode();
     }
 }

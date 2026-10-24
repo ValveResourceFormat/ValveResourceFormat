@@ -1912,7 +1912,6 @@ public class Renderer : ISpawnGroupHost
         outputFramebuffer.Bind(FramebufferTarget.DrawFramebuffer);
 
         Debug.Assert(inputFramebuffer.NumSamples > 0);
-        Debug.Assert(outputFramebuffer.NumSamples == 0);
 
         EnsureResolvedTextureSize(inputFramebuffer.Width, inputFramebuffer.Height);
 
