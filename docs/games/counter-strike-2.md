@@ -125,11 +125,11 @@ Files use internal names, not the names you see in the game. Two text files in `
 
 4. In the package tab, search for `ak47_cartel`.
 
-    ![The package search window with ak47_cartel typed in and File Name (Partial Match) selected](../guides/images/games-counter-strike-2-finish-search-dialog.webp)
+    ![The package search window with ak47_cartel typed in and File name selected](../guides/images/games-counter-strike-2-finish-search-dialog.webp)
 
 The results are the finish, its material and textures, and its inventory icons:
 
-![Search results for ak47_cartel: the two ak47_cartel textures, aq_ak47_cartel.vcompmat_c, aq_ak47_cartel.vmat_c and the heavy, light and medium inventory icons](../guides/images/games-counter-strike-2-finish-search.webp)
+![The 7 search results for ak47_cartel: the two ak47_cartel textures, aq_ak47_cartel.vcompmat_c, aq_ak47_cartel.vmat_c and the heavy, light and medium inventory icons](../guides/images/games-counter-strike-2-finish-search.webp)
 
 For other items, these lines of their entry name the files:
 

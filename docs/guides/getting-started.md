@@ -42,7 +42,7 @@ Right-click a file and choose **Copy URL** to get its link. `steam:730/` stands 
 
 Press <kbd>Ctrl</kbd>+<kbd>F</kbd> in a package tab to search the package by file name, path or contents. See [Searching a Package](./finding-files.md#searching-a-package).
 
-![Search dialog with ak47 typed in and the list of search modes open](./images/getting-started-search.webp)
+![Search dialog with ak47 typed in and File name selected](./images/getting-started-search.webp)
 
 ## Previewing Files
 
