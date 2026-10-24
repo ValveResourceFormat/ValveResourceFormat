@@ -23,13 +23,10 @@ public sealed class PlayerEntity : BaseEntity
 
     // The shadow controller: the held body is asked for the velocity that lands it exactly on
     // this frame's hold pose - the world steps right after the ask, so this is neither lag nor
-    // lead - clamped to the speed caps. Free of contacts the chase is rigid, the velocity set
-    // outright; while something is touching the body, its velocity may only change by the
-    // acceleration caps per second. Updating the solver's velocity with a bounded step is what
-    // makes contacts stick: a wall that zeroed the approach stays in charge, and the carry can
-    // only lean back in gently. The speed caps also set how hard a view flick throws.
+    // lead - clamped to the speed caps, which also set how hard a view flick throws. While
+    // something is touching the body, its spin may only change by the angular acceleration cap
+    // per second, so the contact can turn it, which is how a prop pushed into a wall turns to fit.
     private const float MaxCarrySpeed = 1000f;
-    private const float MaxCarryAcceleration = 6000f;
     private const float MaxCarryAngularSpeed = 25f;
     private const float MaxCarryAngularAcceleration = 150f;
 
@@ -47,19 +44,6 @@ public sealed class PlayerEntity : BaseEntity
     // A body lagging behind the view goes round the eyes once the straight way to its target
     // would bring it closer to them than this share of its distance, a turn of about 50 degrees
     private const float MinCarryEyeClearance = 0.9f;
-
-    // While soft, the carry still follows the hold pose's own motion, but closes the gap a contact
-    // left no faster than this on top of the hold pose's own speed. Pressed into a wall the hold
-    // pose stands still, and this is well under the solver's restitution threshold: closing the
-    // gap at the acceleration cap bounced the prop off the wall, to be pressed back every other
-    // frame, which shows as a shake. A prop scraping along with a turning view may close in as
-    // fast as the view moves, so it keeps up.
-    private const float MaxCarryCatchUpSpeed = 20f;
-
-    // The catch-up limit holds only while a contact is stopping the body, and this briefly after, so a
-    // body pressed into a wall that is only stopped every other frame stays limited. A body lagging
-    // behind the view after a fast turn is not stopped by anything, and catches up at full speed.
-    private const float CarryWedgedDuration = 0.05f;
 
     // Once touching something or held still, the hold may press the prop into what the view meets,
     // as deep as its thinnest side allows, so a prop pushed into a wall turns to lie flat against it.
@@ -136,9 +120,6 @@ public sealed class PlayerEntity : BaseEntity
 
     // Where last frame's hold pose was, which says how fast the hold pose itself moves
     private Vector3 previousHoldPosition;
-
-    // How much longer the catch-up limit holds after a contact last stopped the body
-    private float carryWedgedTime;
 
     // Where last frame's hold pose was before the press limit, which says whether the view is moving
     private Vector3 previousRawHoldPosition;
@@ -344,14 +325,14 @@ public sealed class PlayerEntity : BaseEntity
     /// <summary>
     /// The +USE carry, the way Half-Life 2's shadow controller holds what the player picks up: a
     /// target velocity that would land the body on the hold pose. A fresh pickup travels there
-    /// within capped speeds first. Once there and free of contacts the velocity is handed to the
-    /// body outright, so the prop rides the view rigidly; while something touches the body, the
-    /// velocity may only change by a bounded acceleration from whatever the solver left it with.
-    /// The bound is what makes contacts stick: a wall that stopped the prop stays in charge,
-    /// because the carry can only lean back in a step at a time - it presses, never rams. The
-    /// body keeps its steered velocity on release, so dropping mid-stride carries the player's
-    /// motion and a view flick is a throw.
+    /// within capped speeds first. Once there the velocity is handed to the body outright, so the
+    /// prop rides the view rigidly, and a body lagging behind a fast turn is back on the view as
+    /// soon as the speed cap allows. The hold pose itself never asks the body deeper into the
+    /// world than it can press at a gentle speed, which is what keeps a prop held into a wall
+    /// still. The body keeps its steered velocity on release, so dropping mid-stride carries the
+    /// player's motion and a view flick is a throw.
     /// </summary>
+
     private void UpdateCarry(float deltaTime)
     {
         // A zero-length frame has no step to steer for, and dividing by it would hand the
@@ -399,24 +380,14 @@ public sealed class PlayerEntity : BaseEntity
             carryStrainTime = 0f;
         }
 
-        // A carry without orientation - a grabbed ragdoll part - skips the contact softness
-        // altogether: the rest of the ragdoll hangs off the held part through its joints, which
-        // reads as a permanent contact, and a chase capped to the soft acceleration could never
-        // hold that weight up. The chain itself is the compliance a wall needs.
+        // A carry without orientation - a grabbed ragdoll part - has no turn to soften: the rest of
+        // the ragdoll hangs off the held part through its joints, which reads as a permanent contact
         var soft = false;
 
         if (holdRotation is not null)
         {
-            var wasSoft = carrySoftTime > 0f;
             carrySoftTime = blocked ? CarrySoftDuration : MathF.Max(carrySoftTime - deltaTime, 0f);
             soft = carrySoftTime > 0f;
-
-            // Free of contacts again, whatever gap they left is travelled back like a fresh
-            // pickup rather than closed in one rigid step
-            if (wasSoft && !soft && Vector3.Distance(body.Position, holdPosition) > PickupArriveDistance)
-            {
-                carryArrived = false;
-            }
 
             // The world re-shaping the grip: while contacts are acting, the grip continuously
             // relaxes toward the orientation the world is forcing, rather than springing back
@@ -429,30 +400,16 @@ public sealed class PlayerEntity : BaseEntity
             }
         }
 
-        // Rigid once arrived and free of contacts; travelling there, or pressed on, within the caps
+        // Rigid once arrived, with a softer turn against contacts; travelling there within the caps
         var (maxSpeed, maxAngularSpeed) = carryArrived
             ? (MaxCarrySpeed, MaxCarryAngularSpeed)
             : (PickupTravelSpeed, PickupTurnSpeed);
-        var (maxAcceleration, maxAngularAcceleration) = soft ? (MaxCarryAcceleration, MaxCarryAngularAcceleration)
-            : carryArrived ? (float.PositiveInfinity, float.PositiveInfinity)
-            : (PickupTravelAcceleration, PickupTurnAcceleration);
+        var (maxAcceleration, maxAngularAcceleration) = !carryArrived ? (PickupTravelAcceleration, PickupTurnAcceleration)
+            : soft ? (float.PositiveInfinity, MaxCarryAngularAcceleration)
+            : (float.PositiveInfinity, float.PositiveInfinity);
 
         var error = holdPosition - body.Position;
         var holdVelocity = carryArrived && hasCarryExpectation ? (holdPosition - previousHoldPosition) / deltaTime : Vector3.Zero;
-
-        carryWedgedTime = blocked ? CarryWedgedDuration : MathF.Max(carryWedgedTime - deltaTime, 0f);
-
-        if (soft && carryArrived && hasCarryExpectation && carryWedgedTime > 0f)
-        {
-            var catchUp = previousHoldPosition - body.Position;
-            var maxCatchUp = (MaxCarryCatchUpSpeed + holdVelocity.Length()) * deltaTime;
-
-            if (catchUp.Length() > maxCatchUp)
-            {
-                error += (Vector3.Normalize(catchUp) * maxCatchUp) - catchUp;
-            }
-        }
-
         previousHoldPosition = holdPosition;
 
         var velocity = SteerVelocity(body.LinearVelocity, error, holdVelocity, deltaTime, maxSpeed, maxAcceleration);
