@@ -18,7 +18,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.Normal);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var axis = controlPointAxis switch
             {
@@ -30,7 +30,7 @@ namespace ValveResourceFormat.Particles.Initializers
                 _ => Vector3.UnitX,
             };
 
-            var transform = transformInput.NextTransformAtTime(ref particle, particleSystemState, particle.CreationTime);
+            var transform = transformInput.NextTransformAtTime(particle, particleSystemState, particle.CreationTime);
             particle.Normal = Vector3.TransformNormal(axis, transform);
 
             return particle;

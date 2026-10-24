@@ -44,7 +44,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             hasRun = true;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var value = particleSystemState.Random.NextBetween(outputMin, outputMax);
 

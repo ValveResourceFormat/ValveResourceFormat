@@ -52,7 +52,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             var value = MathUtils.RemapValClamped(sequence, inputMin, inputMax, outputMin, outputMax);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var output = particle.ModifyScalarBySetMethod(particles, fieldOutput, value, setMethod);
                 particle.SetScalar(fieldOutput, fieldOutput.IsIntegerAttribute() ? MathF.Truncate(output) : output);

@@ -21,7 +21,7 @@ class TimeVaryingForce : ParticleFunctionForceGenerator
 
     public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
     {
-        foreach (ref var particle in particles.Current)
+        foreach (var particle in particles.Current)
         {
             var t = endLerpTime != startLerpTime
                 ? MathUtils.Saturate((particle.Age - startLerpTime) / (endLerpTime - startLerpTime))

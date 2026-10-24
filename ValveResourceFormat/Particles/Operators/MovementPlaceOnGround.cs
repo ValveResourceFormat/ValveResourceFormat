@@ -122,15 +122,15 @@ namespace ValveResourceFormat.Particles.Operators
                 ? particleSystemState.GetControlPoint(preserveOffsetControlPoint).Position.Z
                 : 0f;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
-                var direction = MathUtils.SafeNormalize(traceDirection.NextVector(ref particle, particleSystemState));
+                var direction = MathUtils.SafeNormalize(traceDirection.NextVector(particle, particleSystemState));
                 var position = particle.Position;
                 var velocityStep = position - particle.PositionPrevious;
                 var from = particle.GetInitialVector(particles, ParticleField.PositionPrevious);
                 var to = particle.HitboxOffsetPosition;
 
-                var lift = offset.NextNumber(ref particle, particleSystemState);
+                var lift = offset.NextNumber(particle, particleSystemState);
 
                 if (scaleOffset)
                 {

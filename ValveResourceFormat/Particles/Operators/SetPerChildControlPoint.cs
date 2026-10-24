@@ -50,7 +50,7 @@ namespace ValveResourceFormat.Particles.Operators
                     continue;
                 }
 
-                ref var particle = ref live[source];
+                var particle = live[source];
                 var controlPoint = child.GetControlPoint(firstControlPoint);
                 controlPoint.Position = particle.Position;
 

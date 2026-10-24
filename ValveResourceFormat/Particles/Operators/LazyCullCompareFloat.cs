@@ -39,12 +39,12 @@ namespace ValveResourceFormat.Particles.Operators
 
             for (var i = 0; i < current.Length; i++)
             {
-                firstValues[i] = comparison1.NextNumber(ref current[i], particleSystemState);
+                firstValues[i] = comparison1.NextNumber(current[i], particleSystemState);
             }
 
             for (var i = 0; i < current.Length; i++)
             {
-                secondValues[i] = comparison2.NextNumber(ref current[i], particleSystemState);
+                secondValues[i] = comparison2.NextNumber(current[i], particleSystemState);
             }
 
             var first = firstValues.AsSpan(0, current.Length);
@@ -52,8 +52,8 @@ namespace ValveResourceFormat.Particles.Operators
 
             for (var i = 0; i < current.Length; i++)
             {
-                ref var particle = ref current[i];
-                var cull = cullTime.NextNumber(ref particle, particleSystemState);
+                var particle = current[i];
+                var cull = cullTime.NextNumber(particle, particleSystemState);
 
                 if (Matches(first, i, uniform))
                 {

@@ -36,12 +36,12 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.PositionPrevious);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var noiseScale = this.noiseScale.NextNumber(ref particle, particleSystemState);
-            var noiseScaleLoc = this.noiseScaleLoc.NextNumber(ref particle, particleSystemState);
-            var offsetLoc = this.offsetLoc.NextVector(ref particle, particleSystemState);
-            var offset = this.offset.NextNumber(ref particle, particleSystemState);
+            var noiseScale = this.noiseScale.NextNumber(particle, particleSystemState);
+            var noiseScaleLoc = this.noiseScaleLoc.NextNumber(particle, particleSystemState);
+            var offsetLoc = this.offsetLoc.NextVector(particle, particleSystemState);
+            var offset = this.offset.NextNumber(particle, particleSystemState);
 
             // The noise coordinate is spatial (particle creation position) plus a time term, so
             // particles emitted the same tick at different positions get decorrelated velocities.
@@ -52,8 +52,8 @@ namespace ValveResourceFormat.Particles.Initializers
                 Noise.Value3D(samplePosition + new Vector3(100000.5f, 300000.25f, 9000001f)),
                 Noise.Value3D(samplePosition + new Vector3(110000.25f, 310000.75f, 9100000f)));
 
-            var min = outputMin.NextVector(ref particle, particleSystemState);
-            var max = outputMax.NextVector(ref particle, particleSystemState);
+            var min = outputMin.NextVector(particle, particleSystemState);
+            var max = outputMax.NextVector(particle, particleSystemState);
 
             var anyInverted = absValInv != Vector3.Zero;
             var velocity = new Vector3(
@@ -61,10 +61,10 @@ namespace ValveResourceFormat.Particles.Initializers
                 MapComponent(noise.Y, absVal.Y != 0f, absValInv.Y != 0f, anyInverted, min.Y, max.Y),
                 MapComponent(noise.Z, absVal.Z != 0f, absValInv.Z != 0f, anyInverted, min.Z, max.Z));
 
-            var transform = transformInput.NextTransformAtTime(ref particle, particleSystemState, particle.CreationTime);
+            var transform = transformInput.NextTransformAtTime(particle, particleSystemState, particle.CreationTime);
             var transformed = Vector3.TransformNormal(velocity, transform);
 
-            AddVelocity(ref particle, particles, transformed, ignoreDt);
+            AddVelocity(particle, particles, transformed, ignoreDt);
 
             return particle;
         }

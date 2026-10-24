@@ -87,7 +87,7 @@ namespace ValveResourceFormat.Particles.Operators
                 cutoffs[i] = light.Falloff.CutoffFor(colors[i]);
             }
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var color = particle.Color;
                 var lit = color * initialColorBias;

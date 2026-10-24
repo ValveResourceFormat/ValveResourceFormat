@@ -20,7 +20,7 @@ namespace ValveResourceFormat.Particles.Operators
         {
             var threshold = minAlpha + ParticleMath.FloatEpsilon;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 if (particle.Alpha * particle.AlphaAlternate <= threshold)
                 {

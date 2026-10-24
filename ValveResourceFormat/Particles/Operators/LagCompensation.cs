@@ -55,7 +55,7 @@ namespace ValveResourceFormat.Particles.Operators
                 : desiredVelocityPosition.GetComponent(desiredVelocityCPField);
             var catchUpSpeed = speed * 3f;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var stepSpeed = latency == 0f
                     ? (particle.Age < 0f ? catchUpSpeed : speed)

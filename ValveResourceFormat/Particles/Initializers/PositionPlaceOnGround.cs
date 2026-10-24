@@ -43,13 +43,13 @@ namespace ValveResourceFormat.Particles.Initializers
             | (attribute == ParticleField.Position ? FieldMask(ParticleField.PositionPrevious) : 0)
             | (setNormal ? FieldMask(groundNormalAttribute) : 0);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var collision = particleSystemState.Collision;
-            var direction = MathUtils.SafeNormalize(traceDirection.NextVector(ref particle, particleSystemState));
+            var direction = MathUtils.SafeNormalize(traceDirection.NextVector(particle, particleSystemState));
             var value = particle.GetVector(attribute);
-            var pullBack = offset.NextNumber(ref particle, particleSystemState);
-            var length = maxTraceLength.NextNumber(ref particle, particleSystemState);
+            var pullBack = offset.NextNumber(particle, particleSystemState);
+            var length = maxTraceLength.NextNumber(particle, particleSystemState);
 
             var start = value - (direction * StartBackoff);
             var end = start + (direction * length);

@@ -35,8 +35,8 @@ namespace ValveResourceFormat.Particles.Constraints
 
             for (var i = 0; i + 1 < handled; i += 2)
             {
-                ref var first = ref current[i];
-                ref var second = ref current[i + 1];
+                var first = current[i];
+                var second = current[i + 1];
 
                 var delta = first.Position - second.Position;
                 var length = delta.Length();

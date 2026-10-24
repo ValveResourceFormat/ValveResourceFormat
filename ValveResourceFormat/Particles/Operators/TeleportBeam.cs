@@ -79,7 +79,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             if ((int)misc.X == SingleSegmentMode)
             {
-                ref var first = ref live[0];
+                var first = live[0];
                 first.PositionPrevious = PositionAt(0f);
                 first.Position = PositionAt(MathF.Min(misc.Y, segment));
                 first.Color = color;
@@ -97,7 +97,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             for (var i = 0; i < live.Length; i++)
             {
-                ref var particle = ref live[i];
+                var particle = live[i];
                 particle.PositionPrevious = PositionAt(MathF.Max(0f, offset));
                 particle.Position = PositionAt(MathF.Min(offset + segment, arcEnd));
 
@@ -115,9 +115,9 @@ namespace ValveResourceFormat.Particles.Operators
             }
         }
 
-        private static void HideFrom(Span<Particle> particles, int first)
+        private static void HideFrom(ParticleSpan particles, int first)
         {
-            foreach (ref var particle in particles[first..])
+            foreach (var particle in particles[first..])
             {
                 particle.Alpha = 0f;
             }

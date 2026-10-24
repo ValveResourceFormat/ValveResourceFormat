@@ -36,11 +36,11 @@ namespace ValveResourceFormat.Particles.Initializers
             ? FieldMask(ParticleField.LifeDuration)
             : FieldMask(ParticleField.LifeDuration) | FieldMask(fieldModify);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var range = distance.NextNumber(ref particle, particleSystemState);
-            var overlap = 1f - lifespanOverlap.NextNumber(ref particle, particleSystemState);
-            var modifyValue = modify.NextNumber(ref particle, particleSystemState);
+            var range = distance.NextNumber(particle, particleSystemState);
+            var overlap = 1f - lifespanOverlap.NextNumber(particle, particleSystemState);
+            var modifyValue = modify.NextNumber(particle, particleSystemState);
 
             if (particle.Lifetime <= 0f)
             {
@@ -56,7 +56,7 @@ namespace ValveResourceFormat.Particles.Initializers
                     continue;
                 }
 
-                ref var neighbor = ref neighbors[i];
+                var neighbor = neighbors[i];
 
                 if (neighbor.Lifetime <= 0f)
                 {

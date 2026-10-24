@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.PositionPrevious);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             if (HitBoxCache.Refresh(particleSystemState, controlPoint, hitboxSetName, useBones) is not { IsStable: true } cache
                 || (uint)particle.HitboxIndex >= (uint)cache.Count)

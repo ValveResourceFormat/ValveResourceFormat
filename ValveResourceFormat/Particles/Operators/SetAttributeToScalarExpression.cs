@@ -31,10 +31,10 @@ namespace ValveResourceFormat.Particles.Operators
         {
             var (min, max) = outputField.SetFloatRange();
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
-                var value1 = input1.NextNumber(ref particle, particleSystemState);
-                var value2 = input2.NextNumber(ref particle, particleSystemState);
+                var value1 = input1.NextNumber(particle, particleSystemState);
+                var value2 = input2.NextNumber(particle, particleSystemState);
 
                 if (expression.Evaluate(value1, value2) is not { } output)
                 {

@@ -52,12 +52,12 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(fieldOutput);
 
-        protected override void BeginCall(ref Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void BeginCall(Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             origin = transformInput.NextTransform(particleSystemState).Translation;
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var delta = particle.Position - origin;
             var direction = new Vector3(

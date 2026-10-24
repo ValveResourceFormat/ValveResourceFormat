@@ -49,7 +49,7 @@ namespace ValveResourceFormat.Particles.Operators
             var parentParticles = parentData.CurrentParticles;
             var lastIndex = parentParticles.Length - 1;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 if (randomDistribution)
                 {
@@ -62,7 +62,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                 if ((uint)parentIndex < (uint)parentParticles.Length)
                 {
-                    CopyAttribute(ref particle, ref parentParticles[parentIndex], fieldOutput, fieldOutput, scale);
+                    CopyAttribute(particle, parentParticles[parentIndex], fieldOutput, fieldOutput, scale);
                 }
 
                 parentIndex += increment;
@@ -74,7 +74,7 @@ namespace ValveResourceFormat.Particles.Operators
         /// <paramref name="output"/>, by the type of the output: integers and bone indices copied as is,
         /// everything else scaled, with color and alpha clamped to [0, 1].
         /// </summary>
-        internal static void CopyAttribute(ref Particle target, ref Particle source, ParticleField input, ParticleField output, float scale)
+        internal static void CopyAttribute(Particle target, Particle source, ParticleField input, ParticleField output, float scale)
         {
             if (output == ParticleField.BoneIndices)
             {

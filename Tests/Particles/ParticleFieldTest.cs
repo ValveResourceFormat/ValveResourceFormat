@@ -22,7 +22,7 @@ namespace Tests.Particles
 
             foreach (var field in Enum.GetValues<ParticleField>().Except(Unstored))
             {
-                var particle = new Particle();
+                var particle = Particle.Allocate();
 
                 switch (field.FieldType())
                 {

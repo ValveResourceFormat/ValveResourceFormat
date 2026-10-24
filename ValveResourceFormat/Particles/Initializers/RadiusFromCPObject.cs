@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.Radius);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var scale = particleSystemState.GetControlPoint(controlPoint).ResolveModelObject()?.Transform.MaxAxisScale() ?? 1f;
             particle.Radius = scale * GetOperatorRunStrength(particleSystemState);

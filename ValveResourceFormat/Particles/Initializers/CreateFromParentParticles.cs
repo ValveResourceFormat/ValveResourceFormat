@@ -59,7 +59,7 @@ namespace ValveResourceFormat.Particles.Initializers
             | FieldMask(ParticleField.ParentParticleIndex) | FieldMask(ParticleField.ParentParticleId)
             | (setRopeSegmentID ? FieldMask(ParticleField.RopeSegmentId) : 0);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var parentData = particleSystemState.ParentSystem?.Data;
             if (parentData == null)
@@ -82,7 +82,7 @@ namespace ValveResourceFormat.Particles.Initializers
             var walkIndex = NextParentIndex(lastIndex, particleSystemState);
             var parentIndex = Math.Clamp((int)MathF.Floor(walkIndex), 0, lastIndex);
 
-            ref var parent = ref parentParticles[parentIndex];
+            var parent = parentParticles[parentIndex];
 
             if (writeParentIndex)
             {
@@ -100,7 +100,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (fractionalIncrement)
             {
-                ref var nextParent = ref parentParticles[Math.Clamp((int)MathF.Ceiling(walkIndex), 0, lastIndex)];
+                var nextParent = parentParticles[Math.Clamp((int)MathF.Ceiling(walkIndex), 0, lastIndex)];
                 var blend = MathUtils.Fract(walkIndex);
                 parentPosition = Vector3.Lerp(parentPosition, nextParent.Position, blend);
                 parentPositionPrevious = Vector3.Lerp(parentPositionPrevious, nextParent.PositionPrevious, blend);
@@ -120,7 +120,7 @@ namespace ValveResourceFormat.Particles.Initializers
         /// Where inside the step being simulated the particle was born, as a fraction of it. A step of
         /// no duration counts as fully elapsed unless the particle is stamped in the past.
         /// </summary>
-        private static float GetBirthFraction(in Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        private static float GetBirthFraction(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var currentTime = particleSystemState.Age;
             var previousTime = currentTime - particles.CurrentFrameTime;

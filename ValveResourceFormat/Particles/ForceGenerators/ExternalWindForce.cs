@@ -39,12 +39,12 @@ class ExternalWindForce : ParticleFunctionForceGenerator
         var movementGravity = useBasicMovementGravity ? MovementGravity : Vector3.Zero;
         var gravityScale = useBasicMovementGravity ? movementGravity.Z / WorldGravity : 1f;
 
-        foreach (ref var particle in particles.Current)
+        foreach (var particle in particles.Current)
         {
             var force = sampleGravity
-                ? new Vector3(0f, 0f, WorldGravity * localGravityScale.NextNumber(ref particle, particleSystemState) * gravityScale) - movementGravity
-                : gravityForce.NextVector(ref particle, particleSystemState) - (samplesPerParticle ? movementGravity : Vector3.Zero);
-            particle.ForceAccumulator += scale.NextVector(ref particle, particleSystemState) * force;
+                ? new Vector3(0f, 0f, WorldGravity * localGravityScale.NextNumber(particle, particleSystemState) * gravityScale) - movementGravity
+                : gravityForce.NextVector(particle, particleSystemState) - (samplesPerParticle ? movementGravity : Vector3.Zero);
+            particle.ForceAccumulator += scale.NextVector(particle, particleSystemState) * force;
         }
     }
 }

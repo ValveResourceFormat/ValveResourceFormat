@@ -36,7 +36,7 @@ namespace ValveResourceFormat.Particles.Operators
             var falloffRange = falloffDistance == 0f ? 1f : falloffDistance;
             var planeOffset = particleSystemState.GetControlPoint(controlPoint).Position.Z;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var distance = -Vector3.Dot(normal, particle.Position) - planeOffset;
 

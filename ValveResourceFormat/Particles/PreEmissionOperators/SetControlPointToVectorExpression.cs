@@ -35,7 +35,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             var vec1 = input1.NextVector(particleSystemState);
             var vec2 = input2.NextVector(particleSystemState);
             var lerpAmount = particleSystemState.Data is { Particles.Count: > 0 } simulation
-                ? lerp.NextNumber(ref simulation.Particles.Current[0], particleSystemState)
+                ? lerp.NextNumber(simulation.Particles.Current[0], particleSystemState)
                 : lerp.NextNumber(particleSystemState);
 
             var output = expression switch

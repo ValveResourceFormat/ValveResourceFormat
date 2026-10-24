@@ -39,7 +39,7 @@ namespace ValveResourceFormat.Particles.Initializers
         {
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             particle.SecondSequenceNumber = sequence;
             return particle;

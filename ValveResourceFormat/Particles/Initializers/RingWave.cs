@@ -58,23 +58,23 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var thickness = this.thickness.NextNumber(ref particle, particleSystemState);
-            var particlesPerOrbit = this.particlesPerOrbit.NextNumber(ref particle, particleSystemState);
+            var thickness = this.thickness.NextNumber(particle, particleSystemState);
+            var particlesPerOrbit = this.particlesPerOrbit.NextNumber(particle, particleSystemState);
 
             var thicknessOffset = particleSystemState.Random.NextInUnitBall(out _) * thickness;
 
-            var radius = initialRadius.NextNumber(ref particle, particleSystemState);
+            var radius = initialRadius.NextNumber(particle, particleSystemState);
 
-            var transform = transformInput.NextTransformAtTime(ref particle, particleSystemState, particle.CreationTime);
+            var transform = transformInput.NextTransformAtTime(particle, particleSystemState, particle.CreationTime);
 
             var angle = GetNextAngle(particlesPerOrbit, particles.Count, particleSystemState);
             var (sin, cos) = MathF.SinCos(angle);
             var ringAngles = new Vector3(
-                pitch.NextNumber(ref particle, particleSystemState),
-                yaw.NextNumber(ref particle, particleSystemState),
-                roll.NextNumber(ref particle, particleSystemState));
+                pitch.NextNumber(particle, particleSystemState),
+                yaw.NextNumber(particle, particleSystemState),
+                roll.NextNumber(particle, particleSystemState));
             var ring = Vector3.TransformNormal(new Vector3(radius * cos, radius * sin, 0f), EntityTransformHelper.EulerAnglesToRotationMatrix(ringAngles));
 
             var position = Vector3.Transform(ring + thicknessOffset, transform);
@@ -83,8 +83,8 @@ namespace ValveResourceFormat.Particles.Initializers
             // actually landed, so the thickness offset tilts the direction as well as the position.
             var outward = MathUtils.SafeNormalize(position - transform.Translation);
 
-            var speedMin = initialSpeedMin.NextNumber(ref particle, particleSystemState);
-            var speedMax = initialSpeedMax.NextNumber(ref particle, particleSystemState);
+            var speedMin = initialSpeedMin.NextNumber(particle, particleSystemState);
+            var speedMax = initialSpeedMax.NextNumber(particle, particleSystemState);
             var speed = particleSystemState.Random.NextBetween(speedMin, speedMax);
 
             var previous = position - (outward * (speed * particles.PreviousFrameTime));
@@ -94,7 +94,7 @@ namespace ValveResourceFormat.Particles.Initializers
                 previous.Z = position.Z;
             }
 
-            SetSpawnPosition(ref particle, particleSystemState, position, previous);
+            SetSpawnPosition(particle, particleSystemState, position, previous);
 
             return particle;
         }

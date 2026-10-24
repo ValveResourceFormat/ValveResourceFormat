@@ -40,14 +40,14 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(fieldOutput);
 
-        protected override void BeginCall(ref Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void BeginCall(Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             // The world time term ticks in milliseconds
             callTimeTerm = ((first.CreationTime + offset) * noiseScale)
                 + (particleSystemState.WorldTime * 1000f * worldTimeScale);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             if (fieldOutput.FieldType() != "float")
             {

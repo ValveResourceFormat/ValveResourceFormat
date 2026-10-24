@@ -45,13 +45,13 @@ namespace ValveResourceFormat.Particles.Operators
 
             var sphereOrigin = center + pointOffset;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var distanceSquared = Vector3.DistanceSquared(particle.GetVector(attribute), sphereOrigin);
 
                 if (cullInside ? distanceSquared < radiusSquared : radiusSquared < distanceSquared)
                 {
-                    KillCulled(ref particle, particles, particleSystemState);
+                    KillCulled(particle, particles, particleSystemState);
                 }
             }
         }

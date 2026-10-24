@@ -52,13 +52,13 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 // The particle ends when it outlives its lifetime, which is not the same instant as
                 // the end of the fade-out: a fade-out that finishes early leaves it alive and faded
                 if (HasExpired(particle.Age, particle.Lifetime))
                 {
-                    Expire(ref particle, frameTime);
+                    Expire(particle, frameTime);
                     continue;
                 }
 
@@ -91,7 +91,7 @@ namespace ValveResourceFormat.Particles.Operators
         protected virtual bool BlendsWithStrength => true;
 
         /// <summary>Ends a particle that has outlived its lifetime.</summary>
-        protected virtual void Expire(ref Particle particle, float frameTime)
+        protected virtual void Expire(Particle particle, float frameTime)
         {
             particle.Kill();
         }

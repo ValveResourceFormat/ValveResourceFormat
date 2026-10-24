@@ -73,26 +73,26 @@ namespace ValveResourceFormat.Particles.Initializers
                 | FieldMask(ParticleField.HitboxIndex) | FieldMask(ParticleField.HitboxOffsetPosition)
                 | (useMesh ? FieldMask(ParticleField.Normal) | FieldMask(ParticleField.BoneIndices) | FieldMask(ParticleField.BoneWeights) : 0UL);
 
-        protected override void BeginCall(ref Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void BeginCall(Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             haltonPending = true;
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var shell = shellSize.NextNumber(ref particle, particleSystemState);
+            var shell = shellSize.NextNumber(particle, particleSystemState);
 
-            if (useMesh && PlaceOnMesh(ref particle, particleSystemState, shell))
+            if (useMesh && PlaceOnMesh(particle, particleSystemState, shell))
             {
                 return particle;
             }
 
             var desired = hitboxValueFromControlPoint >= 0
                 ? (int)particleSystemState.GetControlPoint(hitboxValueFromControlPoint).Position.X
-                : (int)desiredHitbox.NextNumber(ref particle, particleSystemState);
-            var scale = hitBoxScale.NextVector(ref particle, particleSystemState);
-            var bias = directionBias.NextVector(ref particle, particleSystemState);
-            var transform = transformInput.NextTransformAtTime(ref particle, particleSystemState, particle.CreationTime);
+                : (int)desiredHitbox.NextNumber(particle, particleSystemState);
+            var scale = hitBoxScale.NextVector(particle, particleSystemState);
+            var bias = directionBias.NextVector(particle, particleSystemState);
+            var transform = transformInput.NextTransformAtTime(particle, particleSystemState, particle.CreationTime);
 
             if (localCoords)
             {
@@ -147,7 +147,7 @@ namespace ValveResourceFormat.Particles.Initializers
             return particle;
         }
 
-        private bool PlaceOnMesh(ref Particle particle, ParticleSystemState particleSystemState, float shell)
+        private bool PlaceOnMesh(Particle particle, ParticleSystemState particleSystemState, float shell)
         {
             if (modelControlPoint < 0
                 || particleSystemState.GetControlPoint(modelControlPoint).ResolveModelObject() is not { } modelObject

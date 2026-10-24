@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Particles.Initializers
             ? FieldMask(ParticleField.Normal)
             : FieldMask(ParticleField.Roll) | FieldMask(ParticleField.Yaw) | FieldMask(ParticleField.Pitch);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             TransformOrientationMath.Compute(transformInput, particleSystemState, rotationOffset, useQuat,
                 out var anglesRadians, out var forward);

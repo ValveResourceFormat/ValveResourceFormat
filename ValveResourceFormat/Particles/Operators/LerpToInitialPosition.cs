@@ -40,7 +40,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             var localScale = vectorScale.NextVector(particleSystemState) * scale.NextNumber(particleSystemState);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var cache = particle.GetVector(cacheField);
 
@@ -51,7 +51,7 @@ namespace ValveResourceFormat.Particles.Operators
                 }
 
                 var target = Vector3.Transform(cache * localScale, toWorld);
-                var amount = MathUtils.Saturate(strength * interpolation.NextNumber(ref particle, particleSystemState));
+                var amount = MathUtils.Saturate(strength * interpolation.NextNumber(particle, particleSystemState));
 
                 particle.Position = MathUtils.Lerp(particle.Position, target, amount);
                 particle.PositionPrevious = MathUtils.Lerp(particle.PositionPrevious, target, amount);

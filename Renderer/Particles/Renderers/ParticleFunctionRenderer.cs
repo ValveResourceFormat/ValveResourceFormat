@@ -277,7 +277,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 new Vector4(ParticleColorBlend.ConvertScale(ColorBlendType, ColorScale.NextVector(systemState)), alpha));
         }
 
-        private Particle[] blendedParticles = [];
+        private ParticleBuffer? blendedParticles;
 
         /// <summary>
         /// The particles as they stand at the time the system was asked to reach. That is
@@ -285,35 +285,36 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// time: then each particle is blended back from its state before the step, and the ones created
         /// after that time get no alpha.
         /// </summary>
-        protected Span<Particle> GetBlendedParticles(ParticleCollection particles, ParticleSystemState systemState)
+        protected ParticleSpan GetBlendedParticles(ParticleCollection particles, ParticleSystemState systemState)
         {
-            if (systemState.Data?.TryGetRenderBlend(out var fraction) != true)
+            var current = particles.Current;
+
+            if (current.IsEmpty || systemState.Data?.TryGetRenderBlend(out var fraction) != true)
             {
-                return particles.Current;
+                return current;
             }
 
-            var current = particles.Current;
             var previous = particles.PreviousStep;
 
-            if (blendedParticles.Length < current.Length)
+            if (blendedParticles == null || blendedParticles.Capacity < current.Length)
             {
-                blendedParticles = new Particle[current.Length];
+                blendedParticles = new ParticleBuffer(current.Length);
             }
 
-            var blended = blendedParticles.AsSpan(0, current.Length);
+            blendedParticles.Copy(current.Buffer!, current.Start, 0, current.Length);
+            var blended = new ParticleSpan(blendedParticles, 0, current.Length);
 
             for (var i = 0; i < blended.Length; i++)
             {
-                blended[i] = Blend(previous[i], current[i], fraction, systemState.RequestedAge);
+                Blend(previous[i], current[i], blended[i], fraction, systemState.RequestedAge);
             }
 
             return blended;
         }
 
-        private static Particle Blend(in Particle previous, in Particle current, float fraction, float requestedAge)
+        /// <summary>Writes the blend from <paramref name="previous"/> to <paramref name="current"/> into <paramref name="particle"/>, a copy of <paramref name="current"/>.</summary>
+        private static void Blend(Particle previous, Particle current, Particle particle, float fraction, float requestedAge)
         {
-            var particle = current;
-
             particle.Position = MathUtils.Lerp(previous.Position, current.Position, fraction);
             particle.PositionPrevious = MathUtils.Lerp(previous.PositionPrevious, current.PositionPrevious, fraction);
             particle.Age = MathUtils.Lerp(previous.Age, current.Age, fraction);
@@ -327,8 +328,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             particle.ManualAnimationFrame = MathUtils.Lerp(previous.ManualAnimationFrame, current.ManualAnimationFrame, fraction);
             particle.ShaderExtraData1 = MathUtils.Lerp(previous.ShaderExtraData1, current.ShaderExtraData1, fraction);
             particle.ShaderExtraData2 = MathUtils.Lerp(previous.ShaderExtraData2, current.ShaderExtraData2, fraction);
-
-            return particle;
         }
 
         /// <summary>A particle's position moved toward the camera by <see cref="CameraBias"/>.</summary>
@@ -338,7 +337,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 : position + (MathUtils.SafeNormalize(cameraPosition - position) * CameraBias);
 
         /// <summary>The particle's <see cref="Alpha2Field"/>, or 1 when none is set.</summary>
-        protected float GetAlpha2(ref Particle particle)
+        protected float GetAlpha2(Particle particle)
             => Alpha2Field is ParticleField.NoneDisabled or < 0 ? 1f : particle.GetScalar(Alpha2Field);
 
         /// <summary>
@@ -346,9 +345,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// is taken with <see cref="Alpha2Field"/> and <paramref name="alphaPrescale"/>, and both are
         /// clamped to bytes before they combine.
         /// </summary>
-        protected Vector4 BlendColor(ref Particle particle, in RendererScales scales, float alphaPrescale = 1f)
+        protected Vector4 BlendColor(Particle particle, in RendererScales scales, float alphaPrescale = 1f)
             => ParticleColorBlend.Apply(ColorBlendType,
-                ParticleColorBlend.ToBytes(particle.Color, alphaPrescale * particle.Alpha * GetAlpha2(ref particle)),
+                ParticleColorBlend.ToBytes(particle.Color, alphaPrescale * particle.Alpha * GetAlpha2(particle)),
                 scales.Color) / 255f;
 
         /// <summary>
@@ -397,15 +396,15 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <param name="particle">The particle being drawn.</param>
         /// <param name="radius">The radius it is drawn at.</param>
         /// <param name="alpha">The alpha it is drawn with.</param>
-        protected Vector2 GetAlphaReference(ref Particle particle, float radius, float alpha)
+        protected Vector2 GetAlphaReference(Particle particle, float radius, float alpha)
             => AlphaTested
                 ? new Vector2(
-                    1f - GetPerParticleScale(PerParticleAlphaReference, ref particle, radius, alpha),
-                    GetPerParticleScale(PerParticleAlphaRefWindow, ref particle, radius, alpha))
+                    1f - GetPerParticleScale(PerParticleAlphaReference, particle, radius, alpha),
+                    GetPerParticleScale(PerParticleAlphaRefWindow, particle, radius, alpha))
                 : Vector2.Zero;
 
         /// <summary>The value a per particle input reads. Animation frames and the random sources read 1.</summary>
-        private static float GetPerParticleScale(SpriteCardPerParticleScale source, ref Particle particle, float radius, float alpha) => source switch
+        private static float GetPerParticleScale(SpriteCardPerParticleScale source, Particle particle, float radius, float alpha) => source switch
         {
             SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_PARTICLE_AGE => particle.Age + 1f,
             SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_SHADER_EXTRA_DATA1 => particle.ShaderExtraData1,
@@ -427,7 +426,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// Fills <paramref name="order"/> with one entry per particle, farthest from the camera first.
         /// The low half of an entry is the particle's index.
         /// </summary>
-        protected static void SortBackToFront(ReadOnlySpan<Particle> particles, Vector3 cameraPosition, Span<ulong> order)
+        protected static void SortBackToFront(ParticleSpan particles, Vector3 cameraPosition, Span<ulong> order)
         {
             for (var i = 0; i < order.Length; i++)
             {
@@ -632,7 +631,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// the second. The particle's age and animation type give the playback position, which
         /// <see cref="Texture.SpritesheetData.Sequence.GetFrameAtPosition"/> then resolves to frames.
         /// </summary>
-        protected static (int Frame, int NextFrame, float Blend) GetSheetFrame(ref Particle particle,
+        protected static (int Frame, int NextFrame, float Blend) GetSheetFrame(Particle particle,
             Texture.SpritesheetData.Sequence sequence, float animationRate, ParticleAnimationType animationType, bool animateInFps)
         {
             var frameCount = sequence.Frames.Length;

@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Particles.Operators
             var angles = EntityTransformHelper.ToEulerAngles(particleSystemState.GetControlPoint(cp).GetRotation());
             var value = offsetRotation - float.DegreesToRadians(angles.GetComponent(component));
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 particle.SetScalar(fieldOutput, value);
             }

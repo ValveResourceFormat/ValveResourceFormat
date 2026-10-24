@@ -44,7 +44,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             done = true;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 particle.SetScalar(fieldOutput, remap.Remap((int)particle.GetScalar(fieldInput), particleSystemState));
             }

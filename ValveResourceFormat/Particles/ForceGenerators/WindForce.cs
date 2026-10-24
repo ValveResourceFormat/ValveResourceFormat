@@ -19,7 +19,7 @@ class WindForce : ParticleFunctionForceGenerator
     {
         var wind = force * strength;
 
-        foreach (ref var particle in particles.Current)
+        foreach (var particle in particles.Current)
         {
             particle.ForceAccumulator += wind * MathF.Abs(Vector3.Dot(particle.Normal, wind));
         }

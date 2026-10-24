@@ -33,14 +33,14 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 // The rotation rate shares the axis draw rather than taking one of its own
                 var random = ParticleRandom.ForSample(particleSystemState.Random.Seed + particle.ParticleId);
                 var axis = MathUtils.SafeNormalize(MathUtils.Lerp(rotAxisMin, rotAxisMax, random));
                 var rotationRate = float.DegreesToRadians(MathUtils.Lerp(rotRateMin, rotRateMax, random));
 
-                var scale = perParticleScale.NextNumber(ref particle, particleSystemState);
+                var scale = perParticleScale.NextNumber(particle, particleSystemState);
 
                 var currentVector = particle.GetVector(outputField);
                 var rotatedVector = Vector3.TransformNormal(currentVector, Matrix4x4.CreateFromAxisAngle(axis, rotationRate * scale * frameTime));

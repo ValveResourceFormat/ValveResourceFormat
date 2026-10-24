@@ -40,9 +40,9 @@ namespace ValveResourceFormat.Particles.Operators
 
             var keep = frameTime / particles.PreviousFrameTime * MathF.Pow(1f - drag, frameTime * 30f);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
-                var point = particle.Position + positionOffset.NextVector(ref particle, particleSystemState);
+                var point = particle.Position + positionOffset.NextVector(particle, particleSystemState);
 
                 if (cache.Contains(point, boundBox) != outside)
                 {

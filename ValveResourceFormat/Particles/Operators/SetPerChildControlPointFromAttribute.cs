@@ -54,7 +54,7 @@ namespace ValveResourceFormat.Particles.Operators
                     continue;
                 }
 
-                ref var particle = ref live[source];
+                var particle = live[source];
 
                 if (isVector)
                 {

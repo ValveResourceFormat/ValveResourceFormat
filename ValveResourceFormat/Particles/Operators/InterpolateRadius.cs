@@ -42,7 +42,7 @@ namespace ValveResourceFormat.Particles.Operators
                 return;
             }
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 if (particle.Lifetime <= 0f)
                 {
@@ -60,8 +60,8 @@ namespace ValveResourceFormat.Particles.Operators
 
                 if (time >= startTime && time <= frameFraction + windowEnd)
                 {
-                    var startScale = this.startScale.NextNumber(ref particle, particleSystemState);
-                    var endScale = this.endScale.NextNumber(ref particle, particleSystemState);
+                    var startScale = this.startScale.NextNumber(particle, particleSystemState);
+                    var endScale = this.endScale.NextNumber(particle, particleSystemState);
 
                     var timeScale = MathUtils.Remap(time, startTime, endTime);
 

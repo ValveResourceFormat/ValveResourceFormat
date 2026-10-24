@@ -19,9 +19,9 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
-                var fadeInTime = GetFadeTime(ref particle, particleSystemState);
+                var fadeInTime = GetFadeTime(particle, particleSystemState);
 
                 if (MathF.Max(0f, particle.Age - frameTime) < fadeInTime)
                 {

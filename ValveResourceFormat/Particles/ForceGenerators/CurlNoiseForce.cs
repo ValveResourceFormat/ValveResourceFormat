@@ -33,23 +33,23 @@ class CurlNoiseForce : ParticleFunctionForceGenerator
 
     public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
     {
-        foreach (ref var particle in particles.Current)
+        foreach (var particle in particles.Current)
         {
-            var sample = offset.NextVector(ref particle, particleSystemState)
-                + (particleSystemState.Age * offsetRate.NextVector(ref particle, particleSystemState))
-                + (particle.Position * noiseFrequency.NextVector(ref particle, particleSystemState));
+            var sample = offset.NextVector(particle, particleSystemState)
+                + (particleSystemState.Age * offsetRate.NextVector(particle, particleSystemState))
+                + (particle.Position * noiseFrequency.NextVector(particle, particleSystemState));
 
             var noise = noiseType switch
             {
                 ParticleDirectionNoiseType.PARTICLE_DIR_NOISE_CURL => Utils.Noise.Curl3D(sample),
                 ParticleDirectionNoiseType.PARTICLE_DIR_NOISE_WORLEY_BASIC => Utils.Noise.WorleyOffset3D(
                     sample,
-                    worleyJitter.NextNumber(ref particle, particleSystemState),
-                    worleySeed.NextNumber(ref particle, particleSystemState)),
+                    worleyJitter.NextNumber(particle, particleSystemState),
+                    worleySeed.NextNumber(particle, particleSystemState)),
                 _ => Utils.Noise.ValueVector3(sample),
             };
 
-            particle.ForceAccumulator += noise * noiseScale.NextVector(ref particle, particleSystemState) * strength;
+            particle.ForceAccumulator += noise * noiseScale.NextVector(particle, particleSystemState) * strength;
         }
     }
 }

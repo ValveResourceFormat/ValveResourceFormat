@@ -21,7 +21,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             var endCapAge = particleSystemState.EndCapAge - particleSystemState.EndCapStartAge;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 if (particle.Lifetime <= 0f || particle.Lifetime <= endCapAge)
                 {

@@ -28,14 +28,14 @@ namespace ValveResourceFormat.Particles.Operators
                 return;
             }
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 if (!cache.ComputeSkinningMatrix(particle.BoneIndices, particle.BoneWeights, false, out var skin, out _))
                 {
                     continue;
                 }
 
-                ref var initial = ref particles.Initial[particle.Index];
+                var initial = particles.Initial[particle.Index];
                 var rest = particle.HitboxOffsetPosition;
 
                 particle.Position = Vector3.Transform(rest, skin);

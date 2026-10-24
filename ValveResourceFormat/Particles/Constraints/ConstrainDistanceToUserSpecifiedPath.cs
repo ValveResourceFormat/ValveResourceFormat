@@ -72,7 +72,7 @@ namespace ValveResourceFormat.Particles.Constraints
             var high = MathF.Max(low, maxDistance);
             var moved = false;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var t = (particleSystemState.Age - particle.CreationTime) * timeScale;
 

@@ -68,8 +68,8 @@ namespace ValveResourceFormat.Particles.Constraints
 
                 for (var lane = 0; lane < lanes; lane++)
                 {
-                    ref var particle = ref current[blockStart + lane];
-                    var t = PathParameter(ref particle, time);
+                    var particle = current[blockStart + lane];
+                    var t = PathParameter(particle, time);
                     var point = ParticlePath.Evaluate(start, mid, end, t);
 
                     pathT[lane] = t;
@@ -100,7 +100,7 @@ namespace ValveResourceFormat.Particles.Constraints
                         continue;
                     }
 
-                    ref var particle = ref current[blockStart + lane];
+                    var particle = current[blockStart + lane];
                     var direction = lengthSquared > 0f ? (particle.Position - target[lane]) / MathF.Sqrt(lengthSquared) : Vector3.Zero;
 
                     particle.Position = target[lane] + (direction * (under ? minDistance : limit[lane]));
@@ -111,7 +111,7 @@ namespace ValveResourceFormat.Particles.Constraints
             return moved;
         }
 
-        private float PathParameter(ref Particle particle, float time)
+        private float PathParameter(Particle particle, float time)
         {
             if (manualTField != ParticleField.NoneDisabled)
             {

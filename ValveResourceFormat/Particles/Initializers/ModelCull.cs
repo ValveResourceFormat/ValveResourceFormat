@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.LifeDuration);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             if (HitBoxCache.Refresh(particleSystemState, controlPoint, hitboxSetName, useBones) is { Count: > 0 } cache
                 && (cache.Object == null || cache.Contains(particle.Position, boundBox) != cullOutside))

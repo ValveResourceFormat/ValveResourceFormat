@@ -48,15 +48,15 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(fieldOutput);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var controlPointPosition = particleSystemState.GetControlPoint(startCP).Position;
 
-            var inMin = inputMin.NextNumber(ref particle, particleSystemState);
-            var inMax = inputMax.NextNumber(ref particle, particleSystemState);
-            var outMin = outputMin.NextNumber(ref particle, particleSystemState);
-            var outMax = outputMax.NextNumber(ref particle, particleSystemState);
-            var traceLength = maxTraceLength.NextNumber(ref particle, particleSystemState);
+            var inMin = inputMin.NextNumber(particle, particleSystemState);
+            var inMax = inputMax.NextNumber(particle, particleSystemState);
+            var outMin = outputMin.NextNumber(particle, particleSystemState);
+            var outMax = outputMax.NextNumber(particle, particleSystemState);
+            var traceLength = maxTraceLength.NextNumber(particle, particleSystemState);
 
             if (fieldOutput is ParticleField.Alpha or ParticleField.AlphaAlternate)
             {

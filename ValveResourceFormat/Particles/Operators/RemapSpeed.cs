@@ -49,7 +49,7 @@ namespace ValveResourceFormat.Particles.Operators
             var divisor = ignoreDelta ? 1f : frameTime;
             var inputRange = inputMax == inputMin ? 1f : inputMax - inputMin;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var speed = (particle.Position - particle.PositionPrevious).Length() / divisor;
                 var fraction = MathUtils.Saturate((speed - inputMin) / inputRange);

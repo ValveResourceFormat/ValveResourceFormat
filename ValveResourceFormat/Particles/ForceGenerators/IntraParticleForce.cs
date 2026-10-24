@@ -49,17 +49,17 @@ class IntraParticleForce : ParticleFunctionForceGenerator
         {
             for (var j = i + 1; j < current.Length; j++)
             {
-                if (useAABB && !BoxesOverlap(ref current[i], ref current[j]))
+                if (useAABB && !BoxesOverlap(current[i], current[j]))
                 {
                     continue;
                 }
 
-                ApplyPairForce(ref current[i], ref current[j], strength);
+                ApplyPairForce(current[i], current[j], strength);
             }
         }
     }
 
-    private bool BoxesOverlap(ref Particle first, ref Particle second)
+    private bool BoxesOverlap(Particle first, Particle second)
     {
         var reach = new Vector3(first.Radius + second.Radius + (2f * attractionMaxDistance));
         var offset = Vector3.Abs(second.Position - first.Position);
@@ -67,7 +67,7 @@ class IntraParticleForce : ParticleFunctionForceGenerator
         return offset.X <= reach.X && offset.Y <= reach.Y && offset.Z <= reach.Z;
     }
 
-    private void ApplyPairForce(ref Particle first, ref Particle second, float strength)
+    private void ApplyPairForce(Particle first, Particle second, float strength)
     {
         var offset = second.Position - first.Position;
         var distanceSquared = offset.LengthSquared();

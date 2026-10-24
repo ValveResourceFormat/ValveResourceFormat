@@ -52,12 +52,12 @@ namespace ValveResourceFormat.Particles.Initializers
             ? FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious)
             : FieldMask(snapshot.AttributeToWrite);
 
-        protected override void BeginCall(ref Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void BeginCall(Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             callPending = true;
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var field = snapshot.AttributeToWrite;
             var column = snapshot.Column(particleSystemState);
@@ -83,15 +83,15 @@ namespace ValveResourceFormat.Particles.Initializers
                 StartCursor(particleSystemState, rowCount);
             }
 
-            var row = SelectRow(ref particle, rowCount, isVector, particleSystemState);
+            var row = SelectRow(particle, rowCount, isVector, particleSystemState);
 
             switch (column)
             {
                 case Vector3[] vectors when (uint)row < (uint)vectors.Length:
-                    WriteVector(ref particle, vectors[row], particles.PreviousFrameTime, particleSystemState);
+                    WriteVector(particle, vectors[row], particles.PreviousFrameTime, particleSystemState);
                     break;
                 case float[] floats when (uint)row < (uint)floats.Length:
-                    WriteFloat(ref particle, floats[row], particleSystemState);
+                    WriteFloat(particle, floats[row], particleSystemState);
                     break;
                 case int[] ints when (uint)row < (uint)ints.Length:
                     particle.SetScalar(field, ints[row]);
@@ -115,11 +115,11 @@ namespace ValveResourceFormat.Particles.Initializers
             cursor = Math.Min(cursor, rowCount - 1);
         }
 
-        private int SelectRow(ref Particle particle, int rowCount, bool isVector, ParticleSystemState particleSystemState)
+        private int SelectRow(Particle particle, int rowCount, bool isVector, ParticleSystemState particleSystemState)
         {
             if (hasManualIndex)
             {
-                return Math.Max((int)manualIndex.NextNumber(ref particle, particleSystemState), 0) % rowCount;
+                return Math.Max((int)manualIndex.NextNumber(particle, particleSystemState), 0) % rowCount;
             }
 
             if (random)
@@ -142,7 +142,7 @@ namespace ValveResourceFormat.Particles.Initializers
         /// <c>m_bLocalSpaceAngles</c>. A previous position row is a velocity, turned into the position
         /// one previous step back from the current one.
         /// </summary>
-        private void WriteVector(ref Particle particle, Vector3 value, float previousStep, ParticleSystemState particleSystemState)
+        private void WriteVector(Particle particle, Vector3 value, float previousStep, ParticleSystemState particleSystemState)
         {
             var field = snapshot.AttributeToWrite;
             var localSpaceCP = snapshot.LocalSpaceCP;
@@ -172,7 +172,7 @@ namespace ValveResourceFormat.Particles.Initializers
             particle.SetVector(field, value);
         }
 
-        private void WriteFloat(ref Particle particle, float value, ParticleSystemState particleSystemState)
+        private void WriteFloat(Particle particle, float value, ParticleSystemState particleSystemState)
         {
             var field = snapshot.AttributeToWrite;
 

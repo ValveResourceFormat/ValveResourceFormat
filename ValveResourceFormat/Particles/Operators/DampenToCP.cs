@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             var controlPointPosition = particleSystemState.GetControlPoint(controlPoint).Position;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var distance = Vector3.Distance(particle.Position, controlPointPosition);
 

@@ -48,7 +48,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var colorScale = scales.Color with { W = 1f };
             var hsvShift = GetHsvShift(systemState);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 if (Lights.Claim(particle.ParticleId) is not { } slot)
                 {
@@ -56,13 +56,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 }
 
                 slot.Touched = true;
-                slot.State = BuildLight(ref particle, scales, colorScale, hsvShift);
+                slot.State = BuildLight(particle, scales, colorScale, hsvShift);
             }
 
             return true;
         }
 
-        private ParticleLightPool.LightState BuildLight(ref Particle particle, in RendererScales scales, Vector4 colorScale, Vector3 hsvShift)
+        private ParticleLightPool.LightState BuildLight(Particle particle, in RendererScales scales, Vector4 colorScale, Vector3 hsvShift)
         {
             var tint = particle.Color * 255f;
             var color = ParticleColorBlend.Apply(ColorBlendType, new Vector4((byte)(int)tint.X, (byte)(int)tint.Y, (byte)(int)tint.Z, 255f), colorScale);
@@ -74,7 +74,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
 
             var range = particle.Radius * scales.Radius;
-            var intensity = particle.Alpha * GetAlpha2(ref particle) * scales.Alpha;
+            var intensity = particle.Alpha * GetAlpha2(particle) * scales.Alpha;
             var referenceDistance = range * IntensityDistanceFraction / SceneLight.LinearBrightnessDistance;
             var spot = lightDistance != 0f;
 

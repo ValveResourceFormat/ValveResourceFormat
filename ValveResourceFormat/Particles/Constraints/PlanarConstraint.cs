@@ -66,8 +66,8 @@ namespace ValveResourceFormat.Particles.Constraints
 
                 for (var lane = 0; lane < block.Length; lane++)
                 {
-                    ref var particle = ref block[lane];
-                    var radius = particle.Radius * radiusScale.NextNumber(ref particle, particleSystemState);
+                    var particle = block[lane];
+                    var radius = particle.Radius * radiusScale.NextNumber(particle, particleSystemState);
                     depths[lane] = Vector3.Dot(particle.Position - origin, normal) - radius;
 
                     var withinReach = maxDistance <= 0f || Vector3.DistanceSquared(particle.Position, origin) < maxDistance * maxDistance;

@@ -29,12 +29,12 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var inner = innerAngle.NextNumber(ref particle, particleSystemState);
-            var outer = outerAngle.NextNumber(ref particle, particleSystemState);
-            var particleSpeed = speed.NextNumber(ref particle, particleSystemState);
-            var particleOffset = offset.NextNumber(ref particle, particleSystemState);
+            var inner = innerAngle.NextNumber(particle, particleSystemState);
+            var outer = outerAngle.NextNumber(particle, particleSystemState);
+            var particleSpeed = speed.NextNumber(particle, particleSystemState);
+            var particleOffset = offset.NextNumber(particle, particleSystemState);
 
             var halfAngle = float.DegreesToRadians(MathUtils.Lerp(inner, outer, particleSystemState.Random.Next())) * 0.5f;
 
@@ -43,7 +43,7 @@ namespace ValveResourceFormat.Particles.Initializers
             var axialDistance = MathF.Max(MathF.Abs(particleOffset), 1f) * (particleOffset < 0f ? -1f : 1f);
             var radius = axialDistance * MathF.Tan(halfAngle);
 
-            var transform = transformInput.NextTransformAtTime(ref particle, particleSystemState, particle.CreationTime);
+            var transform = transformInput.NextTransformAtTime(particle, particleSystemState, particle.CreationTime);
 
             var (sin, cos) = MathF.SinCos(particleSystemState.Random.Next() * MathF.Tau);
             var forward = Vector3.TransformNormal(Vector3.UnitX, transform);
@@ -58,7 +58,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             var direction = Vector3.Normalize((forward * axialDistance) + ringOffset);
 
-            SetSpawnPosition(ref particle, particleSystemState, position, position - (direction * (particleSpeed * particles.PreviousFrameTime)));
+            SetSpawnPosition(particle, particleSystemState, position, position - (direction * (particleSpeed * particles.PreviousFrameTime)));
 
             return particle;
         }

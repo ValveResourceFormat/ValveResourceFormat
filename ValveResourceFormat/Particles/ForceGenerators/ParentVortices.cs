@@ -36,14 +36,14 @@ class ParentVortices : ParticleFunctionForceGenerator
 
         var axis = MathUtils.SafeNormalize(twistAxis);
 
-        foreach (ref var vortex in parent.CurrentParticles)
+        foreach (var vortex in parent.CurrentParticles)
         {
             var center = flipBasedOnYaw && vortex.Rotation.X >= MathF.PI ? -vortex.Position : vortex.Position;
             var inverseRadius = 1f / (vortex.Radius + 1e-5f);
             var inverseRadiusSquared = inverseRadius * inverseRadius;
             var vortexStrength = strength * forceScale * vortex.Alpha;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var offset = particle.Position - center;
                 var distanceSquared = offset.LengthSquared();

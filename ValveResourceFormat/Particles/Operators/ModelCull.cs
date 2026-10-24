@@ -34,7 +34,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             var raiseCullEvents = particleSystemState.ListensFor(ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED_ON_CULL);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 if (cache.Contains(particle.Position, boundBox) == cullOutside)
                 {

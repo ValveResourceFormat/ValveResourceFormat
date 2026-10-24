@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Particles.Operators
                 ? MathUtils.SafeNormalize(delta) * scale
                 : delta * (scale / MathF.Max(1e-20f, particles.PreviousFrameTime));
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 particle.SetVector(fieldOutput, value);
             }

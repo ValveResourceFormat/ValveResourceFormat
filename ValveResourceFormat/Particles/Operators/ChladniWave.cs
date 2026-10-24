@@ -64,16 +64,16 @@ namespace ValveResourceFormat.Particles.Operators
                 }
             }
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var position = Vector3.Transform(particle.Position, toLocal);
-                var harmonic = harmonics.NextVector(ref particle, particleSystemState);
-                var wave = waveLength.NextVector(ref particle, particleSystemState);
+                var harmonic = harmonics.NextVector(particle, particleSystemState);
+                var wave = waveLength.NextVector(particle, particleSystemState);
 
-                var inputMin = this.inputMin.NextNumber(ref particle, particleSystemState);
-                var inputMax = this.inputMax.NextNumber(ref particle, particleSystemState);
-                var outputMin = this.outputMin.NextNumber(ref particle, particleSystemState);
-                var outputMax = this.outputMax.NextNumber(ref particle, particleSystemState);
+                var inputMin = this.inputMin.NextNumber(particle, particleSystemState);
+                var inputMax = this.inputMax.NextNumber(particle, particleSystemState);
+                var outputMin = this.outputMin.NextNumber(particle, particleSystemState);
+                var outputMax = this.outputMax.NextNumber(particle, particleSystemState);
 
                 if (wave.X == 0f || wave.Y == 0f || (is3D && wave.Z == 0f))
                 {

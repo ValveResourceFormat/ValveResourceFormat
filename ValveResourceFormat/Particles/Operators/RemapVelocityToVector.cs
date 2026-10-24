@@ -35,7 +35,7 @@ namespace ValveResourceFormat.Particles.Operators
             var previousFrameTime = particles.PreviousFrameTime > 0f ? particles.PreviousFrameTime : frameTime;
             var perSecond = scale / MathF.Max(1e-20f, previousFrameTime);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var velocity = particle.Position - particle.PositionPrevious;
 

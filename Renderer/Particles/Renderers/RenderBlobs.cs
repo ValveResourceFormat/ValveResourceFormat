@@ -89,10 +89,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
-            ref var first = ref particles.Current[0];
-            var width = cubeWidth.NextNumber(ref first, systemState);
-            var cutoff = cutoffRadius.NextNumber(ref first, systemState);
-            var radius = renderRadius.NextNumber(ref first, systemState);
+            var first = particles.Current[0];
+            var width = cubeWidth.NextNumber(first, systemState);
+            var cutoff = cutoffRadius.NextNumber(first, systemState);
+            var radius = renderRadius.NextNumber(first, systemState);
 
             if (scaleControlPoint >= 0)
             {

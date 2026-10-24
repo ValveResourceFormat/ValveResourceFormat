@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Particles.Operators
         // This is the only place that will update Rotation based on RotationSpeed
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 // RotationSpeed is stored in radians per second by everything that writes it
                 var roll = particle.Rotation.Z + (particle.RotationSpeed.Z * MathF.Min(frameTime, particle.Age) * strength);

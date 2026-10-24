@@ -44,7 +44,7 @@ namespace ValveResourceFormat.Particles.Operators
         {
             if (proportional)
             {
-                foreach (ref var particle in particles.Current)
+                foreach (var particle in particles.Current)
                 {
                     var life = particle.Lifetime + ParticleMath.FloatEpsilon;
                     var lifeFraction = (particleSystemState.Age - particle.CreationTime) / life;
@@ -65,7 +65,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             done = true;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 particle.SetScalar(fieldOutput, remap.Remap((int)particle.GetScalar(fieldInput), particleSystemState));
             }

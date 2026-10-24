@@ -30,7 +30,7 @@ namespace ValveResourceFormat.Particles.Operators
             var inverseWindow = 1f / (endTime - startTime + ParticleMath.FloatEpsilon);
             var (min, max) = field.SetFloatRange();
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 if (particle.Lifetime <= 0f)
                 {

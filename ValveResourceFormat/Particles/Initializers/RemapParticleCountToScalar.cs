@@ -80,7 +80,7 @@ namespace ValveResourceFormat.Particles.Initializers
         /// Inverting mirrors the input range about the live particle count rather than the counter.
         /// A scale control point scales the range bounds, again leaving the counter untouched.
         /// </summary>
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var min = inputMin;
             var max = inputMax;

@@ -70,13 +70,13 @@ namespace ValveResourceFormat.Particles.Operators
 
                 for (var lane = 0; lane < lanes; lane++)
                 {
-                    ref var particle = ref particleSpan[head + lane];
+                    var particle = particleSpan[head + lane];
 
-                    var inputMin = this.inputMin.NextNumber(ref particle, particleSystemState);
-                    var inputMax = this.inputMax.NextNumber(ref particle, particleSystemState);
-                    var outputMin = this.outputMin.NextNumber(ref particle, particleSystemState);
-                    var outputMax = this.outputMax.NextNumber(ref particle, particleSystemState);
-                    var scale = componentScale.NextVector(ref particle, particleSystemState);
+                    var inputMin = this.inputMin.NextNumber(particle, particleSystemState);
+                    var inputMax = this.inputMax.NextNumber(particle, particleSystemState);
+                    var outputMin = this.outputMin.NextNumber(particle, particleSystemState);
+                    var outputMax = this.outputMax.NextNumber(particle, particleSystemState);
+                    var scale = componentScale.NextVector(particle, particleSystemState);
 
                     var scaledDelta = (particle.Position - origin) * scale;
                     var distanceSquared = Vector3.Dot(scaledDelta, scaledDelta);
@@ -109,7 +109,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                 for (var lane = 0; lane < lanes; lane++)
                 {
-                    ref var particle = ref particleSpan[head + lane];
+                    var particle = particleSpan[head + lane];
 
                     var finalValue = particle.ModifyScalarBySetMethod(particles, outputField, values[lane], setMethod);
                     var current = particle.GetScalar(outputField);

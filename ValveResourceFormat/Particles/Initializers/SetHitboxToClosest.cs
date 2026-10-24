@@ -37,15 +37,15 @@ namespace ValveResourceFormat.Particles.Initializers
             => FieldMask(ParticleField.HitboxIndex) | FieldMask(ParticleField.HitboxOffsetPosition)
                 | (updatePosition ? FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) : 0);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             if (HitBoxCache.Refresh(particleSystemState, controlPoint, hitboxSetName, useBones) is not { } cache)
             {
                 return particle;
             }
 
-            var scale = hitBoxScale.NextVector(ref particle, particleSystemState);
-            var ratio = hybridRatio.NextNumber(ref particle, particleSystemState);
+            var scale = hitBoxScale.NextVector(particle, particleSystemState);
+            var ratio = hybridRatio.NextNumber(particle, particleSystemState);
             var (fraction, index) = cache.Closest(particleSystemState, particle.Position, desiredHitbox, scale, useClosestPointOnHitbox, testType, ratio);
 
             if (IsUnwritten(particleSystemState, ParticleField.HitboxOffsetPosition))

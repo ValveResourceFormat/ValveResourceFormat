@@ -29,7 +29,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             if (!ropeDecay)
             {
-                foreach (ref var particle in particleSpan)
+                foreach (var particle in particleSpan)
                 {
                     if (particle.Lifetime <= 0f || particle.Lifetime <= particle.Age)
                     {
@@ -53,6 +53,6 @@ namespace ValveResourceFormat.Particles.Operators
             }
         }
 
-        private static bool IsPastLifetime(in Particle particle) => particle.Age > particle.Lifetime;
+        private static bool IsPastLifetime(Particle particle) => particle.Age > particle.Lifetime;
     }
 }

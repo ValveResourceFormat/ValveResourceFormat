@@ -62,7 +62,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(fieldOutput) | FieldMask(ParticleField.PositionPrevious);
 
-        protected override void BeginCall(ref Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void BeginCall(Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             callPending = true;
         }
@@ -70,7 +70,7 @@ namespace ValveResourceFormat.Particles.Initializers
         /// <summary>
         /// A -1 sentinel on either bound disables the time window.
         /// </summary>
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             if (startTime != -1f && endTime != -1f
                 && (particle.CreationTime < startTime || particle.CreationTime >= endTime))

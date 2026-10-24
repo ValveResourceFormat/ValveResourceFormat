@@ -30,7 +30,7 @@ namespace ValveResourceFormat.Particles.Operators
         {
             var center = particleSystemState.GetControlPoint(cp).Position;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 if (Initializers.Orient2DRelToCP.Angle(particle.Position, center) is not { } angle)
                 {

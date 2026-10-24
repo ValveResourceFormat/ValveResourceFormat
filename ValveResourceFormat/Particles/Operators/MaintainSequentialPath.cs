@@ -76,7 +76,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             var (start, mid, end) = ParticlePath.CalculatePathValues(particleSystemState, pathParams, particleSystemState.Age);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var index = slotIndex;
 

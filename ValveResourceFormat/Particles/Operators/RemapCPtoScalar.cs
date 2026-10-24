@@ -62,7 +62,7 @@ namespace ValveResourceFormat.Particles.Operators
             var interpolation = timing.NextInterpolation(new Vector3(component, 0f, 0f), particleSystemState.Age);
             var remapped = MathUtils.RemapValClamped(component, inputMin, inputMax, outputMin, outputMax);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 if (!timing.Covers(particle.CreationTime))
                 {

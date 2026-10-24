@@ -60,7 +60,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
             values.Clear();
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 values.Add(particle.GetScalar(field));
             }

@@ -33,7 +33,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.CreationTime);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var samplePosition = (particle.Position + offsetLoc) * noiseScaleLoc;
             var sampleTime = (particle.CreationTime + offset) * noiseScale;

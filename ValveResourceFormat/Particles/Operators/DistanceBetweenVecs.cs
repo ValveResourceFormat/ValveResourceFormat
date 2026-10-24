@@ -36,14 +36,14 @@ namespace ValveResourceFormat.Particles.Operators
         {
             var divisor = deltaTime ? frameTime : 1f;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
-                var distance = Vector3.Distance(point1.NextVector(ref particle, particleSystemState), point2.NextVector(ref particle, particleSystemState)) / divisor;
+                var distance = Vector3.Distance(point1.NextVector(particle, particleSystemState), point2.NextVector(particle, particleSystemState)) / divisor;
 
-                var inputMin = this.inputMin.NextNumber(ref particle, particleSystemState);
-                var inputMax = this.inputMax.NextNumber(ref particle, particleSystemState);
-                var outputMin = this.outputMin.NextNumber(ref particle, particleSystemState);
-                var outputMax = this.outputMax.NextNumber(ref particle, particleSystemState);
+                var inputMin = this.inputMin.NextNumber(particle, particleSystemState);
+                var inputMax = this.inputMax.NextNumber(particle, particleSystemState);
+                var outputMin = this.outputMin.NextNumber(particle, particleSystemState);
+                var outputMax = this.outputMax.NextNumber(particle, particleSystemState);
 
                 var fraction = ParticleMath.ClampedFraction(distance, inputMin, inputMax);
                 var value = particle.ModifyScalarBySetMethod(particles, fieldOutput, MathUtils.Lerp(outputMin, outputMax, fraction), setMethod);

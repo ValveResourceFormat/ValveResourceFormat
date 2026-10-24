@@ -55,18 +55,18 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious);
 
-        public override void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override void Initialize(ParticleSpan batch, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             transform = transformInput.NextTransform(particleSystemState);
             base.Initialize(batch, particles, particleSystemState);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var rollingRadius = radius2.NextNumber(ref particle, particleSystemState) + ParticleMath.FloatEpsilon;
-            var outerRadius = radius1.NextNumber(ref particle, particleSystemState) + rollingRadius;
-            var penOffset = offset.NextNumber(ref particle, particleSystemState);
-            var density = particleDensity.NextNumber(ref particle, particleSystemState);
+            var rollingRadius = radius2.NextNumber(particle, particleSystemState) + ParticleMath.FloatEpsilon;
+            var outerRadius = radius1.NextNumber(particle, particleSystemState) + rollingRadius;
+            var penOffset = offset.NextNumber(particle, particleSystemState);
+            var density = particleDensity.NextNumber(particle, particleSystemState);
 
             var t = useCount ? count++ * density : density * particle.CreationTime;
             var rollAngle = t / rollingRadius * outerRadius;

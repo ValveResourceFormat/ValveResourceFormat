@@ -18,7 +18,7 @@ namespace ValveResourceFormat.Particles.Operators
         {
             var threshold = minVelocity * minVelocity;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 if ((particle.Position - particle.PositionPrevious).LengthSquared() / frameTime <= threshold)
                 {

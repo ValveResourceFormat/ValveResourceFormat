@@ -44,10 +44,10 @@ namespace ValveResourceFormat.Particles.Operators
             var count = columns.Count;
             var model = cache is { Count: > 0 } ? cache.Object?.Model : null;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
-                var weight = interpolation.NextNumber(ref particle, particleSystemState);
-                var t = (count - 1) * tValue.NextNumber(ref particle, particleSystemState);
+                var weight = interpolation.NextNumber(particle, particleSystemState);
+                var t = (count - 1) * tValue.NextNumber(particle, particleSystemState);
                 var first = (int)(ushort)(int)MathF.Floor(t);
                 var blend = t - first;
 
@@ -73,7 +73,7 @@ namespace ValveResourceFormat.Particles.Operators
                     var (firstPosition, firstNormal, firstRadius) = Skin(cache!, columns, model, first);
                     var (secondPosition, secondNormal, secondRadius) = Skin(cache!, columns, model, second);
 
-                    columns.Bind(ref particle, first, model, cache!.Count);
+                    columns.Bind(particle, first, model, cache!.Count);
 
                     target = MathUtils.Lerp(firstPosition, secondPosition, blend);
                     normal = MathUtils.Lerp(firstNormal, secondNormal, blend);

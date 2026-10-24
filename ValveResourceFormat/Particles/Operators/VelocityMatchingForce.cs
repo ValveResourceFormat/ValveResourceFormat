@@ -62,7 +62,7 @@ namespace ValveResourceFormat.Particles.Operators
             {
                 for (var j = i + 1; j < current.Length; j++)
                 {
-                    MatchPair(ref current[i], ref current[j], frameTime, strength, distanceSquared);
+                    MatchPair(current[i], current[j], frameTime, strength, distanceSquared);
                 }
             }
         }
@@ -72,7 +72,7 @@ namespace ValveResourceFormat.Particles.Operators
             var velocitySum = Vector3.Zero;
             var speedSum = 0f;
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var velocity = particle.GetVelocity(frameTime);
                 var speed = velocity.Length();
@@ -105,7 +105,7 @@ namespace ValveResourceFormat.Particles.Operators
             particleSystemState.SetControlPointOrientation(cpBroadcast, averageDirection, left, up);
         }
 
-        private void MatchPair(ref Particle first, ref Particle second, float frameTime, float strength, float distanceSquared)
+        private void MatchPair(Particle first, Particle second, float frameTime, float strength, float distanceSquared)
         {
             var separation = (second.Position - first.Position).LengthSquared();
 
@@ -133,10 +133,10 @@ namespace ValveResourceFormat.Particles.Operators
             var turn = weight * dirScale;
             var speedBlend = MathUtils.Saturate(weight * spdScale);
 
-            Steer(ref first, firstVelocity, firstSpeed);
-            Steer(ref second, secondVelocity, secondSpeed);
+            Steer(first, firstVelocity, firstSpeed);
+            Steer(second, secondVelocity, secondSpeed);
 
-            void Steer(ref Particle particle, Vector3 velocity, float speed)
+            void Steer(Particle particle, Vector3 velocity, float speed)
             {
                 var newVelocity = MathUtils.Lerp(MathUtils.SafeNormalize(velocity), shared, turn) * MathUtils.Lerp(speed, averagePairSpeed, speedBlend);
                 particle.Position = (newVelocity * frameTime) + particle.PositionPrevious;

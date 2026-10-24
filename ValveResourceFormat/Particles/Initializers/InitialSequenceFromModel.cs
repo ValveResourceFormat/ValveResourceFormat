@@ -38,7 +38,7 @@ namespace ValveResourceFormat.Particles.Initializers
         public override ulong WrittenFields
             => FieldMask(fieldOutput) | (fieldOutputAnim != ParticleField.NoneDisabled ? FieldMask(fieldOutputAnim) : 0);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             if (particleSystemState.GetControlPoint(controlPoint).ModelObject is not { } modelObject)
             {

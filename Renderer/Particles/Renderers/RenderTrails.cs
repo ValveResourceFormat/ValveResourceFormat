@@ -243,7 +243,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                 for (var n = 0; n < current.Length; n++)
                 {
-                    ref var particle = ref current[sorted ? (int)(uint)order[n] : n];
+                    var particle = current[sorted ? (int)(uint)order[n] : n];
                     var position = BiasTowardCamera(particle.Position, camera.Location);
                     var previousPosition = particle.GetVector(prevPositionSource);
 
@@ -327,8 +327,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     // direction runs backwards along travel here, so the shift subtracts
                     var center = position + (direction * (length * (0.5f - forwardShift)));
 
-                    var headHalfWidth = halfWidth * headRadiusTaper.NextNumber(ref particle, systemState);
-                    var tailHalfWidth = halfWidth * tailRadiusTaper.NextNumber(ref particle, systemState);
+                    var headHalfWidth = halfWidth * headRadiusTaper.NextNumber(particle, systemState);
+                    var tailHalfWidth = halfWidth * tailRadiusTaper.NextNumber(particle, systemState);
 
                     // The shader clamps per vertex, on the radius the CPU has already constrained and
                     // tapered, so each end is bounded against its own distance rather than the centre's
@@ -357,7 +357,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                         if (sequence is { Frames.Length: > 0 })
                         {
-                            var (frame, nextFrame, blend) = GetSheetFrame(ref particle, sequence, animationRate, animationType, animateInFps);
+                            var (frame, nextFrame, blend) = GetSheetFrame(particle, sequence, animationRate, animationType, animateInFps);
 
                             // TODO: Support more than one image per frame?
                             var currentImage = sequence.Frames[frame].Images[0];
@@ -378,16 +378,16 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     }
 
                     var start = quadCount * instanceFloats;
-                    var color = BlendColor(ref particle, scales);
+                    var color = BlendColor(particle, scales);
                     var alpha = color.W * colorFade * alphaFade;
                     var tint = color.AsVector3() * colorFade;
-                    var alphaReference = GetAlphaReference(ref particle, radius, alpha);
+                    var alphaReference = GetAlphaReference(particle, radius, alpha);
 
                     var head = Vector4.Clamp(
-                        new Vector4(tint * headColor, alpha * headAlphaScale.NextNumber(ref particle, systemState)),
+                        new Vector4(tint * headColor, alpha * headAlphaScale.NextNumber(particle, systemState)),
                         Vector4.Zero, Vector4.One);
                     var tail = Vector4.Clamp(
-                        new Vector4(tint * tailColor, alpha * tailAlphaScale.NextNumber(ref particle, systemState)),
+                        new Vector4(tint * tailColor, alpha * tailAlphaScale.NextNumber(particle, systemState)),
                         Vector4.Zero, Vector4.One);
 
                     // Folding the half length into the along axis leaves the shader a corner offset of

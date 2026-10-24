@@ -34,10 +34,10 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(outputField);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var value1 = input1.NextVector(ref particle, particleSystemState);
-            var value2 = input2.NextVector(ref particle, particleSystemState);
+            var value1 = input1.NextVector(particle, particleSystemState);
+            var value2 = input2.NextVector(particle, particleSystemState);
 
             if (expression.Evaluate(value1, value2) is not { } result)
             {

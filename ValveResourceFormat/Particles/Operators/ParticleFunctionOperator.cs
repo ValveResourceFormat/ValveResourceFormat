@@ -32,11 +32,11 @@ namespace ValveResourceFormat.Particles.Operators
         /// The share of a step of <paramref name="frameTime"/> that <paramref name="particle"/> lived
         /// through, 1 for a particle older than the step.
         /// </summary>
-        protected static float LivedStepFraction(in Particle particle, float frameTime)
+        protected static float LivedStepFraction(Particle particle, float frameTime)
             => MathF.Min(particle.Age, frameTime) / frameTime;
 
         /// <summary>Kills a culled particle, raising the killed on cull event for the children that listen for it.</summary>
-        protected static void KillCulled(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected static void KillCulled(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             particle.Kill();
 

@@ -83,7 +83,7 @@ namespace ValveResourceFormat.Particles.Constraints
 
                 for (var lane = 0; lane < block.Length; lane++)
                 {
-                    ref var particle = ref block[lane];
+                    var particle = block[lane];
                     var delta = deltas[lane];
                     var distanceSquared = delta.LengthSquared();
                     var outside = distanceSquared < minSquared || distanceSquared > maxSquared;

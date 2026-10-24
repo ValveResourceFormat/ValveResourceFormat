@@ -77,14 +77,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             for (var n = 0; n < current.Length; n++)
             {
-                var brightness = intensity.NextNumber(ref current[n], systemState);
+                var brightness = intensity.NextNumber(current[n], systemState);
 
                 if (brightness <= 0f)
                 {
                     continue;
                 }
 
-                ref var particle = ref current[reverseOrder ? current.Length - 1 - n : n];
+                var particle = current[reverseOrder ? current.Length - 1 - n : n];
 
                 if (Lights.Claim(particle.ParticleId) is not { } slot || particle.Radius == 0f || particle.Alpha == 0f)
                 {

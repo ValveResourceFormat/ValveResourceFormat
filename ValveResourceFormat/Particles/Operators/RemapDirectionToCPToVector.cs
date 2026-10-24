@@ -32,7 +32,7 @@ namespace ValveResourceFormat.Particles.Operators
             var center = particleSystemState.GetControlPoint(cp).Position;
             var factor = normalize ? scale : scale / MathF.Max(1e-20f, particles.PreviousFrameTime);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var direction = Vector3.Transform(particle.Position - center, rotation);
 

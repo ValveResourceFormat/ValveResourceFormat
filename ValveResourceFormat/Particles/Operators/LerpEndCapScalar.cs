@@ -42,7 +42,7 @@ namespace ValveResourceFormat.Particles.Operators
             {
                 startAge = particleSystemState.Age;
 
-                foreach (ref var particle in particles.Current)
+                foreach (var particle in particles.Current)
                 {
                     particle.SetInitialScalar(particles, outputField, particle.GetScalar(outputField));
                 }
@@ -50,7 +50,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             var t = MathUtils.Saturate((particleSystemState.Age - startAge) / (lerpTime + ParticleMath.FloatEpsilon));
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var target = MathUtils.Lerp(particle.GetInitialScalar(particles, outputField), output, t);
 

@@ -50,7 +50,7 @@ namespace ValveResourceFormat.Particles.Operators
             var stepRatio = particles.PreviousFrameTime > 0f ? frameTime / particles.PreviousFrameTime : 1f;
             var dragFactor = stepRatio * MathF.Pow(1f - dragValue, frameTime * 30f);
 
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 // ForceScale (per-particle) weights the applied forces; 0 = pinned/immovable.
                 var acceleration = gravityAcceleration + particle.ForceAccumulator;

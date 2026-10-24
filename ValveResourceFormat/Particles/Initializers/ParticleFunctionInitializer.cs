@@ -18,7 +18,7 @@ namespace ValveResourceFormat.Particles.Initializers
         /// </summary>
         public int AssociatedEmitterIndex { get; } = -1;
 
-        public abstract Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState);
+        public abstract Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState);
 
         /// <summary>
         /// Runs the initializer over the particles one emission created, which sit at the end of
@@ -26,7 +26,7 @@ namespace ValveResourceFormat.Particles.Initializers
         /// <see cref="SplitIntoCalls"/> gives, with inputs evaluated afresh and <see cref="BeginCall"/>
         /// run for each call.
         /// </summary>
-        public virtual void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public virtual void Initialize(ParticleSpan batch, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var (head, blocks, tail) = SplitIntoCalls(batch);
             var firstCall = true;
@@ -46,26 +46,26 @@ namespace ValveResourceFormat.Particles.Initializers
                 }
 
                 firstCall = false;
-                BeginCall(ref run[0], particles, particleSystemState);
+                BeginCall(run[0], particles, particleSystemState);
                 InitializeEach(run, particles, particleSystemState);
             }
         }
 
         /// <summary>
         /// Sets up the state an initializer keeps for one call, before the default
-        /// <see cref="Initialize(Span{Particle}, ParticleCollection, ParticleSystemState)"/> initializes
+        /// <see cref="Initialize(ParticleSpan, ParticleCollection, ParticleSystemState)"/> initializes
         /// the call's particles, the first of which is <paramref name="first"/>.
         /// </summary>
-        protected virtual void BeginCall(ref Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected virtual void BeginCall(Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
         }
 
         /// <summary>Initializes the particles of <paramref name="run"/> one by one, as a single call.</summary>
-        protected void InitializeEach(Span<Particle> run, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected void InitializeEach(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            foreach (ref var particle in run)
+            foreach (var particle in run)
             {
-                Initialize(ref particle, particles, particleSystemState);
+                Initialize(particle, particles, particleSystemState);
             }
         }
 
@@ -75,7 +75,7 @@ namespace ValveResourceFormat.Particles.Initializers
         /// multiple of four, the whole blocks of four from there, and the rest. Any run can be empty;
         /// state an initializer keeps per call, such as its particle count, restarts with each run.
         /// </summary>
-        protected static (Range Head, Range Blocks, Range Tail) SplitIntoCalls(Span<Particle> batch)
+        protected static (Range Head, Range Blocks, Range Tail) SplitIntoCalls(ParticleSpan batch)
         {
             if (batch.Length < 16)
             {
@@ -120,7 +120,7 @@ namespace ValveResourceFormat.Particles.Initializers
         /// Places a new particle at <paramref name="position"/>, and its previous position at
         /// <paramref name="previous"/> unless a function before this one wrote that.
         /// </summary>
-        protected static void SetSpawnPosition(ref Particle particle, ParticleSystemState particleSystemState, Vector3 position, Vector3 previous)
+        protected static void SetSpawnPosition(Particle particle, ParticleSystemState particleSystemState, Vector3 position, Vector3 previous)
         {
             particle.Position = position;
 
@@ -134,7 +134,7 @@ namespace ValveResourceFormat.Particles.Initializers
         /// Adds <paramref name="velocity"/> to a new particle by moving its previous position back by one
         /// previous step of it, or by <paramref name="velocity"/> itself when that is a displacement per step.
         /// </summary>
-        protected static void AddVelocity(ref Particle particle, ParticleCollection particles, Vector3 velocity, bool perStep)
+        protected static void AddVelocity(Particle particle, ParticleCollection particles, Vector3 velocity, bool perStep)
             => particle.PositionPrevious -= perStep ? velocity : velocity * particles.PreviousFrameTime;
 
         /// <summary>

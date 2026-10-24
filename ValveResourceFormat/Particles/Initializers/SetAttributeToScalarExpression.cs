@@ -34,7 +34,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(outputField);
 
-        public override void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override void Initialize(ParticleSpan batch, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var (head, blocks, tail) = SplitIntoCalls(batch);
 
@@ -48,10 +48,10 @@ namespace ValveResourceFormat.Particles.Initializers
             InitializeEach(batch[tail], particles, particleSystemState);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var value1 = input1.NextNumber(ref particle, particleSystemState);
-            var value2 = input2.NextNumber(ref particle, particleSystemState);
+            var value1 = input1.NextNumber(particle, particleSystemState);
+            var value2 = input2.NextNumber(particle, particleSystemState);
 
             if (expression.Evaluate(value1, value2) is not { } value)
             {

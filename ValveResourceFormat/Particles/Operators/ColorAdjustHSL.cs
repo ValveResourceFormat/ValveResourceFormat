@@ -27,19 +27,19 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
                 var (hue, saturation, lightness) = RgbToHsl(particle.GetInitialVector(particles, ParticleField.Color));
 
-                hue = (hue + hueAdjust.NextNumber(ref particle, particleSystemState)) % 360f;
+                hue = (hue + hueAdjust.NextNumber(particle, particleSystemState)) % 360f;
 
                 if (hue < 0f)
                 {
                     hue += 360f;
                 }
 
-                saturation = ParticleMath.ClampToUnit(saturation + saturationAdjust.NextNumber(ref particle, particleSystemState));
-                lightness = ParticleMath.ClampToUnit(lightness + lightnessAdjust.NextNumber(ref particle, particleSystemState));
+                saturation = ParticleMath.ClampToUnit(saturation + saturationAdjust.NextNumber(particle, particleSystemState));
+                lightness = ParticleMath.ClampToUnit(lightness + lightnessAdjust.NextNumber(particle, particleSystemState));
 
                 particle.Color = HslToRgb(hue, saturation, lightness);
             }

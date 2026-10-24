@@ -20,9 +20,9 @@ class CPVelocityForce : ParticleFunctionForceGenerator
     {
         var velocity = particleSystemState.GetControlPoint(controlPoint).StepDelta / frameTime;
 
-        foreach (ref var particle in particles.Current)
+        foreach (var particle in particles.Current)
         {
-            particle.ForceAccumulator += velocity * (strength * scale.NextNumber(ref particle, particleSystemState));
+            particle.ForceAccumulator += velocity * (strength * scale.NextNumber(particle, particleSystemState));
         }
     }
 }

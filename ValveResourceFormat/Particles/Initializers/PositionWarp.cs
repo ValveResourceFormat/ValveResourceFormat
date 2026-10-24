@@ -49,10 +49,10 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.Radius);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var rampStart = warpMin.NextVector(ref particle, particleSystemState);
-            var rampEnd = warpMax.NextVector(ref particle, particleSystemState);
+            var rampStart = warpMin.NextVector(particle, particleSystemState);
+            var rampEnd = warpMax.NextVector(particle, particleSystemState);
 
             if (invertWarp)
             {

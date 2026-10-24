@@ -19,10 +19,10 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            foreach (var particle in particles.Current)
             {
-                var min = outputMin.NextNumber(ref particle, particleSystemState);
-                var max = outputMax.NextNumber(ref particle, particleSystemState);
+                var min = outputMin.NextNumber(particle, particleSystemState);
+                var max = outputMax.NextNumber(particle, particleSystemState);
 
                 var currentValue = particle.GetScalar(outputField);
 

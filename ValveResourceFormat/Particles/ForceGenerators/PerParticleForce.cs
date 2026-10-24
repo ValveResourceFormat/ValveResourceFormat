@@ -20,16 +20,16 @@ class PerParticleForce : ParticleFunctionForceGenerator
 
     public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
     {
-        foreach (ref var particle in particles.Current)
+        foreach (var particle in particles.Current)
         {
-            var value = force.NextVector(ref particle, particleSystemState);
+            var value = force.NextVector(particle, particleSystemState);
 
             if (controlPoint >= 0)
             {
                 value = ControlPointTransformProvider.TransformDirection(particleSystemState, controlPoint, value);
             }
 
-            particle.ForceAccumulator += value * forceScale.NextNumber(ref particle, particleSystemState) * strength;
+            particle.ForceAccumulator += value * forceScale.NextNumber(particle, particleSystemState) * strength;
         }
     }
 }

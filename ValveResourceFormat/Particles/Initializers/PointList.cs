@@ -120,7 +120,7 @@ namespace ValveResourceFormat.Particles.Initializers
             return null;
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override Particle Initialize(Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             if (GetParticlePosition(particle.Index, particleSystemState) is not { } particlePosition)
             {

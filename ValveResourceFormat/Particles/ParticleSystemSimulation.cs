@@ -320,7 +320,7 @@ namespace ValveResourceFormat.Particles
                 parse.Vector3("m_BoundingBoxMax", new Vector3(10))
             );
 
-            var constantAttributes = new Particle(parse);
+            var constantAttributes = Particle.CreateConstants(parse);
             particleCollection = new ParticleCollection(constantAttributes, maxParticles);
 
             systemState = new ParticleSystemState(parentSystemState)
@@ -422,7 +422,7 @@ namespace ValveResourceFormat.Particles
         /// The live particle states this frame. Read by a child particle system's
         /// <c>C_INIT_CreateFromParentParticles</c> to seed new particles from this system's current positions/velocities.
         /// </summary>
-        internal Span<Particle> CurrentParticles => particleCollection.Current;
+        internal ParticleSpan CurrentParticles => particleCollection.Current;
 
         /// <summary>The most particles this system can hold at once.</summary>
         internal int ParticleCapacity => particleCollection.Capacity;

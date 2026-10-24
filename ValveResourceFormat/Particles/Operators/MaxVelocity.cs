@@ -37,9 +37,9 @@ namespace ValveResourceFormat.Particles.Operators
 
                 for (var lane = 0; lane < block.Length; lane++)
                 {
-                    ref var particle = ref block[lane];
-                    var maxVelocity = maxVelocityProvider.NextNumber(ref particle, particleSystemState);
-                    var minVelocity = minVelocityProvider.NextNumber(ref particle, particleSystemState);
+                    var particle = block[lane];
+                    var maxVelocity = maxVelocityProvider.NextNumber(particle, particleSystemState);
+                    var minVelocity = minVelocityProvider.NextNumber(particle, particleSystemState);
 
                     maxSteps[lane] = maxVelocity * frameTime;
                     minSteps[lane] = minVelocity * frameTime;
@@ -66,7 +66,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                 for (var lane = 0; lane < block.Length; lane++)
                 {
-                    ref var particle = ref block[lane];
+                    var particle = block[lane];
                     var step = steps[lane];
                     var length = step.Length();
                     var scale = 1f;
