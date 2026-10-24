@@ -484,6 +484,9 @@ namespace GUI.Utils
             return parent.FindFile(file, logNotFound);
         }
 
+        // A file opened from another one, such as an entry of a package, finds no game of its own
+        protected override GameFileLoader? GameInfoFallback => ParentGuiContext;
+
         // Override to add support for parent file loaders
         protected override ShaderCollection LoadShaderFromDisk(string shaderName)
         {

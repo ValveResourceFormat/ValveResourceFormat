@@ -702,7 +702,7 @@ namespace ValveResourceFormat.Renderer.World
         /// <param name="lightMinRoughness">The minimum roughness the light itself asks for.</param>
         /// <returns>The minimum roughness, zero where it does not apply.</returns>
         public float GetSunMinRoughness(float lightMinRoughness = SceneLight.MinSpecularRoughness)
-            => scene.RendererContext.FileLoader.IsCounterStrike2
+            => scene.RendererContext.FileLoader.GameInfo.IsCounterStrike2
                 ? MathF.Max(SceneLight.MinSpecularRoughness, lightMinRoughness)
                 : 0f;
 

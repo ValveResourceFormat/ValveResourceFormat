@@ -101,31 +101,21 @@ namespace ValveResourceFormat.IO
         /// </summary>
         public Package? CurrentPackage { get; set; }
 
-        /// <summary>
-        /// Gets the Steam app id the first game found mounts its content as, which its <c>gameinfo.gi</c> gives as
-        /// <c>FileSystem/SteamAppId</c>, or zero when no game gives one.
-        /// </summary>
-        public int SteamAppId { get; private set; }
+        private static readonly GameInfoSettings NoGameSettings = new();
 
-        // Counter-Strike 2 mounts its content as the CS:GO SDK, not under its own app id
-        private const int CounterStrike2SteamAppId = 710;
-
-        /// <summary>Gets whether the game found is Counter-Strike 2.</summary>
-        public bool IsCounterStrike2 => SteamAppId == CounterStrike2SteamAppId;
+        private GameInfoSettings? FoundGameSettings;
 
         /// <summary>
-        /// Gets whether the first game found fogs particles whose renderer leaves fog to the game, which its
-        /// <c>gameinfo.gi</c> gives as <c>Particles/ParticlesFoggedByDefault</c>.
+        /// Gets what the <c>gameinfo.gi</c> of the first game found says, or while no game is found, what the one of
+        /// <see cref="GameInfoFallback"/> says.
         /// </summary>
-        public bool ParticlesFoggedByDefault { get; private set; }
+        public GameInfoSettings GameInfo => FoundGameSettings ?? GameInfoFallback?.GameInfo ?? NoGameSettings;
 
         /// <summary>
-        /// Gets whether the first game found switches particle shader features at run time rather than through
-        /// static combos, which its <c>gameinfo.gi</c> gives as <c>Particles/EnableParticleShaderFeatureBranching</c>.
+        /// Gets a loader whose game gives the settings read from <c>gameinfo.gi</c> while this one has found no game of
+        /// its own, such as the loader of the file this one's file was opened from.
         /// </summary>
-        public bool ParticleShaderFeatureBranching { get; private set; }
-
-        private bool ParticleSettingsRead;
+        protected virtual GameFileLoader? GameInfoFallback => null;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="GameFileLoader"/> class.
@@ -517,14 +507,14 @@ namespace ValveResourceFormat.IO
             var gameName = gameInfo.TryGetValue("game", out var game) ? game.ToString() : null;
             Logger.LogInformation("Found \"{GameName}\" from \"{GameInfo}\"", gameName, gameinfoPath);
 
-            if (!ParticleSettingsRead)
+            if (FoundGameSettings == null)
             {
-                ParticleSettingsRead = true;
+                FoundGameSettings = new GameInfoSettings();
 
                 if (gameInfo.TryGetValue("Particles", out var particles))
                 {
-                    ParticlesFoggedByDefault = particles.GetBooleanProperty("ParticlesFoggedByDefault");
-                    ParticleShaderFeatureBranching = particles.GetBooleanProperty("EnableParticleShaderFeatureBranching");
+                    FoundGameSettings.ParticlesFoggedByDefault = particles.GetBooleanProperty("ParticlesFoggedByDefault");
+                    FoundGameSettings.ParticleShaderFeatureBranching = particles.GetBooleanProperty("EnableParticleShaderFeatureBranching");
                 }
             }
 
@@ -534,9 +524,9 @@ namespace ValveResourceFormat.IO
                 return;
             }
 
-            if (SteamAppId == 0 && fileSystem.TryGetValue("SteamAppId", out var appIdValue))
+            if (FoundGameSettings.SteamAppId == 0 && fileSystem.TryGetValue("SteamAppId", out var appIdValue))
             {
-                SteamAppId = int.TryParse(appIdValue.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var appId) ? appId : 0;
+                FoundGameSettings.SteamAppId = int.TryParse(appIdValue.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var appId) ? appId : 0;
             }
 
             // Only games that opt in mount the dependencies listed in an addon's addoninfo.txt

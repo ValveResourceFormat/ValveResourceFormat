@@ -229,11 +229,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             Fogged = parse.Enum("m_nFogType", ParticleFogType.PARTICLE_FOG_GAME_DEFAULT) switch
             {
                 ParticleFogType.PARTICLE_FOG_ENABLED => true,
-                ParticleFogType.PARTICLE_FOG_GAME_DEFAULT => fileLoader?.ParticlesFoggedByDefault ?? false,
+                ParticleFogType.PARTICLE_FOG_GAME_DEFAULT => fileLoader?.GameInfo.ParticlesFoggedByDefault ?? false,
                 _ => false,
             };
 
-            if (fileLoader?.ParticleShaderFeatureBranching == true)
+            if (fileLoader?.GameInfo.ParticleShaderFeatureBranching == true)
             {
                 MaxLuminanceFrameBlend = false;
                 SaturateColorPreAlphaBlend = false;
