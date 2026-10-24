@@ -52,6 +52,15 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public bool IsPaused { get; set; }
 
         /// <summary>
+        /// Gets or sets the seconds the effect simulates for once it is first drawn, after which it holds
+        /// still and keeps drawing the particles it has, or zero to simulate it for as long as it plays.
+        /// </summary>
+        public float MaxSimulationTime { get; set; }
+
+        // When the effect was first simulated, which a restart forgets
+        private float? simulationStartTime;
+
+        /// <summary>
         /// Whether to load preview control point state, and loop playback when finished.
         /// </summary>
         public bool Preview { get; set; }
@@ -688,6 +697,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             if (pendingRestart)
             {
                 pendingRestart = false;
+                simulationStartTime = null;
 
                 // The node may have moved after Place ran, or while it was disabled and skipped it.
                 SeedControlPointFromTransform();
@@ -704,7 +714,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 }
             }
 
-            if (IsPaused || IsAsleep(context.Uptime))
+            if (IsPaused || IsAsleep(context.Uptime) || HasStoppedSimulating(context.Uptime))
             {
                 return;
             }
@@ -737,6 +747,18 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             {
                 pendingRestart = true;
             }
+        }
+
+        private bool HasStoppedSimulating(float uptime)
+        {
+            if (MaxSimulationTime <= 0f)
+            {
+                return false;
+            }
+
+            simulationStartTime ??= uptime;
+
+            return uptime > simulationStartTime + MaxSimulationTime;
         }
 
         /// <summary>Whether <see cref="Simulate"/> stepped, so there is something to finish.</summary>

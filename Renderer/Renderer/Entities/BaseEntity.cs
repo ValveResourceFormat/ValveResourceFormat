@@ -469,30 +469,45 @@ public abstract class BaseEntity
     /// <param name="playedByEntity">Whether the entity sets the control points, rather than the effect's own configuration.</param>
     /// <returns>The effect, or <see langword="null"/> when there is none or it failed to load.</returns>
     protected ParticleSceneNode? CreateEffect(string? effectName, ParticleSnapshot? snapshot = null, bool playedByEntity = true)
+        => CreateEffect(Scene, effectName, Transform, snapshot, playedByEntity, Classname, TargetName);
+
+    /// <summary>Loads an effect on the particles layer of a scene, for an entity of a class.</summary>
+    /// <param name="scene">The scene the effect is for.</param>
+    /// <param name="effectName">The effect, or <see langword="null"/> or empty for none.</param>
+    /// <param name="transform">Where the effect is placed.</param>
+    /// <param name="snapshot">A snapshot the effect starts from, such as a rope's points.</param>
+    /// <param name="playedByEntity">Whether the entity sets the control points, rather than the effect's own configuration.</param>
+    /// <param name="classname">Classname of the entity, for the log.</param>
+    /// <param name="targetName">Name of the entity, for the log.</param>
+    /// <returns>The effect, or <see langword="null"/> when there is none or it failed to load.</returns>
+    internal static ParticleSceneNode? CreateEffect(Scene scene, string? effectName, in Matrix4x4 transform, ParticleSnapshot? snapshot,
+        bool playedByEntity, string classname, string? targetName)
     {
         if (string.IsNullOrEmpty(effectName))
         {
             return null;
         }
 
-        if (EntitySystem.FileLoader.LoadFileCompiled(effectName)?.DataBlock is not ParticleSystem particleSystem)
+        var rendererContext = scene.RendererContext;
+
+        if (rendererContext.FileLoader.LoadFileCompiled(effectName)?.DataBlock is not ParticleSystem particleSystem)
         {
-            EntitySystem.Logger.LogWarning("{Classname} '{TargetName}' failed to load effect \"{Effect}\"", Classname, TargetName, effectName);
+            rendererContext.Logger.LogWarning("{Classname} '{TargetName}' failed to load effect \"{Effect}\"", classname, targetName, effectName);
             return null;
         }
 
         try
         {
-            return new ParticleSceneNode(Scene, particleSystem, snapshot, playedByEntity: playedByEntity)
+            return new ParticleSceneNode(scene, particleSystem, snapshot, playedByEntity: playedByEntity)
             {
                 Name = effectName,
-                Transform = Transform,
+                Transform = transform,
                 LayerName = Scene.ParticlesLayerName,
             };
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not OperationCanceledException)
         {
-            EntitySystem.Logger.LogError(e, "{Classname} '{TargetName}' failed to set up effect \"{Effect}\"", Classname, TargetName, effectName);
+            rendererContext.Logger.LogError(e, "{Classname} '{TargetName}' failed to set up effect \"{Effect}\"", classname, targetName, effectName);
             return null;
         }
     }
