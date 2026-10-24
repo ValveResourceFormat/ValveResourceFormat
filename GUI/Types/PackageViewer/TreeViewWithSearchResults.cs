@@ -265,6 +265,7 @@ namespace GUI.Types.PackageViewer
 
             Themer.ThemeControl(gridRadioButton);
             Themer.ThemeControl(listRadioButton);
+            Themer.ThemeControl(searchSummaryLabel);
         }
 
         private void MainSplitContainerSplitterMoved(object sender, SplitterEventArgs e)
@@ -382,12 +383,41 @@ namespace GUI.Types.PackageViewer
 
             mainListView.EndUpdate();
 
+            ShowSearchResultsState(DisplayedFolder == null);
+
             if (updatePath)
             {
                 UpdateSearchTextBoxToCurrentPath(pkgNode);
             }
 
             RecordNavigation(new FolderNavigationEntry(pkgNode));
+        }
+
+        private void ShowSearchResultsState(bool show)
+        {
+            searchSummaryLabel.Text = null;
+
+            if (show == (mainListView.Columns.Count > Columns.Length))
+            {
+                return;
+            }
+
+            if (show)
+            {
+                mainListView.Columns.Add("Folder");
+            }
+            else
+            {
+                mainListView.Columns.RemoveAt(Columns.Length);
+
+                if (mainListView.ListViewItemSorter is ListViewColumnSorter sorter && sorter.SortColumn >= Columns.Length)
+                {
+                    sorter.SortColumn = 0;
+                }
+            }
+
+            mainListView.SecondFlexibleColumn = show ? Columns.Length : -1;
+            mainListView.AdjustColumnWidths();
         }
 
         private void RecordNavigation(NavigationEntry entry)
@@ -679,6 +709,7 @@ namespace GUI.Types.PackageViewer
                     {
                         item.Text = entry.GetFileName();
                         item.SubItems[2].Text = entry.TypeName;
+                        item.SubItems[3].Text = entry.GetDirectoryPath();
                     }
                 }
 
@@ -1412,17 +1443,10 @@ namespace GUI.Types.PackageViewer
         }
 
         /// <summary>
-        /// Performs a search for the entered text and search types. Before a search is performed, the contents of the ListView (previous search results) are cleared.
-        /// Results of whatever search function is used are displayed in the ListView with name, file size, and file type.
+        /// Performs a search and shows the matching files in the ListView, replacing what it showed before.
         /// </summary>
-        /// <param name="searchText">Value to search for in the TreeView. Matching on this value is based on the search type.</param>
-        /// <param name="selectedSearchType">Determines the matching of the value. For example, full/partial text search or full path search.</param>
-        /// <param name="filterKey">Optional <see cref="ValveResourceFormat.ToolsAssetInfo.ToolsAssetInfo.File.SearchableUserData"/> key that matching files must contain.</param>
-        /// <param name="filterValue">Optional value the filter key must equal; when <see langword="null"/>, any value for the key matches.</param>
-        internal void SearchAndFillResults(string searchText, SearchType selectedSearchType, string? filterKey = null, string? filterValue = null)
+        internal void SearchAndFillResults(SearchRequest request)
         {
-            var request = new SearchRequest(searchText, selectedSearchType, filterKey, filterValue);
-
             suppressHistoryRecording = true;
 
             try
@@ -1439,18 +1463,53 @@ namespace GUI.Types.PackageViewer
 
         private void PerformSearch(SearchRequest request)
         {
-            var results = mainTreeView.Search(request.Text, request.Type);
-
-            if (request.FilterKey != null && AssetSearchData != null)
+            if (mainTreeView.VrfGuiContext?.CurrentPackage is not { } package || (request.Folder ?? mainTreeView.Root) is not { } folder)
             {
-                results.RemoveAll(entry => !MatchesAssetFilter(entry, request.FilterKey, request.FilterValue));
+                return;
             }
+
+            var candidates = EnumerateFiles(folder).Where(entry =>
+                (request.Extension == null || entry.TypeName == request.Extension)
+                && (request.FilterKey == null || AssetSearchData == null || MatchesAssetFilter(entry, request.FilterKey, request.FilterValue)));
+
+            var (results, notSearched, cancelled) = request switch
+            {
+                { Text: "" } => ([.. candidates], 0, false),
+                { Type: SearchType.FileName or SearchType.FullPath } => PackageSearch.FindByName(candidates, request),
+                _ => PackageSearch.FindByContents(package, candidates, request),
+            };
 
             var node = new VirtualPackageNode(string.Empty, 0, null);
             node.Files.AddRange(results);
 
             DisplayMainListView();
             MainListView_DisplayNodes(node, updatePath: false);
+
+            var summary = new StringBuilder(request.Text.Length > 0 ? $"{SearchForm.SearchTypeNames[(int)request.Type]} \"{request.Text}\"" : "All files");
+
+            if (request.Folder != null)
+            {
+                summary.Append(" in ").Append(PackageViewer.GetFolderPath(request.Folder));
+            }
+
+            if (request.Extension != null)
+            {
+                summary.Append(", ").Append(request.Extension);
+            }
+
+            if (request.FilterKey != null)
+            {
+                summary.Append(", ").Append(request.FilterKey).Append(" = ").Append(request.FilterValue ?? "any");
+            }
+
+            summary.Append(CultureInfo.InvariantCulture, $": {results.Count:N0} found");
+
+            if (notSearched > 0)
+            {
+                summary.Append(CultureInfo.InvariantCulture, $", {notSearched:N0} not searched");
+            }
+
+            searchSummaryLabel.Text = cancelled ? summary.Append(", cancelled").ToString() : summary.ToString();
         }
 
         private void MainListView_ColumnClick(object? sender, ColumnClickEventArgs e)
@@ -1681,6 +1740,7 @@ namespace GUI.Types.PackageViewer
 
             item.SubItems.Add(HumanReadableByteSizeFormatter.Format(file.TotalLength));
             item.SubItems.Add(file.TypeName);
+            item.SubItems.Add(file.GetDirectoryPath());
 
             ListViewItems.Add(item);
         }

@@ -1,7 +1,13 @@
+using System.Drawing;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows.Forms;
+using GUI.Types.PackageViewer;
 using GUI.Utils;
+using ValvePak;
+using Windows.Win32;
+using Windows.Win32.Foundation;
 
 namespace GUI.Forms
 {
@@ -9,6 +15,8 @@ namespace GUI.Forms
     {
         internal static readonly StringComparer NumericComparer =
             StringComparer.Create(CultureInfo.InvariantCulture, CompareOptions.IgnoreCase | CompareOptions.NumericOrdering);
+
+        internal static readonly string[] SearchTypeNames = ["File name", "Full path", "File contents", "File contents hex bytes"];
 
         private record FilterKeyEntry(string Key, SortedSet<string> Values)
         {
@@ -18,47 +26,82 @@ namespace GUI.Forms
         private readonly TaskScheduler uiTaskScheduler;
         private int filterLoadVersion;
         private int lastPopulatedKeysHash;
+        private VirtualPackageNode? folder;
 
         /// <summary>
-        /// Gets whatever text was entered by the user in the search textbox.
+        /// Gets the search as entered by the user.
         /// </summary>
-        public string SearchText
-        {
-            get => findTextBox.Text;
-            set => findTextBox.Text = value;
-        }
-
-        /// <summary>
-        /// Gets whatever option was selected by the user in the search type combobox.
-        /// </summary>
-        public SearchType SelectedSearchType => searchTypeComboBox.SelectedItem is SearchTypeItem item ? item.Type : SearchType.FileNamePartialMatch;
-
-        /// <summary>
-        /// Gets the selected SearchableUserData filter key, or null if no filter is selected.
-        /// </summary>
-        public string? SelectedFilterKey => filterKeyComboBox.SelectedItem is FilterKeyEntry entry ? entry.Key : null;
-
-        /// <summary>
-        /// Gets the selected SearchableUserData filter value, or null if any value is accepted.
-        /// </summary>
-        public string? SelectedFilterValue => filterValueComboBox.SelectedIndex > 0 ? filterValueComboBox.Items[filterValueComboBox.SelectedIndex] as string : null;
+        public SearchRequest Request => new(
+            findTextBox.Text,
+            (SearchType)searchTypeComboBox.SelectedIndex,
+            matchCaseCheckBox.Checked,
+            wholeWordCheckBox.Checked,
+            regexCheckBox.Checked,
+            onlyInFolderCheckBox.Checked ? folder : null,
+            extensionComboBox.SelectedIndex > 0 ? (string)extensionComboBox.SelectedItem! : null,
+            filterKeyComboBox.SelectedItem is FilterKeyEntry entry ? entry.Key : null,
+            filterValueComboBox.SelectedIndex > 0 ? filterValueComboBox.Items[filterValueComboBox.SelectedIndex] as string : null);
 
         public SearchForm()
         {
             InitializeComponent();
             uiTaskScheduler = TaskScheduler.FromCurrentSynchronizationContext();
 
-            searchTypeComboBox.ValueMember = "Id";
-            searchTypeComboBox.DisplayMember = "Name";
-            searchTypeComboBox.Items.Add(new SearchTypeItem("File Name (Partial Match)", SearchType.FileNamePartialMatch));
-            searchTypeComboBox.Items.Add(new SearchTypeItem("File Name (Exact Match)", SearchType.FileNameExactMatch));
-            searchTypeComboBox.Items.Add(new SearchTypeItem("File Full Path", SearchType.FullPath));
-            searchTypeComboBox.Items.Add(new SearchTypeItem("Regex", SearchType.Regex));
-            searchTypeComboBox.Items.Add(new SearchTypeItem("File Contents (Case Sensitive)", SearchType.FileContents));
-            searchTypeComboBox.Items.Add(new SearchTypeItem("File Contents Hex Bytes", SearchType.FileContentsHex));
+            searchTypeComboBox.Items.AddRange(SearchTypeNames);
             searchTypeComboBox.SelectedIndex = 0;
 
             filterKeyComboBox.SelectedIndexChanged += FilterKeyComboBox_SelectedIndexChanged;
+            filterKeyComboBox.SelectedIndexChanged += (_, _) => UpdateState();
+            findTextBox.TextChanged += (_, _) => UpdateState();
+            findTextBox.HandleCreated += (_, _) => PInvoke.SendMessage((HWND)findTextBox.Handle, PInvoke.EM_SETMARGINS, PInvoke.EC_LEFTMARGIN, this.AdjustForDPI(5));
+            searchTypeComboBox.SelectedIndexChanged += (_, _) => UpdateState();
+            matchCaseCheckBox.CheckedChanged += (_, _) => UpdateState();
+            wholeWordCheckBox.CheckedChanged += (_, _) => UpdateState();
+            regexCheckBox.CheckedChanged += (_, _) => UpdateState();
+            onlyInFolderCheckBox.CheckedChanged += (_, _) => UpdateState();
+            extensionComboBox.SelectedIndexChanged += (_, _) => UpdateState();
+        }
+
+        private void UpdateState()
+        {
+            var request = Request;
+            var error = PackageSearch.GetError(request);
+
+            matchCaseCheckBox.Enabled = wholeWordCheckBox.Enabled = regexCheckBox.Enabled = request.Type != SearchType.FileContentsHex;
+            hintLabel.Text = error;
+            findButton.Enabled = error == null && request is not { Text: "", Folder: null, Extension: null, FilterKey: null };
+
+            var gap = filterKeyLabel.Top - extensionComboBox.Bottom;
+            var margin = ClientSize.Height - findButton.Bottom;
+
+            hintLabel.Visible = error != null;
+            hintLabel.Top = (filterKeyComboBox.SelectedItem is FilterKeyEntry ? filterValueComboBox : filterKeyComboBox).Bottom + gap;
+            findButton.Top = cancelButton.Top = error != null ? hintLabel.Bottom + gap : hintLabel.Top;
+            ClientSize = new Size(ClientSize.Width, findButton.Bottom + margin);
+        }
+
+        /// <summary>
+        /// Sets the package to search, listing the extensions of its files.
+        /// </summary>
+        /// <param name="searchFolder">The folder that "Only in" limits the search to, or <see langword="null"/> when no folder is selected.</param>
+        /// <param name="onlyInFolder">Whether to tick "Only in", otherwise it stays as it was last used.</param>
+        public void SetPackage(Package package, VirtualPackageNode? searchFolder, bool onlyInFolder)
+        {
+            folder = searchFolder;
+            onlyInFolderCheckBox.Enabled = folder != null;
+            onlyInFolderCheckBox.FlatStyle = folder != null ? FlatStyle.Standard : FlatStyle.System;
+            onlyInFolderCheckBox.Text = folder != null ? $"Only in {PackageViewer.GetFolderPath(folder)}" : "Only in the selected folder";
+            onlyInFolderCheckBox.Checked |= onlyInFolder;
+
+            var selected = extensionComboBox.Text;
+            extensionComboBox.BeginUpdate();
+            extensionComboBox.Items.Clear();
+            extensionComboBox.Items.Add("Any extension");
+            extensionComboBox.Items.AddRange(package.Entries?.Keys.Order(NumericComparer).ToArray() ?? []);
+            extensionComboBox.SelectedIndex = Math.Max(0, extensionComboBox.FindStringExact(selected));
+            extensionComboBox.EndUpdate();
+
+            UpdateState();
         }
 
         /// <summary>

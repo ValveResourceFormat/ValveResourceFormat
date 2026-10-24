@@ -24,7 +24,7 @@ namespace GUI
             openWithDefaultAppToolStripMenuItem.Visible = !isRootNode && !isFolderNode;
             openWithoutViewerToolStripMenuItem.Visible = !isRootNode && !isFolderNode;
             viewAssetInfoToolStripMenuItem.Visible = !isRootNode && !isFolderNode;
-            toolStripSeparator3.Visible = isRootNode || !isFolderNode;
+            searchInFolderToolStripMenuItem.Visible = isFolderNode && !isRootNode;
 
             verifyPackageContentsToolStripMenuItem.Visible = isRootNode;
             recoverDeletedToolStripMenuItem.Visible = isRootNode && !deletedFilesRecovered;
@@ -80,6 +80,15 @@ namespace GUI
             if (GLBaseControl.FindHostedIn(FetchToolstripTabContext(sender)) is GLSceneViewer viewer)
             {
                 viewer.Muted = !viewer.Muted;
+            }
+        }
+
+        private void SearchInFolderToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (GetSelectedItems(sender).Items is [{ PkgNode: { } folder }]
+                && mainTabs.SelectedTab?.Controls.OfType<TreeViewWithSearchResults>().FirstOrDefault() is { } package)
+            {
+                ShowPackageSearch(package, folder, onlyInFolder: true);
             }
         }
 

@@ -82,6 +82,7 @@ namespace GUI
             copyFileNameToolStripMenuItem = new ThemedToolStripMenuItem();
             copyFileNameOnDiskToolStripMenuItem = new ThemedToolStripMenuItem();
             toolStripSeparator3 = new ToolStripSeparator();
+            searchInFolderToolStripMenuItem = new ThemedToolStripMenuItem();
             openWithoutViewerToolStripMenuItem = new ThemedToolStripMenuItem();
             openWithDefaultAppToolStripMenuItem = new ThemedToolStripMenuItem();
             viewAssetInfoToolStripMenuItem = new ThemedToolStripMenuItem();
@@ -372,7 +373,7 @@ namespace GUI
             // 
             vpkContextMenu.BackColor = System.Drawing.Color.FromArgb(231, 236, 236);
             vpkContextMenu.ImageScalingSize = new System.Drawing.Size(24, 24);
-            vpkContextMenu.Items.AddRange(new ToolStripItem[] { extractToolStripMenuItem, decompileToolStripMenuItem, toolStripSeparator1, copyFileNameToolStripMenuItem, copyFileNameOnDiskToolStripMenuItem, toolStripSeparator3, openWithoutViewerToolStripMenuItem, openWithDefaultAppToolStripMenuItem, viewAssetInfoToolStripMenuItem, verifyPackageContentsToolStripMenuItem, recoverDeletedToolStripMenuItem, editThisVpkToolStripMenuItem });
+            vpkContextMenu.Items.AddRange(new ToolStripItem[] { extractToolStripMenuItem, decompileToolStripMenuItem, toolStripSeparator1, copyFileNameToolStripMenuItem, copyFileNameOnDiskToolStripMenuItem, toolStripSeparator3, searchInFolderToolStripMenuItem, openWithoutViewerToolStripMenuItem, openWithDefaultAppToolStripMenuItem, viewAssetInfoToolStripMenuItem, verifyPackageContentsToolStripMenuItem, recoverDeletedToolStripMenuItem, editThisVpkToolStripMenuItem });
             vpkContextMenu.Name = "vpkContextMenu";
             vpkContextMenu.Size = new System.Drawing.Size(208, 286);
             // 
@@ -417,6 +418,14 @@ namespace GUI
             // 
             toolStripSeparator3.Name = "toolStripSeparator3";
             toolStripSeparator3.Size = new System.Drawing.Size(204, 6);
+            // 
+            // searchInFolderToolStripMenuItem
+            // 
+            searchInFolderToolStripMenuItem.Name = "searchInFolderToolStripMenuItem";
+            searchInFolderToolStripMenuItem.Size = new System.Drawing.Size(207, 30);
+            searchInFolderToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Find.svg";
+            searchInFolderToolStripMenuItem.Text = "Search in folder";
+            searchInFolderToolStripMenuItem.Click += SearchInFolderToolStripMenuItem_Click;
             // 
             // openWithoutViewerToolStripMenuItem
             // 
@@ -684,6 +693,7 @@ namespace GUI
         private ThemedToolStripMenuItem vpkEditRemoveThisFileToolStripMenuItem;
         private ThemedToolStripMenuItem copyFileNameOnDiskToolStripMenuItem;
         private ToolStripSeparator toolStripSeparator3;
+        private ThemedToolStripMenuItem searchInFolderToolStripMenuItem;
         private ToolStripSeparator toolStripSeparator4;
         private ThemedToolStripMenuItem openWelcomeScreenToolStripMenuItem;
         private MainTabs mainTabs;
