@@ -45,9 +45,11 @@ public sealed class PlayerEntity : BaseEntity
     private const float CarrySoftDuration = 0.2f;
 
     // While soft, the carry still follows the hold pose's own motion, but closes the gap a contact
-    // left no faster than this, well under the solver's restitution threshold: closing it at the
-    // acceleration cap bounced a prop held into a wall off it, to be pressed back every other
-    // frame, which shows as a shake
+    // left no faster than this on top of the hold pose's own speed. Pressed into a wall the hold
+    // pose stands still, and this is well under the solver's restitution threshold: closing the
+    // gap at the acceleration cap bounced the prop off the wall, to be pressed back every other
+    // frame, which shows as a shake. A prop scraping along with a turning view may close in as
+    // fast as the view moves, so it keeps up.
     private const float MaxCarryCatchUpSpeed = 20f;
 
     // A fresh pickup travels to the hold pose at these caps, braking to arrive rather than
@@ -106,6 +108,10 @@ public sealed class PlayerEntity : BaseEntity
 
     // Where last frame's hold pose was, which says how fast the hold pose itself moves
     private Vector3 previousHoldPosition;
+
+    // Last frame's hold orientation, which says how fast the hold pose itself turns
+    private Quaternion previousHoldRotation;
+    private bool hasPreviousHoldRotation;
 
     // Whether the pickup has reached the hold pose, after which the chase is rigid
     private bool carryArrived;
@@ -389,11 +395,12 @@ public sealed class PlayerEntity : BaseEntity
             : (PickupTravelAcceleration, PickupTurnAcceleration);
 
         var error = holdPosition - body.Position;
+        var holdVelocity = carryArrived && hasCarryExpectation ? (holdPosition - previousHoldPosition) / deltaTime : Vector3.Zero;
 
         if (soft && carryArrived && hasCarryExpectation)
         {
             var catchUp = previousHoldPosition - body.Position;
-            var maxCatchUp = MaxCarryCatchUpSpeed * deltaTime;
+            var maxCatchUp = (MaxCarryCatchUpSpeed + holdVelocity.Length()) * deltaTime;
 
             if (catchUp.Length() > maxCatchUp)
             {
@@ -403,7 +410,8 @@ public sealed class PlayerEntity : BaseEntity
 
         previousHoldPosition = holdPosition;
 
-        var velocity = SteerVelocity(body.LinearVelocity, error, deltaTime, maxSpeed, maxAcceleration);
+        var velocity = SteerVelocity(body.LinearVelocity, error, holdVelocity, deltaTime, maxSpeed, maxAcceleration);
+
         body.LinearVelocity = velocity;
 
         carryExpectedPosition = body.Position + velocity * deltaTime;
@@ -413,8 +421,14 @@ public sealed class PlayerEntity : BaseEntity
 
         if (holdRotation is { } rotation)
         {
+            var holdAngularVelocity = carryArrived && hasPreviousHoldRotation
+                ? RotationError(previousHoldRotation, rotation) / deltaTime
+                : Vector3.Zero;
+            previousHoldRotation = rotation;
+            hasPreviousHoldRotation = true;
+
             var angularVelocity = SteerVelocity(body.AngularVelocity, RotationError(body.Rotation, rotation),
-                deltaTime, maxAngularSpeed, maxAngularAcceleration);
+                holdAngularVelocity, deltaTime, maxAngularSpeed, maxAngularAcceleration);
             body.AngularVelocity = angularVelocity;
 
             carryExpectedRotation = Turn(body.Rotation, angularVelocity * deltaTime);
@@ -471,21 +485,32 @@ public sealed class PlayerEntity : BaseEntity
     // One axis of the shadow controller: the velocity that lands the body on the pose within the
     // step about to run - no feed-forward on top, which extrapolated a frame ahead and made the
     // held prop lead the view by one frame's motion - speed-capped, approached from the current
-    // velocity by at most maxAcceleration over the step. With a finite acceleration the speed is
-    // also held to what can still brake to a stop at the pose, so it arrives instead of
-    // overshooting.
-    private static Vector3 SteerVelocity(Vector3 current, Vector3 error,
+    // velocity by at most maxAcceleration over the step. With a finite acceleration the speed at
+    // which the body closes on the pose is also held to what can still brake to a stop there, so
+    // it arrives instead of overshooting. Closing on it, not moving: braking as if the pose stood
+    // still left a body chasing a fast-turning view ever further behind.
+    private static Vector3 SteerVelocity(Vector3 current, Vector3 error, Vector3 poseVelocity,
         float deltaTime, float maxSpeed, float maxAcceleration)
     {
         var target = error / deltaTime;
-        var targetSpeed = target.Length();
-        var speedCap = float.IsFinite(maxAcceleration)
-            ? MathF.Min(maxSpeed, MathF.Sqrt(2f * maxAcceleration * error.Length()))
-            : maxSpeed;
 
-        if (targetSpeed > speedCap)
+        if (float.IsFinite(maxAcceleration))
         {
-            target *= speedCap / targetSpeed;
+            var closing = target - poseVelocity;
+            var closingSpeed = closing.Length();
+            var closingCap = MathF.Sqrt(2f * maxAcceleration * error.Length());
+
+            if (closingSpeed > closingCap)
+            {
+                target = poseVelocity + (closing * (closingCap / closingSpeed));
+            }
+        }
+
+        var targetSpeed = target.Length();
+
+        if (targetSpeed > maxSpeed)
+        {
+            target *= maxSpeed / targetSpeed;
         }
 
         var step = target - current;
@@ -561,6 +586,7 @@ public sealed class PlayerEntity : BaseEntity
         carryStrainTime = 0f;
         carrySoftTime = 0f;
         hasCarryExpectation = false;
+        hasPreviousHoldRotation = false;
         carryArrived = false;
         carryable.BeginCarry(this, HoldDistance + Vector3.Distance(hit.Point, grabbedBody.CenterOfMass), grabbedBody);
     }
