@@ -1,4 +1,3 @@
-using System.Collections.Frozen;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -530,37 +529,67 @@ public sealed partial class MapExtract
         };
     }
 
-    // Tools materials by the interact-as tags their collision compiles with, sorted and comma separated. A material
+    // Tools materials by the interact-as tags their collision compiles with. A material
     // gets a tag of the same name from each of its "mapbuilder.<tag>" attributes that is one of ladder, blocklos,
     // blocksound, passbullets, npcclip, playerclip, sky, water, teleportclip and navclip, or the tags of the entry in
     // scripts/collision_properties.txt that its "mapbuilder.collisionproperties" attribute names. Where several
     // materials compile to the same tags, the one they are usually made with is listed.
-    private static readonly FrozenDictionary<string, string> ToolsMaterialByInteractAs = new Dictionary<string, string>
-    {
-        ["blocklos"] = "materials/tools/toolsblock_los.vmat",
-        ["blocksound"] = "materials/tools/toolsblocksound.vmat",
-        ["csgo_grenadeclip"] = "materials/tools/toolsgrenadeclip.vmat",
-        ["ladder,npcclip,playerclip"] = "materials/tools/toolsinvisibleladder.vmat",
-        ["ladder,passbullets"] = "materials/tools/toolsinvisibleladder_wood.vmat",
-        ["navclip"] = "materials/tools/toolsnavclip.vmat",
-        ["npcclip"] = "materials/tools/toolsnpcclip.vmat",
-        ["npcclip,passbullets"] = "materials/tools/toolsinvisible.vmat",
-        ["npcclip,playerclip"] = "materials/tools/toolsclip.vmat",
-        ["playerclip"] = "materials/tools/toolsplayerclip.vmat",
-        ["sky"] = "materials/tools/toolsskybox.vmat",
-        ["teleportclip"] = "materials/tools/toolsteleportclip.vmat",
-    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+    private static readonly (string[] InteractAs, string Material)[] ToolsMaterialsByInteractAs =
+    [
+        (["blocklos"], "materials/tools/toolsblock_los.vmat"),
+        (["blocksound"], "materials/tools/toolsblocksound.vmat"),
+        (["csgo_grenadeclip"], "materials/tools/toolsgrenadeclip.vmat"),
+        (["ladder", "npcclip", "playerclip"], "materials/tools/toolsinvisibleladder.vmat"),
+        (["ladder", "passbullets"], "materials/tools/toolsinvisibleladder_wood.vmat"),
+        (["navclip"], "materials/tools/toolsnavclip.vmat"),
+        (["npcclip"], "materials/tools/toolsnpcclip.vmat"),
+        (["npcclip", "passbullets"], "materials/tools/toolsinvisible.vmat"),
+        (["npcclip", "playerclip"], "materials/tools/toolsclip.vmat"),
+        (["playerclip"], "materials/tools/toolsplayerclip.vmat"),
+        (["sky"], "materials/tools/toolsskybox.vmat"),
+        (["teleportclip"], "materials/tools/toolsteleportclip.vmat"),
+    ];
 
     /// <summary>
     /// Gets the tools material that compiles to collision which interacts as the given tags.
     /// </summary>
     /// <param name="interactAs">The interact-as tags of a group of collision, see <see cref="PhysAggregateData.GetInteractAsTags(KVObject)"/>.</param>
     /// <returns>The path of the material, or <see langword="null"/> when no tools material compiles to exactly these tags.</returns>
-    public static string? GetToolsMaterialForInteractAs(IEnumerable<string> interactAs)
+    public static string? GetToolsMaterialForInteractAs(ReadOnlySpan<string> interactAs)
     {
-        ArgumentNullException.ThrowIfNull(interactAs);
+        foreach (var (tags, material) in ToolsMaterialsByInteractAs)
+        {
+            if (tags.Length == interactAs.Length && HasAllTags(interactAs, tags))
+            {
+                return material;
+            }
+        }
 
-        return ToolsMaterialByInteractAs.GetValueOrDefault(string.Join(',', interactAs.Order(StringComparer.OrdinalIgnoreCase)));
+        return null;
+    }
+
+    private static bool HasAllTags(ReadOnlySpan<string> interactAs, string[] tags)
+    {
+        foreach (var tag in tags)
+        {
+            var found = false;
+
+            foreach (var other in interactAs)
+            {
+                if (other.Equals(tag, StringComparison.OrdinalIgnoreCase))
+                {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>
