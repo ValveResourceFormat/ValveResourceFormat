@@ -471,11 +471,11 @@ namespace ValveResourceFormat.Renderer.World
             {
                 Debug.Assert(physResource?.FileName != null);
 
-                foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys, physResource.FileName[..^2]))
+                foreach (var node in entitySystem.ToolVisuals?.CreateCollisionVisuals(scene, phys, physResource.FileName[..^2], null) ?? [])
                 {
-                    physSceneNode.Transform = rootTransform;
-                    physSceneNode.LayerName = PhysicsDebugLayerName;
-                    scene.Add(physSceneNode, true);
+                    node.Transform = rootTransform;
+                    node.LayerName = PhysicsDebugLayerName;
+                    scene.Add(node, false);
                 }
 
                 // Every spawn group adds its collision to the physics world of its world group, a 3D sky's included

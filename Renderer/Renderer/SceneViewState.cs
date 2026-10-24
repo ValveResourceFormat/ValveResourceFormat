@@ -185,7 +185,7 @@ public sealed class SceneViewState : IDisposable
     {
         Debug.Assert(request.Call is not null);
 
-        if (!Scene.Settings.ShowToolsMaterials && request.Call.Material.IsToolsMaterial)
+        if (!Scene.IsDrawn(request.Call.Material, request.Node))
         {
             return;
         }
@@ -420,6 +420,11 @@ public sealed class SceneViewState : IDisposable
                     }, RenderPass.OpaqueAggregate);
                 }
             }
+            else if (node is ShapeSceneNode { ToolsMaterial: { } toolsMaterial } && !Scene.IsDrawn(toolsMaterial, node))
+            {
+                // A shape standing for a tools material is shown as the material would be
+                continue;
+            }
             else
             {
                 if (node is SceneLight light)
@@ -429,7 +434,8 @@ public sealed class SceneViewState : IDisposable
 
                 var customRender = new MeshBatchRenderer.Request
                 {
-                    DistanceFromCamera = node is PhysSceneNode
+                    // Volumes that span the map, which no sort draws correctly, keep the order they are given
+                    DistanceFromCamera = node is ShapeSceneNode { HasOrderIndependentFill: true }
                         ? 100000f - node.OverlayRenderOrder * 10f
                         : node.GetCameraDistance(camera),
                     Node = node,
@@ -978,7 +984,7 @@ public sealed class SceneViewState : IDisposable
         {
             if (IsDrawnByAggregate(node) && node is SceneAggregate.Fragment fragment
                 && aggregatesWithVisibleFragments.Contains(fragment.Parent) && fragment.Parent.IsFragmentInActiveLod(fragment)
-                && (Scene.Settings.ShowToolsMaterials || !fragment.DrawCall.Material.IsToolsMaterial))
+                && Scene.IsDrawn(fragment.DrawCall.Material, fragment))
             {
                 nodeDraws.Add(new MeshBatchRenderer.Request { Mesh = fragment.RenderMesh, Call = fragment.DrawCall, Node = fragment });
             }

@@ -3,8 +3,11 @@ namespace ValveResourceFormat.Renderer;
 /// <summary>Rendering toggles shared by all scenes.</summary>
 public sealed class RenderSettings
 {
-    /// <summary>Gets or sets whether tools materials are drawn.</summary>
-    public bool ShowToolsMaterials { get; set; }
+    /// <summary>
+    /// Gets or sets what decides which materials of the nodes are drawn, such as a tool hiding tools materials.
+    /// Without one, every material is drawn.
+    /// </summary>
+    public IDrawFilter? DrawFilter { get; set; }
 
     /// <summary>Gets or sets whether fog is drawn.</summary>
     public bool FogEnabled { get; set; } = true;

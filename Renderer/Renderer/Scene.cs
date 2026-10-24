@@ -1644,9 +1644,9 @@ namespace ValveResourceFormat.Renderer
             casterDepthMax = depthMax;
         }
 
-        private static void AddShadowDrawCall(RenderableMesh mesh, DrawCall opaqueCall, SceneNode node, Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> drawBuckets)
+        private void AddShadowDrawCall(RenderableMesh mesh, DrawCall opaqueCall, SceneNode node, Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> drawBuckets)
         {
-            if (opaqueCall.Material.DoNotCastShadows)
+            if (!CastsShadows(opaqueCall.Material, node))
             {
                 return;
             }
@@ -1660,6 +1660,19 @@ namespace ValveResourceFormat.Renderer
                 Node = node,
             });
         }
+
+        /// <summary>Gets whether a draw of a node is drawn into the views, see <see cref="RenderSettings.DrawFilter"/>.</summary>
+        internal bool IsDrawn(RenderMaterial material, SceneNode node)
+            => Settings.DrawFilter?.GetVisibility(node, material) is null or DrawVisibility.Drawn;
+
+        // Geometry that blocks light casts shadows whatever its material says
+        private bool CastsShadows(RenderMaterial material, SceneNode node)
+            => Settings.DrawFilter?.GetVisibility(node, material) switch
+            {
+                DrawVisibility.Hidden => false,
+                DrawVisibility.ShadowOnly => true,
+                _ => material.BlocksLight || !material.DoNotCastShadows,
+            };
 
         // The skinning variant is picked per draw, so the bucket only says which shader draws it
         internal static DepthOnlyBucket GetDepthOnlyBucket(DrawCall opaqueCall)

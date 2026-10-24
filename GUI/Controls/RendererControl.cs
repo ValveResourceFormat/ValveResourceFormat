@@ -474,6 +474,26 @@ partial class RendererControl : UserControl
         return selectionControl;
     }
 
+    /// <summary>
+    /// Adds checkable items nested by their paths, such as <c>Clip/Player Clip</c> under <c>Clip</c>.
+    /// </summary>
+    /// <param name="name">The title of the box.</param>
+    /// <param name="paths">The paths of the items. Each group a path passes through gets an item too.</param>
+    /// <param name="changeCallback">Called with the paths of the checked items whenever one changes.</param>
+    /// <param name="initiallyChecked">Whether the items start checked.</param>
+    /// <param name="foldGroups">Whether the groups start folded away, but for a lone item at the top, which lists them.</param>
+    public GLViewerTreeSelectionControl AddTreeSelection(string name, IEnumerable<string> paths, Action<IEnumerable<string>> changeCallback, bool initiallyChecked = true, bool foldGroups = false)
+    {
+        var selectionControl = new GLViewerTreeSelectionControl(name, paths, initiallyChecked, foldGroups);
+        selectionControl.CheckedPathsChanged += changeCallback;
+
+        ControlsPanel.Controls.Add(selectionControl);
+
+        SetControlLocation(selectionControl);
+
+        return selectionControl;
+    }
+
     public GLViewerSliderControl AddTrackBar(string name, Action<float> changeCallback, float defaultValue = 0f)
     {
         var trackBar = new GLViewerSliderControl();

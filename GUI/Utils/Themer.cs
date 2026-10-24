@@ -311,7 +311,9 @@ namespace GUI.Utils
             if (control is TreeView treeView)
             {
                 treeView.BorderStyle = BorderStyle.None;
-                treeView.BackColor = CurrentThemeColors.AppSoft;
+
+                // A tree of check boxes sits among the checked lists of a viewer's controls, and takes their color
+                treeView.BackColor = treeView is GLViewerTreeSelectionControl.CompactTreeView ? CurrentThemeColors.AppMiddle : CurrentThemeColors.AppSoft;
                 treeView.ForeColor = CurrentThemeColors.Contrast;
                 treeView.LineColor = CurrentThemeColors.Border;
             }

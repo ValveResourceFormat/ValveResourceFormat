@@ -1,6 +1,8 @@
 using System.IO;
 using System.Linq;
 using Microsoft.Extensions.Logging;
+using ValveResourceFormat.IO;
+using ValveResourceFormat.Renderer.Editor.Collision;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -26,6 +28,9 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
 
     private static readonly Color32 ConnectionStartColor = new(0, 255, 0);
     private static readonly Color32 ConnectionEndColor = new(255, 0, 0);
+
+    // What a volume tied to an entity is most likely built from, where its class applies no material
+    private const string TriggerMaterial = "materials/tools/toolstrigger.vmat";
 
     /// <inheritdoc/>
     public IEnumerable<string> GetResourcesToPreload(string classname) => HammerEntities.Get(classname)?.Icons ?? [];
@@ -125,6 +130,21 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
         }
 
         throw new InvalidDataException($"Got resource {resource.ResourceType} for class \"{classname}\"");
+    }
+
+    /// <inheritdoc/>
+    public IEnumerable<SceneNode> CreateCollisionVisuals(Scene scene, PhysAggregateData physics, string name, BaseEntity? entity)
+    {
+        // The class of an entity draws its volume with one material
+        var classMaterial = entity == null ? null : MapExtract.GetToolTextureForEntity(entity.Classname);
+
+        // An entity whose model draws nothing is a volume, built from a tools material the compiled map no longer names
+        var fallbackMaterial = entity is BaseModelEntity { ModelNode: null } ? TriggerMaterial : null;
+
+        // A group built from a tools material is all the compiled map keeps of the faces Hammer drew with it
+        return PhysSceneNode.Create(scene, physics, name, group => classMaterial
+            ?? MapExtract.GetToolsMaterialForInteractAs(PhysAggregateData.GetInteractAsTags(physics.CollisionAttributes[group]))
+            ?? fallbackMaterial);
     }
 
     /// <inheritdoc/>

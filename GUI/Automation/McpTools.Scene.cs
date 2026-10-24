@@ -11,6 +11,7 @@ using GUI.Forms;
 using GUI.Types.GLViewers;
 using ValveKeyValue;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Editor.Collision;
 using ValveResourceFormat.Renderer.Editor.Picking;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -390,7 +391,7 @@ internal sealed partial class McpTools
             node.Name,
             Entity = EntityId(entities, node.EntityData),
             Layer = node.LayerName,
-            PhysicsGroup = (node as PhysSceneNode)?.PhysGroupName,
+            Collision = (node as PhysSceneNode)?.CollisionLabels,
             SpawnGroup = group?.MapName,
             Sky = Flag(group?.WorldGroup != null),
             Hidden = HiddenReason(node),
