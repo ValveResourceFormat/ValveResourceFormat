@@ -41,13 +41,16 @@ struct ProjectedDecalMaterialData_t
     DecalTexture_t Normal;
     DecalTexture_t Occlusion;
     DecalTexture_t Height;
+    DecalTexture_t SelfIllum;
     vec4 Fade;
     vec4 Parallax;
     vec4 Emissive;
+    vec4 Tint;
+    vec4 SurfaceFade;
     uint Flags;
     float Roughness;
+    float SelfIllumScale;
     float _padding0;
-    float _padding1;
 };
 
 struct ProjectedDecalMaterial_t
@@ -56,10 +59,14 @@ struct ProjectedDecalMaterial_t
     DecalTexture_t Normal;
     DecalTexture_t Occlusion;
     DecalTexture_t Height;
+    DecalTexture_t SelfIllum;
     vec4 Fade; // cutoff bias, cutoff scale, inverse depth fade, inverse alpha cutoff softness
     vec4 Parallax; // height scale, min steps, max steps, LOD threshold
     vec4 Emissive; // rgb tint, a additive amount
+    vec4 Tint; // rgb color tint, a opacity scale
+    vec4 SurfaceFade; // slope fade, slope fade sharpness, edge width
     float Roughness;
+    float SelfIllumScale; // zero for no glow
 
     bool HasOcclusionMap;
     uint F_BLEND_MODE; // 0 = translucent, 1 = mod2x, 2 = emissive, 3 = liquid
@@ -84,10 +91,14 @@ ProjectedDecalMaterial_t UnpackDecalMaterial(ProjectedDecalMaterialData_t data)
     material.Normal = data.Normal;
     material.Occlusion = data.Occlusion;
     material.Height = data.Height;
+    material.SelfIllum = data.SelfIllum;
     material.Fade = data.Fade;
     material.Parallax = data.Parallax;
     material.Emissive = data.Emissive;
+    material.Tint = data.Tint;
+    material.SurfaceFade = data.SurfaceFade;
     material.Roughness = data.Roughness;
+    material.SelfIllumScale = data.SelfIllumScale;
 
     material.HasOcclusionMap = IsBitSet(data.Flags, 7u);
     material.F_BLEND_MODE = data.Flags & 3u;
@@ -121,6 +132,7 @@ uniform sampler2DArray g_tDecalColor;
 uniform sampler2DArray g_tDecalNormal; // rg = normal, b = roughness
 uniform sampler2DArray g_tDecalOcclusion; // r = occlusion, g = metalness
 uniform sampler2DArray g_tDecalHeight;
+uniform sampler2DArray g_tDecalSelfIllum; // g = self-illum mask
 
 #include "common/ViewConstants.slang"
 #include "common/LightingConstants.slang"
@@ -196,6 +208,15 @@ vec4 SampleDecalTexture(sampler2DArray textureArray, DecalTexture_t decalTexture
     vec3 coords = vec3(offset + texCoord * decalTexture.Scale, float(decalTexture.Layer & 0xFFFFu));
 
     return textureGrad(textureArray, coords, texCoordDdx * decalTexture.Scale, texCoordDdy * decalTexture.Scale);
+}
+
+// Each box axis projects the texture, weighted by how squarely the surface faces it. Each column holds one
+// axis' texture coordinates.
+vec4 SampleDecalTriplanar(sampler2DArray textureArray, DecalTexture_t decalTexture, mat3x2 planeCoords, mat3x2 planeDdx, mat3x2 planeDdy, vec3 weights)
+{
+    return SampleDecalTexture(textureArray, decalTexture, planeCoords[0], planeDdx[0], planeDdy[0]) * weights.x
+        + SampleDecalTexture(textureArray, decalTexture, planeCoords[1], planeDdx[1], planeDdy[1]) * weights.y
+        + SampleDecalTexture(textureArray, decalTexture, planeCoords[2], planeDdx[2], planeDdy[2]) * weights.z;
 }
 
 // Blood spreads from its centre as it lands, then dries from its thin edges inward until only the thickest
@@ -426,6 +447,20 @@ void main()
                 fade = min(cutoff, 1.0);
             }
 
+            if (material.SurfaceFade.x > 0.0)
+            {
+                float facing = saturate(dot(geometricNormal, normalize(axisZ)));
+                fade *= mix(1.0, pow(facing, material.SurfaceFade.y), material.SurfaceFade.x);
+            }
+
+            vec3 toFace = min(decalCoords, 1.0 - decalCoords);
+            float faceDistance = min(toFace.x, min(toFace.y, toFace.z));
+
+            if (material.SurfaceFade.z > 0.0)
+            {
+                fade *= smoothstep(0.0, 1.0, saturate(faceDistance / material.SurfaceFade.z));
+            }
+
             vec2 texCoord = decalCoords.xy;
 
             if (material.F_PARALLAX)
@@ -438,8 +473,13 @@ void main()
                 texCoord.x = 1.0 - texCoord.x;
             }
 
-            vec4 tint = UnpackDecalTint(decal.Tint);
+            vec4 tint = UnpackDecalTint(decal.Tint) * material.Tint;
             vec4 color;
+
+            mat3x2 planeCoords = mat3x2(0.0);
+            mat3x2 planeDdx = mat3x2(0.0);
+            mat3x2 planeDdy = mat3x2(0.0);
+            vec3 planeWeights = vec3(0.0);
 
             if (material.F_TRIPLANAR_MAPPING)
             {
@@ -453,16 +493,20 @@ void main()
                 vec3 coordsDdx = vec3(texCoordDdx, dot(positionDdx, axisZ) * 0.5);
                 vec3 coordsDdy = vec3(texCoordDdy, dot(positionDdy, axisZ) * 0.5);
 
-                // Each box axis projects the texture, weighted by how squarely the surface faces it
+                planeCoords = mat3x2(coords.zy, vec2(coords.x, decalCoords.z), coords.xy);
+                planeDdx = mat3x2(coordsDdx.zy, coordsDdx.xz, coordsDdx.xy);
+                planeDdy = mat3x2(coordsDdy.zy, coordsDdy.xz, coordsDdy.xy);
+
                 vec3 facing = vec3(dot(geometricNormal, normalize(axisX)), dot(geometricNormal, normalize(axisY)), dot(geometricNormal, normalize(axisZ)));
-                vec3 weights = facing * facing;
+                planeWeights = facing * facing;
 
-                color = SampleDecalTexture(g_tDecalColor, material.Color, coords.zy, coordsDdx.zy, coordsDdy.zy) * weights.x
-                    + SampleDecalTexture(g_tDecalColor, material.Color, vec2(coords.x, decalCoords.z), coordsDdx.xz, coordsDdy.xz) * weights.y
-                    + SampleDecalTexture(g_tDecalColor, material.Color, coords.xy, coordsDdx.xy, coordsDdy.xy) * weights.z;
+                color = SampleDecalTriplanar(g_tDecalColor, material.Color, planeCoords, planeDdx, planeDdy, planeWeights);
 
-                vec3 toFace = min(decalCoords, 1.0 - decalCoords);
-                color.a *= saturate(8.0 * min(toFace.x, min(toFace.y, toFace.z)));
+                // Without an edge width of its own, it still fades toward its box faces
+                if (material.SurfaceFade.z == 0.0)
+                {
+                    color.a *= saturate(8.0 * faceDistance);
+                }
             }
             else
             {
@@ -564,6 +608,16 @@ void main()
             keepDestination *= keep;
             emissiveColor *= keep;
             litWeight = litWeight * keep + opacity;
+
+            if (material.SelfIllumScale > 0.0)
+            {
+                vec4 selfIllum = material.F_TRIPLANAR_MAPPING
+                    ? SampleDecalTriplanar(g_tDecalSelfIllum, material.SelfIllum, planeCoords, planeDdx, planeDdy, planeWeights)
+                    : SampleDecalTexture(g_tDecalSelfIllum, material.SelfIllum, texCoord, texCoordDdx, texCoordDdy);
+
+                // It glows in its own color, as a g-buffer that holds up to ten times the albedo of light
+                emissiveColor += albedo * min(selfIllum.g * material.SelfIllumScale, 10.0) * opacity;
+            }
         }
     }
 

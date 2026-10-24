@@ -102,6 +102,30 @@ namespace ValveResourceFormat.Renderer.Decals
         /// <summary>Gets how much of the surface an emissive decal leaves visible under it, from 0 to 1.</summary>
         public float AdditiveAmount { get; init; } = 1f;
 
+        /// <summary>Gets the linear color the color texture is multiplied by.</summary>
+        public Vector3 ColorTint { get; init; } = Vector3.One;
+
+        /// <summary>Gets what the opacity is multiplied by.</summary>
+        public float OpacityScale { get; init; } = 1f;
+
+        /// <summary>Gets the texture whose green channel masks where the decal glows, see <see cref="SelfIllumScale"/>.</summary>
+        public string? SelfIllumTexture { get; init; }
+
+        /// <summary>
+        /// Gets how brightly a lit decal glows in its own color where <see cref="SelfIllumTexture"/> is set, as a
+        /// multiple of that color up to ten. Zero for no glow.
+        /// </summary>
+        public float SelfIllumScale { get; init; }
+
+        /// <summary>Gets how much the decal fades where the surface turns away from the projection, from 0 to 1.</summary>
+        public float SlopeFade { get; init; }
+
+        /// <summary>Gets the power the surface facing is raised to for <see cref="SlopeFade"/>, so higher fades on gentler slopes.</summary>
+        public float SlopeFadeSharpness { get; init; } = 1f;
+
+        /// <summary>Gets the distance from the box faces the decal fades in over, as a fraction of the box. Zero for none.</summary>
+        public float EdgeWidth { get; init; }
+
         /// <summary>Gets the roughness used without a normal texture.</summary>
         public float Roughness { get; init; } = 0.5f;
 
@@ -152,8 +176,21 @@ namespace ValveResourceFormat.Renderer.Decals
             using var resource = fileLoader.LoadFileCompiled(materialPath);
 
             if (resource?.DataBlock is not Material data
-                || data.ShaderName is not ("csgo_projected_decals.vfx" or "vr_projected_decals.vfx")
                 || !data.TextureParams.TryGetValue("g_tColor", out var colorTexture))
+            {
+                return null;
+            }
+
+            if (data.ShaderName == "projected_decals.vfx")
+            {
+                var deferredDecal = FromDeferredMaterial(data, colorTexture);
+
+                return string.IsNullOrEmpty(sequenceName)
+                    ? deferredDecal
+                    : deferredDecal.WithSheetSequence(fileLoader, sequenceName);
+            }
+
+            if (data.ShaderName is not ("csgo_projected_decals.vfx" or "vr_projected_decals.vfx"))
             {
                 return null;
             }
@@ -210,6 +247,55 @@ namespace ValveResourceFormat.Renderer.Decals
             return string.IsNullOrEmpty(sequenceName)
                 ? definition
                 : definition.WithSheetSequence(fileLoader, sequenceName);
+        }
+
+        /// <summary>
+        /// Reads a decal from a material on the shader that writes decals into a deferred g-buffer. Its color
+        /// has opacity in alpha and its normal texture is hemi-octahedral with roughness in blue, as this
+        /// renderer reads them. It carries no size, the particle or entity placing it gives one.
+        /// </summary>
+        private static ProjectedDecalDefinition FromDeferredMaterial(Material data, string colorTexture)
+        {
+            var intParams = data.IntParams;
+            var floatParams = data.FloatParams;
+
+            // The g-buffer lights it like any other surface, so it has a dielectric specular
+            List<string> features = ["F_SPECULAR"];
+
+            // Its cutoff matches the alpha mode: particle alpha erodes the color alpha over the cutoff width
+            if (intParams.GetValueOrDefault("g_bCutoff") == 1)
+            {
+                features.Add("F_ALPHA_MODE");
+            }
+
+            // Biplanar projection picks the two box axes the surface faces most, triplanar mapping is the nearest
+            if (intParams.GetValueOrDefault("F_BIPLANAR_PROJECTION") == 1)
+            {
+                features.Add("F_TRIPLANAR_MAPPING");
+            }
+
+            var multiplyAlbedo = intParams.GetValueOrDefault("F_MULTIPLY_ALBEDO") == 1;
+            var writesNormal = floatParams.GetValueOrDefault("g_flNormalOpacity", 1f) > 0f;
+            var colorTint = data.VectorParams.GetValueOrDefault("g_vColorTint", Vector4.One).AsVector3();
+
+            return new ProjectedDecalDefinition
+            {
+                ColorTexture = colorTexture,
+                NormalTexture = writesNormal ? data.TextureParams.GetValueOrDefault("g_tNormalRoughness") : null,
+                SelfIllumTexture = data.TextureParams.GetValueOrDefault("g_tSelfIllum"),
+                BlendMode = multiplyAlbedo ? ProjectedDecalBlendMode.Liquid : ProjectedDecalBlendMode.Translucent,
+                Features = features.ToFrozenSet(StringComparer.Ordinal),
+                AlphaCutoffSoftness = MathF.Max(floatParams.GetValueOrDefault("g_flCutoffWidth", 0.1f), 0.001f),
+                // It fades by slope and toward its box faces, not along the box depth
+                DepthFade = 0f,
+                ColorTint = ColorSpace.SrgbGammaToLinear(colorTint),
+                OpacityScale = floatParams.GetValueOrDefault("g_flOpacityScale", 1f),
+                // A scale set at run time keeps the value the material was saved with
+                SelfIllumScale = floatParams.GetValueOrDefault("g_flSelfIllumScale", 1f),
+                SlopeFade = floatParams.GetValueOrDefault("g_flSlopeFade"),
+                SlopeFadeSharpness = floatParams.GetValueOrDefault("g_flSlopeFadeSharpness", 1f),
+                EdgeWidth = floatParams.GetValueOrDefault("g_flEdgeWidth"),
+            };
         }
 
         /// <summary>

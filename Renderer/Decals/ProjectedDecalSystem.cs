@@ -88,7 +88,7 @@ namespace ValveResourceFormat.Renderer.Decals
             public uint Offset;
         }
 
-        // Matches ProjectedDecalMaterialData_t, 128 bytes. Derived parameters are evaluated here so the shader
+        // Matches ProjectedDecalMaterialData_t. Derived parameters are evaluated here so the shader
         // only reads them.
         [StructLayout(LayoutKind.Sequential)]
         private struct MaterialGpu
@@ -97,13 +97,16 @@ namespace ValveResourceFormat.Renderer.Decals
             public TextureGpu Normal;
             public TextureGpu Occlusion;
             public TextureGpu Height;
+            public TextureGpu SelfIllum;
             public Vector4 Fade;
             public Vector4 Parallax;
             public Vector4 Emissive;
+            public Vector4 Tint;
+            public Vector4 SurfaceFade;
             public uint Flags;
             public float Roughness;
+            public float SelfIllumScale;
             public float Padding0;
-            public float Padding1;
         }
 
         private sealed class DecalMaterial
@@ -114,6 +117,7 @@ namespace ValveResourceFormat.Renderer.Decals
             public ProjectedDecalTextureArray.Layer? Normal { get; init; }
             public ProjectedDecalTextureArray.Layer? Occlusion { get; init; }
             public ProjectedDecalTextureArray.Layer? Height { get; init; }
+            public ProjectedDecalTextureArray.Layer? SelfIllum { get; init; }
         }
 
         private enum DecalLifetime
@@ -146,10 +150,14 @@ namespace ValveResourceFormat.Renderer.Decals
         // Height 1, level with the surface
         private static readonly byte[] HeightClearBlock = [0xFF, 0xFF, 0, 0, 0, 0, 0, 0];
 
+        // Black, which does not glow
+        private static readonly byte[] SelfIllumClearBlock = [0, 0, 0, 0, 0, 0, 0, 0];
+
         private readonly ProjectedDecalTextureArray colorArray = new("ProjectedDecalColor", VTexFormat.BC7, ImageFormat.BC7, srgb: true, Bc7ClearBlock);
         private readonly ProjectedDecalTextureArray normalArray = new("ProjectedDecalNormal", VTexFormat.BC7, ImageFormat.BC7, srgb: false, Bc7ClearBlock);
         private readonly ProjectedDecalTextureArray occlusionArray = new("ProjectedDecalOcclusion", VTexFormat.ATI2N, ImageFormat.ATI2N, srgb: false, OcclusionClearBlock);
         private readonly ProjectedDecalTextureArray heightArray = new("ProjectedDecalHeight", VTexFormat.ATI1N, ImageFormat.ATI1N, srgb: false, HeightClearBlock);
+        private readonly ProjectedDecalTextureArray selfIllumArray = new("ProjectedDecalSelfIllum", VTexFormat.DXT1, ImageFormat.DXT1, srgb: false, SelfIllumClearBlock);
 
         private ImpactDecalTable? impactDecals;
         private ImpactDecalTable ImpactDecals => impactDecals ??= new ImpactDecalTable(scene.RendererContext.FileLoader);
@@ -179,7 +187,8 @@ namespace ValveResourceFormat.Renderer.Decals
 
         /// <summary>
         /// Registers a decal kind. Its textures are loaded here and join every other decal's in the one
-        /// draw, as files or atlas parts. Color and normal must be BC7, occlusion ATI2N and height ATI1N.
+        /// draw, as files or atlas parts. Color and normal must be BC7, occlusion ATI2N, height ATI1N and
+        /// self-illum DXT1.
         /// </summary>
         /// <param name="definition">What the decal looks like.</param>
         /// <returns>A handle to add decals with, or -1 when the color texture could not be loaded.</returns>
@@ -195,6 +204,7 @@ namespace ValveResourceFormat.Renderer.Decals
             var normal = AddTexture(normalArray, definition.NormalTexture);
             var occlusion = AddTexture(occlusionArray, definition.OcclusionTexture);
             var height = AddTexture(heightArray, definition.HeightTexture);
+            var selfIllum = definition.SelfIllumScale > 0f ? AddTexture(selfIllumArray, definition.SelfIllumTexture) : null;
 
             var flags = MaterialFlags.None;
 
@@ -237,6 +247,7 @@ namespace ValveResourceFormat.Renderer.Decals
                 Normal = normal,
                 Occlusion = occlusion,
                 Height = height,
+                SelfIllum = selfIllum,
                 Parameters = new MaterialGpu
                 {
                     Fade = new Vector4(
@@ -250,8 +261,11 @@ namespace ValveResourceFormat.Renderer.Decals
                         definition.ParallaxMaxSamples,
                         definition.ParallaxLodThreshold),
                     Emissive = new Vector4(definition.EmissiveColor, definition.AdditiveAmount),
+                    Tint = new Vector4(definition.ColorTint, definition.OpacityScale),
+                    SurfaceFade = new Vector4(definition.SlopeFade, definition.SlopeFadeSharpness, definition.EdgeWidth, 0f),
                     Flags = (uint)definition.BlendMode | (uint)flags,
                     Roughness = definition.Roughness,
+                    SelfIllumScale = selfIllum != null ? definition.SelfIllumScale : 0f,
                 },
             });
 
@@ -815,6 +829,7 @@ namespace ValveResourceFormat.Renderer.Decals
                     parameters.Normal = GetTextureGpu(material.Normal, normalArray, rect);
                     parameters.Occlusion = GetTextureGpu(material.Occlusion, occlusionArray, rect);
                     parameters.Height = GetTextureGpu(material.Height, heightArray, rect);
+                    parameters.SelfIllum = GetTextureGpu(material.SelfIllum, selfIllumArray, rect);
 
                     materialGpuData[i] = parameters;
                 }
@@ -895,6 +910,7 @@ namespace ValveResourceFormat.Renderer.Decals
             normalArray.EnsureCreated();
             occlusionArray.EnsureCreated();
             heightArray.EnsureCreated();
+            selfIllumArray.EnsureCreated();
 
             UploadBuffers();
 
@@ -925,7 +941,8 @@ namespace ValveResourceFormat.Renderer.Decals
             passShader.SetTexture(textureUnit++, "g_tDecalColor", colorArray.ArrayTexture);
             passShader.SetTexture(textureUnit++, "g_tDecalNormal", normalArray.ArrayTexture);
             passShader.SetTexture(textureUnit++, "g_tDecalOcclusion", occlusionArray.ArrayTexture);
-            passShader.SetTexture(textureUnit, "g_tDecalHeight", heightArray.ArrayTexture);
+            passShader.SetTexture(textureUnit++, "g_tDecalHeight", heightArray.ArrayTexture);
+            passShader.SetTexture(textureUnit, "g_tDecalSelfIllum", selfIllumArray.ArrayTexture);
 
             decalBuffer?.BindBufferBase();
             materialBuffer?.BindBufferBase();
@@ -964,6 +981,7 @@ namespace ValveResourceFormat.Renderer.Decals
             normalArray.Delete();
             occlusionArray.Delete();
             heightArray.Delete();
+            selfIllumArray.Delete();
 
             decalBuffer?.Delete();
             materialBuffer?.Delete();
