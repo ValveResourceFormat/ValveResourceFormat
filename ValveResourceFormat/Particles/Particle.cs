@@ -1,3 +1,4 @@
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -222,7 +223,11 @@ namespace ValveResourceFormat.Particles
             if (parse.Data.TryGetValue("m_ConstantColor", out var constantColor))
             {
                 Color = constantColor.ToVector3() / 255f;
-                Alpha = constantColor.Count > 3 ? constantColor.GetElement<int>(3) / 255f : 1f;
+                if (constantColor.Count > 3)
+                {
+                    var alpha = constantColor[3];
+                    Alpha = alpha.ValueType == KVValueType.Null ? 0f : (int)alpha / 255f;
+                }
             }
 
             Radius = parse.Float("m_flConstantRadius", Radius);
