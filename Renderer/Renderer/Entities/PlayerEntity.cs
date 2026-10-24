@@ -56,6 +56,11 @@ public sealed class PlayerEntity : BaseEntity
     // fast as the view moves, so it keeps up.
     private const float MaxCarryCatchUpSpeed = 20f;
 
+    // The catch-up limit holds only while a contact is stopping the body, and this briefly after, so a
+    // body pressed into a wall that is only stopped every other frame stays limited. A body lagging
+    // behind the view after a fast turn is not stopped by anything, and catches up at full speed.
+    private const float CarryWedgedDuration = 0.05f;
+
     // Once touching something or held still, the hold may press the prop into what the view meets,
     // as deep as its thinnest side allows, so a prop pushed into a wall turns to lie flat against it.
     // Past where the prop would just touch, the hold leads the prop by no more than this speed. A
@@ -131,6 +136,9 @@ public sealed class PlayerEntity : BaseEntity
 
     // Where last frame's hold pose was, which says how fast the hold pose itself moves
     private Vector3 previousHoldPosition;
+
+    // How much longer the catch-up limit holds after a contact last stopped the body
+    private float carryWedgedTime;
 
     // Where last frame's hold pose was before the press limit, which says whether the view is moving
     private Vector3 previousRawHoldPosition;
@@ -432,7 +440,9 @@ public sealed class PlayerEntity : BaseEntity
         var error = holdPosition - body.Position;
         var holdVelocity = carryArrived && hasCarryExpectation ? (holdPosition - previousHoldPosition) / deltaTime : Vector3.Zero;
 
-        if (soft && carryArrived && hasCarryExpectation)
+        carryWedgedTime = blocked ? CarryWedgedDuration : MathF.Max(carryWedgedTime - deltaTime, 0f);
+
+        if (soft && carryArrived && hasCarryExpectation && carryWedgedTime > 0f)
         {
             var catchUp = previousHoldPosition - body.Position;
             var maxCatchUp = (MaxCarryCatchUpSpeed + holdVelocity.Length()) * deltaTime;
