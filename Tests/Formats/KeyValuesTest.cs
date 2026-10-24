@@ -104,6 +104,38 @@ namespace Tests.Formats
         }
 
         [Test]
+        [Arguments("explosion_barrel_kv0_lz4.vpcf_c")]
+        [Arguments("plaster_impact_fx.vpcf_c")]
+        [Arguments("node000_kv3_v2_zstd.vwnod_c")]
+        [Arguments("slork_kv3_v5_zstd.vanmgrph_c")]
+        public async Task TestResourceAnyBlockContents(string fileName)
+        {
+            var file = TestFixtures.Path(fileName);
+            var stored = await File.ReadAllBytesAsync(file);
+            using var resource = new Resource();
+            resource.Read(file);
+
+            using var searchable = new MemoryStream();
+            using var sourceStream = File.OpenRead(file);
+            var found = Resource.AnyBlockContents(sourceStream, buffer =>
+            {
+                searchable.Write(buffer);
+                return false;
+            });
+
+            var binaryKV3 = ReadBinaryKV3Block(sourceStream, resource.DataBlock!);
+            var keys = binaryKV3.Data.Root.Select(static child => Encoding.UTF8.GetBytes(child.Key)).ToList();
+            var searchableBytes = searchable.ToArray();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(found).IsFalse();
+                await Assert.That(keys.All(key => searchableBytes.AsSpan().IndexOf(key) >= 0)).IsTrue();
+                await Assert.That(keys.Any(key => stored.AsSpan().IndexOf(key) < 0)).IsTrue();
+            }
+        }
+
+        [Test]
         [MethodDataSource(nameof(BinaryKV3FixtureSerializationCases))]
         public async Task TestBinaryKV3FixtureSerialization(
             string fileName,
