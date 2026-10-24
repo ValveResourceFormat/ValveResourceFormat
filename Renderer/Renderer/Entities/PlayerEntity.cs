@@ -44,6 +44,10 @@ public sealed class PlayerEntity : BaseEntity
     private const float ContactStepTolerance = 0.05f;
     private const float CarrySoftDuration = 0.2f;
 
+    // A body lagging behind the view goes round the eyes once the straight way to its target
+    // would bring it closer to them than this share of its distance, a turn of about 50 degrees
+    private const float MinCarryEyeClearance = 0.9f;
+
     // While soft, the carry still follows the hold pose's own motion, but closes the gap a contact
     // left no faster than this on top of the hold pose's own speed. Pressed into a wall the hold
     // pose stands still, and this is well under the solver's restitution threshold: closing the
@@ -412,6 +416,7 @@ public sealed class PlayerEntity : BaseEntity
 
         var velocity = SteerVelocity(body.LinearVelocity, error, holdVelocity, deltaTime, maxSpeed, maxAcceleration);
 
+        velocity = SteerAroundEyes(body, error, velocity, deltaTime);
         body.LinearVelocity = velocity;
 
         carryExpectedPosition = body.Position + velocity * deltaTime;
@@ -455,6 +460,49 @@ public sealed class PlayerEntity : BaseEntity
         // Only when the carry steers the turn too; a held ragdoll part swings on its joints
         return carryExpectedRotation is { } expected
             && RotationError(expected, body.Rotation).Length() > ContactAngleTolerance + (ContactStepTolerance * carryExpectedTurn);
+    }
+
+    // A body short of its target heads straight for it, and when the view swings round faster than
+    // the body can follow, that line cuts through the player, whom a carried body does not collide
+    // with. A body that cannot reach its target this frame, on a line that would bring it closer
+    // to the eyes than either end, covers the same distance round the eyes instead, on the arc
+    // from its own distance from them to the target's.
+    private Vector3 SteerAroundEyes(Body body, Vector3 error, Vector3 velocity, float deltaTime)
+    {
+        var step = velocity.Length() * deltaTime;
+        var errorLengthSquared = error.LengthSquared();
+
+        if (step * step >= errorLengthSquared)
+        {
+            return velocity;
+        }
+
+        var eyePosition = GetHoldView().EyePosition;
+        var from = body.CenterOfMass - eyePosition;
+        var to = from + error;
+        var fromDistance = from.Length();
+        var toDistance = to.Length();
+        var closest = from + (error * Math.Clamp(-Vector3.Dot(from, error) / errorLengthSquared, 0f, 1f));
+
+        if (closest.Length() >= MinCarryEyeClearance * MathF.Min(fromDistance, toDistance) || fromDistance < 1f || toDistance < 1f)
+        {
+            return velocity;
+        }
+
+        var fromDirection = from / fromDistance;
+        var angle = MathF.Acos(Math.Clamp(Vector3.Dot(fromDirection, to / toDistance), -1f, 1f));
+        var axis = Vector3.Cross(fromDirection, to);
+
+        if (axis.LengthSquared() < 1e-6f)
+        {
+            // Straight behind: either way round will do, so the view's own way, a turn about up
+            axis = MathF.Abs(fromDirection.Z) < 0.99f ? Vector3.UnitZ : Vector3.UnitX;
+        }
+
+        var fraction = MathF.Min(step / ((angle * fromDistance) + MathF.Abs(toDistance - fromDistance)), 1f);
+        var direction = Vector3.Transform(fromDirection, Quaternion.CreateFromAxisAngle(Vector3.Normalize(axis), angle * fraction));
+
+        return ((direction * float.Lerp(fromDistance, toDistance, fraction)) - from) / deltaTime;
     }
 
     // Turns an orientation by a world-space rotation vector, axis times angle
