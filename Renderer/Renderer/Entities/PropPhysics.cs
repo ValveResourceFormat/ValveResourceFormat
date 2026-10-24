@@ -182,6 +182,9 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
         }
     }
 
+    /// <summary>Gets or sets the share of physics impact damage the prop takes; 1 takes all of it.</summary>
+    public float ImpactDamageScale { get; set; } = 1f;
+
     /// <summary>
     /// Takes the damage of a physics impact at <paramref name="speed"/>, from the prop's impact table.
     /// </summary>
@@ -192,7 +195,7 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
             return;
         }
 
-        var damage = breakData.ImpactDamage(speed);
+        var damage = breakData.ImpactDamage(speed) * ImpactDamageScale;
 
         if (damage > 0f)
         {
