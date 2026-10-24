@@ -2,10 +2,8 @@ namespace GUI.Forms
 {
     public enum SearchType
     {
-        FileNameExactMatch,
-        FileNamePartialMatch,
+        FileName,
         FullPath,
-        Regex,
         FileContents,
         FileContentsHex,
     }

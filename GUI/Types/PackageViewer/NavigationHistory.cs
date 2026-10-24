@@ -2,7 +2,19 @@ using GUI.Forms;
 
 namespace GUI.Types.PackageViewer
 {
-    internal readonly record struct SearchRequest(string Text, SearchType Type, string? FilterKey, string? FilterValue);
+    /// <summary>
+    /// A package search, limited to the files in <paramref name="Folder"/> with <paramref name="Extension"/> and the asset info filter when they are set.
+    /// </summary>
+    internal readonly record struct SearchRequest(
+        string Text,
+        SearchType Type,
+        bool MatchCase,
+        bool WholeWord,
+        bool UseRegex,
+        VirtualPackageNode? Folder,
+        string? Extension,
+        string? FilterKey,
+        string? FilterValue);
 
     /// <summary>
     /// A single back/forward history location: either a folder node or a search.

@@ -12,6 +12,7 @@ namespace GUI.Types.PackageViewer
         public Color Highlight { get; set; } = Color.White;
         public VrfGuiContext? VrfGuiContext { get; set; }
         internal List<ListViewItem>? VirtualItems { get; set; }
+        internal int SecondFlexibleColumn { get; set; } = -1;
         private bool isAdjustingColumns;
         public event ScrollEventHandler? Scroll;
 
@@ -134,17 +135,17 @@ namespace GUI.Types.PackageViewer
 
                 for (var i = 0; i < Columns.Count; i++)
                 {
-                    if (i != flexibleColumnIndex)
+                    if (i != flexibleColumnIndex && i != SecondFlexibleColumn)
                     {
                         fixedColumnsWidth += scaledFixedWidth;
                     }
                 }
 
-                var flexibleWidth = Math.Max(availableWidth - fixedColumnsWidth, scaledFixedWidth);
+                var flexibleWidth = Math.Max((availableWidth - fixedColumnsWidth) / (SecondFlexibleColumn >= 0 ? 2 : 1), scaledFixedWidth);
 
                 for (var i = 0; i < Columns.Count; i++)
                 {
-                    var targetWidth = i == flexibleColumnIndex ? flexibleWidth : scaledFixedWidth;
+                    var targetWidth = i == flexibleColumnIndex || i == SecondFlexibleColumn ? flexibleWidth : scaledFixedWidth;
 
                     if (Columns[i].Width != targetWidth)
                     {

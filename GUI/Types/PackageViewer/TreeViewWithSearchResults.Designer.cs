@@ -30,6 +30,7 @@ namespace GUI.Types.PackageViewer
             panel1 = new System.Windows.Forms.Panel();
             mainListView = new BetterListView();
             tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
+            searchSummaryLabel = new System.Windows.Forms.Label();
             gridSizeSlider = new System.Windows.Forms.TrackBar();
             gridRadioButton = new System.Windows.Forms.RadioButton();
             listRadioButton = new System.Windows.Forms.RadioButton();
@@ -150,17 +151,19 @@ namespace GUI.Types.PackageViewer
             // 
             // tableLayoutPanel2
             // 
-            tableLayoutPanel2.ColumnCount = 5;
+            tableLayoutPanel2.ColumnCount = 6;
             tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 36F));
             tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 36F));
             tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 60F));
             tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 60F));
             tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 170F));
+            tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             tableLayoutPanel2.Controls.Add(backButton, 0, 0);
             tableLayoutPanel2.Controls.Add(forwardButton, 1, 0);
             tableLayoutPanel2.Controls.Add(listRadioButton, 2, 0);
             tableLayoutPanel2.Controls.Add(gridRadioButton, 3, 0);
             tableLayoutPanel2.Controls.Add(gridSizeSlider, 4, 0);
+            tableLayoutPanel2.Controls.Add(searchSummaryLabel, 5, 0);
             tableLayoutPanel2.Dock = System.Windows.Forms.DockStyle.Fill;
             tableLayoutPanel2.Location = new System.Drawing.Point(0, 0);
             tableLayoutPanel2.Margin = new System.Windows.Forms.Padding(0);
@@ -170,6 +173,15 @@ namespace GUI.Types.PackageViewer
             tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             tableLayoutPanel2.Size = new System.Drawing.Size(395, 40);
             tableLayoutPanel2.TabIndex = 5;
+            // 
+            // searchSummaryLabel
+            // 
+            searchSummaryLabel.AutoEllipsis = true;
+            searchSummaryLabel.Dock = System.Windows.Forms.DockStyle.Fill;
+            searchSummaryLabel.Name = "searchSummaryLabel";
+            searchSummaryLabel.TabIndex = 5;
+            searchSummaryLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            searchSummaryLabel.UseMnemonic = false;
             // 
             // gridSizeSlider
             // 
@@ -264,6 +276,7 @@ namespace GUI.Types.PackageViewer
         private System.Windows.Forms.RadioButton listRadioButton;
         private System.Windows.Forms.RadioButton gridRadioButton;
         private System.Windows.Forms.TrackBar gridSizeSlider;
+        private System.Windows.Forms.Label searchSummaryLabel;
         private System.Windows.Forms.Panel panel1;
         private BetterListView mainListView;
     }

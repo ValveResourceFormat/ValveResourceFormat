@@ -1084,22 +1084,29 @@ namespace GUI
             var package = mainTabs.SelectedTab.Controls.OfType<TreeViewWithSearchResults>().FirstOrDefault();
             if (package != null)
             {
-                searchForm ??= new();
-                searchForm.SetSearchableUserDataKeys(package.GetSearchDataKeysAsync());
-                var result = searchForm.ShowDialog();
-                if (result == DialogResult.OK)
-                {
-                    var searchText = searchForm.SearchText;
-                    var filterKey = searchForm.SelectedFilterKey;
-                    if (!string.IsNullOrEmpty(searchText) || filterKey != null)
-                    {
-                        package.SearchAndFillResults(searchText, searchForm.SelectedSearchType, filterKey, searchForm.SelectedFilterValue);
-                    }
-                }
+                var selected = package.mainTreeView.SelectedNode as BetterTreeNode;
+                ShowPackageSearch(package, selected?.PkgNode ?? (selected?.Parent as BetterTreeNode)?.PkgNode, onlyInFolder: false);
                 return;
             }
 
             mainTabs.SelectedTab.Controls.OfType<ExplorerControl>().FirstOrDefault()?.FocusFilter();
+        }
+
+        private void ShowPackageSearch(TreeViewWithSearchResults package, VirtualPackageNode? folder, bool onlyInFolder)
+        {
+            if (package.mainTreeView.VrfGuiContext?.CurrentPackage is not { } currentPackage)
+            {
+                return;
+            }
+
+            searchForm ??= new();
+            searchForm.SetSearchableUserDataKeys(package.GetSearchDataKeysAsync());
+            searchForm.SetPackage(currentPackage, folder?.Parent != null ? folder : null, onlyInFolder);
+
+            if (searchForm.ShowDialog() == DialogResult.OK)
+            {
+                package.SearchAndFillResults(searchForm.Request);
+            }
         }
 
         private static CodeTextBox? FindCodeTextBoxInControl(Control container)
