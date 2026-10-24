@@ -32,14 +32,6 @@ public interface ICarryable
     /// leaves the body's orientation unsteered: a ragdoll part is held by position alone and
     /// swings free, the rest of the ragdoll hanging off it by gravity and its joints.
     /// </summary>
-    (Vector3 Position, Quaternion? Rotation) ComputeHoldPose();
-
-    /// <summary>
-    /// Relaxes the grip orientation part way toward the body's current one, for when the world is
-    /// twisting the held body away from the hold rotation. Only called for a carry that steers
-    /// orientation.
-    /// </summary>
-    void AdoptCarryRotation(float fraction)
-    {
-    }
+    /// <param name="deltaTime">The frame the pose is for, zero for none.</param>
+    (Vector3 Position, Quaternion? Rotation) ComputeHoldPose(float deltaTime);
 }

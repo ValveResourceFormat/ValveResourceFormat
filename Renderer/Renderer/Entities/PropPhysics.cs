@@ -65,9 +65,7 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
     void ICarryable.BeginCarry(PlayerEntity carrier, float carryDistance, Body grabbedBody)
         => BeginCarry(carrier, carryDistance);
 
-    (Vector3 Position, Quaternion? Rotation) ICarryable.ComputeHoldPose() => ComputeHoldPose();
-
-    void ICarryable.AdoptCarryRotation(float fraction) => AdoptCarryRotation(fraction);
+    (Vector3 Position, Quaternion? Rotation) ICarryable.ComputeHoldPose(float deltaTime) => ComputeHoldPose(deltaTime);
 
     /// <summary>Gets whether the player is carrying this prop right now.</summary>
     public bool IsCarried => Carrier != null;
@@ -555,6 +553,8 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
 
         Carrier = carrier;
         CarryDistance = carryDistance;
+        hasViewPoint = false;
+        carryPress = 0f;
         carryLocalMassCenter = body.LocalCenterOfMass;
         carryRelativeRotation = Quaternion.Inverse(ViewRotation(carrier.GetHoldView().ViewAngles)) * body.Rotation;
 
@@ -584,21 +584,6 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
         SnapInterpolation();
     }
 
-    /// <summary>
-    /// Relaxes the grip part way toward the body's current orientation, for when the world is
-    /// twisting the held prop away from the hold rotation: the twist gradually becomes the
-    /// carried orientation instead of an error the carry keeps fighting. Only the chase target
-    /// moves - the drawing reads the body itself - so nothing visible jumps.
-    /// </summary>
-    /// <param name="fraction">How much of the way to the body's orientation the grip moves.</param>
-    internal void AdoptCarryRotation(float fraction)
-    {
-        var view = ViewRotation(Carrier!.GetHoldView().ViewAngles);
-
-        carryRelativeRotation = Quaternion.Slerp(carryRelativeRotation,
-            Quaternion.Inverse(view) * body.Rotation, fraction);
-    }
-
     /// <inheritdoc/>
     protected override bool UpdatesRenderTransformEveryFrame => HasBody;
 
@@ -622,21 +607,36 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
     /// <summary>
     /// Where the carried body belongs, by the carrier's hold view.
     /// </summary>
-    internal (Vector3 Position, Quaternion Rotation) ComputeHoldPose()
+    internal (Vector3 Position, Quaternion Rotation) ComputeHoldPose(float deltaTime)
     {
         var (eyePosition, forward, viewAngles) = Carrier!.GetHoldView();
 
-        return ComputeHoldPose(eyePosition, forward, viewAngles);
+        return ComputeHoldPose(eyePosition, forward, viewAngles, deltaTime);
     }
+
+    // Held against a wall, the prop is pressed past where it would just touch, so the contact turns
+    // it until it lies flat, the touch point moving in as it turns. The press builds at its speed
+    // only while the view holds still. A floor is never pressed into: a prop pressed down tips over
+    // onto its side, and a fragile one breaks.
+    private const float CarryPressDepth = 8f;
+    private const float CarryPressSpeed = 20f;
+    private const float CarryStillSpeed = 50f;
+    private const float MaxPressSurfaceNormalZ = 0.7f;
+
+    // Where the view pointed at the carry distance last frame, which says whether it holds still,
+    // and how far the prop is pressed past where it would just touch
+    private Vector3 previousViewPoint;
+    private bool hasViewPoint;
+    private float carryPress;
 
     /// <summary>
     /// Where the carried body belongs for a given view: the mass center on the eye ray at the
     /// carry distance, the grab orientation turned with the view. The distance shortens to keep
     /// the prop in front of the world and the movers the ray meets, and lengthens again as room
-    /// opens, so aiming at the floor or into a wall holds the prop against it rather than asking
-    /// for a pose inside. Other props on the ray are not avoided; the carry pushes them aside.
+    /// opens, so aiming at the floor or into a wall holds the prop against it, pressed in a little.
+    /// Other props on the ray are not avoided; the carry pushes them aside.
     /// </summary>
-    private (Vector3 Position, Quaternion Rotation) ComputeHoldPose(Vector3 eyePosition, Vector3 forward, Vector3 viewAngles)
+    private (Vector3 Position, Quaternion Rotation) ComputeHoldPose(Vector3 eyePosition, Vector3 forward, Vector3 viewAngles, float deltaTime)
     {
         var rotation = ViewRotation(viewAngles) * carryRelativeRotation;
 
@@ -645,7 +645,19 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
         // target's: while the turn is still catching up, aiming the origin with the target
         // rotation would push the actual mass center off the ray and set position and rotation
         // fighting each other.
-        var reach = EntitySystem.Physics.ClearReach(eyePosition, forward, CarryDistance, body);
+        var reach = EntitySystem.Physics.TouchReach(eyePosition, forward, CarryDistance, body, out var surfaceNormal);
+        var viewPoint = eyePosition + (forward * CarryDistance);
+
+        if (deltaTime > 0f)
+        {
+            var isStill = hasViewPoint && Vector3.Distance(viewPoint, previousViewPoint) < CarryStillSpeed * deltaTime;
+            var isWall = MathF.Abs(surfaceNormal.Z) < MaxPressSurfaceNormalZ && surfaceNormal != Vector3.Zero;
+            carryPress = isWall && isStill ? MathF.Min(carryPress + (CarryPressSpeed * deltaTime), CarryPressDepth) : 0f;
+            previousViewPoint = viewPoint;
+            hasViewPoint = true;
+        }
+
+        reach = MathF.Min(reach + carryPress, CarryDistance);
         var position = eyePosition + forward * reach
             - Vector3.Transform(carryLocalMassCenter, body.Rotation);
 

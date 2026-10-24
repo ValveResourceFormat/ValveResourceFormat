@@ -195,7 +195,7 @@ public sealed class PhysicsSimulation : IDisposable
         }
 
         var extents = bounds.Extents;
-        return ShortenReach(from, direction, reach, MathF.Min(extents.X, MathF.Min(extents.Y, extents.Z)));
+        return ShortenReach(from, direction, reach, MathF.Min(extents.X, MathF.Min(extents.Y, extents.Z)), out _);
     }
 
     /// <summary>
@@ -206,11 +206,13 @@ public sealed class PhysicsSimulation : IDisposable
     /// <param name="direction">Normalized ray direction.</param>
     /// <param name="reach">How far along the ray the body would like to be held.</param>
     /// <param name="body">The held body, whose bounds say how much room it needs.</param>
+    /// <param name="normal">The normal of what shortened the reach, or zero when nothing did.</param>
     /// <returns>The reach, shortened when the ray meets something first.</returns>
-    public float TouchReach(Vector3 from, Vector3 direction, float reach, Body body)
+    public float TouchReach(Vector3 from, Vector3 direction, float reach, Body body, out Vector3 normal)
     {
         if (!bodyBounds.TryGetValue(body.UserData, out var bounds))
         {
+            normal = Vector3.Zero;
             return reach;
         }
 
@@ -219,20 +221,17 @@ public sealed class PhysicsSimulation : IDisposable
         var extent = Vector3.Dot(bounds.Center - body.LocalCenterOfMass, localDirection)
             + Vector3.Dot(Vector3.Abs(localDirection), bounds.Extents);
 
-        return ShortenReach(from, direction, reach, extent + ClearReachMargin);
+        return ShortenReach(from, direction, reach, extent + ClearReachMargin, out normal);
     }
 
-    private float ShortenReach(Vector3 from, Vector3 direction, float reach, float extent)
+    private float ShortenReach(Vector3 from, Vector3 direction, float reach, float extent, out Vector3 normal)
     {
         var hit = World.RaycastClosest(from, direction * (reach + extent),
             new QueryFilter(PlayerCategory, StaticCategory | MoverCategory));
+        var shortened = hit.Hit ? MathF.Max(Vector3.Distance(from, hit.Point) - extent, MinClearReach) : reach;
 
-        if (!hit.Hit)
-        {
-            return reach;
-        }
-
-        return MathF.Min(reach, MathF.Max(Vector3.Distance(from, hit.Point) - extent, MinClearReach));
+        normal = shortened < reach ? hit.Normal : Vector3.Zero;
+        return MathF.Min(reach, shortened);
     }
 
     // Held bodies stop this far short of what the ray meets, so a view swept onto the floor does not
