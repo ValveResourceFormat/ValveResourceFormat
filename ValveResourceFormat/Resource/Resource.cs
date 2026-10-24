@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Collections;
 using System.Diagnostics;
 using System.IO;
@@ -337,6 +338,75 @@ namespace ValveResourceFormat
             {
                 blocks.Items[blocks.Items.IndexOf(vdataBlock)] = specializedData;
             }
+        }
+
+        /// <summary>
+        /// Whether any block of a compiled resource satisfies a predicate, without parsing the resource.
+        /// Compressed binary KV3 blocks are visited as their decompressed buffers, other blocks as stored,
+        /// and geometry and visibility buffers are skipped.
+        /// </summary>
+        /// <param name="input">A seekable stream with the resource at position 0.</param>
+        /// <param name="predicate">Called with each buffer, which is only valid during the call, until it returns true.</param>
+        /// <exception cref="UnexpectedMagicException">The stream does not hold a resource.</exception>
+        /// <exception cref="InvalidDataException">A block or a compressed buffer is invalid.</exception>
+        /// <exception cref="EndOfStreamException">The stream ends early.</exception>
+        public static bool AnyBlockContents(Stream input, Func<ReadOnlySpan<byte>, bool> predicate)
+        {
+            using var reader = new BinaryReader(input, Encoding.UTF8, leaveOpen: true);
+
+            input.Position = 4;
+            var headerVersion = reader.ReadUInt16();
+
+            if (headerVersion != KnownHeaderVersion)
+            {
+                throw new UnexpectedMagicException("Not a resource", headerVersion, nameof(headerVersion));
+            }
+
+            input.Position = 8;
+            var blockOffset = reader.ReadUInt32();
+            var blockCount = reader.ReadUInt32();
+            input.Position += blockOffset - 8;
+            var blocks = new List<(long Offset, uint Size)>();
+
+            for (var i = 0; i < blockCount; i++)
+            {
+                var type = (BlockType)reader.ReadUInt32();
+                var offset = input.Position;
+                offset += reader.ReadUInt32();
+                var size = reader.ReadUInt32();
+
+                if (type is not (BlockType.VBIB or BlockType.MBUF or BlockType.MVTX or BlockType.MIDX or BlockType.MADJ or BlockType.MSLT or BlockType.TBUF or BlockType.VXVS))
+                {
+                    blocks.Add((offset, size));
+                }
+            }
+
+            foreach (var (offset, size) in blocks)
+            {
+                if (offset + size > input.Length)
+                {
+                    throw new InvalidDataException("A block is outside of the resource.");
+                }
+
+                var buffer = ArrayPool<byte>.Shared.Rent((int)size);
+
+                try
+                {
+                    input.Position = offset;
+                    input.ReadExactly(buffer, 0, (int)size);
+
+                    if (BinaryKV3.AnyDecompressedBuffer(new ArraySegment<byte>(buffer, 0, (int)size), predicate))
+                    {
+                        return true;
+                    }
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(buffer);
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
