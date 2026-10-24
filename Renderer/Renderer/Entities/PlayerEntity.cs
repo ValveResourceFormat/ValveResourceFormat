@@ -21,60 +21,33 @@ public sealed class PlayerEntity : BaseEntity
     private const float PickupReach = 300f;
     private const float HoldDistance = 40f;
 
-    // The shadow controller: the held body is asked for the velocity that lands it exactly on
-    // this frame's hold pose - the world steps right after the ask, so this is neither lag nor
-    // lead - clamped to the speed caps, which also set how hard a view flick throws. While
-    // something is touching the body, its spin may only change by the angular acceleration cap
-    // per second, so the contact can turn it, which is how a prop pushed into a wall turns to fit.
-    private const float MaxCarrySpeed = 1000f;
-    private const float MaxCarryAngularSpeed = 25f;
+    // The shadow controller: the held body hangs off a kinematic hand, moved onto the hold pose
+    // every frame, by the damped springs of a motor joint. Their force and torque are capped, so
+    // the body follows the view closely in the open while anything solid in the way holds its
+    // ground: a wall stops it with a steady push rather than being rammed, and a contact off the
+    // mass center turns it, which is how a plank pushed into a wall turns to fit. The caps are
+    // accelerations, so a heavy prop is held as firmly as a light one.
+    private const float CarryHertz = 12f;
+    private const float CarryDampingRatio = 1f;
+    private const float MaxCarryAcceleration = 20000f;
     private const float MaxCarryAngularAcceleration = 150f;
 
-    // Contacts are detected by how far the body fell short of where last frame's step should have
-    // put it: gravity is off while carried, so a free body lands where its velocity takes it, and
-    // whatever is left over a contact took. Position, not velocity, because the solver pushes a
-    // penetrating body out by moving it, leaving its velocity untouched. The tolerance covers
-    // damping, a fixed part plus a share of the step. The softness lingers briefly so a scraping
-    // carry does not flicker between the regimes.
-    private const float ContactDistanceTolerance = 0.1f;
-    private const float ContactAngleTolerance = 0.01f;
-    private const float ContactStepTolerance = 0.05f;
-    private const float CarrySoftDuration = 0.2f;
+    // A view flick throws the held body no faster than this
+    private const float MaxCarrySpeed = 1000f;
 
-    // A body lagging behind the view goes round the eyes once the straight way to its target
-    // would bring it closer to them than this share of its distance, a turn of about 50 degrees
-    private const float MinCarryEyeClearance = 0.9f;
-
-    // Once touching something or held still, the hold may press the prop into what the view meets,
-    // as deep as its thinnest side allows, so a prop pushed into a wall turns to lie flat against it.
-    // Past where the prop would just touch, the hold leads the prop by no more than this speed. A
-    // prop swept along by a moving view is held where it would just touch, so it is not driven into
-    // the floor at the sweep's speed.
-    private const float MaxCarryPressSpeed = 20f;
-    private const float MaxCarryPressHoldSpeed = 50f;
+    // A fresh pickup's hand starts at the body and travels to the hold pose no faster than this,
+    // braking to arrive, so a prop pulled in from afar comes steadily rather than flung at the
+    // full spring
+    private const float PickupTravelSpeed = 500f;
+    private const float PickupTravelBraking = 4000f;
 
     // A held prop takes part of its impact damage, so pressing it into the world as it turns to fit
     // does not shatter everything fragile
     private const float CarriedImpactDamageScale = 0.4f;
 
-    // A fresh pickup travels to the hold pose at these caps, braking to arrive rather than
-    // snapping there, and the rigid chase only takes over once it has arrived
-    private const float PickupTravelSpeed = 500f;
-    private const float PickupTravelAcceleration = 4000f;
-    private const float PickupTurnSpeed = 8f;
-    private const float PickupTurnAcceleration = 60f;
-    private const float PickupArriveDistance = 1f;
-    private const float PickupArriveAngle = 0.05f;
-
-    // How long the prop may strain far from the hold pose before the player loses hold of it.
-    // A pickup still travelling there only strains while something blocks it.
+    // How long the prop may strain far from the hold pose before the player loses hold of it
     private const float CarryBreakDistance = 64f;
     private const float CarryBreakTime = 0.5f;
-
-    // While contacts are acting, the grip relaxes toward the orientation the world forces on the
-    // prop with this time constant, so a plank dragged along a doorframe rotates to fit and
-    // stays that way. Free carry never relaxes, which keeps view turns exact.
-    private const float GripRelaxTime = 0.25f;
 
     /// <summary>Gets the controller whose state this entity reflects.</summary>
     public IPlayerController Controller { get; }
@@ -109,27 +82,13 @@ public sealed class PlayerEntity : BaseEntity
     // tick or two, a wedged prop keeps it climbing until the carry gives up
     private float carryStrainTime;
 
-    // Where last frame's step should leave the body, and how much longer the chase stays soft, for
-    // the contact detection above
-    private Vector3 carryExpectedPosition;
-    private Quaternion? carryExpectedRotation;
-    private float carryExpectedStep;
-    private float carryExpectedTurn;
-    private bool hasCarryExpectation;
-    private float carrySoftTime;
+    // The kinematic hand the carried body hangs off, and the joint it hangs by
+    private Body carryHand;
+    private MotorJoint carryJoint;
+    private bool hasCarryJoint;
 
-    // Where last frame's hold pose was, which says how fast the hold pose itself moves
-    private Vector3 previousHoldPosition;
-
-    // Where last frame's hold pose was before the press limit, which says whether the view is moving
-    private Vector3 previousRawHoldPosition;
-
-    // Last frame's hold orientation, which says how fast the hold pose itself turns
-    private Quaternion previousHoldRotation;
-    private bool hasPreviousHoldRotation;
-
-    // Whether the pickup has reached the hold pose, after which the chase is rigid
-    private bool carryArrived;
+    // Whether the hand has reached the hold pose since the pickup
+    private bool carryHandArrived;
 
     /// <summary>Creates the player entity for a movement controller.</summary>
     public PlayerEntity(EntitySystem system, Scene scene, IPlayerController controller) : base(system, scene, "player")
@@ -323,21 +282,15 @@ public sealed class PlayerEntity : BaseEntity
     }
 
     /// <summary>
-    /// The +USE carry, the way Half-Life 2's shadow controller holds what the player picks up: a
-    /// target velocity that would land the body on the hold pose. A fresh pickup travels there
-    /// within capped speeds first. Once there the velocity is handed to the body outright, so the
-    /// prop rides the view rigidly, and a body lagging behind a fast turn is back on the view as
-    /// soon as the speed cap allows. The hold pose itself never asks the body deeper into the
-    /// world than it can press at a gentle speed, which is what keeps a prop held into a wall
-    /// still. The body keeps its steered velocity on release, so dropping mid-stride carries the
-    /// player's motion and a view flick is a throw.
+    /// The +USE carry, the way Half-Life 2's shadow controller holds what the player picks up: the
+    /// hand moves onto the hold pose, and the joint pulls the body after it. The body keeps its
+    /// velocity on release, so dropping mid-stride carries the player's motion and a view flick is
+    /// a throw.
     /// </summary>
-
     private void UpdateCarry(float deltaTime)
     {
-        // A zero-length frame has no step to steer for, and dividing by it would hand the
-        // solver a NaN it can never recover from
-        if (deltaTime <= 1e-6f || Carried is not { } carried)
+        // A zero-length frame has no step to move the hand over
+        if (deltaTime <= 1e-6f || Carried is not { } carried || !hasCarryJoint)
         {
             return;
         }
@@ -345,27 +298,36 @@ public sealed class PlayerEntity : BaseEntity
         if (carried.IsRemoved)
         {
             // Gone from the world mid-carry; nothing left to restore state on
+            ReleaseCarryJoint();
             Carried = null;
             return;
         }
 
         var body = carried.CarryBody;
-        var (holdPosition, holdRotation) = carried.ComputeHoldPose();
-        var holdStill = hasCarryExpectation
-            && Vector3.Distance(holdPosition, previousRawHoldPosition) < MaxCarryPressHoldSpeed * deltaTime;
-        previousRawHoldPosition = holdPosition;
-        holdPosition = LimitCarryPress(body, holdPosition, deltaTime, pressing: carrySoftTime > 0f || holdStill);
+        var (handPosition, handRotation) = ComputeHandPose(carried, body, deltaTime);
 
-        var blocked = IsCarryBlocked(body);
+        if (!carryHandArrived)
+        {
+            var travel = handPosition - carryHand.Position;
+            var distance = travel.Length();
+            var maxTravel = MathF.Min(PickupTravelSpeed, MathF.Sqrt(2f * PickupTravelBraking * distance)) * deltaTime;
 
-        carryArrived = carryArrived
-            || (Vector3.Distance(body.Position, holdPosition) < PickupArriveDistance
-                && (holdRotation is not { } arriveRotation || RotationError(body.Rotation, arriveRotation).Length() < PickupArriveAngle));
+            if (distance > maxTravel)
+            {
+                handPosition = carryHand.Position + (Vector3.Normalize(travel) * maxTravel);
+            }
+            else
+            {
+                carryHandArrived = true;
+            }
+        }
+
+        carryHand.MoveTowards(handPosition, handRotation, deltaTime, wake: true);
 
         // A prop that stays far from its hold pose is wedged somewhere it cannot leave; the
         // engine drops what it cannot keep hold of, but only after a strain the flick of a
         // throw never sustains
-        if (Vector3.Distance(body.Position, holdPosition) > CarryBreakDistance && (carryArrived || blocked))
+        if (Vector3.Distance(body.CenterOfMass, handPosition) > CarryBreakDistance)
         {
             carryStrainTime += deltaTime;
 
@@ -380,160 +342,74 @@ public sealed class PlayerEntity : BaseEntity
             carryStrainTime = 0f;
         }
 
-        // A carry without orientation - a grabbed ragdoll part - has no turn to soften: the rest of
-        // the ragdoll hangs off the held part through its joints, which reads as a permanent contact
-        var soft = false;
+        var velocity = body.LinearVelocity;
+        var speed = velocity.Length();
 
-        if (holdRotation is not null)
+        if (speed > MaxCarrySpeed)
         {
-            carrySoftTime = blocked ? CarrySoftDuration : MathF.Max(carrySoftTime - deltaTime, 0f);
-            soft = carrySoftTime > 0f;
-
-            // The world re-shaping the grip: while contacts are acting, the grip continuously
-            // relaxes toward the orientation the world is forcing, rather than springing back
-            // forever. Continuous rather than threshold-triggered on purpose: a threshold re-latch
-            // fired repeatedly during a turn and stepped the prop's rotation in visible quanta.
-            if (soft)
-            {
-                carried.AdoptCarryRotation(1f - MathF.Exp(-deltaTime / GripRelaxTime));
-                (_, holdRotation) = carried.ComputeHoldPose();
-            }
-        }
-
-        // Rigid once arrived, with a softer turn against contacts; travelling there within the caps
-        var (maxSpeed, maxAngularSpeed) = carryArrived
-            ? (MaxCarrySpeed, MaxCarryAngularSpeed)
-            : (PickupTravelSpeed, PickupTurnSpeed);
-        var (maxAcceleration, maxAngularAcceleration) = !carryArrived ? (PickupTravelAcceleration, PickupTurnAcceleration)
-            : soft ? (float.PositiveInfinity, MaxCarryAngularAcceleration)
-            : (float.PositiveInfinity, float.PositiveInfinity);
-
-        var error = holdPosition - body.Position;
-        var holdVelocity = carryArrived && hasCarryExpectation ? (holdPosition - previousHoldPosition) / deltaTime : Vector3.Zero;
-        previousHoldPosition = holdPosition;
-
-        var velocity = SteerVelocity(body.LinearVelocity, error, holdVelocity, deltaTime, maxSpeed, maxAcceleration);
-
-        velocity = SteerAroundEyes(body, error, velocity, deltaTime);
-        body.LinearVelocity = velocity;
-
-        carryExpectedPosition = body.Position + velocity * deltaTime;
-        carryExpectedStep = velocity.Length() * deltaTime;
-        carryExpectedRotation = null;
-        hasCarryExpectation = true;
-
-        if (holdRotation is { } rotation)
-        {
-            var holdAngularVelocity = carryArrived && hasPreviousHoldRotation
-                ? RotationError(previousHoldRotation, rotation) / deltaTime
-                : Vector3.Zero;
-            previousHoldRotation = rotation;
-            hasPreviousHoldRotation = true;
-
-            var angularVelocity = SteerVelocity(body.AngularVelocity, RotationError(body.Rotation, rotation),
-                holdAngularVelocity, deltaTime, maxAngularSpeed, maxAngularAcceleration);
-            body.AngularVelocity = angularVelocity;
-
-            carryExpectedRotation = Turn(body.Rotation, angularVelocity * deltaTime);
-            carryExpectedTurn = angularVelocity.Length() * deltaTime;
+            body.LinearVelocity = velocity * (MaxCarrySpeed / speed);
         }
     }
 
-    // Holds the pose back along the view to where the body, turned as it is, would just touch what
-    // the view meets, or while pressing, to a step of the press speed past where the body is,
-    // whichever is deeper
-    private Vector3 LimitCarryPress(Body body, Vector3 holdPosition, float deltaTime, bool pressing)
+    // Where the hand goes: the held body's mass center at the hold pose, turned as the hold pose
+    // is, or as the body is when only its position is held
+    private static (Vector3 Position, Quaternion Rotation) ComputeHandPose(ICarryable carried, Body body, float deltaTime)
     {
-        var (eyePosition, forward, _) = GetHoldView();
-        var massCenterOffset = Vector3.Transform(body.LocalCenterOfMass, body.Rotation);
-        var reach = Vector3.Dot(holdPosition + massCenterOffset - eyePosition, forward);
-        var touchReach = EntitySystem.Physics.TouchReach(eyePosition, forward, reach, body);
+        var (holdPosition, holdRotation) = carried.ComputeHoldPose(deltaTime);
+        var rotation = holdRotation ?? body.Rotation;
 
-        if (reach <= touchReach)
-        {
-            return holdPosition;
-        }
-
-        var bodyReach = Vector3.Dot(body.Position + massCenterOffset - eyePosition, forward);
-        var allowedReach = pressing
-            ? MathF.Max(touchReach, MathF.Min(reach, bodyReach + (MaxCarryPressSpeed * deltaTime)))
-            : touchReach;
-
-        return holdPosition - (forward * (reach - allowedReach));
+        return (holdPosition + Vector3.Transform(body.LocalCenterOfMass, rotation), rotation);
     }
 
-    // Whether a contact took part of last frame's step: the body fell short of where its own
-    // velocity should have carried it, or was pushed somewhere else
-    private bool IsCarryBlocked(Body body)
+    private void CreateCarryJoint(PhysicsSimulation physics, ICarryable carried, Body body)
     {
-        if (!hasCarryExpectation)
+        var (_, handRotation) = ComputeHandPose(carried, body, deltaTime: 0f);
+        var holdsRotation = carried.ComputeHoldPose(deltaTime: 0f).Rotation is not null;
+        carryHand = physics.World.CreateKinematicBody(body.CenterOfMass, handRotation);
+        carryHandArrived = false;
+
+        // The turning caps as a torque need the body's rotational inertia, which the solver keeps
+        // to itself; its mass at the reach of its shapes stands in
+        Span<Shape> shapes = stackalloc Shape[body.ShapeCount];
+        var count = body.GetShapes(shapes);
+        var radius = 0f;
+
+        for (var i = 0; i < count; i++)
         {
-            return false;
+            var bounds = shapes[i].Bounds;
+            radius = MathF.Max(radius, Vector3.Distance(body.CenterOfMass, bounds.Center) + bounds.Extents.Length());
         }
 
-        var missed = Vector3.Distance(body.Position, carryExpectedPosition);
-
-        if (missed > ContactDistanceTolerance + (ContactStepTolerance * carryExpectedStep))
+        carryJoint = physics.World.CreateMotorJoint(MotorJointDefinition.Default with
         {
-            return true;
-        }
-
-        // Only when the carry steers the turn too; a held ragdoll part swings on its joints
-        return carryExpectedRotation is { } expected
-            && RotationError(expected, body.Rotation).Length() > ContactAngleTolerance + (ContactStepTolerance * carryExpectedTurn);
+            Base = JointDefinition.Connect(carryHand, body, JointFrame.Identity, new JointFrame(body.LocalCenterOfMass)),
+            LinearHertz = CarryHertz,
+            LinearDampingRatio = CarryDampingRatio,
+            MaxSpringForce = body.Mass * MaxCarryAcceleration,
+            AngularHertz = holdsRotation ? CarryHertz : 0f,
+            AngularDampingRatio = CarryDampingRatio,
+            MaxSpringTorque = holdsRotation ? body.Mass * radius * radius * MaxCarryAngularAcceleration : 0f,
+            MaxVelocityForce = 0f,
+            MaxVelocityTorque = 0f,
+        });
+        hasCarryJoint = true;
     }
 
-    // A body short of its target heads straight for it, and when the view swings round faster than
-    // the body can follow, that line cuts through the player, whom a carried body does not collide
-    // with. A body that cannot reach its target this frame, on a line that would bring it closer
-    // to the eyes than either end, covers the same distance round the eyes instead, on the arc
-    // from its own distance from them to the target's.
-    private Vector3 SteerAroundEyes(Body body, Vector3 error, Vector3 velocity, float deltaTime)
+    private void ReleaseCarryJoint()
     {
-        var step = velocity.Length() * deltaTime;
-        var errorLengthSquared = error.LengthSquared();
-
-        if (step * step >= errorLengthSquared)
+        if (!hasCarryJoint)
         {
-            return velocity;
+            return;
         }
 
-        var eyePosition = GetHoldView().EyePosition;
-        var from = body.CenterOfMass - eyePosition;
-        var to = from + error;
-        var fromDistance = from.Length();
-        var toDistance = to.Length();
-        var closest = from + (error * Math.Clamp(-Vector3.Dot(from, error) / errorLengthSquared, 0f, 1f));
-
-        if (closest.Length() >= MinCarryEyeClearance * MathF.Min(fromDistance, toDistance) || fromDistance < 1f || toDistance < 1f)
+        // Gone already when the carried body was destroyed, by breaking
+        if (carryJoint.AsJoint.IsValid)
         {
-            return velocity;
+            carryJoint.AsJoint.Destroy();
         }
 
-        var fromDirection = from / fromDistance;
-        var angle = MathF.Acos(Math.Clamp(Vector3.Dot(fromDirection, to / toDistance), -1f, 1f));
-        var axis = Vector3.Cross(fromDirection, to);
-
-        if (axis.LengthSquared() < 1e-6f)
-        {
-            // Straight behind: either way round will do, so the view's own way, a turn about up
-            axis = MathF.Abs(fromDirection.Z) < 0.99f ? Vector3.UnitZ : Vector3.UnitX;
-        }
-
-        var fraction = MathF.Min(step / ((angle * fromDistance) + MathF.Abs(toDistance - fromDistance)), 1f);
-        var direction = Vector3.Transform(fromDirection, Quaternion.CreateFromAxisAngle(Vector3.Normalize(axis), angle * fraction));
-
-        return ((direction * float.Lerp(fromDistance, toDistance, fraction)) - from) / deltaTime;
-    }
-
-    // Turns an orientation by a world-space rotation vector, axis times angle
-    private static Quaternion Turn(Quaternion rotation, Vector3 turn)
-    {
-        var angle = turn.Length();
-
-        return angle < 1e-8f
-            ? rotation
-            : Quaternion.Normalize(Quaternion.CreateFromAxisAngle(turn / angle, angle) * rotation);
+        carryHand.Destroy();
+        hasCarryJoint = false;
     }
 
     /// <summary>
@@ -549,72 +425,6 @@ public sealed class PlayerEntity : BaseEntity
         }
 
         return (Controller.EyePosition, Controller.ViewForward, Controller.ViewAngles);
-    }
-
-    // One axis of the shadow controller: the velocity that lands the body on the pose within the
-    // step about to run - no feed-forward on top, which extrapolated a frame ahead and made the
-    // held prop lead the view by one frame's motion - speed-capped, approached from the current
-    // velocity by at most maxAcceleration over the step. With a finite acceleration the speed at
-    // which the body closes on the pose is also held to what can still brake to a stop there, so
-    // it arrives instead of overshooting. Closing on it, not moving: braking as if the pose stood
-    // still left a body chasing a fast-turning view ever further behind.
-    private static Vector3 SteerVelocity(Vector3 current, Vector3 error, Vector3 poseVelocity,
-        float deltaTime, float maxSpeed, float maxAcceleration)
-    {
-        var target = error / deltaTime;
-
-        if (float.IsFinite(maxAcceleration))
-        {
-            var closing = target - poseVelocity;
-            var closingSpeed = closing.Length();
-            var closingCap = MathF.Sqrt(2f * maxAcceleration * error.Length());
-
-            if (closingSpeed > closingCap)
-            {
-                target = poseVelocity + (closing * (closingCap / closingSpeed));
-            }
-        }
-
-        var targetSpeed = target.Length();
-
-        if (targetSpeed > maxSpeed)
-        {
-            target *= maxSpeed / targetSpeed;
-        }
-
-        var step = target - current;
-        var stepLength = step.Length();
-        var stepCap = maxAcceleration * deltaTime;
-
-        if (stepLength > stepCap)
-        {
-            step *= stepCap / stepLength;
-        }
-
-        return current + step;
-    }
-
-    // The shortest-arc rotation between two orientations as a world-space rotation vector (axis
-    // times angle), the angular twin of a position error
-    private static Vector3 RotationError(Quaternion from, Quaternion to)
-    {
-        var delta = to * Quaternion.Inverse(from);
-
-        if (delta.W < 0f)
-        {
-            // Both q and -q are the same rotation; the negative one is the long way round
-            delta = Quaternion.Negate(delta);
-        }
-
-        var axis = new Vector3(delta.X, delta.Y, delta.Z);
-        var axisLength = axis.Length();
-
-        if (axisLength < 1e-8f)
-        {
-            return Vector3.Zero;
-        }
-
-        return axis * (2f * MathF.Atan2(axisLength, delta.W) / axisLength);
     }
 
     private void TryPickup()
@@ -653,11 +463,8 @@ public sealed class PlayerEntity : BaseEntity
         // under the crosshair rather than the whole body.
         Carried = carryable;
         carryStrainTime = 0f;
-        carrySoftTime = 0f;
-        hasCarryExpectation = false;
-        hasPreviousHoldRotation = false;
-        carryArrived = false;
         carryable.BeginCarry(this, HoldDistance + Vector3.Distance(hit.Point, grabbedBody.CenterOfMass), grabbedBody);
+        CreateCarryJoint(physics, carryable, carryable.CarryBody);
 
         if (carryable is PropPhysics prop)
         {
@@ -667,11 +474,13 @@ public sealed class PlayerEntity : BaseEntity
 
     private void Drop()
     {
+        ReleaseCarryJoint();
+
         if (Carried is { IsRemoved: false } carried)
         {
-            // Lets go rather than throws: the body keeps the chase velocity it was carried with -
-            // the player's own motion plus whatever a view flick added - which the carry's speed
-            // cap already bounds
+            // Lets go rather than throws: the body keeps the velocity it was carried with - the
+            // player's own motion plus whatever a view flick added - which the carry's speed cap
+            // already bounds
             carried.EndCarry();
 
             if (carried is PropPhysics prop)

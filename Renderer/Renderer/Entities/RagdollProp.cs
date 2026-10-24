@@ -393,7 +393,7 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
 
     // The grabbed part is held by position alone; its orientation and the rest of the ragdoll
     // swing free on the joints, which is what makes a carried ragdoll dangle
-    (Vector3 Position, Quaternion? Rotation) ICarryable.ComputeHoldPose()
+    (Vector3 Position, Quaternion? Rotation) ICarryable.ComputeHoldPose(float deltaTime)
     {
         var body = bodies[carriedPart];
         var (eyePosition, forward, _) = carrier!.GetHoldView();
