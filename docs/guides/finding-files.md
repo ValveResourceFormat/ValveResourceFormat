@@ -70,16 +70,24 @@ A package opens in its own tab, with a folder tree on the left and the files of 
 
 ## Searching a Package
 
-Press <kbd>Ctrl</kbd>+<kbd>F</kbd> in a package tab to search the whole package:
+Press <kbd>Ctrl</kbd>+<kbd>F</kbd> in a package tab to search it, or right-click a folder and choose **Search in folder**. The list below the text box picks what the text is matched against:
 
-- **File Name (Partial Match)** finds files whose name contains the text.
-- **File Name (Exact Match)** finds files with exactly that name.
-- **File Full Path** finds files whose path contains the text.
-- **Regex** matches a regular expression against file names, such as `^weapon_.*\.vmdl_c$`.
-- **File Contents (Case Sensitive)** finds files that contain the text. It reads every file, so it is slower.
-- **File Contents Hex Bytes** finds files that contain the bytes.
+- **File name** finds files whose name contains the text. Text with a `/` or `\` matches the path instead.
+- **Full path** finds files whose path contains the text.
+- **File contents** finds files that contain the text. In compiled files it also searches their decompressed data, such as particle operators and material parameters, but not geometry. It reads every file, so it is slower.
+- **File contents hex bytes** finds files that contain the bytes, such as `56 42 4B 56`.
 
-The results do not show the folder of a file. Right-click a result to select it in the tree.
+**Match case**, **Whole word** and **Regex** change how the text matches. With **Regex**, `^weapon_.*\.vmdl_c$` matches whole names.
+
+Three filters narrow the search: **Only in** to the selected folder, **Extension** to one file type, and **Asset info filter** to files with a searchable user data key from the tools asset info, and optionally its value. With no text, every file the filters allow is listed.
+
+This search finds the particle systems that draw sprites:
+
+![The Find window with C_OP_RenderSprites typed in, File contents selected, Only in particles ticked and Extension set to vpcf_c](./images/finding-files-search-dialog.webp)
+
+The results show the folder of each file, and the line above them what was searched and how many files were found. Cancelling a contents search lists what it found so far. Right-click a result to select it in the tree.
+
+![Search results in List view with a Folder column, under the line File contents "C_OP_RenderSprites" in particles, vpcf_c: 1,577 found](./images/finding-files-search-results.webp)
 
 ## References
 
