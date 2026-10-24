@@ -31,6 +31,24 @@ namespace ValveResourceFormat.IO
         /// </summary>
         public bool ParticleShaderFeatureBranching { get; internal set; }
 
+        /// <summary>
+        /// Gets whether the game bakes direct light into its maps, which its <c>gameinfo.gi</c> gives as
+        /// <c>WorldRenderer/DirectLightBaking</c>. Where it does not say, it does.
+        /// </summary>
+        public bool DirectLightBaking { get; internal set; } = true;
+
+        /// <summary>
+        /// Gets whether the light probe volumes of the game fade out over their edges, which its <c>gameinfo.gi</c>
+        /// gives as <c>WorldRenderer/LPVEdgeBlending</c>. Where it does not say, they do.
+        /// </summary>
+        public bool LpvEdgeBlending { get; internal set; } = true;
+
+        /// <summary>
+        /// Gets whether the editor of the game previews a model with its first animation where nothing names one,
+        /// which its <c>gameinfo.gi</c> gives as <c>Hammer/UseFirstAnimationAsDefault</c>.
+        /// </summary>
+        public bool UseFirstAnimationAsDefault { get; internal set; }
+
         /// <summary>Gets the path of the <c>gameinfo.gi</c> of the game, or <see langword="null"/> where no game was found.</summary>
         internal string? GameInfoPath { get; init; }
 

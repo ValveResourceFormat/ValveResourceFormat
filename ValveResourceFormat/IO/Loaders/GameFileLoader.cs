@@ -516,6 +516,17 @@ namespace ValveResourceFormat.IO
                     FoundGameSettings.ParticlesFoggedByDefault = particles.GetBooleanProperty("ParticlesFoggedByDefault");
                     FoundGameSettings.ParticleShaderFeatureBranching = particles.GetBooleanProperty("EnableParticleShaderFeatureBranching");
                 }
+
+                if (gameInfo.TryGetValue("WorldRenderer", out var worldRenderer))
+                {
+                    FoundGameSettings.DirectLightBaking = worldRenderer.GetBooleanProperty("DirectLightBaking", defaultValue: true);
+                    FoundGameSettings.LpvEdgeBlending = worldRenderer.GetBooleanProperty("LPVEdgeBlending", defaultValue: true);
+                }
+
+                if (gameInfo.TryGetValue("Hammer", out var hammer))
+                {
+                    FoundGameSettings.UseFirstAnimationAsDefault = hammer.GetBooleanProperty("UseFirstAnimationAsDefault");
+                }
             }
 
             if (!gameInfo.TryGetValue("FileSystem", out var fileSystem))
