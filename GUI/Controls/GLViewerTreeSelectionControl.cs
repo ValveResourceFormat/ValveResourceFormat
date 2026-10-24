@@ -11,15 +11,9 @@ namespace GUI.Controls
     /// <c>Clip/Player Clip</c> is nested under the item of each group before it, which folds it away. Checking or
     /// unchecking an item does the same to every item below it.
     /// </summary>
-    /// <remarks>
-    /// The check box of an item is its image rather than a native tree check box, which the dark theme draws larger
-    /// than the check boxes of the panel's lists, and which a tree loses track of in ways it does not report.
-    /// </remarks>
     class GLViewerTreeSelectionControl : UserControl
     {
         private const char PathSeparator = '/';
-        private const int UncheckedImage = 0;
-        private const int CheckedImage = 1;
 
         private readonly CompactTreeView treeView;
 
@@ -31,6 +25,7 @@ namespace GUI.Controls
             treeView = new CompactTreeView
             {
                 AccessibleName = name,
+                CheckBoxes = true,
                 Dock = DockStyle.Fill,
                 Margin = new Padding(0),
                 ShowLines = false,
@@ -58,7 +53,15 @@ namespace GUI.Controls
 
             treeView.EndUpdate();
 
-            treeView.ItemClicked += node => SetChecked(node, !IsChecked(node));
+            treeView.LabelClicked += node => SetChecked(node, !node.Checked);
+            treeView.AfterCheck += (_, e) =>
+            {
+                // Only a check by the user, rather than the ones made here, carries over to the items below
+                if (e is { Action: not TreeViewAction.Unknown, Node: { } node })
+                {
+                    SetChecked(node, node.Checked);
+                }
+            };
 
             var groupBox = new ThemedGroupBox
             {
@@ -135,27 +138,22 @@ namespace GUI.Controls
 
                 var groupPath = path[..end];
                 var node = nodes[groupPath] ?? nodes.Add(groupPath, groupPath[(groupPath.LastIndexOf(PathSeparator) + 1)..]);
-                SetImage(node, isChecked);
+                node.Checked = isChecked;
                 nodes = node.Nodes;
             }
         }
 
         private void SetChecked(TreeNode node, bool isChecked)
         {
-            SetImage(node, isChecked);
+            node.Checked = isChecked;
 
             foreach (var child in AllBelow(node.Nodes))
             {
-                SetImage(child, isChecked);
+                child.Checked = isChecked;
             }
 
-            CheckedPathsChanged?.Invoke([.. AllBelow(treeView.Nodes).Where(IsChecked).Select(static node => node.Name)]);
+            CheckedPathsChanged?.Invoke([.. AllBelow(treeView.Nodes).Where(static node => node.Checked).Select(static node => node.Name)]);
         }
-
-        private static bool IsChecked(TreeNode node) => node.ImageIndex == CheckedImage;
-
-        private static void SetImage(TreeNode node, bool isChecked)
-            => node.ImageIndex = node.SelectedImageIndex = isChecked ? CheckedImage : UncheckedImage;
 
         private static IEnumerable<TreeNode> AllBelow(TreeNodeCollection nodes)
             => nodes.Cast<TreeNode>().SelectMany(static node => AllBelow(node.Nodes).Prepend(node));
@@ -166,19 +164,27 @@ namespace GUI.Controls
         {
             private const int WM_LBUTTONDOWN = 0x0201;
             private const int WM_LBUTTONDBLCLK = 0x0203;
+            private const int LogicalStateImageSize = 16;
 
             private readonly ImageList checkBoxImages;
 
-            /// <summary>Raised when the check box or the label of an item is clicked.</summary>
-            public event Action<TreeNode>? ItemClicked;
+            /// <summary>Raised when the label of an item is clicked.</summary>
+            public event Action<TreeNode>? LabelClicked;
 
+            // The tree draws its own check boxes larger than the lists do, and unlike them in dark mode, so it gets
+            // theirs as the images of its check states
             public CompactTreeView()
             {
                 using var graphics = Graphics.FromHwnd(IntPtr.Zero);
-                var size = CheckBoxRenderer.GetGlyphSize(graphics, CheckBoxState.UncheckedNormal);
+                var checkBoxSize = CheckBoxRenderer.GetGlyphSize(graphics, CheckBoxState.UncheckedNormal);
 
-                using var uncheckedImage = DrawCheckBox(size, VisualStyleElement.Button.CheckBox.UncheckedNormal);
-                using var checkedImage = DrawCheckBox(size, VisualStyleElement.Button.CheckBox.CheckedNormal);
+                // The tree copies the images into a list that is 16 pixels at the system DPI, which would stretch
+                // them, so a check box sits unscaled in the middle of an image of that size
+                var imageSize = (int)MathF.Round(LogicalStateImageSize * graphics.DpiX / 96f);
+                var size = new Size(imageSize, imageSize);
+
+                using var uncheckedImage = DrawCheckBox(size, checkBoxSize, VisualStyleElement.Button.CheckBox.UncheckedNormal);
+                using var checkedImage = DrawCheckBox(size, checkBoxSize, VisualStyleElement.Button.CheckBox.CheckedNormal);
 
                 checkBoxImages = new ImageList { ColorDepth = ColorDepth.Depth32Bit, ImageSize = size };
                 checkBoxImages.Images.Add(uncheckedImage);
@@ -186,7 +192,7 @@ namespace GUI.Controls
 
                 // The list copies the images once it has a handle, and they are disposed after this
                 _ = checkBoxImages.Handle;
-                ImageList = checkBoxImages;
+                StateImageList = checkBoxImages;
             }
 
             protected override void OnCreateControl()
@@ -207,13 +213,14 @@ namespace GUI.Controls
                 base.OnNodeMouseClick(e);
 
                 if (e is { Button: MouseButtons.Left, Node: { } node }
-                    && HitTest(e.Location).Location is TreeViewHitTestLocations.Image or TreeViewHitTestLocations.Label or TreeViewHitTestLocations.RightOfLabel)
+                    && HitTest(e.Location).Location is TreeViewHitTestLocations.Label or TreeViewHitTestLocations.RightOfLabel)
                 {
-                    ItemClicked?.Invoke(node);
+                    LabelClicked?.Invoke(node);
                 }
             }
 
-            // A quick second click is a click like the first, rather than a double click that folds the item
+            // A quick second click is a click like the first, rather than a double click that folds the item. On a
+            // check box, the tree would also check it again without the check being reported.
             protected override void WndProc(ref Message m)
             {
                 if (m.Msg == WM_LBUTTONDBLCLK)
@@ -235,7 +242,7 @@ namespace GUI.Controls
             }
 
             // In dark mode a check box is drawn by the button class of the dark theme, as the lists draw theirs
-            private static Bitmap DrawCheckBox(Size size, VisualStyleElement element)
+            private static Bitmap DrawCheckBox(Size size, Size checkBoxSize, VisualStyleElement element)
             {
                 var image = new Bitmap(size.Width, size.Height);
 
@@ -246,7 +253,8 @@ namespace GUI.Controls
                     element = VisualStyleElement.CreateElement("DarkMode_Explorer::Button", element.Part, element.State);
                 }
 
-                new VisualStyleRenderer(element).DrawBackground(graphics, new Rectangle(Point.Empty, size));
+                var position = new Point((size.Width - checkBoxSize.Width) / 2, (size.Height - checkBoxSize.Height) / 2);
+                new VisualStyleRenderer(element).DrawBackground(graphics, new Rectangle(position, checkBoxSize));
 
                 return image;
             }
