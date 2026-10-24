@@ -56,6 +56,13 @@ public interface IPlayerController
     void Push(Vector3 delta);
 
     /// <summary>
+    /// Sets the velocity pushing the player this tick, such as a <c>trigger_push</c>, which moves them on
+    /// top of their own. Zero once nothing pushes, which carries what was pushing on as their momentum.
+    /// </summary>
+    /// <param name="velocity">The push velocity, summed over everything pushing.</param>
+    void SetBaseVelocity(Vector3 velocity);
+
+    /// <summary>
     /// Takes the buttons seen since the last call, reported against the state the previous call left.
     /// Called once per tick by the player entity.
     /// </summary>

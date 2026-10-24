@@ -105,6 +105,13 @@ public sealed class PlayerEntity : BaseEntity
     private const float MaxShoveSpeed = 350f;
     private const float ShoveMargin = 2f;
 
+    // What pushes the player this tick, summed over every trigger_push touching them
+    private Vector3 baseVelocity;
+
+    /// <summary>Adds to what pushes the player on the next tick, such as a <c>trigger_push</c>.</summary>
+    /// <param name="velocity">The push velocity.</param>
+    public void AddBaseVelocity(Vector3 velocity) => baseVelocity += velocity;
+
     // Reused by the debris shove every tick
     private readonly List<Body> debrisBodies = [];
     private readonly HashSet<ulong> debrisBodyIds = [];
@@ -182,6 +189,10 @@ public sealed class PlayerEntity : BaseEntity
         // Resets key latches inside player movement, if a key is presseed,
         // unpressed and pressed again in within 3 frames the tick will see it as one press.
         Buttons = Controller.ConsumeButtons();
+
+        // The pushes touched last tick, or none, which hands the last push over as momentum
+        Controller.SetBaseVelocity(baseVelocity);
+        baseVelocity = Vector3.Zero;
 
         // The controller owns the position, nothing to integrate
         SyncFromController();
