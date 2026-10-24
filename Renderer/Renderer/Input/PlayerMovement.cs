@@ -4,9 +4,10 @@ using ValveResourceFormat.ResourceTypes;
 namespace ValveResourceFormat.Renderer.Input;
 
 /// <summary>
-/// Source engine-style FPS player movement controller.
+/// CS2-style FPS player movement controller. Simulates fixed 64 Hz ticks and draws the player between
+/// the last two.
 /// </summary>
-public partial class PlayerMovement : IPlayerController
+public class PlayerMovement : IPlayerController
 {
     // Half-extents around the hull center. Standing 32x32x72, ducked 32x32x54.
     private static readonly Vector3 StandingHullHalfExtents = new(16, 16, 36);
@@ -22,7 +23,16 @@ public partial class PlayerMovement : IPlayerController
     private const float WalkSpeedModifier = 0.52f;        // CS_PLAYER_SPEED_WALK_MODIFIER
     private const float DuckSpeedModifier = 0.34f;        // CS_PLAYER_SPEED_DUCK_MODIFIER
 
-    private float TickInterval => 1f / EmulatedTickRate;  // Reference tick; the low-speed accel kick reaches its floor within one
+    private const float TickInterval = EntitySystem.TickInterval;
+
+    private const float WalkTaperBand = 5f;               // Walk acceleration fades over this many u/s below the walk speed
+    private const float WalkSpeedAllowance = 25f;         // Walking only lowers the max speed of a player within this of it
+
+    // A hard landing lowers the max speed and the next jump, sv_bhop_time_window around it is a perfect hop
+    private const float LandingPenaltyPerSpeed = 0.0005f;
+    private const float LandingSpeedRecoveryRate = 1.1111894f; // Valve pulled this out of their ass, literally
+    private const float LandingJumpRecoveryRate = 0.6f;
+    private const double BhopWindowTicks = 0.25;
 
     private const float NonJumpVelocity = 140f;           // Moving up faster than this means airborne
     private const float AirMaxWishSpeed = 30f;            // Air-control wishspeed cap (AirAccelerate)
@@ -33,12 +43,12 @@ public partial class PlayerMovement : IPlayerController
     private const float BunnyjumpMaxSpeedFactor = 1.1f;   // Only allow bunny jumping up to 1.1x max speed
 
     private const float SurfaceEpsilon = Rubikon.SurfaceEpsilon; // Keep-away margin maintained by TraceBBox
-    private const float NegligibleMoveDistance = 1e-4f;   // Slide iteration stops once this little move remains
     private const float ContactNudge = SurfaceEpsilon / 4f; // Clearance kept short of a degenerate opposing surface in the margin-restore push
     private const float UntraceableDistanceSquared = Rubikon.Epsilon * Rubikon.Epsilon;
     private const float StepSize = 18f;                   // Maximum height of steps/obstacles player can climb
     private const float GroundProbeDistance = 2f;         // How far below the hull to look for ground contact
     private const float StepDownTolerance = 2f;           // A step may end at most this far below where it started
+    private const float SlowStepSpeed = 64f;              // Below this speed a step onto a steep edge gets a second look
 
     private const float DuckSpeedIdeal = 8f;              // CS_PLAYER_DUCK_SPEED_IDEAL, duck amount per second
     private const float DuckSpeedMin = 1.5f;              // Below this a new duck cannot start, and unducking never runs slower
@@ -52,15 +62,31 @@ public partial class PlayerMovement : IPlayerController
     /// <summary>Gets the current player velocity in world units per second.</summary>
     public Vector3 Velocity { get; private set; }
     private Vector3 TracePosition;
-    private Vector3 TracePositionSmooth;
+    private Vector3 Feet => TracePosition - new Vector3(0, 0, HullHalfExtents.Z);
 
-    // Cap on a single frame's simulation step (load stalls, breakpoints)
+    // Cap on a single frame's time, so a stall (load, breakpoint) is not owed back in ticks
     private const float MaxFrameDeltaTime = 0.1f;
 
+    // Time since the last tick, and where that tick started the feet, to draw between the two
+    private float Accumulator;
+    private Vector3 PreviousFeet;
+    private long TickCount;
+
+    // A press can come and go in a frame that completes no tick, so it is held for the next one
+    private bool JumpPressPending;
+
+    // Times in ticks: the last jump press, the press a landing may still use, and the touchdown
+    private double LastJumpPress;
+    private double UsableJumpPress;
+    private double LandedTime;
+    private Vector2 LandedVelocity;
+    private float LandedVelocityZ;
+
     /// <summary>
-    /// Gets the current player position at feet level (where the AABB touches the ground).
+    /// Gets the player position at feet level (where the AABB touches the ground), as drawn this frame
+    /// between the last two ticks.
     /// </summary>
-    public Vector3 Position => TracePositionSmooth - new Vector3(0, 0, HullHalfExtents.Z);
+    public Vector3 Position { get; private set; }
 
     /// <summary>
     /// Gets a value indicating whether the player is currently on the ground.
@@ -68,14 +94,14 @@ public partial class PlayerMovement : IPlayerController
     public bool OnGround { get; private set; }
 
     /// <summary>
-    /// Gets a value indicating whether the player was touching the ground in the previous frame.
+    /// Gets a value indicating whether the player was touching the ground in the previous tick.
     /// </summary>
     public bool WasOnGroundLastFrame { get; private set; }
 
-    /// <summary>Upward velocity the last jump left the ground with, after stamina.</summary>
+    /// <summary>Upward velocity the last jump left the ground with, after the landing penalty.</summary>
     public float JumpImpulse { get; private set; }
 
-    /// <summary>Whether a jump left the ground this frame. Leaving it any other way does not count.</summary>
+    /// <summary>Whether a jump left the ground in this frame's ticks. Leaving it any other way does not count.</summary>
     public bool Jumped { get; private set; }
 
     // Last known non-overlapping position, restored when stuck
@@ -83,15 +109,6 @@ public partial class PlayerMovement : IPlayerController
     private bool HasValidPosition;
 
     private float SlopeClipNormalZ = 1f;
-
-    // Analytically integrated displacement of the current ground segment (set by
-    // Friction/Accelerate/WalkMove); ground moves use it instead of Velocity * dt so
-    // distance traveled is framerate-independent while speed is changing
-    private Vector3 GroundMoveDelta;
-
-    // Yaw at the previous simulated frame, for the frame's view rotation (tickless air strafe)
-    private float PreviousYaw;
-    private bool HasPreviousYaw;
 
     private readonly ViewEffects Effects = new();
 
@@ -125,12 +142,6 @@ public partial class PlayerMovement : IPlayerController
 
     private float StepSoundTime;
     private readonly List<Audio.SoundHandle> ActiveMovementSounds = [];
-
-    /// <summary>
-    /// Gets the jump stamina, from 0 to 1. Landing drains it, it recovers over roughly a second,
-    /// and jump impulses scale by it, so spammed hops get progressively lower.
-    /// </summary>
-    public float Stamina => Effects.Stamina;
 
     /// <summary>
     /// Gets the view punch from landings and weapon fire, as (pitch, yaw) degrees. This is additive on top
@@ -233,16 +244,10 @@ public partial class PlayerMovement : IPlayerController
     // A ladder just walked off the top of is grabbed again, but only after a ground move, not after a jump
     private bool HasWalkMovedSinceLastJump;
 
-    // Highest a step taken in the air may lift the feet to: the last ground plus a step, so a jump is
-    // never blocked by what a ground move would have walked over, and nothing taller can be climbed
-    private float AirStepCeiling = float.NegativeInfinity;
-
     /// <summary>Gets or sets a value indicating whether the controller should reinitialize its position from the camera on the next tick.</summary>
     public bool Initialize { get; set; }
     /// <summary>Gets or sets a value indicating whether bunny-hopping is allowed by holding the jump key.</summary>
     public bool AutoBunnyHop { get; set; } = true;
-    /// <summary>Gets or sets a value indicating whether ground pre-strafe is allowed.</summary>
-    public bool PrestrafeEnabled { get; set; }
     /// <summary>Gets or sets a value indicating whether the view glides up and down stair steps instead of popping.</summary>
     public bool StepSmoothingEnabled { get; set; } = true;
     /// <summary>Gets or sets the base run speed in world units per second.</summary>
@@ -260,15 +265,6 @@ public partial class PlayerMovement : IPlayerController
     /// Gets or sets view_punch_decay, the exponential rate the landing punch recovers at.
     /// </summary>
     public float ViewPunchDecay { get; set; } = 18f;
-
-    /// <summary>
-    /// Gets or sets the tick rate whose per-tick acceleration step the tickless integrators
-    /// reproduce. A discrete engine tops the wishdir velocity component up by at most the whole
-    /// remaining addspeed once per tick, which is a bound on speed gained per unit time; the
-    /// continuous forms reimpose that bound so they converge to the same trajectory instead of
-    /// out-accelerating the reference engine as the frame time shrinks.
-    /// </summary>
-    public float EmulatedTickRate { get; set; } = 64f;
 
     /// <summary>
     /// Initializes a new <see cref="PlayerMovement"/> bound to the given user input source.
@@ -291,9 +287,14 @@ public partial class PlayerMovement : IPlayerController
         pushViewLag = Vector3.Zero;
         pushViewLagTimeLeft = 0f;
         SlopeClipNormalZ = 1f;
-        HasPreviousYaw = false;
-        AirStepCeiling = float.NegativeInfinity;
         Effects.Reset();
+
+        Accumulator = 0f;
+        JumpPressPending = false;
+        LastJumpPress = double.NegativeInfinity;
+        UsableJumpPress = double.NegativeInfinity;
+        LandedTime = double.NegativeInfinity;
+        LandedVelocityZ = 0f;
 
         CrouchBlend = 0f;
         Ducked = false;
@@ -314,32 +315,27 @@ public partial class PlayerMovement : IPlayerController
     /// <param name="angles">View angles to adopt, or null to keep the current one.</param>
     public void Teleport(Vector3 feetPosition, Vector3? angles)
     {
-        var position = feetPosition + new Vector3(0, 0, HullHalfExtents.Z);
-
         // Carry the already-placed camera along so the view does not trail by a frame
-        var moved = position - TracePositionSmooth;
+        var moved = feetPosition - Feet;
+        Position += moved;
+        PreviousFeet += moved;
         EyePosition += moved;
         Input.Camera.Location += moved;
 
-        TracePosition = position;
-        TracePositionSmooth = position;
+        TracePosition = feetPosition + new Vector3(0, 0, HullHalfExtents.Z);
         HasValidPosition = false; // Do not restore positions from before the teleport
         pushViewLag = Vector3.Zero;
         pushViewLagTimeLeft = 0f;
-        AirStepCeiling = float.NegativeInfinity;
         Effects.ClearStepOffset();
 
         if (angles is { } viewAngles)
         {
             Input.Camera.SetFromQAngle(viewAngles);
-
-            // A snapped yaw is not a turn; restart the strafe yaw tracking
-            HasPreviousYaw = false;
         }
     }
 
     /// <summary>
-    /// Folds this frame's buttons into what the next entity tick will collect. Runs once per simulated
+    /// Folds this frame's buttons into what the next entity tick will collect. Runs once per rendered
     /// frame, since the tick that collects them is slower than the frames that see them.
     /// </summary>
     private void SampleButtons()
@@ -373,7 +369,7 @@ public partial class PlayerMovement : IPlayerController
     }
 
     /// <summary>
-    /// Runs the movement simulation once per rendered frame.
+    /// Runs the ticks this frame completes, then places the camera between the last two.
     /// </summary>
     public void ProcessMovement(Camera camera, float deltaTime)
     {
@@ -389,161 +385,34 @@ public partial class PlayerMovement : IPlayerController
             PendingButtons = Input.Keys;
             HeldButtons = Input.Keys;
             LastCollectedButtons = Input.Keys;
+
+            // The player is drawn a tick behind the simulation, so without a tick in hand the view would
+            // hold still at the camera for a tick before carrying on with the speed the camera had
+            Tick(camera);
         }
 
         SampleButtons();
 
-        var position = TracePosition;
-        var yaw = camera.Yaw;
-
-        // Signed view rotation over this frame, wrapped to (-pi, pi]
-        var yawDelta = HasPreviousYaw ? MathF.IEEERemainder(yaw - PreviousYaw, MathF.Tau) : 0f;
-        PreviousYaw = yaw;
-        HasPreviousYaw = true;
-
-        deltaTime = MathF.Min(deltaTime, MaxFrameDeltaTime);
-
-        Effects.DecayViewPunch(deltaTime, ViewPunchDecay);
-
-        Duck(deltaTime, ref position);
-
-        var isWalking = HoldingShift && !HoldingCtrl && !Ducking && !DuckingFlag;
-
-        var playerHull = HullHalfExtents;
-
-        WasOnGroundLastFrame = OnGround;
+        JumpPressPending |= Input.Pressed(TrackedKeys.Space) || Input.Holding(TrackedKeys.MouseWheelDown | TrackedKeys.MouseWheelUp);
         Jumped = false;
 
-        // Impact speed to use if this frame turns out to land: ground movement zeroes the
-        // vertical velocity, so it must be sampled while still falling
-        var fallSpeed = MathF.Max(0f, -Velocity.Z);
+        deltaTime = MathF.Min(deltaTime, MaxFrameDeltaTime);
+        Accumulator += deltaTime;
 
+        while (Accumulator >= TickInterval)
+        {
+            Accumulator -= TickInterval;
+            Tick(camera);
+        }
+
+        Effects.DecayViewPunch(deltaTime, ViewPunchDecay);
         DecayPushViewLag(deltaTime);
-
-        CategorizePosition(ref position, playerHull);
-
-        var justLanded = !WasOnGroundLastFrame && OnGround;
-
-        var wantsToJump = AutoBunnyHop ? Input.Holding(TrackedKeys.Space) : Input.Pressed(TrackedKeys.Space);
-        wantsToJump = wantsToJump || Input.Holding(TrackedKeys.MouseWheelDown) || Input.Holding(TrackedKeys.MouseWheelUp);
-
-        if (justLanded)
-        {
-            OnLanded(fallSpeed, wantsToJump, position, playerHull);
-        }
-
-        LadderJumpBlockRemaining = MathF.Max(0f, LadderJumpBlockRemaining - deltaTime);
-
-        if (!LadderMove(ref position, playerHull, camera))
-        {
-            OnLadder = false;
-        }
-
-        if (wantsToJump && OnGround && !OnLadder)
-        {
-            if (!AutoBunnyHop)
-            {
-                PreventBunnyJumping();
-            }
-
-            // Sampled before the jump impulse, which is what makes the takeoff loud
-            var loudTakeoffFootstep = Velocity.Length() > WalkSpeedModifier * RunSpeed;
-
-            CheckJump();
-
-            if (loudTakeoffFootstep)
-            {
-                PlaySound(FootstepSoundEvent, position, playerHull);
-            }
-
-            PlaySound(JumpSoundEvent, position, playerHull);
-            PlaySound(GearSoundEvent, position, playerHull, GearVolume);
-        }
-
-        var (wishdir, wishspeed) = CalculateWishVelocity(yaw, isWalking);
-        var airMoveDelta = Vector3.Zero;
-        var airVelocityDelta = Vector3.Zero;
-
-        if (OnLadder)
-        {
-            // LadderMove set the whole velocity: no gravity, friction or air acceleration on a ladder
-        }
-        else if (OnGround)
-        {
-            // Ground friction+acceleration is integrated per-bump inside GroundMove,
-            // coupled to the collision sweep, so nothing is accelerated here
-            ZeroVerticalVelocity();
-        }
-        else
-        {
-            // The strafe gain is taken back out of Velocity and carried as a delta like gravity, so
-            // Velocity stays at its start-of-frame value and the mover always holds the true velocity.
-            var preAirVelocity = Velocity;
-            AirMove(wishdir, wishspeed, deltaTime, yawDelta);
-            var strafeGain = Velocity - preAirVelocity;
-            Velocity = preAirVelocity;
-
-            airVelocityDelta = strafeGain - new Vector3(0f, 0f, GravityValue * deltaTime);
-
-            // The frame's displacement if nothing is in the way: (v + dv/2) * dt.
-            //
-            // Z is exact - gravity is constant, so the midpoint velocity is the frame's average -
-            // but XY is not: the strafe velocity follows TicklessAirStrafe's regime machine, not a
-            // straight line in time, so the trapezoid carries a second-order error; an exact form
-            // would mean integrating that state machine across its regime transitions.
-            airMoveDelta = TrapezoidDisplacement(Velocity, Velocity + airVelocityDelta, deltaTime);
-        }
-
-        ClampVelocity();
-
-        // Gravity is applied inside the move, so the freshest impact speed for a landing the
-        // move below may produce is the frame's midpoint - the average the trapezoid sweeps
-        fallSpeed = MathF.Max(fallSpeed, -(Velocity.Z + (airVelocityDelta.Z * 0.5f)));
-
-        // Ground movement integrates and sweeps together with step support; in the air there
-        // is nothing to step off, so the constant-velocity slide runs on the precomputed delta
-        var moveStart = position;
-
-        if (OnLadder)
-        {
-            position = TryPlayerMove(position, Vector3.Zero, deltaTime, playerHull, Vector3.Zero, 0f);
-        }
-        else if (OnGround)
-        {
-            HasWalkMovedSinceLastJump = true;
-            position = GroundMove(position, wishdir, wishspeed, deltaTime, DuckSpeedModifierActive, isWalking, playerHull);
-            StayOnGround(ref position, playerHull);
-        }
-        else
-        {
-            position = TryPlayerMove(position, airVelocityDelta, deltaTime, playerHull, wishdir, wishspeed);
-            RewindToGroundBandEntry(ref position, moveStart, airMoveDelta, playerHull);
-        }
-
-        CategorizePosition(ref position, playerHull);
-
-        CheckStuck(ref position, playerHull);
-
-        // The other landing path: airborne at the start of the frame, grounded by the move
-        // above. justLanded already handled the start-of-frame categorize path.
-        if (!justLanded && !WasOnGroundLastFrame && OnGround)
-        {
-            OnLanded(fallSpeed, wantsToJump, position, playerHull);
-        }
-
-        if (OnGround || OnLadder)
-        {
-            AirStepCeiling = position.Z - playerHull.Z + StepSize;
-        }
-
-        UpdateStepSounds(position, playerHull, deltaTime);
-
-        TracePosition = position;
 
         var horizontalSpeed = new Vector2(Velocity.X, Velocity.Y).Length();
         Effects.Update(deltaTime, horizontalSpeed, StepSmoothingEnabled);
 
-        TracePositionSmooth = TracePosition - new Vector3(0, 0, Effects.StepOffset) + pushViewLag;
+        var feet = Vector3.Lerp(PreviousFeet, Feet, Accumulator / TickInterval);
+        Position = feet - new Vector3(0, 0, Effects.StepOffset) + pushViewLag;
 
         DuckRootOffset = MathUtils.Approach(DuckRootOffset, 0f, DuckOffsetSpeed * deltaTime);
         DuckViewOffset = MathUtils.Approach(DuckViewOffset, -CrouchHeightDifference * CrouchBlend - DuckRootOffset, DuckOffsetSpeed * deltaTime);
@@ -556,8 +425,141 @@ public partial class PlayerMovement : IPlayerController
     }
 
     /// <summary>
+    /// Simulates one tick, with the keys held and the view angles of the frame that completes it.
+    /// </summary>
+    private void Tick(Camera camera)
+    {
+        TickCount++;
+        PreviousFeet = Feet;
+
+        var jumpPressed = JumpPressPending;
+        JumpPressPending = false;
+
+        var position = TracePosition;
+
+        Duck(TickInterval, ref position);
+
+        var isWalking = HoldingShift && !HoldingCtrl && !Ducking && !DuckingFlag;
+
+        var playerHull = HullHalfExtents;
+
+        WasOnGroundLastFrame = OnGround;
+
+        // Impact speed to use if this tick turns out to land: ground movement zeroes the
+        // vertical velocity, so it must be sampled while still falling
+        var fallSpeed = MathF.Max(0f, -Velocity.Z);
+
+        CategorizePosition(ref position, playerHull);
+
+        var justLanded = !WasOnGroundLastFrame && OnGround;
+        var wantsToJump = jumpPressed || (AutoBunnyHop && Input.Holding(TrackedKeys.Space));
+
+        if (justLanded)
+        {
+            OnLanded(fallSpeed, wantsToJump, position, playerHull);
+            RecordLanding(TickCount, fallSpeed);
+        }
+
+        LadderJumpBlockRemaining = MathF.Max(0f, LadderJumpBlockRemaining - TickInterval);
+
+        if (!LadderMove(ref position, playerHull, camera, jumpPressed))
+        {
+            OnLadder = false;
+        }
+
+        var maxSpeed = CalculateMaxSpeed(isWalking);
+
+        CheckJumpButton(jumpPressed, maxSpeed, position, playerHull);
+
+        var (wishdir, wishspeed) = CalculateWishVelocity(camera.Yaw, maxSpeed);
+
+        // Where the fall started, to solve when inside the tick a landing touched down
+        var moveStartZ = position.Z;
+        var moveStartVelocityZ = Velocity.Z;
+
+        // Friction, acceleration and gravity act over the whole tick, so the move uses the velocity
+        // halfway through it and the other half is added after
+        var deferredVelocity = Vector3.Zero;
+
+        if (OnLadder)
+        {
+            // LadderMove set the whole velocity: no gravity, friction or air acceleration on a ladder
+        }
+        else if (OnGround)
+        {
+            ZeroVerticalVelocity();
+
+            var startVelocity = Velocity;
+            WalkMove(wishdir, wishspeed, maxSpeed, isWalking);
+            deferredVelocity = (Velocity - startVelocity) * 0.5f;
+            Velocity -= deferredVelocity;
+        }
+        else
+        {
+            deferredVelocity = AirAccelerateHalf(wishdir, wishspeed);
+
+            var halfGravity = new Vector3(0f, 0f, GravityValue * TickInterval * 0.5f);
+            Velocity -= halfGravity;
+            deferredVelocity -= halfGravity;
+        }
+
+        ClampVelocity();
+
+        // The freshest impact speed for a landing the move below may produce is the tick's midpoint
+        fallSpeed = MathF.Max(fallSpeed, -Velocity.Z);
+
+        if (OnLadder)
+        {
+            position = TryPlayerMove(position, playerHull);
+        }
+        else if (OnGround)
+        {
+            HasWalkMovedSinceLastJump = true;
+
+            // Stop when the velocity at the end of the tick would be tiny
+            if ((Velocity + deferredVelocity).LengthSquared() < 1f)
+            {
+                Velocity = Vector3.Zero;
+            }
+            else
+            {
+                position = GroundMove(position, playerHull);
+                StayOnGround(ref position, playerHull);
+            }
+        }
+        else
+        {
+            position = TryPlayerMove(position, playerHull);
+        }
+
+        // A move stopped dead also drops the rest of the tick's acceleration
+        if (Velocity != Vector3.Zero)
+        {
+            Velocity += deferredVelocity;
+        }
+
+        CategorizePosition(ref position, playerHull);
+
+        CheckStuck(ref position, playerHull);
+
+        // The other landing path: airborne at the start of the tick, grounded by the move
+        // above. justLanded already handled the start-of-tick categorize path.
+        if (!justLanded && !WasOnGroundLastFrame && OnGround)
+        {
+            OnLanded(fallSpeed, wantsToJump, position, playerHull);
+
+            var (fraction, touchdownSpeed) = SolveTouchdown(position.Z - moveStartZ, moveStartVelocityZ, fallSpeed);
+            RecordLanding(TickCount + fraction, touchdownSpeed);
+        }
+
+        UpdateStepSounds(position, playerHull, TickInterval);
+
+        TracePosition = position;
+    }
+
+    /// <summary>
     /// Touchdown effects for a landing at <paramref name="fallSpeed"/>: the view punch and roll,
-    /// stamina drain, and the landing thud, gear rattle and pain grunt.
+    /// and the landing thud, gear rattle and pain grunt.
     /// </summary>
     private void OnLanded(float fallSpeed, bool willBunnyHop, Vector3 position, Vector3 halfExtents)
     {
@@ -852,6 +854,7 @@ public partial class PlayerMovement : IPlayerController
     private void ShiftFeet(float shift, ref Vector3 position)
     {
         position.Z += shift;
+        PreviousFeet.Z += shift;
         DuckRootOffset -= shift;
         DuckViewOffset -= shift;
     }
@@ -933,7 +936,21 @@ public partial class PlayerMovement : IPlayerController
             SnapToGround(ref position, trace, snapDownOnly: true);
 
             // Feed downward stair snaps into the view smoothing
-            Effects.OnStep(position.Z - preSnapZ);
+            SmoothStep(position.Z - preSnapZ);
+        }
+    }
+
+    /// <summary>
+    /// Hands a stair step to the view smoothing, which eases it in. The previous tick moves with it, so
+    /// the tick interpolation does not draw the same step a second time.
+    /// </summary>
+    private void SmoothStep(float delta)
+    {
+        Effects.OnStep(delta);
+
+        if (StepSmoothingEnabled)
+        {
+            PreviousFeet.Z += delta;
         }
     }
 
@@ -1003,7 +1020,7 @@ public partial class PlayerMovement : IPlayerController
         // SurfaceFriction resets to 1 each call and is quartered while airborne and rising, but only
         // below NonJumpVelocity: faster ascents take an early-out that never reaches that line. A full
         // jump (302 u/s) therefore keeps full air control until 140 u/s, and the dead window is just
-        // the last stretch up to the apex, restoring the frame it passes.
+        // the last stretch up to the apex, restoring the tick it passes.
         SurfaceFriction = !OnGround && Velocity.Z > 0f && Velocity.Z <= NonJumpVelocity ? JumpFriction : 1f;
 
         if (OnGround && snapToHit)
@@ -1025,68 +1042,6 @@ public partial class PlayerMovement : IPlayerController
 
         return entity.Collider?.TraceRay(
             position, position - new Vector3(0, 0, halfExtents.Z + GroundProbeDistance), Rubikon.Cs2PlayerCollisionFilter) is { Hit: true };
-    }
-
-    /// <summary>
-    /// Groundedness is decided by a probe <see cref="GroundProbeDistance"/> below the hull, so the
-    /// rule is really "once the hull is within that band, snap down". Applied at the end of a
-    /// frame that lands inside the band, the snap credits the whole frame's horizontal travel
-    /// however far past the band entry it went, which makes the landing point depend on where a
-    /// frame boundary happened to fall. Rewind the move to the instant it crossed into the band -
-    /// found by sweeping the same displacement from a start lowered by the band width - so the
-    /// landing is fixed by the trajectory instead of by the timestep. The caller's
-    /// <see cref="CategorizePosition"/> then does the snap from there.
-    /// </summary>
-    private void RewindToGroundBandEntry(ref Vector3 position, Vector3 moveStart, Vector3 delta, Vector3 halfExtents)
-    {
-        // Only a descending move can enter the band from above
-        if (delta.Z >= 0f || delta.LengthSquared() < UntraceableDistanceSquared)
-        {
-            return;
-        }
-
-        // Nothing to rewind unless the move actually ended inside the band over walkable ground
-        var probe = TraceBBox(position, position + new Vector3(0, 0, -GroundProbeDistance), halfExtents);
-
-        if (!IsWalkableGroundHit(probe))
-        {
-            return;
-        }
-
-        // Where the same sweep, lowered by the band width, first meets the ground: the moment the
-        // real path crossed into the band. A start already inside it has nothing to rewind to.
-        var loweredStart = moveStart - new Vector3(0, 0, GroundProbeDistance);
-        var crossing = TraceBBox(loweredStart, loweredStart + delta, halfExtents);
-
-        if (!crossing.Hit || crossing.StartSolid)
-        {
-            return;
-        }
-
-        var fraction = crossing.Distance / delta.Length();
-
-        if (fraction is <= 0f or >= 1f || !float.IsFinite(fraction))
-        {
-            return;
-        }
-
-        var entry = moveStart + (delta * fraction);
-
-        // The rewind lands the hull exactly a band width above the floor, where the caller's probe
-        // is a borderline no-hit: leaving it there would keep the player airborne for another
-        // frame and hand back more horizontal travel than the snap was meant to save. Commit to
-        // the snap here instead, tracing with enough slack to clear the standoff the crossing
-        // trace already left, and only accept it if it really lands on walkable ground.
-        var reach = GroundProbeDistance + (SurfaceEpsilon * 4f);
-        var landing = TraceBBox(entry, entry + new Vector3(0, 0, -reach), halfExtents);
-
-        if (!IsWalkableGroundHit(landing))
-        {
-            return;
-        }
-
-        position = entry;
-        SnapToGround(ref position, landing, snapDownOnly: true);
     }
 
     /// <summary>
@@ -1173,25 +1128,15 @@ public partial class PlayerMovement : IPlayerController
     }
 
     /// <summary>
-    /// Perform swept AABB collision detection for player movement with multi-bounce sliding.
-    ///
-    /// The frame is given as a base velocity - <see cref="Velocity"/>, the velocity at the frame's
-    /// start - plus <paramref name="velocityDelta"/>, the total velocity change the frame's
-    /// acceleration produces (gravity, and the air strafe gain the caller took back out of
-    /// Velocity). Each segment sweeps (v + dv/2) * t, the displacement of a velocity that is
-    /// linear in time, which is exactly the model <see cref="DistanceToTimeFraction"/> inverts.
-    ///
-    /// Because <see cref="Velocity"/> is advanced by the acceleration as time is consumed, it is
-    /// always the true velocity at the instant the loop is at: an impact clips the velocity the
-    /// player actually hit with, and nothing has to be un-applied or restored around the clip.
+    /// Slides the hull at a constant <see cref="Velocity"/> for the rest of the tick, clipping the
+    /// velocity against every surface it meets.
     /// </summary>
-    private Vector3 TryPlayerMove(Vector3 start, Vector3 velocityDelta, float deltaTime, Vector3 halfExtents,
-        Vector3 wishdir, float wishspeed)
+    private Vector3 TryPlayerMove(Vector3 start, Vector3 halfExtents)
     {
         const int MaxBumps = 6;
 
         var position = start;
-        var timeLeft = deltaTime;
+        var timeLeft = TickInterval;
 
         // Stop dead if clipping ever turns the velocity against the entry velocity (corner ping-pong)
         var entryVelocity = Velocity;
@@ -1202,53 +1147,27 @@ public partial class PlayerMovement : IPlayerController
 
         for (var bump = 0; bump < MaxBumps && timeLeft > 0f; bump++)
         {
-            var delta = TrapezoidDisplacement(Velocity, Velocity + velocityDelta, timeLeft);
+            var delta = Velocity * timeLeft;
 
             if (delta.LengthSquared() < UntraceableDistanceSquared)
             {
                 break;
             }
 
-            var distance = delta.Length();
-
             var result = TraceBBox(position, position + delta, halfExtents);
 
             if (!result.Hit)
             {
-                // The sweep proved the whole remaining segment is free, so its acceleration acted
-                // in full, whatever surfaces were met earlier in the frame
-                Velocity += velocityDelta;
                 return position + delta;
             }
 
             NoteImpact(result);
 
-            // Geometry a ground move would have stepped onto must not stop a jump either
-            if (!OnLadder && result.HitNormal.Z < WalkableSlope && TryAirStep(position, delta, halfExtents, out var stepped))
-            {
-                Velocity += velocityDelta;
-                return stepped;
-            }
-
             // Advance to the hit point (already margin-adjusted by TraceBBox)
-            var fraction = result.Distance / distance;
-
-            // The chord runs at constant speed, but the real trajectory accelerates along its own
-            // direction, so the hit distance was covered in more or less time than the chord
-            // implies. Recover the time fraction before it is used to place the impact.
-            var direction = delta / distance;
-            var speedAlongSweep = distance / timeLeft;
-            var timeFraction = speedAlongSweep > NegligibleMoveDistance
-                ? DistanceToTimeFraction(fraction, Vector3.Dot(velocityDelta, direction), speedAlongSweep)
-                : fraction;
-
-            var elapsed = timeFraction * timeLeft;
+            var fraction = result.Distance / delta.Length();
 
             position = result.HitPosition;
-
-            // Carry the velocity forward to the moment of impact
-            Velocity += velocityDelta * timeFraction;
-            timeLeft -= elapsed;
+            timeLeft -= fraction * timeLeft;
 
             // Progress invalidates the accumulated planes
             if (fraction > 0)
@@ -1278,9 +1197,8 @@ public partial class PlayerMovement : IPlayerController
 
             // The reversal guard only applies to a genuinely moving player, and only to a real
             // reversal. A corner clip commonly leaves the velocity perpendicular to the way the
-            // frame entered, where an equality test fires and zeroes everything - including the Z
-            // that the jump is riding on, so the player hangs at the apex and twitches as the
-            // next frame re-accelerates into the same trap. Matches the GroundMove guard.
+            // tick entered, where an equality test fires and zeroes everything - including the Z
+            // that the jump is riding on, so the player hangs at the apex. Matches the GroundMove guard.
             if (!ClipToPlanes(planes[..planeCount], ref clippedDelta, out var velocity, out var clipNormalZ)
                 || (entryVelocity.LengthSquared() > 1f && Vector3.Dot(velocity, entryVelocity) < 0f))
             {
@@ -1292,153 +1210,15 @@ public partial class PlayerMovement : IPlayerController
             Velocity = velocity;
             SlopeClipNormalZ = clipNormalZ;
 
-            // Rebuild the acceleration for the rest of the frame against the surfaces now known.
-            // The strafe half is re-aimed along them, so none of it is spent pushing into a ramp
-            // only for the next sweep to strip it again. Recomputed rather than accumulated: each
-            // contact supersedes the last, so this always describes what is left after the most
-            // recent one.
-            if (timeLeft > 0f && planeCount > 0)
-            {
-                velocityDelta = ClipAcceleration(new Vector3(0f, 0f, -GravityValue * timeLeft), planes[..planeCount]);
-
-                if (wishspeed > 0f)
-                {
-                    velocityDelta += AirAccelerateClipped(Velocity, wishdir, wishspeed, timeLeft, planes[..planeCount]);
-                }
-            }
-
             // A repeated flush contact neither advanced nor learned anything, and repeating it
             // would only burn the bump budget: the move is as constrained as it is going to get
-            if (!newPlane && timeFraction <= 0f)
+            if (!newPlane && fraction <= 0f)
             {
                 break;
             }
         }
 
-        // Time the sweep never got to spend - a flush contact, an exhausted bump budget, a
-        // segment too short to trace. Its acceleration is already clipped to the surfaces being
-        // ridden, so applying it here does not drive into them.
-        Velocity += velocityDelta;
-
         return position;
-    }
-
-    /// <summary>
-    /// Airborne counterpart of the stepped branch in <see cref="StepSweep"/>: lifts the move by up
-    /// to <see cref="AirStepCeiling"/>, and takes it only if the lifted sweep clears the whole of
-    /// <paramref name="delta"/> and settling back down by the same lift lands on walkable ground
-    /// or on nothing at all. The landing never sits below where the unobstructed move would have ended.
-    /// Only a rising player steps, so the apex and the fall never climb anything.
-    /// </summary>
-    private bool TryAirStep(Vector3 start, Vector3 delta, Vector3 halfExtents, out Vector3 landed)
-    {
-        landed = start;
-
-        var maxLift = AirStepCeiling - (start.Z - halfExtents.Z);
-
-        if (Velocity.Z <= 0f || maxLift <= SurfaceEpsilon)
-        {
-            return false;
-        }
-
-        var stepUpEnd = start + new Vector3(0, 0, maxLift);
-        var upTrace = TraceBBox(start, stepUpEnd, halfExtents);
-        var raised = upTrace.Hit ? upTrace.HitPosition : stepUpEnd;
-        var lift = raised.Z - start.Z;
-
-        if (lift <= SurfaceEpsilon || TraceBBox(raised, raised + delta, halfExtents).Hit)
-        {
-            return false;
-        }
-
-        var raisedEnd = raised + delta;
-        var downTrace = TraceBBox(raisedEnd, raisedEnd - new Vector3(0, 0, lift), halfExtents);
-
-        // Nothing below means the move's own end height is already clear of the step, as when a
-        // jump rising past the edge only clips its corner
-        if (!downTrace.Hit)
-        {
-            landed = start + delta;
-            return true;
-        }
-
-        if (!IsWalkableGroundHit(downTrace) || downTrace.IsMinimalDistance)
-        {
-            return false;
-        }
-
-        landed = downTrace.HitPosition;
-        Effects.OnStep(landed.Z - (start.Z + delta.Z));
-        return true;
-    }
-
-    /// <summary>
-    /// The part of an acceleration a player in contact with <paramref name="planes"/> can actually
-    /// take on. Only a surface the acceleration drives into can oppose it: <see cref="ClipToPlanes"/>
-    /// clips unconditionally, which is right for a velocity that was just driven into those planes,
-    /// but an overhang the player is bouncing away from must not have gravity's component stripped
-    /// or they drift along its underside. An unresolved clip (no direction satisfies every plane)
-    /// leaves the term alone rather than cancelling it, which would leave the player hovering; a
-    /// genuinely trapped move is stopped dead by the caller instead.
-    /// </summary>
-    private static Vector3 ClipAcceleration(Vector3 acceleration, ReadOnlySpan<Vector3> planes)
-    {
-        foreach (var plane in planes)
-        {
-            if (Vector3.Dot(acceleration, plane) < 0f)
-            {
-                var clipped = ClipWishVelocity(acceleration, planes, onGround: false, out var resolved);
-                return resolved ? clipped : acceleration;
-            }
-        }
-
-        return acceleration;
-    }
-
-    /// <summary>
-    /// Converts a swept distance fraction into the time fraction that produced it.
-    ///
-    /// The sweep is a straight chord covered at one constant speed, but the real trajectory
-    /// changes speed along it, so "half the distance" is not "half the time". Everything an
-    /// impact needs - the velocity to clip, the time budget to deduct - is a function of time,
-    /// so the distance fraction the trace reports has to be turned back into a time fraction.
-    ///
-    /// Projected on the sweep direction, the distance covered by a given time fraction is a
-    /// quadratic in that fraction (the trapezoid displacement is the linear-velocity model, so
-    /// this is exact for the delta being swept, not an approximation of it). Dividing through by
-    /// the full chord length leaves a quadratic whose only parameter is how far the segment is
-    /// from constant speed, and inverting it recovers the time fraction. A segment that holds its
-    /// speed returns the distance fraction unchanged.
-    /// </summary>
-    /// <param name="distanceFraction">How much of the chord's length the sweep covered.</param>
-    /// <param name="velocityChangeAlong">Speed gained or lost over the segment, projected on the sweep direction.</param>
-    /// <param name="speedAlong">The chord's average speed along that direction.</param>
-    private static float DistanceToTimeFraction(float distanceFraction, float velocityChangeAlong, float speedAlong)
-    {
-        // How far this segment is from constant speed: the speed it gained or lost, over twice its
-        // average speed. Zero means the chord is the trajectory and the time fraction equals the
-        // distance fraction; it is the only thing that bends one into the other.
-        var speedChangeRatio = velocityChangeAlong / (2f * speedAlong);
-
-        // Coefficients of speedChangeRatio*t^2 + linearCoefficient*t - distanceFraction = 0
-        var linearCoefficient = 1f - speedChangeRatio;
-        var discriminant = (linearCoefficient * linearCoefficient) + (4f * speedChangeRatio * distanceFraction);
-
-        if (discriminant <= 0f)
-        {
-            return distanceFraction;
-        }
-
-        // Written as 2c / (-b + sqrt(disc)) rather than the textbook (-b + sqrt(disc)) / 2a. The
-        // textbook form subtracts two near-equal numbers and then divides by a small one: for a
-        // flush contact (distanceFraction 0) the numerator is exactly zero algebraically, but
-        // sqrt(x*x) is not x in single precision, so it lands around 1e-8 and dividing by a
-        // speedChangeRatio of ~1e-4 inflates that into ~1e-4 of fictitious elapsed time on every
-        // contact. This form adds two positives instead and returns exactly zero for a zero
-        // distance fraction, with no special case needed for a small ratio.
-        var timeFraction = 2f * distanceFraction / (linearCoefficient + MathF.Sqrt(discriminant));
-
-        return float.IsFinite(timeFraction) ? MathUtils.Saturate(timeFraction) : distanceFraction;
     }
 
     /// <summary>
@@ -1498,58 +1278,6 @@ public partial class PlayerMovement : IPlayerController
     }
 
     /// <summary>
-    /// Resolves the wish input against the surfaces already met this frame: clips the wish
-    /// velocity to them and splits the result back into a direction and a speed, plus the scale
-    /// factor the clip cost. The scale is what the acceleration magnitude has to be multiplied by
-    /// so that clipping first and accelerating along the surface delivers the same tangential
-    /// acceleration as accelerating along the raw wishdir and projecting afterwards.
-    /// </summary>
-    private static (Vector3 Wishdir, float Wishspeed, float WishScale) ClipWish(Vector3 wishdir, float wishspeed, ReadOnlySpan<Vector3> planes)
-    {
-        if (planes.Length == 0 || wishspeed <= 0f)
-        {
-            return (wishdir, wishspeed, 1f);
-        }
-
-        var clipped = ClipWishVelocity(wishdir * wishspeed, planes, onGround: true, out var resolved);
-        var clippedSpeed = resolved ? clipped.Length() : 0f;
-
-        // Wish points entirely into the surfaces: no direction is left to accelerate along, and
-        // the segment runs on friction alone
-        if (clippedSpeed <= NegligibleMoveDistance)
-        {
-            return (Vector3.Zero, 0f, 0f);
-        }
-
-        return (clipped / clippedSpeed, clippedSpeed, clippedSpeed / wishspeed);
-    }
-
-    /// <summary>
-    /// Clips a wish velocity so it does not drive into any of the accumulated planes, using the
-    /// same candidate-plane/crease resolution as <see cref="ClipToPlanes"/>. The magnitude of the
-    /// result is meaningful: it is the part of the wish the player can actually pursue, and
-    /// callers derive both the reduced wishspeed and the reduced acceleration magnitude from it.
-    ///
-    /// The out flag is false when no direction satisfies every plane, in which case the returned
-    /// zero is a fallback rather than an answer. Callers must not read a zero on its own as "this
-    /// clips to nothing": for a wish that reading is correct, but for gravity it would mean
-    /// cancelling it outright and leaving the player hovering.
-    ///
-    /// Like <see cref="ClipToPlanes"/> this clips unconditionally, including when the wish already
-    /// points away from a plane - <see cref="ClipVelocity"/> subtracts the normal component
-    /// whatever its sign, so the result is always parallel to the surface. Skipping the clip in
-    /// that case leaves an away-from-surface component in the acceleration direction, which lifts
-    /// the player off a ramp they should be riding. Assumes a non-empty plane set, as the callers
-    /// all guarantee; an empty one reports unresolved.
-    /// </summary>
-    private static Vector3 ClipWishVelocity(Vector3 wishVelocity, ReadOnlySpan<Vector3> planes, bool onGround, out bool resolved)
-    {
-        var delta = wishVelocity;
-        resolved = TryClipToPlanes(planes, ref delta, ref wishVelocity, onGround, out _);
-        return wishVelocity;
-    }
-
-    /// <summary>
     /// Whether <paramref name="normal"/> is already among <paramref name="planes"/>, so a repeated
     /// flush contact against the same surface does not consume a bump slot.
     /// </summary>
@@ -1588,112 +1316,42 @@ public partial class PlayerMovement : IPlayerController
     }
 
     /// <summary>
-    /// Unified ground move: integrate friction+acceleration and sweep in one loop. Each bump
-    /// re-integrates the combined velocity change over the time still left in the frame,
-    /// sweeps that displacement (with step support), and - if it hits a surface partway -
-    /// undoes the share of the acceleration it never earned (linear in the swept fraction),
-    /// clips the result to the surface, and lets the next bump re-accelerate along it. The
-    /// frame's walls are accumulated, and both the wish input and the segment they produce
-    /// are clipped to parallel
-    /// all of them, so a regenerated segment slides along instead of re-entering. Clipping the
-    /// wish is what stops a player pressing into a wall from re-aiming every bump at the surface
-    /// it is already flush with, spending the whole bump budget on zero-fraction contacts. The
-    /// segment horizon reported by <see cref="WalkMove"/> (e.g. the sub-stopspeed kick kink)
-    /// also ends a bump early, so the boosted and unboosted stretches sweep as separate traces.
+    /// Ground counterpart of <see cref="TryPlayerMove"/>: slides at a constant <see cref="Velocity"/>
+    /// with step (stairs) support. The tick's walls are accumulated and the velocity is clipped to
+    /// parallel all of them, so a later bump slides along instead of re-entering one.
     /// </summary>
-    private Vector3 GroundMove(Vector3 position, Vector3 wishdir, float wishspeed, float deltaTime, float duckModifier, bool isWalking, Vector3 halfExtents)
+    private Vector3 GroundMove(Vector3 position, Vector3 halfExtents)
     {
         const int MaxBumps = 8;
 
-        var remaining = deltaTime;
+        var remaining = TickInterval;
         var entryVelocity = Velocity;
 
-        // Walls hit this frame; the regenerated segment is clipped to parallel all of them
+        // Walls hit this tick; the velocity is clipped to parallel all of them
         Span<Vector3> planes = stackalloc Vector3[MaxBumps];
         var planeCount = 0;
 
-        var startPos = position;
-
         for (var bump = 0; bump < MaxBumps && remaining > 1e-6f; bump++)
         {
-            var segStartVelocity = Velocity;
-
-            // Clip the wish itself, not just what it produced. Re-integrating along the raw
-            // wishdir would aim the segment back into a wall already met this frame, the sweep
-            // would report a flush contact at fraction zero, and the bump would repeat having
-            // spent no time and gone nowhere. Clipping the wish *velocity* keeps the reduction
-            // in one place: its length is the wishspeed the player can still pursue along the
-            // surface, and wishScale carries the same cosine into the acceleration magnitude
-            // (and so into the sub-stopspeed kick, which is defined off wishspeed).
-            var (segWishdir, segWishspeed, wishScale) = ClipWish(wishdir, wishspeed, planes[..planeCount]);
-
-            var segDt = WalkMove(segWishdir, segWishspeed, remaining, duckModifier, isWalking, wishScale);
-            var freeVelocity = Velocity;
-            var delta = GroundMoveDelta;
-
-            // What friction and acceleration alone did over this segment. Kept before the clip
-            // below, which replaces freeVelocity with a deflected one: that jump is a
-            // discontinuity, not acceleration, and must not enter the distance/time conversion.
-            var segVelocityChange = freeVelocity - segStartVelocity;
-
-            // Constrain the freshly integrated segment to the walls already met this frame
-            if (planeCount > 0)
-            {
-                if (!ClipToPlanes(planes[..planeCount], ref delta, out var constrained, out var constrainedZ))
-                {
-                    Velocity = Vector3.Zero;
-                    break;
-                }
-
-                freeVelocity = constrained;
-                Velocity = constrained;
-                SlopeClipNormalZ = constrainedZ;
-            }
+            var delta = Velocity * remaining;
 
             if (delta.LengthSquared() < UntraceableDistanceSquared)
             {
-                remaining -= segDt;
-                continue;
+                break;
             }
 
             var (moved, fraction, hitNormal, hit) = StepSweep(position, delta, halfExtents);
             position = moved;
 
-            // A bump that hit nothing traversed its whole segment, whatever lateral fraction the
-            // stepped branch reports for it: the time fraction is 1 by definition
-            var timeFraction = hit ? fraction : 1f;
-            var segDistance = delta.Length();
-
-            if (hit && segDt > 0f && segDistance > NegligibleMoveDistance)
-            {
-                var direction = delta / segDistance;
-                var speedChangeAlongSweep = Vector3.Dot(segVelocityChange, direction);
-                var speedAlongSweep = segDistance / segDt;
-
-                // Known tradeoff: accurate per contact, but only the first contact of an approach
-                // converts to a nonzero fraction (later flush contacts report zero), and where
-                // that first fraction lands depends on the frame boundary - per-impact accuracy
-                // at the cost of a phase-dependent term uncorrelated across framerates.
-                if (speedAlongSweep > NegligibleMoveDistance)
-                {
-                    timeFraction = DistanceToTimeFraction(fraction, speedChangeAlongSweep, speedAlongSweep);
-                }
-            }
-
-            remaining -= timeFraction * segDt;
-
             if (!hit)
             {
-                Velocity = freeVelocity;
-                continue;
+                break;
             }
 
-            // Undo the unearned (1 - timeFraction) of this segment's velocity change, then clip
-            // the impact velocity to the surface it landed on
-            Velocity = Vector3.Lerp(segStartVelocity, freeVelocity, timeFraction);
+            remaining -= fraction * remaining;
 
             // Re-contacting a surface already in the set teaches the clip nothing, so it must not
-            // consume a slot. Combined with a zero time fraction it also means the bump neither
+            // consume a slot. Combined with a zero fraction it also means the bump neither
             // advanced nor learned anything, and repeating it would only burn the remaining
             // budget: the move is as constrained as it is going to get, so stop after the reclip.
             var newPlane = !ContainsPlane(planes[..planeCount], hitNormal);
@@ -1705,9 +1363,9 @@ public partial class PlayerMovement : IPlayerController
 
             // A genuinely trapped move (three or more planes with no valid direction) stops
             // dead. The reversal guard only applies to a moving player: when clipping flips
-            // the velocity against the way the frame entered. At rest (or crawling) the entry
+            // the velocity against the way the tick entered. At rest (or crawling) the entry
             // velocity is ~0, so it must not fire - otherwise the first wall contact zeroes
-            // the acceleration every frame and the player can never slide out along a wall.
+            // the acceleration every tick and the player can never slide out along a wall.
             // ClipToPlanes also clips a delta; this one is spent, so it takes a scratch copy
             var clippedDelta = delta;
 
@@ -1721,7 +1379,7 @@ public partial class PlayerMovement : IPlayerController
             Velocity = velocity;
             SlopeClipNormalZ = clipNormalZ;
 
-            if (!newPlane && timeFraction <= 0f)
+            if (!newPlane && fraction <= 0f)
             {
                 break;
             }
@@ -1780,7 +1438,7 @@ public partial class PlayerMovement : IPlayerController
         // from turning a step into a ledge drop
         var landingInvalid = !downTrace.Hit
             || downTrace.IsMinimalDistance
-            || downTrace.HitNormal.Z < WalkableSlope
+            || (downTrace.HitNormal.Z < WalkableSlope && !SlowStepFindsFooting(steppedSlide, halfExtents))
             || downTrace.HitPosition.Z - start.Z < -StepDownTolerance;
 
         if (!landingInvalid)
@@ -1793,7 +1451,7 @@ public partial class PlayerMovement : IPlayerController
                 var stepDist = steppedPosition.Z - directPosition.Z;
                 if (stepDist > 0f)
                 {
-                    Effects.OnStep(stepDist);
+                    SmoothStep(stepDist);
                 }
 
                 // The stepped move is blocked only if its lateral sweep hit a wall
@@ -1802,6 +1460,40 @@ public partial class PlayerMovement : IPlayerController
         }
 
         return (directPosition, LateralFraction(start, directPosition, delta), direct.HitNormal, true);
+    }
+
+    /// <summary>
+    /// Second chance for a slow player whose step landed on a steep surface, such as a bevelled curb
+    /// edge: the step still counts when a slightly narrower hull finds walkable ground below, and so
+    /// does the full hull a unit further along the velocity. The player then lands on the steep
+    /// part and slides up onto the top.
+    /// </summary>
+    private bool SlowStepFindsFooting(Vector3 slide, Vector3 halfExtents)
+    {
+        if (Velocity.LengthSquared() >= SlowStepSpeed * SlowStepSpeed)
+        {
+            return false;
+        }
+
+        var stepDown = new Vector3(0, 0, -(StepSize + GroundProbeDistance));
+        var narrowExtents = halfExtents - new Vector3(2f, 2f, 0f);
+        var narrow = TraceBBox(slide, slide + stepDown * 1.5f, narrowExtents);
+
+        if (!narrow.Hit || narrow.HitNormal.Z < WalkableSlope)
+        {
+            return false;
+        }
+
+        var ahead = TraceBBox(slide, slide + Vector3.Normalize(Velocity), halfExtents);
+
+        if (ahead.Hit && ahead.IsMinimalDistance)
+        {
+            return false;
+        }
+
+        var aheadPosition = ahead.Hit ? ahead.HitPosition : slide + Vector3.Normalize(Velocity);
+        var below = TraceBBox(aheadPosition, aheadPosition + stepDown, halfExtents);
+        return below.Hit && below.HitNormal.Z >= WalkableSlope;
     }
 
     /// <summary>
@@ -1905,33 +1597,153 @@ public partial class PlayerMovement : IPlayerController
     }
 
     /// <summary>
-    /// Handle jump input - applies upward impulse
-    /// Ported from cs_gamemovement.cpp CheckJumpButton()
+    /// Jumps on a press, on a held key with auto bunny hopping, or on a press held over from just
+    /// before landing. Presses arrive at tick starts, and every time here is in ticks.
     /// </summary>
-    /// <remarks>
-    /// The impulse is a discrete change to the velocity itself and nothing more. Clearing
-    /// <see cref="OnGround"/> routes the rest of the frame down the air path, which puts this
-    /// timestep's gravity into the frame's velocity delta like any other airborne frame - so the
-    /// jump frame travels (v_impulse - g*dt/2) * dt and ends at v_impulse - g*dt.
-    /// </remarks>
-    private void CheckJump()
+    private void CheckJumpButton(bool pressed, float maxSpeed, Vector3 position, Vector3 halfExtents)
     {
+        if (pressed)
+        {
+            var sinceLastPress = TickCount - LastJumpPress;
+            LastJumpPress = TickCount;
+
+            // sv_jump_spam_penalty_time: a press within a tick of the previous one is ignored
+            if (sinceLastPress <= 1)
+            {
+                pressed = false;
+            }
+            else if (!InBhopWindow(UsableJumpPress))
+            {
+                // An earlier press still inside the landing window is kept, else this one is used on landing
+                UsableJumpPress = TickCount;
+            }
+        }
+
+        if (pressed || (AutoBunnyHop && Input.Holding(TrackedKeys.Space)))
+        {
+            Jump(maxSpeed, position, halfExtents);
+            return;
+        }
+
+        // A press buffered from just before landing, or held back by the landing tick, still jumps
+        if (UsableJumpPress >= LandedTime - BhopWindowTicks && UsableJumpPress < LandedTime + 1)
+        {
+            Jump(maxSpeed, position, halfExtents);
+            return;
+        }
+
+        UsableJumpPress = double.NegativeInfinity;
+    }
+
+    private bool InBhopWindow(double time) => time >= LandedTime - BhopWindowTicks && time < LandedTime + BhopWindowTicks;
+
+    /// <summary>
+    /// Leaves the ground with the jump impulse, lowered by a recent hard landing. A press timed on the
+    /// landing keeps the speed landed with; any other jump has to wait out the landing tick.
+    /// </summary>
+    private void Jump(float maxSpeed, Vector3 position, Vector3 halfExtents)
+    {
+        // The usable press is kept while airborne: the player may still land inside the window
+        if (!OnGround || OnLadder)
+        {
+            return;
+        }
+
+        var jumpTime = (double)TickCount;
+        var useLandingVelocity = false;
+
+        if (InBhopWindow(UsableJumpPress) || (AutoBunnyHop && TickCount <= LandedTime + 1))
+        {
+            // A perfect bunny hop keeps the speed it landed with, if that was above the max speed
+            useLandingVelocity = AutoBunnyHop || LandedVelocity.LengthSquared() > maxSpeed * maxSpeed;
+        }
+
+        if (useLandingVelocity)
+        {
+            jumpTime = LandedTime;
+            Velocity = new Vector3(LandedVelocity, Velocity.Z);
+        }
+        else if (TickCount < LandedTime + 1)
+        {
+            return;
+        }
+
+        UsableJumpPress = double.NegativeInfinity;
+
+        if (!AutoBunnyHop)
+        {
+            PreventBunnyJumping();
+        }
+
+        // Sampled before the jump impulse, which is what makes the takeoff loud
+        var loudTakeoffFootstep = Velocity.Length() > WalkSpeedModifier * RunSpeed;
+
         OnGround = false;
         Jumped = true;
         HasWalkMovedSinceLastJump = false;
 
-        // Jump impulse scales by stamina: drained stamina makes successive jumps lower
-        JumpImpulse = JumpImpulseValue * Stamina;
+        // A standing jump loses the first half tick of gravity
+        var impulse = Ducking || DuckingFlag ? JumpImpulseValue : JumpImpulseValue - (GravityValue * 0.5f * (TickInterval * 0.5f));
+
+        JumpImpulse = impulse * JumpVelocityScale(jumpTime);
         Velocity = new Vector3(Velocity.X, Velocity.Y, JumpImpulse);
         SlopeClipNormalZ = 1f; // jump impulse is genuine vertical velocity
 
         // Jumping off a mover keeps its motion, the ground base velocity inheritance
         Velocity += RideVelocity;
+
+        if (loudTakeoffFootstep)
+        {
+            PlaySound(FootstepSoundEvent, position, halfExtents);
+        }
+
+        PlaySound(JumpSoundEvent, position, halfExtents);
+        PlaySound(GearSoundEvent, position, halfExtents, GearVolume);
+    }
+
+    private void RecordLanding(double time, float fallSpeed)
+    {
+        LandedTime = time;
+        LandedVelocity = new Vector2(Velocity.X, Velocity.Y);
+        LandedVelocityZ = -fallSpeed;
+    }
+
+    /// <summary>
+    /// When inside the tick a fall touched down, as a fraction of the tick, and the speed it touched
+    /// down with, solved from z0 + v0 t - g t^2 / 2. Falls back to the end of the tick.
+    /// </summary>
+    private static (float Fraction, float FallSpeed) SolveTouchdown(float dropZ, float startVelocityZ, float fallSpeed)
+    {
+        var discriminant = (startVelocityZ * startVelocityZ) - (2f * GravityValue * dropZ);
+
+        if (dropZ >= 0f || startVelocityZ >= 0f || discriminant < 0f)
+        {
+            return (1f, fallSpeed);
+        }
+
+        var time = Math.Clamp((startVelocityZ + MathF.Sqrt(discriminant)) / GravityValue, 0f, TickInterval);
+        return (time / TickInterval, (GravityValue * time) - startVelocityZ);
+    }
+
+    private float LandingPenalty => Math.Clamp(1f + (LandedVelocityZ * LandingPenaltyPerSpeed), 0.2f, 1f);
+
+    /// <summary>A hard landing caps the max speed, recovering with every whole tick since the landing.</summary>
+    private float LandingSpeedScale()
+    {
+        var ticksSinceLanding = (float)Math.Floor(TickCount - LandedTime);
+        return MathF.Min((ticksSinceLanding * TickInterval * LandingSpeedRecoveryRate) + (LandingPenalty * LandingPenalty), 1f);
+    }
+
+    /// <summary>A hard landing also lowers the next jump, recovering over time.</summary>
+    private float JumpVelocityScale(double jumpTime)
+    {
+        var secondsSinceLanding = (float)((jumpTime - LandedTime + 1) * TickInterval);
+        return MathF.Min(LandingPenalty + (secondsSinceLanding * LandingJumpRecoveryRate), 1f);
     }
 
     /// <summary>
     /// Gets the entity the player stands on - a brush entity, or the world entity on the map itself -
-    /// and null in the air. Set from the ground probe every frame.
+    /// and null in the air. Set from the ground probe every tick.
     /// </summary>
     public Entities.BaseEntity? GroundEntity { get; private set; }
 
@@ -1950,11 +1762,12 @@ public partial class PlayerMovement : IPlayerController
         }
 
         TracePosition += delta;
+        PreviousFeet += delta;
 
         // The view stays where it was drawn and catches up by the next tick, as the pusher is drawn
         // moving there over the same interval
         pushViewLag -= delta;
-        pushViewLagTimeLeft = Entities.EntitySystem.TickInterval;
+        pushViewLagTimeLeft = TickInterval;
     }
 
     // How far the view still trails the hull the entity tick pushed, and how much of the tick interval
@@ -1996,7 +1809,7 @@ public partial class PlayerMovement : IPlayerController
         pushViewLagTimeLeft -= deltaTime;
     }
 
-    private bool LadderMove(ref Vector3 position, Vector3 halfExtents, Camera camera)
+    private bool LadderMove(ref Vector3 position, Vector3 halfExtents, Camera camera, bool jumpPressed)
     {
         if (Physics == null)
         {
@@ -2082,10 +1895,7 @@ public partial class PlayerMovement : IPlayerController
         var forwardSpeed = forwardMove * climbSpeed;
         var leftSpeed = leftMove * climbSpeed;
 
-        var jump = Input.Holding(TrackedKeys.Space) || Input.Pressed(TrackedKeys.Space)
-            || Input.Holding(TrackedKeys.MouseWheelDown) || Input.Holding(TrackedKeys.MouseWheelUp);
-
-        if (jump)
+        if (jumpPressed || Input.Holding(TrackedKeys.Space))
         {
             if (LadderJumpBlockRemaining <= 0f)
             {
@@ -2140,9 +1950,32 @@ public partial class PlayerMovement : IPlayerController
         => trace.Hit && trace.HitNormal.Z != 1f;
 
     /// <summary>
+    /// The speed the player may reach this tick: the run speed, lowered by walking, by a recent hard
+    /// landing and by how far ducked.
+    /// </summary>
+    private float CalculateMaxSpeed(bool isWalking)
+    {
+        var maxSpeed = RunSpeed;
+        var walkSpeed = RunSpeed * WalkSpeedModifier;
+
+        // Walking only takes over close to the walk speed, so it never brakes a run
+        if (isWalking && walkSpeed + WalkSpeedAllowance > Velocity.Length())
+        {
+            maxSpeed = walkSpeed;
+        }
+
+        if (OnGround)
+        {
+            maxSpeed *= LandingSpeedScale();
+        }
+
+        return maxSpeed * DuckSpeedModifierActive;
+    }
+
+    /// <summary>
     /// Calculate desired movement direction and speed from input
     /// </summary>
-    private (Vector3 wishdir, float wishspeed) CalculateWishVelocity(float yaw, bool isWalking)
+    private (Vector3 wishdir, float wishspeed) CalculateWishVelocity(float yaw, float maxSpeed)
     {
         var (sinYaw, cosYaw) = MathF.SinCos(yaw);
         var forward = new Vector3(cosYaw, sinYaw, 0);
@@ -2152,22 +1985,22 @@ public partial class PlayerMovement : IPlayerController
 
         if (Input.Holding(TrackedKeys.W))
         {
-            forwardMove += RunSpeed;
+            forwardMove += maxSpeed;
         }
 
         if (Input.Holding(TrackedKeys.S))
         {
-            forwardMove -= RunSpeed;
+            forwardMove -= maxSpeed;
         }
 
         if (Input.Holding(TrackedKeys.D))
         {
-            sideMove += RunSpeed;
+            sideMove += maxSpeed;
         }
 
         if (Input.Holding(TrackedKeys.A))
         {
-            sideMove -= RunSpeed;
+            sideMove -= maxSpeed;
         }
 
         var wishvel = forward * forwardMove + right * sideMove;
@@ -2175,321 +2008,123 @@ public partial class PlayerMovement : IPlayerController
         var wishspeed = wishvel.Length();
         var wishdir = wishspeed > 0 ? Vector3.Normalize(wishvel) : Vector3.Zero;
 
-        // Walking lowers the max speed itself; deceleration to it then comes from friction alone
-        var maxSpeed = RunSpeed;
-        if (isWalking)
-        {
-            maxSpeed *= WalkSpeedModifier;
-        }
-
-        wishspeed = MathF.Min(wishspeed, maxSpeed);
-        wishspeed *= DuckSpeedModifierActive;
-
-        return (wishdir, wishspeed);
+        return (wishdir, MathF.Min(wishspeed, maxSpeed));
     }
 
     /// <summary>
-    /// Ground friction in closed form, framerate-independent:
-    /// exponential decay above stopspeed, linear below.
+    /// Ground friction for one tick. Below the stop speed it takes the stop speed's worth.
     /// </summary>
-    private void Friction(float deltaTime)
+    /// <returns>How much more friction there was than speed left to take, which comes off the acceleration.</returns>
+    private float Friction()
     {
-        var speed = Velocity.Length();
-
-        // Provisional frame displacement under friction alone; Accelerate/the cap
-        // overwrite it when they change the trajectory
-        GroundMoveDelta = FrictionDisplacement(Velocity, deltaTime, FrictionValue * SurfaceFriction);
+        var speed = new Vector2(Velocity.X, Velocity.Y).Length();
 
         if (speed < 0.1f)
         {
-            return;
+            return 0f;
         }
 
-        var frictionRate = FrictionValue * SurfaceFriction;
-        float newSpeed;
+        var drop = MathF.Max(speed, StopSpeedValue) * FrictionValue * SurfaceFriction * TickInterval;
+        Velocity *= MathF.Max(speed - drop, 0f) / speed;
 
-        if (speed <= StopSpeedValue)
-        {
-            newSpeed = speed - StopSpeedValue * frictionRate * deltaTime;
-        }
-        else
-        {
-            newSpeed = speed * MathF.Exp(-frictionRate * deltaTime);
-
-            if (newSpeed < StopSpeedValue)
-            {
-                // Crossed into the constant-drop regime mid-frame
-                var timeToStopSpeed = MathF.Log(speed / StopSpeedValue) / frictionRate;
-                newSpeed = StopSpeedValue - StopSpeedValue * frictionRate * (deltaTime - timeToStopSpeed);
-            }
-        }
-
-        newSpeed = Math.Max(0, newSpeed);
-
-        if (newSpeed != speed)
-        {
-            Velocity *= newSpeed / speed;
-        }
+        return MathF.Max(drop - speed, 0f);
     }
 
     /// <summary>
-    /// Accelerate in the desired direction, integrating the combined friction+acceleration
-    /// velocity change from <paramref name="preFrictionVelocity"/>. Returns how long the
-    /// integrated segment is valid for: normally the full <paramref name="deltaTime"/>, but
-    /// shorter when the trajectory hits an acceleration kink inside the frame (the
-    /// sub-stopspeed kick boost switching off), so the caller can end the segment there and
-    /// sweep the boosted and unboosted stretches as separate traces.
+    /// Ground acceleration for one tick. Slower weapons, ducking and walking all accelerate slower, and
+    /// walking fades out near the walk speed so the player settles on it instead of overshooting.
     /// </summary>
-    private float Accelerate(Vector3 wishdir, float wishspeed, Vector3 preFrictionVelocity, float deltaTime, float duckModifier, bool isWalking, float wishScale = 1f)
+    private void Accelerate(Vector3 wishdir, float wishspeed, bool isWalking, float frictionLeft)
     {
         var currentspeed = Vector3.Dot(Velocity, wishdir);
         var addspeed = wishspeed - currentspeed;
 
         if (addspeed <= 0)
         {
-            return deltaTime;
+            return;
         }
 
-        var goalSpeed = AccelerationGoalSpeed(wishspeed, duckModifier, isWalking, wishScale);
-        var frictionRate = FrictionValue * SurfaceFriction;
+        currentspeed = MathF.Max(0f, currentspeed);
 
-        // Walking tapers acceleration over the last 5 u/s to the goal; that band stays a
-        // linear ODE along wishdir, so it is solved exactly (needs exponential-regime
-        // friction, and for walking wishspeed equals the goal so addspeed never binds)
-        if (isWalking && wishspeed >= goalSpeed - 0.01f && preFrictionVelocity.Length() > StopSpeedValue)
+        var isDucking = HoldingCtrl || Ducking || DuckingFlag;
+
+        // sv_accelerate_use_weapon_speed
+        var weaponScale = MathF.Min(1f, RunSpeed / 250f);
+
+        var accelScale = MathF.Max(250f, wishspeed);
+        var goalSpeed = accelScale * weaponScale;
+        var accelScaleMultiplier = isDucking || isWalking ? 1f : weaponScale;
+        var accel = AccelerateValue;
+
+        if (isDucking)
         {
-            Velocity = WalkBandAccelerate(Velocity, wishdir, goalSpeed, preFrictionVelocity, deltaTime, frictionRate, AccelerateValue * goalSpeed * SurfaceFriction);
-            GroundMoveDelta = TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
-            return deltaTime;
+            goalSpeed *= DuckSpeedModifier;
+            accelScaleMultiplier = MathF.Min(DuckSpeedModifier, accelScaleMultiplier);
         }
 
-        // Gradually reduce walk acceleration near goal speed
-        var finalAccel = AccelerateValue;
-        if (isWalking && currentspeed > goalSpeed - WalkTaperBand)
-        {
-            var ratio = (currentspeed - (goalSpeed - WalkTaperBand)) / WalkTaperBand;
-            finalAccel *= Math.Max(0f, 1f - ratio);
-        }
-
-        var preFrictionSpeed = preFrictionVelocity.Length();
-        var accelMagnitude = finalAccel * goalSpeed * SurfaceFriction;
-
-        // Below stopspeed the friction+acceleration frame is integrated from the
-        // pre-friction velocity (no elementary closed form there), superseding the
-        // friction step already applied
-        if (preFrictionSpeed <= StopSpeedValue)
-        {
-            // Kick accel: below accel*wishspeed*tick the sub-stopspeed friction is cancelled so
-            // the wishdir component reaches this floor within one emulated tick, keeping starts from rest snappy
-            var kickSpeed = AccelerateValue * wishspeed * SurfaceFriction * TickInterval;
-            var (kickVelocity, kickEndVelocity, kickEndTime) = SubStopSpeedAccelerate(preFrictionVelocity, wishdir, wishspeed, accelMagnitude, deltaTime, frictionRate, kickSpeed);
-
-            // The boost switching off is a jump in acceleration and a natural segment
-            // boundary: end the segment on the kink so GroundMove sweeps the boosted stretch
-            // as its own trace, and report the shortened horizon. The unboosted remainder is
-            // integrated by the next segment, starting from the kink velocity.
-            if (kickEndTime >= 0f && kickEndTime < deltaTime - 1e-6f)
-            {
-                Velocity = kickEndVelocity;
-                GroundMoveDelta = TrapezoidDisplacement(preFrictionVelocity, kickEndVelocity, kickEndTime);
-                return kickEndTime;
-            }
-
-            Velocity = kickVelocity;
-            GroundMoveDelta = TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
-            return deltaTime;
-        }
-
-        var equilibrium = wishdir * (accelMagnitude / frictionRate);
-        var decay = MathF.Exp(-frictionRate * deltaTime);
-        var odeVelocity = equilibrium + (preFrictionVelocity - equilibrium) * decay;
-
-        // Pure friction+acceleration ODE frame: the addspeed gate stays open (wishdir
-        // component ends at or below wishspeed) and the trajectory never leaves the
-        // exponential friction regime. Exact and composing across any frame partition
-        if (Vector3.Dot(odeVelocity, wishdir) <= wishspeed
-            && OdeMinSpeedSquared(preFrictionVelocity, equilibrium, decay) > StopSpeedValue * StopSpeedValue)
-        {
-            Velocity = odeVelocity;
-            GroundMoveDelta = TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
-            return deltaTime;
-        }
-
-        // Gate-bound or regime-crossing frame: the discrete update, whose clamp lands the
-        // wishdir component exactly on wishspeed - matching the continuous pinned constraint
-        var effectiveTime = (1f - decay) / frictionRate;
-        Velocity += Math.Min(accelMagnitude * effectiveTime, addspeed) * wishdir;
-
-        GroundMoveDelta = TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
-        return deltaTime;
-    }
-
-    /// <summary>
-    /// The speed the acceleration ramp aims for: at least 250, scaled by
-    /// <paramref name="duckModifier"/> and the walk modifier, and by how much of the wish
-    /// survived clipping.
-    ///
-    /// The 250 floor is applied before <paramref name="wishScale"/> deliberately. Clipping shrinks
-    /// the wishspeed below the floor, so folding the two the other way round would hide the
-    /// reduction entirely and hand a wall-constrained segment the full open-ground acceleration.
-    /// </summary>
-    private static float AccelerationGoalSpeed(float wishspeed, float duckModifier, bool isWalking, float wishScale = 1f)
-    {
-        var goalSpeed = MathF.Max(250.0f, wishspeed) * wishScale * duckModifier;
+        accelScale *= accelScaleMultiplier;
 
         if (isWalking)
         {
+            accelScale *= WalkSpeedModifier;
             goalSpeed *= WalkSpeedModifier;
-        }
 
-        return goalSpeed;
-    }
-
-    /// <summary>
-    /// Integrates one ground segment's combined friction+acceleration velocity change from
-    /// the current <see cref="Velocity"/>, leaving the end velocity in <see cref="Velocity"/>
-    /// and the segment displacement in <see cref="GroundMoveDelta"/>. Friction and
-    /// acceleration are not separate steps: friction supplies the decay term of the same ODE
-    /// that acceleration drives, so this runs friction first only to seed the addspeed gate
-    /// and the no-prestrafe cap, then <see cref="Accelerate"/> integrates them together.
-    /// Returns the segment horizon (the full <paramref name="deltaTime"/>, or an earlier
-    /// acceleration kink), so the caller can split its swept move on the same boundary.
-    ///
-    /// <paramref name="wishScale"/> is how much of the raw wish survived the caller's clip to the
-    /// surfaces met this frame (1 when unobstructed). The wishdir/wishspeed passed in are already
-    /// the clipped ones; the scale additionally shrinks the acceleration magnitude, so a
-    /// surface-parallel segment gains exactly the tangential acceleration the unclipped wish
-    /// would have contributed.
-    ///
-    /// Note that <see cref="GroundMoveDelta"/> is deliberately the trapezoid on every path, even
-    /// where an exact closed form exists. The trapezoid *is* the
-    /// linear-velocity model, which is the model <see cref="DistanceToTimeFraction"/> inverts,
-    /// so with it the distance -> time conversion applied to a swept segment is exact for the
-    /// delta being swept rather than an approximation of it. An exact-ODE delta would make the
-    /// segment displacement itself more accurate while breaking that: the average speed the
-    /// conversion is handed (segDistance / segDt) would no longer be (v0 + v1) / 2, so the
-    /// quadratic would no longer match the chord it is describing. Keeping the whole ground path
-    /// on one consistent velocity model is worth more than the second-order distance error.
-    /// </summary>
-    private float WalkMove(Vector3 wishdir, float wishspeed, float deltaTime, float duckModifier, bool isWalking, float wishScale = 1f)
-    {
-        // Come to a complete stop from a crawl. This runs before Accelerate; after
-        // it, high framerates would re-zero every frame's sub-unit acceleration gain and
-        // the player could never start moving
-        if (wishspeed <= 0f && Velocity.LengthSquared() < 1f)
-        {
-            Velocity = Vector3.Zero;
-        }
-
-        var preFrictionVelocity = Velocity;
-
-        Friction(deltaTime);
-        var previousSpeed = Velocity.Length();
-
-        var segDt = Accelerate(wishdir, wishspeed, preFrictionVelocity, deltaTime, duckModifier, isWalking, wishScale);
-
-        // The cap's closed forms assume a full frame; a shortened (kinked) segment stays
-        // deep below the cap, so only apply it when the whole frame was integrated
-        if (!PrestrafeEnabled && segDt >= deltaTime - 1e-6f)
-        {
-            var frictionRate = FrictionValue * SurfaceFriction;
-            var accelMagnitude = AccelerateValue * AccelerationGoalSpeed(wishspeed, duckModifier, isWalking, wishScale) * SurfaceFriction;
-            var preCapVelocity = Velocity;
-            Velocity = CapSpeedNoPrestrafe(Velocity, wishdir, wishspeed, previousSpeed, preFrictionVelocity, deltaTime, frictionRate, accelMagnitude);
-
-            // A cap intervention changes the trajectory mid-frame; fall back to the trapezoid
-            if (Vector3.DistanceSquared(Velocity, preCapVelocity) > 1e-8f)
+            if (currentspeed > goalSpeed - WalkTaperBand)
             {
-                GroundMoveDelta = TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
+                accel *= MathUtils.Saturate(1f - ((currentspeed - (goalSpeed - WalkTaperBand)) / WalkTaperBand));
             }
         }
 
-        return segDt;
+        var rate = (accelScale * accel * SurfaceFriction) - (frictionLeft / TickInterval);
+
+        if (rate > 0f)
+        {
+            Velocity += MathF.Min(rate * TickInterval, addspeed) * wishdir;
+        }
     }
 
     /// <summary>
-    /// Linear (non-rotating) air acceleration for a segment that is riding a surface, returning
-    /// the velocity gain. Three things separate it from <see cref="AirMove"/>:
-    ///
-    /// The gain is applied along the wish clipped to the surfaces rather than along wishdir, so
-    /// none of it is spent pushing into a ramp only for the sweep to strip it again.
-    ///
-    /// The budget is scaled by 1/changeRate. The gate is still measured along the raw wishdir, but
-    /// travelling along the clipped direction only raises that component at rate |acceldir|^2, so
-    /// closing a given addspeed costs proportionally more magnitude. Without this the clip would
-    /// slow the approach to the gate as well as redirect it.
-    ///
-    /// The gain per unit time is capped at what the emulated tick would deliver: a discrete engine
-    /// closes at most the whole remaining addspeed once per tick, so a continuous form that is not
-    /// bounded the same way out-accelerates the reference engine as the frame time shrinks.
-    /// TODO for refactor: This should be rewritten
+    /// Ground friction and acceleration for one tick, then the cap on ground speed.
     /// </summary>
-    private Vector3 AirAccelerateClipped(Vector3 velocity, Vector3 wishdir, float wishspeed, float segTime, ReadOnlySpan<Vector3> planes)
+    private void WalkMove(Vector3 wishdir, float wishspeed, float maxSpeed, bool isWalking)
     {
-        var cap = MathF.Min(wishspeed, AirMaxWishSpeed);
+        var frictionLeft = Friction();
+        Accelerate(wishdir, wishspeed, isWalking, frictionLeft);
 
-        // Note: the accel rate uses the original wishspeed, NOT the capped value
-        var accelRate = AirAccelerate * wishspeed * SurfaceFriction;
+        // Also what stops a hard landing dead, as the landing penalty shrinks the max speed
+        var speed = Velocity.Length();
 
-        // Deliberately not renormalised: the length is how much of the wish is achievable, and
-        // both the budget scaling and the applied gain are defined in terms of it
-        var acceldir = ClipWishVelocity(wishdir, planes, onGround: false, out var resolved);
-
-        var changeRate = resolved ? Vector3.Dot(wishdir, acceldir) : 0f;
-
-        if (changeRate <= 1e-6f)
+        if (speed > maxSpeed)
         {
-            return Vector3.Zero; // wish points straight into the surface; nothing is achievable
+            Velocity *= maxSpeed / speed;
         }
+    }
 
-        var currentspeed = Vector3.Dot(velocity, wishdir);
-        var addspeed = cap - currentspeed;
+    /// <summary>
+    /// Air acceleration for one tick. Half of it is applied before the move, and the returned half is
+    /// for after it, like the rest of the tick's acceleration.
+    /// </summary>
+    private Vector3 AirAccelerateHalf(Vector3 wishdir, float wishspeed)
+    {
+        var addspeed = MathF.Min(wishspeed, AirMaxWishSpeed) - Vector3.Dot(Velocity, wishdir);
 
         if (addspeed <= 0f)
         {
             return Vector3.Zero;
         }
 
-        var accelspeed = MathF.Min(accelRate * segTime, addspeed / changeRate);
+        // Note: the accel rate uses the original wishspeed, NOT the capped value
+        var fullAcceleration = AirAccelerate * wishspeed * SurfaceFriction * TickInterval;
+        var halfAcceleration = fullAcceleration * 0.5f;
 
-        accelspeed = MathF.Min(accelspeed, addspeed * EmulatedTickRate * segTime);
-
-        return accelspeed * acceldir;
-    }
-
-    /// <summary>
-    /// Air acceleration, tickless: the frame's view rotation is integrated in closed form
-    /// so strafe gain depends on degrees turned, not framerate. Key-change wishdir jumps
-    /// stay discrete events (instant top-up). Falls back to the plain discrete update
-    /// when the acceleration budget binds, which is linear in dt and already invariant.
-    /// </summary>
-    private void AirMove(Vector3 wishdir, float wishspeed, float deltaTime, float yawDelta)
-    {
-        if (wishspeed <= 0f)
+        if (halfAcceleration > addspeed)
         {
-            return;
+            Velocity += addspeed * wishdir;
+            return Vector3.Zero;
         }
 
-        var cap = Math.Min(wishspeed, AirMaxWishSpeed);
-
-        // Note: the accel rate uses original wishspeed, NOT the capped value
-        var accelRate = AirAccelerate * wishspeed * SurfaceFriction;
-
-        if (TicklessAirStrafe(Velocity, wishdir, cap, yawDelta, accelRate, deltaTime) is Vector3 strafed)
-        {
-            Velocity = strafed;
-            return;
-        }
-
-        var currentspeed = Vector3.Dot(Velocity, wishdir);
-        var addspeed = cap - currentspeed;
-
-        if (addspeed <= 0)
-        {
-            return;
-        }
-
-        Velocity += Math.Min(accelRate * deltaTime, addspeed) * wishdir;
+        Velocity += halfAcceleration * wishdir;
+        return (fullAcceleration > addspeed ? addspeed - halfAcceleration : halfAcceleration) * wishdir;
     }
 
     /// <summary>
@@ -2631,16 +2266,13 @@ public partial class PlayerMovement : IPlayerController
         => PhysicsWorld.TracePlane(from, to, halfExtents, Vector3.UnitZ, 0f, detectStartSolid);
 
     /// <summary>
-    /// Cosmetic view-feel state driven by the simulation: jump stamina, the landing
-    /// dip/roll punch, and stair-step view smoothing.
+    /// Cosmetic view-feel state driven by the simulation: the landing dip/roll punch, and stair-step
+    /// view smoothing.
     /// </summary>
     private sealed class ViewEffects
     {
         private const float StepSmoothingSlope = 0.6f;    // decay per unit of horizontal speed (~stair rise/run)
         private const float StepSmoothingMinSpeed = 100f; // decay floor
-
-        /// <summary>Jump stamina from 0 to 1; landing drains it and jump impulses scale by it.</summary>
-        public float Stamina { get; private set; } = 1f;
 
         /// <summary>View punch as (pitch, yaw) degrees.</summary>
         public Vector2 ViewPunchDegrees { get; private set; }
@@ -2656,21 +2288,19 @@ public partial class PlayerMovement : IPlayerController
 
         public void Reset()
         {
-            Stamina = 1f;
             ViewPunchDegrees = Vector2.Zero;
             LandingRollDegrees = 0f;
             StepOffset = 0f;
         }
 
         /// <summary>
-        /// Touchdown effects, applied once on the frame the player lands: drain stamina and punch
-        /// the view down. Falls past the safe threshold also kick the camera roll.
+        /// Touchdown effects, applied once on the tick the player lands: punch the view down. Falls
+        /// past the safe threshold also kick the camera roll.
         /// </summary>
         /// <param name="impactSpeed">Downward speed at the moment of impact, in units per second.</param>
         /// <param name="audible">Whether this landing made a noise; a silent one does not punch the view.</param>
         public void OnLanded(float impactSpeed, bool audible)
         {
-            Stamina = MathF.Max(0f, Stamina - 0.1f);
             LandingRollDegrees = Math.Clamp((impactSpeed - 300f) * 0.013f, 0f, 10f);
 
             if (audible)
@@ -2719,9 +2349,6 @@ public partial class PlayerMovement : IPlayerController
             {
                 StepOffset = 0f;
             }
-
-            // Stamina recovers toward full (sv_staminarecoveryrate 60 / sv_staminamax 80)
-            Stamina = MathF.Min(1f, Stamina + 0.75f * deltaTime);
 
             // The landing roll snaps on at impact; recovering it is a fast exponential ease-out
             var landingRecovery = MathF.Exp(-12f * deltaTime);

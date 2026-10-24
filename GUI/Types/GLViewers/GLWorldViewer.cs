@@ -297,7 +297,6 @@ namespace GUI.Types.GLViewers
                 var isKzMap = kzMapPrefixes.Any(prefix => mapName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
 
                 ShowSpeed = isKzMap;
-                Input.PlayerMovement.PrestrafeEnabled = isKzMap;
                 Input.PlayerMovement.AutoBunnyHop = isKzMap;
                 Input.PlayerMovement.AirAccelerate = isKzMap
                     ? PlayerMovement.AirAccelerateMovementMaps
