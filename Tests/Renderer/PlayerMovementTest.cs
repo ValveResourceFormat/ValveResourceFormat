@@ -17,14 +17,6 @@ namespace Tests.Renderer
     [Explicit]
     public class PlayerMovementTest
     {
-        private const float AirCap = 30f;                 // AirMaxWishSpeed
-        private const float WishSpeed = 250f;             // RunSpeed, no walk/duck modifiers
-        private const float AirAccelRate = 150f * WishSpeed;
-
-        // Rotations below PlayerMovement's tickless guard run the discrete rule,
-        // which deviates from the continuous model by design (bounded, non-accumulating)
-        private const float TicklessMinTurn = 2e-4f;
-
         // The harness contexts a test creates, disposed after it. The helper hands back only
         // what the tests use, so the disposables are tracked here rather than at call sites.
         private readonly List<IDisposable> HarnessContexts = [];
@@ -64,6 +56,9 @@ namespace Tests.Renderer
 
         private static double HorizontalSpeed(Vector3 v) => double.Hypot(v.X, v.Y);
 
+        /// <summary>The feet as of the last tick, rather than as drawn between the last two.</summary>
+        private static Vector3 SimulatedFeet(PlayerMovement movement) => movement.HullCenter - new Vector3(0, 0, movement.HullHalfExtents.Z);
+
         private static readonly float[] ComparisonFramerates = [50f, 100f, 250f, 1000f];
 
         /// <summary>Largest deviation from the first value, the cross-framerate invariance signal.</summary>
@@ -90,143 +85,19 @@ namespace Tests.Renderer
             await Assert.That(input.PlayerMovement.OnGround).IsTrue().Because("player did not land during settling");
         }
 
-        /// <summary>
-        /// Ground truth for one air frame: micro-substepped AirAccelerate with the wishdir
-        /// rotating incrementally across the frame, in double precision.
-        /// </summary>
-        private static (double X, double Y) AirOracle(double vx, double vy, double wishAngleEnd, double yawDelta, double dt)
-        {
-            const int Substeps = 4000;
-            var budgetPerStep = (double)AirAccelRate * dt / Substeps;
-            var startAngle = wishAngleEnd - yawDelta;
-
-            for (var i = 1; i <= Substeps; i++)
-            {
-                var (sin, cos) = Math.SinCos(startAngle + yawDelta * i / Substeps);
-                var addspeed = AirCap - (vx * cos + vy * sin);
-
-                if (addspeed > 0)
-                {
-                    var accelspeed = Math.Min(budgetPerStep, addspeed);
-                    vx += accelspeed * cos;
-                    vy += accelspeed * sin;
-                }
-            }
-
-            return (vx, vy);
-        }
-
-        /// <summary>
-        /// The wishdir angle relative to yaw for a WASD combination, matching
-        /// PlayerMovement.CalculateWishVelocity; null when the keys cancel out.
-        /// </summary>
-        private static double? WishOffset(TrackedKeys keys)
-        {
-            var forwardMove = (keys.HasFlag(TrackedKeys.W) ? 1 : 0) - (keys.HasFlag(TrackedKeys.S) ? 1 : 0);
-            var sideMove = (keys.HasFlag(TrackedKeys.D) ? 1 : 0) - (keys.HasFlag(TrackedKeys.A) ? 1 : 0);
-
-            if (forwardMove == 0 && sideMove == 0)
-            {
-                return null;
-            }
-
-            return Math.Atan2(-sideMove, forwardMove);
-        }
-
-        [Test]
-        public async Task AirStrafeMatchesContinuousOracle()
-        {
-            // Regression locks: best measured maxima are 9.8e-4 (machine, 4000-substep
-            // oracle) and 1.0e-2 (guard-zone discrete). Lower these when precision improves.
-            const double MachineErrorLock = 1.2e-3;
-            const double GuardZoneErrorLock = 1.2e-2;
-
-            var rng = new Random(1234);
-            var maxMachineError = 0.0;
-            var maxGuardZoneError = 0.0;
-            var machineFrames = 0;
-            var guardFrames = 0;
-
-            TrackedKeys[] keyChoices =
-            [
-                TrackedKeys.W, TrackedKeys.A, TrackedKeys.S, TrackedKeys.D,
-                TrackedKeys.W | TrackedKeys.A, TrackedKeys.W | TrackedKeys.D,
-                TrackedKeys.S | TrackedKeys.A, TrackedKeys.S | TrackedKeys.D,
-                TrackedKeys.None,
-            ];
-
-            for (var trial = 0; trial < 30; trial++)
-            {
-                var (input, renderCamera) = await CreateHeadlessFpsInput(spawnHeight: 6000f);
-                var movement = input.PlayerMovement;
-
-                var fps = 60f + (float)rng.NextDouble() * 500f;
-                var dt = 1f / fps;
-                var keys = TrackedKeys.W;
-                var frames = (int)(2.5f * fps);
-
-                for (var i = 0; i < frames; i++)
-                {
-                    if (rng.NextDouble() < 0.05)
-                    {
-                        keys = keyChoices[rng.Next(keyChoices.Length)];
-                    }
-
-                    // Mixture of subtle and normal mouse movement
-                    var yawDelta = (float)((rng.NextDouble() - 0.5) * 2);
-                    yawDelta *= rng.NextDouble() < 0.5 ? 0.004f : 0.08f;
-
-                    var preVelocity = movement.Velocity;
-                    var wasAirborne = !movement.OnGround;
-
-                    input.Camera.Yaw += yawDelta;
-                    var yaw = input.Camera.Yaw;
-                    input.Tick(dt, keys, Vector2.Zero, renderCamera);
-
-                    // Only frames that were fully airborne have pure AirMove semantics
-                    if (!wasAirborne || movement.OnGround || WishOffset(keys) is not double wishOffset)
-                    {
-                        continue;
-                    }
-
-                    var (expectedX, expectedY) = AirOracle(preVelocity.X, preVelocity.Y, yaw + wishOffset, yawDelta, dt);
-                    var error = double.Hypot(movement.Velocity.X - expectedX, movement.Velocity.Y - expectedY);
-
-                    if (MathF.Abs(yawDelta) > TicklessMinTurn)
-                    {
-                        machineFrames++;
-                        maxMachineError = Math.Max(maxMachineError, error);
-                    }
-                    else
-                    {
-                        guardFrames++;
-                        maxGuardZoneError = Math.Max(maxGuardZoneError, error);
-                    }
-                }
-            }
-
-            await Console.Out.WriteLineAsync("Air strafe vs continuous oracle (random WASD + mouse, 30 trials, 60-560 fps):");
-            await Console.Out.WriteLineAsync($"  {"frames",-10} {"max err (u/s)",-16} {"lock",-10}");
-            await Console.Out.WriteLineAsync($"  machine    {machineFrames,-10} {maxMachineError,-16:E3} {MachineErrorLock:E1}");
-            await Console.Out.WriteLineAsync($"  guard-zone {guardFrames,-10} {maxGuardZoneError,-16:E3} {GuardZoneErrorLock:E1}");
-
-            await Assert.That(machineFrames).IsGreaterThan(5000);
-            await Assert.That(maxMachineError).IsLessThan(MachineErrorLock).Because("tickless machine precision regressed");
-            await Assert.That(maxGuardZoneError).IsLessThan(GuardZoneErrorLock).Because("sub-guard discrete frames deviate beyond their design bound");
-        }
-
         [Test]
         public async Task AirStrafeGainIsFramerateInvariant()
         {
             // Regression lock on the cross-fps end-speed spread per turn rate
-            const double SpreadLock = 6.5e-3; // best measured: 5.6e-3 at 360 deg/s
+            const double SpreadLock = 1e-3; // best measured: 4.7e-4 at 180 deg/s, from the yaw summed per frame
 
-            float[] framerates = [64f, 128f, 250f, 1000f];
+            // Multiples of the tick rate, so every tick samples the view at the same moment
+            float[] framerates = [64f, 128f, 256f, 1024f];
             float[] turnRatesDegPerSec = [90f, 180f, 360f];
             var worstSpread = 0.0;
 
             await Console.Out.WriteLineAsync("Air strafe end speed after 2s of hold-W turning (u/s):");
-            await Console.Out.WriteLineAsync($"  {"turn °/s",-10} {"64 fps",-12} {"128 fps",-12} {"250 fps",-12} {"1000 fps",-12} spread");
+            await Console.Out.WriteLineAsync($"  {"turn °/s",-10} {"64 fps",-12} {"128 fps",-12} {"256 fps",-12} {"1024 fps",-12} spread");
 
             foreach (var turnRateDeg in turnRatesDegPerSec)
             {
@@ -277,14 +148,14 @@ namespace Tests.Renderer
             await SettleOntoGround(input, renderCamera, fps);
             await Assert.That(HorizontalSpeed(movement.Velocity)).IsLessThan(0.001).Because("player did not come to rest");
 
-            var accelStart = movement.Position;
+            var accelStart = SimulatedFeet(movement);
 
             for (var i = 0; i < (int)(accelSeconds * fps); i++)
             {
                 input.Tick(dt, TrackedKeys.W, Vector2.Zero, renderCamera);
             }
 
-            var releasePoint = movement.Position;
+            var releasePoint = SimulatedFeet(movement);
             var accelEndSpeed = HorizontalSpeed(movement.Velocity);
 
             // Coast to a stop under friction alone
@@ -295,7 +166,7 @@ namespace Tests.Renderer
 
             await Assert.That(HorizontalSpeed(movement.Velocity)).IsZero().Because("player did not stop under friction");
 
-            var stopPoint = movement.Position;
+            var stopPoint = SimulatedFeet(movement);
 
             return (
                 double.Hypot(releasePoint.X - accelStart.X, releasePoint.Y - accelStart.Y),
@@ -306,22 +177,11 @@ namespace Tests.Renderer
         [Test]
         public async Task GroundMovementIsFramerateInvariant()
         {
-            // Regression locks on cross-fps spreads. Best measured: distance 3.24e-2,
-            // speed 0.0 (bit-exact), stop distance 4.0e-4. Lower when precision improves.
-            //
-            // The distance lock is loose on purpose. GroundMoveDelta is the trapezoid on every
-            // acceleration path, which is second order on the friction+acceleration exponential
-            // and leaves this O(dt^2) spread across the 0 -> 250 ramp. Wiring Accelerate up to the
-            // closed forms that exist for those paths takes it to 3.05e-5, but the trapezoid is
-            // the linear-velocity model that DistanceToTimeFraction inverts, so keeping it is what
-            // makes the collision-time conversion exact for the delta being swept; see the note
-            // on WalkMove. The spread here is the price of that consistency, not an unknown.
-            //
-            // Note the stop distance stays tight either way: FrictionDisplacement is already a
-            // closed form, so only the acceleration side is ever chorded.
-            const double AccelDistanceSpreadLock = 3.5e-2;
+            // Regression locks on cross-fps spreads. The simulation runs fixed ticks, so what is
+            // left is float noise from the tick accumulator. Lower when precision improves.
+            const double AccelDistanceSpreadLock = 1e-4;
             const double AccelSpeedSpreadLock = 1e-5;
-            const double StopDistanceSpreadLock = 6e-4;
+            const double StopDistanceSpreadLock = 1e-4;
 
             // From rest, 2s of W reaches the 250 u/s cap; friction-only stop from the cap
             const float AccelSeconds = 2f;
@@ -345,9 +205,9 @@ namespace Tests.Renderer
 
             await Console.Out.WriteLineAsync($"  spreads: dist={Spread(accelDistances):E2} speed={Spread(accelSpeeds):E2} stop={Spread(stopDistances):E2}");
 
-            // Sanity anchors: analytic values for the continuous model
+            // Sanity anchors: the stop distance of per-tick friction from 250 u/s, moving at each tick's mid velocity
             await Assert.That(accelSpeeds[0]).IsEqualTo(250.0).Within(0.01).Because("did not reach the run speed cap");
-            await Assert.That(stopDistances[0]).IsEqualTo(40.38).Within(0.2).Because("stop distance far from the analytic 40.38");
+            await Assert.That(stopDistances[0]).IsEqualTo(39.016).Within(0.01).Because("stop distance far from the per-tick 39.016");
 
             await Assert.That(Spread(accelDistances)).IsLessThan(AccelDistanceSpreadLock).Because("ground acceleration distance invariance regressed");
             await Assert.That(Spread(accelSpeeds)).IsLessThan(AccelSpeedSpreadLock).Because("ground speed invariance regressed");
@@ -382,7 +242,7 @@ namespace Tests.Renderer
 
             await SettleOntoGround(input, renderCamera, fps);
 
-            var start = movement.Position;
+            var start = SimulatedFeet(movement);
 
             // Straight down +X; the wall deflects the run onto the (1,1)/sqrt(2) diagonal
             input.Camera.Yaw = 0f;
@@ -392,7 +252,7 @@ namespace Tests.Renderer
                 input.Tick(dt, TrackedKeys.W, Vector2.Zero, renderCamera);
             }
 
-            var pos = movement.Position;
+            var pos = SimulatedFeet(movement);
             return (pos.X - start.X, pos.Y - start.Y, WallGap(pos), HorizontalSpeed(movement.Velocity));
         }
 
@@ -431,12 +291,6 @@ namespace Tests.Renderer
                 $"  spreads: slideX={Spread(slideX):E2} slideY={Spread(slideY):E2}"
                 + $" gap={Spread(gap):E2} endSpeed={Spread(endSpeed):E2}");
             await Console.Out.WriteLineAsync($"  gap should rest at SurfaceEpsilon = {SurfaceEpsilon}");
-            await Console.Out.WriteLineAsync();
-            await Console.Out.WriteLineAsync("  NOTE: the slide outlier at the highest framerate is expected. In a steady slide the");
-            await Console.Out.WriteLineAsync("  sweep runs at a very shallow angle to the wall, so even with TraceBBox's 4-unit");
-            await Console.Out.WriteLineAsync("  MarginLookahead it no longer closes SurfaceEpsilon of perpendicular distance and the");
-            await Console.Out.WriteLineAsync("  wall stops being seen. The shallower the angle, the less of the gap the lookahead");
-            await Console.Out.WriteLineAsync("  covers, and the angle gets shallower as the frame time shrinks.");
 
             foreach (var g in gap)
             {
@@ -482,7 +336,7 @@ namespace Tests.Renderer
             // the spawn straight down instead would embed the hull once the ramp is tilted: the
             // box's support half-width along a tilted normal is much larger than its half-height.
             var half = movement.HullHalfExtents;
-            var center = movement.Position + new Vector3(0, 0, half.Z);
+            var center = movement.HullCenter;
             var extent = (MathF.Abs(n.X) * half.X) + (MathF.Abs(n.Y) * half.Y) + (MathF.Abs(n.Z) * half.Z);
             var d = Vector3.Dot(n, center) - extent - SurfDropHeight;
 
@@ -496,7 +350,7 @@ namespace Tests.Renderer
             // Holding A is sideMove = -RunSpeed, so the wish points along -right (CalculateWishVelocity)
             var wishdir = new Vector3(-MathF.Sin(yaw), MathF.Cos(yaw), 0f);
 
-            var start = movement.Position;
+            var start = SimulatedFeet(movement);
             var grounded = false;
 
             for (var i = 0; i < (int)(3f * fps); i++)
@@ -505,7 +359,7 @@ namespace Tests.Renderer
                 grounded |= movement.OnGround;
             }
 
-            var end = movement.Position;
+            var end = SimulatedFeet(movement);
 
             return (
                 double.Hypot(end.X - start.X, end.Y - start.Y),
@@ -524,12 +378,11 @@ namespace Tests.Renderer
         [Test]
         public async Task SurfIsFramerateInvariant()
         {
-            // Regression locks, ~20% above the measured spreads (travel 2.0, endSpeed 4.3,
-            // descent 3.2, wishDot 1.4 over a ~1796u run). When precision improves, LOWER them.
-            const double TravelSpreadLock = 2.5;
-            const double EndSpeedSpreadLock = 5.0;
-            const double DescentSpreadLock = 4.0;
-            const double WishDotSpreadLock = 1.8;
+            // Regression locks; the fixed tick makes every framerate bit-identical over a ~1780u run
+            const double TravelSpreadLock = 1e-3;
+            const double EndSpeedSpreadLock = 1e-3;
+            const double DescentSpreadLock = 1e-3;
+            const double WishDotSpreadLock = 1e-3;
 
             // The strafe gate saturates near AirMaxWishSpeed (30) when surfing works. The bug this
             // guards against (the post-contact strafe gain being recomputed and then dropped)
@@ -561,7 +414,7 @@ namespace Tests.Renderer
             await Console.Out.WriteLineAsync(
                 $"  spreads: travel={Spread(travel):E2} endSpeed={Spread(endSpeed):E2}"
                 + $" descent={Spread(descent):E2} wishDot={Spread(wishDot):E2}");
-            await Console.Out.WriteLineAsync($"  (AirMaxWishSpeed is {AirCap}; the addspeed gate stops adding once v·wishdir reaches it)");
+            await Console.Out.WriteLineAsync("  (AirMaxWishSpeed is 30; the addspeed gate stops adding once v·wishdir reaches it)");
 
             await Assert.That(travel[0]).IsGreaterThan(1f).Because("player did not move along the ramp; the scenario is broken");
 
@@ -600,13 +453,17 @@ namespace Tests.Renderer
 
             await SettleOntoGround(input, renderCamera, fps);
 
-            var launch = movement.Position;
+            var launch = SimulatedFeet(movement);
 
-            // One grounded frame with jump held (AutoBunnyHop) launches straight up
-            input.Tick(dt, TrackedKeys.Space, Vector2.Zero, renderCamera);
+            // Jump held (AutoBunnyHop) launches straight up on the next tick, which a frame may not reach
+            for (var i = 0; i <= (int)(fps / 64f) && movement.OnGround; i++)
+            {
+                input.Tick(dt, TrackedKeys.Space, Vector2.Zero, renderCamera);
+            }
+
             await Assert.That(movement.OnGround).IsFalse().Because("jump did not leave the ground");
 
-            var apexZ = movement.Position.Z;
+            var apexZ = SimulatedFeet(movement).Z;
             var frames = (int)(4f * fps);
 
             var landed = false;
@@ -614,7 +471,7 @@ namespace Tests.Renderer
             for (var i = 0; i < frames; i++)
             {
                 input.Tick(dt, TrackedKeys.None, Vector2.Zero, renderCamera);
-                apexZ = MathF.Max(apexZ, movement.Position.Z);
+                apexZ = MathF.Max(apexZ, SimulatedFeet(movement).Z);
 
                 if (movement.OnGround)
                 {
@@ -640,7 +497,7 @@ namespace Tests.Renderer
                 }
             }
 
-            var land = movement.Position;
+            var land = SimulatedFeet(movement);
             return (double.Hypot(land.X - launch.X, land.Y - launch.Y), apexZ, landed && movement.OnGround);
         }
 
@@ -678,9 +535,9 @@ namespace Tests.Renderer
 
             await Assert.That(horizontal[0]).IsGreaterThan(1.0).Because("overhang did not deflect the jump horizontally");
 
-            // Locks, ~2x the measured spreads (horizontal 2.8e-3, apex 7.6e-3)
-            await Assert.That(Spread(horizontal)).IsLessThan(6e-3).Because("overhang bounce invariance regressed");
-            await Assert.That(Spread(apex)).IsLessThan(1.5e-2).Because("overhang apex invariance regressed");
+            // Locks; the fixed tick makes every framerate bit-identical
+            await Assert.That(Spread(horizontal)).IsLessThan(1e-3).Because("overhang bounce invariance regressed");
+            await Assert.That(Spread(apex)).IsLessThan(1e-3).Because("overhang apex invariance regressed");
         }
 
         [Test]
