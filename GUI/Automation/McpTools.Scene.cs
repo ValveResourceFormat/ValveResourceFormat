@@ -73,7 +73,7 @@ internal sealed partial class McpTools
 
         table.Add(world.Entities, null);
 
-        foreach (var group in viewer.Renderer.SpawnGroups.ToArray())
+        foreach (var group in viewer.OwnSceneSpawnGroups.ToArray())
         {
             table.Add(group.Entities, group);
         }
@@ -376,7 +376,8 @@ internal sealed partial class McpTools
         return "layer_off";
     }
 
-    private static SpawnGroup? SpawnGroupOf(GLSceneViewer viewer, Scene scene) => viewer.Renderer.SpawnGroups.FirstOrDefault(group => group.Scene == scene);
+    private static SpawnGroup? SpawnGroupOf(GLSceneViewer viewer, Scene scene)
+        => viewer.Renderer.EntitySystem.SpawnGroupManager.Groups.FirstOrDefault(group => group.HasOwnScene && group.Scene == scene);
 
     /// <param name="entities">The entities of the viewer's map from <see cref="MapEntities"/>.</param>
     private object DescribeNode(GLSceneViewer viewer, EntityTable? entities, SceneNode node)

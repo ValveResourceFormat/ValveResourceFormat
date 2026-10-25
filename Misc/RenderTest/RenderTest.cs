@@ -294,12 +294,7 @@ internal class RenderTestWindow : GameWindow
         }
 
         var mapPath = vmaps[0].GetFullPath();
-        var loadedMap = WorldLoader.LoadMap(mapPath, scene, SceneRenderer.EntitySystem);
-
-        foreach (var spawnGroup in loadedMap.SpawnGroups)
-        {
-            SceneRenderer.AddSpawnGroup(spawnGroup);
-        }
+        WorldLoader.LoadMap(mapPath, scene, SceneRenderer.EntitySystem);
 
         // Initialize scene (creates lighting buffers, octrees, etc.)
         foreach (var initializing in SceneRenderer.Scenes)

@@ -264,11 +264,6 @@ namespace GUI.Types.GLViewers
 
                 LoadedWorld.Load(mapExternalReferences);
 
-                foreach (var spawnGroup in LoadedWorld.SpawnGroups)
-                {
-                    Renderer.AddSpawnGroup(spawnGroup);
-                }
-
                 NavMeshSceneNode.AddNavNodesToScene(LoadedWorld.NavMesh, Scene, LoadedWorld.NavigationHullNames);
                 NavSpaceSceneNode.AddToScene(LoadedWorld.NavSpace, Scene);
                 NavMeshSceneNode.AddFlowMapNodesToScene(LoadedWorld.NavFlowMap, LoadedWorld.NavMesh, Scene, LoadedWorld.NavigationHullNames);
@@ -435,7 +430,7 @@ namespace GUI.Types.GLViewers
 
                 using (UiControl.BeginGroup("World"))
                 {
-                    if (Renderer.SkyGroup != null)
+                    if (Renderer.Scenes.Any(static scene => scene.WorldGroup != null))
                     {
                         UiControl.AddCheckBox("Show Skybox", Renderer.Settings.ShowSkybox, (v) => Renderer.Settings.ShowSkybox = v);
                     }
@@ -684,7 +679,7 @@ namespace GUI.Types.GLViewers
         {
             var origin = entity.GetVector3Property("origin");
 
-            if (Renderer.SpawnGroups.FirstOrDefault(group => group.Entities.Contains(entity)) is { } spawnGroup)
+            if (OwnSceneSpawnGroups.FirstOrDefault(group => group.Entities.Contains(entity)) is { } spawnGroup)
             {
                 origin = spawnGroup.EntityOriginToWorld(origin);
             }
@@ -819,7 +814,7 @@ namespace GUI.Types.GLViewers
             info.AddProperty("Flags", sceneNode.Flags.ToString());
             info.AddProperty("Layer", sceneNode.LayerName ?? string.Empty);
 
-            if (Renderer.SpawnGroups.FirstOrDefault(group => group.Scene == sceneNode.Scene) is { } spawnGroup)
+            if (OwnSceneSpawnGroups.FirstOrDefault(group => group.Scene == sceneNode.Scene) is { } spawnGroup)
             {
                 form.Text += SpawnGroupSuffix(spawnGroup);
             }
@@ -846,13 +841,17 @@ namespace GUI.Types.GLViewers
                 ? $"Entity: {classname}"
                 : $"Entity: {classname} ({targetName})";
 
-            if (Renderer.SpawnGroups.FirstOrDefault(group => group.Entities.Contains(entity)) is { } spawnGroup)
+            if (OwnSceneSpawnGroups.FirstOrDefault(group => group.Entities.Contains(entity)) is { } spawnGroup)
             {
                 form.Text += SpawnGroupSuffix(spawnGroup);
             }
 
             form.EntityInfoControl.ShowPopulatedTabs();
         }
+
+        // Drawn as scenes of their own, such as the 3D sky, with entities the map does not list
+        internal IEnumerable<SpawnGroup> OwnSceneSpawnGroups
+            => Renderer.EntitySystem.SpawnGroupManager.Groups.Where(static group => group.HasOwnScene);
 
         private static string SpawnGroupSuffix(SpawnGroup spawnGroup)
             => spawnGroup.WorldGroup != null ? " (in 3D skybox)" : $" (in {spawnGroup.MapName})";
@@ -898,12 +897,7 @@ namespace GUI.Types.GLViewers
                 return [];
             }
 
-            if (Renderer.SpawnGroups.Count == 0)
-            {
-                return LoadedWorld.Entities;
-            }
-
-            return [.. LoadedWorld.Entities, .. Renderer.SpawnGroups.SelectMany(static group => group.Entities)];
+            return [.. LoadedWorld.Entities, .. OwnSceneSpawnGroups.SelectMany(static group => group.Entities)];
         }
 
         private void OnLinkedResourceActivated(object? sender, LinkedResource link)
@@ -1382,12 +1376,15 @@ namespace GUI.Types.GLViewers
             Renderer.RemoveEntities();
 
             LoadedWorld.LoadingProgress = null;
-            LoadedWorld.ReloadEntities();
+            LoadedWorld.LoadEntities();
 
-            foreach (var spawnGroup in LoadedWorld.SpawnGroups)
+            // Spawning again loaded the spawn groups with scenes of their own again
+            foreach (var scene in Renderer.Scenes)
             {
-                Renderer.AddSpawnGroup(spawnGroup);
-                spawnGroup.Scene.Initialize();
+                if (scene != Scene)
+                {
+                    scene.Initialize();
+                }
             }
 
             Scene.RebindLighting();

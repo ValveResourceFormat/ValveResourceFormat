@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.Utils;
+using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using Entity = ValveResourceFormat.ResourceTypes.EntityLump.Entity;
@@ -10,15 +11,13 @@ using Entity = ValveResourceFormat.ResourceTypes.EntityLump.Entity;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// Everything <see cref="EntityFactory"/> needs to spawn an entity: its keyvalues, the transform of its
-/// spawner, its visibility layer, and its scene.
+/// Everything <see cref="EntityFactory"/> needs to spawn an entity: its keyvalues, its visibility layer, and
+/// the spawn group spawning it.
 /// </summary>
 /// <param name="Data">The entity's keyvalues, as authored in the map.</param>
-/// <param name="ParentTransform">Transform of the spawner (a template or spawn group placement, identity for map entities), applied to the authored origin and angles.</param>
 /// <param name="LayerName">Visibility layer for this entity and every node it creates.</param>
-/// <param name="Scene">The scene the entity's nodes render into.</param>
-/// <param name="NameFixup">What the spawning group puts in place of the markers in the entity's names.</param>
-public readonly record struct EntitySpawnInfo(Entity Data, Matrix4x4 ParentTransform, string? LayerName, Scene Scene, EntityNameFixup NameFixup);
+/// <param name="SpawnGroup">The spawn group spawning the entity, whose scene its nodes render into and whose placement moves its authored origin and angles.</param>
+public readonly record struct EntitySpawnInfo(Entity Data, string? LayerName, SpawnGroup SpawnGroup);
 
 /// <summary>
 /// The base of the simulated entities. Ticks inside <see cref="EntitySystem"/> and owns the scene nodes
@@ -67,6 +66,12 @@ public abstract class BaseEntity
 
     /// <summary>Gets what the spawning group put in place of the markers in this entity's names.</summary>
     public EntityNameFixup NameFixup { get; } = EntityNameFixup.None;
+
+    /// <summary>
+    /// Gets the spawn group that owns the entity and removes it when it unloads, or <see langword="null"/> for
+    /// an entity created at runtime.
+    /// </summary>
+    public SpawnGroup? SpawnGroup { get; }
 
     /// <summary>
     /// Gets <see cref="SpawnData"/>, throwing for an entity created at runtime. A class that can be
@@ -375,12 +380,15 @@ public abstract class BaseEntity
     /// <summary>Initializes the entity from its keyvalues.</summary>
     protected BaseEntity(EntitySystem system, EntitySpawnInfo spawnInfo)
     {
+        var spawnGroup = spawnInfo.SpawnGroup;
+
         EntitySystem = system;
-        Scene = spawnInfo.Scene;
+        Scene = spawnGroup.Scene;
         Data = spawnInfo.Data;
-        NameFixup = spawnInfo.NameFixup;
+        NameFixup = spawnGroup.NameFixup;
+        SpawnGroup = spawnGroup.Owner ?? spawnGroup;
         SpawnData = NameFixup.Apply(spawnInfo.Data);
-        SpawnTransform = spawnInfo.ParentTransform;
+        SpawnTransform = spawnGroup.Transform;
         var data = SpawnData;
 
         Classname = data.GetStringProperty("classname") ?? string.Empty;
@@ -393,10 +401,10 @@ public abstract class BaseEntity
         // Authored in the world of the map they were compiled in, and moved with whatever placed it
         var authoredAngles = data.GetVector3Property("angles");
         var authored = EntityTransformHelper.ToRigidTransformationMatrix(authoredAngles, data.GetVector3Property("origin"))
-            * spawnInfo.ParentTransform;
+            * SpawnTransform;
 
         origin = authored.Translation;
-        angles = spawnInfo.ParentTransform.IsIdentity
+        angles = SpawnTransform.IsIdentity
             ? authoredAngles
             : EntityTransformHelper.ToEulerAngles(Quaternion.CreateFromRotationMatrix(authored));
         previousOrigin = origin;
@@ -530,7 +538,7 @@ public abstract class BaseEntity
     }
 
     /// <summary>
-    /// Called once every entity in the map has spawned, to resolve other entities by name.
+    /// Called once every entity of its spawn group has spawned, to resolve other entities by name.
     /// </summary>
     public virtual void Activate()
     {

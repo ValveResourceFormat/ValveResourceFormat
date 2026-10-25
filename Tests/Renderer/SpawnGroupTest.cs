@@ -51,7 +51,7 @@ namespace Tests.Renderer
         public async Task EntityOriginsFollowThePlacement()
         {
             var placement = Matrix4x4.CreateTranslation(100f, -200f, 32f);
-            var group = new SpawnGroup("maps/stages/stage", CreateScene(), placement, []);
+            var group = new SpawnGroup("maps/stages/stage", CreateScene(), placement);
 
             await Assert.That(group.EntityOriginToWorld(new Vector3(1f, 2f, 3f))).IsEqualTo(new Vector3(101f, -198f, 35f));
         }

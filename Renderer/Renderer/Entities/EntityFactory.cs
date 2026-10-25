@@ -103,6 +103,7 @@ public static class EntityFactory
         Register<PointCamera>("point_camera_vertical_fov", static (system, spawnInfo) => new PointCamera(system, spawnInfo));
         Register<PointCamera>("point_devshot_camera", static (system, spawnInfo) => new PointCamera(system, spawnInfo));
         Register<SkyCamera>("sky_camera", static (system, spawnInfo) => new SkyCamera(system, spawnInfo));
+        Register<SkyboxReference>("skybox_reference", static (system, spawnInfo) => new SkyboxReference(system, spawnInfo));
         Register<SpawnPoint>("info_player_counterterrorist", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
         Register<SpawnPoint>("info_player_start", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
         Register<SpawnPoint>("info_player_start_badguys", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
@@ -123,6 +124,7 @@ public static class EntityFactory
         Register<FilterActivatorModel>("filter_activator_model", static (system, spawnInfo) => new FilterActivatorModel(system, spawnInfo));
         Register<FilterActivatorTeam>("filter_activator_team", static (system, spawnInfo) => new FilterActivatorTeam(system, spawnInfo));
         Register<InfoSpawnGroupLoadUnload>("info_spawngroup_load_unload", static (system, spawnInfo) => new InfoSpawnGroupLoadUnload(system, spawnInfo));
+        Register<PointTemplate>("point_template", static (system, spawnInfo) => new PointTemplate(system, spawnInfo));
 
         // sounds
         Register<EnvSoundscape>("env_soundscape", static (system, spawnInfo) => new EnvSoundscape(system, spawnInfo));
@@ -153,8 +155,8 @@ public static class EntityFactory
     }
 
     /// <summary>
-    /// Creates the entity for a classname, which <see cref="EntitySystem.CreateEntity"/> then spawns and
-    /// adds to the world. An unimplemented classname gives a
+    /// Creates the entity for a classname, which the entity system adds to the world to spawn with the rest of
+    /// its spawn group. An unimplemented classname gives a
     /// <see cref="GenericModelEntity"/> when it has a model, otherwise a <see cref="GenericEntity"/>.
     /// </summary>
     /// <returns>

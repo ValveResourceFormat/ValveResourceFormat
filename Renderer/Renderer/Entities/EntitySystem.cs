@@ -1,6 +1,8 @@
+using System.IO;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.SceneEnvironment;
+using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using Entity = ValveResourceFormat.ResourceTypes.EntityLump.Entity;
@@ -148,46 +150,110 @@ public sealed class EntitySystem
 
         RendererContext = context;
         TempEntities = new TempEntities(this);
+        SpawnGroupManager = new SpawnGroupManager(this);
     }
 
     /// <summary>Gets the one-shot effects that have no entity of their own, such as bullet impacts.</summary>
     public TempEntities TempEntities { get; }
 
+    /// <summary>Gets what loads, spawns and unloads the spawn groups the entities come from.</summary>
+    public SpawnGroupManager SpawnGroupManager { get; }
+
     /// <summary>
-    /// Creates the entity for a map entity's keyvalues and puts it in the world. An unimplemented classname
-    /// becomes a <see cref="GenericModelEntity"/> or <see cref="GenericEntity"/>, which only draw themselves.
+    /// Gets the active spawn group, which a <c>point_template</c> set to insert into it gives its entities to,
+    /// set by <see cref="SpawnGroupManager.PerformActivateSpawnGroup"/>. The map becomes active once it has
+    /// spawned, and none is active once the active one unloads.
+    /// </summary>
+    public SpawnGroup? ActiveSpawnGroup { get; internal set; }
+
+    /// <summary>
+    /// Gets the <c>skybox_reference</c> whose 3D sky is drawn, the last to activate, or <see langword="null"/>.
+    /// </summary>
+    public SkyboxReference? ActiveSkyboxReference { get; internal set; }
+
+    /// <summary>
+    /// Creates the entity for a map entity's keyvalues and puts it in the world, to be spawned with the rest of
+    /// its spawn group by <see cref="SpawnEntities"/>. An unimplemented classname becomes a
+    /// <see cref="GenericModelEntity"/> or <see cref="GenericEntity"/>, which only draw themselves.
     /// </summary>
     /// <param name="data">The entity's keyvalues.</param>
-    /// <param name="parentTransform">Transform of whatever spawned it.</param>
     /// <param name="layerName">Visibility layer for its nodes.</param>
-    /// <param name="intoScene">Scene the entity's nodes render into.</param>
-    /// <param name="nameFixup">What the spawning group puts in place of the markers in the entity's names.</param>
+    /// <param name="spawnGroup">The spawn group spawning it.</param>
     /// <returns>
-    /// The spawned entity, or <see langword="null"/> if the keyvalues name no classname or a <c>worldspawn</c>.
+    /// The created entity, or <see langword="null"/> if the keyvalues name no classname or a <c>worldspawn</c>.
     /// </returns>
-    public BaseEntity? CreateEntity(Entity data, Matrix4x4 parentTransform, string? layerName, Scene intoScene, EntityNameFixup nameFixup)
+    internal BaseEntity? CreateEntity(Entity data, string? layerName, SpawnGroup spawnGroup)
     {
-        var entity = EntityFactory.Create(this, new EntitySpawnInfo(data, parentTransform, layerName, intoScene, nameFixup));
+        var entity = EntityFactory.Create(this, new EntitySpawnInfo(data, layerName, spawnGroup));
 
-        if (entity == null)
+        if (entity != null)
         {
-            return null;
+            Add(entity);
         }
 
-        // A child's Spawn must see its pose local to its move parent, which may not exist yet, so it
-        // spawns in Activate once bound.
-        if (string.IsNullOrEmpty(data.GetStringProperty("parentname")))
+        return entity;
+    }
+
+    /// <summary>
+    /// Spawns and then activates a batch of entities created by <see cref="CreateEntity"/>, which a spawn group
+    /// does once the groups it placed have finished.
+    /// </summary>
+    /// <param name="batch">The entities, in the order they were created.</param>
+    internal void SpawnEntities(List<BaseEntity> batch)
+    {
+        // Move parents first, so every entity spawns and activates seeing the finished hierarchy
+        foreach (var entity in batch)
+        {
+            ResolveMoveParentChain(entity);
+        }
+
+        // Shallowest in the hierarchy first, as in game, so a parent has spawned and placed itself before its
+        // children spawn local to it. The game also orders each depth by class, which is not done here.
+        var spawning = new HashSet<BaseEntity>(batch);
+
+        foreach (var entity in batch)
+        {
+            if (entity.MoveParent == null && spawning.Remove(entity))
+            {
+                Spawn(entity);
+            }
+        }
+
+        // By index, as a Spawn may spawn a group of its own
+        for (var i = 0; i < parented.Count; i++)
+        {
+            if (spawning.Remove(parented[i]))
+            {
+                Spawn(parented[i]);
+            }
+        }
+
+        foreach (var entity in batch)
+        {
+            if (!entity.IsRemoved)
+            {
+                entity.Activate();
+            }
+        }
+    }
+
+    private static void Spawn(BaseEntity entity)
+    {
+        try
         {
             entity.Spawn();
         }
-        else
+        catch (Exception e)
         {
-            pendingSpawns.Add(entity);
+            throw EntityException(entity.Data, entity.Classname, e);
         }
+    }
 
-        Add(entity);
+    internal static InvalidDataException EntityException(Entity? data, string classname, Exception inner)
+    {
+        var id = data?.GetStringProperty("hammeruniqueid", string.Empty);
 
-        return entity;
+        return new InvalidDataException($"Failed to process entity '{classname}' (hammeruniqueid={id})", inner);
     }
 
     /// <summary>Puts the player into the world, replacing any already spawned.</summary>
@@ -246,88 +312,6 @@ public sealed class EntitySystem
     /// <summary>Adds an entity built in code rather than from map keyvalues.</summary>
     public void AddEntity(BaseEntity entity) => Add(entity);
 
-    // Never reused while the game runs
-    private int nameFixupCount;
-
-    // Number for the next placed map that gives its entity names a prefix of its own
-    internal int NextNameFixupIndex() => ++nameFixupCount;
-
-    /// <summary>Gets or sets the host that draws spawn groups loaded at runtime.</summary>
-    public ISpawnGroupHost? SpawnGroupHost { get; set; }
-
-    internal void AddSpawnGroup(World.SpawnGroup group)
-    {
-        Activate();
-        SpawnGroupHost?.AddSpawnGroup(group);
-    }
-
-    /// <summary>Removes the entities of a spawn group and releases the group.</summary>
-    public void RemoveSpawnGroup(World.SpawnGroup group)
-    {
-        ArgumentNullException.ThrowIfNull(group);
-
-        for (var i = 0; i < entities.Count; i++)
-        {
-            if (entities[i].Scene == group.Scene)
-            {
-                Remove(entities[i]);
-            }
-        }
-
-        // Only the group's own collision; the world group keeps its physics world
-        if (group.WorldGroup == null)
-        {
-            PhysicsWorld.Remove(group.Scene);
-        }
-        else if (worldGroupPhysicsWorlds.TryGetValue(group.WorldGroup, out var physicsWorld))
-        {
-            physicsWorld.Remove(group.Scene);
-        }
-        SpawnGroupHost?.RemoveSpawnGroup(group);
-    }
-
-    /// <summary>
-    /// Runs <see cref="BaseEntity.Activate"/> on every entity spawned since the last call. Called as each
-    /// spawn group (the map, its 3D skybox) finishes spawning.
-    /// </summary>
-    public void Activate()
-    {
-        // Move parents first, so every entity activates seeing the finished hierarchy
-        for (var i = activatedCount; i < entities.Count; i++)
-        {
-            ResolveMoveParentChain(entities[i]);
-        }
-
-        // HACK: Parents before their children, so a parent's Spawn has placed it before its children spawn
-        var spawning = new HashSet<BaseEntity>(pendingSpawns);
-
-        foreach (var entity in parented)
-        {
-            if (spawning.Remove(entity))
-            {
-                entity.Spawn();
-            }
-        }
-
-        // Named a parent that does not exist
-        foreach (var entity in pendingSpawns)
-        {
-            if (spawning.Remove(entity))
-            {
-                entity.Spawn();
-            }
-        }
-
-        pendingSpawns.Clear();
-
-        for (var i = activatedCount; i < entities.Count; i++)
-        {
-            entities[i].Activate();
-        }
-
-        activatedCount = entities.Count;
-    }
-
     // Lists the entity in parented behind its whole parent chain, the order children tick and draw in
     internal void ResolveMoveParentChain(BaseEntity entity)
     {
@@ -343,11 +327,6 @@ public sealed class EntitySystem
             parented.Add(entity);
         }
     }
-
-    private int activatedCount;
-
-    // Parented entities created since the last Activate, waiting for their parent to be bound
-    private readonly List<BaseEntity> pendingSpawns = [];
 
     /// <summary>
     /// Notify every entity a round started.
@@ -474,6 +453,7 @@ public sealed class EntitySystem
     public void Clear()
     {
         RemoveAllEntities();
+        SpawnGroupManager.ForgetPlacedWorlds();
 
         PhysicsWorld.Clear();
         worldGroupPhysicsWorlds.Clear();
@@ -496,11 +476,11 @@ public sealed class EntitySystem
         entities.Clear();
         entitiesByName.Clear();
         parented.Clear();
-        pendingSpawns.Clear();
-        nameFixupCount = 0;
         World = null;
         Player = null;
-        activatedCount = 0;
+        ActiveSpawnGroup = null;
+        ActiveSkyboxReference = null;
+        SpawnGroupManager.Clear();
         inputQueue.Clear();
         firedCounts.Clear();
         playerImpacts.Clear();
@@ -568,6 +548,8 @@ public sealed class EntitySystem
         TickCount++;
         CurrentTime = TickCount * TickInterval;
 
+        SpawnGroupManager.SpawnPendingGroups();
+
         foreach (var entity in entities)
         {
             entity.BeginTick();
@@ -596,15 +578,6 @@ public sealed class EntitySystem
 
         if (hasRemovedEntities)
         {
-            // Activated entities are at the front of the list, so the count drops by each removed one
-            for (var i = activatedCount - 1; i >= 0; i--)
-            {
-                if (entities[i].IsRemoved)
-                {
-                    activatedCount--;
-                }
-            }
-
             entities.RemoveAll(static entity => entity.IsRemoved);
             parented.RemoveAll(static entity => entity.IsRemoved);
 
@@ -959,7 +932,7 @@ public sealed class EntitySystem
         }
     }
 
-    private static bool Matches(BaseEntity entity, string pattern)
+    internal static bool Matches(BaseEntity entity, string pattern)
         => !entity.IsRemoved
         && entity.TargetName != null
         && EntityLump.EntityNameMatches(pattern, entity.TargetName);
