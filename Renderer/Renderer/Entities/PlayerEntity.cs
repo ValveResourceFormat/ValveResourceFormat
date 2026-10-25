@@ -52,6 +52,8 @@ public sealed class PlayerEntity : BaseEntity
     /// <summary>Gets the controller whose state this entity reflects.</summary>
     public IPlayerController Controller { get; }
 
+    internal BoundingBox HullBounds => BoundingBox.FromCenter(Origin + new Vector3(0f, 0f, Controller.HullHalfExtents.Z), Controller.HullHalfExtents);
+
     /// <summary>Gets what the player is carrying, or <see langword="null"/> when their hands are free.</summary>
     public ICarryable? Carried { get; private set; }
 

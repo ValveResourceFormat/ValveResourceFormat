@@ -155,16 +155,11 @@ public class ViewmodelSceneNode : ModelSceneNode
     // Both knife buttons share one timer, which a swing that connects pushes back further
     private const float KnifeHitDelay = 0.1f;
 
-    // What the weapons do to physics props: a bullet punches the first prop on its way, a
-    // connecting knife swing shoves what it hit. Impulses are in prop-mass units (roughly
-    // kilograms) times units per second: a rifle round blasts light props away and gives a
-    // 60 kg planter a solid 200 u/s shove.
+    // Impulses in prop mass units times units per second
     private const float RifleBulletImpulse = 12000f;
     private const float PistolBulletImpulse = 6000f;
     private const float KnifeImpulse = 25000f;
 
-    // What each attack deals to whatever it hits: the rifle and pistol rounds' base damage, and
-    // the knife's first light swing and its heavy stab
     private const float RifleBulletDamage = 36f;
     private const float PistolBulletDamage = 35f;
     private const float KnifeLightDamage = 40f;
@@ -191,7 +186,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
     }
 
-    // After the push, so a prop the hit breaks passes the push on to its pieces
+    // After the push, so pieces of a prop the hit breaks inherit it
     private void DealDamage(BaseEntity? target, float amount, DamageType type, Vector3 direction)
     {
         if (target is IDamageable damageable)
@@ -225,8 +220,6 @@ public class ViewmodelSceneNode : ModelSceneNode
                 var camera = input.Camera;
                 var range = (heavyKnifeAttack ? KnifeHeavyRange : KnifeLightRange) + KnifeRangePadding;
 
-                // A swing can connect with a prop the world trace cannot see, and shoving it is a
-                // hit of its own
                 var struck = rigidBodies?.ApplyImpactImpulse(camera.Location, camera.Forward, range, KnifeImpulse);
                 DealDamage(struck, heavyKnifeAttack ? KnifeHeavyDamage : KnifeLightDamage, DamageType.Club, camera.Forward);
                 var hitProp = struck != null;
@@ -395,7 +388,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         return trace;
     }
 
-    // What a shot meets, physics props included: they and their pieces are only in the rigid body world
+    // Physics props are only in the rigid body world
     private static Rubikon.TraceResult TraceShot(UserInput input, Vector3 from, Vector3 to)
     {
         var trace = TraceWorldAndEntities(input, from, to);
@@ -718,8 +711,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
     }
 
-    // The arms, the stattrak module, then the items in slot order; the item entries double as
-    // the models dropped weapons spawn with
+    // The arms, the stattrak module, then the items in slot order
     private static readonly string[] ViewmodelResources = [
         "agents/models/tm_professional/tm_professional_varf3.vmdl",
         "weapons/models/shared/stattrak/stattrak_module.vmdl",
@@ -731,58 +723,54 @@ public class ViewmodelSceneNode : ModelSceneNode
     private static string? ItemModelPath(int itemIndex)
         => itemIndex >= 1 && itemIndex + 1 < ViewmodelResources.Length ? ViewmodelResources[itemIndex + 1] : null;
 
-    // The weapon drop: the toss leaves from the torso, a couple of hands below the eyes, so it
-    // reads as let go rather than thrown from the face - with a bit more forward push to reach
-    // as far as an eye-level toss would. Plus the flat spin it leaves the hand with.
-    private const float DropSpawnDistance = 24f;
-    private const float DropSpawnBelowEyes = 10f;
     private const float DropTossSpeed = 300f;
     private const float DropSpinSpeed = 2f;
+    private const float DropSpinRandomness = 3f;
 
     /// <summary>
-    /// Drops the held item as a physics prop, CS2's G: the weapon model spawns tossed ahead of
-    /// the view in its dropped ground state, and the hands draw the item anew. Being an ordinary
-    /// physics prop, the dropped weapon can be picked up with +USE, shot and shoved around.
+    /// Drops the held item as a physics prop where the third person body holds it, and draws the item anew.
     /// </summary>
     private void DropHeldItem(UserInput input)
     {
-        // Into the map, as if it had authored the prop
         if (ItemModelPath(SelectedItemIndex) is not { } modelPath || entitySystem.ActiveSpawnGroup is not { } spawnGroup)
         {
             return;
         }
 
-        var entities = entitySystem;
         var camera = input.Camera;
-        var origin = camera.Location - new Vector3(0f, 0f, DropSpawnBelowEyes) + camera.Forward * DropSpawnDistance;
+        var heldTransform = thirdpersonItems[SelectedItemIndex - 1].Transform;
 
-        // A synthesized prop_physics_override, as if the map had authored one here; defaultanim
-        // is the ground state the game's dropped weapons rest in
+        // The body holds nothing while it has no weapon bone
+        if (!Matrix4x4.Decompose(heldTransform, out var scale, out var rotation, out var origin) || scale.X == 0f)
+        {
+            origin = camera.Location + camera.Forward * 24f;
+            rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, camera.Yaw + MathF.PI / 2f);
+        }
+
+        var angles = EntityTransformHelper.ToEulerAngles(rotation);
+
         var data = new EntityLump.Entity { ParentLump = new EntityLump { Resource = new Resource() } };
         data.Add("classname", "prop_physics_override");
         data.Add("model", modelPath);
         data.Add("origin", FormattableString.Invariant($"{origin.X} {origin.Y} {origin.Z}"));
-
-        // A quarter turn counter-clockwise off the view, so the weapon leaves the hand side-on
-        // to the player the way the game presents a dropped gun
-        data.Add("angles", FormattableString.Invariant($"0 {float.RadiansToDegrees(camera.Yaw) + 90f} 0"));
+        data.Add("angles", FormattableString.Invariant($"{angles.X} {angles.Y} {angles.Z}"));
         data.Add("defaultanim", "dropped");
 
-        var dropped = new PropPhysics(entities, new EntitySpawnInfo(data, "Entities", spawnGroup));
+        var dropped = new PropPhysics(entitySystem, new EntitySpawnInfo(data, "Entities", spawnGroup));
         dropped.Spawn();
-        entities.AddEntity(dropped);
+        entitySystem.AddEntity(dropped);
 
-        if (dropped.HasBody)
+        if (dropped.HasBody && entitySystem.Player is { } player)
         {
-            // Thrown as if shoved on the stock: the push at the rear end of a side-on weapon
-            // torques it flat about up, so it spins like a bottle rather than tumbling end
-            // over end
+            dropped.ReleaseFrom(player);
+
+            var randomSpin = new Vector3(Random.Shared.NextSingle(), Random.Shared.NextSingle(), Random.Shared.NextSingle()) * 2f - Vector3.One;
+
             var body = dropped.Body;
             body.LinearVelocity = camera.Forward * DropTossSpeed + input.Velocity;
-            body.AngularVelocity = Vector3.UnitZ * DropSpinSpeed;
+            body.AngularVelocity = Vector3.UnitZ * DropSpinSpeed + randomSpin * DropSpinRandomness;
         }
 
-        // The hands come back up with the same item, endless-armory style
         deployTimeLeft = DeployDuration;
         SetState(AnimationState.Draw);
     }
@@ -995,7 +983,6 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
         else if (input.Pressed(TrackedKeys.G))
         {
-            // Never gated on the deploy timer or any other action: dropping is always allowed
             DropHeldItem(input);
         }
 

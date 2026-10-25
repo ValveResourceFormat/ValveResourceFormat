@@ -100,6 +100,13 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
     // Debris - a prop flagged so, or the pieces of something broken - stays out of the player's way
     private ulong collisionCategory = PhysicsSimulation.PropCategory;
 
+    // Props released by a player share a negative group, so a quick run of drops from the same hand
+    // pass through each other until they are clear of the player
+    private const int ReleasedGroup = -1;
+    private const float ReleaseClearance = 24f;
+    private PlayerEntity? releasedFrom;
+    private int collisionGroup;
+
     // A piece takes no impact damage: shards with a sliver of health and a glass impact table would
     // shatter the moment they landed, and the whole prop would seem to vanish at the first hit
     private bool isBreakPiece;
@@ -523,6 +530,13 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
 
         wasAwake = isAwake;
 
+        if (releasedFrom != null && !body.Bounds.Overlaps(releasedFrom.HullBounds.Inflate(ReleaseClearance)))
+        {
+            releasedFrom = null;
+            collisionGroup = 0;
+            SetCollidesWithPlayer(true);
+        }
+
         // Adopt the pose the frame-stepped world has moved the body to, so the entity state and
         // its collider follow the prop wherever it tumbles. The drawing does not wait for this:
         // an awake body is drawn at its live pose every frame.
@@ -540,6 +554,17 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
             body.LinearVelocity = Vector3.Zero;
             body.AngularVelocity = Vector3.Zero;
         }
+    }
+
+    /// <summary>
+    /// Lets the prop pass through the player and the other props they released until it is clear of them.
+    /// </summary>
+    /// <param name="player">The player letting go of the prop.</param>
+    public void ReleaseFrom(PlayerEntity player)
+    {
+        releasedFrom = player;
+        collisionGroup = ReleasedGroup;
+        SetCollidesWithPlayer(false);
     }
 
     /// <summary>
@@ -562,6 +587,8 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
 
         Carrier = carrier;
         CarryDistance = carryDistance;
+        releasedFrom = null;
+        collisionGroup = 0;
         hasViewPoint = false;
         carryPress = 0f;
         carryLocalMassCenter = body.LocalCenterOfMass;
@@ -695,7 +722,7 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
 
         for (var i = 0; i < count; i++)
         {
-            shapes[i].SetFilter(new CollisionFilter(collisionCategory, collidesWith, 0), recomputeContacts: true);
+            shapes[i].SetFilter(new CollisionFilter(collisionCategory, collidesWith, collisionGroup), recomputeContacts: true);
         }
     }
 
