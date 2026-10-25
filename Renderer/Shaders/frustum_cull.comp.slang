@@ -42,9 +42,9 @@ layout(binding = 11, std430) readonly buffer ActiveLodBitsBuffer
     uint activeLodBits[]; // per setup, the bit of the level it picked this frame
 };
 
-layout(binding = 10, std430) readonly buffer PvsHiddenBuffer
+layout(binding = 10, std430) readonly buffer CpuVisibleBuffer
 {
-    uint pvsHiddenBits[]; // one bit per object id, marking the objects PVS or a visibility box hid on the CPU
+    uint cpuVisibleBits[]; // one bit per object id, marking the objects the CPU found past PVS and the visibility boxes
 };
 
 
@@ -60,7 +60,7 @@ layout(binding = 7, std430) buffer OccludedBoundsDebugBuffer
 };
 
 uniform bool g_bOcclusionDebugEnabled;
-uniform bool g_bCpuHiddenEnabled;
+uniform bool g_bCpuVisibleEnabled;
 
 // Depth pyramid (hierarchical depth buffer)
 uniform sampler2D g_tDepthPyramid; // bound above the reserved slots by SceneViewState.SetOcclusionUniforms
@@ -278,7 +278,7 @@ void main()
         return;
     }
 
-    if (g_bCpuHiddenEnabled && (pvsHiddenBits[objectId >> 5u] & (1u << (objectId & 31u))) != 0u)
+    if (g_bCpuVisibleEnabled && (cpuVisibleBits[objectId >> 5u] & (1u << (objectId & 31u))) == 0u)
     {
         drawCommands[drawId].instanceCount = 0u;
         return;

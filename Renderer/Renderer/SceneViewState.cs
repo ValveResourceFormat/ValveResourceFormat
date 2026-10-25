@@ -54,9 +54,9 @@ public sealed class SceneViewState
     private StorageBuffer? compactedCounts;
     private int indirectLayoutVersion = -1;
 
-    private StorageBuffer? pvsHiddenGpu;
-    private bool cpuHiddenActive;
-    private uint[] pvsHiddenBits = [];
+    private StorageBuffer? cpuVisibleGpu;
+    private bool cpuVisibleActive;
+    private uint[] cpuVisibleBits = [];
 
     private readonly List<SceneNode> cullResults = [];
     private int staticCullCount;
@@ -65,6 +65,7 @@ public sealed class SceneViewState
     private bool lastIncludedStatic;
     private int lastOctreeVersion = -1;
     private readonly List<(VisibilityBox Box, int Placement, bool Inside)> lastBoxSplit = [];
+    private ReadOnlyMemory<byte> lastPvs;
 
     private readonly Dictionary<RenderPass, List<MeshBatchRenderer.Request>> renderLists = new()
     {
@@ -193,18 +194,20 @@ public sealed class SceneViewState
     /// </summary>
     /// <param name="frustum">The view frustum to test against.</param>
     /// <param name="includeStatic">Whether to include static nodes.</param>
-    /// <param name="boxes">Visibility boxes that leave out whole cells of static nodes, or <see langword="null"/>.</param>
+    /// <param name="boxes">Visibility boxes that leave out whole cells of static nodes, or <see langword="null"/>. <see cref="Pvs"/> leaves out cells too.</param>
     /// <returns>A list of visible scene nodes (valid until the next call to this method).</returns>
     public List<SceneNode> GetFrustumCullResults(Frustum frustum, bool includeStatic = true, VisibilityBoxCuller? boxes = null)
     {
         // Optimization: Do not clear static culled results from last frame if the frustum did not change
         if (!hasLastFrustum || lastIncludedStatic != includeStatic || !frustum.Planes.AsSpan().SequenceEqual(lastFrustumPlanes)
-            || lastOctreeVersion != Scene.OctreeVersion || !(boxes?.MatchesSplit(lastBoxSplit) ?? lastBoxSplit.Count == 0))
+            || lastOctreeVersion != Scene.OctreeVersion || !(boxes?.MatchesSplit(lastBoxSplit) ?? lastBoxSplit.Count == 0)
+            || !lastPvs.Equals(Pvs))
         {
             frustum.Planes.CopyTo(lastFrustumPlanes, 0);
             hasLastFrustum = true;
             lastIncludedStatic = includeStatic;
             lastOctreeVersion = Scene.OctreeVersion;
+            lastPvs = Pvs;
 
             if (boxes != null)
             {
@@ -225,7 +228,7 @@ public sealed class SceneViewState
 
             if (includeStatic)
             {
-                Scene.StaticOctree.Query(frustum, boxes, cullResults);
+                Scene.StaticOctree.Query(frustum, boxes, Pvs.Span, cullResults);
             }
 
             staticCullCount = cullResults.Count;
@@ -267,33 +270,35 @@ public sealed class SceneViewState
         return NodeCull.None;
     }
 
-    private void ResetPvsHiddenBits()
+    // While PVS or visibility boxes cull, the GPU only draws the fragments marked here. The query leaves out
+    // whole cells they hide, so a fragment it never reaches has to stay hidden rather than be drawn.
+    private void ResetCpuVisibleBits()
     {
         var objectEntryCount = Scene.ObjectEntryCount;
 
         var pvsCullActive = !Pvs.IsEmpty && Scene.VoxelVisibility != null;
-        cpuHiddenActive = (pvsCullActive || VisibilityBoxes.IsActive) && objectEntryCount > 0;
+        cpuVisibleActive = (pvsCullActive || VisibilityBoxes.IsActive) && objectEntryCount > 0;
 
-        if (!cpuHiddenActive)
+        if (!cpuVisibleActive)
         {
             return;
         }
 
         var bitWords = MathUtils.DivideRoundUp(objectEntryCount, 32);
 
-        if (pvsHiddenBits.Length < bitWords)
+        if (cpuVisibleBits.Length < bitWords)
         {
-            pvsHiddenBits = new uint[bitWords];
+            cpuVisibleBits = new uint[bitWords];
         }
 
-        Array.Clear(pvsHiddenBits, 0, bitWords);
+        Array.Clear(cpuVisibleBits, 0, bitWords);
     }
 
-    private void MarkNodeHiddenGpu(SceneNode node)
+    private void MarkFragmentVisibleGpu(SceneNode node)
     {
-        if (cpuHiddenActive && node is SceneAggregate.Fragment && node.Id < (uint)Scene.ObjectEntryCount)
+        if (cpuVisibleActive && node is SceneAggregate.Fragment && node.Id < (uint)Scene.ObjectEntryCount)
         {
-            MathUtils.SetBit(pvsHiddenBits, (int)node.Id);
+            MathUtils.SetBit(cpuVisibleBits, (int)node.Id);
         }
     }
 
@@ -420,10 +425,10 @@ public sealed class SceneViewState
         WantsSceneColor = false;
         WantsSceneDepth = Scene.ProjectedDecals.Count > 0;
 
-        ResetPvsHiddenBits();
+        ResetCpuVisibleBits();
 
         var frustum = cullFrustum ?? camera.ViewFrustum;
-        var visibleNodes = GetFrustumCullResults(frustum);
+        var visibleNodes = GetFrustumCullResults(frustum, boxes: VisibilityBoxes);
         var pvs = Pvs.Span;
 
         PerfStats.Active.Count(Counter.SceneObjectInView, visibleNodes.Count);
@@ -443,14 +448,14 @@ public sealed class SceneViewState
 
                 case NodeCull.Pvs:
                     PerfStats.Active.Count(Counter.SceneObjectCulledByPvs, 1);
-                    MarkNodeHiddenGpu(node);
                     continue;
 
                 case NodeCull.VisibilityBox:
                     PerfStats.Active.Count(Counter.SceneObjectCulledByVisibilityBox, 1);
-                    MarkNodeHiddenGpu(node);
                     continue;
             }
+
+            MarkFragmentVisibleGpu(node);
 
             if (node is MeshCollectionNode meshCollection)
             {
@@ -865,18 +870,18 @@ public sealed class SceneViewState
         scene.ObjectLodGpu.BindBufferBase();
         scene.ActiveLodBitsGpu.BindBufferBase();
 
-        var pvsWords = cpuHiddenActive ? MathUtils.DivideRoundUp(Math.Max(scene.ObjectEntryCount, 1), 32) : 1;
+        var visibleWords = cpuVisibleActive ? MathUtils.DivideRoundUp(Math.Max(scene.ObjectEntryCount, 1), 32) : 1;
 
-        if (pvsHiddenBits.Length < pvsWords)
+        if (cpuVisibleBits.Length < visibleWords)
         {
-            pvsHiddenBits = new uint[pvsWords];
+            cpuVisibleBits = new uint[visibleWords];
         }
 
-        pvsHiddenGpu = Scene.Upload<uint>(pvsHiddenGpu, pvsHiddenBits.AsSpan(0, pvsWords),
-            ReservedBufferSlots.BufferSlot10, "PvsHidden");
-        pvsHiddenGpu.BindBufferBase();
+        cpuVisibleGpu = Scene.Upload<uint>(cpuVisibleGpu, cpuVisibleBits.AsSpan(0, visibleWords),
+            ReservedBufferSlots.BufferSlot10, "CpuVisible");
+        cpuVisibleGpu.BindBufferBase();
 
-        cullShader.SetUniform("g_bCpuHiddenEnabled", cpuHiddenActive);
+        cullShader.SetUniform("g_bCpuVisibleEnabled", cpuVisibleActive);
 
         var occlusionDebugEnabled = scene.Settings.OcclusionDebugEnabled && scene.OcclusionDebug != null;
 
@@ -1305,11 +1310,11 @@ public sealed class SceneViewState
         indirectDraws?.Delete();
         compactedDraws?.Delete();
         compactedCounts?.Delete();
-        pvsHiddenGpu?.Delete();
+        cpuVisibleGpu?.Delete();
 
         indirectDraws = null;
         compactedDraws = null;
         compactedCounts = null;
-        pvsHiddenGpu = null;
+        cpuVisibleGpu = null;
     }
 }

@@ -129,10 +129,26 @@ namespace ValveResourceFormat.Renderer
         public Matrix4x4 ToViewerWorld { get; internal set; } = Matrix4x4.Identity;
 
         /// <summary>Gets or sets the voxel visibility data.</summary>
-        public IWorldVisibility? VoxelVisibility { get; set; }
+        public IWorldVisibility? VoxelVisibility
+        {
+            get;
+            set
+            {
+                field = value;
+                StaticOctree.Dirty = true;
+            }
+        }
 
         /// <summary>Gets or sets the transform from scene space into the space <see cref="VoxelVisibility"/> was compiled in.</summary>
-        public Matrix4x4 WorldToVisibility { get; set; } = Matrix4x4.Identity;
+        public Matrix4x4 WorldToVisibility
+        {
+            get;
+            set
+            {
+                field = value;
+                StaticOctree.Dirty = true;
+            }
+        } = Matrix4x4.Identity;
 
         /// <summary>Gets the <c>info_visibility_box</c> volumes spawned in this scene.</summary>
         public VisibilityBoxSet VisibilityBoxes { get; } = new();
@@ -1568,6 +1584,7 @@ namespace ValveResourceFormat.Renderer
                     }
                 }
 
+                StaticOctree.BuildVisClusters(VoxelVisibility, WorldToVisibility);
                 StaticOctree.DebugRenderer?.StaticBuild();
                 StaticOctree.Dirty = false;
             }
