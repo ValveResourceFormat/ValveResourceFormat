@@ -61,6 +61,20 @@ public sealed class PhysicsSimulation : IDisposable
     public static ulong CollidesWith(ulong category)
         => category == DebrisCategory ? ~(PlayerCategory | DebrisCategory) : ulong.MaxValue;
 
+    /// <summary>Sets whether every shape of a body collides with the given categories, keeping the rest of their filters.</summary>
+    public static void SetCollidesWith(Body body, ulong categories, bool collide)
+    {
+        Span<Shape> shapes = stackalloc Shape[body.ShapeCount];
+        var count = body.GetShapes(shapes);
+
+        for (var i = 0; i < count; i++)
+        {
+            var filter = shapes[i].Filter;
+            var collidesWith = collide ? filter.CollidesWith | categories : filter.CollidesWith & ~categories;
+            shapes[i].SetFilter(new CollisionFilter(filter.Categories, collidesWith, filter.Group), recomputeContacts: true);
+        }
+    }
+
     /// <summary>
     /// The world steps once per rendered frame, so the sub-step count scales with the frame:
     /// at high framerates the steps are already small and two sub-steps keep stacks stable, but

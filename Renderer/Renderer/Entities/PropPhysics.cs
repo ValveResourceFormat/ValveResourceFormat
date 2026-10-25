@@ -722,7 +722,9 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
 
         for (var i = 0; i < count; i++)
         {
-            shapes[i].SetFilter(new CollisionFilter(collisionCategory, collidesWith, collisionGroup), recomputeContacts: true);
+            // A constraint may have freed the prop of the world's static geometry
+            var shapeCollidesWith = collidesWith & (shapes[i].Filter.CollidesWith | ~PhysicsSimulation.StaticCategory);
+            shapes[i].SetFilter(new CollisionFilter(collisionCategory, shapeCollidesWith, collisionGroup), recomputeContacts: true);
         }
     }
 
