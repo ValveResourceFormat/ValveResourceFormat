@@ -7,7 +7,7 @@ using Token = ValveResourceFormat.IO.Fgd.FgdTokenizer.Token;
 
 namespace ValveResourceFormat.IO.Fgd;
 
-public sealed partial class ForgeGameData
+public sealed partial class FgdFile
 {
     // What reading a variable comes to
     private enum VariableResult

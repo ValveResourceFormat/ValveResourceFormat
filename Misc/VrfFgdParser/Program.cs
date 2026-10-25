@@ -144,7 +144,7 @@ KVObject? ParseGameClasses(GameFolderLocator.SteamLibraryGameInfo game, string g
 
 // The classes of the FGD files the Hammer block of a gameinfo names, opened through the folders and packages the
 // game mounts, or null where it names none that are there
-static ForgeGameData? LoadFgd(string gameInfo)
+static FgdFile? LoadFgd(string gameInfo)
 {
     KVObject gameInfoData;
 
@@ -161,7 +161,7 @@ static ForgeGameData? LoadFgd(string gameInfo)
     using var fileLoader = new GameFileLoader(null, gameInfo);
 
     // A game can name files it does not ship, which are not worth a warning
-    var fgd = new ForgeGameData(file => fileLoader.FindFile(file, logNotFound: false) switch
+    var fgd = new FgdFile(file => fileLoader.FindFile(file, logNotFound: false) switch
     {
         { PathOnDisk: { } path } => File.OpenRead(path),
         { Package: { } package, PackageEntry: { } entry } => package.GetMemoryMappedStreamIfPossible(entry),
@@ -449,7 +449,7 @@ void ParseFile(string file)
 
     // Each file is read on its own, opening what it includes through the game it is in
     using var fileLoader = new GameFileLoader(null, file);
-    var fgd = new ForgeGameData(fileLoader.GetFileStream);
+    var fgd = new FgdFile(fileLoader.GetFileStream);
 
     fgd.Load(file);
 

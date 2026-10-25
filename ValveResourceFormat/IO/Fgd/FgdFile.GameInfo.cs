@@ -2,7 +2,7 @@ using ValveKeyValue;
 
 namespace ValveResourceFormat.IO.Fgd;
 
-public sealed partial class ForgeGameData
+public sealed partial class FgdFile
 {
     /// <summary>
     /// Loads the files the <c>Hammer</c> block of the <c>gameinfo.gi</c> of a game names, the way Hammer does

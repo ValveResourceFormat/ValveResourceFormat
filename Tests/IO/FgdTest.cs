@@ -11,9 +11,9 @@ namespace Tests.IO
 {
     public class FgdTest
     {
-        private static ForgeGameData LoadSample()
+        private static FgdFile LoadSample()
         {
-            var fgd = new ForgeGameData();
+            var fgd = new FgdFile();
 
             if (!fgd.Load(TestFixtures.Path("fgd", "sample.fgd")))
             {
@@ -24,9 +24,9 @@ namespace Tests.IO
             return fgd;
         }
 
-        private static ForgeGameData Parse(string text)
+        private static FgdFile Parse(string text)
         {
-            var fgd = new ForgeGameData();
+            var fgd = new FgdFile();
 
             fgd.LoadText(text, "test.fgd");
             fgd.ResolveBaseClasses();
@@ -277,7 +277,7 @@ namespace Tests.IO
         [Test]
         public async Task WhatALaterFileAddsToABaseClassReachesTheClassesBasedOnIt()
         {
-            var fgd = new ForgeGameData();
+            var fgd = new FgdFile();
 
             fgd.LoadText("@BaseClass = base [ kept(string) ] @PointClass base(base) = thing []", "first.fgd");
             fgd.ResolveBaseClasses();
@@ -380,7 +380,7 @@ namespace Tests.IO
 
                 using (var fileLoader = new GameFileLoader(null, gameInfo))
                 {
-                    var fgd = new ForgeGameData(fileLoader.GetFileStream);
+                    var fgd = new FgdFile(fileLoader.GetFileStream);
 
                     await Assert.That(fgd.LoadGameFiles(hammer)).IsTrue();
                     await Assert.That(fgd.Errors).IsEmpty();
@@ -392,7 +392,7 @@ namespace Tests.IO
 
                 using (var fileLoader = new GameFileLoader(null, gameInfo))
                 {
-                    await Assert.That(new ForgeGameData(fileLoader.GetFileStream).LoadGameFiles(hammer)).IsFalse();
+                    await Assert.That(new FgdFile(fileLoader.GetFileStream).LoadGameFiles(hammer)).IsFalse();
                 }
             }
             finally

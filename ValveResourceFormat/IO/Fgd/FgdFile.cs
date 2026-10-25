@@ -14,7 +14,7 @@ namespace ValveResourceFormat.IO.Fgd;
 /// map editor with their variables, inputs, outputs and the helpers they are drawn with. Files are read the
 /// way Hammer reads them.
 /// </summary>
-public sealed partial class ForgeGameData
+public sealed partial class FgdFile
 {
     private const string BreakCharacters = " \t\n\r@()[]{}=&,:*|;'!";
     private const int MaxIncludeDepth = 64;
@@ -90,7 +90,7 @@ public sealed partial class ForgeGameData
     /// Initializes classes that find the files they read on disk: a file named without a folder is looked for
     /// next to the file that includes it, and then in the current folder.
     /// </summary>
-    public ForgeGameData()
+    public FgdFile()
     {
     }
 
@@ -99,7 +99,7 @@ public sealed partial class ForgeGameData
     /// the one a game mounts, before they are looked for on disk.
     /// </summary>
     /// <param name="openFile">Opens a file by its name, or gives <see langword="null"/> where there is none.</param>
-    public ForgeGameData(Func<string, Stream?> openFile)
+    public FgdFile(Func<string, Stream?> openFile)
     {
         ArgumentNullException.ThrowIfNull(openFile);
 
@@ -110,7 +110,7 @@ public sealed partial class ForgeGameData
     /// Gets or sets the classes <see cref="FindClass"/> looks in for a class none is declared under here.
     /// Classes are still only based on the classes of their own FGD files.
     /// </summary>
-    public ForgeGameData? Fallback { get; set; }
+    public FgdFile? Fallback { get; set; }
 
     /// <summary>
     /// Finds a class by its name, without regard to case, here and then in <see cref="Fallback"/>.
