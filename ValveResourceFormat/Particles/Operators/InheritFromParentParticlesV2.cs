@@ -163,7 +163,14 @@ namespace ValveResourceFormat.Particles.Operators
 
                 if (toNext > 0f)
                 {
-                    value = MathUtils.Lerp(value, next.GetVector(fieldOutput) * scaleValue, toNext);
+                    var nextValue = next.GetVector(fieldOutput) * scaleValue;
+
+                    if (fieldOutput.IsNormalizedField())
+                    {
+                        nextValue = Vector3.Clamp(nextValue, Vector3.Zero, Vector3.One);
+                    }
+
+                    value = MathUtils.Lerp(value, nextValue, toNext);
                 }
 
                 particle.SetVector(fieldOutput, MathUtils.Lerp(particle.GetVector(fieldOutput), value, blend));
