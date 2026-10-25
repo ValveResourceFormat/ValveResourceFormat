@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.IO;
 using ValveKeyValue;
+using ValveKeyValue.KeyValues3;
 using ValveResourceFormat.Compression;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
@@ -16,47 +17,10 @@ namespace ValveResourceFormat.ResourceTypes
                 Version = 0,
             };
 
-            var encoding = KV3IDLookup.GetByValue(reader.ReadGuid());
-            var format = KV3IDLookup.GetByValue(reader.ReadGuid());
-
-            // Valve's implementation lives in LoadKV3Binary()
-            // KV3_ENCODING_BINARY_BLOCK_COMPRESSED calls CBlockCompress::FastDecompress()
-            // and then it proceeds to call LoadKV3BinaryUncompressed, which should be the same routine for KV3_ENCODING_BINARY_UNCOMPRESSED
-            // Old binary with debug symbols for ref: https://users.alliedmods.net/~asherkin/public/bins/dota_symbols/bin/osx64/libmeshsystem.dylib
-
-            byte[]? outputBuf = null;
+            var outputBuf = DecompressVersion0(reader, Offset + Size, out var format, out var outBufferLength);
 
             try
             {
-                int outBufferLength;
-
-                if (encoding == KV3IDLookup.Get("binary_bc"))
-                {
-                    var info = BlockCompress.GetDecompressedSize(reader);
-                    outBufferLength = info.Size;
-                    outputBuf = ArrayPool<byte>.Shared.Rent(outBufferLength);
-
-                    BlockCompress.FastDecompress(info, reader, outputBuf.AsSpan(0, outBufferLength));
-                }
-                else if (encoding == KV3IDLookup.Get("binary_lz4"))
-                {
-                    outBufferLength = reader.ReadInt32();
-                    var compressedSize = (int)(Size - (reader.BaseStream.Position - Offset));
-                    outputBuf = ArrayPool<byte>.Shared.Rent(outBufferLength);
-                    DecompressLZ4(reader, outputBuf.AsSpan(0, outBufferLength), compressedSize);
-                }
-                else if (encoding == KV3IDLookup.Get("binary") || encoding == KV3IDLookup.Get("binary_zstd") || encoding == KV3IDLookup.Get("binary_auto"))
-                {
-                    // Only block compression and LZ4 were ever implemented for this header, other binary encodings are stored as is
-                    outBufferLength = (int)(Size - (reader.BaseStream.Position - Offset));
-                    outputBuf = ArrayPool<byte>.Shared.Rent(outBufferLength);
-                    reader.ReadExactly(outputBuf.AsSpan(0, outBufferLength));
-                }
-                else
-                {
-                    throw new UnexpectedMagicException("Unrecognised KV3 Encoding", encoding.ToString(), nameof(encoding));
-                }
-
                 using var outStream = new MemoryStream(outputBuf, 0, outBufferLength);
                 using var outRead = new BinaryReader(outStream, System.Text.Encoding.UTF8, true);
 
@@ -82,42 +46,51 @@ namespace ValveResourceFormat.ResourceTypes
             }
             finally
             {
-                if (outputBuf != null)
-                {
-                    ArrayPool<byte>.Shared.Return(outputBuf);
-                }
+                ArrayPool<byte>.Shared.Return(outputBuf);
             }
         }
 
-        private static bool AnyDecompressedBufferVersion0(BinaryReader reader, ArraySegment<byte> block, Func<ReadOnlySpan<byte>, bool> predicate)
+        /// <returns>A buffer rented from <see cref="ArrayPool{T}.Shared"/> that holds <paramref name="length"/> decompressed bytes.</returns>
+        private static byte[] DecompressVersion0(BinaryReader reader, long blockEnd, out KV3ID format, out int length)
         {
             var encoding = KV3IDLookup.GetByValue(reader.ReadGuid());
-            reader.BaseStream.Position += 16; // format
+            format = KV3IDLookup.GetByValue(reader.ReadGuid());
+
+            // Valve's implementation lives in LoadKV3Binary()
+            // KV3_ENCODING_BINARY_BLOCK_COMPRESSED calls CBlockCompress::FastDecompress()
+            // and then it proceeds to call LoadKV3BinaryUncompressed, which should be the same routine for KV3_ENCODING_BINARY_UNCOMPRESSED
+            // Old binary with debug symbols for ref: https://users.alliedmods.net/~asherkin/public/bins/dota_symbols/bin/osx64/libmeshsystem.dylib
+
+            byte[] output;
 
             if (encoding == KV3IDLookup.Get("binary_bc"))
             {
                 var info = BlockCompress.GetDecompressedSize(reader);
-                var output = ArrayPool<byte>.Shared.Rent(info.Size);
+                length = info.Size;
+                output = ArrayPool<byte>.Shared.Rent(length);
 
-                try
-                {
-                    BlockCompress.FastDecompress(info, reader, output.AsSpan(0, info.Size));
-                    return predicate(output.AsSpan(0, info.Size));
-                }
-                finally
-                {
-                    ArrayPool<byte>.Shared.Return(output);
-                }
+                BlockCompress.FastDecompress(info, reader, output.AsSpan(0, length));
             }
-
-            if (encoding == KV3IDLookup.Get("binary_lz4"))
+            else if (encoding == KV3IDLookup.Get("binary_lz4"))
             {
-                var size = reader.ReadInt32();
-
-                return AnyDecompressed(reader, null, size, (int)(block.Count - reader.BaseStream.Position), predicate);
+                length = reader.ReadInt32();
+                var compressedSize = (int)(blockEnd - reader.BaseStream.Position);
+                output = ArrayPool<byte>.Shared.Rent(length);
+                DecompressLZ4(reader, output.AsSpan(0, length), compressedSize);
+            }
+            else if (encoding == KV3IDLookup.Get("binary") || encoding == KV3IDLookup.Get("binary_zstd") || encoding == KV3IDLookup.Get("binary_auto"))
+            {
+                // Only block compression and LZ4 were ever implemented for this header, other binary encodings are stored as is
+                length = (int)(blockEnd - reader.BaseStream.Position);
+                output = ArrayPool<byte>.Shared.Rent(length);
+                reader.ReadExactly(output.AsSpan(0, length));
+            }
+            else
+            {
+                throw new UnexpectedMagicException("Unrecognised KV3 Encoding", encoding.ToString(), nameof(encoding));
             }
 
-            return predicate(block);
+            return output;
         }
 
         private static (KV3BinaryNodeType Type, KVFlag Flag) LegacyReadType(BinaryReader reader)
