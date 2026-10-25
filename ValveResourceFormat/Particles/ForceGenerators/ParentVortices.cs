@@ -27,7 +27,7 @@ class ParentVortices : ParticleFunctionForceGenerator
         flipBasedOnYaw = parse.Boolean("m_bFlipBasedOnYaw", flipBasedOnYaw);
     }
 
-    public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
+    public override void GenerateForces(ParticleCollection particles, Span<Vector3> forces, float frameTime, ParticleSystemState particleSystemState, float strength)
     {
         if (particleSystemState.ParentSystem?.Data is not { } parent || parent.CurrentParticles.IsEmpty)
         {
@@ -35,17 +35,22 @@ class ParentVortices : ParticleFunctionForceGenerator
         }
 
         var axis = MathUtils.SafeNormalize(twistAxis);
+        var positions = particles.Current.ReadVectors(ParticleField.Position);
+        var parentPositions = parent.CurrentParticles.ReadVectors(ParticleField.Position);
+        var parentYaws = parent.CurrentParticles.ReadFloats(ParticleField.Yaw);
+        var parentRadii = parent.CurrentParticles.ReadFloats(ParticleField.Radius);
+        var parentAlphas = parent.CurrentParticles.ReadFloats(ParticleField.Alpha);
 
-        foreach (ref var vortex in parent.CurrentParticles)
+        for (var v = 0; v < parentPositions.Length; v++)
         {
-            var center = flipBasedOnYaw && vortex.Rotation.X >= MathF.PI ? -vortex.Position : vortex.Position;
-            var inverseRadius = 1f / (vortex.Radius + 1e-5f);
+            var center = flipBasedOnYaw && parentYaws[v] >= MathF.PI ? -parentPositions[v] : parentPositions[v];
+            var inverseRadius = 1f / (parentRadii[v] + 1e-5f);
             var inverseRadiusSquared = inverseRadius * inverseRadius;
-            var vortexStrength = strength * forceScale * vortex.Alpha;
+            var vortexStrength = strength * forceScale * parentAlphas[v];
 
-            foreach (ref var particle in particles.Current)
+            for (var i = 0; i < positions.Length; i++)
             {
-                var offset = particle.Position - center;
+                var offset = positions[i] - center;
                 var distanceSquared = offset.LengthSquared();
 
                 if (distanceSquared <= ParticleMath.FloatEpsilon)
@@ -62,7 +67,7 @@ class ParentVortices : ParticleFunctionForceGenerator
                 }
 
                 var falloff = MathF.Max(0f, 1f - (distanceSquared * inverseRadiusSquared)) * vortexStrength;
-                particle.ForceAccumulator += Vector3.Cross(Vector3.Normalize(tangent), axis) * falloff;
+                forces[i] += Vector3.Cross(Vector3.Normalize(tangent), axis) * falloff;
             }
         }
     }

@@ -48,6 +48,13 @@ namespace ValveResourceFormat.Particles.Operators
             sampleCounter = 0;
         }
 
+        public override void Restart(ParticleSystemState particleSystemState) => Reset();
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => snapshot.AttributeToWrite == ParticleField.Position
+            ? ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask()
+            : snapshot.AttributeToWrite.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var column = snapshot.Column(particleSystemState);
@@ -67,11 +74,49 @@ namespace ValveResourceFormat.Particles.Operators
             var cursor = firstRow;
 
             var field = snapshot.AttributeToWrite;
-            var fieldType = field.FieldType();
+            var storage = ParticleBuffer.StorageOf(field);
             var vectors = column as Vector3[];
             var floats = column as float[];
+            var integers = column as int[];
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var blends = interpolation.Fill(current, particleSystemState);
+
+            var writesFloats = storage is ParticleFieldStorage.Scalar or ParticleFieldStorage.Integer;
+            var writesVectors = storage == ParticleFieldStorage.Vector;
+
+            // Bone indices and handles cannot be written from snapshot rows, so no rows are read
+            if (!writesFloats && !writesVectors)
+            {
+                return;
+            }
+
+            Span<float> floatOutput = default;
+            Span<Vector3> vectorOutput = default;
+            Span<Vector3> previousOutput = default;
+            ReadOnlySpan<Vector3> positions = default;
+
+            if (writesFloats)
+            {
+                floatOutput = current.Floats(field);
+            }
+
+            if (writesVectors)
+            {
+                vectorOutput = current.Vectors(field);
+
+                if (writePrevious && field == ParticleField.Position)
+                {
+                    previousOutput = current.Vectors(ParticleField.PositionPrevious);
+                }
+
+                if (field == ParticleField.PositionPrevious)
+                {
+                    positions = current.ReadVectors(ParticleField.Position);
+                }
+            }
+
+            for (var i = 0; i < current.Length; i++)
             {
                 int row;
                 var walked = cursor;
@@ -95,36 +140,40 @@ namespace ValveResourceFormat.Particles.Operators
                     cursor = (cursor + step) % rowCount;
                 }
 
-                if (fieldType == "float")
+                if (writesFloats)
                 {
                     if (floats != null && (uint)row < (uint)floats.Length)
                     {
-                        particle.SetScalar(field, floats[row]);
+                        floatOutput[i] = floats[row];
+                    }
+                    else if (integers != null && (uint)row < (uint)integers.Length)
+                    {
+                        floatOutput[i] = BitConverter.Int32BitsToSingle(integers[row]);
                     }
 
                     continue;
                 }
 
-                if (fieldType != "vector" || vectors == null || (uint)row >= (uint)vectors.Length)
+                if (vectors == null || (uint)row >= (uint)vectors.Length)
                 {
                     continue;
                 }
 
-                var value = ReadVector(ref particle, vectors, row, frameTime, particleSystemState);
+                var value = ReadVector(vectors, row, positions, i, frameTime, particleSystemState);
 
                 if (subSample && !random)
                 {
                     var neighbour = MathUtils.WrapIndex(walked - subSampleOffset, rowCount);
-                    var other = ReadVector(ref particle, vectors, reverse ? rowCount - neighbour - 1 : neighbour, frameTime, particleSystemState);
+                    var other = ReadVector(vectors, reverse ? rowCount - neighbour - 1 : neighbour, positions, i, frameTime, particleSystemState);
                     value = MathUtils.Lerp(other, value, fraction);
                 }
 
-                var blend = interpolation.NextNumber(ref particle, particleSystemState);
-                particle.SetVector(field, MathUtils.Lerp(particle.GetVector(field), value, blend));
+                var blend = blends[i];
+                vectorOutput[i] = MathUtils.Lerp(vectorOutput[i], value, blend);
 
-                if (writePrevious && field == ParticleField.Position)
+                if (!previousOutput.IsEmpty)
                 {
-                    particle.PositionPrevious = MathUtils.Lerp(particle.PositionPrevious, value, blend);
+                    previousOutput[i] = MathUtils.Lerp(previousOutput[i], value, blend);
                 }
             }
         }
@@ -133,7 +182,7 @@ namespace ValveResourceFormat.Particles.Operators
         /// A snapshot row moved into the local space control point's frame. A previous position row
         /// is a velocity, turned into the position one step back from the current one.
         /// </summary>
-        private Vector3 ReadVector(ref Particle particle, Vector3[] vectors, int row, float frameTime, ParticleSystemState particleSystemState)
+        private Vector3 ReadVector(Vector3[] vectors, int row, ReadOnlySpan<Vector3> positions, int index, float frameTime, ParticleSystemState particleSystemState)
         {
             var value = vectors[row];
             var field = snapshot.AttributeToWrite;
@@ -153,7 +202,7 @@ namespace ValveResourceFormat.Particles.Operators
             if (field == ParticleField.PositionPrevious)
             {
                 var dt = frameTime > 0f ? frameTime : 1f / 30f;
-                value = particle.Position - (value * dt);
+                value = positions[index] - (value * dt);
             }
 
             return value;

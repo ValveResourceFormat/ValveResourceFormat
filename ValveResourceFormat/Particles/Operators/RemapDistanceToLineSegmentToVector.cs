@@ -18,7 +18,22 @@ namespace ValveResourceFormat.Particles.Operators
             maxOutputValue = parse.Vector3("m_vMaxOutputValue", maxOutputValue);
         }
 
-        protected override void Write(ref Particle particle, float fraction)
-            => particle.SetVector(fieldOutput, MathUtils.Lerp(minOutputValue, maxOutputValue, fraction));
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
+
+        protected override void Write(ParticleSpan particles, ReadOnlySpan<float> fractions)
+        {
+            if (!ParticleBuffer.IsVector(fieldOutput))
+            {
+                return;
+            }
+
+            var output = particles.Vectors(fieldOutput);
+
+            for (var i = 0; i < output.Length; i++)
+            {
+                output[i] = MathUtils.Lerp(minOutputValue, maxOutputValue, fractions[i]);
+            }
+        }
     }
 }

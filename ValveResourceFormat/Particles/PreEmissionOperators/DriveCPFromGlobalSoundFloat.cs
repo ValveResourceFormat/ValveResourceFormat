@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                 parse.Float("m_flOutputMax", 1f));
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             if (outputField is < 0 or > 2)
             {

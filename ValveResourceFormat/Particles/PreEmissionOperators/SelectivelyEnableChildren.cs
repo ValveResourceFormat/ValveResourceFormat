@@ -40,7 +40,9 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             groupChildCount = 0;
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Restart(ParticleSystemState particleSystemState) => Reset();
+
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             if (particleSystemState.Data is not { } simulation)
             {

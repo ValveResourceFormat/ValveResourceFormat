@@ -22,30 +22,50 @@ namespace ValveResourceFormat.Particles.Operators
             lerp = parse.NumberProvider("m_Lerp", lerp);
             normalizedOutput = parse.Boolean("m_bNormalizedOutput", normalizedOutput);
             clampsToUnit = outputField is ParticleField.Color or ParticleField.GlowRgb;
+
+            AddInitialReadOf(parse, setMethod, outputField);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
-            {
-                var value = this.value.NextVector(ref particle, particleSystemState);
-                var lerp = MathUtils.Saturate(this.lerp.NextNumber(ref particle, particleSystemState) * strength);
+            var current = particles.Current;
+            var values = value.Prepare(current, particleSystemState);
+            var lerps = lerp.Fill(current, particleSystemState);
 
-                var currentValue = particle.ModifyVectorBySetMethod(particles, outputField, value, setMethod);
-                var initialValue = particle.GetVector(outputField);
+            current.FillPerBlockInputs(particleSystemState, value, values);
+
+            if (!ParticleBuffer.IsVector(outputField))
+            {
+                return;
+            }
+
+            var output = current.Vectors(outputField);
+            var initial = particles.Initial.ReadVectors(outputField);
+            var deltaTime = particleSystemState.CurrentStep;
+
+            for (var i = 0; i < output.Length; i++)
+            {
+                var lerpAmount = MathUtils.Saturate(lerps[i] * strength);
+
+                var currentValue = output[i];
+                var target = ParticleFieldExtensions.ApplySetMethod(values[i], initial[i], currentValue, deltaTime, setMethod);
 
                 if (clampsToUnit)
                 {
-                    currentValue = Vector3.Clamp(currentValue, Vector3.Zero, Vector3.One);
+                    target = Vector3.Clamp(target, Vector3.Zero, Vector3.One);
                 }
 
-                value = Vector3.Lerp(initialValue, currentValue, lerp);
+                var result = Vector3.Lerp(currentValue, target, lerpAmount);
 
-                if (normalizedOutput && value != Vector3.Zero)
+                if (normalizedOutput && result != Vector3.Zero)
                 {
-                    value = MathUtils.SafeNormalize(value);
+                    result = MathUtils.SafeNormalize(result);
                 }
 
-                particle.SetVector(outputField, value);
+                output[i] = result;
             }
         }
     }

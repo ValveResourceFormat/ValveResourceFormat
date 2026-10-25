@@ -51,6 +51,9 @@ namespace ValveResourceFormat.Particles.Operators
             userEventBit = 1 << earlier;
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.UserEventStates.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var risingListened = risingEventType != ParticleEventType.PARTICLE_EVENT_TYPE_MASK_NONE && particleSystemState.ListensFor(risingEventType);
@@ -64,26 +67,31 @@ namespace ValveResourceFormat.Particles.Operators
             var tracksState = userEventBit == 1;
             risen.Clear();
 
-            foreach (ref var particle in particles.Current)
-            {
-                var value = input.NextNumber(ref particle, particleSystemState);
-                var rising = risingEdge.NextNumber(ref particle, particleSystemState);
-                var falling = fallingEdge.NextNumber(ref particle, particleSystemState);
-                var isSet = tracksState && (particle.UserEventStates & userEventBit) != 0;
+            var current = particles.Current;
+            var values = input.Fill(current, particleSystemState);
+            var risingEdges = risingEdge.Fill(current, particleSystemState);
+            var fallingEdges = fallingEdge.Fill(current, particleSystemState);
 
-                if (rising <= value && !isSet)
+            var states = current.Integers(ParticleField.UserEventStates);
+
+            for (var i = 0; i < states.Length; i++)
+            {
+                var value = values[i];
+                var isSet = tracksState && (states[i] & userEventBit) != 0;
+
+                if (risingEdges[i] <= value && !isSet)
                 {
-                    risen.Add(particle.Index);
-                    particle.UserEventStates |= userEventBit;
+                    risen.Add(i);
+                    states[i] |= userEventBit;
                 }
-                else if (value <= falling && isSet)
+                else if (value <= fallingEdges[i] && isSet)
                 {
                     if (fallingListened)
                     {
-                        particles.RaiseEvent(particle.Index, fallingEventType);
+                        particles.RaiseEvent(i, fallingEventType);
                     }
 
-                    particle.UserEventStates &= ~userEventBit;
+                    states[i] &= ~userEventBit;
                 }
             }
 

@@ -17,7 +17,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             cpField = Math.Clamp(parse.Int32("m_nCPField", cpField), -1, 2);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             if (cpField < 0)
             {

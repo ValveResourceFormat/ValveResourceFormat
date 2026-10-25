@@ -23,7 +23,7 @@ class LocalAccelerationForce : ParticleFunctionForceGenerator
         defaults.AddScale(scaleControlPoint);
     }
 
-    public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
+    public override void GenerateForces(ParticleCollection particles, Span<Vector3> forces, float frameTime, ParticleSystemState particleSystemState, float strength)
     {
         var force = acceleration.NextVector(particleSystemState);
 
@@ -37,9 +37,9 @@ class LocalAccelerationForce : ParticleFunctionForceGenerator
             force = ControlPointTransformProvider.TransformDirection(particleSystemState, controlPoint, force);
         }
 
-        foreach (ref var particle in particles.Current)
+        for (var i = 0; i < particles.Current.Length; i++)
         {
-            particle.ForceAccumulator += force;
+            forces[i] += force;
         }
     }
 }

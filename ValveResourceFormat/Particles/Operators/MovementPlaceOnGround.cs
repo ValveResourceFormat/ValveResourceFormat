@@ -56,7 +56,13 @@ namespace ValveResourceFormat.Particles.Operators
             retraceOnControlPointMove = (referenceControlPoint1 > -1 || referenceControlPoint2 > -1 || lerpControlPoint > -1) && tolerance > 0f;
             interpolates = lerpControlPoint > -1 || lerpRate > 0f;
 
-            Reset();
+            parse.AddInitialRead(ParticleField.Position);
+            parse.AddInitialRead(ParticleField.PositionPrevious);
+
+            if (preserveOffsetControlPoint > -1)
+            {
+                parse.AddInitialRead(ParticleField.HitboxOffsetPosition);
+            }
         }
 
         public override void Reset()
@@ -67,8 +73,19 @@ namespace ValveResourceFormat.Particles.Operators
             lastRetraceTime = 0f;
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask() | ParticleField.LifeDuration.Mask()
+            | ParticleField.HitboxOffsetPosition.Mask() | ParticleField.Normal.Mask();
+
+        /// <inheritdoc/>
+        public override ulong InitialWrittenFields => ParticleField.PositionPrevious.Mask() | ParticleField.HitboxOffsetPosition.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
+            var current = particles.Current;
+            var offsets = offset.Fill(current, particleSystemState);
+            var directions = traceDirection.Prepare(current, particleSystemState);
+
             var retrace = false;
 
             if (retraceOnControlPointMove)
@@ -122,19 +139,31 @@ namespace ValveResourceFormat.Particles.Operators
                 ? particleSystemState.GetControlPoint(preserveOffsetControlPoint).Position.Z
                 : 0f;
 
-            foreach (ref var particle in particles.Current)
-            {
-                var direction = MathUtils.SafeNormalize(traceDirection.NextVector(ref particle, particleSystemState));
-                var position = particle.Position;
-                var velocityStep = position - particle.PositionPrevious;
-                var from = particle.GetInitialVector(particles, ParticleField.PositionPrevious);
-                var to = particle.HitboxOffsetPosition;
+            var positions = current.Vectors(ParticleField.Position);
+            var previousPositions = current.Vectors(ParticleField.PositionPrevious);
+            var hitboxOffsets = current.Vectors(ParticleField.HitboxOffsetPosition);
+            var lifetimes = current.Floats(ParticleField.LifeDuration);
+            var normals = setNormal ? current.Vectors(ParticleField.Normal) : default;
+            var radii = scaleOffset ? current.ReadFloats(ParticleField.Radius) : default;
+            var initialPreviousPositions = interpolates ? particles.Initial.Vectors(ParticleField.PositionPrevious) : default;
+            var initialHitboxOffsets = preserveOffsetControlPoint > -1 ? particles.Initial.Vectors(ParticleField.HitboxOffsetPosition) : default;
+            var initialPositions = preserveOffsetControlPoint > -1 ? particles.Initial.ReadVectors(ParticleField.Position) : default;
 
-                var lift = offset.NextNumber(ref particle, particleSystemState);
+            current.FillPerBlockInputs(particleSystemState, traceDirection, directions);
+
+            for (var i = 0; i < positions.Length; i++)
+            {
+                var direction = MathUtils.SafeNormalize(directions[i]);
+                var position = positions[i];
+                var velocityStep = position - previousPositions[i];
+                var from = interpolates ? initialPreviousPositions[i] : Vector3.Zero;
+                var to = hitboxOffsets[i];
+
+                var lift = offsets[i];
 
                 if (scaleOffset)
                 {
-                    lift *= particle.Radius;
+                    lift *= radii[i];
                 }
 
                 var traceLength = missBehavior == ParticleTraceMissBehavior.PARTICLE_TRACE_MISS_BEHAVIOR_NONE
@@ -143,12 +172,12 @@ namespace ValveResourceFormat.Particles.Operators
 
                 if (preserveOffsetControlPoint > -1)
                 {
-                    var preserved = particle.GetInitialVector(particles, ParticleField.HitboxOffsetPosition);
+                    var preserved = initialHitboxOffsets[i];
 
                     if (preserved.X == 0f)
                     {
-                        preserved = new Vector3(1f, preserved.Y, particle.GetInitialVector(particles, ParticleField.Position).Z - preserveOffsetHeight);
-                        particle.SetInitialVector(particles, ParticleField.HitboxOffsetPosition, preserved);
+                        preserved = new Vector3(1f, preserved.Y, initialPositions[i].Z - preserveOffsetHeight);
+                        initialHitboxOffsets[i] = preserved;
                     }
 
                     lift += preserved.Z;
@@ -174,7 +203,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                     if (!hitGround && missBehavior == ParticleTraceMissBehavior.PARTICLE_TRACE_MISS_BEHAVIOR_KILL)
                     {
-                        particle.Lifetime = -1f;
+                        lifetimes[i] = -1f;
                     }
                     else
                     {
@@ -182,18 +211,18 @@ namespace ValveResourceFormat.Particles.Operators
 
                         if (setNormal)
                         {
-                            particle.SetVector(ParticleField.Normal, hitNormal);
+                            normals[i] = hitNormal;
                         }
 
                         if (!interpolates)
                         {
-                            particle.Position = target;
-                            particle.PositionPrevious = target - velocityStep;
+                            positions[i] = target;
+                            previousPositions[i] = target - velocityStep;
                             continue;
                         }
 
-                        particle.SetInitialVector(particles, ParticleField.PositionPrevious, to);
-                        particle.HitboxOffsetPosition = target;
+                        initialPreviousPositions[i] = to;
+                        hitboxOffsets[i] = target;
                         from = to;
                         to = target;
                     }
@@ -204,8 +233,8 @@ namespace ValveResourceFormat.Particles.Operators
                     var axes = Vector3.Abs(direction);
                     var placed = (Vector3.Lerp(from, to, interpolation) * axes) + ((Vector3.One - axes) * position);
 
-                    particle.Position = placed;
-                    particle.PositionPrevious = placed - velocityStep;
+                    positions[i] = placed;
+                    previousPositions[i] = placed - velocityStep;
                 }
             }
         }

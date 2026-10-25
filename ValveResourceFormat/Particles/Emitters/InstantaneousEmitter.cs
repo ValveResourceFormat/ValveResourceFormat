@@ -43,6 +43,7 @@ namespace ValveResourceFormat.Particles.Emitters
         /// <summary>The next snapshot row whose creation time an emitted particle takes.</summary>
         private int snapshotEmitIndex;
         private ParticleSnapshot? walkedSnapshot;
+        private int walkedSerial;
 
         public InstantaneousEmitter(ParticleDefinitionParser parse) : base(parse)
         {
@@ -75,6 +76,7 @@ namespace ValveResourceFormat.Particles.Emitters
             snapshotIndex = 0;
             snapshotEmitIndex = 0;
             walkedSnapshot = null;
+            walkedSerial = 0;
         }
 
         public override void Restart(ParticleSystemState particleSystemState)
@@ -148,13 +150,16 @@ namespace ValveResourceFormat.Particles.Emitters
 
             var snapshot = snapshotBinding.Resolve(particleSystemState);
 
-            if (resetSnapshotIndexOnChanges && !ReferenceEquals(snapshot, walkedSnapshot))
+            var serial = snapshot?.Serial ?? 0;
+
+            if (resetSnapshotIndexOnChanges && (!ReferenceEquals(snapshot, walkedSnapshot) || serial != walkedSerial))
             {
                 snapshotIndex = 0;
                 snapshotEmitIndex = 0;
             }
 
             walkedSnapshot = snapshot;
+            walkedSerial = serial;
 
             if (snapshot == null)
             {

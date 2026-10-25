@@ -25,24 +25,40 @@ namespace ValveResourceFormat.Particles.Operators
             expression = parse.Enum<ScalarExpressionType>("m_nExpression", expression);
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
             outputRemap = AttributeMapping.FromRemapInput(parse, "m_flOutputRemap");
+
+            AddInitialReadOf(parse, setMethod, outputField);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var (min, max) = outputField.SetFloatRange();
+            var current = particles.Current;
 
-            foreach (ref var particle in particles.Current)
+            var values1 = input1.Fill(current, particleSystemState);
+            var values2 = input2.Fill(current, particleSystemState);
+
+            if (!ParticleBuffer.IsScalar(outputField))
             {
-                var value1 = input1.NextNumber(ref particle, particleSystemState);
-                var value2 = input2.NextNumber(ref particle, particleSystemState);
+                return;
+            }
 
-                if (expression.Evaluate(value1, value2) is not { } output)
+            var outputs = current.Floats(outputField);
+            var initial = particles.Initial.ReadFloats(outputField);
+            var deltaTime = particleSystemState.CurrentStep;
+            var scalesByStrength = !expression.IsComparison();
+
+            for (var i = 0; i < outputs.Length; i++)
+            {
+                if (expression.Evaluate(values1[i], values2[i], truncatedRemainder: true) is not { } output)
                 {
                     continue;
                 }
 
                 // Strength scales arithmetic results before the set method; comparisons stay 0/1
-                if (!expression.IsComparison())
+                if (scalesByStrength)
                 {
                     output *= strength;
                 }
@@ -52,7 +68,8 @@ namespace ValveResourceFormat.Particles.Operators
                     output = outputRemap.ApplyMapping(output);
                 }
 
-                particle.SetScalar(outputField, Math.Clamp(particle.ModifyScalarBySetMethod(particles, outputField, output, setMethod), min, max));
+                var result = ParticleFieldExtensions.ApplySetMethod(output, initial[i], outputs[i], deltaTime, setMethod);
+                outputs[i] = Math.Clamp(result, min, max);
             }
         }
     }

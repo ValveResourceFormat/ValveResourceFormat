@@ -19,20 +19,20 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             localCP = parse.Int32("m_nLocalCP", localCP);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
-            var axis = MathUtils.SafeNormalize(this.axis.NextVector(particleSystemState), Vector3.UnitZ);
+            var rotationAxis = MathUtils.SafeNormalize(axis.NextVector(particleSystemState), Vector3.UnitZ);
 
             if (localCP > -1)
             {
-                axis = Vector3.Transform(axis, particleSystemState.GetControlPoint(localCP).GetRotation());
+                rotationAxis = Vector3.Transform(rotationAxis, particleSystemState.GetControlPoint(localCP).GetRotation());
             }
 
             var angle = float.DegreesToRadians(rotationRate.NextNumber(particleSystemState)) * frameTime;
 
             // Accumulate this frame's increment onto the control point's current rotation so it spins continuously
             var controlPoint = particleSystemState.GetControlPoint(cp);
-            var increment = Quaternion.CreateFromAxisAngle(axis, angle);
+            var increment = Quaternion.CreateFromAxisAngle(rotationAxis, angle);
             var rotation = Quaternion.Normalize(controlPoint.GetRotation() * increment);
 
             particleSystemState.SetControlPointRotation(cp, rotation);

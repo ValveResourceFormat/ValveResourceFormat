@@ -10,8 +10,7 @@ namespace ValveResourceFormat.Particles.Operators
     /// field is an alpha.
     /// </summary>
     /// <remarks>
-    /// The engine implementation never reads operator strength, so the strength passed to
-    /// <see cref="Operate"/> is ignored.
+    /// Operator strength is not read, so the strength passed to <see cref="Operate"/> is ignored.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_PercentageBetweenTransforms">C_OP_PercentageBetweenTransforms</seealso>
     class PercentageBetweenTransforms : ParticleFunctionOperator
@@ -40,12 +39,17 @@ namespace ValveResourceFormat.Particles.Operators
             activeRange = parse.Boolean("m_bActiveRange", activeRange);
             radialCheck = parse.Boolean("m_bRadialCheck", radialCheck);
 
-            if (outputField is ParticleField.Alpha or ParticleField.AlphaAlternate)
+            if (outputField.IsAlpha())
             {
                 outputMin = MathUtils.Saturate(outputMin);
                 outputMax = MathUtils.Saturate(outputMax);
             }
+
+            AddInitialReadOf(parse, setMethod, outputField);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -53,21 +57,28 @@ namespace ValveResourceFormat.Particles.Operators
             var end = transformEnd.NextTransform(particleSystemState).Translation;
             var length = Vector3.Distance(start, end);
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(outputField))
             {
-                var percentage = Percentage(particle.Position, start, end, length, radialCheck);
+                return;
+            }
+
+            var current = particles.Current;
+            var positions = current.ReadVectors(ParticleField.Position);
+            var values = current.Floats(outputField);
+            var initialValues = particles.Initial.ReadFloats(outputField);
+
+            for (var i = 0; i < values.Length; i++)
+            {
+                var percentage = Percentage(positions[i], start, end, length, radialCheck);
 
                 if (activeRange && !(inputMin <= percentage && percentage <= inputMax))
                 {
                     continue;
                 }
 
-                var divisor = inputMax == inputMin ? 1f : inputMax - inputMin;
-                var finalValue = MathUtils.Lerp(outputMin, outputMax, MathUtils.Saturate((percentage - inputMin) / divisor));
+                var finalValue = MathUtils.Lerp(outputMin, outputMax, ParticleMath.ClampedFraction(percentage, inputMin, inputMax));
 
-                finalValue = particle.ModifyScalarBySetMethod(particles, outputField, finalValue, setMethod);
-
-                particle.SetScalar(outputField, finalValue);
+                values[i] = ParticleFieldExtensions.ApplySetMethod(finalValue, initialValues[i], values[i], particleSystemState.CurrentStep, setMethod);
             }
         }
 

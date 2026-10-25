@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Runtime.CompilerServices;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Particles;
@@ -108,9 +109,11 @@ namespace ValveResourceFormat.Renderer.Particles
 
         private void SetupRenderers(IReadOnlyList<KVObject> rendererData, Scene scene)
         {
+            var initialReads = new StrongBox<ulong>();
+
             foreach (var rendererInfo in rendererData)
             {
-                var parse = new ParticleDefinitionParser(rendererInfo, rendererContext.Logger, Simulation.BehaviorVersion);
+                var parse = new ParticleDefinitionParser(rendererInfo, rendererContext.Logger, initialReads, Simulation.BehaviorVersion);
 
                 if (parse.Boolean("m_bDisableOperator", default))
                 {
@@ -129,6 +132,17 @@ namespace ValveResourceFormat.Renderer.Particles
 
                 renderers.Add(renderer);
             }
+
+            var writtenFields = 0UL;
+            var blendedFields = 0UL;
+
+            foreach (var renderer in renderers)
+            {
+                writtenFields |= renderer.StoredFields;
+                blendedFields |= renderer.BlendedFields;
+            }
+
+            Simulation.AddRendererFields(writtenFields, initialReads.Value, blendedFields);
         }
 
         /// <summary>
@@ -207,6 +221,7 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             foreach (var renderer in renderers)
             {
+                using var scratch = ParticleScratch.Scope();
                 renderer.Simulate(particles, state);
             }
         }
@@ -216,6 +231,7 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             foreach (var renderer in renderers)
             {
+                using var scratch = ParticleScratch.Scope();
                 renderer.InitializeParticles(particles, state, first, count);
             }
         }
@@ -230,6 +246,7 @@ namespace ValveResourceFormat.Renderer.Particles
             {
                 if ((renderer.ObservedEvents & eventType) != 0)
                 {
+                    using var scratch = ParticleScratch.Scope();
                     renderer.OnParticleEvent(particles, eventType, indices);
                 }
             }
@@ -255,6 +272,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
                 else if (stepped)
                 {
+                    using var scratch = ParticleScratch.Scope();
                     renderer.Act(Simulation.Particles, Simulation.RenderState);
                 }
             }
@@ -308,6 +326,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
+                using var scratch = ParticleScratch.Scope();
                 renderer.UpdateBuffers(Simulation.Particles, Simulation.RenderState, camera);
             }
         }
@@ -347,6 +366,8 @@ namespace ValveResourceFormat.Renderer.Particles
                 {
                     continue;
                 }
+
+                using var scratch = ParticleScratch.Scope();
 
                 if (depthPass)
                 {
@@ -455,6 +476,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
+                using var scratch = ParticleScratch.Scope();
                 renderer.UpdateBuffers(Simulation.Particles, Simulation.RenderState, camera);
                 renderer.Render(Simulation.Particles, Simulation.RenderState, camera);
             }

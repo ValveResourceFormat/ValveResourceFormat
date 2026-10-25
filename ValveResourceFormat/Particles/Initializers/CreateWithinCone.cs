@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
@@ -27,40 +29,90 @@ namespace ValveResourceFormat.Particles.Initializers
             collapseOffset = parse.Boolean("m_bCollapseOffset", collapseOffset);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious);
+        public override ulong WrittenFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var inner = innerAngle.NextNumber(ref particle, particleSystemState);
-            var outer = outerAngle.NextNumber(ref particle, particleSystemState);
-            var particleSpeed = speed.NextNumber(ref particle, particleSystemState);
-            var particleOffset = offset.NextNumber(ref particle, particleSystemState);
+            InitializeRun(run, particles, particleSystemState, blockRun: false);
+        }
 
-            var halfAngle = float.DegreesToRadians(MathUtils.Lerp(inner, outer, particleSystemState.Random.Next())) * 0.5f;
+        protected override void InitializeBlocks(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
+        {
+            InitializeRun(run, particles, particleSystemState, blockRun: true);
+        }
 
-            // The ring is placed at least one unit along the axis so a zero offset still yields a
-            // direction at the drawn angle; a negative offset flips the cone backwards.
-            var axialDistance = MathF.Max(MathF.Abs(particleOffset), 1f) * (particleOffset < 0f ? -1f : 1f);
-            var radius = axialDistance * MathF.Tan(halfAngle);
+        private void InitializeRun(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState, bool blockRun)
+        {
+            var creationTimes = run.ReadFloats(ParticleField.CreationTime);
+            var positions = run.Vectors(ParticleField.Position);
+            var previous = SpawnPreviousPositions(run, particleSystemState);
 
-            var transform = transformInput.NextTransformAtTime(ref particle, particleSystemState, particle.CreationTime);
+            var inners = innerAngle.Fill(run, particleSystemState);
+            var outers = outerAngle.Fill(run, particleSystemState);
+            var speeds = speed.Fill(run, particleSystemState);
+            var offsets = offset.Fill(run, particleSystemState);
 
-            var (sin, cos) = MathF.SinCos(particleSystemState.Random.Next() * MathF.Tau);
-            var forward = Vector3.TransformNormal(Vector3.UnitX, transform);
-            var ringOffset = Vector3.TransformNormal(new Vector3(0f, radius * cos, radius * sin), transform);
+            var blockAngleDraws = ParticleScratch.Floats(blockRun ? run.Length : 0);
+            var blockPhis = ParticleScratch.Floats(blockRun ? run.Length : 0);
 
-            var position = transform.Translation + ringOffset;
-
-            if (!collapseOffset)
+            if (blockRun)
             {
-                position += forward * particleOffset;
+                DrawBlocks(particleSystemState.ThreadRandom, blockAngleDraws, blockPhis);
             }
 
-            var direction = Vector3.Normalize((forward * axialDistance) + ringOffset);
+            for (var i = 0; i < run.Length; i++)
+            {
+                var particleOffset = offsets[i];
+                var angleDraw = blockRun ? blockAngleDraws[i] : particleSystemState.Random.Next();
+                var halfAngle = float.DegreesToRadians(MathUtils.Lerp(inners[i], outers[i], angleDraw)) * 0.5f;
 
-            SetSpawnPosition(ref particle, particleSystemState, position, position - (direction * (particleSpeed * particles.PreviousFrameTime)));
+                // The ring is placed at least one unit along the axis so a zero offset still yields a
+                // direction at the drawn angle; a negative offset flips the cone backwards.
+                var axialDistance = MathF.Max(MathF.Abs(particleOffset), 1f) * (particleOffset < 0f ? -1f : 1f);
+                var radius = axialDistance * MathF.Tan(halfAngle);
 
-            return particle;
+                var transform = transformInput.NextTransformAtTime(particleSystemState, creationTimes[i]);
+
+                var phi = blockRun ? blockPhis[i] : particleSystemState.Random.Next() * MathF.Tau;
+                var (sin, cos) = MathF.SinCos(phi);
+                var forward = Vector3.TransformNormal(Vector3.UnitX, transform);
+                var ringOffset = Vector3.TransformNormal(new Vector3(0f, radius * cos, radius * sin), transform);
+
+                var position = transform.Translation + ringOffset;
+
+                if (!collapseOffset)
+                {
+                    position += forward * particleOffset;
+                }
+
+                var direction = Vector3.Normalize((forward * axialDistance) + ringOffset);
+
+                positions[i] = position;
+
+                if (!previous.IsEmpty)
+                {
+                    previous[i] = position - (direction * (speeds[i] * particleSystemState.PreviousStep));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Takes the block run's draws from the thread generator, block by block of four: the angle draw,
+        /// then the angle around the axis.
+        /// </summary>
+        private static void DrawBlocks(ThreadRandom generator, Span<float> angleDraws, Span<float> phis)
+        {
+            for (var blockStart = 0; blockStart < angleDraws.Length; blockStart += 4)
+            {
+                var angles = generator.NextBetween(0f, 1f);
+                var blockPhis = generator.NextBetween(0f, MathF.Tau);
+
+                for (var lane = 0; lane < 4; lane++)
+                {
+                    angleDraws[blockStart + lane] = angles[lane];
+                    phis[blockStart + lane] = blockPhis[lane];
+                }
+            }
         }
     }
 }

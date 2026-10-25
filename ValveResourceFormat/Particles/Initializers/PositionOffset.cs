@@ -18,8 +18,6 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly bool proportional; // offset proportional to radius 0/1
         private readonly RangeSampler rangeSampler;
 
-        private Matrix4x4 rotation;
-
         public PositionOffset(ParticleDefinitionParser parse) : base(parse)
         {
             offsetMin = parse.VectorProvider("m_OffsetMin", offsetMin);
@@ -30,37 +28,53 @@ namespace ValveResourceFormat.Particles.Initializers
             rangeSampler = RangeSampler.Parse(parse);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious);
+        public override ulong WrittenFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask();
 
-        protected override void BeginCall(ref Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            if (localCoords)
-            {
-                rotation = transformInput.NextTransform(particleSystemState);
-            }
+            InitializeRun(run, particles, particleSystemState, blockRun: false);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeBlocks(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var posMin = offsetMin.NextVector(ref particle, particleSystemState);
-            var posMax = offsetMax.NextVector(ref particle, particleSystemState);
+            InitializeRun(run, particles, particleSystemState, blockRun: true);
+        }
 
-            var offset = rangeSampler.NextVectorBetween(ref particle, particleSystemState, posMin, posMax);
+        private void InitializeRun(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState, bool blockRun)
+        {
+            var rotation = localCoords ? transformInput.NextTransform(particleSystemState) : Matrix4x4.Identity;
 
-            if (proportional)
+            // The offsets are evaluated for every live particle, and each particle of the run reads its own value
+            var posMins = offsetMin.Prepare(run, particles.Current, particleSystemState);
+            var posMaxs = offsetMax.Prepare(run, particles.Current, particleSystemState);
+
+            run.FillPerBlockInputs(particleSystemState, offsetMin, posMins, offsetMax, posMaxs, blocksFromStart: true);
+
+            var positions = run.Vectors(ParticleField.Position);
+            var previousPositions = run.Vectors(ParticleField.PositionPrevious);
+            var radii = proportional ? run.ReadFloats(ParticleField.Radius) : default;
+
+            for (var i = 0; i < positions.Length; i++)
             {
-                offset *= particle.Radius;
+                // The block run takes the evenly distributed samples of each block of four in reverse
+                var index = run.Start + i;
+                var sampleIndex = blockRun ? index ^ 3 : index;
+
+                var offset = rangeSampler.NextVectorBetween(sampleIndex, particleSystemState, posMins[i], posMaxs[i]);
+
+                if (proportional)
+                {
+                    offset *= radii[i];
+                }
+
+                if (localCoords)
+                {
+                    offset = Vector3.TransformNormal(offset, rotation);
+                }
+
+                positions[i] += offset;
+                previousPositions[i] += offset;
             }
-
-            if (localCoords)
-            {
-                offset = Vector3.TransformNormal(offset, rotation);
-            }
-
-            particle.Position += offset;
-            particle.PositionPrevious += offset;
-
-            return particle;
         }
     }
 }

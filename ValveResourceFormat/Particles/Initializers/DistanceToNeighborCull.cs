@@ -33,68 +33,81 @@ namespace ValveResourceFormat.Particles.Initializers
         }
 
         public override ulong WrittenFields => fieldModify == ParticleField.NoneDisabled
-            ? FieldMask(ParticleField.LifeDuration)
-            : FieldMask(ParticleField.LifeDuration) | FieldMask(fieldModify);
+            ? ParticleField.LifeDuration.Mask()
+            : ParticleField.LifeDuration.Mask() | fieldModify.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var range = distance.NextNumber(ref particle, particleSystemState);
-            var overlap = 1f - lifespanOverlap.NextNumber(ref particle, particleSystemState);
-            var modifyValue = modify.NextNumber(ref particle, particleSystemState);
-
-            if (particle.Lifetime <= 0f)
-            {
-                return particle;
-            }
-
             var neighbors = particles.Current;
 
-            for (var i = neighbors.Length - 1; i >= 0; i--)
+            // The inputs are evaluated for every live particle, and each particle of the run reads its own value
+            var ranges = distance.Fill(run, neighbors, particleSystemState);
+            var overlaps = lifespanOverlap.Fill(run, neighbors, particleSystemState);
+            var modifyValues = modify.Fill(run, neighbors, particleSystemState);
+
+            var lifetimes = neighbors.Floats(ParticleField.LifeDuration);
+            var creationTimes = neighbors.ReadFloats(ParticleField.CreationTime);
+            var positions = neighbors.ReadVectors(ParticleField.Position);
+            var radii = includeRadii ? neighbors.ReadFloats(ParticleField.Radius) : default;
+            var modifiedFields = fieldModify != ParticleField.NoneDisabled && ParticleBuffer.IsScalar(fieldModify)
+                ? neighbors.Floats(fieldModify)
+                : default;
+
+            for (var i = 0; i < run.Length; i++)
             {
-                if (i == particle.Index)
+                var index = run.Start + i;
+                var range = ranges[i];
+                var overlap = 1f - overlaps[i];
+                var modifyValue = modifyValues[i];
+
+                if (lifetimes[index] <= 0f)
                 {
                     continue;
                 }
 
-                ref var neighbor = ref neighbors[i];
-
-                if (neighbor.Lifetime <= 0f)
+                for (var j = neighbors.Length - 1; j >= 0; j--)
                 {
-                    continue;
-                }
-
-                if (overlap < 1f && (particleSystemState.Age - neighbor.CreationTime) / neighbor.Lifetime > overlap)
-                {
-                    continue;
-                }
-
-                var radii = includeRadii ? neighbor.Radius + particle.Radius : 0f;
-
-                if (range * range <= Vector3.DistanceSquared(particle.Position, neighbor.Position) - (radii * radii))
-                {
-                    continue;
-                }
-
-                if (fieldModify == ParticleField.NoneDisabled)
-                {
-                    particle.Lifetime = -1f;
-                }
-                else
-                {
-                    var current = (useNeighbor ? ref neighbor : ref particle).GetScalar(fieldModify);
-                    particle.SetScalar(fieldModify, setMethod switch
+                    if (j == index)
                     {
-                        ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_SCALE_CURRENT_VALUE => modifyValue * current,
-                        ParticleSetMethod.PARTICLE_SET_ADD_TO_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_ADD_TO_CURRENT_VALUE => modifyValue + current,
-                        ParticleSetMethod.PARTICLE_SET_RAMP_CURRENT_VALUE => (modifyValue * particles.CurrentFrameTime) + current,
-                        _ => modifyValue,
-                    });
+                        continue;
+                    }
+
+                    if (lifetimes[j] <= 0f)
+                    {
+                        continue;
+                    }
+
+                    if (overlap < 1f && (particleSystemState.Age - creationTimes[j]) / lifetimes[j] > overlap)
+                    {
+                        continue;
+                    }
+
+                    var radiusSum = includeRadii ? radii[j] + radii[index] : 0f;
+
+                    if (range * range <= Vector3.DistanceSquared(positions[index], positions[j]) - (radiusSum * radiusSum))
+                    {
+                        continue;
+                    }
+
+                    if (fieldModify == ParticleField.NoneDisabled)
+                    {
+                        lifetimes[index] = -1f;
+                    }
+                    else if (!modifiedFields.IsEmpty)
+                    {
+                        var current = modifiedFields[useNeighbor ? j : index];
+                        modifiedFields[index] = setMethod switch
+                        {
+                            ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_SCALE_CURRENT_VALUE => modifyValue * current,
+                            ParticleSetMethod.PARTICLE_SET_ADD_TO_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_ADD_TO_CURRENT_VALUE => modifyValue + current,
+                            ParticleSetMethod.PARTICLE_SET_RAMP_CURRENT_VALUE => (modifyValue * particleSystemState.CurrentStep) + current,
+                            _ => modifyValue,
+                        };
+                    }
+
+                    break;
                 }
-
-                break;
             }
-
-            return particle;
         }
     }
 }

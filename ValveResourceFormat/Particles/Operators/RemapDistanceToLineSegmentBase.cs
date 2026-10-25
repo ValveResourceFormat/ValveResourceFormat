@@ -30,21 +30,28 @@ namespace ValveResourceFormat.Particles.Operators
             var direction = particleSystemState.GetControlPoint(cp1).Position - start;
             var lengthSquared = direction.LengthSquared();
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var positions = current.ReadVectors(ParticleField.Position);
+            var fractions = ParticleScratch.Floats(current.Length);
+
+            for (var i = 0; i < positions.Length; i++)
             {
-                var t = lengthSquared <= ParticleMath.FloatEpsilon ? 0f : Vector3.Dot(particle.Position - start, direction) / lengthSquared;
+                var position = positions[i];
+                var t = lengthSquared <= ParticleMath.FloatEpsilon ? 0f : Vector3.Dot(position - start, direction) / lengthSquared;
 
                 if (!infiniteLine)
                 {
                     t = MathUtils.Saturate(t);
                 }
 
-                var distance = Vector3.Distance(start + (direction * t), particle.Position);
-                Write(ref particle, ParticleMath.ClampedFraction(distance, minInputValue, maxInputValue));
+                var distance = Vector3.Distance(start + (direction * t), position);
+                fractions[i] = ParticleMath.ClampedFraction(distance, minInputValue, maxInputValue);
             }
+
+            Write(current, fractions);
         }
 
-        /// <summary>Writes the output for a distance remapped to [0, 1] across the input range.</summary>
-        protected abstract void Write(ref Particle particle, float fraction);
+        /// <summary>Writes the output for each particle's distance remapped to [0, 1] across the input range.</summary>
+        protected abstract void Write(ParticleSpan particles, ReadOnlySpan<float> fractions);
     }
 }

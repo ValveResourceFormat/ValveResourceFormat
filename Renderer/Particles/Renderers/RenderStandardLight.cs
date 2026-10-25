@@ -20,6 +20,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         private const float LightFallOff = 0.5f;
 
+        private const float MinZeroPercentFalloff = 1f / (1 << 22);
+
         private readonly ParticleLightTypeChoiceList lightType;
         private readonly INumberProvider intensity = new LiteralNumberProvider(1f);
         private readonly INumberProvider theta = new LiteralNumberProvider(45f);
@@ -65,7 +67,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             if (attenuationStyle == StandardLightingAttenuationStyle.LIGHT_STYLE_NEW)
             {
-                radiusScale *= MathF.Max(zeroPercentFalloff.NextNumber(systemState), 1f / (1 << 22));
+                radiusScale *= MathF.Max(zeroPercentFalloff.NextNumber(systemState), MinZeroPercentFalloff);
             }
 
             var colorScale = new Vector4(ParticleColorBlend.ConvertScale(ColorBlendType, ColorScale.NextVector(systemState)), 1f);
@@ -74,37 +76,47 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 : (Inner: 0f, Outer: 180f);
 
             var current = particles.Current;
+            var particleIds = current.ReadIntegers(ParticleField.ParticleId);
+            var positions = current.ReadVectors(ParticleField.Position);
+            var colors = current.ReadVectors(ParticleField.Color);
+            var radii = current.ReadFloats(ParticleField.Radius);
+            var alphas = current.ReadFloats(ParticleField.Alpha);
+            var yaws = current.ReadFloats(ParticleField.Yaw);
+            var pitches = current.ReadFloats(ParticleField.Pitch);
+            var rolls = current.ReadFloats(ParticleField.Roll);
+            var intensities = intensity.Fill(current, systemState);
 
             for (var n = 0; n < current.Length; n++)
             {
-                var brightness = intensity.NextNumber(ref current[n], systemState);
+                var brightness = intensities[n];
 
                 if (brightness <= 0f)
                 {
                     continue;
                 }
 
-                ref var particle = ref current[reverseOrder ? current.Length - 1 - n : n];
+                var index = reverseOrder ? current.Length - 1 - n : n;
 
-                if (Lights.Claim(particle.ParticleId) is not { } slot || particle.Radius == 0f || particle.Alpha == 0f)
+                if (Lights.Claim(particleIds[index]) is not { } slot || radii[index] == 0f || alphas[index] == 0f)
                 {
                     continue;
                 }
 
                 slot.Touched = true;
 
-                var color = ParticleColorBlend.Apply(ColorBlendType, ParticleColorBlend.ToBytes(particle.Color, 1f), colorScale);
+                var color = ParticleColorBlend.ApplyRounded(ColorBlendType, ParticleColorBlend.ToWrappedBytes(colors[index], 255f), colorScale);
+                var rotation = EntityTransformHelper.EulerAnglesToRotationMatrixRadians(new Vector3(pitches[index], yaws[index], rolls[index]));
 
                 slot.State = new ParticleLightPool.LightState(
                     Color: color.AsVector3() / 255f,
                     LinearBrightness: brightness * IntensityScaleBarnPath,
-                    BrightnessScale: particle.Alpha,
-                    Range: radiusScale * particle.Radius,
+                    BrightnessScale: alphas[index],
+                    Range: radiusScale * radii[index],
                     SpotInnerAngle: cone.Inner,
                     SpotOuterAngle: cone.Outer,
                     LuminaireSize: 0f,
                     FallOff: LightFallOff,
-                    Transform: particle.GetRotationMatrix() * Matrix4x4.CreateTranslation(particle.Position));
+                    Transform: rotation * Matrix4x4.CreateTranslation(positions[index]));
             }
 
             return true;
@@ -113,9 +125,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <inheritdoc/>
         protected override SceneLight CreateLight(Scene scene)
         {
-            // todo: this should be legacy light (and it should not render in barn lighting scenes)
-            // forcing this to barn light path for now, to showcase the new lights
-
+            // TODO: These are legacy lights, which scenes lit by barn lights do not draw; they are drawn as barn lights instead
             var fx = lightType == ParticleLightTypeChoiceList.PARTICLE_LIGHT_TYPE_FX;
 
             return new SceneLight(scene)
@@ -123,15 +133,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 Type = SceneLight.LightType.Point,
                 Entity = SceneLight.EntityType.Omni2,
                 DirectLight = SceneLight.DirectLightType.Dynamic,
-                FallOff = LightFallOff,
-                SpotOuterAngle = 180f,
-                BrightnessScale = 0f,
-
                 CastShadows = castShadows && !fx ? 1 : 0,
                 RenderDiffuse = fx || renderDiffuse,
                 RenderSpecular = !fx && renderSpecular,
-                LuminaireSize = 0f,
-
                 Name = nameof(RenderStandardLight),
             };
         }

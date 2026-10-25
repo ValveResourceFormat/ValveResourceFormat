@@ -27,35 +27,49 @@ namespace ValveResourceFormat.Particles.Initializers
             rangeSampler = RangeSampler.Parse(parse);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.PositionPrevious);
+        public override ulong WrittenFields => ParticleField.PositionPrevious.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var vecMin = vectorMin.NextVector(ref particle, particleSystemState);
-            var vecMax = vectorMax.NextVector(ref particle, particleSystemState);
+            // The local speeds are evaluated for every live particle, and each particle of the run reads its own value
+            var vecMins = vectorMin.Prepare(run, particles.Current, particleSystemState);
+            var vecMaxes = vectorMax.Prepare(run, particles.Current, particleSystemState);
+            var speedMins = speedMin.Fill(run, particleSystemState);
+            var speedMaxes = speedMax.Fill(run, particleSystemState);
 
-            var velocity = Vector3.Zero;
+            run.FillPerBlockInputs(particleSystemState, vectorMin, vecMins, vectorMax, vecMaxes, blocksFromStart: true);
 
-            // The authored speed vector is expressed in the control point's local coordinate system.
-            if (vecMin != Vector3.Zero || vecMax != Vector3.Zero)
+            var creationTimes = run.ReadFloats(ParticleField.CreationTime);
+            var previousPositions = run.Vectors(ParticleField.PositionPrevious);
+
+            // The stratified sample index advances only for particles that take a local speed
+            var sampleIndex = run.Start;
+
+            for (var i = 0; i < previousPositions.Length; i++)
             {
-                var localSpeed = rangeSampler.NextVectorBetween(ref particle, particleSystemState, vecMin, vecMax);
-                var basis = particleSystemState.GetControlPoint(controlPoint).GetBasisAtTime(particle.CreationTime);
-                velocity = Vector3.TransformNormal(localSpeed, basis);
+                var vecMin = vecMins[i];
+                var vecMax = vecMaxes[i];
+                var velocity = Vector3.Zero;
+
+                // The authored speed vector is expressed in the control point's local coordinate system.
+                if (vecMin != Vector3.Zero || vecMax != Vector3.Zero)
+                {
+                    var localSpeed = rangeSampler.NextVectorBetween(sampleIndex++, particleSystemState, vecMin, vecMax);
+                    var basis = particleSystemState.GetControlPoint(controlPoint).GetBasisAtTime(creationTimes[i]);
+                    velocity = Vector3.TransformNormal(localSpeed, basis);
+                }
+
+                var speedmin = speedMins[i];
+                var speedmax = speedMaxes[i];
+
+                if (speedmin != 0f || speedmax != 0f)
+                {
+                    var direction = MathUtils.SafeNormalize(particleSystemState.Random.NextInUnitBall(out _));
+                    velocity += direction * particleSystemState.Random.NextBetween(speedmin, speedmax);
+                }
+
+                previousPositions[i] -= VelocityStep(particleSystemState, velocity, ignoreDT);
             }
-
-            var speedmin = speedMin.NextNumber(ref particle, particleSystemState);
-            var speedmax = speedMax.NextNumber(ref particle, particleSystemState);
-
-            if (speedmin != 0f || speedmax != 0f)
-            {
-                var direction = MathUtils.SafeNormalize(particleSystemState.Random.NextInUnitBall(out _));
-                velocity += direction * particleSystemState.Random.NextBetween(speedmin, speedmax);
-            }
-
-            AddVelocity(ref particle, particles, velocity, ignoreDT);
-
-            return particle;
         }
     }
 }

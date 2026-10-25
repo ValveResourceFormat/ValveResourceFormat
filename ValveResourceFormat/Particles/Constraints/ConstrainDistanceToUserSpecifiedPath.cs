@@ -9,11 +9,14 @@ namespace ValveResourceFormat.Particles.Constraints
     /// path runs straight from one point to the next over each point's <c>m_flTimeDuration</c>. A
     /// looped path returns to its first point and wraps the age; on an open path, particles younger
     /// or older than the path are left alone. Only the first 32 points are used, and only
-    /// <see cref="Particle.Position"/> is written.
+    /// <see cref="ParticleField.Position"/> is written.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_ConstrainDistanceToUserSpecifiedPath">C_OP_ConstrainDistanceToUserSpecifiedPath</seealso>
     class ConstrainDistanceToUserSpecifiedPath : ParticleFunctionConstraint
     {
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Position.Mask();
+
         private const int MaxPoints = 32;
 
         private readonly float minDistance;
@@ -72,9 +75,13 @@ namespace ValveResourceFormat.Particles.Constraints
             var high = MathF.Max(low, maxDistance);
             var moved = false;
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var positions = current.Vectors(ParticleField.Position);
+            var ages = current.ReadAges();
+
+            for (var i = 0; i < positions.Length; i++)
             {
-                var t = (particleSystemState.Age - particle.CreationTime) * timeScale;
+                var t = ages[i] * timeScale;
 
                 if (loopedPath)
                 {
@@ -86,7 +93,7 @@ namespace ValveResourceFormat.Particles.Constraints
                     continue;
                 }
 
-                var delta = particle.Position - target;
+                var delta = positions[i] - target;
                 var distance = delta.Length();
 
                 if ((distance >= low && distance <= high) || distance == 0f)
@@ -94,7 +101,7 @@ namespace ValveResourceFormat.Particles.Constraints
                     continue;
                 }
 
-                particle.Position = target + (delta * (Math.Clamp(distance, low, high) / distance));
+                positions[i] = target + (delta * (Math.Clamp(distance, low, high) / distance));
                 moved = true;
             }
 
@@ -111,7 +118,7 @@ namespace ValveResourceFormat.Particles.Constraints
 
             for (var k = count - 1; k >= 1; k--)
             {
-                var previous = k > 1 ? pointTimes[k - 1] : 0f;
+                var previous = pointTimes[k - 1];
 
                 if (previous <= t && t <= pointTimes[k])
                 {

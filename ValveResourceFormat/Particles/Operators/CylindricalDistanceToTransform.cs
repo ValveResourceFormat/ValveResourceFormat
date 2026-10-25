@@ -10,6 +10,12 @@ namespace ValveResourceFormat.Particles.Operators
     /// two radii are equal the inner one is nudged down by one epsilon, turning the remap into a
     /// step instead of engaging the flat divisor guard.
     /// </summary>
+    /// <remarks>
+    /// Particles are processed in index-aligned blocks of four: with the active-range test on, a
+    /// block where every lane fails is skipped without any writes, while a failed lane in a partially
+    /// passing block is written with zero strength, which on the additive path still doubles the old
+    /// value.
+    /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_CylindricalDistanceToTransform">C_OP_CylindricalDistanceToTransform</seealso>
     class CylindricalDistanceToTransform : ParticleFunctionOperator
     {
@@ -38,14 +44,13 @@ namespace ValveResourceFormat.Particles.Operators
             activeRange = parse.Boolean("m_bActiveRange", activeRange);
             additive = parse.Boolean("m_bAdditive", additive);
             capsule = parse.Boolean("m_bCapsule", capsule);
+
+            AddInitialReadOf(parse, setMethod, outputField);
         }
 
-        /// <summary>
-        /// Particles are processed in index-aligned groups of four, mirroring the engine's SIMD
-        /// blocks: with the active-range test on, a group where every lane fails is skipped
-        /// without any writes, while a failed lane in a partially passing group is written with
-        /// zero strength - which on the additive path still doubles the old value.
-        /// </summary>
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var start = transformStart.NextTransform(particleSystemState).Translation;
@@ -53,29 +58,44 @@ namespace ValveResourceFormat.Particles.Operators
             var axis = start - end;
             var axisLengthSquared = Vector3.Dot(axis, axis);
             var axisLength = MathF.Sqrt(axisLengthSquared);
-            var particleSpan = particles.Current;
-            var clampOutput = outputField is ParticleField.Alpha or ParticleField.AlphaAlternate;
+            var current = particles.Current;
+            var clampOutput = outputField.IsAlpha();
+
+            if (!ParticleBuffer.IsScalar(outputField))
+            {
+                return;
+            }
+
+            var inners = innerRadius.Fill(current, particleSystemState);
+            var outers = outerRadius.Fill(current, particleSystemState);
+            var outputMins = outputMin.Fill(current, particleSystemState);
+            var outputMaxs = outputMax.Fill(current, particleSystemState);
+
+            var positions = current.ReadVectors(ParticleField.Position);
+            var outputs = current.Floats(outputField);
+            var initials = particles.Initial.ReadFloats(outputField);
 
             Span<float> values = stackalloc float[4];
             Span<bool> pass = stackalloc bool[4];
 
-            for (var head = 0; head < particleSpan.Length; head += 4)
+            for (var offset = 0; offset < current.Length; offset += 4)
             {
-                var lanes = Math.Min(4, particleSpan.Length - head);
                 var anyPass = false;
+                var blockLength = Math.Min(4, current.Length - offset);
 
-                for (var lane = 0; lane < lanes; lane++)
+                for (var lane = 0; lane < blockLength; lane++)
                 {
-                    ref var particle = ref particleSpan[head + lane];
+                    var index = offset + lane;
+                    var position = positions[index];
 
-                    var inner = innerRadius.NextNumber(ref particle, particleSystemState);
-                    var outer = outerRadius.NextNumber(ref particle, particleSystemState);
-                    var outputMin = this.outputMin.NextNumber(ref particle, particleSystemState);
-                    var outputMax = this.outputMax.NextNumber(ref particle, particleSystemState);
+                    var inner = inners[index];
+                    var outer = outers[index];
+                    var minimumOutput = outputMins[index];
+                    var maximumOutput = outputMaxs[index];
 
-                    var t = axisLengthSquared < 1e-5f ? 0f : Vector3.Dot(axis, particle.Position - end) / axisLengthSquared;
+                    var t = axisLengthSquared < 1e-5f ? 0f : Vector3.Dot(axis, position - end) / axisLengthSquared;
                     var closest = end + axis * t;
-                    var distance = Vector3.Distance(particle.Position, closest);
+                    var distance = Vector3.Distance(position, closest);
 
                     if (outer == inner)
                     {
@@ -104,16 +124,15 @@ namespace ValveResourceFormat.Particles.Operators
 
                     if (clampOutput)
                     {
-                        outputMin = MathUtils.Saturate(outputMin);
-                        outputMax = MathUtils.Saturate(outputMax);
+                        minimumOutput = MathUtils.Saturate(minimumOutput);
+                        maximumOutput = MathUtils.Saturate(maximumOutput);
                     }
 
                     pass[lane] = !activeRange || (distance <= outer && inner <= distance);
                     anyPass |= pass[lane];
 
-                    var divisor = outer == inner ? 1f : outer - inner;
-                    var remapped = MathUtils.Saturate((distance - inner) / divisor);
-                    values[lane] = MathUtils.Lerp(outputMin, outputMax, remapped);
+                    var remapped = ParticleMath.ClampedFraction(distance, inner, outer);
+                    values[lane] = MathUtils.Lerp(minimumOutput, maximumOutput, remapped);
                 }
 
                 if (!anyPass)
@@ -121,15 +140,13 @@ namespace ValveResourceFormat.Particles.Operators
                     continue;
                 }
 
-                for (var lane = 0; lane < lanes; lane++)
+                for (var lane = 0; lane < blockLength; lane++)
                 {
-                    ref var particle = ref particleSpan[head + lane];
+                    var index = offset + lane;
+                    var laneStrength = pass[lane] ? strength : 0f;
 
-                    var finalValue = particle.ModifyScalarBySetMethod(particles, outputField, values[lane], setMethod);
-                    var current = particle.GetScalar(outputField);
-                    var delta = (finalValue - current) * (pass[lane] ? strength : 0f);
-
-                    particle.SetScalar(outputField, additive ? current + (current + delta) : current + delta);
+                    outputs[index] = DistanceToTransform.BlendRemapped(values[lane], initials[index], outputs[index], particleSystemState.CurrentStep, setMethod,
+                        laneStrength, additive);
                 }
             }
         }

@@ -1,8 +1,10 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
     /// Sets the particle colour to a random value between two colours, tinted by the light arriving at
-    /// the particle's own position. The light is clamped between the tint colours and scaled by the
+    /// the particle's own position. The light, quantised to a byte colour, is clamped between the tint colours and scaled by the
     /// light amplification before it is blended in by the tint percentage, which is 0 by default and
     /// leaves the random colour as is.
     /// </summary>
@@ -31,19 +33,23 @@ namespace ValveResourceFormat.Particles.Initializers
             lightAmplification = parse.Float("m_flLightAmplification", lightAmplification);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.Color);
+        public override ulong WrittenFields => ParticleField.Position.Mask() | ParticleField.Color.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var light = Vector3.Clamp(particleSystemState.Lighting.SampleAmbientLight(particle.Position), Vector3.Zero, Vector3.One);
-            var tint = Vector3.Max(Vector3.Min(light, tintMax), tintMin) * lightAmplification;
+            var positions = run.ReadVectors(ParticleField.Position);
+            var colors = run.Vectors(ParticleField.Color);
 
-            var color = particleSystemState.Random.NextBetween(colorMin, colorMax);
-            var tinted = tintBlendMode.Blend(color, tint);
+            for (var i = 0; i < run.Length; i++)
+            {
+                var light = particleSystemState.Lighting.SampleAmbientLight(positions[i]);
+                var tint = ParticleMath.LightTint(light, tintMin, tintMax, lightAmplification);
 
-            particle.Color = Vector3.Min(MathUtils.Lerp(color, tinted, tintPercentage), Vector3.One);
+                var color = particleSystemState.Random.NextBetween(colorMin, colorMax);
+                var tinted = tintBlendMode.Blend(color, tint);
 
-            return particle;
+                colors[i] = Vector3.Min(MathUtils.Lerp(color, tinted, tintPercentage), Vector3.One);
+            }
         }
     }
 }

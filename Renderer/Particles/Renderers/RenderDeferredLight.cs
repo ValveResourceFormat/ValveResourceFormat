@@ -48,24 +48,34 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var colorScale = scales.Color with { W = 1f };
             var hsvShift = GetHsvShift(systemState);
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var particleIds = current.ReadIntegers(ParticleField.ParticleId);
+            var positions = current.ReadVectors(ParticleField.Position);
+            var normals = current.ReadVectors(ParticleField.Normal);
+            var colors = current.ReadVectors(ParticleField.Color);
+            var radii = current.ReadFloats(ParticleField.Radius);
+            var alphas = current.ReadFloats(ParticleField.Alpha);
+            var alpha2s = ReadAlpha2(current);
+
+            for (var i = 0; i < current.Length; i++)
             {
-                if (Lights.Claim(particle.ParticleId) is not { } slot)
+                if (Lights.Claim(particleIds[i]) is not { } slot)
                 {
                     continue;
                 }
 
                 slot.Touched = true;
-                slot.State = BuildLight(ref particle, scales, colorScale, hsvShift);
+                slot.State = BuildLight(positions[i], normals[i], colors[i], radii[i], alphas[i] * alpha2s[i], scales, colorScale, hsvShift);
             }
 
             return true;
         }
 
-        private ParticleLightPool.LightState BuildLight(ref Particle particle, in RendererScales scales, Vector4 colorScale, Vector3 hsvShift)
+        /// <summary>The light of a particle, whose alpha taken with its <see cref="ParticleFunctionRenderer.Alpha2Field"/> is <paramref name="alpha"/>.</summary>
+        private ParticleLightPool.LightState BuildLight(Vector3 position, Vector3 normal, Vector3 particleColor, float radius, float alpha,
+            in RendererScales scales, Vector4 colorScale, Vector3 hsvShift)
         {
-            var tint = particle.Color * 255f;
-            var color = ParticleColorBlend.Apply(ColorBlendType, new Vector4((byte)(int)tint.X, (byte)(int)tint.Y, (byte)(int)tint.Z, 255f), colorScale);
+            var color = ParticleColorBlend.ApplyRounded(ColorBlendType, ParticleColorBlend.ToWrappedBytes(particleColor, 255f), colorScale);
             var rgb = color.AsVector3() / 255f;
 
             if (HsvShiftControlPoint >= 0)
@@ -73,8 +83,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 rgb = ParticleColorBlend.ShiftHsv(rgb, hsvShift);
             }
 
-            var range = particle.Radius * scales.Radius;
-            var intensity = particle.Alpha * GetAlpha2(ref particle) * scales.Alpha;
+            var range = radius * scales.Radius;
+            var intensity = alpha * scales.Alpha;
             var referenceDistance = range * IntensityDistanceFraction / SceneLight.LinearBrightnessDistance;
             var spot = lightDistance != 0f;
 
@@ -88,8 +98,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 LuminaireSize: 0f,
                 FallOff: MathUtils.Saturate(1f - startFalloff),
                 Transform: spot
-                    ? EntityTransformHelper.ForwardDirectionToRotationMatrix(particle.Normal) * Matrix4x4.CreateTranslation(particle.Position)
-                    : Matrix4x4.CreateTranslation(particle.Position));
+                    ? EntityTransformHelper.ForwardDirectionToRotationMatrix(normal) * Matrix4x4.CreateTranslation(position)
+                    : Matrix4x4.CreateTranslation(position));
         }
 
         /// <inheritdoc/>
@@ -101,10 +111,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 Entity = SceneLight.EntityType.Omni2,
                 DirectLight = SceneLight.DirectLightType.Dynamic,
                 CastShadows = 0,
-                BrightnessScale = 0f,
-                SpotOuterAngle = 180f,
                 LuminaireShape = -1,
-                LuminaireSize = 0f,
                 Name = nameof(RenderDeferredLight),
             };
         }

@@ -28,27 +28,43 @@ namespace ValveResourceFormat.Particles.Operators
             outputMax = parse.Float("m_flOutputMax", outputMax);
             oldCode = parse.Boolean("m_bOldCode", oldCode);
 
-            if (fieldOutput is ParticleField.Alpha or ParticleField.AlphaAlternate)
+            if (fieldOutput.IsAlpha())
             {
                 outputMin = MathUtils.Saturate(outputMin);
                 outputMax = MathUtils.Saturate(outputMax);
             }
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(fieldOutput))
             {
-                var input = particle.GetScalar(fieldInput);
-                var current = particle.GetScalar(fieldOutput);
+                return;
+            }
+
+            var live = particles.Current;
+            var inputs = live.ReadFloats(fieldInput);
+            var outputs = live.Floats(fieldOutput);
+
+            for (var i = 0; i < outputs.Length; i++)
+            {
+                var input = inputs[i];
+                var current = outputs[i];
 
                 if (oldCode)
                 {
-                    var output = inputMin == inputMax
-                        ? (input - inputMax < 0f ? outputMin : outputMax)
-                        : MathUtils.RemapValClamped(input, inputMin, inputMax, outputMin, outputMax);
+                    var output = MathUtils.RemapValClamped(input, inputMin, inputMax, outputMin, outputMax);
 
-                    particle.SetScalar(fieldOutput, MathUtils.Lerp(current, output, strength));
+                    // A NaN input reads as the top of a degenerate range
+                    if (inputMin == inputMax && float.IsNaN(input))
+                    {
+                        output = outputMax;
+                    }
+
+                    outputs[i] = MathUtils.Lerp(current, output, strength);
                     continue;
                 }
 
@@ -56,11 +72,22 @@ namespace ValveResourceFormat.Particles.Operators
                 // clamping the ratio, which differs once the input range is inverted. A degenerate
                 // range therefore always reads as the top of the range.
                 var clamped = MathF.Max(inputMin, MathF.Min(inputMax, input));
-                var remapped = inputMin == inputMax
-                    ? (float.IsNaN(clamped) ? outputMin : outputMax)
-                    : outputMin + ((outputMax - outputMin) * (clamped - inputMin) / (inputMax - inputMin));
+                float remapped;
 
-                particle.SetScalar(fieldOutput, BlendByStrength(current, remapped, strength));
+                if (inputMin != inputMax)
+                {
+                    remapped = outputMin + ((outputMax - outputMin) * (clamped - inputMin) / (inputMax - inputMin));
+                }
+                else if (float.IsNaN(clamped))
+                {
+                    remapped = outputMin;
+                }
+                else
+                {
+                    remapped = outputMax;
+                }
+
+                outputs[i] = BlendByStrength(current, remapped, strength);
             }
         }
     }

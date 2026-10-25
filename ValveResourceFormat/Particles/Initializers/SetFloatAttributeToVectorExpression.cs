@@ -32,33 +32,43 @@ namespace ValveResourceFormat.Particles.Initializers
             outputScale = ParticleExpressions.AngleOutputScale(outputField, setMethod);
         }
 
-        public override ulong WrittenFields => FieldMask(outputField);
+        public override ulong WrittenFields => outputField.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var value1 = input1.NextVector(ref particle, particleSystemState);
-            var value2 = input2.NextVector(ref particle, particleSystemState);
+            run.FillVectorInputs(input1, input2, particleSystemState, out var values1, out var values2);
 
-            if (expression.Evaluate(value1, value2) is not { } result)
+            if (!ParticleBuffer.IsScalar(outputField))
             {
-                return particle;
+                return;
             }
 
-            var value = particle.ModifyScalarBySetMethodAtSpawn(particles, outputField, result * outputScale, setMethod);
+            var outputs = run.Floats(outputField);
+            var deltaTime = particleSystemState.CurrentStep;
+            var clampsToUnit = outputField.IsAlpha();
 
-            if (outputField.IsAlpha())
+            for (var i = 0; i < outputs.Length; i++)
             {
-                value = MathUtils.Saturate(value);
+                if (expression.Evaluate(values1[i], values2[i]) is not { } result)
+                {
+                    continue;
+                }
+
+                var current = outputs[i];
+                var value = ParticleFieldExtensions.ApplySetMethod(result * outputScale, current, current, deltaTime, setMethod);
+
+                if (clampsToUnit)
+                {
+                    value = MathUtils.Saturate(value);
+                }
+
+                if (outputRemap != null)
+                {
+                    value = outputRemap.ApplyMapping(value);
+                }
+
+                outputs[i] = value;
             }
-
-            if (outputRemap != null)
-            {
-                value = outputRemap.ApplyMapping(value);
-            }
-
-            particle.SetScalar(outputField, value);
-
-            return particle;
         }
     }
 }

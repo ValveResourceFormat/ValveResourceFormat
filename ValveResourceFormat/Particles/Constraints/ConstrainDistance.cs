@@ -7,18 +7,21 @@ namespace ValveResourceFormat.Particles.Constraints
     /// <c>m_bGlobalCenter</c> is set. A negative <c>m_fMaxDistance</c> disables the outer shell. Without a
     /// positive <c>m_fMinDistance</c> there is no inner shell, and a particle closer than the magnitude of a
     /// negative minimum is pushed out to the maximum instead. With an inner shell, a particle sitting exactly
-    /// on the center is pushed out along a tiny random offset.
+    /// on the center is pushed out along a tiny random offset from the thread generator.
     ///
     /// <para>Particles are handled in blocks of four. In a block that pushes a particle off the center,
     /// every other particle's offset from the center becomes its X offset on all three axes before it
     /// is constrained, which also moves particles inside the band.</para>
     ///
-    /// <para>Only <see cref="Particle.Position"/> is written; <see cref="Particle.PositionPrevious"/> is
+    /// <para>Only <see cref="ParticleField.Position"/> is written; <see cref="ParticleField.PositionPrevious"/> is
     /// left where it was, so the correction shows up as velocity on the next movement step.</para>
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_ConstrainDistance">C_OP_ConstrainDistance</seealso>
     class ConstrainDistance : ParticleFunctionConstraint
     {
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Position.Mask();
+
         private const float CenterJitter = 0.001f;
 
         private readonly INumberProvider minDistance = new LiteralNumberProvider(0f);
@@ -56,18 +59,18 @@ namespace ValveResourceFormat.Particles.Constraints
             var maxSquared = max * max;
 
             var moved = false;
-            var current = particles.Current;
+            var positions = particles.Current.Vectors(ParticleField.Position);
             Span<Vector3> deltas = stackalloc Vector3[4];
 
-            for (var blockStart = 0; blockStart < current.Length; blockStart += 4)
+            for (var blockStart = 0; blockStart < positions.Length; blockStart += 4)
             {
-                var block = current.Slice(blockStart, Math.Min(4, current.Length - blockStart));
+                var block = positions.Slice(blockStart, Math.Min(4, positions.Length - blockStart));
                 var anyOutside = false;
                 var anyAtCenter = false;
 
                 for (var lane = 0; lane < block.Length; lane++)
                 {
-                    deltas[lane] = block[lane].Position - center;
+                    deltas[lane] = block[lane] - center;
                     var distanceSquared = deltas[lane].LengthSquared();
 
                     anyOutside |= distanceSquared < minSquared || distanceSquared > maxSquared;
@@ -80,10 +83,19 @@ namespace ValveResourceFormat.Particles.Constraints
                 }
 
                 var reseedCenter = hasMin && anyAtCenter;
+                var jitterX = Vector4.Zero;
+                var jitterY = Vector4.Zero;
+                var jitterZ = Vector4.Zero;
+
+                if (reseedCenter)
+                {
+                    jitterX = particleSystemState.ThreadRandom.NextBetween(-CenterJitter, CenterJitter);
+                    jitterY = particleSystemState.ThreadRandom.NextBetween(-CenterJitter, CenterJitter);
+                    jitterZ = particleSystemState.ThreadRandom.NextBetween(-CenterJitter, CenterJitter);
+                }
 
                 for (var lane = 0; lane < block.Length; lane++)
                 {
-                    ref var particle = ref block[lane];
                     var delta = deltas[lane];
                     var distanceSquared = delta.LengthSquared();
                     var outside = distanceSquared < minSquared || distanceSquared > maxSquared;
@@ -97,7 +109,7 @@ namespace ValveResourceFormat.Particles.Constraints
                     if (reseedCenter)
                     {
                         delta = distanceSquared <= 0f
-                            ? particleSystemState.Random.NextBetweenPerComponent(new Vector3(-CenterJitter), new Vector3(CenterJitter))
+                            ? new Vector3(jitterX[lane], jitterY[lane], jitterZ[lane])
                             : new Vector3(delta.X);
                     }
 
@@ -112,9 +124,9 @@ namespace ValveResourceFormat.Particles.Constraints
                         ? center + (delta * (target / MathF.Sqrt(newDistanceSquared)))
                         : center + delta;
 
-                    if (position != particle.Position)
+                    if (position != block[lane])
                     {
-                        particle.Position = position;
+                        block[lane] = position;
                         moved = true;
                     }
                 }

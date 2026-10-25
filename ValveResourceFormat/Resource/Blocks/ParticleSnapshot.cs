@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Collections;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -25,7 +26,19 @@ namespace ValveResourceFormat.Blocks
         /// <summary>
         /// Gets the particle attribute data by name and type.
         /// </summary>
-        public IReadOnlyDictionary<(string Name, string Type), IEnumerable> AttributeData { get; private set; } = new Dictionary<(string Name, string Type), IEnumerable>();
+        public IReadOnlyDictionary<(string Name, string Type), IEnumerable> AttributeData { get; private set; } = ReadOnlyDictionary<(string Name, string Type), IEnumerable>.Empty;
+
+        /// <summary>
+        /// Changes whenever the rows of a runtime snapshot are rewritten in place, so readers that keep
+        /// a cursor can tell a rewritten snapshot from the one they last saw.
+        /// </summary>
+        internal int Serial { get; private set; }
+
+        internal void SetParticleCount(uint count)
+        {
+            NumParticles = count;
+            Serial++;
+        }
 
         /// <summary>
         /// Builds a snapshot in memory (not backed by a resource file), e.g. from a map entity's path

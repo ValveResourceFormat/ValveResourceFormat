@@ -23,8 +23,6 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly Vector3 rotationRowY;
         private readonly Vector3 rotationRowZ;
 
-        private Vector3 origin;
-
         public RemapInitialDirectionToTransformToVector(ParticleDefinitionParser parse) : base(parse)
         {
             transformInput = parse.TransformInput("m_TransformInput", transformInput);
@@ -50,33 +48,41 @@ namespace ValveResourceFormat.Particles.Initializers
                 ((1f - (axis.Z * axis.Z)) * cos) + (axis.Z * axis.Z));
         }
 
-        public override ulong WrittenFields => FieldMask(fieldOutput);
+        public override ulong WrittenFields => fieldOutput.Mask();
 
-        protected override void BeginCall(ref Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            origin = transformInput.NextTransform(particleSystemState).Translation;
-        }
+            var origin = transformInput.NextTransform(particleSystemState).Translation;
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            var delta = particle.Position - origin;
-            var direction = new Vector3(
-                Vector3.Dot(delta, rotationRowX),
-                Vector3.Dot(delta, rotationRowY),
-                Vector3.Dot(delta, rotationRowZ));
-
-            if (normalize)
+            if (!ParticleBuffer.IsVector(fieldOutput))
             {
-                // Z gets an epsilon before normalizing, so a zero delta points along the transform's
-                // third axis instead of staying zero
-                direction.Z += ParticleMath.FloatEpsilon;
-
-                direction = MathUtils.SafeNormalize(direction);
+                return;
             }
 
-            particle.SetVector(fieldOutput, direction * scale);
+            var positions = run.ReadVectors(ParticleField.Position);
+            var outputs = run.Vectors(fieldOutput);
 
-            return particle;
+            // Only the new particles are written, on purpose: a batch of 16 or more does not rewrite the
+            // field of every live particle, which without m_bNormalize would also divide by the previous step
+            for (var i = 0; i < outputs.Length; i++)
+            {
+                var delta = positions[i] - origin;
+                var direction = new Vector3(
+                    Vector3.Dot(delta, rotationRowX),
+                    Vector3.Dot(delta, rotationRowY),
+                    Vector3.Dot(delta, rotationRowZ));
+
+                if (normalize)
+                {
+                    // Z gets an epsilon before normalizing, so a zero delta points along the transform's
+                    // third axis instead of staying zero
+                    direction.Z += ParticleMath.FloatEpsilon;
+
+                    direction = MathUtils.SafeNormalize(direction);
+                }
+
+                outputs[i] = direction * scale;
+            }
         }
     }
 }

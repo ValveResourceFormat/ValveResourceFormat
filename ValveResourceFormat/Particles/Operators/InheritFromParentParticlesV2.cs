@@ -25,6 +25,7 @@ namespace ValveResourceFormat.Particles.Operators
         private readonly bool reverse;
         private readonly ParticleMissingParentBehavior missingParentBehavior = ParticleMissingParentBehavior.MISSING_PARENT_DO_NOTHING;
         private readonly INumberProvider interpolation = new LiteralNumberProvider(1f);
+        private readonly ParticleFieldStorage storage;
 
         public InheritFromParentParticlesV2(ParticleDefinitionParser parse) : base(parse)
         {
@@ -36,7 +37,12 @@ namespace ValveResourceFormat.Particles.Operators
             reverse = parse.Boolean("m_bReverse", reverse);
             missingParentBehavior = parse.Enum("m_nMissingParentBehavior", missingParentBehavior);
             interpolation = parse.NumberProvider("m_flInterpolation", interpolation);
+            storage = ParticleBuffer.StorageOf(fieldOutput);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields
+            => fieldOutput.Mask() | ParticleField.ParentParticleIndex.Mask() | ParticleField.ParentParticleId.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -47,6 +53,7 @@ namespace ValveResourceFormat.Particles.Operators
                 return;
             }
 
+            var current = particles.Current;
             var parentParticles = parentData.CurrentParticles;
             var count = parentParticles.Length;
 
@@ -54,19 +61,29 @@ namespace ValveResourceFormat.Particles.Operators
             {
                 if (missingParentBehavior == ParticleMissingParentBehavior.MISSING_PARENT_KILL)
                 {
-                    foreach (ref var particle in particles.Current)
+                    for (var i = 0; i < current.Length; i++)
                     {
-                        particle.Kill();
+                        particles.Kill(i);
                     }
                 }
 
                 return;
             }
 
+            var boneIndices = storage == ParticleFieldStorage.BoneIndices ? current.BoneIndices : default;
+            var vectorOutput = storage == ParticleFieldStorage.Vector ? current.Vectors(fieldOutput) : default;
+            var scalarOutput = (storage is ParticleFieldStorage.Integer or ParticleFieldStorage.Scalar) ? current.Floats(fieldOutput) : default;
+            var parentIds = current.Integers(ParticleField.ParentParticleId);
+            var parentIndices = current.Integers(ParticleField.ParentParticleIndex);
+
+            var scales = scale.Fill(current, particleSystemState);
+            var increments = increment.Fill(current, particleSystemState);
+            var interpolations = interpolation.Fill(current, particleSystemState);
+
             var walk = reverse ? count - 1 : 0;
             var carried = 0f;
 
-            foreach (ref var particle in particles.Current)
+            for (var i = 0; i < current.Length; i++)
             {
                 if (randomDistribution)
                 {
@@ -77,30 +94,30 @@ namespace ValveResourceFormat.Particles.Operators
                     walk = reverse ? count - 1 : 0;
                 }
 
-                var step = increment.NextNumber(ref particle, particleSystemState);
+                var step = increments[i];
                 var fractionalStep = subSample && step < 1f;
 
-                if (particle.ParentParticleId < 0 && particle.ParentParticleIndex < 0)
+                if (parentIds[i] < 0 && parentIndices[i] < 0)
                 {
-                    particle.ParentParticleId = parentParticles[walk].ParticleId;
-                    particle.ParentParticleIndex = walk;
+                    parentIds[i] = parentParticles.ReadInteger(ParticleField.ParticleId, walk);
+                    parentIndices[i] = walk;
                 }
 
                 var copy = true;
 
-                if (particle.ParentParticleId == int.MinValue)
+                if (parentIds[i] == int.MinValue)
                 {
                     switch (missingParentBehavior)
                     {
                         case ParticleMissingParentBehavior.MISSING_PARENT_KILL:
-                            particle.Kill();
+                            particles.Kill(i);
                             copy = false;
                             break;
                         case ParticleMissingParentBehavior.MISSING_PARENT_FIND_NEW:
-                            Rebind(ref particle, parentParticles, particleSystemState.Random.NextIndex(count));
+                            Rebind(parentIds, parentIndices, i, parentParticles, particleSystemState.Random.NextIndex(count));
                             break;
                         case ParticleMissingParentBehavior.MISSING_PARENT_SAME_INDEX:
-                            Rebind(ref particle, parentParticles, Math.Clamp(particle.ParentParticleIndex, 0, count - 1));
+                            Rebind(parentIds, parentIndices, i, parentParticles, Math.Clamp(parentIndices[i], 0, count - 1));
                             break;
                         default:
                             copy = false;
@@ -108,10 +125,26 @@ namespace ValveResourceFormat.Particles.Operators
                     }
                 }
 
-                if (copy && (uint)particle.ParentParticleIndex < (uint)count)
+                if (copy && (uint)parentIndices[i] < (uint)count)
                 {
-                    CopyParentAttribute(ref particle, parentParticles, particle.ParentParticleIndex,
-                        scale.NextNumber(ref particle, particleSystemState), interpolation.NextNumber(ref particle, particleSystemState), carried);
+                    var source = parentIndices[i];
+                    var next = reverse ? Math.Max(source - 1, 0) : Math.Min(source + 1, count - 1);
+
+                    switch (storage)
+                    {
+                        case ParticleFieldStorage.BoneIndices:
+                            boneIndices[i] = parentParticles.ReadBoneIndices(source);
+                            break;
+                        case ParticleFieldStorage.Vector:
+                            CopyVector(vectorOutput, i, parentParticles, source, next, scales[i], interpolations[i], carried);
+                            break;
+                        case ParticleFieldStorage.Integer:
+                            scalarOutput[i] = parentParticles.ReadFloat(fieldOutput, source);
+                            break;
+                        case ParticleFieldStorage.Scalar:
+                            CopyScalar(scalarOutput, i, parentParticles, source, next, scales[i], interpolations[i], carried);
+                            break;
+                    }
                 }
 
                 if (fractionalStep)
@@ -131,65 +164,52 @@ namespace ValveResourceFormat.Particles.Operators
             }
         }
 
-        private static void Rebind(ref Particle particle, Span<Particle> parentParticles, int index)
+        private static void Rebind(Span<int> parentIds, Span<int> parentIndices, int i, ParticleSpan parentParticles, int index)
         {
-            particle.ParentParticleIndex = index;
-            particle.ParentParticleId = parentParticles[index].ParticleId;
+            parentIndices[i] = index;
+            parentIds[i] = parentParticles.ReadInteger(ParticleField.ParticleId, index);
         }
 
         /// <summary>
-        /// Blends the output attribute toward the scaled value of parent <paramref name="index"/> by
+        /// Blends the output vector toward the scaled value of the parent at <paramref name="source"/> by
         /// <paramref name="blend"/>. A positive <paramref name="toNext"/> first moves that value that far
-        /// toward the scaled value of the parent after it in the walk direction. Integer attributes and
-        /// bone indices are copied as is.
+        /// toward the scaled value of the parent at <paramref name="next"/>.
         /// </summary>
-        private void CopyParentAttribute(ref Particle particle, Span<Particle> parentParticles, int index, float scaleValue, float blend, float toNext)
+        private void CopyVector(Span<Vector3> output, int i, ParticleSpan parents, int source, int next, float scaleValue, float blend, float toNext)
         {
-            ref var source = ref parentParticles[index];
-            ref var next = ref parentParticles[reverse ? Math.Max(index - 1, 0) : Math.Min(index + 1, parentParticles.Length - 1)];
+            var value = parents.ReadVector(fieldOutput, source) * scaleValue;
 
-            if (fieldOutput == ParticleField.BoneIndices)
+            if (fieldOutput.IsNormalizedField())
             {
-                particle.BoneIndices = source.BoneIndices;
+                value = Vector3.Clamp(value, Vector3.Zero, Vector3.One);
             }
-            else if (fieldOutput.FieldType() == "vector")
+
+            if (toNext > 0f)
             {
-                var value = source.GetVector(fieldOutput) * scaleValue;
-
-                if (fieldOutput.IsNormalizedField())
-                {
-                    value = Vector3.Clamp(value, Vector3.Zero, Vector3.One);
-                }
-
-                if (toNext > 0f)
-                {
-                    value = MathUtils.Lerp(value, next.GetVector(fieldOutput) * scaleValue, toNext);
-                }
-
-                particle.SetVector(fieldOutput, MathUtils.Lerp(particle.GetVector(fieldOutput), value, blend));
+                value = MathUtils.Lerp(value, parents.ReadVector(fieldOutput, next) * scaleValue, toNext);
             }
-            else if (fieldOutput.IsIntegerAttribute())
+
+            output[i] = MathUtils.Lerp(output[i], value, blend);
+        }
+
+        /// <inheritdoc cref="CopyVector"/>
+        private void CopyScalar(Span<float> output, int i, ParticleSpan parents, int source, int next, float scaleValue, float blend, float toNext)
+        {
+            var value = parents.ReadFloat(fieldOutput, source) * scaleValue;
+
+            if (toNext > 0f)
             {
-                particle.SetScalar(fieldOutput, source.GetScalar(fieldOutput));
+                value = MathUtils.Lerp(value, parents.ReadFloat(fieldOutput, next) * scaleValue, MathUtils.Saturate(toNext));
             }
-            else
+
+            value = MathUtils.Lerp(output[i], value, MathUtils.Saturate(blend));
+
+            if (fieldOutput.IsAlpha())
             {
-                var value = source.GetScalar(fieldOutput) * scaleValue;
-
-                if (toNext > 0f)
-                {
-                    value = MathUtils.Lerp(value, next.GetScalar(fieldOutput) * scaleValue, MathUtils.Saturate(toNext));
-                }
-
-                value = MathUtils.Lerp(particle.GetScalar(fieldOutput), value, MathUtils.Saturate(blend));
-
-                if (fieldOutput.IsAlpha())
-                {
-                    value = MathUtils.Saturate(value);
-                }
-
-                particle.SetScalar(fieldOutput, value);
+                value = MathUtils.Saturate(value);
             }
+
+            output[i] = value;
         }
     }
 }

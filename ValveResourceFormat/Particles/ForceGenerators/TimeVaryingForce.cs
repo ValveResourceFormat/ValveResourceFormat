@@ -19,15 +19,25 @@ class TimeVaryingForce : ParticleFunctionForceGenerator
         endingForce = parse.Vector3("m_EndingForce", endingForce);
     }
 
-    public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
+    public override void GenerateForces(ParticleCollection particles, Span<Vector3> forces, float frameTime, ParticleSystemState particleSystemState, float strength)
     {
-        foreach (ref var particle in particles.Current)
-        {
-            var t = endLerpTime != startLerpTime
-                ? MathUtils.Saturate((particle.Age - startLerpTime) / (endLerpTime - startLerpTime))
-                : particle.Age > endLerpTime ? 1f : 0f;
+        var ages = particles.Current.ReadAges();
 
-            particle.ForceAccumulator += Vector3.Lerp(startingForce, endingForce, t) * strength;
+        for (var i = 0; i < ages.Length; i++)
+        {
+            var age = ages[i];
+            float t;
+
+            if (endLerpTime != startLerpTime)
+            {
+                t = MathUtils.Saturate((age - startLerpTime) / (endLerpTime - startLerpTime));
+            }
+            else
+            {
+                t = age > endLerpTime ? 1f : 0f;
+            }
+
+            forces[i] += Vector3.Lerp(startingForce, endingForce, t) * strength;
         }
     }
 }

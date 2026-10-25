@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
@@ -34,32 +36,68 @@ namespace ValveResourceFormat.Particles.Initializers
             fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
         }
 
-        public override ulong WrittenFields => FieldMask(fieldOutput);
+        public override ulong WrittenFields => fieldOutput.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var color = particleSystemState.Random.NextBetween(colorMin, colorMax);
+            var colors = ParticleBuffer.IsVector(fieldOutput) ? run.Vectors(fieldOutput) : default;
+            var tint = Tint(particleSystemState);
 
+            for (var i = 0; i < run.Length; i++)
+            {
+                var color = particleSystemState.Random.NextBetween(colorMin, colorMax);
+                WriteColor(colors, i, color, tint);
+            }
+        }
+
+        protected override void InitializeBlocks(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
+        {
+            var colors = ParticleBuffer.IsVector(fieldOutput) ? run.Vectors(fieldOutput) : default;
+            var tint = Tint(particleSystemState);
+
+            // One draw per block of four from the thread generator, a value per particle
+            foreach (var (offset, block) in run.Blocks())
+            {
+                var draws = particleSystemState.ThreadRandom.Next();
+
+                for (var i = 0; i < block.Length; i++)
+                {
+                    var color = MathUtils.Lerp(colorMin, colorMax, draws[i]);
+                    WriteColor(colors, offset + i, color, tint);
+                }
+            }
+        }
+
+        /// <summary>The tint of the light at the tint control point, or zero when nothing is tinted.</summary>
+        private Vector3 Tint(ParticleSystemState particleSystemState)
+        {
+            if (tintPercentage <= 0f)
+            {
+                return Vector3.Zero;
+            }
+
+            return ParticleMath.LightTint(SampleLight(particleSystemState), tintMin, tintMax, lightAmplification);
+        }
+
+        /// <summary>Tints <paramref name="color"/> and stores it at <paramref name="index"/> of <paramref name="colors"/>, unless that is empty.</summary>
+        private void WriteColor(Span<Vector3> colors, int index, Vector3 color, Vector3 tint)
+        {
             if (tintPercentage > 0f)
             {
-                var tint = Vector3.Clamp(SampleLight(particleSystemState), tintMin, tintMax) * lightAmplification;
                 var tinted = tintBlendMode.Blend(color, tint);
 
                 color = Vector3.Min(MathUtils.Lerp(color, tinted, tintPercentage), Vector3.One);
             }
 
-            particle.SetVector(fieldOutput, color);
-
-            return particle;
+            if (!colors.IsEmpty)
+            {
+                colors[index] = color;
+            }
         }
 
         public override void Reset()
         {
             sampledPosition = Vector3.Zero;
-        }
-
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
         }
 
         /// <summary>

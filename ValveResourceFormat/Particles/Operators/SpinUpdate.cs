@@ -1,3 +1,5 @@
+using System.Numerics.Tensors;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -16,15 +18,21 @@ namespace ValveResourceFormat.Particles.Operators
         {
         }
 
-        // This is the only place that will update Rotation based on RotationSpeed
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Roll.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
-            {
-                // RotationSpeed is stored in radians per second by everything that writes it
-                var roll = particle.Rotation.Z + (particle.RotationSpeed.Z * MathF.Min(frameTime, particle.Age) * strength);
-                particle.Rotation = particle.Rotation with { Z = roll };
-            }
+            var current = particles.Current;
+            var roll = current.Floats(ParticleField.Roll);
+
+            // RollSpeed is stored in radians per second by everything that writes it
+            var rollSpeeds = current.ReadFloats(ParticleField.RollSpeed);
+            var steps = current.ReadAges();
+
+            TensorPrimitives.Min(steps, frameTime, steps);
+            TensorPrimitives.Multiply(steps, strength, steps);
+            TensorPrimitives.MultiplyAdd(rollSpeeds, steps, roll, roll);
         }
     }
 }

@@ -1,4 +1,4 @@
-using ValveResourceFormat.Particles.Operators;
+using ValveResourceFormat.Particles.Utils;
 
 namespace ValveResourceFormat.Particles.Initializers
 {
@@ -24,26 +24,23 @@ namespace ValveResourceFormat.Particles.Initializers
         }
 
         public override ulong WrittenFields => writeNormal
-            ? FieldMask(ParticleField.Normal)
-            : FieldMask(ParticleField.Roll) | FieldMask(ParticleField.Yaw) | FieldMask(ParticleField.Pitch);
+            ? ParticleField.Normal.Mask()
+            : ParticleField.Roll.Mask() | ParticleField.Yaw.Mask() | ParticleField.Pitch.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            TransformOrientationMath.Compute(transformInput, particleSystemState, rotationOffset, useQuat,
-                out var anglesRadians, out var forward);
+            // The transform is evaluated once, so every particle of the call gets the same orientation
+            var (anglesRadians, forward) = TransformOrientationMath.Compute(transformInput, particleSystemState, rotationOffset, useQuat);
 
             if (writeNormal)
             {
-                particle.Normal = forward;
-            }
-            else
-            {
-                particle.SetScalar(ParticleField.Pitch, anglesRadians.X);
-                particle.SetScalar(ParticleField.Yaw, anglesRadians.Y);
-                particle.SetScalar(ParticleField.Roll, anglesRadians.Z);
+                run.Vectors(ParticleField.Normal).Fill(forward);
+                return;
             }
 
-            return particle;
+            run.Floats(ParticleField.Pitch).Fill(anglesRadians.X);
+            run.Floats(ParticleField.Yaw).Fill(anglesRadians.Y);
+            run.Floats(ParticleField.Roll).Fill(anglesRadians.Z);
         }
     }
 }

@@ -2,7 +2,7 @@ namespace ValveResourceFormat.Particles.Utils
 {
     /// <summary>
     /// Four bone indices of 16 bits each packed into a <see cref="ulong"/> from the low bits up, as
-    /// <see cref="Particle.BoneIndices"/> holds them.
+    /// <see cref="ParticleField.BoneIndices"/> holds them.
     /// </summary>
     internal static class PackedBones
     {

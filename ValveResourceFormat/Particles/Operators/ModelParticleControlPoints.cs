@@ -18,6 +18,6 @@ namespace ValveResourceFormat.Particles.Operators
 
         /// <summary>How many control points are bound while the system holds <paramref name="particleCount"/> particles.</summary>
         public int ActiveCount(int particleCount)
-            => firstSourcePoint < 0 ? 0 : Math.Max(0, Math.Min(Math.Min(numControlPoints, particleCount - firstSourcePoint), ParticleSystemState.MaxControlPoint + 1 - firstControlPoint));
+            => firstSourcePoint < 0 ? 0 : Math.Max(0, Math.Min(Math.Min(numControlPoints, particleCount - firstSourcePoint), ParticleSystemState.ControlPointCount - firstControlPoint));
     }
 }

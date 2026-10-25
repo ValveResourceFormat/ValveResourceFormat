@@ -50,13 +50,13 @@ namespace ValveResourceFormat.Particles.Operators
                     continue;
                 }
 
-                ref var particle = ref live[source];
+                var position = live.ReadVector(ParticleField.Position, source);
                 var controlPoint = child.GetControlPoint(firstControlPoint);
-                controlPoint.Position = particle.Position;
+                controlPoint.Position = position;
 
                 if (setOrientation)
                 {
-                    var velocity = particle.Position - particle.PositionPrevious;
+                    var velocity = position - live.ReadVector(ParticleField.PositionPrevious, source);
 
                     if (velocity != Vector3.Zero)
                     {
@@ -65,7 +65,7 @@ namespace ValveResourceFormat.Particles.Operators
                 }
                 else if (orientationField != ParticleField.NoneDisabled)
                 {
-                    controlPoint.Orientation = MathUtils.SafeNormalize(particle.GetVector(orientationField), Vector3.UnitZ);
+                    controlPoint.Orientation = MathUtils.SafeNormalize(live.ReadVector(orientationField, source), Vector3.UnitZ);
                 }
 
                 remaining--;

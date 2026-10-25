@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using ValveResourceFormat.Particles.Utils;
 
 namespace ValveResourceFormat.Particles.Initializers
@@ -37,7 +36,6 @@ namespace ValveResourceFormat.Particles.Initializers
 
         private readonly Vector3[] directions = new Vector3[Axes.Length];
         private readonly List<ParticleSystemState> children = [];
-        private Vector3 runOffset;
 
         public InitialRepulsionVelocity(ParticleDefinitionParser parse) : base(parse)
         {
@@ -54,75 +52,68 @@ namespace ValveResourceFormat.Particles.Initializers
             childGroupId = parse.Int32("m_nChildGroupID", childGroupId);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious);
+        public override ulong WrittenFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            Initialize(MemoryMarshal.CreateSpan(ref particle, 1), particles, particleSystemState);
-            return particle;
-        }
+            var runOffset = BeginRun(run, particleSystemState);
 
-        public override void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            var (head, blocks, tail) = SplitIntoCalls(batch);
+            var positions = run.Vectors(ParticleField.Position);
+            var previousPositions = translate ? run.Vectors(ParticleField.PositionPrevious) : default;
+            var readsRadius = proportional || (perParticle && perParticleTraceLength);
+            var radii = readsRadius ? run.ReadFloats(ParticleField.Radius) : default;
 
-            InitializeCall(batch[head], particleSystemState);
-            InitializeCall(batch[blocks], particleSystemState);
-            InitializeCall(batch[tail], particleSystemState);
-        }
-
-        private void InitializeCall(Span<Particle> call, ParticleSystemState particleSystemState)
-        {
-            if (call.IsEmpty)
+            for (var i = 0; i < positions.Length; i++)
             {
-                return;
-            }
+                var offset = runOffset;
 
-            BeginRun(ref call[0], particleSystemState);
-
-            foreach (ref var particle in call)
-            {
-                var offset = perParticle
-                    ? Repulse(particleSystemState.Collision, particle.Position, perParticleTraceLength ? particle.Radius : traceLength, out _, out _)
-                    : runOffset;
+                if (perParticle)
+                {
+                    var length = perParticleTraceLength ? radii[i] : traceLength;
+                    offset = Repulse(particleSystemState.Collision, positions[i], length, out _, out _);
+                }
 
                 if (proportional)
                 {
-                    offset *= particle.Radius;
+                    offset *= radii[i];
                 }
 
-                particle.Position += offset;
+                positions[i] += offset;
 
                 if (translate)
                 {
-                    particle.PositionPrevious += offset;
+                    previousPositions[i] += offset;
                 }
             }
         }
 
-        private void BeginRun(ref Particle first, ParticleSystemState particleSystemState)
+        /// <summary>
+        /// Resets the trace directions and works out the offset every particle of the run shares, or
+        /// zero when each particle traces for its own.
+        /// </summary>
+        private Vector3 BeginRun(ParticleSpan run, ParticleSystemState particleSystemState)
         {
             Axes.CopyTo(directions, 0);
 
             if (perParticle)
             {
-                return;
+                return Vector3.Zero;
             }
 
-            var origin = particleSystemState.GetControlPoint(controlPoint).GetPositionAtTime(first.CreationTime);
+            var creationTime = run.ReadFloats(ParticleField.CreationTime)[0];
+            var origin = particleSystemState.GetControlPoint(controlPoint).GetPositionAtTime(creationTime);
 
             if (inherit)
             {
-                var magnitude = particleSystemState.GetControlPoint(controlPoint + 1).GetPositionAtTime(first.CreationTime).X;
-                runOffset = MathUtils.Lerp(outputMin, outputMax, magnitude) * origin;
-                return;
+                var magnitude = particleSystemState.GetControlPoint(controlPoint + 1).GetPositionAtTime(creationTime).X;
+                return MathUtils.Lerp(outputMin, outputMax, magnitude) * origin;
             }
 
-            runOffset = Repulse(particleSystemState.Collision, origin, traceLength, out var direction, out var blocked);
+            var offset = Repulse(particleSystemState.Collision, origin, traceLength, out var direction, out var blocked);
 
             if (childControlPoint == -1 || particleSystemState.Data == null)
             {
-                return;
+                return offset;
             }
 
             children.Clear();
@@ -133,6 +124,8 @@ namespace ValveResourceFormat.Particles.Initializers
                 child.GetControlPoint(childControlPoint).Position = direction * blocked;
                 child.GetControlPoint(childControlPoint + 1).Position = new Vector3(blocked, 0f, 0f);
             }
+
+            return offset;
         }
 
         /// <summary>

@@ -9,8 +9,9 @@ namespace ValveResourceFormat.Particles.ForceGenerators;
 /// </summary>
 /// <remarks>
 /// With <c>m_bUseAABB</c> only pairs whose boxes, grown by each radius plus
-/// <c>m_flAttractionMaxDistance</c>, overlap are considered, so repulsion reaching further than
-/// that never acts. Nothing happens before the system has bounds.
+/// <c>m_flAttractionMaxDistance</c>, overlap are considered, in the order
+/// <see cref="ParticleObjectTree"/> finds them, so repulsion reaching further than that never acts.
+/// Nothing happens before the system has bounds.
 /// </remarks>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_IntraParticleForce">C_OP_IntraParticleForce</seealso>
 class IntraParticleForce : ParticleFunctionForceGenerator
@@ -24,6 +25,7 @@ class IntraParticleForce : ParticleFunctionForceGenerator
     private readonly float repulsionMaxDistance = 4f;
     private readonly float repulsionMaxStrength;
     private readonly bool useAABB = true;
+    private readonly ParticleObjectTree objectTree = new();
 
     public IntraParticleForce(ParticleDefinitionParser parse) : base(parse)
     {
@@ -36,40 +38,45 @@ class IntraParticleForce : ParticleFunctionForceGenerator
         useAABB = parse.Boolean("m_bUseAABB", useAABB);
     }
 
-    public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
+    public override void GenerateForces(ParticleCollection particles, Span<Vector3> forces, float frameTime, ParticleSystemState particleSystemState, float strength)
     {
-        if (particleSystemState.Data?.WorldBoundingBox == null)
+        if (particleSystemState.Data?.WorldBoundingBox is not { } bounds)
         {
             return;
         }
 
         var current = particles.Current;
+        var positions = current.ReadVectors(ParticleField.Position);
 
-        for (var i = 0; i < current.Length - 1; i++)
+        // A force scale only weights the pairs when each particle has its own
+        current.TryGetFloats(ParticleField.ForceScale, out var forceScales, out _);
+
+        if (!useAABB)
         {
-            for (var j = i + 1; j < current.Length; j++)
+            for (var i = 0; i < positions.Length - 1; i++)
             {
-                if (useAABB && !BoxesOverlap(ref current[i], ref current[j]))
+                for (var j = i + 1; j < positions.Length; j++)
                 {
-                    continue;
+                    ApplyPairForce(positions, forceScales, forces, i, j, strength);
                 }
-
-                ApplyPairForce(ref current[i], ref current[j], strength);
             }
+
+            return;
+        }
+
+        objectTree.Build(positions, current.ReadFloats(ParticleField.Radius), attractionMaxDistance, bounds);
+        var slotToParticle = objectTree.SlotToParticle;
+
+        foreach (var (first, second) in objectTree.Pairs)
+        {
+            ApplyPairForce(positions, forceScales, forces, slotToParticle[first], slotToParticle[second], strength);
         }
     }
 
-    private bool BoxesOverlap(ref Particle first, ref Particle second)
+    private void ApplyPairForce(ReadOnlySpan<Vector3> positions, ReadOnlySpan<float> forceScales, Span<Vector3> forces, int firstIndex, int secondIndex, float strength)
     {
-        var reach = new Vector3(first.Radius + second.Radius + (2f * attractionMaxDistance));
-        var offset = Vector3.Abs(second.Position - first.Position);
-
-        return offset.X <= reach.X && offset.Y <= reach.Y && offset.Z <= reach.Z;
-    }
-
-    private void ApplyPairForce(ref Particle first, ref Particle second, float strength)
-    {
-        var offset = second.Position - first.Position;
+        var pairScale = forceScales.IsEmpty ? 1f : forceScales[firstIndex] * forceScales[secondIndex];
+        var offset = positions[secondIndex] - positions[firstIndex];
         var distanceSquared = offset.LengthSquared();
 
         if (distanceSquared <= MinimumDistanceSquared)
@@ -81,16 +88,16 @@ class IntraParticleForce : ParticleFunctionForceGenerator
 
         if (distance < attractionMaxDistance)
         {
-            var pull = offset * (attractionMaxStrength * strength * Falloff(distanceSquared, attractionMinDistance, attractionMaxDistance));
-            first.ForceAccumulator += pull;
-            second.ForceAccumulator -= pull;
+            var pull = offset * (pairScale * (attractionMaxStrength * strength * Falloff(distanceSquared, attractionMinDistance, attractionMaxDistance)));
+            forces[firstIndex] += pull;
+            forces[secondIndex] -= pull;
         }
 
         if (distance < repulsionMaxDistance)
         {
-            var push = offset * (repulsionMaxStrength * strength * Falloff(distanceSquared, repulsionMinDistance, repulsionMaxDistance));
-            first.ForceAccumulator -= push;
-            second.ForceAccumulator += push;
+            var push = offset * (pairScale * (repulsionMaxStrength * strength * Falloff(distanceSquared, repulsionMinDistance, repulsionMaxDistance)));
+            forces[firstIndex] -= push;
+            forces[secondIndex] += push;
         }
     }
 

@@ -21,7 +21,7 @@ namespace ValveResourceFormat.Particles.Initializers
             model = new ModelReference(parse);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.SecondSequenceNumber);
+        public override ulong WrittenFields => ParticleField.SecondSequenceNumber.Mask();
 
         public override void Initialize(ParticleSystemState particleSystemState)
         {
@@ -35,14 +35,9 @@ namespace ValveResourceFormat.Particles.Initializers
             }
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-        }
-
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            particle.SecondSequenceNumber = sequence;
-            return particle;
+            run.Floats(ParticleField.SecondSequenceNumber).Fill(sequence);
         }
     }
 }

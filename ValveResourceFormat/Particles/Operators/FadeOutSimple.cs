@@ -19,23 +19,41 @@ namespace ValveResourceFormat.Particles.Operators
         {
             fadeOutTime = parse.Float("m_flFadeOutTime", fadeOutTime);
             fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
+
+            parse.AddInitialRead(fieldOutput);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var fadeStart = 1f - fadeOutTime;
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(fieldOutput))
             {
-                var time = particle.Age / particle.Lifetime;
+                return;
+            }
 
-                if (fadeStart < time)
+            var current = particles.Current;
+            var ages = current.ReadAges();
+
+            var lifetimes = current.ReadFloats(ParticleField.LifeDuration);
+            var outputs = current.Floats(fieldOutput);
+            var initials = particles.Initial.ReadFloats(fieldOutput);
+
+            for (var i = 0; i < outputs.Length; i++)
+            {
+                var time = ages[i] / lifetimes[i];
+                var fading = fadeStart < time;
+
+                if (!fading)
                 {
-                    var blend = MathUtils.Smoothstep(fadeStart, 1f, time);
-                    var faded = (1f - blend) * particle.GetInitialScalar(particles, fieldOutput);
-
-                    particle.SetScalar(fieldOutput, MathF.Min(faded, particle.GetScalar(fieldOutput)));
+                    continue;
                 }
+
+                var faded = (1f - MathUtils.Smoothstep(fadeStart, 1f, time)) * initials[i];
+                outputs[i] = MathF.Min(faded, outputs[i]);
             }
         }
     }

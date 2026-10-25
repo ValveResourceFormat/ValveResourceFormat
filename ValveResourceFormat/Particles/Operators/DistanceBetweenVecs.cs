@@ -30,25 +30,41 @@ namespace ValveResourceFormat.Particles.Operators
             outputMax = parse.NumberProvider("m_flOutputMax", outputMax);
             setMethod = parse.Enum("m_nSetMethod", setMethod);
             deltaTime = parse.Boolean("m_bDeltaTime", deltaTime);
+
+            AddInitialReadOf(parse, setMethod, fieldOutput);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var divisor = deltaTime ? frameTime : 1f;
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(fieldOutput))
             {
-                var distance = Vector3.Distance(point1.NextVector(ref particle, particleSystemState), point2.NextVector(ref particle, particleSystemState)) / divisor;
+                return;
+            }
 
-                var inputMin = this.inputMin.NextNumber(ref particle, particleSystemState);
-                var inputMax = this.inputMax.NextNumber(ref particle, particleSystemState);
-                var outputMin = this.outputMin.NextNumber(ref particle, particleSystemState);
-                var outputMax = this.outputMax.NextNumber(ref particle, particleSystemState);
+            var current = particles.Current;
+            var inputMins = inputMin.Fill(current, particleSystemState);
+            var inputMaxs = inputMax.Fill(current, particleSystemState);
+            var outputMins = outputMin.Fill(current, particleSystemState);
+            var outputMaxs = outputMax.Fill(current, particleSystemState);
 
-                var fraction = ParticleMath.ClampedFraction(distance, inputMin, inputMax);
-                var value = particle.ModifyScalarBySetMethod(particles, fieldOutput, MathUtils.Lerp(outputMin, outputMax, fraction), setMethod);
+            current.FillVectorInputs(point1, point2, particleSystemState, out var points1, out var points2);
 
-                particle.SetScalar(fieldOutput, MathUtils.Lerp(particle.GetScalar(fieldOutput), value, strength));
+            var outputs = current.Floats(fieldOutput);
+            var initials = particles.Initial.ReadFloats(fieldOutput);
+
+            for (var i = 0; i < outputs.Length; i++)
+            {
+                var distance = Vector3.Distance(points1[i], points2[i]) / divisor;
+
+                var fraction = ParticleMath.ClampedFraction(distance, inputMins[i], inputMaxs[i]);
+                var value = ParticleFieldExtensions.ApplySetMethod(MathUtils.Lerp(outputMins[i], outputMaxs[i], fraction), initials[i], outputs[i], particleSystemState.CurrentStep, setMethod);
+
+                outputs[i] = MathUtils.Lerp(outputs[i], value, strength);
             }
         }
     }

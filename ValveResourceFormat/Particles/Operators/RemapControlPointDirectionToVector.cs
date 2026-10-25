@@ -18,14 +18,18 @@ namespace ValveResourceFormat.Particles.Operators
             cp = parse.Int32("m_nControlPointNumber", cp);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsVector(fieldOutput))
             {
-                // direction or orientation??
-                var direction = particleSystemState.GetControlPoint(cp).Orientation;
-                particle.SetVector(fieldOutput, direction * scale);
+                return;
             }
+
+            var direction = particleSystemState.GetControlPoint(cp).Orientation;
+            particles.Current.Vectors(fieldOutput).Fill(direction * scale);
         }
     }
 }

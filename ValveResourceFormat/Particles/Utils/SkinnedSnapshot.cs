@@ -38,21 +38,6 @@ namespace ValveResourceFormat.Particles.Utils
             float[]? Alphas)
         {
             /// <summary>
-            /// Binds <paramref name="particle"/> to the bones of point <paramref name="row"/>, keeping the
-            /// point's rest position for the functions that keep it skinned.
-            /// </summary>
-            /// <param name="particle">The particle to bind.</param>
-            /// <param name="row">The snapshot point.</param>
-            /// <param name="model">The model whose skeleton names the bones.</param>
-            /// <param name="boneCount">How many boxes the bone cache holds.</param>
-            public void Bind(ref Particle particle, int row, Model model, int boneCount)
-            {
-                particle.BoneIndices = BoneIndices(row, model, boneCount);
-                particle.HitboxOffsetPosition = Positions[row];
-                particle.BoneWeights = BoneWeights(row);
-            }
-
-            /// <summary>
             /// The four bones of point <paramref name="row"/> as indices into the boxes of a bone cache:
             /// each named bone's index in <paramref name="model"/>'s skeleton, 0 when it has none,
             /// wrapped to <paramref name="boneCount"/>. A point naming one hitbox leaves the other

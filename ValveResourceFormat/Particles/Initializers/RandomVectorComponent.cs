@@ -19,15 +19,22 @@ namespace ValveResourceFormat.Particles.Initializers
             component = Math.Clamp(parse.Int32("m_nComponent", component), 0, 2);
         }
 
-        public override ulong WrittenFields => FieldMask(fieldOutput);
+        public override ulong WrittenFields => fieldOutput.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var newComponent = particleSystemState.Random.NextBetween(min, max);
+            var isVector = ParticleBuffer.IsVector(fieldOutput);
+            var vectors = isVector ? run.Vectors(fieldOutput) : default;
 
-            particle.SetVectorComponent(fieldOutput, newComponent, component);
+            for (var i = 0; i < run.Length; i++)
+            {
+                var newComponent = particleSystemState.Random.NextBetween(min, max);
 
-            return particle;
+                if (isVector)
+                {
+                    vectors[i][component] = newComponent;
+                }
+            }
         }
     }
 }

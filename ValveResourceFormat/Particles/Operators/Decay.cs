@@ -25,34 +25,39 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            var particleSpan = particles.Current;
+            var current = particles.Current;
+            var lifetimes = current.ReadFloats(ParticleField.LifeDuration);
 
             if (!ropeDecay)
             {
-                foreach (ref var particle in particleSpan)
+                var creationTimes = current.ReadFloats(ParticleField.CreationTime);
+                var time = current.Time;
+
+                for (var i = 0; i < current.Length; i++)
                 {
-                    if (particle.Lifetime <= 0f || particle.Lifetime <= particle.Age)
+                    var lifetime = lifetimes[i];
+
+                    if (lifetime <= 0f || lifetime <= time - creationTimes[i])
                     {
-                        particle.Kill();
+                        particles.Kill(i);
                     }
                 }
 
                 return;
             }
 
-            var last = particleSpan.Length - 1;
+            var ages = current.ReadAges();
+            var last = current.Length - 1;
 
             for (var i = 0; i <= last; i++)
             {
-                if (IsPastLifetime(particleSpan[i])
-                    && IsPastLifetime(particleSpan[Math.Min(i + 1, last)])
-                    && IsPastLifetime(particleSpan[Math.Min(i + 2, last)]))
+                if (ages[i] > lifetimes[i]
+                    && ages[Math.Min(i + 1, last)] > lifetimes[Math.Min(i + 1, last)]
+                    && ages[Math.Min(i + 2, last)] > lifetimes[Math.Min(i + 2, last)])
                 {
-                    particleSpan[i].Kill();
+                    particles.Kill(i);
                 }
             }
         }
-
-        private static bool IsPastLifetime(in Particle particle) => particle.Age > particle.Lifetime;
     }
 }

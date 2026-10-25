@@ -47,7 +47,12 @@ namespace ValveResourceFormat.Particles.Operators
             {
                 outputScale = float.DegreesToRadians(1f);
             }
+
+            AddInitialReadOf(parse, setMethod, fieldOutput);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -64,16 +69,36 @@ namespace ValveResourceFormat.Particles.Operators
                 }
             }
 
-            foreach (ref var particle in particles.Current)
-            {
-                var position = Vector3.Transform(particle.Position, toLocal);
-                var harmonic = harmonics.NextVector(ref particle, particleSystemState);
-                var wave = waveLength.NextVector(ref particle, particleSystemState);
+            var current = particles.Current;
 
-                var inputMin = this.inputMin.NextNumber(ref particle, particleSystemState);
-                var inputMax = this.inputMax.NextNumber(ref particle, particleSystemState);
-                var outputMin = this.outputMin.NextNumber(ref particle, particleSystemState);
-                var outputMax = this.outputMax.NextNumber(ref particle, particleSystemState);
+            if (!ParticleBuffer.IsScalar(fieldOutput))
+            {
+                return;
+            }
+
+            var inputMins = inputMin.Fill(current, particleSystemState);
+            var inputMaxs = inputMax.Fill(current, particleSystemState);
+            var outputMins = outputMin.Fill(current, particleSystemState);
+            var outputMaxs = outputMax.Fill(current, particleSystemState);
+            var waveLengths = waveLength.Prepare(current, particleSystemState);
+            var harmonicValues = harmonics.Prepare(current, particleSystemState);
+
+            current.FillPerBlockInputs(particleSystemState, harmonics, harmonicValues, waveLength, waveLengths);
+
+            var positions = current.ReadVectors(ParticleField.Position);
+            var outputs = current.Floats(fieldOutput);
+            var initials = particles.Initial.ReadFloats(fieldOutput);
+
+            for (var i = 0; i < outputs.Length; i++)
+            {
+                var position = Vector3.Transform(positions[i], toLocal);
+                var harmonic = harmonicValues[i];
+                var wave = waveLengths[i];
+
+                var minimumInput = inputMins[i];
+                var maximumInput = inputMaxs[i];
+                var minimumOutput = outputMins[i];
+                var maximumOutput = outputMaxs[i];
 
                 if (wave.X == 0f || wave.Y == 0f || (is3D && wave.Z == 0f))
                 {
@@ -85,9 +110,9 @@ namespace ValveResourceFormat.Particles.Operators
                     : (MathF.Cos(harmonic.Y * MathF.PI * position.X / wave.X) * MathF.Cos(harmonic.X * MathF.PI * position.Y / wave.X))
                         - (MathF.Cos(harmonic.X * MathF.PI * position.X / wave.Y) * MathF.Cos(harmonic.Y * MathF.PI * position.Y / wave.Y));
 
-                var value = MathUtils.Lerp(outputMin, outputMax, ParticleMath.ClampedFraction(pattern, inputMin, inputMax)) * outputScale;
+                var value = MathUtils.Lerp(minimumOutput, maximumOutput, ParticleMath.ClampedFraction(pattern, minimumInput, maximumInput)) * outputScale;
 
-                particle.SetScalar(fieldOutput, particle.ModifyScalarBySetMethod(particles, fieldOutput, value, setMethod));
+                outputs[i] = ParticleFieldExtensions.ApplySetMethod(value, initials[i], outputs[i], particleSystemState.CurrentStep, setMethod);
             }
         }
     }

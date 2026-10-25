@@ -1,3 +1,4 @@
+using System.Numerics.Tensors;
 using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -197,6 +198,60 @@ namespace ValveResourceFormat.Particles
 
                 default:
                     return value;
+            }
+        }
+
+        /// <summary>Maps every value in <paramref name="values"/> in place, as <see cref="ApplyMapping(float)"/> does.</summary>
+        public void ApplyMapping(Span<float> values)
+        {
+            switch (mapType)
+            {
+                case PfMapType.Mult:
+                    TensorPrimitives.Multiply(values, multFactor, values);
+                    break;
+
+                case PfMapType.Remap when inputMode != PfInputMode.Looped && input0 != input1:
+                    TensorPrimitives.Subtract(values, input0, values);
+                    TensorPrimitives.Divide(values, input1 - input0, values);
+                    TensorPrimitives.Multiply(values, output1 - output0, values);
+                    TensorPrimitives.Add(values, output0, values);
+                    TensorPrimitives.Clamp(values, MathF.Min(output0, output1), MathF.Max(output0, output1), values);
+                    break;
+
+                case PfMapType.Round when roundType == PfRoundType.Nearest:
+                    TensorPrimitives.Round(values, values);
+                    break;
+
+                case PfMapType.Round when roundType == PfRoundType.Floor:
+                    TensorPrimitives.Floor(values, values);
+                    break;
+
+                case PfMapType.Round when roundType == PfRoundType.Ceil:
+                    TensorPrimitives.Ceiling(values, values);
+                    break;
+
+                case PfMapType.Min:
+                    TensorPrimitives.Min(values, compareValue, values);
+                    break;
+
+                case PfMapType.Max:
+                    TensorPrimitives.Max(values, compareValue, values);
+                    break;
+
+                case PfMapType.Remap:
+                case PfMapType.RemapBiased:
+                case PfMapType.Curve:
+                case PfMapType.Notched:
+                case PfMapType.Mod:
+                    for (var i = 0; i < values.Length; i++)
+                    {
+                        values[i] = ApplyMapping(values[i]);
+                    }
+
+                    break;
+
+                default:
+                    break;
             }
         }
 

@@ -56,7 +56,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             previousVelocity = particleSystemState.GetControlPoint(inControlPoint).Position;
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             // The control point writer takes the field index unsigned and rejects anything
             // above 3, and index 3 addresses a component the position vector does not have

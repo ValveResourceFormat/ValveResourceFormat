@@ -1,3 +1,5 @@
+using System.Numerics.Tensors;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -18,7 +20,20 @@ namespace ValveResourceFormat.Particles.Operators
             maxOutputValue = parse.Float("m_flMaxOutputValue", maxOutputValue);
         }
 
-        protected override void Write(ref Particle particle, float fraction)
-            => particle.SetScalar(fieldOutput, MathUtils.Lerp(minOutputValue, maxOutputValue, fraction));
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
+
+        protected override void Write(ParticleSpan particles, ReadOnlySpan<float> fractions)
+        {
+            if (!ParticleBuffer.IsScalar(fieldOutput))
+            {
+                return;
+            }
+
+            var output = particles.Floats(fieldOutput);
+
+            TensorPrimitives.Multiply(fractions, maxOutputValue - minOutputValue, output);
+            TensorPrimitives.Add(output, minOutputValue, output);
+        }
     }
 }

@@ -28,7 +28,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             setParent = parse.Enum("m_nSetParent", setParent);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             var simulation = particleSystemState.Data;
 
@@ -42,11 +42,12 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
             if (useAvgParticlePos && particles.Length > 0)
             {
+                var positions = particles.ReadVectors(ParticleField.Position);
                 var sum = Vector3.Zero;
 
-                foreach (ref var particle in particles)
+                for (var i = 0; i < positions.Length; i++)
                 {
-                    sum += particle.Position;
+                    sum += positions[i];
                 }
 
                 center = sum / particles.Length;

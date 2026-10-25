@@ -16,24 +16,29 @@ namespace ValveResourceFormat.Particles.Initializers
             frameRate = parse.Float("m_flFramerate", frameRate);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.LifeDuration);
+        public override ulong WrittenFields => ParticleField.LifeDuration.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var durations = particleSystemState.SequenceDurations;
 
             if (frameRate == 0f || durations == null)
             {
-                return particle;
+                return;
             }
 
-            var sequence = (int)particle.SequenceNumber;
-            var totalTime = sequence >= 0 && sequence < durations.Length
-                ? durations[sequence]
-                : 0f;
+            var sequenceNumbers = run.ReadFloats(ParticleField.SequenceNumber);
+            var lifetimes = run.Floats(ParticleField.LifeDuration);
 
-            particle.Lifetime = totalTime > 0f ? totalTime / frameRate : LifetimeWithoutSequence;
-            return particle;
+            for (var i = 0; i < lifetimes.Length; i++)
+            {
+                var sequence = (int)sequenceNumbers[i];
+                var totalTime = sequence >= 0 && sequence < durations.Length
+                    ? durations[sequence]
+                    : 0f;
+
+                lifetimes[i] = totalTime > 0f ? totalTime / frameRate : LifetimeWithoutSequence;
+            }
         }
     }
 }

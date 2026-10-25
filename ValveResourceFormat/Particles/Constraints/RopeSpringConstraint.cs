@@ -22,6 +22,9 @@ namespace ValveResourceFormat.Particles.Constraints
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RopeSpringConstraint">C_OP_RopeSpringConstraint</seealso>
     class RopeSpringConstraint : ParticleFunctionConstraint
     {
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Position.Mask();
+
         private readonly INumberProvider restLength = new LiteralNumberProvider(1f);
         private readonly INumberProvider minDistance = new LiteralNumberProvider(0.9f);
         private readonly INumberProvider maxDistance = new LiteralNumberProvider(1.1f);
@@ -39,6 +42,8 @@ namespace ValveResourceFormat.Particles.Constraints
             maxDistance = parse.NumberProvider("m_flMaxDistance", maxDistance);
             initialRestingLength = parse.NumberProvider("m_flInitialRestingLength", initialRestingLength);
             adjustmentScale = parse.Float("m_flAdjustmentScale", adjustmentScale);
+
+            parse.AddInitialRead(ParticleField.Position);
         }
 
         public override void Reset()
@@ -46,6 +51,8 @@ namespace ValveResourceFormat.Particles.Constraints
             captured = false;
             baseLength = 0f;
         }
+
+        public override void Restart(ParticleSystemState particleSystemState) => Reset();
 
         public override bool ApplyConstraint(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -70,12 +77,15 @@ namespace ValveResourceFormat.Particles.Constraints
             // above, so the correction rate stays gentle enough for gravity to bend the rope between passes.
             var scale = frameTime * adjustmentScale;
 
-            for (var i = 1; i < current.Length; i++)
-            {
-                ref var a = ref current[i - 1];
-                ref var b = ref current[i];
+            var positions = current.Vectors(ParticleField.Position);
+            var forceScales = current.ReadFloats(ParticleField.ForceScale);
 
-                var delta = b.Position - a.Position;
+            for (var i = 1; i < positions.Length; i++)
+            {
+                ref var a = ref positions[i - 1];
+                ref var b = ref positions[i];
+
+                var delta = b - a;
                 var d = delta.Length();
 
                 float target;
@@ -97,24 +107,24 @@ namespace ValveResourceFormat.Particles.Constraints
                 // clamped so near-coincident points still get a finite nudge.
                 var correction = delta * (((target - d) / MathF.Max(d, ParticleMath.FloatEpsilon)) * scale);
 
-                var aPinned = a.ForceScale == 0f;
-                var bPinned = b.ForceScale == 0f;
+                var aPinned = forceScales[i - 1] == 0f;
+                var bPinned = forceScales[i] == 0f;
 
                 if (bPinned)
                 {
                     if (!aPinned)
                     {
-                        a.Position -= correction;
+                        a -= correction;
                     }
                 }
                 else if (aPinned)
                 {
-                    b.Position += correction;
+                    b += correction;
                 }
                 else
                 {
-                    a.Position -= 0.5f * correction;
-                    b.Position += 0.5f * correction;
+                    a -= 0.5f * correction;
+                    b += 0.5f * correction;
                 }
             }
 
@@ -140,13 +150,14 @@ namespace ValveResourceFormat.Particles.Constraints
             var spawned = particles.Initial;
             if (!captured && spawned.Length > 0)
             {
+                var spawnedPositions = spawned.ReadVectors(ParticleField.Position);
                 var total = 0f;
-                for (var i = 1; i < spawned.Length; i++)
+                for (var i = 1; i < spawnedPositions.Length; i++)
                 {
-                    total += (spawned[i].Position - spawned[i - 1].Position).Length();
+                    total += (spawnedPositions[i] - spawnedPositions[i - 1]).Length();
                 }
 
-                baseLength = total / spawned.Length;
+                baseLength = total / spawnedPositions.Length;
                 captured = true;
             }
 

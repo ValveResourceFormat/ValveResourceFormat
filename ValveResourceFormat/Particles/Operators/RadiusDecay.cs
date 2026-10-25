@@ -15,11 +15,13 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            var radii = particles.Current.ReadFloats(ParticleField.Radius);
+
+            for (var i = 0; i < radii.Length; i++)
             {
-                if (particle.Radius <= minRadius)
+                if (radii[i] <= minRadius)
                 {
-                    particle.Kill();
+                    particles.Kill(i);
                 }
             }
         }

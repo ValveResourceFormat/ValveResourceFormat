@@ -21,27 +21,33 @@ namespace ValveResourceFormat.Particles.Initializers
             normalize = parse.Boolean("m_bNormalize", normalize);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.CreationTime) | FieldMask(ParticleField.Normal);
+        public override ulong WrittenFields => ParticleField.CreationTime.Mask() | ParticleField.Normal.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var offset = particleSystemState.Random.NextBetweenPerComponentSeededTwice(offsetMin, offsetMax);
+            var normals = run.Vectors(ParticleField.Normal);
+            var creationTimes = localCoords ? run.ReadFloats(ParticleField.CreationTime) : default;
+            var controlPoint = particleSystemState.GetControlPoint(controlPointNumber);
 
-            if (localCoords)
+            for (var i = 0; i < normals.Length; i++)
             {
-                var basis = particleSystemState.GetControlPoint(controlPointNumber).GetBasisAtTime(particle.CreationTime);
-                offset = Vector3.TransformNormal(offset, basis);
+                var offset = particleSystemState.Random.NextBetweenPerComponentSeededTwice(offsetMin, offsetMax);
+
+                if (localCoords)
+                {
+                    var basis = controlPoint.GetBasisAtTime(creationTimes[i]);
+                    offset = Vector3.TransformNormal(offset, basis);
+                }
+
+                var normal = normals[i] + offset;
+
+                if (normalize)
+                {
+                    normal = MathUtils.SafeNormalize(normal);
+                }
+
+                normals[i] = normal;
             }
-
-            var normal = particle.GetVector(ParticleField.Normal) + offset;
-
-            if (normalize && normal != Vector3.Zero)
-            {
-                normal = MathUtils.SafeNormalize(normal);
-            }
-
-            particle.SetVector(ParticleField.Normal, normal);
-            return particle;
         }
     }
 }

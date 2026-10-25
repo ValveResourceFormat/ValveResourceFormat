@@ -25,9 +25,12 @@ namespace ValveResourceFormat.Particles.Constraints
     {
         private const float ConfirmationTraceExtension = 64f;
 
-        /// <summary>The bit of <see cref="Particle.UserEventStates"/> marking a particle that has collided before.</summary>
+        /// <summary>The bit of <see cref="ParticleField.UserEventStates"/> marking a particle that has collided before.</summary>
         private const int CollidedEventState = 0x10000;
-        private const int ConfirmationBlockSize = 4;
+        private const int BlockSize = 4;
+
+        /// <summary>How many confirmation traces a step may make when the definition leaves the limit unset.</summary>
+        private const int DefaultMaxConfirmationTraces = 100;
 
         private readonly int controlPoint;
         private readonly Vector3 controlPointOffset;
@@ -48,6 +51,7 @@ namespace ValveResourceFormat.Particles.Constraints
         private readonly bool setNormal;
         private readonly ParticleField stickField = ParticleField.NoneDisabled;
         private readonly INumberProvider stopSpeed = new LiteralNumberProvider(-1f);
+        private readonly ulong storedFields;
 
         public WorldTraceConstraint(ParticleDefinitionParser parse) : base(parse)
         {
@@ -59,7 +63,8 @@ namespace ValveResourceFormat.Particles.Constraints
             controlPointMovementTolerance = parse.Float("m_flCpMovementTolerance", controlPointMovementTolerance);
             retestRate = parse.Float("m_flRetestRate", retestRate);
             confirmationSpeed = parse.Float("m_flCollisionConfirmationSpeed", confirmationSpeed);
-            maxConfirmationTraces = parse.Int32("m_nMaxTracesPerFrame", -1) switch { -1 => 100, var traces => traces };
+            var maxTraces = parse.Int32("m_nMaxTracesPerFrame", -1);
+            maxConfirmationTraces = maxTraces == -1 ? DefaultMaxConfirmationTraces : maxTraces;
             radiusScale = parse.NumberProvider("m_flRadiusScale", radiusScale);
             bounceAmount = parse.NumberProvider("m_flBounceAmount", bounceAmount);
             slideAmount = parse.NumberProvider("m_flSlideAmount", slideAmount);
@@ -71,7 +76,27 @@ namespace ValveResourceFormat.Particles.Constraints
             setNormal = parse.Boolean("m_bSetNormal", setNormal);
             stickField = parse.ParticleField("m_nStickOnCollisionField", stickField);
             stopSpeed = parse.NumberProvider("m_flStopSpeed", stopSpeed);
+
+            storedFields = ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask() | ParticleField.UserEventStates.Mask();
+
+            if (stickField != ParticleField.NoneDisabled)
+            {
+                storedFields |= stickField.Mask();
+            }
+
+            if (killOnContact || minimumSpeed >= 0f)
+            {
+                storedFields |= ParticleField.LifeDuration.Mask();
+            }
+
+            if (setNormal)
+            {
+                storedFields |= ParticleField.Normal.Mask();
+            }
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => storedFields;
 
         public override bool IsFinalConstraint => true;
 
@@ -91,40 +116,58 @@ namespace ValveResourceFormat.Particles.Constraints
 
             var hitAny = false;
             var confirmations = 0;
-            var index = 0;
             var listened = particleSystemState.Data?.ListenedEvents ?? ParticleEventType.PARTICLE_EVENT_TYPE_MASK_NONE;
             var hitEvent = killOnContact ? ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED_ON_COLLISION : ParticleEventType.PARTICLE_EVENT_TYPE_MASK_COLLISION;
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var positions = current.Vectors(ParticleField.Position);
+            var previousPositions = current.Vectors(ParticleField.PositionPrevious);
+            var userEventStates = current.Integers(ParticleField.UserEventStates);
+            var radii = current.ReadFloats(ParticleField.Radius);
+            var lifetimes = killOnContact || minimumSpeed >= 0f ? current.Floats(ParticleField.LifeDuration) : default;
+            var normals = setNormal ? current.Vectors(ParticleField.Normal) : default;
+            var stickColumn = stickField != ParticleField.NoneDisabled && ParticleBuffer.IsVector(stickField) ? current.Vectors(stickField) : default;
+
+            var bounces = bounceAmount.Fill(current, particleSystemState);
+            var slides = slideAmount.Fill(current, particleSystemState);
+            var scatters = randomDirectionScale.Fill(current, particleSystemState);
+            var radiusScales = radiusScale.Fill(current, particleSystemState);
+            var stopSpeeds = stickField != ParticleField.NoneDisabled ? stopSpeed.Fill(current, particleSystemState) : default;
+            var bounceOffset = (listened & ParticleEventType.PARTICLE_EVENT_TYPE_MASK_COLLISION) != 0 ? ParticleMath.FloatEpsilon : 0f;
+
+            Span<Vector3> scatterPoints = stackalloc Vector3[BlockSize];
+            var blockBounces = false;
+            var blockScatters = false;
+            var scatterDrawn = false;
+
+            for (var i = 0; i < positions.Length; i++)
             {
-                // The confirmation trace budget is counted per block of four particles
-                if (index++ % ConfirmationBlockSize == 0)
+                // The confirmation trace budget, whether particles bounce or slide and whether they
+                // scatter are decided per block of four particles
+                if (i % BlockSize == 0)
                 {
                     confirmations = 0;
+                    (blockBounces, blockScatters) = BlockResponse(bounces, slides, scatters, i, bounceOffset);
+                    scatterDrawn = false;
                 }
 
-                var bounce = bounceAmount.NextNumber(ref particle, particleSystemState);
+                var bounce = bounces[i] + bounceOffset;
 
-                if ((listened & ParticleEventType.PARTICLE_EVENT_TYPE_MASK_COLLISION) != 0)
-                {
-                    bounce += ParticleMath.FloatEpsilon;
-                }
+                var slide = slides[i];
+                var scatter = scatters[i];
+                var scale = radiusScales[i];
 
-                var slide = slideAmount.NextNumber(ref particle, particleSystemState);
-                var scatter = randomDirectionScale.NextNumber(ref particle, particleSystemState);
-                var scale = radiusScale.NextNumber(ref particle, particleSystemState);
-
-                var stuckAt = stickField != ParticleField.NoneDisabled ? particle.GetVector(stickField) : Vector3.Zero;
+                var stuckAt = stickColumn.IsEmpty ? Vector3.Zero : stickColumn[i];
 
                 if (stuckAt.LengthSquared() > 0f)
                 {
-                    particle.Position = stuckAt;
-                    particle.PositionPrevious = stuckAt;
+                    positions[i] = stuckAt;
+                    previousPositions[i] = stuckAt;
                     continue;
                 }
 
-                var previous = particle.PositionPrevious;
-                var step = particle.Position - previous;
+                var previous = previousPositions[i];
+                var step = positions[i] - previous;
                 var stepLengthSquared = step.LengthSquared();
 
                 if (stepLengthSquared <= ParticleMath.FloatEpsilon)
@@ -134,8 +177,8 @@ namespace ValveResourceFormat.Particles.Constraints
 
                 var stepLength = MathF.Sqrt(stepLengthSquared);
                 var direction = step / stepLength;
-                var halfRadius = particle.Radius * scale * 0.5f;
-                var traceEnd = particle.Position + (direction * halfRadius);
+                var halfRadius = radii[i] * scale * 0.5f;
+                var traceEnd = positions[i] + (direction * halfRadius);
 
                 if (!FindContact(collision, planeSet, previous, traceEnd, out var fraction, out var normal))
                 {
@@ -144,6 +187,13 @@ namespace ValveResourceFormat.Particles.Constraints
 
                 hitAny = true;
                 var remaining = MathF.Max(0f, 1f - fraction);
+
+                // A block draws its scatter points once, at its first hit, before the hit is confirmed
+                if ((!killOnContact || bounceKilledParticles) && blockBounces && blockScatters && !scatterDrawn)
+                {
+                    particleSystemState.ThreadRandom.NextInUnitBall(scatterPoints);
+                    scatterDrawn = true;
+                }
 
                 if (planeSet != null && !ConfirmContact(collision, planeSet, previous - (direction * halfRadius), traceEnd, direction, frameTime, ref fraction, ref confirmations))
                 {
@@ -159,19 +209,19 @@ namespace ValveResourceFormat.Particles.Constraints
                 {
                     if (minimumSpeed < 0f || tooSlow)
                     {
-                        particle.Lifetime = 0f;
+                        lifetimes[i] = 0f;
                     }
 
-                    particle.Position = contact;
+                    positions[i] = contact;
 
                     if ((listened & ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED_ON_COLLISION) == 0)
                     {
-                        particle.PositionPrevious = contact;
+                        previousPositions[i] = contact;
                     }
                 }
                 else if (tooSlow)
                 {
-                    particle.Lifetime = 0f;
+                    lifetimes[i] = 0f;
                 }
 
                 var writeNormal = setNormal;
@@ -179,51 +229,73 @@ namespace ValveResourceFormat.Particles.Constraints
 
                 if (!killOnContact || bounceKilledParticles)
                 {
-                    if (bounce > 0f || slide > 0f)
+                    // A particle that neither bounces nor slides in a block that does comes to rest at the contact
+                    if (blockBounces)
                     {
-                        var outgoing = Bounce(step, stepLength, direction, normal, bounce, slide, scatter, particleSystemState);
-                        particle.Position = contact + (outgoing * remaining);
-                        particle.PositionPrevious = particle.Position - outgoing;
+                        var outgoing = Bounce(step, stepLength, direction, normal, bounce, slide, blockScatters, scatter, scatterPoints[i % BlockSize]);
+                        positions[i] = contact + (outgoing * remaining);
+                        previousPositions[i] = positions[i] - outgoing;
                     }
                     else
                     {
-                        particle.Position = contact;
+                        positions[i] = contact;
                     }
 
                     if (stickField != ParticleField.NoneDisabled)
                     {
-                        stopped = Stick(ref particle, frameTime, particleSystemState);
+                        stopped = Stick(i, positions, previousPositions, stickColumn, stopSpeeds[i] * frameTime);
                         writeNormal = stopped && setNormal;
                     }
                 }
 
                 if (writeNormal)
                 {
-                    particle.SetVector(ParticleField.Normal, normal);
+                    normals[i] = normal;
                 }
 
-                RaiseCollisionEvents(particles, ref particle, listened, hitEvent, stopped);
+                RaiseCollisionEvents(particles, i, ref userEventStates[i], listened, hitEvent, stopped);
             }
 
             return hitAny;
         }
 
-        private static void RaiseCollisionEvents(ParticleCollection particles, ref Particle particle, ParticleEventType listened, ParticleEventType hitEvent, bool stopped)
+        /// <summary>
+        /// How the block of four from <paramref name="blockStart"/> responds to contact: every particle
+        /// of it bounces and slides by its own amounts when some particle has a positive bounce or slide
+        /// amount, and every particle of it scatters, from points drawn from the thread generator, when
+        /// some particle has a positive random direction scale.
+        /// </summary>
+        private static (bool Bounces, bool Scatters) BlockResponse(ReadOnlySpan<float> bounces, ReadOnlySpan<float> slides, ReadOnlySpan<float> scatters, int blockStart, float bounceOffset)
+        {
+            var blockEnd = Math.Min(blockStart + BlockSize, bounces.Length);
+            var anyBouncesOrSlides = false;
+            var anyScatters = false;
+
+            for (var i = blockStart; i < blockEnd; i++)
+            {
+                anyBouncesOrSlides |= bounces[i] + bounceOffset > 0f || slides[i] > 0f;
+                anyScatters |= scatters[i] > 0f;
+            }
+
+            return (anyBouncesOrSlides, anyScatters);
+        }
+
+        private static void RaiseCollisionEvents(ParticleCollection particles, int index, ref int userEventState, ParticleEventType listened, ParticleEventType hitEvent, bool stopped)
         {
             if ((listened & (ParticleEventType.PARTICLE_EVENT_TYPE_MASK_COLLISION | ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED_ON_COLLISION)) != 0)
             {
-                particles.RaiseEvent(particle.Index, hitEvent);
+                particles.RaiseEvent(index, hitEvent);
             }
 
-            if ((listened & ParticleEventType.PARTICLE_EVENT_TYPE_MASK_FIRST_COLLISION) != 0 && (particle.UserEventStates & CollidedEventState) == 0)
+            if ((listened & ParticleEventType.PARTICLE_EVENT_TYPE_MASK_FIRST_COLLISION) != 0 && (userEventState & CollidedEventState) == 0)
             {
-                particle.UserEventStates |= CollidedEventState;
-                particles.RaiseEvent(particle.Index, ParticleEventType.PARTICLE_EVENT_TYPE_MASK_FIRST_COLLISION);
+                userEventState |= CollidedEventState;
+                particles.RaiseEvent(index, ParticleEventType.PARTICLE_EVENT_TYPE_MASK_FIRST_COLLISION);
             }
 
             if (stopped && (listened & ParticleEventType.PARTICLE_EVENT_TYPE_MASK_COLLISION_STOPPED) != 0)
             {
-                particles.RaiseEvent(particle.Index, ParticleEventType.PARTICLE_EVENT_TYPE_MASK_COLLISION_STOPPED);
+                particles.RaiseEvent(index, ParticleEventType.PARTICLE_EVENT_TYPE_MASK_COLLISION_STOPPED);
             }
         }
 
@@ -309,13 +381,13 @@ namespace ValveResourceFormat.Particles.Constraints
         /// The particle's movement after the contact, over a whole step: the reflected direction scaled by
         /// the bounce amount, plus the part of the step along the surface scaled by the slide amount.
         /// </summary>
-        private Vector3 Bounce(Vector3 step, float stepLength, Vector3 direction, Vector3 normal, float bounce, float slide, float scatter, ParticleSystemState particleSystemState)
+        private Vector3 Bounce(Vector3 step, float stepLength, Vector3 direction, Vector3 normal, float bounce, float slide, bool scatters, float scatter, Vector3 scatterPoint)
         {
             var reflected = Vector3.Reflect(direction, normal);
 
-            if (scatter > 0f)
+            if (scatters)
             {
-                reflected = MathUtils.SafeNormalize(reflected + (particleSystemState.Random.NextInUnitBallByRejection() * scatter));
+                reflected = MathUtils.SafeNormalize(reflected + (scatterPoint * scatter));
             }
 
             if (decayBounce)
@@ -327,20 +399,22 @@ namespace ValveResourceFormat.Particles.Constraints
         }
 
         /// <summary>
-        /// Sticks the particle where it rests when it moves slower than the stop speed, or always when the
-        /// stop speed is negative, by caching its position in the stick field, which holds it there on later
+        /// Sticks the particle where it rests when it moved less than <paramref name="stop"/> over the step,
+        /// the stop speed times the frame time, or always when that is negative, by caching its position in the stick field, which holds it there on later
         /// steps. Returns whether it stuck; with a stick field only particles that stick take the contact normal.
         /// </summary>
-        private bool Stick(ref Particle particle, float frameTime, ParticleSystemState particleSystemState)
+        private static bool Stick(int index, Span<Vector3> positions, Span<Vector3> previousPositions, Span<Vector3> stickColumn, float stop)
         {
-            var stop = stopSpeed.NextNumber(ref particle, particleSystemState) * frameTime;
-
-            if (stop >= 0f && Vector3.DistanceSquared(particle.Position, particle.PositionPrevious) >= stop * stop)
+            if (stop >= 0f && Vector3.DistanceSquared(positions[index], previousPositions[index]) >= stop * stop)
             {
                 return false;
             }
 
-            particle.SetVector(stickField, particle.Position);
+            if (!stickColumn.IsEmpty)
+            {
+                stickColumn[index] = positions[index];
+            }
+
             return true;
         }
     }

@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -13,6 +15,12 @@ namespace ValveResourceFormat.Particles.Operators
     /// length along the direction of the particle position from the world origin.
     /// <c>m_CollisionGroupName</c> and <c>m_nTraceSet</c> are not read; the trace hits all world
     /// collision.
+    /// <para>
+    /// Particles are processed in index-aligned blocks of four: with the active-range test on, a
+    /// block where every lane fails is skipped without any writes, while a failed lane in a partially
+    /// passing block is written with zero strength, which on the additive path still doubles the old
+    /// value.
+    /// </para>
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_DistanceToTransform">C_OP_DistanceToTransform</seealso>
     class DistanceToTransform : ParticleFunctionOperator
@@ -46,60 +54,75 @@ namespace ValveResourceFormat.Particles.Operators
             activeRange = parse.Boolean("m_bActiveRange", activeRange);
             additive = parse.Boolean("m_bAdditive", additive);
             componentScale = parse.VectorProvider("m_vecComponentScale", componentScale);
+
+            AddInitialReadOf(parse, setMethod, outputField);
         }
 
-        /// <summary>
-        /// Particles are processed in index-aligned groups of four, mirroring the engine's SIMD
-        /// blocks: with the active-range test on, a group where every lane fails is skipped
-        /// without any writes, while a failed lane in a partially passing group is written with
-        /// zero strength - which on the additive path still doubles the old value.
-        /// </summary>
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var origin = transformStart.NextTransform(particleSystemState).Translation;
-            var particleSpan = particles.Current;
-            var clampOutput = outputField is ParticleField.Alpha or ParticleField.AlphaAlternate;
+            var current = particles.Current;
+            var clampOutput = outputField.IsAlpha();
+
+            if (!ParticleBuffer.IsScalar(outputField))
+            {
+                return;
+            }
+
+            var scales = componentScale.Prepare(current, particleSystemState);
+            var inputMins = inputMin.Fill(current, particleSystemState);
+            var inputMaxs = inputMax.Fill(current, particleSystemState);
+            var outputMins = outputMin.Fill(current, particleSystemState);
+            var outputMaxs = outputMax.Fill(current, particleSystemState);
+
+            current.FillPerBlockInputs(particleSystemState, componentScale, scales);
+
+            var positions = current.ReadVectors(ParticleField.Position);
+            var outputs = current.Floats(outputField);
+            var initials = particles.Initial.ReadFloats(outputField);
 
             Span<float> values = stackalloc float[4];
             Span<bool> pass = stackalloc bool[4];
 
-            for (var head = 0; head < particleSpan.Length; head += 4)
+            for (var offset = 0; offset < current.Length; offset += 4)
             {
-                var lanes = Math.Min(4, particleSpan.Length - head);
                 var anyPass = false;
+                var blockLength = Math.Min(4, current.Length - offset);
 
-                for (var lane = 0; lane < lanes; lane++)
+                for (var lane = 0; lane < blockLength; lane++)
                 {
-                    ref var particle = ref particleSpan[head + lane];
+                    var index = offset + lane;
+                    var position = positions[index];
 
-                    var inputMin = this.inputMin.NextNumber(ref particle, particleSystemState);
-                    var inputMax = this.inputMax.NextNumber(ref particle, particleSystemState);
-                    var outputMin = this.outputMin.NextNumber(ref particle, particleSystemState);
-                    var outputMax = this.outputMax.NextNumber(ref particle, particleSystemState);
-                    var scale = componentScale.NextVector(ref particle, particleSystemState);
+                    var minimumInput = inputMins[index];
+                    var maximumInput = inputMaxs[index];
+                    var minimumOutput = outputMins[index];
+                    var maximumOutput = outputMaxs[index];
 
-                    var scaledDelta = (particle.Position - origin) * scale;
+                    var scaledDelta = (position - origin) * scales[index];
                     var distanceSquared = Vector3.Dot(scaledDelta, scaledDelta);
-                    var inputMinSquared = inputMin * inputMin;
-                    var inputMaxSquared = inputMax * inputMax;
+                    var inputMinSquared = minimumInput * minimumInput;
+                    var inputMaxSquared = maximumInput * maximumInput;
 
                     pass[lane] = !activeRange || (distanceSquared <= inputMaxSquared && inputMinSquared <= distanceSquared);
                     anyPass |= pass[lane];
 
                     if (los && pass[lane])
                     {
-                        distanceSquared = LineOfSightTrace.ScaleDistance(particleSystemState.Collision, origin, particle.Position, distanceSquared, maxTraceLength, losScale);
+                        distanceSquared = LineOfSightTrace.ScaleDistance(particleSystemState.Collision, origin, position, distanceSquared, maxTraceLength, losScale);
                     }
 
                     if (clampOutput)
                     {
-                        outputMin = MathUtils.Saturate(outputMin);
-                        outputMax = MathUtils.Saturate(outputMax);
+                        minimumOutput = MathUtils.Saturate(minimumOutput);
+                        maximumOutput = MathUtils.Saturate(maximumOutput);
                     }
 
-                    var divisor = inputMaxSquared == inputMinSquared ? 1f : inputMaxSquared - inputMinSquared;
-                    var remapped = MathUtils.Saturate((distanceSquared - inputMinSquared) / divisor);
-                    values[lane] = MathUtils.Lerp(outputMin, outputMax, remapped);
+                    var remapped = ParticleMath.ClampedFraction(distanceSquared, inputMinSquared, inputMaxSquared);
+                    values[lane] = MathUtils.Lerp(minimumOutput, maximumOutput, remapped);
                 }
 
                 if (!anyPass)
@@ -107,17 +130,29 @@ namespace ValveResourceFormat.Particles.Operators
                     continue;
                 }
 
-                for (var lane = 0; lane < lanes; lane++)
+                for (var lane = 0; lane < blockLength; lane++)
                 {
-                    ref var particle = ref particleSpan[head + lane];
+                    var index = offset + lane;
+                    var laneStrength = pass[lane] ? strength : 0f;
 
-                    var finalValue = particle.ModifyScalarBySetMethod(particles, outputField, values[lane], setMethod);
-                    var current = particle.GetScalar(outputField);
-                    var delta = (finalValue - current) * (pass[lane] ? strength : 0f);
-
-                    particle.SetScalar(outputField, additive ? current + (current + delta) : current + delta);
+                    outputs[index] = BlendRemapped(values[lane], initials[index], outputs[index], particleSystemState.CurrentStep, setMethod, laneStrength, additive);
                 }
             }
+        }
+
+        /// <summary>
+        /// The new value of a lane in a block with a passing lane: the remapped <paramref name="value"/>
+        /// applied by the set method and blended in at <paramref name="laneStrength"/>, which is zero for
+        /// a lane that failed. The additive path adds the current value once more, so even a lane at no
+        /// strength doubles.
+        /// </summary>
+        internal static float BlendRemapped(float value, float initial, float currentValue, float deltaTime, ParticleSetMethod setMethod,
+            float laneStrength, bool additive)
+        {
+            var finalValue = ParticleFieldExtensions.ApplySetMethod(value, initial, currentValue, deltaTime, setMethod);
+            var delta = (finalValue - currentValue) * laneStrength;
+
+            return additive ? currentValue + (currentValue + delta) : currentValue + delta;
         }
     }
 }

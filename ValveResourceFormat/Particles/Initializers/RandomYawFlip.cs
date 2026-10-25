@@ -15,16 +15,19 @@ namespace ValveResourceFormat.Particles.Initializers
             percent = parse.Float("m_flPercent", 0.5f);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Yaw);
+        public override ulong WrittenFields => ParticleField.Yaw.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            if (particleSystemState.Random.Next() < percent)
-            {
-                particle.SetScalar(ParticleField.Yaw, (particle.GetScalar(ParticleField.Yaw) % MathF.PI) + MathF.PI);
-            }
+            var yaws = run.Floats(ParticleField.Yaw);
 
-            return particle;
+            for (var i = 0; i < yaws.Length; i++)
+            {
+                if (particleSystemState.Random.Next() < percent)
+                {
+                    yaws[i] = (yaws[i] % MathF.PI) + MathF.PI;
+                }
+            }
         }
     }
 }

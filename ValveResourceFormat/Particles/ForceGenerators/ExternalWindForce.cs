@@ -34,17 +34,30 @@ class ExternalWindForce : ParticleFunctionForceGenerator
             "PVEC_TYPE_PARTICLE_VECTOR" or "PVEC_TYPE_PARTICLE_INITIAL_VECTOR" or "PVEC_TYPE_PARTICLE_VELOCITY" or "PVEC_TYPE_PARTICLE_GRAVITY";
     }
 
-    public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
+    public override void GenerateForces(ParticleCollection particles, Span<Vector3> forces, float frameTime, ParticleSystemState particleSystemState, float strength)
     {
         var movementGravity = useBasicMovementGravity ? MovementGravity : Vector3.Zero;
         var gravityScale = useBasicMovementGravity ? movementGravity.Z / WorldGravity : 1f;
+        var current = particles.Current;
+        var scales = scale.Prepare(current, particleSystemState);
+        var gravities = gravityForce.Prepare(current, particleSystemState);
+        var localGravityScales = localGravityScale.Fill(current, particleSystemState);
 
-        foreach (ref var particle in particles.Current)
+        if (!sampleGravity)
+        {
+            current.FillPerBlockInputs(particleSystemState, gravityForce, gravities);
+        }
+
+        current.FillPerBlockInputs(particleSystemState, scale, scales);
+
+        var gravityOffset = samplesPerParticle ? movementGravity : Vector3.Zero;
+
+        for (var i = 0; i < scales.Length; i++)
         {
             var force = sampleGravity
-                ? new Vector3(0f, 0f, WorldGravity * localGravityScale.NextNumber(ref particle, particleSystemState) * gravityScale) - movementGravity
-                : gravityForce.NextVector(ref particle, particleSystemState) - (samplesPerParticle ? movementGravity : Vector3.Zero);
-            particle.ForceAccumulator += scale.NextVector(ref particle, particleSystemState) * force;
+                ? new Vector3(0f, 0f, WorldGravity * localGravityScales[i] * gravityScale) - movementGravity
+                : gravities[i] - gravityOffset;
+            forces[i] += scales[i] * force;
         }
     }
 }

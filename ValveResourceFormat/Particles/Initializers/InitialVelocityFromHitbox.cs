@@ -25,24 +25,36 @@ namespace ValveResourceFormat.Particles.Initializers
             useBones = parse.Boolean("m_bUseBones", useBones);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.PositionPrevious);
+        public override ulong WrittenFields => ParticleField.PositionPrevious.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            if (HitBoxCache.Refresh(particleSystemState, controlPoint, hitboxSetName, useBones) is not { IsStable: true } cache
-                || (uint)particle.HitboxIndex >= (uint)cache.Count)
+            if (HitBoxCache.Refresh(particleSystemState, controlPoint, hitboxSetName, useBones) is not { IsStable: true } cache)
             {
-                return particle;
+                return;
             }
 
-            var box = cache.Current[particle.HitboxIndex];
-            var extent = box.Maxs - box.Mins;
-            var offset = (particle.HitboxOffsetPosition * extent) - (extent * 0.5f);
-            var speed = particleSystemState.Random.NextBetween(velocityMin, velocityMax);
-            var direction = ParticleMath.NormalizeWithEpsilon(offset);
+            var hitboxIndices = run.ReadIntegers(ParticleField.HitboxIndex);
+            var hitboxOffsets = run.ReadVectors(ParticleField.HitboxOffsetPosition);
+            var previousPositions = run.Vectors(ParticleField.PositionPrevious);
 
-            particle.PositionPrevious += direction * speed * particles.PreviousFrameTime;
-            return particle;
+            for (var i = 0; i < previousPositions.Length; i++)
+            {
+                var hitboxIndex = hitboxIndices[i];
+
+                if ((uint)hitboxIndex >= (uint)cache.Count)
+                {
+                    continue;
+                }
+
+                var box = cache.Current[hitboxIndex];
+                var extent = box.Maxs - box.Mins;
+                var offset = (hitboxOffsets[i] * extent) - (extent * 0.5f);
+                var speed = particleSystemState.Random.NextBetween(velocityMin, velocityMax);
+                var direction = ParticleMath.NormalizeWithEpsilon(offset);
+
+                previousPositions[i] += direction * speed * particleSystemState.PreviousStep;
+            }
         }
     }
 }

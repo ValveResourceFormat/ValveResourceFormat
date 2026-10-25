@@ -14,15 +14,36 @@ namespace ValveResourceFormat.Particles.Initializers
             controlPoint = parse.Int32("m_nControlPoint", controlPoint);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Radius);
+        public override ulong WrittenFields => ParticleField.Radius.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
+        {
+            FillRadii(run, particleSystemState);
+
+            // An unused random draw per particle
+            for (var i = 0; i < run.Length; i++)
+            {
+                _ = particleSystemState.Random.Next();
+            }
+        }
+
+        protected override void InitializeBlocks(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
+        {
+            FillRadii(run, particleSystemState);
+
+            // An unused draw from the thread generator per block of four
+            foreach (var block in run.Blocks())
+            {
+                particleSystemState.ThreadRandom.Next();
+            }
+        }
+
+        private void FillRadii(ParticleSpan run, ParticleSystemState particleSystemState)
         {
             var scale = particleSystemState.GetControlPoint(controlPoint).ResolveModelObject()?.Transform.MaxAxisScale() ?? 1f;
-            particle.Radius = scale * GetOperatorRunStrength(particleSystemState);
+            var strength = GetOperatorRunStrength(particleSystemState);
 
-            _ = particleSystemState.Random.Next();
-            return particle;
+            run.Floats(ParticleField.Radius).Fill(scale * strength);
         }
     }
 }

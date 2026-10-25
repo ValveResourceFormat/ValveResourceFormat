@@ -40,9 +40,11 @@ namespace ValveResourceFormat.Particles.Operators
                 return;
             }
 
+            var current = particles.Current;
+
             for (var k = 0; k < count; k++)
             {
-                particleSystemState.SetControlPointValue(binding.FirstControlPoint + k, particles.Current[binding.FirstSourcePoint + k].Position);
+                particleSystemState.SetControlPointValue(binding.FirstControlPoint + k, current.ReadVector(ParticleField.Position, binding.FirstSourcePoint + k));
             }
         }
     }

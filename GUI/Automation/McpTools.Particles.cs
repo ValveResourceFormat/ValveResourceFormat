@@ -163,19 +163,19 @@ internal sealed partial class McpTools
         };
     }
 
-    private static object AverageParticle(ReadOnlySpan<Particle> particles, Matrix4x4 toViewerWorld)
+    private static object AverageParticle(ParticleSpan particles, Matrix4x4 toViewerWorld)
     {
         var color = Vector3.Zero;
         var alpha = 0f;
         var radius = 0f;
         var position = Vector3.Zero;
 
-        foreach (var particle in particles)
+        for (var i = 0; i < particles.Length; i++)
         {
-            color += particle.Color;
-            alpha += particle.Alpha;
-            radius += particle.Radius;
-            position += particle.Position;
+            color += particles.ReadVector(ParticleField.Color, i);
+            alpha += particles.ReadFloat(ParticleField.Alpha, i);
+            radius += particles.ReadFloat(ParticleField.Radius, i);
+            position += particles.ReadVector(ParticleField.Position, i);
         }
 
         var count = particles.Length;

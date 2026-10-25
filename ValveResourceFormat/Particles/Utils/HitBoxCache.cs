@@ -346,7 +346,7 @@ namespace ValveResourceFormat.Particles.Utils
                 boundsTime = UpdateTime;
                 bounds = new AABB(new Vector3(float.MaxValue), new Vector3(float.MinValue));
 
-                foreach (var box in Current)
+                foreach (ref readonly var box in Current)
                 {
                     for (var corner = 0; corner < 8; corner++)
                     {
@@ -363,7 +363,7 @@ namespace ValveResourceFormat.Particles.Utils
                 return inBounds;
             }
 
-            foreach (var box in Current)
+            foreach (ref readonly var box in Current)
             {
                 if (new AABB(box.Mins, box.Maxs).Contains(box.InverseTransformPoint(point)))
                 {
@@ -405,7 +405,7 @@ namespace ValveResourceFormat.Particles.Utils
 
             for (var i = first; i <= last; i++)
             {
-                var box = current[i];
+                ref readonly var box = ref current[i];
 
                 if (!closestPoint)
                 {

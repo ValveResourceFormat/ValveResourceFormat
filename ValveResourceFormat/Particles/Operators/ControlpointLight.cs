@@ -71,6 +71,9 @@ namespace ValveResourceFormat.Particles.Operators
             lights = [.. authored];
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Color.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             Span<Vector3> positions = stackalloc Vector3[lights.Length];
@@ -87,19 +90,24 @@ namespace ValveResourceFormat.Particles.Operators
                 cutoffs[i] = light.Falloff.CutoffFor(colors[i]);
             }
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var particleColors = current.Vectors(ParticleField.Color);
+            var particlePositions = current.ReadVectors(ParticleField.Position);
+
+            for (var p = 0; p < particleColors.Length; p++)
             {
-                var color = particle.Color;
+                var color = particleColors[p];
+                var particlePosition = particlePositions[p];
                 var lit = color * initialColorBias;
 
                 for (var i = 0; i < lights.Length; i++)
                 {
-                    var toLight = positions[i] - particle.Position;
+                    var toLight = positions[i] - particlePosition;
                     var intensity = lights[i].Falloff.Evaluate(toLight.LengthSquared(), cutoffs[i]);
 
                     if (useNormal)
                     {
-                        var fromLight = particle.Position - positions[i];
+                        var fromLight = particlePosition - positions[i];
                         var normal = fromLight / MathF.Sqrt(MathF.Max(fromLight.LengthSquared(), ParticleMath.FloatEpsilon));
                         intensity *= MathF.Max(0f, Vector3.Dot(normal, MathUtils.SafeNormalize(toLight)));
                     }
@@ -109,7 +117,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                 // A NaN sum takes the lower bound, so the particle turns black or keeps its color under m_bClampLowerRange.
                 lit = MaxOrSecond(lit, clampLowerRange ? color : Vector3.Zero);
-                particle.Color = Vector3.Min(lit, clampUpperRange ? color : Vector3.One);
+                particleColors[p] = Vector3.Min(lit, clampUpperRange ? color : Vector3.One);
             }
         }
 
@@ -120,8 +128,6 @@ namespace ValveResourceFormat.Particles.Operators
         /// <summary>A light's distance falloff, <c>1 / (constant + linear*d + quadratic*d^2)</c>.</summary>
         private readonly record struct Falloff(float Constant, float Linear, float Quadratic)
         {
-            private static readonly Vector3 LuminanceWeights = new(0.21259999f, 0.71520001f, 0.0722f);
-
             /// <summary>
             /// A distance past which the light is cut off and the intensity subtracted so it reaches
             /// zero there, both zero when the light has none.
@@ -160,7 +166,7 @@ namespace ValveResourceFormat.Particles.Operators
                 }
 
                 var range = 0f;
-                var luminance = Vector3.Dot(color, LuminanceWeights);
+                var luminance = Vector3.Dot(color, ParticleMath.LuminanceWeights);
 
                 if (luminance > 0f)
                 {

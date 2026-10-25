@@ -19,9 +19,9 @@ namespace ValveResourceFormat.Particles.Initializers
             localCoords = parse.Boolean("m_bLocalCoords", localCoords);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious);
+        public override ulong WrittenFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var end = particleSystemState.GetControlPoint(controlPointNumberEnd);
             var offset = end.Position - particleSystemState.GetControlPoint(controlPointNumberStart).Position;
@@ -31,10 +31,14 @@ namespace ValveResourceFormat.Particles.Initializers
                 offset = Vector3.TransformNormal(offset, end.GetRotationMatrix());
             }
 
-            particle.Position += offset;
-            particle.PositionPrevious += offset;
+            var positions = run.Vectors(ParticleField.Position);
+            var previousPositions = run.Vectors(ParticleField.PositionPrevious);
 
-            return particle;
+            for (var i = 0; i < positions.Length; i++)
+            {
+                positions[i] += offset;
+                previousPositions[i] += offset;
+            }
         }
     }
 }

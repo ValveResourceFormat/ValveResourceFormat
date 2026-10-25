@@ -24,6 +24,9 @@ namespace ValveResourceFormat.Particles.Operators
             animationTimeScale = parse.Float("m_flNoiseAnimationTimeScale", animationTimeScale);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var min = outputMin.NextNumber(particleSystemState);
@@ -45,20 +48,26 @@ namespace ValveResourceFormat.Particles.Operators
                 valueBase *= frameTime;
             }
 
-            var setMethod = additive ? ParticleSetMethod.PARTICLE_SET_ADD_TO_CURRENT_VALUE : ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
-
             // The animation time offset moves the sample point along X only.
             var timeOffset = animationTimeScale * particleSystemState.Age;
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(outputField))
             {
-                var samplePoint = particle.Position * noiseScale;
-                var noiseValue = Utils.Noise.Value3D(samplePoint.X + timeOffset, samplePoint.Y, samplePoint.Z);
+                return;
+            }
 
-                var finalValue = valueBase + valueScale * noiseValue;
-                finalValue = particle.ModifyScalarBySetMethod(particles, outputField, finalValue, setMethod);
+            var current = particles.Current;
+            var positions = current.ReadVectors(ParticleField.Position);
+            var values = current.Floats(outputField);
 
-                particle.SetScalar(outputField, finalValue);
+            for (var i = 0; i < values.Length; i++)
+            {
+                var position = positions[i];
+
+                var noise = Utils.Noise.Value3D((position.X * noiseScale) + timeOffset, position.Y * noiseScale, position.Z * noiseScale);
+                var value = valueBase + (valueScale * noise);
+
+                values[i] = additive ? values[i] + value : value;
             }
         }
     }

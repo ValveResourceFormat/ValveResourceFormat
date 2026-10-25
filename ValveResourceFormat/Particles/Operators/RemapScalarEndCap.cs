@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Particles.Operators
             outputMin = parse.Float("m_flOutputMin", outputMin);
             outputMax = parse.Float("m_flOutputMax", outputMax);
 
-            if (outputField is ParticleField.Alpha or ParticleField.AlphaAlternate)
+            if (outputField.IsAlpha())
             {
                 outputMin = MathUtils.Saturate(outputMin);
                 outputMax = MathUtils.Saturate(outputMax);
@@ -36,9 +36,8 @@ namespace ValveResourceFormat.Particles.Operators
             hasRun = false;
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-        }
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -49,12 +48,20 @@ namespace ValveResourceFormat.Particles.Operators
 
             hasRun = true;
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(outputField))
             {
-                // A degenerate input range is a threshold, inclusive on the high side
-                var remapped = MathUtils.RemapValClamped(particle.GetScalar(inputField), inputMin, inputMax, outputMin, outputMax);
+                return;
+            }
 
-                particle.SetScalar(outputField, MathUtils.Lerp(particle.GetScalar(outputField), remapped, strength));
+            var current = particles.Current;
+            var inputs = current.ReadFloats(inputField);
+            var outputs = current.Floats(outputField);
+
+            for (var i = 0; i < outputs.Length; i++)
+            {
+                var remapped = MathUtils.RemapValClamped(inputs[i], inputMin, inputMax, outputMin, outputMax);
+
+                outputs[i] = MathUtils.Lerp(outputs[i], remapped, strength);
             }
         }
     }

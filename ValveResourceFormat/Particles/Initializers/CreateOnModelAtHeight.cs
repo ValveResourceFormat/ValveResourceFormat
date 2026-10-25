@@ -53,64 +53,72 @@ namespace ValveResourceFormat.Particles.Initializers
         }
 
         public override ulong WrittenFields
-            => FieldMask(ParticleField.Position) | FieldMask(ParticleField.LifeDuration) | FieldMask(ParticleField.PositionPrevious)
-                | FieldMask(ParticleField.HitboxIndex) | FieldMask(ParticleField.HitboxOffsetPosition);
+            => ParticleField.Position.Mask() | ParticleField.LifeDuration.Mask() | ParticleField.PositionPrevious.Mask()
+                | ParticleField.HitboxIndex.Mask() | ParticleField.HitboxOffsetPosition.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var cache = HitBoxCache.Refresh(particleSystemState, controlPoint, hitboxSetName, useBones);
             var point = particleSystemState.GetControlPoint(controlPoint);
             var height = (heightControlPoint >= 0 ? particleSystemState.GetControlPoint(heightControlPoint).Position.Z : point.Position.Z)
-                + desiredHeight.NextNumber(ref particle, particleSystemState);
-            var scale = hitBoxScale.NextVector(ref particle, particleSystemState);
-            var bias = directionBias.NextVector(ref particle, particleSystemState);
+                + desiredHeight.NextNumber(particleSystemState);
+            var scale = hitBoxScale.NextVector(particleSystemState);
+            var bias = directionBias.NextVector(particleSystemState);
 
             if (localCoords)
             {
                 bias = Vector3.TransformNormal(bias, point.GetBasisAtTime(particleSystemState.Age));
             }
 
-            var velocityScale = hitboxVelocityScale.NextNumber(ref particle, particleSystemState);
-            var maxVelocity = maxBoneVelocity.NextNumber(ref particle, particleSystemState);
+            var velocityScale = hitboxVelocityScale.NextNumber(particleSystemState);
+            var maxVelocity = maxBoneVelocity.NextNumber(particleSystemState);
 
-            if (cache == null || !TryPick(cache, particleSystemState, point.Position, height, scale, bias, out var position, out var fraction, out var index))
+            var positions = run.Vectors(ParticleField.Position);
+            var lifetimes = run.Floats(ParticleField.LifeDuration);
+            var previous = SpawnPreviousPositions(run, particleSystemState);
+            var hitboxOffsets = UnwrittenVectors(run, particleSystemState, ParticleField.HitboxOffsetPosition);
+            var hitboxIndices = UnwrittenIntegers(run, particleSystemState, ParticleField.HitboxIndex);
+
+            for (var i = 0; i < run.Length; i++)
             {
-                particle.Lifetime = 0f;
-                return particle;
-            }
-
-            particle.Position = forceZ ? position with { Z = height } : position;
-
-            if (IsUnwritten(particleSystemState, ParticleField.HitboxOffsetPosition))
-            {
-                particle.HitboxOffsetPosition = fraction;
-            }
-
-            if (IsUnwritten(particleSystemState, ParticleField.HitboxIndex))
-            {
-                particle.HitboxIndex = index;
-            }
-
-            if (!IsUnwritten(particleSystemState, ParticleField.PositionPrevious))
-            {
-                return particle;
-            }
-
-            particle.PositionPrevious = particle.Position;
-
-            if (velocityScale != 0f && cache.BoxVelocity(index) is { } velocity)
-            {
-                velocity *= velocityScale;
-
-                if (maxVelocity > 0f)
+                if (cache == null || !TryPick(cache, particleSystemState, point.Position, height, scale, bias, out var position, out var fraction, out var index))
                 {
-                    velocity = MathUtils.ClampLength(velocity, maxVelocity);
+                    lifetimes[i] = 0f;
+                    continue;
                 }
 
-                particle.PositionPrevious = particle.Position - (velocity * particles.CurrentFrameTime);
-            }
+                var placed = forceZ ? position with { Z = height } : position;
+                positions[i] = placed;
 
-            return particle;
+                if (!hitboxOffsets.IsEmpty)
+                {
+                    hitboxOffsets[i] = fraction;
+                }
+
+                if (!hitboxIndices.IsEmpty)
+                {
+                    hitboxIndices[i] = index;
+                }
+
+                if (previous.IsEmpty)
+                {
+                    continue;
+                }
+
+                previous[i] = placed;
+
+                if (velocityScale != 0f && cache.BoxVelocity(index) is { } velocity)
+                {
+                    velocity *= velocityScale;
+
+                    if (maxVelocity > 0f)
+                    {
+                        velocity = MathUtils.ClampLength(velocity, maxVelocity);
+                    }
+
+                    previous[i] = placed - (velocity * particleSystemState.CurrentStep);
+                }
+            }
         }
 
         private bool TryPick(HitBoxCache cache, ParticleSystemState particleSystemState, Vector3 origin, float height, Vector3 scale, Vector3 bias,

@@ -58,6 +58,9 @@ namespace ValveResourceFormat.Particles.Operators
                 : parse.Int32(key, 0);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var baseValue = startValue;
@@ -74,18 +77,28 @@ namespace ValveResourceFormat.Particles.Operators
 
             var normalize = fieldOutput == ParticleField.Normal;
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsVector(fieldOutput))
+            {
+                return;
+            }
+
+            var current = particles.Current;
+            var outputs = current.Vectors(fieldOutput);
+            var inputs1 = inputScale1 != 0f ? current.ReadVectors(fieldInput1) : default;
+            var inputs2 = inputScale2 != 0f ? current.ReadVectors(fieldInput2) : default;
+
+            for (var i = 0; i < outputs.Length; i++)
             {
                 var value = baseValue;
 
                 if (inputScale1 != 0f)
                 {
-                    value += inputScale1 * particle.GetVector(fieldInput1);
+                    value += inputScale1 * inputs1[i];
                 }
 
                 if (inputScale2 != 0f)
                 {
-                    value += inputScale2 * particle.GetVector(fieldInput2);
+                    value += inputScale2 * inputs2[i];
                 }
 
                 value *= finalOutputScale;
@@ -96,7 +109,7 @@ namespace ValveResourceFormat.Particles.Operators
                     value /= MathF.Sqrt(lengthSquared < ParticleMath.FloatMin ? ParticleMath.FloatEpsilon : lengthSquared);
                 }
 
-                particle.SetVector(fieldOutput, value);
+                outputs[i] = value;
             }
         }
     }

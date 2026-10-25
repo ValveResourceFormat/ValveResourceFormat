@@ -14,6 +14,12 @@ namespace ValveResourceFormat.Particles
         /// <summary>The highest control point index a system holds.</summary>
         public const int MaxControlPoint = 63;
 
+        /// <summary>
+        /// How many control points a system holds. Functions clamp control point parameters to it, so
+        /// the top of that range reads an unbound point.
+        /// </summary>
+        public const int ControlPointCount = MaxControlPoint + 1;
+
         /// <summary>A state with no system behind it, read by functions evaluated outside a running system.</summary>
         public static readonly ParticleSystemState Default = new();
 
@@ -65,15 +71,73 @@ namespace ValveResourceFormat.Particles
 
         /// <summary>
         /// This system's access to the shared random table. Every random value the system produces
-        /// comes from here.
+        /// comes from here, except the draws taken from <see cref="ThreadRandom"/>.
         /// </summary>
         internal ParticleRandom Random { get; } = new();
+
+        /// <summary>
+        /// The generator the functions of this system draw from when they do not use the shared
+        /// random table.
+        /// </summary>
+        internal ThreadRandom ThreadRandom { get; } = new();
 
         /// <summary>
         /// Whether the system is running its initializers over new particles. Inputs that read a
         /// particle's initial value read its current one meanwhile, and particle numbers count spawns.
         /// </summary>
         internal bool InitializingParticles { get; set; }
+
+        /// <summary>While initializers run, the collection index of the first particle of the batch.</summary>
+        internal int InitializedFirst { get; set; }
+
+        /// <summary>
+        /// While an initializer runs, the collection index the batch ends at, else 0. A varying input
+        /// evaluated up to the end of the batch's whole blocks of four goes on drawing for the block of
+        /// the batch's remaining particles, which the call that initializes them draws again.
+        /// </summary>
+        internal int InitializerBatchEnd { get; set; }
+
+        /// <summary>While an initializer runs, the collection index the particles of its current call end at, else 0.</summary>
+        internal int InitializerRunEnd { get; set; }
+
+        /// <summary>
+        /// The particles the float inputs of a vector input are evaluated over to fill <paramref name="particles"/>:
+        /// a fill that reaches the end of an initializer call goes on to the end of the batch, drawing for
+        /// the blocks of the particles the later calls initialize.
+        /// </summary>
+        internal ParticleSpan VectorInputParticles(ParticleSpan particles)
+        {
+            var end = particles.Start + particles.Length;
+
+            if (end != InitializerRunEnd || InitializerBatchEnd <= end)
+            {
+                return particles;
+            }
+
+            return particles.WithEnd(InitializerBatchEnd);
+        }
+
+        /// <summary>
+        /// While initializers run, what <see cref="SpawnIndex"/> adds to a particle's index: the particles
+        /// the system's emitters created in earlier frames, less <see cref="InitializedFirst"/>.
+        /// </summary>
+        internal int SpawnIndexBase { get; set; }
+
+        /// <summary>
+        /// While initializers run, what <see cref="ParticleNumber"/> adds to a particle's index:
+        /// <see cref="SpawnIndexBase"/> plus the particles created earlier in the same emission pass.
+        /// </summary>
+        internal int ParticleNumberBase { get; set; }
+
+        /// <summary>
+        /// Gets the spawn index of a particle being initialized, which sequential and evenly distributed
+        /// placement count from: the particles the emitters created in earlier frames plus its place in
+        /// the batch.
+        /// </summary>
+        internal int SpawnIndex(int index) => SpawnIndexBase + index;
+
+        /// <summary>Gets the particle number a particle being initialized reads, its spawn index counting this emission pass too.</summary>
+        internal int ParticleNumber(int index) => ParticleNumberBase + index;
 
         /// <summary>
         /// While initializers run, the <see cref="ParticleField"/> bit mask of the attributes the
@@ -82,17 +146,17 @@ namespace ValveResourceFormat.Particles
         internal ulong InitializedFields { get; set; }
 
         /// <summary>
-        /// The state <paramref name="particle"/> was left in by its initializers, or the particle itself
-        /// while they still run or when no running system holds it.
+        /// The state <paramref name="particles"/> were left in by their initializers, matched by index, or
+        /// the particles themselves while initializers still run or when no running system holds them.
         /// </summary>
-        internal ref Particle InitialOf(ref Particle particle)
+        internal ParticleSpan InitialOf(ParticleSpan particles)
         {
-            if (InitializingParticles || Data == null || (uint)particle.Index >= (uint)Data.Particles.Count)
+            if (InitializingParticles || Data == null || particles.Start + particles.Length > Data.Particles.Count)
             {
-                return ref particle;
+                return particles;
             }
 
-            return ref Data.Particles.Initial[particle.Index];
+            return Data.Particles.Initial.Slice(particles.Start, particles.Length);
         }
 
         /// <summary>How many particles the system currently holds.</summary>
@@ -103,6 +167,9 @@ namespace ValveResourceFormat.Particles
         /// <see cref="float.MinValue"/> for an endcap child until its parent's endcap starts it.
         /// </summary>
         public float Age { get; set; }
+
+        /// <summary>Gets <see cref="Age"/>, or 0 for an endcap child that has not started.</summary>
+        public float StartedAge => Age == float.MinValue ? 0f : Age;
 
         /// <summary>
         /// Multiplies every frame time handed to <see cref="ParticleSystemSimulation.Update"/>, 1 by
@@ -127,6 +194,12 @@ namespace ValveResourceFormat.Particles
         /// whole frame time once a frame is done.
         /// </summary>
         internal float PreviousStep { get; set; } = 0.05f;
+
+        /// <summary>
+        /// Scales <paramref name="value"/> by the inverse of <see cref="PreviousStep"/>, turning a
+        /// displacement over that step into a rate per second.
+        /// </summary>
+        internal float PerPreviousSecond(float value) => value / MathF.Max(1e-20f, PreviousStep);
 
         /// <summary>The <see cref="Age"/> the fade window of every function is measured from, set by a restart.</summary>
         internal float OperatorTimeBase { get; set; }
@@ -214,7 +287,7 @@ namespace ValveResourceFormat.Particles
 
         // Control Points
 
-        private readonly ControlPoint?[] controlPoints = new ControlPoint?[MaxControlPoint + 1];
+        private readonly ControlPoint?[] controlPoints = new ControlPoint?[ControlPointCount];
 
         private Dictionary<int, ControlPoint.SavedState>? functionWrites;
         private int? highestBeforeFunctionWrites;

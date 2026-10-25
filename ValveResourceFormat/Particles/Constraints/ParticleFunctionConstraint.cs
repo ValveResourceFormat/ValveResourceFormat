@@ -13,14 +13,6 @@ namespace ValveResourceFormat.Particles.Constraints
         {
         }
 
-        /// <summary>Drops any state the constraint captured from the particles it has seen so far.</summary>
-        public virtual void Reset()
-        {
-        }
-
-        /// <summary>Called when the system restarts; drops the captured state unless overridden.</summary>
-        public virtual void Restart(ParticleSystemState particleSystemState) => Reset();
-
         /// <summary>
         /// Whether the constraint runs once after the relaxation passes of the other constraints
         /// instead of taking part in them.

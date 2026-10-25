@@ -19,6 +19,7 @@ namespace ValveResourceFormat.Particles.Operators
         private readonly INumberProvider distance = new LiteralNumberProvider(1024f);
         private readonly IVectorProvider scale = new LiteralVectorProvider(Vector3.One);
         private readonly ParticleField distanceSquaredField = ParticleField.NoneDisabled;
+        private readonly ulong storedFields;
 
         public MovementLoopInsideSphere(ParticleDefinitionParser parse) : base(parse)
         {
@@ -26,7 +27,17 @@ namespace ValveResourceFormat.Particles.Operators
             distance = parse.CollectionNumberProvider("m_flDistance", distance);
             scale = parse.CollectionVectorProvider("m_vecScale", scale);
             distanceSquaredField = parse.ParticleField("m_nDistSqrAttr", distanceSquaredField);
+
+            storedFields = ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask();
+
+            if (distanceSquaredField != ParticleField.NoneDisabled)
+            {
+                storedFields |= distanceSquaredField.Mask();
+            }
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => storedFields;
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -38,33 +49,42 @@ namespace ValveResourceFormat.Particles.Operators
             var center = point.Position;
             var move = center - point.PositionPrevious;
 
+            var current = particles.Current;
+            var positions = current.Vectors(ParticleField.Position);
+            var previousPositions = current.Vectors(ParticleField.PositionPrevious);
+
             if ((axisScale * move).LengthSquared() > radiusSquared)
             {
-                foreach (ref var particle in particles.Current)
-                {
-                    var carried = move * (MathF.Min(particle.Age, frameTime) / frameTime);
+                var ages = current.ReadAges();
 
-                    particle.Position += carried;
-                    particle.PositionPrevious += carried;
+                for (var i = 0; i < positions.Length; i++)
+                {
+                    var carried = move * (MathF.Min(ages[i], frameTime) / frameTime);
+
+                    positions[i] += carried;
+                    previousPositions[i] += carried;
                 }
 
                 return;
             }
 
-            foreach (ref var particle in particles.Current)
+            var writeDistanceSquared = distanceSquaredField != ParticleField.NoneDisabled && ParticleBuffer.IsScalar(distanceSquaredField);
+            var distanceSquaredValues = writeDistanceSquared ? current.Floats(distanceSquaredField) : default;
+
+            for (var i = 0; i < positions.Length; i++)
             {
-                var offset = particle.Position - center;
+                var offset = positions[i] - center;
                 var distanceSquared = (axisScale * offset).LengthSquared();
 
-                if (distanceSquaredField != ParticleField.NoneDisabled)
+                if (writeDistanceSquared)
                 {
-                    particle.SetScalar(distanceSquaredField, distanceSquared);
+                    distanceSquaredValues[i] = distanceSquared;
                 }
 
                 if (radiusSquared < distanceSquared)
                 {
-                    particle.Position -= WrapDistance * offset;
-                    particle.PositionPrevious -= WrapDistance * offset;
+                    positions[i] -= WrapDistance * offset;
+                    previousPositions[i] -= WrapDistance * offset;
                 }
             }
         }

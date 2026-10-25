@@ -300,7 +300,7 @@ namespace ValveResourceFormat.Particles.Emitters
             var now = state.Age;
             var from = now - time;
 
-            if (duration != 0f || !steadyRateCanBePositive)
+            if (IsFinite)
             {
                 from = MathF.Max(start, from);
             }

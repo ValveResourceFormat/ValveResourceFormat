@@ -34,39 +34,60 @@ namespace ValveResourceFormat.Particles.Initializers
             transformInput = parse.TransformInput("m_TransformInput", new IdentityTransformProvider());
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.PositionPrevious);
+        public override ulong WrittenFields => ParticleField.PositionPrevious.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var noiseScale = this.noiseScale.NextNumber(ref particle, particleSystemState);
-            var noiseScaleLoc = this.noiseScaleLoc.NextNumber(ref particle, particleSystemState);
-            var offsetLoc = this.offsetLoc.NextVector(ref particle, particleSystemState);
-            var offset = this.offset.NextNumber(ref particle, particleSystemState);
+            InitializeRun(run, run, particleSystemState);
+        }
 
-            // The noise coordinate is spatial (particle creation position) plus a time term, so
-            // particles emitted the same tick at different positions get decorrelated velocities.
-            var samplePosition = ((particle.Position + offsetLoc) * noiseScaleLoc)
-                + new Vector3((particle.CreationTime + offset) * noiseScale);
-            var noise = new Vector3(
-                Noise.Value3D(samplePosition),
-                Noise.Value3D(samplePosition + new Vector3(100000.5f, 300000.25f, 9000001f)),
-                Noise.Value3D(samplePosition + new Vector3(110000.25f, 310000.75f, 9100000f)));
+        protected override void InitializeBlocks(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
+        {
+            // The inputs are evaluated for every live particle, and each particle of the run reads its own value
+            InitializeRun(run, particles.Current, particleSystemState);
+        }
 
-            var min = outputMin.NextVector(ref particle, particleSystemState);
-            var max = outputMax.NextVector(ref particle, particleSystemState);
+        /// <summary>Initializes <paramref name="run"/> with the inputs set up over <paramref name="evaluated"/>, which contains it.</summary>
+        private void InitializeRun(ParticleSpan run, ParticleSpan evaluated, ParticleSystemState particleSystemState)
+        {
+            var offsetLocs = offsetLoc.Prepare(run, evaluated, particleSystemState);
+            var mins = outputMin.Prepare(run, evaluated, particleSystemState);
+            var maxs = outputMax.Prepare(run, evaluated, particleSystemState);
 
+            var offsets = offset.Fill(run, evaluated, particleSystemState);
+            var noiseScales = noiseScale.Fill(run, evaluated, particleSystemState);
+            var noiseScaleLocs = noiseScaleLoc.Fill(run, evaluated, particleSystemState);
+
+            run.FillPerBlockInputs(particleSystemState, offsetLoc, offsetLocs, outputMin, mins, outputMax, maxs);
+
+            var positions = run.ReadVectors(ParticleField.Position);
+            var creationTimes = run.ReadFloats(ParticleField.CreationTime);
+            var previousPositions = run.Vectors(ParticleField.PositionPrevious);
             var anyInverted = absValInv != Vector3.Zero;
-            var velocity = new Vector3(
-                MapComponent(noise.X, absVal.X != 0f, absValInv.X != 0f, anyInverted, min.X, max.X),
-                MapComponent(noise.Y, absVal.Y != 0f, absValInv.Y != 0f, anyInverted, min.Y, max.Y),
-                MapComponent(noise.Z, absVal.Z != 0f, absValInv.Z != 0f, anyInverted, min.Z, max.Z));
 
-            var transform = transformInput.NextTransformAtTime(ref particle, particleSystemState, particle.CreationTime);
-            var transformed = Vector3.TransformNormal(velocity, transform);
+            for (var i = 0; i < previousPositions.Length; i++)
+            {
+                // The noise coordinate is spatial (particle creation position) plus a time term, so
+                // particles emitted the same tick at different positions get decorrelated velocities.
+                var samplePosition = ((positions[i] + offsetLocs[i]) * noiseScaleLocs[i])
+                    + new Vector3((creationTimes[i] + offsets[i]) * noiseScales[i]);
+                var noise = new Vector3(
+                    Noise.Value3D(samplePosition),
+                    Noise.Value3D(samplePosition + new Vector3(100000.5f, 300000.25f, 9000001f)),
+                    Noise.Value3D(samplePosition + new Vector3(110000.25f, 310000.75f, 9100000f)));
 
-            AddVelocity(ref particle, particles, transformed, ignoreDt);
+                var min = mins[i];
+                var max = maxs[i];
+                var velocity = new Vector3(
+                    MapComponent(noise.X, absVal.X != 0f, absValInv.X != 0f, anyInverted, min.X, max.X),
+                    MapComponent(noise.Y, absVal.Y != 0f, absValInv.Y != 0f, anyInverted, min.Y, max.Y),
+                    MapComponent(noise.Z, absVal.Z != 0f, absValInv.Z != 0f, anyInverted, min.Z, max.Z));
 
-            return particle;
+                var transform = transformInput.NextTransformAtTime(particleSystemState, creationTimes[i]);
+                var transformed = Vector3.TransformNormal(velocity, transform);
+
+                previousPositions[i] -= VelocityStep(particleSystemState, transformed, ignoreDt);
+            }
         }
 
         /// <summary>

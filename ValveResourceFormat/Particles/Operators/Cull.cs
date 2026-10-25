@@ -26,7 +26,11 @@ namespace ValveResourceFormat.Particles.Operators
         {
             var chance = strength * cullPercentage;
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var ages = current.ReadAges();
+            var lifetimes = current.ReadFloats(ParticleField.LifeDuration);
+
+            for (var i = 0; i < current.Length; i++)
             {
                 // Both draws are taken for every particle, whether or not it goes on to be culled
                 var cullChance = particleSystemState.Random.Next();
@@ -37,11 +41,11 @@ namespace ValveResourceFormat.Particles.Operators
                     continue;
                 }
 
-                var age = ParticleMath.ClampToUnit(particle.Age / particle.Lifetime);
+                var age = ParticleMath.ClampToUnit(ages[i] / lifetimes[i]);
 
                 if (age >= cullStart && cullEnd >= age && age >= cullTime)
                 {
-                    KillCulled(ref particle, particles, particleSystemState);
+                    KillCulled(particles, i, particleSystemState);
                 }
             }
         }

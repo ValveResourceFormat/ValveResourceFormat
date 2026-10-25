@@ -21,15 +21,7 @@ namespace ValveResourceFormat.Particles.Operators
             planeOffset = parse.Float("m_flPlaneOffset", planeOffset);
             localSpace = parse.Boolean("m_bLocalSpace", localSpace);
         }
-        private bool CulledByPlane(Vector3 position, Vector3 planeNormal, ParticleSystemState particleSystemState)
-        {
-            var pointOnPlane = particleSystemState.GetControlPoint(cp).Position;
 
-            pointOnPlane -= (planeNormal * planeOffset);
-
-            var sign = Vector3.Dot(planeNormal, position - pointOnPlane);
-            return sign < 0;
-        }
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var direction = planeDirection.NextVector(particleSystemState);
@@ -46,11 +38,18 @@ namespace ValveResourceFormat.Particles.Operators
 
             var planeNormal = MathUtils.SafeNormalize(direction);
 
-            foreach (ref var particle in particles.Current)
+            var pointOnPlane = particleSystemState.GetControlPoint(cp).Position;
+            pointOnPlane -= planeNormal * planeOffset;
+
+            var positions = particles.Current.ReadVectors(ParticleField.Position);
+
+            for (var i = 0; i < positions.Length; i++)
             {
-                if (CulledByPlane(particle.Position, planeNormal, particleSystemState))
+                var sign = Vector3.Dot(planeNormal, positions[i] - pointOnPlane);
+
+                if (sign < 0)
                 {
-                    KillCulled(ref particle, particles, particleSystemState);
+                    KillCulled(particles, i, particleSystemState);
                 }
             }
         }

@@ -1,3 +1,4 @@
+using System.Numerics.Tensors;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.Particles.Utils;
 
@@ -16,7 +17,10 @@ namespace ValveResourceFormat.Particles
         /// Attributes counted as written before the first initializer runs when an emitter creates the
         /// particles: all four emitters set the creation time.
         /// </summary>
-        private const ulong EmittedWrittenFields = 1UL << (int)ParticleField.CreationTime;
+        private static readonly ulong EmittedWrittenFields = ParticleField.CreationTime.Mask();
+
+        /// <summary>The attributes that link a child particle to its parent particle.</summary>
+        private static readonly ulong ParentLinkFields = ParticleField.ParentParticleId.Mask() | ParticleField.ParentParticleIndex.Mask();
 
         private readonly List<int> eventIndices = [];
         private readonly Dictionary<int, int> indexById = [];
@@ -169,11 +173,15 @@ namespace ValveResourceFormat.Particles
 
             if (!emissionEndIsEnough)
             {
+                using var scratch = ParticleScratch.Scope();
                 var dying = 0;
+                var current = particleCollection.Current;
+                var creationTimes = current.Floats(ParticleField.CreationTime);
+                var lifetimes = current.ReadFloats(ParticleField.LifeDuration);
 
-                foreach (ref var particle in particleCollection.Current)
+                for (var i = 0; i < current.Length; i++)
                 {
-                    if (systemState.Age - particle.CreationTime + systemState.CurrentStep > particle.Lifetime)
+                    if (systemState.Age - creationTimes[i] + systemState.CurrentStep > lifetimes[i])
                     {
                         dying++;
                     }
@@ -201,7 +209,7 @@ namespace ValveResourceFormat.Particles
 
         /// <summary>
         /// Replays the system from scratch, as if it had just been created, discarding the particles
-        /// still alive first. As in the engine it keeps its seed, the draws run on and the control points
+        /// still alive first. It keeps its seed, the draws run on and the control points
         /// keep what functions wrote to them, unless a pinned seed (<see cref="PinRandomSeed"/>) starts the
         /// draws over and puts those control points back.
         /// </summary>
@@ -236,7 +244,9 @@ namespace ValveResourceFormat.Particles
                 childSimulation.Rewind();
             }
 
-            particlesEmitted = 0;
+            particlesCreated = 0;
+            particlesCreatedThisFrame = 0;
+            particlesCreatedThisStep = 0;
             preSimFrames = 0;
             firstFramePending = true;
             finishedBeforeStartAllowed = false;
@@ -256,8 +266,6 @@ namespace ValveResourceFormat.Particles
             systemState.RewindControlPointChanges();
             previousControlPointsValid = true;
             currentFrameTime = maximumTimeStep;
-            particleCollection.CurrentFrameTime = 0f;
-            particleCollection.PreviousFrameTime = FirstFrameStep;
 
             systemState.Random.RedrawInputSeeds();
             ResetFunctions();
@@ -284,34 +292,14 @@ namespace ValveResourceFormat.Particles
             }
             else
             {
-                systemState.OperatorTimeBase = systemState.Age == float.MinValue ? 0f : systemState.Age;
+                systemState.OperatorTimeBase = systemState.StartedAge;
             }
 
             systemState.InEndCap = false;
 
-            foreach (var preEmissionOperator in preEmissionOperators)
+            foreach (var function in functions)
             {
-                preEmissionOperator.Restart(systemState);
-            }
-
-            foreach (var emitter in emitters)
-            {
-                emitter.Restart(systemState);
-            }
-
-            foreach (var initializer in initializers)
-            {
-                initializer.Restart(systemState);
-            }
-
-            foreach (var particleOperator in operators)
-            {
-                particleOperator.Restart(systemState);
-            }
-
-            foreach (var constraint in constraints)
-            {
-                constraint.Restart(systemState);
+                function.Restart(systemState);
             }
 
             foreach (var childSimulation in childSimulations)
@@ -323,29 +311,9 @@ namespace ValveResourceFormat.Particles
         /// <summary>Builds the running state every function starts with.</summary>
         private void ResetFunctions()
         {
-            foreach (var preEmissionOperator in preEmissionOperators)
+            foreach (var function in functions)
             {
-                preEmissionOperator.Initialize(systemState);
-            }
-
-            foreach (var emitter in emitters)
-            {
-                emitter.Reset();
-            }
-
-            foreach (var initializer in initializers)
-            {
-                initializer.Initialize(systemState);
-            }
-
-            foreach (var particleOperator in operators)
-            {
-                particleOperator.Initialize(systemState);
-            }
-
-            foreach (var constraint in constraints)
-            {
-                constraint.Reset();
+                function.Initialize(systemState);
             }
         }
 
@@ -360,6 +328,7 @@ namespace ValveResourceFormat.Particles
             var root = systemState.Root;
             var wasRunning = root.FunctionsRunning;
             root.FunctionsRunning = true;
+            using var scratch = ParticleScratch.Scope();
 
             try
             {
@@ -416,6 +385,8 @@ namespace ValveResourceFormat.Particles
             {
                 UpdatePreviousControlPoints(systemState.PreviousStep);
             }
+
+            particlesCreatedThisFrame = 0;
 
             if (frameTime < MinimumFrameTime)
             {
@@ -477,6 +448,7 @@ namespace ValveResourceFormat.Particles
                 childSimulation.SimulateInternal(frameTime);
             }
 
+            particlesCreated += particlesCreatedThisFrame;
             UpdatePreviousControlPoints(frameTime);
             CalculateBounds();
 
@@ -500,8 +472,6 @@ namespace ValveResourceFormat.Particles
             systemState.CurrentStep = step;
 
             currentFrameTime = step;
-            particleCollection.CurrentFrameTime = step;
-            particleCollection.PreviousFrameTime = systemState.PreviousStep;
 
             if (overshoot)
             {
@@ -512,12 +482,8 @@ namespace ValveResourceFormat.Particles
                 particleCollection.ReleasePreviousStep();
             }
 
-            // Age is not stored by the engine, only derived, so recompute it from the creation
-            // stamp before operators read it; particles born later this step carry their own age
-            foreach (ref var particle in particleCollection.Current)
-            {
-                particle.Age = systemState.Age - particle.CreationTime;
-            }
+            // Ages are measured from the end of the step
+            particleCollection.Time = systemState.Age;
 
             // Each function that runs displaces the per-particle draws of the ones after it. emitters
             // and initializers inherit whatever the pre-emission walk left behind.
@@ -537,11 +503,15 @@ namespace ValveResourceFormat.Particles
                     continue;
                 }
 
-                preEmissionOperator.Operate(ref systemState, step, strength);
+                using (ParticleScratch.Scope())
+                {
+                    preEmissionOperator.Operate(systemState, step, strength);
+                }
+
                 systemState.Random.AdvanceOperatorOffset();
             }
 
-            EmitAndInit();
+            Emit(ParticleEventType.PARTICLE_EVENT_TYPE_MASK_NONE, null);
 
             systemState.Random.ResetOperatorOffset();
 
@@ -556,7 +526,11 @@ namespace ValveResourceFormat.Particles
                         continue;
                     }
 
-                    particleOperator.Operate(particleCollection, step, systemState, strength);
+                    using (ParticleScratch.Scope())
+                    {
+                        particleOperator.Operate(particleCollection, step, systemState, strength);
+                    }
+
                     ApplyKills();
 
                     if (particleCollection.Count == 0)
@@ -598,7 +572,11 @@ namespace ValveResourceFormat.Particles
 
                 if (strength > 0f)
                 {
-                    preEmissionOperator.Operate(ref systemState, systemState.CurrentStep, strength);
+                    using (ParticleScratch.Scope())
+                    {
+                        preEmissionOperator.Operate(systemState, systemState.CurrentStep, strength);
+                    }
+
                     UpdatePreviousControlPoints(FirstFrameStep);
                 }
 
@@ -619,7 +597,6 @@ namespace ValveResourceFormat.Particles
         private void UpdatePreviousControlPoints(float elapsed)
         {
             systemState.UpdatePreviousControlPoints(elapsed);
-            particleCollection.PreviousFrameTime = elapsed;
             previousControlPointsValid = true;
         }
 
@@ -700,39 +677,25 @@ namespace ValveResourceFormat.Particles
             }
         }
 
-        private void EmitAndInit()
-        {
-            foreach (var emitter in emitters)
-            {
-                if (emitter.EventTypeMask != ParticleEventType.PARTICLE_EVENT_TYPE_MASK_NONE)
-                {
-                    continue;
-                }
-
-                var strength = emitter.GetOperatorRunStrength(systemState);
-
-                if (strength <= 0.0f)
-                {
-                    continue;
-                }
-
-                var first = particleCollection.Count;
-                emitter.Emit(systemState, strength, addParticleAction);
-                InitializeNewParticles(first, particleCollection.Count - first, EmittedWrittenFields, emitter.EmitterIndex);
-            }
-        }
-
         /// <summary>
-        /// Runs the emitters listening for <paramref name="eventType"/> for an event the parent raised
-        /// on the particles at <paramref name="parentIndices"/>.
+        /// Runs the emitters and initializes what they create. With <see cref="ParticleEventType.PARTICLE_EVENT_TYPE_MASK_NONE"/>
+        /// these are the emitters that run every step; otherwise the ones listening for
+        /// <paramref name="eventType"/>, for an event the parent raised on the particles at
+        /// <paramref name="parentIndices"/>, and their particles do not count toward the frame.
         /// </summary>
-        private void EmitForEvent(ParticleEventType eventType, List<int> parentIndices)
+        private void Emit(ParticleEventType eventType, List<int>? parentIndices)
         {
+            var forEvent = eventType != ParticleEventType.PARTICLE_EVENT_TYPE_MASK_NONE;
             systemState.EmitterEventParticles = parentIndices;
+            particlesCreatedThisStep = 0;
 
             foreach (var emitter in emitters)
             {
-                if ((emitter.EventTypeMask & eventType) == 0)
+                var listens = forEvent
+                    ? (emitter.EventTypeMask & eventType) != 0
+                    : emitter.EventTypeMask == ParticleEventType.PARTICLE_EVENT_TYPE_MASK_NONE;
+
+                if (!listens)
                 {
                     continue;
                 }
@@ -746,7 +709,15 @@ namespace ValveResourceFormat.Particles
 
                 var first = particleCollection.Count;
                 emitter.Emit(systemState, strength, addParticleAction);
-                InitializeNewParticles(first, particleCollection.Count - first, EmittedWrittenFields, emitter.EmitterIndex);
+
+                var count = particleCollection.Count - first;
+                InitializeNewParticles(first, count, EmittedWrittenFields, emitter.EmitterIndex);
+                particlesCreatedThisStep += count;
+
+                if (!forEvent)
+                {
+                    particlesCreatedThisFrame += count;
+                }
             }
 
             systemState.EmitterEventParticles = null;
@@ -762,12 +733,7 @@ namespace ValveResourceFormat.Particles
             }
 
             // TODO: Make particle positions and control points local space
-            particleCollection.Current[index] = particleCollection.Initial[index];
-
-            particleCollection.Current[index].UniqueParticleId = particlesEmitted++;
-            particleCollection.Current[index].Index = index;
-            particleCollection.Current[index].CreationTime = creationTime;
-            particleCollection.Current[index].Age = systemState.Age - creationTime;
+            particleCollection.Current.Floats(ParticleField.CreationTime)[index] = creationTime;
         }
 
         /// <summary>
@@ -785,6 +751,7 @@ namespace ValveResourceFormat.Particles
             }
 
             systemState.ParticleCount = particleCollection.Count;
+            particleCollection.Time = systemState.Age;
 
             var batch = particleCollection.Current.Slice(first, count);
 
@@ -792,6 +759,9 @@ namespace ValveResourceFormat.Particles
             // declared write set is already fully initialized is skipped, up to firstMultipleOverride.
             var written = writtenFields;
             systemState.InitializingParticles = true;
+            systemState.InitializedFirst = first;
+            systemState.SpawnIndexBase = particlesCreated - first;
+            systemState.ParticleNumberBase = particlesCreated + particlesCreatedThisStep - first;
 
             foreach (var initializer in initializers)
             {
@@ -814,18 +784,18 @@ namespace ValveResourceFormat.Particles
                     continue;
                 }
 
-                systemState.Random.BeginFunctionCall();
                 systemState.InitializedFields = written;
 
-                var idCounter = particleIdCounter;
                 FillParticleIds(first, count);
-                systemState.Random.ParticleIdRead = false;
 
-                initializer.Initialize(batch, particleCollection, systemState);
-
-                if (!systemState.Random.ParticleIdRead)
+                using (ParticleScratch.Scope())
                 {
-                    particleIdCounter = idCounter;
+                    initializer.InitializeParticles(batch, particleCollection, systemState);
+                }
+
+                if (initializer.HasRandomInput)
+                {
+                    AdvanceParticleIds(first, count);
                 }
 
                 written |= fields;
@@ -833,14 +803,10 @@ namespace ValveResourceFormat.Particles
 
             systemState.InitializingParticles = false;
             FillParticleIds(first, count);
+            AdvanceParticleIds(first, count);
 
-            for (var index = first; index < first + count; index++)
-            {
-                ref var emitted = ref particleCollection.Current[index];
-
-                particleCollection.Initial[index] = emitted;
-                particleCollection.SetPreviousStep(index);
-            }
+            particleCollection.SaveInitial(first, count);
+            particleCollection.SetPreviousStep(first, count);
 
             if (raiseEvents)
             {
@@ -850,19 +816,26 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Gives the <paramref name="count"/> particles from <paramref name="first"/> the next particle ids.
-        /// Ids are filled in whole blocks of four, so the counter also passes the ids of the unused
-        /// slots up to the end of the last block.
+        /// Gives the <paramref name="count"/> particles from <paramref name="first"/> the next particle ids,
+        /// without taking them from the counter.
         /// </summary>
         private void FillParticleIds(int first, int count)
         {
             var seed = systemState.Random.Seed;
+            var particleIds = particleCollection.Current.Integers(ParticleField.ParticleId).Slice(first, count);
 
-            for (var i = 0; i < count; i++)
+            for (var i = 0; i < particleIds.Length; i++)
             {
-                particleCollection.Current[first + i].ParticleId = (particleIdCounter + i + seed) & 0xFFF;
+                particleIds[i] = (particleIdCounter + i + seed) & 0xFFF;
             }
+        }
 
+        /// <summary>
+        /// Takes the ids <see cref="FillParticleIds"/> gave from the counter. Ids are taken in whole blocks
+        /// of four, so the counter also passes the ids of the unused slots up to the end of the last block.
+        /// </summary>
+        private void AdvanceParticleIds(int first, int count)
+        {
             particleIdCounter += MathUtils.AlignUp(first + count, 4) - first;
         }
 
@@ -883,9 +856,11 @@ namespace ValveResourceFormat.Particles
         {
             eventIndices.Clear();
 
+            var current = particleCollection.Current;
+
             for (var index = first; index < first + count; index++)
             {
-                if (particleCollection.Current[index].Lifetime > 0f != culled)
+                if (current.ReadFloat(ParticleField.LifeDuration, index) > 0f != culled)
                 {
                     eventIndices.Add(index);
                 }
@@ -906,23 +881,12 @@ namespace ValveResourceFormat.Particles
         {
             DispatchPendingEvents();
 
-            eventIndices.Clear();
-            var current = particleCollection.Current;
-
-            for (var i = 0; i < current.Length; i++)
-            {
-                if (current[i].MarkedAsKilled)
-                {
-                    eventIndices.Add(i);
-                }
-            }
-
-            if (eventIndices.Count == 0)
+            if (!particleCollection.HasKills)
             {
                 return;
             }
 
-            DispatchEvent(ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED, eventIndices);
+            DispatchEvent(ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED, particleCollection.SortKills());
             RemoveKilledParticles();
         }
 
@@ -970,7 +934,7 @@ namespace ValveResourceFormat.Particles
 
             foreach (var childSimulation in childSimulations)
             {
-                childSimulation.EmitForEvent(eventType, indices);
+                childSimulation.Emit(eventType, indices);
             }
         }
 
@@ -978,13 +942,10 @@ namespace ValveResourceFormat.Particles
         private void KillAllParticles()
         {
             particleCollection.PendingEvents.Clear();
+            particleCollection.Clear();
+            systemState.ParticleCount = particleCollection.Count;
 
-            foreach (ref var particle in particleCollection.Current)
-            {
-                particle.Kill();
-            }
-
-            RemoveKilledParticles();
+            RebindChildParents();
         }
 
         private void RemoveKilledParticles()
@@ -996,9 +957,9 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Points every child particle's <see cref="Particle.ParentParticleIndex"/> back at its parent
+        /// Points every child particle's <see cref="ParticleField.ParentParticleIndex"/> back at its parent
         /// particle after this system's particles moved, finding the parent by its particle id. A child
-        /// particle whose parent is gone has its <see cref="Particle.ParentParticleId"/> set to
+        /// particle whose parent is gone has its <see cref="ParticleField.ParentParticleId"/> set to
         /// <see cref="int.MinValue"/>.
         /// </summary>
         private void RebindChildParents()
@@ -1007,9 +968,20 @@ namespace ValveResourceFormat.Particles
 
             foreach (var childSimulation in childSimulations)
             {
-                foreach (ref var childParticle in childSimulation.particleCollection.Current)
+                var childParticles = childSimulation.particleCollection.Current;
+
+                // A child that stores no parent links has none to point back
+                if ((childSimulation.particleCollection.StoredFields & ParentLinkFields) != ParentLinkFields)
                 {
-                    var parentId = childParticle.ParentParticleId;
+                    continue;
+                }
+
+                var parentIds = childParticles.Integers(ParticleField.ParentParticleId);
+                var parentIndices = childParticles.Integers(ParticleField.ParentParticleIndex);
+
+                for (var i = 0; i < parentIds.Length; i++)
+                {
+                    var parentId = parentIds[i];
 
                     if (parentId == int.MinValue)
                     {
@@ -1024,11 +996,11 @@ namespace ValveResourceFormat.Particles
 
                     if (indexById.TryGetValue(parentId, out var parentIndex))
                     {
-                        childParticle.ParentParticleIndex = parentIndex;
+                        parentIndices[i] = parentIndex;
                     }
                     else
                     {
-                        childParticle.ParentParticleId = int.MinValue;
+                        parentIds[i] = int.MinValue;
                     }
                 }
             }
@@ -1036,13 +1008,13 @@ namespace ValveResourceFormat.Particles
 
         private void BuildIndexById()
         {
-            var current = particleCollection.Current;
+            var particleIds = particleCollection.Current.Integers(ParticleField.ParticleId);
             indexById.Clear();
-            indexById.EnsureCapacity(current.Length);
+            indexById.EnsureCapacity(particleIds.Length);
 
-            for (var i = 0; i < current.Length; i++)
+            for (var i = 0; i < particleIds.Length; i++)
             {
-                indexById.TryAdd(current[i].ParticleId, i);
+                indexById.TryAdd(particleIds[i], i);
             }
         }
 
@@ -1180,11 +1152,17 @@ namespace ValveResourceFormat.Particles
 
             if (particleCollection.Count > 0)
             {
-                foreach (ref var particle in particleCollection.Current)
+                using var scratch = ParticleScratch.Scope();
+                var particles = particleCollection.Current;
+                var radii = particles.ReadFloats(ParticleField.Radius);
+                var positions = particles.ReadVectors(ParticleField.Position);
+
+                // Each particle grown by its radius
+                for (var i = 0; i < particles.Length; i++)
                 {
-                    var radius = new Vector3(particle.Radius);
-                    min = Vector3.Min(min, particle.Position - radius);
-                    max = Vector3.Max(max, particle.Position + radius);
+                    var radius = new Vector3(radii[i]);
+                    min = Vector3.Min(min, positions[i] - radius);
+                    max = Vector3.Max(max, positions[i] + radius);
                 }
 
                 min += particleBoundingBox.Min;

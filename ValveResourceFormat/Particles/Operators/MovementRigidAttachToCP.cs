@@ -30,6 +30,9 @@ namespace ValveResourceFormat.Particles.Operators
             defaults.AddScale(scaleControlPoint, scaleComponent);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var point = particleSystemState.GetControlPoint(controlPoint);
@@ -42,10 +45,19 @@ namespace ValveResourceFormat.Particles.Operators
 
             var frame = point.GetTransform();
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsVector(fieldOutput))
             {
-                var offset = particle.GetVector(fieldInput) * scale;
-                particle.SetVector(fieldOutput, offsetLocal ? Vector3.Transform(offset, frame) : offset + point.Position);
+                return;
+            }
+
+            var current = particles.Current;
+            var inputs = current.ReadVectors(fieldInput);
+            var outputs = current.Vectors(fieldOutput);
+
+            for (var i = 0; i < outputs.Length; i++)
+            {
+                var offset = inputs[i] * scale;
+                outputs[i] = offsetLocal ? Vector3.Transform(offset, frame) : offset + point.Position;
             }
         }
     }

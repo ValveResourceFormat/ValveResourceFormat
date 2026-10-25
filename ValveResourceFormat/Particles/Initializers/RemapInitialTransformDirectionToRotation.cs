@@ -5,7 +5,7 @@ namespace ValveResourceFormat.Particles.Initializers
     /// <summary>
     /// Writes an angle derived from a transform input's orientation, offset by
     /// <c>m_flOffsetRot</c> degrees, into a rotation field at spawn, in radians. The angle depends
-    /// only on the transform, so every particle spawned in a frame receives the same value.
+    /// only on the transform, evaluated once per call, so every particle of a call receives the same value.
     /// </summary>
     /// <remarks>
     /// From behavior version 7 the value is the offset minus the Euler component selected by
@@ -32,12 +32,12 @@ namespace ValveResourceFormat.Particles.Initializers
             addPi = parse.BehaviorVersion < 4;
         }
 
-        public override ulong WrittenFields => FieldMask(fieldOutput);
+        public override ulong WrittenFields => fieldOutput.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var rotation = Quaternion.CreateFromRotationMatrix(transformInput.NextTransform(particleSystemState));
             var offset = float.DegreesToRadians(offsetRot);
+            var rotation = Quaternion.CreateFromRotationMatrix(transformInput.NextTransform(particleSystemState));
 
             float value;
             if (useEulerComponent)
@@ -51,9 +51,10 @@ namespace ValveResourceFormat.Particles.Initializers
                 value = offset + MathF.Atan2(forward.Y, forward.X) + (addPi ? MathF.PI : 0f);
             }
 
-            particle.SetScalar(fieldOutput, value);
-
-            return particle;
+            if (ParticleBuffer.IsScalar(fieldOutput))
+            {
+                run.Floats(fieldOutput).Fill(value);
+            }
         }
     }
 }

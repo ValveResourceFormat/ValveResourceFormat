@@ -129,6 +129,17 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
+        /// A unit vector perpendicular to the unit vector <paramref name="direction"/>, picked by a fixed rule,
+        /// so the same direction always gives the same perpendicular: +X for +Z and +Y, -Z for +X.
+        /// </summary>
+        public static Vector3 Perpendicular(Vector3 direction)
+        {
+            var guess = new Vector3(((1f - direction.Z) * direction.Y * direction.Y) + direction.Z, 0f, -direction.X);
+
+            return SafeNormalize(ProjectOntoPlane(SafeNormalize(guess), direction));
+        }
+
+        /// <summary>
         /// The cross product of a triangle's two edges leaving <paramref name="a"/>: its face normal, with
         /// a length of twice the triangle's area.
         /// </summary>
@@ -446,6 +457,86 @@ namespace ValveResourceFormat.Utils
         public static float TriangleArea(Vector3 a, Vector3 b, Vector3 c)
         {
             return TriangleCross(a, b, c).Length() * 0.5f;
+        }
+
+        /// <summary>
+        /// Diagonalizes a symmetric 3x3 matrix with Jacobi rotations accumulated in a quaternion. Each
+        /// iteration rotates away the largest off-diagonal entry, for at most 24 iterations.
+        /// </summary>
+        /// <param name="matrix">The symmetric matrix in its upper-left 3x3 block.</param>
+        /// <param name="eigenvalues">The diagonal of the rotated matrix, unsorted.</param>
+        /// <returns>
+        /// The rotation whose matrix (<see cref="Matrix4x4.CreateFromQuaternion"/>) has the eigenvectors as its
+        /// rows, in the order of <paramref name="eigenvalues"/>.
+        /// </returns>
+        public static Quaternion DiagonalizeSymmetric(Matrix4x4 matrix, out Vector3 eigenvalues)
+        {
+            const int MaxIterations = 24;
+
+            var rotation = Quaternion.Identity;
+            eigenvalues = new Vector3(matrix.M11, matrix.M22, matrix.M33);
+
+            for (var iteration = 0; iteration < MaxIterations; iteration++)
+            {
+                var frame = Matrix4x4.CreateFromQuaternion(rotation);
+                var diagonal = frame * matrix * Matrix4x4.Transpose(frame);
+
+                eigenvalues = new Vector3(diagonal.M11, diagonal.M22, diagonal.M33);
+
+                // Entry k is the one coupling the two axes other than k
+                var offDiagonal = new Vector3(diagonal.M23, diagonal.M13, diagonal.M12);
+                var magnitude = Vector3.Abs(offDiagonal);
+
+                int pivot;
+
+                if (magnitude.X > magnitude.Y && magnitude.X > magnitude.Z)
+                {
+                    pivot = 0;
+                }
+                else if (magnitude.Y > magnitude.Z)
+                {
+                    pivot = 1;
+                }
+                else
+                {
+                    pivot = 2;
+                }
+
+                var pivotValue = offDiagonal[pivot];
+
+                if (pivotValue == 0f)
+                {
+                    break;
+                }
+
+                var theta = (eigenvalues[(pivot + 2) % 3] - eigenvalues[(pivot + 1) % 3]) / (2f * pivotValue);
+                var sign = theta > 0f ? 1f : -1f;
+                theta *= sign;
+
+                // Past 1e6 the square root is theta to float precision, and squaring theta could overflow
+                var root = theta < 1e6f ? MathF.Sqrt((theta * theta) + 1f) : theta;
+                var tangent = sign / (theta + root);
+                var cosine = 1f / MathF.Sqrt((tangent * tangent) + 1f);
+
+                if (cosine == 1f)
+                {
+                    break;
+                }
+
+                var axis = Vector3.Zero;
+                axis[pivot] = -sign * MathF.Sqrt((1f - cosine) * 0.5f);
+
+                var w = MathF.Sqrt(1f - (axis[pivot] * axis[pivot]));
+
+                if (w == 1f)
+                {
+                    break;
+                }
+
+                rotation = Quaternion.Normalize(rotation * new Quaternion(axis, w));
+            }
+
+            return rotation;
         }
 
         /// <summary>

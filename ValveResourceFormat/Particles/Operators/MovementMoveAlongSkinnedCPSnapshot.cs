@@ -19,6 +19,7 @@ namespace ValveResourceFormat.Particles.Operators
         private readonly bool setRadius;
         private readonly INumberProvider interpolation = new LiteralNumberProvider(1f);
         private readonly INumberProvider tValue = new LiteralNumberProvider(0f);
+        private readonly ulong storedFields;
 
         public MovementMoveAlongSkinnedCPSnapshot(ParticleDefinitionParser parse) : base(parse)
         {
@@ -28,7 +29,23 @@ namespace ValveResourceFormat.Particles.Operators
             setRadius = parse.Boolean("m_bSetRadius", setRadius);
             interpolation = parse.NumberProvider("m_flInterpolation", interpolation);
             tValue = parse.NumberProvider("m_flTValue", tValue);
+
+            storedFields = ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask() | ParticleField.HitboxOffsetPosition.Mask()
+                | ParticleField.BoneIndices.Mask() | ParticleField.BoneWeights.Mask();
+
+            if (setNormal)
+            {
+                storedFields |= ParticleField.Normal.Mask();
+            }
+
+            if (setRadius)
+            {
+                storedFields |= ParticleField.Radius.Mask();
+            }
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => storedFields;
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -44,10 +61,24 @@ namespace ValveResourceFormat.Particles.Operators
             var count = columns.Count;
             var model = cache is { Count: > 0 } ? cache.Object?.Model : null;
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var positions = current.Vectors(ParticleField.Position);
+            var previousPositions = current.Vectors(ParticleField.PositionPrevious);
+            var normals = setNormal ? current.Vectors(ParticleField.Normal) : default;
+            var radii = setRadius ? current.Floats(ParticleField.Radius) : default;
+            var boneIndices = current.BoneIndices;
+            var boneWeights = current.Vectors(ParticleField.BoneWeights);
+            var hitboxOffsets = current.Vectors(ParticleField.HitboxOffsetPosition);
+
+            var weights = interpolation.Fill(current, particleSystemState);
+            var tValues = tValue.Fill(current, particleSystemState);
+
+            for (var i = 0; i < positions.Length; i++)
             {
-                var weight = interpolation.NextNumber(ref particle, particleSystemState);
-                var t = (count - 1) * tValue.NextNumber(ref particle, particleSystemState);
+                var weight = weights[i];
+                var t = (count - 1) * tValues[i];
+
+                // The row index is kept in 16 bits, so a parameter far out of range wraps
                 var first = (int)(ushort)(int)MathF.Floor(t);
                 var blend = t - first;
 
@@ -73,24 +104,26 @@ namespace ValveResourceFormat.Particles.Operators
                     var (firstPosition, firstNormal, firstRadius) = Skin(cache!, columns, model, first);
                     var (secondPosition, secondNormal, secondRadius) = Skin(cache!, columns, model, second);
 
-                    columns.Bind(ref particle, first, model, cache!.Count);
+                    boneIndices[i] = columns.BoneIndices(first, model, cache!.Count);
+                    hitboxOffsets[i] = columns.Positions[first];
+                    boneWeights[i] = columns.BoneWeights(first);
 
                     target = MathUtils.Lerp(firstPosition, secondPosition, blend);
                     normal = MathUtils.Lerp(firstNormal, secondNormal, blend);
                     radius = MathUtils.Lerp(firstRadius, secondRadius, blend);
                 }
 
-                particle.Position = MathUtils.Lerp(particle.Position, target, weight);
-                particle.PositionPrevious = MathUtils.Lerp(particle.PositionPrevious, target, weight);
+                positions[i] = MathUtils.Lerp(positions[i], target, weight);
+                previousPositions[i] = MathUtils.Lerp(previousPositions[i], target, weight);
 
                 if (setNormal)
                 {
-                    particle.Normal = MathUtils.Lerp(particle.Normal, normal, weight);
+                    normals[i] = MathUtils.Lerp(normals[i], normal, weight);
                 }
 
                 if (setRadius)
                 {
-                    particle.Radius = MathUtils.Lerp(particle.Radius, radius, weight);
+                    radii[i] = MathUtils.Lerp(radii[i], radius, weight);
                 }
             }
         }

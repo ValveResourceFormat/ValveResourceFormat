@@ -46,10 +46,6 @@ namespace ValveResourceFormat.Particles.Operators
             interpStartTime = 0f;
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-        }
-
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var input = particleSystemState.GetControlPoint(inputControlPoint);

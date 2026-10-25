@@ -27,7 +27,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// </summary>
         protected virtual int LightCount(int particleCount) => Math.Min(particleCount, maxAllowed);
 
-        /// <summary>Creates a scene light for the pool, dark until a step gives it a particle.</summary>
+        /// <summary>
+        /// Creates a scene light for the pool with the settings that stay fixed. The pool sets the colour,
+        /// brightness, range, cone, luminaire size, falloff and placement from its slot every frame.
+        /// </summary>
         protected abstract SceneLight CreateLight(Scene scene);
 
         /// <summary>

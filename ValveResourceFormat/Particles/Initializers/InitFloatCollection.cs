@@ -2,13 +2,13 @@ namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
     /// Sets a scalar particle attribute to a value read once for the whole collection, so every
-    /// particle spawned in a frame receives the same number.
+    /// particle of one initializer call receives the same number.
     /// </summary>
     /// <remarks>
     /// The collection-scoped counterpart of <see cref="InitFloat"/>. It carries neither a set method
     /// nor an input strength, so the value always replaces the attribute, and an angle output is
-    /// stored as authored rather than converted from degrees. The input is read once for each batch
-    /// of new particles, so a random input draws once per batch.
+    /// stored as authored rather than converted from degrees. The input is read once per call, so a
+    /// random input draws once per call.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_InitFloatCollection">C_INIT_InitFloatCollection</seealso>
     class InitFloatCollection : ParticleFunctionInitializer
@@ -22,13 +22,16 @@ namespace ValveResourceFormat.Particles.Initializers
             inputValue = parse.CollectionNumberProvider("m_InputValue", inputValue);
         }
 
-        public override ulong WrittenFields => FieldMask(outputField);
+        public override ulong WrittenFields => outputField.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            particle.SetScalar(outputField, inputValue.NextNumber(particleSystemState));
+            var value = inputValue.NextNumber(particleSystemState);
 
-            return particle;
+            if (ParticleBuffer.IsScalar(outputField))
+            {
+                run.Floats(outputField).Fill(value);
+            }
         }
     }
 }

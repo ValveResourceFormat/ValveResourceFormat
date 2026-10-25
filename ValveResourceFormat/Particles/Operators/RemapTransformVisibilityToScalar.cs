@@ -1,3 +1,5 @@
+using System.Numerics.Tensors;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -30,23 +32,36 @@ namespace ValveResourceFormat.Particles.Operators
             outputMin = parse.Float("m_flOutputMin", outputMin);
             outputMax = parse.Float("m_flOutputMax", outputMax);
 
-            if (outputField is ParticleField.Alpha or ParticleField.AlphaAlternate)
+            if (outputField.IsAlpha())
             {
                 outputMin = MathUtils.Saturate(outputMin);
                 outputMax = MathUtils.Saturate(outputMax);
             }
+
+            AddInitialReadOf(parse, setMethod, outputField);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var value = MathUtils.RemapValClamped(FullyVisible, inputMin, inputMax, outputMin, outputMax);
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(outputField))
             {
-                var current = particle.GetScalar(outputField);
-                var final = particle.ModifyScalarBySetMethod(particles, outputField, value, setMethod);
-                particle.SetScalar(outputField, current + ((final - current) * strength));
+                return;
             }
+
+            var output = particles.Current.Floats(outputField);
+            var initial = particles.Initial.ReadFloats(outputField);
+
+            // The value by the set method, then the change toward it at the run strength
+            var changes = ParticleScratch.Floats(output.Length);
+            changes.Fill(value);
+            ParticleFieldExtensions.ApplySetMethod(changes, initial, output, particleSystemState.CurrentStep, setMethod);
+            TensorPrimitives.Subtract(changes, output, changes);
+            TensorPrimitives.MultiplyAdd(changes, strength, output, output);
         }
     }
 }

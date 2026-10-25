@@ -29,47 +29,60 @@ namespace ValveResourceFormat.Particles.Initializers
             trailBias = parse.Boolean("m_bTrailBias", trailBias);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.LifeDuration);
+        public override ulong WrittenFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask() | ParticleField.LifeDuration.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var start = particle.Position;
-            var end = particleSystemState.GetControlPoint(endControlPoint).GetPositionAtTime(particle.CreationTime);
-            var spread = endSpread.NextNumber(ref particle, particleSystemState);
+            var endSpreads = endSpread.Fill(run, particleSystemState);
+            var endOffsets = endOffset.Fill(run, particleSystemState);
+            var startOffsets = startOffset.Fill(run, particleSystemState);
+            var speedMins = speedMin.Fill(run, particleSystemState);
+            var speedMaxs = speedMax.Fill(run, particleSystemState);
 
-            if (spread > 0f)
+            var positions = run.Vectors(ParticleField.Position);
+            var previousPositions = run.Vectors(ParticleField.PositionPrevious);
+            var lifetimes = run.Floats(ParticleField.LifeDuration);
+            var creationTimes = run.ReadFloats(ParticleField.CreationTime);
+            var trailLengths = trailBias ? run.ReadFloats(ParticleField.TrailLength) : default;
+            var controlPoint = particleSystemState.GetControlPoint(endControlPoint);
+
+            for (var i = 0; i < positions.Length; i++)
             {
-                end += particleSystemState.Random.NextInUnitBall(out _) * spread;
+                var start = positions[i];
+                var end = controlPoint.GetPositionAtTime(creationTimes[i]);
+                var spread = endSpreads[i];
+
+                if (spread > 0f)
+                {
+                    end += particleSystemState.Random.NextInUnitBall(out _) * spread;
+                }
+
+                var delta = end - start;
+                var length = delta.Length();
+
+                var endDistance = endOffsets[i];
+                if (endDistance != 0f)
+                {
+                    end += delta * (endDistance / (length + ParticleMath.FloatEpsilon));
+                    delta = end - start;
+                    length = delta.Length();
+                }
+
+                var startDistance = startOffsets[i];
+                if (startDistance != 0f)
+                {
+                    start += delta * (startDistance / (length + ParticleMath.FloatEpsilon));
+                    delta = end - start;
+                    length = delta.Length();
+                    positions[i] = start;
+                }
+
+                var speed = particleSystemState.Random.NextBetween(speedMins[i], speedMaxs[i]);
+                var trailLength = trailBias ? trailLengths[i] : 0f;
+
+                lifetimes[i] = (length / (speed + ParticleMath.FloatEpsilon)) + trailLength;
+                previousPositions[i] = positions[i] - (delta * (speed / (length + ParticleMath.FloatEpsilon)) * particleSystemState.PreviousStep);
             }
-
-            var delta = end - start;
-            var length = delta.Length();
-
-            var endDistance = endOffset.NextNumber(ref particle, particleSystemState);
-            if (endDistance != 0f)
-            {
-                end += delta * (endDistance / (length + ParticleMath.FloatEpsilon));
-                delta = end - start;
-                length = delta.Length();
-            }
-
-            var startDistance = startOffset.NextNumber(ref particle, particleSystemState);
-            if (startDistance != 0f)
-            {
-                start += delta * (startDistance / (length + ParticleMath.FloatEpsilon));
-                delta = end - start;
-                length = delta.Length();
-                particle.Position = start;
-            }
-
-            var speed = particleSystemState.Random.NextBetween(
-                speedMin.NextNumber(ref particle, particleSystemState),
-                speedMax.NextNumber(ref particle, particleSystemState));
-
-            particle.Lifetime = (length / (speed + ParticleMath.FloatEpsilon)) + (trailBias ? particle.TrailLength : 0f);
-            particle.PositionPrevious = particle.Position - (delta * (speed / (length + ParticleMath.FloatEpsilon)) * particles.PreviousFrameTime);
-
-            return particle;
         }
     }
 }

@@ -64,22 +64,24 @@ namespace ValveResourceFormat.Particles.Initializers
             randomCounter = 0;
         }
 
+        public override void Restart(ParticleSystemState particleSystemState) => Reset();
+
         public override ulong WrittenFields
         {
             get
             {
-                var fields = FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.HitboxOffsetPosition)
-                    | FieldMask(ParticleField.BoneIndices) | FieldMask(ParticleField.BoneWeights);
+                var fields = ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask() | ParticleField.HitboxOffsetPosition.Mask()
+                    | ParticleField.BoneIndices.Mask() | ParticleField.BoneWeights.Mask();
 
-                fields |= setNormal ? FieldMask(ParticleField.Normal) : 0;
-                fields |= copyColor ? FieldMask(ParticleField.Color) : 0;
-                fields |= copyAlpha ? FieldMask(ParticleField.Alpha) : 0;
-                fields |= setRadius ? FieldMask(ParticleField.Radius) : 0;
+                fields |= setNormal ? ParticleField.Normal.Mask() : 0;
+                fields |= copyColor ? ParticleField.Color.Mask() : 0;
+                fields |= copyAlpha ? ParticleField.Alpha.Mask() : 0;
+                fields |= setRadius ? ParticleField.Radius.Mask() : 0;
                 return fields;
             }
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             if (snapshot.Resolve(particleSystemState) is not { } columns
                 || (setNormal && columns.Normals == null)
@@ -87,107 +89,122 @@ namespace ValveResourceFormat.Particles.Initializers
                 || (copyAlpha && columns.Alphas == null)
                 || (setRadius && columns.Radii == null))
             {
-                return particle;
+                return;
             }
 
-            var row = SelectRow(ref particle, particleSystemState, columns.Count);
+            var readIndices = indexType == SnapshotIndexType.SNAPSHOT_INDEX_DIRECT ? readIndex.Fill(run, particleSystemState) : default;
 
-            if ((uint)row >= (uint)columns.Count)
-            {
-                return particle;
-            }
-
-            if (copyColor)
-            {
-                particle.Color = columns.Colors![row];
-            }
-
-            if (copyAlpha)
-            {
-                particle.Alpha = columns.Alphas![row];
-            }
-
-            var local = columns.Positions[row];
+            var positions = run.Vectors(ParticleField.Position);
+            var previousPositions = run.Vectors(ParticleField.PositionPrevious);
+            var boneIndices = run.BoneIndices;
+            var hitboxOffsets = run.Vectors(ParticleField.HitboxOffsetPosition);
+            var boneWeights = run.Vectors(ParticleField.BoneWeights);
+            var colors = copyColor ? run.Vectors(ParticleField.Color) : default;
+            var alphas = copyAlpha ? run.Floats(ParticleField.Alpha) : default;
+            var normals = setNormal ? run.Vectors(ParticleField.Normal) : default;
+            var radii = setRadius ? run.Floats(ParticleField.Radius) : default;
             var cache = HitBoxCache.Refresh(particleSystemState, controlPoint, string.Empty, useBones: true);
 
-            if (cache is not { Count: > 0, Object: { } modelObject })
+            for (var i = 0; i < positions.Length; i++)
             {
-                particle.Position = local;
-                particle.PositionPrevious = local;
+                var row = SelectRow(readIndices, i, particleSystemState, columns.Count);
+
+                if ((uint)row >= (uint)columns.Count)
+                {
+                    continue;
+                }
+
+                if (copyColor)
+                {
+                    colors[i] = columns.Colors![row];
+                }
+
+                if (copyAlpha)
+                {
+                    alphas[i] = columns.Alphas![row];
+                }
+
+                var local = columns.Positions[row];
+
+                if (cache is not { Count: > 0, Object: { } modelObject })
+                {
+                    positions[i] = local;
+                    previousPositions[i] = local;
+
+                    if (setNormal)
+                    {
+                        normals[i] = columns.Normals![row];
+                    }
+
+                    if (setRadius)
+                    {
+                        radii[i] = columns.Radii![row];
+                    }
+
+                    continue;
+                }
+
+                boneIndices[i] = columns.BoneIndices(row, modelObject.Model, cache.Count);
+                hitboxOffsets[i] = local;
+                boneWeights[i] = columns.BoneWeights(row);
+
+                var withBoneVelocity = boneVelocity != 0f && cache.PreviousUpdateTime != -1f;
+                cache.ComputeSkinningMatrix(boneIndices[i], boneWeights[i], withBoneVelocity, out var skin, out var previousSkin);
+
+                var normalOffset = Vector3.Zero;
 
                 if (setNormal)
                 {
-                    particle.Normal = columns.Normals![row];
+                    var normal = columns.Normals![row];
+
+                    if (!rigid)
+                    {
+                        normal = MathUtils.SafeNormalize(Vector3.TransformNormal(normal, skin));
+                    }
+
+                    normals[i] = normal;
+
+                    var speed = particleSystemState.Random.NextBetween(minNormalVelocity, maxNormalVelocity);
+                    normalOffset = normal * (ignoreDt ? speed : speed * particleSystemState.PreviousStep);
                 }
 
                 if (setRadius)
                 {
-                    particle.Radius = columns.Radii![row];
+                    radii[i] = columns.Radii![row] * (rigid ? 1f : skin.MaxAxisScale());
                 }
 
-                return particle;
-            }
-
-            columns.Bind(ref particle, row, modelObject.Model, cache.Count);
-
-            var withBoneVelocity = boneVelocity != 0f && cache.PreviousUpdateTime != -1f;
-            cache.ComputeSkinningMatrix(particle.BoneIndices, particle.BoneWeights, withBoneVelocity, out var skin, out var previousSkin);
-
-            var normalOffset = Vector3.Zero;
-
-            if (setNormal)
-            {
-                var normal = columns.Normals![row];
-
-                if (!rigid)
+                if (rigid)
                 {
-                    normal = MathUtils.SafeNormalize(Vector3.TransformNormal(normal, skin));
+                    positions[i] = Vector3.Zero;
+                    previousPositions[i] = Vector3.Zero;
                 }
-
-                particle.Normal = normal;
-
-                var speed = particleSystemState.Random.NextBetween(minNormalVelocity, maxNormalVelocity);
-                normalOffset = normal * (ignoreDt ? speed : speed * particles.PreviousFrameTime);
-            }
-
-            if (setRadius)
-            {
-                particle.Radius = columns.Radii![row] * (rigid ? 1f : skin.MaxAxisScale());
-            }
-
-            if (rigid)
-            {
-                particle.Position = Vector3.Zero;
-                particle.PositionPrevious = Vector3.Zero;
-            }
-            else
-            {
-                particle.Position = Vector3.Transform(local, skin);
-                particle.PositionPrevious = Vector3.Transform(local + normalOffset, skin);
-            }
-
-            var interval = cache.UpdateTime - cache.PreviousUpdateTime;
-
-            if (withBoneVelocity && interval > 0f && float.IsFinite(previousSkin.M41 + previousSkin.M42 + previousSkin.M43))
-            {
-                var velocity = (skin.Translation - previousSkin.Translation) / interval * boneVelocity;
-
-                if (boneVelocityMax > 0f)
+                else
                 {
-                    velocity = MathUtils.ClampLength(velocity, boneVelocityMax);
+                    positions[i] = Vector3.Transform(local, skin);
+                    previousPositions[i] = Vector3.Transform(local + normalOffset, skin);
                 }
 
-                particle.PositionPrevious -= ignoreDt ? velocity : velocity * particles.PreviousFrameTime;
-            }
+                var interval = cache.UpdateTime - cache.PreviousUpdateTime;
 
-            return particle;
+                if (withBoneVelocity && interval > 0f && float.IsFinite(previousSkin.M41 + previousSkin.M42 + previousSkin.M43))
+                {
+                    var velocity = (skin.Translation - previousSkin.Translation) / interval * boneVelocity;
+
+                    if (boneVelocityMax > 0f)
+                    {
+                        velocity = MathUtils.ClampLength(velocity, boneVelocityMax);
+                    }
+
+                    previousPositions[i] -= VelocityStep(particleSystemState, velocity, ignoreDt);
+                }
+            }
         }
 
-        private int SelectRow(ref Particle particle, ParticleSystemState particleSystemState, int count)
+        private int SelectRow(ReadOnlySpan<float> readIndices, int particleIndex, ParticleSystemState particleSystemState, int count)
         {
             if (indexType == SnapshotIndexType.SNAPSHOT_INDEX_DIRECT)
             {
-                return (int)readIndex.NextNumber(ref particle, particleSystemState) % count;
+                return (int)readIndices[particleIndex] % count;
             }
 
             if (random)

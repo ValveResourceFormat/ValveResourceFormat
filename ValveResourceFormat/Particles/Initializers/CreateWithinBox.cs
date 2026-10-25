@@ -26,24 +26,32 @@ namespace ValveResourceFormat.Particles.Initializers
             rangeSampler = RangeSampler.Parse(parse);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious);
+        public override ulong WrittenFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var posMin = min.NextVector(ref particle, particleSystemState);
-            var posMax = max.NextVector(ref particle, particleSystemState);
-
-            var position = rangeSampler.NextVectorBetween(ref particle, particleSystemState, posMin, posMax);
-
+            var creationTimes = run.ReadFloats(ParticleField.CreationTime);
+            var positions = run.Vectors(ParticleField.Position);
+            var previous = SpawnPreviousPositions(run, particleSystemState);
             var controlPoint = particleSystemState.GetControlPoint(controlPointNumber);
 
-            position = localSpace
-                ? Vector3.Transform(position, controlPoint.GetBasisAtTime(particle.CreationTime))
-                : position + controlPoint.GetPositionAtTime(particle.CreationTime);
+            run.FillVectorInputs(min, max, particleSystemState, out var mins, out var maxs);
 
-            SetSpawnPosition(ref particle, particleSystemState, position, position);
+            for (var i = 0; i < run.Length; i++)
+            {
+                var position = rangeSampler.NextVectorBetween(run.Start + i, particleSystemState, mins[i], maxs[i]);
 
-            return particle;
+                position = localSpace
+                    ? Vector3.Transform(position, controlPoint.GetBasisAtTime(creationTimes[i]))
+                    : position + controlPoint.GetPositionAtTime(creationTimes[i]);
+
+                positions[i] = position;
+
+                if (!previous.IsEmpty)
+                {
+                    previous[i] = position;
+                }
+            }
         }
     }
 }

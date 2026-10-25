@@ -28,7 +28,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             pointAway = parse.Boolean("m_bPointAway", pointAway);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             if (inputCP == outputCP)
             {

@@ -46,47 +46,62 @@ namespace ValveResourceFormat.Particles.Initializers
             lineOfSightScale = parse.Float("m_flLOSScale", lineOfSightScale);
         }
 
-        public override ulong WrittenFields => FieldMask(fieldOutput);
+        public override ulong WrittenFields => fieldOutput.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var controlPointPosition = particleSystemState.GetControlPoint(startCP).Position;
 
-            var inMin = inputMin.NextNumber(ref particle, particleSystemState);
-            var inMax = inputMax.NextNumber(ref particle, particleSystemState);
-            var outMin = outputMin.NextNumber(ref particle, particleSystemState);
-            var outMax = outputMax.NextNumber(ref particle, particleSystemState);
-            var traceLength = maxTraceLength.NextNumber(ref particle, particleSystemState);
+            var inMins = inputMin.Fill(run, particleSystemState);
+            var inMaxs = inputMax.Fill(run, particleSystemState);
+            var outMins = outputMin.Fill(run, particleSystemState);
+            var outMaxs = outputMax.Fill(run, particleSystemState);
+            var traceLengths = maxTraceLength.Fill(run, particleSystemState);
 
-            if (fieldOutput is ParticleField.Alpha or ParticleField.AlphaAlternate)
+            if (!ParticleBuffer.IsScalar(fieldOutput))
             {
-                outMin = MathUtils.Saturate(outMin);
-                outMax = MathUtils.Saturate(outMax);
+                return;
             }
 
-            var distance = ((controlPointPosition - particle.Position) * distanceScale).Length();
+            var positions = run.ReadVectors(ParticleField.Position);
+            var outputs = run.Floats(fieldOutput);
+            var clampOutput = fieldOutput.IsAlpha();
 
-            if (activeRange && (distance < inMin || distance > inMax))
+            for (var i = 0; i < run.Length; i++)
             {
-                return particle;
+                var inMin = inMins[i];
+                var inMax = inMaxs[i];
+                var outMin = outMins[i];
+                var outMax = outMaxs[i];
+
+                if (clampOutput)
+                {
+                    outMin = MathUtils.Saturate(outMin);
+                    outMax = MathUtils.Saturate(outMax);
+                }
+
+                var distance = ((controlPointPosition - positions[i]) * distanceScale).Length();
+
+                if (activeRange && (distance < inMin || distance > inMax))
+                {
+                    continue;
+                }
+
+                if (lineOfSight)
+                {
+                    distance = LineOfSightTrace.ScaleDistance(particleSystemState.Collision, controlPointPosition, positions[i], distance, traceLengths[i], lineOfSightScale);
+                }
+
+                var value = MathUtils.RemapValClamped(distance, inMin, inMax, outMin, outMax);
+
+                if (hasBias)
+                {
+                    value = ParticleMath.BiasClamped(value, remapBias);
+                }
+
+                var current = outputs[i];
+                outputs[i] = ParticleFieldExtensions.ApplySetMethod(value, current, current, particleSystemState.CurrentStep, setMethod);
             }
-
-            if (lineOfSight)
-            {
-                distance = LineOfSightTrace.ScaleDistance(particleSystemState.Collision, controlPointPosition, particle.Position, distance, traceLength, lineOfSightScale);
-            }
-
-            var value = MathUtils.RemapValClamped(distance, inMin, inMax, outMin, outMax);
-
-            if (hasBias)
-            {
-                value = ParticleMath.BiasClamped(value, remapBias);
-            }
-
-            value = particle.ModifyScalarBySetMethodAtSpawn(particles, fieldOutput, value, setMethod);
-            particle.SetScalar(fieldOutput, value);
-
-            return particle;
         }
     }
 }

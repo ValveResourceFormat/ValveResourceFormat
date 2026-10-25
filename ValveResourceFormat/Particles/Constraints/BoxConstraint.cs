@@ -4,13 +4,16 @@ namespace ValveResourceFormat.Particles.Constraints
     /// Keeps particles inside an axis-aligned box: in world space with a control point of -1, offset
     /// by the control point's position, or in the control point's frame with <c>m_bLocalSpace</c>.
     /// With <c>m_bAccountForRadius</c> the box shrinks by each particle's radius. Only
-    /// <see cref="Particle.Position"/> is written, so the correction also changes the particle's
+    /// <see cref="ParticleField.Position"/> is written, so the correction also changes the particle's
     /// velocity. In a box whose minimum lies above its maximum, the minimum wins with the radius and
     /// the maximum without it.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_BoxConstraint">C_OP_BoxConstraint</seealso>
     class BoxConstraint : ParticleFunctionConstraint
     {
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Position.Mask();
+
         private readonly IVectorProvider min = new LiteralVectorProvider(Vector3.Zero);
         private readonly IVectorProvider max = new LiteralVectorProvider(Vector3.Zero);
         private readonly int controlPoint;
@@ -51,13 +54,16 @@ namespace ValveResourceFormat.Particles.Constraints
             }
 
             var moved = false;
+            var current = particles.Current;
+            var positions = current.Vectors(ParticleField.Position);
+            var radii = current.ReadFloats(ParticleField.Radius);
 
-            foreach (ref var particle in particles.Current)
+            for (var i = 0; i < positions.Length; i++)
             {
-                var local = Vector3.Transform(particle.Position, toBox);
+                var local = Vector3.Transform(positions[i], toBox);
 
                 var clamped = accountForRadius
-                    ? Vector3.Max(boxMin + new Vector3(particle.Radius), Vector3.Min(boxMax - new Vector3(particle.Radius), local))
+                    ? Vector3.Max(boxMin + new Vector3(radii[i]), Vector3.Min(boxMax - new Vector3(radii[i]), local))
                     : Vector3.Min(Vector3.Max(local, boxMin), boxMax);
 
                 if (clamped == local)
@@ -65,7 +71,7 @@ namespace ValveResourceFormat.Particles.Constraints
                     continue;
                 }
 
-                particle.Position = Vector3.Transform(clamped, toWorld);
+                positions[i] = Vector3.Transform(clamped, toWorld);
                 moved = true;
             }
 

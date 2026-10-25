@@ -27,11 +27,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly float maxProjectionDepth = 128f;
         private readonly INumberProvider materialSelection = new LiteralNumberProvider(0f);
 
-        private readonly PlacedPerParticle<(ProjectedDecalHandle Handle, int Material)> placed = new();
+        /// <summary>The decal of each particle with a handle, at the slot its handle names less one.</summary>
+        private readonly ParticleHandlePool<(ProjectedDecalHandle Handle, int Material)> pool = new();
+        private readonly Action<(ProjectedDecalHandle Handle, int Material)> removeDecal;
 
         public RenderProjected(ParticleDefinitionParser parse, Scene scene) : base(parse, scene)
         {
             decals = scene.ProjectedDecals;
+            removeDecal = entry => decals.Remove(entry.Handle);
 
             var registered = new List<int>();
 
@@ -63,35 +66,53 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
+            var column = pool.Claim(particles);
+            pool.ReleaseDead(particles, column, removeDecal);
+
             var scales = EvaluateScales(systemState);
+            var current = particles.Current;
+            var handles = particles.Handles(column);
+            var positions = current.ReadVectors(ParticleField.Position);
+            var normals = current.ReadVectors(ParticleField.Normal);
+            var colors = current.ReadVectors(ParticleField.Color);
+            var radii = current.ReadFloats(ParticleField.Radius);
+            var rolls = current.ReadFloats(ParticleField.Roll);
+            var alphas = current.ReadFloats(ParticleField.Alpha);
+            var alpha2s = ReadAlpha2(current);
+            var materialSelections = materialSelection.Fill(current, systemState);
 
-            placed.BeginFrame();
-
-            foreach (ref var particle in particles.Current)
+            for (var i = 0; i < current.Length; i++)
             {
-                var width = particle.Radius * scales.Radius * 2f;
+                var slot = handles[i] - 1;
+                var width = radii[i] * scales.Radius * 2f;
 
                 if (width <= 0f)
                 {
+                    if (slot >= 0)
+                    {
+                        FreeSlot(slot);
+                        handles[i] = 0;
+                    }
+
                     continue;
                 }
 
-                var material = materials[Math.Clamp((int)materialSelection.NextNumber(ref particle, systemState), 0, materials.Length - 1)];
+                var material = materials[Math.Clamp((int)materialSelections[i], 0, materials.Length - 1)];
 
                 if (material < 0)
                 {
-                    placed.Keep(particle.UniqueParticleId);
                     continue;
                 }
 
-                var box = DecalBox(ref particle, width, scales.Roll);
-                var tint = BlendColor(ref particle, scales);
+                var box = DecalBox(positions[i], normals[i], width, scales.Roll * rolls[i]);
+                var tint = BlendColor(colors[i], alphas[i], alpha2s[i], scales);
 
-                if (placed.TryGetValue(particle.UniqueParticleId, out var entry))
+                if (slot >= 0)
                 {
+                    var entry = pool[slot];
+
                     if (entry.Material == material && decals.Move(entry.Handle, box, tint))
                     {
-                        placed.Keep(particle.UniqueParticleId);
                         continue;
                     }
 
@@ -100,20 +121,44 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                 var handle = decals.AddFollowing(material, box, tint, flipHorizontal);
 
-                if (handle.IsValid)
+                if (!handle.IsValid)
                 {
-                    placed.Keep(particle.UniqueParticleId, (handle, material));
-                }
-            }
+                    if (slot >= 0)
+                    {
+                        FreeSlot(slot);
+                        handles[i] = 0;
+                    }
 
-            foreach (var (handle, _) in placed.Sweep())
-            {
-                decals.Remove(handle);
+                    continue;
+                }
+
+                if (slot < 0)
+                {
+                    handles[i] = pool.Allocate((handle, material)) + 1;
+                }
+                else
+                {
+                    pool[slot] = (handle, material);
+                }
             }
         }
 
+        /// <summary>Removes the decal at a slot and makes the slot available again.</summary>
+        private void FreeSlot(int slot)
+        {
+            decals.Remove(pool[slot].Handle);
+            pool.Free(slot);
+        }
+
         /// <inheritdoc/>
-        public override void Hide() => Delete();
+        public override void Hide()
+        {
+            for (var i = 0; i < pool.Count; i++)
+            {
+                decals.Remove(pool[i].Handle);
+                pool[i] = default;
+            }
+        }
 
         /// <summary>
         /// The box the particle's decal projects through: as wide as the particle, projecting along its
@@ -122,16 +167,16 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// turned back about the projection axis by the particle's roll. The depth range, when enabled,
         /// places the box along the projection axis instead of centring it on the particle.
         /// </summary>
-        private Matrix4x4 DecalBox(ref Particle particle, float width, float roll)
+        private Matrix4x4 DecalBox(Vector3 position, Vector3 particleNormal, float width, float roll)
         {
-            var normal = orientToNormal ? particle.Normal : Vector3.UnitZ;
+            var normal = orientToNormal ? particleNormal : Vector3.UnitZ;
             var top = orientToNormal
                 ? Vector3.Cross(normal.Y > 0.99f ? Vector3.UnitX : Vector3.UnitY, normal)
                 : -Vector3.UnitX;
 
             normal = normal.LengthSquared() > 1e-8f ? Vector3.Normalize(normal) : Vector3.UnitZ;
 
-            var center = particle.Position;
+            var center = position;
             var depth = width;
 
             if (depthControls)
@@ -140,7 +185,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 depth = MathF.Max(maxProjectionDepth - minProjectionDepth, 1f);
             }
 
-            var up = Vector3.Transform(top, Quaternion.CreateFromAxisAngle(normal, -(roll * particle.Rotation.Z)));
+            var up = Vector3.Transform(top, Quaternion.CreateFromAxisAngle(normal, -roll));
 
             return ProjectedDecalSystem.CreateBoxTransform(center, normal, up, new Vector3(width, width, depth));
         }
@@ -154,12 +199,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <inheritdoc/>
         public override void Delete()
         {
-            foreach (var (handle, _) in placed.Values)
-            {
-                decals.Remove(handle);
-            }
-
-            placed.Clear();
+            Hide();
+            pool.Clear();
         }
     }
 }

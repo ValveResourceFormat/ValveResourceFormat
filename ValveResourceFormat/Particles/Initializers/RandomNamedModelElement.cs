@@ -34,7 +34,7 @@ namespace ValveResourceFormat.Particles.Initializers
             fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
         }
 
-        public override ulong WrittenFields => FieldMask(fieldOutput);
+        public override ulong WrittenFields => fieldOutput.Mask();
 
         public override void Initialize(ParticleSystemState particleSystemState)
         {
@@ -47,39 +47,43 @@ namespace ValveResourceFormat.Particles.Initializers
             }
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-        }
+            var isScalar = ParticleBuffer.IsScalar(fieldOutput);
+            var outputs = isScalar ? run.Floats(fieldOutput) : default;
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            int value;
-
-            if (shuffle || linear)
+            for (var i = 0; i < run.Length; i++)
             {
-                if (next >= indices.Length)
+                int value;
+
+                if (shuffle || linear)
                 {
-                    if (shuffle)
+                    if (next >= indices.Length)
                     {
-                        Shuffle(particleSystemState);
+                        if (shuffle)
+                        {
+                            Shuffle(particleSystemState);
+                        }
+
+                        next = 0;
                     }
 
-                    next = 0;
+                    value = indices.Length > 0 ? indices[next++] : 0;
+                }
+                else if (indices.Length <= 1)
+                {
+                    value = indices.Length > 0 ? indices[0] : 0;
+                }
+                else
+                {
+                    value = indices[particleSystemState.Random.NextIndex(indices.Length)];
                 }
 
-                value = indices.Length > 0 ? indices[next++] : 0;
+                if (isScalar)
+                {
+                    outputs[i] = value;
+                }
             }
-            else if (indices.Length <= 1)
-            {
-                value = indices.Length > 0 ? indices[0] : 0;
-            }
-            else
-            {
-                value = indices[particleSystemState.Random.NextIndex(indices.Length)];
-            }
-
-            particle.SetScalar(fieldOutput, value);
-            return particle;
         }
 
         private void Shuffle(ParticleSystemState particleSystemState)

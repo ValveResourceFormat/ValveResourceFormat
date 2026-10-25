@@ -21,7 +21,8 @@ namespace ValveResourceFormat.Particles.Operators
         {
             firstControlPoint = parse.ControlPoint("m_nFirstControlPoint", firstControlPoint);
             firstSourcePoint = parse.Int32("m_nFirstSourcePoint", firstSourcePoint);
-            numControlPoints = Math.Min(parse.Int32("m_nNumControlPoints", numControlPoints), ParticleSystemState.MaxControlPoint + 1 - firstSourcePoint);
+            // The count is bounded by the first source particle, not the first control point
+            numControlPoints = Math.Min(parse.Int32("m_nNumControlPoints", numControlPoints), ParticleSystemState.ControlPointCount - firstSourcePoint);
             reverse = parse.Boolean("m_bReverse", reverse);
             setOrientation = parse.Boolean("m_bSetOrientation", setOrientation);
             orientationMode = parse.Enum("m_nOrientationMode", orientationMode);
@@ -34,48 +35,65 @@ namespace ValveResourceFormat.Particles.Operators
         {
             var live = particles.Current;
             var target = particleSystemState.GetSetParentTarget(setParent);
-            var count = Math.Min(Math.Min(live.Length - firstSourcePoint, numControlPoints), ParticleSystemState.MaxControlPoint + 1 - firstControlPoint);
+            var count = Math.Min(Math.Min(live.Length - firstSourcePoint, numControlPoints), ParticleSystemState.ControlPointCount - firstControlPoint);
 
             for (var i = 0; i < count; i++)
             {
                 var source = reverse ? live.Length - i - firstSourcePoint - 1 : i + firstSourcePoint;
-                ref var particle = ref live[Math.Clamp(source, 0, live.Length - 1)];
+                var index = Math.Clamp(source, 0, live.Length - 1);
 
                 var controlPoint = target.GetControlPoint(firstControlPoint + i);
-                controlPoint.Position = particle.Position;
+                controlPoint.Position = live.ReadVector(ParticleField.Position, index);
 
                 if (setOrientation)
                 {
-                    SetParticleOrientation(controlPoint, ref particle);
+                    SetParticleOrientation(controlPoint, live, index);
                 }
             }
         }
 
-        private void SetParticleOrientation(ControlPoint controlPoint, ref Particle particle)
+        private void SetParticleOrientation(ControlPoint controlPoint, ParticleSpan live, int index)
         {
             switch (orientationMode)
             {
                 case ParticleOrientationSetMode.PARTICLE_ORIENTATION_SET_FROM_VELOCITY:
-                    SetForward(controlPoint, particle.Position - particle.PositionPrevious);
+                    OrientToVelocity(controlPoint, live, index);
                     break;
 
                 case ParticleOrientationSetMode.PARTICLE_ORIENTATION_SET_FROM_NORMAL:
-                    SetForward(controlPoint, particle.Normal);
+                    OrientToDirection(controlPoint, live.ReadVector(ParticleField.Normal, index));
                     break;
 
                 case ParticleOrientationSetMode.PARTICLE_ORIENTATION_SET_FROM_ROTATIONS:
-                    var angles = Vector3.RadiansToDegrees(particle.Rotation);
-                    controlPoint.SetOrientation(EntityTransformHelper.EulerAnglesToQuaternion(new Vector3(angles.Y, angles.X, angles.Z)));
+                    OrientToRotations(controlPoint, live, index);
                     break;
             }
         }
 
-        private static void SetForward(ControlPoint controlPoint, Vector3 direction)
+        /// <summary>Points <paramref name="controlPoint"/> along the last move of the particle at <paramref name="index"/>.</summary>
+        internal static void OrientToVelocity(ControlPoint controlPoint, ParticleSpan live, int index)
+        {
+            var position = live.ReadVector(ParticleField.Position, index);
+            var previousPosition = live.ReadVector(ParticleField.PositionPrevious, index);
+            OrientToDirection(controlPoint, position - previousPosition);
+        }
+
+        /// <summary>Points <paramref name="controlPoint"/> along <paramref name="direction"/>, leaving it as it is for a zero direction.</summary>
+        internal static void OrientToDirection(ControlPoint controlPoint, Vector3 direction)
         {
             if (direction != Vector3.Zero)
             {
                 controlPoint.Orientation = direction;
             }
+        }
+
+        /// <summary>Turns <paramref name="controlPoint"/> to the yaw, pitch and roll, in radians, of the particle at <paramref name="index"/>.</summary>
+        internal static void OrientToRotations(ControlPoint controlPoint, ParticleSpan live, int index)
+        {
+            var pitch = float.RadiansToDegrees(live.ReadFloat(ParticleField.Pitch, index));
+            var yaw = float.RadiansToDegrees(live.ReadFloat(ParticleField.Yaw, index));
+            var roll = float.RadiansToDegrees(live.ReadFloat(ParticleField.Roll, index));
+            controlPoint.SetOrientation(EntityTransformHelper.EulerAnglesToQuaternion(new Vector3(pitch, yaw, roll)));
         }
     }
 }

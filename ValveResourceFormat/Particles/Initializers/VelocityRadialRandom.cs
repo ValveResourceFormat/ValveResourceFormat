@@ -35,40 +35,57 @@ namespace ValveResourceFormat.Particles.Initializers
             controlPoint = parse.ControlPoint("m_nControlPointNumber", controlPoint);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.PositionPrevious);
+        public override ulong WrittenFields => ParticleField.PositionPrevious.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var center = perParticleCenter
-                ? centerPosition.NextVector(ref particle, particleSystemState)
-                : ParticlePath.GetControlPointAtTime(particleSystemState, controlPoint, particle.CreationTime);
+            var speedMins = speedMin.Fill(run, particleSystemState);
+            var speedMaxes = speedMax.Fill(run, particleSystemState);
 
-            var direction = MathUtils.SafeNormalize(particle.Position - center);
+            // Without a per-particle centre the inputs are set up but never evaluated per block
+            var centers = centerPosition.Prepare(run, particleSystemState);
+            var forwards = centerForward.Prepare(run, particleSystemState);
 
-            if (localSpeedScale != Vector3.One)
+            if (perParticleCenter)
             {
-                direction *= WorldSpeedScale(ref particle, particleSystemState);
+                run.FillPerBlockInputs(particleSystemState, centerPosition, centers, centerForward, forwards);
             }
 
-            var speed = particleSystemState.Random.NextBetween(
-                speedMin.NextNumber(ref particle, particleSystemState),
-                speedMax.NextNumber(ref particle, particleSystemState));
+            var hasLocalSpeedScale = localSpeedScale != Vector3.One;
 
-            AddVelocity(ref particle, particles, direction * speed, ignoreDelta);
+            var creationTimes = run.ReadFloats(ParticleField.CreationTime);
+            var positions = run.ReadVectors(ParticleField.Position);
+            var previousPositions = run.Vectors(ParticleField.PositionPrevious);
 
-            return particle;
+            for (var i = 0; i < previousPositions.Length; i++)
+            {
+                var center = perParticleCenter
+                    ? centers[i]
+                    : ParticlePath.GetControlPointAtTime(particleSystemState, controlPoint, creationTimes[i]);
+
+                var direction = MathUtils.SafeNormalize(positions[i] - center);
+
+                if (hasLocalSpeedScale)
+                {
+                    var forward = perParticleCenter ? forwards[i] : Vector3.Zero;
+                    direction *= WorldSpeedScale(creationTimes[i], forward, particleSystemState);
+                }
+
+                var speed = particleSystemState.Random.NextBetween(speedMins[i], speedMaxes[i]);
+
+                previousPositions[i] -= VelocityStep(particleSystemState, direction * speed, ignoreDelta);
+            }
         }
 
         /// <summary>The local speed scale rotated into world space by the centre's basis.</summary>
-        private Vector3 WorldSpeedScale(ref Particle particle, ParticleSystemState particleSystemState)
+        private Vector3 WorldSpeedScale(float creationTime, Vector3 forward, ParticleSystemState particleSystemState)
         {
             if (!perParticleCenter)
             {
-                var basis = particleSystemState.GetControlPoint(controlPoint).GetBasisAtTime(particle.CreationTime);
+                var basis = particleSystemState.GetControlPoint(controlPoint).GetBasisAtTime(creationTime);
                 return Vector3.TransformNormal(localSpeedScale, basis);
             }
 
-            var forward = centerForward.NextVector(ref particle, particleSystemState);
             var (left, up) = BasisFromForward(forward);
 
             return (forward * localSpeedScale.X) + (left * localSpeedScale.Y) + (up * localSpeedScale.Z);

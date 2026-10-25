@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -15,23 +17,41 @@ namespace ValveResourceFormat.Particles.Operators
     {
         public FadeInRandom(ParticleDefinitionParser parse) : base(parse, "m_flFadeInTime")
         {
+            parse.AddInitialRead(ParticleField.Alpha);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Alpha.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var ages = current.ReadAges();
+            var fadeTimes = ParticleScratch.Floats(current.Length);
+            FillFadeTimes(current, particleSystemState, fadeTimes);
+
+            var lifetimes = current.ReadFloats(ParticleField.LifeDuration);
+            var alphas = current.Floats(ParticleField.Alpha);
+            var initialAlphas = particles.Initial.ReadFloats(ParticleField.Alpha);
+
+            for (var i = 0; i < alphas.Length; i++)
             {
-                var fadeInTime = GetFadeTime(ref particle, particleSystemState);
+                var age = ages[i];
+                var fadeTime = fadeTimes[i];
 
-                if (MathF.Max(0f, particle.Age - frameTime) < fadeInTime)
+                // A particle without a positive fade time never fades, which keeps it out of the smoothstep's empty range
+                var fading = MathF.Max(0f, age - frameTime) < fadeTime;
+
+                if (!fading)
                 {
-                    var time = proportional
-                        ? MathUtils.Saturate(particle.NormalizedAge)
-                        : particle.Age;
-
-                    particle.Alpha = MathUtils.Smoothstep(0f, fadeInTime, time)
-                        * particle.GetInitialScalar(particles, ParticleField.Alpha);
+                    continue;
                 }
+
+                var time = proportional
+                    ? MathUtils.Saturate(ParticleMath.NormalizedAge(age, lifetimes[i]))
+                    : age;
+
+                alphas[i] = MathUtils.Smoothstep(0f, fadeTime, time) * initialAlphas[i];
             }
         }
     }

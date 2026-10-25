@@ -15,13 +15,14 @@ class WindForce : ParticleFunctionForceGenerator
         force = parse.Vector3("m_vForce", force);
     }
 
-    public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
+    public override void GenerateForces(ParticleCollection particles, Span<Vector3> forces, float frameTime, ParticleSystemState particleSystemState, float strength)
     {
         var wind = force * strength;
+        var normals = particles.Current.ReadVectors(ParticleField.Normal);
 
-        foreach (ref var particle in particles.Current)
+        for (var i = 0; i < normals.Length; i++)
         {
-            particle.ForceAccumulator += wind * MathF.Abs(Vector3.Dot(particle.Normal, wind));
+            forces[i] += wind * MathF.Abs(Vector3.Dot(normals[i], wind));
         }
     }
 }

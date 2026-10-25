@@ -34,38 +34,45 @@ namespace ValveResourceFormat.Particles.Initializers
         }
 
         public override ulong WrittenFields
-            => FieldMask(ParticleField.HitboxIndex) | FieldMask(ParticleField.HitboxOffsetPosition)
-                | (updatePosition ? FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) : 0);
+            => ParticleField.HitboxIndex.Mask() | ParticleField.HitboxOffsetPosition.Mask()
+                | (updatePosition ? ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask() : 0);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             if (HitBoxCache.Refresh(particleSystemState, controlPoint, hitboxSetName, useBones) is not { } cache)
             {
-                return particle;
+                return;
             }
 
-            var scale = hitBoxScale.NextVector(ref particle, particleSystemState);
-            var ratio = hybridRatio.NextNumber(ref particle, particleSystemState);
-            var (fraction, index) = cache.Closest(particleSystemState, particle.Position, desiredHitbox, scale, useClosestPointOnHitbox, testType, ratio);
+            var scale = hitBoxScale.NextVector(particleSystemState);
+            var ratio = hybridRatio.NextNumber(particleSystemState);
+            var readPositions = run.ReadVectors(ParticleField.Position);
+            var offsets = UnwrittenVectors(run, particleSystemState, ParticleField.HitboxOffsetPosition);
+            var indices = UnwrittenIntegers(run, particleSystemState, ParticleField.HitboxIndex);
+            var positions = updatePosition ? run.Vectors(ParticleField.Position) : default;
+            var previousPositions = updatePosition ? run.Vectors(ParticleField.PositionPrevious) : default;
 
-            if (IsUnwritten(particleSystemState, ParticleField.HitboxOffsetPosition))
+            for (var i = 0; i < run.Length; i++)
             {
-                particle.HitboxOffsetPosition = fraction;
-            }
+                var (fraction, index) = cache.Closest(particleSystemState, readPositions[i], desiredHitbox, scale, useClosestPointOnHitbox, testType, ratio);
 
-            if (IsUnwritten(particleSystemState, ParticleField.HitboxIndex))
-            {
-                particle.HitboxIndex = index;
-            }
+                if (!offsets.IsEmpty)
+                {
+                    offsets[i] = fraction;
+                }
 
-            if (updatePosition && (uint)index < (uint)cache.Count)
-            {
-                var position = cache.Current[index].PointAt(fraction);
-                particle.Position = position;
-                particle.PositionPrevious = position;
-            }
+                if (!indices.IsEmpty)
+                {
+                    indices[i] = index;
+                }
 
-            return particle;
+                if (updatePosition && (uint)index < (uint)cache.Count)
+                {
+                    var position = cache.Current[index].PointAt(fraction);
+                    positions[i] = position;
+                    previousPositions[i] = position;
+                }
+            }
         }
     }
 }

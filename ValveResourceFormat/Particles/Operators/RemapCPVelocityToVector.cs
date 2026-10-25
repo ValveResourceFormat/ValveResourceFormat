@@ -20,17 +20,22 @@ namespace ValveResourceFormat.Particles.Operators
             normalize = parse.Boolean("m_bNormalize", normalize);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var delta = particleSystemState.GetControlPoint(controlPoint).StepDelta;
             var value = normalize
                 ? MathUtils.SafeNormalize(delta) * scale
-                : delta * (scale / MathF.Max(1e-20f, particles.PreviousFrameTime));
+                : delta * particleSystemState.PerPreviousSecond(scale);
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsVector(fieldOutput))
             {
-                particle.SetVector(fieldOutput, value);
+                return;
             }
+
+            particles.Current.Vectors(fieldOutput).Fill(value);
         }
     }
 }

@@ -15,7 +15,12 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly float outputMin;
         private readonly float outputMax = 1f;
         private readonly bool activeRange;
-        private readonly bool scaleInitialRange; // legacy
+
+        /// <summary>
+        /// A key from before the set method that the format upgrade leaves in place: the remapped value
+        /// scales the current one instead of going through the set method.
+        /// </summary>
+        private readonly bool scaleInitialRange;
 
         private readonly bool invert;
         private readonly bool wrap;
@@ -47,10 +52,10 @@ namespace ValveResourceFormat.Particles.Initializers
             wrap = parse.Boolean("m_bWrap", wrap);
             remapBias = parse.Float("m_flRemapBias", remapBias);
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
-            controlPoint = Math.Clamp(parse.Int32("m_nScaleControlPoint", controlPoint), -1, 64);
+            controlPoint = Math.Clamp(parse.Int32("m_nScaleControlPoint", controlPoint), -1, ParticleSystemState.ControlPointCount);
             controlPointComponent = Math.Clamp(parse.Int32("m_nScaleControlPointField", controlPointComponent), -1, 2);
 
-            if (fieldOutput is ParticleField.Alpha or ParticleField.AlphaAlternate)
+            if (fieldOutput.IsAlpha())
             {
                 outputMin = MathUtils.Saturate(outputMin);
                 outputMax = MathUtils.Saturate(outputMax);
@@ -74,13 +79,15 @@ namespace ValveResourceFormat.Particles.Initializers
             OutputRange = (outputMin, outputMax);
         }
 
-        public override ulong WrittenFields => FieldMask(fieldOutput);
+        public override void Restart(ParticleSystemState particleSystemState) => Reset();
+
+        public override ulong WrittenFields => fieldOutput.Mask();
 
         /// <summary>
         /// Inverting mirrors the input range about the live particle count rather than the counter.
         /// A scale control point scales the range bounds, again leaving the counter untouched.
         /// </summary>
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var min = inputMin;
             var max = inputMax;
@@ -98,37 +105,46 @@ namespace ValveResourceFormat.Particles.Initializers
                 max = (long)(max * scale);
             }
 
-            if (activeRange && count > max)
-            {
-                return particle;
-            }
+            var isScalar = ParticleBuffer.IsScalar(fieldOutput);
+            var isInteger = fieldOutput.IsIntegerAttribute();
+            var outputs = isScalar ? run.Floats(fieldOutput) : default;
 
-            if (!activeRange || count >= min)
+            for (var i = 0; i < run.Length; i++)
             {
-                // A degenerate input range is a threshold, inclusive on the high side
-                var output = MathUtils.RemapValClamped(count, min, max, OutputRange.Min, OutputRange.Max);
-
-                // The bias shapes the output value, after the lerp, and is skipped entirely at its identity
-                if (remapBias != 0.5f)
+                if (activeRange && count > max)
                 {
-                    output = ParticleMath.Bias(MathUtils.Saturate(output), remapBias);
+                    continue;
                 }
 
-                output = scaleInitialRange
-                    ? particle.GetScalar(fieldOutput) * output
-                    : particle.ModifyScalarBySetMethodAtSpawn(particles, fieldOutput, output, setMethod);
+                if (!activeRange || count >= min)
+                {
+                    var output = MathUtils.RemapValClamped(count, min, max, OutputRange.Min, OutputRange.Max);
 
-                particle.SetScalar(fieldOutput, fieldOutput.IsIntegerAttribute() ? MathF.Truncate(output) : output);
+                    // The bias shapes the output value, after the lerp, and is skipped entirely at its identity
+                    if (remapBias != 0.5f)
+                    {
+                        output = ParticleMath.Bias(MathUtils.Saturate(output), remapBias);
+                    }
+
+                    if (isScalar)
+                    {
+                        var current = outputs[i];
+
+                        output = scaleInitialRange
+                            ? current * output
+                            : ParticleFieldExtensions.ApplySetMethod(output, current, current, particleSystemState.CurrentStep, setMethod);
+
+                        outputs[i] = isInteger ? BitConverter.Int32BitsToSingle((int)output) : output;
+                    }
+                }
+
+                count++;
+
+                if (wrap && count > max)
+                {
+                    count = 0;
+                }
             }
-
-            count++;
-
-            if (wrap && count > max)
-            {
-                count = 0;
-            }
-
-            return particle;
         }
     }
 }

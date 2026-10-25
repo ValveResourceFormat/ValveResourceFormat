@@ -25,6 +25,8 @@ namespace ValveResourceFormat.Particles.Operators
             outputField = parse.ParticleField("m_nFieldOutput", outputField);
             output = parse.Vector3("m_vecOutput", output);
             lerpTime = parse.Float("m_flLerpTime", lerpTime);
+
+            parse.AddInitialRead(outputField);
         }
 
         public override void Reset()
@@ -32,9 +34,11 @@ namespace ValveResourceFormat.Particles.Operators
             startAge = -1f;
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-        }
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
+
+        /// <inheritdoc/>
+        public override ulong InitialWrittenFields => outputField.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -43,14 +47,21 @@ namespace ValveResourceFormat.Particles.Operators
                 return;
             }
 
+            if (!ParticleBuffer.IsVector(outputField))
+            {
+                return;
+            }
+
+            var values = particles.Current.Vectors(outputField);
+            var initialValues = particles.Initial.Vectors(outputField);
+
             if (startAge < 0f)
             {
                 startAge = particleSystemState.Age;
 
-                foreach (ref var particle in particles.Current)
+                for (var i = 0; i < values.Length; i++)
                 {
-                    var initial = particle.GetInitialVector(particles, outputField);
-                    particle.SetInitialVector(particles, outputField, initial with { X = particle.GetVector(outputField).X });
+                    initialValues[i].X = values[i].X;
                 }
             }
 
@@ -62,10 +73,10 @@ namespace ValveResourceFormat.Particles.Operators
                 return;
             }
 
-            foreach (ref var particle in particles.Current)
+            for (var i = 0; i < values.Length; i++)
             {
                 t *= strength;
-                particle.SetVector(outputField, MathUtils.Lerp(particle.GetInitialVector(particles, outputField), output, t));
+                values[i] = MathUtils.Lerp(initialValues[i], output, t);
             }
         }
     }

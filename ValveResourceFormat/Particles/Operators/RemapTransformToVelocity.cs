@@ -3,7 +3,7 @@ namespace ValveResourceFormat.Particles.Operators
     /// <summary>
     /// Replaces every particle's velocity with the transform input's position read directly as a
     /// velocity vector in units per second, encoded into the Verlet state through
-    /// <see cref="Particle.PositionPrevious"/>. No position delta is tracked between frames: the
+    /// <see cref="ParticleField.PositionPrevious"/>. No position delta is tracked between frames: the
     /// transform is meant to be a control point used as a vector holder, not a moving point, and
     /// its orientation is unused.
     /// </summary>
@@ -21,13 +21,20 @@ namespace ValveResourceFormat.Particles.Operators
             transformInput = parse.TransformInput("m_TransformInput", transformInput);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var step = transformInput.NextTransform(particleSystemState).Translation * frameTime;
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var positions = current.Vectors(ParticleField.Position);
+            var previousPositions = current.Vectors(ParticleField.PositionPrevious);
+
+            for (var i = 0; i < positions.Length; i++)
             {
-                particle.PositionPrevious = particle.Position - step;
+                previousPositions[i] = positions[i] - step;
             }
         }
     }

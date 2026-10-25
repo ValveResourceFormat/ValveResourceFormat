@@ -47,13 +47,9 @@ namespace ValveResourceFormat.Particles.Initializers
             cursor = Vector3.Zero;
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-        }
+        public override ulong WrittenFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask();
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious);
-
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var counts = new Vector3(
                 MathF.Max(countX.NextNumber(particleSystemState), 1f),
@@ -65,31 +61,37 @@ namespace ValveResourceFormat.Particles.Initializers
                 spacingZ.NextNumber(particleSystemState));
 
             var halfExtent = center ? (counts - Vector3.One) * 0.5f * spacing : Vector3.Zero;
-
-            Wrap(counts);
-
-            if (hollow && counts != Vector3.One)
-            {
-                for (var skipped = 0; !IsOnSurface(counts) && skipped < MaxHollowSkips; skipped++)
-                {
-                    cursor.X += 1f;
-                    Wrap(counts);
-                }
-            }
-
-            var offset = (cursor * spacing) - halfExtent;
             var controlPoint = particleSystemState.GetControlPoint(controlPointNumber);
+            var controlPointPosition = controlPoint.Position;
+            var rotation = localSpace ? controlPoint.GetRotationMatrix() : Matrix4x4.Identity;
 
-            var position = localSpace
-                ? Vector3.TransformNormal(offset, controlPoint.GetRotationMatrix()) + controlPoint.Position
-                : offset + controlPoint.Position;
+            var positions = run.Vectors(ParticleField.Position);
+            var previous = run.Vectors(ParticleField.PositionPrevious);
 
-            particle.Position = position;
-            particle.PositionPrevious = position;
+            for (var i = 0; i < run.Length; i++)
+            {
+                Wrap(counts);
 
-            cursor.X += 1f;
+                if (hollow && counts != Vector3.One)
+                {
+                    for (var skipped = 0; !IsOnSurface(counts) && skipped < MaxHollowSkips; skipped++)
+                    {
+                        cursor.X += 1f;
+                        Wrap(counts);
+                    }
+                }
 
-            return particle;
+                var offset = (cursor * spacing) - halfExtent;
+
+                var position = localSpace
+                    ? Vector3.TransformNormal(offset, rotation) + controlPointPosition
+                    : offset + controlPointPosition;
+
+                positions[i] = position;
+                previous[i] = position;
+
+                cursor.X += 1f;
+            }
         }
 
         private void Wrap(Vector3 counts)

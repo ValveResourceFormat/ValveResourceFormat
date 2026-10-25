@@ -28,6 +28,9 @@ namespace ValveResourceFormat.Particles.Operators
             controlPoint = parse.Int32("m_nControlPointNumber", controlPoint);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.PositionPrevious.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var normal = planeNormal.NextVector(particleSystemState);
@@ -36,9 +39,14 @@ namespace ValveResourceFormat.Particles.Operators
             var falloffRange = falloffDistance == 0f ? 1f : falloffDistance;
             var planeOffset = particleSystemState.GetControlPoint(controlPoint).Position.Z;
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var positions = current.ReadVectors(ParticleField.Position);
+            var previousPositions = current.Vectors(ParticleField.PositionPrevious);
+
+            for (var i = 0; i < positions.Length; i++)
             {
-                var distance = -Vector3.Dot(normal, particle.Position) - planeOffset;
+                var position = positions[i];
+                var distance = -Vector3.Dot(normal, position) - planeOffset;
 
                 if (!directional)
                 {
@@ -49,7 +57,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                 if (amount > 0f)
                 {
-                    particle.PositionPrevious = MathUtils.Lerp(particle.PositionPrevious, particle.Position, amount);
+                    previousPositions[i] = MathUtils.Lerp(previousPositions[i], position, amount);
                 }
             }
         }

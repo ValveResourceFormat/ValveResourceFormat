@@ -37,6 +37,9 @@ namespace ValveResourceFormat.Particles.Operators
             interpolation = parse.NumberProvider("m_flInterpolation", interpolation);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             if (modelControlPoint < 0 || HitBoxCache.Refresh(particleSystemState, modelControlPoint, hitboxSetName, useBones) is not { IsStable: true } cache)
@@ -45,26 +48,42 @@ namespace ValveResourceFormat.Particles.Operators
             }
 
             var boxes = cache.Current;
-            var end = lifeTimeLerpEnd > 0f ? lifeTimeLerpEnd : 1e20f;
+            var end = lifeTimeLerpEnd > 0f ? lifeTimeLerpEnd : ParticleMath.NoFadeEnd;
             var inverseWindow = lifeTimeLerpEnd > lifeTimeLerpStart ? 1f / (lifeTimeLerpEnd - lifeTimeLerpStart) : 0f;
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var positions = current.Vectors(ParticleField.Position);
+            var previousPositions = current.Vectors(ParticleField.PositionPrevious);
+            var hitboxIndices = current.ReadIntegers(ParticleField.HitboxIndex);
+            var hitboxOffsets = current.ReadVectors(ParticleField.HitboxOffsetPosition);
+            var ages = current.ReadAges();
+
+            var interpolations = default(Span<float>);
+
+            if (lerpType == HitboxLerpType.HITBOX_LERP_CONSTANT)
             {
-                if ((uint)particle.HitboxIndex >= (uint)boxes.Length)
+                interpolations = interpolation.Fill(current, particleSystemState);
+            }
+
+            for (var i = 0; i < positions.Length; i++)
+            {
+                var hitboxIndex = hitboxIndices[i];
+
+                if ((uint)hitboxIndex >= (uint)boxes.Length)
                 {
                     continue;
                 }
 
-                var target = boxes[particle.HitboxIndex].PointAt(particle.HitboxOffsetPosition);
+                var target = boxes[hitboxIndex].PointAt(hitboxOffsets[i]);
                 float fraction;
 
                 if (lerpType == HitboxLerpType.HITBOX_LERP_CONSTANT)
                 {
-                    fraction = strength * interpolation.NextNumber(ref particle, particleSystemState);
+                    fraction = strength * interpolations[i];
                 }
                 else
                 {
-                    var age = particleSystemState.Age - particle.CreationTime;
+                    var age = ages[i];
 
                     if (!(end > age && age > lifeTimeLerpStart))
                     {
@@ -74,8 +93,8 @@ namespace ValveResourceFormat.Particles.Operators
                     fraction = (age - lifeTimeLerpStart) * inverseWindow * strength;
                 }
 
-                particle.Position = MathUtils.Lerp(particle.Position, target, fraction);
-                particle.PositionPrevious = MathUtils.Lerp(particle.PositionPrevious, target, fraction * prevPosScale);
+                positions[i] = MathUtils.Lerp(positions[i], target, fraction);
+                previousPositions[i] = MathUtils.Lerp(previousPositions[i], target, fraction * prevPosScale);
             }
         }
     }

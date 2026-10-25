@@ -31,11 +31,11 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             outVectorField = parse.Int32("m_nOutVectorField", outVectorField);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             var value1 = input1.NextVector(particleSystemState);
             var value2 = input2.NextVector(particleSystemState);
-            var value = expression.Evaluate(value1, value2) * strength ?? 0f;
+            var value = (expression.Evaluate(value1, value2) ?? 0f) * strength;
 
             if (outputRemap != null)
             {

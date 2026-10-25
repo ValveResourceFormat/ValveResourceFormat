@@ -18,11 +18,15 @@ namespace ValveResourceFormat.Particles.Operators
         {
             var threshold = minVelocity * minVelocity;
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var positions = current.ReadVectors(ParticleField.Position);
+            var previousPositions = current.ReadVectors(ParticleField.PositionPrevious);
+
+            for (var i = 0; i < positions.Length; i++)
             {
-                if ((particle.Position - particle.PositionPrevious).LengthSquared() / frameTime <= threshold)
+                if ((positions[i] - previousPositions[i]).LengthSquared() / frameTime <= threshold)
                 {
-                    particle.Kill();
+                    particles.Kill(i);
                 }
             }
         }

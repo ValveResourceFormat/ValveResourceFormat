@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -42,22 +44,37 @@ namespace ValveResourceFormat.Particles.Operators
                 outputMin = MathUtils.Saturate(outputMin);
                 outputMax = MathUtils.Saturate(outputMax);
             }
+
+            AddInitialReadOf(parse, setMethod, outputField);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var divisor = ignoreDelta ? 1f : frameTime;
-            var inputRange = inputMax == inputMin ? 1f : inputMax - inputMin;
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(outputField))
             {
-                var speed = (particle.Position - particle.PositionPrevious).Length() / divisor;
-                var fraction = MathUtils.Saturate((speed - inputMin) / inputRange);
-                var value = MathUtils.Lerp(outputMin, outputMax, fraction);
-                value = particle.ModifyScalarBySetMethod(particles, outputField, value, setMethod);
+                return;
+            }
 
-                var current = particle.GetScalar(outputField);
-                particle.SetScalar(outputField, MathUtils.Lerp(current, value, strength));
+            var current = particles.Current;
+            var positions = current.ReadVectors(ParticleField.Position);
+            var previousPositions = current.ReadVectors(ParticleField.PositionPrevious);
+            var output = current.Floats(outputField);
+            var initial = particles.Initial.ReadFloats(outputField);
+
+            for (var i = 0; i < output.Length; i++)
+            {
+                var speed = (positions[i] - previousPositions[i]).Length() / divisor;
+                var fraction = ParticleMath.ClampedFraction(speed, inputMin, inputMax);
+                var value = MathUtils.Lerp(outputMin, outputMax, fraction);
+
+                value = ParticleFieldExtensions.ApplySetMethod(value, initial[i], output[i], particleSystemState.CurrentStep, setMethod);
+
+                output[i] = MathUtils.Lerp(output[i], value, strength);
             }
         }
     }

@@ -24,44 +24,60 @@ namespace ValveResourceFormat.Particles.Operators
             interpolation = parse.NumberProvider("m_flInterpolation", interpolation);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var live = particles.Current;
-            var outputIsVector = fieldOutput.FieldType() == "vector";
-            var inputIsVector = fieldInput.FieldType() == "vector";
+            var outputIsVector = ParticleBuffer.IsVector(fieldOutput);
+            var inputIsVector = ParticleBuffer.IsVector(fieldInput);
+
+            if (!outputIsVector && !ParticleBuffer.IsScalar(fieldOutput))
+            {
+                return;
+            }
+
+            var maxDistances = distanceCheck.Fill(live, particleSystemState);
+            var amounts = interpolation.Fill(live, particleSystemState);
+
+            var positions = live.ReadVectors(ParticleField.Position);
+            var inputVectors = inputIsVector ? live.ReadVectors(fieldInput) : default;
+            var inputScalars = inputIsVector ? default : live.ReadFloats(fieldInput);
+            var outputVectors = outputIsVector ? live.Vectors(fieldOutput) : default;
+            var outputScalars = outputIsVector ? default : live.Floats(fieldOutput);
 
             for (var i = 0; i < live.Length; i++)
             {
-                ref var particle = ref live[i];
-                ref var neighbor = ref live[Math.Max(Math.Min(i + increment, live.Length - 1), 0)];
+                var neighbor = Math.Max(Math.Min(i + increment, live.Length - 1), 0);
 
-                var maxDistance = distanceCheck.NextNumber(ref particle, particleSystemState);
-                var amount = interpolation.NextNumber(ref particle, particleSystemState);
+                var maxDistance = maxDistances[i];
+                var amount = amounts[i];
                 var maxDistanceSquared = maxDistance * maxDistance;
 
-                if (maxDistanceSquared > 0f && Vector3.DistanceSquared(particle.Position, neighbor.Position) > maxDistanceSquared)
+                if (maxDistanceSquared > 0f && Vector3.DistanceSquared(positions[i], positions[neighbor]) > maxDistanceSquared)
                 {
                     continue;
                 }
 
                 if (outputIsVector)
                 {
-                    var value = inputIsVector ? neighbor.GetVector(fieldInput) : new Vector3(neighbor.GetScalar(fieldInput));
+                    var value = inputIsVector ? inputVectors[neighbor] : new Vector3(inputScalars[neighbor]);
 
                     if (fieldOutput.IsNormalizedField())
                     {
                         value = Vector3.Clamp(value, Vector3.Zero, Vector3.One);
                     }
 
-                    particle.SetVector(fieldOutput, MathUtils.Lerp(particle.GetVector(fieldOutput), value, amount));
+                    outputVectors[i] = MathUtils.Lerp(outputVectors[i], value, amount);
                     continue;
                 }
 
-                var scalar = inputIsVector ? neighbor.GetVector(fieldInput).X : neighbor.GetScalar(fieldInput);
+                var scalar = inputIsVector ? inputVectors[neighbor].X : inputScalars[neighbor];
 
                 if (fieldOutput.IsIntegerAttribute())
                 {
-                    particle.SetScalar(fieldOutput, scalar);
+                    outputScalars[i] = scalar;
                     continue;
                 }
 
@@ -70,7 +86,7 @@ namespace ValveResourceFormat.Particles.Operators
                     scalar = MathUtils.Saturate(scalar);
                 }
 
-                particle.SetScalar(fieldOutput, MathUtils.Lerp(particle.GetScalar(fieldOutput), scalar, MathUtils.Saturate(amount)));
+                outputScalars[i] = MathUtils.Lerp(outputScalars[i], scalar, MathUtils.Saturate(amount));
             }
         }
     }

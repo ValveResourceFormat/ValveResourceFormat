@@ -14,8 +14,6 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly float velocityScale = 1f;
         private readonly bool directionOnly;
 
-        private Vector3 displacement;
-
         public VelocityFromCP(ParticleDefinitionParser parse) : base(parse)
         {
             velocityInput = parse.CollectionVectorProvider("m_velocityInput", velocityInput);
@@ -24,9 +22,9 @@ namespace ValveResourceFormat.Particles.Initializers
             directionOnly = parse.Boolean("m_bDirectionOnly", directionOnly);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.PositionPrevious);
+        public override ulong WrittenFields => ParticleField.PositionPrevious.Mask();
 
-        protected override void BeginCall(ref Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var velocity = velocityInput.NextVector(particleSystemState);
             velocity = Vector3.TransformNormal(velocity, transformInput.NextTransform(particleSystemState));
@@ -36,13 +34,13 @@ namespace ValveResourceFormat.Particles.Initializers
                 velocity = MathUtils.SafeNormalize(velocity);
             }
 
-            displacement = velocity * particles.PreviousFrameTime * velocityScale;
-        }
+            var displacement = velocity * particleSystemState.PreviousStep * velocityScale;
+            var previousPositions = run.Vectors(ParticleField.PositionPrevious);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            particle.PositionPrevious -= displacement;
-            return particle;
+            for (var i = 0; i < previousPositions.Length; i++)
+            {
+                previousPositions[i] -= displacement;
+            }
         }
     }
 }

@@ -85,6 +85,7 @@ namespace ValveResourceFormat.Particles.Emitters
                 return false;
             }
 
+            // Unlike the other emitters, only an oscillating fade stops emission past the fade out
             return emitting && !(OpFadeOscillatePeriod != 0f && GetFunctionTime(particleSystemState) > OpEndFadeOutTime);
         }
 

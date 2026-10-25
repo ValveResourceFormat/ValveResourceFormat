@@ -27,7 +27,6 @@ namespace ValveResourceFormat.Particles.Initializers
         private int index;
         private float azimuth;
         private float height = 1f;
-        private float densityScale = 1f;
 
         public CreateSpiralSphere(ParticleDefinitionParser parse) : base(parse)
         {
@@ -46,58 +45,54 @@ namespace ValveResourceFormat.Particles.Initializers
             height = 1f;
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious);
+        public override void Restart(ParticleSystemState particleSystemState) => Reset();
 
-        public override void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override ulong WrittenFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask();
+
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var (head, blocks, tail) = SplitIntoCalls(batch);
+            var densityScale = useParticleCount ? run.Length : 1f;
 
-            InitializeCall(batch[head], particles, particleSystemState);
-            InitializeCall(batch[blocks], particles, particleSystemState);
-            InitializeCall(batch[tail], particles, particleSystemState);
-        }
+            var creationTimes = run.ReadFloats(ParticleField.CreationTime);
+            var positions = run.Vectors(ParticleField.Position);
+            var previous = SpawnPreviousPositions(run, particleSystemState);
 
-        private void InitializeCall(Span<Particle> call, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            densityScale = useParticleCount ? call.Length : 1f;
-            InitializeEach(call, particles, particleSystemState);
-        }
+            var radii = initialRadius.Fill(run, particleSystemState);
+            var speedMins = initialSpeedMin.Fill(run, particleSystemState);
+            var speedMaxs = initialSpeedMax.Fill(run, particleSystemState);
+            var densities = density.Fill(run, particleSystemState);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            var radius = initialRadius.NextNumber(ref particle, particleSystemState);
-            var speedMin = initialSpeedMin.NextNumber(ref particle, particleSystemState);
-            var speedMax = initialSpeedMax.NextNumber(ref particle, particleSystemState);
-            var pointCount = density.NextNumber(ref particle, particleSystemState) * densityScale;
-            var heightStep = 2f / MathF.Max(1f, pointCount);
-
-            if (index > pointCount || index == 0)
+            for (var i = 0; i < run.Length; i++)
             {
-                index = 0;
-                azimuth = 0f;
-                height = 1f - (heightStep * 0.5f);
+                var pointCount = densities[i] * densityScale;
+                var heightStep = 2f / MathF.Max(1f, pointCount);
+
+                if (index > pointCount || index == 0)
+                {
+                    index = 0;
+                    azimuth = 0f;
+                    height = 1f - (heightStep * 0.5f);
+                }
+
+                var transform = transformInput.NextTransformAtTime(particleSystemState, creationTimes[i]);
+                var ring = MathF.Sqrt(MathF.Max(0f, 1f - (height * height)));
+                var local = new Vector3(MathF.Cos(azimuth) * ring, MathF.Sin(azimuth) * ring, height) * radii[i];
+                var position = Vector3.Transform(local, transform);
+
+                var speed = particleSystemState.Random.NextBetween(speedMins[i], speedMaxs[i]);
+                var direction = MathUtils.SafeNormalize(position - transform.Translation);
+
+                positions[i] = position;
+
+                if (!previous.IsEmpty)
+                {
+                    previous[i] = position - (direction * (speed * particleSystemState.PreviousStep));
+                }
+
+                height -= heightStep;
+                azimuth += GoldenAngle;
+                index++;
             }
-
-            var transform = transformInput.NextTransformAtTime(ref particle, particleSystemState, particle.CreationTime);
-            var ring = MathF.Sqrt(MathF.Max(0f, 1f - (height * height)));
-            var local = new Vector3(MathF.Cos(azimuth) * ring, MathF.Sin(azimuth) * ring, height) * radius;
-            var position = Vector3.Transform(local, transform);
-
-            var speed = particleSystemState.Random.NextBetween(speedMin, speedMax);
-            var direction = MathUtils.SafeNormalize(position - transform.Translation);
-
-            particle.Position = position;
-
-            if (IsUnwritten(particleSystemState, ParticleField.PositionPrevious))
-            {
-                particle.PositionPrevious = position - (direction * (speed * particles.PreviousFrameTime));
-            }
-
-            height -= heightStep;
-            azimuth += GoldenAngle;
-            index++;
-
-            return particle;
         }
     }
 }

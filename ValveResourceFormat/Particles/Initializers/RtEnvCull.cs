@@ -45,9 +45,19 @@ namespace ValveResourceFormat.Particles.Initializers
             resolvedFor = null;
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.LifeDuration);
+        public override ulong WrittenFields => ParticleField.LifeDuration.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
+        {
+            InitializeRun(run, particles, particleSystemState, blockRun: false);
+        }
+
+        protected override void InitializeBlocks(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
+        {
+            InitializeRun(run, particles, particleSystemState, blockRun: true);
+        }
+
+        private void InitializeRun(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState, bool blockRun)
         {
             var collision = particleSystemState.Collision;
 
@@ -62,57 +72,131 @@ namespace ValveResourceFormat.Particles.Initializers
                 environment = (int)particleSystemState.GetControlPoint(environmentControlPoint).Position.GetComponent(component);
             }
 
-            if (environment < 0 || particle.Lifetime == Culled)
+            if (environment < 0)
             {
-                return particle;
+                return;
             }
 
+            var lifetimes = run.Floats(ParticleField.LifeDuration);
+            var positions = run.ReadVectors(ParticleField.Position);
+            var previousPositions = run.ReadVectors(ParticleField.PositionPrevious);
+            var previousFrameTime = particleSystemState.PreviousStep;
             var hasTestNormal = testNormal != Vector3.Zero;
+
+            for (var i = 0; i < lifetimes.Length; i++)
+            {
+                var lifetime = lifetimes[i];
+
+                if (lifetime == Culled)
+                {
+                    continue;
+                }
+
+                var position = positions[i];
+
+                if (blockRun)
+                {
+                    lifetimes[i] = CullInBlock(collision, position, previousPositions[i], lifetime, previousFrameTime, hasTestNormal);
+                    continue;
+                }
+
+                if (!useVelocity)
+                {
+                    var found = collision.TraceEnvironment(environment, position, testDirection, float.MaxValue, out _, out var normal);
+                    var cull = found && (!hasTestNormal || normal == testNormal)
+                        ? !cullOnMiss || hasTestNormal
+                        : cullOnMiss;
+
+                    if (cull)
+                    {
+                        lifetimes[i] = Culled;
+                    }
+
+                    continue;
+                }
+
+                var step = position - previousPositions[i];
+                var stepLength = step.Length();
+                var speed = stepLength / previousFrameTime;
+                var hit = false;
+                var hitDistance = 0f;
+
+                if (stepLength > 0f)
+                {
+                    hit = collision.TraceEnvironment(environment, position, step / stepLength, lifetime * speed, out hitDistance, out var normal)
+                        && (!hasTestNormal || normal == testNormal);
+                }
+
+                if (!hit)
+                {
+                    if (cullOnMiss)
+                    {
+                        lifetimes[i] = Culled;
+                    }
+                }
+                else if (lifeAdjust)
+                {
+                    lifetimes[i] = MathF.Min(hitDistance / (speed + ParticleMath.FloatEpsilon), lifetime);
+                }
+                else if (!cullOnMiss)
+                {
+                    lifetimes[i] = Culled;
+                }
+            }
+        }
+
+        /// <summary>
+        /// The lifetime a particle in the whole blocks of four of a batch is left with. These decide by a
+        /// rule of their own: with <c>m_bCullOnMiss</c> a miss, or a hit with the test normal when one is
+        /// set, ends the particle; otherwise a hit with the test normal, or any hit when none is set. With
+        /// the velocity, an ended particle is culled, or with <c>m_bLifeAdjust</c> lives until it reaches
+        /// the hit, and a miss never shortens its life.
+        /// </summary>
+        private float CullInBlock(IParticleCollision collision, Vector3 position, Vector3 previousPosition, float lifetime, float previousFrameTime, bool hasTestNormal)
+        {
+            var hit = false;
+            var hitDistance = 0f;
+            var normal = Vector3.Zero;
+            var speed = 0f;
 
             if (!useVelocity)
             {
-                var found = collision.TraceEnvironment(environment, particle.Position, testDirection, float.MaxValue, out _, out var normal);
-                var cull = found && (!hasTestNormal || normal == testNormal)
-                    ? !cullOnMiss || hasTestNormal
-                    : cullOnMiss;
-
-                if (cull)
-                {
-                    particle.Lifetime = Culled;
-                }
-
-                return particle;
+                hit = collision.TraceEnvironment(environment, position, testDirection, float.MaxValue, out hitDistance, out normal);
             }
-
-            var step = particle.Position - particle.PositionPrevious;
-            var stepLength = step.Length();
-            var speed = stepLength / particles.PreviousFrameTime;
-            var hit = false;
-            var hitDistance = 0f;
-
-            if (stepLength > 0f)
+            else
             {
-                hit = collision.TraceEnvironment(environment, particle.Position, step / stepLength, particle.Lifetime * speed, out hitDistance, out var normal)
-                    && (!hasTestNormal || normal == testNormal);
-            }
+                var step = position - previousPosition;
+                var stepLength = step.Length();
+                speed = stepLength / previousFrameTime;
 
-            if (!hit)
-            {
-                if (cullOnMiss)
+                if (stepLength > 0f)
                 {
-                    particle.Lifetime = Culled;
+                    hit = collision.TraceEnvironment(environment, position, step / stepLength, lifetime * speed, out hitDistance, out normal);
                 }
             }
-            else if (lifeAdjust)
+
+            var matchesNormal = normal == testNormal;
+            var ends = cullOnMiss
+                ? !hit || (hasTestNormal && matchesNormal)
+                : hit && (!hasTestNormal || matchesNormal);
+
+            if (!ends)
             {
-                particle.Lifetime = MathF.Min(hitDistance / (speed + ParticleMath.FloatEpsilon), particle.Lifetime);
-            }
-            else if (!cullOnMiss)
-            {
-                particle.Lifetime = Culled;
+                return lifetime;
             }
 
-            return particle;
+            if (!useVelocity)
+            {
+                return Culled;
+            }
+
+            if (!lifeAdjust)
+            {
+                return MathF.Min(lifetime, Culled);
+            }
+
+            var lifeToHit = hit ? hitDistance / (speed + ParticleMath.FloatEpsilon) : float.PositiveInfinity;
+            return MathF.Min(lifetime, lifeToHit);
         }
     }
 }

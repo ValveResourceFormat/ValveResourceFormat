@@ -58,55 +58,23 @@ namespace ValveResourceFormat.Particles.Initializers
         }
 
         public override ulong WrittenFields => fieldOutput == ParticleField.Position
-            ? FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious)
-            : FieldMask(fieldOutput);
+            ? ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask()
+            : fieldOutput.Mask();
 
         /// <summary>
-        /// Where the particle in collection slot <paramref name="index"/> goes, or null to leave it as it
-        /// is. Along a path the slots cycle through <c>m_nNumPointsAlongPath</c> stops spread over the
+        /// Where along the path the particle in collection slot <paramref name="index"/> goes, or null to
+        /// leave it as it is. The slots cycle through <c>m_nNumPointsAlongPath</c> stops spread over the
         /// path's length, and a stop the path's length does not reach is not placed.
         /// </summary>
-        private Vector3? GetParticlePosition(int index, ParticleSystemState particleSystem)
+        private Vector3? GetPathPosition(int index, ReadOnlySpan<Vector3> points, int segmentCount, float totalLength)
         {
-            var pointCount = pointList.Count;
-
-            if (pointCount == 0)
-            {
-                return null;
-            }
-
-            if (!usePath || pointCount == 1)
-            {
-                return pointList[index % pointCount].GetPosition(particleSystem);
-            }
-
-            if (numPointsOnPath == 0)
-            {
-                return null;
-            }
-
-            Span<Vector3> points = pointCount <= 64 ? stackalloc Vector3[pointCount] : new Vector3[pointCount];
-
-            for (var i = 0; i < pointCount; i++)
-            {
-                points[i] = pointList[i].GetPosition(particleSystem);
-            }
-
-            var segmentCount = closedLoop ? pointCount : pointCount - 1;
-            var totalLength = 0f;
-
-            for (var segment = 1; segment <= segmentCount; segment++)
-            {
-                totalLength += Vector3.Distance(points[segment % pointCount], points[segment - 1]);
-            }
-
             var target = (1f / (numPointsOnPath - 1)) * (index % numPointsOnPath) * totalLength;
             var reached = 0f;
 
             for (var segment = 1; segment <= segmentCount; segment++)
             {
                 var start = points[segment - 1];
-                var end = points[segment % pointCount];
+                var end = points[segment % points.Length];
                 var segmentEnd = reached + Vector3.Distance(end, start);
 
                 if (segmentEnd >= target)
@@ -120,22 +88,69 @@ namespace ValveResourceFormat.Particles.Initializers
             return null;
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            if (GetParticlePosition(particle.Index, particleSystemState) is not { } particlePosition)
+            if (!ParticleBuffer.IsVector(fieldOutput))
             {
-                return particle;
+                return;
             }
 
-            particle.SetVector(fieldOutput, particlePosition);
+            var outputs = run.Vectors(fieldOutput);
+            var pointCount = pointList.Count;
 
-            // Placement along the path leaves the previous position as it was
-            if (fieldOutput == ParticleField.Position && (!usePath || pointList.Count == 1))
+            if (pointCount == 0)
             {
-                particle.PositionPrevious = particlePosition;
+                return;
             }
 
-            return particle;
+            if (!usePath || pointCount == 1)
+            {
+                var writesPrevious = fieldOutput == ParticleField.Position;
+                var previousPositions = writesPrevious ? run.Vectors(ParticleField.PositionPrevious) : default;
+
+                for (var i = 0; i < outputs.Length; i++)
+                {
+                    var position = pointList[(run.Start + i) % pointCount].GetPosition(particleSystemState);
+                    outputs[i] = position;
+
+                    if (writesPrevious)
+                    {
+                        previousPositions[i] = position;
+                    }
+                }
+
+                return;
+            }
+
+            if (numPointsOnPath == 0)
+            {
+                return;
+            }
+
+            var points = ParticleScratch.Vectors(pointCount);
+
+            for (var i = 0; i < pointCount; i++)
+            {
+                points[i] = pointList[i].GetPosition(particleSystemState);
+            }
+
+            var segmentCount = closedLoop ? pointCount : pointCount - 1;
+            var totalLength = 0f;
+
+            for (var segment = 1; segment <= segmentCount; segment++)
+            {
+                totalLength += Vector3.Distance(points[segment % pointCount], points[segment - 1]);
+            }
+
+            // Placement along the path leaves the previous position as it was, deliberately not
+            // writing the previous position of the particle whose index is the path segment number
+            for (var i = 0; i < outputs.Length; i++)
+            {
+                if (GetPathPosition(run.Start + i, points, segmentCount, totalLength) is { } position)
+                {
+                    outputs[i] = position;
+                }
+            }
         }
     }
 }

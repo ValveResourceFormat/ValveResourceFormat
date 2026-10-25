@@ -25,17 +25,32 @@ namespace ValveResourceFormat.Particles.Initializers
             hitboxSetName = parse.String("m_HitboxSetName", hitboxSetName);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.LifeDuration);
+        public override ulong WrittenFields => ParticleField.LifeDuration.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            if (HitBoxCache.Refresh(particleSystemState, controlPoint, hitboxSetName, useBones) is { Count: > 0 } cache
-                && (cache.Object == null || cache.Contains(particle.Position, boundBox) != cullOutside))
+            if (HitBoxCache.Refresh(particleSystemState, controlPoint, hitboxSetName, useBones) is not { Count: > 0 } cache)
             {
-                particle.Lifetime = -1f;
+                return;
             }
 
-            return particle;
+            var lifetimes = run.Floats(ParticleField.LifeDuration);
+
+            if (cache.Object == null)
+            {
+                lifetimes.Fill(-1f);
+                return;
+            }
+
+            var positions = run.ReadVectors(ParticleField.Position);
+
+            for (var i = 0; i < lifetimes.Length; i++)
+            {
+                if (cache.Contains(positions[i], boundBox) != cullOutside)
+                {
+                    lifetimes[i] = -1f;
+                }
+            }
         }
     }
 }

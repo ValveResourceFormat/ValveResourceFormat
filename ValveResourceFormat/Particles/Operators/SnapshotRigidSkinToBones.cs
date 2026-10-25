@@ -19,36 +19,59 @@ namespace ValveResourceFormat.Particles.Operators
             transformNormals = parse.Boolean("m_bTransformNormals", transformNormals);
             transformRadii = parse.Boolean("m_bTransformRadii", transformRadii);
             controlPoint = parse.ControlPoint("m_nControlPointNumber", controlPoint);
+
+            parse.AddInitialRead(ParticleField.Position);
+            parse.AddInitialRead(ParticleField.PositionPrevious);
+            parse.AddInitialRead(ParticleField.Radius);
+            parse.AddInitialRead(ParticleField.Normal);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields
+            => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask() | ParticleField.Radius.Mask() | ParticleField.Normal.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            if (HitBoxCache.Refresh(particleSystemState, controlPoint, string.Empty, useBones: true) is not { Count: > 0 } cache)
+            if (HitBoxCache.Refresh(particleSystemState, controlPoint, string.Empty, useBones: true) is not { Count: > 0 } cache
+                || !particles.Current.HasBones)
             {
                 return;
             }
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var initial = particles.Initial;
+            var positions = current.Vectors(ParticleField.Position);
+            var previousPositions = current.Vectors(ParticleField.PositionPrevious);
+            var initialPreviousPositions = initial.ReadVectors(ParticleField.PositionPrevious);
+            var restPositions = current.ReadVectors(ParticleField.HitboxOffsetPosition);
+            var boneWeights = current.ReadVectors(ParticleField.BoneWeights);
+            var boneIndices = current.BoneIndices;
+
+            var normals = transformNormals ? current.Vectors(ParticleField.Normal) : default;
+            var initialNormals = transformNormals ? initial.ReadVectors(ParticleField.Normal) : default;
+            var radii = transformRadii ? current.Floats(ParticleField.Radius) : default;
+            var initialRadii = transformRadii ? initial.ReadFloats(ParticleField.Radius) : default;
+
+            for (var i = 0; i < positions.Length; i++)
             {
-                if (!cache.ComputeSkinningMatrix(particle.BoneIndices, particle.BoneWeights, false, out var skin, out _))
+                if (!cache.ComputeSkinningMatrix(boneIndices[i], boneWeights[i], false, out var skin, out _))
                 {
                     continue;
                 }
 
-                ref var initial = ref particles.Initial[particle.Index];
-                var rest = particle.HitboxOffsetPosition;
+                var rest = restPositions[i];
 
-                particle.Position = Vector3.Transform(rest, skin);
-                particle.PositionPrevious = Vector3.Transform(rest + initial.PositionPrevious, skin);
+                positions[i] = Vector3.Transform(rest, skin);
+                previousPositions[i] = Vector3.Transform(rest + initialPreviousPositions[i], skin);
 
                 if (transformNormals)
                 {
-                    particle.Normal = MathUtils.SafeNormalize(Vector3.TransformNormal(initial.Normal, skin));
+                    normals[i] = MathUtils.SafeNormalize(Vector3.TransformNormal(initialNormals[i], skin));
                 }
 
                 if (transformRadii)
                 {
-                    particle.Radius = skin.MaxAxisScale() * initial.Radius;
+                    radii[i] = skin.MaxAxisScale() * initialRadii[i];
                 }
             }
         }

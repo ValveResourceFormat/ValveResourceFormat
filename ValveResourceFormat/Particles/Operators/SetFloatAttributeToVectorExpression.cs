@@ -31,35 +31,50 @@ namespace ValveResourceFormat.Particles.Operators
             outputField = parse.ParticleField("m_nOutputField", outputField);
             setMethod = parse.Enum("m_nSetMethod", setMethod);
             outputScale = ParticleExpressions.AngleOutputScale(outputField, setMethod);
+
+            AddInitialReadOf(parse, setMethod, outputField);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var scale = strength * outputScale;
 
-            foreach (ref var particle in particles.Current)
-            {
-                var value1 = input1.NextVector(ref particle, particleSystemState);
-                var value2 = input2.NextVector(ref particle, particleSystemState);
+            var current = particles.Current;
+            current.FillVectorInputs(input1, input2, particleSystemState, out var values1, out var values2);
 
-                if (expression.Evaluate(value1, value2) is not { } result)
+            if (!ParticleBuffer.IsScalar(outputField))
+            {
+                return;
+            }
+
+            var outputs = current.Floats(outputField);
+            var initial = particles.Initial.ReadFloats(outputField);
+            var deltaTime = particleSystemState.CurrentStep;
+            var isAlpha = outputField.IsAlpha();
+
+            for (var i = 0; i < outputs.Length; i++)
+            {
+                if (expression.Evaluate(values1[i], values2[i]) is not { } result)
                 {
                     continue;
                 }
 
-                var value = particle.ModifyScalarBySetMethod(particles, outputField, result * scale, setMethod);
+                var value = ParticleFieldExtensions.ApplySetMethod(result * scale, initial[i], outputs[i], deltaTime, setMethod);
 
                 if (outputRemap != null)
                 {
                     value = outputRemap.ApplyMapping(value);
                 }
 
-                if (outputField.IsAlpha())
+                if (isAlpha)
                 {
                     value = MathUtils.Saturate(value);
                 }
 
-                particle.SetScalar(outputField, value);
+                outputs[i] = value;
             }
         }
     }

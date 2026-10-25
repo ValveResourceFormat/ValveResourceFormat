@@ -24,29 +24,56 @@ namespace ValveResourceFormat.Particles.Operators
             output = parse.NumberProvider("m_flOutput", output);
             startTime = parse.Float("m_flStartTime", startTime);
             endTime = parse.Float("m_flEndTime", endTime);
+
+            parse.AddInitialRead(fieldOutput);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            var particleSpan = particles.Current;
+            if (!ParticleBuffer.IsScalar(fieldOutput))
+            {
+                return;
+            }
+
+            var current = particles.Current;
+            var values = current.Floats(fieldOutput);
+            var initialValues = particles.Initial.ReadFloats(fieldOutput);
+            var lifetimes = current.ReadFloats(ParticleField.LifeDuration);
+
+            var ages = current.ReadAges();
+
+            var targets = output.Fill(current, particleSystemState);
+
+            // The input is consumed in order of the particles inside the window, not by particle
             var inWindowCount = 0;
 
-            foreach (ref var particle in particleSpan)
+            for (var i = 0; i < values.Length; i++)
             {
-                var time = particle.Age / (particle.Lifetime + ParticleMath.FloatEpsilon);
+                var time = ages[i] / (lifetimes[i] + ParticleMath.FloatEpsilon);
 
-                if (time < startTime || time > endTime)
+                if (!(time >= startTime && time <= endTime))
                 {
                     continue;
                 }
 
-                var lerpTarget = output.NextNumber(ref particleSpan[inWindowCount++], particleSystemState);
-                var initial = particle.GetInitialScalar(particles, fieldOutput);
+                var lerpTarget = targets[inWindowCount++];
+                var initial = initialValues[i];
 
-                var scalarOutput = startTime == endTime
-                    ? (time - endTime < 0f ? initial : lerpTarget)
-                    : MathUtils.Lerp(initial, lerpTarget, MathUtils.Saturate((time - startTime) / (endTime - startTime)));
+                float scalarOutput;
 
-                particle.SetScalar(fieldOutput, MathUtils.Lerp(particle.GetScalar(fieldOutput), scalarOutput, strength));
+                if (startTime == endTime)
+                {
+                    scalarOutput = time - endTime < 0f ? initial : lerpTarget;
+                }
+                else
+                {
+                    scalarOutput = MathUtils.Lerp(initial, lerpTarget, MathUtils.Saturate((time - startTime) / (endTime - startTime)));
+                }
+
+                values[i] = MathUtils.Lerp(values[i], scalarOutput, strength);
             }
         }
     }

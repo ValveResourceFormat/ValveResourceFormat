@@ -23,25 +23,38 @@ namespace ValveResourceFormat.Particles.Operators
             hueAdjust = parse.NumberProvider("m_flHueAdjust", hueAdjust);
             saturationAdjust = parse.NumberProvider("m_flSaturationAdjust", saturationAdjust);
             lightnessAdjust = parse.NumberProvider("m_flLightnessAdjust", lightnessAdjust);
+
+            parse.AddInitialRead(ParticleField.Color);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Color.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
-            {
-                var (hue, saturation, lightness) = RgbToHsl(particle.GetInitialVector(particles, ParticleField.Color));
+            var current = particles.Current;
+            var hueAdjusts = hueAdjust.Fill(current, particleSystemState);
+            var saturationAdjusts = saturationAdjust.Fill(current, particleSystemState);
+            var lightnessAdjusts = lightnessAdjust.Fill(current, particleSystemState);
 
-                hue = (hue + hueAdjust.NextNumber(ref particle, particleSystemState)) % 360f;
+            var colors = current.Vectors(ParticleField.Color);
+            var initialColors = particles.Initial.ReadVectors(ParticleField.Color);
+
+            for (var i = 0; i < colors.Length; i++)
+            {
+                var (hue, saturation, lightness) = RgbToHsl(initialColors[i]);
+
+                hue = (hue + hueAdjusts[i]) % 360f;
 
                 if (hue < 0f)
                 {
                     hue += 360f;
                 }
 
-                saturation = ParticleMath.ClampToUnit(saturation + saturationAdjust.NextNumber(ref particle, particleSystemState));
-                lightness = ParticleMath.ClampToUnit(lightness + lightnessAdjust.NextNumber(ref particle, particleSystemState));
+                saturation = ParticleMath.ClampToUnit(saturation + saturationAdjusts[i]);
+                lightness = ParticleMath.ClampToUnit(lightness + lightnessAdjusts[i]);
 
-                particle.Color = HslToRgb(hue, saturation, lightness);
+                colors[i] = HslToRgb(hue, saturation, lightness);
             }
         }
 

@@ -20,6 +20,8 @@ namespace ValveResourceFormat.Particles.Operators
             outputField = parse.ParticleField("m_nFieldOutput", outputField);
             output = parse.Float("m_flOutput", output);
             lerpTime = parse.Float("m_flLerpTime", lerpTime);
+
+            parse.AddInitialRead(outputField);
         }
 
         public override void Reset()
@@ -27,9 +29,11 @@ namespace ValveResourceFormat.Particles.Operators
             startAge = -1f;
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-        }
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
+
+        /// <inheritdoc/>
+        public override ulong InitialWrittenFields => outputField.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -38,23 +42,27 @@ namespace ValveResourceFormat.Particles.Operators
                 return;
             }
 
+            if (!ParticleBuffer.IsScalar(outputField))
+            {
+                return;
+            }
+
+            var values = particles.Current.Floats(outputField);
+            var initialValues = particles.Initial.Floats(outputField);
+
             if (startAge < 0f)
             {
                 startAge = particleSystemState.Age;
-
-                foreach (ref var particle in particles.Current)
-                {
-                    particle.SetInitialScalar(particles, outputField, particle.GetScalar(outputField));
-                }
+                values.CopyTo(initialValues);
             }
 
             var t = MathUtils.Saturate((particleSystemState.Age - startAge) / (lerpTime + ParticleMath.FloatEpsilon));
 
-            foreach (ref var particle in particles.Current)
+            for (var i = 0; i < values.Length; i++)
             {
-                var target = MathUtils.Lerp(particle.GetInitialScalar(particles, outputField), output, t);
+                var target = MathUtils.Lerp(initialValues[i], output, t);
 
-                particle.SetScalar(outputField, MathUtils.Lerp(particle.GetScalar(outputField), target, strength));
+                values[i] = MathUtils.Lerp(values[i], target, strength);
             }
         }
     }

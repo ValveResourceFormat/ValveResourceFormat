@@ -86,40 +86,38 @@ namespace ValveResourceFormat.Particles.Initializers
             }
         }
 
-        /// <summary>A restart keeps the walk where it is.</summary>
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-        }
+        public override ulong WrittenFields => ParticleField.SequenceNumber.Mask();
 
-        public override ulong WrittenFields => FieldMask(ParticleField.SequenceNumber);
-
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            if (weightedList.Length > 0)
+            var sequences = run.Floats(ParticleField.SequenceNumber);
+
+            for (var i = 0; i < sequences.Length; i++)
             {
-                particle.SequenceNumber = NextWeightedSequence(particleSystemState);
-            }
-            else if (shuffle || linear)
-            {
-                if (next > sequenceMax)
+                if (weightedList.Length > 0)
                 {
-                    if (shuffle)
+                    sequences[i] = NextWeightedSequence(particleSystemState);
+                }
+                else if (shuffle || linear)
+                {
+                    if (next > sequenceMax)
                     {
-                        Shuffle(particleSystemState);
+                        if (shuffle)
+                        {
+                            Shuffle(particleSystemState);
+                        }
+
+                        next = sequenceMin;
                     }
 
-                    next = sequenceMin;
+                    sequences[i] = GetEntry(next);
+                    next++;
                 }
-
-                particle.SequenceNumber = GetEntry(next);
-                next++;
+                else
+                {
+                    sequences[i] = sequenceMin + particleSystemState.Random.NextIndex(sequenceMax - sequenceMin + 1);
+                }
             }
-            else
-            {
-                particle.SequenceNumber = sequenceMin + particleSystemState.Random.NextIndex(sequenceMax - sequenceMin + 1);
-            }
-
-            return particle;
         }
 
         /// <summary>

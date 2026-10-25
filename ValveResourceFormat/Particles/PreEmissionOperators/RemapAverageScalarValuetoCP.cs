@@ -1,3 +1,5 @@
+using System.Numerics.Tensors;
+using System.Runtime.InteropServices;
 using ValveResourceFormat.Particles.Utils;
 
 namespace ValveResourceFormat.Particles.PreEmissionOperators
@@ -49,7 +51,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             outputRemap = AttributeMapping.FromRemapInput(parse, "m_flOutputRemap");
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             var particles = particleSystemState.Data?.Particles;
 
@@ -60,10 +62,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
             values.Clear();
 
-            foreach (ref var particle in particles.Current)
-            {
-                values.Add(particle.GetScalar(field));
-            }
+            values.AddRange(particles.Current.ReadFloats(field));
 
             var statistic = expression switch
             {
@@ -72,8 +71,8 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                 StatisticExpression.SET_EXPRESSION_MEDIAN => Median(),
                 StatisticExpression.SET_EXPRESSION_MODE => Mode(decimalPlaces.NextNumber(particleSystemState)),
                 StatisticExpression.SET_EXPRESSION_STANDARD_DEVIATION => StandardDeviation(),
-                StatisticExpression.SET_EXPRESSION_MIN => Extreme(float.MaxValue, MathF.Min),
-                StatisticExpression.SET_EXPRESSION_MAX => Extreme(ParticleMath.FloatMin, MathF.Max),
+                StatisticExpression.SET_EXPRESSION_MIN => MathF.Min(float.MaxValue, TensorPrimitives.Min(CollectionsMarshal.AsSpan(values))),
+                StatisticExpression.SET_EXPRESSION_MAX => MathF.Max(ParticleMath.FloatMin, TensorPrimitives.Max(CollectionsMarshal.AsSpan(values))),
                 _ => 0f,
             };
 
@@ -81,17 +80,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             particleSystemState.SetControlPointValueComponent(outControlPoint, outVectorField, value);
         }
 
-        private float Sum()
-        {
-            var sum = 0f;
-
-            foreach (var value in values)
-            {
-                sum += value;
-            }
-
-            return sum;
-        }
+        private float Sum() => TensorPrimitives.Sum(CollectionsMarshal.AsSpan(values));
 
         private float Median()
         {
@@ -105,14 +94,11 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
         private float StandardDeviation()
         {
             var mean = Sum() / values.Count;
-            var squares = 0f;
+            var deviations = CollectionsMarshal.AsSpan(values);
 
-            foreach (var value in values)
-            {
-                squares += (value - mean) * (value - mean);
-            }
+            TensorPrimitives.Subtract(deviations, mean, deviations);
 
-            return MathF.Sqrt(squares / values.Count);
+            return MathF.Sqrt(TensorPrimitives.SumOfSquares(deviations) / values.Count);
         }
 
         private float Mode(float places)
@@ -134,18 +120,6 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                     best = count;
                     result = value;
                 }
-            }
-
-            return result;
-        }
-
-        private float Extreme(float start, Func<float, float, float> pick)
-        {
-            var result = start;
-
-            foreach (var value in values)
-            {
-                result = pick(result, value);
             }
 
             return result;

@@ -36,13 +36,13 @@ namespace ValveResourceFormat.Particles.Initializers
         }
 
         public override ulong WrittenFields
-            => FieldMask(fieldOutput) | (fieldOutputAnim != ParticleField.NoneDisabled ? FieldMask(fieldOutputAnim) : 0);
+            => fieldOutput.Mask() | (fieldOutputAnim != ParticleField.NoneDisabled ? fieldOutputAnim.Mask() : 0);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             if (particleSystemState.GetControlPoint(controlPoint).ModelObject is not { } modelObject)
             {
-                return particle;
+                return;
             }
 
             var sequence = modelObject.SequenceIndex;
@@ -54,15 +54,32 @@ namespace ValveResourceFormat.Particles.Initializers
             }
 
             var value = MathUtils.RemapValClamped(sequence, inputMin, inputMax, outputMin, outputMax);
-            var output = particle.ModifyScalarBySetMethodAtSpawn(particles, fieldOutput, value, setMethod);
-            particle.SetScalar(fieldOutput, fieldOutput.IsIntegerAttribute() ? MathF.Truncate(output) : output);
 
-            if (fieldOutputAnim != ParticleField.NoneDisabled)
+            if (ParticleBuffer.IsScalar(fieldOutput))
             {
-                particle.SetScalar(fieldOutputAnim, rate);
+                var outputs = run.Floats(fieldOutput);
+                var integerOutputs = fieldOutput.IsIntegerAttribute() ? run.Integers(fieldOutput) : default;
+
+                for (var i = 0; i < outputs.Length; i++)
+                {
+                    var current = outputs[i];
+                    var output = ParticleFieldExtensions.ApplySetMethod(value, current, current, particleSystemState.CurrentStep, setMethod);
+
+                    if (integerOutputs.IsEmpty)
+                    {
+                        outputs[i] = output;
+                    }
+                    else
+                    {
+                        integerOutputs[i] = (int)output;
+                    }
+                }
             }
 
-            return particle;
+            if (fieldOutputAnim != ParticleField.NoneDisabled && ParticleBuffer.IsScalar(fieldOutputAnim))
+            {
+                run.Floats(fieldOutputAnim).Fill(rate);
+            }
         }
     }
 }

@@ -29,7 +29,7 @@ namespace ValveResourceFormat.Particles.Operators
         {
             particlesToMaintain = parse.Int32("m_nParticlesToMaintain", particlesToMaintain);
             decayDelay = parse.Float("m_flDecayDelay", decayDelay);
-            snapshotControlPoint = Math.Clamp(parse.Int32("m_nSnapshotControlPoint", snapshotControlPoint), -1, ParticleSystemState.MaxControlPoint + 1);
+            snapshotControlPoint = Math.Clamp(parse.Int32("m_nSnapshotControlPoint", snapshotControlPoint), -1, ParticleSystemState.ControlPointCount);
             hasSnapshotSubset = !string.IsNullOrEmpty(parse.String("m_strSnapshotSubset"));
             lifespanDecay = parse.Boolean("m_bLifespanDecay", lifespanDecay);
             scale = parse.CollectionNumberProvider("m_flScale", scale);
@@ -39,6 +39,9 @@ namespace ValveResourceFormat.Particles.Operators
         public override bool IsOrderImportant => true;
 
         public override void Initialize(ParticleSystemState particleSystemState) => scheduledDecayCount = 0;
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.LifeDuration.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -54,16 +57,20 @@ namespace ValveResourceFormat.Particles.Operators
             var current = particles.Current;
             var excess = current.Length > target ? current.Length - target - scheduledDecayCount : 0;
 
+            var ages = current.ReadAges();
+            var lifetimes = current.Floats(ParticleField.LifeDuration);
+
             for (var n = 0; n < current.Length; n++)
             {
-                ref var particle = ref current[killNewest ? current.Length - 1 - n : n];
-                var lifetime = particle.Lifetime;
+                var index = killNewest ? current.Length - 1 - n : n;
+                var age = ages[index];
+                var lifetime = lifetimes[index];
 
-                var expired = (lifespanDecay || (decayDelay != 0f && lifetime < 0f)) && particle.Age > MathF.Abs(lifetime);
+                var expired = (lifespanDecay || (decayDelay != 0f && lifetime < 0f)) && age > MathF.Abs(lifetime);
 
                 if (expired)
                 {
-                    particle.Kill();
+                    particles.Kill(index);
                     excess--;
                     scheduledDecayCount = Math.Max(scheduledDecayCount - 1, 0);
                 }
@@ -71,11 +78,11 @@ namespace ValveResourceFormat.Particles.Operators
                 {
                     if (decayDelay == 0f)
                     {
-                        particle.Kill();
+                        particles.Kill(index);
                     }
                     else
                     {
-                        particle.Lifetime = -(decayDelay + particle.Age);
+                        lifetimes[index] = -(decayDelay + age);
                         scheduledDecayCount++;
                     }
 

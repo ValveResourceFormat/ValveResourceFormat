@@ -35,25 +35,51 @@ namespace ValveResourceFormat.Particles.Operators
             useParticleNormal = parse.Boolean("m_bUseParticleNormal", useParticleNormal);
             activeRange = parse.Boolean("m_bActiveRange", activeRange);
             setMethod = parse.Enum("m_nSetMethod", setMethod);
+
+            AddInitialReadOf(parse, setMethod, fieldOutput);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var forward1 = ControlPointTransformProvider.TransformDirection(particleSystemState, inputControlPoint1, Vector3.UnitX);
             var forward2 = ControlPointTransformProvider.TransformDirection(particleSystemState, inputControlPoint2, Vector3.UnitX);
 
-            var (rangeMin, rangeMax) = fieldOutput is ParticleField.Alpha or ParticleField.AlphaAlternate
+            var (rangeMin, rangeMax) = fieldOutput.IsAlpha()
                 ? (MathUtils.Saturate(outputMin), MathUtils.Saturate(outputMax))
                 : (outputMin, outputMax);
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(fieldOutput))
             {
-                var first = (useParticleVelocity, useParticleNormal) switch
+                return;
+            }
+
+            var current = particles.Current;
+            var positions = useParticleVelocity ? current.ReadVectors(ParticleField.Position) : default;
+            var previousPositions = useParticleVelocity ? current.ReadVectors(ParticleField.PositionPrevious) : default;
+            var normals = useParticleNormal && !useParticleVelocity ? current.ReadVectors(ParticleField.Normal) : default;
+            var output = current.Floats(fieldOutput);
+            var initial = particles.Initial.ReadFloats(fieldOutput);
+            var isInteger = fieldOutput.IsIntegerAttribute();
+
+            for (var i = 0; i < output.Length; i++)
+            {
+                Vector3 first;
+
+                if (useParticleVelocity)
                 {
-                    (true, _) => ParticleMath.NormalizeWithEpsilon(particle.Position - particle.PositionPrevious),
-                    (_, true) => particle.Normal,
-                    _ => forward1,
-                };
+                    first = ParticleMath.NormalizeWithEpsilon(positions[i] - previousPositions[i]);
+                }
+                else if (useParticleNormal)
+                {
+                    first = normals[i];
+                }
+                else
+                {
+                    first = forward1;
+                }
 
                 var dot = Vector3.Dot(first, forward2);
 
@@ -63,8 +89,8 @@ namespace ValveResourceFormat.Particles.Operators
                 }
 
                 var remapped = MathUtils.RemapValClamped(dot, inputMin, inputMax, rangeMin, rangeMax);
-
-                particle.SetScalar(fieldOutput, particle.ModifyScalarBySetMethod(particles, fieldOutput, remapped, setMethod));
+                var value = ParticleFieldExtensions.ApplySetMethod(remapped, initial[i], output[i], particleSystemState.CurrentStep, setMethod);
+                output[i] = isInteger ? BitConverter.Int32BitsToSingle((int)value) : value;
             }
         }
     }

@@ -1,3 +1,6 @@
+using System.Numerics.Tensors;
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -26,18 +29,25 @@ namespace ValveResourceFormat.Particles.Operators
             spinStrength = parse.Float("m_flSpinStrength", spinStrength);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var rotation = Quaternion.CreateFromRotationMatrix(transformInput.NextTransform(particleSystemState));
             var forward = Vector3.Transform(Vector3.UnitX, rotation);
-            var yaw = MathF.Atan2(forward.Y, forward.X) + MathF.PI + float.DegreesToRadians(rotOffset);
+            var yaw = ParticleMath.Heading(forward) + float.DegreesToRadians(rotOffset);
             var weight = strength * spinStrength;
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(outputField))
             {
-                var current = particle.GetScalar(outputField);
-                particle.SetScalar(outputField, current + ((yaw - current) * weight));
+                return;
             }
+
+            var output = particles.Current.Floats(outputField);
+
+            TensorPrimitives.Multiply(output, 1f - weight, output);
+            TensorPrimitives.Add(output, yaw * weight, output);
         }
     }
 }

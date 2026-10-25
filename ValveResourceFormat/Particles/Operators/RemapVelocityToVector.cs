@@ -23,32 +23,38 @@ namespace ValveResourceFormat.Particles.Operators
             normalize = parse.Boolean("m_bNormalize", normalize);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            if (outputField is ParticleField.Position or ParticleField.PositionPrevious)
+            if (outputField is ParticleField.Position or ParticleField.PositionPrevious || !ParticleBuffer.IsVector(outputField))
             {
                 return;
             }
 
-            // Verlet positions hold the previous step's displacement, so divide by that step's time.
-            // The first step of a run has none, and its positions were made with this step's time.
-            var previousFrameTime = particles.PreviousFrameTime > 0f ? particles.PreviousFrameTime : frameTime;
-            var perSecond = scale / MathF.Max(1e-20f, previousFrameTime);
+            // Verlet positions hold the previous step's displacement, so divide by that step's time
+            var perSecond = particleSystemState.PerPreviousSecond(scale);
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var output = current.Vectors(outputField);
+            var positions = current.ReadVectors(ParticleField.Position);
+            var previousPositions = current.ReadVectors(ParticleField.PositionPrevious);
+
+            for (var i = 0; i < output.Length; i++)
             {
-                var velocity = particle.Position - particle.PositionPrevious;
+                var velocity = positions[i] - previousPositions[i];
 
                 if (normalize)
                 {
                     if (velocity != Vector3.Zero)
                     {
-                        particle.SetVector(outputField, MathUtils.SafeNormalize(velocity) * scale);
+                        output[i] = MathUtils.SafeNormalize(velocity) * scale;
                     }
                 }
                 else
                 {
-                    particle.SetVector(outputField, velocity * perSecond);
+                    output[i] = velocity * perSecond;
                 }
             }
         }

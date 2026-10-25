@@ -31,21 +31,25 @@ namespace ValveResourceFormat.Particles.Initializers
             offsetLoc = parse.Vector3("m_vecOffsetLoc", offsetLoc);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.CreationTime);
+        public override ulong WrittenFields => ParticleField.CreationTime.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var samplePosition = (particle.Position + offsetLoc) * noiseScaleLoc;
-            var sampleTime = (particle.CreationTime + offset) * noiseScale;
-            var noise = Noise.Value3D(samplePosition + new Vector3(sampleTime));
+            var positions = run.ReadVectors(ParticleField.Position);
+            var lifetimes = run.ReadFloats(ParticleField.LifeDuration);
+            var creationTimes = run.Floats(ParticleField.CreationTime);
 
-            var fraction = ParticleMath.ClampToUnit(CreationNoise.MapToRange(noise, absVal, absValInv, ageMin, ageMax));
-            var age = fraction * particle.Lifetime;
+            for (var i = 0; i < run.Length; i++)
+            {
+                var samplePosition = (positions[i] + offsetLoc) * noiseScaleLoc;
+                var sampleTime = (creationTimes[i] + offset) * noiseScale;
+                var noise = Noise.Value3D(samplePosition + new Vector3(sampleTime));
 
-            particle.Age += age;
-            particle.CreationTime -= age;
+                var fraction = ParticleMath.ClampToUnit(CreationNoise.MapToRange(noise, absVal, absValInv, ageMin, ageMax));
+                var age = fraction * lifetimes[i];
 
-            return particle;
+                creationTimes[i] -= age;
+            }
         }
     }
 }

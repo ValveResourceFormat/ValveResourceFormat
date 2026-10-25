@@ -33,24 +33,29 @@ class AttractToControlPoint : ParticleFunctionForceGenerator
         transformInput = parse.TransformInput("m_TransformInput", new ControlPointTransformProvider(0, useOrientation: false));
     }
 
-    public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
+    public override void GenerateForces(ParticleCollection particles, Span<Vector3> forces, float frameTime, ParticleSystemState particleSystemState, float strength)
     {
         var transform = transformInput.NextTransform(particleSystemState);
         var target = transform.Translation;
         var scale = Vector3.TransformNormal(componentScale, transform) * strength;
+        var current = particles.Current;
+        var positions = current.ReadVectors(ParticleField.Position);
+        var amounts = forceAmount.Fill(current, particleSystemState);
+        var minAmounts = applyMinForce ? forceAmountMin.Fill(current, particleSystemState) : default;
+        var minimumDistances = minimumDistance.Fill(current, particleSystemState);
 
-        foreach (ref var particle in particles.Current)
+        for (var i = 0; i < positions.Length; i++)
         {
-            var amount = forceAmount.NextNumber(ref particle, particleSystemState);
+            var amount = amounts[i];
             if (applyMinForce)
             {
-                amount = MathF.Max(amount, forceAmountMin.NextNumber(ref particle, particleSystemState));
+                amount = MathF.Max(amount, minAmounts[i]);
             }
 
-            var diff = particle.Position - target;
+            var diff = positions[i] - target;
             var distance = diff.Length();
 
-            if (distance < minimumDistance.NextNumber(ref particle, particleSystemState))
+            if (distance < minimumDistances[i])
             {
                 distance = 1f;
             }
@@ -61,7 +66,7 @@ class AttractToControlPoint : ParticleFunctionForceGenerator
             }
 
             var forceMagnitude = amount / distance * ParticleMath.PowQuarterSteps(distance, -falloff);
-            particle.ForceAccumulator -= diff * forceMagnitude * scale;
+            forces[i] -= diff * forceMagnitude * scale;
         }
     }
 }

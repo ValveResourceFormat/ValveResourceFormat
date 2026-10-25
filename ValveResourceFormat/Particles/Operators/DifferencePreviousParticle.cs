@@ -1,5 +1,3 @@
-using ValveResourceFormat.Particles.Utils;
-
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -38,23 +36,36 @@ namespace ValveResourceFormat.Particles.Operators
 
             if (fieldOutput.IsAlpha())
             {
-                outputMin = ParticleMath.ClampToUnit(outputMin);
-                outputMax = ParticleMath.ClampToUnit(outputMax);
+                outputMin = MathUtils.Saturate(outputMin);
+                outputMax = MathUtils.Saturate(outputMax);
             }
+
+            AddInitialReadOf(parse, setMethod, fieldOutput);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
+            if (!ParticleBuffer.IsScalar(fieldOutput))
+            {
+                return;
+            }
+
             var current = particles.Current;
-            var previous = new Vector3(float.MaxValue);
+            var inputs = current.ReadVectors(fieldInput);
+            var outputs = current.Floats(fieldOutput);
+            var initials = particles.Initial.ReadFloats(fieldOutput);
+            var hasPrevious = false;
+            var previous = Vector3.Zero;
             var previousIndex = 0;
 
             for (var i = 0; i < current.Length; i++)
             {
-                ref var particle = ref current[i];
-                var value = particle.GetVector(fieldInput);
+                var value = inputs[i];
 
-                if (previous != new Vector3(float.MaxValue))
+                if (hasPrevious)
                 {
                     var distance = Vector3.Distance(previous, value);
 
@@ -65,15 +76,15 @@ namespace ValveResourceFormat.Particles.Operators
 
                     var output = MathUtils.RemapValClamped(distance, inputMin, inputMax, outputMin, outputMax);
 
-                    particle.SetScalar(fieldOutput, particle.ModifyScalarBySetMethod(particles, fieldOutput, output, setMethod));
+                    outputs[i] = ParticleFieldExtensions.ApplySetMethod(output, initials[i], outputs[i], particleSystemState.CurrentStep, setMethod);
 
                     if (setPreviousParticle)
                     {
-                        ref var previousParticle = ref current[previousIndex];
-                        previousParticle.SetScalar(fieldOutput, output * previousParticle.GetScalar(fieldOutput));
+                        outputs[previousIndex] = output * outputs[previousIndex];
                     }
                 }
 
+                hasPrevious = true;
                 previous = value;
                 previousIndex = i;
             }

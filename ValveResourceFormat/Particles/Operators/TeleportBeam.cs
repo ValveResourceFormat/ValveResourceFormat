@@ -44,20 +44,25 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Initialize(ParticleSystemState particleSystemState) => arcStartTime = particleSystemState.Age;
 
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-        }
+        /// <inheritdoc/>
+        public override ulong StoredFields
+            => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask() | ParticleField.Color.Mask() | ParticleField.Alpha.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var live = particles.Current;
+            var alphas = live.Floats(ParticleField.Alpha);
             var misc = particleSystemState.GetControlPoint(cpMisc).Position;
 
             if (misc.Z <= 0f)
             {
-                HideFrom(live, 0);
+                HideFrom(alphas, 0);
                 return;
             }
+
+            var positions = live.Vectors(ParticleField.Position);
+            var previousPositions = live.Vectors(ParticleField.PositionPrevious);
+            var colors = live.Vectors(ParticleField.Color);
 
             var start = particleSystemState.GetControlPoint(cpPosition).Position;
             var velocity = particleSystemState.GetControlPoint(cpVelocity).Position;
@@ -79,12 +84,11 @@ namespace ValveResourceFormat.Particles.Operators
 
             if ((int)misc.X == SingleSegmentMode)
             {
-                ref var first = ref live[0];
-                first.PositionPrevious = PositionAt(0f);
-                first.Position = PositionAt(MathF.Min(misc.Y, segment));
-                first.Color = color;
-                first.Alpha = misc.Z;
-                HideFrom(live, 1);
+                previousPositions[0] = PositionAt(0f);
+                positions[0] = PositionAt(MathF.Min(misc.Y, segment));
+                colors[0] = color;
+                alphas[0] = misc.Z;
+                HideFrom(alphas, 1);
                 return;
             }
 
@@ -97,30 +101,26 @@ namespace ValveResourceFormat.Particles.Operators
 
             for (var i = 0; i < live.Length; i++)
             {
-                ref var particle = ref live[i];
-                particle.PositionPrevious = PositionAt(MathF.Max(0f, offset));
-                particle.Position = PositionAt(MathF.Min(offset + segment, arcEnd));
+                previousPositions[i] = PositionAt(MathF.Max(0f, offset));
+                positions[i] = PositionAt(MathF.Min(offset + segment, arcEnd));
 
                 var fading = extra.X < offset;
 
-                particle.Color = fading ? invalidColor : color;
-                particle.Alpha = fading ? MathUtils.RemapValClamped(offset, extra.X, misc.Y, misc.Z, 0f) : misc.Z;
+                colors[i] = fading ? invalidColor : color;
+                alphas[i] = fading ? MathUtils.RemapValClamped(offset, extra.X, misc.Y, misc.Z, 0f) : misc.Z;
                 offset += segment + segmentBreak;
 
                 if (offset >= arcEnd)
                 {
-                    HideFrom(live, i + 1);
+                    HideFrom(alphas, i + 1);
                     return;
                 }
             }
         }
 
-        private static void HideFrom(Span<Particle> particles, int first)
+        private static void HideFrom(Span<float> alphas, int first)
         {
-            foreach (ref var particle in particles[first..])
-            {
-                particle.Alpha = 0f;
-            }
+            alphas[first..].Clear();
         }
     }
 }

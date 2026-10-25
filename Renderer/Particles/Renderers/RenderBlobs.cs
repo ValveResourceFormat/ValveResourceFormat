@@ -89,10 +89,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
-            ref var first = ref particles.Current[0];
-            var width = cubeWidth.NextNumber(ref first, systemState);
-            var cutoff = cutoffRadius.NextNumber(ref first, systemState);
-            var radius = renderRadius.NextNumber(ref first, systemState);
+            var current = particles.Current;
+            var width = cubeWidth.NextNumber(current, 0, systemState);
+            var cutoff = cutoffRadius.NextNumber(current, 0, systemState);
+            var radius = renderRadius.NextNumber(current, 0, systemState);
 
             if (scaleControlPoint >= 0)
             {
@@ -117,9 +117,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 centers = new Vector3[particles.Capacity];
             }
 
+            var positions = blended.ReadVectors(ParticleField.Position);
+
             for (var i = 0; i < blended.Length; i++)
             {
-                centers[i] = BiasTowardCamera(blended[i].Position, systemState.CameraPosition);
+                centers[i] = BiasTowardCamera(positions[i], systemState.CameraPosition);
             }
 
             mesher.Build(centers.AsSpan(0, blended.Length), width, cutoff, radius, texCoordScale);

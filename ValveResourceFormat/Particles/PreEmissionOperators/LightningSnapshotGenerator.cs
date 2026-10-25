@@ -47,6 +47,14 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
         private readonly INumberProvider radiusEnd = new LiteralNumberProvider(0f);
         private readonly INumberProvider dedicatedPool = new LiteralNumberProvider(-1f);
 
+        private readonly BoltBuilder builder = new();
+
+        private ParticleSnapshot? snapshot;
+        private Vector3[] positions = [];
+        private float[] radii = [];
+        private float[] connected = [];
+        private float[] textureCoordinates = [];
+
         private float nextGenerationTime;
         private int poolSize = -1;
 
@@ -76,21 +84,23 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
         public override void Reset()
         {
-            nextGenerationTime = 0f;
+            nextGenerationTime = ParticleMath.FloatMin;
             poolSize = -1;
+            snapshot = null;
         }
 
-        /// <summary>Rebuilds the bolt on the next step, keeping the pool size of the first one.</summary>
+        /// <summary>Rebuilds the bolt on the next step and sizes its pool again, keeping the snapshot.</summary>
         public override void Restart(ParticleSystemState particleSystemState)
         {
-            nextGenerationTime = 0f;
+            nextGenerationTime = ParticleMath.FloatMin;
+            poolSize = -1;
         }
 
         /// <summary>
         /// Builds a new bolt once the system's age passes the next generation time. <c>m_flRecalcRate</c>
         /// is the period until the next one, so 0 rebuilds every step and a negative rate keeps the first.
         /// </summary>
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             if (particleSystemState.Data is not { } simulation || particleSystemState.Age <= nextGenerationTime)
             {
@@ -105,22 +115,20 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
             var textureStart = uvOffset.NextNumber(particleSystemState);
 
-            var builder = new BoltBuilder(particleSystemState.Random)
-            {
-                Passes = passes,
-                Offset = offset.NextNumber(particleSystemState),
-                OffsetDecay = offsetDecay.NextNumber(particleSystemState),
-                SplitRate = Math.Clamp(splitRate.NextNumber(particleSystemState), 0f, 0.25f),
-                RecursionSplitScale = Math.Clamp(recursionSplitScale.NextNumber(particleSystemState), 0f, 10f),
-                ScaleBranchDistance = scaleBranchDistance,
-                BranchDistanceScale = Math.Clamp(branchDistanceScale.NextNumber(particleSystemState), 1e-4f, 100f),
-                ScaleBranchOffset = scaleBranchOffset,
-                BranchOffsetScale = Math.Clamp(branchOffsetScale.NextNumber(particleSystemState), 0f, 100f),
-                BranchTwist = branchTwist.NextNumber(particleSystemState),
-                BranchBehavior = branchBehavior,
-                TextureEnd = textureStart + uvScale.NextNumber(particleSystemState),
-                End = particleSystemState.GetControlPoint(endControlPoint).Position,
-            };
+            builder.Random = particleSystemState.Random;
+            builder.Passes = passes;
+            builder.Offset = offset.NextNumber(particleSystemState);
+            builder.OffsetDecay = offsetDecay.NextNumber(particleSystemState);
+            builder.SplitRate = Math.Clamp(splitRate.NextNumber(particleSystemState), 0f, 0.25f);
+            builder.RecursionSplitScale = Math.Clamp(recursionSplitScale.NextNumber(particleSystemState), 0f, 10f);
+            builder.ScaleBranchDistance = scaleBranchDistance;
+            builder.BranchDistanceScale = Math.Clamp(branchDistanceScale.NextNumber(particleSystemState), 1e-4f, 100f);
+            builder.ScaleBranchOffset = scaleBranchOffset;
+            builder.BranchOffsetScale = Math.Clamp(branchOffsetScale.NextNumber(particleSystemState), 0f, 100f);
+            builder.BranchTwist = branchTwist.NextNumber(particleSystemState);
+            builder.BranchBehavior = branchBehavior;
+            builder.TextureEnd = textureStart + uvScale.NextNumber(particleSystemState);
+            builder.End = particleSystemState.GetControlPoint(endControlPoint).Position;
 
             builder.Build(particleSystemState.GetControlPoint(startControlPoint).Position, textureStart,
                 radiusStart.NextNumber(particleSystemState), radiusEnd.NextNumber(particleSystemState));
@@ -133,8 +141,30 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
             builder.PadTo(poolSize);
 
-            var snapshot = builder.ToSnapshot(Math.Min(builder.RowCount, simulation.ParticleCapacity));
+            snapshot ??= CreateSnapshot(simulation.ParticleCapacity);
+            var count = Math.Min(builder.RowCount, simulation.ParticleCapacity);
+
+            builder.CopyTo(count, positions, radii, connected, textureCoordinates);
+            snapshot.SetParticleCount((uint)count);
             simulation.SetControlPointSnapshot(snapshotControlPoint, snapshot);
+        }
+
+        private ParticleSnapshot CreateSnapshot(int capacity)
+        {
+            positions = new Vector3[capacity];
+            radii = new float[capacity];
+            connected = new float[capacity];
+            textureCoordinates = new float[capacity];
+
+            var columns = new Dictionary<(string Name, string Type), IEnumerable>
+            {
+                [(ParticleSnapshot.GetSnapshotAttributeName(ParticleField.Position)!, "float3")] = positions,
+                [(ParticleSnapshot.GetSnapshotAttributeName(ParticleField.Radius)!, "float")] = radii,
+                [(ParticleSnapshot.GetSnapshotAttributeName(ParticleField.AlphaAlternate)!, "float")] = connected,
+                [(ParticleSnapshot.GetSnapshotAttributeName(ParticleField.ScratchFloat)!, "float")] = textureCoordinates,
+            };
+
+            return ParticleSnapshot.Create(0, columns);
         }
 
         /// <summary>
@@ -146,28 +176,30 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             public static BoltRow Separator(Vector3 position, float textureCoordinate) => new(position, 0f, false, textureCoordinate, -1);
         }
 
-        private sealed class BoltBuilder(ParticleRandom random)
+        private sealed class BoltBuilder
         {
             private readonly List<BoltRow> rows = [];
 
-            public float Passes { get; init; }
-            public float Offset { get; init; }
-            public float OffsetDecay { get; init; }
-            public float SplitRate { get; init; }
-            public float RecursionSplitScale { get; init; }
-            public bool ScaleBranchDistance { get; init; }
-            public float BranchDistanceScale { get; init; }
-            public bool ScaleBranchOffset { get; init; }
-            public float BranchOffsetScale { get; init; }
-            public float BranchTwist { get; init; }
-            public ParticleLightningBranchBehavior BranchBehavior { get; init; }
-            public float TextureEnd { get; init; }
-            public Vector3 End { get; init; }
+            public ParticleRandom Random { get; set; } = null!;
+            public float Passes { get; set; }
+            public float Offset { get; set; }
+            public float OffsetDecay { get; set; }
+            public float SplitRate { get; set; }
+            public float RecursionSplitScale { get; set; }
+            public bool ScaleBranchDistance { get; set; }
+            public float BranchDistanceScale { get; set; }
+            public bool ScaleBranchOffset { get; set; }
+            public float BranchOffsetScale { get; set; }
+            public float BranchTwist { get; set; }
+            public ParticleLightningBranchBehavior BranchBehavior { get; set; }
+            public float TextureEnd { get; set; }
+            public Vector3 End { get; set; }
 
             public int RowCount => rows.Count;
 
             public void Build(Vector3 start, float textureStart, float startRadius, float endRadius)
             {
+                rows.Clear();
                 rows.Add(new BoltRow(start, startRadius, true, textureStart, 1));
                 rows.Add(new BoltRow(End, endRadius, true, TextureEnd, 1));
                 rows.Add(BoltRow.Separator(End, TextureEnd));
@@ -208,8 +240,8 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                 var direction = MathUtils.SafeNormalize(to.Position - from.Position, Vector3.UnitZ);
                 // The sideways axis is perpendicular to the span and to the row's world position.
                 var sideways = MathUtils.SafeNormalize(Vector3.Cross(direction, from.Position));
-                var wander = random.NextInUnitBall(out _);
-                var push = random.NextBetween(-jitter, jitter) / generation;
+                var wander = Random.NextInUnitBall(out _);
+                var push = Random.NextBetween(-jitter, jitter) / generation;
 
                 var midpoint = ((from.Position + to.Position) * 0.5f) + (wander * (jitter * 0.5f)) + (sideways * (push * 0.5f));
 
@@ -218,7 +250,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
                 var splitScale = RecursionSplitScale == 1f ? 1f : (1f - (generation / Passes)) * RecursionSplitScale;
 
-                if (SplitRate * splitScale / generation > random.Next())
+                if (SplitRate * splitScale / generation > Random.Next())
                 {
                     AddBranch(index, jitter);
                 }
@@ -235,10 +267,13 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                 var generation = origin.Generation + 1;
                 var offsetScale = ScaleBranchOffset ? generation * BranchOffsetScale : 1f;
 
-                var wander = random.NextInUnitBall(out _);
-                var length = ((Vector3.Distance(origin.Position, End) * 0.1875f) + (Vector3.Distance(rows[0].Position, rows[1].Position) * 0.75f)) * 0.5f;
+                var wander = Random.NextInUnitBall(out _);
+                // The mean of three quarters of the span to the point a quarter of the way to the end
+                // and three quarters of the first span of the bolt
+                var quarterTowardEnd = origin.Position - (((origin.Position - End) * 0.75f) + End);
+                var length = ((quarterTowardEnd.Length() * 0.75f) + (Vector3.Distance(rows[0].Position, rows[1].Position) * 0.75f)) * 0.5f;
                 var direction = MathUtils.SafeNormalize(origin.Position - rows[index].Position);
-                var push = random.NextBetween(-jitter, jitter);
+                var push = Random.NextBetween(-jitter, jitter);
 
                 var branchEnd = BranchBehavior == ParticleLightningBranchBehavior.PARTICLE_LIGHTNING_BRANCH_ENDPOINT_DIR
                     ? origin.Position + (Vector3.Lerp(MathUtils.SafeNormalize(End - origin.Position), direction, BranchTwist) * length) + (wander * (push * offsetScale))
@@ -262,13 +297,8 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                 }
             }
 
-            public ParticleSnapshot ToSnapshot(int count)
+            public void CopyTo(int count, Vector3[] positions, float[] radii, float[] connected, float[] textureCoordinates)
             {
-                var positions = new Vector3[count];
-                var radii = new float[count];
-                var connected = new float[count];
-                var textureCoordinates = new float[count];
-
                 for (var i = 0; i < count; i++)
                 {
                     var row = rows[i];
@@ -277,16 +307,6 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                     connected[i] = row.Connected ? 1f : 0f;
                     textureCoordinates[i] = row.TextureCoordinate;
                 }
-
-                var columns = new Dictionary<(string Name, string Type), IEnumerable>
-                {
-                    [(ParticleSnapshot.GetSnapshotAttributeName(ParticleField.Position)!, "float3")] = positions,
-                    [(ParticleSnapshot.GetSnapshotAttributeName(ParticleField.Radius)!, "float")] = radii,
-                    [(ParticleSnapshot.GetSnapshotAttributeName(ParticleField.AlphaAlternate)!, "float")] = connected,
-                    [(ParticleSnapshot.GetSnapshotAttributeName(ParticleField.ScratchFloat)!, "float")] = textureCoordinates,
-                };
-
-                return ParticleSnapshot.Create((uint)count, columns);
             }
         }
     }

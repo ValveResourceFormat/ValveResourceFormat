@@ -33,7 +33,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             interpolation = parse.CollectionNumberProvider("m_flInterpolation", interpolation);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             var value = expression.Evaluate(input1.NextNumber(particleSystemState), input2.NextNumber(particleSystemState)) ?? 0f;
 

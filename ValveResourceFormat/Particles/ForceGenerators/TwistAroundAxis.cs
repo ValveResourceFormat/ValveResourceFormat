@@ -29,7 +29,7 @@ class TwistAroundAxis : ParticleFunctionForceGenerator
         axisControlPoint = parse.BehaviorVersion >= 3 ? controlPoint : 0;
     }
 
-    public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
+    public override void GenerateForces(ParticleCollection particles, Span<Vector3> forces, float frameTime, ParticleSystemState particleSystemState, float strength)
     {
         var axis = localSpace
             ? ControlPointTransformProvider.TransformDirection(particleSystemState, axisControlPoint, twistAxis)
@@ -40,9 +40,11 @@ class TwistAroundAxis : ParticleFunctionForceGenerator
         var center = particleSystemState.GetControlPoint(controlPoint).Position;
         var amount = forceAmount * strength;
 
-        foreach (ref var particle in particles.Current)
+        var positions = particles.Current.ReadVectors(ParticleField.Position);
+
+        for (var i = 0; i < positions.Length; i++)
         {
-            var delta = particle.Position - center;
+            var delta = positions[i] - center;
 
             if (delta.LengthSquared() <= ParticleMath.FloatEpsilon)
             {
@@ -57,7 +59,7 @@ class TwistAroundAxis : ParticleFunctionForceGenerator
                 continue;
             }
 
-            particle.ForceAccumulator += Vector3.Cross(direction, axis) * amount;
+            forces[i] += Vector3.Cross(direction, axis) * amount;
         }
     }
 }

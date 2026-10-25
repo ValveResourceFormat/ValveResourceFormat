@@ -23,6 +23,9 @@ namespace ValveResourceFormat.Particles.Operators
             previous = parse.Boolean("m_bPrevious", previous);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             if (particles.Count < 2)
@@ -30,10 +33,19 @@ namespace ValveResourceFormat.Particles.Operators
                 return;
             }
 
+            if (!ParticleBuffer.IsVector(outputField))
+            {
+                return;
+            }
+
             var current = particles.Current;
+            var positions = current.ReadVectors(ParticleField.Position);
+            var output = current.Vectors(outputField);
             var step = previous ? -1 : 1;
             var edge = previous ? 0 : particles.Count - 1;
             var processed = 0;
+
+            var interpolations = interpolation.Fill(current, particleSystemState);
 
             for (var i = 0; i < particles.Count; i++)
             {
@@ -42,14 +54,12 @@ namespace ValveResourceFormat.Particles.Operators
                     continue;
                 }
 
-                ref var particle = ref current[i];
-                var direction = current[i + step].Position - particle.Position;
-                var interp = interpolation.NextNumber(ref current[processed++], particleSystemState);
-                var pointed = Vector3.Lerp(particle.GetVector(outputField), MathUtils.SafeNormalize(direction), interp);
-                particle.SetVector(outputField, pointed);
+                var direction = positions[i + step] - positions[i];
+                var interp = interpolations[processed++];
+                output[i] = Vector3.Lerp(output[i], MathUtils.SafeNormalize(direction), interp);
             }
 
-            current[edge].SetVector(outputField, current[edge - step].GetVector(outputField));
+            output[edge] = output[edge - step];
         }
     }
 }

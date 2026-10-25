@@ -17,9 +17,6 @@ namespace ValveResourceFormat.Particles.Operators
         private readonly INumberProvider comparison2 = new LiteralNumberProvider(0f);
         private readonly INumberProvider cullTime = new LiteralNumberProvider(0f);
 
-        private float[] firstValues = [];
-        private float[] secondValues = [];
-
         public LazyCullCompareFloat(ParticleDefinitionParser parse) : base(parse)
         {
             comparison1 = parse.NumberProvider("m_flComparsion1", comparison1);
@@ -27,42 +24,33 @@ namespace ValveResourceFormat.Particles.Operators
             cullTime = parse.NumberProvider("m_flCullTime", cullTime);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.LifeDuration.Mask() | ParticleField.CreationTime.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var current = particles.Current;
+            var lifetimes = current.Floats(ParticleField.LifeDuration);
 
-            if (firstValues.Length < current.Length)
-            {
-                firstValues = new float[particles.Capacity];
-                secondValues = new float[particles.Capacity];
-            }
+            var first = comparison1.Fill(current, particleSystemState);
+            var second = comparison2.Fill(current, particleSystemState);
+            var cullTimes = cullTime.Fill(current, particleSystemState);
 
-            for (var i = 0; i < current.Length; i++)
-            {
-                firstValues[i] = comparison1.NextNumber(ref current[i], particleSystemState);
-            }
+            var ages = current.ReadAges();
 
-            for (var i = 0; i < current.Length; i++)
-            {
-                secondValues[i] = comparison2.NextNumber(ref current[i], particleSystemState);
-            }
-
-            var first = firstValues.AsSpan(0, current.Length);
             var uniform = !first.ContainsAnyExcept(first[0]);
 
-            for (var i = 0; i < current.Length; i++)
+            for (var i = 0; i < lifetimes.Length; i++)
             {
-                ref var particle = ref current[i];
-                var cull = cullTime.NextNumber(ref particle, particleSystemState);
-
-                if (Matches(first, i, uniform))
+                if (Matches(first, second, i, uniform))
                 {
-                    particle.Lifetime = MathF.Min(particle.Lifetime - particle.Age, cull) + particle.Age;
+                    var age = ages[i];
+                    lifetimes[i] = MathF.Min(lifetimes[i] - age, cullTimes[i]) + age;
                 }
             }
         }
 
-        private bool Matches(ReadOnlySpan<float> first, int index, bool uniform)
+        private static bool Matches(ReadOnlySpan<float> first, ReadOnlySpan<float> second, int index, bool uniform)
         {
             if (uniform)
             {
@@ -73,7 +61,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             return pair + 1 < first.Length
                 ? first[pair] == first[pair + 1]
-                : first[index] == secondValues[index];
+                : first[index] == second[index];
         }
     }
 }

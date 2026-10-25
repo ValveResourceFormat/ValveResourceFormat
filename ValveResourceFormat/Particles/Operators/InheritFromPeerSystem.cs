@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -13,6 +15,7 @@ namespace ValveResourceFormat.Particles.Operators
         private readonly ParticleField fieldOutput = ParticleField.Radius;
         private readonly ParticleField fieldInput = ParticleField.Radius;
         private readonly int groupId;
+        private readonly ParticleFieldStorage storage;
 
         private ParticleSystemState? peer;
         private int peerParticle;
@@ -22,6 +25,7 @@ namespace ValveResourceFormat.Particles.Operators
             fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
             fieldInput = parse.ParticleField("m_nFieldInput", fieldInput);
             groupId = parse.Int32("m_nGroupID", groupId);
+            storage = ParticleBuffer.StorageOf(fieldOutput);
         }
 
         public override void Reset()
@@ -30,13 +34,17 @@ namespace ValveResourceFormat.Particles.Operators
             peerParticle = 0;
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-        }
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var boneIndices = storage == ParticleFieldStorage.BoneIndices ? current.BoneIndices : default;
+            var vectorOutput = storage == ParticleFieldStorage.Vector ? current.Vectors(fieldOutput) : default;
+            var scalarOutput = (storage is ParticleFieldStorage.Integer or ParticleFieldStorage.Scalar) ? current.Floats(fieldOutput) : default;
+
+            for (var i = 0; i < current.Length; i++)
             {
                 var peerParticles = ParticlesOf(peer);
 
@@ -52,13 +60,46 @@ namespace ValveResourceFormat.Particles.Operators
                     }
                 }
 
-                InheritFromParentParticles.CopyAttribute(ref particle, ref peerParticles[peerParticle], fieldInput, fieldOutput, 1f);
+                switch (storage)
+                {
+                    case ParticleFieldStorage.BoneIndices:
+                        if (fieldInput == ParticleField.BoneIndices)
+                        {
+                            boneIndices[i] = peerParticles.ReadBoneIndices(peerParticle);
+                        }
+
+                        break;
+                    case ParticleFieldStorage.Vector:
+                        var vector = peerParticles.ReadVector(fieldInput, peerParticle);
+
+                        if (fieldOutput.IsNormalizedField())
+                        {
+                            vector = Vector3.Clamp(vector, Vector3.Zero, Vector3.One);
+                        }
+
+                        vectorOutput[i] = vector;
+                        break;
+                    case ParticleFieldStorage.Integer:
+                        scalarOutput[i] = peerParticles.ReadFloat(fieldInput, peerParticle);
+                        break;
+                    case ParticleFieldStorage.Scalar:
+                        var scalar = peerParticles.ReadFloat(fieldInput, peerParticle);
+
+                        if (fieldOutput.IsAlpha())
+                        {
+                            scalar = ParticleMath.ClampToUnit(scalar);
+                        }
+
+                        scalarOutput[i] = scalar;
+                        break;
+                }
+
                 peerParticle++;
             }
         }
 
-        private static Span<Particle> ParticlesOf(ParticleSystemState? state)
-            => state?.Data is { } simulation ? simulation.CurrentParticles : [];
+        private static ParticleSpan ParticlesOf(ParticleSystemState? state)
+            => state?.Data is { } simulation ? simulation.CurrentParticles : default;
 
         /// <summary>
         /// The first sibling tagged with the group after the current peer, wrapping round to the

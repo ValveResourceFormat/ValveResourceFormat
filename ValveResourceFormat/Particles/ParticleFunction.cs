@@ -75,6 +75,32 @@ namespace ValveResourceFormat.Particles
         public virtual bool IsOrderImportant => false;
 
         /// <summary>
+        /// Bit mask over <see cref="ParticleField"/> of the attributes this function writes, which the
+        /// system must therefore store. An attribute no function writes is not stored and every particle
+        /// reads its constant. None unless overridden.
+        /// </summary>
+        public virtual ulong StoredFields => 0;
+
+        /// <summary>
+        /// Bit mask over <see cref="ParticleField"/> of the attributes whose initial value this function
+        /// overwrites, which makes them initialized attributes with their own initial copy.
+        /// </summary>
+        public virtual ulong InitialWrittenFields => 0;
+
+        /// <summary>Builds the per-instance running state the function starts with.</summary>
+        public virtual void Reset()
+        {
+        }
+
+        /// <summary>Builds the running state when the system is created or replayed; <see cref="Reset"/> unless overridden.</summary>
+        public virtual void Initialize(ParticleSystemState particleSystemState) => Reset();
+
+        /// <summary>Called when the system restarts without being destroyed; keeps the running state unless overridden.</summary>
+        public virtual void Restart(ParticleSystemState particleSystemState)
+        {
+        }
+
+        /// <summary>
         /// Adds the control points this function reads whose use implies a nonzero preview value.
         /// </summary>
         public virtual void AddControlPointDefaults(ControlPointDefaults defaults)

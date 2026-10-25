@@ -1,3 +1,6 @@
+using System.Numerics.Tensors;
+using System.Runtime.InteropServices;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -20,17 +23,28 @@ namespace ValveResourceFormat.Particles.Operators
             outputMax = parse.VectorProvider("m_vecOutputMax", outputMax);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsVector(fieldOutput))
             {
-                var min = outputMin.NextVector(ref particle, particleSystemState);
-                var max = outputMax.NextVector(ref particle, particleSystemState);
+                return;
+            }
 
-                var current = particle.GetVector(fieldOutput);
-                var clamped = Vector3.Min(max, Vector3.Max(min, current));
+            var current = particles.Current;
+            current.FillVectorInputs(outputMin, outputMax, particleSystemState, out var mins, out var maxs);
 
-                particle.SetVector(fieldOutput, BlendByStrength(current, clamped, strength));
+            var outputs = MemoryMarshal.Cast<Vector3, float>(current.Vectors(fieldOutput));
+            var clamped = strength >= 1f ? outputs : ParticleScratch.Floats(outputs.Length);
+
+            TensorPrimitives.Max(outputs, MemoryMarshal.Cast<Vector3, float>(mins), clamped);
+            TensorPrimitives.Min(clamped, MemoryMarshal.Cast<Vector3, float>(maxs), clamped);
+
+            if (strength < 1f)
+            {
+                TensorPrimitives.Lerp(outputs, clamped, strength, outputs);
             }
         }
     }

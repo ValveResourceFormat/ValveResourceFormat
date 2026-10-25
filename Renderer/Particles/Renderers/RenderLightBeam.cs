@@ -29,8 +29,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly IVectorProvider coneRotationOffset = new LiteralVectorProvider(Vector3.Zero);
         private readonly INumberProvider renderFilter = new LiteralNumberProvider(1f);
 
-        private Vector3[] spanPositions = [];
-
         public RenderLightBeam(ParticleDefinitionParser parse, Scene scene)
             : base(parse, scene)
         {
@@ -63,7 +61,19 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             var current = particles.Current;
             var count = current.Length;
-            var beamCount = Math.Min((int)numberOfLightsToCreate.NextNumber(systemState), count);
+
+            // The inputs are evaluated in this order, before the beam count can end the step
+            var lightRange = range.NextNumber(systemState);
+            var lightSkirt = skirt.NextNumber(systemState);
+            var lightThickness = thickness.NextNumber(systemState);
+            var lumensPerMeter = brightnessLumensPerMeter.NextNumber(systemState);
+            var lightCount = numberOfLightsToCreate.NextNumber(systemState);
+            var innerCone = innerConeAngle.NextNumber(systemState);
+            var outerCone = outerConeAngle.NextNumber(systemState);
+            var coneRotation = EntityTransformHelper.EulerAnglesToRotationMatrix(coneRotationOffset.NextVector(systemState));
+            var blend = new Vector4(ParticleColorBlend.ConvertScale(ColorBlendType, colorBlend.NextVector(systemState)), 1f);
+
+            var beamCount = Math.Min((int)lightCount, count);
 
             if (beamCount <= 0)
             {
@@ -71,14 +81,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
 
             var span = MathF.Max(1f, count / (float)beamCount);
-            var blend = new Vector4(ParticleColorBlend.ConvertScale(ColorBlendType, colorBlend.NextVector(systemState)), 1f);
-            var lumensPerMeter = brightnessLumensPerMeter.NextNumber(systemState);
-            var lightRange = range.NextNumber(systemState);
-            var lightThickness = thickness.NextNumber(systemState);
-            var keepLights = lightRange <= 0f || lightThickness <= 0f || lumensPerMeter == 0f;
-            var outerAngle = Math.Clamp(outerConeAngle.NextNumber(systemState), 1f, 180f);
-            var innerAngle = Math.Clamp(innerConeAngle.NextNumber(systemState), 0f, outerAngle);
-            var coneRotation = EntityTransformHelper.EulerAnglesToRotationMatrix(coneRotationOffset.NextVector(systemState));
+            var keepLights = lightRange <= 0f || lightThickness <= 0f;
+            var outerAngle = Math.Clamp(outerCone, 1f, 180f);
+            var innerAngle = Math.Clamp(innerCone, 0f, outerAngle);
             var light = new ParticleLightPool.LightState(
                 Color: Vector3.One,
                 LinearBrightness: 0f,
@@ -87,17 +92,16 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 SpotInnerAngle: innerAngle,
                 SpotOuterAngle: outerAngle,
                 LuminaireSize: lightThickness,
-                FallOff: skirt.NextNumber(systemState),
+                FallOff: lightSkirt,
                 Transform: Matrix4x4.Identity);
 
-            if (spanPositions.Length < count)
-            {
-                spanPositions = new Vector3[count];
-            }
+            var spanPositions = ParticleScratch.Vectors(count);
+            var particleIds = current.ReadIntegers(ParticleField.ParticleId);
+            var columns = new BeamColumns(current);
 
             for (var beam = 0; beam < beamCount; beam++)
             {
-                if (Lights.Claim(current[beam].ParticleId) is not { } slot)
+                if (Lights.Claim(particleIds[beam]) is not { } slot)
                 {
                     continue;
                 }
@@ -112,26 +116,28 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 var first = (int)MathF.Floor(beam * span);
                 var length = Math.Clamp((int)MathF.Ceiling((beam + 1) * span) - first, 2, count);
 
-                if (!SumSpan(current, systemState, first, length, blend, out var colorSum))
+                var positions = spanPositions[..length];
+
+                if (!SumSpan(current, columns, systemState, first, blend, positions, out var colorSum))
                 {
                     continue;
                 }
 
-                var (center, axis, beamLength) = GetPrincipalBounds(spanPositions.AsSpan(0, length));
+                var (center, axis, beamLength) = GetPrincipalBounds(positions);
+                var lumens = MetersPerUnit * beamLength * lumensPerMeter;
 
-                if (beamLength <= 0f)
+                if (beamLength <= 0f || lumens == 0f)
                 {
                     continue;
                 }
 
                 var color = colorSum / length;
                 var peak = color.MaxComponent();
-                var lumens = MetersPerUnit * beamLength * lumensPerMeter;
 
                 slot.State = light with
                 {
                     Color = peak > 0f ? ColorSpace.SrgbLinearToGamma(color / peak) : Vector3.One,
-                    LinearBrightness = lumens * 10f / (SceneLight.LinearBrightnessDistance * SceneLight.LinearBrightnessDistance),
+                    LinearBrightness = SceneLight.LinearBrightnessFromCandelas(lumens / (4f * MathF.PI)),
                     BrightnessScale = MathF.Max(peak, 0f),
                     Transform = coneRotation * Matrix4x4.CreateFromQuaternion(TransformMath.FromRotationBetweenUnitVectors(Vector3.UnitY, axis)) * Matrix4x4.CreateTranslation(center),
                     TubeHalfLength = beamLength * 0.5f,
@@ -139,28 +145,43 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
         }
 
+        /// <summary>The attributes the beams are built from, for every particle of a span.</summary>
+        private readonly ref struct BeamColumns(ParticleSpan particles)
+        {
+            public ReadOnlySpan<Vector3> Positions { get; } = particles.ReadVectors(ParticleField.Position);
+
+            public ReadOnlySpan<Vector3> Colors { get; } = particles.ReadVectors(ParticleField.Color);
+
+            public ReadOnlySpan<float> Alphas { get; } = particles.ReadFloats(ParticleField.Alpha);
+        }
+
         /// <summary>
-        /// Gathers the positions of a span into <see cref="spanPositions"/> and sums its linear colour
-        /// weighted by alpha. Indices past the last particle read the last particle. Returns false when a
-        /// particle of the span filters the beam out.
+        /// Gathers the positions of the span starting at <paramref name="first"/> into <paramref name="positions"/>,
+        /// which is as long as the span, and sums its linear colour weighted by alpha. Indices past the last
+        /// particle read the last particle. Returns false when a particle of the span filters the beam out.
         /// </summary>
-        private bool SumSpan(Span<Particle> current, ParticleSystemState systemState, int first, int length, Vector4 blend, out Vector3 colorSum)
+        private bool SumSpan(ParticleSpan current, in BeamColumns columns, ParticleSystemState systemState, int first, Vector4 blend,
+            Span<Vector3> positions, out Vector3 colorSum)
         {
             colorSum = Vector3.Zero;
 
+            var length = positions.Length;
+            var last = current.Length - 1;
+            var filters = renderFilter.Fill(current.Slice(first, Math.Min(length, current.Length - first)), systemState);
+
             for (var i = 0; i < length; i++)
             {
-                ref var particle = ref current[Math.Min(first + i, current.Length - 1)];
+                var index = Math.Min(first + i, last);
 
-                if (renderFilter.NextNumber(ref particle, systemState) < 1f)
+                if (filters[index - first] < 1f)
                 {
                     return false;
                 }
 
-                var color = ParticleColorBlend.Apply(ColorBlendType, ParticleColorBlend.ToBytes(particle.Color, particle.Alpha), blend);
+                var color = ParticleColorBlend.ApplyRounded(ColorBlendType, ParticleColorBlend.ToWrappedBytes(columns.Colors[index], 255f), blend);
 
-                colorSum += ColorSpace.SrgbGammaToLinear(color.AsVector3() / 255f) * particle.Alpha;
-                spanPositions[i] = particle.Position;
+                colorSum += ColorSpace.SrgbGammaToLinear(color.AsVector3() / 255f) * columns.Alphas[index];
+                positions[i] = columns.Positions[index];
             }
 
             return true;
@@ -179,7 +200,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 mean += point;
             }
 
-            mean /= points.Length;
+            mean *= 1f / points.Length;
 
             float xx = 0f, xy = 0f, xz = 0f, yy = 0f, yz = 0f, zz = 0f;
 
@@ -194,24 +215,27 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 zz += d.Z * d.Z;
             }
 
-            var axis = MathUtils.SafeNormalize(points[^1] - points[0], Vector3.UnitX);
+            float count = points.Length;
+            var covariance = new Matrix4x4(
+                xx / count, xy / count, xz / count, 0f,
+                xy / count, yy / count, yz / count, 0f,
+                xz / count, yz / count, zz / count, 0f,
+                0f, 0f, 0f, 1f);
 
-            for (var iteration = 0; iteration < 32; iteration++)
+            var frame = Matrix4x4.CreateFromQuaternion(MathUtils.DiagonalizeSymmetric(covariance, out var variances));
+            var magnitude = Vector3.Abs(variances);
+            int principal;
+
+            if (magnitude.X > magnitude.Y)
             {
-                var next = new Vector3(
-                    (xx * axis.X) + (xy * axis.Y) + (xz * axis.Z),
-                    (xy * axis.X) + (yy * axis.Y) + (yz * axis.Z),
-                    (xz * axis.X) + (yz * axis.Y) + (zz * axis.Z));
-
-                if (next.LengthSquared() <= 0f)
-                {
-                    return (mean, axis, 0f);
-                }
-
-                axis = Vector3.Normalize(next);
+                principal = magnitude.X > magnitude.Z ? 0 : 2;
+            }
+            else
+            {
+                principal = magnitude.Y > magnitude.Z ? 1 : 2;
             }
 
-            var frame = EntityTransformHelper.ForwardDirectionToRotationMatrix(axis);
+            var axis = frame.GetRow(principal).AsVector3();
             var toFrame = Matrix4x4.Transpose(frame);
             var bounds = new AABB(new Vector3(float.MaxValue), new Vector3(float.MinValue));
 
@@ -220,7 +244,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 bounds = bounds.Encapsulate(Vector3.TransformNormal(point, toFrame));
             }
 
-            return (Vector3.TransformNormal(bounds.Center, frame), axis, bounds.Size.X);
+            return (Vector3.TransformNormal(bounds.Center, frame), axis, bounds.Size[principal]);
         }
 
         /// <inheritdoc/>
@@ -232,7 +256,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 Entity = SceneLight.EntityType.Omni2,
                 DirectLight = SceneLight.DirectLightType.Dynamic,
                 CastShadows = castShadows ? 1 : 0,
-                BrightnessScale = 0f,
                 LuminaireShape = 1,
                 MinRoughness = SceneLight.MinSpecularRoughness,
                 Name = nameof(RenderLightBeam),

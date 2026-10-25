@@ -1,10 +1,8 @@
-using System.Runtime.InteropServices;
-
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
     /// Copies an attribute from the parent particles an event was raised on into the particles the
-    /// event emits, cycling through the event's particles in order. Runs only for particles emitted
+    /// event emits, cycling through the event's particles in order from the first in each call. Runs only for particles emitted
     /// from a parent's event, whichever event that is, and leaves the attribute alone when an earlier
     /// initializer or the emitter has already written it.
     /// </summary>
@@ -20,16 +18,16 @@ namespace ValveResourceFormat.Particles.Initializers
 
         private bool CopiesAttribute => attributeToCopy >= 0 && attributeToCopy != ParticleField.NoneDisabled;
 
-        public override ulong WrittenFields => CopiesAttribute ? FieldMask(attributeToCopy) : 0;
+        public override ulong WrittenFields => CopiesAttribute ? attributeToCopy.Mask() : 0;
 
         public override bool ShouldRun(ParticleSystemState particleSystemState) => particleSystemState.EmitterEventParticles != null;
 
-        public override void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var parentIndices = particleSystemState.EmitterEventParticles;
 
             if (!CopiesAttribute
-                || (particleSystemState.InitializedFields & FieldMask(attributeToCopy)) != 0
+                || !IsUnwritten(particleSystemState, attributeToCopy)
                 || parentIndices is not { Count: > 0 }
                 || particleSystemState.ParentSystem?.Data is not { } parent)
             {
@@ -37,29 +35,27 @@ namespace ValveResourceFormat.Particles.Initializers
             }
 
             var parentParticles = parent.CurrentParticles;
-            var isVector = attributeToCopy.FieldType() == "vector";
+            var vectorOutput = ParticleBuffer.IsVector(attributeToCopy) ? run.Vectors(attributeToCopy) : default;
+            var scalarOutput = ParticleBuffer.IsScalar(attributeToCopy) ? run.Floats(attributeToCopy) : default;
             var next = 0;
 
-            foreach (ref var particle in batch)
+            var parentVectors = vectorOutput.IsEmpty ? default : parentParticles.ReadVectors(attributeToCopy);
+            var parentScalars = scalarOutput.IsEmpty ? default : parentParticles.ReadFloats(attributeToCopy);
+
+            for (var i = 0; i < run.Length; i++)
             {
-                ref var source = ref parentParticles[parentIndices[next]];
+                var source = parentIndices[next];
                 next = next + 1 < parentIndices.Count ? next + 1 : 0;
 
-                if (isVector)
+                if (!vectorOutput.IsEmpty)
                 {
-                    particle.SetVector(attributeToCopy, source.GetVector(attributeToCopy));
+                    vectorOutput[i] = parentVectors[source];
                 }
-                else
+                else if (!scalarOutput.IsEmpty)
                 {
-                    particle.SetScalar(attributeToCopy, source.GetScalar(attributeToCopy));
+                    scalarOutput[i] = parentScalars[source];
                 }
             }
-        }
-
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            Initialize(MemoryMarshal.CreateSpan(ref particle, 1), particles, particleSystemState);
-            return particle;
         }
     }
 }

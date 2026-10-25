@@ -10,12 +10,8 @@ namespace ValveResourceFormat.Particles.Operators
         {
         }
 
+        /// <summary>Updates the particles of <paramref name="particles"/> for a step of <paramref name="frameTime"/> seconds, at <paramref name="strength"/>.</summary>
         public abstract void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength);
-
-        /// <summary>Builds the per-instance running state the operator starts with.</summary>
-        public virtual void Reset()
-        {
-        }
 
         /// <summary>
         /// Moves <paramref name="current"/> toward <paramref name="value"/> by <paramref name="strength"/>.
@@ -29,27 +25,26 @@ namespace ValveResourceFormat.Particles.Operators
             => strength >= 1f ? value : (value * strength) + (current * (1f - strength));
 
         /// <summary>
-        /// The share of a step of <paramref name="frameTime"/> that <paramref name="particle"/> lived
-        /// through, 1 for a particle older than the step.
+        /// Records the initial value read of an operator that writes <paramref name="field"/> by
+        /// <paramref name="method"/>: the field itself when the method combines with its initial value.
         /// </summary>
-        protected static float LivedStepFraction(in Particle particle, float frameTime)
-            => MathF.Min(particle.Age, frameTime) / frameTime;
-
-        /// <summary>Kills a culled particle, raising the killed on cull event for the children that listen for it.</summary>
-        protected static void KillCulled(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected static void AddInitialReadOf(ParticleDefinitionParser parse, ParticleSetMethod method, ParticleField field)
         {
-            particle.Kill();
-
-            if (particleSystemState.ListensFor(ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED_ON_CULL))
+            if (method.ReadsInitialValue())
             {
-                particles.RaiseEvent(particle.Index, ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED_ON_CULL);
+                parse.AddInitialRead(field);
             }
         }
 
-        /// <summary>Builds the running state when the system is created or replayed; <see cref="Reset"/> unless overridden.</summary>
-        public virtual void Initialize(ParticleSystemState particleSystemState) => Reset();
+        /// <summary>Kills a culled particle, raising the killed on cull event for the children that listen for it.</summary>
+        protected static void KillCulled(ParticleCollection particles, int index, ParticleSystemState particleSystemState)
+        {
+            particles.Kill(index);
 
-        /// <summary>Called when the system restarts; rebuilds the running state unless overridden.</summary>
-        public virtual void Restart(ParticleSystemState particleSystemState) => Reset();
+            if (particleSystemState.ListensFor(ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED_ON_CULL))
+            {
+                particles.RaiseEvent(index, ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED_ON_CULL);
+            }
+        }
     }
 }

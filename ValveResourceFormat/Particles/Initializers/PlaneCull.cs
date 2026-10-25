@@ -19,24 +19,29 @@ namespace ValveResourceFormat.Particles.Initializers
             cullInside = parse.Boolean("m_bCullInside", cullInside);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.LifeDuration);
+        public override ulong WrittenFields => ParticleField.LifeDuration.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            if (particle.Lifetime == -1f)
-            {
-                return particle;
-            }
-
+            var lifetimes = run.Floats(ParticleField.LifeDuration);
+            var positions = run.ReadVectors(ParticleField.Position);
             var point = particleSystemState.GetControlPoint(controlPoint);
-            var signedDistance = Vector3.Dot(particle.Position - point.Position, point.Forward) - distance.NextNumber(particleSystemState);
+            var planeDistance = distance.NextNumber(particleSystemState);
 
-            if ((cullInside ? -signedDistance : signedDistance) <= 0f)
+            for (var i = 0; i < lifetimes.Length; i++)
             {
-                particle.Lifetime = -1f;
-            }
+                if (lifetimes[i] == -1f)
+                {
+                    continue;
+                }
 
-            return particle;
+                var signedDistance = Vector3.Dot(positions[i] - point.Position, point.Forward) - planeDistance;
+
+                if ((cullInside ? -signedDistance : signedDistance) <= 0f)
+                {
+                    lifetimes[i] = -1f;
+                }
+            }
         }
     }
 }

@@ -1,3 +1,5 @@
+using System.Numerics.Tensors;
+
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
@@ -30,9 +32,9 @@ namespace ValveResourceFormat.Particles.Initializers
             defaults.AddScale(scaleControlPoint);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.Radius) | FieldMask(ParticleField.HitboxOffsetPosition);
+        public override ulong WrittenFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask() | ParticleField.Radius.Mask() | ParticleField.HitboxOffsetPosition.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var finalScale = scale;
 
@@ -48,39 +50,44 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (finalScale == 1f)
             {
-                return particle;
+                return;
             }
 
             if (scaleRadius)
             {
-                particle.Radius *= finalScale;
+                var radii = run.Floats(ParticleField.Radius);
+                TensorPrimitives.Multiply(radii, finalScale, radii);
             }
 
             var origin = particleSystemState.GetControlPoint(controlPoint).Position;
-            var position = particle.Position;
-            var previous = particle.PositionPrevious;
-            var velocity = position - previous;
+            var positions = run.Vectors(ParticleField.Position);
+            var previousPositions = run.Vectors(ParticleField.PositionPrevious);
 
-            if (scalePosition)
+            for (var i = 0; i < positions.Length; i++)
             {
-                position = origin + ((position - origin) * finalScale);
-            }
+                var position = positions[i];
+                var previous = previousPositions[i];
+                var velocity = position - previous;
 
-            if (scaleVelocity)
-            {
-                previous = scalePosition
-                    ? origin + ((previous - origin) * finalScale)
-                    : position - (velocity * finalScale);
-            }
-            else if (scalePosition)
-            {
-                previous = position - velocity;
-            }
+                if (scalePosition)
+                {
+                    position = origin + ((position - origin) * finalScale);
+                }
 
-            particle.Position = position;
-            particle.PositionPrevious = previous;
+                if (scaleVelocity)
+                {
+                    previous = scalePosition
+                        ? origin + ((previous - origin) * finalScale)
+                        : position - (velocity * finalScale);
+                }
+                else if (scalePosition)
+                {
+                    previous = position - velocity;
+                }
 
-            return particle;
+                positions[i] = position;
+                previousPositions[i] = previous;
+            }
         }
     }
 }

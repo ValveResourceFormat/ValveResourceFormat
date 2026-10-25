@@ -6,13 +6,14 @@ namespace Tests.Particles
 {
     public class ParticleFieldTest
     {
-        // Fields holding references the engine owns, which have no value to store in a viewer
+        // Fields holding references the engine owns, which have no value to store in a viewer, and the
+        // bone indices, which are kept apart from the scalars and vectors
         private static readonly ParticleField[] Unstored =
         [
-            ParticleField.NoneDisabled, ParticleField.HitboxIndex,
+            ParticleField.NoneDisabled,
             ParticleField.SceneObjectPointer, ParticleField.SceneObjectPointer2, ParticleField.RefCountedPointer,
             ParticleField.ModelHelperPointer, ParticleField.ModelHelperPointer2, ParticleField.ModelHelperPointer3, ParticleField.ModelHelperPointer4,
-            ParticleField.BoneIndices, ParticleField.BoneWeights,
+            ParticleField.BoneIndices,
         ];
 
         [Test]
@@ -22,31 +23,29 @@ namespace Tests.Particles
 
             foreach (var field in Enum.GetValues<ParticleField>().Except(Unstored))
             {
-                var particle = new Particle();
+                var particles = new ParticleSpan(new ParticleBuffer(1, ParticleBuffer.ValueFieldMask), 0, 1);
 
-                switch (field.FieldType())
+                if (ParticleBuffer.IsScalar(field))
                 {
-                    case "float":
-                        particle.SetScalar(field, 3f);
-                        if (particle.GetScalar(field) != 3f)
-                        {
-                            lost.Add(field);
-                        }
+                    particles.Floats(field)[0] = 3f;
 
-                        break;
-
-                    case "vector":
-                        particle.SetVector(field, new Vector3(1f, 2f, 3f));
-                        if (particle.GetVector(field) != new Vector3(1f, 2f, 3f))
-                        {
-                            lost.Add(field);
-                        }
-
-                        break;
-
-                    default:
+                    if (particles.ReadFloat(field, 0) != 3f)
+                    {
                         lost.Add(field);
-                        break;
+                    }
+                }
+                else if (ParticleBuffer.IsVector(field))
+                {
+                    particles.Vectors(field)[0] = new Vector3(1f, 2f, 3f);
+
+                    if (particles.ReadVector(field, 0) != new Vector3(1f, 2f, 3f))
+                    {
+                        lost.Add(field);
+                    }
+                }
+                else
+                {
+                    lost.Add(field);
                 }
             }
 

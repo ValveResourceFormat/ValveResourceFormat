@@ -1,3 +1,6 @@
+using System.Numerics.Tensors;
+using System.Runtime.InteropServices;
+
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
@@ -13,15 +16,21 @@ namespace ValveResourceFormat.Particles.Initializers
             scale = parse.VectorProvider("m_vecScale", scale);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.PositionPrevious);
+        public override ulong WrittenFields => ParticleField.PositionPrevious.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var scale = this.scale.NextVector(ref particle, particleSystemState);
+            // The scale is evaluated for every live particle, and each particle of the run reads its own value
+            var scaleValues = scale.Prepare(run, particles.Current, particleSystemState);
+            run.FillPerBlockInputs(particleSystemState, scale, scaleValues, blocksFromStart: true);
 
-            particle.PositionPrevious = ((particle.PositionPrevious - particle.Position) * scale) + particle.Position;
+            var scales = MemoryMarshal.Cast<Vector3, float>(scaleValues);
 
-            return particle;
+            var positions = MemoryMarshal.Cast<Vector3, float>(run.ReadVectors(ParticleField.Position));
+            var previousPositions = MemoryMarshal.Cast<Vector3, float>(run.Vectors(ParticleField.PositionPrevious));
+
+            TensorPrimitives.Subtract(previousPositions, positions, previousPositions);
+            TensorPrimitives.MultiplyAdd(previousPositions, scales, positions, previousPositions);
         }
     }
 }
