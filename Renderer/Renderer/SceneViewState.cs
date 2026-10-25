@@ -7,7 +7,7 @@ using ValveResourceFormat.Renderer.SceneNodes;
 namespace ValveResourceFormat.Renderer;
 
 /// <summary>Culling results and draw lists for drawing a scene through one view.</summary>
-public sealed class SceneViewState : IDisposable
+public sealed class SceneViewState
 {
     /// <summary>Gets the scene this state draws.</summary>
     public Scene Scene { get; }
@@ -93,8 +93,43 @@ public sealed class SceneViewState : IDisposable
 
     private readonly Predicate<MeshBatchRenderer.Request> hasNoVisibleFragments;
 
-    private readonly Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> depthOnlyDraws
-        = Enum.GetValues<DepthOnlyBucket>().ToDictionary(static bucket => bucket, static _ => new List<MeshBatchRenderer.Request>());
+    private readonly Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> depthOnlyDraws = CreateDepthOnlyBuckets();
+
+    // A bit per node ID instead of draw lists, as there can be hundreds of barn light faces
+    private uint[] visibleBits = [];
+    private int visibleWords;
+
+    private VisibleNodeEnumerator EnumerateVisibleNodes() => new(Scene, visibleBits.AsSpan(0, visibleWords));
+
+    private ref struct VisibleNodeEnumerator(Scene scene, ReadOnlySpan<uint> bits)
+    {
+        private readonly ReadOnlySpan<uint> bits = bits;
+        private int word = -1;
+        private uint remaining;
+
+        public SceneNode Current { get; private set; } = null!;
+
+        public readonly VisibleNodeEnumerator GetEnumerator() => this;
+
+        public bool MoveNext()
+        {
+            while (remaining == 0)
+            {
+                if (++word >= bits.Length)
+                {
+                    return false;
+                }
+
+                remaining = bits[word];
+            }
+
+            var id = word * MathUtils.BitsPerWord + BitOperations.TrailingZeroCount(remaining);
+            remaining &= remaining - 1;
+
+            Current = scene.GetNodeById((uint)id);
+            return true;
+        }
+    }
 
     private readonly List<RenderableMesh> singleMesh = [null!];
 
@@ -580,6 +615,9 @@ public sealed class SceneViewState : IDisposable
         compactedCounts.Create(counts, BufferUsage.GpuOnly);
     }
 
+    internal static Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> CreateDepthOnlyBuckets()
+        => Enum.GetValues<DepthOnlyBucket>().ToDictionary(static bucket => bucket, static _ => new List<MeshBatchRenderer.Request>());
+
     internal (float Min, float Max) CollectShadowCasters(Frustum frustum, bool includeStatic, ObjectTypeFlags skipFlags, VisibilityBoxCuller boxes, Vector3 depthFitAxis)
     {
         var depthMin = float.MaxValue;
@@ -600,9 +638,16 @@ public sealed class SceneViewState : IDisposable
             depthMax = Math.Max(depthMax, center + extent);
         }
 
-        foreach (var bucket in depthOnlyDraws.Values)
+        // IDs start at 1
+        visibleWords = MathUtils.DivideRoundUp(Scene.NodeCount + 1, 32);
+
+        if (visibleBits.Length < visibleWords)
         {
-            bucket.Clear();
+            visibleBits = new uint[visibleWords];
+        }
+        else
+        {
+            Array.Clear(visibleBits, 0, visibleWords);
         }
 
         var pvs = Pvs.Span;
@@ -623,71 +668,67 @@ public sealed class SceneViewState : IDisposable
                     continue;
             }
 
-            List<RenderableMesh> meshes;
-
-            if (node is MeshCollectionNode meshCollection)
+            var casts = node switch
             {
-                if ((node.Flags & skipFlags) != 0)
-                {
-                    continue;
-                }
+                MeshCollectionNode => (node.Flags & skipFlags) == 0,
+                SceneAggregate.Fragment fragment => (fragment.Flags & skipFlags) == 0 && fragment.Parent.IsFragmentInActiveLod(fragment),
+                SceneAggregate aggregate => (aggregate.AllFlags & skipFlags) == 0 && aggregate.InstanceTransforms.Count > 0,
+                _ => (node.Flags & skipFlags) == 0 && (node.RenderPasses & CustomRenderPasses.DepthOnly) != 0,
+            };
 
-                meshes = meshCollection.RenderableMeshes;
-            }
-            else if (node is SceneAggregate.Fragment fragment)
+            if (!casts)
             {
-                if ((fragment.Flags & skipFlags) != 0 || !fragment.Parent.IsFragmentInActiveLod(fragment))
-                {
-                    continue;
-                }
-
-                AccumulateDepthFit(node);
-                AddShadowCaster(fragment.RenderMesh, fragment.DrawCall, node);
-                continue;
-            }
-            else if (node is SceneAggregate aggregate)
-            {
-                if ((aggregate.AllFlags & skipFlags) != 0 || aggregate.InstanceTransforms.Count == 0)
-                {
-                    continue;
-                }
-
-                singleMesh[0] = aggregate.RenderMesh;
-                meshes = singleMesh;
-            }
-            else
-            {
-                if ((node.Flags & skipFlags) == 0 && (node.RenderPasses & CustomRenderPasses.DepthOnly) != 0)
-                {
-                    AccumulateDepthFit(node);
-                    depthOnlyDraws[DepthOnlyBucket.MaterialDepthMode].Add(new MeshBatchRenderer.Request { Node = node });
-                }
-
                 continue;
             }
 
             AccumulateDepthFit(node);
-
-            foreach (var mesh in meshes)
-            {
-                foreach (var opaqueCall in mesh.DrawCallsOpaque)
-                {
-                    AddShadowCaster(mesh, opaqueCall, node);
-                }
-            }
+            MathUtils.SetBit(visibleBits, (int)node.Id);
         }
 
         return (depthMin, depthMax);
     }
 
-    private void AddShadowCaster(RenderableMesh mesh, DrawCall opaqueCall, SceneNode node)
+    private void AddShadowCasterDraws(SceneNode node, Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> draws)
+    {
+        List<RenderableMesh> meshes;
+
+        switch (node)
+        {
+            case MeshCollectionNode meshCollection:
+                meshes = meshCollection.RenderableMeshes;
+                break;
+
+            case SceneAggregate.Fragment fragment:
+                AddShadowCasterDraw(fragment.RenderMesh, fragment.DrawCall, node, draws);
+                return;
+
+            case SceneAggregate aggregate:
+                singleMesh[0] = aggregate.RenderMesh;
+                meshes = singleMesh;
+                break;
+
+            default:
+                draws[DepthOnlyBucket.MaterialDepthMode].Add(new MeshBatchRenderer.Request { Node = node });
+                return;
+        }
+
+        foreach (var mesh in meshes)
+        {
+            foreach (var opaqueCall in mesh.DrawCallsOpaque)
+            {
+                AddShadowCasterDraw(mesh, opaqueCall, node, draws);
+            }
+        }
+    }
+
+    private void AddShadowCasterDraw(RenderableMesh mesh, DrawCall opaqueCall, SceneNode node, Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> draws)
     {
         if (!Scene.CastsShadows(opaqueCall.Material, node))
         {
             return;
         }
 
-        depthOnlyDraws[GetDepthOnlyBucket(opaqueCall)].Add(new MeshBatchRenderer.Request
+        draws[GetDepthOnlyBucket(opaqueCall)].Add(new MeshBatchRenderer.Request
         {
             Mesh = mesh,
             Call = opaqueCall,
@@ -1035,14 +1076,19 @@ public sealed class SceneViewState : IDisposable
         PerfStats.Active.ResumeTriangleCounter();
     }
 
-    internal void RenderDepthOnlyLayer(Scene.RenderContext renderContext, Shader depthOnlyShader)
+    internal void RenderShadowCasters(Scene.RenderContext renderContext, Shader depthOnlyShader, Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> draws)
     {
+        foreach (var node in EnumerateVisibleNodes())
+        {
+            AddShadowCasterDraws(node, draws);
+        }
+
         renderContext.RenderPass = RenderPass.DepthOnly;
         renderContext.DepthOnlyShader = depthOnlyShader;
 
         PerfStats.Active.SuspendTriangleCounter();
 
-        foreach (var (bucket, calls) in depthOnlyDraws)
+        foreach (var (bucket, calls) in draws)
         {
             if (calls.Count == 0)
             {
@@ -1057,6 +1103,7 @@ public sealed class SceneViewState : IDisposable
             };
 
             MeshBatchRenderer.Render(calls, renderContext);
+            calls.Clear();
         }
 
         PerfStats.Active.ResumeTriangleCounter();
@@ -1219,15 +1266,15 @@ public sealed class SceneViewState : IDisposable
     private bool IsDrawnByAggregate(SceneNode node)
         => Scene.DrawMeshletsIndirect && node is SceneAggregate.Fragment { Parent.CanDrawIndirect: true };
 
-    /// <inheritdoc/>
-    public void Dispose()
+    /// <summary>Deletes the GPU buffers of this view.</summary>
+    public void Delete()
     {
         if (lightBinner != null && Scene.ShadingLightBinner == lightBinner)
         {
             Scene.ShadingLightBinner = null;
         }
 
-        lightBinner?.Dispose();
+        lightBinner?.Delete();
         indirectDraws?.Delete();
         compactedDraws?.Delete();
         compactedCounts?.Delete();

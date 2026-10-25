@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer;
 /// <remarks>
 /// Bit indices are positions in the barn light and env map arrays of that one scene, so masks are not interchangeable between scenes.
 /// </remarks>
-public sealed class LightBinner(SceneViewState view) : IDisposable
+public sealed class LightBinner(SceneViewState view)
 {
     /// <summary>Screen tile size as a power of two shift. 4 is 16x16 pixels.</summary>
     private const int TileShift = 4;
@@ -401,15 +401,15 @@ public sealed class LightBinner(SceneViewState view) : IDisposable
             view.DepthPyramid.Height / MathF.Max(Feeder.ViewportSize.Y, 1f)));
     }
 
-    /// <inheritdoc/>
-    public void Dispose()
+    /// <summary>Deletes the GPU buffers of the cull passes.</summary>
+    public void Delete()
     {
         CullBits?.Delete();
         CullItemsGpu?.Delete();
         CullPlanesGpu?.Delete();
         VisibleBitsGpu?.Delete();
         CullParamsGpu?.Delete();
-        VisibilityReadback?.Dispose();
+        VisibilityReadback?.Delete();
 
         CullBits = null;
         CullItemsGpu = null;

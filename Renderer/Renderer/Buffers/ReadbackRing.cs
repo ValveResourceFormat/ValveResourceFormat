@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Buffers;
 /// and fences it; a later frame picks the slot up, but only once the fence says the copy has landed. The
 /// slots are persistently mapped, so consuming one is a plain memory read.
 /// </summary>
-internal sealed class ReadbackRing : IDisposable
+internal sealed class ReadbackRing
 {
     /// <summary>Copies in flight before the ring runs out of slots and drops frames. Matches the three
     /// frames a driver typically buffers, which is how long a fence takes to signal.</summary>
@@ -139,8 +139,7 @@ internal sealed class ReadbackRing : IDisposable
         return true;
     }
 
-    /// <inheritdoc/>
-    public void Dispose()
+    public void Delete()
     {
         for (var i = 0; i < Depth; i++)
         {

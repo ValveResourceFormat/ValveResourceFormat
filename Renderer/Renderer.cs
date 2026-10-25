@@ -306,6 +306,8 @@ public class Renderer : ISpawnGroupHost
     private readonly ShadowAtlasRegion[] barnLightFaceRegions = new ShadowAtlasRegion[BarnLightConstants.MAX_BARN_LIGHTS];
     private int barnLightFaceViewCount;
 
+    private readonly Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> shadowCasterDraws = SceneViewState.CreateDepthOnlyBuckets();
+
     private readonly WorldFogInfo skyFog = new();
 
     private readonly HashSet<Scene> scenesUpdated = [];
@@ -391,7 +393,7 @@ public class Renderer : ISpawnGroupHost
         {
             if (states.Remove(group.Scene, out var state))
             {
-                state.Dispose();
+                state.Delete();
             }
         }
 
@@ -1135,7 +1137,7 @@ public class Renderer : ISpawnGroupHost
 
         EntitySystem.Clear();
 
-        DisposeViewStates();
+        DeleteViewStates();
 
         foreach (var group in spawnGroups)
         {
@@ -1147,11 +1149,11 @@ public class Renderer : ISpawnGroupHost
         scenes.Add(Scene);
     }
 
-    private void DisposeViewStates()
+    private void DeleteViewStates()
     {
         foreach (var view in barnLightFaceViews)
         {
-            view.States[0].Dispose();
+            view.States[0].Delete();
         }
 
         barnLightFaceViews.Clear();
@@ -1161,7 +1163,7 @@ public class Renderer : ISpawnGroupHost
         {
             foreach (var state in states.Values)
             {
-                state.Dispose();
+                state.Delete();
             }
 
             states.Clear();
@@ -1552,7 +1554,7 @@ public class Renderer : ISpawnGroupHost
                 {
                     renderContext.Scene = state.Scene;
                     state.Scene.BindDrawBuffers();
-                    state.RenderDepthOnlyLayer(renderContext, depthOnlyShader);
+                    state.RenderShadowCasters(renderContext, depthOnlyShader, shadowCasterDraws);
                 }
             }
         }
@@ -1607,7 +1609,7 @@ public class Renderer : ISpawnGroupHost
             ViewBuffer.Data.WorldToProjection = view.Camera.ViewProjectionMatrix;
             ViewBuffer.Update();
 
-            view.States[0].RenderDepthOnlyLayer(renderContext, depthOnlyShader);
+            view.States[0].RenderShadowCasters(renderContext, depthOnlyShader, shadowCasterDraws);
         }
     }
 
@@ -2044,7 +2046,7 @@ public class Renderer : ISpawnGroupHost
     {
         ViewBuffer?.Delete();
 
-        DisposeViewStates();
+        DeleteViewStates();
         depthPyramid.Delete();
 
         foreach (var group in spawnGroups)

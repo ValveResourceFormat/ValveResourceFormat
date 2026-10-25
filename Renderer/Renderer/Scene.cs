@@ -413,6 +413,13 @@ namespace ValveResourceFormat.Renderer
             return (NodeType.Unknown, -1);
         }
 
+        internal SceneNode GetNodeById(uint id)
+        {
+            var index = (int)id - 1;
+
+            return index < staticNodes.Count ? staticNodes[index] : dynamicNodes[index - staticNodes.Count];
+        }
+
         /// <summary>
         /// Removes all nodes from the scene, also disposes loaded materials and gpu mesh buffers.
         /// </summary>
