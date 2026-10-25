@@ -6,7 +6,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
 /// <c>trigger_push</c>. Pushes what is inside it along <c>pushdir</c> at <c>speed</c>: the player as a
-/// base velocity carried on top of their own, physics props as an acceleration.
+/// base velocity carried on top of their own, physics objects as an acceleration.
 /// </summary>
 /// <remarks>
 /// <c>alternateticksfix</c> is not read.
@@ -14,8 +14,17 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CTriggerPush">CTriggerPush</seealso>
 public sealed class TriggerPush : BaseTrigger
 {
-    // The push on a prop is an impulse per tick of speed times this mass, so a prop of this many
-    // kilograms gains the push speed every second and a lighter one more
+    /// <summary>The <c>spawnflags</c> only a push reads.</summary>
+    [Flags]
+    private enum PushSpawnFlag : uint
+    {
+        /// <summary>The push accelerates every physics object alike, whatever its mass.</summary>
+        AccountForMass = 4096,
+    }
+
+    // Without accounting for mass, the push on a physics object is an impulse per tick of speed
+    // times this mass, so an object of this many kilograms gains the push speed every second and
+    // a lighter one more
     private const float PropReferenceMass = 100f;
 
     private float speed;
@@ -42,7 +51,7 @@ public sealed class TriggerPush : BaseTrigger
         isPushDirLocal = !KeyValues.ContainsKey("pushdir_islocal") || KeyValues.GetBooleanProperty("pushdir_islocal");
         pushesOnStartTouchOnly = KeyValues.GetBooleanProperty("triggeronstarttouch");
 
-        if (HasSpawnFlags(SpawnFlag.AllowPhysics | SpawnFlag.AllowAll))
+        if (HasSpawnFlags(SpawnFlag.AllowPhysics | SpawnFlag.AllowAll | SpawnFlag.AllowPhysicsDebris))
         {
             SetNextThink(EntitySystem.CurrentTime + EntitySystem.TickInterval);
         }
@@ -93,8 +102,8 @@ public sealed class TriggerPush : BaseTrigger
     }
 
     /// <summary>
-    /// Pushes the physics props whose mass center is inside the volume, every tick: only the player
-    /// opens touch links with triggers.
+    /// Pushes the physics objects whose mass center is inside the volume, every tick: only the
+    /// player opens touch links with triggers. Debris only when the flags name it.
     /// </summary>
     public override void Think()
     {
@@ -111,18 +120,28 @@ public sealed class TriggerPush : BaseTrigger
         bodies.Clear();
         bodyIds.Clear();
 
+        var categories = HasSpawnFlags(SpawnFlag.AllowPhysics | SpawnFlag.AllowAll)
+            ? PhysicsSimulation.PropCategory | PhysicsSimulation.RagdollCategory
+            : 0UL;
+
+        if (HasSpawnFlags(SpawnFlag.AllowPhysicsDebris))
+        {
+            categories |= PhysicsSimulation.DebrisCategory;
+        }
+
         var overlapped = new BodyOverlap(bodies, bodyIds);
         physics.World.OverlapBox(bounds.Center, bounds.Size * 0.5f, ref overlapped,
-            new QueryFilter(~PhysicsSimulation.PlayerCategory, PhysicsSimulation.PropCategory | PhysicsSimulation.DebrisCategory));
+            new QueryFilter(~PhysicsSimulation.PlayerCategory, categories));
 
-        var impulse = PushVelocity * (PropReferenceMass * EntitySystem.TickInterval);
+        var accountsForMass = HasSpawnFlags(PushSpawnFlag.AccountForMass);
+        var push = PushVelocity * EntitySystem.TickInterval;
 
         foreach (var body in bodies)
         {
             if (body.Type == BodyType.Dynamic && volume.ContainsPoint(body.CenterOfMass))
             {
                 var pushed = body;
-                pushed.ApplyImpulseToCenter(impulse, wake: true);
+                pushed.ApplyImpulseToCenter(push * (accountsForMass ? body.Mass : PropReferenceMass), wake: true);
             }
         }
     }
