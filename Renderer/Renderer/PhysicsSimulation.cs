@@ -92,7 +92,21 @@ public sealed class PhysicsSimulation : IDisposable
 
     // The bounds of each simulated body's shapes in the body's own space. The solver only reports
     // broadphase bounds, which gain and lose a margin as the body moves.
-    private readonly Dictionary<ulong, BoundingBox> bodyBounds = [];
+    private readonly Dictionary<ulong, BodyGeometry> bodyGeometry = [];
+
+    // A simulated body's shapes in its own space: the bounds they cover, the corners of its hulls
+    // and its rounded shapes, which say how close the body can come to the world when held
+    private sealed class BodyGeometry
+    {
+        public BoundingBox? Bounds { get; private set; }
+        public List<Vector3> HullPoints { get; } = [];
+        public List<Capsule> RoundShapes { get; } = [];
+
+        public void Grow(BoundingBox other)
+            => Bounds = Bounds is { } current
+                ? new BoundingBox(Vector3.Min(current.Min, other.Min), Vector3.Max(current.Max, other.Max))
+                : other;
+    }
 
     // The game's surface table, or null when the game offers none; every shape then simulates as
     // the fallback surface
@@ -189,54 +203,90 @@ public sealed class PhysicsSimulation : IDisposable
     /// <returns>The reach, shortened when the ray meets something first.</returns>
     public float ClearReach(Vector3 from, Vector3 direction, float reach, Body body)
     {
-        if (!bodyBounds.TryGetValue(body.UserData, out var bounds))
+        if (!bodyGeometry.TryGetValue(body.UserData, out var geometry) || geometry.Bounds is not { } bounds)
         {
             return reach;
         }
 
         var extents = bounds.Extents;
-        return ShortenReach(from, direction, reach, MathF.Min(extents.X, MathF.Min(extents.Y, extents.Z)), out _);
+        return ShortenReach(from, direction, reach, MathF.Min(extents.X, MathF.Min(extents.Y, extents.Z)));
     }
 
     /// <summary>
     /// Shortens a reach along a ray so that a body held at its end, turned as it is now, stops just
-    /// short of the world and the movers there.
+    /// short of the world and the movers there: the body's shapes are swept along the ray from the
+    /// eyes, its hull corners as rays and its rounded shapes as capsules. From the eyes, not from
+    /// the closest it is ever held: looking down, a body that close would already be in the floor,
+    /// where the rays see no surface to stop at.
     /// </summary>
     /// <param name="from">Ray start, the eyes.</param>
     /// <param name="direction">Normalized ray direction.</param>
     /// <param name="reach">How far along the ray the body would like to be held.</param>
-    /// <param name="body">The held body, whose bounds say how much room it needs.</param>
-    /// <param name="normal">The normal of what shortened the reach, or zero when nothing did.</param>
-    /// <returns>The reach, shortened when the ray meets something first.</returns>
+    /// <param name="body">The held body, whose shapes say how much room it needs.</param>
+    /// <param name="normal">The normal of what the ray itself meets within the reach, or zero for nothing.</param>
+    /// <returns>The reach, shortened when the body meets something first.</returns>
     public float TouchReach(Vector3 from, Vector3 direction, float reach, Body body, out Vector3 normal)
     {
-        if (!bodyBounds.TryGetValue(body.UserData, out var bounds))
+        normal = Vector3.Zero;
+
+        if (reach <= MinClearReach || !bodyGeometry.TryGetValue(body.UserData, out var geometry) || geometry.Bounds is not { } bounds)
         {
-            normal = Vector3.Zero;
             return reach;
         }
 
-        // How far the body's bounds stick out from its mass center toward what the ray meets
-        var localDirection = Vector3.Transform(direction, Quaternion.Inverse(body.Rotation));
-        var extent = Vector3.Dot(bounds.Center - body.LocalCenterOfMass, localDirection)
-            + Vector3.Dot(Vector3.Abs(localDirection), bounds.Extents);
+        var filter = new QueryFilter(PlayerCategory, StaticCategory | MoverCategory);
+        var rotation = body.Rotation;
+        var origin = from - Vector3.Transform(body.LocalCenterOfMass, rotation);
+        var travel = direction * reach;
+        var fraction = 1f;
 
-        return ShortenReach(from, direction, reach, extent + ClearReachMargin, out normal);
+        foreach (var point in geometry.HullPoints)
+        {
+            var hit = World.RaycastClosest(origin + Vector3.Transform(point, rotation), travel, filter);
+
+            if (hit.Hit)
+            {
+                fraction = MathF.Min(fraction, hit.Fraction);
+            }
+        }
+
+        foreach (var round in geometry.RoundShapes)
+        {
+            var turned = new Capsule(Vector3.Transform(round.Start, rotation), Vector3.Transform(round.End, rotation), round.Radius);
+            fraction = MathF.Min(fraction, World.CastCapsule(turned, origin, travel, filter));
+        }
+
+        var surface = World.RaycastClosest(from, direction * (reach + bounds.Extents.Length()), filter);
+
+        if (surface.Hit)
+        {
+            normal = surface.Normal;
+        }
+
+        if (fraction >= 1f)
+        {
+            return reach;
+        }
+
+        return MathF.Max((fraction * reach) - TouchMargin, MinClearReach);
     }
 
-    private float ShortenReach(Vector3 from, Vector3 direction, float reach, float extent, out Vector3 normal)
+    // A body held against the world stops this far short, so it rests beside it rather than in
+    // constant contact
+    private const float TouchMargin = 0.5f;
+
+    private float ShortenReach(Vector3 from, Vector3 direction, float reach, float extent)
     {
         var hit = World.RaycastClosest(from, direction * (reach + extent),
             new QueryFilter(PlayerCategory, StaticCategory | MoverCategory));
-        var shortened = hit.Hit ? MathF.Max(Vector3.Distance(from, hit.Point) - extent, MinClearReach) : reach;
 
-        normal = shortened < reach ? hit.Normal : Vector3.Zero;
-        return MathF.Min(reach, shortened);
+        if (!hit.Hit)
+        {
+            return reach;
+        }
+
+        return MathF.Min(reach, MathF.Max(Vector3.Distance(from, hit.Point) - extent, MinClearReach));
     }
-
-    // Held bodies stop this far short of what the ray meets, so a view swept onto the floor does not
-    // strike it at the sweep's speed: held flush against it, fragile props broke on contact
-    private const float ClearReachMargin = 2f;
 
     // However cramped, a held body is not pulled into the carrier's face
     private const float MinClearReach = 16f;
@@ -480,7 +530,7 @@ public sealed class PhysicsSimulation : IDisposable
         }
 
         var body = World.CreateBody(definition);
-        var shapeBounds = AddAggregateShapes(body, phys, PropCategory);
+        var geometry = AddAggregateShapes(body, phys, PropCategory);
 
         if (body.ShapeCount == 0)
         {
@@ -492,11 +542,19 @@ public sealed class PhysicsSimulation : IDisposable
 
             body.AddBox(new Box3D.Box(localBounds.Size * 0.5f, localBounds.Center),
                 MakeShapeDefinition(0, PropCategory));
-            shapeBounds = new BoundingBox(localBounds.Min, localBounds.Max);
+            geometry.Grow(new BoundingBox(localBounds.Min, localBounds.Max));
+
+            for (var corner = 0; corner < 8; corner++)
+            {
+                geometry.HullPoints.Add(new Vector3(
+                    (corner & 1) != 0 ? localBounds.Max.X : localBounds.Min.X,
+                    (corner & 2) != 0 ? localBounds.Max.Y : localBounds.Min.Y,
+                    (corner & 4) != 0 ? localBounds.Max.Z : localBounds.Min.Z));
+            }
         }
 
         Register(body, owner);
-        bodyBounds[body.UserData] = shapeBounds!.Value;
+        bodyGeometry[body.UserData] = geometry;
         return body;
     }
 
@@ -528,8 +586,8 @@ public sealed class PhysicsSimulation : IDisposable
             AngularDamping = angularDamping,
         });
 
-        BoundingBox? shapeBounds = null;
-        AddPartShapes(body, phys, part.Shape, Matrix4x4.Identity, DebrisCategory, ref shapeBounds);
+        var geometry = new BodyGeometry();
+        AddPartShapes(body, phys, part.Shape, Matrix4x4.Identity, DebrisCategory, geometry);
 
         if (body.ShapeCount == 0)
         {
@@ -552,7 +610,7 @@ public sealed class PhysicsSimulation : IDisposable
         }
 
         Register(body, owner);
-        bodyBounds[body.UserData] = shapeBounds!.Value;
+        bodyGeometry[body.UserData] = geometry;
         return body;
     }
 
@@ -704,24 +762,23 @@ public sealed class PhysicsSimulation : IDisposable
     }
 
     // Attaches every sphere, capsule and convex hull of an aggregate to a body, in the model's
-    // local space, and returns the bounds they cover there. Meshes are left out on purpose: dynamic
-    // bodies cannot carry triangle meshes, and the movers this also serves are hull-compiled brush
-    // models.
-    private BoundingBox? AddAggregateShapes(Body body, PhysAggregateData phys, ulong categories)
+    // local space, and returns them there. Meshes are left out on purpose: dynamic bodies cannot
+    // carry triangle meshes, and the movers this also serves are hull-compiled brush models.
+    private BodyGeometry AddAggregateShapes(Body body, PhysAggregateData phys, ulong categories)
     {
         var bindPose = phys.BindPose;
-        BoundingBox? bounds = null;
+        var geometry = new BodyGeometry();
 
         for (var p = 0; p < phys.Parts.Length; p++)
         {
             var pose = bindPose.Length > p ? bindPose[p] : Matrix4x4.Identity;
-            AddPartShapes(body, phys, phys.Parts[p].Shape, pose, categories, ref bounds);
+            AddPartShapes(body, phys, phys.Parts[p].Shape, pose, categories, geometry);
         }
 
-        return bounds;
+        return geometry;
     }
 
-    private void AddPartShapes(Body body, PhysAggregateData phys, RnShape shape, Matrix4x4 pose, ulong categories, ref BoundingBox? bounds)
+    private void AddPartShapes(Body body, PhysAggregateData phys, RnShape shape, Matrix4x4 pose, ulong categories, BodyGeometry geometry)
     {
         foreach (var sphere in shape.GetAllSpheres())
         {
@@ -730,7 +787,8 @@ public sealed class PhysicsSimulation : IDisposable
 
             body.AddSphere(new Sphere(center, sphere.Shape.Radius),
                 MakeShapeDefinition(GetSurfaceHash(phys, sphere.SurfacePropertyIndex), categories));
-            GrowBounds(ref bounds, new BoundingBox(center - radius, center + radius));
+            geometry.Grow(new BoundingBox(center - radius, center + radius));
+            geometry.RoundShapes.Add(new Capsule(center, center, sphere.Shape.Radius));
         }
 
         foreach (var capsule in shape.GetAllCapsules())
@@ -741,28 +799,31 @@ public sealed class PhysicsSimulation : IDisposable
 
             body.AddCapsule(new Capsule(center0, center1, capsule.Shape.Radius),
                 MakeShapeDefinition(GetSurfaceHash(phys, capsule.SurfacePropertyIndex), categories));
-            GrowBounds(ref bounds, new BoundingBox(Vector3.Min(center0, center1) - radius, Vector3.Max(center0, center1) + radius));
+            geometry.Grow(new BoundingBox(Vector3.Min(center0, center1) - radius, Vector3.Max(center0, center1) + radius));
+            geometry.RoundShapes.Add(new Capsule(center0, center1, capsule.Shape.Radius));
         }
 
         foreach (var hullDesc in shape.GetAllHulls())
         {
-            if (BuildHull(hullDesc.Shape.GetVertexPositions(), pose) is { } hull)
+            var points = hullDesc.Shape.GetVertexPositions();
+
+            if (BuildHull(points, pose) is { } hull)
             {
                 // Copied on attach, unlike the compound path, so nothing to keep alive
                 using (hull)
                 {
                     body.AddHull(hull,
                         MakeShapeDefinition(GetSurfaceHash(phys, hullDesc.SurfacePropertyIndex), categories));
-                    GrowBounds(ref bounds, hull.Bounds);
+                    geometry.Grow(hull.Bounds);
+                }
+
+                foreach (var point in points)
+                {
+                    geometry.HullPoints.Add(Vector3.Transform(point, pose));
                 }
             }
         }
     }
-
-    private static void GrowBounds(ref BoundingBox? bounds, BoundingBox other)
-        => bounds = bounds is { } current
-            ? new BoundingBox(Vector3.Min(current.Min, other.Min), Vector3.Max(current.Max, other.Max))
-            : other;
 
     /// <summary>
     /// Creates the kinematic body that stands where the player stands, so walking into a prop shoves
@@ -799,7 +860,7 @@ public sealed class PhysicsSimulation : IDisposable
     public void Forget(Body body)
     {
         bodyOwners.Remove(body.UserData);
-        bodyBounds.Remove(body.UserData);
+        bodyGeometry.Remove(body.UserData);
         impactSounds?.Forget(body.UserData);
     }
 

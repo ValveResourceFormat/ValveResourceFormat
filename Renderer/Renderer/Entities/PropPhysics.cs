@@ -615,11 +615,10 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
     }
 
     // Held against a wall, the prop is pressed past where it would just touch, so the contact turns
-    // it until it lies flat, the touch point moving in as it turns. The press builds at its speed
-    // only while the view holds still. A floor is never pressed into: a prop pressed down tips over
-    // onto its side, and a fragile one breaks.
+    // it until it lies flat, the touch point moving in as it turns. Only while the view holds still,
+    // so a view swept past a wall does not drive the prop into it. A floor is never pressed into: a
+    // prop pressed down tips over onto its side, and a fragile one breaks.
     private const float CarryPressDepth = 8f;
-    private const float CarryPressSpeed = 20f;
     private const float CarryStillSpeed = 50f;
     private const float MaxPressSurfaceNormalZ = 0.7f;
 
@@ -652,7 +651,7 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
         {
             var isStill = hasViewPoint && Vector3.Distance(viewPoint, previousViewPoint) < CarryStillSpeed * deltaTime;
             var isWall = MathF.Abs(surfaceNormal.Z) < MaxPressSurfaceNormalZ && surfaceNormal != Vector3.Zero;
-            carryPress = isWall && isStill ? MathF.Min(carryPress + (CarryPressSpeed * deltaTime), CarryPressDepth) : 0f;
+            carryPress = isWall && isStill ? CarryPressDepth : 0f;
             previousViewPoint = viewPoint;
             hasViewPoint = true;
         }
