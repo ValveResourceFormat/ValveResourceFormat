@@ -128,6 +128,8 @@ namespace CLI
         /// <param name="skip_softbody_reconstruction">Skip reconstructing soft-body (cloth) physics when decompiling models.</param>
         /// <param name="vpk_list">-l, List all files in the given VPK or folder. File extension and path filters apply.</param>
         /// <param name="vpk_dir">Same as --vpk_list, but also print the archive index, offset and metadata size of each file.</param>
+        /// <param name="vpk_search">Print the paths of files in the given VPK, or in the VPKs of the given folder, whose contents contain this text (case-insensitive), with compiled files searched in their decompressed KV3 data. File extension and path filters apply.</param>
+        /// <param name="vpk_search_options">Options for --vpk_search, comma-separated: "case" (letter case has to match), "word" (whole words only), "regex" (the text is a regular expression), or "hex" alone (the text is bytes, such as "56 42 4B 56", searched in the stored files).</param>
         /// <param name="kv_flatten">Print a KeyValues1 or KeyValues3 text file as one "path = value" line per value, for comparing two versions of a file with a line diff. Use "-i -" to read from stdin.</param>
         /// <param name="gltf_export_format">Export meshes and models in the given glTF format, "gltf" or "glb". Implies --vpk_decompile.</param>
         /// <param name="gltf_export_materials">Export materials during glTF exports.</param>
@@ -172,6 +174,8 @@ namespace CLI
             bool skip_softbody_reconstruction = false,
             bool vpk_list = false,
             bool vpk_dir = false,
+            [HideDefaultValue] string? vpk_search = default,
+            [HideDefaultValue] string? vpk_search_options = default,
             bool kv_flatten = false,
 
             [HideDefaultValue] string? gltf_export_format = default,
@@ -389,11 +393,17 @@ namespace CLI
                 return 1;
             }
 
-            bool[] modes = [OutputFile != null, ListResources, VerifyVPKChecksums, VpkCreatePath != null, ShouldPrintBlockContents, CollectStats, HasShaderOptions, kv_flatten];
+            if (vpk_search != null && SetSearchQuery(vpk_search, vpk_search_options) is { } searchError)
+            {
+                Console.Error.WriteLine(searchError);
+                return 1;
+            }
+
+            bool[] modes = [OutputFile != null, ListResources, SearchQuery != null, VerifyVPKChecksums, VpkCreatePath != null, ShouldPrintBlockContents, CollectStats, HasShaderOptions, kv_flatten];
 
             if (modes.Count(mode => mode) > 1)
             {
-                Console.Error.WriteLine("Only one of --output, --vpk_list (or --vpk_dir), --vpk_verify, --vpk_create, --block (or --all), --test, --kv_flatten, and the shader options can be used at a time.");
+                Console.Error.WriteLine("Only one of --output, --vpk_list (or --vpk_dir), --vpk_search, --vpk_verify, --vpk_create, --block (or --all), --test, --kv_flatten, and the shader options can be used at a time.");
                 return 1;
             }
 
@@ -433,6 +443,12 @@ namespace CLI
             if (hasFilters && inputIsFile && !InputFile.EndsWith(".vpk", StringComparison.OrdinalIgnoreCase))
             {
                 Console.Error.WriteLine("--vpk_extensions and --vpk_filepath only apply to folders and VPK files, not to a single file.");
+                return 1;
+            }
+
+            if (SearchQuery != null && inputs.Any(path => File.Exists(path) && (!path.EndsWith(".vpk", StringComparison.OrdinalIgnoreCase) || PackageFileNames.IsArchiveChunk(path))))
+            {
+                Console.Error.WriteLine("--vpk_search requires --input to be a VPK or a folder, and a split VPK has to be given by its \"_dir.vpk\" file.");
                 return 1;
             }
 
@@ -482,6 +498,12 @@ namespace CLI
             if (OutputFile == null && CachedManifest)
             {
                 Console.Error.WriteLine("--vpk_cache requires --output.");
+                return 1;
+            }
+
+            if (SearchQuery == null && vpk_search_options != null)
+            {
+                Console.Error.WriteLine("--vpk_search_options requires --vpk_search.");
                 return 1;
             }
 
@@ -779,7 +801,7 @@ namespace CLI
                 .EnumerateFiles(path, "*.vpk", RecursiveSearch ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
                 .Where(s => !PackageFileNames.IsArchiveChunk(s));
 
-            if (VerifyVPKChecksums)
+            if (VerifyVPKChecksums || SearchQuery != null)
             {
                 var packages = vpks.ToList();
 
@@ -1463,7 +1485,7 @@ namespace CLI
             // When processing the files inside of the package, they are counted and print their own header instead
             var processVpkFiles = OutputFile == null && !VerifyVPKChecksums && !ListResources && (CollectStats || ShouldPrintBlockContents || HasShaderOptions);
 
-            if (!processVpkFiles && !ListResources)
+            if (!processVpkFiles && !ListResources && SearchQuery == null)
             {
                 PrintFileHeader(path, originalPath);
             }
@@ -1512,6 +1534,12 @@ namespace CLI
                                 : KeyValuePair.Create(x.Key, x.Value.Where(entry => SupportedFileNamesRegex().IsMatch(entry.GetFileName())).ToList()))
                         .Where(x => x.Value.Count > 0)
                         .ToList();
+                }
+
+                if (SearchQuery is { } query)
+                {
+                    SearchPackage(package, orderedEntries.SelectMany(x => x.Value), packagePath, query);
+                    return;
                 }
 
                 if (ListResources)

@@ -31,6 +31,8 @@ The binary name is `Source2Viewer-CLI`.
 | `--skip_softbody_reconstruction` | Skip reconstructing soft-body (cloth) physics when decompiling models.                                                                                                                                                                                                                                           |
 | `--vpk_list` (or `-l`)           | List all files in the given VPK or folder. File extension and path filters apply.                                                                                                                                                                                                                                |
 | `--vpk_dir`                      | Same as `--vpk_list`, but also print the archive index, offset and metadata size of each file.                                                                                                                                                                                                                   |
+| `--vpk_search`                   | Print the paths of files in the given VPK, or in the VPKs of the given folder, whose contents contain this text (case-insensitive), with compiled files searched in their decompressed KV3 data. File extension and path filters apply.                                                                          |
+| `--vpk_search_options`           | Options for `--vpk_search`, comma-separated: `case` (letter case has to match), `word` (whole words only), `regex` (the text is a regular expression), or `hex` alone (the text is bytes, such as `"56 42 4B 56"`, searched in the stored files).                                                                |
 | `--kv_flatten`                   | Print a KeyValues1 or KeyValues3 text file as one `path = value` line per value, for comparing two versions of a file with a line diff. Use `-i -` to read from stdin.                                                                                                                                           |
 | **Type specific export**         |                                                                                                                                                                                                                                                                                                                  |
 | `--gltf_export_format`           | Export meshes and models in the given glTF format, `"gltf"` or `"glb"`. Implies `--vpk_decompile`.                                                                                                                                                                                                               |
@@ -60,7 +62,7 @@ The exit code is `0` on success, `2` when any file failed to process, and `1` fo
 
 ### Good to know
 
-- Only one of `--output`, `--vpk_list` (or `--vpk_dir`), `--vpk_verify`, `--vpk_create`, `--block` (or `--all`), `--test`, `--kv_flatten`, and the shader options can be used at a time.
+- Only one of `--output`, `--vpk_list` (or `--vpk_dir`), `--vpk_search`, `--vpk_verify`, `--vpk_create`, `--block` (or `--all`), `--test`, `--kv_flatten`, and the shader options can be used at a time.
 - Paths starting with `steam:<appid>/` are relative to the installation folder of that Steam app, so `-i steam:730/game/csgo/pak01_dir.vpk` works on any computer with Counter-Strike 2 installed. **Copy URL** in Source 2 Viewer copies `vpk:` links in this form, which can be passed to `--input` to process the file or folder they point to, unless they point into a VPK inside of another VPK.
 - Pass the `_dir.vpk` of a multi-chunk package (`pak01_dir.vpk`), not one of the numbered `pak01_000.vpk` chunks.
 - Use `--vpk_list` to find the exact path of a file, then filter on it with `--vpk_filepath`. The filter matches the start of the path, so `models/chicken/` works but `chicken` does not, use `*chicken*` instead.
@@ -86,6 +88,21 @@ Use `--vpk_dir` to also print file metadata.
 
 ```powershell
 ./Source2Viewer-CLI.exe -i "core/pak01_dir.vpk" --vpk_list
+```
+
+### Search the contents of a VPK
+
+Print the particle systems that draw sprites:
+
+```powershell
+./Source2Viewer-CLI.exe -i "steam:730/game/csgo/pak01_dir.vpk" --vpk_search "C_OP_RenderSprites" --vpk_extensions "vpcf_c"
+```
+
+Search for bytes, or with a regular expression:
+
+```powershell
+./Source2Viewer-CLI.exe -i "steam:730/game/csgo/pak01_dir.vpk" --vpk_search "56 42 4B 56" --vpk_search_options hex
+./Source2Viewer-CLI.exe -i "steam:730/game/csgo/pak01_dir.vpk" --vpk_search "C_OP_Render(Sprites|Trails)" --vpk_search_options regex
 ```
 
 ### Export the entire VPK as is
