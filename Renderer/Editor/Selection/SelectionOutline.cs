@@ -56,6 +56,8 @@ internal sealed class SelectionOutline
         // Only color is cleared, so the scene's depth is left as it is.
         sceneFramebuffer.Depth.AttachToFramebuffer(mask, FramebufferAttachment.DepthAttachment, 0);
 
+        bool drew;
+
         using (new GLDebugGroup("Selection Outline Mask"))
         {
             mask.BindAndClear();
@@ -63,27 +65,32 @@ internal sealed class SelectionOutline
             using (GraphicsContext.RenderState.Scope(cullMode: RsCullMode.None, multisampleEnable: mask.NumSamples > 1,
                 depthTest: false, depthWrite: false, blend: false, colorWriteMask: RsColorWriteEnableBits.R))
             {
-                if (!renderer.RenderNodes(mask, maskShader, outlinedNodes))
-                {
-                    return;
-                }
+                drew = renderer.RenderNodes(mask, maskShader, outlinedNodes);
             }
 
-            // Nudged closer, since another shader drew the depth and its result may differ in the last bits
-            using (GraphicsContext.RenderState.Scope(cullMode: RsCullMode.None, multisampleEnable: mask.NumSamples > 1,
-                depthTest: true, depthFunc: RsComparison.CloserEqual, depthWrite: false, depthBias: 8, blend: false,
-                colorWriteMask: RsColorWriteEnableBits.G))
+            if (drew)
             {
-                renderer.RenderNodes(mask, maskShader, outlinedNodes);
+                // Nudged closer, since another shader drew the depth and its result may differ in the last bits
+                using (GraphicsContext.RenderState.Scope(cullMode: RsCullMode.None, multisampleEnable: mask.NumSamples > 1,
+                    depthTest: true, depthFunc: RsComparison.CloserEqual, depthWrite: false, depthBias: 8, blend: false,
+                    colorWriteMask: RsColorWriteEnableBits.G))
+                {
+                    renderer.RenderNodes(mask, maskShader, outlinedNodes);
+                }
             }
+        }
+
+        target.Bind(FramebufferTarget.Framebuffer);
+        GL.Viewport(0, 0, target.Width, target.Height);
+
+        if (!drew)
+        {
+            return;
         }
 
         using (new GLDebugGroup("Selection Outline Edge"))
         using (GraphicsContext.RenderState.Scope(depthTest: false, depthWrite: false, blend: true))
         {
-            target.Bind(FramebufferTarget.Framebuffer);
-            GL.Viewport(0, 0, target.Width, target.Height);
-
             edgeShader.Use();
             edgeShader.SetUniform("g_nNumSamplesMSAA", mask.NumSamples);
             edgeShader.SetUniform("g_vOutlineColor", VisibleColor);
