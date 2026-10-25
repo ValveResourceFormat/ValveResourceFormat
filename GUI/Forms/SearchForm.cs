@@ -6,6 +6,7 @@ using System.Windows.Forms;
 using GUI.Types.PackageViewer;
 using GUI.Utils;
 using ValvePak;
+using ValveResourceFormat.IO;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 
@@ -32,11 +33,7 @@ namespace GUI.Forms
         /// Gets the search as entered by the user.
         /// </summary>
         public SearchRequest Request => new(
-            findTextBox.Text,
-            (SearchType)searchTypeComboBox.SelectedIndex,
-            matchCaseCheckBox.Checked,
-            wholeWordCheckBox.Checked,
-            regexCheckBox.Checked,
+            new(findTextBox.Text, (PackageSearchType)searchTypeComboBox.SelectedIndex, matchCaseCheckBox.Checked, wholeWordCheckBox.Checked, regexCheckBox.Checked),
             onlyInFolderCheckBox.Checked ? folder : null,
             extensionComboBox.SelectedIndex > 0 ? (string)extensionComboBox.SelectedItem! : null,
             filterKeyComboBox.SelectedItem is FilterKeyEntry entry ? entry.Key : null,
@@ -65,11 +62,11 @@ namespace GUI.Forms
         private void UpdateState()
         {
             var request = Request;
-            var error = PackageSearch.GetError(request);
+            var error = PackageSearch.GetError(request.Query);
 
-            matchCaseCheckBox.Enabled = wholeWordCheckBox.Enabled = regexCheckBox.Enabled = request.Type != SearchType.FileContentsHex;
+            matchCaseCheckBox.Enabled = wholeWordCheckBox.Enabled = regexCheckBox.Enabled = request.Query.Type != PackageSearchType.FileContentsHex;
             hintLabel.Text = error;
-            findButton.Enabled = error == null && request is not { Text: "", Folder: null, Extension: null, FilterKey: null };
+            findButton.Enabled = error == null && request is not { Query.Text: "", Folder: null, Extension: null, FilterKey: null };
 
             var gap = filterKeyLabel.Top - extensionComboBox.Bottom;
             var margin = ClientSize.Height - findButton.Bottom;
@@ -83,14 +80,14 @@ namespace GUI.Forms
         /// <summary>
         /// Sets the package to search, listing the extensions of its files.
         /// </summary>
-        /// <param name="searchFolder">The folder that "Only in" limits the search to, or <see langword="null"/> when no folder is selected.</param>
-        /// <param name="onlyInFolder">Whether to tick "Only in", otherwise it stays as it was last used.</param>
+        /// <param name="searchFolder">The folder that "Search only in" limits the search to, or <see langword="null"/> when no folder is selected.</param>
+        /// <param name="onlyInFolder">Whether to tick "Search only in", otherwise it stays as it was last used.</param>
         public void SetPackage(Package package, VirtualPackageNode? searchFolder, bool onlyInFolder)
         {
             folder = searchFolder;
             onlyInFolderCheckBox.Enabled = folder != null;
             onlyInFolderCheckBox.FlatStyle = folder != null ? FlatStyle.Standard : FlatStyle.System;
-            onlyInFolderCheckBox.Text = folder != null ? $"Only in {PackageViewer.GetFolderPath(folder)}" : "Only in the selected folder";
+            onlyInFolderCheckBox.Text = folder != null ? $"Search only in: {PackageViewer.GetFolderPath(folder)}/" : "Search only in: no folder selected";
             onlyInFolderCheckBox.Checked |= onlyInFolder;
 
             var selected = extensionComboBox.Text;

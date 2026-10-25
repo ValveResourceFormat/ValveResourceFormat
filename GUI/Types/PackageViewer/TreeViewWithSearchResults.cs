@@ -1472,12 +1472,8 @@ namespace GUI.Types.PackageViewer
                 (request.Extension == null || entry.TypeName == request.Extension)
                 && (request.FilterKey == null || AssetSearchData == null || MatchesAssetFilter(entry, request.FilterKey, request.FilterValue)));
 
-            var (results, notSearched, cancelled) = request switch
-            {
-                { Text: "" } => ([.. candidates], 0, false),
-                { Type: SearchType.FileName or SearchType.FullPath } => PackageSearch.FindByName(candidates, request),
-                _ => PackageSearch.FindByContents(package, candidates, request),
-            };
+            var query = request.Query;
+            var (results, notSearched, cancelled) = Find(package, [.. candidates], query);
 
             var node = new VirtualPackageNode(string.Empty, 0, null);
             node.Files.AddRange(results);
@@ -1485,7 +1481,7 @@ namespace GUI.Types.PackageViewer
             DisplayMainListView();
             MainListView_DisplayNodes(node, updatePath: false);
 
-            var summary = new StringBuilder(request.Text.Length > 0 ? $"{SearchForm.SearchTypeNames[(int)request.Type]} \"{request.Text}\"" : "All files");
+            var summary = new StringBuilder(query.Text.Length > 0 ? $"{SearchForm.SearchTypeNames[(int)query.Type]} \"{query.Text}\"" : "All files");
 
             if (request.Folder != null)
             {
@@ -1510,6 +1506,36 @@ namespace GUI.Types.PackageViewer
             }
 
             searchSummaryLabel.Text = cancelled ? summary.Append(", cancelled").ToString() : summary.ToString();
+        }
+
+        private static (List<PackageEntry> Matches, int NotSearched, bool Cancelled) Find(Package package, List<PackageEntry> candidates, PackageSearchQuery query)
+        {
+            if (query is not { Text.Length: > 0, Type: PackageSearchType.FileContents or PackageSearchType.FileContentsHex })
+            {
+                var (matches, notSearched) = PackageSearch.Find(package, candidates, query);
+                return (matches, notSearched, false);
+            }
+
+            var result = (Matches: new List<PackageEntry>(), NotSearched: 0, Cancelled: false);
+
+            using var progressDialog = new GenericProgressForm
+            {
+                Text = "Searching file contents\u2026",
+                WaitForWorkToStop = true,
+            };
+            progressDialog.OnProcess = cancellationToken =>
+            {
+                progressDialog.SetProgress(string.Create(CultureInfo.InvariantCulture, $"Searching {candidates.Count:N0} files"));
+                progressDialog.SetBarMax(candidates.Count);
+
+                var (matches, notSearched) = PackageSearch.Find(package, candidates, query, progressDialog, cancellationToken);
+                result = (matches, notSearched, cancellationToken.IsCancellationRequested);
+
+                return Task.CompletedTask;
+            };
+            progressDialog.ShowDialog();
+
+            return result;
         }
 
         private void MainListView_ColumnClick(object? sender, ColumnClickEventArgs e)
