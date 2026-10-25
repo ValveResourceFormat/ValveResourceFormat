@@ -104,7 +104,7 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
     // shatter the moment they landed, and the whole prop would seem to vanish at the first hit
     private bool isBreakPiece;
 
-    private static readonly PropBreakData Unbreakable = new(0f, 1f, 1f, 1f, false, [], []);
+    private static readonly PropBreakData Unbreakable = new(0f, 1f, 1f, 1f, false, [], [], false);
 
     /// <summary>
     /// Initializes the prop from its keyvalues.
@@ -136,12 +136,18 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
             return;
         }
 
+        if (LoadedModel is { } model)
+        {
+            breakData = EntitySystem.PropData.Resolve(model);
+            Health = breakData.Health;
+        }
+
         var created = EntitySystem.Physics.CreatePropBody(
             collider.PhysicsData,
             collider.LocalBounds,
             Origin,
             EntityTransformHelper.EulerAnglesToQuaternion(Angles),
-            motionEnabled: !HasSpawnFlags(PropSpawnFlags.MotionDisabled),
+            motionEnabled: !HasSpawnFlags(PropSpawnFlags.MotionDisabled) && !breakData.SpawnMotionDisabled,
             startAsleep: HasSpawnFlags(PropSpawnFlags.StartAsleep),
             owner: this);
 
@@ -156,12 +162,6 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
                 collisionCategory = PhysicsSimulation.DebrisCategory;
                 SetCollidesWithPlayer(false);
             }
-        }
-
-        if (LoadedModel is { } model)
-        {
-            breakData = EntitySystem.PropData.Resolve(model);
-            Health = breakData.Health;
         }
     }
 

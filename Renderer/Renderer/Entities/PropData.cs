@@ -18,8 +18,9 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <param name="FragileImpacts">Whether impacts use the fragile table, for glass, rather than the default one.</param>
 /// <param name="Pieces">What it breaks into.</param>
 /// <param name="Particles">The effects it bursts into as it breaks.</param>
+/// <param name="SpawnMotionDisabled">Whether a prop of the model spawns with its motion disabled, as a shattering pane's piece does, its shards falling in its shader.</param>
 public sealed record PropBreakData(float Health, float BulletScale, float ClubScale, float ExplosiveScale, bool FragileImpacts,
-    IReadOnlyList<BreakPiece> Pieces, IReadOnlyList<BreakParticle> Particles)
+    IReadOnlyList<BreakPiece> Pieces, IReadOnlyList<BreakParticle> Particles, bool SpawnMotionDisabled)
 {
     /// <summary>Gets whether the model can be broken at all.</summary>
     public bool IsBreakable => Health > 0f;
@@ -157,7 +158,8 @@ public sealed class PropDataTable
             values.GetValueOrDefault("dmg.explosive", 1f),
             fragile,
             ReadBreakPieces(keyValues),
-            ReadBreakParticles(keyValues));
+            ReadBreakParticles(keyValues),
+            propData?.GetBooleanProperty("spawn_motion_disabled") == true);
     }
 
     private void ApplyBase(string? name, Dictionary<string, float> values, ref bool fragile, int depth)
