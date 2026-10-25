@@ -989,11 +989,15 @@ public class PlayerMovement : IPlayerController
     }
 
     /// <summary>
-    /// Checks for walkable ground within the 2-unit probe and snaps onto it.
+    /// Checks for walkable ground below, a step down for a standing player and 2 units otherwise, and
+    /// snaps onto it.
     /// </summary>
     private void CategorizePosition(ref Vector3 position, Vector3 halfExtents)
     {
-        var result = TraceBBox(position, position + new Vector3(0, 0, -GroundProbeDistance), halfExtents);
+        // A player already standing looks a full step down, so stepping onto a steep edge above the
+        // floor, like the end of a plank, still stands on the floor beside it
+        var probeDistance = OnGround && !OnLadder ? StepSize : GroundProbeDistance;
+        var result = TraceBBox(position, position + new Vector3(0, 0, -probeDistance), halfExtents);
 
         var grounded = IsWalkableGroundHit(result);
 
@@ -1007,7 +1011,7 @@ public class PlayerMovement : IPlayerController
 
         if (!grounded && result.Hit)
         {
-            grounded = ProbeGroundQuadrants(position, halfExtents);
+            grounded = ProbeGroundQuadrants(position, halfExtents, probeDistance);
         }
 
         // NonJumpVelocity guard, on the Z velocity a plain projection would have produced (see SlopeClipNormalZ)
@@ -1047,7 +1051,7 @@ public class PlayerMovement : IPlayerController
     /// <summary>
     /// Retries the ground probe per hull corner.
     /// </summary>
-    private bool ProbeGroundQuadrants(Vector3 position, Vector3 halfExtents)
+    private bool ProbeGroundQuadrants(Vector3 position, Vector3 halfExtents, float probeDistance)
     {
         var quarterExtents = new Vector3(halfExtents.X * 0.5f, halfExtents.Y * 0.5f, halfExtents.Z);
 
@@ -1062,7 +1066,7 @@ public class PlayerMovement : IPlayerController
         foreach (var corner in corners)
         {
             var center = position + new Vector3(corner.X * quarterExtents.X, corner.Y * quarterExtents.Y, 0);
-            var probe = TraceBBox(center, center + new Vector3(0, 0, -GroundProbeDistance), quarterExtents);
+            var probe = TraceBBox(center, center + new Vector3(0, 0, -probeDistance), quarterExtents);
 
             if (IsWalkableGroundHit(probe))
             {
