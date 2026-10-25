@@ -82,11 +82,16 @@ namespace ValveResourceFormat.Particles.Initializers
 
             foreach (ref var particle in call)
             {
+                if (proportional && !perParticle)
+                {
+                    runOffset *= particle.Radius;
+                }
+
                 var offset = perParticle
                     ? Repulse(particleSystemState.Collision, particle.Position, perParticleTraceLength ? particle.Radius : traceLength, out _, out _)
                     : runOffset;
 
-                if (proportional)
+                if (proportional && perParticle)
                 {
                     offset *= particle.Radius;
                 }
