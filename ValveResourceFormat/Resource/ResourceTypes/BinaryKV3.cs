@@ -593,12 +593,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (version >= 5)
                     {
-                        var readStringBytes = 0;
-
-                        for (var i = 0; i < countStrings; i++)
-                        {
-                            context.Strings[i] = ReadNullTermUtf8String(ref buffer1.Bytes1, ref readStringBytes);
-                        }
+                        ReadStrings(ref buffer1.Bytes1, context.Strings);
 
                         Debug.Assert(buffer1Span.Count == offset);
                     }
@@ -609,10 +604,7 @@ namespace ValveResourceFormat.ResourceTypes
                         var stringsBuffer = buffer1Span[offset..];
                         var stringsStartOffset = offset;
 
-                        for (var i = 0; i < countStrings; i++)
-                        {
-                            context.Strings[i] = ReadNullTermUtf8String(ref stringsBuffer, ref offset);
-                        }
+                        offset += ReadStrings(ref stringsBuffer, context.Strings);
 
                         // Types before v5
                         int typesLength;
@@ -1162,15 +1154,42 @@ namespace ValveResourceFormat.ResourceTypes
             Data.WriteKV3Text(writer);
         }
 
-        private static string ReadNullTermUtf8String(ref ArraySegment<byte> buffer, ref int offset)
+        private static int ReadStrings(ref ArraySegment<byte> buffer, string[] strings)
         {
-            var nullByte = buffer.AsSpan().IndexOf((byte)0);
-            var str = buffer[..nullByte];
-            buffer = buffer[(nullByte + 1)..];
+            if (strings.Length == 0)
+            {
+                return 0;
+            }
 
-            offset += nullByte + 1;
+            var length = 0;
 
-            return System.Text.Encoding.UTF8.GetString(str);
+            for (var i = 0; i < strings.Length; i++)
+            {
+                length += buffer.AsSpan(length).IndexOf((byte)0) + 1;
+            }
+
+            var bytes = buffer.AsSpan(0, length);
+            buffer = buffer[length..];
+
+            var chars = ArrayPool<char>.Shared.Rent(System.Text.Encoding.UTF8.GetMaxCharCount(length));
+
+            try
+            {
+                var remaining = chars.AsSpan(0, System.Text.Encoding.UTF8.GetChars(bytes, chars));
+
+                for (var i = 0; i < strings.Length; i++)
+                {
+                    var end = remaining.IndexOf('\0');
+                    strings[i] = new string(remaining[..end]);
+                    remaining = remaining[(end + 1)..];
+                }
+            }
+            finally
+            {
+                ArrayPool<char>.Shared.Return(chars);
+            }
+
+            return length;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
