@@ -366,7 +366,6 @@ namespace ValveResourceFormat
             var blockOffset = reader.ReadUInt32();
             var blockCount = reader.ReadUInt32();
             input.Position += blockOffset - 8;
-            var blocks = new List<(long Offset, uint Size)>();
 
             for (var i = 0; i < blockCount; i++)
             {
@@ -374,15 +373,13 @@ namespace ValveResourceFormat
                 var offset = input.Position;
                 offset += reader.ReadUInt32();
                 var size = reader.ReadUInt32();
+                var nextBlock = input.Position;
 
-                if (type is not (BlockType.VBIB or BlockType.MBUF or BlockType.MVTX or BlockType.MIDX or BlockType.MADJ or BlockType.MSLT or BlockType.TBUF or BlockType.VXVS))
+                if (type is BlockType.VBIB or BlockType.MBUF or BlockType.MVTX or BlockType.MIDX or BlockType.MADJ or BlockType.MSLT or BlockType.TBUF or BlockType.VXVS)
                 {
-                    blocks.Add((offset, size));
+                    continue;
                 }
-            }
 
-            foreach (var (offset, size) in blocks)
-            {
                 if (offset + size > input.Length)
                 {
                     throw new InvalidDataException("A block is outside of the resource.");
@@ -404,6 +401,8 @@ namespace ValveResourceFormat
                 {
                     ArrayPool<byte>.Shared.Return(buffer);
                 }
+
+                input.Position = nextBlock;
             }
 
             return false;

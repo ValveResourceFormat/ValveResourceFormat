@@ -190,7 +190,7 @@ namespace GUI.Forms
             onlyInFolderCheckBox.Name = "onlyInFolderCheckBox";
             onlyInFolderCheckBox.Size = new System.Drawing.Size(400, 24);
             onlyInFolderCheckBox.TabIndex = 5;
-            onlyInFolderCheckBox.Text = "Only in the selected folder";
+            onlyInFolderCheckBox.Text = "Search only in: no folder selected";
             onlyInFolderCheckBox.UseMnemonic = false;
             onlyInFolderCheckBox.UseVisualStyleBackColor = true;
             // 

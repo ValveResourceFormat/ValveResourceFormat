@@ -9,7 +9,7 @@ using Windows.Win32.Foundation;
 
 namespace GUI.Forms
 {
-    partial class GenericProgressForm : ThemedForm, IProgress<string>
+    partial class GenericProgressForm : ThemedForm, IProgress<string>, IProgress<int>
     {
         private readonly CancellationTokenSource cancellationTokenSource = new();
         private readonly System.Windows.Forms.Timer updateTimer = new() { Interval = 500 };
@@ -67,6 +67,8 @@ namespace GUI.Forms
         }
 
         public void Report(string value) => SetProgress(value);
+
+        public void Report(int value) => SetBarValue(value);
 
         /// <summary>
         /// Stores the latest status text. Pending values are applied on a timer and only the most recent text is shown,

@@ -79,15 +79,15 @@ Press <kbd>Ctrl</kbd>+<kbd>F</kbd> in a package tab to search it, or right-click
 
 **Match case**, **Whole word** and **Regex** change how the text matches. With **Regex**, `^weapon_.*\.vmdl_c$` matches whole names.
 
-Three filters narrow the search: **Only in** to the selected folder, **Extension** to one file type, and **Asset info filter** to files with a searchable user data key from the tools asset info, and optionally its value. With no text, every file the filters allow is listed.
+Three filters narrow the search: **Search only in** to the folder selected in the tree and its subfolders, **Extension** to one file type, and **Asset info filter** to files with a searchable user data key from the tools asset info, and optionally its value. With no text, every file the filters allow is listed.
 
 This search finds the particle systems that draw sprites:
 
-![The Find window with C_OP_RenderSprites typed in, File contents selected, Only in particles ticked and Extension set to vpcf_c](./images/finding-files-search-dialog.webp)
+![The Find window with C_OP_RenderSprites typed in, File contents selected and Extension set to vpcf_c](./images/finding-files-search-dialog.webp)
 
 The results show the folder of each file, and the line above them what was searched and how many files were found. Cancelling a contents search lists what it found so far. Right-click a result to select it in the tree.
 
-![Search results in List view with a Folder column, under the line File contents "C_OP_RenderSprites" in particles, vpcf_c: 1,577 found](./images/finding-files-search-results.webp)
+![Search results in List view with a Folder column, under the line File contents "C_OP_RenderSprites", vpcf_c: 1,577 found](./images/finding-files-search-results.webp)
 
 ## References
 

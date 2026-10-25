@@ -1,4 +1,4 @@
-using GUI.Forms;
+using ValveResourceFormat.IO;
 
 namespace GUI.Types.PackageViewer
 {
@@ -6,11 +6,7 @@ namespace GUI.Types.PackageViewer
     /// A package search, limited to the files in <paramref name="Folder"/> with <paramref name="Extension"/> and the asset info filter when they are set.
     /// </summary>
     internal readonly record struct SearchRequest(
-        string Text,
-        SearchType Type,
-        bool MatchCase,
-        bool WholeWord,
-        bool UseRegex,
+        PackageSearchQuery Query,
         VirtualPackageNode? Folder,
         string? Extension,
         string? FilterKey,
