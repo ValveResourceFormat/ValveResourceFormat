@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Threading.Tasks;
 using Box3D;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.ResourceTypes;
@@ -98,6 +99,13 @@ public sealed class PhysicsSimulation : IDisposable
     // side rather than copied, so they must stay alive until the world is destroyed
     private readonly List<IDisposable> borrowedGeometry = [];
 
+    // The world's static geometry is built on the thread pool, off the map load, and attached at the
+    // first step after it is ready. The world does not step until all of it is attached, so nothing
+    // falls through a floor that is not there yet.
+    private readonly List<Task<StaticGeometry?>> pendingStaticGeometry = [];
+
+    private sealed record StaticGeometry(CompoundGeometry Compound, List<IDisposable> Borrowed, Matrix4x4 Placement);
+
     // Bodies carry only a ulong, so entity lookup for raycast hits goes through this table
     private readonly Dictionary<ulong, BaseEntity> bodyOwners = [];
     private ulong nextBodyId;
@@ -164,6 +172,11 @@ public sealed class PhysicsSimulation : IDisposable
     /// </summary>
     public void Step(float tickInterval)
     {
+        if (!AttachStaticGeometry())
+        {
+            return;
+        }
+
         World.Step(tickInterval, SubStepsFor(tickInterval));
         impactSounds?.Play(World.Events.ContactHits, tickInterval);
     }
@@ -408,7 +421,14 @@ public sealed class PhysicsSimulation : IDisposable
             return;
         }
 
+        pendingStaticGeometry.Add(Task.Run(() => BuildStaticGeometry(phys, placement)));
+    }
+
+    // Builds the geometry alone, touching nothing of the world, which only the stepping thread may
+    private StaticGeometry? BuildStaticGeometry(PhysAggregateData phys, Matrix4x4 placement)
+    {
         var builder = new CompoundBuilder();
+        var borrowed = new List<IDisposable>();
         var bindPose = phys.BindPose;
 
         for (var p = 0; p < phys.Parts.Length; p++)
@@ -451,7 +471,7 @@ public sealed class PhysicsSimulation : IDisposable
 
                 if (BuildHull(hullDesc.Shape.GetVertexPositions(), pose) is { } hull)
                 {
-                    borrowedGeometry.Add(hull);
+                    borrowed.Add(hull);
                     builder.AddHull(hull, Vector3.Zero, null,
                         MakeMaterial(GetSurfaceHash(phys, hullDesc.SurfacePropertyIndex)));
                 }
@@ -468,7 +488,7 @@ public sealed class PhysicsSimulation : IDisposable
 
                 if (mesh != null)
                 {
-                    borrowedGeometry.Add(mesh);
+                    borrowed.Add(mesh);
                     builder.AddMesh(mesh, Vector3.Zero, null, null,
                         MakeMaterial(GetSurfaceHash(phys, meshDesc.SurfacePropertyIndex)));
                 }
@@ -477,17 +497,57 @@ public sealed class PhysicsSimulation : IDisposable
 
         if (builder.ChildCount == 0)
         {
-            return;
+            foreach (var geometry in borrowed)
+            {
+                geometry.Dispose();
+            }
+
+            return null;
         }
 
-        var compound = builder.Build();
-        borrowedGeometry.Add(compound);
+        return new StaticGeometry(builder.Build(), borrowed, placement);
+    }
 
-        var body = World.CreateStaticBody(placement.Translation, Quaternion.CreateFromRotationMatrix(placement));
-        body.AddCompound(compound, ShapeDefinition.Default with
+    /// <summary>
+    /// Waits for the static geometry still being built and attaches it, for a caller that queries
+    /// the world straight after loading it rather than waiting for it to step.
+    /// </summary>
+    public void FinishStaticGeometry()
+    {
+        Task.WaitAll([.. pendingStaticGeometry]);
+        AttachStaticGeometry();
+    }
+
+    // Attaches the static geometry that is ready, returning whether all of it is
+    private bool AttachStaticGeometry()
+    {
+        for (var i = 0; i < pendingStaticGeometry.Count; i++)
         {
-            Filter = new CollisionFilter(StaticCategory, ulong.MaxValue, 0),
-        });
+            var pending = pendingStaticGeometry[i];
+
+            if (!pending.IsCompleted)
+            {
+                continue;
+            }
+
+            pendingStaticGeometry.RemoveAt(i--);
+
+            if (pending.Result is not { } geometry)
+            {
+                continue;
+            }
+
+            borrowedGeometry.AddRange(geometry.Borrowed);
+            borrowedGeometry.Add(geometry.Compound);
+
+            var body = World.CreateStaticBody(geometry.Placement.Translation, Quaternion.CreateFromRotationMatrix(geometry.Placement));
+            body.AddCompound(geometry.Compound, ShapeDefinition.Default with
+            {
+                Filter = new CollisionFilter(StaticCategory, ulong.MaxValue, 0),
+            });
+        }
+
+        return pendingStaticGeometry.Count == 0;
     }
 
     /// <summary>
@@ -990,6 +1050,22 @@ public sealed class PhysicsSimulation : IDisposable
     /// <inheritdoc/>
     public void Dispose()
     {
+        // Geometry still being built is owned by nothing yet
+        foreach (var pending in pendingStaticGeometry)
+        {
+            if (pending.Result is { } geometry)
+            {
+                geometry.Compound.Dispose();
+
+                foreach (var borrowed in geometry.Borrowed)
+                {
+                    borrowed.Dispose();
+                }
+            }
+        }
+
+        pendingStaticGeometry.Clear();
+
         // The world goes first: the geometry below is borrowed by shapes inside it, and must
         // outlive them
         World.Dispose();
