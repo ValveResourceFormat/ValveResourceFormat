@@ -1,3 +1,5 @@
+using System.Buffers;
+using System.Buffers.Binary;
 using System.IO;
 
 namespace ValveResourceFormat.Compression
@@ -42,48 +44,96 @@ namespace ValveResourceFormat.Compression
                 return;
             }
 
+            // Every 16 tokens start with a 2 byte mask, and no token is longer than its output
+            var stream = reader.BaseStream;
+            var maxInputSize = (int)Math.Min(info.Size + (info.Size + 15L) / 16 * 2, stream.Length - stream.Position);
+            var input = ArrayPool<byte>.Shared.Rent(maxInputSize);
+
+            try
+            {
+                stream.ReadExactly(input, 0, maxInputSize);
+                var consumed = FastDecompress(input.AsSpan(0, maxInputSize), result, info.Size);
+                stream.Position -= maxInputSize - consumed;
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(input);
+            }
+        }
+
+        private static int FastDecompress(ReadOnlySpan<byte> input, Span<byte> result, int size)
+        {
+            var inputPosition = 0;
             var position = 0;
-            ushort blockMask = 0;
+            var blockMask = 0;
             var i = 0;
 
-            while (position < info.Size)
+            while (position < size)
             {
                 if (i == 0)
                 {
-                    blockMask = reader.ReadUInt16();
+                    blockMask = ReadUInt16(input, ref inputPosition);
                     i = 16;
                 }
 
                 if ((blockMask & 1) > 0)
                 {
-                    var offsetSize = reader.ReadUInt16();
+                    var offsetSize = ReadUInt16(input, ref inputPosition);
                     var offset = (offsetSize >> 4) + 1;
-                    var size = (offsetSize & 0xF) + 3;
-                    var positionSource = position - offset;
+                    var length = (offsetSize & 0xF) + 3;
 
-                    if (offset == 1)
+                    if (offset > position || length > size - position)
                     {
-                        while (size-- > 0)
-                        {
-                            result[position++] = result[positionSource];
-                        }
+                        throw new InvalidDataException("Block compressed back reference is outside of the output.");
+                    }
+
+                    var source = result.Slice(position - offset, length);
+                    var destination = result.Slice(position, length);
+                    position += length;
+
+                    if (offset >= length)
+                    {
+                        source.CopyTo(destination);
+                    }
+                    else if (offset == 1)
+                    {
+                        destination.Fill(source[0]);
                     }
                     else
                     {
-                        while (size-- > 0)
+                        for (var j = 0; j < length; j++)
                         {
-                            result[position++] = result[positionSource++];
+                            destination[j] = source[j];
                         }
                     }
                 }
                 else
                 {
-                    result[position++] = reader.ReadByte();
+                    if (inputPosition >= input.Length)
+                    {
+                        throw new InvalidDataException("Block compressed data is truncated.");
+                    }
+
+                    result[position++] = input[inputPosition++];
                 }
 
                 blockMask >>= 1;
                 i--;
             }
+
+            return inputPosition;
+        }
+
+        private static ushort ReadUInt16(ReadOnlySpan<byte> input, ref int inputPosition)
+        {
+            if (input.Length - inputPosition < sizeof(ushort))
+            {
+                throw new InvalidDataException("Block compressed data is truncated.");
+            }
+
+            var value = BinaryPrimitives.ReadUInt16LittleEndian(input[inputPosition..]);
+            inputPosition += sizeof(ushort);
+            return value;
         }
     }
 }
