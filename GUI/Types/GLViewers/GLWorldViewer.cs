@@ -430,7 +430,7 @@ namespace GUI.Types.GLViewers
 
                 using (UiControl.BeginGroup("World"))
                 {
-                    if (Renderer.Scenes.Any(static scene => scene.WorldGroup != null))
+                    if (Renderer.HasSky)
                     {
                         UiControl.AddCheckBox("Show Skybox", Renderer.Settings.ShowSkybox, (v) => Renderer.Settings.ShowSkybox = v);
                     }

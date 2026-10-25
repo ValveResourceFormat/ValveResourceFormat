@@ -149,6 +149,9 @@ public class Renderer : ISceneHost
     /// </summary>
     public IReadOnlyList<Scene> Scenes => scenes;
 
+    /// <summary>Gets whether a 3D sky can be drawn, from a <c>skybox_reference</c> or a <c>sky_camera_volume</c>.</summary>
+    public bool HasSky => EntitySystem.ActiveSkyboxReference != null || EntitySystem.SkyCameraVolumes.Count > 0;
+
     /// <summary>Gets the main scene state in the main view, or <see langword="null"/> until the first update.</summary>
     public SceneViewState? MainViewState => mainViewStates.GetValueOrDefault(Scene);
 
@@ -303,6 +306,7 @@ public class Renderer : ISceneHost
 
     private readonly HashSet<Scene> scenesUpdated = [];
     private readonly HashSet<Scene> scenesCulled = [];
+    private readonly Dictionary<string, SceneSkybox2D> skyOverrides = [];
 
     /// <summary>Gets the rendering toggles for all scenes.</summary>
     public RenderSettings Settings { get; } = new();
@@ -405,6 +409,34 @@ public class Renderer : ISceneHost
             LockedCullFrustum = LockedCullFrustum,
         };
 
+        if (Entities.SkyCameraVolume.FindActive(EntitySystem.SkyCameraVolumes, camera.Location) is { Target: { } target } volume)
+        {
+            // The map's own world seen from the target: the sky view draws what the main view draws
+            var sky = new SkyTransform(volume.Transform.Translation, target.Transform.Translation, target.SkyScale);
+
+            sky.ConfigureCamera(SkyCamera, camera);
+            skyFog.SetToVolumeSkyView(Scene.FogInfo);
+
+            skyViewSceneStates.Clear();
+
+            foreach (var state in mainViewSceneStates)
+            {
+                skyViewSceneStates.Add(ViewStateFor(skyViewStates, state.Scene));
+            }
+
+            frameViews[count++] = new SceneView
+            {
+                States = skyViewSceneStates,
+                Camera = SkyCamera,
+                Sky = sky,
+                Fog = skyFog,
+                LockedCullFrustum = lockedSkyCullFrustum,
+                SkyOverride = target.SkyMaterialName is { } skyMaterial ? SkyOverrideFor(skyMaterial) : null,
+            };
+
+            return frameViews.AsSpan(0, count);
+        }
+
         // The world group seen through a sky camera, read every frame as the game sends it to each player every
         // tick, so a moving reference takes the sky camera with it
         if (EntitySystem.ActiveSkyboxReference is not { SkyWorldGroup: { } skyWorldGroup } reference
@@ -443,6 +475,31 @@ public class Renderer : ISceneHost
         }
 
         return frameViews.AsSpan(0, count);
+    }
+
+    private SceneSkybox2D SkyOverrideFor(string materialName)
+    {
+        if (skyOverrides.TryGetValue(materialName, out var skybox))
+        {
+            return skybox;
+        }
+
+        using var material = RendererContext.FileLoader.LoadFileCompiled(materialName);
+
+        skybox = new SceneSkybox2D(RendererContext.MaterialLoader.LoadMaterial(material));
+        skyOverrides.Add(materialName, skybox);
+
+        return skybox;
+    }
+
+    private void DeleteSkyOverrides()
+    {
+        foreach (var skybox in skyOverrides.Values)
+        {
+            skybox.Delete();
+        }
+
+        skyOverrides.Clear();
     }
 
     private SceneViewState ViewStateFor(Dictionary<Scene, SceneViewState> states, Scene scene)
@@ -619,6 +676,11 @@ public class Renderer : ISceneHost
     {
         for (var i = views.Length - 1; i >= 0; i--)
         {
+            if (views[i].SkyOverride is { } skyOverride)
+            {
+                return skyOverride;
+            }
+
             foreach (var state in views[i].States)
             {
                 if (state.Scene.Skybox2D is { } skybox)
@@ -1091,6 +1153,7 @@ public class Renderer : ISceneHost
         EntitySystem.Clear();
 
         DeleteViewStates();
+        DeleteSkyOverrides();
 
         scenes.Clear();
         scenes.Add(Scene);
@@ -1993,6 +2056,7 @@ public class Renderer : ISceneHost
         ViewBuffer?.Delete();
 
         DeleteViewStates();
+        DeleteSkyOverrides();
         depthPyramid.Delete();
 
         EntitySystem.SpawnGroupManager.Clear();
@@ -2064,6 +2128,17 @@ public class Renderer : ISceneHost
         }
 
         UpdateMorphAtlas();
+
+        // Each view state splits the boxes for its own eye, as a sky view may see the same scene from elsewhere
+        foreach (var view in views)
+        {
+            Vector3? viewBoxEye = Settings.DisableAllCulling || !Settings.EnableVisBoxCulling ? null : view.Sky?.ToSky(boxEye) ?? boxEye;
+
+            foreach (var state in view.States)
+            {
+                state.Scene.VisibilityBoxes.BuildView(state.VisibilityBoxes, viewBoxEye);
+            }
+        }
 
         foreach (var scene in scenesUpdated)
         {

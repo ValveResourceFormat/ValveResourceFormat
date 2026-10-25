@@ -18,6 +18,9 @@ public sealed class SceneViewState
     /// <summary>Gets or sets the PVS bitfield this view culls with, empty to cull nothing.</summary>
     public ReadOnlyMemory<byte> Pvs { get; set; }
 
+    /// <summary>Gets the <c>info_visibility_box</c> volumes this view culls with, split for its eye.</summary>
+    public VisibilityBoxCuller VisibilityBoxes { get; } = new();
+
     /// <summary>Gets whether anything drawn after the framebuffer grab samples the scene color.</summary>
     public bool WantsSceneColor { get; private set; }
 
@@ -269,7 +272,7 @@ public sealed class SceneViewState
         var objectEntryCount = Scene.ObjectEntryCount;
 
         var pvsCullActive = !Pvs.IsEmpty && Scene.VoxelVisibility != null;
-        cpuHiddenActive = (pvsCullActive || Scene.VisibilityBoxes.View.IsActive) && objectEntryCount > 0;
+        cpuHiddenActive = (pvsCullActive || VisibilityBoxes.IsActive) && objectEntryCount > 0;
 
         if (!cpuHiddenActive)
         {
@@ -431,7 +434,7 @@ public sealed class SceneViewState
         foreach (var node in visibleNodes)
         {
             // The viewmodel is drawn at the eye, not where it is placed
-            var boxes = (node.RenderPasses & CustomRenderPasses.Viewmodel) != 0 ? null : Scene.VisibilityBoxes.View;
+            var boxes = (node.RenderPasses & CustomRenderPasses.Viewmodel) != 0 ? null : VisibilityBoxes;
 
             switch (TestNodeCull(node, pvs, boxes))
             {

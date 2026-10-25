@@ -83,6 +83,8 @@ public sealed class EntitySystem
     /// <summary>Gets every living entity, in spawn order.</summary>
     public IReadOnlyList<BaseEntity> Entities => entities;
 
+    internal List<SkyCameraVolume> SkyCameraVolumes { get; } = [];
+
     /// <summary>
     /// Gets or sets whether the world is simulated. When off the ticks stop, so nothing thinks, moves,
     /// touches or fires entity I/O. Spawned entities stay in the scene and stay drawn.

@@ -265,6 +265,15 @@ public sealed class VisibilityBoxSet
         View.Build(boxes, viewEye);
     }
 
+    /// <summary>Splits the boxes into a culler for one view of the scene, which may see it from elsewhere than <see cref="View"/>.</summary>
+    /// <param name="culler">The culler to fill.</param>
+    /// <param name="eye">Where the view is, or <see langword="null"/> when nothing may be culled this frame.</param>
+    public void BuildView(VisibilityBoxCuller culler, Vector3? eye)
+    {
+        ArgumentNullException.ThrowIfNull(culler);
+        culler.Build(boxes, eye);
+    }
+
     /// <summary>Splits the boxes into <see cref="SecondaryView"/> for another eye, culling nothing when <see cref="PrepareView"/> culled nothing.</summary>
     internal VisibilityBoxCuller PrepareSecondaryView(Vector3 eye)
     {
