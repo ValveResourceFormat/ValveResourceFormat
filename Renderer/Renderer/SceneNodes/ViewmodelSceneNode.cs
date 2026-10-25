@@ -404,7 +404,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             // Not as the player, whom debris pieces are filtered against
             var hit = physics.World.RaycastClosest(from, to - from,
-                new Box3D.QueryFilter(~PhysicsSimulation.PlayerCategory, PhysicsSimulation.PropCategory | PhysicsSimulation.DebrisCategory));
+                new Box3D.QueryFilter(~PhysicsSimulation.PlayerCategory, PhysicsSimulation.PropCategory | PhysicsSimulation.DebrisCategory | PhysicsSimulation.RagdollCategory));
 
             if (hit.Hit && hit.Shape.IsValid)
             {
