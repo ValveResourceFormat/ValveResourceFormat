@@ -587,9 +587,25 @@ public class Rubikon
     }
 
     /// <summary>
+    /// Whether a box touches a hull's surface or lies inside it.
+    /// </summary>
+    private static bool HullVolumeOverlapsBox(PhysicsHullData hull, Vector3 center, Vector3 halfExtents)
+    {
+        if (!BoxIntersectsAABB(center, halfExtents, hull.Min, hull.Max) || HullSeparatesBox(hull, center, halfExtents))
+        {
+            return false;
+        }
+
+        // Outside a hull's edges only an edge axis separates, and a thin hull with slanted sides leaves a
+        // wide band there that no face plane clears. A box that touches no face is wholly inside or
+        // wholly outside, so its center decides.
+        return !HullSeparatesBox(hull, center, Vector3.Zero) || HullSurfaceOverlapsBox(hull, center, halfExtents);
+    }
+
+    /// <summary>
     /// Whether one of a hull's face planes has the whole box on its outside, which is what makes the box
-    /// and the hull disjoint. Passing every plane is taken as an overlap, which is exact except just
-    /// outside a hull's edges and corners, where a box can clear every face and still miss the hull.
+    /// and the hull disjoint. Passing every plane does not prove an overlap: outside a hull's edges and
+    /// corners a box can clear every face and still miss the hull.
     /// </summary>
     private static bool HullSeparatesBox(in PhysicsHullData hull, Vector3 center, Vector3 halfExtents)
     {
@@ -738,12 +754,7 @@ public class Rubikon
                     continue;
                 }
 
-                if (!BoxIntersectsAABB(center, halfExtents, hull.Min, hull.Max))
-                {
-                    continue;
-                }
-
-                if (!HullSeparatesBox(hull, center, halfExtents))
+                if (HullVolumeOverlapsBox(hull, center, halfExtents))
                 {
                     Overlaps = true;
                     return true;
@@ -962,7 +973,7 @@ public class Rubikon
                 var hull = compound.Hulls[childId - compound.HullBaseIndex];
                 Overlaps = mode == CompoundOverlap.Surface
                     ? HullSurfaceOverlapsBox(hull, center, halfExtents)
-                    : BoxIntersectsAABB(center, halfExtents, hull.Min, hull.Max) && !HullSeparatesBox(hull, center, halfExtents);
+                    : HullVolumeOverlapsBox(hull, center, halfExtents);
             }
 
             return Overlaps;
