@@ -1,14 +1,24 @@
+using Microsoft.Extensions.Logging;
+using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
 /// <c>info_world_layer</c>. Shows or hides a world layer and spawns or destroys the entities in the
-/// layer's entity lump, by entity I/O.
+/// layer's entity lump, by entity I/O. The entities spawn as a spawn group of their own, which destroying
+/// them unloads.
 /// </summary>
 /// <remarks>
+/// <para>
+/// The layer belongs to the loaded world named by <see cref="WorldName"/> in this entity's world group, which
+/// need not be the world this entity is in. Its group spawns there unplaced and without name fixups, so the
+/// entities stay where they were authored in that world.
+/// </para>
+/// <para>
 /// Entities spawned by an input after load are not bound to the scene's cubemaps and light probes,
 /// which are only assigned when the scene is first initialized.
+/// </para>
 /// </remarks>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CInfoWorldLayer">CInfoWorldLayer</seealso>
 public sealed class InfoWorldLayer : BaseEntity
@@ -30,15 +40,21 @@ public sealed class InfoWorldLayer : BaseEntity
     /// <summary>Gets whether the controlled layer is shown when the map loads.</summary>
     public bool IsVisibleOnSpawn => HasSpawnFlags(SpawnFlag.VisibleOnSpawn);
 
-    /// <summary>Gets the entities spawned from the layer's entity lump, or <see langword="null"/> when they are not spawned.</summary>
-    public IReadOnlyList<BaseEntity>? LayerEntities { get; private set; }
-
-    /// <summary>Set by the map; spawns the layer's entity lump.</summary>
-    internal Func<InfoWorldLayer, IReadOnlyList<BaseEntity>?>? LayerSpawner { get; set; }
+    /// <summary>Gets the spawn group of the layer's entities, or <see langword="null"/> when they are not spawned.</summary>
+    public SpawnGroup? LayerSpawnGroup { get; private set; }
 
     /// <summary>Initializes an <c>info_world_layer</c> from its keyvalues.</summary>
     public InfoWorldLayer(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
     {
+    }
+
+    /// <inheritdoc/>
+    public override void Spawn()
+    {
+        if (IsVisibleOnSpawn)
+        {
+            SpawnLayerEntities();
+        }
     }
 
     /// <summary>Shows or hides the controlled layer.</summary>
@@ -49,61 +65,69 @@ public sealed class InfoWorldLayer : BaseEntity
             return;
         }
 
+        var scene = FindWorld()?.Scene ?? Scene;
+
         if (visible)
         {
-            Scene.ActivateLayer(WorldLayerName);
+            scene.ActivateLayer(WorldLayerName);
         }
         else
         {
-            Scene.DeactivateLayer(WorldLayerName);
+            scene.DeactivateLayer(WorldLayerName);
         }
     }
+
+    private WorldLoader? FindWorld()
+        => string.IsNullOrEmpty(WorldName) ? null : EntitySystem.SpawnGroupManager.FindLoadedWorld(Scene.WorldGroup, WorldLoader.GetSpawnGroupMapName(WorldName));
 
     /// <summary>
     /// Spawns the entities of the layer's entity lump, unless they already are, and fires
-    /// <c>OnEntitiesSpawned</c>.
+    /// <c>OnEntitiesSpawned</c> once they have.
     /// </summary>
-    /// <returns>Whether any were spawned.</returns>
-    internal bool SpawnLayerEntities()
+    private void SpawnLayerEntities()
     {
-        if (LayerEntities != null || LayerSpawner == null || string.IsNullOrEmpty(WorldName) || string.IsNullOrEmpty(WorldLayerName))
-        {
-            return false;
-        }
-
-        LayerEntities = LayerSpawner(this);
-
-        if (LayerEntities == null)
-        {
-            return false;
-        }
-
-        EntitySystem.TriggerOutput(this, "OnEntitiesSpawned", this);
-        return true;
-    }
-
-    private void DestroyLayerEntities()
-    {
-        if (LayerEntities is not { } layerEntities)
+        if (LayerSpawnGroup != null || string.IsNullOrEmpty(WorldName) || string.IsNullOrEmpty(WorldLayerName))
         {
             return;
         }
 
-        LayerEntities = null;
-
-        foreach (var entity in layerEntities)
+        if (FindWorld() is not { } world || world.FindEntityLump(WorldLayerName) is not { } lump)
         {
-            EntitySystem.Remove(entity);
+            EntitySystem.Logger.LogWarning("info_world_layer '{TargetName}' found no entity lump named '{LayerName}' in a loaded world named '{WorldName}'", TargetName, WorldLayerName, WorldName);
+            return;
         }
+
+        var group = new SpawnGroup(world.MapName, world.Scene, Matrix4x4.Identity)
+        {
+            DescriptiveName = "world_layer",
+            EntityLumpName = WorldLayerName,
+            EntityLump = lump,
+        };
+
+        LayerSpawnGroup = group;
+
+        var spawnGroupManager = EntitySystem.SpawnGroupManager;
+        spawnGroupManager.LoadSpawnGroup(group);
+
+        // A child of the group this entity is in, so it unloads along with that one
+        if (SpawnGroup != null && KeyValues.GetBooleanProperty("childspawngroup"))
+        {
+            spawnGroupManager.AddChildSpawnGroup(SpawnGroup, group);
+        }
+
+        spawnGroupManager.ListenForSpawnGroupToFinish(group, _ => EntitySystem.TriggerOutput(this, "OnEntitiesSpawned", this));
+        spawnGroupManager.SynchronouslySpawnGroup(group);
     }
 
-    // Spawned by an input after the map activated, so the new entities need their own Activate
-    private void SpawnLayerEntitiesNow()
+    private void DestroyLayerEntities()
     {
-        if (SpawnLayerEntities())
+        if (LayerSpawnGroup is not { } group)
         {
-            EntitySystem.Activate();
+            return;
         }
+
+        LayerSpawnGroup = null;
+        EntitySystem.SpawnGroupManager.UnloadSpawnGroup(group);
     }
 
     /// <inheritdoc/>
@@ -113,14 +137,14 @@ public sealed class InfoWorldLayer : BaseEntity
 
     [EntityInput("HideWorldLayer")] private void InputHideWorldLayer(EntityInputData data) => SetLayerVisible(false);
 
-    [EntityInput("SpawnEntities")] private void InputSpawnEntities(EntityInputData data) => SpawnLayerEntitiesNow();
+    [EntityInput("SpawnEntities")] private void InputSpawnEntities(EntityInputData data) => SpawnLayerEntities();
 
     [EntityInput("DestroyEntities")] private void InputDestroyEntities(EntityInputData data) => DestroyLayerEntities();
 
     [EntityInput("ShowWorldLayerAndSpawnEntities")]
     private void InputShowWorldLayerAndSpawnEntities(EntityInputData data)
     {
-        SpawnLayerEntitiesNow();
+        SpawnLayerEntities();
         SetLayerVisible(true);
     }
 

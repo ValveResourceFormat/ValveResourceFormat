@@ -15,7 +15,7 @@ namespace ValveResourceFormat.Renderer;
 /// <summary>
 /// Main renderer for Source 2 scenes with support for shadows, post-processing, and multiple render passes.
 /// </summary>
-public class Renderer : ISpawnGroupHost
+public class Renderer : ISceneHost
 {
     /// <summary>
     /// Depth range for a single layer of the scene.
@@ -143,18 +143,11 @@ public class Renderer : ISpawnGroupHost
         return null;
     }
 
-    /// <summary>Gets the scenes drawn, the main scene first, then one per spawn group in load order.</summary>
+    /// <summary>
+    /// Gets the scenes drawn, the main scene first, then the added ones in the order they were added. The main
+    /// view draws those of the main world group, and the 3D sky those of the sky's world group.
+    /// </summary>
     public IReadOnlyList<Scene> Scenes => scenes;
-
-    /// <summary>Gets the spawn groups placed into the loaded map, such as its 3D sky.</summary>
-    public IReadOnlyList<SpawnGroup> SpawnGroups => spawnGroups;
-
-    /// <summary>Gets the spawn group the 3D sky is drawn from, or <see langword="null"/>; the last one placed wins.</summary>
-    // TODO: The game draws the sky of the last skybox_reference to activate, through the first sky_camera in its
-    // world group. Without one it uses the sky_camera named by an ActivateSkybox input, else the newest sky_camera,
-    // even one in the main world group, so a map with only a sky_camera draws itself as its sky. Neither the
-    // fallback nor the ActivateSkybox input is handled here.
-    public SpawnGroup? SkyGroup => spawnGroups.FindLast(static group => group.WorldGroup != null);
 
     /// <summary>Gets the main scene state in the main view, or <see langword="null"/> until the first update.</summary>
     public SceneViewState? MainViewState => mainViewStates.GetValueOrDefault(Scene);
@@ -286,8 +279,6 @@ public class Renderer : ISpawnGroupHost
     private readonly DepthPyramid depthPyramid;
 
     private readonly List<Scene> scenes = [];
-    private readonly List<SpawnGroup> spawnGroups = [];
-
     private readonly Dictionary<Scene, SceneViewState> mainViewStates = [];
     private readonly Dictionary<Scene, SceneViewState> skyViewStates = [];
     private readonly Dictionary<Scene, SceneViewState>[] sunCascadeViewStates = [[], []];
@@ -312,7 +303,6 @@ public class Renderer : ISpawnGroupHost
 
     private readonly HashSet<Scene> scenesUpdated = [];
     private readonly HashSet<Scene> scenesCulled = [];
-    private readonly Dictionary<SpawnGroup, Entities.SkyCamera?> skyCameras = [];
 
     /// <summary>Gets the rendering toggles for all scenes.</summary>
     public RenderSettings Settings { get; } = new();
@@ -347,63 +337,45 @@ public class Renderer : ISpawnGroupHost
         ViewmodelCamera = new Camera();
         SkyCamera = new Camera();
         Scene = new Scene(rendererContext) { Settings = Settings };
-        EntitySystem = new EntitySystem(rendererContext)
-        {
-            SpawnGroupHost = this,
-        };
+        EntitySystem = new EntitySystem(rendererContext);
+        EntitySystem.SpawnGroupManager.Host = this;
         depthPyramid = new DepthPyramid(rendererContext);
 
         Scene.PhysicsWorld = EntitySystem.PhysicsWorld;
         scenes.Add(Scene);
     }
 
-    /// <summary>Starts drawing a spawn group; its scene must be initialized before the next frame.</summary>
-    public void AddSpawnGroup(SpawnGroup group)
+    /// <inheritdoc/>
+    public void AddScene(Scene scene)
     {
-        ArgumentNullException.ThrowIfNull(group);
+        ArgumentNullException.ThrowIfNull(scene);
 
-        group.Scene.Settings = Settings;
-        spawnGroups.Add(group);
-        group.Scene.PhysicsWorld ??= EntitySystem.GetPhysicsWorld(group.Scene.WorldGroup);
-        scenes.Add(group.Scene);
+        scene.Settings = Settings;
+        scene.PhysicsWorld ??= EntitySystem.GetPhysicsWorld(scene.WorldGroup);
+        scenes.Add(scene);
     }
 
-    /// <summary>
-    /// Stops drawing a spawn group and releases its scene and mounted package. Remove its entities first with
-    /// <see cref="ValveResourceFormat.Renderer.Entities.EntitySystem.RemoveSpawnGroup"/>.
-    /// </summary>
-    public void RemoveSpawnGroup(SpawnGroup group)
+    /// <inheritdoc/>
+    /// <remarks>The <see cref="SpawnGroupManager"/> calls this as the spawn group that loaded the scene unloads.</remarks>
+    public void RemoveScene(Scene scene)
     {
-        ArgumentNullException.ThrowIfNull(group);
+        ArgumentNullException.ThrowIfNull(scene);
 
-        if (!spawnGroups.Remove(group))
+        if (scene == Scene || !scenes.Remove(scene))
         {
             return;
         }
 
-        scenes.Remove(group.Scene);
-        ReleaseSpawnGroup(group);
-    }
-
-    private void ReleaseSpawnGroup(SpawnGroup group)
-    {
-        skyCameras.Remove(group);
-
         foreach (var states in allViewStates)
         {
-            if (states.Remove(group.Scene, out var state))
+            if (states.Remove(scene, out var state))
             {
                 state.Delete();
             }
         }
 
-        group.Scene.DeleteNodes();
-        group.Scene.Dispose();
-
-        if (group.MountedMapPackage is { } mapPackage)
-        {
-            RendererContext.FileLoader.UnmountMapPackage(mapPackage);
-        }
+        scene.DeleteNodes();
+        scene.Dispose();
     }
 
     /// <summary>
@@ -417,11 +389,11 @@ public class Renderer : ISpawnGroupHost
         mainViewSceneStates.Clear();
         mainViewSceneStates.Add(ViewStateFor(mainViewStates, Scene));
 
-        foreach (var group in spawnGroups)
+        foreach (var scene in scenes)
         {
-            if (group.WorldGroup == null)
+            if (scene != Scene && scene.WorldGroup == null)
             {
-                mainViewSceneStates.Add(ViewStateFor(mainViewStates, group.Scene));
+                mainViewSceneStates.Add(ViewStateFor(mainViewStates, scene));
             }
         }
 
@@ -433,26 +405,32 @@ public class Renderer : ISpawnGroupHost
             LockedCullFrustum = LockedCullFrustum,
         };
 
-        if (SkyGroup is { } skyGroup)
+        // The world group seen through a sky camera, read every frame as the game sends it to each player every
+        // tick, so a moving reference takes the sky camera with it
+        if (EntitySystem.ActiveSkyboxReference is not { SkyWorldGroup: { } skyWorldGroup } reference
+            || reference.FindSkyCamera() is not { } skyCamera)
         {
-            // Every frame, so a moving reference takes the sky camera with it
-            var reference = skyGroup.PlacedBy?.Transform.Translation ?? skyGroup.Transform.Translation;
-            var sky = SkyTransform.FromEntities(reference, SkyCameraOf(skyGroup));
+            return frameViews.AsSpan(0, count);
+        }
+
+        skyViewSceneStates.Clear();
+
+        foreach (var scene in scenes)
+        {
+            if (scene.WorldGroup == skyWorldGroup)
+            {
+                skyViewSceneStates.Add(ViewStateFor(skyViewStates, scene));
+            }
+        }
+
+        if (skyViewSceneStates.Count > 0)
+        {
+            var sky = SkyTransform.FromEntities(reference.Transform.Translation, skyCamera);
 
             sky.ConfigureCamera(SkyCamera, camera);
 
             // Every frame: the sky loads part way through the map, possibly before the map fog spawns
-            skyFog.SetToSkyView(Scene.FogInfo, skyGroup.Scene.FogInfo);
-
-            skyViewSceneStates.Clear();
-
-            foreach (var group in spawnGroups)
-            {
-                if (group.WorldGroup == skyGroup.WorldGroup)
-                {
-                    skyViewSceneStates.Add(ViewStateFor(skyViewStates, group.Scene));
-                }
-            }
+            skyFog.SetToSkyView(Scene.FogInfo, skyViewSceneStates[0].Scene.FogInfo);
 
             frameViews[count++] = new SceneView
             {
@@ -465,27 +443,6 @@ public class Renderer : ISpawnGroupHost
         }
 
         return frameViews.AsSpan(0, count);
-    }
-
-    private Entities.SkyCamera? SkyCameraOf(SpawnGroup group)
-    {
-        if (skyCameras.TryGetValue(group, out var skyCamera))
-        {
-            return skyCamera;
-        }
-
-        foreach (var entity in EntitySystem.Entities)
-        {
-            if (entity is Entities.SkyCamera candidate && candidate.Scene == group.Scene)
-            {
-                skyCamera = candidate;
-                break;
-            }
-        }
-
-        skyCameras.Add(group, skyCamera);
-
-        return skyCamera;
     }
 
     private SceneViewState ViewStateFor(Dictionary<Scene, SceneViewState> states, Scene scene)
@@ -1115,11 +1072,6 @@ public class Renderer : ISpawnGroupHost
     /// </summary>
     public void RemoveEntities()
     {
-        foreach (var group in spawnGroups.ToArray())
-        {
-            EntitySystem.RemoveSpawnGroup(group);
-        }
-
         EntitySystem.RemoveAllEntities();
         Scene.ClearEntityState();
     }
@@ -1135,16 +1087,11 @@ public class Renderer : ISpawnGroupHost
             scene.Clear();
         }
 
+        // Takes back the scenes of the spawn groups through RemoveScene
         EntitySystem.Clear();
 
         DeleteViewStates();
 
-        foreach (var group in spawnGroups)
-        {
-            ReleaseSpawnGroup(group);
-        }
-
-        spawnGroups.Clear();
         scenes.Clear();
         scenes.Add(Scene);
     }
@@ -2048,12 +1995,8 @@ public class Renderer : ISpawnGroupHost
         DeleteViewStates();
         depthPyramid.Delete();
 
-        foreach (var group in spawnGroups)
-        {
-            ReleaseSpawnGroup(group);
-        }
+        EntitySystem.SpawnGroupManager.Clear();
 
-        spawnGroups.Clear();
         scenes.Clear();
         Scene.Dispose();
 

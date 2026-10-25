@@ -35,7 +35,12 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>The world resource being loaded.</summary>
         public WorldResource World { get; }
 
-        /// <summary>All entities parsed from the world's entity lumps.</summary>
+        internal Scene Scene => scene;
+
+        /// <summary>
+        /// All entities parsed from the world's entity lumps, including the ones a <c>point_template</c> spawns
+        /// only when told to.
+        /// </summary>
         public List<Entity> Entities { get; } = [];
         /// <summary>The first world node encountered during loading.</summary>
         public WorldNode? MainWorldNode { get; private set; }
@@ -44,7 +49,10 @@ namespace ValveResourceFormat.Renderer.World
         // Always enabled, the physics group filter decides what actually draws.
         private const string PhysicsDebugLayerName = "Physics Visualization Layer";
 
-        /// <summary>Visibility layer of the entities a <c>point_template</c> spawns, and of the template itself.</summary>
+        /// <summary>
+        /// Visibility layer of a <c>point_template</c>, and of the entities it shows while the world is stopped.
+        /// What it spawns in game goes on the layer its lump would spawn on.
+        /// </summary>
         public const string TemplateLayerName = "Template Entities";
 
         /// <summary>Visibility layer of the entities that start disabled, which the game keeps hidden until enabled.</summary>
@@ -86,9 +94,6 @@ namespace ValveResourceFormat.Renderer.World
         private const float PlayerEyeHeight = 64f;
         private int spawnCameraPriority = int.MaxValue;
 
-        /// <summary>The spawn groups loaded into separate scenes, such as the 3D sky.</summary>
-        public List<SpawnGroup> SpawnGroups { get; } = [];
-
         /// <summary>The loaded navigation mesh, populated by <see cref="LoadNavigationMesh"/>.</summary>
         public NavMeshFile? NavMesh { get; set; }
         /// <summary>The names of the navigation hulls in hull index order, populated by <see cref="LoadNavigationMesh"/>.</summary>
@@ -100,43 +105,45 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>Baked bomb damage data for CS2, null if it doesn't exist. Populated by <see cref="LoadBombDamageData"/>.</summary>
         public BombDamage? BombDamage { get; set; }
 
-        private List<SkyCamera> SkyCameras { get; } = [];
-
         /// <summary>Applied to everything this map loads.</summary>
         private readonly Matrix4x4 rootTransform;
 
+        internal Matrix4x4 RootTransform => rootTransform;
+
         private readonly EntitySystem entitySystem;
 
-        private enum LoadKind
-        {
-            Map,
-
-            SpawnGroup,
-
-            // Prefabs are compiled without lighting or visibility, so only entities and geometry are loaded
-            Prefab,
-        }
-
-        private readonly LoadKind loadKind;
-
-        // What this spawn group puts in place of the markers in its entities' names
-        private readonly EntityNameFixup nameFixup;
-
-        // Set when the entities spawn into a scene that already holds the geometry and collision of the map,
-        // as when they spawn again
-        private bool entitiesOnly;
+        // Prefabs are compiled without lighting or visibility, so only entities and geometry are loaded into the
+        // scene of the map that placed them
+        internal bool OwnsScene { get; }
 
         /// <summary>
-        /// Loads a map by name, performing a full load of all world components.
+        /// Loads a map by name, performing a full load of all world components, then spawns its entities.
         /// </summary>
         /// <param name="mapResourceName">Path to the <c>.vmap</c> or <c>.vmap_c</c> resource.</param>
         /// <param name="scene">The scene to load the world into.</param>
         /// <param name="entitySystem">The entity world this map's entities spawn into.</param>
         /// <param name="rootTransform">Transform applied to the whole map, identity when <see langword="null"/>.</param>
         public static WorldLoader LoadMap(string mapResourceName, Scene scene, EntitySystem entitySystem, Matrix4x4? rootTransform = null)
-            => LoadMap(mapResourceName, scene, entitySystem, rootTransform, LoadKind.Map, EntityNameFixup.None);
+        {
+            var (loader, mapReferences) = OpenMap(mapResourceName, scene, entitySystem, rootTransform ?? Matrix4x4.Identity, ownsScene: true);
 
-        private static WorldLoader LoadMap(string mapResourceName, Scene scene, EntitySystem entitySystem, Matrix4x4? rootTransform, LoadKind loadKind, EntityNameFixup nameFixup, bool entitiesOnly = false)
+            loader.Load(mapReferences);
+            return loader;
+        }
+
+        /// <summary>
+        /// Loads a map placed by a spawn group, up to its entities, which the group then spawns before the rest
+        /// of the world loads.
+        /// </summary>
+        internal static WorldLoader LoadSpawnGroupWorld(string mapResourceName, Scene scene, EntitySystem entitySystem, Matrix4x4 rootTransform, bool ownsScene)
+        {
+            var (loader, mapReferences) = OpenMap(mapResourceName, scene, entitySystem, rootTransform, ownsScene);
+
+            loader.LoadBeforeEntities(mapReferences);
+            return loader;
+        }
+
+        private static (WorldLoader Loader, ResourceExtRefList? MapReferences) OpenMap(string mapResourceName, Scene scene, EntitySystem entitySystem, Matrix4x4 rootTransform, bool ownsScene)
         {
             var renderContext = scene.RendererContext;
             Resource? mapResource = null;
@@ -158,13 +165,9 @@ namespace ValveResourceFormat.Renderer.World
             var worldPath = GetWorldNameFromMap(mapResourceName);
             var worldResource = renderContext.FileLoader.LoadFileCompiled(worldPath) ?? throw new FileNotFoundException($"Failed to load world file '{worldPath}'.");
 
-            var loader = new WorldLoader((WorldResource)worldResource.DataBlock!, scene, entitySystem, rootTransform, loadKind, nameFixup)
-            {
-                entitiesOnly = entitiesOnly,
-            };
+            var loader = new WorldLoader((WorldResource)worldResource.DataBlock!, scene, entitySystem, rootTransform, ownsScene);
 
-            loader.Load(mapResource.ExternalReferences);
-            return loader;
+            return (loader, mapResource.ExternalReferences);
         }
 
         /// <summary>
@@ -176,30 +179,30 @@ namespace ValveResourceFormat.Renderer.World
         /// <param name="entitySystem">The entity world this map's entities spawn into.</param>
         /// <param name="rootTransform">Transform applied to the whole map, identity when <see langword="null"/>.</param>
         public WorldLoader(WorldResource world, Scene scene, EntitySystem entitySystem, Matrix4x4? rootTransform = null)
-            : this(world, scene, entitySystem, rootTransform, LoadKind.Map, EntityNameFixup.None)
+            : this(world, scene, entitySystem, rootTransform ?? Matrix4x4.Identity, ownsScene: true)
         {
         }
 
-        private WorldLoader(WorldResource world, Scene scene, EntitySystem entitySystem, Matrix4x4? rootTransform, LoadKind loadKind, EntityNameFixup nameFixup)
+        private WorldLoader(WorldResource world, Scene scene, EntitySystem entitySystem, Matrix4x4 rootTransform, bool ownsScene)
         {
-            this.loadKind = loadKind;
-            this.nameFixup = nameFixup;
             MapName = Path.GetDirectoryName(world.Resource!.FileName!)!.Replace('\\', '/');
             World = world;
             this.scene = scene;
             this.entitySystem = entitySystem;
-            this.rootTransform = rootTransform ?? Matrix4x4.Identity;
+            this.rootTransform = rootTransform;
+            OwnsScene = ownsScene;
             RendererContext = scene.RendererContext;
         }
 
         /// <summary> Loading screen hints.</summary>
         public IProgress<string>? LoadingProgress { get; set; }
 
-        private string? currentLoadingPhase;
+        // The phase reported before a placed 3D sky reported its own, to report again once it has loaded
+        internal string? CurrentLoadingPhase { get; private set; }
 
         private void ReportLoadingPhase(string phase)
         {
-            currentLoadingPhase = phase;
+            CurrentLoadingPhase = phase;
             LoadingProgress?.Report(phase);
         }
 
@@ -291,116 +294,95 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>
-        /// Loads all world components: lighting, entities, world nodes, physics, visibility, bomb damage data, navigation mesh, navigation space and navigation flow map.
-        /// Navigation file loading is parallelized with resource preloading when references are provided.
+        /// Loads all world components and spawns the map's entities as its spawn group. See
+        /// <see cref="LoadEntities"/>.
         /// </summary>
         /// <param name="mapResourceReferences">Optional external reference list from the map resource, used to preload assets in parallel.</param>
         public void Load(ResourceExtRefList? mapResourceReferences = null)
         {
-            var ownsScene = loadKind != LoadKind.Prefab;
+            LoadBeforeEntities(mapResourceReferences);
+            LoadEntities();
+        }
 
+        // Started before the entities spawn and waited for once the world has finished loading
+        private Task navigationTask = Task.CompletedTask;
+
+        private bool loadedAfterEntities;
+
+        /// <summary>
+        /// Loads what the entities need before they spawn: resources preloaded in parallel and the lighting. The
+        /// navigation files load in the background until <see cref="LoadAfterEntities"/>.
+        /// </summary>
+        private void LoadBeforeEntities(ResourceExtRefList? mapResourceReferences)
+        {
             // Non resource files not covered by ParallelPreloadResources
-            var navMeshTask = ownsScene ? Task.Run(LoadNavigationMesh) : Task.CompletedTask;
-            var navSpaceTask = ownsScene ? Task.Run(LoadNavigationSpace) : Task.CompletedTask;
-            var navFlowMapTask = ownsScene ? Task.Run(LoadNavigationFlowMap) : Task.CompletedTask;
+            if (OwnsScene)
+            {
+                navigationTask = Task.WhenAll(Task.Run(LoadNavigationMesh), Task.Run(LoadNavigationSpace), Task.Run(LoadNavigationFlowMap));
+            }
 
             ParallelPreloadResources(mapResourceReferences);
 
-            if (ownsScene)
+            if (OwnsScene)
             {
                 LoadWorldLightingInfo();
             }
+        }
 
-            LoadEntities();
-
-            if (!entitiesOnly)
+        /// <summary>
+        /// Loads the rest of the world once its entities have spawned the first time: world nodes, physics,
+        /// visibility and bomb damage data, and waits for the navigation files. Does nothing after that.
+        /// </summary>
+        /// <remarks>
+        /// The engine loads all of a world before its entities, but a world mesh here picks its baked lighting
+        /// when it is created, from the light probe volumes that the entities register as they spawn.
+        /// </remarks>
+        internal void LoadAfterEntities()
+        {
+            if (loadedAfterEntities)
             {
-                LoadWorldNodes();
-                LoadWorldPhysics();
+                return;
             }
 
-            if (ownsScene)
+            loadedAfterEntities = true;
+
+            LoadWorldNodes();
+            LoadWorldPhysics();
+
+            if (OwnsScene)
             {
                 LoadWorldVisibility();
                 LoadBombDamageData();
             }
 
-            navMeshTask.Wait();
-            navSpaceTask.Wait();
-            navFlowMapTask.Wait();
+            navigationTask.Wait();
         }
 
         /// <summary>
-        /// Loads all entities from the world's entity lumps into the scene.
+        /// Spawns the map's entities from its entity lumps, as a spawn group that becomes the active one when
+        /// there is none. Called again once the entities it spawned have been removed, they spawn as they did when
+        /// the map loaded: the 3D sky and the other maps they place load again, reusing the geometry of the
+        /// prefabs that is still in the scene.
         /// </summary>
         public void LoadEntities()
         {
             ReportLoadingPhase("Loading entities…");
 
-            entitySystem.SpawnWorld(scene);
-
-            foreach (var lumpName in World.GetEntityLumpNames())
+            // Made again each time, a group that already has its world, as the engine reuses the world a spawn
+            // group handle already owns
+            var group = new SpawnGroup(MapName, scene, rootTransform)
             {
-                CancellationToken.ThrowIfCancellationRequested();
+                World = this,
+            };
 
-                if (lumpName == null)
-                {
-                    continue;
-                }
+            var spawnGroupManager = entitySystem.SpawnGroupManager;
+            spawnGroupManager.LoadSpawnGroup(group);
+            spawnGroupManager.SynchronouslySpawnGroup(group);
 
-                var newResource = RendererContext.FileLoader.LoadFileCompiled(lumpName);
-
-                if (newResource == null)
-                {
-                    continue;
-                }
-
-                var entityLump = (EntityLump?)newResource.DataBlock;
-                if (entityLump == null)
-                {
-                    continue;
-                }
-
-                LoadEntitiesFromLump(entityLump, "Entities", rootTransform, nameFixup);
-            }
-
-            // Every entity exists now, so the simulated ones can resolve each other by name. A nested
-            // group loads part way through the outer map's own lump, so it leaves activation to that
-            // load, which runs once everything - every spawn group - has spawned.
-            // TODO: The engine spawns and activates each spawn group as a batch of its own, a 3D sky or
-            // prefab separately from the map that placed it, so neither finds the other's entities by
-            // name while it activates.
-            if (loadKind == LoadKind.Map)
+            if (entitySystem.ActiveSpawnGroup == null)
             {
-                entitySystem.Activate();
+                spawnGroupManager.PerformActivateSpawnGroup(group);
             }
-
-            // The placing map stores prefab lights once its lump is done
-            if (loadKind != LoadKind.Prefab)
-            {
-                scene.LightingInfo.StoreLights(
-                    scene.AllNodes.OfType<SceneLight>().ToList()
-                );
-            }
-        }
-
-        /// <summary>
-        /// Spawns the world's entities again from its entity lumps, as they spawned when it loaded, once the
-        /// ones it spawned have been removed. The 3D sky and other spawn groups they place load again into
-        /// <see cref="SpawnGroups"/>.
-        /// </summary>
-        public void ReloadEntities()
-        {
-            Entities.Clear();
-            CameraNames.Clear();
-            CameraMatrices.Clear();
-            SkyCameras.Clear();
-            SpawnGroups.Clear();
-
-            // The geometry of the prefabs the entities place is in the scene already
-            entitiesOnly = true;
-
-            LoadEntities();
         }
 
         /// <summary>
@@ -611,161 +593,110 @@ namespace ValveResourceFormat.Renderer.World
             scene.RenderAttributes.TryAdd("S_LIGHTMAP_VERSION_MINOR", (byte)scene.LightingInfo.LightmapGameVersionNumber);
         }
 
-        private void LoadEntitiesFromLump(EntityLump entityLump, string originalLayerName, Matrix4x4 lumpTransform, EntityNameFixup lumpNameFixup)
+        // Lumps of entities parsed for Entities that have not spawned yet, by lump name. The first spawn takes
+        // them, so that spawn's entities have the keyvalues Entities lists. Any later spawn parses its own, as each
+        // instance of a template is an entity of its own.
+        private readonly Dictionary<string, List<Entity>> listedLumpEntities = new(StringComparer.OrdinalIgnoreCase);
+
+        // Every lump listed in Entities, so spawning one again lists nothing twice
+        private readonly HashSet<string> listedLumps = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Adds a lump's entities to <see cref="Entities"/>, each <c>point_template</c> followed by the entities
+        /// of its lump, which spawn only when the template says so.
+        /// </summary>
+        private void ListEntities(EntityLump lump)
         {
-            static bool IsCubemapOrProbe(string cls)
-                => cls == "env_combined_light_probe_volume"
-                || cls == "env_light_probe_volume"
-                || cls == "env_cubemap_box"
-                || cls == "env_cubemap";
-
-            // TODO: The engine spawns nothing of a point_template when the map loads. ForceSpawn, its own or an
-            // env_entity_maker's, loads the template's lump as a spawn group placed at the spawner, with a
-            // numbered local name fixup unless spawnflag 2 keeps the names, and fires OnEntitySpawned;
-            // DeleteCreatedSpawnGroups unloads them. Here every template's entities spawn with the map instead.
-            var traversed = EntityLumpTraversal.EnumerateEntities(
-                entityLump,
-                RendererContext.FileLoader,
-                lumpTransform,
-                onMissingChildLump: name => RendererContext.Logger.LogWarning("Failed to find child entity lump with name {EntityLumpName}", name))
-                .ToList();
-
-            var entitiesReordered = traversed
-                .Select(t => (t.Entity, t.ParentTransform, t.FromTemplate, Classname: t.Entity.GetStringProperty("classname")))
-                .Where(x => x.Classname != null)
-                .Select(x => (x.Entity, x.ParentTransform, x.FromTemplate, Classname: x.Classname!))
-                .OrderByDescending(x => IsCubemapOrProbe(x.Classname));
-
-            Entities.AddRange(traversed.Select(t => t.Entity));
-
-            var firstSpawned = entitySystem.Entities.Count;
-
-            foreach (var (entity, parentTransform, fromTemplate, classname) in entitiesReordered)
-            {
-                CancellationToken.ThrowIfCancellationRequested();
-
-                try
-                {
-                    // A point_template shares its layer with what it spawns
-                    var layerName = fromTemplate || classname == "point_template" ? TemplateLayerName : originalLayerName;
-
-                    var disabled = entity.GetBooleanProperty("startdisabled");
-
-                    if (!disabled)
-                    {
-                        disabled = !entity.GetBooleanProperty("enabled", true);
-                    }
-
-                    if (disabled && layerName == "Entities")
-                    {
-                        layerName = DisabledEntitiesLayerName;
-                    }
-
-                    // Every entity joins the entity system, so it can be named and targeted, and draws itself
-                    var created = entitySystem.CreateEntity(entity, parentTransform, layerName, scene, lumpNameFixup);
-
-                    switch (created)
-                    {
-                        case InfoWorldLayer worldLayer:
-                            worldLayer.LayerSpawner = SpawnWorldLayer;
-
-                            // The engine spawns the layer's entities right as the layer spawns
-                            if (worldLayer is { IsVisibleOnSpawn: true, WorldLayerName: { } worldLayerName })
-                            {
-                                DefaultEnabledLayers.Add(worldLayerName);
-                                worldLayer.SpawnLayerEntities();
-                            }
-
-                            break;
-
-                        case PointCamera camera:
-                            if (camera is SkyCamera sky)
-                            {
-                                SkyCameras.Add(sky);
-                            }
-
-                            CameraNames.Add(camera.CameraName);
-                            CameraMatrices.Add(camera.Transform);
-                            OfferSpawnCamera(camera, isMaster: false);
-                            break;
-
-                        case SpawnPoint spawnPoint:
-                            OfferSpawnCamera(spawnPoint, spawnPoint.IsMasterPlayerStart);
-                            break;
-                    }
-
-                    if (created != null && IsSpawnGroupPlacement(classname, entity))
-                    {
-                        if (classname == "skybox_reference")
-                        {
-                            LoadSkybox(created);
-                        }
-                        else
-                        {
-                            LoadPrefab(created);
-                        }
-                    }
-                }
-                catch (Exception e)
-                {
-                    var id = entity.GetStringProperty("hammeruniqueid", string.Empty);
-
-                    throw new InvalidDataException($"Failed to process entity '{classname}' (hammeruniqueid={id})", e);
-                }
-            }
-
-            if (entitySystem.ToolVisuals is not { } toolVisuals)
+            // Also stops a template whose lump leads back to its own
+            if (!listedLumps.Add(lump.Name))
             {
                 return;
             }
 
-            // Once the whole lump has spawned, so a relation can reach an entity authored after the one it
-            // starts at. Entities of a 3D sky or prefab loaded part way through relate their own in that load.
-            var lumpEntities = traversed.Select(static t => t.Entity).ToHashSet();
-            var spawnedHere = new List<BaseEntity>(lumpEntities.Count);
+            var entities = lump.GetEntities();
+            listedLumpEntities.Add(lump.Name, entities);
 
-            for (var i = firstSpawned; i < entitySystem.Entities.Count; i++)
+            foreach (var entity in entities)
             {
-                var spawned = entitySystem.Entities[i];
+                Entities.Add(entity);
 
-                if (spawned.Scene == scene && spawned.Data != null && lumpEntities.Contains(spawned.Data))
+                if (entity.GetStringProperty("classname") == "point_template"
+                    && entity.GetStringProperty("entitylumpname") is { Length: > 0 } templateLumpName
+                    && FindEntityLump(templateLumpName) is { } templateLump)
                 {
-                    spawnedHere.Add(spawned);
+                    ListEntities(templateLump);
                 }
             }
-
-            toolVisuals.AddEntityRelations(scene, spawnedHere);
         }
 
+        private List<Entity> TakeLumpEntities(EntityLump lump)
+            => listedLumpEntities.Remove(lump.Name, out var listed) ? listed : lump.GetEntities();
+
         /// <summary>
-        /// Spawns the entity lump of an <c>info_world_layer</c>, which the map compiles as a child of its own
-        /// lump rather than listing it with the lumps that spawn when the map loads.
+        /// Lists the entities of the lumps the world spawns when it loads in <see cref="Entities"/>, starting over
+        /// from what an earlier spawn of the map listed.
         /// </summary>
-        private List<BaseEntity>? SpawnWorldLayer(InfoWorldLayer worldLayer)
+        /// <returns>The entities of those lumps alone, as the lumps of their templates spawn when told to.</returns>
+        internal List<Entity> ListMapEntities()
         {
-            // TODO: The engine finds any world loaded into the layer's world group by that name, such as a stage
-            // loaded by info_spawngroup_load_unload. Supporting it needs a registry of loaded worlds that keeps
-            // their loaders alive, and the layer's visibility toggled in the named world's scene too.
-            if (worldLayer.WorldName is not { } worldName
-                || !GetSpawnGroupMapName(worldName).Equals(MapName, StringComparison.OrdinalIgnoreCase))
+            Entities.Clear();
+            listedLumps.Clear();
+            listedLumpEntities.Clear();
+            CameraNames.Clear();
+            CameraMatrices.Clear();
+
+            var mapEntities = new List<Entity>();
+
+            foreach (var lumpName in World.GetEntityLumpNames())
             {
-                RendererContext.Logger.LogWarning("info_world_layer '{TargetName}' names world '{WorldName}', not '{MapName}'", worldLayer.TargetName, worldLayer.WorldName, MapName);
-                return null;
+                CancellationToken.ThrowIfCancellationRequested();
+
+                if (lumpName == null || RendererContext.FileLoader.LoadFileCompiled(lumpName)?.DataBlock is not EntityLump entityLump)
+                {
+                    continue;
+                }
+
+                ListEntities(entityLump);
+                mapEntities.AddRange(TakeLumpEntities(entityLump));
             }
 
-            if (worldLayer.WorldLayerName is not { } layerName || FindEntityLump(layerName) is not { } layerLump)
+            return mapEntities;
+        }
+
+        /// <summary>Lists a lump's entities in <see cref="Entities"/> unless they already are.</summary>
+        /// <returns>The entities to spawn from the lump, parsed again unless no spawn took the listed ones yet.</returns>
+        internal List<Entity> ListLumpEntities(EntityLump lump)
+        {
+            ListEntities(lump);
+
+            return TakeLumpEntities(lump);
+        }
+
+        // Lumps spawning right now, which a stopped world reaches again through templates inside templates
+        internal HashSet<string> SpawningLumps { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Notes the cameras, spawn markers and visible world layers among entities spawned from this world.</summary>
+        internal void RecordSpawned(IReadOnlyList<BaseEntity> spawned)
+        {
+            foreach (var entity in spawned)
             {
-                RendererContext.Logger.LogWarning("info_world_layer '{TargetName}' found no entity lump named '{LayerName}'", worldLayer.TargetName, worldLayer.WorldLayerName);
-                return null;
+                switch (entity)
+                {
+                    case PointCamera camera:
+                        CameraNames.Add(camera.CameraName);
+                        CameraMatrices.Add(camera.Transform);
+                        OfferSpawnCamera(camera, isMaster: false);
+                        break;
+
+                    case SpawnPoint spawnPoint:
+                        OfferSpawnCamera(spawnPoint, spawnPoint.IsMasterPlayerStart);
+                        break;
+
+                    case InfoWorldLayer { IsVisibleOnSpawn: true, WorldLayerName: { } worldLayerName }:
+                        DefaultEnabledLayers.Add(worldLayerName);
+                        break;
+                }
             }
-
-            var firstSpawned = entitySystem.Entities.Count;
-
-            // The engine reuses the loaded world by name and spawns the layer's group with no world offset,
-            // so the layer stays where it was authored even when its map was placed elsewhere
-            LoadEntitiesFromLump(layerLump, "Entities", Matrix4x4.Identity, EntityNameFixup.None);
-
-            return [.. entitySystem.Entities.Skip(firstSpawned)];
         }
 
         private List<EntityLump>? worldEntityLumps;
@@ -774,7 +705,7 @@ namespace ValveResourceFormat.Renderer.World
         /// Finds a lump of this world by the name the lump gives itself, searching the world's lumps and
         /// their child lumps depth first, so the first match in that order wins.
         /// </summary>
-        private EntityLump? FindEntityLump(string name)
+        internal EntityLump? FindEntityLump(string name)
         {
             if (worldEntityLumps == null)
             {
@@ -804,214 +735,6 @@ namespace ValveResourceFormat.Renderer.World
             }
 
             return worldEntityLumps.Find(lump => lump.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-        }
-
-        // Any class flagged ispointprefab places a map too, such as the CS2 team select and team intro stages.
-        // A point_prefab with prefab_load_dynamic switched off places nothing.
-        private static bool IsSpawnGroupPlacement(string classname, Entity entity)
-            => classname == "skybox_reference"
-            || (classname == "point_prefab" && entity.GetBooleanProperty("prefab_load_dynamic", defaultValue: true))
-            || entity.GetBooleanProperty("ispointprefab");
-
-        private void LoadSkybox(BaseEntity skyboxReference)
-        {
-            if (skyboxReference.Data?.GetStringProperty("targetmapname") is not { Length: > 0 } targetMapName)
-            {
-                return;
-            }
-
-            // Origin and angles only: a 3D sky is not scaled, the sky camera applies the scale instead
-            var reference = skyboxReference.RigidTransform;
-
-            // Without a world group of its own the sky joins the one of the map that placed it
-            var skyScene = new Scene(RendererContext)
-            {
-                WorldGroup = skyboxReference.Data.GetStringProperty("worldgroupid") is { Length: > 0 } worldGroup ? worldGroup : scene.WorldGroup,
-            };
-
-            LoadingProgress?.Report("Loading 3D sky…");
-
-            var skyLoader = LoadNestedMap(RendererContext, entitySystem, targetMapName, skyScene, reference, LoadKind.SpawnGroup, ChildNameFixup(skyboxReference), entitiesOnly: false, out var mapPackage);
-
-            if (currentLoadingPhase != null)
-            {
-                LoadingProgress?.Report(currentLoadingPhase);
-            }
-
-            if (skyLoader == null)
-            {
-                if (mapPackage != null)
-                {
-                    RendererContext.FileLoader.UnmountMapPackage(mapPackage);
-                }
-
-                skyScene.Dispose();
-                return;
-            }
-
-            SpawnGroups.Add(new SpawnGroup(skyLoader.MapName, skyScene, reference, skyLoader.Entities)
-            {
-                PlacedBy = skyboxReference,
-                MountedMapPackage = mapPackage,
-            });
-
-            // The sky camera magnifies the sky, so markers are shrunk to appear at normal size
-            var sky = SkyTransform.FromEntities(reference.Translation, skyLoader.SkyCameras.FirstOrDefault());
-
-            skyScene.ToViewerWorld = sky.SkyToWorld;
-            skyScene.MarkerScale = 1f / sky.Scale;
-
-            // The scale is only known once the sky map has loaded, so the markers it shrinks are already
-            // placed. Whatever an entity owns it re-places itself from here on.
-            foreach (var marker in skyScene.AllNodes)
-            {
-                if (marker.PlacementScale != 1f)
-                {
-                    marker.Transform = marker.ApplyPlacementScale(marker.Transform);
-                }
-            }
-        }
-
-        // A placed map keeps the fixups of the group the placing entity spawned in, unless asked to set its
-        // names apart with a numbered prefix of its own
-        private EntityNameFixup ChildNameFixup(BaseEntity reference)
-            => reference.SpawnData?.GetBooleanProperty("fixupnames") == true
-                ? reference.NameFixup with { Parent = $"{entitySystem.NextNameFixupIndex()}d_{reference.NameFixup.Parent}" }
-                : reference.NameFixup;
-
-        // Compiled maps have prefabs merged in already; the ones left are loaded by the game at runtime
-        private void LoadPrefab(BaseEntity prefab)
-        {
-            if (prefab.Data?.GetStringProperty("targetmapname") is not { Length: > 0 } targetMapName)
-            {
-                return;
-            }
-
-            var prefabLoader = LoadNestedMap(RendererContext, entitySystem, targetMapName, scene, prefab.RigidTransform, LoadKind.Prefab, ChildNameFixup(prefab), entitiesOnly, out var mapPackage);
-
-            if (mapPackage != null)
-            {
-                RendererContext.FileLoader.UnmountMapPackage(mapPackage);
-            }
-
-            if (prefabLoader != null)
-            {
-                Entities.AddRange(prefabLoader.Entities);
-            }
-        }
-
-        /// <summary>
-        /// Loads a map as a spawn group, moved so the named landmark lands on <paramref name="landmarkOrigin"/>.
-        /// Landmarks are aligned by origin only, ignoring angles.
-        /// </summary>
-        public static SpawnGroup? LoadSpawnGroup(RendererContext rendererContext, EntitySystem entitySystem, string targetMapName,
-            string? landmark, Vector3 landmarkOrigin)
-        {
-            ArgumentNullException.ThrowIfNull(rendererContext);
-            ArgumentNullException.ThrowIfNull(entitySystem);
-
-            var mapName = GetSpawnGroupMapName(targetMapName);
-            var mapPackage = $"{mapName}.vpk";
-
-            if (!rendererContext.FileLoader.TryMountMapPackage(mapPackage))
-            {
-                return null;
-            }
-
-            Scene? scene = null;
-            string? mountedMapPackage = mapPackage;
-
-            try
-            {
-                var transform = Matrix4x4.Identity;
-
-                if (landmark != null && FindEntityOrigin(rendererContext, $"{mapName}.vmap", landmark) is { } groupLandmarkOrigin)
-                {
-                    transform = Matrix4x4.CreateTranslation(landmarkOrigin - groupLandmarkOrigin);
-                }
-
-                scene = new Scene(rendererContext);
-                var loader = LoadMap($"{mapName}.vmap", scene, entitySystem, transform, LoadKind.SpawnGroup, EntityNameFixup.None);
-
-                scene.Initialize();
-
-                var group = new SpawnGroup(loader.MapName, scene, transform, loader.Entities)
-                {
-                    MountedMapPackage = mapPackage,
-                };
-
-                scene = null;
-                mountedMapPackage = null;
-
-                return group;
-            }
-            catch (FileNotFoundException e)
-            {
-                rendererContext.Logger.LogWarning("Not loading spawn group '{TargetMapName}': {Message}", targetMapName, e.Message);
-                return null;
-            }
-            finally
-            {
-                scene?.Dispose();
-
-                if (mountedMapPackage != null)
-                {
-                    rendererContext.FileLoader.UnmountMapPackage(mountedMapPackage);
-                }
-            }
-        }
-
-        // By the names the group spawns its entities with, which a group loaded by landmark leaves without fixups
-        private static Vector3? FindEntityOrigin(RendererContext rendererContext, string mapResourceName, string targetName)
-        {
-            var worldResource = rendererContext.FileLoader.LoadFileCompiled(GetWorldNameFromMap(mapResourceName));
-
-            if (worldResource?.DataBlock is not WorldResource world)
-            {
-                return null;
-            }
-
-            foreach (var lumpName in world.GetEntityLumpNames())
-            {
-                if (lumpName == null || rendererContext.FileLoader.LoadFileCompiled(lumpName)?.DataBlock is not EntityLump lump)
-                {
-                    continue;
-                }
-
-                foreach (var (entity, parentTransform, _) in EntityLumpTraversal.EnumerateEntities(lump, rendererContext.FileLoader, Matrix4x4.Identity))
-                {
-                    if (string.Equals(entity.FriendlyTargetName, targetName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return Vector3.Transform(entity.GetVector3Property("origin"), parentTransform);
-                    }
-                }
-            }
-
-            rendererContext.Logger.LogWarning("Found no landmark named '{Landmark}' in '{Map}'", targetName, mapResourceName);
-            return null;
-        }
-
-        private static WorldLoader? LoadNestedMap(RendererContext rendererContext, EntitySystem entitySystem, string targetMapName,
-            Scene intoScene, Matrix4x4 transform, LoadKind loadKind, EntityNameFixup nameFixup, bool entitiesOnly, out string? mapPackage)
-        {
-            var mapName = GetSpawnGroupMapName(targetMapName);
-            mapPackage = $"{mapName}.vpk";
-
-            if (!rendererContext.FileLoader.TryMountMapPackage(mapPackage))
-            {
-                mapPackage = null;
-                return null;
-            }
-
-            try
-            {
-                return LoadMap($"{mapName}.vmap", intoScene, entitySystem, transform, loadKind, nameFixup, entitiesOnly);
-            }
-            catch (FileNotFoundException e)
-            {
-                rendererContext.Logger.LogWarning("Not loading '{TargetMapName}': {Message}", targetMapName, e.Message);
-                return null;
-            }
         }
 
         /// <summary>
