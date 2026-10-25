@@ -20,8 +20,13 @@ public abstract class PhysConstraint : BaseEntity
         /// <summary>The two attached bodies pass through each other.</summary>
         DisableCollision = 1,
 
+        // 2 is defined by each kind of constraint
+
         /// <summary>The constraint waits for <c>TurnOn</c>.</summary>
-        StartInactive = 2,
+        StartInactive = 4,
+
+        /// <summary>The bodies are not connected until <c>TurnOn</c>.</summary>
+        NoConnectUntilTurnedOn = 16,
     }
 
     // The break limits are authored in pounds, the weight the constraint can hold before it gives
@@ -61,7 +66,7 @@ public abstract class PhysConstraint : BaseEntity
     public override void Activate()
     {
         // Built as the map spawned its bodies: a picture authored asleep on its hinge stays asleep
-        if (!HasSpawnFlags(ConstraintSpawnFlags.StartInactive))
+        if (!HasSpawnFlags(ConstraintSpawnFlags.StartInactive) && !HasSpawnFlags(ConstraintSpawnFlags.NoConnectUntilTurnedOn))
         {
             TurnOn(wakeBodies: false);
         }
