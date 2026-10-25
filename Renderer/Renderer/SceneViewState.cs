@@ -61,6 +61,7 @@ public sealed class SceneViewState
     private bool hasLastFrustum;
     private bool lastIncludedStatic;
     private int lastOctreeVersion = -1;
+    private readonly List<(VisibilityBox Box, int Placement, bool Inside)> lastBoxSplit = [];
 
     private readonly Dictionary<RenderPass, List<MeshBatchRenderer.Request>> renderLists = new()
     {
@@ -189,17 +190,27 @@ public sealed class SceneViewState
     /// </summary>
     /// <param name="frustum">The view frustum to test against.</param>
     /// <param name="includeStatic">Whether to include static nodes.</param>
+    /// <param name="boxes">Visibility boxes that leave out whole cells of static nodes, or <see langword="null"/>.</param>
     /// <returns>A list of visible scene nodes (valid until the next call to this method).</returns>
-    public List<SceneNode> GetFrustumCullResults(Frustum frustum, bool includeStatic = true)
+    public List<SceneNode> GetFrustumCullResults(Frustum frustum, bool includeStatic = true, VisibilityBoxCuller? boxes = null)
     {
         // Optimization: Do not clear static culled results from last frame if the frustum did not change
         if (!hasLastFrustum || lastIncludedStatic != includeStatic || !frustum.Planes.AsSpan().SequenceEqual(lastFrustumPlanes)
-            || lastOctreeVersion != Scene.OctreeVersion)
+            || lastOctreeVersion != Scene.OctreeVersion || !(boxes?.MatchesSplit(lastBoxSplit) ?? lastBoxSplit.Count == 0))
         {
             frustum.Planes.CopyTo(lastFrustumPlanes, 0);
             hasLastFrustum = true;
             lastIncludedStatic = includeStatic;
             lastOctreeVersion = Scene.OctreeVersion;
+
+            if (boxes != null)
+            {
+                boxes.CopySplitTo(lastBoxSplit);
+            }
+            else
+            {
+                lastBoxSplit.Clear();
+            }
 
             cullResults.Clear();
 
@@ -211,7 +222,7 @@ public sealed class SceneViewState
 
             if (includeStatic)
             {
-                Scene.StaticOctree.Query(frustum, cullResults);
+                Scene.StaticOctree.Query(frustum, boxes, cullResults);
             }
 
             staticCullCount = cullResults.Count;
@@ -665,7 +676,7 @@ public sealed class SceneViewState
 
         var pvs = Pvs.Span;
 
-        foreach (var node in GetFrustumCullResults(frustum, includeStatic))
+        foreach (var node in GetFrustumCullResults(frustum, includeStatic, boxes))
         {
             switch (TestNodeCull(node, pvs, boxes))
             {

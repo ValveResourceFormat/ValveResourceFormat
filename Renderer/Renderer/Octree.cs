@@ -273,7 +273,15 @@ namespace ValveResourceFormat.Renderer
             /// </summary>
             /// <param name="frustum">View frustum to test against.</param>
             /// <param name="results">List to populate with visible scene nodes.</param>
-            public void Query(Frustum frustum, List<SceneNode> results)
+            public void Query(Frustum frustum, List<SceneNode> results) => Query(frustum, null, results);
+
+            /// <summary>
+            /// Queries scene nodes visible within the specified view frustum, skipping every cell the boxes hide.
+            /// </summary>
+            /// <param name="frustum">View frustum to test against.</param>
+            /// <param name="boxes">Visibility boxes that hide whole cells, or <see langword="null"/>.</param>
+            /// <param name="results">List to populate with visible scene nodes.</param>
+            public void Query(Frustum frustum, VisibilityBoxCuller? boxes, List<SceneNode> results)
             {
                 if (HasElements)
                 {
@@ -290,9 +298,10 @@ namespace ValveResourceFormat.Renderer
                 {
                     foreach (var child in Children)
                     {
-                        if (frustum.Intersects(child.Region))
+                        // A child holds only what fits inside its region, so a region the boxes hide hides all of it
+                        if (frustum.Intersects(child.Region) && (boxes == null || !boxes.IsCulled(child.Region)))
                         {
-                            child.Query(frustum, results);
+                            child.Query(frustum, boxes, results);
                         }
                     }
                 }
@@ -376,6 +385,9 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Appends every node whose bounds intersect the frustum.</summary>
         public void Query(Frustum frustum, List<SceneNode> results) => Root.Query(frustum, results);
+
+        /// <summary>Appends every node whose bounds intersect the frustum, skipping whole cells the boxes hide.</summary>
+        public void Query(Frustum frustum, VisibilityBoxCuller? boxes, List<SceneNode> results) => Root.Query(frustum, boxes, results);
 
         /// <summary>Appends every node whose bounds intersect the box.</summary>
         public void Query(in AABB bounds, List<SceneNode> results) => Root.Query(bounds, results);

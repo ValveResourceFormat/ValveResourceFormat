@@ -32,6 +32,9 @@ public sealed class VisibilityBox(VisibilityBoxMode mode, Vector3 size)
     /// <summary>Gets whether the box culls.</summary>
     public bool IsEnabled { get; private set; }
 
+    // Counts placements, so a box disabled and enabled elsewhere within a frame still reads as changed
+    internal int Placement { get; private set; }
+
     /// <summary>
     /// Enables the box at a placement. An enabled box keeps its planes, so a new placement only takes
     /// effect after <see cref="Disable"/>.
@@ -67,6 +70,7 @@ public sealed class VisibilityBox(VisibilityBoxMode mode, Vector3 size)
         }
 
         IsEnabled = true;
+        Placement++;
     }
 
     /// <summary>Disables the box.</summary>
@@ -160,6 +164,44 @@ public sealed class VisibilityBoxCuller
                     outside.Add(box);
                     break;
             }
+        }
+    }
+
+    /// <summary>Whether the split matches one saved by <see cref="CopySplitTo"/>.</summary>
+    internal bool MatchesSplit(List<(VisibilityBox Box, int Placement, bool Inside)> split)
+    {
+        if (split.Count != inside.Count + outside.Count)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < split.Count; i++)
+        {
+            var (box, placement, isInside) = split[i];
+            var current = i < inside.Count ? inside[i] : outside[i - inside.Count];
+
+            if (current != box || current.Placement != placement || isInside != i < inside.Count)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>Saves the split, to tell later whether a box was enabled, disabled or moved since.</summary>
+    internal void CopySplitTo(List<(VisibilityBox Box, int Placement, bool Inside)> split)
+    {
+        split.Clear();
+
+        foreach (var box in inside)
+        {
+            split.Add((box, box.Placement, true));
+        }
+
+        foreach (var box in outside)
+        {
+            split.Add((box, box.Placement, false));
         }
     }
 
