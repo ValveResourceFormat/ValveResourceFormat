@@ -33,7 +33,6 @@ float SampleSunCascadePCF(vec3 projCoords, int cascade)
 
 float CalculateSunShadowMapVisibility(vec3 vPosition)
 {
-    // The cascades only cover the main scene
     if (!g_bSunShadowsEnabled)
     {
         return 1.0;

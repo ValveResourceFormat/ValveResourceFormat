@@ -27,6 +27,12 @@ public sealed class SkyCameraVolume : BaseEntity
     /// <summary>Gets where the blur points, as an offset from the volume origin.</summary>
     public Vector3 BlurOrigin { get; private set; }
 
+    /// <summary>Gets whether the sky casts into the sun shadow cascades of the world.</summary>
+    public bool WorldReceivesSkyboxShadows { get; private set; }
+
+    /// <summary>Gets whether the sky samples the sun shadow cascades of the world.</summary>
+    public bool SkyboxReceivesWorldShadows { get; private set; }
+
     /// <summary>Gets the target the sky is seen from, once resolved.</summary>
     public SkyCameraVolumeTarget? Target { get; private set; }
 
@@ -46,6 +52,8 @@ public sealed class SkyCameraVolume : BaseEntity
         IsEnabled = !KeyValues.GetBooleanProperty("startdisabled");
         SkyboxBlurEffect = KeyValues.GetBooleanProperty("skyboxblureffect");
         BlurOrigin = KeyValues.GetVector3Property("blur_origin");
+        WorldReceivesSkyboxShadows = KeyValues.GetBooleanProperty("world_receives_skybox_csm");
+        SkyboxReceivesWorldShadows = KeyValues.GetBooleanProperty("skybox_receives_world_csm");
     }
 
     /// <inheritdoc/>

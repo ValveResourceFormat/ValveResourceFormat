@@ -62,10 +62,7 @@ namespace ValveResourceFormat.Renderer.Buffers
         public bool IsSkybox;
         /// <summary>Depth bias applied when sampling the sun light shadow map.</summary>
         public float SunLightShadowBias = 0.001f;
-        /// <summary>
-        /// Whether this view samples the sun shadow cascades. They only cover the main scene, so the
-        /// 3D skybox view does not.
-        /// </summary>
+        /// <summary>Whether this view samples the sun shadow cascades.</summary>
         public bool SunShadowsEnabled = true;
 
         /// <summary>When <see langword="true"/>, volumetric fog is active and evaluated in the shader.</summary>

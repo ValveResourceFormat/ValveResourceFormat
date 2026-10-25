@@ -22,5 +22,9 @@ internal readonly record struct SceneView
     /// <summary>The 2D sky this view replaces its scenes' own with, or <see langword="null"/> to keep theirs.</summary>
     public SceneSkybox2D? SkyOverride { get; init; }
 
+    public bool SkyCastsSunShadows { get; init; }
+
+    public bool SkyReceivesSunShadows { get; init; }
+
     public FogSpace FogSpace => Sky?.FogSpace ?? FogSpace.World;
 }

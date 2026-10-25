@@ -238,7 +238,7 @@ stages an `info_spawngroup_load_unload` loads and unloads when its entity I/O fi
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | Runtime spawn group lights | Realtime barn lights of a loaded stage are not drawn; its baked lighting and its sun are.                          |
 | Translucents across groups | Each spawn group sorts its own translucent geometry, so translucents of two groups can overlap in the wrong order. |
-| `sky_camera_volume`        | The sky blur effect is not drawn, and the sky shares no sun shadows with the world.                                |
+| `sky_camera_volume`        | The sky blur effect is not drawn.                                                                                  |
 
 ## Materials (vmat)
 

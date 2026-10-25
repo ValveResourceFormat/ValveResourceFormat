@@ -36,8 +36,14 @@ public sealed class SunCascades
     // coverage is small enough that an eighth of it would hug the camera.
     private const float MinHalfExtent = 128f;
 
+    // The most the shadow bias may cover in world units. It is normalized depth, so a deep cascade, such as
+    // one holding a 3D sky, would otherwise hide the shadows of anything close to what it falls on.
+    private const float MaxWorldBias = 4f;
+
     private readonly Vector3[] eyes = new Vector3[Count];
     private readonly float[] halfExtents = new float[Count];
+    private readonly float[] cullDepthRanges = new float[Count];
+    private readonly float[] biasOffsets = new float[Count];
     private bool fitsDepthToCasters;
 
     private static Camera[] CreateCameras()
@@ -53,7 +59,11 @@ public sealed class SunCascades
     }
 
     /// <summary>Fits the <see cref="Cameras"/> to a camera, with a depth range wide enough to cull casters in.</summary>
-    public void Fit(Scene scene, Camera camera, float shadowMapSize)
+    /// <param name="scene">The scene the sun belongs to.</param>
+    /// <param name="camera">The camera to fit to.</param>
+    /// <param name="shadowMapSize">The shadow map resolution.</param>
+    /// <param name="skyScale">The scale of a 3D sky that casts, which widens the cascades, or 1 for none.</param>
+    public void Fit(Scene scene, Camera camera, float shadowMapSize, float skyScale)
     {
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(camera);
@@ -116,6 +126,7 @@ public sealed class SunCascades
                 // The shader falls through identical coordinates into the cleared outer layer,
                 // which reads fully lit, matching the single-frustum edge fade.
                 Cameras[cascade].CopyFrom(Cameras[0]);
+                biasOffsets[cascade] = biasOffsets[0];
                 continue;
             }
 
@@ -133,9 +144,13 @@ public sealed class SunCascades
             }
             else
             {
-                bbox = MathF.Max(baseHalfExtent * ExtentFractions[cascade], MinHalfExtent);
-                farPlane = CullDepthRange;
-                nearPlaneExtend = CullDepthRange;
+                // A 3D sky is seen magnified, so both cascades widen with its scale. The outer one by half of it
+                // and the inner one by most of its square root, which keeps their sharpness from drifting too far apart.
+                var scale = MathF.Max(cascade == Count - 1 ? skyScale * 0.5f : MathF.Sqrt(skyScale) * 0.75f, 1f);
+
+                bbox = MathF.Max(baseHalfExtent * ExtentFractions[cascade], MinHalfExtent) * scale;
+                farPlane = CullDepthRange * scale;
+                nearPlaneExtend = CullDepthRange * scale;
                 eye = camera.Location + forwardOnLightPlane * (bbox * ForwardShiftFraction);
             }
 
@@ -158,6 +173,8 @@ public sealed class SunCascades
 
             eyes[cascade] = eye;
             halfExtents[cascade] = bbox;
+            cullDepthRanges[cascade] = farPlane;
+            biasOffsets[cascade] = sceneBoundsMode ? 0f : BiasOffset(bias, farPlane + nearPlaneExtend);
         }
 
         ShadowBias = bias;
@@ -177,13 +194,22 @@ public sealed class SunCascades
 
         // Quantized so the range holds still while casters move within it
         const float quantize = 64f;
-        var depthMin = Math.Clamp(MathF.Floor((casterMin - eyeDepth) / quantize) * quantize, -CullDepthRange, CullDepthRange - quantize);
-        var depthMax = Math.Clamp(MathF.Ceiling((casterMax - eyeDepth) / quantize) * quantize, depthMin + quantize, CullDepthRange);
+        var cullDepthRange = cullDepthRanges[cascade];
+        var depthMin = Math.Clamp(MathF.Floor((casterMin - eyeDepth) / quantize) * quantize, -cullDepthRange, cullDepthRange - quantize);
+        var depthMax = Math.Clamp(MathF.Ceiling((casterMax - eyeDepth) / quantize) * quantize, depthMin + quantize, cullDepthRange);
 
         var bbox = halfExtents[cascade];
         var projection = Matrix4x4.CreateOrthographicOffCenter(-bbox, bbox, -bbox, bbox, depthMax, depthMin);
 
         var camera = Cameras[cascade];
         camera.SetViewProjection(camera.CameraViewMatrix, projection);
+
+        biasOffsets[cascade] = BiasOffset(ShadowBias, depthMax - depthMin);
     }
+
+    /// <summary>Gets the matrix a cascade is sampled with, which keeps <see cref="ShadowBias"/> within a few world units.</summary>
+    public Matrix4x4 GetShadowMatrix(int cascade)
+        => Cameras[cascade].ViewProjectionMatrix * Matrix4x4.CreateTranslation(0f, 0f, biasOffsets[cascade]);
+
+    private static float BiasOffset(float bias, float depthRange) => MathF.Min(bias, MaxWorldBias / depthRange) - bias;
 }

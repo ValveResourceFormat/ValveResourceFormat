@@ -285,15 +285,19 @@ public class Renderer : ISceneHost
     private readonly Dictionary<Scene, SceneViewState> mainViewStates = [];
     private readonly Dictionary<Scene, SceneViewState> skyViewStates = [];
     private readonly Dictionary<Scene, SceneViewState>[] sunCascadeViewStates = [[], []];
+    private readonly Dictionary<Scene, SceneViewState>[] sunCascadeSkyViewStates = [[], []];
 
     private readonly Dictionary<Scene, SceneViewState>[] allViewStates;
 
     private readonly List<SceneViewState> mainViewSceneStates = [];
     private readonly List<SceneViewState> skyViewSceneStates = [];
     private readonly List<SceneViewState>[] sunCascadeSceneStates = [[], []];
+    private readonly List<SceneViewState>[] sunCascadeSkySceneStates = [[], []];
 
     private readonly SunCascades sunCascades = new();
     private readonly SceneView[] sunCascadeViews = new SceneView[SunCascades.Count];
+    private readonly SceneView?[] sunCascadeSkyViews = new SceneView?[SunCascades.Count];
+    private readonly Frustum viewerSpaceCascadeFrustum = new();
     private int sunCascadeViewCount;
 
     private readonly List<SceneView> barnLightFaceViews = [];
@@ -333,7 +337,7 @@ public class Renderer : ISceneHost
     public Renderer(RendererContext rendererContext)
     {
         RendererContext = rendererContext;
-        allViewStates = [mainViewStates, skyViewStates, .. sunCascadeViewStates];
+        allViewStates = [mainViewStates, skyViewStates, .. sunCascadeViewStates, .. sunCascadeSkyViewStates];
         PerfStats = new PerfStats();
         Postprocess = new(rendererContext);
         LightTilesOverlay = new(rendererContext);
@@ -432,6 +436,8 @@ public class Renderer : ISceneHost
                 Fog = skyFog,
                 LockedCullFrustum = lockedSkyCullFrustum,
                 SkyOverride = target.SkyMaterialName is { } skyMaterial ? SkyOverrideFor(skyMaterial) : null,
+                SkyCastsSunShadows = volume.WorldReceivesSkyboxShadows,
+                SkyReceivesSunShadows = volume.SkyboxReceivesWorldShadows,
             };
 
             return frameViews.AsSpan(0, count);
@@ -521,10 +527,8 @@ public class Renderer : ISceneHost
         return state;
     }
 
-    private SceneViewState SunCascadeViewStateFor(int cascade, Scene scene)
+    private static SceneViewState SunCascadeViewStateFor(Dictionary<Scene, SceneViewState> states, Scene scene)
     {
-        var states = sunCascadeViewStates[cascade];
-
         if (!states.TryGetValue(scene, out var state))
         {
             state = new SceneViewState(scene, shadowCasters: true);
@@ -534,7 +538,7 @@ public class Renderer : ISceneHost
         return state;
     }
 
-    private void UpdateSunCascadeViews(in SceneView main, Camera camera)
+    private void UpdateSunCascadeViews(ReadOnlySpan<SceneView> views, Camera camera)
     {
         Debug.Assert(ShadowDepthBuffer != null);
 
@@ -545,48 +549,95 @@ public class Renderer : ISceneHost
             return;
         }
 
-        sunCascades.Fit(Scene, camera, ShadowDepthBuffer.Width);
+        var main = views[0];
+        SceneView? sky = Settings.ShowSkybox && views.Length > 1 && views[1].SkyCastsSunShadows ? views[1] : null;
 
-        var pvsEnabled = !Settings.DisableAllCulling && Settings.EnablePvsCulling;
+        sunCascades.Fit(Scene, camera, ShadowDepthBuffer.Width, sky?.Sky?.Scale ?? 1f);
 
         for (var cascade = 0; cascade < sunCascades.ActiveCount; cascade++)
         {
-            var states = sunCascadeSceneStates[cascade];
-            states.Clear();
-
-            foreach (var mainState in main.States)
-            {
-                states.Add(SunCascadeViewStateFor(cascade, mainState.Scene));
-            }
-
             var view = new SceneView
             {
-                States = states,
+                States = SunCascadeStates(sunCascadeViewStates[cascade], sunCascadeSceneStates[cascade], main),
                 Camera = sunCascades.Cameras[cascade],
                 Fog = main.Fog,
             };
 
-            var frustum = CullFrustumFor(view) ?? view.Camera.ViewFrustum;
-            var depthMin = float.MaxValue;
-            var depthMax = float.MinValue;
+            // No sky lightmap holds the shadows of the world, so its static geometry casts too while a sky shares the
+            // cascades. Where the world lightmap already shadows, the two multiply into the same shadow.
+            var cullFrustum = CullFrustumFor(view);
+            var (depthMin, depthMax) = CollectSunCascadeCasters(view, main, cullFrustum ?? view.Camera.ViewFrustum, sunCascades.CastDirection,
+                includeBakedStatic: sky != null);
 
-            foreach (var state in states)
+            sunCascadeSkyViews[cascade] = null;
+
+            if (sky is { Sky: { } skyTransform } skyFrom)
             {
-                var scene = state.Scene;
+                var skyView = view with
+                {
+                    States = SunCascadeStates(sunCascadeSkyViewStates[cascade], sunCascadeSkySceneStates[cascade], skyFrom),
+                    Sky = skyTransform,
+                };
 
-                state.Pvs = pvsEnabled && scene.VoxelVisibility is { } visibility ? visibility.SunVisibility : default;
+                var skyToWorld = skyTransform.SkyToWorld;
 
-                var (min, max) = state.CollectShadowCasters(frustum,
-                    includeStatic: !scene.LightingInfo.HasBakedShadowsFromLightmap || !scene.LightingInfo.IsSunShadowBaked,
-                    ObjectTypeFlags.NoShadows | ObjectTypeFlags.NoSunShadows, scene.VisibilityBoxes.View, sunCascades.CastDirection);
+                // A 3D sky casts from where the viewer sees it, so it culls against the cascade brought into sky space
+                if (cullFrustum == null)
+                {
+                    viewerSpaceCascadeFrustum.Update(skyToWorld * view.Camera.ViewProjectionMatrix);
+                }
 
-                depthMin = MathF.Min(depthMin, min);
-                depthMax = MathF.Max(depthMax, max);
+                // Its depth is measured along the cast direction scaled into sky space, then offset to where the
+                // viewer sees it. No world lightmap holds the shadows of the sky, so its static geometry casts too.
+                var (skyDepthMin, skyDepthMax) = CollectSunCascadeCasters(skyView, skyFrom, cullFrustum ?? viewerSpaceCascadeFrustum,
+                    sunCascades.CastDirection * skyTransform.Scale, includeBakedStatic: true);
+                var skyDepthOffset = Vector3.Dot(skyToWorld.Translation, sunCascades.CastDirection);
+
+                depthMin = MathF.Min(depthMin, skyDepthMin + skyDepthOffset);
+                depthMax = MathF.Max(depthMax, skyDepthMax + skyDepthOffset);
+                sunCascadeSkyViews[cascade] = skyView;
             }
 
             sunCascades.FitDepthRange(cascade, depthMin, depthMax);
             sunCascadeViews[sunCascadeViewCount++] = view;
         }
+    }
+
+    private static List<SceneViewState> SunCascadeStates(Dictionary<Scene, SceneViewState> states, List<SceneViewState> list, in SceneView from)
+    {
+        list.Clear();
+
+        foreach (var state in from.States)
+        {
+            list.Add(SunCascadeViewStateFor(states, state.Scene));
+        }
+
+        return list;
+    }
+
+    // Casters cull with the visibility boxes of the frame view they cast from, as split for its eye
+    private (float Min, float Max) CollectSunCascadeCasters(in SceneView view, in SceneView from, Frustum frustum, Vector3 depthFitAxis, bool includeBakedStatic)
+    {
+        var pvsEnabled = !Settings.DisableAllCulling && Settings.EnablePvsCulling;
+        var depthMin = float.MaxValue;
+        var depthMax = float.MinValue;
+
+        for (var i = 0; i < view.States.Count; i++)
+        {
+            var state = view.States[i];
+            var scene = state.Scene;
+
+            state.Pvs = pvsEnabled && scene.VoxelVisibility is { } visibility ? visibility.SunVisibility : default;
+
+            var (min, max) = state.CollectShadowCasters(frustum,
+                includeStatic: includeBakedStatic || !scene.LightingInfo.HasBakedShadowsFromLightmap || !scene.LightingInfo.IsSunShadowBaked,
+                ObjectTypeFlags.NoShadows | ObjectTypeFlags.NoSunShadows, from.States[i].VisibilityBoxes, depthFitAxis);
+
+            depthMin = MathF.Min(depthMin, min);
+            depthMax = MathF.Max(depthMax, max);
+        }
+
+        return (depthMin, depthMax);
     }
 
     private void UpdateBarnLightFaceViews()
@@ -922,7 +973,12 @@ public class Renderer : ISceneHost
         ViewBuffer.Data.IsSkybox = view.Sky != null;
         ViewBuffer.Data.SceneIndex = (uint)scenes.IndexOf(state.Scene);
 
-        ViewBuffer.Data.SunShadowsEnabled = view.Sky == null;
+        // A sky receives the cascades from where the viewer sees it
+        var toViewerWorld = view.Sky?.SkyToWorld ?? Matrix4x4.Identity;
+
+        ViewBuffer.Data.SunShadowsEnabled = view.Sky == null || view.SkyReceivesSunShadows;
+        ViewBuffer.Data.WorldToShadow = toViewerWorld * sunCascades.GetShadowMatrix(0);
+        ViewBuffer.Data.WorldToShadowCascade1 = toViewerWorld * sunCascades.GetShadowMatrix(1);
     }
 
     private void UploadViewConstants(in SceneView view, SceneViewState state)
@@ -1537,8 +1593,6 @@ public class Renderer : ISceneHost
         renderContext.Framebuffer = ShadowDepthBuffer;
         renderContext.Scene = Scene;
 
-        ViewBuffer.Data.WorldToShadow = sunCascades.Cameras[0].ViewProjectionMatrix;
-        ViewBuffer.Data.WorldToShadowCascade1 = sunCascades.Cameras[1].ViewProjectionMatrix;
         ViewBuffer.Data.SunLightShadowBias = sunCascades.ShadowBias;
 
         using (new GLDebugGroup("Direct Light Shadows"))
@@ -1553,20 +1607,30 @@ public class Renderer : ISceneHost
                     continue;
                 }
 
-                var view = sunCascadeViews[cascade];
-
-                ViewBuffer.Data.WorldToProjection = view.Camera.ViewProjectionMatrix;
-                ViewBuffer.Update();
-
                 PerfStats.Active.Count(Counter.DirectionalShadowMap);
 
-                foreach (var state in view.States)
+                RenderSunCascadeCasters(renderContext, sunCascadeViews[cascade]);
+
+                if (sunCascadeSkyViews[cascade] is { } skyView)
                 {
-                    renderContext.Scene = state.Scene;
-                    state.Scene.BindDrawBuffers();
-                    state.RenderShadowCasters(renderContext, depthOnlyShader, shadowCasterDraws);
+                    RenderSunCascadeCasters(renderContext, skyView);
                 }
             }
+        }
+    }
+
+    private void RenderSunCascadeCasters(Scene.RenderContext renderContext, in SceneView view)
+    {
+        Debug.Assert(ViewBuffer != null);
+
+        ViewBuffer.Data.WorldToProjection = (view.Sky?.SkyToWorld ?? Matrix4x4.Identity) * view.Camera.ViewProjectionMatrix;
+        ViewBuffer.Update();
+
+        foreach (var state in view.States)
+        {
+            renderContext.Scene = state.Scene;
+            state.Scene.BindDrawBuffers();
+            state.RenderShadowCasters(renderContext, depthOnlyShader, shadowCasterDraws);
         }
     }
 
@@ -2155,7 +2219,7 @@ public class Renderer : ISceneHost
 
         LendSun(views[0]);
 
-        UpdateSunCascadeViews(views[0], updateContext.Camera);
+        UpdateSunCascadeViews(views, updateContext.Camera);
 
         if (Settings.EnableBarnLights)
         {
