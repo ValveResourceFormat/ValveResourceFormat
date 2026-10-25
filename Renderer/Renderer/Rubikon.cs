@@ -250,7 +250,6 @@ public class Rubikon
 
         /// <summary>
         /// Gets or sets the hash of the surface property of the hit triangle or hull, zero when unknown.
-        /// Only ray traces report it.
         /// </summary>
         public uint SurfacePropertyHash { get; set; }
 
@@ -1130,6 +1129,9 @@ public class Rubikon
 
     internal const string Cs2PlayerCollisionFilter = "player";
 
+    // What the player stands on, without the player clips laid over it, to find the surface underfoot
+    internal const string FootstepCollisionName = "footstep";
+
     /// <summary>Which shapes a query collides with, decided from each shape's interaction tags.</summary>
     private readonly struct CollisionFilter
     {
@@ -1192,6 +1194,9 @@ public class Rubikon
                 && !ContainsString(interactAs, "passbullets")
                 && !ContainsString(interactAs, "window"),
 
+            FootstepCollisionName => !ContainsString(interactAs, "passbullets")
+                && !ContainsString(interactAs, "window"),
+
             GrenadeCollisionName => !ContainsString(interactAs, "csgo_grenadeclip")
                 && !ContainsString(interactAs, "passbullets")
                 && !ContainsString(interactAs, "window"),
@@ -1248,7 +1253,7 @@ public class Rubikon
 
         while (triangles.MoveNext(out var v0, out var v1, out var v2))
         {
-            AABBTraceTriangle13AxisSat(trace, v0, v1, v2, ref closestHit);
+            AABBTraceTriangle13AxisSat(trace, v0, v1, v2, hull.SurfacePropertyHash, ref closestHit);
 
             if (closestHit.StopsScanning(trace.DetectStartSolid))
             {
@@ -1470,7 +1475,7 @@ public class Rubikon
                 var v1 = mesh.VertexPositions[triangle.Y];
                 var v2 = mesh.VertexPositions[triangle.Z];
 
-                AABBTraceTriangle13AxisSat(trace, v0, v1, v2, ref ClosestHit);
+                AABBTraceTriangle13AxisSat(trace, v0, v1, v2, mesh.GetSurfacePropertyHash(i), ref ClosestHit);
 
                 if (ClosestHit.StopsScanning(trace.DetectStartSolid))
                 {
@@ -1482,7 +1487,7 @@ public class Rubikon
         }
     }
 
-    private static void AABBTraceTriangle13AxisSat(in AABBTraceContext trace, Vector3 v0, Vector3 v1, Vector3 v2, ref TraceResult closestHit)
+    private static void AABBTraceTriangle13AxisSat(in AABBTraceContext trace, Vector3 v0, Vector3 v1, Vector3 v2, uint surfacePropertyHash, ref TraceResult closestHit)
     {
         var halfSweep = trace.Direction * (MathF.Min(trace.Length, closestHit.Distance) * 0.5f);
         var sweptHalfExtents = Vector3.Abs(halfSweep) + trace.HalfExtents + new Vector3(SurfaceEpsilon);
@@ -1580,6 +1585,7 @@ public class Rubikon
             {
                 StartSolid = true,
                 ContactPoint = trace.ComputeContactPoint ? ClosestPointOnTriangle(trace.Origin, v0, v1, v2) : trace.Origin,
+                SurfacePropertyHash = surfacePropertyHash,
             };
             return;
         }
@@ -1593,6 +1599,7 @@ public class Rubikon
             closestHit = new TraceResult(true, hitPoint, hitNormal, hitDistance, -1)
             {
                 ContactPoint = trace.ComputeContactPoint ? ClosestPointOnTriangle(hitPoint, v0, v1, v2) : hitPoint,
+                SurfacePropertyHash = surfacePropertyHash,
             };
         }
     }

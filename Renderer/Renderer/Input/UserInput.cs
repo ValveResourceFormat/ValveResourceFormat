@@ -134,7 +134,7 @@ public class UserInput
     {
         Renderer = renderer;
         Camera = new Camera(renderer.RendererContext.FieldOfView);
-        PlayerMovement = new PlayerMovement(this);
+        PlayerMovement = new PlayerMovement(this, renderer.RendererContext.FileLoader);
     }
 
     /// <summary>

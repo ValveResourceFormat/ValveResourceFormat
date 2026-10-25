@@ -1,4 +1,6 @@
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.Entities;
+using ValveResourceFormat.Renderer.Gameplay;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer.Input;
@@ -113,21 +115,16 @@ public class PlayerMovement : IPlayerController
     private readonly ViewEffects Effects = new();
 
     // Movement sound events (CS2, game_sounds_footsteps.vsndevts / game_sounds_player.vsndevts).
-    // Footstep and land events are per-material (CT_<Material>.StepLeft / Land_<Material>.StepLeft);
-    // physics traces do not return surface materials yet, so default to concrete.
-    private const string FootstepSoundEvent = "CT_Concrete.StepLeft";
+    // Footstep and land events depend on the surface underfoot, from FootstepSoundTable.
     private const string LadderStepSoundEvent = "CT_Ladder.StepLeft";
     private const string JumpSoundEvent = "Default.WalkJump";
-    private const string LandSoundEvent = "Land_Concrete.StepLeft";
     private const string GearSoundEvent = "Gear.JumpLand.CT";
     private const float GearVolume = 0.1f;
     private const string FallDamageSoundEvent = "Player.DamageFall";
 
     private static readonly string[] MovementSounds = [
-        FootstepSoundEvent,
         LadderStepSoundEvent,
         JumpSoundEvent,
-        LandSoundEvent,
         GearSoundEvent,
         FallDamageSoundEvent,
     ];
@@ -141,6 +138,11 @@ public class PlayerMovement : IPlayerController
     private const float FallDamageSpeed = 580f;
 
     private float StepSoundTime;
+    private bool StepIsLeft;
+    private FootstepSoundTable.SurfaceSounds? CachedSurfaceSounds;
+
+    private readonly GameFileLoader FileLoader;
+    private FootstepSoundTable FootstepSounds = new();
     private readonly List<Audio.SoundHandle> ActiveMovementSounds = [];
 
     /// <summary>
@@ -270,9 +272,11 @@ public class PlayerMovement : IPlayerController
     /// Initializes a new <see cref="PlayerMovement"/> bound to the given user input source.
     /// </summary>
     /// <param name="input">The user input instance used to read key state.</param>
-    public PlayerMovement(UserInput input)
+    /// <param name="fileLoader">The loader for the footstep sounds of each surface.</param>
+    public PlayerMovement(UserInput input, GameFileLoader fileLoader)
     {
         Input = input;
+        FileLoader = fileLoader;
     }
 
     /// <summary>
@@ -359,9 +363,11 @@ public class PlayerMovement : IPlayerController
         return new PlayerButtonState(held, changed & held, changed & ~held);
     }
 
-    /// <summary>Pre-decodes the sounds movement can fire, so the first step does not decode mid-frame.</summary>
-    public static void CacheSounds()
+    /// <summary>Loads the footstep sounds and pre-decodes the sounds movement can fire, so the first step does not stall mid-frame.</summary>
+    public void CacheSounds()
     {
+        FootstepSounds = new FootstepSoundTable(FileLoader);
+
         foreach (var soundEvent in MovementSounds)
         {
             Sound.Cache(soundEvent);
@@ -573,7 +579,7 @@ public class PlayerMovement : IPlayerController
         // A landing that immediately turns into another jump (perfect bhop) skips the land thud
         if (!willBunnyHop)
         {
-            PlaySound(LandSoundEvent, position, halfExtents);
+            PlaySound(TraceFootstepSurface(position, halfExtents).Land, position, halfExtents);
             PlaySound(GearSoundEvent, position, halfExtents, GearVolume);
         }
 
@@ -628,7 +634,43 @@ public class PlayerMovement : IPlayerController
         SetStepSoundTime(walking);
 
         // Walking pace plays quiet steps, running plays at full volume
-        PlaySound(FootstepSoundEvent, position, halfExtents, walking ? WalkingStepVolume : null);
+        PlayFootstep(position, halfExtents, walking ? WalkingStepVolume : null);
+    }
+
+    private void PlayFootstep(Vector3 position, Vector3 halfExtents, float? volume = null)
+    {
+        var sounds = TraceFootstepSurface(position, halfExtents);
+
+        StepIsLeft = !StepIsLeft;
+        PlaySound(StepIsLeft ? sounds.StepLeft : sounds.StepRight, position, halfExtents, volume);
+    }
+
+    // Unlike the movement traces this passes through player clips to reach the ground they cover
+    private FootstepSoundTable.SurfaceSounds TraceFootstepSurface(Vector3 position, Vector3 halfExtents)
+    {
+        // Reaches a step height under the feet, as deep as the ground under a clip can be while it is stood on
+        var reach = new Vector3(0, 0, StepSize);
+        var sweep = Physics?.TraceAABB(position, position - reach, halfExtents, Rubikon.FootstepCollisionName) ?? new Rubikon.TraceResult();
+        Input.EntitySystem?.TraceAABB(position, position - reach, halfExtents, detectStartSolid: false, ref sweep);
+
+        // Where surfaces meet under the footprint, the one under the center wins
+        var feet = position - new Vector3(0, 0, halfExtents.Z);
+        var center = Physics?.TraceRay(position, feet - reach, Rubikon.FootstepCollisionName) ?? new Rubikon.TraceResult();
+        Input.EntitySystem?.TraceRay(position, feet - reach, Rubikon.FootstepCollisionName, ref center);
+
+        var restsOnCenter = center.Hit && center.HitPosition.Z >= sweep.HitPosition.Z - halfExtents.Z - GroundProbeDistance;
+        var sounds = FootstepSounds.Find(restsOnCenter ? center.SurfacePropertyHash : sweep.SurfacePropertyHash);
+
+        // Decoded once a surface is first walked on, ahead of the steps and the landing that follow
+        if (sounds != CachedSurfaceSounds)
+        {
+            CachedSurfaceSounds = sounds;
+            Sound.Cache(sounds.StepLeft);
+            Sound.Cache(sounds.StepRight);
+            Sound.Cache(sounds.Land);
+        }
+
+        return sounds;
     }
 
     /// <summary>
@@ -1698,7 +1740,7 @@ public class PlayerMovement : IPlayerController
 
         if (loudTakeoffFootstep)
         {
-            PlaySound(FootstepSoundEvent, position, halfExtents);
+            PlayFootstep(position, halfExtents);
         }
 
         PlaySound(JumpSoundEvent, position, halfExtents);
