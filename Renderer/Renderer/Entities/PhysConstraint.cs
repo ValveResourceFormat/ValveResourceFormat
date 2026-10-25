@@ -40,6 +40,8 @@ public abstract class PhysConstraint : BaseEntity
 
     private Joint joint;
     private bool hasJoint;
+    private Body worldFreedBody;
+    private bool hasWorldFreedBody;
     private bool isBroken;
     private float forceLimit;
     private float torqueLimit;
@@ -155,6 +157,15 @@ public abstract class PhysConstraint : BaseEntity
         {
             joint = created;
             hasJoint = true;
+
+            // The world is a single body to the engine, so no collision with it frees the other body of all
+            // static geometry, such as a drawer of the cabinet it slides in
+            if (!connection.CollideConnected && (body1.Equals(physics.WorldAnchor) || body2.Equals(physics.WorldAnchor)))
+            {
+                worldFreedBody = body1.Equals(physics.WorldAnchor) ? body2 : body1;
+                hasWorldFreedBody = true;
+                PhysicsSimulation.SetCollidesWith(worldFreedBody, PhysicsSimulation.StaticCategory, collide: false);
+            }
 
             if (wakeBodies)
             {
@@ -272,6 +283,16 @@ public abstract class PhysConstraint : BaseEntity
         }
 
         hasJoint = false;
+
+        if (hasWorldFreedBody)
+        {
+            hasWorldFreedBody = false;
+
+            if (worldFreedBody.IsValid)
+            {
+                PhysicsSimulation.SetCollidesWith(worldFreedBody, PhysicsSimulation.StaticCategory, collide: true);
+            }
+        }
     }
 
     [EntityInput("Break")]
