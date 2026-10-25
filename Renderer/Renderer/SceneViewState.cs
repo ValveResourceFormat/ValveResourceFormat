@@ -82,6 +82,13 @@ public sealed class SceneViewState
     /// <summary>Translucent draws that go to the water effects map instead of the scene.</summary>
     private readonly List<MeshBatchRenderer.Request> waterEffectsRenderList = [];
     private readonly List<MeshBatchRenderer.Request> effectsBloomRenderList = [];
+    private readonly List<MeshBatchRenderer.Request> toolsRenderList = [];
+
+    /// <summary>
+    /// Gets the nodes the last culling found that draw in the tools pass, which the editor draws
+    /// over the final image.
+    /// </summary>
+    public IReadOnlyList<MeshBatchRenderer.Request> ToolsRenderList => toolsRenderList;
 
     /// <summary>Translucent shapes whose fills skip the sorted translucent layer when it draws them order independently.</summary>
     private readonly List<ShapeSceneNode> orderIndependentFills = [];
@@ -385,6 +392,7 @@ public sealed class SceneViewState
         waterEffectsRenderList.Clear();
         effectsBloomRenderList.Clear();
         orderIndependentFills.Clear();
+        toolsRenderList.Clear();
         customBufferNodes.Clear();
         alphaTestAggregateDraws.Clear();
         alphaTestOpaqueDraws.Clear();
@@ -569,6 +577,11 @@ public sealed class SceneViewState
                 if ((customPasses & CustomRenderPasses.EffectsBloom) != 0)
                 {
                     effectsBloomRenderList.Add(customRender);
+                }
+
+                if ((customPasses & CustomRenderPasses.Tools) != 0)
+                {
+                    toolsRenderList.Add(customRender);
                 }
             }
         }

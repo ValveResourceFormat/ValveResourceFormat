@@ -1,3 +1,5 @@
+using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Entities;
@@ -19,22 +21,28 @@ public sealed class EnvParticleGlow : InfoParticleSystem
     {
         base.Activate();
 
-        if (Effect == null)
+        if (Effect != null)
         {
-            return;
+            SetGlowControlPoints(Effect, KeyValues);
         }
+    }
 
-        Effect.GetControlPoint(16).Position = KeyValues.GetVector3Property("colortint", new Vector3(255f));
-        Effect.GetControlPoint(17).Position = new Vector3(
-            KeyValues.GetFloatProperty("alphascale", 1f),
-            KeyValues.GetFloatProperty("scale", 1f),
-            KeyValues.GetFloatProperty("selfillumscale", 1f));
+    /// <summary>Sets the tint and the scales of a glow effect, and the texture it is drawn with, as the keys give them.</summary>
+    /// <param name="effect">The effect.</param>
+    /// <param name="keyValues">The keyvalues of the entity.</param>
+    internal static void SetGlowControlPoints(ParticleSceneNode effect, EntityLump.Entity keyValues)
+    {
+        effect.GetControlPoint(16).Position = keyValues.GetVector3Property("colortint", new Vector3(255f));
+        effect.GetControlPoint(17).Position = new Vector3(
+            keyValues.GetFloatProperty("alphascale", 1f),
+            keyValues.GetFloatProperty("scale", 1f),
+            keyValues.GetFloatProperty("selfillumscale", 1f));
 
-        var textureOverride = KeyValues.GetStringProperty("effect_textureOverride");
+        var textureOverride = keyValues.GetStringProperty("effect_textureOverride");
 
         if (!string.IsNullOrEmpty(textureOverride))
         {
-            Effect.SetTextureOverride(textureOverride);
+            effect.SetTextureOverride(textureOverride);
         }
     }
 

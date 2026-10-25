@@ -1479,6 +1479,19 @@ namespace ValveResourceFormat.Renderer
         /// <param name="layerName">The layer name of a node.</param>
         internal static bool IsInternalLayer(string layerName) => layerName.StartsWith("Internal -", StringComparison.Ordinal);
 
+        /// <summary>
+        /// Gets whether the nodes of a layer are shown by the layers last given to <see cref="SetEnabledLayers"/>,
+        /// which shows every layer until it is first called.
+        /// </summary>
+        /// <param name="layerName">The name of the layer.</param>
+        /// <returns>Whether the layer is shown.</returns>
+        public bool IsLayerEnabled(string layerName)
+        {
+            ArgumentNullException.ThrowIfNull(layerName);
+
+            return enabledLayers == null || IsInternalLayer(layerName) || enabledLayers.Contains(layerName);
+        }
+
         private void ApplyLayerVisibility(SceneNode node)
         {
             if (enabledLayers == null)
