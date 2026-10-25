@@ -290,7 +290,8 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
     {
         foreach (var joint in phys.Joints)
         {
-            if (joint.Body1 >= hasBody.Length || joint.Body2 >= hasBody.Length
+            // Some models carry joints from a part to itself, which constrain nothing
+            if (joint.Body1 == joint.Body2 || joint.Body1 >= hasBody.Length || joint.Body2 >= hasBody.Length
                 || !hasBody[joint.Body1] || !hasBody[joint.Body2])
             {
                 continue;
