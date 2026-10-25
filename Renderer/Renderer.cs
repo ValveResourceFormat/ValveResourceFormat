@@ -1933,7 +1933,7 @@ public class Renderer : ISpawnGroupHost
     /// </summary>
     public void Dispose()
     {
-        ViewBuffer?.Dispose();
+        ViewBuffer?.Delete();
 
         DisposeViewStates();
         depthPyramid.Delete();

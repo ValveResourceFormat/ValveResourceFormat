@@ -408,7 +408,7 @@ public sealed class LightBinner(SceneViewState view) : IDisposable
         CullItemsGpu?.Delete();
         CullPlanesGpu?.Delete();
         VisibleBitsGpu?.Delete();
-        CullParamsGpu?.Dispose();
+        CullParamsGpu?.Delete();
         VisibilityReadback?.Dispose();
 
         CullBits = null;

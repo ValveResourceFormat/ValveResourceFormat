@@ -2468,12 +2468,12 @@ namespace ValveResourceFormat.Renderer
             if (disposing)
             {
                 ProjectedDecals.Delete();
-                FrustumBuffer?.Dispose();
+                FrustumBuffer?.Delete();
                 Skybox2D?.Delete();
                 Skybox2D = null;
-                lightingBuffer?.Dispose();
-                lpvBuffer?.Dispose();
-                envMapBuffer?.Dispose();
+                lightingBuffer?.Delete();
+                lpvBuffer?.Delete();
+                envMapBuffer?.Delete();
                 simulationDispatch.Dispose();
                 LightingInfo.DisposeBarnLights();
                 LightingInfo.DeleteProbeAtlas();

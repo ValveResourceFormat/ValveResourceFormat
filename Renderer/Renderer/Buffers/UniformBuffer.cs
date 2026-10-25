@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Renderer.Buffers
     /// Uniform buffer object that stores shader-accessible structured data on the GPU.
     /// </summary>
     /// <typeparam name="T">The struct type to store in the buffer.</typeparam>
-    public class UniformBuffer<T> : Buffer, IDisposable
+    public class UniformBuffer<T> : Buffer
         where T : notnull, new()
     {
         [NotNull]
@@ -20,7 +20,6 @@ namespace ValveResourceFormat.Renderer.Buffers
 
         // A buffer where the structure is marshalled into, before being sent to the GPU
         readonly float[] cpuBuffer;
-        readonly GCHandle cpuBufferHandle;
 
         /// <summary>Initializes a new uniform buffer at the given binding point index.</summary>
         /// <param name="bindingPoint">The UBO binding point index.</param>
@@ -31,7 +30,6 @@ namespace ValveResourceFormat.Renderer.Buffers
             Debug.Assert(Size <= 65536);
 
             cpuBuffer = new float[Size / 4];
-            cpuBufferHandle = GCHandle.Alloc(cpuBuffer, GCHandleType.Pinned);
 
             data = new T();
             Initialize();
@@ -45,19 +43,20 @@ namespace ValveResourceFormat.Renderer.Buffers
         {
             Debug.Assert(Size == Marshal.SizeOf(data));
 
-            var cpuBufferPtr = cpuBufferHandle.AddrOfPinnedObject();
-
-            if (typeof(T).IsValueType)
+            unsafe
             {
-                unsafe
+                fixed (float* cpuBufferPtr = cpuBuffer)
                 {
-                    // avoid Marshal.StructureToPtr boxing our struct
-                    Unsafe.Write(cpuBufferPtr.ToPointer(), data);
+                    if (typeof(T).IsValueType)
+                    {
+                        // avoid Marshal.StructureToPtr boxing our struct
+                        Unsafe.Write(cpuBufferPtr, data);
+                    }
+                    else
+                    {
+                        Marshal.StructureToPtr(data, (IntPtr)cpuBufferPtr, false);
+                    }
                 }
-            }
-            else
-            {
-                Marshal.StructureToPtr(data, cpuBufferPtr, false);
             }
         }
 
@@ -73,23 +72,6 @@ namespace ValveResourceFormat.Renderer.Buffers
         {
             WriteToCpuBuffer();
             GL.NamedBufferSubData(Handle, IntPtr.Zero, Size, cpuBuffer);
-        }
-
-        /// <inheritdoc/>
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        /// <summary>Releases the pinned CPU buffer handle held by this buffer.</summary>
-        protected virtual void Dispose(bool disposing)
-        {
-            // make sure dispose gets called, or this will leak
-            if (disposing)
-            {
-                cpuBufferHandle.Free();
-            }
         }
     }
 }
