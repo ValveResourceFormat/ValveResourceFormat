@@ -1,6 +1,6 @@
 ## Project Overview
 
-ValveResourceFormat (VRF) is a C# library and toolset for parsing Valve's Source 2 resource formats. Solution: `ValveResourceFormat.slnx`. Targets the latest released .NET with nullable reference types enabled. CI builds Release, which enables `TreatWarningsAsErrors` and `AnalysisMode=All`, so finish with `dotnet build -c Release` and `dotnet format`.
+ValveResourceFormat (VRF) is a C# library and toolset for parsing Valve's Source 2 resource formats. Solution: `ValveResourceFormat.slnx`. Targets the latest released .NET with nullable reference types enabled. CI builds Release, which enables `TreatWarningsAsErrors` and all analyzers.
 
 - **ValveResourceFormat/**: Core parsing library published to NuGet
 - **GUI/**: WinForms viewer
@@ -16,6 +16,12 @@ ValveResourceFormat (VRF) is a C# library and toolset for parsing Valve's Source
     - Download workshop items and game files to test with, including old builds and single VPK entries, with [SteamFileDownloader](https://github.com/SteamTracking/SteamFileDownloader).
 - **Misc/**: Auxiliary tools (ShaderValidator, RenderTest, etc.) in their own solution `Misc/MiscVrfProjects.slnx`.
 - **docs/**: VitePress site. When changing what VRF can parse, decompile, or export, update the support matrix and limitation tables in `docs/guides/format-support.md` in the same change.
+
+### Building
+
+- Release is slow, so iterate in Debug, run `dotnet build <changed project> -c Release --no-restore` in the background, and fix its warnings before finishing.
+- When a change uses reflection, `Type.GetType`, `Activator`, `MakeGenericType`, non-generic `Enum` APIs or serialization, add `-p:CheckAot=true` to the Release build.
+- Fix formatting with `dotnet format whitespace --include <changed files>`.
 
 ### Adding Formats
 

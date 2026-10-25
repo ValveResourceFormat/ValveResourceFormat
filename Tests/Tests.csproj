@@ -3,8 +3,9 @@
     <RollForward>LatestMajor</RollForward>
     <OutputType>Exe</OutputType>
     <PublishReadyToRun>false</PublishReadyToRun>
-    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
-    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableTrimAnalyzer Condition="'$(EnableTrimAnalyzer)' == ''">true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer Condition="'$(EnableAotAnalyzer)' == ''">true</EnableAotAnalyzer>
+    <ServerGarbageCollection>true</ServerGarbageCollection>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="TUnit" Version="1.75.0" />
