@@ -227,9 +227,6 @@ namespace ValveResourceFormat.Renderer
         private readonly Dictionary<SceneNode, bool> pendingRemovals = [];
         private bool updating;
 
-        private List<SceneNode> CulledShadowNodes { get; } = [];
-        private readonly List<RenderableMesh> listWithSingleMesh = [null!];
-
         /// <summary>The layer the map's own particle systems are put on.</summary>
         public const string ParticlesLayerName = "Particles";
 
@@ -248,11 +245,6 @@ namespace ValveResourceFormat.Renderer
         private int dynamicDrawEntryStart;
         private int drawEntryEnd;
         private int morphAtlasLayoutVersion;
-
-        private Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>>? barnShadowDrawCalls;
-
-        /// <summary>The boxes the shadow being collected culls its casters with, when its eye is not the scene view's.</summary>
-        private VisibilityBoxCuller? shadowCasterBoxes;
 
         // Bound probes in precedence order: most indoor first, then smallest, so the first volume
         // containing a point is the best one
@@ -302,9 +294,6 @@ namespace ValveResourceFormat.Renderer
 
             FrustumCullShader = RendererContext.ShaderLoader.LoadShader("frustum_cull");
             CompactionShader = RendererContext.ShaderLoader.LoadShader("compact_indirect_draws");
-
-            // set shadow lists to their max capacity
-            SetupSceneShadows(new Camera(), -1);
         }
 
         /// <summary>
@@ -1414,281 +1403,18 @@ namespace ValveResourceFormat.Renderer
             return false;
         }
 
-        internal Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>>[] CulledShadowDrawCallsCascades { get; } = CreateSunCascadeDrawCallCollections();
-        internal static Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> CreateDepthOnlyDrawCallCollection()
-            => Enum.GetValues<DepthOnlyBucket>().ToDictionary(static bucket => bucket, static _ => new List<MeshBatchRenderer.Request>());
-
-        private static Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>>[] CreateSunCascadeDrawCallCollections()
-        {
-            var buckets = new Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>>[WorldLightingInfo.SunCascadeCount];
-
-            for (var i = 0; i < buckets.Length; i++)
-            {
-                buckets[i] = CreateDepthOnlyDrawCallCollection();
-            }
-
-            return buckets;
-        }
-
-        /// <summary>Updates the sun light shadow cascades and collects shadow draw calls for each of them, if dynamic shadows are enabled.</summary>
-        /// <param name="camera">The main camera used to fit the shadow cascades.</param>
-        /// <param name="shadowMapSize">The shadow map resolution; pass -1 to produce empty frustums and skip the sun row (pre-warm pass, or all culling disabled).</param>
-        public void SetupSceneShadows(Camera camera, int shadowMapSize)
-            => SetupSunShadows(LightingInfo, [this], camera, shadowMapSize);
-
-        internal static void SetupSunShadows(WorldLightingInfo sun, List<Scene> casters, Camera camera, int shadowMapSize)
-        {
-            if (!sun.EnableDynamicShadows)
-            {
-                return;
-            }
-
-            sun.UpdateSunLightFrustum(camera, shadowMapSize);
-
-            for (var cascade = 0; cascade < WorldLightingInfo.SunCascadeCount; cascade++)
-            {
-                var active = cascade < sun.ActiveSunCascadeCount;
-
-                if (active && shadowMapSize == -1)
-                {
-                    sun.SunLightFrustums[cascade].SetEmpty();
-                }
-
-                var casterDepthMin = float.MaxValue;
-                var casterDepthMax = float.MinValue;
-
-                foreach (var scene in casters)
-                {
-                    if (!active)
-                    {
-                        foreach (var bucket in scene.CulledShadowDrawCallsCascades[cascade].Values)
-                        {
-                            bucket.Clear();
-                        }
-
-                        continue;
-                    }
-
-                    var sunVisibility = shadowMapSize != -1 && scene.Settings.EnablePvsCulling && scene.VoxelVisibility != null
-                        ? scene.VoxelVisibility.SunVisibility
-                        : default;
-
-                    scene.CollectShadowDrawCalls(sun.SunLightFrustums[cascade],
-                        includeStatic: !scene.LightingInfo.HasBakedShadowsFromLightmap || !scene.LightingInfo.IsSunShadowBaked,
-                        includeDynamic: true, skipFlags: ObjectTypeFlags.NoShadows | ObjectTypeFlags.NoSunShadows,
-                        scene.CulledShadowDrawCallsCascades[cascade],
-                        sun.SunCastDirection, out var sceneDepthMin, out var sceneDepthMax,
-                        sunVisibility);
-
-                    casterDepthMin = MathF.Min(casterDepthMin, sceneDepthMin);
-                    casterDepthMax = MathF.Max(casterDepthMax, sceneDepthMax);
-                }
-
-                if (active)
-                {
-                    sun.FitSunLightDepthRange(cascade, casterDepthMin, casterDepthMax);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Collects the shadow draw calls for a single barn light face. The returned buckets are
-        /// scratch, valid until the next call.
-        /// </summary>
-        /// <param name="light">The barn light owning the shadow face.</param>
-        /// <param name="lightFrustum">The frustum representing the light's view for this face.</param>
-        public Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> SetupBarnLightFaceShadow(SceneLight light, Frustum lightFrustum)
-        {
-            barnShadowDrawCalls ??= CreateDepthOnlyDrawCallCollection();
-
-            shadowCasterBoxes = VisibilityBoxes.PrepareSecondaryView(light.Position);
-
-            // Skip static geo for stationary lights
-            CollectShadowDrawCalls(lightFrustum, includeStatic: light.DirectLight != SceneLight.DirectLightType.Stationary, includeDynamic: true, skipFlags: ObjectTypeFlags.NoShadows, barnShadowDrawCalls);
-
-            shadowCasterBoxes = null;
-
-            return barnShadowDrawCalls;
-        }
-
-        private void CollectShadowDrawCalls(Frustum frustum, bool includeStatic, bool includeDynamic, ObjectTypeFlags skipFlags, Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> drawBuckets)
-            => CollectShadowDrawCalls(frustum, includeStatic, includeDynamic, skipFlags, drawBuckets, Vector3.Zero, out _, out _, default);
-
-        private void CollectShadowDrawCalls(Frustum frustum, bool includeStatic, bool includeDynamic, ObjectTypeFlags skipFlags, Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> drawBuckets,
-            Vector3 depthFitAxis, out float casterDepthMin, out float casterDepthMax, ReadOnlyMemory<byte> casterVisibility)
-        {
-            // Extent of the accepted casters along the fit axis, for tightening the light's depth range
-            var depthMin = float.MaxValue;
-            var depthMax = float.MinValue;
-
-            void AccumulateDepthFit(SceneNode casterNode)
-            {
-                if (depthFitAxis == Vector3.Zero)
-                {
-                    return;
-                }
-
-                var bounds = casterNode.BoundingBox;
-                var center = Vector3.Dot(bounds.Center, depthFitAxis);
-                var extent = Vector3.Dot(bounds.Size, Vector3.Abs(depthFitAxis)) * 0.5f;
-
-                depthMin = Math.Min(depthMin, center - extent);
-                depthMax = Math.Max(depthMax, center + extent);
-            }
-
-            foreach (var bucket in drawBuckets.Values)
-            {
-                bucket.Clear();
-            }
-
-            if (includeStatic)
-            {
-                StaticOctree.Query(frustum, CulledShadowNodes);
-            }
-
-            if (includeDynamic)
-            {
-                DynamicOctree.Query(frustum, CulledShadowNodes);
-            }
-
-            foreach (var node in CulledShadowNodes)
-            {
-                if (!node.Visible)
-                {
-                    continue;
-                }
-
-                if (!IsNodeInPvs(node, casterVisibility.Span))
-                {
-                    PerfStats.Active.Count(Counter.ShadowCasterCulledByPvs, 1);
-                    continue;
-                }
-
-                if ((shadowCasterBoxes ?? VisibilityBoxes.View).IsCulled(node.BoundingBox))
-                {
-                    PerfStats.Active.Count(Counter.ShadowCasterCulledByVisibilityBox, 1);
-                    continue;
-                }
-
-                List<RenderableMesh> meshes;
-
-                if (node is MeshCollectionNode meshCollection)
-                {
-                    if ((node.Flags & skipFlags) != 0)
-                    {
-                        continue;
-                    }
-
-                    meshes = meshCollection.RenderableMeshes;
-                }
-                else if (node is SceneAggregate.Fragment fragment)
-                {
-                    if ((fragment.Flags & skipFlags) != 0)
-                    {
-                        continue;
-                    }
-
-                    if (!fragment.Parent.IsFragmentInActiveLod(fragment))
-                    {
-                        continue;
-                    }
-
-                    AccumulateDepthFit(node);
-                    AddShadowDrawCall(fragment.RenderMesh, fragment.DrawCall, node, drawBuckets);
-                    continue;
-                }
-                else if (node is SceneAggregate aggregate)
-                {
-                    if ((aggregate.AllFlags & skipFlags) != 0)
-                    {
-                        continue;
-                    }
-
-                    if (aggregate.InstanceTransforms.Count == 0)
-                    {
-                        continue;
-                    }
-
-                    listWithSingleMesh[0] = aggregate.RenderMesh;
-                    meshes = listWithSingleMesh;
-                }
-                else
-                {
-                    if ((node.Flags & skipFlags) == 0 && (node.RenderPasses & CustomRenderPasses.DepthOnly) != 0)
-                    {
-                        AccumulateDepthFit(node);
-
-                        drawBuckets[DepthOnlyBucket.MaterialDepthMode].Add(new MeshBatchRenderer.Request
-                        {
-                            Node = node,
-                        });
-                    }
-
-                    continue;
-                }
-
-                AccumulateDepthFit(node);
-
-                foreach (var mesh in meshes)
-                {
-                    foreach (var opaqueCall in mesh.DrawCallsOpaque)
-                    {
-                        AddShadowDrawCall(mesh, opaqueCall, node, drawBuckets);
-                    }
-                }
-            }
-
-            CulledShadowNodes.Clear();
-
-            casterDepthMin = depthMin;
-            casterDepthMax = depthMax;
-        }
-
-        private void AddShadowDrawCall(RenderableMesh mesh, DrawCall opaqueCall, SceneNode node, Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> drawBuckets)
-        {
-            if (!CastsShadows(opaqueCall.Material, node))
-            {
-                return;
-            }
-
-            var bucket = GetDepthOnlyBucket(opaqueCall);
-
-            drawBuckets[bucket].Add(new MeshBatchRenderer.Request
-            {
-                Mesh = mesh,
-                Call = opaqueCall,
-                Node = node,
-            });
-        }
-
         /// <summary>Gets whether a draw of a node is drawn into the views, see <see cref="RenderSettings.DrawFilter"/>.</summary>
         internal bool IsDrawn(RenderMaterial material, SceneNode node)
             => Settings.DrawFilter?.GetVisibility(node, material) is null or DrawVisibility.Drawn;
 
         // Geometry that blocks light casts shadows whatever its material says
-        private bool CastsShadows(RenderMaterial material, SceneNode node)
+        internal bool CastsShadows(RenderMaterial material, SceneNode node)
             => Settings.DrawFilter?.GetVisibility(node, material) switch
             {
                 DrawVisibility.Hidden => false,
                 DrawVisibility.ShadowOnly => true,
                 _ => material.BlocksLight || !material.DoNotCastShadows,
             };
-
-        // The skinning variant is picked per draw, so the bucket only says which shader draws it
-        internal static DepthOnlyBucket GetDepthOnlyBucket(DrawCall opaqueCall)
-        {
-            return opaqueCall.Material.VertexAnimation ? DepthOnlyBucket.MaterialDepthMode
-                : opaqueCall.Material.IsAlphaTest ? DepthOnlyBucket.AlphaTest
-                : DepthOnlyBucket.Specialized;
-        }
-
-        /// <summary>Picks the shader for a depth-only bucket, or <see langword="null"/> to resolve one per draw.</summary>
-        private static Shader? GetDepthOnlyReplacementShader(DepthOnlyBucket bucket, Shader depthOnlyShader) => bucket switch
-        {
-            DepthOnlyBucket.AlphaTest => depthOnlyShader.WithCombo(Shader.AlphaTestCombo, 1),
-            DepthOnlyBucket.MaterialDepthMode => null,
-            _ => depthOnlyShader,
-        };
 
         internal void UpdateIndirectRenderingState()
         {
@@ -1699,33 +1425,6 @@ namespace ValveResourceFormat.Renderer
             {
                 CompactMeshletDraws = GLEnvironment.IndirectCountSupported && Settings.EnableCompaction;
             }
-        }
-
-        /// <summary>
-        /// Renders shadow depth passes for all draw call buckets using their corresponding specialized depth-only shaders.
-        /// </summary>
-        /// <param name="renderContext">The render context for this shadow pass.</param>
-        /// <param name="depthOnlyShader">The depth-only shader, which the pass takes skinning variants of.</param>
-        /// <param name="drawCalls">The bucketed draw calls to render.</param>
-        public static void RenderOpaqueShadows(RenderContext renderContext, Shader depthOnlyShader, Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> drawCalls)
-        {
-            renderContext.RenderPass = RenderPass.DepthOnly;
-            renderContext.DepthOnlyShader = depthOnlyShader;
-
-            PerfStats.Active.SuspendTriangleCounter();
-
-            foreach (var (bucket, calls) in drawCalls)
-            {
-                if (calls.Count == 0)
-                {
-                    continue;
-                }
-
-                renderContext.ReplacementShader = GetDepthOnlyReplacementShader(bucket, depthOnlyShader);
-                MeshBatchRenderer.Render(calls, renderContext);
-            }
-
-            PerfStats.Active.ResumeTriangleCounter();
         }
 
         internal void ActivateLayer(string layerName)

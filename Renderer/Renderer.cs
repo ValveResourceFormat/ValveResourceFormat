@@ -181,7 +181,6 @@ public class Renderer : ISpawnGroupHost
     public List<(ReservedTextureSlots Slot, string Name, RenderTexture Texture)> Textures { get; } = [];
 
     internal Shader depthOnlyShader = null!;
-    private readonly Frustum barnLightShadowFrustum = new();
     /// <summary>
     /// Depth-only framebuffer used for directional (sun) light shadow mapping.
     /// </summary>
@@ -291,16 +290,27 @@ public class Renderer : ISpawnGroupHost
 
     private readonly Dictionary<Scene, SceneViewState> mainViewStates = [];
     private readonly Dictionary<Scene, SceneViewState> skyViewStates = [];
+    private readonly Dictionary<Scene, SceneViewState>[] sunCascadeViewStates = [[], []];
+
+    private readonly Dictionary<Scene, SceneViewState>[] allViewStates;
 
     private readonly List<SceneViewState> mainViewSceneStates = [];
     private readonly List<SceneViewState> skyViewSceneStates = [];
+    private readonly List<SceneViewState>[] sunCascadeSceneStates = [[], []];
+
+    private readonly SunCascades sunCascades = new();
+    private readonly SceneView[] sunCascadeViews = new SceneView[SunCascades.Count];
+    private int sunCascadeViewCount;
+
+    private readonly List<SceneView> barnLightFaceViews = [];
+    private readonly ShadowAtlasRegion[] barnLightFaceRegions = new ShadowAtlasRegion[BarnLightConstants.MAX_BARN_LIGHTS];
+    private int barnLightFaceViewCount;
 
     private readonly WorldFogInfo skyFog = new();
 
     private readonly HashSet<Scene> scenesUpdated = [];
     private readonly HashSet<Scene> scenesCulled = [];
     private readonly Dictionary<SpawnGroup, Entities.SkyCamera?> skyCameras = [];
-    private readonly List<Scene> sunCasters = [];
 
     /// <summary>Gets the rendering toggles for all scenes.</summary>
     public RenderSettings Settings { get; } = new();
@@ -327,6 +337,7 @@ public class Renderer : ISpawnGroupHost
     public Renderer(RendererContext rendererContext)
     {
         RendererContext = rendererContext;
+        allViewStates = [mainViewStates, skyViewStates, .. sunCascadeViewStates];
         PerfStats = new PerfStats();
         Postprocess = new(rendererContext);
         LightTilesOverlay = new(rendererContext);
@@ -376,7 +387,7 @@ public class Renderer : ISpawnGroupHost
     {
         skyCameras.Remove(group);
 
-        foreach (var states in (ReadOnlySpan<Dictionary<Scene, SceneViewState>>)[mainViewStates, skyViewStates])
+        foreach (var states in allViewStates)
         {
             if (states.Remove(group.Scene, out var state))
             {
@@ -494,6 +505,112 @@ public class Renderer : ISpawnGroupHost
         return state;
     }
 
+    private SceneViewState SunCascadeViewStateFor(int cascade, Scene scene)
+    {
+        var states = sunCascadeViewStates[cascade];
+
+        if (!states.TryGetValue(scene, out var state))
+        {
+            state = new SceneViewState(scene, shadowCasters: true);
+            states.Add(scene, state);
+        }
+
+        return state;
+    }
+
+    private void UpdateSunCascadeViews(in SceneView main, Camera camera)
+    {
+        Debug.Assert(ShadowDepthBuffer != null);
+
+        sunCascadeViewCount = 0;
+
+        if (!Scene.LightingInfo.EnableDynamicShadows)
+        {
+            return;
+        }
+
+        sunCascades.Fit(Scene, camera, ShadowDepthBuffer.Width);
+
+        var pvsEnabled = !Settings.DisableAllCulling && Settings.EnablePvsCulling;
+
+        for (var cascade = 0; cascade < sunCascades.ActiveCount; cascade++)
+        {
+            var states = sunCascadeSceneStates[cascade];
+            states.Clear();
+
+            foreach (var mainState in main.States)
+            {
+                states.Add(SunCascadeViewStateFor(cascade, mainState.Scene));
+            }
+
+            var view = new SceneView
+            {
+                States = states,
+                Camera = sunCascades.Cameras[cascade],
+                Fog = main.Fog,
+            };
+
+            var frustum = CullFrustumFor(view) ?? view.Camera.ViewFrustum;
+            var depthMin = float.MaxValue;
+            var depthMax = float.MinValue;
+
+            foreach (var state in states)
+            {
+                var scene = state.Scene;
+
+                state.Pvs = pvsEnabled && scene.VoxelVisibility is { } visibility ? visibility.SunVisibility : default;
+
+                var (min, max) = state.CollectShadowCasters(frustum,
+                    includeStatic: !scene.LightingInfo.HasBakedShadowsFromLightmap || !scene.LightingInfo.IsSunShadowBaked,
+                    ObjectTypeFlags.NoShadows | ObjectTypeFlags.NoSunShadows, scene.VisibilityBoxes.View, sunCascades.CastDirection);
+
+                depthMin = MathF.Min(depthMin, min);
+                depthMax = MathF.Max(depthMax, max);
+            }
+
+            sunCascades.FitDepthRange(cascade, depthMin, depthMax);
+            sunCascadeViews[sunCascadeViewCount++] = view;
+        }
+    }
+
+    private void UpdateBarnLightFaceViews()
+    {
+        barnLightFaceViewCount = 0;
+
+        foreach (var caster in Scene.LightingInfo.ShadowMapper.ShadowCasters)
+        {
+            if (caster.Region.Width == 0)
+            {
+                continue;
+            }
+
+            if (barnLightFaceViewCount == barnLightFaceViews.Count)
+            {
+                var states = new List<SceneViewState>(1);
+                states.Add(new SceneViewState(Scene, shadowCasters: true));
+
+                barnLightFaceViews.Add(new SceneView
+                {
+                    States = states,
+                    Camera = new Camera(),
+                    Fog = Scene.FogInfo,
+                });
+            }
+
+            var view = barnLightFaceViews[barnLightFaceViewCount];
+
+            // A face keeps only its combined matrix
+            view.Camera.SetViewProjection(Matrix4x4.Identity, caster.WorldToFrustum);
+
+            // Static shadows of stationary lights are baked
+            view.States[0].CollectShadowCasters(view.Camera.ViewFrustum,
+                includeStatic: caster.Light.DirectLight != SceneLight.DirectLightType.Stationary,
+                ObjectTypeFlags.NoShadows, Scene.VisibilityBoxes.PrepareSecondaryView(caster.Light.Position), Vector3.Zero);
+
+            barnLightFaceRegions[barnLightFaceViewCount++] = caster.Region;
+        }
+    }
+
     /// <summary>The frustum a view's CPU cull runs against, or <see langword="null"/> for the camera's own.</summary>
     private Frustum? CullFrustumFor(in SceneView view) => Settings.DisableAllCulling ? noCullFrustum : view.LockedCullFrustum;
 
@@ -536,18 +653,6 @@ public class Renderer : ISpawnGroupHost
         {
             state.Scene.LightingInfo.BorrowSun(donor);
         }
-    }
-
-    private List<Scene> SceneCasters(in SceneView view)
-    {
-        sunCasters.Clear();
-
-        foreach (var state in view.States)
-        {
-            sunCasters.Add(state.Scene);
-        }
-
-        return sunCasters;
     }
 
     // Last view first, as a 2D sky from the 3D sky view replaces any from the main view
@@ -610,7 +715,7 @@ public class Renderer : ISpawnGroupHost
         Skybox2D = BaseBackground = new SceneBackground(Scene);
 
         ShadowDepthBuffer = Framebuffer.Prepare(nameof(ShadowDepthBuffer), ShadowTextureSize, ShadowTextureSize, 0, null, ImageFormat.D16);
-        ShadowDepthBuffer.DepthLayers = WorldLightingInfo.SunCascadeCount;
+        ShadowDepthBuffer.DepthLayers = SunCascades.Count;
         ShadowDepthBuffer.Initialize();
         ShadowDepthBuffer.ClearMask = ClearBufferMask.DepthBufferBit;
         Debug.Assert(ShadowDepthBuffer.Depth != null);
@@ -1044,7 +1149,15 @@ public class Renderer : ISpawnGroupHost
 
     private void DisposeViewStates()
     {
-        foreach (var states in (ReadOnlySpan<Dictionary<Scene, SceneViewState>>)[mainViewStates, skyViewStates])
+        foreach (var view in barnLightFaceViews)
+        {
+            view.States[0].Dispose();
+        }
+
+        barnLightFaceViews.Clear();
+        barnLightFaceViewCount = 0;
+
+        foreach (var states in allViewStates)
         {
             foreach (var state in states.Values)
             {
@@ -1412,32 +1525,34 @@ public class Renderer : ISpawnGroupHost
         renderContext.Framebuffer = ShadowDepthBuffer;
         renderContext.Scene = Scene;
 
-        ViewBuffer.Data.WorldToShadow = Scene.LightingInfo.SunViewProjections[0];
-        ViewBuffer.Data.WorldToShadowCascade1 = Scene.LightingInfo.SunViewProjections[1];
-        ViewBuffer.Data.SunLightShadowBias = Scene.LightingInfo.SunLightShadowBias;
+        ViewBuffer.Data.WorldToShadow = sunCascades.Cameras[0].ViewProjectionMatrix;
+        ViewBuffer.Data.WorldToShadowCascade1 = sunCascades.Cameras[1].ViewProjectionMatrix;
+        ViewBuffer.Data.SunLightShadowBias = sunCascades.ShadowBias;
 
         using (new GLDebugGroup("Direct Light Shadows"))
         {
-            for (var cascade = 0; cascade < WorldLightingInfo.SunCascadeCount; cascade++)
+            for (var cascade = 0; cascade < SunCascades.Count; cascade++)
             {
                 ShadowDepthBuffer.AttachDepthLayer(cascade);
                 GL.Clear(ClearBufferMask.DepthBufferBit);
 
-                if (cascade >= Scene.LightingInfo.ActiveSunCascadeCount)
+                if (cascade >= sunCascadeViewCount)
                 {
                     continue;
                 }
 
-                ViewBuffer.Data.WorldToProjection = Scene.LightingInfo.SunViewProjections[cascade];
+                var view = sunCascadeViews[cascade];
+
+                ViewBuffer.Data.WorldToProjection = view.Camera.ViewProjectionMatrix;
                 ViewBuffer.Update();
 
                 PerfStats.Active.Count(Counter.DirectionalShadowMap);
 
-                foreach (var state in mainViewSceneStates)
+                foreach (var state in view.States)
                 {
                     renderContext.Scene = state.Scene;
                     state.Scene.BindDrawBuffers();
-                    Scene.RenderOpaqueShadows(renderContext, depthOnlyShader, state.Scene.CulledShadowDrawCallsCascades[cascade]);
+                    state.RenderDepthOnlyLayer(renderContext, depthOnlyShader);
                 }
             }
         }
@@ -1475,30 +1590,24 @@ public class Renderer : ISpawnGroupHost
         GL.Scissor(0, 0, BarnLightShadowBuffer.Width, BarnLightShadowBuffer.Height);
         GL.Clear(ClearBufferMask.DepthBufferBit);
 
-        foreach (var caster in Scene.LightingInfo.ShadowMapper.ShadowCasters)
-        {
-            var region = caster.Region;
+        // The sun pass leaves the buffers of whichever scene cast last bound
+        renderContext.Scene = Scene;
+        Scene.BindDrawBuffers();
 
-            if (region.Width == 0)
-            {
-                continue;
-            }
+        for (var face = 0; face < barnLightFaceViewCount; face++)
+        {
+            var view = barnLightFaceViews[face];
+            var region = barnLightFaceRegions[face];
 
             PerfStats.Active.Count(Counter.BarnShadowMap);
 
             GL.Viewport(region.X, region.Y, region.Width, region.Height);
             GL.Scissor(region.X, region.Y, region.Width, region.Height);
 
-            ViewBuffer.Data.WorldToProjection = caster.WorldToFrustum;
+            ViewBuffer.Data.WorldToProjection = view.Camera.ViewProjectionMatrix;
             ViewBuffer.Update();
 
-            barnLightShadowFrustum.Update(caster.WorldToFrustum);
-
-            // This is performing culling mid render, reusing the scene draw lists.
-            // Should be in update loop.
-            var drawCalls = Scene.SetupBarnLightFaceShadow(caster.Light, barnLightShadowFrustum);
-
-            Scene.RenderOpaqueShadows(renderContext, depthOnlyShader, drawCalls);
+            view.States[0].RenderDepthOnlyLayer(renderContext, depthOnlyShader);
         }
     }
 
@@ -2027,7 +2136,7 @@ public class Renderer : ISpawnGroupHost
 
         LendSun(views[0]);
 
-        Scene.SetupSunShadows(Scene.LightingInfo, SceneCasters(views[0]), updateContext.Camera, Settings.DisableAllCulling ? -1 : ShadowDepthBuffer.Width);
+        UpdateSunCascadeViews(views[0], updateContext.Camera);
 
         if (Settings.EnableBarnLights)
         {
@@ -2037,6 +2146,8 @@ public class Renderer : ISpawnGroupHost
         {
             Scene.LightingInfo.ClearBarnLights();
         }
+
+        UpdateBarnLightFaceViews();
 
         var pvsPosition = LockedCullPosition ?? updateContext.Camera.Location;
         var pvsEnabled = !Settings.DisableAllCulling && Settings.EnablePvsCulling;

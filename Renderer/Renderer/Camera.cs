@@ -106,6 +106,19 @@ namespace ValveResourceFormat.Renderer
             RecalculateDirectionVectors();
 
             CameraViewMatrix = Matrix4x4.CreateLookAt(location, location + Forward, Up);
+            UpdateViewProjection();
+        }
+
+        /// <summary>Sets the view and projection matrices, leaving <see cref="Location"/> and the orientation unchanged.</summary>
+        public void SetViewProjection(Matrix4x4 view, Matrix4x4 projection)
+        {
+            CameraViewMatrix = view;
+            ProjectionMatrix = projection;
+            UpdateViewProjection();
+        }
+
+        private void UpdateViewProjection()
+        {
             ViewProjectionMatrix = CameraViewMatrix * ProjectionMatrix;
 
             // The view is a rotation and a translation, so inverting its rotation is transposing it

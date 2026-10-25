@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Linq;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -12,9 +13,9 @@ public sealed class SceneViewState : IDisposable
     public Scene Scene { get; }
 
     /// <summary>Gets the tile and depth bin cull passes for this view of the scene.</summary>
-    public LightBinner LightBinner { get; }
+    public LightBinner LightBinner => lightBinner ?? throw new InvalidOperationException("A shadow caster view has no light binner.");
 
-    /// <summary>Gets or sets the PVS bitfield for the cluster this view looks from, empty to cull nothing.</summary>
+    /// <summary>Gets or sets the PVS bitfield this view culls with, empty to cull nothing.</summary>
     public ReadOnlyMemory<byte> Pvs { get; set; }
 
     /// <summary>Gets whether anything drawn after the framebuffer grab samples the scene color.</summary>
@@ -41,6 +42,10 @@ public sealed class SceneViewState : IDisposable
 
     internal bool DepthPyramidValid { get; set; }
 
+    private readonly LightBinner? lightBinner;
+
+    private readonly bool collectsShadowCasters;
+
     private StorageBuffer? indirectDraws;
     private StorageBuffer? compactedDraws;
     private StorageBuffer? compactedCounts;
@@ -54,6 +59,7 @@ public sealed class SceneViewState : IDisposable
     private int staticCullCount;
     private readonly Plane[] lastFrustumPlanes = new Plane[6];
     private bool hasLastFrustum;
+    private bool lastIncludedStatic;
     private int lastOctreeVersion = -1;
 
     private readonly Dictionary<RenderPass, List<MeshBatchRenderer.Request>> renderLists = new()
@@ -87,7 +93,10 @@ public sealed class SceneViewState : IDisposable
 
     private readonly Predicate<MeshBatchRenderer.Request> hasNoVisibleFragments;
 
-    private readonly Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> depthOnlyDraws = Scene.CreateDepthOnlyDrawCallCollection();
+    private readonly Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> depthOnlyDraws
+        = Enum.GetValues<DepthOnlyBucket>().ToDictionary(static bucket => bucket, static _ => new List<MeshBatchRenderer.Request>());
+
+    private readonly List<RenderableMesh> singleMesh = [null!];
 
     /// <summary>Alpha tested draws, held out of the opaque passes for <see cref="RenderAlphaTestGeometry"/>.</summary>
     private readonly List<MeshBatchRenderer.Request> alphaTestAggregateDraws = [];
@@ -108,15 +117,26 @@ public sealed class SceneViewState : IDisposable
     private static bool WritesTranslucentDepth(RenderMaterial material)
         => material is { IsCs2Water: false, CanPrimeDepth: true, IsAdditive: false };
 
-    /// <summary>Initializes a view of an already initialized <paramref name="scene"/>.</summary>
-    public SceneViewState(Scene scene)
+    /// <summary>Initializes a camera view of an already initialized <paramref name="scene"/>.</summary>
+    public SceneViewState(Scene scene) : this(scene, shadowCasters: false)
+    {
+    }
+
+    internal SceneViewState(Scene scene, bool shadowCasters)
     {
         ArgumentNullException.ThrowIfNull(scene);
 
         Scene = scene;
         hasNoVisibleFragments = request => request.Node is SceneAggregate aggregate && !aggregatesWithVisibleFragments.Contains(aggregate);
-        LightBinner = new LightBinner(this);
-        LightBinner.LoadShaders();
+        collectsShadowCasters = shadowCasters;
+
+        if (shadowCasters)
+        {
+            return;
+        }
+
+        lightBinner = new LightBinner(this);
+        lightBinner.LoadShaders();
 
         // Presizes the lists so the first frames do not grow them
         CollectSceneDrawCalls(new Camera(), Frustum.CreateEmpty());
@@ -126,20 +146,32 @@ public sealed class SceneViewState : IDisposable
     /// Returns all scene nodes whose bounding boxes intersect the given frustum, caching static results across frames when the frustum is unchanged.
     /// </summary>
     /// <param name="frustum">The view frustum to test against.</param>
+    /// <param name="includeStatic">Whether to include static nodes.</param>
     /// <returns>A list of visible scene nodes (valid until the next call to this method).</returns>
-    public List<SceneNode> GetFrustumCullResults(Frustum frustum)
+    public List<SceneNode> GetFrustumCullResults(Frustum frustum, bool includeStatic = true)
     {
         // Optimization: Do not clear static culled results from last frame if the frustum did not change
-        if (!hasLastFrustum || !frustum.Planes.AsSpan().SequenceEqual(lastFrustumPlanes) || lastOctreeVersion != Scene.OctreeVersion)
+        if (!hasLastFrustum || lastIncludedStatic != includeStatic || !frustum.Planes.AsSpan().SequenceEqual(lastFrustumPlanes)
+            || lastOctreeVersion != Scene.OctreeVersion)
         {
             frustum.Planes.CopyTo(lastFrustumPlanes, 0);
             hasLastFrustum = true;
+            lastIncludedStatic = includeStatic;
             lastOctreeVersion = Scene.OctreeVersion;
 
             cullResults.Clear();
-            cullResults.Capacity = Math.Max(cullResults.Capacity, Scene.NodeCount + 100);
 
-            Scene.StaticOctree.Query(frustum, cullResults);
+            // Only camera views see enough of the scene to size for all of it
+            if (!collectsShadowCasters)
+            {
+                cullResults.Capacity = Math.Max(cullResults.Capacity, Scene.NodeCount + 100);
+            }
+
+            if (includeStatic)
+            {
+                Scene.StaticOctree.Query(frustum, cullResults);
+            }
+
             staticCullCount = cullResults.Count;
         }
         else
@@ -149,6 +181,34 @@ public sealed class SceneViewState : IDisposable
 
         Scene.DynamicOctree.Query(frustum, cullResults);
         return cullResults;
+    }
+
+    private enum NodeCull
+    {
+        None,
+        Hidden,
+        Pvs,
+        VisibilityBox,
+    }
+
+    private NodeCull TestNodeCull(SceneNode node, ReadOnlySpan<byte> pvs, VisibilityBoxCuller? boxes)
+    {
+        if (!node.Visible)
+        {
+            return NodeCull.Hidden;
+        }
+
+        if (!Scene.IsNodeInPvs(node, pvs))
+        {
+            return NodeCull.Pvs;
+        }
+
+        if (boxes != null && boxes.IsCulled(node.BoundingBox))
+        {
+            return NodeCull.VisibilityBox;
+        }
+
+        return NodeCull.None;
     }
 
     private void ResetPvsHiddenBits()
@@ -212,8 +272,7 @@ public sealed class SceneViewState : IDisposable
                 }
                 else if (Scene.Settings.EnableDepthPrepass && material.CanPrimeDepth)
                 {
-                    var bucket = Scene.GetDepthOnlyBucket(request.Call);
-                    depthOnlyDraws[bucket].Add(request);
+                    depthOnlyDraws[GetDepthOnlyBucket(request.Call)].Add(request);
                 }
             }
         }
@@ -317,26 +376,23 @@ public sealed class SceneViewState : IDisposable
         // Collect mesh calls
         foreach (var node in visibleNodes)
         {
-            if (!node.Visible)
-            {
-                continue;
-            }
-
-            if (!Scene.IsNodeInPvs(node, pvs))
-            {
-                PerfStats.Active.Count(Counter.SceneObjectCulledByPvs, 1);
-                MarkNodeHiddenGpu(node);
-                continue;
-            }
-
             // The viewmodel is drawn at the eye, not where it is placed
-            var isViewmodel = (node.RenderPasses & CustomRenderPasses.Viewmodel) != 0;
+            var boxes = (node.RenderPasses & CustomRenderPasses.Viewmodel) != 0 ? null : Scene.VisibilityBoxes.View;
 
-            if (!isViewmodel && Scene.VisibilityBoxes.View.IsCulled(node.BoundingBox))
+            switch (TestNodeCull(node, pvs, boxes))
             {
-                PerfStats.Active.Count(Counter.SceneObjectCulledByVisibilityBox, 1);
-                MarkNodeHiddenGpu(node);
-                continue;
+                case NodeCull.Hidden:
+                    continue;
+
+                case NodeCull.Pvs:
+                    PerfStats.Active.Count(Counter.SceneObjectCulledByPvs, 1);
+                    MarkNodeHiddenGpu(node);
+                    continue;
+
+                case NodeCull.VisibilityBox:
+                    PerfStats.Active.Count(Counter.SceneObjectCulledByVisibilityBox, 1);
+                    MarkNodeHiddenGpu(node);
+                    continue;
             }
 
             if (node is MeshCollectionNode meshCollection)
@@ -523,6 +579,127 @@ public sealed class SceneViewState : IDisposable
         compactedCounts = new StorageBuffer(ReservedBufferSlots.CompactedCounts, nameof(ReservedBufferSlots.CompactedCounts));
         compactedCounts.Create(counts, BufferUsage.GpuOnly);
     }
+
+    internal (float Min, float Max) CollectShadowCasters(Frustum frustum, bool includeStatic, ObjectTypeFlags skipFlags, VisibilityBoxCuller boxes, Vector3 depthFitAxis)
+    {
+        var depthMin = float.MaxValue;
+        var depthMax = float.MinValue;
+
+        void AccumulateDepthFit(SceneNode casterNode)
+        {
+            if (depthFitAxis == Vector3.Zero)
+            {
+                return;
+            }
+
+            var bounds = casterNode.BoundingBox;
+            var center = Vector3.Dot(bounds.Center, depthFitAxis);
+            var extent = Vector3.Dot(bounds.Size, Vector3.Abs(depthFitAxis)) * 0.5f;
+
+            depthMin = Math.Min(depthMin, center - extent);
+            depthMax = Math.Max(depthMax, center + extent);
+        }
+
+        foreach (var bucket in depthOnlyDraws.Values)
+        {
+            bucket.Clear();
+        }
+
+        var pvs = Pvs.Span;
+
+        foreach (var node in GetFrustumCullResults(frustum, includeStatic))
+        {
+            switch (TestNodeCull(node, pvs, boxes))
+            {
+                case NodeCull.Hidden:
+                    continue;
+
+                case NodeCull.Pvs:
+                    PerfStats.Active.Count(Counter.ShadowCasterCulledByPvs, 1);
+                    continue;
+
+                case NodeCull.VisibilityBox:
+                    PerfStats.Active.Count(Counter.ShadowCasterCulledByVisibilityBox, 1);
+                    continue;
+            }
+
+            List<RenderableMesh> meshes;
+
+            if (node is MeshCollectionNode meshCollection)
+            {
+                if ((node.Flags & skipFlags) != 0)
+                {
+                    continue;
+                }
+
+                meshes = meshCollection.RenderableMeshes;
+            }
+            else if (node is SceneAggregate.Fragment fragment)
+            {
+                if ((fragment.Flags & skipFlags) != 0 || !fragment.Parent.IsFragmentInActiveLod(fragment))
+                {
+                    continue;
+                }
+
+                AccumulateDepthFit(node);
+                AddShadowCaster(fragment.RenderMesh, fragment.DrawCall, node);
+                continue;
+            }
+            else if (node is SceneAggregate aggregate)
+            {
+                if ((aggregate.AllFlags & skipFlags) != 0 || aggregate.InstanceTransforms.Count == 0)
+                {
+                    continue;
+                }
+
+                singleMesh[0] = aggregate.RenderMesh;
+                meshes = singleMesh;
+            }
+            else
+            {
+                if ((node.Flags & skipFlags) == 0 && (node.RenderPasses & CustomRenderPasses.DepthOnly) != 0)
+                {
+                    AccumulateDepthFit(node);
+                    depthOnlyDraws[DepthOnlyBucket.MaterialDepthMode].Add(new MeshBatchRenderer.Request { Node = node });
+                }
+
+                continue;
+            }
+
+            AccumulateDepthFit(node);
+
+            foreach (var mesh in meshes)
+            {
+                foreach (var opaqueCall in mesh.DrawCallsOpaque)
+                {
+                    AddShadowCaster(mesh, opaqueCall, node);
+                }
+            }
+        }
+
+        return (depthMin, depthMax);
+    }
+
+    private void AddShadowCaster(RenderableMesh mesh, DrawCall opaqueCall, SceneNode node)
+    {
+        if (!Scene.CastsShadows(opaqueCall.Material, node))
+        {
+            return;
+        }
+
+        depthOnlyDraws[GetDepthOnlyBucket(opaqueCall)].Add(new MeshBatchRenderer.Request
+        {
+            Mesh = mesh,
+            Call = opaqueCall,
+            Node = node,
+        });
+    }
+
+    // The skinning variant is picked per draw, so the bucket only says which shader draws it
+    private static DepthOnlyBucket GetDepthOnlyBucket(DrawCall opaqueCall)
+        => opaqueCall.Material.VertexAnimation ? DepthOnlyBucket.MaterialDepthMode
+            : opaqueCall.Material.IsAlphaTest ? DepthOnlyBucket.AlphaTest
+            : DepthOnlyBucket.Specialized;
 
     internal void BindIndirectDrawBuffers()
     {
@@ -858,6 +1035,33 @@ public sealed class SceneViewState : IDisposable
         PerfStats.Active.ResumeTriangleCounter();
     }
 
+    internal void RenderDepthOnlyLayer(Scene.RenderContext renderContext, Shader depthOnlyShader)
+    {
+        renderContext.RenderPass = RenderPass.DepthOnly;
+        renderContext.DepthOnlyShader = depthOnlyShader;
+
+        PerfStats.Active.SuspendTriangleCounter();
+
+        foreach (var (bucket, calls) in depthOnlyDraws)
+        {
+            if (calls.Count == 0)
+            {
+                continue;
+            }
+
+            renderContext.ReplacementShader = bucket switch
+            {
+                DepthOnlyBucket.AlphaTest => depthOnlyShader.WithCombo(Shader.AlphaTestCombo, 1),
+                DepthOnlyBucket.MaterialDepthMode => null,
+                _ => depthOnlyShader,
+            };
+
+            MeshBatchRenderer.Render(calls, renderContext);
+        }
+
+        PerfStats.Active.ResumeTriangleCounter();
+    }
+
     /// <summary>
     /// Renders the opaque first-person viewmodel layer collected during <see cref="CollectSceneDrawCalls"/>.
     /// Rendered before the main scene so its reserved near depth range can never be overtaken by world geometry.
@@ -1018,12 +1222,12 @@ public sealed class SceneViewState : IDisposable
     /// <inheritdoc/>
     public void Dispose()
     {
-        if (Scene.ShadingLightBinner == LightBinner)
+        if (lightBinner != null && Scene.ShadingLightBinner == lightBinner)
         {
             Scene.ShadingLightBinner = null;
         }
 
-        LightBinner.Dispose();
+        lightBinner?.Dispose();
         indirectDraws?.Delete();
         compactedDraws?.Delete();
         compactedCounts?.Delete();
