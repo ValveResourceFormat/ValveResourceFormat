@@ -147,35 +147,13 @@ namespace ValveResourceFormat.Blocks
 
         private static IEnumerable ReadArrayOfType(BinaryReader reader, long count, string type)
         {
-            if (type == "float3" || type == "vector")
+            return type switch
             {
-                var array = new Vector3[count];
-                for (var i = 0; i < count; i++)
-                {
-                    array[i] = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
-                }
-                return array;
-            }
-            else if (type == "float")
-            {
-                var array = new float[count];
-                for (var i = 0; i < count; i++)
-                {
-                    array[i] = reader.ReadSingle();
-                }
-                return array;
-            }
-            else if (type == "int")
-            {
-                var array = new int[count];
-                for (var i = 0; i < count; i++)
-                {
-                    array[i] = reader.ReadInt32();
-                }
-                return array;
-            }
-
-            throw new UnexpectedMagicException("Unsupported SNAP array type.", type, nameof(type));
+                "float3" or "vector" => reader.ReadArray<Vector3>(count),
+                "float" => reader.ReadArray<float>(count),
+                "int" => reader.ReadArray<int>(count),
+                _ => throw new UnexpectedMagicException("Unsupported SNAP array type.", type, nameof(type)),
+            };
         }
 
         private static string[] ReadStringArray(BinaryReader reader, long count, string[] stringList)

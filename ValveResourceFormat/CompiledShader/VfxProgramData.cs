@@ -398,12 +398,7 @@ namespace ValveResourceFormat.CompiledShader
                 return;
             }
 
-            var staticComboIds = new long[combosCount];
-
-            for (var i = 0; i < combosCount; i++)
-            {
-                staticComboIds[i] = DataReader.ReadInt64();
-            }
+            var staticComboIds = DataReader.ReadArray<long>(combosCount);
 
             for (var i = 0; i < combosCount; i++)
             {

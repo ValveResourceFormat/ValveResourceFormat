@@ -103,29 +103,39 @@ namespace ValveResourceFormat.Blocks
         /// <summary>
         /// Represents an octree node.
         /// </summary>
-        /// <param name="first">First packed word.</param>
-        /// <param name="second">Second packed word.</param>
-        public readonly struct Node(uint first, uint second)
+        public readonly struct Node
         {
+            private readonly uint First;
+            private readonly uint Second;
+
+            /// <summary>
+            /// Initializes a node from its two packed words.
+            /// </summary>
+            public Node(uint first, uint second)
+            {
+                First = first;
+                Second = second;
+            }
+
             /// <summary>
             /// Gets whether this node is a leaf.
             /// </summary>
-            public bool IsLeaf => (first & 1) != 0;
+            public bool IsLeaf => (First & 1) != 0;
 
             /// <summary>
             /// Gets the child offset for internal nodes, or the region offset for leaf nodes.
             /// </summary>
-            public uint Offset => first >> 1;
+            public uint Offset => First >> 1;
 
             /// <summary>
             /// Gets the number of regions in this leaf.
             /// </summary>
-            public byte RegionCount => (byte)second;
+            public byte RegionCount => (byte)Second;
 
             /// <summary>
             /// Gets the enclosed cluster list index.
             /// </summary>
-            public uint EnclosedListIndex => second >> 8;
+            public uint EnclosedListIndex => Second >> 8;
 
             /// <summary>
             /// Gets whether this node has an enclosed cluster list.
@@ -136,29 +146,38 @@ namespace ValveResourceFormat.Blocks
         /// <summary>
         /// Represents a region entry in a leaf node.
         /// </summary>
-        /// <param name="value">Packed 64-bit region value.</param>
-        public readonly struct Region(ulong value)
+        public readonly struct Region
         {
+            private readonly ulong Value;
+
+            /// <summary>
+            /// Initializes a region from its packed 64-bit value.
+            /// </summary>
+            public Region(ulong value)
+            {
+                Value = value;
+            }
+
             /// <summary>
             /// Gets the cluster id.
             /// </summary>
-            public ushort ClusterId => (ushort)(value & 0x7FFF);
+            public ushort ClusterId => (ushort)(Value & 0x7FFF);
 
             /// <summary>
             /// Gets whether this region intersects geometry.
             /// </summary>
-            public bool IsIntersectingGeo => ((value >> 15) & 0x1) != 0;
+            public bool IsIntersectingGeo => ((Value >> 15) & 0x1) != 0;
 
             /// <summary>
             /// Gets the leaf index.
             /// </summary>
             // Game doesn't use LeafIndex even though visbuilder populates it
-            public uint LeafIndex => (uint)((value >> 16) & 0xFFFFFF);
+            public uint LeafIndex => (uint)((Value >> 16) & 0xFFFFFF);
 
             /// <summary>
             /// Gets the spatial mask index.
             /// </summary>
-            public uint MaskIndex => (uint)(value >> 40);
+            public uint MaskIndex => (uint)(Value >> 40);
         }
 
         /// <summary>
@@ -335,18 +354,10 @@ namespace ValveResourceFormat.Blocks
             reader.BaseStream.Position = Offset;
 
             var count = ReadVisBlock(data, "m_NodeBlock", reader);
-            Nodes = new Node[count];
-            for (var i = 0; i < count; i++)
-            {
-                Nodes[i] = new Node(reader.ReadUInt32(), reader.ReadUInt32());
-            }
+            Nodes = reader.ReadArray<Node>(count);
 
             count = ReadVisBlock(data, "m_RegionBlock", reader);
-            Regions = new Region[count];
-            for (var i = 0; i < count; i++)
-            {
-                Regions[i] = new Region(reader.ReadUInt64());
-            }
+            Regions = reader.ReadArray<Region>(count);
 
             count = ReadVisBlock(data, "m_EnclosedClusterListBlock", reader);
             EnclosedClusterList = new (int, int)[count];
@@ -356,18 +367,10 @@ namespace ValveResourceFormat.Blocks
             }
 
             count = ReadVisBlock(data, "m_EnclosedClustersBlock", reader);
-            EnclosedClusters = new ushort[count];
-            for (var i = 0; i < count; i++)
-            {
-                EnclosedClusters[i] = reader.ReadUInt16();
-            }
+            EnclosedClusters = reader.ReadArray<ushort>(count);
 
             count = ReadVisBlock(data, "m_MasksBlock", reader);
-            Masks = new ulong[count];
-            for (var i = 0; i < count; i++)
-            {
-                Masks[i] = reader.ReadUInt64();
-            }
+            Masks = reader.ReadArray<ulong>(count);
 
             count = ReadVisBlock(data, "m_nVisBlocks", reader);
             VisBlocks = reader.ReadBytes(count);
