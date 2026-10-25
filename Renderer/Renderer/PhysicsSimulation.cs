@@ -41,12 +41,24 @@ public sealed class PhysicsSimulation : IDisposable
     public const ulong MoverCategory = 8;
 
     /// <summary>
-    /// Collision category of ragdoll parts. They collide with everything but the player's pushing
-    /// hull: a fast overlap with that kinematic box resolves out its nearest face, which for a
-    /// part lying on the floor is the bottom, pushing it through the one-sided mesh world. The
-    /// player shoves debris with a horizontal velocity instead.
+    /// Collision category of debris: props and ragdolls flagged as debris, and the pieces a broken
+    /// model marks so. Debris collides with neither the player nor other debris, as authored,
+    /// which also spares a heap of shards colliding with itself. The player shoves it with a
+    /// horizontal velocity instead.
     /// </summary>
     public const ulong DebrisCategory = 16;
+
+    /// <summary>
+    /// Collision category of ragdoll parts that are not debris. They collide with everything but
+    /// the player's pushing hull: a fast overlap with that kinematic box resolves out its nearest
+    /// face, which for a part lying on the floor is the bottom, pushing it through the one-sided
+    /// mesh world. The player shoves them with a horizontal velocity instead.
+    /// </summary>
+    public const ulong RagdollCategory = 32;
+
+    /// <summary>What a shape of the given collision category collides with.</summary>
+    public static ulong CollidesWith(ulong category)
+        => category == DebrisCategory ? ~(PlayerCategory | DebrisCategory) : ulong.MaxValue;
 
     /// <summary>
     /// The world steps once per rendered frame, so the sub-step count scales with the frame:
@@ -172,7 +184,7 @@ public sealed class PhysicsSimulation : IDisposable
     {
         // Not as the player, whom debris pieces are filtered against
         var hit = World.RaycastClosest(from, direction * distance,
-            new QueryFilter(~PlayerCategory, StaticCategory | PropCategory | DebrisCategory | MoverCategory));
+            new QueryFilter(~PlayerCategory, StaticCategory | PropCategory | DebrisCategory | RagdollCategory | MoverCategory));
 
         if (!hit.Hit || !hit.Shape.IsValid)
         {
@@ -318,7 +330,7 @@ public sealed class PhysicsSimulation : IDisposable
     private ShapeDefinition MakeShapeDefinition(uint surfaceHash, ulong categories)
     {
         var surface = (surfaces?.Find(surfaceHash)) ?? SurfaceProperties.Fallback;
-        var simulated = (categories & (PropCategory | DebrisCategory)) != 0;
+        var simulated = (categories & (PropCategory | DebrisCategory | RagdollCategory)) != 0;
 
         if (simulated)
         {
@@ -334,7 +346,7 @@ public sealed class PhysicsSimulation : IDisposable
                 Restitution = ToRestitution(surface.Elasticity),
                 UserMaterialId = surfaceHash,
             },
-            Filter = new CollisionFilter(categories, ulong.MaxValue, 0),
+            Filter = new CollisionFilter(categories, CollidesWith(categories), 0),
             EnableHitEvents = simulated,
         };
     }
@@ -568,9 +580,10 @@ public sealed class PhysicsSimulation : IDisposable
     /// <param name="partIndex">Which part to build.</param>
     /// <param name="position">The part's bone position in the world.</param>
     /// <param name="rotation">The part's bone orientation in the world.</param>
+    /// <param name="isDebris">Whether the ragdoll is debris, colliding with neither the player nor other debris.</param>
     /// <param name="owner">The entity the body reports as, from <see cref="GetOwner"/>.</param>
     /// <returns>The created body, or <see langword="null"/> when the part offers no shapes.</returns>
-    public Body? CreateRagdollBody(PhysAggregateData phys, int partIndex, Vector3 position, Quaternion rotation, BaseEntity owner)
+    public Body? CreateRagdollBody(PhysAggregateData phys, int partIndex, Vector3 position, Quaternion rotation, bool isDebris, BaseEntity owner)
     {
         var part = phys.Parts[partIndex];
 
@@ -587,7 +600,7 @@ public sealed class PhysicsSimulation : IDisposable
         });
 
         var geometry = new BodyGeometry();
-        AddPartShapes(body, phys, part.Shape, Matrix4x4.Identity, DebrisCategory, geometry);
+        AddPartShapes(body, phys, part.Shape, Matrix4x4.Identity, isDebris ? DebrisCategory : RagdollCategory, geometry);
 
         if (body.ShapeCount == 0)
         {
@@ -647,7 +660,7 @@ public sealed class PhysicsSimulation : IDisposable
         }
 
         var hit = World.RaycastClosest(previousPosition, delta,
-            new QueryFilter(DebrisCategory, StaticCategory));
+            new QueryFilter(RagdollCategory, StaticCategory));
 
         if (!hit.Hit || Vector3.Dot(hit.Normal, delta) >= 0f)
         {

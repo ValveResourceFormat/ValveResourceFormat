@@ -19,6 +19,9 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
         /// <summary>The body waits for a touch before it starts simulating.</summary>
         StartAsleep = 1,
 
+        /// <summary>The prop collides with neither the player nor other debris.</summary>
+        Debris = 4,
+
         /// <summary>
         /// The prop does not simulate until something enables its motion; being grabbed counts,
         /// the way the gravity gloves free a pinned prop. Until then it stands as a static
@@ -94,7 +97,7 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
     private PropBreakData breakData = Unbreakable;
     private bool isBroken;
 
-    // Debris - the pieces of something broken - stays out of the player's way
+    // Debris - a prop flagged so, or the pieces of something broken - stays out of the player's way
     private ulong collisionCategory = PhysicsSimulation.PropCategory;
 
     // A piece takes no impact damage: shards with a sliver of health and a glass impact table would
@@ -147,6 +150,12 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
             body = newBody;
             HasBody = true;
             wasAwake = newBody.IsAwake;
+
+            if (HasSpawnFlags(PropSpawnFlags.Debris))
+            {
+                collisionCategory = PhysicsSimulation.DebrisCategory;
+                SetCollidesWithPlayer(false);
+            }
         }
 
         if (LoadedModel is { } model)
@@ -674,10 +683,12 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
 
     private void SetCollidesWithPlayer(bool collide)
     {
-        // Debris never meets the pushing hull, which collides with props alone
-        var collidesWith = collide && collisionCategory != PhysicsSimulation.DebrisCategory
-            ? ulong.MaxValue
-            : ulong.MaxValue & ~PhysicsSimulation.PlayerCategory;
+        var collidesWith = PhysicsSimulation.CollidesWith(collisionCategory);
+
+        if (!collide)
+        {
+            collidesWith &= ~PhysicsSimulation.PlayerCategory;
+        }
 
         Span<Shape> shapes = stackalloc Shape[body.ShapeCount];
         var count = body.GetShapes(shapes);

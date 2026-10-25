@@ -12,6 +12,14 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// </summary>
 public sealed class RagdollProp : BaseModelEntity, ICarryable
 {
+    /// <summary>The <c>spawnflags</c> a ragdoll reads.</summary>
+    [Flags]
+    private enum RagdollSpawnFlags : uint
+    {
+        /// <summary>The ragdoll collides with neither the player nor other debris.</summary>
+        Debris = 4,
+    }
+
     /// <inheritdoc/>
     protected override bool UsesMoverBody => false;
 
@@ -155,7 +163,7 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
             var world = pose * spawnTransform;
 
             var created = EntitySystem.Physics.CreateRagdollBody(phys, i,
-                world.Translation, Quaternion.CreateFromRotationMatrix(world), this);
+                world.Translation, Quaternion.CreateFromRotationMatrix(world), HasSpawnFlags(RagdollSpawnFlags.Debris), this);
 
             if (created is { } body)
             {

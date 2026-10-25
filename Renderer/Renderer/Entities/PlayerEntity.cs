@@ -210,10 +210,11 @@ public sealed class PlayerEntity : BaseEntity
     }
 
     /// <summary>
-    /// Shoves the debris the player's hull overlaps with a purely horizontal velocity, away from
-    /// the player at the player's own speed. Debris never meets the pushing body in the solver
-    /// (see <see cref="PhysicsSimulation.DebrisCategory"/>), and a horizontal velocity can never
-    /// press anything into the ground.
+    /// Shoves the debris and ragdoll parts the player's hull overlaps with a purely horizontal
+    /// velocity, away from the player at the player's own speed. Neither meets the pushing body in
+    /// the solver (see <see cref="PhysicsSimulation.DebrisCategory"/> and
+    /// <see cref="PhysicsSimulation.RagdollCategory"/>), and a horizontal velocity can never press
+    /// anything into the ground.
     /// </summary>
     private void ShoveDebris(PhysicsSimulation physics)
     {
@@ -235,7 +236,7 @@ public sealed class PlayerEntity : BaseEntity
 
         var overlapped = new DebrisOverlap(debrisBodies, debrisBodyIds);
         physics.World.OverlapBox(center, halfExtents, ref overlapped,
-            new QueryFilter(PhysicsSimulation.PlayerCategory, PhysicsSimulation.DebrisCategory));
+            new QueryFilter(~PhysicsSimulation.PlayerCategory, PhysicsSimulation.DebrisCategory | PhysicsSimulation.RagdollCategory));
 
         var heldBody = Carried?.CarryBody;
         var pushSpeed = MathF.Min(speed, MaxShoveSpeed);
@@ -439,11 +440,11 @@ public sealed class PlayerEntity : BaseEntity
 
         // Cast against the world and the movers too, not just props, so a crate behind a wall or
         // a closed door is not grabbable through it: the obstacle wins the raycast and the pickup
-        // finds nothing
+        // finds nothing. Not as the player, whom debris is filtered against.
         var hit = physics.World.RaycastClosest(eyePosition, forward * PickupReach,
-            new QueryFilter(PhysicsSimulation.PlayerCategory,
+            new QueryFilter(~PhysicsSimulation.PlayerCategory,
                 PhysicsSimulation.StaticCategory | PhysicsSimulation.PropCategory
-                | PhysicsSimulation.DebrisCategory | PhysicsSimulation.MoverCategory));
+                | PhysicsSimulation.DebrisCategory | PhysicsSimulation.RagdollCategory | PhysicsSimulation.MoverCategory));
 
         if (!hit.Hit)
         {
