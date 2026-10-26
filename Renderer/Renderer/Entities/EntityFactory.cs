@@ -50,6 +50,7 @@ public static class EntityFactory
         Register<PhysHinge>("phys_hinge", static (system, spawnInfo) => new PhysHinge(system, spawnInfo, axisIsLocal: false));
         Register<PhysHinge>("phys_hinge_local", static (system, spawnInfo) => new PhysHinge(system, spawnInfo, axisIsLocal: true));
         Register<PhysFixedConstraint>("phys_constraint", static (system, spawnInfo) => new PhysFixedConstraint(system, spawnInfo));
+        Register<PropAnimInteractable>("prop_animinteractable", static (system, spawnInfo) => new PropAnimInteractable(system, spawnInfo));
         Register<PhysSlideConstraint>("phys_slideconstraint", static (system, spawnInfo) => new PhysSlideConstraint(system, spawnInfo));
         Register<PhysRagdollConstraint>("phys_ragdollconstraint", static (system, spawnInfo) => new PhysRagdollConstraint(system, spawnInfo));
         Register<PhysLengthConstraint>("phys_lengthconstraint", static (system, spawnInfo) => new PhysLengthConstraint(system, spawnInfo));
