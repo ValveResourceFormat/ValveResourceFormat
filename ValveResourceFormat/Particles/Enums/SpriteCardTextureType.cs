@@ -2,8 +2,8 @@ namespace ValveResourceFormat.Particles
 {
     /// <summary>
     /// What role a texture layer plays. DIFFUSE through UVDISTORTION_ZOOM are colour layers, differing in
-    /// which effect is applied to the sample; NORMALMAP and ANIMMOTIONVEC are not colour at all and must
-    /// stay out of the colour chain.
+    /// which effect is applied to the sample; the types after them are not colour at all and must stay
+    /// out of the colour chain.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/SpriteCardTextureType_t">SpriteCardTextureType_t</seealso>
     public enum SpriteCardTextureType
@@ -22,5 +22,15 @@ namespace ValveResourceFormat.Particles
         SPRITECARD_TEXTURE_NORMALMAP = 5,
         /// <summary>Motion vectors for sheet frame interpolation, not a colour contribution.</summary>
         SPRITECARD_TEXTURE_ANIMMOTIONVEC = 6,
+        /// <summary>The first of three spherical harmonic lighting textures.</summary>
+        SPRITECARD_TEXTURE_SPHERICAL_HARMONICS_A = 7,
+        /// <summary>The second of three spherical harmonic lighting textures.</summary>
+        SPRITECARD_TEXTURE_SPHERICAL_HARMONICS_B = 8,
+        /// <summary>The third of three spherical harmonic lighting textures.</summary>
+        SPRITECARD_TEXTURE_SPHERICAL_HARMONICS_C = 9,
+        /// <summary>A depth map, not a colour contribution.</summary>
+        SPRITECARD_TEXTURE_DEPTH = 10,
+        /// <summary>An illumination gradient, not a colour contribution.</summary>
+        SPRITECARD_TEXTURE_ILLUMINATION_GRADIENT = 11,
     }
 }

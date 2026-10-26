@@ -56,6 +56,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>How far each particle is drawn moved toward the camera, in world units.</summary>
         public float CameraBias { get; }
 
+        /// <summary>Gets whether a visibility control point is set.</summary>
+        public bool HasControlPoint => controlPoint >= 0;
+
         /// <summary>
         /// The alpha and radius scales for a draw seen from <paramref name="camera"/>. Both are 1 when
         /// neither a control point nor a radius FOV base is set.

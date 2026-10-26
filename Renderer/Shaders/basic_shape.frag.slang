@@ -5,6 +5,7 @@
 #include "common/ViewConstants.slang"
 #include "common/fog.slang"
 
+#include "common/texturing.slang"
 #include "common/lighting.particle.slang"
 
 #define renderMode_Color 0
@@ -159,7 +160,7 @@ void main(void)
         #if (D_BAKED_LIGHTING_FROM_PROBE == 1)
             if (g_iRenderMode != renderMode_FullBright)
             {
-                ParticleLight_t light = CalculateParticleLighting(vtxPosWs, normalWs, 1.0);
+                ParticleLight_t light = CalculateParticleLighting(vtxPosWs, normalWs, 1.0, true);
 
                 float axisLight = mix(1.0, GetFullbrightAxisLight(normalWs), 0.5);
 

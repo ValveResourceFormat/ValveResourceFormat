@@ -161,8 +161,9 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
         /// <summary>
-        /// How long each sequence of the first sheet this system's renderers offer runs, in frames, or
-        /// null when none of them draws with one.
+        /// How long the sequence each sequence number reaches on the first sheet this system's renderers
+        /// offer runs, in frames, or null when none of them draws with one. A number no sequence answers
+        /// to runs for 0.
         /// </summary>
         private float[]? CollectSequenceDurations()
         {
@@ -173,11 +174,16 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
-                var durations = new float[sheet.Sequences.Length];
+                var durations = new float[sheet.SequenceIdCount];
 
-                for (var i = 0; i < durations.Length; i++)
+                for (var id = 0; id < durations.Length; id++)
                 {
-                    durations[i] = sheet.Sequences[i].TotalTime;
+                    var index = sheet.GetSequenceIndex(id);
+
+                    if (index >= 0)
+                    {
+                        durations[id] = sheet.Sequences[index].TotalTime;
+                    }
                 }
 
                 return durations;
@@ -561,7 +567,17 @@ namespace ValveResourceFormat.Renderer.Particles
         /// Replaces the texture every renderer in this system and its children draws with.
         /// </summary>
         public void SetTextureOverride(string textureName)
-            => SetTextureOverride(rendererContext.MaterialLoader.GetTexture(textureName, srgbRead: true, streaming: true));
+        {
+            foreach (var renderer in renderers)
+            {
+                renderer.SetTextureOverride(textureName);
+            }
+
+            foreach (var childRenderer in childRenderers)
+            {
+                childRenderer.SetTextureOverride(textureName);
+            }
+        }
 
         public void SetTextureOverride(RenderTexture texture)
         {

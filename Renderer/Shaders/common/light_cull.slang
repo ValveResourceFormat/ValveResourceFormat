@@ -33,18 +33,30 @@ struct CullLookup_t
 // Set by a pass whose vertices are displaced in clip space
 bool g_bCullFromShadedPosition = false;
 
+// The pixel a world position projects to
+vec2 GetCullPixelFromPosition(vec3 positionWs)
+{
+    vec4 cullClip = g_matWorldToProjection * vec4(positionWs, 1.0);
+    vec2 cullNdc = cullClip.xy / max(cullClip.w, 1e-6);
+
+    return ((cullNdc * 0.5) + 0.5) * g_vViewportSize;
+}
+
 CullLookup_t GetCullLookup(vec3 positionWs)
 {
+#ifdef VRF_VERTEX_STAGE
+    // A vertex has no pixel of its own, so it takes the tile its position projects into
+    vec2 cullPixelVs = GetCullPixelFromPosition(positionWs);
+#else
     vec2 cullPixelVs = gl_FragCoord.xy;
 
     // A pass that displaces the vertex in clip space rasterizes somewhere other than where the world
     // position it shades with projects, so its gl_FragCoord names the wrong tile.
     if (g_bCullFromShadedPosition)
     {
-        vec4 cullClip = g_matWorldToProjection * vec4(positionWs, 1.0);
-        vec2 cullNdc = cullClip.xy / max(cullClip.w, 1e-6);
-        cullPixelVs = ((cullNdc * 0.5) + 0.5) * g_vViewportSize;
+        cullPixelVs = GetCullPixelFromPosition(positionWs);
     }
+#endif
 
     // Carries the pixel into the view the masks were built for; identity except for the viewmodel and
     // passes drawn below the scene resolution.

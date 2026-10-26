@@ -3,23 +3,39 @@ using System.Runtime.InteropServices;
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
-    /// One corner of a spritecard quad, for renderers that supply vertices rather than generating them.
-    /// Each texture layer past the first carries its own coordinate pair, since it resolves its sheet
-    /// frame against its own sequence and lands wherever its transform puts it.
+    /// One corner of a spritecard strip, for renderers that supply vertices rather than generating them.
+    /// The shader looks the sheet frames up itself and applies the size clamp and the fades, so a corner
+    /// carries the particle values those read rather than placed coordinates.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     internal struct SpritecardVertex
     {
+        /// <summary>The corner, placed at <see cref="RotationRadius"/>'s radius along <see cref="WidthAxis"/> before the size clamp.</summary>
         [VertexAttribute(VertexSlot.Position)] public Vector3 Position;
+
+        /// <summary>The colour, its alpha before any fade.</summary>
         [VertexAttribute(VertexSlot.Color)] public Vector4 Color;
-        [VertexAttribute(VertexSlot.TexCoord)] public Vector2 UV;
-        [VertexAttribute(VertexSlot.TexCoord1)] public Vector2 UVNextFrame;
-        /// <summary>How far between its two sheet frames the card has crossed in x, and the alpha test threshold and window in y and z.</summary>
-        [VertexAttribute("vFrameBlendAlphaRef")] public Vector3 FrameBlendAlphaReference;
-        [VertexAttribute("vLayerUv0")] public Vector4 LayerUv0;
-        [VertexAttribute("vLayerUv1")] public Vector4 LayerUv1;
-        [VertexAttribute("vLayerUv2")] public Vector4 LayerUv2;
-        [VertexAttribute("vLayerUv3")] public Vector4 LayerUv3;
+
+        /// <summary>
+        /// The random value, shader extra data 1, the age the sheet and the per particle modes play by, and
+        /// shader extra data 2.
+        /// </summary>
+        [VertexAttribute(VertexSlot.TexCoord)] public Vector4 SheetInputs;
+
+        /// <summary>The card corner after flipping in xy, and the V before it is mapped to the texture in z.</summary>
+        [VertexAttribute(VertexSlot.TexCoord1)] public Vector3 CornerV;
+
+        /// <summary>Roll, yaw and pitch, and the radius before the size clamp.</summary>
+        [VertexAttribute(VertexSlot.TexCoord3)] public Vector4 RotationRadius;
+
+        /// <summary>The unit axis from the strip's centre line out to this corner.</summary>
+        [VertexAttribute("vAxisU")] public Vector3 WidthAxis;
+
+        /// <summary>The axis whose alignment with the view fades the strip out by view angle.</summary>
+        [VertexAttribute(VertexSlot.Normal)] public Vector3 FacingAxis;
+
+        /// <summary>The alpha and the radius of the particle the segment starts at, which the per particle modes read.</summary>
+        [VertexAttribute("vSegmentAlphaRadius")] public Vector2 SegmentAlphaRadius;
 
         /// <summary>
         /// Every attribute name <c>particle_spritecard.vert.slang</c> declares, across all of its combos.
@@ -31,34 +47,15 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             VertexAttributeLocations.GetName(VertexSlot.Color),
             VertexAttributeLocations.GetName(VertexSlot.TexCoord),
             VertexAttributeLocations.GetName(VertexSlot.TexCoord1),
-            "vFrameBlendAlphaRef",
+            VertexAttributeLocations.GetName(VertexSlot.TexCoord3),
+            VertexAttributeLocations.GetName(VertexSlot.Normal),
+            "vSegmentAlphaRadius",
             "vAxisU",
             "vAxisV",
-            "vColorTail",
-            "vLayerUv0", "vLayerUv1", "vLayerUv2", "vLayerUv3",
-            "vLayerUvNext0", "vLayerUvNext1", "vLayerUvNext2", "vLayerUvNext3",
+            "vTrailUvCrop",
         ];
-
-        /// <summary>Names of the per layer rectangles a generated corner reads this frame's uv from.</summary>
-        public static readonly string[] LayerUvNames = ["vLayerUv0", "vLayerUv1", "vLayerUv2", "vLayerUv3"];
-
-        /// <summary>Names of the per layer rectangles a generated corner reads the next frame's uv from.</summary>
-        public static readonly string[] LayerUvNextNames = ["vLayerUvNext0", "vLayerUvNext1", "vLayerUvNext2", "vLayerUvNext3"];
 
         /// <summary>The layout of this vertex, for creating vertex array objects.</summary>
         public static readonly VertexInputLayout InputLayout = VertexInputLayout.FromStruct<SpritecardVertex>(DeclaredAttributeNames);
-
-        /// <summary>Sets the coordinates of the layer at <paramref name="layer"/> places past the first.</summary>
-        public void SetLayerUv(int layer, Vector4 uvs)
-        {
-            switch (layer)
-            {
-                case 0: LayerUv0 = uvs; break;
-                case 1: LayerUv1 = uvs; break;
-                case 2: LayerUv2 = uvs; break;
-                case 3: LayerUv3 = uvs; break;
-                default: throw new ArgumentOutOfRangeException(nameof(layer));
-            }
-        }
     }
 }

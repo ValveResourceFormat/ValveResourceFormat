@@ -89,8 +89,9 @@ namespace ValveResourceFormat.Renderer
         [VertexAttributeName("vLightmapUV", "vLightmapUVW")]
         LightmapUV,
 
-        /// <summary>Baked per vertex lighting, the second color stream.</summary>
-        [VertexAttributeName("vCOLOR1", "vPerVertexLighting", Semantic = "COLOR", SemanticIndex = 1)]
+        /// <summary>Baked per vertex lighting, the second color stream. Particle trails put their uv flip and
+        /// crop here.</summary>
+        [VertexAttributeName("vCOLOR1", "vPerVertexLighting", "vTrailUvCrop", Semantic = "COLOR", SemanticIndex = 1)]
         Color1,
 
         /// <summary>Spelling some meshes use for the weight stream.</summary>

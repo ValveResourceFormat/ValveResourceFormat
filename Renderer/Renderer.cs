@@ -1833,6 +1833,7 @@ public class Renderer : ISceneHost
     /// scene, through the fixed screen-space view. Fog is off, since the effects' positions are not places
     /// in the world. Leaves <paramref name="view"/>'s first scene bound.
     /// </summary>
+    /// <remarks>The layer is drawn at full resolution rather than into a half resolution target that is upscaled.</remarks>
     private void RenderScreenSpaceLayer(in SceneView view, ref Scene.RenderContext renderContext)
     {
         Debug.Assert(ViewBuffer != null);

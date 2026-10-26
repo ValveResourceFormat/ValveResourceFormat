@@ -12,8 +12,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     /// share the decal system's room with every other decal and make way for newer ones like them.
     /// </summary>
     /// <remarks>
-    /// Material variables, sheet animation and the world, water and character projection switches are not
-    /// applied: the decals project onto whatever the scene depth holds.
+    /// Material variables and sheet animation are not applied. The decals project onto whatever the scene
+    /// depth holds, and nothing at all when they do not project onto the world.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderProjected">C_OP_RenderProjected</seealso>
     internal class RenderProjected : ParticleFunctionRenderer
@@ -26,6 +26,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly float minProjectionDepth = -128f;
         private readonly float maxProjectionDepth = 128f;
         private readonly INumberProvider materialSelection = new LiteralNumberProvider(0f);
+
+        /// <summary>
+        /// Whether the decals project onto the world. The scene's decal pass cannot tell the world from the
+        /// other surfaces it projects onto, so without it nothing is projected.
+        /// </summary>
+        private readonly bool projectWorld = true;
 
         /// <summary>The decal of each particle with a handle, at the slot its handle names less one.</summary>
         private readonly ParticleHandlePool<(ProjectedDecalHandle Handle, int Material)> pool = new();
@@ -53,6 +59,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             minProjectionDepth = parse.Float("m_flMinProjectionDepth", minProjectionDepth);
             maxProjectionDepth = parse.Float("m_flMaxProjectionDepth", maxProjectionDepth);
             materialSelection = parse.NumberProvider("m_flMaterialSelection", materialSelection);
+            projectWorld = parse.Boolean("m_bProjectWorld", projectWorld);
+
+            // Projecting onto characters (m_bProjectCharacter) and water (m_bProjectWater) is left to the host.
+            // The decals have no sheet animation for m_flAnimationTimeScale to speed up, and m_MaterialVars
+            // name dynamic material attributes, which the decal materials do not take per decal.
         }
 
         /// <inheritdoc/>
@@ -61,7 +72,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <inheritdoc/>
         public override void Act(ParticleCollection particles, ParticleSystemState systemState)
         {
-            if (materials.Length == 0)
+            if (materials.Length == 0 || !projectWorld)
             {
                 return;
             }
@@ -105,7 +116,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 }
 
                 var box = DecalBox(positions[i], normals[i], width, scales.Roll * rolls[i]);
-                var tint = BlendColor(colors[i], alphas[i], alpha2s[i], scales);
+                // The colour and alpha are truncated to bytes without a clamp, so a value past 1 wraps around
+                var alphaByte = (byte)(int)(alphas[i] * alpha2s[i] * 255f);
+                var tint = ParticleColorBlend.Apply(ColorBlendType, ParticleColorBlend.ToWrappedBytes(colors[i], alphaByte), scales.Color) / 255f;
 
                 if (slot >= 0)
                 {

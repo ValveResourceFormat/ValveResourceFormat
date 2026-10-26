@@ -33,7 +33,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// The bit mask over <see cref="ParticleField"/> of the attributes this renderer blends between
         /// two steps besides those every renderer blends: its <see cref="Alpha2Field"/>.
         /// </summary>
-        public ulong BlendedFields => ParticleBuffer.IsScalar(Alpha2Field) ? Alpha2Field.Mask() : 0;
+        public virtual ulong BlendedFields => ParticleBuffer.IsScalar(Alpha2Field) ? Alpha2Field.Mask() : 0;
 
         /// <summary>How the camera's view of a control point scales the draw, and how far particles are drawn toward the camera.</summary>
         private readonly ParticleVisibilityInputs visibility = new();
@@ -117,7 +117,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <param name="Alpha">Scales every particle's alpha.</param>
         /// <param name="Roll">Scales every particle's roll.</param>
         /// <param name="Color">The colour scale converted for <see cref="ParticleColorBlend.Apply"/>, with the alpha scale in w.</param>
-        protected readonly record struct RendererScales(float Radius, float Alpha, float Roll, Vector4 Color);
+        /// <param name="VisibleAlpha">Scales every particle's alpha by how the camera sees the visibility control point, before the alpha is clamped.</param>
+        protected readonly record struct RendererScales(float Radius, float Alpha, float Roll, Vector4 Color, float VisibleAlpha = 1f);
 
         /// <summary>Evaluates the renderer scales for one draw.</summary>
         protected RendererScales EvaluateScales(ParticleSystemState systemState)
@@ -132,22 +133,28 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>
-        /// Evaluates the renderer scales for one draw, with the alpha and radius also scaled by how
-        /// <paramref name="camera"/> sees the visibility control point.
+        /// Evaluates the renderer scales for one draw, with the radius scaled and
+        /// <see cref="RendererScales.VisibleAlpha"/> set by how <paramref name="camera"/> sees the
+        /// visibility control point.
         /// </summary>
         protected RendererScales EvaluateScales(ParticleSystemState systemState, Camera camera)
         {
             var scales = EvaluateScales(systemState);
             var (visibleAlpha, visibleRadius) = visibility.Evaluate(systemState, camera);
-            var alpha = scales.Alpha * visibleAlpha;
 
             return scales with
             {
                 Radius = scales.Radius * visibleRadius,
-                Alpha = alpha,
-                Color = scales.Color with { W = alpha },
+                VisibleAlpha = visibleAlpha,
             };
         }
+
+        /// <summary>
+        /// The alpha and radius scales of the visibility control point as <paramref name="camera"/> sees
+        /// it, or 1 for both when no visibility control point is set.
+        /// </summary>
+        protected (float Alpha, float Radius) EvaluateControlPointVisibility(ParticleSystemState systemState, Camera camera)
+            => visibility.HasControlPoint ? visibility.Evaluate(systemState, camera) : (1f, 1f);
 
         /// <summary>
         /// The particles as they stand at the time the system was asked to reach. That is
@@ -202,12 +209,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         /// <summary>
         /// A particle's colour and alpha combined with the colour and alpha scale, in 0 to 1. The alpha
-        /// is taken with its <see cref="Alpha2Field"/> value <paramref name="alpha2"/> and
-        /// <paramref name="alphaPrescale"/>, and both are clamped to bytes before they combine.
+        /// is taken with its <see cref="Alpha2Field"/> value <paramref name="alpha2"/>,
+        /// <paramref name="alphaPrescale"/> and the visible alpha, and both are clamped to bytes before
+        /// they combine.
         /// </summary>
         protected Vector4 BlendColor(Vector3 color, float alpha, float alpha2, in RendererScales scales, float alphaPrescale = 1f)
             => ParticleColorBlend.Apply(ColorBlendType,
-                ParticleColorBlend.ToBytes(color, alphaPrescale * alpha * alpha2),
+                ParticleColorBlend.ToBytes(color, alphaPrescale * alpha * alpha2 * scales.VisibleAlpha),
                 scales.Color) / 255f;
 
         /// <summary>
@@ -355,6 +363,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// Replaces the texture this renderer draws with.
         /// </summary>
         public virtual void SetTextureOverride(RenderTexture texture) { }
+
+        /// <summary>
+        /// Replaces the texture this renderer draws with by the texture of that name, loaded the way the
+        /// texture it replaces is.
+        /// </summary>
+        public virtual void SetTextureOverride(string textureName) { }
 
         /// <summary>
         /// Replaces the material this renderer draws with, for renderers that draw with one.

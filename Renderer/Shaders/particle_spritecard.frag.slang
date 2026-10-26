@@ -6,6 +6,7 @@
 #include "common/depth.slang"
 #include "common/spritecard_channels.slang"
 
+#include "common/texturing.slang"
 #include "common/lighting.particle.slang"
 
 // Render modes -- Switched on/off by code
@@ -15,11 +16,15 @@
 #define PARTICLE_OUTPUT_BLEND_MODE_MOD2X 5
 uniform int uBlendMode = 0; // PARTICLE_OUTPUT_BLEND_MODE_ALPHA
 
+// Subtracted from the base texture's decoded frames under modulate-2x, in 1/256 steps per channel.
+const vec3 MOD2X_BASE_BIAS = vec3(1.5, 2.5, 1.5) / 256.0;
+
 // The share of the destination each output blend mode covers, per unit of alpha, indexed by mode.
 const float OUTPUT_BLEND_MODE_ALPHA_FACTOR[7] = float[](1.0, 0.0, -1.0, 0.5, -0.5, 1.0, 1.0);
 
 // One sampler per texture layer. Layer 0 is the base texture and keeps the plain name.
 // One more colour layer than the combo's value, matching Base + Layer1..Layer4.
+// A layer that clamps its uvs has a clamp-to-edge sampler object bound to its unit by the renderer.
 #define S_TEXTURE_LAYERS 0
 #define MAX_TEXTURE_LAYERS (S_TEXTURE_LAYERS + 1)
 uniform sampler2D uTexture;
@@ -34,6 +39,16 @@ uniform sampler2D uTextureLayer3;
 #endif
 #if S_TEXTURE_LAYERS > 3
 uniform sampler2D uTextureLayer4;
+#endif
+
+// A sheet of motion vectors, which is not a layer: it composites nothing, and only warps the first two layers
+// toward the frames they blend between. The vectors ride green and alpha, signed about a half, and a full
+// vector pushes by the scale, in units of the base texture.
+#define S_MOTION_VECTORS 0
+#if S_MOTION_VECTORS
+uniform sampler2D uMotionVectors;
+uniform vec2 uMotionVectorScale = vec2(0.0);
+in vec4 vMotionVectorUvOut;
 #endif
 
 uniform float uOverbrightFactor;
@@ -51,18 +66,27 @@ uniform bool uMaxLuminanceFrameBlend = false;
 uniform int uLightingMode = 0; // PARTICLE_LIGHTING_PER_PARTICLE
 
 uniform vec3 uHsvShift = vec3(0.0, 1.0, 1.0);
-uniform vec2 uAlphaRemapRange = vec2(1.0, 0.0);
+
+// The texture alpha is scaled by x and offset by y after the colour stages
+uniform vec2 uAlphaRemap = vec2(1.0, 0.0);
+
+// A smoothstep over the texture alpha from x to y, skipped unless x is below y
+uniform vec2 uEdgeSoftness = vec2(1000.0, -1000.0);
 
 uniform bool uOutline = false;
 uniform vec4 uOutlineColor = vec4(1.0);
 uniform vec4 uOutlineRanges = vec4(0.5, 0.7, 0.6, 0.8);
 
+// The feather fades over (min, max) as given. A minimum above the maximum inverts it, keeping only what
+// lies within the minimum of the scene, which a reverse depth tested card uses to light nearby surfaces.
+uniform bool uFeathering = false;
 uniform vec2 uFeatheringRange = vec2(0.0);
 uniform float uFeatheringFilter = 1.0;
 
 uniform bool uFogParticles = true;
 uniform bool uSaturateColor = true; // m_bSaturateColorPreAlphaBlend
-uniform bool uUnsignedBlendAlpha = false; // games with Particles/EnableParticleShaderFeatureBranching
+uniform bool uUnsignedBlendAlpha = false; // spritecard shaders with texture layers
+uniform bool uClampLayers = false; // each layer's composite is clamped to 1 as well as floored at 0
 
 // The per particle alpha test. Opaque says whether the texture alpha (x) and the vertex alpha (y) are
 // replaced by full opacity once the test passes; softness is how far the upper (x) and lower (y) edges of
@@ -88,19 +112,19 @@ uniform int uLayerChannels[MAX_TEXTURE_LAYERS];
 uniform int uLayerBlendMode[MAX_TEXTURE_LAYERS];
 uniform float uLayerBlend[MAX_TEXTURE_LAYERS];
 
-// Texture effect modes. NORMALMAP never reaches the shader; the renderer keeps it out of the chain.
+// Texture effect modes. NORMALMAP and the motion vectors never reach the chain; the renderer keeps them out.
 #define SPRITECARD_TEXTURE_ZOOM             1
 #define SPRITECARD_TEXTURE_1D_COLOR_LOOKUP  2
 #define SPRITECARD_TEXTURE_UVDISTORTION      3
 #define SPRITECARD_TEXTURE_UVDISTORTION_ZOOM 4
-#define SPRITECARD_TEXTURE_ANIMMOTIONVEC     6
 uniform int uLayerEffectMode[MAX_TEXTURE_LAYERS];
-
-uniform vec2 uMotionVectorScale = vec2(0.0);
 
 // m_flDistortion and m_flZoomScale from each layer's m_TextureControls.
 uniform float uLayerDistortion[MAX_TEXTURE_LAYERS];
 uniform float uLayerZoomScale[MAX_TEXTURE_LAYERS];
+
+// The frame blend of a layer without sheet frames, which then neither cross-fades nor warps.
+#define NO_FRAME_BLEND (-1.0)
 
 
 // Indexed by mask mode: .x premultiplies the ramp's source colour by its alpha, .y switches the lookup
@@ -115,12 +139,17 @@ in vec2 vTexCoordNextFrameOut;
 #if S_TEXTURE_LAYERS > 0
 in vec4 vLayerUvOut[S_TEXTURE_LAYERS];
 #endif
-in float vFrameBlendOut;
+// Each layer's per particle controls. A lookup layer reads its ramp at ((luma + x) * z, y) and blends
+// by w. Any other layer zooms x times as fast and weighs its distortion, or else its blend, by y.
+flat in vec4 vLayerControlsOut[S_TEXTURE_LAYERS + 1];
+in vec2 vFrameBlendOut;
 flat in vec2 vAlphaReferenceOut;
+// The weight every layer's U carries across a ribbon, divided out here.
+in float vUvWeightOut;
 in vec2 vCardUvOut;
 in vec4 vColor;
 in vec3 vFragPosition;
-in vec3 vLightingPosition;
+in vec3 vLightOut;
 
 out vec4 fragColor;
 
@@ -144,6 +173,29 @@ vec4 SampleLayer(int layer, vec2 uv)
     }
 
     return texture(uTexture, uv);
+}
+
+// Indexing the flat controls with the loop counter can read zeros for later layers on some drivers, so
+// each layer's entry is read by a constant index.
+vec4 LayerControls(int layer)
+{
+    switch (layer)
+    {
+#if S_TEXTURE_LAYERS > 0
+        case 1: return vLayerControlsOut[1];
+#endif
+#if S_TEXTURE_LAYERS > 1
+        case 2: return vLayerControlsOut[2];
+#endif
+#if S_TEXTURE_LAYERS > 2
+        case 3: return vLayerControlsOut[3];
+#endif
+#if S_TEXTURE_LAYERS > 3
+        case 4: return vLayerControlsOut[4];
+#endif
+    }
+
+    return vLayerControlsOut[0];
 }
 
 // Two taps of a layer's own texture, at opposite ends of a zoom sweep about the card centre, eased and
@@ -171,15 +223,17 @@ vec4 DistortPrevious(int previousLayer, vec4 source, vec2 previousUv, float stre
 
 
 // A 1D ramp, looked up by the luminance of whatever is beneath this layer. The lookup runs in gamma
-// space, and the ramp is a one-texel-tall gradient the renderer synthesized from m_Gradient.
-vec4 SampleGradientRamp(int layer, vec4 previous, int maskMode)
+// space. The layer's controls place the luminance across the ramp, and alone pick the row, so the row
+// is the same over the whole particle.
+vec4 SampleGradientRamp(int layer, vec4 previous, int maskMode, vec4 controls)
 {
     vec2 flags = MASK_RAMP_FLAGS[maskMode];
 
     vec4 source = mix(mix(vec4(previous.rgb * previous.aaa, 1.0), previous, flags.x),
                       previous.aaaa, flags.y);
 
-    vec4 ramp = SampleLayer(layer, vec2(GetLuma(SrgbLinearToGamma(source.rgb)), 0.5));
+    float luma = GetLuma(SrgbLinearToGamma(source.rgb));
+    vec4 ramp = SampleLayer(layer, vec2((luma + controls.x) * controls.z, controls.y));
 
     // With alpha as the luma the ramp also supplies the alpha; otherwise the layer below keeps its own.
     return mix(vec4(ramp.rgb, previous.a), vec4(ramp.rgb, dot(ramp.rgb, LUMA_601)), flags.y);
@@ -238,21 +292,44 @@ vec3 ApplyHsvShift(vec3 sourceColor)
 
 vec4 LayerUvs(int layer)
 {
+    vec4 uvs = vec4(vTexCoordOut, vTexCoordNextFrameOut);
+
 #if S_TEXTURE_LAYERS > 0
     if (layer > 0)
     {
-        return vLayerUvOut[clamp(layer - 1, 0, S_TEXTURE_LAYERS - 1)];
+        uvs = vLayerUvOut[clamp(layer - 1, 0, S_TEXTURE_LAYERS - 1)];
     }
 #endif
 
-    return vec4(vTexCoordOut, vTexCoordNextFrameOut);
+    uvs.xz /= vUvWeightOut;
+
+    return uvs;
 }
 
-// A motion vector layer's flow at a coordinate. The vectors ride green and alpha, signed about a half.
-vec2 SampleFlow(int layer, vec2 uv)
+// How far between its two sheet frames a layer has crossed. Only the first two layers cross-fade, each by its
+// own blend; later layers always show their current frame.
+float LayerFrameBlend(int layer)
 {
-    return ((SampleLayer(layer, uv).yw * 2.0) - vec2(1.0)) * uMotionVectorScale;
+    if (layer == 0)
+    {
+        return vFrameBlendOut.x;
+    }
+
+    if (layer == 1)
+    {
+        return vFrameBlendOut.y;
+    }
+
+    return NO_FRAME_BLEND;
 }
+
+#if S_MOTION_VECTORS
+// The motion vectors' push at a coordinate.
+vec2 SampleFlow(vec2 uv)
+{
+    return ((texture(uMotionVectors, uv).yw * 2.0) - vec2(1.0)) * uMotionVectorScale;
+}
+#endif
 
 #if S_REFRACT
 // The scene at the fragment, displaced by the texel's red and green signed about a half, as far as its alpha
@@ -313,79 +390,80 @@ void main(void) {
     // Each layer is folded into an accumulator seeded to white. Layer 0 is the base texture, so with one
     // layer and the default MULTIPLY this collapses to a straight sample.
     vec4 accum = vec4(1.0);
-    vec2 previousUv = vTexCoordOut;
+    vec2 previousUv = LayerUvs(0).xy;
     int previousLayer = 0;
 
+    // The push of the current frame toward the next, and of the next back toward the current
     vec2 flow = vec2(0.0);
     vec2 flowNext = vec2(0.0);
 
-#if S_TEXTURE_LAYERS > 0
-    for (int i = 1; i < uLayerCount; ++i)
+#if S_MOTION_VECTORS
+    if (uBlendFrames)
     {
-        if (uLayerEffectMode[i] == SPRITECARD_TEXTURE_ANIMMOTIONVEC)
-        {
-            vec4 motionUvs = LayerUvs(i);
-            flow = SampleFlow(i, motionUvs.xy) * vFrameBlendOut;
-            flowNext = SampleFlow(i, motionUvs.zw) * (1.0 - vFrameBlendOut);
-            break;
-        }
+        flow = SampleFlow(vMotionVectorUvOut.xy);
+        flowNext = SampleFlow(vMotionVectorUvOut.zw);
     }
 #endif
-
-    int colourLayers = 0;
 
     for (int i = 0; i < uLayerCount; ++i)
     {
         int effectMode = uLayerEffectMode[i];
 
-        if (effectMode == SPRITECARD_TEXTURE_ANIMMOTIONVEC)
-        {
-            continue;
-        }
-
-        // Each layer cross-fades between its own sheet's current and next frame rects; layers whose
-        // rects are constant (one-frame sequences, plain textures) mix two identical samples.
+        // The first two layers cross-fade between their own sheet's current and next frame rects; layers
+        // whose rects are constant (one-frame sequences, plain textures) mix two identical samples.
         vec4 uvs = LayerUvs(i);
         vec2 layerUv = uvs.xy;
         vec2 layerUvNext = uvs.zw;
+        float frameBlend = LayerFrameBlend(i);
 
-        // Only the first two colour layers warp; later layers get no flow.
-        if (colourLayers < 2)
+        // Only the first two layers warp, each as far as its own frame blend, and a layer without sheet
+        // frames stays put. Strictly, when the first layer has no sheet frames the vectors go unsampled
+        // and decode from zero, pushing the second layer by a full negative vector; that is not reproduced.
+        if (i < 2 && frameBlend > NO_FRAME_BLEND)
         {
-            layerUv -= flow;
-            layerUvNext += flowNext;
+            layerUv -= flow * frameBlend;
+            layerUvNext += flowNext * (1.0 - frameBlend);
         }
 
-        colourLayers++;
+        frameBlend = max(frameBlend, 0.0);
+
+        // Modulate-2x pulls both base frames down by a fixed offset before anything else reads them;
+        // re-samples for zoom or distortion keep the raw texture.
+        vec3 mod2xBias = (i == 0 && uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_MOD2X) ? MOD2X_BASE_BIAS : vec3(0.0);
 
         vec4 layer = SampleLayer(i, layerUv);
+        layer.rgb -= mod2xBias;
 
-        if (uBlendFrames)
+        if (uBlendFrames && i < 2)
         {
             vec4 nextFrame = SampleLayer(i, layerUvNext);
+            nextFrame.rgb -= mod2xBias;
 
             if (i == 0 && uMaxLuminanceFrameBlend)
             {
                 // Weighting each frame by the square root of its luminance keeps the brighter one
                 // dominant through the cross-fade, so a spark does not dim as it crosses a frame.
-                float weight = (1.0 - vFrameBlendOut) * sqrt(max(0.001, GetLuma(layer.rgb)));
-                float nextWeight = vFrameBlendOut * sqrt(max(0.001, GetLuma(nextFrame.rgb)));
+                float weight = (1.0 - frameBlend) * sqrt(max(0.001, GetLuma(layer.rgb)));
+                float nextWeight = frameBlend * sqrt(max(0.001, GetLuma(nextFrame.rgb)));
                 layer = ((layer * weight) + (nextFrame * nextWeight)) / (weight + nextWeight);
             }
             else
             {
-                layer = mix(layer, nextFrame, vFrameBlendOut);
+                layer = mix(layer, nextFrame, frameBlend);
             }
         }
 
+        vec4 controls = LayerControls(i);
+        bool distorts = effectMode == SPRITECARD_TEXTURE_UVDISTORTION || effectMode == SPRITECARD_TEXTURE_UVDISTORTION_ZOOM;
+
         if (effectMode == SPRITECARD_TEXTURE_ZOOM || effectMode == SPRITECARD_TEXTURE_UVDISTORTION_ZOOM)
         {
-            layer = ZoomSample(i, layerUv, uLayerZoomScale[i]);
+            layer = ZoomSample(i, layerUv, uLayerZoomScale[i] * controls.x);
         }
 
-        if (effectMode == SPRITECARD_TEXTURE_UVDISTORTION || effectMode == SPRITECARD_TEXTURE_UVDISTORTION_ZOOM)
+        if (distorts)
         {
-            layer = DistortPrevious(previousLayer, layer, previousUv, uLayerDistortion[i]);
+            layer = DistortPrevious(previousLayer, layer, previousUv, uLayerDistortion[i] * controls.y);
         }
 
         previousUv = layerUv;
@@ -393,11 +471,15 @@ void main(void) {
 
         int maskMode = uLayerChannels[i];
 
+        // A distortion layer's weight went into its distortion, so its blend is left as it is
+        float blendWeight = distorts ? 1.0 : controls.y;
+
         if (effectMode == SPRITECARD_TEXTURE_1D_COLOR_LOOKUP)
         {
             // Effects read the layer's own sample on layer 0 and the accumulator on later layers, which
             // keeps this a special case rather than something that folds away.
-            layer = SampleGradientRamp(i, i == 0 ? layer : accum, maskMode);
+            layer = SampleGradientRamp(i, i == 0 ? layer : accum, maskMode, controls);
+            blendWeight = controls.w;
         }
 
         int blendMode = uLayerBlendMode[i];
@@ -407,7 +489,8 @@ void main(void) {
         vec4 blended = ApplyLayerBlend(accum, masked, blendMode);
 
         // m_flTextureBlend fades the layer's contribution back toward what was already there.
-        accum = max(mix(accum, blended, uLayerBlend[i]), vec4(0.0));
+        vec4 faded = mix(accum, blended, uLayerBlend[i] * blendWeight);
+        accum = uClampLayers ? saturate(faded) : max(faded, vec4(0.0));
     }
 
     vec4 color = accum;
@@ -423,14 +506,14 @@ void main(void) {
         finalColor = ApplyHsvShift(finalColor);
     }
 
-    // Both the remap and the outline band read the raw texture alpha; only the remap's result is carried
-    // forward, so an outline lands in the same place whether or not a remap is active.
+    // Both the soft edge and the outline band read the raw texture alpha; only the soft edge's result is
+    // carried forward, so an outline lands in the same place whether or not soft edges are on.
     float rawAlpha = color.a;
     float alpha = rawAlpha;
 
-    if (!uAlphaReference && uAlphaRemapRange.x < uAlphaRemapRange.y)
+    if (!uAlphaReference && uEdgeSoftness.x < uEdgeSoftness.y)
     {
-        alpha = smoothstep(uAlphaRemapRange.x, uAlphaRemapRange.y, rawAlpha);
+        alpha = smoothstep(uEdgeSoftness.x, uEdgeSoftness.y, rawAlpha);
     }
 
     // Overlay the outline colour across its alpha band. Solid between Start1 and End0, feathered outside.
@@ -448,9 +531,18 @@ void main(void) {
     // everything else.
     finalColor = mix(finalColor, vec3(GetLuma(finalColor)), uDesaturation);
 
-    alpha = uAlphaReference ? AlphaReference(rawAlpha, vColor.a) : alpha * vColor.a;
+    // The offset is not scaled, so only a remap whose zero point is 0 sends it to 0. The result is only
+    // saturated when frames blend.
+    alpha = alpha * uAlphaRemap.x + uAlphaRemap.y;
 
-    if (uFeatheringRange.y > uFeatheringRange.x)
+    if (uBlendFrames)
+    {
+        alpha = saturate(alpha);
+    }
+
+    alpha = uAlphaReference ? AlphaReference(alpha, vColor.a) : alpha * vColor.a;
+
+    if (uFeathering)
     {
         vec3 toFragment = vFragPosition - g_vCameraPositionWs;
         vec3 scenePosition = GetWorldPositionFromDepth(ivec2(gl_FragCoord.xy), toFragment);
@@ -466,8 +558,11 @@ void main(void) {
 
         float offset = spread * (uFeatheringRange.y * uFeatheringFilter * halfWidening);
 
-        alpha *= saturate((distance(vFragPosition, scenePosition) - offset - uFeatheringRange.x)
-            / (uFeatheringRange.y - uFeatheringRange.x));
+        float pastMin = distance(vFragPosition, scenePosition) - offset - uFeatheringRange.x;
+        float range = uFeatheringRange.y - uFeatheringRange.x;
+
+        // An empty range is a hard cut at the minimum distance
+        alpha *= range != 0.0 ? saturate(pastMin / range) : float(pastMin > 0.0);
     }
 
 #if S_REFRACT
@@ -494,9 +589,17 @@ void main(void) {
 
         if (uDiffuseAmount != 0.0)
         {
-            vec3 lightingPosition = uLightingMode == PARTICLE_LIGHTING_PER_PIXEL ? vFragPosition : vLightingPosition;
-            ParticleLight_t light = CalculateParticleLighting(lightingPosition, -g_vCameraDirWs, 0.0);
-            litColor += finalColor * (light.Ambient + light.Direct) * uDiffuseAmount;
+            vec3 light = vLightOut;
+
+            // TODO: Whether per pixel lighting tessellates the card rather than lighting its fragments is not
+            // known, so it is lit per fragment
+            if (uLightingMode == PARTICLE_LIGHTING_PER_PIXEL)
+            {
+                ParticleLight_t pixelLight = CalculateParticleLighting(vFragPosition, -g_vCameraDirWs, 0.0, false);
+                light = pixelLight.Ambient + pixelLight.Direct;
+            }
+
+            litColor += finalColor * light * uDiffuseAmount;
         }
 
         finalColor = uOverbrightFactor * litColor;

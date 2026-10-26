@@ -472,7 +472,7 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         /// <param name="camera">The camera to measure distance from.</param>
         /// <returns>The squared distance to the camera.</returns>
-        public float GetCameraDistance(Camera camera)
+        public virtual float GetCameraDistance(Camera camera)
         {
             return Vector3.DistanceSquared(BoundingBox.Center, camera.Location);
         }

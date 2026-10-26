@@ -44,22 +44,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         public RenderSprites(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene)
             : base(parse, rendererContext, scene, DefaultTextureName, instancing: 1)
         {
-            // In buffer order. The axes are three components, so the shader's unwritten w reads as the
-            // 1.0 GL fills in, which is the half width a card wants at both of its ends.
-            CreateVertexArray(BuildInstanceLayout<CardInstance>(
-            [
-                new(VertexSlot.Position, DXGI_FORMAT.R32G32B32_FLOAT),
-                new("vAxisU", DXGI_FORMAT.R32G32B32_FLOAT),
-                new("vAxisV", DXGI_FORMAT.R32G32B32_FLOAT),
-                new(VertexSlot.Color, DXGI_FORMAT.R32G32B32A32_FLOAT),
-                new(VertexSlot.TexCoord, DXGI_FORMAT.R32G32B32A32_FLOAT),
-                new(VertexSlot.TexCoord1, DXGI_FORMAT.R32G32B32A32_FLOAT),
-                new("vFrameBlendAlphaRef", DXGI_FORMAT.R32G32B32_FLOAT),
-            ]), instanceDivisor: 1);
+            CreateVertexArray(InstanceLayout<CardInstance>(), instanceDivisor: 1);
 
+            // Older definitions play their sheets by age whatever their animation type asks, while the
+            // rate is still read by that type
             if (parse.BehaviorVersion < 10)
             {
-                AnimationType = ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE;
+                AgeAnimationType = ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE;
             }
 
             orientationType = (ParticleOrientation)Math.Clamp((int)parse.Enum("m_nOrientationType", orientationType),
@@ -76,11 +67,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             edgeSoftnessStart = parse.Float("m_flEdgeSoftnessStart", edgeSoftnessStart);
             edgeSoftnessEnd = parse.Float("m_flEdgeSoftnessEnd", edgeSoftnessEnd);
 
+            // TODO: m_bParticleShadows and m_flShadowDensity, where sprites are shaded by the particles between
+            // them and the light, are not drawn
+
             outline = parse.Boolean("m_bOutline", outline);
 
             if (outline)
             {
-                var color = parse.Color24("m_OutlineColor", new Vector3(1f));
+                var color = ColorSpace.SrgbGammaToLinear(parse.Color24("m_OutlineColor", new Vector3(1f)));
                 outlineColor = new Vector4(color, parse.Int32("m_nOutlineAlpha", 255) / 255f);
                 outlineRanges = new Vector4(
                     parse.Float("m_flOutlineStart0", outlineRanges.X),
@@ -90,152 +84,33 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
         }
 
-        /// <summary>One particle's attributes, in buffer order. Must match the layout built in the constructor.</summary>
+        /// <summary>One particle's attributes, which the shader expands into the four corners of its card.</summary>
         [StructLayout(LayoutKind.Sequential)]
         private struct CardInstance
         {
-            public Vector3 Origin;
-            public Vector3 AxisU;
-            public Vector3 AxisV;
-            public Vector4 Color;
-            public Vector4 UvRect;
-            public Vector4 UvRectNext;
-            public Vector3 FrameBlendAlphaReference;
-        }
+            /// <summary>The card's centre.</summary>
+            [VertexAttribute(VertexSlot.Position)] public Vector3 Position;
 
-        /// <summary>
-        /// The part of a sheet tile its art covers, in card coordinates.
-        /// </summary>
-        private readonly record struct CropWindow(Vector2 Min, Vector2 Max)
-        {
-            /// <summary>The window that covers a whole tile, for a sheet that crops nothing away.</summary>
-            public static CropWindow Full { get; } = new(Vector2.Zero, Vector2.One);
+            /// <summary>The card's axes per unit of radius, with its roll and yaw turned in.</summary>
+            [VertexAttribute("vAxisU")] public Vector3 AxisU;
 
-            /// <summary>The window's extent along each card axis.</summary>
-            public Vector2 Size => Max - Min;
-        }
+            /// <inheritdoc cref="AxisU"/>
+            [VertexAttribute("vAxisV")] public Vector3 AxisV;
 
-        /// <summary>The two sheet frames one layer is blending between, and how far it has crossed.</summary>
-        private readonly record struct LayerFrames(
-            Texture.SpritesheetData.Sequence.Frame.Image Current,
-            Texture.SpritesheetData.Sequence.Frame.Image Next,
-            float Blend);
+            /// <summary>The colour, its alpha before any fade.</summary>
+            [VertexAttribute(VertexSlot.Color)] public Vector4 Color;
 
-        private static Vector2 Normalize(Vector2 point, Vector2 min, Vector2 size) => new(
-            size.X != 0f ? (point.X - min.X) / size.X : 0f,
-            size.Y != 0f ? (point.Y - min.Y) / size.Y : 0f);
+            /// <inheritdoc cref="SpritecardVertex.SheetInputs"/>
+            [VertexAttribute(VertexSlot.TexCoord)] public Vector4 SheetInputs;
 
-        /// <summary>The card coordinates a frame's cropped art occupies within its own tile.</summary>
-        private static CropWindow TileWindow(Texture.SpritesheetData.Sequence.Frame.Image image)
-        {
-            var size = image.UncroppedMax - image.UncroppedMin;
+            /// <summary>The sequence the first layer plays, then the one later layers play.</summary>
+            [VertexAttribute(VertexSlot.TexCoord1)] public Vector2 Sequences;
 
-            return new CropWindow(
-                Normalize(image.CroppedMin, image.UncroppedMin, size),
-                Normalize(image.CroppedMax, image.UncroppedMin, size));
-        }
+            /// <inheritdoc cref="SpritecardVertex.RotationRadius"/>
+            [VertexAttribute(VertexSlot.TexCoord3)] public Vector4 RotationRadius;
 
-        /// <summary>Places a card window back in the atlas, against the tile it was measured in.</summary>
-        private static (Vector2 Min, Vector2 Max) WindowRect(Texture.SpritesheetData.Sequence.Frame.Image image, CropWindow window)
-        {
-            var size = image.UncroppedMax - image.UncroppedMin;
-
-            return (image.UncroppedMin + (window.Min * size), image.UncroppedMin + (window.Max * size));
-        }
-
-        /// <summary>
-        /// The frames a layer's own sheet is showing, or null when it carries no sequence.
-        /// </summary>
-        /// <remarks>
-        /// Layer 0 plays the particle's sequence, later layers the second sequence (0 unless set), and
-        /// a sequence override replaces both. Sequence numbers outside the sheet play sequence 0.
-        /// Layer N of a multi-image frame uses image N, and the last image covers any layers beyond that.
-        /// </remarks>
-        private LayerFrames? GetLayerFrames(int layer, in SheetInputs inputs, int index, int overrideSequence, float rateScale)
-        {
-            var sequenceNumber = overrideSequence;
-
-            if (overrideSequence < 0)
-            {
-                var particleSequence = layer > 0 ? inputs.SecondSequenceNumbers[index] : inputs.SequenceNumbers[index];
-                sequenceNumber = SequenceIndex(particleSequence);
-            }
-
-            if (GetSheetFrames(layer, sequenceNumber, inputs, index, rateScale) is not { } frames)
-            {
-                return null;
-            }
-
-            return new LayerFrames(LayerImage(frames.Current, layer), LayerImage(frames.Next, layer), frames.Blend);
-        }
-
-        /// <summary>
-        /// The sheet position of the sequence a particle's sequence number names. The number is rounded
-        /// to the nearest integer and, unless it is a raw index, read as a sequence id of the first
-        /// layer's sheet; an id that sheet does not have plays sequence 0.
-        /// </summary>
-        private int SequenceIndex(float sequenceNumber)
-        {
-            var number = (int)MathF.Round(sequenceNumber);
-            var sequences = Layers[0].Texture.SpriteSheetData?.Sequences;
-
-            if (sequenceNumbersAreRawIndices || sequences == null || number < 0)
-            {
-                return number;
-            }
-
-            var id = (uint)number;
-
-            if (number < sequences.Length && sequences[number].Id == id)
-            {
-                return number;
-            }
-
-            for (var i = 0; i < sequences.Length; i++)
-            {
-                if (sequences[i].Id == id)
-                {
-                    return i;
-                }
-            }
-
-            return 0;
-        }
-
-        private static Texture.SpritesheetData.Sequence.Frame.Image LayerImage(Texture.SpritesheetData.Sequence.Frame frame, int layer)
-            => frame.Images[Math.Min(layer, frame.Images.Length - 1)];
-
-        /// <summary>
-        /// The window the card shrinks to, covering the art of both frames it is blending so neither is
-        /// clipped, and none of the tile's packed neighbours is drawn.
-        /// </summary>
-        private static CropWindow GetCardCropWindow(LayerFrames? frames)
-        {
-            if (frames is not { } cardFrames)
-            {
-                return CropWindow.Full;
-            }
-
-            var current = TileWindow(cardFrames.Current);
-            var next = TileWindow(cardFrames.Next);
-
-            return new CropWindow(
-                Vector2.Min(current.Min, next.Min),
-                Vector2.Max(current.Max, next.Max));
-        }
-
-        /// <summary>The atlas rectangles a layer draws its two frames from, cropped to the card's window.</summary>
-        private static SheetRects GetLayerSheetRects(LayerFrames? frames, CropWindow window)
-        {
-            if (frames is not { } layerFrames)
-            {
-                return SheetRects.Whole;
-            }
-
-            var (min, max) = WindowRect(layerFrames.Current, window);
-            var (nextMin, nextMax) = WindowRect(layerFrames.Next, window);
-
-            return new SheetRects(min, max, nextMin, nextMax);
+            /// <inheritdoc cref="SpritecardVertex.FacingAxis"/>
+            [VertexAttribute(VertexSlot.Normal)] public Vector3 FacingAxis;
         }
 
         // The quad's (right, up) axes from a base pair with the particle roll folded in, matching the
@@ -307,6 +182,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return QuadBasis(n, Vector3.Normalize(w), roll, yaw);
         }
 
+        private bool NormalAligned => orientationType is ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL
+            or ParticleOrientation.PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL;
+
         /// <inheritdoc/>
         protected override int UpdateVertices(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
@@ -322,38 +200,16 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return 0;
             }
 
-            var overrideSequence = (int)MathF.Round(sequenceOverride.NextNumber(systemState));
-
-            Span<float> sheetRateScales = stackalloc float[ParticleTextureLayer.MaxLayers];
-            ParticleTextureLayer.ResolveSheetRateScales(Layers, systemState, sheetRateScales);
-            var normalAligned = orientationType is ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL
-                or ParticleOrientation.PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL;
-            var zeroYaw = normalAligned && !useYawWithNormalAligned;
-
-            // All four bounds are a radius per unit of camera distance
-            var minSizeSlope = minSize.NextNumber(systemState);
-            var maxSizeSlope = maxSize.NextNumber(systemState);
-            var startFadeSlope = startFadeSize.NextNumber(systemState);
-            var endFadeSlope = endFadeSize.NextNumber(systemState);
-
-            var centerOffset = new Vector2(
-                CenterXOffset.NextNumber(systemState),
-                CenterYOffset.NextNumber(systemState));
-
-            // Only the two normal-aligned modes fade by view angle
-            var viewAngleFadeActive = normalAligned && FadesByViewAngle;
+            var overrideSequence = OverrideSequence(sequenceOverride.NextNumber(systemState));
+            var zeroYaw = NormalAligned && !useYawWithNormalAligned;
 
             var extentScale = screenSpace && orientationType == ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED
                 ? ParticleScreenSpaceView.GetScreenAlignedExtentScale(viewCamera.WindowSize)
                 : Vector2.One;
 
-            // One set of attributes per particle, rented from the shared byte pool so the memory is
-            // reused across renderers.
-            var instanceFloats = VertexFloats;
-
             var sorted = SortsByDistance && particles.Count > 1;
 
-            using (var vertexBuffer = new RentedBuffer<float>(particles.Count * instanceFloats))
+            using (var vertexBuffer = new RentedBuffer<CardInstance>(particles.Count))
             using (var drawOrder = new RentedBuffer<ulong>(sorted ? particles.Count : 0))
             {
                 var instances = vertexBuffer.Span;
@@ -376,61 +232,23 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 var rolls = current.ReadFloats(ParticleField.Roll);
                 var yaws = current.ReadFloats(ParticleField.Yaw);
                 var pitches = current.ReadFloats(ParticleField.Pitch);
-                var sheetInputs = new SheetInputs(current);
-                var alphaReferenceInputs = ReadAlphaReferenceInputs(current, sheetInputs.Ages);
+                var extraData1 = current.ReadFloats(ParticleField.ShaderExtraData1);
+                var extraData2 = current.ReadFloats(ParticleField.ShaderExtraData2);
+                var sequenceNumbers = current.ReadFloats(ParticleField.SequenceNumber);
+                var secondSequenceNumbers = current.ReadFloats(ParticleField.SecondSequenceNumber);
+                var sheetAges = ReadSheetAges(current);
+                var randoms = ReadParticleRandoms(current, systemState);
 
                 for (var n = 0; n < current.Length; n++)
                 {
                     var index = sorted ? (int)(uint)order[n] : current.Length - 1 - n;
-                    var radiusScale = scales.Radius;
-                    var position = BiasTowardCamera(positions[index], viewCamera.Location);
 
-                    // Scales rgb and alpha alike, matching the shader's fade of the whole vertex colour.
-                    var colorFade = 1f;
-
-                    // The view-angle fade touches alpha only, unlike the size fade below.
-                    var alphaFade = 1f;
-
-                    if (viewAngleFadeActive)
-                    {
-                        alphaFade = ViewAngleFade(normals[index], position, viewCamera.Location);
-                    }
-
-                    var particleRadius = radii[index];
-
-                    // A screen-space card keeps its raw radius, neither faded nor clamped by its size on screen
-                    if (!screenSpace)
-                    {
-                        var cameraDistance = Vector3.Distance(camera.Location, position);
-                        var radius = particleRadius * radiusScale;
-                        var fadeStart = startFadeSlope * cameraDistance;
-                        var fadeEnd = endFadeSlope * cameraDistance;
-
-                        // The fade reads the raw radius, independently of the size clamp below
-                        if (radius > fadeStart)
-                        {
-                            if (radius >= fadeEnd)
-                            {
-                                continue;
-                            }
-
-                            colorFade = 1f - MathUtils.Remap(radius, fadeStart, fadeEnd);
-                        }
-
-                        // Nested min/max rather than a clamp, so an inverted range resolves to the maximum
-                        if (particleRadius > 0f)
-                        {
-                            radiusScale = MathF.Min(MathF.Max(radius, minSizeSlope * cameraDistance), maxSizeSlope * cameraDistance) / particleRadius;
-                        }
-                    }
-
+                    // Each tint channel is packed from the low byte of round(tint * 255) without a clamp, so a tint
+                    // past 1 or below 0 wraps; it is saturated here
                     var color = BlendColor(colors[index], alphas[index], alpha2s[index], scales);
-                    var alpha = color.W * colorFade * alphaFade;
-                    var halfWidth = particleRadius * radiusScale;
 
-                    // The spritecard vertex shader scales the corner offset to zero below 1/255 alpha, so
-                    // a quad with no extent or no alpha rasterizes nothing either way.
-                    if (halfWidth <= 0f || alpha < 1f / 255f)
+                    // The fades only take alpha away, and the shader collapses a card left below 1/255
+                    if (color.W < 1f / 255f)
                     {
                         continue;
                     }
@@ -449,50 +267,26 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         _ => RotationBasis(EntityTransformHelper.EulerAnglesToRotationMatrixRadians(new Vector3(pitches[index], yaw, roll))),
                     };
 
-                    // The corner map is corner.x * right + corner.y * up + origin, so the card's axes carry
-                    // the radius.
-                    right *= halfWidth * extentScale.X;
-                    up *= halfWidth * extentScale.Y;
+                    var radius = radii[index] * scales.Radius;
 
-                    // The centre offset shifts the corners before the radius scales them, so it is
-                    // measured in half-widths and folds into the origin along those same two axes.
-                    var origin = position
-                        + (centerOffset.X * right)
-                        + (centerOffset.Y * up);
+                    var sequences = overrideSequence >= 0
+                        ? new Vector2(overrideSequence)
+                        : new Vector2(
+                            SequenceLane(sequenceNumbers[index], sequenceNumbersAreRawIndices),
+                            SequenceLane(secondSequenceNumbers[index], sequenceNumbersAreRawIndices));
 
-                    var cardFrames = GetLayerFrames(0, sheetInputs, index, overrideSequence, sheetRateScales[0]);
-                    var window = GetCardCropWindow(cardFrames);
-                    var windowSize = window.Size;
-
-                    origin += ((window.Max.X + window.Min.X - 1f) * right)
-                        + ((1f - window.Min.Y - window.Max.Y) * up);
-
-                    right *= windowSize.X;
-                    up *= windowSize.Y;
-
-                    // Each layer resolves frame rects against its own sheet, timed by the base sequence:
-                    // companion sheets match the base rects, one-frame sequences pin an atlas region.
-                    var sheetRects = GetLayerSheetRects(cardFrames, window);
-                    var alphaReference = GetAlphaReference(alphaReferenceInputs, index, halfWidth, alpha);
-
-                    var layerRects = WriteInstance(instances, i, new CardInstance
+                    // The per particle modes read the yaw as the card turns by it
+                    instances[i++] = new CardInstance
                     {
-                        Origin = origin,
-                        AxisU = right,
-                        AxisV = up,
-                        Color = new Vector4(color.AsVector3() * colorFade, alpha),
-                        UvRect = Rect(sheetRects.Min, sheetRects.Max),
-                        UvRectNext = Rect(sheetRects.NextMin, sheetRects.NextMax),
-                        FrameBlendAlphaReference = new Vector3(cardFrames?.Blend ?? 0f, alphaReference.X, alphaReference.Y),
-                    });
-
-                    for (var layer = 1; layer < Layers.Length; layer++)
-                    {
-                        var layerFrames = GetLayerFrames(layer, sheetInputs, index, overrideSequence, sheetRateScales[layer]);
-                        WriteLayerRects(layerRects, layer, GetLayerSheetRects(layerFrames, window));
-                    }
-
-                    i++;
+                        Position = BiasTowardCamera(positions[index], viewCamera.Location),
+                        AxisU = right * extentScale.X,
+                        AxisV = up * extentScale.Y,
+                        Color = color,
+                        SheetInputs = new Vector4(randoms[index], extraData1[index], sheetAges[index], extraData2[index]),
+                        Sequences = sequences,
+                        RotationRadius = new Vector4(roll, yaw, pitches[index], radius),
+                        FacingAxis = normals[index],
+                    };
                 }
 
                 UploadVertices(vertexBuffer.ByteArray, i);
@@ -504,21 +298,32 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <inheritdoc/>
         protected override void SetDrawUniforms(ParticleSystemState systemState)
         {
-            ParticleTextureLayer.BindUvTransforms(Shader, Layers, systemState);
+            // TODO: Which flag gates the size clamp and the distance fade of a card is not known. A
+            // screen-space card keeps its raw radius, neither faded nor clamped, so a negative one draws mirrored
+            var screenSpace = ScreenSpaceCamera != null;
+
+            SetSizeClampAndFadeUniforms(!screenSpace,
+                minSize.NextNumber(systemState),
+                startFadeSize.NextNumber(systemState),
+                endFadeSize.NextNumber(systemState),
+                maxSize.NextNumber(systemState));
+
+            // Only the two normal-aligned modes fade by view angle
+            SetViewAngleFadeUniforms(NormalAligned && FadesByViewAngle);
+
+            Shader.SetUniform2("uCenterOffset", new Vector2(
+                CenterXOffset.NextNumber(systemState),
+                CenterYOffset.NextNumber(systemState)));
 
             Shader.SetUniform1("uOutline", outline);
             Shader.SetUniform4("uOutlineColor", outlineColor);
             Shader.SetUniform4("uOutlineRanges", outlineRanges);
 
-            // Distance alpha renders an SDF texture through the alpha remap smoothstep: the edge
-            // softness pair replaces the remap range, or a hard threshold just under 0.5.
-            if (distanceAlpha)
-            {
-                var remap = softEdges
-                    ? new Vector2(edgeSoftnessEnd, edgeSoftnessStart)
-                    : new Vector2(GetAlphaRemapRange(systemState).X, 0.499f);
-                Shader.SetUniform2("uAlphaRemapRange", remap);
-            }
+            // Distance alpha with soft edges renders an SDF texture through a smoothstep over the edge softness pair
+            var edgeSoftness = distanceAlpha && softEdges
+                ? new Vector2(edgeSoftnessEnd, edgeSoftnessStart)
+                : NoEdgeSoftness;
+            Shader.SetUniform2("uEdgeSoftness", edgeSoftness);
         }
     }
 }

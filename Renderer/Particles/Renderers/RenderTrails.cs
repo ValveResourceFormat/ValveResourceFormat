@@ -1,7 +1,6 @@
 using System.Runtime.InteropServices;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.Particles.Utils;
-using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
@@ -18,8 +17,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     {
         private const string DefaultTextureName = "materials/particle/base_trail.vtex";
 
-        // m_bEnableFadingAndClamping gates the size clamp, the distance fade and the view angle fade
-        // together. The bounds below are trail-specific and differ from the sprite renderer's.
+        // m_bEnableFadingAndClamping gates the size clamp and the distance fade together. The bounds
+        // below are trail-specific and differ from the sprite renderer's.
         private readonly bool enableFadingAndClamping;
         private readonly float minSize;
         private readonly float maxSize = 2000f;
@@ -28,6 +27,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         private readonly ParticleOrientation orientationType;
         private readonly ParticleField prevPositionSource = ParticleField.PositionPrevious;
+
+        /// <summary>Whether the previous point is the Verlet one, whose distance moved is converted to a velocity.</summary>
+        private readonly bool usesVerletDelta;
+
+        private readonly bool flipUvByPitchYaw;
+
+        /// <summary>The fields that crop the card across and along the ribbon; any field that is not a scalar crops nothing.</summary>
+        private readonly ParticleField horizontalCropField = ParticleField.NoneDisabled;
+
+        /// <inheritdoc cref="horizontalCropField"/>
+        private readonly ParticleField verticalCropField = ParticleField.NoneDisabled;
 
         private readonly float maxLength = 2000f;
         private readonly float minLength;
@@ -44,21 +54,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly IVectorProvider headColorScale = new LiteralVectorProvider(Vector3.One);
         private readonly IVectorProvider tailColorScale = new LiteralVectorProvider(Vector3.One);
 
+        /// <summary>Whether the visibility inputs scale the trail, which they do from behavior version 11.</summary>
+        private readonly bool appliesVisibility;
+
+        // Evaluated with the particle inputs and uploaded with the draw, since they are the same for the whole system
+        private Vector3 headColor = Vector3.One;
+        private Vector3 tailColor = Vector3.One;
+
         public RenderTrails(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene)
             : base(parse, rendererContext, scene, DefaultTextureName, instancing: 2)
         {
-            // In buffer order. Each axis carries one end's half width in w.
-            CreateVertexArray(BuildInstanceLayout<TrailInstance>(
-            [
-                new(VertexSlot.Position, DXGI_FORMAT.R32G32B32_FLOAT),
-                new(VertexSlot.Color, DXGI_FORMAT.R32G32B32A32_FLOAT),
-                new("vColorTail", DXGI_FORMAT.R32G32B32A32_FLOAT),
-                new("vAxisU", DXGI_FORMAT.R32G32B32A32_FLOAT),
-                new("vAxisV", DXGI_FORMAT.R32G32B32A32_FLOAT),
-                new(VertexSlot.TexCoord, DXGI_FORMAT.R32G32B32A32_FLOAT),
-                new(VertexSlot.TexCoord1, DXGI_FORMAT.R32G32B32A32_FLOAT),
-                new("vFrameBlendAlphaRef", DXGI_FORMAT.R32G32B32_FLOAT),
-            ]), instanceDivisor: 1);
+            CreateVertexArray(InstanceLayout<TrailInstance>(), instanceDivisor: 1);
 
             orientationType = parse.Enum("m_nOrientationType", orientationType);
             maxLength = parse.Float("m_flMaxLength", maxLength);
@@ -74,37 +80,79 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             startFadeSize = parse.NumberProvider("m_flStartFadeSize", startFadeSize);
             endFadeSize = parse.NumberProvider("m_flEndFadeSize", endFadeSize);
             prevPositionSource = parse.ParticleField("m_nPrevPntSource", prevPositionSource);
+
+            usesVerletDelta = prevPositionSource == ParticleField.PositionPrevious;
+
+            // No source still reads the Verlet previous position, but as a plain point
+            if (prevPositionSource < 0)
+            {
+                prevPositionSource = ParticleField.PositionPrevious;
+            }
+
+            flipUvByPitchYaw = parse.Boolean("m_bFlipUVBasedOnPitchYaw", flipUvByPitchYaw);
+            horizontalCropField = parse.ParticleField("m_nHorizCropField", horizontalCropField);
+            verticalCropField = parse.ParticleField("m_nVertCropField", verticalCropField);
             headRadiusTaper = parse.NumberProvider("m_flRadiusHeadTaper", headRadiusTaper);
             tailRadiusTaper = parse.NumberProvider("m_flRadiusTaper", tailRadiusTaper);
             headAlphaScale = parse.NumberProvider("m_flHeadAlphaScale", headAlphaScale);
             tailAlphaScale = parse.NumberProvider("m_flTailAlphaScale", tailAlphaScale);
             headColorScale = parse.VectorProvider("m_vecHeadColorScale", headColorScale);
             tailColorScale = parse.VectorProvider("m_vecTailColorScale", tailColorScale);
+            appliesVisibility = parse.BehaviorVersion >= 11;
         }
 
-        /// <summary>One particle's attributes, in buffer order. Must match the layout built in the constructor.</summary>
+        /// <summary>One particle's attributes, which the shader expands into the four corners of its ribbon.</summary>
         [StructLayout(LayoutKind.Sequential)]
         private struct TrailInstance
         {
-            public Vector3 Center;
-            public Vector4 ColorHead;
-            public Vector4 ColorTail;
+            /// <summary>The centre of the ribbon in xyz, the tail's alpha before any fade in w.</summary>
+            [VertexAttribute(VertexSlot.Position)] public Vector4 CenterTailAlpha;
 
-            /// <summary>Across the ribbon in xyz, the head's half width in w.</summary>
-            public Vector4 AxisU;
+            /// <summary>The colour before either end's colour scale in rgb, the head's alpha before any fade in a.</summary>
+            [VertexAttribute(VertexSlot.Color)] public Vector4 ColorHead;
 
-            /// <summary>Along the ribbon and already halved in xyz, the tail's half width in w.</summary>
-            public Vector4 AxisV;
+            /// <summary>The flip and crop scale of the card coordinate.</summary>
+            [VertexAttribute("vTrailUvCrop")] public Vector2 UvCrop;
 
-            public Vector4 UvRect;
-            public Vector4 UvRectNext;
-            public Vector3 FrameBlendAlphaReference;
+            /// <summary>Across the ribbon in xyz, the head's half width before the size clamp in w.</summary>
+            [VertexAttribute("vAxisU")] public Vector4 AxisU;
+
+            /// <summary>Along the ribbon and already halved in xyz, the tail's half width before the size clamp in w.</summary>
+            [VertexAttribute("vAxisV")] public Vector4 AxisV;
+
+            /// <inheritdoc cref="SpritecardVertex.SheetInputs"/>
+            [VertexAttribute(VertexSlot.TexCoord)] public Vector4 SheetInputs;
+
+            /// <summary>The sequence the first layer plays, then the one later layers play.</summary>
+            [VertexAttribute(VertexSlot.TexCoord1)] public Vector2 Sequences;
+
+            /// <inheritdoc cref="SpritecardVertex.FacingAxis"/>
+            [VertexAttribute(VertexSlot.Normal)] public Vector3 FacingAxis;
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>The crop fields are read between two steps like the attributes every renderer blends.</remarks>
+        public override ulong BlendedFields => base.BlendedFields | ScalarMask(horizontalCropField) | ScalarMask(verticalCropField);
+
+        private static ulong ScalarMask(ParticleField field) => ParticleBuffer.IsScalar(field) ? field.Mask() : 0;
+
+        /// <summary>How much of the card coordinate a crop field leaves, which travels to the shader as a byte.</summary>
+        private static float CropScale(ReadOnlySpan<float> crops, int index)
+        {
+            if (crops.IsEmpty)
+            {
+                return 1f;
+            }
+
+            var crop = (int)(MathUtils.Saturate(crops[index] * 0.5f) * 255f) / 255f;
+
+            return 1f - crop;
         }
 
         /// <inheritdoc/>
         protected override int UpdateVertices(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera)
         {
-            var scales = EvaluateScales(systemState);
+            var scales = appliesVisibility ? EvaluateScales(systemState, camera) : EvaluateScales(systemState);
 
             if (scales.Radius == 0f)
             {
@@ -116,33 +164,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             // Converts the moved distance to a velocity (distance / dt) before scaling by the trail-length
             // attribute. The division only applies when the previous point is the Verlet one, and the
             // operator can opt out of it.
-            var usesVerletDelta = prevPositionSource == ParticleField.PositionPrevious;
             var oneOverDt = ignoreDeltaTime || !usesVerletDelta || systemState.CurrentStep == 0f
                 ? 1f
                 : 1f / systemState.CurrentStep;
 
-            // Both fade bounds are a radius per unit of camera distance, as the two size bounds are.
-            var startFadeSlope = startFadeSize.NextNumber(systemState);
-            var endFadeSlope = endFadeSize.NextNumber(systemState);
-
-            // The shader fades by view angle in every mode and outside the fade-and-clamp gate; the
-            // defaults of (1, 2) put the smoothstep past its own range, which is what makes it inert.
-            var viewAngleFadeActive = FadesByViewAngle;
-
             var quadCount = 0;
-
-            Span<SheetRects> layerRects = stackalloc SheetRects[ParticleTextureLayer.MaxLayers];
-            Span<float> sheetRateScales = stackalloc float[ParticleTextureLayer.MaxLayers];
-
-            ParticleTextureLayer.ResolveSheetRateScales(Layers, systemState, sheetRateScales);
-
-            // One set of attributes per particle, rented from the shared byte pool so the memory is
-            // reused across renderers.
-            var instanceFloats = VertexFloats;
-
             var sorted = particleBag.Count > 1;
 
-            using (var vertexBuffer = new RentedBuffer<float>(particleBag.Count * instanceFloats))
+            using (var vertexBuffer = new RentedBuffer<TrailInstance>(particleBag.Count))
             using (var drawOrder = new RentedBuffer<ulong>(sorted ? particleBag.Count : 0))
             {
                 var instances = vertexBuffer.Span;
@@ -158,9 +187,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 // Every input is evaluated for every particle before the loop, culled or not, in this order
                 var tailRadiusTapers = tailRadiusTaper.Fill(current, systemState);
                 var headRadiusTapers = headRadiusTaper.Fill(current, systemState);
-                var tailColor = tailColorScale.NextVector(systemState);
+                tailColor = tailColorScale.NextVector(systemState);
                 var tailAlphaScales = tailAlphaScale.Fill(current, systemState);
-                var headColor = headColorScale.NextVector(systemState);
+                headColor = headColorScale.NextVector(systemState);
                 var headAlphaScales = headAlphaScale.Fill(current, systemState);
 
                 var positions = current.ReadVectors(ParticleField.Position);
@@ -171,8 +200,16 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 var radii = current.ReadFloats(ParticleField.Radius);
                 var alphas = current.ReadFloats(ParticleField.Alpha);
                 var alpha2s = ReadAlpha2(current);
-                var sheetInputs = new SheetInputs(current);
-                var alphaReferenceInputs = ReadAlphaReferenceInputs(current, sheetInputs.Ages);
+                var ages = current.ReadAges();
+                var extraData1 = current.ReadFloats(ParticleField.ShaderExtraData1);
+                var extraData2 = current.ReadFloats(ParticleField.ShaderExtraData2);
+                var sequenceNumbers = current.ReadFloats(ParticleField.SequenceNumber);
+                var sheetAges = ReadSheetAges(current);
+                var randoms = ReadParticleRandoms(current, systemState);
+                var yaws = flipUvByPitchYaw ? current.ReadFloats(ParticleField.Yaw) : default;
+                var pitches = flipUvByPitchYaw ? current.ReadFloats(ParticleField.Pitch) : default;
+                var horizontalCrops = ParticleBuffer.IsScalar(horizontalCropField) ? current.ReadFloats(horizontalCropField) : default;
+                var verticalCrops = ParticleBuffer.IsScalar(verticalCropField) ? current.ReadFloats(verticalCropField) : default;
 
                 for (var n = 0; n < current.Length; n++)
                 {
@@ -189,45 +226,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     var length = lengthScale * trailLengths[index] * distance * oneOverDt;
 
                     // A particle drawn before its birth, with a negative age, gets the minimum length
-                    length *= MathF.Min(1f, sheetInputs.Ages[index] / MathF.Max(lengthFadeInTime, 1e-9f));
+                    length *= MathF.Min(1f, ages[index] / MathF.Max(lengthFadeInTime, 1e-9f));
                     length = MathF.Max(minLength, MathF.Min(maxLength, length));
 
-                    var particleRadius = radii[index] * radiusScale;
-
-                    // Scales rgb and alpha alike, as the view angle fade below touches alpha only
-                    var colorFade = 1f;
-                    var alphaFade = 1f;
-
-                    if (enableFadingAndClamping)
-                    {
-                        var cameraDistance = Vector3.Distance(camera.Location, position);
-                        var fadeStart = startFadeSlope * cameraDistance;
-                        var fadeEnd = endFadeSlope * cameraDistance;
-
-                        if (particleRadius > fadeStart)
-                        {
-                            if (particleRadius >= fadeEnd)
-                            {
-                                continue;
-                            }
-
-                            colorFade = 1f - MathUtils.Remap(particleRadius, fadeStart, fadeEnd);
-                        }
-                    }
-
-                    if (viewAngleFadeActive)
-                    {
-                        // Only the normal-aligned mode has a normal to face with; the others
-                        // substitute the direction the ribbon runs in.
-                        var facingAxis = orientationType == ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL
-                            ? normals[index]
-                            : direction;
-
-                        alphaFade = ViewAngleFade(facingAxis, position, camera.Location);
-                    }
-
                     // A short trail is narrowed so it cannot render wider than it is long
-                    var radius = MathF.Min(particleRadius, constrainRadiusToLengthRatio * length);
+                    var radius = MathF.Min(radii[index] * radiusScale, constrainRadiusToLengthRatio * length);
 
                     // The ribbon always runs along the motion; only the plane it is flattened into
                     // changes with the orientation. The spritecard vertex shader takes the up vector
@@ -242,80 +245,55 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                     var widthAxis = RibbonWidthAxis(direction, planeNormal);
 
-                    // The radius is the half extent across the ribbon, while the length spans it end to end
-                    var halfLength = length * 0.5f;
+                    // Only the normal-aligned mode has a normal to fade by view angle with; the others
+                    // substitute the direction the ribbon runs in
+                    var facingAxis = orientationType == ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL
+                        ? normals[index]
+                        : direction;
 
                     // The trail slides along the motion axis by m_flForwardShift lengths;
                     // direction runs backwards along travel here, so the shift subtracts
                     var center = position + (direction * (length * (0.5f - forwardShift)));
 
-                    var headHalfWidth = radius * headRadiusTapers[index];
-                    var tailHalfWidth = radius * tailRadiusTapers[index];
+                    // Flipping and cropping scale the card coordinate about its centre; the geometry stays
+                    var uvScale = new Vector2(CropScale(horizontalCrops, index), CropScale(verticalCrops, index));
 
-                    // The shader clamps per vertex, on the radius the CPU has already constrained and
-                    // tapered, so each end is bounded against its own distance rather than the centre's
-                    if (enableFadingAndClamping)
+                    if (flipUvByPitchYaw)
                     {
-                        var headDistance = Vector3.Distance(camera.Location, center - (direction * halfLength));
-                        var tailDistance = Vector3.Distance(camera.Location, center + (direction * halfLength));
-
-                        headHalfWidth = MathF.Min(MathF.Max(headHalfWidth, minSize * headDistance), maxSize * headDistance);
-                        tailHalfWidth = MathF.Min(MathF.Max(tailHalfWidth, minSize * tailDistance), maxSize * tailDistance);
-                    }
-
-                    var frameBlend = 0f;
-
-                    var sequenceNumber = (int)sheetInputs.SequenceNumbers[index];
-
-                    for (var layer = 0; layer < Layers.Length; layer++)
-                    {
-                        layerRects[layer] = SheetRects.Whole;
-
-                        // TODO: A frame with more than one image draws only its first
-                        if (GetSheetFrames(layer, sequenceNumber, sheetInputs, index, sheetRateScales[layer]) is { } frames)
+                        if (yaws[index] >= MathF.PI)
                         {
-                            layerRects[layer] = UncroppedRects(frames);
+                            uvScale.X = -uvScale.X;
+                        }
 
-                            if (layer == 0)
-                            {
-                                frameBlend = frames.Blend;
-                            }
+                        if (pitches[index] >= MathF.PI)
+                        {
+                            uvScale.Y = -uvScale.Y;
                         }
                     }
 
+                    // Each tint channel is packed from the low byte of round(tint * 255) without a clamp, so a tint
+                    // past 1 or below 0 wraps; it is saturated here
                     var color = BlendColor(colors[index], alphas[index], alpha2s[index], scales);
-                    var alpha = color.W * colorFade * alphaFade;
-                    var tint = color.AsVector3() * colorFade;
-                    var alphaReference = GetAlphaReference(alphaReferenceInputs, index, radius, alpha);
 
-                    var head = Vector4.Clamp(
-                        new Vector4(tint * headColor, alpha * headAlphaScales[index]),
-                        Vector4.Zero, Vector4.One);
-                    var tail = Vector4.Clamp(
-                        new Vector4(tint * tailColor, alpha * tailAlphaScales[index]),
-                        Vector4.Zero, Vector4.One);
+                    // Only the first layer plays the particle's sequence; the later ones play sequence 0
+                    var sequence = SequenceLane(sequenceNumbers[index], rawIndices: false);
 
-                    // Folding the half length into the along axis leaves the shader a corner offset of
-                    // exactly +-1 along it. The half widths stay separate: the ends taper independently,
-                    // which is what makes the quad a trapezoid rather than a parallelogram.
-                    var layerInstanceRects = WriteInstance(instances, quadCount, new TrailInstance
+                    // The shader scales each end's colour and saturates it, then fades both ends by
+                    // their own half width and distance. Folding the half length into the along axis
+                    // leaves the shader a corner offset of exactly +-1 along it. The half widths stay
+                    // separate: the ends taper independently, which is what makes the quad a trapezoid
+                    // rather than a parallelogram. The per particle modes read the tail's alpha and half width.
+                    instances[quadCount++] = new TrailInstance
                     {
-                        Center = center,
-                        ColorHead = head,
-                        ColorTail = tail,
-                        AxisU = new Vector4(widthAxis, headHalfWidth),
-                        AxisV = new Vector4(direction * halfLength, tailHalfWidth),
-                        UvRect = Rect(layerRects[0].Min, layerRects[0].Max),
-                        UvRectNext = Rect(layerRects[0].NextMin, layerRects[0].NextMax),
-                        FrameBlendAlphaReference = new Vector3(frameBlend, alphaReference.X, alphaReference.Y),
-                    });
-
-                    for (var layer = 1; layer < Layers.Length; layer++)
-                    {
-                        WriteLayerRects(layerInstanceRects, layer, layerRects[layer]);
-                    }
-
-                    quadCount++;
+                        CenterTailAlpha = new Vector4(center, MathUtils.Saturate(color.W * tailAlphaScales[index])),
+                        ColorHead = new Vector4(color.AsVector3(), MathUtils.Saturate(color.W * headAlphaScales[index])),
+                        UvCrop = uvScale,
+                        AxisU = new Vector4(widthAxis, radius * headRadiusTapers[index]),
+                        AxisV = new Vector4(direction * (length * 0.5f), radius * tailRadiusTapers[index]),
+                        SheetInputs = new Vector4(randoms[index], extraData1[index], sheetAges[index], extraData2[index]),
+                        Sequences = new Vector2(sequence, 0f),
+                        FacingAxis = facingAxis,
+                    };
                 }
 
                 if (quadCount > 0)
@@ -330,7 +308,24 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <inheritdoc/>
         protected override void SetDrawUniforms(ParticleSystemState systemState)
         {
-            ParticleTextureLayer.BindUvTransforms(Shader, Layers, systemState);
+            // Both fade bounds are a radius per unit of camera distance, as the two size bounds are.
+            // Each end is faded and clamped by its own constrained and tapered half width.
+            SetSizeClampAndFadeUniforms(enableFadingAndClamping,
+                minSize,
+                startFadeSize.NextNumber(systemState),
+                endFadeSize.NextNumber(systemState),
+                maxSize);
+
+            // The view angle fade runs in every mode and outside the fade-and-clamp gate. Each end fades
+            // by the angle at its own end of the ribbon.
+            SetViewAngleFadeUniforms(FadesByViewAngle);
+
+            // A trail does not zoom between sheet frames
+            Shader.SetUniform2("uFrameZoom", Vector2.One);
+
+            Shader.SetUniform3("uTrailHeadColorScale", headColor);
+            Shader.SetUniform3("uTrailTailColorScale", tailColor);
+
             base.SetDrawUniforms(systemState);
         }
     }

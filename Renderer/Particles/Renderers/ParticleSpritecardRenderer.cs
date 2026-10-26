@@ -1,7 +1,7 @@
-using System.Numerics.Tensors;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
+using System.Diagnostics.CodeAnalysis;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.CompiledShader;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.ResourceTypes;
@@ -18,8 +18,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     {
         private const string ShaderName = "particle_spritecard";
 
-        /// <summary>The lifetime an animation fitted to it divides by at least, so a particle without one stays finite.</summary>
-        private const float MinimumAnimationLifetime = 0.0001f;
+        /// <summary>The texture unit the sheet cache is bound to, after the layers and the motion vectors.</summary>
+        private const int SheetCacheTextureUnit = RenderMaterial.TextureUnitStart + ParticleTextureLayer.MaxLayers + 1;
 
         /// <summary>The largest share of a ribbon's direction that may lie along world Z for Z to serve as its fallback side axis.</summary>
         private const float MaxRibbonVerticalShare = 0.999f;
@@ -30,6 +30,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>Scales the scene light a particle is lit by.</summary>
         protected INumberProvider DiffuseAmount { get; } = new LiteralNumberProvider(1f);
 
+        /// <summary>
+        /// The control point the whole system samples its lighting at while this renderer is lit, or -1
+        /// to leave it where it is.
+        /// </summary>
+        private int LightingControlPoint { get; } = -1;
+
         /// <summary>Added on top of the scene light, unlit.</summary>
         protected INumberProvider SelfIllumAmount { get; } = new LiteralNumberProvider(0f);
 
@@ -37,8 +43,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         protected INumberProvider Desaturation { get; } = new LiteralNumberProvider(0f);
 
         /// <summary>
-        /// The source alpha values that map to 0 and 1. Both are always passed to the shader, which
-        /// remaps whenever the first is below the second, so the remap is live by default.
+        /// The source alpha values that map to 0 and 1, which the shader remaps the texture alpha by
+        /// linearly.
         /// </summary>
         protected INumberProvider SourceAlphaValueToMapToZero { get; } = new LiteralNumberProvider(0f);
 
@@ -62,9 +68,19 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         /// <summary>
         /// Whether the blend output takes the magnitude of the blend mode's alpha factor and leaves the
-        /// colour of the blend-add modes unpremultiplied, as shaders that switch features at run time do.
+        /// colour of the blend-add modes unpremultiplied. Shaders with texture layers do, the older
+        /// shaders without them keep the factor's sign.
         /// </summary>
         private bool UnsignedBlendAlpha { get; }
+
+        /// <summary>
+        /// Whether each texture layer's composite is clamped to [0, 1] rather than only floored at 0, as
+        /// every layered shader but Counter-Strike 2's does.
+        /// </summary>
+        private bool ClampLayers { get; }
+
+        /// <summary>Whether the base texture, and any texture that overrides it, is decoded from sRGB.</summary>
+        private bool BaseTextureSrgbRead { get; }
 
         /// <summary>Additive self-colour laid over the alpha blend; uploaded as 1 + amount.</summary>
         protected INumberProvider AddSelfAmount { get; } = new LiteralNumberProvider(0f);
@@ -76,8 +92,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         protected INumberProvider CenterYOffset { get; } = new LiteralNumberProvider(0f);
 
         /// <summary>
-        /// Distance along the view direction the depth is re-taken from, in world units, leaving the
-        /// drawn position alone. Pulls a card in front of geometry it would otherwise intersect.
+        /// Distance toward the camera the depth is re-taken from, in world units, leaving the drawn
+        /// position alone. Pulls a card in front of geometry it would otherwise intersect.
         /// </summary>
         protected INumberProvider DepthBias { get; } = new LiteralNumberProvider(0f);
 
@@ -155,7 +171,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private float AnimationRate { get; } = 0.1f;
 
         /// <summary>What the sheet animation is timed by.</summary>
-        protected ParticleAnimationType AnimationType { get; init; } = ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE;
+        private ParticleAnimationType AnimationType { get; } = ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE;
+
+        /// <summary>
+        /// What the age each particle hands the shader is measured by. Normally <see cref="AnimationType"/>,
+        /// while the shader keeps reading the rate by <see cref="AnimationType"/> either way.
+        /// </summary>
+        protected ParticleAnimationType AgeAnimationType { get; init; }
 
         /// <summary>Whether <see cref="AnimationRate"/> counts frames per second rather than passes through the sequence.</summary>
         private bool AnimateInFps { get; }
@@ -175,6 +197,24 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>The texture layers, in composite order; the first is the base texture.</summary>
         protected ParticleTextureLayer[] Layers { get; }
 
+        /// <summary>
+        /// The sheet of motion vectors that warps the first two layers toward the frames they blend
+        /// between, or null when there is none. It is not a layer and composites nothing.
+        /// </summary>
+        protected RenderTexture? MotionVectors { get; }
+
+        /// <summary>Scales how far the motion vectors push, across and down the base texture.</summary>
+        private INumberProvider MotionVectorScaleU { get; } = new LiteralNumberProvider(1f);
+
+        /// <inheritdoc cref="MotionVectorScaleU"/>
+        private INumberProvider MotionVectorScaleV { get; } = new LiteralNumberProvider(1f);
+
+        /// <summary>
+        /// Whether the card shrinks to the art of the frames its first layer blends, which only a first
+        /// layer showing a sheet does.
+        /// </summary>
+        private bool CropsFrames { get; }
+
         /// <summary>The vertex array the draws read through.</summary>
         protected int VertexArrayHandle { get; private set; }
 
@@ -182,6 +222,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         protected int QuadCount { get; private set; }
 
         private readonly string bufferLabel;
+        private readonly Scene scene;
+        private readonly int clampSampler;
+        private float diffuseAmount;
+        private readonly ParticleSheetCache sheetCache;
         private int vertexBufferHandle;
         private int vertexStride;
 
@@ -199,6 +243,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             AddSelfAmount = parse.NumberProvider("m_flAddSelfAmount", AddSelfAmount);
             DepthBias = parse.NumberProvider("m_flDepthBias", DepthBias);
             DiffuseAmount = parse.NumberProvider("m_flDiffuseAmount", DiffuseAmount);
+            LightingControlPoint = parse.Int32("m_nLightingControlPoint", LightingControlPoint);
             SelfIllumAmount = parse.NumberProvider("m_flSelfIllumAmount", SelfIllumAmount);
             Desaturation = parse.NumberProvider("m_flDesaturation", Desaturation);
             SourceAlphaValueToMapToZero = parse.NumberProvider("m_flSourceAlphaValueToMapToZero", SourceAlphaValueToMapToZero);
@@ -226,11 +271,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             BlendFrames = parse.Boolean("m_bBlendFramesSeq0", BlendFrames);
             AnimationRate = parse.Float("m_flAnimationRate", AnimationRate);
             AnimationType = parse.Enum("m_nAnimationType", AnimationType);
+            AgeAnimationType = AnimationType;
             AnimateInFps = parse.Boolean("m_bAnimateInFPS", AnimateInFps);
             StartFadeDot = parse.Float("m_flStartFadeDot", StartFadeDot);
             EndFadeDot = parse.Float("m_flEndFadeDot", EndFadeDot);
+            MotionVectorScaleU = parse.NumberProvider("m_flMotionVectorScaleU", MotionVectorScaleU);
+            MotionVectorScaleV = parse.NumberProvider("m_flMotionVectorScaleV", MotionVectorScaleV);
 
             SaturateColorPreAlphaBlend = parse.Boolean("m_bSaturateColorPreAlphaBlend", SaturateColorPreAlphaBlend);
+
+            // TODO: m_bUseMixedResolutionRendering draws the renderer into a lower resolution target that is
+            // upscaled over the scene, this draws it at full resolution
 
             var gameInfo = scene.RendererContext.FileLoader.GameInfo;
 
@@ -241,21 +292,42 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 _ => false,
             };
 
+            // Games that switch particle shader features at run time pass these two as feature bits instead of
+            // static combos, and their shader never reads the saturate bit and tests the max luminance bit so
+            // that it never matches
             if (gameInfo.ParticleShaderFeatureBranching)
             {
                 MaxLuminanceFrameBlend = false;
                 SaturateColorPreAlphaBlend = false;
-                UnsignedBlendAlpha = true;
             }
+
+            // Shaders that switch features at run time have texture layers, and so do the static combo ones of these games
+            UnsignedBlendAlpha = gameInfo.ParticleShaderFeatureBranching || gameInfo.Game is Game.Dota or Game.Steampal;
+            ClampLayers = gameInfo.Game != Game.Csgo;
 
             GammaCorrectVertexColors &= OutputIsColor;
             SaturateColorPreAlphaBlend &= OutputIsColor;
 
-            (Layers, var textureName) = ParticleTextureLayer.Build(parse, rendererContext, defaultTextureName, srgbRead: TexturesAreColor);
+            // Static combo shaders read the modulate-2x base texture as stored, so a stored half is the neutral,
+            // rather than decoded from sRGB like any other layer
+            var rawMod2xBase = !gameInfo.ParticleShaderFeatureBranching && BlendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X;
+            BaseTextureSrgbRead = TexturesAreColor && !rawMod2xBase;
+
+            (Layers, MotionVectors, var textureName) = ParticleTextureLayer.Build(parse, rendererContext, defaultTextureName,
+                srgbRead: TexturesAreColor, baseSrgbRead: BaseTextureSrgbRead);
             bufferLabel = $"{GetType().Name}: {System.IO.Path.GetFileName(textureName)}";
+            clampSampler = rendererContext.MaterialLoader.GetOrCreateSampler(RsTextureAddressMode.Clamp, RsTextureAddressMode.Clamp);
+            sheetCache = rendererContext.ParticleSheets;
+            this.scene = scene;
+            CropsFrames = ReadCropsFrames(parse);
 
             var shaderArguments = CreateShaderArguments();
             shaderArguments["S_TEXTURE_LAYERS"] = (byte)(Layers.Length - 1);
+
+            if (MotionVectors != null)
+            {
+                shaderArguments["S_MOTION_VECTORS"] = 1;
+            }
 
             if (instancing != 0)
             {
@@ -271,13 +343,21 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <inheritdoc/>
-        public override Texture.SpritesheetData? SpriteSheet => ParticleTextureLayer.FindSpriteSheet(Layers);
+        /// <remarks>The base texture's sheet, which maps the particles' sequence numbers to sequences.</remarks>
+        public override Texture.SpritesheetData? SpriteSheet => Layers[0].Texture.SpriteSheetData;
 
         /// <inheritdoc/>
         /// <remarks>Replaces the base texture. Layers composited over it keep their own textures, channels and blend settings.</remarks>
         public override void SetTextureOverride(RenderTexture texture)
         {
             Layers[0].Texture = texture;
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>The texture is decoded the way the base texture it replaces is.</remarks>
+        public override void SetTextureOverride(string textureName)
+        {
+            SetTextureOverride(scene.RendererContext.MaterialLoader.GetTexture(textureName, BaseTextureSrgbRead, streaming: true));
         }
 
         /// <inheritdoc/>
@@ -295,9 +375,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             VertexArrayHandle = layout.CreateVertexArray(bufferLabel, vertexBufferHandle, indexBuffer, instanceDivisor);
         }
 
-        /// <summary>The size of one vertex, or of one instance's attributes, in floats.</summary>
-        protected int VertexFloats => vertexStride / sizeof(float);
-
         /// <summary>Uploads the first <paramref name="vertexCount"/> vertices of <paramref name="data"/> to the vertex buffer.</summary>
         protected void UploadVertices(byte[] data, int vertexCount)
         {
@@ -305,49 +382,20 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>
-        /// The layout of an instance whose own attributes, <paramref name="elements"/> in buffer order,
-        /// fill a <typeparamref name="TInstance"/>, followed by the two sheet rects of each layer past the
-        /// first. Carries only the layers this renderer has, but allocates locations over every name the
-        /// shader declares.
+        /// The layout of an instance whose attributes fill a <typeparamref name="TInstance"/>, allocating
+        /// locations over every name the shader declares.
         /// </summary>
-        protected VertexInputLayout BuildInstanceLayout<TInstance>(List<VertexAttribute> elements) where TInstance : unmanaged
-        {
-            for (var layer = 1; layer < Layers.Length; layer++)
-            {
-                elements.Add(new VertexAttribute(SpritecardVertex.LayerUvNames[layer - 1], DXGI_FORMAT.R32G32B32A32_FLOAT));
-                elements.Add(new VertexAttribute(SpritecardVertex.LayerUvNextNames[layer - 1], DXGI_FORMAT.R32G32B32A32_FLOAT));
-            }
-
-            var stride = Unsafe.SizeOf<TInstance>() + (2 * Unsafe.SizeOf<Vector4>() * (Layers.Length - 1));
-
-            return new VertexInputLayout(stride, SpritecardVertex.DeclaredAttributeNames, elements.ToArray());
-        }
-
-        /// <summary>
-        /// Writes the attributes of the instance at <paramref name="instanceIndex"/> and returns the space
-        /// after them, which holds two rects for each layer past the first.
-        /// </summary>
-        protected Span<Vector4> WriteInstance<TInstance>(Span<float> instances, int instanceIndex, in TInstance instance) where TInstance : unmanaged
-        {
-            var baseFloats = Unsafe.SizeOf<TInstance>() / sizeof(float);
-            var record = instances.Slice(instanceIndex * VertexFloats, VertexFloats);
-
-            MemoryMarshal.Cast<float, TInstance>(record[..baseFloats])[0] = instance;
-
-            return MemoryMarshal.Cast<float, Vector4>(record[baseFloats..]);
-        }
-
-        /// <summary>Writes the rects of <paramref name="layer"/>, past the first, into the space <see cref="WriteInstance"/> returned.</summary>
-        protected static void WriteLayerRects(Span<Vector4> layerRects, int layer, in SheetRects rects)
-        {
-            layerRects[(layer - 1) * 2] = Rect(rects.Min, rects.Max);
-            layerRects[((layer - 1) * 2) + 1] = Rect(rects.NextMin, rects.NextMax);
-        }
+        protected static VertexInputLayout InstanceLayout<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.NonPublicFields)] TInstance>()
+            where TInstance : struct
+            => VertexInputLayout.FromStruct<TInstance>(SpritecardVertex.DeclaredAttributeNames);
 
         /// <inheritdoc/>
-        /// <remarks>Particles the renderer culls or fades out are not written, so this can hold fewer quads than there are particles.</remarks>
+        /// <remarks>Particles the renderer culls are not written, so this can hold fewer quads than there are particles.</remarks>
         public sealed override void UpdateBuffers(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
+            diffuseAmount = DiffuseAmount.NextNumber(systemState);
+            UpdateLightingOrigin(systemState);
+
             QuadCount = particles.Count == 0 ? 0 : UpdateVertices(particles, systemState, camera);
         }
 
@@ -367,23 +415,69 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             Shader.Use();
             VertexArray.Bind(VertexArrayHandle, Shader);
 
-            ParticleTextureLayer.Bind(Shader, Layers, systemState);
+            ParticleTextureLayer.Bind(Shader, Layers, systemState, sheetCache);
+            BindMotionVectors(systemState);
+
+            // Bound once every sheet of this draw is in, since adding one can replace the texture
+            Shader.SetTexture(SheetCacheTextureUnit, "uSheetCache", sheetCache.Texture);
+
             SetSharedUniforms(systemState);
             Shader.SetUniform1("uBlendFrames", BlendFrames);
+            Shader.SetUniform1("uCropFrames", CropsFrames);
+
+            // A manually animated particle's age is already its place in the sequence
+            var animationRate = AnimationType == ParticleAnimationType.ANIMATION_TYPE_MANUAL_FRAMES ? 1f : AnimationRate;
+            Shader.SetUniform1("uAnimationRate", animationRate);
+            Shader.SetUniform1("uAnimateInFps", AnimateInFps);
 
             // Set every draw: the program is shared with every other spritecard renderer, whatever their mode.
             Shader.SetUniform1("uBlendMode", (int)BlendMode);
 
             SetDrawUniforms(systemState);
 
+            // The clamp samplers are bound for this draw only, so other draws keep their textures' own state
+            var hasMotionVectors = MotionVectors != null;
+            ParticleTextureLayer.BindClampSamplers(Layers, hasMotionVectors, clampSampler);
+
             PerfStats.Active.Count(Counter.ParticleDraw);
             Draw();
+
+            ParticleTextureLayer.UnbindClampSamplers(Layers, hasMotionVectors);
         }
 
-        /// <summary>Sets the uniforms only this renderer's draws read. Turns the outline off unless overridden.</summary>
+        /// <summary>
+        /// Binds the motion vector sheet, where its sequences sit in the sheet cache, and how far a full
+        /// vector pushes, in units of the base texture: the sheet's maximum distance in texels, scaled per
+        /// axis and divided by the base texture's size.
+        /// </summary>
+        private void BindMotionVectors(ParticleSystemState systemState)
+        {
+            if (MotionVectors == null)
+            {
+                return;
+            }
+
+            var baseTexture = Layers[0].Texture;
+            var maxDistance = (float)MotionVectors.MotionVectorsMaxDistance;
+            var rows = sheetCache.GetRows(MotionVectors);
+
+            Shader.SetTexture(RenderMaterial.TextureUnitStart + ParticleTextureLayer.MaxLayers, "uMotionVectors", MotionVectors);
+            Shader.SetUniform2("uMotionVectorSheet", new Vector2(rows.FirstRow, rows.SequenceCount));
+            Shader.SetUniform2("uMotionVectorScale", new Vector2(
+                maxDistance * MotionVectorScaleU.NextNumber(systemState) / baseTexture.Width,
+                maxDistance * MotionVectorScaleV.NextNumber(systemState) / baseTexture.Height));
+        }
+
+        /// <summary>
+        /// The edge softness pair that turns the shader's soft edge off, as its lower end is not below its upper end.
+        /// </summary>
+        protected static readonly Vector2 NoEdgeSoftness = new(1000f, -1000f);
+
+        /// <summary>Sets the uniforms only this renderer's draws read. Turns the outline and soft edges off unless overridden.</summary>
         protected virtual void SetDrawUniforms(ParticleSystemState systemState)
         {
             Shader.SetUniform1("uOutline", false);
+            Shader.SetUniform2("uEdgeSoftness", NoEdgeSoftness);
         }
 
         /// <summary>Draws the quads. Generates the four corners of each instance unless overridden.</summary>
@@ -400,11 +494,19 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>
-        /// The remap the shader applies to the sampled alpha, as the pair the shader expects.
+        /// The scale and offset the shader remaps the sampled alpha by.
         /// </summary>
-        protected Vector2 GetAlphaRemapRange(ParticleSystemState systemState)
-            => new(SourceAlphaValueToMapToZero.NextNumber(systemState),
-                SourceAlphaValueToMapToOne.NextNumber(systemState));
+        /// <remarks>
+        /// The offset is the alpha that maps to zero left unscaled, so the remap only sends that alpha to
+        /// zero when it is zero itself.
+        /// </remarks>
+        private Vector2 GetAlphaRemap(ParticleSystemState systemState)
+        {
+            var mapToZero = SourceAlphaValueToMapToZero.NextNumber(systemState);
+            var mapToOne = SourceAlphaValueToMapToOne.NextNumber(systemState);
+
+            return new Vector2(1f / (mapToOne - mapToZero), -mapToZero);
+        }
 
         /// <summary>
         /// The state a spritecard draw runs under. The translucent pass leaves blend and depth to each
@@ -440,89 +542,48 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 srcBlend: srcBlend, dstBlend: dstBlend, blendOp: blendOp);
         }
 
-        /// <summary>The per particle values <see cref="GetAlphaReference"/> reads, from <see cref="ReadAlphaReferenceInputs"/>.</summary>
-        /// <param name="reference">The values of <see cref="PerParticleAlphaReference"/>, when it reads an attribute.</param>
-        /// <param name="window">The values of <see cref="PerParticleAlphaRefWindow"/>, when it reads an attribute.</param>
-        protected readonly ref struct AlphaReferenceInputs(ReadOnlySpan<float> reference, ReadOnlySpan<float> window)
+        /// <summary>
+        /// Reads the random value of every particle in <paramref name="particles"/>, which the per particle
+        /// modes spread per control. It is fixed for the particle's life, and displaced past the slots of
+        /// the operators run in the last step.
+        /// </summary>
+        protected static ReadOnlySpan<float> ReadParticleRandoms(ParticleSpan particles, ParticleSystemState systemState)
         {
-            /// <summary>The values of <see cref="PerParticleAlphaReference"/>, or none when it reads no attribute.</summary>
-            public ReadOnlySpan<float> Reference { get; } = reference;
+            var particleIds = particles.ReadIntegers(ParticleField.ParticleId);
+            var randoms = ParticleScratch.Floats(particles.Length);
 
-            /// <summary>The values of <see cref="PerParticleAlphaRefWindow"/>, or none when it reads no attribute.</summary>
-            public ReadOnlySpan<float> Window { get; } = window;
-        }
-
-        /// <summary>
-        /// Reads the attributes the alpha test of every particle in <paramref name="particles"/> takes,
-        /// reusing <paramref name="ages"/> when they were already read from the same particles.
-        /// </summary>
-        protected AlphaReferenceInputs ReadAlphaReferenceInputs(ParticleSpan particles, ReadOnlySpan<float> ages = default)
-            => AlphaTested
-                ? new AlphaReferenceInputs(
-                    ReadPerParticleScale(PerParticleAlphaReference, particles, ages),
-                    ReadPerParticleScale(PerParticleAlphaRefWindow, particles, ages))
-                : default;
-
-        /// <summary>
-        /// The threshold a particle's texture alpha is tested against and the width of the band above it
-        /// that passes, in x and y, as the shader reads them.
-        /// </summary>
-        /// <param name="inputs">The attributes read for the particles being drawn.</param>
-        /// <param name="index">The index of the particle being drawn.</param>
-        /// <param name="radius">The radius it is drawn at.</param>
-        /// <param name="alpha">The alpha it is drawn with.</param>
-        protected Vector2 GetAlphaReference(in AlphaReferenceInputs inputs, int index, float radius, float alpha)
-            => AlphaTested
-                ? new Vector2(
-                    1f - GetPerParticleScale(PerParticleAlphaReference, inputs.Reference, index, radius, alpha),
-                    GetPerParticleScale(PerParticleAlphaRefWindow, inputs.Window, index, radius, alpha))
-                : Vector2.Zero;
-
-        /// <summary>
-        /// The attribute a per particle input reads for every particle, or nothing for an input that reads
-        /// none. The particle ages are read unless <paramref name="ages"/> already holds them.
-        /// </summary>
-        private static ReadOnlySpan<float> ReadPerParticleScale(SpriteCardPerParticleScale source, ParticleSpan particles, ReadOnlySpan<float> ages)
-        {
-            switch (source)
+            for (var i = 0; i < randoms.Length; i++)
             {
-                case SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_PARTICLE_AGE:
-                    if (ages.IsEmpty)
-                    {
-                        ages = particles.ReadAges();
-                    }
-
-                    var shiftedAges = ParticleScratch.Floats(particles.Length);
-                    TensorPrimitives.Add(ages, 1f, shiftedAges);
-                    return shiftedAges;
-                case SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_SHADER_EXTRA_DATA1:
-                    return particles.ReadFloats(ParticleField.ShaderExtraData1);
-                case SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_SHADER_EXTRA_DATA2:
-                    return particles.ReadFloats(ParticleField.ShaderExtraData2);
-                case SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_ROLL:
-                    return particles.ReadFloats(ParticleField.Roll);
-                case SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_YAW:
-                    return particles.ReadFloats(ParticleField.Yaw);
-                case SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_PITCH:
-                    return particles.ReadFloats(ParticleField.Pitch);
-                default:
-                    return default;
+                randoms[i] = systemState.Random.ForParticle(particleIds[i], RandomSlot);
             }
+
+            return randoms;
         }
 
-        /// <summary>The value a per particle input reads. Animation frames and the random sources read 1.</summary>
-        private static float GetPerParticleScale(SpriteCardPerParticleScale source, ReadOnlySpan<float> values, int index, float radius, float alpha) => source switch
+        /// <summary>Where the per particle random value sits past the particle's own slot.</summary>
+        private const int RandomSlot = 235;
+
+        /// <summary>
+        /// Makes the system's root node sample its lighting at <see cref="LightingControlPoint"/>, when the
+        /// renderer is lit and names one.
+        /// </summary>
+        private void UpdateLightingOrigin(ParticleSystemState systemState)
         {
-            SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_PARTICLE_AGE
-                or SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_SHADER_EXTRA_DATA1
-                or SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_SHADER_EXTRA_DATA2
-                or SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_ROLL
-                or SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_YAW
-                or SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_PITCH => values[index],
-            SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_PARTICLE_ALPHA => alpha,
-            SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_SHADER_RADIUS => radius,
-            _ => 1f,
-        };
+            if (LightingControlPoint == -1 || OwnerNode is not { } node || diffuseAmount <= 0f)
+            {
+                return;
+            }
+
+            var origin = systemState.GetControlPoint(LightingControlPoint).Position;
+
+            if (node.LightingOrigin == origin)
+            {
+                return;
+            }
+
+            node.LightingOrigin = origin;
+            scene.UpdateNodeEnvironmentMaps(node);
+        }
 
         /// <summary>
         /// Uploads the shared source 2 renderer state every particle shader reads.
@@ -530,17 +591,20 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private void SetSharedUniforms(ParticleSystemState systemState)
         {
             Shader.SetUniform1("uOverbrightFactor", OverbrightFactor.NextNumber(systemState));
-            Shader.SetUniform1("uAddSelfAmount", 1f + AddSelfAmount.NextNumber(systemState));
-            Shader.SetUniform1("uDiffuseAmount", DiffuseAmount.NextNumber(systemState));
+            // A literal amount at or below zero turns add-self off, which leaves the colour unscaled
+            var addSelfDisabled = AddSelfAmount is LiteralNumberProvider { Value: <= 0f };
+            Shader.SetUniform1("uAddSelfAmount", addSelfDisabled ? 1f : 1f + AddSelfAmount.NextNumber(systemState));
+            Shader.SetUniform1("uDiffuseAmount", diffuseAmount);
             Shader.SetUniform1("uSelfIllumAmount", SelfIllumAmount.NextNumber(systemState));
             Shader.SetUniform1("uDesaturation", MathUtils.Saturate(Desaturation.NextNumber(systemState)));
             Shader.SetUniform3("uHsvShift", GetHsvShift(systemState));
-            Shader.SetUniform2("uAlphaRemapRange", GetAlphaRemapRange(systemState));
+            Shader.SetUniform2("uAlphaRemap", GetAlphaRemap(systemState));
             Shader.SetUniform1("uGammaCorrectVertexColors", GammaCorrectVertexColors);
-            Shader.SetUniform1("uDepthBias", DepthBias.NextNumber(systemState));
+            Shader.SetUniform1("uDepthBias", -DepthBias.NextNumber(systemState));
             Shader.SetUniform1("uMaxLuminanceFrameBlend", MaxLuminanceFrameBlend);
             Shader.SetUniform1("uSaturateColor", SaturateColorPreAlphaBlend);
             Shader.SetUniform1("uUnsignedBlendAlpha", UnsignedBlendAlpha);
+            Shader.SetUniform1("uClampLayers", ClampLayers);
             Shader.SetUniform1("uLightingMode", (int)LightingMode);
             Shader.SetUniform1("g_tSceneDepth", (int)ReservedTextureSlots.SceneDepth);
 
@@ -549,12 +613,18 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 Shader.SetUniform1("uObjectIndex", OwnerNode.Id);
             }
 
-            Shader.SetUniform2("uFeatheringRange", WantsSceneDepth
-                ? new Vector2(FeatheringMinDist.NextNumber(systemState), FeatheringMaxDist.NextNumber(systemState))
-                : Vector2.Zero);
+            Shader.SetUniform1("uFeathering", WantsSceneDepth);
+
+            if (WantsSceneDepth)
+            {
+                Shader.SetUniform2("uFeatheringRange", new Vector2(FeatheringMinDist.NextNumber(systemState), FeatheringMaxDist.NextNumber(systemState)));
+            }
+
             Shader.SetUniform1("uFeatheringFilter", FeatheringFilter.NextNumber(systemState));
             Shader.SetUniform1("uFogParticles", Fogged);
             Shader.SetUniform1("uAlphaReference", AlphaTested);
+            Shader.SetUniform1("uAlphaReferenceMode", (int)PerParticleAlphaReference);
+            Shader.SetUniform1("uAlphaRefWindowMode", (int)PerParticleAlphaRefWindow);
 
             if (AlphaTested)
             {
@@ -578,165 +648,118 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
         }
 
-        /// <summary>The attributes that choose the sheet sequence and frame of every particle in a span.</summary>
-        protected readonly ref struct SheetInputs
-        {
-            /// <summary>Reads the attributes of every particle in <paramref name="particles"/>.</summary>
-            public SheetInputs(ParticleSpan particles)
-            {
-                Ages = particles.ReadAges();
-                Lifetimes = particles.ReadFloats(ParticleField.LifeDuration);
-                ManualAnimationFrames = particles.ReadFloats(ParticleField.ManualAnimationFrame);
-                SequenceNumbers = particles.ReadFloats(ParticleField.SequenceNumber);
-                SecondSequenceNumbers = particles.ReadFloats(ParticleField.SecondSequenceNumber);
-            }
-
-            /// <summary>How long each particle has lived, in seconds.</summary>
-            public ReadOnlySpan<float> Ages { get; }
-
-            /// <summary>How long each particle lives, in seconds.</summary>
-            public ReadOnlySpan<float> Lifetimes { get; }
-
-            /// <summary>The passes through the sequence a manually animated particle has made.</summary>
-            public ReadOnlySpan<float> ManualAnimationFrames { get; }
-
-            /// <summary>The sequence the base layer plays.</summary>
-            public ReadOnlySpan<float> SequenceNumbers { get; }
-
-            /// <summary>The sequence the layers past the first play.</summary>
-            public ReadOnlySpan<float> SecondSequenceNumbers { get; }
-        }
-
-        /// <summary>A sheet frame rectangle as the shader reads it: minimum in xy, maximum in zw.</summary>
-        /// <param name="min">Lower corner.</param>
-        /// <param name="max">Upper corner.</param>
-        protected static Vector4 Rect(Vector2 min, Vector2 max) => new(min.X, min.Y, max.X, max.Y);
-
-        /// <summary>The atlas rects a layer draws its current and next frame from.</summary>
-        /// <param name="Min">Lower corner of the current frame.</param>
-        /// <param name="Max">Upper corner of the current frame.</param>
-        /// <param name="NextMin">Lower corner of the next frame.</param>
-        /// <param name="NextMax">Upper corner of the next frame.</param>
-        protected readonly record struct SheetRects(Vector2 Min, Vector2 Max, Vector2 NextMin, Vector2 NextMax)
-        {
-            /// <summary>The whole texture for both frames, for a layer that shows no sheet.</summary>
-            public static SheetRects Whole { get; } = new(Vector2.Zero, Vector2.One, Vector2.Zero, Vector2.One);
-        }
-
-        /// <summary>The two sheet frames a particle sits between and how far it has crossed from the first.</summary>
-        /// <param name="Current">The frame it is leaving.</param>
-        /// <param name="Next">The frame it is crossing to.</param>
-        /// <param name="Blend">How far it has crossed, 0 to 1.</param>
-        protected readonly record struct SheetFrames(
-            Texture.SpritesheetData.Sequence.Frame Current,
-            Texture.SpritesheetData.Sequence.Frame Next,
-            float Blend);
-
         /// <summary>
-        /// The frames the sheet of <paramref name="layer"/> shows for the particle at <paramref name="index"/>
-        /// playing sequence <paramref name="sequenceNumber"/>, or null when the layer carries no sheet or the
-        /// sequence no frames. A sequence number outside the sheet plays sequence 0.
+        /// The age every particle in <paramref name="particles"/> plays its sheet by, as
+        /// <see cref="AgeAnimationType"/> measures it: the seconds it has lived, the share of its life it
+        /// has lived, or the passes through the sequence it was given by hand.
         /// </summary>
-        /// <param name="layer">The layer whose sheet is read.</param>
-        /// <param name="sequenceNumber">The sequence the particle plays.</param>
-        /// <param name="inputs">The particle attributes the playback position is read from.</param>
-        /// <param name="index">The particle's index in <paramref name="inputs"/>.</param>
-        /// <param name="rateScale">The layer's <see cref="ParticleTextureLayer.SheetRateScale"/>.</param>
-        protected SheetFrames? GetSheetFrames(int layer, int sequenceNumber, in SheetInputs inputs, int index, float rateScale)
+        protected ReadOnlySpan<float> ReadSheetAges(ParticleSpan particles)
         {
-            var spriteSheetData = Layers[layer].Texture.SpriteSheetData;
-
-            if (spriteSheetData == null || spriteSheetData.Sequences.Length == 0)
+            switch (AgeAnimationType)
             {
-                return null;
+                case ParticleAnimationType.ANIMATION_TYPE_FIT_LIFETIME:
+                    var ages = particles.ReadAges();
+                    var lifetimes = particles.ReadFloats(ParticleField.LifeDuration);
+                    var lifeShares = ParticleScratch.Floats(particles.Length);
+
+                    for (var i = 0; i < lifeShares.Length; i++)
+                    {
+                        // A particle without a lifetime stays at the start of its sequence
+                        lifeShares[i] = lifetimes[i] > 0f ? ages[i] / lifetimes[i] : 0f;
+                    }
+
+                    return lifeShares;
+                case ParticleAnimationType.ANIMATION_TYPE_MANUAL_FRAMES:
+                    return particles.ReadFloats(ParticleField.ManualAnimationFrame);
+                default:
+                    return particles.ReadAges();
             }
-
-            var sequence = spriteSheetData.Sequences[(uint)sequenceNumber < (uint)spriteSheetData.Sequences.Length ? sequenceNumber : 0];
-
-            if (sequence.Frames.Length == 0)
-            {
-                return null;
-            }
-
-            var (frame, nextFrame, blend) = GetSheetFrame(inputs, index, sequence, rateScale);
-
-            return new SheetFrames(sequence.Frames[frame], sequence.Frames[nextFrame], blend);
-        }
-
-        /// <summary>The uncropped atlas rects of the first image of both frames.</summary>
-        protected static SheetRects UncroppedRects(in SheetFrames frames)
-        {
-            var current = frames.Current.Images[0];
-            var next = frames.Next.Images[0];
-
-            return new SheetRects(current.UncroppedMin, current.UncroppedMax, next.UncroppedMin, next.UncroppedMax);
         }
 
         /// <summary>
-        /// The two sheet frames a particle sits between and how far it has crossed from the first to
-        /// the second. The particle's age and animation type give the playback position, which
-        /// <see cref="Texture.SpritesheetData.Sequence.GetFrameAtPosition"/> then resolves to frames.
+        /// The sequence a particle's sequence number plays, as the shader reads it. The number is rounded
+        /// to the nearest integer and, unless <paramref name="rawIndices"/> is set, looked up as a sequence
+        /// id of the first layer's sheet, where an id the sheet does not have plays sequence 0.
         /// </summary>
-        private (int Frame, int NextFrame, float Blend) GetSheetFrame(in SheetInputs inputs, int index, Texture.SpritesheetData.Sequence sequence, float rateScale)
+        protected float SequenceLane(float sequenceNumber, bool rawIndices)
         {
-            var frameCount = sequence.Frames.Length;
+            var number = (int)MathF.Round(sequenceNumber);
+            var sheet = Layers[0].Texture.SpriteSheetData;
 
-            if (frameCount < 2)
+            if (rawIndices || sheet == null)
             {
-                return (0, 0, 0f);
+                // A raw index is handed over in 16 bits
+                return (short)number;
             }
 
-            var totalTime = sequence.EffectiveTotalTime;
+            return Math.Max(sheet.GetSequenceIndex(number), 0);
+        }
 
-            float passes;
+        /// <summary>
+        /// The sequence every particle plays in place of its own, or -1 for none. The override is truncated
+        /// and always looked up as a sequence id of the first layer's sheet, where an id the sheet does not
+        /// have plays sequence 0. Without a sheet there is nothing to override.
+        /// </summary>
+        protected int OverrideSequence(float sequenceOverride)
+        {
+            var number = (int)sequenceOverride;
+            var sheet = Layers[0].Texture.SpriteSheetData;
 
-            if (AnimationType == ParticleAnimationType.ANIMATION_TYPE_MANUAL_FRAMES)
+            if (number == -1 || sheet == null)
             {
-                passes = inputs.ManualAnimationFrames[index];
+                return -1;
             }
-            else
+
+            return Math.Max(sheet.GetSequenceIndex(number), 0);
+        }
+
+        /// <summary>
+        /// Whether the first layer's sheet frames are cropped to their art, as
+        /// <c>m_nCropTextureOverride</c> asks, or by default when no later layer would be cut by it.
+        /// </summary>
+        private bool ReadCropsFrames(ParticleDefinitionParser parse)
+            => parse.Enum("m_nCropTextureOverride", ParticleSequenceCropOverride.PARTICLE_SEQUENCE_CROP_OVERRIDE_DEFAULT) switch
             {
-                // The animation time is chosen by type first; animating in FPS only changes how the
-                // rate is interpreted afterwards, it does not replace the type
-                var animationTime = AnimationType switch
+                ParticleSequenceCropOverride.PARTICLE_SEQUENCE_CROP_OVERRIDE_DEFAULT => LaterLayersAreColorLookups(Layers),
+                ParticleSequenceCropOverride.PARTICLE_SEQUENCE_CROP_OVERRIDE_FORCE_ON => true,
+                _ => false,
+            };
+
+        /// <summary>
+        /// Whether every layer past the first only maps colours through a lookup, so none of them samples
+        /// a sheet frame that cropping the card would cut.
+        /// </summary>
+        private static bool LaterLayersAreColorLookups(ParticleTextureLayer[] layers)
+        {
+            for (var layer = 1; layer < layers.Length; layer++)
+            {
+                if (layers[layer].EffectMode != SpriteCardTextureType.SPRITECARD_TEXTURE_1D_COLOR_LOOKUP)
                 {
-                    ParticleAnimationType.ANIMATION_TYPE_FIT_LIFETIME => inputs.Ages[index] / Math.Max(MinimumAnimationLifetime, inputs.Lifetimes[index]),
-                    _ => inputs.Ages[index],
-                };
-
-                var rate = AnimationRate * rateScale;
-
-                passes = AnimateInFps
-                    ? animationTime * rate / totalTime
-                    : animationTime * rate;
+                    return false;
+                }
             }
 
-            var position = totalTime * (sequence.Clamp
-                ? MathUtils.Saturate(passes)
-                : MathUtils.Fract(passes));
-
-            return sequence.GetFrameAtPosition(position);
+            return true;
         }
 
         /// <summary>Whether the view angle fade can take anything away, which needs its start below 1 and its end past the start.</summary>
         protected bool FadesByViewAngle => StartFadeDot < 1f && EndFadeDot > StartFadeDot;
 
-        /// <summary>
-        /// How much of a particle at <paramref name="position"/> is left by the view angle fade, which
-        /// fades it out as <paramref name="facingAxis"/> lines up with the direction to the camera.
-        /// </summary>
-        protected float ViewAngleFade(Vector3 facingAxis, Vector3 position, Vector3 cameraPosition)
+        /// <summary>Turns the shader's view angle fade on or off; when on, it fades over the start and end dots.</summary>
+        protected void SetViewAngleFadeUniforms(bool active)
         {
-            var toCamera = cameraPosition - position;
+            Shader.SetUniform1("uViewAngleFade", active);
+            Shader.SetUniform2("uViewAngleFadeDots", new Vector2(StartFadeDot, EndFadeDot));
+        }
 
-            if (toCamera.LengthSquared() <= ParticleMath.MinimumLengthSquared)
-            {
-                return 1f;
-            }
-
-            var facing = MathF.Abs(Vector3.Dot(MathUtils.SafeNormalize(facingAxis), Vector3.Normalize(toCamera)));
-
-            return 1f - MathUtils.Smoothstep(StartFadeDot, EndFadeDot, facing);
+        /// <summary>
+        /// Sets the size clamp and the distance fade, each bound a radius per unit of camera distance, or
+        /// turns both off.
+        /// </summary>
+        protected void SetSizeClampAndFadeUniforms(bool active, float minSize, float startFadeSize, float endFadeSize, float maxSize)
+        {
+            Shader.SetUniform1("uSizeClampAndFade", active);
+            Shader.SetUniform4("uSizeBounds", new Vector4(minSize, startFadeSize, endFadeSize, maxSize));
         }
 
         /// <summary>

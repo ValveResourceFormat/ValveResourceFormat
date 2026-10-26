@@ -3,7 +3,9 @@
 #ifndef VRF_LIGHTING_LPV_INCLUDE
 #define VRF_LIGHTING_LPV_INCLUDE
 
-#include "texturing.slang"
+#include "features.slang"
+#include "utils.slang"
+#include "material_properties.slang"
 #include "light_cull.slang"
 #include "object_data.slang"
 #include "LightingConstants.slang"

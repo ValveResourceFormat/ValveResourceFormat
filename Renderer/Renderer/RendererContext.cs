@@ -76,6 +76,11 @@ public class RendererContext : IDisposable
     /// </summary>
     public MorphCompositeAtlas MorphAtlas { get; }
 
+    /// <summary>
+    /// Holds the sheet sequences of every texture the particle renderers of this context draw.
+    /// </summary>
+    internal Particles.ParticleSheetCache ParticleSheets { get; } = new();
+
     internal ConcurrentDictionary<string, Lazy<List<AnimationBase>>> ModelAnimations { get; } = new();
 
     /// <summary>

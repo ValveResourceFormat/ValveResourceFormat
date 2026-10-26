@@ -1,5 +1,5 @@
+using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Particles;
-using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
@@ -22,8 +22,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private static readonly string[] ZoomScaleNames = ["uLayerZoomScale[0]", "uLayerZoomScale[1]", "uLayerZoomScale[2]", "uLayerZoomScale[3]", "uLayerZoomScale[4]"];
         private static readonly string[] UvScaleOffsetNames = ["uLayerUvScaleOffset[0]", "uLayerUvScaleOffset[1]", "uLayerUvScaleOffset[2]", "uLayerUvScaleOffset[3]", "uLayerUvScaleOffset[4]"];
         private static readonly string[] UvRotationNames = ["uLayerUvRotation[0]", "uLayerUvRotation[1]", "uLayerUvRotation[2]", "uLayerUvRotation[3]", "uLayerUvRotation[4]"];
-        private static readonly string[] UvClampNames = ["uLayerUvClamp[0]", "uLayerUvClamp[1]", "uLayerUvClamp[2]", "uLayerUvClamp[3]", "uLayerUvClamp[4]"];
-        private static readonly string[] UvSheetNames = ["uLayerUvSheet[0]", "uLayerUvSheet[1]", "uLayerUvSheet[2]", "uLayerUvSheet[3]", "uLayerUvSheet[4]"];
+        private static readonly string[] SheetNames = ["uLayerSheet[0]", "uLayerSheet[1]", "uLayerSheet[2]", "uLayerSheet[3]", "uLayerSheet[4]"];
+        private static readonly string[] PerParticleModesNames = ["uLayerPerParticleModes[0]", "uLayerPerParticleModes[1]", "uLayerPerParticleModes[2]", "uLayerPerParticleModes[3]", "uLayerPerParticleModes[4]"];
+        private static readonly string[] LookupNames = ["uLayerLookup[0]", "uLayerLookup[1]", "uLayerLookup[2]", "uLayerLookup[3]", "uLayerLookup[4]"];
+
+        /// <summary>The bit of the packed per particle modes that randomizes the layer's offsets.</summary>
+        private const int RandomizeOffsetsBit = 28;
 
         private static readonly INumberProvider One = new LiteralNumberProvider(1f);
         private static readonly INumberProvider Zero = new LiteralNumberProvider(0f);
@@ -58,35 +62,77 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// </summary>
         public INumberProvider Rotation { get; init; } = Zero;
 
-        /// <summary>m_bClampUVs: whether this layer stops repeating outside its own range.</summary>
+        /// <summary>m_bClampUVs: whether this layer is sampled with its edge texels held outside its range instead of repeating.</summary>
         public bool ClampUVs { get; init; }
 
-        /// <summary>One layer's resolved coordinate transform, in card space.</summary>
-        /// <param name="Scale">How many times the texture tiles across the card.</param>
-        /// <param name="Offset">Where the texture starts within the card.</param>
-        /// <param name="Rotation">How far the texture turns about the card centre, in radians.</param>
-        /// <param name="Clamp">Whether the coordinate stops at the edges of the texture.</param>
-        /// <param name="Sheet">
-        /// Whether the layer shows a sheet frame. Its coordinate is then scaled about the card corner and
-        /// offset without wrapping, and neither turns nor clamps.
-        /// </param>
-        public readonly record struct UvTransform(Vector2 Scale, Vector2 Offset, float Rotation, bool Clamp, bool Sheet)
-        {
-            /// <summary>The sine and cosine of <see cref="Rotation"/>.</summary>
-            public (float Sin, float Cos) RotationSinCos { get; } = MathF.SinCos(Rotation);
+        /// <summary>m_bRandomizeOffsets: whether each particle shifts this layer by a random amount of its own.</summary>
+        public bool RandomizeOffsets { get; init; }
 
-            /// <summary>Where the card centre lands, the offset wrapped into the unit square.</summary>
-            public Vector2 WrappedOrigin { get; } = new(MathUtils.Fract(Offset.X + 0.5f), MathUtils.Fract(Offset.Y + 0.5f));
+        /// <summary>m_nPerParticleScale: the per particle value <see cref="ScaleU"/> and <see cref="ScaleV"/> are multiplied by.</summary>
+        public SpriteCardPerParticleScale PerParticleScale { get; init; }
+
+        /// <summary>m_nPerParticleOffsetU: the per particle value <see cref="OffsetU"/> is multiplied by.</summary>
+        public SpriteCardPerParticleScale PerParticleOffsetU { get; init; }
+
+        /// <summary>m_nPerParticleOffsetV: the per particle value <see cref="OffsetV"/> is multiplied by.</summary>
+        public SpriteCardPerParticleScale PerParticleOffsetV { get; init; }
+
+        /// <summary>
+        /// m_nPerParticleRotation: the per particle value <see cref="Rotation"/> is multiplied by, which on a
+        /// layer with a sheet scales how fast it plays.
+        /// </summary>
+        public SpriteCardPerParticleScale PerParticleRotation { get; init; }
+
+        /// <summary>m_nPerParticleZoom: the per particle value <see cref="ZoomScale"/> is multiplied by, on zoom layers only.</summary>
+        public SpriteCardPerParticleScale PerParticleZoom { get; init; }
+
+        /// <summary>m_nPerParticleDistortion: the per particle value <see cref="Distortion"/> is multiplied by, on distortion layers only.</summary>
+        public SpriteCardPerParticleScale PerParticleDistortion { get; init; }
+
+        /// <summary>
+        /// m_nPerParticleBlend: the per particle value <see cref="Blend"/> is multiplied by on a layer without
+        /// a sheet, and on a distortion layer the distortion strength instead.
+        /// </summary>
+        public SpriteCardPerParticleScale PerParticleBlend { get; init; }
+
+        /// <summary>
+        /// The per particle modes packed four bits each in the order the shader keys them (scale, offset u,
+        /// offset v, rotation, zoom, distortion, blend), with the randomized offsets flag above them.
+        /// </summary>
+        private uint PackPerParticleModes()
+        {
+            var packed = (uint)PerParticleScale
+                | ((uint)PerParticleOffsetU << 4)
+                | ((uint)PerParticleOffsetV << 8)
+                | ((uint)PerParticleRotation << 12)
+                | ((uint)PerParticleZoom << 16)
+                | ((uint)PerParticleDistortion << 20)
+                | ((uint)PerParticleBlend << 24);
+
+            if (RandomizeOffsets)
+            {
+                packed |= 1u << RandomizeOffsetsBit;
+            }
+
+            return packed;
         }
 
-        /// <summary>Binds the chain's textures and describes every layer to the shader.</summary>
-        public static void Bind(Shader shader, ParticleTextureLayer[] layers, ParticleSystemState systemState)
+        /// <summary>
+        /// Binds the chain's textures and describes every layer to the shader: how it composites, how a
+        /// card coordinate is placed in it, which per particle values scale its controls, and where the
+        /// sequences of its sheet sit in <paramref name="sheets"/>, adding them there the first time.
+        /// </summary>
+        public static void Bind(Shader shader, ParticleTextureLayer[] layers, ParticleSystemState systemState, ParticleSheetCache sheets)
         {
             shader.SetUniform1("uLayerCount", layers.Length);
+
+            var frameZoom = Vector2.One;
+            var anyLayerHasSheet = false;
 
             for (var layer = 0; layer < layers.Length; layer++)
             {
                 var source = layers[layer];
+                var zoomScale = source.ZoomScale.NextNumber(systemState);
 
                 shader.SetTexture(RenderMaterial.TextureUnitStart + layer, TextureNames[layer], source.Texture);
                 shader.SetUniform1(ChannelNames[layer], (int)source.Channels);
@@ -94,137 +140,78 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 shader.SetUniform1(BlendNames[layer], source.Blend.NextNumber(systemState));
                 shader.SetUniform1(EffectModeNames[layer], (int)source.EffectMode);
                 shader.SetUniform1(DistortionNames[layer], source.Distortion.NextNumber(systemState));
-                shader.SetUniform1(ZoomScaleNames[layer], MathUtils.Wrap(source.ZoomScale.NextNumber(systemState), 0f, 10f));
+                shader.SetUniform1(ZoomScaleNames[layer], MathUtils.Wrap(zoomScale, 0f, 10f));
 
-                if (source.EffectMode == SpriteCardTextureType.SPRITECARD_TEXTURE_ANIMMOTIONVEC)
+                // The first two layers zoom towards the card centre as they cross between sheet frames,
+                // by the unwrapped zoom scale
+                if (layer == 0)
                 {
-                    shader.SetUniform2("uMotionVectorScale", new Vector2(
-                        source.Texture.MotionVectorsMaxDistance / (float)source.Texture.Width,
-                        source.Texture.MotionVectorsMaxDistance / (float)source.Texture.Height));
+                    frameZoom.X = MathUtils.Saturate(1f / zoomScale);
                 }
-            }
-        }
+                else if (layer == 1)
+                {
+                    frameZoom.Y = MathUtils.Saturate(1f / zoomScale);
+                }
 
-        /// <summary>Resolves every layer's transform for the frame, in layer order.</summary>
-        public static void ResolveUvTransforms(ParticleTextureLayer[] layers, ParticleSystemState systemState, Span<UvTransform> transforms)
-        {
-            for (var layer = 0; layer < layers.Length; layer++)
-            {
-                transforms[layer] = layers[layer].ResolveUvTransform(systemState);
+                var rows = sheets.GetRows(source.Texture);
+                var hasSheet = rows.SequenceCount > 0;
+                anyLayerHasSheet |= hasSheet;
+
+                // A layer showing a sheet does not turn; its rotation scales how fast it plays instead
+                var rotation = source.Rotation.NextNumber(systemState);
+                var uvRotation = hasSheet ? rotation : float.DegreesToRadians(rotation);
+
+                var scaleOffset = new Vector4(
+                    source.ScaleU.NextNumber(systemState),
+                    source.ScaleV.NextNumber(systemState),
+                    source.OffsetU.NextNumber(systemState),
+                    source.OffsetV.NextNumber(systemState));
+
+                shader.SetUniform4(UvScaleOffsetNames[layer], scaleOffset);
+                shader.SetUniform1(UvRotationNames[layer], uvRotation);
+                shader.SetUniform2(SheetNames[layer], new Vector2(rows.FirstRow, rows.SequenceCount));
+                shader.SetUniform1(PerParticleModesNames[layer], source.PackPerParticleModes());
+                shader.SetUniform1(LookupNames[layer], source.EffectMode == SpriteCardTextureType.SPRITECARD_TEXTURE_1D_COLOR_LOOKUP);
             }
+
+            shader.SetUniform2("uFrameZoom", frameZoom);
+            shader.SetUniform1("uAnyLayerHasSheet", anyLayerHasSheet);
         }
 
         /// <summary>
-        /// Hands the layer uv controls to the shader for renderers that place corners there rather than
-        /// on the CPU. One value per layer per draw lets a card send a sheet frame rectangle per particle,
-        /// not a placed coordinate per corner.
+        /// Binds <paramref name="sampler"/> over the texture units of the layers that clamp their uvs, and
+        /// over the motion vectors' unit when the first layer does.
         /// </summary>
-        /// <param name="shader">Shader being drawn with.</param>
         /// <param name="layers">The chain being composited.</param>
-        /// <param name="systemState">State the controls are evaluated against.</param>
-        public static void BindUvTransforms(Shader shader, ParticleTextureLayer[] layers, ParticleSystemState systemState)
+        /// <param name="hasMotionVectors">Whether a motion vector sheet is bound after the layers.</param>
+        /// <param name="sampler">A clamp-to-edge sampler object.</param>
+        public static void BindClampSamplers(ParticleTextureLayer[] layers, bool hasMotionVectors, int sampler)
+            => SetClampSamplers(layers, hasMotionVectors, sampler);
+
+        /// <summary>Removes the samplers <see cref="BindClampSamplers"/> bound, so the units fall back to their textures' own state.</summary>
+        /// <param name="layers">The chain being composited.</param>
+        /// <param name="hasMotionVectors">Whether a motion vector sheet is bound after the layers.</param>
+        public static void UnbindClampSamplers(ParticleTextureLayer[] layers, bool hasMotionVectors)
+            => SetClampSamplers(layers, hasMotionVectors, 0);
+
+        private static void SetClampSamplers(ParticleTextureLayer[] layers, bool hasMotionVectors, int sampler)
         {
             for (var layer = 0; layer < layers.Length; layer++)
             {
-                var transform = (layers[layer].EffectMode == SpriteCardTextureType.SPRITECARD_TEXTURE_ANIMMOTIONVEC
-                    ? layers[0]
-                    : layers[layer]).ResolveUvTransform(systemState);
+                if (layers[layer].ClampUVs)
+                {
+                    GL.BindSampler(RenderMaterial.TextureUnitStart + layer, sampler);
+                }
+            }
 
-                shader.SetUniform4(UvScaleOffsetNames[layer], new Vector4(transform.Scale, transform.Offset.X, transform.Offset.Y));
-                shader.SetUniform1(UvRotationNames[layer], transform.Rotation);
-                shader.SetUniform1(UvClampNames[layer], transform.Clamp);
-                shader.SetUniform1(UvSheetNames[layer], transform.Sheet);
+            if (hasMotionVectors && layers[0].ClampUVs)
+            {
+                GL.BindSampler(RenderMaterial.TextureUnitStart + MaxLayers, sampler);
             }
         }
 
         /// <summary>Whether this layer's texture carries a sheet with any sequences.</summary>
-        private bool HasSheet => Texture.SpriteSheetData is { Sequences.Length: > 0 };
-
-        /// <summary>Resolves this layer's transform for the frame.</summary>
-        public UvTransform ResolveUvTransform(ParticleSystemState systemState)
-        {
-            var hasSheet = HasSheet;
-            var rotation = hasSheet ? 0f : float.DegreesToRadians(Rotation.NextNumber(systemState));
-
-            return new(
-                new Vector2(ScaleU.NextNumber(systemState), ScaleV.NextNumber(systemState)),
-                new Vector2(OffsetU.NextNumber(systemState), OffsetV.NextNumber(systemState)),
-                rotation,
-                ClampUVs && !hasSheet,
-                hasSheet);
-        }
-
-        /// <summary>Resolves every layer's <see cref="SheetRateScale"/> for the frame, in layer order.</summary>
-        public static void ResolveSheetRateScales(ParticleTextureLayer[] layers, ParticleSystemState systemState, Span<float> rateScales)
-        {
-            for (var layer = 0; layer < layers.Length; layer++)
-            {
-                rateScales[layer] = layers[layer].SheetRateScale(systemState);
-            }
-        }
-
-        /// <summary>
-        /// How fast this layer plays its sheet, as a multiple of the renderer's animation rate: its UV
-        /// rotation, or 1 when that is 0 or the layer has no sheet.
-        /// </summary>
-        public float SheetRateScale(ParticleSystemState systemState)
-        {
-            if (!HasSheet)
-            {
-                return 1f;
-            }
-
-            var rate = Rotation.NextNumber(systemState);
-
-            return rate == 0f ? 1f : rate;
-        }
-
-        /// <summary>
-        /// Places one card corner in the layer's texture, then maps the result into whichever sheet frame
-        /// rect the layer is showing. On a layer with a sheet the card coordinate is divided by the scale
-        /// and offset; otherwise it turns about the card centre, is divided by the scale, and lands at
-        /// the wrapped offset.
-        /// </summary>
-        public static Vector2 PlaceCorner(Vector2 cardUv, in UvTransform transform, Vector2 rectMin, Vector2 rectMax)
-        {
-            if (transform.Sheet)
-            {
-                var sheetPlaced = (cardUv / transform.Scale) + transform.Offset;
-
-                return rectMin + (sheetPlaced * (rectMax - rectMin));
-            }
-
-            var centred = cardUv - new Vector2(0.5f);
-            var (sin, cos) = transform.RotationSinCos;
-
-            var rotated = new Vector2(
-                (centred.X * cos) - (centred.Y * sin),
-                (centred.X * sin) + (centred.Y * cos));
-
-            var placed = (rotated / transform.Scale) + transform.WrappedOrigin;
-
-            if (transform.Clamp)
-            {
-                placed = Vector2.Clamp(placed, Vector2.Zero, Vector2.One);
-            }
-
-            return rectMin + (placed * (rectMax - rectMin));
-        }
-
-        /// <summary>The first sheet these layers carry, or null when none of their textures ships one.</summary>
-        /// <param name="layers">The layers in composite order.</param>
-        public static Texture.SpritesheetData? FindSpriteSheet(ParticleTextureLayer[] layers)
-        {
-            foreach (var layer in layers)
-            {
-                if (layer.Texture.SpriteSheetData is { Sequences.Length: > 0 } sheet)
-                {
-                    return sheet;
-                }
-            }
-
-            return null;
-        }
+        public bool HasSheet => Texture.SpriteSheetData is { Sequences.Length: > 0 };
 
         /// <summary>
         /// Reads m_vecTexturesInput into the layer chain a spritecard renderer composites, falling back to
@@ -232,13 +219,18 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// </summary>
         /// <param name="parse">The renderer's definition.</param>
         /// <param name="rendererContext">Loads the layer textures.</param>
-        /// <param name="defaultTextureName">Texture for a layer that names none, and for the fallback layer.</param>
+        /// <param name="defaultTextureName">Texture for the fallback layer.</param>
         /// <param name="srgbRead">Whether the layers are colour; water effects cards carry data instead.</param>
-        /// <returns>The layers in composite order, and the name of the first texture loaded.</returns>
-        public static (ParticleTextureLayer[] Layers, string? FirstTextureName) Build(
-            ParticleDefinitionParser parse, RendererContext rendererContext, string defaultTextureName, bool srgbRead = true)
+        /// <param name="baseSrgbRead">Whether the first layer is decoded from sRGB, in place of <paramref name="srgbRead"/>.</param>
+        /// <returns>
+        /// The colour layers in composite order, the motion vector sheet that warps them or null, and the
+        /// name of the first colour texture loaded.
+        /// </returns>
+        public static (ParticleTextureLayer[] Layers, RenderTexture? MotionVectors, string? FirstTextureName) Build(
+            ParticleDefinitionParser parse, RendererContext rendererContext, string defaultTextureName, bool srgbRead, bool baseSrgbRead)
         {
             string? firstTextureName = null;
+            RenderTexture? motionVectors = null;
             var parsed = new List<ParticleTextureLayer>();
 
             foreach (var textureInput in parse.Array("m_vecTexturesInput"))
@@ -248,51 +240,56 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     continue;
                 }
 
-                // Normal maps are not colour and would tint the card with a tangent-space basis. Motion
-                // vector sheets stay layers: the shader reads their flow and composites nothing.
                 var textureType = textureInput.Enum("m_nTextureType", SpriteCardTextureType.SPRITECARD_TEXTURE_DIFFUSE);
-                var isMotionVectors = textureType == SpriteCardTextureType.SPRITECARD_TEXTURE_ANIMMOTIONVEC;
 
-                if (textureType == SpriteCardTextureType.SPRITECARD_TEXTURE_NORMALMAP)
+                // The first motion vector sheet warps the colour layers rather than becoming one, and is
+                // never replaced by a gradient. The vectors are signed data packed about a half, and a gamma
+                // decode would bend the flow field, so it is never read as colour.
+                if (textureType == SpriteCardTextureType.SPRITECARD_TEXTURE_ANIMMOTIONVEC)
+                {
+                    if (motionVectors == null && GetTextureName(textureInput) is { } motionVectorsName)
+                    {
+                        motionVectors = rendererContext.MaterialLoader.GetTexture(motionVectorsName, srgbRead: false, streaming: true);
+                    }
+
+                    continue;
+                }
+
+                // Only the colour types composite. Of the rest, the spritecard shader has inputs for motion
+                // vectors alone, so normal, lighting and depth textures change nothing.
+                if (textureType >= SpriteCardTextureType.SPRITECARD_TEXTURE_NORMALMAP || parsed.Count == MaxLayers)
                 {
                     continue;
                 }
 
-                if (parsed.Count == MaxLayers)
-                {
-                    break;
-                }
+                var controls = textureInput.Data.GetSubCollection("m_TextureControls");
+                var uv = controls == null ? textureInput : textureInput.Nested(controls);
+                var clampUVs = controls != null && uv.Boolean("m_bClampUVs", false);
+
+                // Zoom and distortion are only scaled per particle on layers that zoom or distort
+                var zooms = textureType is SpriteCardTextureType.SPRITECARD_TEXTURE_ZOOM or SpriteCardTextureType.SPRITECARD_TEXTURE_UVDISTORTION_ZOOM;
+                var distorts = textureType is SpriteCardTextureType.SPRITECARD_TEXTURE_UVDISTORTION or SpriteCardTextureType.SPRITECARD_TEXTURE_UVDISTORTION_ZOOM;
 
                 RenderTexture layerTexture;
 
                 // A gradient layer synthesizes its ramp from m_Gradient rather than loading a texture.
                 if (textureInput.Boolean("m_bReplaceTextureWithGradient", false))
                 {
-                    layerTexture = MaterialLoader.GenerateGradientTexture(ParseGradientStops(textureInput));
+                    layerTexture = MaterialLoader.GenerateGradientTexture(ParseGradientStops(textureInput), clampUVs);
                 }
                 else
                 {
-                    var layerTextureName = textureInput.Data.ContainsKey("m_hTexture")
-                        ? textureInput.Data.GetStringProperty("m_hTexture")
-                        : null;
-
-                    if (string.IsNullOrEmpty(layerTextureName))
+                    // A group that names no texture adds no layer
+                    if (GetTextureName(textureInput) is not { } layerTextureName)
                     {
-                        layerTextureName = defaultTextureName;
+                        continue;
                     }
 
-                    // The vectors are signed data packed about a half, and a gamma decode would bend the flow
-                    // field, so a motion sheet is never read as colour. It does not name the card either.
-                    if (!isMotionVectors)
-                    {
-                        firstTextureName ??= layerTextureName;
-                    }
+                    var layerSrgbRead = parsed.Count == 0 ? baseSrgbRead : srgbRead;
 
-                    layerTexture = rendererContext.MaterialLoader.GetTexture(layerTextureName, srgbRead && !isMotionVectors, streaming: true);
+                    firstTextureName ??= layerTextureName;
+                    layerTexture = rendererContext.MaterialLoader.GetTexture(layerTextureName, layerSrgbRead, streaming: true);
                 }
-
-                var controls = textureInput.Data.GetSubCollection("m_TextureControls");
-                var uv = controls == null ? textureInput : textureInput.Nested(controls);
 
                 parsed.Add(new ParticleTextureLayer(layerTexture)
                 {
@@ -307,16 +304,47 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     Rotation = controls == null ? Zero : uv.NumberProvider("m_flFinalTextureUVRotation", Zero),
                     Distortion = controls == null ? Zero : uv.NumberProvider("m_flDistortion", Zero),
                     ZoomScale = controls == null ? Zero : uv.NumberProvider("m_flZoomScale", Zero),
-                    ClampUVs = controls != null && uv.Boolean("m_bClampUVs", false),
+                    ClampUVs = clampUVs,
+                    RandomizeOffsets = controls != null && uv.Boolean("m_bRandomizeOffsets", false),
+                    PerParticleScale = PerParticleMode(controls, uv, "m_nPerParticleScale"),
+                    PerParticleOffsetU = PerParticleMode(controls, uv, "m_nPerParticleOffsetU"),
+                    PerParticleOffsetV = PerParticleMode(controls, uv, "m_nPerParticleOffsetV"),
+                    PerParticleRotation = PerParticleMode(controls, uv, "m_nPerParticleRotation"),
+                    PerParticleZoom = zooms ? PerParticleMode(controls, uv, "m_nPerParticleZoom") : default,
+                    PerParticleDistortion = distorts ? PerParticleMode(controls, uv, "m_nPerParticleDistortion") : default,
+                    PerParticleBlend = PerParticleMode(controls, uv, "m_nPerParticleBlend"),
                 });
             }
 
             if (parsed.Count == 0)
             {
-                parsed.Add(new ParticleTextureLayer(rendererContext.MaterialLoader.GetTexture(defaultTextureName, srgbRead, streaming: true)));
+                parsed.Add(new ParticleTextureLayer(rendererContext.MaterialLoader.GetTexture(defaultTextureName, baseSrgbRead, streaming: true)));
+
+                // Without a colour layer the motion vectors have no texture size to scale by, so they push nothing
+                motionVectors = null;
+            }
+            else if (parsed.Count > 3)
+            {
+                // A chain of more than three colour layers draws without its motion vectors
+                motionVectors = null;
             }
 
-            return ([.. parsed], firstTextureName);
+            return ([.. parsed], motionVectors, firstTextureName);
+        }
+
+        /// <summary>A per particle mode of the layer's controls, or none when the layer has no controls.</summary>
+        private static SpriteCardPerParticleScale PerParticleMode(KVObject? controls, ParticleDefinitionParser uv, string key)
+            => controls == null
+                ? SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_NONE
+                : uv.Enum(key, SpriteCardPerParticleScale.SPRITECARD_TEXTURE_PP_SCALE_NONE);
+
+        private static string? GetTextureName(ParticleDefinitionParser textureInput)
+        {
+            var name = textureInput.Data.ContainsKey("m_hTexture")
+                ? textureInput.Data.GetStringProperty("m_hTexture")
+                : null;
+
+            return string.IsNullOrEmpty(name) ? null : name;
         }
 
         private static (float Position, Color32 Color)[] ParseGradientStops(ParticleDefinitionParser textureInput)
@@ -333,7 +361,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             for (var i = 0; i < stops.Length; i++)
             {
-                var color = stops[i].Color24("m_Color", Vector3.One) * 255f;
+                // The colour is stored as bytes, and taken as they are; a round trip through 0-1 floats
+                // could land a channel just under its value and truncate it a step down
+                var color = stops[i].Data.TryGetValue("m_Color", out var colorValue)
+                    ? colorValue.ToVector3()
+                    : new Vector3(255f);
+
                 parsed[i] = (stops[i].Float("m_flPosition", 0f), new Color32((byte)color.X, (byte)color.Y, (byte)color.Z));
             }
 

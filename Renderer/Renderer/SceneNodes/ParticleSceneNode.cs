@@ -899,6 +899,26 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <inheritdoc/>
+        /// <remarks>The system's depth sort bias is added to the linear distance, which stops at zero.</remarks>
+        public override float GetCameraDistance(Camera camera)
+        {
+            // Translucent particles are blended in sorted order. A moment based order independent blend would
+            // spread out and dim the cores where many glowing sprites overlap, which comes out brighter and
+            // narrower here.
+
+            var distanceSquared = base.GetCameraDistance(camera);
+            var bias = particleRenderer.Simulation.DepthSortBias;
+
+            if (bias == 0f)
+            {
+                return distanceSquared;
+            }
+
+            var biasedDistance = MathF.Max(0f, MathF.Sqrt(distanceSquared) + bias);
+            return biasedDistance * biasedDistance;
+        }
+
+        /// <inheritdoc/>
         public override IEnumerable<string> GetSupportedRenderModes() => particleRenderer.GetSupportedRenderModes();
 
         /// <inheritdoc/>

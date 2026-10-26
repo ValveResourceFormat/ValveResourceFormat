@@ -249,10 +249,84 @@ namespace ValveResourceFormat.ResourceTypes
                 private static float CrossedFraction(float into, float span) => span > 0f ? into / span : 0f;
             }
 
+            private const string UnnamedSequenceName = "CDmeSheetSequence";
+
+            private Sequence[] sequences = [];
+            private int[] sequenceIndicesById = [];
+
             /// <summary>
             /// Gets or sets the array of animation sequences in this sprite sheet.
             /// </summary>
-            public Sequence[] Sequences { get; set; } = [];
+            public Sequence[] Sequences
+            {
+                get => sequences;
+                set
+                {
+                    sequences = value;
+                    sequenceIndicesById = BuildSequenceIndicesById(value);
+                }
+            }
+
+            /// <summary>
+            /// Gets the position in <see cref="Sequences"/> of the sequence a particle reaches with
+            /// sequence number <paramref name="id"/>, or -1 when no sequence answers to it.
+            /// </summary>
+            /// <remarks>
+            /// An unnamed sequence answers to its authored <see cref="Sequence.Id"/>, a sequence named with
+            /// digits only answers to that number, and any other named sequence cannot be reached.
+            /// </remarks>
+            /// <param name="id">The sequence number.</param>
+            /// <returns>The sequence's position, or -1.</returns>
+            public int GetSequenceIndex(int id)
+                => (uint)id < (uint)sequenceIndicesById.Length ? sequenceIndicesById[id] : -1;
+
+            /// <summary>
+            /// Gets the number one past the largest sequence number any sequence answers to.
+            /// </summary>
+            public int SequenceIdCount => sequenceIndicesById.Length;
+
+            private static int[] BuildSequenceIndicesById(Sequence[] sequences)
+            {
+                var ids = new int[sequences.Length];
+                var count = 0;
+
+                for (var i = 0; i < sequences.Length; i++)
+                {
+                    ids[i] = GetLookupId(sequences[i]);
+                    count = Math.Max(count, ids[i] + 1);
+                }
+
+                var indices = new int[count];
+                Array.Fill(indices, -1);
+
+                for (var i = 0; i < sequences.Length; i++)
+                {
+                    if (ids[i] >= 0)
+                    {
+                        indices[ids[i]] = i;
+                    }
+                }
+
+                return indices;
+            }
+
+            // TODO: Whether an empty name counts as all digits is not known; it is treated as a name
+            private static int GetLookupId(Sequence sequence)
+            {
+                var name = sequence.Name;
+
+                if (name == UnnamedSequenceName)
+                {
+                    return (int)sequence.Id;
+                }
+
+                if (name.Length == 0 || !name.All(char.IsAsciiDigit))
+                {
+                    return -1;
+                }
+
+                return int.TryParse(name, NumberStyles.None, CultureInfo.InvariantCulture, out var id) ? id : -1;
+            }
         }
 
         /// <summary>

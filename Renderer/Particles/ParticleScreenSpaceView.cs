@@ -2,7 +2,7 @@ namespace ValveResourceFormat.Renderer.Particles
 {
     /// <summary>
     /// The fixed view screen-space particle systems are laid out in and drawn through. It looks from the
-    /// world origin with world +X to the left of the screen and +Y up, across a box 200 units on each side
+    /// world origin with world +X to the left of the screen and +Y down, across a box 200 units on each side
     /// that is fitted to cover a 16:9 frame, whatever the viewport.
     /// </summary>
     internal static class ParticleScreenSpaceView
@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer.Particles
         private const float Depth = 100f;
         private const float AuthoredAspectRatio = 16f / 9f;
 
-        private static readonly Vector3 Angles = new(-90f, 0f, -90f);
+        private static readonly Vector3 Angles = new(90f, 0f, 90f);
 
         /// <summary>Points <paramref name="camera"/> at the screen-space view of a viewport.</summary>
         /// <param name="camera">The camera to set up. Its perspective projection is replaced.</param>
