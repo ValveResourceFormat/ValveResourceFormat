@@ -137,6 +137,8 @@ public class CMapRootElement : DMElement
         mapVariables ??= Adopt(new CMapVariableSet { Name = "mapVariables" });
         visibility ??= Adopt(new CVisibilityMgr { Name = "visbility" });
 
+        Visibility.World = World;
+
         World.PostLoadFromFile();
         Visibility.PostLoadFromFile();
     }
@@ -736,6 +738,28 @@ public class CMapWorld : BaseEntity
 }
 
 /// <summary>
+/// Why a map node is hidden, as <see cref="CVisibilityMgr.HiddenFlags"/> stores it for each node.
+/// </summary>
+[Flags]
+public enum MapNodeHiddenFlags
+{
+    /// <summary>The node is not hidden.</summary>
+    None = 0,
+
+    /// <summary>The node was hidden by hand.</summary>
+    Hidden = 1,
+
+    /// <summary>The node is hidden through an automatic visibility group.</summary>
+    AutoHidden = 2,
+
+    /// <summary>Does not hide the node. Maps are saved with it, and it is cleared when a map is loaded.</summary>
+    Transient = 4,
+
+    /// <summary>The node is hidden by a tool that is working on it, such as what is being clipped.</summary>
+    HiddenByTool = 8,
+}
+
+/// <summary>
 /// Per node hidden state, as two parallel arrays.
 /// </summary>
 [CamelCaseProperties]
@@ -750,6 +774,96 @@ public class CVisibilityMgr : MapNode
     /// Hidden flags, one per entry of <see cref="Nodes"/>.
     /// </summary>
     public Datamodel.IntArray HiddenFlags { get; init; } = [];
+
+    private readonly Dictionary<DMElement, int> nodeIndices = [];
+    private int indexedNodeCount = -1;
+
+    /// <summary>
+    /// The world of the map the manager belongs to, which only nodes under it are tracked for.
+    /// </summary>
+    [DMIgnore]
+    public CMapWorld? World { get; internal set; }
+
+    /// <summary>
+    /// Brings the two lists to the same length, clears the flags that do not outlast a session and drops the
+    /// nodes that are not under <see cref="World"/>.
+    /// </summary>
+    public override void PostLoadFromFile()
+    {
+        base.PostLoadFromFile();
+
+        var count = Math.Min(Nodes.Count, HiddenFlags.Count);
+
+        while (Nodes.Count > count)
+        {
+            Nodes.RemoveAt(Nodes.Count - 1);
+        }
+
+        while (HiddenFlags.Count > count)
+        {
+            HiddenFlags.RemoveAt(HiddenFlags.Count - 1);
+        }
+
+        for (var i = 0; i < count; i++)
+        {
+            HiddenFlags[i] &= ~(int)MapNodeHiddenFlags.Transient;
+        }
+
+        if (World is { } world)
+        {
+            var nodesInWorld = EnumerateDescendantElements(world).ToHashSet();
+
+            for (var i = count - 1; i >= 0; i--)
+            {
+                if (Nodes[i] is not { } node || !nodesInWorld.Contains(node))
+                {
+                    Nodes.RemoveAt(i);
+                    HiddenFlags.RemoveAt(i);
+                }
+            }
+        }
+
+        RebuildNodeIndexMap();
+    }
+
+    /// <summary>
+    /// Gets the hidden flags of a node, 0 for a node that is not tracked.
+    /// </summary>
+    /// <param name="node">The node.</param>
+    public MapNodeHiddenFlags GetNodeHiddenFlags(DMElement node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+
+        if (indexedNodeCount != Nodes.Count)
+        {
+            RebuildNodeIndexMap();
+        }
+
+        return nodeIndices.TryGetValue(node, out var index) && index < HiddenFlags.Count ? (MapNodeHiddenFlags)HiddenFlags[index] : MapNodeHiddenFlags.None;
+    }
+
+    /// <summary>
+    /// Gets whether a node is visible going by the hidden flags in a mask. A node that is not tracked is visible.
+    /// </summary>
+    /// <param name="node">The node.</param>
+    /// <param name="hiddenFlagsMask">The flags that hide a node.</param>
+    public bool IsNodeVisible(DMElement node, MapNodeHiddenFlags hiddenFlagsMask)
+        => (GetNodeHiddenFlags(node) & hiddenFlagsMask) == 0;
+
+    private void RebuildNodeIndexMap()
+    {
+        nodeIndices.Clear();
+
+        for (var i = 0; i < Nodes.Count; i++)
+        {
+            if (Nodes[i] is { } node)
+            {
+                nodeIndices[node] = i;
+            }
+        }
+
+        indexedNodeCount = Nodes.Count;
+    }
 }
 
 /// <summary>
