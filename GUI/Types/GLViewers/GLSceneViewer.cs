@@ -529,8 +529,11 @@ namespace GUI.Types.GLViewers
             QuadOverdrawRenderer = new(Scene.RendererContext);
             QuadOverdrawRenderer.Load();
 
-            Renderer.ShadowTextureSize = Settings.Config.ShadowResolution;
-            Renderer.Settings.StaticSunShadows = Settings.Config.ShadowResolution >= 2048; // High and Very High
+            // Very High keeps its 4096 setting value, but draws three 2048 cascades instead of two at 4096
+            var shadowQuality = Settings.Config.ShadowResolution;
+            Renderer.ShadowTextureSize = Math.Min(shadowQuality, 2048);
+            Renderer.SunCascadeCount = shadowQuality >= 4096 ? 3 : 2;
+            Renderer.Settings.StaticSunShadows = shadowQuality >= 2048; // High and Very High
             Renderer.Initialize();
 
             Renderer.MainFramebuffer = MainFramebuffer;

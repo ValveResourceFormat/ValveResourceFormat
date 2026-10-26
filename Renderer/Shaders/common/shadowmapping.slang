@@ -5,7 +5,7 @@
 
 #include "view_constants.slang"
 
-#define SUN_CASCADE_COUNT 2
+#define SUN_CASCADE_COUNT 3
 
 uniform sampler2DArrayShadow g_tShadowDepthBufferDepth; // reserved
 

@@ -294,15 +294,15 @@ public class Renderer : ISceneHost
     private readonly List<Scene> scenes = [];
     private readonly Dictionary<Scene, SceneViewState> mainViewStates = [];
     private readonly Dictionary<Scene, SceneViewState> skyViewStates = [];
-    private readonly Dictionary<Scene, SceneViewState>[] sunCascadeViewStates = [[], []];
-    private readonly Dictionary<Scene, SceneViewState>[] sunCascadeSkyViewStates = [[], []];
+    private readonly Dictionary<Scene, SceneViewState>[] sunCascadeViewStates = [[], [], []];
+    private readonly Dictionary<Scene, SceneViewState>[] sunCascadeSkyViewStates = [[], [], []];
 
     private readonly Dictionary<Scene, SceneViewState>[] allViewStates;
 
     private readonly List<SceneViewState> mainViewSceneStates = [];
     private readonly List<SceneViewState> skyViewSceneStates = [];
-    private readonly List<SceneViewState>[] sunCascadeSceneStates = [[], []];
-    private readonly List<SceneViewState>[] sunCascadeSkySceneStates = [[], []];
+    private readonly List<SceneViewState>[] sunCascadeSceneStates = [[], [], []];
+    private readonly List<SceneViewState>[] sunCascadeSkySceneStates = [[], [], []];
 
     private readonly SunCascades sunCascades = new();
     private readonly SceneView[] sunCascadeViews = new SceneView[SunCascades.Count];
@@ -329,6 +329,9 @@ public class Renderer : ISceneHost
     /// Width and height in texels of the shadow depth buffers.
     /// </summary>
     public int ShadowTextureSize { get; set; } = 1024;
+
+    /// <summary>Gets or sets how many sun shadow cascades are drawn, 2 or 3.</summary>
+    public int SunCascadeCount { get; set; } = 2;
 
     /// <summary>
     /// When <see langword="true"/>, geometry is rendered as wireframe lines.
@@ -578,10 +581,13 @@ public class Renderer : ISceneHost
         var main = views[0];
         SceneView? sky = Settings.ShowSkybox && views.Length > 1 && views[1].SkyCastsSunShadows ? views[1] : null;
 
-        sunCascades.Fit(Scene, camera, ShadowDepthBuffer.Width, sky?.Sky?.Scale ?? 1f);
+        sunCascades.Fit(Scene, camera, ShadowDepthBuffer.Width, sky?.Sky?.Scale ?? 1f, SunCascadeCount);
 
         for (var cascade = 0; cascade < sunCascades.ActiveCount; cascade++)
         {
+            // Static sun shadows add their detail to every cascade but the outermost
+            var staticSunShadows = cascade == 0 || cascade < sunCascades.ActiveCount - 1;
+
             var view = new SceneView
             {
                 States = SunCascadeStates(sunCascadeViewStates[cascade], sunCascadeSceneStates[cascade], main),
@@ -593,7 +599,7 @@ public class Renderer : ISceneHost
             // cascades. Where the world lightmap already shadows, the two multiply into the same shadow.
             var cullFrustum = CullFrustumFor(view);
             var (depthMin, depthMax) = CollectSunCascadeCasters(view, main, cullFrustum ?? view.Camera.ViewFrustum, sunCascades.CastDirection,
-                includeBakedStatic: sky != null, staticSunShadows: cascade == 0);
+                includeBakedStatic: sky != null, staticSunShadows: staticSunShadows);
 
             sunCascadeSkyViews[cascade] = null;
 
@@ -616,7 +622,7 @@ public class Renderer : ISceneHost
                 // Its depth is measured along the cast direction scaled into sky space, then offset to where the
                 // viewer sees it. No world lightmap holds the shadows of the sky, so its static geometry casts too.
                 var (skyDepthMin, skyDepthMax) = CollectSunCascadeCasters(skyView, skyFrom, cullFrustum ?? viewerSpaceCascadeFrustum,
-                    sunCascades.CastDirection * skyTransform.Scale, includeBakedStatic: true, staticSunShadows: cascade == 0);
+                    sunCascades.CastDirection * skyTransform.Scale, includeBakedStatic: true, staticSunShadows: staticSunShadows);
                 var skyDepthOffset = Vector3.Dot(skyToWorld.Translation, sunCascades.CastDirection);
 
                 depthMin = MathF.Min(depthMin, skyDepthMin + skyDepthOffset);
@@ -659,7 +665,7 @@ public class Renderer : ISceneHost
             var sunShadowBaked = scene.LightingInfo.HasBakedShadowsFromLightmap && scene.LightingInfo.IsSunShadowBaked;
 
             // Static casters are left to the lightmap only where it holds the sun shadows, including the casters
-            // marked to cast only into it. Static sun shadows add their detail to the first cascade alone.
+            // marked to cast only into it
             var lightmapHoldsStatics = sunShadowBaked && !(staticSunShadows && Settings.StaticSunShadows);
 
             // Statics the lightmap already shadows only add detail, so they draw the faces the camera sees
@@ -1021,6 +1027,7 @@ public class Renderer : ISceneHost
         ViewBuffer.Data.SunShadowsEnabled = view.Sky == null || view.SkyReceivesSunShadows;
         ViewBuffer.Data.WorldToShadow = toViewerWorld * sunCascades.GetShadowMatrix(0);
         ViewBuffer.Data.WorldToShadowCascade1 = toViewerWorld * sunCascades.GetShadowMatrix(1);
+        ViewBuffer.Data.WorldToShadowCascade2 = toViewerWorld * sunCascades.GetShadowMatrix(2);
     }
 
     private void UploadViewConstants(in SceneView view, SceneViewState state)
