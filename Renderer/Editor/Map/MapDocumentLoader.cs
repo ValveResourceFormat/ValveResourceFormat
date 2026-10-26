@@ -44,6 +44,10 @@ public sealed class MapDocumentLoader : IDisposable
     private readonly HammerEntityVisuals entityVisuals;
     private readonly string? contentRoot;
 
+    // What the editor baked for each place a node is put, by the name it gives the placement
+    private readonly Dictionary<string, CDmeNodeInstanceData> nodeInstanceData = new(StringComparer.Ordinal);
+    private bool hasVertexLighting;
+
     // The faces things collide with, grouped by the collision tags they have. Only kept while the map is loaded.
     private readonly List<CollisionGroup> collisionGroups = [];
 
@@ -74,10 +78,11 @@ public sealed class MapDocumentLoader : IDisposable
     public bool HasLights { get; private set; }
 
     /// <summary>
-    /// Gets whether the map is lit with lighting the editor baked for it, once it is loaded. It is not when nothing
-    /// was baked, or the game does not say which version of baked lighting it reads.
+    /// Gets whether the map is lit with lighting the editor baked for it, once it is loaded: lightmaps and light
+    /// probes, or the lighting of the vertices of its meshes and static props. It is not when nothing was baked, or
+    /// the game does not say which version of baked lighting it reads.
     /// </summary>
-    public bool HasBakedLighting => scene.LightingInfo.LightmapVersionNumber != 0;
+    public bool HasBakedLighting => scene.LightingInfo.LightmapVersionNumber != 0 || hasVertexLighting;
 
     /// <summary>Gets the layers shown until others are chosen.</summary>
     public HashSet<string> DefaultEnabledLayers { get; } = [WorldLayerName, EntitiesLayerName, Scene.ParticlesLayerName];
@@ -104,6 +109,14 @@ public sealed class MapDocumentLoader : IDisposable
         rendererContext = scene.RendererContext;
         contentRoot = document.FindContentRoot();
         documentIds[document] = 0;
+
+        foreach (var element in document.Root.NodeInstanceData)
+        {
+            if (element is CDmeNodeInstanceData data)
+            {
+                nodeInstanceData.TryAdd(data.Name, data);
+            }
+        }
     }
 
     /// <summary>Loads everything the map places into the scene.</summary>
@@ -154,6 +167,7 @@ public sealed class MapDocumentLoader : IDisposable
             CancellationToken.ThrowIfCancellationRequested();
 
             AddToScene(mapEntity, bakeResources: false);
+            AddModelVertexLighting(mapEntity);
         }
 
         LoadingProgress?.Report("Loading map geometry…");
@@ -422,15 +436,25 @@ public sealed class MapDocumentLoader : IDisposable
 
     private void AddMesh(PlacedMapNode placedNode, CMapMesh mesh, MapEntity? owner)
     {
-        if (!renderData.TryGetValue(mesh, out var meshRenderData))
+        PolygonMeshRenderData? meshRenderData;
+        var vertexLighting = GetVertexLighting(placedNode, mesh);
+
+        // Lighting is baked for each place a mesh is put, so a lit mesh is drawn from data of its own
+        if (vertexLighting != null)
+        {
+            meshRenderData = new PolygonMeshRenderData(mesh.Mesh, vertexLighting);
+            hasVertexLighting = true;
+        }
+        else if (!renderData.TryGetValue(mesh, out meshRenderData))
         {
             meshRenderData = new PolygonMeshRenderData(mesh.Mesh);
             renderData[mesh] = meshRenderData;
         }
 
-        // Every placement of a mesh is drawn from the same buffers
-        var name = string.Create(CultureInfo.InvariantCulture, $"vmap_mesh_{documentIds[placedNode.Document]}_{mesh.NodeID}");
-        var shaderArguments = scene.LightingInfo.CreateShaderArguments();
+        // A placement lit by lighting of its own is drawn from buffers of its own, any other shares them
+        var key = vertexLighting != null ? GetPlacementKey(placedNode) : mesh.NodeID.ToString(CultureInfo.InvariantCulture);
+        var name = string.Create(CultureInfo.InvariantCulture, $"vmap_mesh_{documentIds[placedNode.Document]}_{key}");
+        var shaderArguments = scene.LightingInfo.CreateShaderArguments(hasVertexLighting: vertexLighting != null);
         var mapMesh = AddMapMesh(placedNode, mesh, owner);
         var receiverGroups = new List<PolygonMesh.BakedSubmesh>();
         var receiverBounds = default(AABB?);
@@ -540,20 +564,22 @@ public sealed class MapDocumentLoader : IDisposable
     private static string GetLayerName(PlacedMapNode placedNode, MapEntity? owner)
         => placedNode.WorldLayer ?? (owner == null ? WorldLayerName : EntitiesLayerName);
 
-    // An overlay is drawn where it lands, as triangles in the world. Each placement lands somewhere else, so it is
-    // drawn from buffers of its own.
+    // An overlay is drawn where it lands, as triangles in the world, lit by what the editor baked at their corners.
+    // Each placement lands somewhere else, so it is drawn from buffers of its own.
     private void AddOverlay(PlacedMapNode placedNode, CMapStaticOverlay overlay, MapEntity? owner)
     {
-        var groups = StaticOverlayProjector.Project(overlay, placedNode.RigidTransform, GetOverlayReceivers(placedNode, overlay));
+        var groups = StaticOverlayProjector.Project(overlay, placedNode.RigidTransform, GetOverlayReceivers(placedNode, overlay), FindInstanceData(placedNode));
         var name = string.Create(CultureInfo.InvariantCulture, $"vmap_overlay_{documentIds[placedNode.Document]}_{GetPlacementKey(placedNode)}");
-        var shaderArguments = scene.LightingInfo.CreateShaderArguments();
         var mapMesh = AddMapMesh(placedNode, overlay, owner);
 
         for (var i = 0; i < groups.Length; i++)
         {
             var group = groups[i];
-            var material = rendererContext.MaterialLoader.GetMaterial(GetMaterialPath(group, owner), shaderArguments);
+            var isLit = HasVertexLighting(group);
+            var material = rendererContext.MaterialLoader.GetMaterial(GetMaterialPath(group, owner), scene.LightingInfo.CreateShaderArguments(hasVertexLighting: isLit));
             var geometry = PolygonMeshRenderData.BuildVertexAndIndexBuffers(group, material.Material.InputSignature);
+
+            hasVertexLighting |= isLit;
 
             mapMesh.AddNode(AddMeshNode(string.Create(CultureInfo.InvariantCulture, $"{name}_{i}"), material, geometry, placedNode, overlay, owner, Matrix4x4.Identity));
         }
@@ -744,6 +770,114 @@ public sealed class MapDocumentLoader : IDisposable
         }
 
         return ([.. positions], [.. normals]);
+    }
+
+    private static bool HasVertexLighting(PolygonMesh.BakedSubmesh group)
+    {
+        foreach (var stream in group.Streams)
+        {
+            if (stream.Stream.SemanticName == "PerVertexLighting")
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // The lighting the editor baked for the vertices of a mesh where it is put, as streams that replace the ones of the mesh
+    private PolygonMeshStream[]? GetVertexLighting(PlacedMapNode placedNode, CMapMesh mesh)
+        => FindInstanceData(placedNode) is { } data ? data.CreateVertexLightingStreams(mesh.Mesh) : null;
+
+    private CDmeNodeInstanceData? FindInstanceData(PlacedMapNode placedNode) => nodeInstanceData.GetValueOrDefault(GetPlacementKey(placedNode));
+
+    // The lighting the editor baked for the vertices of the model of a static prop where it is put. It runs through the
+    // draw calls of every mesh of the model in order, and is not used once the model no longer has as many vertices.
+    private void AddModelVertexLighting(MapEntity mapEntity)
+    {
+        if (mapEntity.Classname != "prop_static"
+            || FindInstanceData(mapEntity.PlacedNode) is not { VertexLightingData: { Count: > 0 } colors }
+            || FindModelNode(mapEntity) is not { } modelNode)
+        {
+            return;
+        }
+
+        var meshes = new List<RenderableMesh>(modelNode.AllRenderableMeshes);
+        meshes.Sort(static (a, b) => a.MeshIndex.CompareTo(b.MeshIndex));
+
+        var drawCalls = new List<(RenderableMesh Mesh, DrawCall DrawCall)>();
+        var vertexCount = 0L;
+
+        foreach (var mesh in meshes)
+        {
+            var meshDrawCalls = new List<DrawCall>(mesh.DrawCalls);
+            meshDrawCalls.Sort(static (a, b) => a.Index.CompareTo(b.Index));
+
+            foreach (var drawCall in meshDrawCalls)
+            {
+                drawCalls.Add((mesh, drawCall));
+                vertexCount += drawCall.VertexCount;
+            }
+        }
+
+        if (vertexCount != colors.Count)
+        {
+            return;
+        }
+
+        VBIB.RenderInputLayoutField[] layout = [new() { SemanticName = "COLOR", SemanticIndex = 1, Format = DXGI_FORMAT.R8G8B8A8_UNORM }];
+        var vbib = new VBIB { Resource = null! };
+        var next = 0;
+
+        // Each draw call has a buffer of its own, which its vertices are read from where they start
+        foreach (var (_, drawCall) in drawCalls)
+        {
+            var bufferVertexCount = drawCall.BaseVertex + (int)drawCall.VertexCount;
+            var data = new byte[bufferVertexCount * 4];
+
+            for (var i = drawCall.BaseVertex; i < bufferVertexCount; i++)
+            {
+                var color = colors[next++];
+
+                data[i * 4] = color.R;
+                data[(i * 4) + 1] = color.G;
+                data[(i * 4) + 2] = color.B;
+                data[(i * 4) + 3] = color.A;
+            }
+
+            vbib.VertexBuffers.Add(new VBIB.OnDiskBufferData
+            {
+                ElementCount = (uint)bufferVertexCount,
+                ElementSizeInBytes = 4,
+                Data = data,
+                InputLayoutFields = layout,
+            });
+        }
+
+        var buffers = rendererContext.MeshBufferCache.CreateVertexIndexBuffers(
+            string.Create(CultureInfo.InvariantCulture, $"{modelNode.Name} vertex lighting {GetPlacementKey(mapEntity.PlacedNode)}"), vbib);
+
+        for (var i = 0; i < drawCalls.Count; i++)
+        {
+            var (mesh, drawCall) = drawCalls[i];
+
+            mesh.SetBakedVertexLighting(drawCall, new VertexDrawBuffer { Handle = buffers.VertexBuffers[i], BufferIndex = i, ElementSizeInBytes = 4, InputLayoutFields = layout });
+        }
+
+        hasVertexLighting = true;
+
+        static ModelSceneNode? FindModelNode(MapEntity mapEntity)
+        {
+            foreach (var helper in mapEntity.Helpers)
+            {
+                if (helper is ModelHelper modelHelper)
+                {
+                    return modelHelper.ModelNode;
+                }
+            }
+
+            return null;
+        }
     }
 
     // Names one placement of a node, the way the editor names what it bakes for it

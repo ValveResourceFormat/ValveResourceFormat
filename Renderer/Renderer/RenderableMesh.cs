@@ -198,6 +198,26 @@ namespace ValveResourceFormat.Renderer
             drawCall.SetNewMaterial(renderContext.MaterialLoader.GetMaterial(replacementName, dynamicParams));
         }
 
+        /// <summary>Lights a draw call with baked lighting from a vertex stream rather than from light probes.</summary>
+        /// <param name="drawCall">One of <see cref="DrawCalls"/>.</param>
+        /// <param name="lighting">The vertex buffer holding the lighting of each vertex of the draw call.</param>
+        public void SetBakedVertexLighting(DrawCall drawCall, VertexDrawBuffer lighting)
+        {
+            ArgumentNullException.ThrowIfNull(drawCall);
+
+            var material = drawCall.Material;
+
+            // Recycle non-material-derived shader arguments
+            var staticParams = material.Material.GetShaderArguments();
+            var dynamicParams = new Dictionary<string, byte>(material.Shader.Parameters.Except(staticParams));
+
+            dynamicParams.Remove("D_BAKED_LIGHTING_FROM_PROBE");
+            dynamicParams["D_BAKED_LIGHTING_FROM_VERTEX_STREAM"] = 1;
+
+            drawCall.AddVertexBuffer(lighting);
+            drawCall.SetNewMaterial(renderContext.MaterialLoader.GetMaterial(material.Material.Name, dynamicParams));
+        }
+
         /// <summary>
         /// Replaces the material of every draw call <paramref name="shouldReplace"/> accepts, and moves each
         /// draw call into the opaque, overlay or blended list its material now belongs in.
