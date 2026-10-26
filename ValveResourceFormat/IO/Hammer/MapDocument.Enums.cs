@@ -25,6 +25,24 @@ public enum MapNodeHiddenFlags
 }
 
 /// <summary>
+/// What a static overlay projects onto, as <see cref="CMapStaticOverlay.ProjectionMode"/> stores it.
+/// </summary>
+public enum MapOverlayProjectionMode
+{
+    /// <summary>World geometry and models.</summary>
+    All,
+
+    /// <summary>Only world geometry.</summary>
+    World,
+
+    /// <summary>Only models.</summary>
+    Models,
+
+    /// <summary>Only its <see cref="CMapStaticOverlay.ProjectionTargets"/>.</summary>
+    Targets,
+}
+
+/// <summary>
 /// How the spline of a path runs between its nodes, as <see cref="CMapPath.InterpolationType"/> stores it.
 /// </summary>
 public enum MapPathInterpolationType
