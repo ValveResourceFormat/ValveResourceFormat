@@ -206,6 +206,11 @@ public abstract class PhysConstraint : BaseEntity
             {
                 return true;
             }
+
+            if (entity is InfoConstraintAnchor anchor && anchor.TryGetConstraintBody(physics, out body))
+            {
+                return true;
+            }
         }
 
         self.EntitySystem.Logger.LogDebug("{Classname} '{TargetName}' found no physics body named \"{Name}\" for {Key}", self.Classname, self.TargetName, name, key);
