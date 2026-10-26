@@ -2,6 +2,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Collision;
 using ValveResourceFormat.Renderer.Editor.Helpers;
 using ValveResourceFormat.Renderer.Editor.ToolRender;

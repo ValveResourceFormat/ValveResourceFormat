@@ -25,8 +25,8 @@ var games = installedGames
 var allProperties = new HashSet<string>();
 var entityMaterials = new Dictionary<string, string>();
 
-// The table the renderer embeds is written over, and the games not installed here keep the classes it has of them
-var classesPath = Path.GetFullPath(Path.Join(Path.GetDirectoryName(GetSourcePath()), "..", "..", "Renderer", "Resources", "entity_classes.kv3"));
+// The table the library embeds is written over, and the games not installed here keep the classes it has of them
+var classesPath = Path.GetFullPath(Path.Join(Path.GetDirectoryName(GetSourcePath()), "..", "..", "ValveResourceFormat", "IO", "Fgd", "entity_classes.kv3"));
 var previous = File.Exists(classesPath) ? KVDocumentExtensions.ParseKV3(classesPath).Root : new KVObject();
 var previousDefinitions = (previous.GetArray("classes") ?? []).ToDictionary(static data => data.GetStringProperty("id", data.GetStringProperty("name")), StringComparer.Ordinal);
 var previousTables = (previous.GetArray("games") ?? []).ToDictionary(static table => table.GetInt32Property("app_id"));

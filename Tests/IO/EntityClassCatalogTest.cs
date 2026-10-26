@@ -1,9 +1,9 @@
 using System.Linq;
 using System.Threading.Tasks;
 using TUnit.Assertions.Enums;
-using ValveResourceFormat.Renderer.Editor.Entities;
+using ValveResourceFormat.IO.Fgd;
 
-namespace Tests.Renderer
+namespace Tests.IO
 {
     public class EntityClassCatalogTest
     {

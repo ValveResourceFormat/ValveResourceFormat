@@ -1,4 +1,5 @@
 using System.IO;
+using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Serialization.KeyValues;
 

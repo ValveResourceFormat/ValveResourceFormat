@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Entities;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;

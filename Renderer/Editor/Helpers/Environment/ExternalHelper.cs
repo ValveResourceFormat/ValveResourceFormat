@@ -1,4 +1,5 @@
 using System.IO;
+using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.SceneNodes;
 

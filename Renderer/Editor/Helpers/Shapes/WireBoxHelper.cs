@@ -1,3 +1,4 @@
+using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;

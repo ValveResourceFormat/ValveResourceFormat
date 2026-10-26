@@ -4,21 +4,19 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using ValveKeyValue;
-using ValveResourceFormat.IO;
-using ValveResourceFormat.Renderer.Editor.Helpers;
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace ValveResourceFormat.Renderer.Editor.Entities;
+namespace ValveResourceFormat.IO.Fgd;
 
 /// <summary>
-/// Gives the entity classes a map is shown with, from the tables built into the renderer. Each game whose
+/// Gives the entity classes a map is shown with, from the tables built into the library. Each game whose
 /// classes are known has a table of its own, found by the Steam app it is installed as. Any other game is
 /// shown with the classes of every known game, each the version most of them declare, and the ones kept by
 /// hand for entities none of them declares.
 /// </summary>
 public static class EntityClassCatalog
 {
-    private const string ResourcePrefix = "Renderer.Resources.";
+    private const string ResourcePrefix = "ValveResourceFormat.IO.Fgd.";
     private const string GeneratedFileName = "entity_classes.kv3";
     private const string ExtraFileName = "entity_classes_extra.kv3";
 

@@ -1,4 +1,5 @@
 using System.Linq;
+using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;

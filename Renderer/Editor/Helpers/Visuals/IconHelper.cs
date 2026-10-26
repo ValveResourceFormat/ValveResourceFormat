@@ -1,6 +1,7 @@
 using System.IO;
 using System.Linq;
 using Microsoft.Extensions.Logging;
+using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Serialization.KeyValues;

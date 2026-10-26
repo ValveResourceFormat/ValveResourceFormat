@@ -1,3 +1,4 @@
+using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;

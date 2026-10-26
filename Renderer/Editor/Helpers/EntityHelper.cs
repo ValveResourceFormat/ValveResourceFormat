@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Serialization.KeyValues;

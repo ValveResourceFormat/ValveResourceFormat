@@ -1,4 +1,4 @@
-namespace ValveResourceFormat.Renderer.Editor.Entities;
+namespace ValveResourceFormat.IO.Fgd;
 
 /// <summary>
 /// The entity classes of a game, which the entities of its maps are shown with.

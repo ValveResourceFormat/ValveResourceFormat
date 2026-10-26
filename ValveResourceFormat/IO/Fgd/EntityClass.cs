@@ -1,6 +1,4 @@
-using ValveResourceFormat.Renderer.Editor.Helpers;
-
-namespace ValveResourceFormat.Renderer.Editor.Entities;
+namespace ValveResourceFormat.IO.Fgd;
 
 /// <summary>
 /// What an entity of a class is in the editor, which decides what of it is drawn besides its helpers.

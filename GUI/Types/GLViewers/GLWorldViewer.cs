@@ -10,6 +10,7 @@ using GUI.Forms;
 using GUI.Utils;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Editor;
 using ValveResourceFormat.Renderer.Editor.Collision;

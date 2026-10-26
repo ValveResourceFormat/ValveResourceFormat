@@ -1,6 +1,6 @@
 using ValveKeyValue;
 
-namespace ValveResourceFormat.Renderer.Editor.Helpers;
+namespace ValveResourceFormat.IO.Fgd;
 
 /// <summary>
 /// A helper an entity class is drawn with in the editor, as the class declares it.
