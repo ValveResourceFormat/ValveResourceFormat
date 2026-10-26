@@ -19,8 +19,11 @@ internal sealed class SelectionOutline
     private readonly HashSet<SceneNode> outlinedNodes = [];
 
     // Red: the selection wherever it is. Green: where the scene does not hide it. Multisampled as the scene is,
-    // since the edges are found per sample.
+    // so both are tested per sample.
     private readonly Framebuffer mask;
+
+    // The mask resolved to how much of each pixel is covered, which the edges are found in
+    private readonly Framebuffer resolvedMask;
 
     public SelectionOutline(RendererContext rendererContext)
     {
@@ -28,9 +31,12 @@ internal sealed class SelectionOutline
         maskShader = rendererContext.ShaderLoader.LoadShader("outline");
         edgeShader = rendererContext.ShaderLoader.LoadShader("outline_post");
 
-        mask = Framebuffer.Prepare(nameof(SelectionOutline), 4, 4, 0, ImageFormat.RG1616, null);
+        mask = Framebuffer.Prepare(nameof(SelectionOutline), 4, 4, 0, ImageFormat.RGBA8888, null);
         mask.ClearMask = ClearBufferMask.ColorBufferBit;
         mask.Initialize();
+
+        resolvedMask = Framebuffer.Prepare($"{nameof(SelectionOutline)}Resolved", 4, 4, 0, ImageFormat.RGBA8888, null);
+        resolvedMask.Initialize();
     }
 
     /// <summary>Outlines nodes as the last frame drew them.</summary>
@@ -50,7 +56,9 @@ internal sealed class SelectionOutline
         outlinedNodes.Clear();
         outlinedNodes.UnionWith(nodes);
 
-        mask.Resize(sceneFramebuffer.Width, sceneFramebuffer.Height, sceneFramebuffer.NumSamples);
+        var (width, height) = (sceneFramebuffer.Width, sceneFramebuffer.Height);
+        mask.Resize(width, height, sceneFramebuffer.NumSamples);
+        resolvedMask.Resize(width, height);
 
         // Tested per sample against the depth the scene left, which a resolved copy cannot do at the silhouette.
         // Only color is cleared, so the scene's depth is left as it is.
@@ -77,6 +85,9 @@ internal sealed class SelectionOutline
                 {
                     renderer.RenderNodes(mask, maskShader, outlinedNodes);
                 }
+
+                GL.BlitNamedFramebuffer(mask.FboHandle, resolvedMask.FboHandle, 0, 0, width, height, 0, 0, width, height,
+                    ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
             }
         }
 
@@ -92,15 +103,18 @@ internal sealed class SelectionOutline
         using (GraphicsContext.RenderState.Scope(depthTest: false, depthWrite: false, blend: true))
         {
             edgeShader.Use();
-            edgeShader.SetUniform("g_nNumSamplesMSAA", mask.NumSamples);
             edgeShader.SetUniform("g_vOutlineColor", VisibleColor);
             edgeShader.SetUniform("g_vOccludedColor", OccludedColor);
-            edgeShader.SetTexture(0, "g_tOutlineMask", mask.Color!);
+            edgeShader.SetTexture(0, "g_tOutlineMask", resolvedMask.Color!);
 
             GL.BindVertexArray(rendererContext.MeshBufferCache.EmptyVAO);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
         }
     }
 
-    public void Delete() => mask.Delete();
+    public void Delete()
+    {
+        mask.Delete();
+        resolvedMask.Delete();
+    }
 }
