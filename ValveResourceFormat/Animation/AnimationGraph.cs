@@ -407,8 +407,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
 
     /// <summary>
     /// An animation clip bound to a graph data slot, sampleable into a parent-space pose on the
-    /// graph's NM skeleton. Each clip has its own frame cache because
-    /// <see cref="AnimationFrameCache"/> caches by frame index without keying on the animation.
+    /// graph's NM skeleton.
     /// </summary>
     public class GraphClip
     {
@@ -428,10 +427,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         public Animation.RootMotionData RootMotion { get; }
 
         private readonly ModelSkeleton skeleton;
-
-        // Created on first sample, since a graph tree can reference a thousand clips and plays a few
-        private AnimationFrameCache? frameCache;
-        private AnimationFrameCache FrameCache => frameCache ??= new AnimationFrameCache(skeleton, []);
 
         /// <summary>Wraps a clip for sampling on a skeleton.</summary>
         public GraphClip(ClipAnimation animation, ModelSkeleton skeleton)
@@ -466,37 +461,40 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         /// <summary>Samples the clip at an exact frame index into a parent-space pose.</summary>
         public void SamplePoseAtFrame(int frameIndex, FrameBone[] pose)
         {
-            var frame = FrameCache.GetFrame(Animation, frameIndex);
-            CopyFrame(frame, pose);
+            Animation.Clip.ReadFrame(frameIndex, pose);
+            ResetUnanimatedBones(pose);
         }
 
         /// <summary>Samples the clip at a normalized time in [0, 1] into a parent-space pose.</summary>
-        public Frame SamplePoseAtPercentage(float cycle, FrameBone[] pose)
+        public void SamplePoseAtPercentage(float cycle, FrameBone[] pose)
         {
             Debug.Assert(cycle >= 0f && cycle <= 1f);
 
             var time = cycle * Animation.Duration;
 
-            // The interpolated lookup wraps its frame index (modulo FrameCount - 1) once the time
-            // passes the last stored frame, sampling the first frame again. That wrap is for looping
-            // playback; a clamped clip sampled in its final frame interval must hold the final frame.
+            // The cycle position wraps its frame index (modulo FrameCount - 1) once the time passes the
+            // last stored frame, sampling the first frame again. That wrap is for looping playback; a
+            // clamped clip sampled in its final frame interval must hold the final frame.
             var lastFrameTime = (Animation.FrameCount - 1) / Animation.Fps;
             if (time >= lastFrameTime)
             {
-                var lastFrame = FrameCache.GetFrame(Animation, Animation.FrameCount - 1);
-                CopyFrame(lastFrame, pose);
-                return lastFrame;
+                SamplePoseAtFrame(Animation.FrameCount - 1, pose);
+                return;
             }
 
-            var frame = FrameCache.GetInterpolatedFrame(Animation, time);
-            CopyFrame(frame, pose);
-            return frame;
+            var (_, frameIndex, t) = Animation.GetCyclePosition(time);
+            Animation.Clip.ReadInterpolatedFrame(frameIndex, frameIndex + 1, t, pose);
+            ResetUnanimatedBones(pose);
         }
 
-        private static void CopyFrame(Frame frame, FrameBone[] pose)
+        // Bones past the tracks of the clip hold the bind pose
+        private void ResetUnanimatedBones(FrameBone[] pose)
         {
-            var count = Math.Min(frame.Bones.Length, pose.Length);
-            frame.Bones.AsSpan(0, count).CopyTo(pose);
+            for (var i = Animation.Clip.TrackCompressionSettings.Length; i < pose.Length; i++)
+            {
+                var bone = skeleton.Bones[i];
+                pose[i] = new FrameBone(bone.Position, 1f, bone.Angle);
+            }
         }
     }
 }

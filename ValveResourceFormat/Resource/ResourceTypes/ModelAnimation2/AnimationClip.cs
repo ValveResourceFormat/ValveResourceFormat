@@ -296,49 +296,74 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         /// </summary>
         /// <param name="frameIndex">The index of the frame to read.</param>
         /// <param name="bones">The array of bones to populate with frame data.</param>
-        public void ReadFrame(int frameIndex, FrameBone[] bones)
+        public void ReadFrame(int frameIndex, Span<FrameBone> bones)
         {
-            var frameData = MemoryMarshal.Cast<byte, ushort>(CompressedPoseData);
-            frameData = frameData[CompressedPoseOffsets[frameIndex]..];
+            var frameData = GetFrameData(frameIndex);
+
+            for (var i = 0; i < TrackCompressionSettings.Length && i < bones.Length; i++)
+            {
+                bones[i] = DecodeBone(TrackCompressionSettings[i], ref frameData);
+            }
+        }
+
+        /// <summary>
+        /// Reads two frames of animation data and blends them into the provided bone array.
+        /// </summary>
+        /// <param name="frameIndex">The index of the frame to blend from.</param>
+        /// <param name="nextFrameIndex">The index of the frame to blend to.</param>
+        /// <param name="t">How far to blend towards the second frame, from 0 to 1.</param>
+        /// <param name="bones">The array of bones to populate with frame data.</param>
+        public void ReadInterpolatedFrame(int frameIndex, int nextFrameIndex, float t, Span<FrameBone> bones)
+        {
+            var frameData = GetFrameData(frameIndex);
+            var nextFrameData = GetFrameData(nextFrameIndex);
 
             for (var i = 0; i < TrackCompressionSettings.Length && i < bones.Length; i++)
             {
                 var config = TrackCompressionSettings[i];
+                bones[i] = DecodeBone(config, ref frameData).Blend(DecodeBone(config, ref nextFrameData), t);
+            }
+        }
 
-                var translationRangeStart = new Vector3(
-                    config.TranslationRangeX.Start,
-                    config.TranslationRangeY.Start,
-                    config.TranslationRangeZ.Start
+        private ReadOnlySpan<ushort> GetFrameData(int frameIndex)
+            => MemoryMarshal.Cast<byte, ushort>(CompressedPoseData)[CompressedPoseOffsets[frameIndex]..];
+
+        // Reads one bone of a frame, moving the data past it
+        private static FrameBone DecodeBone(in TrackCompressionSetting config, ref ReadOnlySpan<ushort> frameData)
+        {
+            var translationRangeStart = new Vector3(
+                config.TranslationRangeX.Start,
+                config.TranslationRangeY.Start,
+                config.TranslationRangeZ.Start
+            );
+
+            var bone = new FrameBone(translationRangeStart, config.ScaleRange.Start, config.ConstantRotation);
+
+            if (!config.IsRotationStatic)
+            {
+                bone.Angle = DecodeQuaternion(frameData);
+                frameData = frameData[CompressedQuaternionSize..];
+            }
+
+            if (!config.IsTranslationStatic)
+            {
+                var translationRangeLength = new Vector3(
+                    config.TranslationRangeX.Length,
+                    config.TranslationRangeY.Length,
+                    config.TranslationRangeZ.Length
                 );
 
-                bones[i].Angle = config.ConstantRotation;
-                bones[i].Position = translationRangeStart;
-                bones[i].Scale = config.ScaleRange.Start;
-
-                if (!config.IsRotationStatic)
-                {
-                    bones[i].Angle = DecodeQuaternion(frameData);
-                    frameData = frameData[CompressedQuaternionSize..];
-                }
-
-                if (!config.IsTranslationStatic)
-                {
-                    var translationRangeLength = new Vector3(
-                        config.TranslationRangeX.Length,
-                        config.TranslationRangeY.Length,
-                        config.TranslationRangeZ.Length
-                    );
-
-                    bones[i].Position = DecodeTranslation(frameData, translationRangeStart, translationRangeLength);
-                    frameData = frameData[CompressedTranslationSize..];
-                }
-
-                if (!config.IsScaleStatic)
-                {
-                    bones[i].Scale = DecodeFloat(frameData[0], config.ScaleRange.Start, config.ScaleRange.Length);
-                    frameData = frameData[1..];
-                }
+                bone.Position = DecodeTranslation(frameData, translationRangeStart, translationRangeLength);
+                frameData = frameData[CompressedTranslationSize..];
             }
+
+            if (!config.IsScaleStatic)
+            {
+                bone.Scale = DecodeFloat(frameData[0], config.ScaleRange.Start, config.ScaleRange.Length);
+                frameData = frameData[1..];
+            }
+
+            return bone;
         }
 
         const int CompressedQuaternionSize = 3;
