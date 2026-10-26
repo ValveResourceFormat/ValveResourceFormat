@@ -34,6 +34,9 @@ uniform sampler2D g_tBlueNoise; // reserved
     uniform vec3 g_vNormalizedBloomStrengths;
     uniform float g_flBloomLensDirtIntensity = 1;
 
+    // Whether the bloom was thresholded from the exposed scene, so it already carries the exposure
+    uniform bool g_bBloomExposed = false;
+
     uniform sampler2D g_tBloom;
     //uniform sampler2D g_tDirt;
 #endif
@@ -94,8 +97,9 @@ void main()
             // bloomSample += ((bloomSample * textureLod(g_tDirt, fragCoord.xy, 0.0).xyz) * g_flBloomLensDirtIntensity);
 
             // BLUR bloom
+            float flBlurBloomExposure = g_bBloomExposed ? 1.0 : flExposure;
             vColor.rgb *= 1.0 - g_vUnNormalizedBloomStrengths.z;
-            vColor.rgb += bloomSample * (g_vNormalizedBloomStrengths.z * flExposure);
+            vColor.rgb += bloomSample * (g_vNormalizedBloomStrengths.z * flBlurBloomExposure);
 
             // ADD bloom, not weighted by exposure
             vColor.rgb += (bloomSample.rgb * g_vNormalizedBloomStrengths.x);
@@ -108,7 +112,7 @@ void main()
         vColor.rgb = SrgbLinearToGamma(vColor.rgb);
         
         #if (D_BLOOM == 1)
-            // SCREEN bloom, blended against the gamma encoded color
+            // SCREEN bloom, blended against the gamma encoded color. Exposed bloom gets the exposure a second time.
             vec3 screenBloomSample = bloomSample.rgb * flExposure;
             vec3 screenBlend = saturate((screenBloomSample / (screenBloomSample + 0.187)) * 1.035);
             screenBlend *= g_vNormalizedBloomStrengths.y;

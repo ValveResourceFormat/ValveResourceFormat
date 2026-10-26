@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using Vector2i = OpenTK.Mathematics.Vector2i;
 
@@ -10,22 +11,30 @@ namespace ValveResourceFormat.Renderer.PostProcess;
 /// </summary>
 public class BloomRenderer
 {
-    private Shader? firstDownsampleBloomThreshold;
+    private Shader? downsampleBloomThreshold;
+    private Shader? downsampleBloomThresholdExposed;
     private Shader? downsample;
     private Shader? horizontalBlur;
     private Shader? verticalBlur;
-    private Shader? firstUpsample;
     private Shader? upsample;
+    private Shader? upsampleTent;
+    private Shader? finalUpsample;
 
-    private Framebuffer? Ping;
-    private Framebuffer? Pong;
-    private Framebuffer? Accumulation;
+    private Framebuffer? MipChain;
+    private Framebuffer? Output;
 
     /// <summary>Gets the texture containing the final composited bloom result after the upsample passes.</summary>
-    public RenderTexture? AccumulationResult => Accumulation!.Color!;
+    public RenderTexture? AccumulationResult => Output!.Color!;
 
-    /// <summary>Number of mip levels in the bloom accumulation buffer.</summary>
+    /// <summary>Number of mip levels in the bloom mip chain, starting at quarter resolution.</summary>
     public const int BloomMipCount = 4;
+
+    /// <summary>
+    /// Radius of the tent filter that upsamples each mip into the one above it, in texels of the
+    /// larger mip. Zero upsamples with a 2x2 box instead.
+    /// </summary>
+    private const float TentFilterRadius = 3.1f;
+
     private readonly RendererContext RendererContext;
     private readonly PostProcessRenderer PostProcessRenderer;
 
@@ -40,19 +49,36 @@ public class BloomRenderer
         PostProcessRenderer = postProcessRenderer;
     }
 
-    /// <summary>Loads bloom shaders and allocates ping-pong and accumulation framebuffers.</summary>
+    private Game Game => RendererContext.FileLoader.GameInfo.Game;
+
+    // Deadlock and Half-Life: Alyx weigh the threshold by the exposed luminance but bloom the unexposed colour
+    /// <summary>
+    /// Gets whether the scene is exposed before it is thresholded, which leaves the bloom in exposed space.
+    /// </summary>
+    public bool ThresholdsExposedScene => Game is Game.Csgo or Game.Steampal;
+
+    // Deadlock keeps the effects target in floating point, and Dota 2 decodes its sRGB writes when it reads them back.
+    // TODO: The effects bloom comes out uniformly about 8% darker than in Counter-Strike 2, for a reason not yet found
+    /// <summary>
+    /// Gets whether the effects bloom layer blooms sRGB encoded, as stored in an 8-bit target and read back
+    /// without decoding.
+    /// </summary>
+    public bool EncodesEffectsBloom => Game is Game.Csgo or Game.Steampal;
+
+    /// <summary>Loads bloom shaders and allocates the mip chain and output framebuffers.</summary>
     public void Load()
     {
-        firstDownsampleBloomThreshold = RendererContext.ShaderLoader.LoadShader("downsample_bloomthreshold");
+        downsampleBloomThreshold = RendererContext.ShaderLoader.LoadShader("downsample_bloomthreshold");
+        downsampleBloomThresholdExposed = RendererContext.ShaderLoader.LoadShader("downsample_bloomthreshold", ("D_EXPOSED_THRESHOLD", 1));
         downsample = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur");
-        horizontalBlur = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur", ("D_BLUR_PASS", 1), ("D_BLUR_PASS_HORIZONTAL", 1));
-        verticalBlur = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur", ("D_BLUR_PASS", 1), ("D_BLUR_PASS_HORIZONTAL", 0));
-        upsample = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur", ("D_BLUR_PASS", 2));
-        firstUpsample = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur", ("D_BLUR_PASS", 3));
+        horizontalBlur = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur", ("D_BLUR_PASS", 1));
+        verticalBlur = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur", ("D_BLUR_PASS", 2));
+        upsample = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur", ("D_BLUR_PASS", 3));
+        upsampleTent = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur", ("D_BLUR_PASS", 3), ("D_TENT_FILTER", 1));
+        finalUpsample = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur", ("D_BLUR_PASS", 4));
 
-        Ping = CreateFramebuffer("BloomPing");
-        Pong = CreateFramebuffer("BloomPong");
-        Accumulation = CreateFramebuffer("BloomAccumulation", BloomMipCount);
+        MipChain = CreateFramebuffer("BloomMipChain", BloomMipCount);
+        Output = CreateFramebuffer("BloomOutput");
     }
 
     private static Framebuffer CreateFramebuffer(string name, int mips = 1)
@@ -77,192 +103,204 @@ public class BloomRenderer
     /// <param name="sceneWeight">How much of the thresholded scene blooms: 0 blooms only <paramref name="effectsBloom"/>.</param>
     public void Render(RenderTexture input, RenderTexture? effectsBloom, BloomSettings settings, float sceneWeight)
     {
-        Debug.Assert(firstDownsampleBloomThreshold != null);
+        Debug.Assert(MipChain != null && MipChain.Color != null);
+        Debug.Assert(Output != null && Output.Color != null);
 
-        Debug.Assert(Accumulation != null && Accumulation.Color != null);
-        Debug.Assert(Ping != null && Ping.Color != null);
-        Debug.Assert(Pong != null && Pong.Color != null);
-
-        Vector2i maxBloomRes = new(input.Width, input.Height);
-
-        // Start at 1/4 resolution
-        maxBloomRes /= 4;
+        var quarterRes = new Vector2i(input.Width / 4, input.Height / 4);
 
         // skip bloom if the resolution is too small
-        if (InvalidSize(maxBloomRes))
+        if (quarterRes.X < 16 || quarterRes.Y < 16)
         {
-            Accumulation.BindAndClear();
+            Output.BindAndClear();
             return;
         }
 
-        var tonemapScalar = PostProcessRenderer.TonemapScalar;
-
-        Accumulation.Resize(maxBloomRes.X, maxBloomRes.Y);
-        Ping.Resize(maxBloomRes.X, maxBloomRes.Y);
-        Pong.Resize(maxBloomRes.X, maxBloomRes.Y);
-
-        using (new GLDebugGroup("Bloom Downsample Threshold Pass"))
-        {
-            Debug.Assert(input.Target == TextureTarget.Texture2D);
-
-            firstDownsampleBloomThreshold.Use();
-            firstDownsampleBloomThreshold.SetTexture(0, "inputTexture", input);
-
-            Ping.Bind(FramebufferTarget.DrawFramebuffer);
-            GL.Viewport(0, 0, Ping.Width, Ping.Height);
-
-            var thresholdParams = new Vector2(settings.BloomThreshold / settings.BloomThresholdWidth * -1, 1 / settings.BloomThresholdWidth);
-            firstDownsampleBloomThreshold.SetUniform("g_flBloomScale", settings.BloomStrength);
-            firstDownsampleBloomThreshold.SetUniform("g_flToneMapScalarLinear", tonemapScalar);
-            firstDownsampleBloomThreshold.SetUniform("g_flThresholdParams", thresholdParams);
-            firstDownsampleBloomThreshold.SetUniform("g_flSceneBloomWeight", sceneWeight);
-            firstDownsampleBloomThreshold.SetUniform("g_bEffectsBloom", effectsBloom != null);
-
-            if (effectsBloom != null)
-            {
-                firstDownsampleBloomThreshold.SetTexture(1, "g_tEffectsBloom", effectsBloom);
-            }
-
-            GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
-            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
-        }
-
-        var lastWrittenMip = Accumulate(maxBloomRes);
-        Upsample(settings, lastWrittenMip);
-
-        Accumulation.AttachColorMipLevel(0);
-    }
-
-    /// <summary>Blurs the thresholded image into each mip of <see cref="Accumulation"/>.</summary>
-    /// <returns>The smallest mip written.</returns>
-    private int Accumulate(Vector2i maxBloomRes)
-    {
-        Debug.Assert(downsample != null && horizontalBlur != null && verticalBlur != null);
-        Debug.Assert(Accumulation != null && Ping != null && Pong != null);
-
-        using var group = new GLDebugGroup("Bloom Accumulation", collapsed: true);
-
-        var lastWrittenMip = 0;
-        var downsampledSize = maxBloomRes;
-
-        for (var i = 0; i < BloomMipCount; i++)
-        {
-            using var _ = new GLDebugGroup(i switch { 0 => "Mip 0", 1 => "Mip 1", 2 => "Mip 2", 3 => "Mip 3", _ => "Mip" });
-
-            if (InvalidSize(downsampledSize))
-            {
-                break;
-            }
-
-            if (i != 0)
-            {
-                Ping.BindAndClear();
-                Pong.BindAndClear();
-
-                // cheap downsample from previous mip
-                // Accumulation.AttachColorMipLevel(i - 1);
-                RenderTexture(downsample, Accumulation, Ping, downsampledSize, i - 1);
-            }
-
-            // blur horizontal
-            RenderTexture(horizontalBlur, Ping, Pong, maxBloomRes);
-
-            // blur vertical
-            RenderTexture(verticalBlur, Pong, Ping, maxBloomRes);
-
-            // write to bloom accumulation buffer
-            Accumulation.AttachColorMipLevel(i);
-            RenderTexture(downsample, Ping, Accumulation, maxBloomRes, i);
-
-            lastWrittenMip = i;
-            downsampledSize /= 2;
-        }
-
-        return lastWrittenMip;
-    }
-
-    /// <summary>Combines the mips of <see cref="Accumulation"/> back up into mip 0, tinting each.</summary>
-    private void Upsample(BloomSettings settings, int lastWrittenMip)
-    {
-        Debug.Assert(upsample != null && firstUpsample != null);
-        Debug.Assert(Accumulation != null && Accumulation.Color != null);
-
-        using var group = new GLDebugGroup("Bloom Upsample", collapsed: true);
-
-        // loop through mips backwards, from lowest res to highest
-        for (var i = lastWrittenMip; i >= 1; i--)
-        {
-            using var _ = new GLDebugGroup(i switch { 1 => "Mip 1", 2 => "Mip 2", 3 => "Mip 3", 4 => "Mip 4", _ => "Mip" });
-            var isFirstUpsample = i == lastWrittenMip;
-            var isLastUpsample = i == 1;
-
-            var currentMipSize = Accumulation.GetMipSize(i - 1);
-            var invTexSize = Vector2.One / new Vector2(currentMipSize.X, currentMipSize.Y);
-
-            Accumulation.Bind(FramebufferTarget.DrawFramebuffer);
-
-            // render into next higher res mip
-            Accumulation.AttachColorMipLevel(i - 1);
-            GL.Viewport(0, 0, currentMipSize.X, currentMipSize.Y);
-
-            // first combine needs two blur+tint values, for first and second mip
-            // subsequent combines only need one, for current mip
-            var upsampleShader = isFirstUpsample
-                ? firstUpsample
-                : upsample;
-
-            upsampleShader.Use();
-            upsampleShader.SetTexture(0, "g_tSource", Accumulation.Color);
-            upsampleShader.SetUniform("g_vTexelSize", invTexSize);
-            upsampleShader.SetUniform("g_nCurrentMip", (float)i);
-
-            if (isFirstUpsample)
-            {
-                var prevBlurTint = settings.BlurTint[i + 1] * settings.BlurWeight[i + 1];
-                upsampleShader.SetUniform("g_vPrevMipBlurTint", prevBlurTint);
-            }
-
-            var blurTint = settings.BlurTint[i] * settings.BlurWeight[i];
-
-            // last merge
-            // there are 5 blur+tint values, but only 4 mips to combine, seems like s2 bloom used to start
-            // at half res, and downsample to 5 mips at some point, but right now it looks like they just
-            // combine the last two blur + tint combos into a single one for last mip merge
-            if (isLastUpsample)
-            {
-                blurTint += settings.BlurTint[i - 1] * settings.BlurWeight[i - 1];
-            }
-
-            upsampleShader.SetUniform("g_vCurMipBlurTint", blurTint);
-
-            GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
-            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
-        }
-    }
-
-    private static bool InvalidSize(Vector2i size) => size.X < 16 || size.Y < 16;
-
-    /// <summary>
-    /// Render a texture from <paramref name="ping"/> to <paramref name="pong"/> using the provided screenspace shader.
-    /// </summary>
-    private void RenderTexture(Shader shader, Framebuffer ping, Framebuffer pong, Vector2i size, int mip = 0)
-    {
-        var texSize = new Vector2(size.X, size.Y);
-        var invTexSize = Vector2.One / new Vector2(size.X, size.Y);
-
-        pong.Bind(FramebufferTarget.DrawFramebuffer);
-
-        Debug.Assert(ping.Color != null);
-        GL.Viewport(0, 0, size.X, size.Y);
-
-        shader.Use();
-
-        shader.SetUniform("g_vTexelSize", invTexSize);
-        shader.SetUniform("g_vTextureSize", texSize);
-        shader.SetUniform("g_nCurrentMip", (float)mip);
-        shader.SetTexture(0, "g_tSource", ping.Color);
+        MipChain.Resize(quarterRes.X, quarterRes.Y);
+        Output.Resize(quarterRes.X, quarterRes.Y);
 
         GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
+
+        RenderThreshold(input, effectsBloom, settings, sceneWeight);
+
+        for (var level = 0; level < BloomMipCount; level++)
+        {
+            RenderDownsampleAndBlur(level);
+        }
+
+        RenderUpsample(settings);
+
+        MipChain.AttachColorMipLevel(0);
+    }
+
+    private void RenderThreshold(RenderTexture input, RenderTexture? effectsBloom, BloomSettings settings, float sceneWeight)
+    {
+        using var _ = new GLDebugGroup("Bloom Downsample Threshold Pass");
+
+        Debug.Assert(input.Target == TextureTarget.Texture2D);
+        Debug.Assert(downsampleBloomThreshold != null && downsampleBloomThresholdExposed != null);
+
+        // TODO: Half-Life: Alyx downsamples with 16 point taps weighted by 1 / (max(rgb) + 1) and thresholds after
+        // decoding the sum, and Deadlock scales the threshold luminance and colour by 20 times the self-illum mask
+        var shader = ThresholdsExposedScene ? downsampleBloomThresholdExposed : downsampleBloomThreshold;
+
+        // The scene blooms by the strongest of the three modes, the composite weighs the modes against each other
+        var scalesSceneByStrongestMode = Game is Game.Csgo or Game.Steampal or Game.Citadel;
+        var bloomScale = scalesSceneByStrongestMode
+            ? MathF.Max(MathF.Max(settings.AddBloomStrength, settings.ScreenBloomStrength), settings.BlurBloomStrength)
+            : settings.BloomStrength;
+
+        var thresholdWidth = MathF.Max(settings.BloomThresholdWidth, 1e-4f);
+        var thresholdParams = new Vector2(-settings.BloomThreshold / thresholdWidth, 1f / thresholdWidth);
+
+        shader.Use();
+        shader.SetTexture(0, "inputTexture", input);
+        shader.SetUniform("g_flBloomScale", bloomScale);
+        shader.SetUniform("g_flToneMapScalarLinear", PostProcessRenderer.TonemapScalar);
+        shader.SetUniform("g_flExposureBiasScaleFactor", MathF.Pow(2f, PostProcessRenderer.State.TonemapSettings.ExposureBias));
+        shader.SetUniform("g_flThresholdParams", thresholdParams);
+        shader.SetUniform("g_flSceneBloomWeight", sceneWeight);
+        shader.SetUniform("g_bEffectsBloom", effectsBloom != null);
+        // The effects bloom layer is clamped to [0, 1] where it is stored in an 8-bit target rather than in floating point.
+        // TODO: Dota 2 blooms the scene without a threshold, which is not modelled
+        var clampsEffectsBloom = Game is Game.Csgo or Game.Steampal or Game.Dota;
+
+        shader.SetUniform("g_bEffectsBloomClamped", clampsEffectsBloom);
+        shader.SetUniform("g_bEffectsBloomEncoded", EncodesEffectsBloom);
+
+        if (effectsBloom != null)
+        {
+            shader.SetTexture(1, "g_tEffectsBloom", effectsBloom);
+        }
+
+        BindTarget(MipChain!, 0);
         GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+    }
+
+    /// <summary>
+    /// Fills a mip of the chain with a box downsample of the mip above it, the first mip already holds the
+    /// thresholded scene, then blurs it horizontally into the output and vertically back.
+    /// </summary>
+    private void RenderDownsampleAndBlur(int level)
+    {
+        using var _ = new GLDebugGroup(level switch { 0 => "Bloom Blur 0", 1 => "Bloom Blur 1", 2 => "Bloom Blur 2", 3 => "Bloom Blur 3", _ => "Bloom Blur" });
+
+        Debug.Assert(downsample != null && horizontalBlur != null && verticalBlur != null);
+
+        var size = MipChain!.GetMipSize(level);
+        var lastTexelCenter = new Vector2(size.X - 0.5f, size.Y - 0.5f);
+
+        if (level > 0)
+        {
+            var sourceSize = MipChain.GetMipSize(level - 1);
+
+            downsample.Use();
+            downsample.SetTexture(0, "g_tSource", MipChain.Color!);
+            downsample.SetUniform("g_nSourceMip", (float)(level - 1));
+            downsample.SetUniform("g_vTexelSize", new Vector4(1f / sourceSize.X, 1f / sourceSize.Y, 0f, 0f));
+
+            BindTarget(MipChain, level);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+        }
+
+        horizontalBlur.Use();
+        horizontalBlur.SetTexture(0, "g_tSource", MipChain.Color!);
+        horizontalBlur.SetUniform("g_nSourceMip", (float)level);
+        horizontalBlur.SetUniform("g_vTexelSize", new Vector4(1f / size.X, 1f / size.Y, lastTexelCenter.X, lastTexelCenter.Y));
+
+        // The output is free until the final upsample, its top left corner holds the horizontal pass
+        Output!.Bind(FramebufferTarget.DrawFramebuffer);
+        GL.Viewport(0, 0, size.X, size.Y);
+        GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+
+        verticalBlur.Use();
+        verticalBlur.SetTexture(0, "g_tSource", Output.Color!);
+        verticalBlur.SetUniform("g_nSourceMip", 0f);
+        verticalBlur.SetUniform("g_vTexelSize", new Vector4(1f / Output.Width, 1f / Output.Height, lastTexelCenter.X, lastTexelCenter.Y));
+
+        BindTarget(MipChain, level);
+        GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+    }
+
+    /// <summary>
+    /// Sums the blurred mips from the smallest up, weighing each by its blur weight and tint. The mip
+    /// chain starts at quarter resolution, so the two largest of the five weights both go to the first mip.
+    /// </summary>
+    private void RenderUpsample(BloomSettings settings)
+    {
+        Debug.Assert(upsample != null && upsampleTent != null && finalUpsample != null);
+
+        // Deadlock and Half-Life: Alyx upsample with a 2x2 box
+        var upsampleShader = ThresholdsExposedScene && TentFilterRadius > 0f ? upsampleTent : upsample;
+
+        using (GraphicsContext.RenderState.Scope(blend: true, srcBlend: RsBlendMode.One, dstBlend: RsBlendMode.Src1Color))
+        {
+            for (var level = BloomMipCount - 2; level >= 1; level--)
+            {
+                using var _ = new GLDebugGroup(level switch { 1 => "Bloom Upsample 1", 2 => "Bloom Upsample 2", _ => "Bloom Upsample" });
+
+                var prevMipBlurTint = Vector3.One;
+
+                if (level == BloomMipCount - 2)
+                {
+                    prevMipBlurTint = GetBlurTint(settings, BloomMipCount);
+                }
+
+                upsampleShader.Use();
+                upsampleShader.SetTexture(0, "g_tSource", MipChain!.Color!);
+                upsampleShader.SetUniform("g_nSourceMip", (float)(level + 1));
+                upsampleShader.SetUniform("g_vCombineUVScaleAndClamp", GetCombineUVScaleAndClamp(level));
+                upsampleShader.SetUniform("g_flTentFilterRadius", TentFilterRadius);
+                upsampleShader.SetUniform("g_vPrevMipBlurTint", prevMipBlurTint);
+                upsampleShader.SetUniform("g_vCurrMipBlurTint", GetBlurTint(settings, level + 1));
+
+                BindTarget(MipChain, level);
+                GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+            }
+        }
+
+        using (new GLDebugGroup("Bloom Upsample 0"))
+        {
+            var size = MipChain!.GetMipSize(0);
+            var lastTexelCenter = new Vector2((size.X - 0.5f) / size.X, (size.Y - 0.5f) / size.Y);
+            var curMipBlurTint = GetBlurTint(settings, 0) + GetBlurTint(settings, 1);
+
+            finalUpsample.Use();
+            finalUpsample.SetTexture(0, "g_tSource", MipChain.Color!);
+            finalUpsample.SetUniform("g_nSourceMip", 1f);
+            finalUpsample.SetUniform("g_nSource2Mip", 0f);
+            finalUpsample.SetUniform("g_vCombineUVScaleAndClamp", GetCombineUVScaleAndClamp(0));
+            finalUpsample.SetUniform("g_vCombineUVScaleAndClamp2", new Vector4(0f, 0f, lastTexelCenter.X, lastTexelCenter.Y));
+            finalUpsample.SetUniform("g_vCurrMipBlurTint", curMipBlurTint);
+
+            Output!.Bind(FramebufferTarget.DrawFramebuffer);
+            GL.Viewport(0, 0, size.X, size.Y);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+        }
+    }
+
+    /// <summary>
+    /// Scales pixels of <paramref name="level"/> to uv, and clamps the uv to the last texel centre of the mip below.
+    /// </summary>
+    private Vector4 GetCombineUVScaleAndClamp(int level)
+    {
+        var size = MipChain!.GetMipSize(level);
+        var sourceSize = MipChain.GetMipSize(level + 1);
+
+        return new Vector4(
+            1f / size.X,
+            1f / size.Y,
+            (sourceSize.X - 0.5f) / sourceSize.X,
+            (sourceSize.Y - 0.5f) / sourceSize.Y);
+    }
+
+    private static Vector3 GetBlurTint(in BloomSettings settings, int index) => settings.BlurTint[index] * settings.BlurWeight[index];
+
+    private static void BindTarget(Framebuffer framebuffer, int level)
+    {
+        var size = framebuffer.GetMipSize(level);
+
+        framebuffer.Bind(FramebufferTarget.DrawFramebuffer);
+        framebuffer.AttachColorMipLevel(level);
+        GL.Viewport(0, 0, size.X, size.Y);
     }
 }

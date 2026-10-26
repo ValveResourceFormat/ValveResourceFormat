@@ -307,12 +307,21 @@ namespace ValveResourceFormat.Renderer.PostProcess
                 if (runBloom)
                 {
                     postProcessShader.SetTexture(4, "g_tBloom", Bloom.AccumulationResult);
-                    // these seem to all be needed at once due to transitions between post process volumes, we don't do that yet
-                    // NormalizedBloomStrengths seems to act as a blending factor "how much of each bloom mode do we have right now"
                     var bloomStrengths = new Vector3(bloomSettings.AddBloomStrength, bloomSettings.ScreenBloomStrength, bloomSettings.BlurBloomStrength);
-                    var normalizedStrenghts = Vector3.Normalize(bloomStrengths);
-                    postProcessShader.SetUniform("g_vNormalizedBloomStrengths", normalizedStrenghts);
-                    postProcessShader.SetUniform("g_vUnNormalizedBloomStrengths", bloomStrengths);
+                    var unnormalizedStrengths = Vector3.UnitX;
+                    var normalizedStrengths = Vector3.UnitX;
+
+                    // The strongest mode is scaled to 1, so blended volumes keep the ratio between modes
+                    var maxStrength = bloomStrengths.MaxComponent();
+                    if (maxStrength >= 1e-5f)
+                    {
+                        unnormalizedStrengths = bloomStrengths;
+                        normalizedStrengths = bloomStrengths / maxStrength;
+                    }
+
+                    postProcessShader.SetUniform("g_vNormalizedBloomStrengths", normalizedStrengths);
+                    postProcessShader.SetUniform("g_vUnNormalizedBloomStrengths", unnormalizedStrengths);
+                    postProcessShader.SetUniform("g_bBloomExposed", Bloom.ThresholdsExposedScene);
                 }
                 postProcessShader.SetUniform("g_bFlipY", flipY);
 
