@@ -3,6 +3,7 @@ using System.Linq;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Collision;
 using ValveResourceFormat.Renderer.Editor.Entities;
+using ValveResourceFormat.Renderer.Editor.Map;
 using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.World;
@@ -114,6 +115,12 @@ public sealed class ToolsVisibility : IDrawFilter
         var hiddenByGroup = hiddenGroups.Count > 0
             && (ToolBrushGroups.GetGroup(material.Material.Name) ?? (material.IsToolsMaterial ? ToolBrushGroups.RootGroup : null)) is { } group
             && (hiddenGroups.Contains((group, null)) || hiddenGroups.Contains((group, ToolBrushGroups.GetEntityClass(node))));
+
+        // A shape shows its faces, see ToolsMaterialSceneNode
+        if (node is ShadowCasterSceneNode)
+        {
+            return hiddenByGroup ? DrawVisibility.Hidden : DrawVisibility.ShadowOnly;
+        }
 
         if ((!hiddenByGroup && (!material.IsToolsMaterial || ShowTools)) || selectedNodes.Contains(node))
         {

@@ -403,7 +403,22 @@ public sealed class MapDocumentLoader : IDisposable
             var material = GetMaterial(group, owner, shaderArguments);
             var nodeName = string.Create(CultureInfo.InvariantCulture, $"{name}_{i}");
 
-            mapMesh.AddNode(AddMeshNode(nodeName, material, meshRenderData.GetBuffers(i, material.Material.InputSignature), placedNode, mesh, owner));
+            // Tools materials show as tool brushes do, and those that block light cast shadows through a mesh
+            // that is drawn nowhere else
+            if (material.IsToolsMaterial)
+            {
+                mapMesh.AddNode(AddToolsMaterialNode(nodeName, group, material, placedNode, owner));
+
+                if (material.BlocksLight)
+                {
+                    mapMesh.AddNode(AddMeshNode($"{nodeName}_shadow", material, meshRenderData.GetBuffers(i, material.Material.InputSignature),
+                        placedNode, mesh, owner, castsShadowOnly: true));
+                }
+            }
+            else
+            {
+                mapMesh.AddNode(AddMeshNode(nodeName, material, meshRenderData.GetBuffers(i, material.Material.InputSignature), placedNode, mesh, owner));
+            }
         }
     }
 
@@ -411,17 +426,17 @@ public sealed class MapDocumentLoader : IDisposable
     private RenderMaterial GetMaterial(PolygonMesh.BakedSubmesh group, MapEntity? owner, Dictionary<string, byte> shaderArguments)
         => rendererContext.MaterialLoader.GetMaterial(owner?.EntityClass?.AutoApplyMaterial ?? (group.Material.Length > 0 ? group.Material : null), shaderArguments);
 
-    private MeshSceneNode AddMeshNode(string name, RenderMaterial material, (VBIB Buffers, AABB Bounds) geometry, PlacedMapNode placedNode, CMapMesh mesh, MapEntity? owner)
+    private MeshSceneNode AddMeshNode(string name, RenderMaterial material, (VBIB Buffers, AABB Bounds) geometry, PlacedMapNode placedNode, CMapMesh mesh, MapEntity? owner, bool castsShadowOnly = false)
     {
         var renderableMesh = RenderableMesh.CreateMesh(name, material, geometry.Buffers, geometry.Bounds, rendererContext, sortByMaterial: true);
-        var node = new MeshSceneNode(scene, renderableMesh)
-        {
-            Name = name,
-            LayerName = placedNode.WorldLayer ?? (owner == null ? WorldLayerName : EntitiesLayerName),
-            TintAlpha = placedNode.Tint * new Vector4(mesh.TintColor.R, mesh.TintColor.G, mesh.TintColor.B, mesh.RenderAmount) / 255f,
-            Transform = placedNode.Transform,
-            EntityData = owner?.KeyValues,
-        };
+        MeshSceneNode node = castsShadowOnly
+            ? new ShadowCasterSceneNode(scene, renderableMesh) { Name = name }
+            : new MeshSceneNode(scene, renderableMesh) { Name = name };
+
+        node.LayerName = GetLayerName(placedNode, owner);
+        node.TintAlpha = placedNode.Tint * new Vector4(mesh.TintColor.R, mesh.TintColor.G, mesh.TintColor.B, mesh.RenderAmount) / 255f;
+        node.Transform = placedNode.Transform;
+        node.EntityData = owner?.KeyValues;
 
         if (IsShadowless(material))
         {
@@ -432,6 +447,21 @@ public sealed class MapDocumentLoader : IDisposable
 
         return node;
     }
+
+    private ToolsMaterialSceneNode AddToolsMaterialNode(string name, PolygonMesh.BakedSubmesh group, RenderMaterial material, PlacedMapNode placedNode, MapEntity? owner)
+    {
+        var node = ToolsMaterialSceneNode.Create(scene, name, group, material.Material.Name);
+        node.LayerName = GetLayerName(placedNode, owner);
+        node.Transform = placedNode.Transform;
+        node.EntityData = owner?.KeyValues;
+
+        scene.Add(node, dynamic: false);
+
+        return node;
+    }
+
+    private static string GetLayerName(PlacedMapNode placedNode, MapEntity? owner)
+        => placedNode.WorldLayer ?? (owner == null ? WorldLayerName : EntitiesLayerName);
 
     // Faces that are not drawn in the compiled map, such as the sky box around it, and occluders cast no
     // shadows, unless they are there to block light
