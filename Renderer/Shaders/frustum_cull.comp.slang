@@ -60,6 +60,7 @@ layout(binding = 7, std430) buffer OccludedBoundsDebugBuffer
 
 uniform bool g_bOcclusionDebugEnabled;
 uniform bool g_bCpuVisibleEnabled;
+uniform bool g_bTwoSided; // shadow views draw both faces, so the cone test does not apply
 
 // Depth pyramid (hierarchical depth buffer)
 uniform sampler2D g_tDepthPyramid; // bound above the reserved slots by SceneViewState.SetOcclusionUniforms
@@ -345,7 +346,7 @@ void main()
         visible = testAABBFrustum(meshletMin, meshletMax);
     }
 
-    if (visible && BackfaceCull)
+    if (visible && BackfaceCull && !g_bTwoSided)
     {
         vec3 meshletCenter = (meshletMin + meshletMax) * 0.5;
         vec3 meshletSize = meshletMax - meshletMin;

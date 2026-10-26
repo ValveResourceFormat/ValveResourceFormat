@@ -657,7 +657,7 @@ public class Renderer : ISceneHost
 
             var (min, max) = state.CollectShadowCasters(frustum,
                 includeStatic: includeBakedStatic || !scene.LightingInfo.HasBakedShadowsFromLightmap || !scene.LightingInfo.IsSunShadowBaked,
-                ObjectTypeFlags.NoShadows | ObjectTypeFlags.NoSunShadows, from.States[i].VisibilityBoxes, depthFitAxis);
+                ObjectTypeFlags.NoShadows | ObjectTypeFlags.NoSunShadows, from.States[i].VisibilityBoxes, depthFitAxis, cullAggregatesOnGpu: true);
 
             depthMin = MathF.Min(depthMin, min);
             depthMax = MathF.Max(depthMax, max);
@@ -698,7 +698,7 @@ public class Renderer : ISceneHost
             // Static shadows of stationary lights are baked
             view.States[0].CollectShadowCasters(view.Camera.ViewFrustum,
                 includeStatic: caster.Light.DirectLight != SceneLight.DirectLightType.Stationary,
-                ObjectTypeFlags.NoShadows, Scene.VisibilityBoxes.PrepareSecondaryView(caster.Light.Position), Vector3.Zero);
+                ObjectTypeFlags.NoShadows, Scene.VisibilityBoxes.PrepareSecondaryView(caster.Light.Position), Vector3.Zero, cullAggregatesOnGpu: false);
 
             barnLightFaceRegions[barnLightFaceViewCount++] = caster.Region;
         }

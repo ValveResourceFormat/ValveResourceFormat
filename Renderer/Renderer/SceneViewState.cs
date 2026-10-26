@@ -61,6 +61,10 @@ public sealed class SceneViewState
     private bool cpuVisibleActive;
     private uint[] cpuVisibleBits = [];
 
+    // A caster view draws the aggregates of the fragments it marked whole, culled on the GPU against this
+    private readonly Frustum casterCullFrustum = new();
+    private bool hasGpuCulledCasters;
+
     private readonly List<SceneNode> cullResults = [];
     private int staticCullCount;
     private readonly Plane[] lastFrustumPlanes = new Plane[6];
@@ -276,14 +280,13 @@ public sealed class SceneViewState
         return NodeCull.None;
     }
 
-    // While PVS or visibility boxes cull, the GPU only draws the fragments marked here. The query leaves out
-    // whole cells they hide, so a fragment it never reaches has to stay hidden rather than be drawn.
-    private void ResetCpuVisibleBits()
+    // While active, the GPU only draws the fragments marked here. The query leaves out whole cells that PVS
+    // or visibility boxes hide, so a fragment it never reaches has to stay hidden rather than be drawn.
+    private void ResetCpuVisibleBits(bool active)
     {
         var objectEntryCount = Scene.ObjectEntryCount;
 
-        var pvsCullActive = !Pvs.IsEmpty && Scene.VoxelVisibility != null;
-        cpuVisibleActive = (pvsCullActive || VisibilityBoxes.IsActive) && objectEntryCount > 0;
+        cpuVisibleActive = active && objectEntryCount > 0;
 
         if (!cpuVisibleActive)
         {
@@ -434,7 +437,7 @@ public sealed class SceneViewState
         WantsSceneColor = false;
         WantsSceneDepth = Scene.ProjectedDecals.Count > 0;
 
-        ResetCpuVisibleBits();
+        ResetCpuVisibleBits((!Pvs.IsEmpty && Scene.VoxelVisibility != null) || VisibilityBoxes.IsActive);
 
         var frustum = cullFrustum ?? camera.ViewFrustum;
         var visibleNodes = GetFrustumCullResults(frustum, boxes: VisibilityBoxes);
@@ -664,7 +667,8 @@ public sealed class SceneViewState
     internal static Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> CreateDepthOnlyBuckets()
         => Enum.GetValues<DepthOnlyBucket>().ToDictionary(static bucket => bucket, static _ => new List<MeshBatchRenderer.Request>());
 
-    internal (float Min, float Max) CollectShadowCasters(Frustum frustum, bool includeStatic, ObjectTypeFlags skipFlags, VisibilityBoxCuller boxes, Vector3 depthFitAxis)
+    internal (float Min, float Max) CollectShadowCasters(Frustum frustum, bool includeStatic, ObjectTypeFlags skipFlags, VisibilityBoxCuller boxes, Vector3 depthFitAxis,
+        bool cullAggregatesOnGpu)
     {
         var depthMin = float.MaxValue;
         var depthMax = float.MinValue;
@@ -694,6 +698,16 @@ public sealed class SceneViewState
         else
         {
             Array.Clear(visibleBits, 0, visibleWords);
+        }
+
+        // Every fragment the GPU may draw is marked, as the flags and the material decide too
+        var cullOnGpu = cullAggregatesOnGpu && Scene.DrawMeshletsIndirect;
+        hasGpuCulledCasters = false;
+        ResetCpuVisibleBits(cullOnGpu);
+
+        if (cullOnGpu)
+        {
+            frustum.Planes.CopyTo(casterCullFrustum.Planes, 0);
         }
 
         var pvs = Pvs.Span;
@@ -728,6 +742,19 @@ public sealed class SceneViewState
             }
 
             AccumulateDepthFit(node);
+
+            if (cullOnGpu && node is SceneAggregate.Fragment { Parent.CanDrawIndirect: true } indirectFragment)
+            {
+                if (Scene.CastsShadows(indirectFragment.DrawCall.Material, indirectFragment))
+                {
+                    MarkFragmentVisibleGpu(indirectFragment);
+                    MathUtils.SetBit(visibleBits, (int)indirectFragment.Parent.Id);
+                    hasGpuCulledCasters = true;
+                }
+
+                continue;
+            }
+
             MathUtils.SetBit(visibleBits, (int)node.Id);
         }
 
@@ -746,6 +773,17 @@ public sealed class SceneViewState
 
             case SceneAggregate.Fragment fragment:
                 AddShadowCasterDraw(fragment.RenderMesh, fragment.DrawCall, node, draws);
+                return;
+
+            // Drawn indirectly, after its fragments passed the material test
+            case SceneAggregate { InstanceTransforms.Count: 0 } aggregate:
+                var call = aggregate.RenderMesh.DrawCallsOpaque[0];
+                draws[GetDepthOnlyBucket(call)].Add(new MeshBatchRenderer.Request
+                {
+                    Mesh = aggregate.RenderMesh,
+                    Call = call,
+                    Node = node,
+                });
                 return;
 
             case SceneAggregate aggregate:
@@ -900,8 +938,9 @@ public sealed class SceneViewState
         cpuVisibleGpu.BindBufferBase();
 
         cullShader.SetUniform("g_bCpuVisibleEnabled", cpuVisibleActive);
+        cullShader.SetUniform("g_bTwoSided", collectsShadowCasters);
 
-        var occlusionDebugEnabled = scene.Settings.OcclusionDebugEnabled && scene.OcclusionDebug != null;
+        var occlusionDebugEnabled = !collectsShadowCasters && scene.Settings.OcclusionDebugEnabled && scene.OcclusionDebug != null;
 
         // Bind debug buffer for occluded bounds visualization
         if (occlusionDebugEnabled)
@@ -1134,6 +1173,25 @@ public sealed class SceneViewState
 
     internal void RenderShadowCasters(Scene.RenderContext renderContext, Shader depthOnlyShader, Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> draws)
     {
+        if (hasGpuCulledCasters)
+        {
+            using (new GLDebugGroup("Cull Caster Meshlets"))
+            {
+                MeshletCullGpu(casterCullFrustum);
+
+                if (Scene.CompactMeshletDraws)
+                {
+                    CompactIndirectDraws();
+                }
+            }
+
+            BindIndirectDrawBuffers();
+
+            // CommandBarrierBit is defined over the indirect buffer only, not the compacted count buffer
+            GL.MemoryBarrier(MemoryBarrierFlags.CommandBarrierBit | MemoryBarrierFlags.ShaderStorageBarrierBit
+                | MemoryBarrierFlags.BufferUpdateBarrierBit);
+        }
+
         foreach (var node in EnumerateVisibleNodes())
         {
             AddShadowCasterDraws(node, draws);
