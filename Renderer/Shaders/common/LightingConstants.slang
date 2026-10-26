@@ -25,6 +25,8 @@ layout(std140, binding = 1) uniform LightingConstants {
     vec4 g_vEnvMapSizeConstants;
 
     vec4 g_vAmbientLightingSH[3];    // per color channel, xyz: against the normal, w: constant
+
+    vec4 g_vUnbakedIndirect;         // rgb: indirect light where none is baked and no cube map gives it
 };
 
 // The lightmap atlas coordinates in xy, and a hash of the unscaled coordinates in zw. The hash only

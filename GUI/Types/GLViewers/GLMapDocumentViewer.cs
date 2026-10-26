@@ -41,6 +41,7 @@ namespace GUI.Types.GLViewers
 
             // Lit as Hammer shows a map before its lighting is built: only directly, by its own lights
             LoadUnbakedLighting();
+            Scene.LightingInfo.LightingData.UnbakedIndirect = Vector4.Zero;
         }
 
         protected override void LoadScene()

@@ -54,6 +54,12 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// <summary>Blue channel of the ambient lighting.</summary>
         public Vector4 AmbientLightingSHB;
 
+        /// <summary>
+        /// Indirect light (RGB) where none is baked and no cube map gives it. Viewers without lighting of their own
+        /// make some up, while a map whose lighting is not built has none.
+        /// </summary>
+        public Vector4 UnbakedIndirect = new(0.3f, 0.3f, 0.3f, 0f);
+
         /// <summary>Gets or sets the number of lightmapped lights in the scene.</summary>
         public uint StaticLightCount { get => NumLights[0]; set => NumLights[0] = value; }
 

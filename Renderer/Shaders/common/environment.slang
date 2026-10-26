@@ -384,7 +384,7 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
     // A scene without environment maps
     if (g_vEnvMapSizeConstants.y == 0.0)
     {
-        return vec3(0.3);
+        return g_vUnbakedIndirect.rgb;
     }
 
     #if (ENVMAP_PER_OBJECT)

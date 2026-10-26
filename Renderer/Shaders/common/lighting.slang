@@ -419,7 +419,7 @@ vec3 EvaluateLightmapSH(LightmapSH_t sh, vec3 direction)
 
 void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialProperties_t mat)
 {
-    lighting.DiffuseIndirect = vec3(0.3);
+    lighting.DiffuseIndirect = g_vUnbakedIndirect.rgb;
 
     // Indirect Lighting
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
