@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq;
 using Datamodel.Format;
 using ValveResourceFormat.IO.ContentFormats.HalfEdgeMesh;
@@ -357,53 +358,175 @@ public abstract class MapNode : DMElement
 }
 
 /// <summary>
-/// References another map file and places its contents at this node.
+/// Base of every map node that takes part in entity IO.
 /// </summary>
 [CamelCaseProperties]
-public class CMapPrefab : MapNode
+public abstract class EntityIONode : MapNode
 {
-    /// <summary>
-    /// Whether entity names inside the prefab are prefixed to keep them unique.
-    /// </summary>
-    public bool FixupEntityNames { get; set; } = true;
+    private DmePlugList? relayPlugData = [];
+    private List<EntityConnection>? connections;
+    private List<RelayPlug>? relayPlugs;
 
     /// <summary>
-    /// Whether the prefab is spawned at runtime instead of merged at compile time.
+    /// Output plugs this entity fires through, in their saved form. After loading they are in
+    /// <see cref="RelayPlugs"/> instead and this is null, except while the map is being saved.
     /// </summary>
-    public bool LoadAtRuntime { get; set; }
+    public DmePlugList? RelayPlugData
+    {
+        get => relayPlugData;
+        init => relayPlugData = value;
+    }
 
     /// <summary>
-    /// Whether the prefab still loads when it sits inside another prefab.
+    /// The entity IO connections in their saved form, one <see cref="DmeConnectionData"/> element each. After
+    /// loading they are in <see cref="Connections"/> instead and this is empty, except while the map is being saved.
     /// </summary>
-    public bool LoadIfNested { get; set; } = true;
+    public Datamodel.ElementArray ConnectionsData { get; init; } = [];
 
     /// <summary>
-    /// Path to the map file this prefab pulls in.
+    /// The entity IO connections of a node that was loaded, see <see cref="PostLoadFromFile"/>.
     /// </summary>
-    public string TargetMapPath { get; set; } = string.Empty;
+    [DMIgnore]
+    public List<EntityConnection> Connections => connections ??= [];
 
     /// <summary>
-    /// Name given to the prefab instance.
+    /// The output plugs of a node that was loaded, see <see cref="PostLoadFromFile"/>.
     /// </summary>
-    public string TargetName { get; set; } = string.Empty;
+    [DMIgnore]
+    public List<RelayPlug> RelayPlugs => relayPlugs ??= [];
+
+    /// <summary>
+    /// Converts the saved entity IO into its runtime form: <see cref="RelayPlugData"/> and
+    /// <see cref="ConnectionsData"/> are copied into <see cref="RelayPlugs"/> and <see cref="Connections"/>, and
+    /// their elements are then removed from the map.
+    /// </summary>
+    public override void PostLoadFromFile()
+    {
+        base.PostLoadFromFile();
+
+        relayPlugs = [];
+        connections = [];
+
+        if (relayPlugData is { } plugs)
+        {
+            for (var i = 0; i < plugs.Names.Count; i++)
+            {
+                relayPlugs.Add(new RelayPlug(
+                    plugs.Names[i],
+                    i < plugs.DataTypes.Count ? plugs.DataTypes[i] : 0,
+                    i < plugs.PlugTypes.Count ? plugs.PlugTypes[i] : 0,
+                    i < plugs.Descriptions.Count ? plugs.Descriptions[i] : string.Empty));
+            }
+        }
+
+        var stored = ConnectionsData.OfType<DmeConnectionData>().ToArray();
+
+        foreach (var connection in stored)
+        {
+            connections.Add(new EntityConnection
+            {
+                OutputName = connection.OutputName,
+                TargetType = (EntityIOTargetType)connection.TargetType,
+                TargetName = connection.TargetName,
+                InputName = connection.InputName,
+                OverrideParam = connection.OverrideParam,
+                Delay = connection.Delay,
+                TimesToFire = connection.TimesToFire,
+            });
+        }
+
+        ReleaseStoredConnections();
+    }
+
+    /// <summary>
+    /// Rebuilds <see cref="RelayPlugData"/> and <see cref="ConnectionsData"/> from <see cref="RelayPlugs"/> and
+    /// <see cref="Connections"/>, so that the map is saved with them.
+    /// </summary>
+    public override void PreSaveToFile()
+    {
+        base.PreSaveToFile();
+
+        // A node that was never loaded still has its saved data, so there is nothing to rebuild
+        if (connections == null || relayPlugs == null)
+        {
+            return;
+        }
+
+        relayPlugData ??= [];
+        relayPlugData.Names.Clear();
+        relayPlugData.DataTypes.Clear();
+        relayPlugData.PlugTypes.Clear();
+        relayPlugData.Descriptions.Clear();
+
+        foreach (var plug in relayPlugs)
+        {
+            relayPlugData.Names.Add(plug.Name);
+            relayPlugData.DataTypes.Add(plug.DataType);
+            relayPlugData.PlugTypes.Add(plug.PlugType);
+            relayPlugData.Descriptions.Add(plug.Description);
+        }
+
+        ConnectionsData.Clear();
+
+        foreach (var connection in connections)
+        {
+            ConnectionsData.Add(new DmeConnectionData
+            {
+                OutputName = connection.OutputName,
+                TargetType = (int)connection.TargetType,
+                TargetName = connection.TargetName,
+                InputName = connection.InputName,
+                OverrideParam = connection.OverrideParam,
+                Delay = connection.Delay,
+                TimesToFire = connection.TimesToFire,
+            });
+        }
+
+        // The map only writes elements that belong to it
+        Owner?.ImportElement(relayPlugData, Datamodel.Datamodel.ImportRecursionMode.Recursive, Datamodel.Datamodel.ImportOverwriteMode.None);
+
+        foreach (var connection in ConnectionsData)
+        {
+            Owner?.ImportElement(connection, Datamodel.Datamodel.ImportRecursionMode.Recursive, Datamodel.Datamodel.ImportOverwriteMode.None);
+        }
+    }
+
+    /// <summary>
+    /// Removes <see cref="RelayPlugData"/> and <see cref="ConnectionsData"/> again after the map is saved.
+    /// </summary>
+    public override void PostSaveToFile()
+    {
+        base.PostSaveToFile();
+
+        if (connections != null && relayPlugs != null)
+        {
+            ReleaseStoredConnections();
+        }
+    }
+
+    private void ReleaseStoredConnections()
+    {
+        var stored = ConnectionsData.OfType<DMElement>().ToArray();
+        var plugs = relayPlugData;
+
+        relayPlugData = null;
+        ConnectionsData.Clear();
+
+        plugs?.Owner?.AllElements.RemoveUnreferenced(plugs);
+
+        foreach (var connection in stored)
+        {
+            connection.Owner?.AllElements.RemoveUnreferenced(connection);
+        }
+    }
 }
 
 /// <summary>
 /// Base of every map node that carries entity key values and entity IO.
 /// </summary>
 [CamelCaseProperties]
-public abstract class BaseEntity : MapNode
+public abstract class BaseEntity : EntityIONode
 {
-    /// <summary>
-    /// Output plugs this entity fires through, one per entity IO connection.
-    /// </summary>
-    public DmePlugList RelayPlugData { get; init; } = [];
-
-    /// <summary>
-    /// List of <see cref="DmeConnectionData"/> elements, one per entity IO connection.
-    /// </summary>
-    public Datamodel.ElementArray ConnectionsData { get; init; } = [];
-
     /// <summary>
     /// The entity key values, including "classname".
     /// </summary>
@@ -471,7 +594,57 @@ public class DmePlugList : DMElement
 }
 
 /// <summary>
-/// One entity IO connection: an output firing an input on a target.
+/// One output plug of an entity, see <see cref="EntityIONode.RelayPlugs"/>.
+/// </summary>
+/// <param name="Name">Name of the plug.</param>
+/// <param name="DataType">Type of the value the plug passes on.</param>
+/// <param name="PlugType">Kind of plug.</param>
+/// <param name="Description">What the plug is for.</param>
+public readonly record struct RelayPlug(string Name, int DataType, int PlugType, string Description);
+
+/// <summary>
+/// One entity IO connection of a loaded entity: an output that fires an input on a target.
+/// </summary>
+public sealed class EntityConnection
+{
+    /// <summary>
+    /// Output that triggers the connection.
+    /// </summary>
+    public string OutputName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// How <see cref="TargetName"/> is resolved.
+    /// </summary>
+    public EntityIOTargetType TargetType { get; set; }
+
+    /// <summary>
+    /// Entity the input is sent to.
+    /// </summary>
+    public string TargetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Input fired on the target.
+    /// </summary>
+    public string InputName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Parameter passed with the input, replacing the one the output carries.
+    /// </summary>
+    public string OverrideParam { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Seconds to wait before firing.
+    /// </summary>
+    public float Delay { get; set; }
+
+    /// <summary>
+    /// How many times the connection fires, -1 for no limit.
+    /// </summary>
+    public int TimesToFire { get; set; } = -1;
+}
+
+/// <summary>
+/// One entity IO connection in its saved form: an output firing an input on a target.
 /// </summary>
 [CamelCaseProperties]
 public class DmeConnectionData : DMElement
@@ -681,6 +854,56 @@ public class CMapEntity : BaseEntity
     /// Whether the entity was generated by a tool rather than placed by hand.
     /// </summary>
     public bool IsProceduralEntity { get; set; }
+
+    /// <summary>
+    /// Takes over a placement the entity keeps in its key values: "origin", "angles" and "scales" are moved from
+    /// <see cref="BaseEntity.EntityProperties"/> onto the node.
+    /// </summary>
+    public override void PostLoadFromFile()
+    {
+        base.PostLoadFromFile();
+
+        if (TakeVectorKey("origin") is { } origin)
+        {
+            Origin = origin;
+        }
+
+        if (TakeVectorKey("angles") is { } angles)
+        {
+            Angles = new Datamodel.QAngle(angles.X, angles.Y, angles.Z);
+        }
+
+        if (TakeVectorKey("scales") is { } scales)
+        {
+            Scales = scales;
+        }
+    }
+
+    // Reads up to three numbers from a key and removes it, a number that is missing being zero
+    private Vector3? TakeVectorKey(string key)
+    {
+        if (!EntityProperties.ContainsKey(key) || EntityProperties[key] is not string text)
+        {
+            return null;
+        }
+
+        Span<float> components = stackalloc float[3];
+        var count = 0;
+
+        foreach (var part in text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (count == components.Length || !float.TryParse(part, NumberStyles.Float, CultureInfo.InvariantCulture, out components[count]))
+            {
+                break;
+            }
+
+            count++;
+        }
+
+        EntityProperties.Remove(key);
+
+        return new Vector3(components);
+    }
 }
 
 /// <summary>
@@ -826,7 +1049,7 @@ public class CMapCable : CMapPath
 /// Places another map group into the map with its own transform and tint.
 /// </summary>
 [CamelCaseProperties]
-public class CMapInstance : BaseEntity
+public class CMapInstance : EntityIONode
 {
     /// <summary>
     /// A target <see cref="CMapGroup"/> to instance. With custom tint and transform.
@@ -837,6 +1060,38 @@ public class CMapInstance : BaseEntity
     /// Tint applied to everything in the instance.
     /// </summary>
     public Datamodel.Color TintColor { get; set; } = new Datamodel.Color(255, 255, 255, 255);
+}
+
+/// <summary>
+/// References another map file and places its contents at this node.
+/// </summary>
+[CamelCaseProperties]
+public class CMapPrefab : CMapInstance
+{
+    /// <summary>
+    /// Whether entity names inside the prefab are prefixed to keep them unique.
+    /// </summary>
+    public bool FixupEntityNames { get; set; } = true;
+
+    /// <summary>
+    /// Whether the prefab is spawned at runtime instead of merged at compile time.
+    /// </summary>
+    public bool LoadAtRuntime { get; set; }
+
+    /// <summary>
+    /// Whether the prefab still loads when it sits inside another prefab.
+    /// </summary>
+    public bool LoadIfNested { get; set; } = true;
+
+    /// <summary>
+    /// Path to the map file this prefab pulls in.
+    /// </summary>
+    public string TargetMapPath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Name given to the prefab instance.
+    /// </summary>
+    public string TargetName { get; set; } = string.Empty;
 }
 
 /// <summary>

@@ -1904,12 +1904,6 @@ public sealed partial class MapExtract
         void SetTintAlpha(BaseEntity entity, Vector4 tint)
         {
             var color32 = ConvertToColor32(tint);
-            if (entity is CMapInstance instance)
-            {
-                instance.TintColor = color32;
-                return;
-            }
-
             entity.EntityProperties["rendercolor"] = $"{color32.R} {color32.G} {color32.B}";
             entity.EntityProperties["renderamt"] = color32.A.ToString(CultureInfo.InvariantCulture);
         }
