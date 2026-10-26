@@ -4,11 +4,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
-/// <summary>
-/// <c>phys_slideconstraint</c>: lets one body slide along the line from this entity's origin toward the
-/// <c>slideaxis</c> point without turning, such as a drawer in its cabinet. With the endpoints limited it
-/// travels from the origin to that point and no further.
-/// </summary>
+/// <summary><c>phys_slideconstraint</c>: lets a body slide without turning along the line from the origin to <c>slideaxis</c>.</summary>
 public sealed class PhysSlideConstraint : PhysConstraint
 {
     [Flags]
@@ -39,12 +35,11 @@ public sealed class PhysSlideConstraint : PhysConstraint
 
         var slider = PrismaticJointDefinition.Slider(connection.BodyA, connection.BodyB, Origin, slide / length);
 
-        // The body that slides toward the endpoint is the moving one: attach2 relative to attach1,
-        // unless attach2 is the world and attach1 slides against it
+        // attach2 slides relative to attach1, unless only attach1 is dynamic
         var slidesFirst = connection.BodyA.Type == BodyType.Dynamic && connection.BodyB.Type != BodyType.Dynamic;
         var slidingBody = slidesFirst ? connection.BodyA : connection.BodyB;
 
-        // Friction 1 is about enough to hold the slider's weight
+        // Friction 1 about holds the slider against gravity
         var friction = KeyValues.GetFloatProperty("slidefriction");
 
         var definition = slider with

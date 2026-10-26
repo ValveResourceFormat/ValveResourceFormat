@@ -4,11 +4,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
-/// <summary>
-/// <c>phys_constraint</c>: holds the two bodies in the pose they spawned in. Either half can be turned
-/// off: with the angular lock off the bodies still share a point but turn freely about it, and each
-/// half may be made springy with a frequency and damping ratio, where zero is rigid.
-/// </summary>
+/// <summary><c>phys_constraint</c>: holds two bodies in their spawn pose, optionally springy or free to turn.</summary>
 public sealed class PhysFixedConstraint : PhysConstraint
 {
     /// <summary>Initializes a fixed constraint from its keyvalues.</summary>

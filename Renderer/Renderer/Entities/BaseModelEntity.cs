@@ -46,7 +46,7 @@ public abstract class BaseModelEntity : BaseEntity
     /// </summary>
     public ModelSceneNode? ModelNode { get; private set; }
 
-    /// <summary>Gets the model node on show, which an entity that swaps its model, such as a damaged door, replaces.</summary>
+    /// <summary>Gets the model node currently shown.</summary>
     public virtual ModelSceneNode? ShownModelNode => ModelNode;
 
     /// <summary>Gets the physics of the model, or <see langword="null"/> when it has none.</summary>
@@ -55,22 +55,12 @@ public abstract class BaseModelEntity : BaseEntity
     /// <summary>Gets the model this entity loaded, or <see langword="null"/> when it names none or it failed to load.</summary>
     public Model? LoadedModel { get; private set; }
 
-    /// <summary>
-    /// Whether this entity mirrors its collider into the rigid body world as a kinematic mover, so
-    /// props collide with it and a door swings them aside. A class that runs its own body - a
-    /// physics prop - turns this off.
-    /// </summary>
+    /// <summary>Gets whether the collider is mirrored into the rigid body world as a kinematic body.</summary>
     protected virtual bool UsesMoverBody => true;
 
-    /// <summary>
-    /// Whether the collision debug nodes are built with the model, posed at bind under the entity
-    /// transform. An entity that visualizes its physics itself - a ragdoll moving each part's
-    /// hull with its body - opts out and builds its own.
-    /// </summary>
+    /// <summary>Gets whether collision debug nodes are built with the model.</summary>
     protected virtual bool CreatesPhysDebugNodes => true;
 
-    // The kinematic mirror of the collider, and whether it currently collides; a mover the map
-    // makes non-solid takes its body along
     private Body moverBody;
     private bool hasMoverBody;
     private bool moverBodyEnabled;
@@ -181,8 +171,6 @@ public abstract class BaseModelEntity : BaseEntity
             {
                 Collider = new EntityCollider(physics);
 
-                // The same collision again as a kinematic body, so props collide with this entity and
-                // a moving one - a door - carries them with a real velocity
                 if (UsesMoverBody && !IsTrigger && IsRigidBodySimulated
                     && EntitySystem.Physics.CreateMoverBody(physics, WorldOrigin,
                         EntityTransformHelper.EulerAnglesToQuaternion(WorldAngles)) is { } body)
@@ -219,15 +207,10 @@ public abstract class BaseModelEntity : BaseEntity
     /// </summary>
     protected virtual bool BuildsCollider => true;
 
-    // Only the main world group has a rigid body world, matching the static geometry the loader adds
+    // Only the main world group has a rigid body world
     private bool IsRigidBodySimulated => Scene.WorldGroup == null;
 
-    /// <summary>
-    /// Finds the rigid body a physics constraint anchored at <paramref name="anchor"/> holds this entity
-    /// by: its kinematic mirror, so a constraint can hang things off a moving brush. A brush with no
-    /// mirror - its collision is a triangle mesh, which a moving body cannot carry - gets a shapeless
-    /// one on demand, which only follows the entity for the joint's sake.
-    /// </summary>
+    // Without a mover body, as with mesh collision, a shapeless anchor is created for joints
     internal virtual bool TryGetConstraintBody(Vector3 anchor, out Body body)
     {
         if (!hasMoverBody && UsesMoverBody && IsRigidBodySimulated)
@@ -253,8 +236,7 @@ public abstract class BaseModelEntity : BaseEntity
             return;
         }
 
-        // Solidity the map toggles takes the body along, so a door made passable stops pushing. A
-        // shapeless anchor pushes nothing and always follows, since disabling it would drop its joints.
+        // Disabling a shapeless anchor would drop its joints
         var shouldCollide = moverBodyIsAnchorOnly || (IsSolid && !IsTrigger && !IsRemoved);
 
         if (shouldCollide != moverBodyEnabled)
@@ -276,7 +258,7 @@ public abstract class BaseModelEntity : BaseEntity
             return;
         }
 
-        // Motion is steered in FrameSimulate, but a paused world steps nothing that would carry the body
+        // A paused world does not step, and FrameSimulate steering alone would leave the body behind
         if (!EntitySystem.Enabled)
         {
             PlaceMoverBody();
@@ -308,12 +290,11 @@ public abstract class BaseModelEntity : BaseEntity
             return;
         }
 
-        // Steered over the coming step onto where the entity is drawn this frame, so props collide with
-        // the door they see and are swept aside at its real speed
+        // Toward the drawn pose rather than the tick state, matching what is on screen
         var pose = GetInterpolatedWorldFrame(EntitySystem.InterpolationFraction);
         var rotation = Quaternion.CreateFromRotationMatrix(pose);
 
-        // Left alone once it rests there, so a still mover lets what sits on it sleep
+        // Untouched at rest, letting bodies on a still mover sleep
         var isResting = moverBody.LinearVelocity == Vector3.Zero && moverBody.AngularVelocity == Vector3.Zero;
 
         if (isResting && moverBody.Position == pose.Translation && moverBody.Rotation == rotation)

@@ -28,10 +28,9 @@ public sealed class PropDynamic : BaseModelEntity, IDamageable
     /// <summary>Gets the damage left before the prop breaks.</summary>
     public float Health { get; private set; }
 
-    /// <summary>Gets whether the prop can still be broken: its model has health, and it has not broken yet.</summary>
+    /// <summary>Gets whether the model has health and the prop has not broken yet.</summary>
     public bool IsBreakable => breakData?.IsBreakable == true && !isBroken;
 
-    // A window pane, a shop front: a dynamic prop breaks like a physics one, into physics pieces
     private PropBreakData? breakData;
     private bool isBroken;
 
@@ -138,12 +137,7 @@ public sealed class PropDynamic : BaseModelEntity, IDamageable
         }
     }
 
-    /// <summary>
-    /// Breaks the prop: <c>OnBreak</c> fires, the pieces its model lists spawn where their parts of it
-    /// were, and the prop is removed.
-    /// </summary>
-    /// <param name="attacker">Who broke it, for <c>OnBreak</c>.</param>
-    /// <param name="direction">Which way the breaking hit travelled, for the effects; zero when unknown.</param>
+    /// <summary>Fires <c>OnBreak</c>, spawns the break pieces and removes the prop.</summary>
     public void Break(BaseEntity? attacker = null, Vector3 direction = default)
     {
         if (isBroken || breakData == null)

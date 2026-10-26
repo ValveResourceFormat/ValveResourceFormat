@@ -186,11 +186,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
-        /// <summary>
-        /// Gets or sets whether something other than animation playback writes
-        /// <see cref="AnimationController.Pose"/> - a ragdoll adopting its rigid bodies' poses.
-        /// While set, playback is bypassed and the pose is uploaded for skinning every frame.
-        /// </summary>
+        /// <summary>Gets or sets whether <see cref="AnimationController.Pose"/> is written externally instead of by playback.</summary>
         public bool PoseDrivenExternally
         {
             get;
@@ -200,10 +196,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                 if (value)
                 {
-                    // Skinning normally switches on when an animation activates; an externally
-                    // posed model may never have one - CS2 models keep their animations in
-                    // animgraph clips - so switch it on here, or every mesh draws rigid and the
-                    // written pose never shows
+                    // Skinning normally switches on when an animation activates, and an externally posed model may have none
                     SetupSkinning();
 
                     foreach (var renderer in meshRenderers)

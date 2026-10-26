@@ -107,29 +107,21 @@ public sealed class EntitySystem
     /// </summary>
     public WorldEntity? World { get; private set; }
 
-    /// <summary>
-    /// Gets the rigid body world, creating it on first use. The world loader pushes the static
-    /// geometry through here, physics props add their bodies, and <see cref="Update"/> steps it every frame.
-    /// </summary>
+    /// <summary>Gets the rigid body world, creating it on first use.</summary>
     public PhysicsSimulation Physics => physics ??= new PhysicsSimulation(FileLoader);
 
-    /// <summary>
-    /// Gets the rigid body world if anything has created one, without creating it: the player's
-    /// pickup logic has nothing to do in a scene with no simulated physics.
-    /// </summary>
+    /// <summary>Gets the rigid body world if one has been created.</summary>
     public PhysicsSimulation? PhysicsOrNull => physics;
 
-    /// <summary>Gets the game's breakable prop base classes, loaded on first use.</summary>
+    /// <summary>Gets the breakable prop base classes, loaded on first use.</summary>
     public PropDataTable PropData => propData ??= PropDataTable.Load(FileLoader);
 
     private PropDataTable? propData;
 
-    // Reused each frame to gather physics impacts before any of them breaks something
+    // Gathered in full before any impact breaks a prop
     private readonly Dictionary<PropPhysics, float> impactSpeeds = [];
 
-    // Turns this step's hard contacts into impact damage for breakable props: a pot dropped from a
-    // shelf, a bottle thrown at a wall. The player's pushing hull shoves props rather than striking
-    // them, so its contacts are left out. The same hits play the impact sounds, in the physics step.
+    // Player hull contacts are shoves, not strikes
     private void DispatchPhysicsImpacts(PhysicsSimulation simulation)
     {
         impactSpeeds.Clear();
@@ -152,9 +144,7 @@ public sealed class EntitySystem
         }
     }
 
-    // A light body striking a heavy one hurts it in proportion, so a tossed can does not shatter a
-    // pot and falling debris does not chain-break everything it lands on; anything that does not
-    // move under the hit - the world, a door - strikes with its full weight
+    // Scaled by striker mass to keep debris from chain-breaking, static and kinematic bodies strike in full
     private void NoteImpact(PhysicsSimulation simulation, Body struck, Body other, float speed)
     {
         if (simulation.GetOwner(struck) is not PropPhysics { IsBreakable: true } prop)
@@ -162,8 +152,7 @@ public sealed class EntitySystem
             return;
         }
 
-        // What the player holds breaks nothing it bumps, unless the struck prop opts in: HL:A
-        // opts in its crockery and nothing else
+        // Held objects break nothing unless the struck prop opts in
         if (!prop.AcceptsDamageFromHeldObjects && Player?.Carried is { } held && ReferenceEquals(simulation.GetOwner(other), held))
         {
             return;
@@ -174,7 +163,7 @@ public sealed class EntitySystem
             speed *= MathF.Min(1f, MathF.Sqrt(other.Mass / struck.Mass));
         }
 
-        // Several contact points of one collision report separately; the hardest one counts
+        // One collision reports per contact point, the hardest counts
         impactSpeeds[prop] = MathF.Max(impactSpeeds.GetValueOrDefault(prop), speed);
     }
 
@@ -269,15 +258,7 @@ public sealed class EntitySystem
         return entity;
     }
 
-    /// <summary>
-    /// Creates an entity at runtime and spawns and activates it there and then, into a spawn group that is
-    /// already spawned, such as the pieces a prop breaks into. Its keyvalues place it in the space of the
-    /// spawn group, as a map's own entities are.
-    /// </summary>
-    /// <param name="data">The entity's keyvalues.</param>
-    /// <param name="layerName">Visibility layer for its nodes.</param>
-    /// <param name="spawnGroup">The spawn group the entity joins.</param>
-    /// <returns>The entity, or <see langword="null"/> if the keyvalues name no classname.</returns>
+    /// <summary>Creates, spawns and activates an entity in an already spawned group, or returns null without a classname.</summary>
     public BaseEntity? SpawnEntity(Entity data, string? layerName, SpawnGroup spawnGroup)
     {
         var entity = CreateEntity(data, layerName, spawnGroup);
@@ -594,16 +575,10 @@ public sealed class EntitySystem
         TickCount = 0;
     }
 
-    /// <summary>
-    /// Gets the camera the current frame is drawn with, or <see langword="null"/> outside a frame.
-    /// The input camera and this can differ - view smoothing and view punch sit between them - so
-    /// anything drawn relative to the view must read this one, not the controller's.
-    /// </summary>
+    /// <summary>Gets the camera the current frame is drawn with, after view smoothing and punch.</summary>
     public Camera? RenderCamera { get; private set; }
 
     /// <summary>Advances the world by a frame's worth of time, running whole ticks.</summary>
-    /// <param name="frameTime">Elapsed time in seconds since the last frame.</param>
-    /// <param name="renderCamera">The camera the frame is drawn with, for <see cref="RenderCamera"/>.</param>
     public void Update(float frameTime, Camera? renderCamera = null)
     {
         RenderCamera = renderCamera;

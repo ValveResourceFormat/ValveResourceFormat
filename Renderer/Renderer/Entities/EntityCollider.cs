@@ -19,10 +19,7 @@ public sealed class EntityCollider
     /// <summary>Gets the collision shape, in the entity's local space.</summary>
     public Rubikon Shape { get; }
 
-    /// <summary>
-    /// Gets the compiled physics the shape was built from. <see cref="Rubikon"/> only traces hulls
-    /// and meshes; the rigid body world reads this to also pick up sphere and capsule shapes.
-    /// </summary>
+    /// <summary>Gets the compiled physics the shape was built from, including spheres and capsules <see cref="Rubikon"/> does not trace.</summary>
     public ResourceTypes.PhysAggregateData PhysicsData { get; }
 
     /// <summary>Gets the shape's bounds in local space.</summary>

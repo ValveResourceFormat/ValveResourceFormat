@@ -2,26 +2,15 @@ using Box3D;
 
 namespace ValveResourceFormat.Renderer;
 
-/// <summary>
-/// Plays the knocks of physics contacts: each simulated body that strikes something sounds like
-/// its own surface, soft or hard by how fast it hit. A pile of props makes contacts every step, so
-/// most hits are never heard; this decides which ones are.
-/// </summary>
 internal sealed class PhysicsImpactSounds(SurfaceProperties surfaces)
 {
-    // Slower hits are silent. The volume grows with the square of the speed up to full at
-    // FullVolumeSpeed, so the knocks of something settling are faint and a throw is loud
     private const float MinImpactSpeed = 70f;
     private const float FullVolumeSpeed = 320f;
     private const float MissingHardSoundBoost = 1.2f;
 
-    // A body is heard only after this long out of touch. Every contact restarts the wait, heard or
-    // not: a rattling stack or a carried prop pressed into a wall hits again every step and stays
-    // silent, while a drop, a throw and each bounce after it are heard.
+    // Bodies in constant contact, like a rattling stack or a prop pressed into a wall, stay silent
     private const float QuietPeriod = 0.1f;
 
-    // How many impact sounds may start at once, and how many a second after that. A blast
-    // scattering a room of props plays its loudest few, not one per prop.
     private const float BurstBudget = 6f;
     private const float BudgetPerSecond = 12f;
 
@@ -35,9 +24,6 @@ internal sealed class PhysicsImpactSounds(SurfaceProperties surfaces)
     private float time;
     private float budget = BurstBudget;
 
-    /// <summary>
-    /// Queues a surface's impact sounds for decoding, so the first hit does not wait for them.
-    /// </summary>
     public void Prepare(uint surfaceHash)
     {
         var surface = surfaces.Find(surfaceHash);
@@ -51,12 +37,8 @@ internal sealed class PhysicsImpactSounds(SurfaceProperties surfaces)
         }
     }
 
-    /// <summary>Drops what is kept about a body that is being destroyed.</summary>
     public void Forget(ulong bodyId) => lastContactTimes.Remove(bodyId);
 
-    /// <summary>Plays the impacts of the step just taken.</summary>
-    /// <param name="hits">The step's contact hits.</param>
-    /// <param name="timeStep">How long the step was.</param>
     public void Play(WorldEvents.ContactHitEventList hits, float timeStep)
     {
         time += timeStep;
@@ -66,7 +48,7 @@ internal sealed class PhysicsImpactSounds(SurfaceProperties surfaces)
 
         foreach (var hit in hits)
         {
-            // The player's pushing hull shoves props along rather than striking them
+            // The player hull pushes props rather than striking them
             if (!hit.ShapeA.IsValid || !hit.ShapeB.IsValid
                 || ((hit.ShapeA.Filter.Categories | hit.ShapeB.Filter.Categories) & PhysicsSimulation.PlayerCategory) != 0)
             {
@@ -116,8 +98,7 @@ internal sealed class PhysicsImpactSounds(SurfaceProperties surfaces)
         }
     }
 
-    // A body's loudest hit of the step. Only a simulated body sounds: the world and the movers are
-    // what gets struck.
+    // Static and kinematic bodies are struck, not heard
     private void Note(Body body, uint surfaceHash, Vector3 position, float speed)
     {
         if (body.Type != BodyType.Dynamic || body.UserData == 0)
@@ -135,7 +116,7 @@ internal sealed class PhysicsImpactSounds(SurfaceProperties surfaces)
                 ? surface.ImpactHardSound ?? surface.ImpactSoftSound
                 : surface.ImpactSoftSound ?? surface.ImpactHardSound;
 
-            // Some surfaces name a hard sound that does not exist; their soft one stands in, louder
+            // Some surfaces name a hard sound that does not exist
             if (sound != null && sound == surface.ImpactHardSound && surface.ImpactSoftSound != null && !Sound.Exists(sound))
             {
                 sound = surface.ImpactSoftSound;
@@ -148,7 +129,7 @@ internal sealed class PhysicsImpactSounds(SurfaceProperties surfaces)
             }
         }
 
-        // Too slow to hear still counts as a contact, which is what keeps the quiet period honest
+        // Silent hits still restart the quiet period
         if (!stepImpacts.TryGetValue(body.UserData, out var loudest) || impact.Volume > loudest.Volume)
         {
             stepImpacts[body.UserData] = impact;

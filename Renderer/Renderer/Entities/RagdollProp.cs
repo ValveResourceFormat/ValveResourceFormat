@@ -4,19 +4,13 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
-/// <summary>
-/// A ragdoll, Source's <c>prop_ragdoll</c>: one rigid body per authored physics part, connected by
-/// the authored joints with their swing cones, twist ranges and friction, simulated in
-/// <see cref="PhysicsSimulation"/>. The rendered skeleton adopts the body poses every frame - the
-/// physics bones directly, everything else riding along on its bind-local offset.
-/// </summary>
+/// <summary><c>prop_ragdoll</c>: one rigid body per physics part, joined by the authored joints and posing the skeleton.</summary>
 public sealed class RagdollProp : BaseModelEntity, ICarryable
 {
-    /// <summary>The <c>spawnflags</c> a ragdoll reads.</summary>
     [Flags]
     private enum RagdollSpawnFlags : uint
     {
-        /// <summary>The ragdoll collides with neither the player nor other debris.</summary>
+        /// <summary>Collides with neither the player nor other debris.</summary>
         Debris = 4,
     }
 
@@ -26,49 +20,35 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
     /// <inheritdoc/>
     protected override bool CreatesPhysDebugNodes => false;
 
-    // One body per physics part; a part without shapes has none. The pickup hands back a body,
-    // which the id map turns into its part.
     private Body[] bodies = [];
     private bool[] hasBody = [];
     private readonly Dictionary<ulong, int> partByBodyId = [];
 
-    // Each part's center as of the last tick, for the tunnel catch: a squeezed part can be
-    // pushed straight through the one-sided mesh world between two looks
+    // A squeezed part can be pushed through the one-sided world mesh between ticks
     private Vector3[] previousPositions = [];
     private readonly List<Joint> joints = [];
 
-    // The skeleton bone driven by each part, resolved once, and each bone's bind transform local
-    // to its parent, for the bones between and beyond the physics parts
     private int[] boneToPart = [];
     private Matrix4x4[] boneLocalBind = [];
 
-    // The constant frame correction from each physics part to its render bone: the phys bind
-    // pose is the SHAPE's frame, not the bone's, and they disagree wildly (70 units, half a
-    // turn); a body pose pushed into the skinning without this correction shreds the mesh
+    // The physics bind pose is the shape frame, not the bone frame, and the two can be far apart
     private Matrix4x4[] partToBone = [];
 
-    // One debug node per part, in part-local space, moved with its body every frame; the bind-posed
-    // statue BaseModelEntity would build cannot follow a ragdoll
+    // Bind-posed debug nodes from BaseModelEntity cannot follow the parts
     private SceneNode?[] partPhysNodes = [];
 
-    // The part driving the skeleton's root-most physics bone, usually the pelvis. The entity
-    // stands where that bone is, so its origin, bounds and picking follow the doll.
+    // Usually the pelvis
     private int rootPart = -1;
     private Matrix4x4 inverseRootBoneBind = Matrix4x4.Identity;
 
     private bool simulating;
 
-    // The carry: which part the player grabbed, who is holding it, and how far out it is held
     private int carriedPart = -1;
     private PlayerEntity? carrier;
     private float carryDistance;
 
-    // The rest-energy drain: near rest the solver keeps injecting small impulses into a jointed
-    // assembly faster than the authored damping bleeds them, so a settled doll buzzes forever
-    // and a sphere head, with no twist friction on its point contact, visibly spins. Once every
-    // part is below these speeds the doll cannot be doing anything watchable, so velocities are
-    // drained outright, harder once nothing moves beyond a crawl. Falls, throws and swings sit
-    // above the thresholds untouched.
+    // Near rest the solver feeds a jointed doll impulses faster than damping bleeds them, leaving it
+    // buzzing forever; velocities below these speeds are drained
     private const float DrainLinearSpeed = 25f;
     private const float DrainAngularSpeed = 15f;
     private const float DrainRate = 4f;
@@ -76,11 +56,7 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
     private const float DeepRestAngularSpeed = 1.5f;
     private const float DeepDrainRate = 12f;
 
-    // The drain alone never reaches the solver's island sleep, whose shared timer any one of
-    // dozens of bodies resets, so the doll is put to sleep by what the eye can see: a buzz
-    // inside a sub-unit envelope passes no velocity gate but is invisible. If no part leaves
-    // its anchor by this distance or angle for the whole window the doll is frozen; one
-    // creeping anywhere keeps re-anchoring and stays awake.
+    // Any one of many bodies resets the island sleep timer; instead sleep once no part drifts this far for the window
     private const float SleepDriftDistance = 0.75f;
     private const float SleepDriftDot = 0.99966f; // cos of half of ~3 degrees
     private const float ForcedSleepAfter = 0.75f;
@@ -88,9 +64,7 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
     private Quaternion[] anchorRotations = [];
     private float stillTime;
 
-    /// <summary>
-    /// Initializes the ragdoll from its keyvalues.
-    /// </summary>
+    /// <summary>Initializes the ragdoll from its keyvalues.</summary>
     public RagdollProp(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
     {
     }
@@ -259,8 +233,7 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
 
         if (stillTime >= ForcedSleepAfter)
         {
-            // Frozen where it visibly already was: the buzz velocities go too, so a later wake
-            // resumes from stillness rather than mid-vibration
+            // Zeroed too, or a later wake resumes mid-vibration
             for (var i = 0; i < bodies.Length; i++)
             {
                 if (hasBody[i])
@@ -290,7 +263,7 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
     {
         foreach (var joint in phys.Joints)
         {
-            // Some models carry joints from a part to itself, which constrain nothing
+            // Some models carry joints from a part to itself
             if (joint.Body1 == joint.Body2 || joint.Body1 >= hasBody.Length || joint.Body2 >= hasBody.Length
                 || !hasBody[joint.Body1] || !hasBody[joint.Body2])
             {
@@ -321,8 +294,6 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
         {
             byName[bone.Name] = bone.Index;
 
-            // The bind transform local to the parent, so bones without a physics part keep their
-            // authored offset from whatever the physics drives above them
             var parentBind = bone.Parent != null ? bindPose[bone.Parent.Index] : Matrix4x4.Identity;
             boneLocalBind[bone.Index] = Matrix4x4.Invert(parentBind, out var inverse)
                 ? bindPose[bone.Index] * inverse
@@ -341,8 +312,7 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
             }
         }
 
-        // Parents come before their children in the bone list, so the first bone with a part is
-        // the root-most one
+        // Parents precede children: the first bone with a part is the root-most one
         foreach (var bone in skeleton.Bones)
         {
             if (boneToPart[bone.Index] >= 0 && Matrix4x4.Invert(bindPose[bone.Index], out inverseRootBoneBind))
@@ -353,7 +323,6 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
         }
     }
 
-    // The world pose of the bone a part drives, from the part's live body
     private Matrix4x4 BoneWorldPose(int part)
     {
         var body = bodies[part];
@@ -363,23 +332,18 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
             * Matrix4x4.CreateTranslation(body.Position);
     }
 
-    /// <summary>
-    /// Gets whether the player can grab a part of this ragdoll: only once it actually simulates.
-    /// </summary>
+    /// <summary>Gets whether the ragdoll simulates and can be picked up.</summary>
     public bool CanBeCarried => simulating;
 
     Body ICarryable.CarryBody => bodies[carriedPart];
 
     void ICarryable.BeginCarry(PlayerEntity carrier, float carryDistance, Body grabbedBody)
     {
-        // Only ever handed a body this ragdoll registered, which the pickup found through it
         carriedPart = partByBodyId[grabbedBody.UserData];
         this.carrier = carrier;
         this.carryDistance = carryDistance;
 
-        // Gravity off on the grabbed part only: the held part floats where it is steered while
-        // everything hanging off it keeps its full weight. No collision to suspend - ragdoll
-        // parts never collide with the player's pushing body in the first place.
+        // Only the held part floats, the rest keeps its weight and hangs off it
         var body = bodies[carriedPart];
         body.GravityScale = 0f;
         body.CanSleep = false;
@@ -400,8 +364,7 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
         carrier = null;
     }
 
-    // The grabbed part is held by position alone; its orientation and the rest of the ragdoll
-    // swing free on the joints, which is what makes a carried ragdoll dangle
+    // Held by position alone, letting the doll dangle on its joints
     (Vector3 Position, Quaternion? Rotation) ICarryable.ComputeHoldPose(float deltaTime)
     {
         var body = bodies[carriedPart];
@@ -414,10 +377,7 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
         return (position, null);
     }
 
-    /// <summary>
-    /// Holds a ragdoll by the part nearest the constraint, so a corpse hung by a rope anchored at its
-    /// neck hangs by the head rather than by whichever part comes first.
-    /// </summary>
+    // The nearest part, as a rope anchored at the neck should hold the head
     internal override bool TryGetConstraintBody(Vector3 anchor, out Body body)
     {
         body = default;
@@ -442,9 +402,7 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
         return !float.IsPositiveInfinity(nearest);
     }
 
-    /// <summary>
-    /// Hands every body of the ragdoll the same velocity, for a spawn that arrives moving.
-    /// </summary>
+    /// <summary>Sets the linear velocity of every part.</summary>
     public void SetVelocity(Vector3 velocity)
     {
         for (var i = 0; i < bodies.Length; i++)
@@ -459,12 +417,7 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
     /// <inheritdoc/>
     protected override bool UpdatesRenderTransformEveryFrame => simulating;
 
-    /// <summary>
-    /// Adopts the rigid bodies into the rendered skeleton: the entity is drawn at the root bone's
-    /// live pose, a bone with a physics part takes its body's live pose, and every other bone
-    /// rides its bind-local offset under its parent. The world steps with the rendered frame, so
-    /// this is the frame's true pose.
-    /// </summary>
+    /// <summary>Poses the skeleton from the part bodies.</summary>
     protected override void UpdateRenderTransform(float fraction)
     {
         if (!simulating || rootPart < 0)
@@ -485,8 +438,7 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
         var pose = modelNode.AnimationController.Pose;
         var skeleton = modelNode.AnimationController.Skeleton;
 
-        // Bones above and beside the physics - the root motion bone, say - keep their bind
-        // relation to the root physics bone, so the whole unsimulated skeleton rides the pelvis
+        // Unsimulated bones such as the root motion bone keep their bind relation to the root physics bone
         var rootsPose = rootPart >= 0
             ? inverseRootBoneBind * BoneWorldPose(rootPart) * worldToModel
             : Matrix4x4.Identity;
@@ -529,7 +481,7 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
     {
         base.OnRemove();
 
-        // The part nodes are owned, so the entity removes them with its other nodes
+        // Removed by the base with the other nodes
         partPhysNodes = [];
 
         foreach (var joint in joints)
