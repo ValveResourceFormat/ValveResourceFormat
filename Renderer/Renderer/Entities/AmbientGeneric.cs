@@ -53,6 +53,8 @@ public sealed class AmbientGeneric : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         SoundName = KeyValues.GetStringProperty("message");
 
         Volume = MathUtils.Saturate(KeyValues.GetFloatProperty("health", 10f) / 10f);

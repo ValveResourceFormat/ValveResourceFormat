@@ -41,6 +41,8 @@ public sealed class EnvFogController : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         current = new FogValues(
             KeyValues.GetColor32Property("fogcolor"),
             KeyValues.GetColor32Property("fogcolor2"),

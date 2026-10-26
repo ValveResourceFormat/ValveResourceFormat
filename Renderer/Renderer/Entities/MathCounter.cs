@@ -36,6 +36,8 @@ public sealed class MathCounter : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         Min = KeyValues.GetFloatProperty("min");
         Max = KeyValues.GetFloatProperty("max");
 

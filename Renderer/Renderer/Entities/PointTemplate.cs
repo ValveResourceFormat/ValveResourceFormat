@@ -84,6 +84,8 @@ public sealed class PointTemplate : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         WorldName = KeyValues.GetStringProperty("worldname") is { Length: > 0 } worldName
             ? WorldLoader.GetSpawnGroupMapName(worldName)
             : SpawnGroup?.MapName ?? string.Empty;

@@ -49,6 +49,8 @@ public sealed class LightEntity : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         var (accepted, type) = SceneLight.IsAccepted(Classname);
 
         if (!accepted)

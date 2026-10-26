@@ -66,6 +66,8 @@ public class PathTrack : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         Speed = KeyValues.GetFloatProperty("speed");
         OrientationType = (Orientation)KeyValues.GetInt32Property("orientationtype", (int)Orientation.FacePath);
 

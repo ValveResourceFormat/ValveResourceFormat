@@ -126,6 +126,8 @@ public sealed class FuncButton : BaseToggle
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         useSound = GetSoundKeyValue("use_sound");
         lockedSound = GetSoundKeyValue("locked_sound");
         unlockedSound = GetSoundKeyValue("unlocked_sound");

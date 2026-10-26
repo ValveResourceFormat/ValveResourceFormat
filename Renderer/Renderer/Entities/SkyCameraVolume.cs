@@ -44,6 +44,8 @@ public sealed class SkyCameraVolume : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         EntitySystem.SkyCameraVolumes.Add(this);
 
         BoxMins = KeyValues.GetVector3Property("box_mins", new Vector3(-256f));

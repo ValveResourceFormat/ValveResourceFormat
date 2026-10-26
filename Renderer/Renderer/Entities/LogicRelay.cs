@@ -38,6 +38,8 @@ public sealed class LogicRelay : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         IsEnabled = !KeyValues.GetBooleanProperty("startdisabled");
 
         triggerOnce = KeyValues.ContainsKey("triggeronce")

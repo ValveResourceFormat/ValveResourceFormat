@@ -37,6 +37,8 @@ public class InfoParticleSystem : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         Effect = CreateEffect(KeyValues.GetStringProperty("effect_name"), LoadSnapshot(EntitySystem.FileLoader, KeyValues));
 
         if (Effect == null)

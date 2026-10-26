@@ -114,6 +114,8 @@ public class FuncDoor : BaseToggle
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         var localDirection = ResolveEntitySpaceMoveDirection();
 
         // Only an unset speed falls back; a negative one is kept

@@ -51,6 +51,8 @@ public sealed class InfoWorldLayer : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         if (IsVisibleOnSpawn)
         {
             SpawnLayerEntities();

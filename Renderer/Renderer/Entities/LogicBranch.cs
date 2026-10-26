@@ -22,6 +22,8 @@ public sealed class LogicBranch : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         Value = KeyValues.GetBooleanProperty("initialvalue");
     }
 

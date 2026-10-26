@@ -38,6 +38,8 @@ public class FuncBrush : BaseModelEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         Solidity = (SolidityMode)KeyValues.GetInt32Property("solidity");
 
         SetEnabled(!KeyValues.GetBooleanProperty("startdisabled"));

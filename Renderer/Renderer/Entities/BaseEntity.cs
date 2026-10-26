@@ -129,8 +129,8 @@ public abstract class BaseEntity
     private const float PushStepSize = 18f;
 
     /// <summary>
-    /// Resolves <c>parentname</c> once everything has spawned, making the authored world pose local to the
-    /// parent.
+    /// Resolves <c>parentname</c> once the spawn group has created its entities, making the authored world
+    /// pose local to the parent. An attachment is linked later, by <see cref="LinkMoveParentAttachment"/>.
     /// </summary>
     internal void ResolveMoveParent()
     {
@@ -187,52 +187,65 @@ public abstract class BaseEntity
         }
 
         var data = Data!;
-        var useLocalOffset = data.GetBooleanProperty("uselocaloffset");
-        var authoredLocalOrigin = data.GetVector3Property("local.origin");
-        var authoredLocalAngles = data.GetVector3Property("local.angles");
+        var world = RigidTransform;
 
-        if (!string.IsNullOrEmpty(attachmentName) && attachmentName != "!absorigin"
-            && MoveParent is BaseModelEntity { ModelNode: { } parentModel } && parentModel.HasAttachmentOrBone(attachmentName))
+        parentFrameKind = ParentFrameKind.Entity;
+
+        if (data.GetBooleanProperty("uselocaloffset"))
         {
-            parentFrameKind = ParentFrameKind.Attachment;
-            parentAttachmentName = attachmentName;
-
-            // Snapped onto the attachment unless an offset from it was authored
-            if (useLocalOffset)
-            {
-                SetPose(authoredLocalOrigin, authoredLocalAngles);
-            }
-            else
-            {
-                SetPose(Vector3.Zero, Vector3.Zero);
-            }
-
-            AttachToParentModel(parentModel);
+            SetPose(data.GetVector3Property("local.origin"), data.GetVector3Property("local.angles"));
         }
-        else
+        else if (!data.GetBooleanProperty("positioninlocalspace"))
         {
-            if (!string.IsNullOrEmpty(attachmentName) && attachmentName != "!absorigin")
-            {
-                EntitySystem.Logger.LogWarning("{Classname} '{TargetName}' is parented to {AttachmentName} on '{ParentName}', which has no such attachment or bone",
-                    Classname, TargetName, attachmentName, MoveParent.TargetName);
-            }
+            // Keeps the authored world pose, now relative to the parent
+            SetWorldPose(world);
+        }
 
-            var world = RigidTransform;
-
-            parentFrameKind = ParentFrameKind.Entity;
-
-            if (useLocalOffset)
-            {
-                SetPose(authoredLocalOrigin, authoredLocalAngles);
-            }
-            else if (!data.GetBooleanProperty("positioninlocalspace"))
-            {
-                // Keeps the authored world pose, now relative to the parent
-                SetWorldPose(world);
-            }
+        // The parent's model only exists once it has spawned, so the attachment is linked as this one spawns
+        if (!string.IsNullOrEmpty(attachmentName) && attachmentName != "!absorigin")
+        {
+            parentAttachmentName = attachmentName;
         }
 
         MoveParent.moveChildren.Add(this);
+
+        SnapInterpolation();
+    }
+
+    /// <summary>
+    /// Snaps onto the attachment named by <c>parentattachmentname</c>, once the parent has spawned and this
+    /// entity has built its own nodes.
+    /// </summary>
+    private void LinkMoveParentAttachment()
+    {
+        if (parentAttachmentName == null || MoveParent == null)
+        {
+            return;
+        }
+
+        if (MoveParent is not BaseModelEntity { ModelNode: { } parentModel } || !parentModel.HasAttachmentOrBone(parentAttachmentName))
+        {
+            EntitySystem.Logger.LogWarning("{Classname} '{TargetName}' is parented to {AttachmentName} on '{ParentName}', which has no such attachment or bone",
+                Classname, TargetName, parentAttachmentName, MoveParent.TargetName);
+            parentAttachmentName = null;
+            return;
+        }
+
+        parentFrameKind = ParentFrameKind.Attachment;
+
+        var data = Data!;
+
+        // Snapped onto the attachment unless an offset from it was authored
+        if (data.GetBooleanProperty("uselocaloffset"))
+        {
+            SetPose(data.GetVector3Property("local.origin"), data.GetVector3Property("local.angles"));
+        }
+        else
+        {
+            SetPose(Vector3.Zero, Vector3.Zero);
+        }
+
+        AttachToParentModel(parentModel);
 
         SnapInterpolation();
     }
@@ -413,15 +426,6 @@ public abstract class BaseEntity
         LayerName = spawnInfo.LayerName;
 
         UpdateTransform();
-
-        // Last, so the override reads a fully built entity. Only the field initializers of the deriving
-        // class have run by now, which is all any override here needs.
-        RootNode = CreateRootNode();
-
-        if (RootNode != null)
-        {
-            AddNode(RootNode);
-        }
     }
 
     /// <summary>
@@ -530,11 +534,23 @@ public abstract class BaseEntity
         => (SpawnFlags & Unsafe.BitCast<TSpawnFlags, uint>(flags)) != 0;
 
     /// <summary>
-    /// Sets up the entity (model, class keyvalues, first think). Called by <see cref="EntityFactory"/>
-    /// right after construction, before the entity enters the world.
+    /// Sets up the entity (model, class keyvalues, first think). Called once its spawn group has created all of
+    /// its entities, after its move parent has spawned.
     /// </summary>
+    /// <remarks>
+    /// An override calls this first: it builds the node from <see cref="CreateRootNode"/> and snaps the entity
+    /// onto its parent's attachment, which the rest of the override reads.
+    /// </remarks>
     public virtual void Spawn()
     {
+        RootNode = CreateRootNode();
+
+        if (RootNode != null)
+        {
+            AddNode(RootNode);
+        }
+
+        LinkMoveParentAttachment();
     }
 
     /// <summary>

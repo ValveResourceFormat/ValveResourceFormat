@@ -27,6 +27,8 @@ public sealed class PointSoundEvent : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         SoundName = KeyValues.GetStringProperty("soundname");
     }
 

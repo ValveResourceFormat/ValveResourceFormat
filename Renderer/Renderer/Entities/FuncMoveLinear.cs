@@ -57,6 +57,8 @@ public class FuncMoveLinear : BaseToggle
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         var localDirection = ResolveEntitySpaceMoveDirection();
 
         Lip = KeyValues.GetFloatProperty("lip");

@@ -25,6 +25,8 @@ public sealed class TriggerTeleport : BaseTrigger
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         InitTrigger();
     }
 

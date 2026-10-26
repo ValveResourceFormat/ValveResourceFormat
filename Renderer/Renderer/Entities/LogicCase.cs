@@ -26,6 +26,8 @@ public sealed class LogicCase : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         for (var i = 0; i < CaseCount; i++)
         {
             // Compiled keyvalues are lowercased, and the case number is one-based and zero-padded

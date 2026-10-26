@@ -21,6 +21,8 @@ public sealed class InfoVisibilityBox : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         var mode = KeyValues.GetInt32Property("cull_mode") switch
         {
             1 => VisibilityBoxMode.Outside,

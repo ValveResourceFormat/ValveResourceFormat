@@ -159,6 +159,8 @@ public class FuncTrackTrain : BaseModelEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         length = KeyValues.GetFloatProperty("wheels");
         height = KeyValues.GetFloatProperty("height");
         MaxSpeed = KeyValues.GetFloatProperty("startspeed");

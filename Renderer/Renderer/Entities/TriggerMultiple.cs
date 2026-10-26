@@ -32,6 +32,8 @@ public class TriggerMultiple : BaseTrigger
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         InitTrigger();
 
         Wait = KeyValues.GetFloatProperty("wait");

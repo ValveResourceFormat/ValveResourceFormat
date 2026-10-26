@@ -35,6 +35,8 @@ public sealed class InfoSpawnGroupLoadUnload : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         MapName = KeyValues.GetStringProperty("mapname") ?? string.Empty;
         Landmark = KeyValues.GetStringProperty("landmark") ?? string.Empty;
 

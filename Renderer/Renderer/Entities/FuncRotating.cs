@@ -121,6 +121,8 @@ public sealed class FuncRotating : BaseModelEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         // Absent means zero rather than the FGD's 20, so the guard below is what a map that omits it gets.
         FanFriction = KeyValues.GetFloatProperty("fanfriction") / 100f;
 

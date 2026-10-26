@@ -24,6 +24,8 @@ public sealed class LogicCompare : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         Value = KeyValues.GetFloatProperty("initialvalue");
         CompareValue = KeyValues.GetFloatProperty("comparevalue");
     }

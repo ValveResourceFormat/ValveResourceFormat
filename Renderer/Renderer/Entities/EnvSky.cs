@@ -36,6 +36,8 @@ public sealed class EnvSky : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         SkyMaterialName = KeyValues.GetStringProperty("skyname") ?? KeyValues.GetStringProperty("skybox_material_day");
 
         // Zero or less leaves it unset

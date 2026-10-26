@@ -241,6 +241,11 @@ public sealed class EntitySystem
 
     private static void Spawn(BaseEntity entity)
     {
+        if (entity.IsRemoved)
+        {
+            return;
+        }
+
         try
         {
             entity.Spawn();

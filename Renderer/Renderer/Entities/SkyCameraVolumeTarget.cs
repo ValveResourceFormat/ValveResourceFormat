@@ -22,6 +22,8 @@ public sealed class SkyCameraVolumeTarget : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         SkyScale = KeyValues.GetInt32Property("scale", 16);
 
         var skyMaterial = KeyValues.GetStringProperty("sky_material");

@@ -66,6 +66,8 @@ public sealed class TriggerLook : BaseTrigger
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         useVelocity = HasSpawnFlags(LookSpawnFlag.UseVelocity);
         SpawnFlags = (uint)SpawnFlag.AllowClients | (SpawnFlags & (uint)LookSpawnFlag.FireOnce);
 

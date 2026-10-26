@@ -21,6 +21,8 @@ public sealed class EnvSoundscape : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         var radius = KeyValues.GetFloatProperty("radius");
         var position = Transform.Translation;
 

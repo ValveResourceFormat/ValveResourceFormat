@@ -20,6 +20,8 @@ public sealed class FuncBreakable : BaseModelEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         Health = KeyValues.GetFloatProperty("health", 1f);
     }
 

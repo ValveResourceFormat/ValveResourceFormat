@@ -38,6 +38,8 @@ public sealed class PropDynamic : BaseModelEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         // CS2 names the starting and idle animations apart; Source 1 maps have one default for both
         IdleAnimation = NonEmpty(KeyValues.GetStringProperty("idleanim")) ?? NonEmpty(KeyValues.GetStringProperty("defaultanim"));
         idleLooping = ReadLoopMode("idleanimationloopmode");

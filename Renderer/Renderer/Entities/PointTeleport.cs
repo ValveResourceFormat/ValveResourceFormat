@@ -41,6 +41,8 @@ public sealed class PointTeleport : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         targetName = KeyValues.GetStringProperty("target");
         teleportParentedEntities = KeyValues.GetBooleanProperty("teleport_parented_entities");
         teleportUseCurrentAngle = KeyValues.GetBooleanProperty("teleport_use_current_angle");

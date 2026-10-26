@@ -14,6 +14,8 @@ public sealed class InfoMapParameters : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         Scene.EnvironmentWetness = new Vector4(
             KeyValues.GetFloatProperty("envwetnesscoverage", 1f),
             KeyValues.GetFloatProperty("envwetnessdryingamount", 0f),

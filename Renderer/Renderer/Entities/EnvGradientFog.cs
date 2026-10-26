@@ -18,6 +18,8 @@ public sealed class EnvGradientFog : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         var entity = KeyValues;
         var fogInfo = Scene.FogInfo;
 

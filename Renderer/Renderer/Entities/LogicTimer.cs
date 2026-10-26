@@ -46,6 +46,8 @@ public sealed class LogicTimer : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         useRandomTime = KeyValues.GetBooleanProperty("userandomtime");
         pauseAfterFiring = KeyValues.GetBooleanProperty("pauseafterfiring");
         initialDelay = KeyValues.GetFloatProperty("initialdelay");

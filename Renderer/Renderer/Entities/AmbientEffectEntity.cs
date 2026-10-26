@@ -27,6 +27,8 @@ public sealed class AmbientEffectEntity : BaseModelEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         Effect = CreateEffect(KeyValues.GetStringProperty("ambientfx") ?? KeyValues.GetStringProperty("ambienteffect"));
 
         if (Effect == null)

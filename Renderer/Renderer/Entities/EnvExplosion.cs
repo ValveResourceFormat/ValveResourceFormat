@@ -21,6 +21,8 @@ public sealed class EnvExplosion : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         Effect = CreateEffect(KeyValues.GetStringProperty("explosion_custom_effect"));
 
         if (Effect == null)

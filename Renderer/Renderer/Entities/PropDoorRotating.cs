@@ -146,6 +146,8 @@ public class PropDoorRotating : BaseToggle
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         angleClosed = Angles;
 
         // Swings about the door's own up axis, spread over the QAngle components as for a hinge along Z,

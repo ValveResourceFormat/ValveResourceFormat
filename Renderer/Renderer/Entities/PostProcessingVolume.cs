@@ -49,6 +49,8 @@ public sealed class PostProcessingVolume : BaseModelEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         var transform = Transform;
 
         var postProcess = new ScenePostProcessVolume(Scene)

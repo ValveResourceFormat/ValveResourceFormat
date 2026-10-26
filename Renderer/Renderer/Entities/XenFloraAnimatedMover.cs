@@ -44,6 +44,8 @@ public sealed class XenFloraAnimatedMover : BaseModelEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
+        base.Spawn();
+
         loop = KeyValues.GetBooleanProperty("loop", true);
         faceForward = KeyValues.GetBooleanProperty("face_forward", true);
         speed = KeyValues.GetFloatProperty("speed");
