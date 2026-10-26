@@ -927,19 +927,17 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     internal Vector3 ComputeOmni2Color()
         => ColorSpace.SrgbGammaToLinear(Color) * ComputeIntensity(this, 1f, 0f);
 
+    /// <summary>
+    /// The fade from full at <c>(1 - skirt) * range</c> to none at <paramref name="range"/>, as an offset and a
+    /// rate per unit of distance. A skirt that is not positive makes it a sharp cut at <c>(1 - skirt) * range</c>.
+    /// </summary>
     private static (float Offset, float Rate) ComputeDistanceFade(float range, float skirt)
     {
-        if (skirt <= 0f)
-        {
-            return (1f, 0f);
-        }
+        var fadeStart = (1f - skirt) * range;
+        var fadeEnd = MathF.Max(range, MathF.BitIncrement(fadeStart));
+        var fadeLength = fadeEnd - fadeStart;
 
-        if (skirt >= 1f)
-        {
-            return (1f, -1f / range);
-        }
-
-        return (1f / skirt, -1f / (range * skirt));
+        return (fadeEnd / fadeLength, -1f / fadeLength);
     }
 
     private static (float Bias, float Scale) ComputeAngleFade(float outerAngleDeg, float innerAngleDeg)
