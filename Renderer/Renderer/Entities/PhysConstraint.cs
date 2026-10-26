@@ -23,8 +23,8 @@ public abstract class PhysConstraint : BaseEntity
         NoConnectUntilTurnedOn = 16,
     }
 
-    // Break limits are authored as a weight in pounds
-    private const float PoundsToKilograms = 0.45359237f;
+    /// <summary>Scales a break or notify limit, authored as a weight in pounds, to a force.</summary>
+    protected const float LimitForceScale = 0.45359237f * PhysicsSimulation.GravityValue;
 
     /// <summary>Scales a friction torque in newton-metres to map units.</summary>
     protected const float FrictionTorqueScale = PhysicsSimulation.UnitsPerMeter * PhysicsSimulation.UnitsPerMeter;
@@ -48,10 +48,8 @@ public abstract class PhysConstraint : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
-        var weight = PoundsToKilograms * PhysicsSimulation.GravityValue;
-
-        forceLimit = KeyValues.GetFloatProperty("forcelimit") * weight;
-        torqueLimit = KeyValues.GetFloatProperty("torquelimit") * weight;
+        forceLimit = KeyValues.GetFloatProperty("forcelimit") * LimitForceScale;
+        torqueLimit = KeyValues.GetFloatProperty("torquelimit") * LimitForceScale;
     }
 
     // Not in Spawn, as the attached entities may be authored after this one
@@ -70,6 +68,17 @@ public abstract class PhysConstraint : BaseEntity
 
     /// <summary>Gets the world point the two bodies are joined at.</summary>
     protected virtual Vector3 JointAnchor => Origin;
+
+    /// <summary>Gets whether the two attached bodies collide with each other.</summary>
+    protected virtual bool CollidesConnected => !HasSpawnFlags(ConstraintSpawnFlags.DisableCollision);
+
+    /// <summary>Gets whether a body attached to the world without collision stops colliding with all static geometry.</summary>
+    protected virtual bool FreesFromWorldGeometry => true;
+
+    /// <summary>Gets whether the load on the joint this tick breaks the constraint.</summary>
+    protected virtual bool IsOverloaded(Joint joint, float tickInterval)
+        => (forceLimit > 0f && joint.ConstraintForce.Length() > forceLimit)
+            || (torqueLimit > 0f && joint.ConstraintTorque.Length() > torqueLimit);
 
     // Frictionless joints would swing forever; a quarter unit lever settles them within a few swings
     private const float FallbackFrictionLever = 0.25f;
@@ -129,7 +138,7 @@ public abstract class PhysConstraint : BaseEntity
 
         var connection = JointDefinition.Connect(body1, body2, frame1, frame2) with
         {
-            CollideConnected = !HasSpawnFlags(ConstraintSpawnFlags.DisableCollision),
+            CollideConnected = CollidesConnected,
         };
 
         if (CreateJoint(physics.World, connection) is { } created)
@@ -138,7 +147,7 @@ public abstract class PhysConstraint : BaseEntity
             hasJoint = true;
 
             // The world is one body: disabling world collision means disabling all static geometry
-            if (!connection.CollideConnected && (body1.Equals(physics.WorldAnchor) || body2.Equals(physics.WorldAnchor)))
+            if (FreesFromWorldGeometry && !connection.CollideConnected && (body1.Equals(physics.WorldAnchor) || body2.Equals(physics.WorldAnchor)))
             {
                 worldFreedBody = body1.Equals(physics.WorldAnchor) ? body2 : body1;
                 hasWorldFreedBody = true;
@@ -221,8 +230,7 @@ public abstract class PhysConstraint : BaseEntity
             return;
         }
 
-        if ((forceLimit > 0f && joint.ConstraintForce.Length() > forceLimit)
-            || (torqueLimit > 0f && joint.ConstraintTorque.Length() > torqueLimit))
+        if (IsOverloaded(joint, tickInterval))
         {
             Break(this);
         }
