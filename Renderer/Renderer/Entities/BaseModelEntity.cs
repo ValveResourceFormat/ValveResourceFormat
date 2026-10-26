@@ -207,8 +207,8 @@ public abstract class BaseModelEntity : BaseEntity
     /// </summary>
     protected virtual bool BuildsCollider => true;
 
-    // Only the main world group has a rigid body world
-    private bool IsRigidBodySimulated => Scene.WorldGroup == null;
+    /// <summary>Gets whether the entity is in the main world group, the only one with a rigid body world.</summary>
+    protected bool IsRigidBodySimulated => Scene.WorldGroup == null;
 
     // Without a mover body, as with mesh collision, a shapeless anchor is created for joints
     internal virtual bool TryGetConstraintBody(Vector3 anchor, out Body body)

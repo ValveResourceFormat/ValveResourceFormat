@@ -9,8 +9,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <summary>
 /// <c>prop_door_rotating</c>: a swinging model door. Swings away from whoever uses it unless <c>opendir</c>
 /// forces a side, can spawn open or ajar, and drives the other half of a double door. Doors with damage stages
-/// or break pieces in their model are breakable. The NPC blocker is not simulated. Alyx's
-/// <c>prop_door_rotating_physics</c> is the same thing, with the VR hand swing acting as a use press.
+/// or break pieces in their model are breakable. The NPC blocker is not simulated.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CPropDoorRotating">CPropDoorRotating</seealso>
 public class PropDoorRotating : BaseToggle, IDamageable
@@ -135,6 +134,9 @@ public class PropDoorRotating : BaseToggle, IDamageable
     private readonly List<PropDoorRotating> slaves = [];
 
     private Vector3 angleClosed;
+
+    /// <summary>Gets the angles of the shut door.</summary>
+    protected Vector3 ClosedAngles => angleClosed;
     private Vector3 angleOpenForward;
     private Vector3 angleOpenBack;
     private Vector3 goalAngles;
@@ -747,7 +749,8 @@ public class PropDoorRotating : BaseToggle, IDamageable
         SetMoveDoneTime(ReturnDelay + 0.1f);
     }
 
-    private void RotateTo(Vector3 angles)
+    /// <summary>Swings the door toward <paramref name="angles"/> at <see cref="BaseToggle.Speed"/>, calling <see cref="MoveDone"/> on arrival.</summary>
+    protected virtual void RotateTo(Vector3 angles)
     {
         goalAngles = angles;
         AngularMove(angles, Speed);
