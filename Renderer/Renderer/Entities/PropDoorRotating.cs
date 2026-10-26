@@ -87,7 +87,7 @@ public class PropDoorRotating : BaseToggle, IDamageable
     private const float LockSoundWait = 1f;
 
     /// <summary>Gets where the door is in its swing.</summary>
-    public DoorState State { get; private set; }
+    public DoorState State { get; protected set; }
 
     /// <summary>Gets whether the door refuses to open.</summary>
     public bool IsLocked { get; private set; }
