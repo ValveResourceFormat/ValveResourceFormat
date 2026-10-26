@@ -414,10 +414,19 @@ public class ModelHelper : EntityHelper
         return new Vector4(color.R, color.G, color.B, color.A) / byte.MaxValue;
     }
 
-    /// <summary>Gets the color the entity is drawn in: its <c>rendercolor</c>, with its <c>renderamt</c> as alpha.</summary>
+    /// <summary>
+    /// Gets the color the entity is drawn in: the <c>color_tint</c> of a node of a path, always opaque, or else its
+    /// <c>rendercolor</c>, with its <c>renderamt</c> as alpha.
+    /// </summary>
     /// <returns>The color, each channel from 0 to 1.</returns>
     private protected Vector4 GetEntityColor()
     {
+        if (Owner.EntityClass is { Kind: EntityClassKind.PathNode })
+        {
+            var tint = GetColorKey("color_tint", Color32.White);
+            return new Vector4(tint.R, tint.G, tint.B, byte.MaxValue) / byte.MaxValue;
+        }
+
         var color = GetVector3Key("rendercolor", new Vector3(byte.MaxValue));
 
         // The amount is a byte, so one meant as a fraction leaves the model all but transparent
