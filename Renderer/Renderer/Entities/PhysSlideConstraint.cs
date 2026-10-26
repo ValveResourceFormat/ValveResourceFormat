@@ -33,11 +33,19 @@ public sealed class PhysSlideConstraint : PhysConstraint
             return null;
         }
 
-        var slider = PrismaticJointDefinition.Slider(connection.BodyA, connection.BodyB, Origin, slide / length);
-
         // attach2 slides relative to attach1, unless only attach1 is dynamic
         var slidesFirst = connection.BodyA.Type == BodyType.Dynamic && connection.BodyB.Type != BodyType.Dynamic;
         var slidingBody = slidesFirst ? connection.BodyA : connection.BodyB;
+
+        // Placed at the start of the line, a positive initial offset spawns it that fraction of the way along
+        var travel = Math.Clamp(KeyValues.GetFloatProperty("initialoffset"), 0f, 1f) * length;
+
+        if (travel > 0f && slidingBody.Type == BodyType.Dynamic)
+        {
+            slidingBody.SetTransform(slidingBody.Position + slide / length * travel, slidingBody.Rotation);
+        }
+
+        var slider = PrismaticJointDefinition.Slider(connection.BodyA, connection.BodyB, Origin, slide / length);
 
         // Friction 1 about holds the slider against gravity
         var friction = KeyValues.GetFloatProperty("slidefriction");
@@ -46,8 +54,8 @@ public sealed class PhysSlideConstraint : PhysConstraint
         {
             Base = slider.Base with { CollideConnected = connection.CollideConnected },
             LimitsEnabled = HasSpawnFlags(SlideSpawnFlags.LimitEndpoints),
-            LowerTranslation = slidesFirst ? -length : 0f,
-            UpperTranslation = slidesFirst ? 0f : length,
+            LowerTranslation = slidesFirst ? travel - length : -travel,
+            UpperTranslation = slidesFirst ? travel : length - travel,
             MotorEnabled = friction > 0f,
             MotorSpeed = 0f,
             MaxMotorForce = friction * slidingBody.Mass * PhysicsSimulation.GravityValue,
