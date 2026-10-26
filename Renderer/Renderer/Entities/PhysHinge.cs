@@ -80,6 +80,15 @@ public sealed class PhysHinge : PhysConstraint
 
         // Limits are measured from the spawn pose, which is at initial_rotation
         var initialRotation = KeyValues.GetFloatProperty("initial_rotation");
+        var lower = MathF.Min(minRotation, maxRotation) - initialRotation;
+        var upper = MathF.Max(minRotation, maxRotation) - initialRotation;
+
+        // The limits are the swing of the hinged body. The joint measures attach2 against attach1, which turns
+        // the other way when attach1 is the one that swings, as a cabinet door hinged to the world is.
+        if (connection.BodyA.Type == BodyType.Dynamic)
+        {
+            (lower, upper) = (-upper, -lower);
+        }
 
         var definition = RevoluteJointDefinition.Default with
         {
@@ -87,8 +96,8 @@ public sealed class PhysHinge : PhysConstraint
 
             // An empty range means unlimited
             LimitsEnabled = minRotation != maxRotation,
-            LowerAngle = float.DegreesToRadians(MathF.Min(minRotation, maxRotation) - initialRotation),
-            UpperAngle = float.DegreesToRadians(MathF.Max(minRotation, maxRotation) - initialRotation),
+            LowerAngle = float.DegreesToRadians(lower),
+            UpperAngle = float.DegreesToRadians(upper),
 
             MotorEnabled = true,
             MotorSpeed = 0f,
