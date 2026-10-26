@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// and shut by the hinge motor and latched while closed.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/hlvr/server/CPropDoorRotatingPhysics">CPropDoorRotatingPhysics</seealso>
-public sealed class PropDoorRotatingPhysics : PropDoorRotating
+public sealed class PropDoorRotatingPhysics : PropDoorRotating, IHandGrabbable
 {
     // A latched door still rattles this far either way
     private const float LatchedLimit = 0.8f;
@@ -232,6 +232,43 @@ public sealed class PropDoorRotatingPhysics : PropDoorRotating
         if (State == DoorState.Closed)
         {
             Latch();
+        }
+    }
+
+    /// <inheritdoc/>
+    public void BeginHandGrab()
+    {
+        if (!hasHinge)
+        {
+            return;
+        }
+
+        // The hand takes over from the motor, and pulling the handle releases the latch
+        isDriving = false;
+        brakeTimeLeft = 0f;
+        hinge.MotorSpeed = 0f;
+        hinge.MaxMotorTorque = frictionTorque;
+        SetMoveDoneTime(-1f);
+        Unlatch();
+    }
+
+    /// <inheritdoc/>
+    public void EndHandGrab()
+    {
+        if (!hasHinge)
+        {
+            return;
+        }
+
+        // Let go shut it latches, anywhere else it is open
+        if (MathF.Abs(HingeAngle) <= LatchedLimit)
+        {
+            State = DoorState.Closed;
+            Latch();
+        }
+        else
+        {
+            State = DoorState.Open;
         }
     }
 

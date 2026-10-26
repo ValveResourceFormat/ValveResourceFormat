@@ -37,6 +37,9 @@ public sealed class PlayerEntity : BaseEntity
     private const float CarryBreakDistance = 64f;
     private const float CarryBreakTime = 0.5f;
 
+    // Holding use this long on a body grabs it at the aimed point, letting go sooner is a press
+    private const float GrabHoldTime = 0.25f;
+
     /// <summary>Gets the controller whose state this entity reflects.</summary>
     public IPlayerController Controller { get; }
 
@@ -73,6 +76,17 @@ public sealed class PlayerEntity : BaseEntity
     private bool hasCarryJoint;
 
     private bool carryHandArrived;
+
+    private bool isUsePending;
+    private float usePressTime;
+
+    private Body grabBody;
+    private Body grabHand;
+    private MotorJoint grabJoint;
+    private bool hasGrab;
+    private Vector3 grabLocalPoint;
+    private float grabDistance;
+    private float grabStrainTime;
 
     /// <summary>Creates the player entity for a movement controller.</summary>
     public PlayerEntity(EntitySystem system, Scene scene, IPlayerController controller) : base(system, scene, "player")
@@ -128,25 +142,68 @@ public sealed class PlayerEntity : BaseEntity
         // The controller owns the position, nothing to integrate
         SyncFromController();
 
+        UpdateUse();
+
+        UpdatePhysicsPresence(tickInterval);
+    }
+
+    // A press on a body waits to see whether it becomes a hold, anything else acts at once
+    private void UpdateUse()
+    {
+        var isHolding = Buttons.Holding(TrackedKeys.E);
+
         if (Buttons.Pressed(TrackedKeys.E))
         {
             if (Carried != null)
             {
                 Drop();
             }
-            else if (PressUse() == null)
+            else if (isHolding && FindGrabTarget(out _, out _))
             {
-                TryPickup();
+                isUsePending = true;
+                usePressTime = EntitySystem.CurrentTime;
+            }
+            else
+            {
+                Press();
+            }
+
+            return;
+        }
+
+        if (isUsePending)
+        {
+            if (!isHolding)
+            {
+                isUsePending = false;
+                Press();
+            }
+            else if (EntitySystem.CurrentTime - usePressTime >= GrabHoldTime)
+            {
+                isUsePending = false;
+                TryGrab();
             }
         }
 
-        UpdatePhysicsPresence(tickInterval);
+        if (hasGrab && !isHolding)
+        {
+            ReleaseGrab();
+        }
+    }
+
+    private void Press()
+    {
+        if (PressUse() == null)
+        {
+            TryPickup();
+        }
     }
 
     /// <inheritdoc/>
     internal override void FrameSimulate(float frameTime)
     {
         UpdateCarry(frameTime);
+        UpdateGrab(frameTime);
     }
 
     private void SyncFromController()
@@ -422,6 +479,122 @@ public sealed class PlayerEntity : BaseEntity
         }
     }
 
+    // Bodies within use range a hand can take hold of
+    private bool FindGrabTarget(out Body body, out Vector3 point)
+    {
+        body = default;
+        point = default;
+
+        if (EntitySystem.PhysicsOrNull is not { } physics)
+        {
+            return false;
+        }
+
+        var eyePosition = Controller.EyePosition;
+        var hit = physics.World.RaycastClosest(eyePosition, Controller.ViewForward * UseRange,
+            new QueryFilter(~PhysicsSimulation.PlayerCategory,
+                PhysicsSimulation.StaticCategory | PhysicsSimulation.PropCategory
+                | PhysicsSimulation.DebrisCategory | PhysicsSimulation.RagdollCategory | PhysicsSimulation.MoverCategory));
+
+        if (!hit.Hit || hit.Shape.Body.Type != BodyType.Dynamic || physics.GetOwner(hit.Shape.Body) is not { IsRemoved: false })
+        {
+            return false;
+        }
+
+        body = hit.Shape.Body;
+        point = hit.Point;
+        return true;
+    }
+
+    private void TryGrab()
+    {
+        if (hasGrab || !FindGrabTarget(out var body, out var point))
+        {
+            return;
+        }
+
+        var physics = EntitySystem.Physics;
+
+        grabBody = body;
+        grabLocalPoint = body.ToLocalPoint(point);
+        grabDistance = Vector3.Distance(Controller.EyePosition, point);
+        grabStrainTime = 0f;
+        grabHand = physics.World.CreateKinematicBody(point, Quaternion.Identity);
+
+        // Position only, the body turns about the grabbed point on its own constraints
+        grabJoint = physics.World.CreateMotorJoint(MotorJointDefinition.Default with
+        {
+            Base = JointDefinition.Connect(grabHand, body, JointFrame.Identity, new JointFrame(grabLocalPoint)),
+            LinearHertz = CarryHertz,
+            LinearDampingRatio = CarryDampingRatio,
+            MaxSpringForce = body.Mass * MaxCarryAcceleration,
+            AngularHertz = 0f,
+            MaxSpringTorque = 0f,
+            MaxVelocityForce = 0f,
+            MaxVelocityTorque = 0f,
+        });
+        hasGrab = true;
+        body.IsAwake = true;
+
+        (physics.GetOwner(body) as IHandGrabbable)?.BeginHandGrab();
+    }
+
+    // The grabbed point follows the aim at the distance it was taken at
+    private void UpdateGrab(float deltaTime)
+    {
+        if (!hasGrab || deltaTime <= 1e-6f)
+        {
+            return;
+        }
+
+        if (!grabBody.IsValid || !grabJoint.AsJoint.IsValid)
+        {
+            ReleaseGrab();
+            return;
+        }
+
+        var (eyePosition, forward, _) = GetHoldView();
+        var target = eyePosition + forward * grabDistance;
+
+        grabHand.MoveTowards(target, Quaternion.Identity, deltaTime, wake: true);
+
+        if (Vector3.Distance(grabBody.ToWorldPoint(grabLocalPoint), target) > CarryBreakDistance)
+        {
+            grabStrainTime += deltaTime;
+
+            if (grabStrainTime >= CarryBreakTime)
+            {
+                ReleaseGrab();
+            }
+        }
+        else
+        {
+            grabStrainTime = 0f;
+        }
+    }
+
+    private void ReleaseGrab()
+    {
+        if (!hasGrab)
+        {
+            return;
+        }
+
+        hasGrab = false;
+
+        if (grabJoint.AsJoint.IsValid)
+        {
+            grabJoint.AsJoint.Destroy();
+        }
+
+        grabHand.Destroy();
+
+        if (grabBody.IsValid)
+        {
+            (EntitySystem.PhysicsOrNull?.GetOwner(grabBody) as IHandGrabbable)?.EndHandGrab();
+        }
+    }
+
     private void Drop()
     {
         ReleaseCarryJoint();
@@ -447,6 +620,7 @@ public sealed class PlayerEntity : BaseEntity
         base.OnRemove();
 
         Drop();
+        ReleaseGrab();
 
         if (hasPresenceBody)
         {
