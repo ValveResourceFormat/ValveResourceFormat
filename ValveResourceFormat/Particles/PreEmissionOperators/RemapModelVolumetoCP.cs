@@ -6,7 +6,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
     /// Measures the model a control point carries, by its volume, dimensions, corners, radius or
     /// surface area, and writes the measure to one or two other control points, remapped from an
     /// input range to an output range where it is a single number. The measure is of the box
-    /// around the model's own meshes, in the model's space.
+    /// around the model's physics shapes, in the model's space.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RemapModelVolumetoCP">C_OP_RemapModelVolumetoCP</seealso>
     class RemapModelVolumetoCP : ParticleFunctionPreEmissionOperator
@@ -33,6 +33,9 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
         private readonly float outputMax = 1f;
         private readonly bool cubeRoot = true;
 
+        /// <summary>Whether the volume is the box product, rather than the summed volume of the physics shapes.</summary>
+        private readonly bool boxOnly = true;
+
         public RemapModelVolumetoCP(ParticleDefinitionParser parse) : base(parse)
         {
             boxType = parse.Enum("m_nBBoxType", boxType);
@@ -45,6 +48,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             outputMin = parse.Float("m_flOutputMin", outputMin);
             outputMax = parse.Float("m_flOutputMax", outputMax);
             cubeRoot = parse.Boolean("m_bCubeRoot", cubeRoot);
+            boxOnly = parse.Boolean("m_bBBoxOnly", boxOnly);
 
             if (inputControlPoint == outputControlPoint)
             {
@@ -60,13 +64,24 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             }
 
             var model = particleSystemState.GetControlPoint(inputControlPoint).ResolveModelObject()?.Model;
-            var bounds = model != null ? ModelElements.Bounds(model, particleSystemState.Data?.FileLoader) : default;
+            var fileLoader = particleSystemState.Data?.FileLoader;
+            var bounds = model != null ? ModelElements.PhysicsBounds(model, fileLoader) : default;
             var size = bounds.Size;
 
             switch (boxType)
             {
                 case BBoxVolumeType.BBOX_VOLUME:
                     var volume = size.Y * size.X * size.Z;
+
+                    if (!boxOnly && model != null)
+                    {
+                        var physicsVolume = ModelElements.PhysicsVolume(model, fileLoader);
+
+                        if (physicsVolume != 0f)
+                        {
+                            volume = physicsVolume;
+                        }
+                    }
 
                     if (cubeRoot)
                     {

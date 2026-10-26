@@ -35,7 +35,7 @@ class TwistAroundAxis : ParticleFunctionForceGenerator
             ? ControlPointTransformProvider.TransformDirection(particleSystemState, axisControlPoint, twistAxis)
             : twistAxis;
 
-        axis = MathUtils.SafeNormalize(axis, Vector3.UnitZ);
+        axis = MathUtils.SafeNormalize(axis);
 
         var center = particleSystemState.GetControlPoint(controlPoint).Position;
         var amount = forceAmount * strength;

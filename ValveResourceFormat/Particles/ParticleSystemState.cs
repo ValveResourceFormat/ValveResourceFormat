@@ -469,6 +469,7 @@ namespace ValveResourceFormat.Particles
             set
             {
                 Owner?.NoteControlPointWrite(this);
+                IsWritten = true;
 
                 if (value != position)
                 {
@@ -506,6 +507,7 @@ namespace ValveResourceFormat.Particles
         public void SetOrientation(Vector3 forward, Vector3 left, Vector3 up)
         {
             Owner?.NoteControlPointWrite(this);
+            IsWritten = true;
 
             if (forward != this.forward || left != this.left || up != this.up)
             {
@@ -572,12 +574,15 @@ namespace ValveResourceFormat.Particles
         /// </summary>
         public float ChangeAge => (Owner?.Age ?? 0f) - ChangeTime;
 
+        /// <summary>Whether the position or orientation has ever been written, even with the value it already had.</summary>
+        internal bool IsWritten { get; private set; }
+
         private void Stamp() => ChangeTime = Owner?.Age ?? 0f;
 
-        /// <summary>The position, axes and change time of a control point.</summary>
-        internal readonly record struct SavedState(Vector3 Position, Vector3 Forward, Vector3 Left, Vector3 Up, float ChangeTime);
+        /// <summary>The position, axes, change time and written state of a control point.</summary>
+        internal readonly record struct SavedState(Vector3 Position, Vector3 Forward, Vector3 Left, Vector3 Up, float ChangeTime, bool IsWritten);
 
-        internal SavedState Save() => new(position, forward, left, up, ChangeTime);
+        internal SavedState Save() => new(position, forward, left, up, ChangeTime, IsWritten);
 
         internal void Restore(SavedState state)
         {
@@ -586,6 +591,7 @@ namespace ValveResourceFormat.Particles
             left = state.Left;
             up = state.Up;
             ChangeTime = state.ChangeTime;
+            IsWritten = state.IsWritten;
         }
 
         internal void RewindChange()

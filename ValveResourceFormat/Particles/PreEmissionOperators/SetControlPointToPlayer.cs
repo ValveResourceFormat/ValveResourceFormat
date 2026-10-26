@@ -2,8 +2,8 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 {
     /// <summary>
     /// Keeps a control point on the local player, so the effect can react to where the player is.
-    /// The control point is written on this system and every system below it, and goes to the world
-    /// origin with no rotation when there is no player.
+    /// The control point is written on this system and every system below it. When there is no player,
+    /// it goes to the render camera with no rotation.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetControlPointToPlayer">C_OP_SetControlPointToPlayer</seealso>
     class SetControlPointToPlayer : ParticleFunctionPreEmissionOperator
@@ -33,7 +33,9 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
         public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             var player = particleSystemState.Player;
-            var playerPosition = Vector3.Zero;
+            // The local player is normally where the view is, and effects such as smoke shade their
+            // particles by the direction to it, so the camera stands in for a missing player
+            var playerPosition = particleSystemState.CameraPosition;
             var orientation = Quaternion.Identity;
 
             if (player != null && player.TryGetPosition(position, out var found))

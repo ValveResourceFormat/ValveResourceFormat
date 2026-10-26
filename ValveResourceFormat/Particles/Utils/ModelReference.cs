@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Particles.Utils
                 return null;
             }
 
-            var modelPath = fromRenderer ? FirstRendererModel(simulation.Definition) : path;
+            var modelPath = fromRenderer ? FirstRendererModel(simulation.Definition, path) : path;
 
             if (string.IsNullOrEmpty(modelPath))
             {
@@ -37,22 +37,27 @@ namespace ValveResourceFormat.Particles.Utils
             return simulation.FileLoader.LoadFileCompiled(modelPath)?.DataBlock as Model;
         }
 
-        private static string? FirstRendererModel(KVObject definition)
+        /// <summary>
+        /// Only the first renderer counts, through its first model entry. A system without renderers
+        /// keeps the named model.
+        /// </summary>
+        private static string? FirstRendererModel(KVObject definition, string namedModel)
         {
-            foreach (var renderer in definition.GetArray("m_Renderers") ?? [])
-            {
-                foreach (var entry in renderer.GetArray("m_ModelList") ?? [])
-                {
-                    var model = entry.GetStringProperty("m_model");
+            var renderers = definition.GetArray("m_Renderers");
 
-                    if (!string.IsNullOrEmpty(model))
-                    {
-                        return model;
-                    }
-                }
+            if (renderers is not { Count: > 0 })
+            {
+                return namedModel;
             }
 
-            return null;
+            var models = renderers[0].GetArray("m_ModelList");
+
+            if (models is not { Count: > 0 })
+            {
+                return null;
+            }
+
+            return models[0].GetStringProperty("m_model");
         }
     }
 }

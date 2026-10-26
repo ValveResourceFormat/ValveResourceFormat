@@ -46,7 +46,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
             for (var cp = Math.Max(0, headLocationMin); cp < headLocationMax; cp++)
             {
-                if (cp <= particleSystemState.HighestControlPoint && particleSystemState.GetControlPoint(cp).ChangeTime != -1f)
+                if (cp <= particleSystemState.HighestControlPoint && particleSystemState.GetControlPoint(cp).IsWritten)
                 {
                     activeControlPoints.Add(cp);
                 }

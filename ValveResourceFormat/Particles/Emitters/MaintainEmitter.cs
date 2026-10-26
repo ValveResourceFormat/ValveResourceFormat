@@ -56,11 +56,15 @@ namespace ValveResourceFormat.Particles.Emitters
         public override void Restart(ParticleSystemState particleSystemState)
         {
             timeBase = particleSystemState.Age;
+            emitting = true;
+            finalEmitPending = false;
+            rateBudget = 0f;
         }
 
         public override void StartEmission()
         {
             emitting = true;
+            finalEmitPending = false;
         }
 
         public override void StopEmission()
@@ -85,7 +89,9 @@ namespace ValveResourceFormat.Particles.Emitters
                 return false;
             }
 
-            return emitting && !(OpFadeOscillatePeriod != 0f && GetFunctionTime(particleSystemState) > OpEndFadeOutTime);
+            // Unlike the other emitters, only an oscillating fade with a fade out time stops emission past the fade out
+            var isPastFadeOut = OpFadeOscillatePeriod != 0f && OpEndFadeOutTime > 0f && GetFunctionTime(particleSystemState) > OpEndFadeOutTime;
+            return emitting && !isPastFadeOut;
         }
 
         public override void Emit(ParticleSystemState particleSystemState, float strength, Action<float> emit)

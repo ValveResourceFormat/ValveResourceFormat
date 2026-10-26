@@ -1,6 +1,7 @@
 using System.Linq;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Utils
@@ -41,6 +42,8 @@ namespace ValveResourceFormat.Particles.Utils
 
         private static readonly ModelCache<string[]> SequenceNameCache = new(ReadSequenceNames);
         private static readonly ModelCache<AABB> BoundsCache = new(ReadBounds);
+        private static readonly ModelCache<AABB> PhysicsBoundsCache = new(ReadPhysicsBounds);
+        private static readonly ModelCache<float> PhysicsVolumeCache = new(ReadPhysicsVolume);
 
         /// <summary>
         /// The names of the model's sequences in index order: the sequences it embeds, then those of
@@ -118,6 +121,164 @@ namespace ValveResourceFormat.Particles.Utils
         /// Zero when there are none.
         /// </summary>
         public static AABB Bounds(Model model, IFileLoader? fileLoader) => BoundsCache.Get(model, fileLoader);
+
+        /// <summary>
+        /// The box around the model's physics shapes, each placed by its part's bind pose, in the model's
+        /// own space. A model with no physics shapes gives its stored view bounds, or its hull bounds
+        /// when those are zero.
+        /// </summary>
+        public static AABB PhysicsBounds(Model model, IFileLoader? fileLoader) => PhysicsBoundsCache.Get(model, fileLoader);
+
+        /// <summary>
+        /// The summed volume of the model's physics spheres, capsules and hulls, in the model's own space.
+        /// Zero when there are none.
+        /// </summary>
+        public static float PhysicsVolume(Model model, IFileLoader? fileLoader) => PhysicsVolumeCache.Get(model, fileLoader);
+
+        private static PhysAggregateData? LoadPhysics(Model model, IFileLoader? fileLoader)
+        {
+            var embedded = model.GetEmbeddedPhys();
+
+            if (embedded != null)
+            {
+                return embedded;
+            }
+
+            var referenced = model.GetReferencedPhysNames().FirstOrDefault();
+
+            if (referenced == null)
+            {
+                return null;
+            }
+
+            return fileLoader?.LoadFileCompiled(referenced)?.DataBlock as PhysAggregateData;
+        }
+
+        private static AABB ReadPhysicsBounds(Model model, IFileLoader? fileLoader)
+        {
+            var physics = LoadPhysics(model, fileLoader);
+            AABB? bounds = null;
+
+            if (physics != null)
+            {
+                var parts = physics.Parts;
+                var bindPoses = physics.BindPose;
+
+                for (var partIndex = 0; partIndex < parts.Length; partIndex++)
+                {
+                    if (ShapeBounds(parts[partIndex].Shape) is not { } partBounds)
+                    {
+                        continue;
+                    }
+
+                    if (partIndex < bindPoses.Length)
+                    {
+                        partBounds = partBounds.Transform(bindPoses[partIndex]);
+                    }
+
+                    bounds = bounds?.Union(partBounds) ?? partBounds;
+                }
+            }
+
+            if (bounds is { } physicsBounds && physicsBounds != default)
+            {
+                return physicsBounds;
+            }
+
+            var viewBounds = StoredBounds(model, "m_vViewMin", "m_vViewMax");
+
+            if (viewBounds != default)
+            {
+                return viewBounds;
+            }
+
+            return StoredBounds(model, "m_vHullMin", "m_vHullMax");
+        }
+
+        private static AABB StoredBounds(Model model, string minKey, string maxKey)
+        {
+            var min = model.Data.GetSubCollection(minKey);
+            var max = model.Data.GetSubCollection(maxKey);
+
+            if (min == null || max == null)
+            {
+                return default;
+            }
+
+            return new AABB(min.ToVector3(), max.ToVector3());
+        }
+
+        private static AABB? ShapeBounds(Shape shape)
+        {
+            AABB? bounds = null;
+
+            foreach (var sphere in shape.GetAllSpheres())
+            {
+                var sphereBounds = new AABB(sphere.Shape.Center, sphere.Shape.Radius);
+                bounds = bounds?.Union(sphereBounds) ?? sphereBounds;
+            }
+
+            foreach (var capsule in shape.GetAllCapsules())
+            {
+                var radius = new Vector3(capsule.Shape.Radius);
+
+                foreach (var center in capsule.Shape.Center)
+                {
+                    var endBounds = new AABB(center - radius, center + radius);
+                    bounds = bounds?.Union(endBounds) ?? endBounds;
+                }
+            }
+
+            foreach (var hull in shape.GetAllHulls())
+            {
+                var hullBounds = new AABB(hull.Shape.Min, hull.Shape.Max);
+                bounds = bounds?.Union(hullBounds) ?? hullBounds;
+            }
+
+            foreach (var mesh in shape.GetAllMeshes())
+            {
+                var meshBounds = new AABB(mesh.Shape.Min, mesh.Shape.Max);
+                bounds = bounds?.Union(meshBounds) ?? meshBounds;
+            }
+
+            return bounds;
+        }
+
+        private static float ReadPhysicsVolume(Model model, IFileLoader? fileLoader)
+        {
+            var physics = LoadPhysics(model, fileLoader);
+
+            if (physics == null)
+            {
+                return 0f;
+            }
+
+            var volume = 0f;
+
+            foreach (var part in physics.Parts)
+            {
+                foreach (var sphere in part.Shape.Spheres)
+                {
+                    var radius = sphere.Shape.Radius;
+                    volume += 4f / 3f * MathF.PI * radius * radius * radius;
+                }
+
+                foreach (var capsule in part.Shape.Capsules)
+                {
+                    var radius = capsule.Shape.Radius;
+                    var centers = capsule.Shape.Center;
+                    var length = centers.Length >= 2 ? Vector3.Distance(centers[0], centers[1]) : 0f;
+                    volume += MathF.PI * radius * radius * (length + (4f / 3f * radius));
+                }
+
+                foreach (var hull in part.Shape.Hulls)
+                {
+                    volume += hull.Shape.Volume;
+                }
+            }
+
+            return volume;
+        }
 
         private static AABB ReadBounds(Model model, IFileLoader? fileLoader)
         {
