@@ -65,6 +65,8 @@ public sealed class SceneViewState
     private readonly Frustum casterCullFrustum = new();
     private bool hasGpuCulledCasters;
 
+    private bool staticFrontFacesOnly;
+
     private readonly List<SceneNode> cullResults = [];
     private int staticCullCount;
     private readonly Plane[] lastFrustumPlanes = new Plane[6];
@@ -119,9 +121,10 @@ public sealed class SceneViewState
 
     // A bit per node ID instead of draw lists, as there can be hundreds of barn light faces
     private uint[] visibleBits = [];
+    private uint[] frontFaceBits = [];
     private int visibleWords;
 
-    private VisibleNodeEnumerator EnumerateVisibleNodes() => new(Scene, visibleBits.AsSpan(0, visibleWords));
+    private VisibleNodeEnumerator EnumerateNodes(uint[] bits) => new(Scene, bits.AsSpan(0, visibleWords));
 
     private ref struct VisibleNodeEnumerator(Scene scene, ReadOnlySpan<uint> bits)
     {
@@ -668,7 +671,7 @@ public sealed class SceneViewState
         => Enum.GetValues<DepthOnlyBucket>().ToDictionary(static bucket => bucket, static _ => new List<MeshBatchRenderer.Request>());
 
     internal (float Min, float Max) CollectShadowCasters(Frustum frustum, bool includeStatic, ObjectTypeFlags skipFlags, VisibilityBoxCuller boxes, Vector3 depthFitAxis,
-        bool cullAggregatesOnGpu)
+        bool cullAggregatesOnGpu, bool staticFrontFacesOnly)
     {
         var depthMin = float.MaxValue;
         var depthMax = float.MinValue;
@@ -694,11 +697,15 @@ public sealed class SceneViewState
         if (visibleBits.Length < visibleWords)
         {
             visibleBits = new uint[visibleWords];
+            frontFaceBits = new uint[visibleWords];
         }
         else
         {
             Array.Clear(visibleBits, 0, visibleWords);
+            Array.Clear(frontFaceBits, 0, visibleWords);
         }
+
+        this.staticFrontFacesOnly = staticFrontFacesOnly;
 
         // Every fragment the GPU may draw is marked, as the flags and the material decide too
         var cullOnGpu = cullAggregatesOnGpu && Scene.DrawMeshletsIndirect;
@@ -711,9 +718,15 @@ public sealed class SceneViewState
         }
 
         var pvs = Pvs.Span;
+        var casters = GetFrustumCullResults(frustum, includeStatic, boxes);
 
-        foreach (var node in GetFrustumCullResults(frustum, includeStatic, boxes))
+        for (var i = 0; i < casters.Count; i++)
         {
+            var node = casters[i];
+
+            // The static results come first
+            var bits = staticFrontFacesOnly && i < staticCullCount ? frontFaceBits : visibleBits;
+
             switch (TestNodeCull(node, pvs, boxes))
             {
                 case NodeCull.Hidden:
@@ -748,14 +761,14 @@ public sealed class SceneViewState
                 if (Scene.CastsShadows(indirectFragment.DrawCall.Material, indirectFragment))
                 {
                     MarkFragmentVisibleGpu(indirectFragment);
-                    MathUtils.SetBit(visibleBits, (int)indirectFragment.Parent.Id);
+                    MathUtils.SetBit(bits, (int)indirectFragment.Parent.Id);
                     hasGpuCulledCasters = true;
                 }
 
                 continue;
             }
 
-            MathUtils.SetBit(visibleBits, (int)node.Id);
+            MathUtils.SetBit(bits, (int)node.Id);
         }
 
         return (depthMin, depthMax);
@@ -1192,7 +1205,20 @@ public sealed class SceneViewState
                 | MemoryBarrierFlags.BufferUpdateBarrierBit);
         }
 
-        foreach (var node in EnumerateVisibleNodes())
+        RenderShadowCasterDraws(renderContext, depthOnlyShader, draws, visibleBits);
+
+        if (staticFrontFacesOnly)
+        {
+            // The shadow pass winds front faces clockwise
+            using var frontFaces = GraphicsContext.RenderState.Scope(cullMode: RsCullMode.Front);
+            RenderShadowCasterDraws(renderContext, depthOnlyShader, draws, frontFaceBits);
+        }
+    }
+
+    private void RenderShadowCasterDraws(Scene.RenderContext renderContext, Shader depthOnlyShader, Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> draws,
+        uint[] bits)
+    {
+        foreach (var node in EnumerateNodes(bits))
         {
             AddShadowCasterDraws(node, draws);
         }

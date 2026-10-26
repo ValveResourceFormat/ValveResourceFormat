@@ -593,7 +593,7 @@ public class Renderer : ISceneHost
             // cascades. Where the world lightmap already shadows, the two multiply into the same shadow.
             var cullFrustum = CullFrustumFor(view);
             var (depthMin, depthMax) = CollectSunCascadeCasters(view, main, cullFrustum ?? view.Camera.ViewFrustum, sunCascades.CastDirection,
-                includeBakedStatic: sky != null);
+                includeBakedStatic: sky != null, staticSunShadows: cascade == 0);
 
             sunCascadeSkyViews[cascade] = null;
 
@@ -616,7 +616,7 @@ public class Renderer : ISceneHost
                 // Its depth is measured along the cast direction scaled into sky space, then offset to where the
                 // viewer sees it. No world lightmap holds the shadows of the sky, so its static geometry casts too.
                 var (skyDepthMin, skyDepthMax) = CollectSunCascadeCasters(skyView, skyFrom, cullFrustum ?? viewerSpaceCascadeFrustum,
-                    sunCascades.CastDirection * skyTransform.Scale, includeBakedStatic: true);
+                    sunCascades.CastDirection * skyTransform.Scale, includeBakedStatic: true, staticSunShadows: cascade == 0);
                 var skyDepthOffset = Vector3.Dot(skyToWorld.Translation, sunCascades.CastDirection);
 
                 depthMin = MathF.Min(depthMin, skyDepthMin + skyDepthOffset);
@@ -642,7 +642,8 @@ public class Renderer : ISceneHost
     }
 
     // Casters cull with the visibility boxes of the frame view they cast from, as split for its eye
-    private (float Min, float Max) CollectSunCascadeCasters(in SceneView view, in SceneView from, Frustum frustum, Vector3 depthFitAxis, bool includeBakedStatic)
+    private (float Min, float Max) CollectSunCascadeCasters(in SceneView view, in SceneView from, Frustum frustum, Vector3 depthFitAxis, bool includeBakedStatic,
+        bool staticSunShadows)
     {
         var pvsEnabled = !Settings.DisableAllCulling && Settings.EnablePvsCulling;
         var depthMin = float.MaxValue;
@@ -655,13 +656,16 @@ public class Renderer : ISceneHost
 
             state.Pvs = pvsEnabled && scene.VoxelVisibility is { } visibility ? visibility.SunVisibility : default;
 
-            // Static casters are left to the lightmap only where it holds the sun shadows, including the casters
-            // marked to cast only into it
-            var lightmapHoldsStatics = !Settings.StaticSunShadows && scene.LightingInfo.HasBakedShadowsFromLightmap && scene.LightingInfo.IsSunShadowBaked;
+            var sunShadowBaked = scene.LightingInfo.HasBakedShadowsFromLightmap && scene.LightingInfo.IsSunShadowBaked;
 
+            // Static casters are left to the lightmap only where it holds the sun shadows, including the casters
+            // marked to cast only into it. Static sun shadows add their detail to the first cascade alone.
+            var lightmapHoldsStatics = sunShadowBaked && !(staticSunShadows && Settings.StaticSunShadows);
+
+            // Statics the lightmap already shadows only add detail, so they draw the faces the camera sees
             var (min, max) = state.CollectShadowCasters(frustum, includeStatic: includeBakedStatic || !lightmapHoldsStatics,
                 lightmapHoldsStatics ? ObjectTypeFlags.NoShadows | ObjectTypeFlags.NoSunShadows : ObjectTypeFlags.NoShadows,
-                from.States[i].VisibilityBoxes, depthFitAxis, cullAggregatesOnGpu: true);
+                from.States[i].VisibilityBoxes, depthFitAxis, cullAggregatesOnGpu: true, staticFrontFacesOnly: sunShadowBaked);
 
             depthMin = MathF.Min(depthMin, min);
             depthMax = MathF.Max(depthMax, max);
@@ -702,7 +706,8 @@ public class Renderer : ISceneHost
             // Static shadows of stationary lights are baked
             view.States[0].CollectShadowCasters(view.Camera.ViewFrustum,
                 includeStatic: caster.Light.DirectLight != SceneLight.DirectLightType.Stationary,
-                ObjectTypeFlags.NoShadows, Scene.VisibilityBoxes.PrepareSecondaryView(caster.Light.Position), Vector3.Zero, cullAggregatesOnGpu: false);
+                ObjectTypeFlags.NoShadows, Scene.VisibilityBoxes.PrepareSecondaryView(caster.Light.Position), Vector3.Zero, cullAggregatesOnGpu: false,
+                staticFrontFacesOnly: false);
 
             barnLightFaceRegions[barnLightFaceViewCount++] = caster.Region;
         }
