@@ -63,4 +63,7 @@ public interface IPlayerController
 
     /// <summary>Moves the player outright, keeping their velocity. Null angles keep the current ones.</summary>
     void Teleport(Vector3 feetPosition, Vector3? angles);
+
+    /// <summary>Gets how many times the player has been moved outright, by a teleport or a reset.</summary>
+    int TeleportCount { get; }
 }

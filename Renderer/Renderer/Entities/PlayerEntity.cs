@@ -51,6 +51,7 @@ public sealed class PlayerEntity : BaseEntity
     // Kinematic stand-in for the hull, shoving props the player walks into
     private Body presenceBody;
     private bool hasPresenceBody;
+    private int presenceTeleportCount;
 
     private const float MinShoveSpeed = 20f;
     private const float MaxShoveSpeed = 350f;
@@ -166,11 +167,13 @@ public sealed class PlayerEntity : BaseEntity
         {
             presenceBody = physics.CreatePlayerBody(Origin, Controller.HullHalfExtents);
             hasPresenceBody = true;
+            presenceTeleportCount = Controller.TeleportCount;
             return;
         }
 
-        if (Vector3.DistanceSquared(presenceBody.Position, Origin) > 256f * 256f)
+        if (presenceTeleportCount != Controller.TeleportCount)
         {
+            presenceTeleportCount = Controller.TeleportCount;
             presenceBody.SetTransform(Origin, null);
         }
         else
