@@ -211,12 +211,12 @@ public class CStoredCameras : DMElement
 public abstract class MapNode : DMElement
 {
     /// <summary>
-    /// Position of the node, relative to its parent.
+    /// Position of the node in the world. A child does not store it relative to its parent.
     /// </summary>
     public Vector3 Origin { get; set; }
 
     /// <summary>
-    /// Rotation of the node, relative to its parent.
+    /// Rotation of the node in the world.
     /// </summary>
     public Datamodel.QAngle Angles { get; set; }
 
@@ -735,28 +735,6 @@ public class CMapWorld : BaseEntity
             node.PostLoadFromFile();
         }
     }
-}
-
-/// <summary>
-/// Why a map node is hidden, as <see cref="CVisibilityMgr.HiddenFlags"/> stores it for each node.
-/// </summary>
-[Flags]
-public enum MapNodeHiddenFlags
-{
-    /// <summary>The node is not hidden.</summary>
-    None = 0,
-
-    /// <summary>The node was hidden by hand.</summary>
-    Hidden = 1,
-
-    /// <summary>The node is hidden through an automatic visibility group.</summary>
-    AutoHidden = 2,
-
-    /// <summary>Does not hide the node. Maps are saved with it, and it is cleared when a map is loaded.</summary>
-    Transient = 4,
-
-    /// <summary>The node is hidden by a tool that is working on it, such as what is being clipped.</summary>
-    HiddenByTool = 8,
 }
 
 /// <summary>
