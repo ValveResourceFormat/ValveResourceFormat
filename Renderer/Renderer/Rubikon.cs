@@ -101,11 +101,12 @@ public class Rubikon
 
     private int[] HullIndices { get; }
 
-    /// <summary>Initializes <see cref="Rubikon"/> by parsing the mesh and hull shapes from the first part of the physics aggregate data.</summary>
+    /// <summary>Initializes <see cref="Rubikon"/> by parsing the mesh and hull shapes from one part of the physics aggregate data.</summary>
     /// <param name="physicsData">Source physics aggregate containing shapes and collision attributes.</param>
-    public Rubikon(PhysAggregateData physicsData)
+    /// <param name="partIndex">The part to take the shapes of, in its own space.</param>
+    public Rubikon(PhysAggregateData physicsData, int partIndex = 0)
     {
-        if (physicsData.Parts.Length == 0)
+        if (partIndex >= physicsData.Parts.Length)
         {
             Compounds = [];
             Meshes = [];
@@ -115,7 +116,8 @@ public class Rubikon
             return;
         }
 
-        var worldMeshes = physicsData.Parts[0].Shape.Meshes
+        var part = physicsData.Parts[partIndex].Shape;
+        var worldMeshes = part.Meshes
             .ToArray();
 
         Meshes = new PhysicsMeshData[worldMeshes.Length];
@@ -131,9 +133,9 @@ public class Rubikon
         // we want to run player clip traces first because the mesh is much simpler
         Meshes = [.. Meshes.OrderByDescending(m => m.InteractAs.Contains("playerclip"))];
 
-        Hulls = new PhysicsHullData[physicsData.Parts[0].Shape.Hulls.Length];
+        Hulls = new PhysicsHullData[part.Hulls.Length];
         var hullIndex = 0;
-        foreach (var hullDesc in physicsData.Parts[0].Shape.Hulls)
+        foreach (var hullDesc in part.Hulls)
         {
             Hulls[hullIndex++] = CreateHullData(hullDesc.Shape, physicsData.CollisionAttributes[hullDesc.CollisionAttributeIndex],
                 GetSurfacePropertyHash(surfacePropertyHashes, hullDesc.SurfacePropertyIndex));
@@ -143,7 +145,7 @@ public class Rubikon
         HullIndices = [.. Enumerable.Range(0, Hulls.Length)];
         HullTree = BuildHullBVH();
 
-        Compounds = [.. physicsData.Parts[0].Shape.Compounds.Select(compound => CreateCompoundData(compound, physicsData.CollisionAttributes[compound.CollisionAttributeIndex], surfacePropertyHashes))];
+        Compounds = [.. part.Compounds.Select(compound => CreateCompoundData(compound, physicsData.CollisionAttributes[compound.CollisionAttributeIndex], surfacePropertyHashes))];
     }
 
     private static PhysicsMeshData CreateMeshData(ResourceTypes.RubikonPhysics.Shapes.Mesh mesh, KVObject collisionAttributes, uint[] surfacePropertyHashes, int surfacePropertyIndex)
@@ -1182,8 +1184,9 @@ public class Rubikon
             return !ContainsString(interactAs, collisionName);
         }
 
-        // Untagged geometry stops everything; a tagged shape only stops what its tags name.
-        if (interactAs.Length == 0)
+        // Untagged geometry stops everything; a tagged shape only stops what its tags name. Older assets tag
+        // plain solid geometry CONTENTS_SOLID, which stops everything as well.
+        if (interactAs.Length == 0 || ContainsString(interactAs, "CONTENTS_SOLID"))
         {
             return false;
         }
