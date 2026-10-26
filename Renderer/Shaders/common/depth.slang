@@ -36,11 +36,25 @@ vec3 GetCameraRay(vec2 vFragCoord)
 
 /// Reconstructs the world position the scene depth holds under a pixel.
 /// vScreenPosition: the pixel of the target being drawn, in gl_FragCoord units.
+/// A reduced resolution layer reads the furthest of the scene depth texels under its pixel, the same
+/// depth it is seeded with and occluded by.
 vec3 GetWorldPositionFromDepth(ivec2 vScreenPosition, vec3 vCameraRay)
 {
-    ivec2 vDepthTexel = ivec2(vec2(vScreenPosition) * g_vSceneDepthFetchScale);
+    ivec2 vScale = ivec2(g_vSceneDepthFetchScale);
+    ivec2 vOrigin = vScreenPosition * vScale;
+    ivec2 vMaxTexel = textureSize(g_tSceneDepth, 0) - 1;
 
-    return GetWorldPositionFromDepthValue(texelFetch(g_tSceneDepth, vDepthTexel, 0).x, vCameraRay);
+    float flFurthestDepth = 1.0;
+
+    for (int y = 0; y < vScale.y; y++)
+    {
+        for (int x = 0; x < vScale.x; x++)
+        {
+            flFurthestDepth = min(flFurthestDepth, texelFetch(g_tSceneDepth, min(vOrigin + ivec2(x, y), vMaxTexel), 0).x);
+        }
+    }
+
+    return GetWorldPositionFromDepthValue(flFurthestDepth, vCameraRay);
 }
 
 #endif
