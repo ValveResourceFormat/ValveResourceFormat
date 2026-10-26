@@ -46,6 +46,12 @@ namespace ValveResourceFormat.IO
         /// <summary><c>Engine2/MapMaxCoord</c>: the largest absolute coordinate of a map.</summary>
         public float MapMaxCoord { get; } = 16384f;
 
+        /// <summary><c>Engine2/RenderingPipeline/Tonemapping_DefaultAutoExposureMin</c>.</summary>
+        public float? DefaultAutoExposureMin { get; }
+
+        /// <summary><c>Engine2/RenderingPipeline/Tonemapping_DefaultAutoExposureMax</c>.</summary>
+        public float? DefaultAutoExposureMax { get; }
+
         /// <summary><c>Particles/ParticlesFoggedByDefault</c>: whether particles that leave fog to the game are fogged.</summary>
         public bool ParticlesFoggedByDefault { get; }
 
@@ -110,6 +116,12 @@ namespace ValveResourceFormat.IO
             if (root.TryGetValue("Engine2", out var engine))
             {
                 MapMaxCoord = ReadSingle(engine, "MapMaxCoord") ?? MapMaxCoord;
+
+                if (engine.TryGetValue("RenderingPipeline", out var pipeline))
+                {
+                    DefaultAutoExposureMin = ReadSingle(pipeline, "Tonemapping_DefaultAutoExposureMin");
+                    DefaultAutoExposureMax = ReadSingle(pipeline, "Tonemapping_DefaultAutoExposureMax");
+                }
             }
 
             if (root.TryGetValue("Particles", out var particles))

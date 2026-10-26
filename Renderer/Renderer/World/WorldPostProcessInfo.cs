@@ -36,6 +36,9 @@ namespace ValveResourceFormat.Renderer.World
 
         private bool isTonemapControllerMarkedMaster;
 
+        /// <summary>Gets or sets the exposure that applies where no volume or tonemap controller sets one.</summary>
+        public ExposureSettings DefaultExposureSettings { get; set; } = new();
+
         /// <summary>
         /// Registers an <c>env_tonemap_controller</c>. The last one marked master becomes
         /// <see cref="MasterTonemapController"/>, or the first one registered when none is.
@@ -98,6 +101,7 @@ namespace ValveResourceFormat.Renderer.World
         public void UpdatePostProcessing(Vector3 position, float deltaTime)
         {
             var newState = PostProcessState.Default;
+            newState.ExposureSettings = DefaultExposureSettings;
             ActiveLuts.Clear();
 
             if (MasterPostProcessVolume is { } master)

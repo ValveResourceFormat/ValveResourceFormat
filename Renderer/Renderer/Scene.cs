@@ -277,6 +277,13 @@ namespace ValveResourceFormat.Renderer
             var gameInfo = context.FileLoader.GameInfo;
             StaticOctree = new(gameInfo.MapMaxCoord * 2f);
 
+            var defaultExposure = new ExposureSettings();
+            PostProcessInfo.DefaultExposureSettings = defaultExposure with
+            {
+                ExposureMin = gameInfo.DefaultAutoExposureMin ?? defaultExposure.ExposureMin,
+                ExposureMax = gameInfo.DefaultAutoExposureMax ?? defaultExposure.ExposureMax,
+            };
+
             LightingInfo = new(this);
             ProjectedDecals = new(this);
             ParticleCollision = new(this);
