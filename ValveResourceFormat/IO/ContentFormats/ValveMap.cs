@@ -1,4 +1,6 @@
+using System.Linq;
 using Datamodel.Format;
+using ValveResourceFormat.IO.ContentFormats.HalfEdgeMesh;
 using DMElement = Datamodel.Element;
 
 namespace ValveResourceFormat.IO.ContentFormats.ValveMap;
@@ -9,6 +11,10 @@ namespace ValveResourceFormat.IO.ContentFormats.ValveMap;
 [LowercaseProperties]
 public class CMapRootElement : DMElement
 {
+    private CStoredCamera defaultCamera = [];
+    private CMapVariableSet mapVariables = [];
+    private CVisibilityMgr visibility = [];
+
     /// <summary>
     /// Whether this file is a prefab rather than a standalone map.
     /// </summary>
@@ -53,7 +59,11 @@ public class CMapRootElement : DMElement
     /// <summary>
     /// Camera Hammer opens the map with.
     /// </summary>
-    public CStoredCamera DefaultCamera { get; init; } = [];
+    public CStoredCamera DefaultCamera
+    {
+        get => defaultCamera;
+        init => defaultCamera = value;
+    }
 
     /// <summary>
     /// Saved cameras.
@@ -70,13 +80,21 @@ public class CMapRootElement : DMElement
     /// Per node hidden state.
     /// </summary>
     [DMProperty(name: "visbility")]
-    public CVisibilityMgr Visibility { get; init; } = [];
+    public CVisibilityMgr Visibility
+    {
+        get => visibility;
+        init => visibility = value;
+    }
 
     /// <summary>
     /// Map variables and their values.
     /// </summary>
     [DMProperty(name: "mapVariables")]
-    public CMapVariableSet MapVariables { get; init; } = [];
+    public CMapVariableSet MapVariables
+    {
+        get => mapVariables;
+        init => mapVariables = value;
+    }
 
     /// <summary>
     /// Root of the selection set tree.
@@ -107,6 +125,45 @@ public class CMapRootElement : DMElement
     /// </summary>
     [DMProperty(name: "nodeInstanceData")]
     public Datamodel.ElementArray NodeInstanceData { get; init; } = [];
+
+    /// <summary>
+    /// Called after the map is loaded. Lets every node convert its saved data into the form it is used in at runtime.
+    /// </summary>
+    public void PostLoadFromFile()
+    {
+        // defaults for maps lacking these
+        defaultCamera ??= Adopt(new CStoredCamera { Name = "defaultcamera" });
+        mapVariables ??= Adopt(new CMapVariableSet { Name = "mapVariables" });
+        visibility ??= Adopt(new CVisibilityMgr { Name = "visbility" });
+
+        World.PostLoadFromFile();
+        Visibility.PostLoadFromFile();
+    }
+
+    private T Adopt<T>(T element) where T : DMElement
+    {
+        Owner?.ImportElement(element, Datamodel.Datamodel.ImportRecursionMode.Recursive, Datamodel.Datamodel.ImportOverwriteMode.None);
+
+        return element;
+    }
+
+    /// <summary>
+    /// Called before the map is saved. Lets every node rebuild its saved data.
+    /// </summary>
+    public void PreSaveToFile()
+    {
+        World.PreSaveToFile();
+        Visibility.PreSaveToFile();
+    }
+
+    /// <summary>
+    /// Called after the map is saved. Lets every node discard the saved data that <see cref="PreSaveToFile"/> rebuilt.
+    /// </summary>
+    public void PostSaveToFile()
+    {
+        World.PostSaveToFile();
+        Visibility.PostSaveToFile();
+    }
 }
 
 /// <summary>
@@ -205,6 +262,98 @@ public abstract class MapNode : DMElement
     /// Map variables driving <see cref="VariableTargetKeys"/>.
     /// </summary>
     public Datamodel.StringArray VariableNames { get; init; } = [];
+
+    /// <summary>
+    /// Enumerates every node under this one, a node before its own children. A node of a class that is not
+    /// modelled here is passed over, the nodes under it are not.
+    /// </summary>
+    public IEnumerable<MapNode> EnumerateDescendants() => EnumerateDescendantElements(this).OfType<MapNode>();
+
+    // Everything in the tree under a node. A node of a class that is not modelled here is a plain element, which
+    // keeps its children in an attribute.
+    internal static IEnumerable<DMElement> EnumerateDescendantElements(DMElement node)
+    {
+        if (GetChildren(node) is not { } children)
+        {
+            yield break;
+        }
+
+        foreach (var child in children)
+        {
+            if (child == null)
+            {
+                continue;
+            }
+
+            yield return child;
+
+            foreach (var descendant in EnumerateDescendantElements(child))
+            {
+                yield return descendant;
+            }
+        }
+    }
+
+    private static Datamodel.ElementArray? GetChildren(DMElement node)
+        => node is MapNode mapNode ? mapNode.Children : node.ContainsKey("children") ? node["children"] as Datamodel.ElementArray : null;
+
+    // The nodes right under this one, looking through nodes of classes that are not modelled here
+    private IEnumerable<MapNode> EnumerateChildNodes()
+    {
+        var pending = new Stack<DMElement>();
+        pending.Push(this);
+
+        while (pending.TryPop(out var parent))
+        {
+            if (GetChildren(parent) is not { } children)
+            {
+                continue;
+            }
+
+            foreach (var child in children)
+            {
+                if (child is MapNode node)
+                {
+                    yield return node;
+                }
+                else if (child != null)
+                {
+                    pending.Push(child);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Called after the map is loaded, for the node to convert its saved data into the form it is used in at
+    /// runtime. It is not passed on to the children, the world calls it on every node under it.
+    /// </summary>
+    public virtual void PostLoadFromFile()
+    {
+    }
+
+    /// <summary>
+    /// Called before the map is saved, for the node and its children to rebuild their saved data.
+    /// </summary>
+    public virtual void PreSaveToFile()
+    {
+        foreach (var child in EnumerateChildNodes())
+        {
+            child.PreSaveToFile();
+        }
+    }
+
+    /// <summary>
+    /// Called after the map is saved, for the node and its children to discard the saved data that
+    /// <see cref="PreSaveToFile"/> rebuilt.
+    /// </summary>
+    public virtual void PostSaveToFile()
+    {
+        foreach (var child in EnumerateChildNodes())
+        {
+            child.PostSaveToFile();
+        }
+    }
 }
 
 /// <summary>
@@ -397,6 +546,19 @@ public class CMapWorld : BaseEntity
     public CMapWorld()
     {
         EntityProperties["classname"] = "worldspawn";
+    }
+
+    /// <summary>
+    /// Called once the map has been read from a file. The world passes it on to every node under it.
+    /// </summary>
+    public override void PostLoadFromFile()
+    {
+        base.PostLoadFromFile();
+
+        foreach (var node in EnumerateDescendants())
+        {
+            node.PostLoadFromFile();
+        }
     }
 }
 
@@ -804,10 +966,111 @@ public class CMapMesh : MapNode
     /// </summary>
     public string PhysicsInteractsExclude { get; set; } = string.Empty;
 
+    // Only last while a mesh is being edited, and are cleared when it is loaded
+    private const PolygonMeshFaceFlags TransientFaceFlags = PolygonMeshFaceFlags.Selected | PolygonMeshFaceFlags.CoveredByTile;
+
+    private CDmePolygonMesh? meshData = [];
+    private PolygonMesh? mesh;
+
     /// <summary>
-    /// The geometry itself.
+    /// The geometry in its saved form. After loading it is in <see cref="Mesh"/> instead and this is null, except
+    /// while the map is being saved.
     /// </summary>
-    public CDmePolygonMesh MeshData { get; init; } = [];
+    public CDmePolygonMesh? MeshData
+    {
+        get => meshData;
+        init => meshData = value;
+    }
+
+    /// <summary>
+    /// The geometry of a mesh that was loaded, see <see cref="PostLoadFromFile"/>.
+    /// </summary>
+    [DMIgnore]
+    public PolygonMesh Mesh => mesh ??= new();
+
+    /// <summary>
+    /// Converts the saved geometry into its runtime form: <see cref="MeshData"/> is copied into <see cref="Mesh"/>
+    /// and its elements are then removed from the map. Invalid parts of the mesh are removed, and the streams and
+    /// tangents every mesh is expected to have are filled in.
+    /// </summary>
+    public override void PostLoadFromFile()
+    {
+        base.PostLoadFromFile();
+
+        if (meshData is not { } stored)
+        {
+            return;
+        }
+
+        var loaded = new PolygonMesh();
+        stored.CopyToPolyMesh(loaded);
+
+        mesh = loaded;
+        meshData = null;
+        stored.Owner?.AllElements.RemoveUnreferenced(stored);
+
+        loaded.RemoveInvalidComponents();
+        loaded.RemoveIsolatedVertices();
+        loaded.InitFaceSubdivisionLevels();
+
+        // A mesh without edge flags predates smoothing by angle, and all of its edges are hard
+        if (!loaded.HasStoredStream(MeshComponentType.Edge, "flags"))
+        {
+            SmoothingAngle = 0f;
+        }
+
+        loaded.SetSmoothingAngle(SmoothingAngle);
+
+        var hadTangents = loaded.HasStoredStream(MeshComponentType.FaceVertex, "tangent");
+
+        loaded.EnsureStandardStreams();
+        loaded.ClearFaceFlags(TransientFaceFlags);
+
+        if (!hadTangents)
+        {
+            loaded.ComputeFaceVertexTangents();
+        }
+    }
+
+    /// <summary>
+    /// Rebuilds <see cref="MeshData"/> from <see cref="Mesh"/>, so that the map is saved with it.
+    /// </summary>
+    public override void PreSaveToFile()
+    {
+        base.PreSaveToFile();
+
+        // A mesh that was never loaded still has its saved data, so there is nothing to rebuild
+        if (mesh == null)
+        {
+            return;
+        }
+
+        if (meshData == null)
+        {
+            meshData = new CDmePolygonMesh { Name = "meshData" };
+
+            // The map only writes elements that belong to it
+            Owner?.ImportElement(meshData, Datamodel.Datamodel.ImportRecursionMode.Recursive, Datamodel.Datamodel.ImportOverwriteMode.None);
+        }
+
+        meshData.CopyFromPolyMesh(mesh);
+    }
+
+    /// <summary>
+    /// Removes <see cref="MeshData"/> again after the map is saved.
+    /// </summary>
+    public override void PostSaveToFile()
+    {
+        base.PostSaveToFile();
+
+        if (mesh == null || meshData is not { } stored)
+        {
+            return;
+        }
+
+        meshData = null;
+        stored.Owner?.AllElements.RemoveUnreferenced(stored);
+    }
 
     /// <summary>
     /// Whether the mesh occludes what is behind it.
