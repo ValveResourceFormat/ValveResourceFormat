@@ -336,9 +336,11 @@ Particle systems round-trip exactly: extraction re-emits the original stored KV3
 VRF's upgraded in-memory version, so decompiled `.vpcf` files match the compiled source
 (pre-KV3 NTRO-era files are re-encoded as KV3 text instead). The viewer simulates a large
 subset of particle functions and lists any unsupported functions per system in red instead
-of failing. Omni2 particle lights of the barn type are drawn as point lights. Model particles
-render in bind pose with default body groups, without `m_bAnimated` or `m_bManualAnimFrame`
-([#716](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/716)).
+of failing. Model particles pick their body groups and play their sequences, but only the
+sequences the model embeds, and activities are not resolved. Per-particle material variables (`m_MaterialVars`) are not
+applied ([#716](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/716)). Cables
+draw their end caps but no normal map, and ignore their material variables. Projected decals
+have no sheet animation.
 Screen-space effects (`m_bScreenSpaceEffect`) draw over the scene at full resolution rather than
 into a half-resolution layer, are not pickable, and only their sprite renderers face the
 screen-space view.

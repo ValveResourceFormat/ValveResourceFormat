@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Renderer.Utils
     /// tessellated into a tube by <see cref="Particles.Renderers.RenderCables"/> via
     /// <see cref="CableMeshBuilder.BuildTubeMesh"/>.
     /// </summary>
-    readonly struct RopeSample(Vector3 position, float radius, Vector3 color, float v, bool pinned, float alpha = 1f)
+    readonly struct RopeSample(Vector3 position, float radius, Vector3 color, float v, bool pinned, float alpha = 1f, Vector3? domeCenter = null)
     {
         /// <summary>Initial, origin-relative spline position (no sag).</summary>
         public readonly Vector3 Position = position;
@@ -22,6 +22,11 @@ namespace ValveResourceFormat.Renderer.Utils
         public readonly bool Pinned = pinned;
         /// <summary>Opacity carried to the vertex color alpha, for materials that blend or alpha test.</summary>
         public readonly float Alpha = alpha;
+        /// <summary>
+        /// Where the normals of this ring point away from, shading an end cap as a dome, or null for
+        /// normals straight out from the tube's axis.
+        /// </summary>
+        public readonly Vector3? DomeCenter = domeCenter;
     }
 
     /// <summary>
@@ -241,7 +246,8 @@ namespace ValveResourceFormat.Renderer.Utils
                     var radial = (normal * MathF.Cos(angle)) + (bitangent * MathF.Sin(angle));
                     var pos = center + (radial * sample.Radius);
                     var uv = colorMapOffset + new Vector2(j / (float)sides * circumferenceRepeats, sample.V);
-                    vertices[vertexCursor++] = new CableVertex(pos, Normalize(radial), uv, color);
+                    var vertexNormal = sample.DomeCenter is { } domeCenter ? Normalize(pos - domeCenter) : Normalize(radial);
+                    vertices[vertexCursor++] = new CableVertex(pos, vertexNormal, uv, color);
                 }
             }
 

@@ -28,6 +28,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly INumberProvider outerConeAngle = new LiteralNumberProvider(180f);
         private readonly IVectorProvider coneRotationOffset = new LiteralVectorProvider(Vector3.Zero);
         private readonly INumberProvider renderFilter = new LiteralNumberProvider(1f);
+        private readonly CurveLightStyle? lightStyle;
+        private readonly INumberProvider lightStyleTime = new ParticleAgeNumberProvider();
 
         public RenderLightBeam(ParticleDefinitionParser parse, Scene scene)
             : base(parse, scene)
@@ -43,21 +45,21 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             outerConeAngle = parse.CollectionNumberProvider("m_flOuterConeAngle", outerConeAngle);
             coneRotationOffset = parse.CollectionVectorProvider("m_vecConeRotationOffset", coneRotationOffset);
             renderFilter = parse.NumberProvider("m_flRenderFilter", renderFilter);
+            lightStyle = FindLightStyle(scene, parse.String("m_strLightStyle"));
+            lightStyleTime = parse.NumberProvider("m_flLightStyleTime", lightStyleTime);
         }
 
         /// <inheritdoc/>
         protected override bool UpdateLights(ParticleCollection particles, ParticleSystemState systemState)
         {
-            if (particles.Count > 1)
-            {
-                UpdateBeams(particles, systemState);
-            }
-
-            return true;
+            return particles.Count <= 1 || UpdateBeams(particles, systemState);
         }
 
-        /// <summary>Places a light on each span.</summary>
-        private void UpdateBeams(ParticleCollection particles, ParticleSystemState systemState)
+        /// <summary>
+        /// Places a light on each span. Returns false without placing any when no light is asked for, which
+        /// leaves every light as it was.
+        /// </summary>
+        private bool UpdateBeams(ParticleCollection particles, ParticleSystemState systemState)
         {
             var current = particles.Current;
             var count = current.Length;
@@ -77,12 +79,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             if (beamCount <= 0)
             {
-                return;
+                return false;
             }
 
             var span = MathF.Max(1f, count / (float)beamCount);
             var keepLights = lightRange <= 0f || lightThickness <= 0f;
             var outerAngle = Math.Clamp(outerCone, 1f, 180f);
+
+            // An inner angle wider than the outer one inverts the fade ramp, which is not reproduced
             var innerAngle = Math.Clamp(innerCone, 0f, outerAngle);
             var light = new ParticleLightPool.LightState(
                 Color: Vector3.One,
@@ -93,7 +97,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 SpotOuterAngle: outerAngle,
                 LuminaireSize: lightThickness,
                 FallOff: lightSkirt,
-                Transform: Matrix4x4.Identity);
+                Transform: Matrix4x4.Identity,
+                NoAngleFade: innerCone >= 180f);
 
             var spanPositions = ParticleScratch.Vectors(count);
             var particleIds = current.ReadIntegers(ParticleField.ParticleId);
@@ -143,6 +148,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     TubeHalfLength = beamLength * 0.5f,
                 };
             }
+
+            return true;
         }
 
         /// <summary>The attributes the beams are built from, for every particle of a span.</summary>
@@ -167,7 +174,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             var length = positions.Length;
             var last = current.Length - 1;
-            var filters = renderFilter.Fill(current.Slice(first, Math.Min(length, current.Length - first)), systemState);
+            var spanParticles = current.Slice(first, Math.Min(length, current.Length - first));
+            var filters = renderFilter.Fill(spanParticles, systemState);
+            var styleTimes = lightStyleTime.Fill(spanParticles, systemState);
 
             for (var i = 0; i < length; i++)
             {
@@ -180,7 +189,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                 var color = ParticleColorBlend.ApplyRounded(ColorBlendType, ParticleColorBlend.ToWrappedBytes(columns.Colors[index], 255f), blend);
 
-                colorSum += ColorSpace.SrgbGammaToLinear(color.AsVector3() / 255f) * columns.Alphas[index];
+                var styleBrightness = lightStyle?.GetBrightness(styleTimes[index - first]) ?? 1f;
+
+                colorSum += ColorSpace.SrgbGammaToLinear(color.AsVector3() / 255f) * styleBrightness * columns.Alphas[index];
                 positions[i] = columns.Positions[index];
             }
 

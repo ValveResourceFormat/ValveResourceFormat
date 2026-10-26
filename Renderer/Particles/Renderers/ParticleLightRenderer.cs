@@ -76,7 +76,30 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <inheritdoc/>
         public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
+            (VisibleAlpha, VisibleRadius) = EvaluateControlPointVisibility(systemState, camera);
             drawn = true;
+        }
+
+        /// <summary>
+        /// The light colour scale from the visibility control point as the last draw saw it, 1 without one.
+        /// </summary>
+        protected float VisibleAlpha { get; private set; } = 1f;
+
+        /// <summary>
+        /// The light range scale from the visibility control point as the last draw saw it, 1 without one.
+        /// </summary>
+        protected float VisibleRadius { get; private set; } = 1f;
+
+        /// <summary>Finds the named light style of the scene's game, or null when the name is empty or unknown.</summary>
+        protected static CurveLightStyle? FindLightStyle(Scene scene, string name)
+        {
+            if (name.Length == 0)
+            {
+                return null;
+            }
+
+            scene.LightStyles.TryGetValue(name, out var style);
+            return style;
         }
 
         /// <inheritdoc/>

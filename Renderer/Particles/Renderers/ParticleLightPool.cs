@@ -21,6 +21,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <param name="FallOff">The fraction of the range the light fades over.</param>
         /// <param name="Transform">Where the light sits, facing along its first row.</param>
         /// <param name="TubeHalfLength">Half the length of a tube luminaire, along the second row.</param>
+        /// <param name="NoAngleFade">Whether the light skips fading toward the edge of its cone.</param>
+        /// <param name="BarnSizeParams">The frustum of a barn light, as <see cref="SceneLight.SizeParams"/>.</param>
+        /// <param name="BarnShape">How round a barn light's frustum is, as <see cref="SceneLight.Shape"/>.</param>
+        /// <param name="BarnSoft">How soft a barn light's frustum edges are, as <see cref="SceneLight.SoftX"/> and <see cref="SceneLight.SoftY"/>.</param>
+        /// <param name="BarnDistanceSkirt">How a barn light fades with distance, as <see cref="SceneLight.BarnDistanceSkirt"/>.</param>
         public readonly record struct LightState(
             Vector3 Color,
             float LinearBrightness,
@@ -31,7 +36,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             float LuminaireSize,
             float FallOff,
             Matrix4x4 Transform,
-            float TubeHalfLength = 0f);
+            float TubeHalfLength = 0f,
+            bool NoAngleFade = false,
+            Vector3 BarnSizeParams = default,
+            float BarnShape = 0f,
+            Vector2 BarnSoft = default,
+            float? BarnDistanceSkirt = null);
 
         /// <summary>One light and the particle it follows.</summary>
         public sealed class Slot
@@ -151,7 +161,21 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 light.SpotOuterAngle = state.SpotOuterAngle;
                 light.LuminaireSize = state.LuminaireSize;
                 light.FallOff = state.FallOff;
-                light.SizeParams = light.SizeParams with { Y = state.TubeHalfLength };
+                light.NoAngleFade = state.NoAngleFade;
+
+                if (light.Entity == SceneLight.EntityType.Barn)
+                {
+                    light.SizeParams = state.BarnSizeParams;
+                    light.Shape = state.BarnShape;
+                    light.SoftX = state.BarnSoft.X;
+                    light.SoftY = state.BarnSoft.Y;
+                    light.BarnDistanceSkirt = state.BarnDistanceSkirt;
+                }
+                else
+                {
+                    light.SizeParams = light.SizeParams with { Y = state.TubeHalfLength };
+                }
+
                 light.PlaceAt(state.Transform);
                 light.IsDirty = true;
             }

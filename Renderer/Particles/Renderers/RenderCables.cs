@@ -7,7 +7,8 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
-    /// Renders the particles, in collection order, as one lit round tube. The tube tessellation is shared
+    /// Renders the particles, in collection order, as one lit round tube, closed by domed caps when asked
+    /// to. The tube tessellation is shared
     /// with the map <c>path_particle_rope</c> rendering path via <see cref="CableMeshBuilder"/>. Geometry is
     /// rebuilt whenever the particle positions, radii, colors, alphas, or the per-segment tessellation
     /// levels change. Radius, alpha and colour are scaled by <c>m_flRadiusScale</c>, <c>m_flAlphaScale</c>
@@ -37,6 +38,18 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly INumberProvider circumferenceRepeats = new LiteralNumberProvider(1f);
         private readonly INumberProvider colorMapOffsetU = new LiteralNumberProvider(0f);
         private readonly INumberProvider colorMapOffsetV = new LiteralNumberProvider(0f);
+
+        private readonly bool drawCableCaps;
+
+        /// <summary>How round the caps are, from 0 to 2.</summary>
+        private readonly float capRoundness = 1f;
+
+        /// <summary>How far a cap reaches past its end particle, in radii of that particle.</summary>
+        private readonly float capOffset = 1f;
+
+        // Where the system's lighting is sampled, or null to sample at the center of its bounds
+        private readonly ITransformProvider? lightingTransform;
+        private readonly Scene scene;
         private readonly float tessScale = 1f;
         private readonly int minTessellation = 1;
         private readonly int maxTessellation = 128;
@@ -62,6 +75,23 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             circumferenceRepeats = parse.NumberProvider("m_flTextureRepeatsCircumference", circumferenceRepeats);
             colorMapOffsetU = parse.NumberProvider("m_flColorMapOffsetU", colorMapOffsetU);
             colorMapOffsetV = parse.NumberProvider("m_flColorMapOffsetV", colorMapOffsetV);
+
+            // The cable shader samples no normal map, so the normal map offsets (m_flNormalMapOffsetU and V) have
+            // nothing to move.
+            // TODO: m_MaterialFloatVars and m_MaterialVecVars set dynamic material attributes by attribute name,
+            // which the cable material does not map to its parameters. What a vector variable leaves in w is not
+            // known either.
+            drawCableCaps = parse.Boolean("m_bDrawCableCaps", drawCableCaps);
+            capRoundness = Math.Clamp(parse.Float("m_flCapRoundness", capRoundness), 0f, 2f);
+            capOffset = Math.Clamp(parse.Float("m_flCapOffsetAmount", capOffset), 0.01f, 2f);
+            this.scene = scene;
+
+            var lighting = parse.TransformInput("m_LightingTransform", new IdentityTransformProvider());
+
+            if (lighting is not IdentityTransformProvider)
+            {
+                lightingTransform = lighting;
+            }
 
             var materialName = parse.Data.GetStringProperty("m_hMaterial", DefaultMaterialName);
             UseMaterial(rendererContext.MaterialLoader.GetMaterial(materialName, CreateShaderArguments()));
@@ -93,6 +123,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <inheritdoc/>
         public override void UpdateBuffers(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
+            UpdateLightingOrigin(systemState);
+
             var scales = EvaluateScales(systemState);
 
             if (particles.Count < 2 || scales.Radius == 0f || scales.Alpha == 0f)
@@ -152,13 +184,15 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var colorMapOffset = new Vector2(colorMapOffsetU.NextNumber(systemState) % 1f, colorMapOffsetV.NextNumber(systemState) % 1f);
 
             // In PATH mode the authored repeat count is spread over the whole cable instead of per segment.
+            // With caps the cable counts a segment more, for each cap, than the tube between its end particles.
+            var pathSegments = drawCableCaps ? count + 1 : count - 1;
             var repeats = textureRepetitionMode == TextureRepetitionMode.TEXTURE_REPETITION_PATH
-                ? repeatsPerSegment / (count - 1)
+                ? repeatsPerSegment / pathSegments
                 : repeatsPerSegment;
 
             // Exact sizes are known up front, so build buffers are rented and filled by index. Rented
             // arrays may be larger, so sizes are passed explicitly.
-            var ringCount = TotalRings(positions.Length, levels);
+            var ringCount = TotalRings(positions.Length, levels) + CapRings(levels);
             var sides = CableMeshBuilder.SideCount(roundness);
             var vertexCount = ringCount * (sides + 1);
             var tubeIndexCount = (ringCount - 1) * sides * 6;
@@ -181,6 +215,28 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             GL.NamedBufferData(vertexBufferHandle, vertexCount * stride, vertexBuffer.ByteArray, BufferUsageHint.DynamicDraw);
             GL.NamedBufferData(indexBufferHandle, tubeIndexCount * sizeof(uint), indexBuffer.ByteArray, BufferUsageHint.DynamicDraw);
             indexCount = tubeIndexCount;
+        }
+
+        /// <summary>
+        /// Makes the system's node sample its lighting at the position of <c>m_LightingTransform</c>, when
+        /// one is set.
+        /// </summary>
+        private void UpdateLightingOrigin(ParticleSystemState systemState)
+        {
+            if (lightingTransform == null || OwnerNode is not { } node)
+            {
+                return;
+            }
+
+            var origin = lightingTransform.NextTransform(systemState).Translation;
+
+            if (node.LightingOrigin == origin)
+            {
+                return;
+            }
+
+            node.LightingOrigin = origin;
+            scene.UpdateNodeEnvironmentMaps(node);
         }
 
         /// <inheritdoc/>
@@ -261,7 +317,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
 
             // Guard against pathological totals by stepping every level down together.
-            for (var pass = 0; pass < MaxTessellationLevel && TotalRings(positions.Length, levels) > MaxTubeRings; pass++)
+            for (var pass = 0; pass < MaxTessellationLevel && TotalRings(positions.Length, levels) + CapRings(levels) > MaxTubeRings; pass++)
             {
                 for (var i = 0; i < segmentCount; i++)
                 {
@@ -281,14 +337,30 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return total;
         }
 
+        /// <summary>The rings the end caps add, each tessellated as finely as the tube segment it closes, within 2 to 16.</summary>
+        private int CapRings(ReadOnlySpan<int> levels)
+            => drawCableCaps ? (1 << CapLevel(levels[0])) + (1 << CapLevel(levels[^1])) : 0;
+
+        private static int CapLevel(int segmentLevel) => Math.Clamp(segmentLevel, 1, 4);
+
         // Expands each particle segment into 2^level rings. Position and radius follow a Catmull-Rom spline
         // through the particles, with the end particles repeated past both ends; colour and V are linear.
-        // Fills exactly TotalRings entries of the (pooled, possibly larger) output arrays.
-        private static void BuildRings(ReadOnlySpan<Vector3> positions, ReadOnlySpan<float> radii, ReadOnlySpan<Vector3> colors, ReadOnlySpan<float> alphas,
+        // With caps, the start cap shares V with the first segment and the end cap takes V from the particle
+        // count, one segment past the last particle.
+        // Fills exactly TotalRings plus CapRings entries of the (pooled, possibly larger) output arrays.
+        private void BuildRings(ReadOnlySpan<Vector3> positions, ReadOnlySpan<float> radii, ReadOnlySpan<Vector3> colors, ReadOnlySpan<float> alphas,
             ReadOnlySpan<int> levels, float repeats, Span<Vector3> ringPositions, Span<RopeSample> ringSamples)
         {
             var cursor = 0;
             var last = positions.Length - 1;
+
+            if (drawCableCaps)
+            {
+                var outward = MathUtils.SafeNormalize(positions[0] - positions[1]);
+                var cap = new CapShape(positions[0], outward, radii[0], capRoundness, capOffset);
+
+                cursor = AddCapRings(cap, atStart: true, 1 << CapLevel(levels[0]), colors[0], alphas[0], 0f, repeats, ringPositions, ringSamples, cursor);
+            }
 
             for (var i = 0; i < levels.Length; i++)
             {
@@ -313,6 +385,75 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             ringPositions[cursor] = positions[last];
             ringSamples[cursor] = new RopeSample(positions[last], radii[last], colors[last], last * repeats, pinned: false, alphas[last]);
+            cursor++;
+
+            if (drawCableCaps)
+            {
+                var outward = MathUtils.SafeNormalize(positions[last] - positions[last - 1]);
+                var cap = new CapShape(positions[last], outward, radii[last], capRoundness, capOffset);
+
+                AddCapRings(cap, atStart: false, 1 << CapLevel(levels[^1]), colors[last], alphas[last], positions.Length * repeats, repeats, ringPositions, ringSamples, cursor);
+            }
+        }
+
+        /// <summary>How far past its end particle a cap's tip sits.</summary>
+        private const float CapTipDistance = 0.01f;
+
+        /// <summary>
+        /// The four spline points one cap is shaped by, each with a radius: its tip, the rim it closes to, the end
+        /// particle and a point back inside the tube. The tip only shapes the curve; its radius, negative when the
+        /// cap is round at all, makes the cap swell faster the rounder it is and centres the dome the cap's normals
+        /// form. An end particle level with its neighbour collapses its cap onto itself.
+        /// </summary>
+        private readonly struct CapShape(Vector3 end, Vector3 outward, float radius, float roundness, float offset)
+        {
+            public Vector3 End { get; } = end;
+
+            public float Radius { get; } = radius;
+
+            public Vector3 Tip { get; } = end + outward * CapTipDistance;
+
+            public float TipRadius { get; } = -radius * roundness * 3f;
+
+            public Vector3 Rim { get; } = end + outward * (radius * offset);
+
+            public Vector3 Inner { get; } = end - outward * (radius * offset * roundness * 2f);
+        }
+
+        /// <summary>
+        /// Adds the rings of a cap: one spline segment between the rim and the end particle, the start cap running
+        /// up to the end particle without its ring, the end cap running on from it. Returns the cursor past them.
+        /// </summary>
+        private static int AddCapRings(in CapShape cap, bool atStart, int subdivisions, Vector3 color, float alpha, float firstV, float repeats,
+            Span<Vector3> ringPositions, Span<RopeSample> ringSamples, int cursor)
+        {
+            var first = atStart ? 0 : 1;
+            Vector3? domeCenter = cap.TipRadius < 0f ? cap.Tip : null;
+
+            for (var s = first; s < first + subdivisions; s++)
+            {
+                var t = s / (float)subdivisions;
+                Vector3 position;
+                float radius;
+
+                // The spline runs inward from the tip at the start and outward to it at the end
+                if (atStart)
+                {
+                    position = CableMeshBuilder.CatmullRom(cap.Tip, cap.Rim, cap.End, cap.Inner, t);
+                    radius = CableMeshBuilder.CatmullRom(cap.TipRadius, 0f, cap.Radius, 0f, t);
+                }
+                else
+                {
+                    position = CableMeshBuilder.CatmullRom(cap.Inner, cap.End, cap.Rim, cap.Tip, t);
+                    radius = CableMeshBuilder.CatmullRom(0f, cap.Radius, 0f, cap.TipRadius, t);
+                }
+
+                ringPositions[cursor] = position;
+                ringSamples[cursor] = new RopeSample(position, radius, color, firstV + t * repeats, pinned: false, alpha, domeCenter);
+                cursor++;
+            }
+
+            return cursor;
         }
 
         private bool GeometryChanged(ReadOnlySpan<Vector3> positions, ReadOnlySpan<int> levels, ReadOnlySpan<float> radii, ReadOnlySpan<Vector3> colors,

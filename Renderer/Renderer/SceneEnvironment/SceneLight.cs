@@ -162,6 +162,12 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <summary>Gets or sets the outer cone half-angle for spot lights in degrees.</summary>
     public float SpotOuterAngle { get; set; } = 45.0f;
 
+    /// <summary>
+    /// Gets or sets whether an omni2 light skips fading toward the edge of its cone, which the outer
+    /// angle still limits.
+    /// </summary>
+    internal bool NoAngleFade { get; set; }
+
     /// <summary>Gets or sets the linear attenuation coefficient.</summary>
     public float AttenuationLinear { get; set; }
 
@@ -176,6 +182,12 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
     /// <summary>Gets or sets the near skirt distance for perspective barn lights.</summary>
     public float SkirtNear { get; set; }
+
+    /// <summary>
+    /// Gets or sets the fraction of <see cref="Range"/> over which a perspective barn light fades out with
+    /// distance from its frustum's apex, or null for no such fade.
+    /// </summary>
+    internal float? BarnDistanceSkirt { get; set; }
 
     /// <summary>Gets or sets the shape blend factor for barn lights.</summary>
     public float Shape { get; set; }
@@ -736,13 +748,17 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
         var (illuminationFromWorld, obbToWorld) = GetLightObb(light);
 
+        var (distFadeOffset, distFadeRate) = light.BarnDistanceSkirt is { } distanceSkirt
+            ? ComputeDistanceFade(light.Range, distanceSkirt)
+            : (1f, 0f);
+
         return new BarnFaceData
         {
             GpuData = new BarnLightConstants
             {
                 BarnFrustum = worldToFrustum,
                 BarnLightPosition = barnLightPosition,
-                BarnLightDistanceFade_vSkirt = new Vector4(1f, 0f, skirtNear, skirtFar),
+                BarnLightDistanceFade_vSkirt = new Vector4(distFadeOffset, distFadeRate, skirtNear, skirtFar),
                 BarnLightColor_flCookie = new Vector4(linearColor, cookieW),
                 BarnLightOrientationQ = new Vector4(orientationQ.X, orientationQ.Y, orientationQ.Z, orientationQ.W),
                 BarnLightAngleFade = new Vector3(1f, 0f, 0f),
@@ -815,7 +831,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         }
 
         var (distFadeOffset, distFadeRate) = ComputeDistanceFade(light.Range, light.FallOff);
-        var (angleBias, angleScale) = ComputeAngleFade(light.SpotOuterAngle, light.SpotInnerAngle);
+        var (angleBias, angleScale) = light.NoAngleFade ? (1f, 0f) : ComputeAngleFade(light.SpotOuterAngle, light.SpotInnerAngle);
         var angleFadeZ = light.LuminaireShape switch
         {
             1 or 2 => light.SizeParams.Y,

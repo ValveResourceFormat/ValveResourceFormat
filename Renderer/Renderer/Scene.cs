@@ -107,6 +107,9 @@ namespace ValveResourceFormat.Renderer
 
         internal ParticleScenePlayer ParticlePlayer => field ??= new(this);
 
+        /// <summary>Gets the light styles of the game by name, loaded on first use.</summary>
+        internal IReadOnlyDictionary<string, CurveLightStyle> LightStyles => field ??= CurveLightStyle.LoadAll(RendererContext.FileLoader);
+
         /// <summary>Gets or sets the fog parameters for this scene.</summary>
         public WorldFogInfo FogInfo { get; set; } = new();
 

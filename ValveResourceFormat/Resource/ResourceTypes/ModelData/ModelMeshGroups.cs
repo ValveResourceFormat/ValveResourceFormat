@@ -47,6 +47,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         /// </summary>
         public IReadOnlyList<BodyGroup> BodyGroups { get; }
 
+        /// <summary>Gets the mask of the groups that are on by default, bit N for group N.</summary>
+        public ulong DefaultMask => defaultMask;
+
         /// <summary>Gets the group names that are on by default.</summary>
         public IEnumerable<string> Defaults
             => Names.Where((_, index) => index < MaxGroups && (defaultMask & 1UL << index) != 0);
