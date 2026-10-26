@@ -47,6 +47,8 @@
   <PropertyGroup Condition="'$(Configuration)' != 'Release'">
     <!-- CA2000 is very slow: https://github.com/dotnet/roslyn-analyzers/issues/4915 -->
     <NoWarn>$(NoWarn);CA2000</NoWarn>
+    <!-- Analyzers still run in the IDE, and Release builds enforce them -->
+    <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(CI)' != 'true' And '$(CheckAot)' != 'true'">
