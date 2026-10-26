@@ -1,7 +1,5 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.SceneEnvironment;
@@ -62,6 +60,10 @@ public class PerfStats
 
     private static readonly string[] LightGroupNames = ["omni", "spot", "barn", "rect", "directional"];
     private static readonly string[] LightCostLabels = ["Static Lights:    ", "Stationary Lights:", "Dynamic Lights:   "];
+
+    // Lines are formatted into the arena each frame, which stays untouched until the text renders
+    private readonly TextRenderer.TextArena displayText = new(8 * 1024);
+    private readonly char[] lightCountText = new char[512];
 
     // Must follow LightGroupNames, as static initializers run in textual order.
     /// <summary>Counters for the frame currently being rendered. Collects nothing while <see cref="Capture"/> is off.</summary>
@@ -385,9 +387,10 @@ public class PerfStats
         }
     }
 
-    private static string FormatLightCounts(int[] counts, int[] visibleGroups)
+    /// <summary>Lists the count of each light group that has any lights, or "none".</summary>
+    private static ReadOnlySpan<char> FormatLightCounts(Span<char> destination, int[] counts, int[] visibleGroups)
     {
-        var sb = new StringBuilder();
+        var written = 0;
 
         for (var i = 0; i < counts.Length; i++)
         {
@@ -396,17 +399,11 @@ public class PerfStats
                 continue;
             }
 
-            if (sb.Length > 0)
-            {
-                sb.Append(", ");
-            }
-
-            sb.Append(counts[i]);
-            sb.Append(' ');
-            sb.Append(LightGroupNames[i]);
+            destination[written..].TryWrite(CultureInfo.InvariantCulture, $"{(written > 0 ? ", " : "")}{counts[i]} {LightGroupNames[i]}", out var charsWritten);
+            written += charsWritten;
         }
 
-        return sb.Length > 0 ? sb.ToString() : "none";
+        return written > 0 ? destination[..written] : "none";
     }
 
     /// <summary>
@@ -432,11 +429,13 @@ public class PerfStats
 
         UpdateTotals(scenes);
 
+        displayText.Clear();
+
         var lineHeight = scale * 1.5f / camera.WindowSize.Y;
         var valueColor = new Color32(150, 255, 150);
         var offset = y;
 
-        void AddLine(string text, Color32 color)
+        void AddLine(TextRenderer.TextMemory text, Color32 color)
         {
             textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
             {
@@ -452,43 +451,54 @@ public class PerfStats
 
         AddLine("Render Stats", new Color32(255, 200, 0));
 
-        AddLine(string.Create(CultureInfo.InvariantCulture, $"Triangles:        rendered {trianglesRendered:N0} of {totalTriangles:N0}"), valueColor);
-        AddLine(string.Create(CultureInfo.InvariantCulture, $"Scene objects:    drawn {counts[(int)Counter.SceneObjectInView] - counts[(int)Counter.SceneObjectCulledByPvs] - counts[(int)Counter.SceneObjectCulledByVisibilityBox]:N0} of {totalSceneObjects:N0} scene objects ({counts[(int)Counter.SceneObjectCulledByPvs]:N0} vis) in {counts[(int)Counter.DrawCall]:N0} draw calls and {counts[(int)Counter.MeshletDispatch]:N0} meshlet dispatches ({totalDrawCalls:N0} total draw calls)"), valueColor);
-        AddLine(string.Create(CultureInfo.InvariantCulture, $"Shadow casters:   {counts[(int)Counter.ShadowCasterCulledByPvs]:N0} rejected by the sun visibility row"), valueColor);
+        AddLine(displayText.Format($"Triangles:        rendered {trianglesRendered:N0} of {totalTriangles:N0}"), valueColor);
+        AddLine(displayText.Format($"Scene objects:    drawn {counts[(int)Counter.SceneObjectInView] - counts[(int)Counter.SceneObjectCulledByPvs] - counts[(int)Counter.SceneObjectCulledByVisibilityBox]:N0} of {totalSceneObjects:N0} scene objects ({counts[(int)Counter.SceneObjectCulledByPvs]:N0} vis) in {counts[(int)Counter.DrawCall]:N0} draw calls and {counts[(int)Counter.MeshletDispatch]:N0} meshlet dispatches ({totalDrawCalls:N0} total draw calls)"), valueColor);
+        AddLine(displayText.Format($"Shadow casters:   {counts[(int)Counter.ShadowCasterCulledByPvs]:N0} rejected by the sun visibility row"), valueColor);
 
-        if (scenes.Any(static scene => scene.VisibilityBoxes.Count > 0))
+        var visibilityBoxes = 0;
+        var insideBoxes = 0;
+        var outsideBoxes = 0;
+
+        for (var i = 0; i < scenes.Count; i++)
         {
-            var insideBoxes = scenes.Sum(static scene => scene.VisibilityBoxes.View.InsideCount);
-            var outsideBoxes = scenes.Sum(static scene => scene.VisibilityBoxes.View.OutsideCount);
-
-            AddLine(string.Create(CultureInfo.InvariantCulture, $"Visibility boxes: {counts[(int)Counter.SceneObjectCulledByVisibilityBox]:N0} scene objects and {counts[(int)Counter.ShadowCasterCulledByVisibilityBox]:N0} shadow casters culled by {insideBoxes:N0} inside and {outsideBoxes:N0} outside boxes"), valueColor);
+            visibilityBoxes += scenes[i].VisibilityBoxes.Count;
+            insideBoxes += scenes[i].VisibilityBoxes.View.InsideCount;
+            outsideBoxes += scenes[i].VisibilityBoxes.View.OutsideCount;
         }
 
-        AddLine(string.Create(CultureInfo.InvariantCulture, $"Materials:        {counts[(int)Counter.MaterialChange]:N0} changes between drawcalls, {totalMaterials:N0} total materials in scene"), valueColor);
-        AddLine(string.Create(CultureInfo.InvariantCulture, $"VAOs:             {counts[(int)Counter.VaoChange]:N0} binds this frame, {scene.RendererContext.MeshBufferCache.VertexArrayObjectCount:N0} cached"), valueColor);
-        AddLine(string.Create(CultureInfo.InvariantCulture, $"Render state:     {counts[(int)Counter.RenderStateApply]:N0} applies, {counts[(int)Counter.RenderStateGroupEmit]:N0} actual changes, {counts[(int)Counter.RenderStateDriverCall]:N0} driver calls this frame"), valueColor);
+        if (visibilityBoxes > 0)
+        {
+            AddLine(displayText.Format($"Visibility boxes: {counts[(int)Counter.SceneObjectCulledByVisibilityBox]:N0} scene objects and {counts[(int)Counter.ShadowCasterCulledByVisibilityBox]:N0} shadow casters culled by {insideBoxes:N0} inside and {outsideBoxes:N0} outside boxes"), valueColor);
+        }
+
+        AddLine(displayText.Format($"Materials:        {counts[(int)Counter.MaterialChange]:N0} changes between drawcalls, {totalMaterials:N0} total materials in scene"), valueColor);
+        AddLine(displayText.Format($"VAOs:             {counts[(int)Counter.VaoChange]:N0} binds this frame, {scene.RendererContext.MeshBufferCache.VertexArrayObjectCount:N0} cached"), valueColor);
+        AddLine(displayText.Format($"Render state:     {counts[(int)Counter.RenderStateApply]:N0} applies, {counts[(int)Counter.RenderStateGroupEmit]:N0} actual changes, {counts[(int)Counter.RenderStateDriverCall]:N0} driver calls this frame"), valueColor);
 
         for (var cost = 0; cost < LightCostLabels.Length; cost++)
         {
-            AddLine($"{LightCostLabels[cost]} in view {FormatLightCounts(lightsInView[cost], totalLights[cost])} out of total {FormatLightCounts(totalLights[cost], totalLights[cost])}", valueColor);
+            var inView = FormatLightCounts(lightCountText.AsSpan(0, lightCountText.Length / 2), lightsInView[cost], totalLights[cost]);
+            var inTotal = FormatLightCounts(lightCountText.AsSpan(lightCountText.Length / 2), totalLights[cost], totalLights[cost]);
+
+            AddLine(displayText.Format($"{LightCostLabels[cost]} in view {inView} out of total {inTotal}"), valueColor);
         }
 
-        AddLine(string.Create(CultureInfo.InvariantCulture, $"Shadow maps:      {counts[(int)Counter.DirectionalShadowMap]:N0} directional, {counts[(int)Counter.BarnShadowMap]:N0} barn, {counts[(int)Counter.ShadowFaceSubmitted]:N0} faces binned, {counts[(int)Counter.ShadowFaceMaskCulled]:N0} gpu culled, {floatMetrics[(int)Metric.ShadowAtlasUsage]:0%} atlas utilization"), valueColor);
-        AddLine(string.Create(CultureInfo.InvariantCulture, $"Particle Systems: {counts[(int)Counter.ParticleSystem]:N0} particle systems rendered in {counts[(int)Counter.ParticleDraw]:N0} draw calls out of {totalParticleSystems:N0} total particle systems"), valueColor);
+        AddLine(displayText.Format($"Shadow maps:      {counts[(int)Counter.DirectionalShadowMap]:N0} directional, {counts[(int)Counter.BarnShadowMap]:N0} barn, {counts[(int)Counter.ShadowFaceSubmitted]:N0} faces binned, {counts[(int)Counter.ShadowFaceMaskCulled]:N0} gpu culled, {floatMetrics[(int)Metric.ShadowAtlasUsage]:0%} atlas utilization"), valueColor);
+        AddLine(displayText.Format($"Particle Systems: {counts[(int)Counter.ParticleSystem]:N0} particle systems rendered in {counts[(int)Counter.ParticleDraw]:N0} draw calls out of {totalParticleSystems:N0} total particle systems"), valueColor);
         if (lightBinner != null)
         {
-            AddLine($"Light binning:    {FormatBinnerStats(lightBinner.Stats)}", valueColor);
+            AddLine(FormatBinnerStats(lightBinner.Stats), valueColor);
         }
 
-        AddLine(string.Create(CultureInfo.InvariantCulture, $"Sound cache:      {counts[(int)Counter.SoundCacheMegabytes]:N0} MB decoded, {counts[(int)Counter.SoundDecodeQueue]:N0} queued to decode"), valueColor);
-        AddLine($"Tonemapping:      {FormatTonemapStats()}", valueColor);
+        AddLine(displayText.Format($"Sound cache:      {counts[(int)Counter.SoundCacheMegabytes]:N0} MB decoded, {counts[(int)Counter.SoundDecodeQueue]:N0} queued to decode"), valueColor);
+        AddLine(FormatTonemapStats(), valueColor);
     }
 
     /// <summary>
     /// Auto exposure state: the metered luminance, its target, and the exposure within the post process
     /// volume's range. Exposure pinned to a bound is flagged, as the scene's own brightness then decides.
     /// </summary>
-    private string FormatTonemapStats()
+    private TextRenderer.TextMemory FormatTonemapStats()
     {
         var scalar = floatMetrics[(int)Metric.TonemapScalar];
         var gamma = floatMetrics[(int)Metric.FullScreenGamma];
@@ -498,7 +508,7 @@ public class PerfStats
 
         if (max <= 0f)
         {
-            return string.Create(CultureInfo.InvariantCulture, $"scene luminance {luminance:0.0000}, fixed exposure, tonemap scalar {scalar:0.00}, gamma {gamma:0.00}");
+            return displayText.Format($"Tonemapping:      scene luminance {luminance:0.0000}, fixed exposure, tonemap scalar {scalar:0.00}, gamma {gamma:0.00}");
         }
 
         var exposure = floatMetrics[(int)Metric.Exposure];
@@ -506,7 +516,7 @@ public class PerfStats
             : exposure >= max * 0.999f ? " (pinned high)"
             : string.Empty;
 
-        return string.Create(CultureInfo.InvariantCulture, $"scene luminance {luminance:0.0000} aiming at {floatMetrics[(int)Metric.ExposureTargetLuminance]:0.0000}, "
+        return displayText.Format($"Tonemapping:      scene luminance {luminance:0.0000} aiming at {floatMetrics[(int)Metric.ExposureTargetLuminance]:0.0000}, "
             + $"exposure {exposure:0.00} of [{min:0.00}-{max:0.00}]{pinned}, tonemap scalar {scalar:0.00}, gamma {gamma:0.00}");
     }
 
@@ -514,14 +524,14 @@ public class PerfStats
     /// Binning results, counted per barn light face, the unit the binner works in. Not the same set as
     /// the shadow line, which counts faces submitted for shadow rendering.
     /// </summary>
-    private static string FormatBinnerStats(LightBinner.BinnerStats stats)
+    private TextRenderer.TextMemory FormatBinnerStats(LightBinner.BinnerStats stats)
     {
         if (!stats.Active)
         {
-            return "off, all masks visible";
+            return "Light binning:    off, all masks visible";
         }
 
-        return string.Create(CultureInfo.InvariantCulture, $"{stats.Faces:N0} of {stats.FaceSlots:N0} barn faces, {stats.Probes:N0} of {stats.ProbeSlots:N0} probes binned, {stats.HullVertices:N0} hull verts, {stats.MaskBytes / 1024.0:0.#} KB masks, slices to {stats.SliceFar:N0} at {stats.SliceWidth:N0} each");
+        return displayText.Format($"Light binning:    {stats.Faces:N0} of {stats.FaceSlots:N0} barn faces, {stats.Probes:N0} of {stats.ProbeSlots:N0} probes binned, {stats.HullVertices:N0} hull verts, {stats.MaskBytes / 1024.0:0.#} KB masks, slices to {stats.SliceFar:N0} at {stats.SliceWidth:N0} each");
     }
 
     /// <summary>Resets per-frame counters, reads back the previous frame's results.</summary>
@@ -632,14 +642,14 @@ public class PerfStats
     }
 
     /// <summary>Begins a timing query for a debug group, or returns 0 if this frame is not being timed.</summary>
-    internal QueryId BeginTimingQuery(string name, bool cpuOnly = false)
+    internal QueryId BeginTimingQuery(string name, bool cpuOnly = false, bool collapsed = false)
     {
         if (!timingFrame || IsNotOwningThread)
         {
             return 0;
         }
 
-        return Timings.BeginQuery(name, cpuOnly);
+        return Timings.BeginQuery(name, cpuOnly, collapsed);
     }
 
     /// <summary>Ends a timing query opened by <see cref="BeginTimingQuery"/>.</summary>

@@ -1056,7 +1056,7 @@ namespace GUI.Types.GLViewers
 
             if (perfDisplay == PerfDisplay.Stats)
             {
-                Renderer.PerfStats.DisplayStats(TextRenderer, Renderer.Camera, [.. Renderer.Scenes], Renderer.MainViewState?.LightBinner);
+                Renderer.PerfStats.DisplayStats(TextRenderer, Renderer.Camera, Renderer.Scenes, Renderer.MainViewState?.LightBinner);
             }
             else if (perfDisplay == PerfDisplay.Timings)
             {

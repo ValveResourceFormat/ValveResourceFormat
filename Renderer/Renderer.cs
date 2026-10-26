@@ -1085,6 +1085,10 @@ public class Renderer : ISceneHost
         for (var i = views.Length - 1; i >= 0; i--)
         {
             var states = views[i].States;
+            var isSky = views[i].Sky != null;
+
+            // Named per view, as both views run the same cull passes
+            using var _ = new GLDebugGroup(isSky ? "3D Sky Scene Cull" : "Main Scene Cull", collapsed: isSky);
 
             for (var j = states.Count - 1; j >= 0; j--)
             {

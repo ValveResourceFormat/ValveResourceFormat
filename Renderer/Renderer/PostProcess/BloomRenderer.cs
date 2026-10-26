@@ -78,11 +78,6 @@ public class BloomRenderer
     public void Render(RenderTexture input, RenderTexture? effectsBloom, BloomSettings settings, float sceneWeight)
     {
         Debug.Assert(firstDownsampleBloomThreshold != null);
-        Debug.Assert(downsample != null);
-        Debug.Assert(horizontalBlur != null);
-        Debug.Assert(verticalBlur != null);
-        Debug.Assert(upsample != null);
-        Debug.Assert(firstUpsample != null);
 
         Debug.Assert(Accumulation != null && Accumulation.Color != null);
         Debug.Assert(Ping != null && Ping.Color != null);
@@ -92,8 +87,6 @@ public class BloomRenderer
 
         // Start at 1/4 resolution
         maxBloomRes /= 4;
-
-        static bool InvalidSize(Vector2i size) => size.X < 16 || size.Y < 16;
 
         // skip bloom if the resolution is too small
         if (InvalidSize(maxBloomRes))
@@ -134,12 +127,27 @@ public class BloomRenderer
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
         }
 
+        var lastWrittenMip = Accumulate(maxBloomRes);
+        Upsample(settings, lastWrittenMip);
+
+        Accumulation.AttachColorMipLevel(0);
+    }
+
+    /// <summary>Blurs the thresholded image into each mip of <see cref="Accumulation"/>.</summary>
+    /// <returns>The smallest mip written.</returns>
+    private int Accumulate(Vector2i maxBloomRes)
+    {
+        Debug.Assert(downsample != null && horizontalBlur != null && verticalBlur != null);
+        Debug.Assert(Accumulation != null && Ping != null && Pong != null);
+
+        using var group = new GLDebugGroup("Bloom Accumulation", collapsed: true);
+
         var lastWrittenMip = 0;
         var downsampledSize = maxBloomRes;
 
         for (var i = 0; i < BloomMipCount; i++)
         {
-            using var _ = new GLDebugGroup(i switch { 0 => "Bloom Accumulation 0", 1 => "Bloom Accumulation 1", 2 => "Bloom Accumulation 2", 3 => "Bloom Accumulation 3", _ => "Bloom Accumulation" });
+            using var _ = new GLDebugGroup(i switch { 0 => "Mip 0", 1 => "Mip 1", 2 => "Mip 2", 3 => "Mip 3", _ => "Mip" });
 
             if (InvalidSize(downsampledSize))
             {
@@ -170,10 +178,21 @@ public class BloomRenderer
             downsampledSize /= 2;
         }
 
+        return lastWrittenMip;
+    }
+
+    /// <summary>Combines the mips of <see cref="Accumulation"/> back up into mip 0, tinting each.</summary>
+    private void Upsample(BloomSettings settings, int lastWrittenMip)
+    {
+        Debug.Assert(upsample != null && firstUpsample != null);
+        Debug.Assert(Accumulation != null && Accumulation.Color != null);
+
+        using var group = new GLDebugGroup("Bloom Upsample", collapsed: true);
+
         // loop through mips backwards, from lowest res to highest
         for (var i = lastWrittenMip; i >= 1; i--)
         {
-            using var _ = new GLDebugGroup(i switch { 1 => "Bloom Upsample 1", 2 => "Bloom Upsample 2", 3 => "Bloom Upsample 3", 4 => "Bloom Upsample 4", _ => "Bloom Upsample" });
+            using var _ = new GLDebugGroup(i switch { 1 => "Mip 1", 2 => "Mip 2", 3 => "Mip 3", 4 => "Mip 4", _ => "Mip" });
             var isFirstUpsample = i == lastWrittenMip;
             var isLastUpsample = i == 1;
 
@@ -219,9 +238,9 @@ public class BloomRenderer
             GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
         }
-
-        Accumulation.AttachColorMipLevel(0);
     }
+
+    private static bool InvalidSize(Vector2i size) => size.X < 16 || size.Y < 16;
 
     /// <summary>
     /// Render a texture from <paramref name="ping"/> to <paramref name="pong"/> using the provided screenspace shader.

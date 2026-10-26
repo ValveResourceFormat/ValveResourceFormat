@@ -991,19 +991,25 @@ public sealed class SceneViewState
             MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
         }
 
-        using (new GLDebugGroup("Opaque Render"))
+        if (renderLists[RenderPass.Opaque].Count > 0)
         {
+            using var opaqueGroup = new GLDebugGroup("Opaque Render");
+
             renderContext.RenderPass = RenderPass.Opaque;
             MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
         }
 
         RenderAlphaTestGeometry(renderContext, depthOnlyShader);
 
-        using (new GLDebugGroup("StaticOverlay Render"))
+        if (renderLists[RenderPass.StaticOverlay].Count == 0)
         {
-            renderContext.RenderPass = RenderPass.StaticOverlay;
-            MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
+            return;
         }
+
+        using var overlayGroup = new GLDebugGroup("StaticOverlay Render");
+
+        renderContext.RenderPass = RenderPass.StaticOverlay;
+        MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
     }
 
     /// <summary>Prepasses the alpha tested geometry and then draws it, both after the opaque geometry.</summary>

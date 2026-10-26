@@ -14,9 +14,10 @@ public readonly ref struct GLDebugGroup
     /// Initializes a new debug group and pushes it onto the OpenGL debug stack.
     /// </summary>
     /// <param name="name">Name of the debug group to display in profiling tools.</param>
-    public GLDebugGroup(string name)
+    /// <param name="collapsed">Whether the timings overlay folds the groups nested in this one into it, unless it is expensive.</param>
+    public GLDebugGroup(string name, bool collapsed = false)
     {
-        TimeQueryId = PerfStats.Active.BeginTimingQuery(name);
+        TimeQueryId = PerfStats.Active.BeginTimingQuery(name, collapsed: collapsed);
 #if DEBUG
         OpenTK.Graphics.OpenGL.GL.PushDebugGroup(OpenTK.Graphics.OpenGL.DebugSourceExternal.DebugSourceApplication, 0, name.Length, name);
 #endif

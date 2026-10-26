@@ -9,10 +9,42 @@ namespace ValveResourceFormat.Renderer;
 /// </summary>
 public class Timings
 {
-    private record struct TimingQuery(long StartTimestamp, bool SubmitGpuQueries, string Name, int Depth, QueryId Id, bool CpuOnly);
-    private readonly record struct TimingResult(string Name, double TimeMs, double TimeMsGpu, int Depth, QueryId Id, bool CpuOnly, bool GpuFresh = false);
+    /// <summary>
+    /// A timed region, found again each frame by its parent and name rather than its position in the frame,
+    /// so regions that come and go do not disturb the GPU queries and peaks of the others.
+    /// </summary>
+    private sealed class Region(string name)
+    {
+        public readonly string Name = name;
+        public int Depth;
+        public bool CpuOnly;
+        public bool Collapsed;
+        public long LastFrame = -1;
+        public long StartTimestamp;
 
-    private record struct AveragedRow(string Name, int Depth, bool CpuOnly, double CpuMs, int CpuSamples, double GpuMs, int GpuSamples);
+        public int StartQuery;
+        public int EndQuery;
+        public bool SubmitGpuQueries;
+        public double GpuMs;
+
+        // Peak of the last whole second, or null when the region did not run in it
+        public double? PreviousMax;
+        public double? CurrentMax;
+
+        public bool Averaged;
+        public double AveragedCpuMs;
+        public int AveragedCpuSamples;
+        public double AveragedGpuMs;
+        public int AveragedGpuSamples;
+    }
+
+    private readonly record struct TimingResult(Region Region, double TimeMs, double TimeMsGpu, bool GpuFresh = false)
+    {
+        public string Name => Region.Name;
+        public int Depth => Region.Depth;
+        public bool CpuOnly => Region.CpuOnly;
+        public bool Collapsed => Region.Collapsed;
+    }
 
     /// <summary>Gets the average of a timed region over the frames since <see cref="StartAveraging"/>.</summary>
     /// <param name="Name">Name of the region.</param>
@@ -23,19 +55,16 @@ public class Timings
     /// <param name="GpuSamples">GPU readings the average is made of. GPU times arrive a few frames late and not every frame.</param>
     internal readonly record struct TimingAverage(string Name, int Depth, double CpuMs, int CpuSamples, double? GpuMs, int GpuSamples);
 
-    private SortedDictionary<QueryId, AveragedRow>? averaging;
+    // Regions in the order they were first seen while averaging, or null when not averaging
+    private List<Region>? averaging;
 
     /// <summary>Gets the number of frames summed since <see cref="StartAveraging"/>.</summary>
     internal int AveragedFrames { get; private set; }
 
-    private readonly Dictionary<QueryId, TimingQuery> activeQueries = [];
-    private readonly Dictionary<QueryId, int> gpuStartQueries = [];
-    private readonly Dictionary<QueryId, int> gpuEndQueries = [];
-
-    private readonly HashSet<QueryId> staleResults = [];
-    private readonly Dictionary<QueryId, double> gpuTimingsCache = [];
-    private readonly Dictionary<QueryId, double> previousMax = [];
-    private readonly Dictionary<QueryId, double> currentMax = [];
+    private readonly Dictionary<(Region? Parent, string Name, int Occurrence), Region> regions = [];
+    private readonly List<Region> openRegions = [];
+    private readonly List<Region> frameRegions = [];
+    private long frame;
     private long lastRollingUpdate;
     private double swapMs;
     private double frameCpuMs;
@@ -44,11 +73,22 @@ public class Timings
     private double unaccountedMs;
     private double unaccountedMaxCurrent;
     private double unaccountedMaxPrevious;
+    // Keyed by the order the regions began in this frame
     private readonly SortedDictionary<QueryId, TimingResult> results = [];
-    private int currentIndex;
-    private int currentDepth;
 
     private const int NameColumnWidth = 40;
+
+    // A collapsed region still lists what is nested in it once it peaks above this
+    private const double ExpandCollapsedMs = 1.0;
+
+    private static readonly string ColumnHeader = $"  {"",-NameColumnWidth} {"GPU",6} {"CPU",6} {"P100",6}";
+
+    // Rows are formatted into the arena each frame, which stays untouched until the text renders
+    private readonly TextRenderer.TextArena displayText = new(16 * 1024);
+    private readonly char[] nameColumn = new char[NameColumnWidth];
+
+    private record struct DisplayRow(TimingResult Result, double PeakMs, bool Collapsed);
+    private readonly List<DisplayRow> displayRows = [];
 
     private static Color32 ColorForPeak(double peakMs) => peakMs switch
     {
@@ -104,65 +144,61 @@ public class Timings
     /// </summary>
     /// <param name="name">Name of the region to time.</param>
     /// <param name="cpuOnly">Whether the region submits no GPU work, so no GPU queries are issued for it.</param>
+    /// <param name="collapsed">Whether the overlay folds the regions nested in this one into it, unless it is expensive.</param>
     /// <returns>Query ID to use when ending the query, or 0 if timing is disabled.</returns>
-    internal QueryId BeginQuery(string name, bool cpuOnly = false)
+    internal QueryId BeginQuery(string name, bool cpuOnly = false, bool collapsed = false)
     {
         if (!Capture)
         {
             return 0;
         }
 
-        currentIndex++;
+        var parent = openRegions.Count > 0 ? openRegions[^1] : null;
 
-        var depth = currentDepth++;
+        // A name repeated under the same parent within a frame is a separate region, told apart by its occurrence
+        Region? region;
+        var occurrence = 0;
 
-        if (cpuOnly)
+        while (regions.TryGetValue((parent, name, occurrence), out region) && region.LastFrame == frame)
         {
-            // No GPU queries: the region issues no draw work, so a GPU time would only measure the gap around it.
-            activeQueries[currentIndex] = new TimingQuery(Stopwatch.GetTimestamp(), false, name, depth, currentIndex, CpuOnly: true);
-            return currentIndex;
+            occurrence++;
         }
 
-        var endQueryId = 0;
-        if (!gpuStartQueries.TryGetValue(currentIndex, out var startQueryId))
+        if (region == null)
         {
-            startQueryId = GraphicsDevice.CreateQuery(QueryTarget.Timestamp, "GpuTimingStart");
-            gpuStartQueries[currentIndex] = startQueryId;
-
-            endQueryId = GraphicsDevice.CreateQuery(QueryTarget.Timestamp, "GpuTimingEnd");
-            gpuEndQueries[currentIndex] = endQueryId;
-
-            Debug.Assert(startQueryId != 0 && endQueryId != 0, "Failed to generate GPU query objects.");
+            region = new Region(name);
+            regions[(parent, name, occurrence)] = region;
         }
 
-        if (activeQueries.TryGetValue(currentIndex, out var activeQuery))
+        region.LastFrame = frame;
+        region.Depth = openRegions.Count;
+        region.CpuOnly = cpuOnly;
+        region.Collapsed = collapsed;
+
+        openRegions.Add(region);
+        frameRegions.Add(region);
+
+        // No GPU queries for a CPU-only region: it issues no draw work, so a GPU time would only measure the gap around it
+        if (!cpuOnly)
         {
-            if (activeQuery.Name != name)
+            if (region.StartQuery == 0)
             {
-                activeQuery = activeQuery with { Name = name };
-                for (var i = currentIndex; i <= activeQueries.Count; i++)
-                {
-                    gpuTimingsCache.Remove(i);
-                    previousMax.Remove(i);
-                    currentMax.Remove(i);
-                    staleResults.Add(i);
-                }
+                region.StartQuery = GraphicsDevice.CreateQuery(QueryTarget.Timestamp, "GpuTimingStart");
+                region.EndQuery = GraphicsDevice.CreateQuery(QueryTarget.Timestamp, "GpuTimingEnd");
+                region.SubmitGpuQueries = true;
+
+                Debug.Assert(region.StartQuery != 0 && region.EndQuery != 0, "Failed to generate GPU query objects.");
             }
 
-            if (activeQuery.SubmitGpuQueries)
+            if (region.SubmitGpuQueries)
             {
-                GL.QueryCounter(gpuStartQueries[activeQuery.Id], QueryCounterTarget.Timestamp);
+                GL.QueryCounter(region.StartQuery, QueryCounterTarget.Timestamp);
             }
-
-            activeQueries[currentIndex] = activeQuery with { StartTimestamp = Stopwatch.GetTimestamp(), Depth = depth };
-            return currentIndex;
         }
 
-        GL.QueryCounter(startQueryId, QueryCounterTarget.Timestamp);
-        GL.QueryCounter(endQueryId, QueryCounterTarget.Timestamp);
-        activeQueries[currentIndex] = new TimingQuery(Stopwatch.GetTimestamp(), true, name, depth, currentIndex, CpuOnly: false);
+        region.StartTimestamp = Stopwatch.GetTimestamp();
 
-        return currentIndex;
+        return frameRegions.Count;
     }
 
     /// <summary>
@@ -171,70 +207,50 @@ public class Timings
     /// <param name="id">Query ID returned from <see cref="BeginQuery"/>.</param>
     internal void EndQuery(QueryId id)
     {
-        if (!Capture || id == 0)
+        if (!Capture || id <= 0 || id > frameRegions.Count)
         {
             return;
         }
 
         var endTimestamp = Stopwatch.GetTimestamp();
+        var region = frameRegions[id - 1];
+        var elapsedMs = Stopwatch.GetElapsedTime(region.StartTimestamp, endTimestamp).TotalMilliseconds;
 
-        if (activeQueries.TryGetValue(id, out var query))
+        openRegions.Remove(region);
+
+        if (region.CpuOnly)
         {
-            var elapsed = Stopwatch.GetElapsedTime(query.StartTimestamp, endTimestamp);
-
-            if (query.CpuOnly)
-            {
-                results[id] = new TimingResult(query.Name, elapsed.TotalMilliseconds, 0.0, query.Depth, query.Id, CpuOnly: true);
-                currentDepth = Math.Max(currentDepth - 1, 0);
-                return;
-            }
-
-            // carry forward previous GPU time if new GPU time is not available
-            var elapsedGpuMs = gpuTimingsCache.GetValueOrDefault(query.Id);
-            var gpuFresh = false;
-
-            var startQueryId = gpuStartQueries[query.Id];
-            var endQueryId = gpuEndQueries[query.Id];
-
-            var resubmitQueries = false;
-            if (query.SubmitGpuQueries)
-            {
-                GL.QueryCounter(endQueryId, QueryCounterTarget.Timestamp);
-            }
-            else
-            {
-                GL.GetQueryObject(startQueryId, GetQueryObjectParam.QueryResultNoWait, out long startTimestampGpu);
-                GL.GetQueryObject(endQueryId, GetQueryObjectParam.QueryResultNoWait, out long endTimestampGpu);
-                if (startTimestampGpu != 0)
-                {
-                    if (endTimestampGpu != 0)
-                    {
-                        if (staleResults.Remove(query.Id))
-                        {
-                            resubmitQueries = true;
-                        }
-                        else
-                        {
-                            elapsedGpuMs = (endTimestampGpu - startTimestampGpu) / 1_000_000.0; // convert nanoseconds to milliseconds
-                            gpuTimingsCache[query.Id] = elapsedGpuMs;
-                            gpuFresh = true;
-                            resubmitQueries = true;
-                        }
-                    }
-                }
-            }
-
-            activeQueries[id] = query with { SubmitGpuQueries = resubmitQueries };
-
-            results[id] = new TimingResult(query.Name, elapsed.TotalMilliseconds, elapsedGpuMs, query.Depth, query.Id, CpuOnly: false, gpuFresh);
+            results[id] = new TimingResult(region, elapsedMs, 0.0);
+            return;
         }
 
-        currentDepth--;
-        currentDepth = Math.Max(currentDepth, 0);
+        // The queries are only read back once their results land, so until then the last GPU time is carried forward
+        var gpuFresh = false;
+
+        if (region.SubmitGpuQueries)
+        {
+            GL.QueryCounter(region.EndQuery, QueryCounterTarget.Timestamp);
+            region.SubmitGpuQueries = false;
+        }
+        else
+        {
+            GL.GetQueryObject(region.StartQuery, GetQueryObjectParam.QueryResultNoWait, out long startTimestampGpu);
+            GL.GetQueryObject(region.EndQuery, GetQueryObjectParam.QueryResultNoWait, out long endTimestampGpu);
+
+            if (startTimestampGpu != 0 && endTimestampGpu != 0)
+            {
+                region.GpuMs = (endTimestampGpu - startTimestampGpu) / 1_000_000.0; // convert nanoseconds to milliseconds
+                region.SubmitGpuQueries = true;
+                gpuFresh = true;
+            }
+        }
+
+        results[id] = new TimingResult(region, elapsedMs, region.GpuMs, gpuFresh);
     }
 
     /// <summary>
-    /// Renders timing results to screen using the provided text renderer.
+    /// Renders timing results to screen using the provided text renderer. When the rows do not fit
+    /// the screen, the cheapest regions are folded into a single row until they do.
     /// </summary>
     /// <param name="textRenderer">Text renderer to use for display.</param>
     /// <param name="camera">Camera for positioning text.</param>
@@ -248,30 +264,27 @@ public class Timings
             return;
         }
 
+        displayText.Clear();
+
+        var lineHeight = scale * 1.2f / camera.WindowSize.Y;
         var yOffset = y;
-        var lineHeight = scale * 1.5f / camera.WindowSize.Y;
 
-        textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
+        void AddLine(TextRenderer.TextMemory text, Color32 color)
         {
-            X = x,
-            Y = yOffset,
-            Scale = scale,
-            Color = new Color32(255, 200, 0),
-            Text = "Render Timings"
-        }, camera);
+            textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
+            {
+                X = x,
+                Y = yOffset,
+                Scale = scale,
+                Color = color,
+                Text = text,
+            }, camera);
 
-        yOffset += lineHeight;
+            yOffset += lineHeight;
+        }
 
-        textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
-        {
-            X = x,
-            Y = yOffset,
-            Scale = scale,
-            Color = Color32.White,
-            Text = $"  {"",-NameColumnWidth} {"GPU",6} {"CPU",6} {"P100",6}"
-        }, camera);
-
-        yOffset += lineHeight;
+        AddLine("Render Timings", new Color32(255, 200, 0));
+        AddLine(ColumnHeader, Color32.White);
 
         var totalCpu = 0.0;
         var totalGpu = 0.0;
@@ -280,11 +293,10 @@ public class Timings
         if (Stopwatch.GetElapsedTime(lastRollingUpdate).TotalSeconds > 1.0)
         {
             // Shift current max to previous and reset current max for new rolling window
-            foreach (var result in results.Values)
+            foreach (var region in regions.Values)
             {
-                var max = Math.Max(result.TimeMs, result.TimeMsGpu);
-                previousMax[result.Id] = currentMax.GetValueOrDefault(result.Id, max);
-                currentMax[result.Id] = 0;
+                region.PreviousMax = region.CurrentMax;
+                region.CurrentMax = null;
             }
 
             swapMaxPrevious = swapMaxCurrent;
@@ -295,11 +307,14 @@ public class Timings
             lastRollingUpdate = Stopwatch.GetTimestamp();
         }
 
+        displayRows.Clear();
+
         foreach (var result in results.Values)
         {
             var maxTimeCurrent = Math.Max(result.TimeMs, result.TimeMsGpu);
-            currentMax[result.Id] = Math.Max(currentMax.GetValueOrDefault(result.Id, 0), maxTimeCurrent);
-            var maxTime = previousMax.GetValueOrDefault(result.Id, maxTimeCurrent);
+            var region = result.Region;
+            region.CurrentMax = Math.Max(region.CurrentMax ?? 0, maxTimeCurrent);
+            var maxTime = region.PreviousMax ?? maxTimeCurrent;
 
             if (result.Depth == 0)
             {
@@ -308,59 +323,43 @@ public class Timings
                 total += maxTime;
             }
 
-            var color = ColorForPeak(maxTime);
-
-            var indent = new string(' ', result.Depth * 2);
-            var displayName = $"{indent}{result.Name}";
-
-            // A CPU-only region submits no GPU work, so a number in that column would be meaningless
-            var gpuText = result.CpuOnly ? "-" : result.TimeMsGpu.ToString("0.00", CultureInfo.InvariantCulture);
-
-            textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
-            {
-                X = x,
-                Y = yOffset,
-                Scale = scale,
-                Color = color,
-                Text = string.Create(CultureInfo.InvariantCulture, $"  {displayName,-NameColumnWidth} {gpuText,6} {result.TimeMs,6:0.00} {maxTime,6:0.00}")
-            }, camera);
-
-            yOffset += lineHeight;
+            displayRows.Add(new DisplayRow(result, maxTime, result.Collapsed && maxTime < ExpandCollapsedMs));
         }
 
-        textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
-        {
-            X = x,
-            Y = yOffset,
-            Scale = scale,
-            Color = ColorForPeak(swapMaxPrevious),
-            Text = string.Create(CultureInfo.InvariantCulture, $"  {"Swapchain",-NameColumnWidth} {"-",6} {swapMs,6:0.00} {swapMaxPrevious,6:0.00}")
-        }, camera);
+        // Title, column names, swapchain, total, unaccounted, and the async header with its rows
+        var fixedLines = 5 + (asyncRows.Count > 0 ? 1 + asyncRows.Count : 0);
+        CollapseToFit((int)((1f - 2f * y) / lineHeight) - fixedLines);
 
-        yOffset += lineHeight;
+        var hideBelowDepth = int.MaxValue;
+
+        for (var i = 0; i < displayRows.Count; i++)
+        {
+            var (result, maxTime, collapsed) = displayRows[i];
+
+            if (result.Depth > hideBelowDepth)
+            {
+                continue;
+            }
+
+            hideBelowDepth = collapsed ? result.Depth : int.MaxValue;
+
+            var name = FormatNameColumn(result.Name, result.Depth);
+
+            // A CPU-only region submits no GPU work, so a number in that column would be meaningless
+            var text = result.CpuOnly
+                ? displayText.Format($"  {name} {"-",6} {result.TimeMs,6:0.00} {maxTime,6:0.00}")
+                : displayText.Format($"  {name} {result.TimeMsGpu,6:0.00} {result.TimeMs,6:0.00} {maxTime,6:0.00}");
+
+            AddLine(text, ColorForPeak(maxTime));
+        }
+
+        AddLine(displayText.Format($"  {"Swapchain",-NameColumnWidth} {"-",6} {swapMs,6:0.00} {swapMaxPrevious,6:0.00}"), ColorForPeak(swapMaxPrevious));
 
         totalCpu += swapMs;
         total += swapMaxPrevious;
 
-        textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
-        {
-            X = x,
-            Y = yOffset,
-            Scale = scale,
-            Color = Color32.White,
-            Text = string.Create(CultureInfo.InvariantCulture, $"  {"Total",-NameColumnWidth} {totalGpu,6:0.00} {totalCpu,6:0.00} {total,6:0.00}")
-        }, camera);
-
-        yOffset += lineHeight;
-
-        textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
-        {
-            X = x,
-            Y = yOffset,
-            Scale = scale,
-            Color = Color32.White,
-            Text = string.Create(CultureInfo.InvariantCulture, $"  {"Unaccounted",-NameColumnWidth} {"-",6} {unaccountedMs,6:0.00} {unaccountedMaxPrevious,6:0.00}")
-        }, camera);
+        AddLine(displayText.Format($"  {"Total",-NameColumnWidth} {totalGpu,6:0.00} {totalCpu,6:0.00} {total,6:0.00}"), Color32.White);
+        AddLine(displayText.Format($"  {"Unaccounted",-NameColumnWidth} {"-",6} {unaccountedMs,6:0.00} {unaccountedMaxPrevious,6:0.00}"), Color32.White);
 
         if (asyncRows.Count == 0)
         {
@@ -368,42 +367,105 @@ public class Timings
         }
 
         // Off-frame work runs on other threads, so counting it in the totals would overstate the frame cost.
-        yOffset += lineHeight;
+        AddLine("  Async", Color32.White);
 
-        textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
+        foreach (var (rowName, row) in asyncRows)
         {
-            X = x,
-            Y = yOffset,
-            Scale = scale,
-            Color = Color32.White,
-            Text = $"  {"Async",-NameColumnWidth}"
-        }, camera);
+            var name = FormatNameColumn(rowName, 1);
+            var text = row.CpuMs is { } cpuMs
+                ? displayText.Format($"  {name} {"-",6} {cpuMs,6:0.00} {row.Detail,6}")
+                : displayText.Format($"  {name} {"-",6} {"",6} {row.Detail,6}");
 
-        foreach (var (name, row) in asyncRows)
-        {
-            yOffset += lineHeight;
-
-            var cpuText = row.CpuMs?.ToString("0.00", CultureInfo.InvariantCulture) ?? string.Empty;
-
-            textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
-            {
-                X = x,
-                Y = yOffset,
-                Scale = scale,
-                Color = new Color32(150, 255, 150),
-                Text = $"  {"  " + name,-NameColumnWidth} {"-",6} {cpuText,6} {row.Detail,6}"
-            }, camera);
+            AddLine(text, new Color32(150, 255, 150));
         }
     }
 
-    /// <summary>Resets the query index for the new frame. Marked by <see cref="PerfStats"/>, which owns the thread policy.</summary>
+    /// <summary>Folds the cheapest shown regions that have nested ones until at most <paramref name="maxRows"/> rows show.</summary>
+    private void CollapseToFit(int maxRows)
+    {
+        while (CountVisibleRows() > maxRows)
+        {
+            var cheapest = -1;
+            var hideBelowDepth = int.MaxValue;
+
+            for (var i = 0; i < displayRows.Count; i++)
+            {
+                var row = displayRows[i];
+
+                if (row.Result.Depth > hideBelowDepth)
+                {
+                    continue;
+                }
+
+                hideBelowDepth = row.Collapsed ? row.Result.Depth : int.MaxValue;
+
+                if (!row.Collapsed && CountNested(i) > 0 && (cheapest < 0 || row.PeakMs < displayRows[cheapest].PeakMs))
+                {
+                    cheapest = i;
+                }
+            }
+
+            if (cheapest < 0)
+            {
+                return;
+            }
+
+            displayRows[cheapest] = displayRows[cheapest] with { Collapsed = true };
+        }
+    }
+
+    private int CountVisibleRows()
+    {
+        var count = 0;
+        var hideBelowDepth = int.MaxValue;
+
+        foreach (var row in displayRows)
+        {
+            if (row.Result.Depth > hideBelowDepth)
+            {
+                continue;
+            }
+
+            hideBelowDepth = row.Collapsed ? row.Result.Depth : int.MaxValue;
+            count++;
+        }
+
+        return count;
+    }
+
+    /// <summary>Counts the rows nested at any depth under the row at <paramref name="index"/>.</summary>
+    private int CountNested(int index)
+    {
+        var depth = displayRows[index].Result.Depth;
+        var end = index + 1;
+
+        while (end < displayRows.Count && displayRows[end].Result.Depth > depth)
+        {
+            end++;
+        }
+
+        return end - index - 1;
+    }
+
+    /// <summary>Indents a region name by its depth and pads it to the name column, cutting what does not fit.</summary>
+    private ReadOnlySpan<char> FormatNameColumn(string name, int depth)
+    {
+        var column = nameColumn.AsSpan();
+        column.Fill(' ');
+
+        var indent = Math.Min(depth * 2, column.Length);
+        name.AsSpan(0, Math.Min(name.Length, column.Length - indent)).CopyTo(column[indent..]);
+
+        return column;
+    }
+
+    /// <summary>Starts a new frame of regions. Marked by <see cref="PerfStats"/>, which owns the thread policy.</summary>
     internal void MarkFrameBegin()
     {
-        if (Capture)
-        {
-            currentIndex = 0;
-            currentDepth = 0;
-        }
+        // Unconditional, as capture turned off mid-frame leaves regions open that would parent the next ones
+        frame++;
+        openRegions.Clear();
+        frameRegions.Clear();
     }
 
     /// <summary>
@@ -440,25 +502,27 @@ public class Timings
 
         foreach (var result in results.Values)
         {
-            var row = averaging.GetValueOrDefault(result.Id);
+            var region = result.Region;
 
-            // A region seen for the first time, or that took another name in a later frame, starts over
-            if (row.Name != result.Name)
+            if (!region.Averaged)
             {
-                row = new AveragedRow(result.Name, result.Depth, result.CpuOnly, 0.0, 0, 0.0, 0);
+                region.Averaged = true;
+                region.AveragedCpuMs = 0.0;
+                region.AveragedCpuSamples = 0;
+                region.AveragedGpuMs = 0.0;
+                region.AveragedGpuSamples = 0;
+                averaging.Add(region);
             }
 
-            row.CpuMs += result.TimeMs;
-            row.CpuSamples++;
+            region.AveragedCpuMs += result.TimeMs;
+            region.AveragedCpuSamples++;
 
             // Between readings the last GPU time is carried forward, which would count it more than once
             if (result.GpuFresh)
             {
-                row.GpuMs += result.TimeMsGpu;
-                row.GpuSamples++;
+                region.AveragedGpuMs += result.TimeMsGpu;
+                region.AveragedGpuSamples++;
             }
-
-            averaging[result.Id] = row;
         }
     }
 
@@ -468,11 +532,13 @@ public class Timings
     /// </summary>
     internal void StartAveraging()
     {
+        StopAveraging();
+
         averaging = [];
         AveragedFrames = 0;
     }
 
-    /// <summary>Stops summing, and returns each region's averages in frame order. Call between frames.</summary>
+    /// <summary>Stops summing, and returns each region's averages in the order they were first timed. Call between frames.</summary>
     /// <returns>The averages, empty when nothing was timed.</returns>
     internal List<TimingAverage> StopAveraging()
     {
@@ -483,12 +549,13 @@ public class Timings
 
         var averages = new List<TimingAverage>(averaging.Count);
 
-        foreach (var row in averaging.Values)
+        foreach (var region in averaging)
         {
-            var cpuMs = row.CpuMs / row.CpuSamples;
-            double? gpuMs = row.CpuOnly || row.GpuSamples == 0 ? null : row.GpuMs / row.GpuSamples;
+            var cpuMs = region.AveragedCpuMs / region.AveragedCpuSamples;
+            double? gpuMs = region.CpuOnly || region.AveragedGpuSamples == 0 ? null : region.AveragedGpuMs / region.AveragedGpuSamples;
 
-            averages.Add(new TimingAverage(row.Name, row.Depth, cpuMs, row.CpuSamples, gpuMs, row.GpuSamples));
+            averages.Add(new TimingAverage(region.Name, region.Depth, cpuMs, region.AveragedCpuSamples, gpuMs, region.AveragedGpuSamples));
+            region.Averaged = false;
         }
 
         averaging = null;
@@ -501,7 +568,9 @@ public class Timings
     /// </summary>
     public void Dispose()
     {
-        activeQueries.Clear();
+        regions.Clear();
+        openRegions.Clear();
+        frameRegions.Clear();
         results.Clear();
     }
 }
