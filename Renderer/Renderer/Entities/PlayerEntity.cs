@@ -40,6 +40,9 @@ public sealed class PlayerEntity : BaseEntity
     // Holding use this long on a body grabs it at the aimed point, letting go sooner is a press
     private const float GrabHoldTime = 0.25f;
 
+    // How far off the aim an interactable grab point can be and still be taken hold of
+    private const float AimGrabRadius = 8f;
+
     /// <summary>Gets the controller whose state this entity reflects.</summary>
     public IPlayerController Controller { get; }
 
@@ -87,6 +90,8 @@ public sealed class PlayerEntity : BaseEntity
     private Vector3 grabLocalPoint;
     private float grabDistance;
     private float grabStrainTime;
+
+    private IAimGrabbable? aimGrab;
 
     /// <summary>Creates the player entity for a movement controller.</summary>
     public PlayerEntity(EntitySystem system, Scene scene, IPlayerController controller) : base(system, scene, "player")
@@ -158,7 +163,7 @@ public sealed class PlayerEntity : BaseEntity
             {
                 Drop();
             }
-            else if (isHolding && FindGrabTarget(out _, out _))
+            else if (isHolding && (FindAimGrabbable() != null || FindGrabTarget(out _, out _)))
             {
                 isUsePending = true;
                 usePressTime = EntitySystem.CurrentTime;
@@ -185,18 +190,59 @@ public sealed class PlayerEntity : BaseEntity
             }
         }
 
-        if (hasGrab && !isHolding)
+        if (!isHolding)
         {
             ReleaseGrab();
+            ReleaseAimGrab();
         }
     }
 
     private void Press()
     {
-        if (PressUse() == null)
+        if (FindAimGrabbable() is BaseEntity interactable)
+        {
+            interactable.Use(this);
+        }
+        else if (PressUse() == null)
         {
             TryPickup();
         }
+    }
+
+    // The nearest interactable whose grab point lies within reach close to the aim line
+    private IAimGrabbable? FindAimGrabbable()
+    {
+        var eyePosition = Controller.EyePosition;
+        var forward = Controller.ViewForward;
+        IAimGrabbable? nearest = null;
+        var nearestAlong = UseRange;
+
+        foreach (var entity in EntitySystem.Entities)
+        {
+            if (entity.IsRemoved || entity is not IAimGrabbable grabbable || grabbable.GrabPoint is not { } point)
+            {
+                continue;
+            }
+
+            var along = Vector3.Dot(point - eyePosition, forward);
+
+            if (along <= 0f || along > nearestAlong || Vector3.Distance(point, eyePosition + forward * along) > AimGrabRadius)
+            {
+                continue;
+            }
+
+            nearest = grabbable;
+            nearestAlong = along;
+        }
+
+        return nearest;
+    }
+
+    internal void ReleaseAimGrab()
+    {
+        var released = aimGrab;
+        aimGrab = null;
+        released?.EndAimGrab();
     }
 
     /// <inheritdoc/>
@@ -204,6 +250,12 @@ public sealed class PlayerEntity : BaseEntity
     {
         UpdateCarry(frameTime);
         UpdateGrab(frameTime);
+
+        if (aimGrab != null)
+        {
+            var (eyePosition, forward, _) = GetHoldView();
+            aimGrab.UpdateAimGrab(eyePosition, forward, frameTime);
+        }
     }
 
     private void SyncFromController()
@@ -508,6 +560,13 @@ public sealed class PlayerEntity : BaseEntity
 
     private void TryGrab()
     {
+        if (FindAimGrabbable() is { } interactable)
+        {
+            aimGrab = interactable;
+            interactable.BeginAimGrab(this, Controller.EyePosition, Controller.ViewForward);
+            return;
+        }
+
         if (hasGrab || !FindGrabTarget(out var body, out var point))
         {
             return;
@@ -621,6 +680,7 @@ public sealed class PlayerEntity : BaseEntity
 
         Drop();
         ReleaseGrab();
+        ReleaseAimGrab();
 
         if (hasPresenceBody)
         {
