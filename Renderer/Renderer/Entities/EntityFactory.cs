@@ -55,6 +55,7 @@ public static class EntityFactory
         Register<PhysLengthConstraint>("phys_lengthconstraint", static (system, spawnInfo) => new PhysLengthConstraint(system, spawnInfo));
         Register<PhysSpring>("phys_spring", static (system, spawnInfo) => new PhysSpring(system, spawnInfo));
         Register<PhysGenericConstraint>("phys_genericconstraint", static (system, spawnInfo) => new PhysGenericConstraint(system, spawnInfo));
+        Register<InfoConstraintAnchor>("info_constraint_anchor", static (system, spawnInfo) => new InfoConstraintAnchor(system, spawnInfo));
         Register<LogicCollisionPair>("logic_collision_pair", static (system, spawnInfo) => new LogicCollisionPair(system, spawnInfo));
         Register<PropPhysics>("prop_physics", static (system, spawnInfo) => new PropPhysics(system, spawnInfo));
         Register<PropPhysics>("prop_physics_multiplayer", static (system, spawnInfo) => new PropPhysics(system, spawnInfo));
