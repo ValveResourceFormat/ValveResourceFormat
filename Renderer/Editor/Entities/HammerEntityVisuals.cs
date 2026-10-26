@@ -39,9 +39,6 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
     /// </summary>
     public const string HelpersLayerName = "Entity Helpers (editor only)";
 
-    // What a volume tied to an entity is most likely built from, where its class applies no material
-    private const string TriggerMaterial = "materials/tools/toolstrigger.vmat";
-
     private static readonly Color32 ConnectionStartColor = new(0, 255, 0);
     private static readonly Color32 ConnectionEndColor = new(255, 0, 0);
 
@@ -154,11 +151,11 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
         var autoApplyMaterial = entity == null ? null : Classes.FindClass(entity.Classname)?.AutoApplyMaterial;
 
         // An entity whose model draws nothing is a volume, built from a tools material the compiled map no longer names
-        var fallbackMaterial = entity is BaseModelEntity { ModelNode: null } ? TriggerMaterial : null;
+        var fallbackMaterial = entity is BaseModelEntity { ModelNode: null } ? ToolsMaterials.Trigger : null;
 
         // A group built from a tools material is all the compiled map keeps of the faces Hammer drew with it
         return PhysSceneNode.Create(scene, physics, name, group => autoApplyMaterial
-            ?? MapExtract.GetToolsMaterialForInteractAs(PhysAggregateData.GetInteractAsTags(physics.CollisionAttributes[group]))
+            ?? ToolsMaterials.GetForCollision(physics.CollisionAttributes[group])
             ?? fallbackMaterial);
     }
 

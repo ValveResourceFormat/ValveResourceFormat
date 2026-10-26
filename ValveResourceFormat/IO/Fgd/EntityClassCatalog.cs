@@ -49,9 +49,23 @@ public static class EntityClassCatalog
         return games.GetValueOrDefault(appId) ?? merged;
     }
 
+    /// <summary>Gets the entity classes of the game a file loader has found.</summary>
+    /// <param name="fileLoader">The file loader of the map.</param>
+    /// <returns>The classes of the game, or the ones of every game where it is not one whose classes are known.</returns>
+    /// <exception cref="InvalidDataException">The built in classes are missing or cannot be read.</exception>
+    public static EntityClassTable GetTable(IFileLoader fileLoader)
+    {
+        ArgumentNullException.ThrowIfNull(fileLoader);
+
+        return GetTable(GetAppId(fileLoader));
+    }
+
+    private static int GetAppId(IFileLoader fileLoader)
+        => fileLoader is GameFileLoader gameFileLoader ? gameFileLoader.GameInfo.InstalledSteamAppId : 0;
+
     private static EntityClassTable FindTable(IFileLoader fileLoader, ILogger logger)
     {
-        var appId = fileLoader is GameFileLoader gameFileLoader ? gameFileLoader.GameInfo.InstalledSteamAppId : 0;
+        var appId = GetAppId(fileLoader);
 
         if (BuiltIn.Value.Games.TryGetValue(appId, out var table))
         {

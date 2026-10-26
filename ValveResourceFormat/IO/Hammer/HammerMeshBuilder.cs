@@ -219,9 +219,6 @@ namespace ValveResourceFormat.IO
     /// </remarks>
     public class HammerMeshBuilder
     {
-        // What collision is drawn with when no tools material or surface property names a material for it
-        private const string NodrawMaterial = "materials/tools/toolsnodraw.vmat";
-
         /// <summary>
         /// How an edge shades across its two faces.
         /// </summary>
@@ -737,13 +734,12 @@ namespace ValveResourceFormat.IO
         public void AddPhysHull(HullDescriptor desc, PhysAggregateData phys, Func<string, string> materialNameProvider, Matrix4x4 transform, string? materialOverride = null)
         {
             var attributes = phys.CollisionAttributes[desc.CollisionAttributeIndex];
-            var tags = PhysAggregateData.GetInteractAsTags(attributes);
             var group = attributes.GetStringProperty("m_CollisionGroupString");
-            var material = materialOverride ?? MapExtract.GetToolsMaterialForInteractAs(tags) ?? NodrawMaterial;
+            var surfaceProperty = StringToken.GetKnownString(phys.SurfacePropertyHashes[desc.SurfacePropertyIndex]);
+            var material = materialOverride ?? ToolsMaterials.GetForCollision(attributes, surfaceProperty) ?? ToolsMaterials.Nodraw;
 
             if (group == "Default")
             {
-                var surfaceProperty = StringToken.GetKnownString(phys.SurfacePropertyHashes[desc.SurfacePropertyIndex]);
                 material = materialNameProvider.Invoke(surfaceProperty);
             }
 
@@ -787,11 +783,9 @@ namespace ValveResourceFormat.IO
             Matrix4x4 transform, string? materialOverride = null)
         {
             var attributes = phys.CollisionAttributes[desc.CollisionAttributeIndex];
-            var tags = PhysAggregateData.GetInteractAsTags(attributes);
             var group = attributes.GetStringProperty("m_CollisionGroupString");
-            var material = materialOverride ?? MapExtract.GetToolsMaterialForInteractAs(tags) ?? NodrawMaterial;
-
             var physicsSurfaceNames = phys.SurfacePropertyHashes.Select(StringToken.GetKnownString).ToArray();
+            var material = materialOverride ?? ToolsMaterials.GetForCollision(attributes, physicsSurfaceNames[desc.SurfacePropertyIndex]) ?? ToolsMaterials.Nodraw;
 
             var mesh = desc.Shape;
             var meshTriangles = mesh.GetTriangles();
@@ -846,7 +840,7 @@ namespace ValveResourceFormat.IO
 
                     // default is just nodraw, ignore it
                     material = surfaceProperty.Equals("default", StringComparison.OrdinalIgnoreCase)
-                        ? NodrawMaterial
+                        ? ToolsMaterials.Nodraw
                         : materialNameProvider.Invoke(surfaceProperty);
                 }
 

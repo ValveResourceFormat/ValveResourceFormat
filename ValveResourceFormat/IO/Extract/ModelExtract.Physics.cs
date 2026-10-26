@@ -38,52 +38,18 @@ partial class ModelExtract
         }
     }
 
-    private string?[] GetCollisionPropertyNames(IReadOnlyList<KVObject> collisionAttributes)
+    // The collision property each collision attribute compiles from, or null for the default one or none
+    private static string?[] GetCollisionPropertyNames(IReadOnlyList<KVObject> collisionAttributes)
     {
         var names = new string?[collisionAttributes.Count];
-        using var stream = fileLoader?.GetFileStream("scripts/collision_properties.txt");
-
-        if (stream == null)
-        {
-            return names;
-        }
-
-        var collisionProperties = KVDocumentExtensions.ParseKV3(stream).Root.GetArray("collision_properties");
 
         for (var i = 0; i < collisionAttributes.Count; i++)
         {
-            names[i] = FindCollisionPropertyName(collisionProperties, collisionAttributes[i]);
+            names[i] = CollisionProperties.FindCompiledFrom(collisionAttributes[i]) is { Name: not "default" } property ? property.Name : null;
         }
 
         return names;
     }
-
-    /// <summary>
-    /// Finds the first <c>scripts/collision_properties.txt</c> entry whose collision group and interaction layers
-    /// compile to <paramref name="collisionAttributes"/>, or <see langword="null"/> when that is the default entry
-    /// or no entry does.
-    /// </summary>
-    private static string? FindCollisionPropertyName(IReadOnlyList<KVObject> collisionProperties, KVObject collisionAttributes)
-    {
-        foreach (var collisionProperty in collisionProperties)
-        {
-            if (string.Equals(collisionProperty.GetStringProperty("collision_group"),
-                    collisionAttributes.GetStringProperty("m_CollisionGroupString"), StringComparison.OrdinalIgnoreCase)
-                && HaveSameLayers(collisionProperty.GetArray<string>("interact_as"), PhysAggregateData.GetInteractAsTags(collisionAttributes))
-                && HaveSameLayers(collisionProperty.GetArray<string>("interact_with"), collisionAttributes.GetArray<string>("m_InteractWithStrings"))
-                && HaveSameLayers(collisionProperty.GetArray<string>("interact_exclude"), collisionAttributes.GetArray<string>("m_InteractExcludeStrings")))
-            {
-                var name = collisionProperty.GetStringProperty("name");
-                return name == "default" ? null : name;
-            }
-        }
-
-        return null;
-    }
-
-    private static bool HaveSameLayers(string[]? authored, string[]? compiled)
-        => new HashSet<string>((authored ?? []).Where(layer => layer.Length > 0), StringComparer.OrdinalIgnoreCase)
-            .SetEquals((compiled ?? []).Where(layer => layer.Length > 0));
 
     private void AddPhysicsShapeFileNodes(ModelDocLists lists)
     {
@@ -264,7 +230,7 @@ partial class ModelExtract
     private static void RemapMaterials(ModelDocLists lists,
         IReadOnlyDictionary<string, string>? remapTable = null,
         bool globalReplace = false,
-        string globalDefault = "materials/tools/toolsnodraw.vmat")
+        string globalDefault = ToolsMaterials.Nodraw)
     {
         var remaps = KVObject.Array();
         lists.MaterialGroups.Add(

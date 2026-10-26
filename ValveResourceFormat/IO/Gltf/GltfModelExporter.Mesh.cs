@@ -500,11 +500,11 @@ public partial class GltfModelExporter
 
         var materialPath = GetDrawCallMaterial(drawCall, drawCallMaterials);
 
-        if (!ToolsMaterials.TryGetValue(materialPath, out var isToolsMaterial))
+        if (!ToolsMaterialCache.TryGetValue(materialPath, out var isToolsMaterial))
         {
             using var materialResource = FileLoader.LoadFileCompiled(materialPath);
             isToolsMaterial = materialResource?.DataBlock is VMaterial vMaterial && vMaterial.IntAttributes.ContainsKey("tools.toolsmaterial");
-            ToolsMaterials.Add(materialPath, isToolsMaterial);
+            ToolsMaterialCache.Add(materialPath, isToolsMaterial);
         }
 
         return isToolsMaterial;

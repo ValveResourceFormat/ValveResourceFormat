@@ -23,7 +23,6 @@ var games = installedGames
     .ToList();
 
 var allProperties = new HashSet<string>();
-var entityMaterials = new Dictionary<string, string>();
 
 // The table the library embeds is written over, and the games not installed here keep the classes it has of them
 var classesPath = Path.GetFullPath(Path.Join(Path.GetDirectoryName(GetSourcePath()), "..", "..", "ValveResourceFormat", "IO", "Fgd", "entity_classes.kv3"));
@@ -60,7 +59,6 @@ Console.WriteLine();
 
 WriteClasses();
 WriteProperties();
-WriteMaterials();
 
 return 0;
 
@@ -464,11 +462,6 @@ void ParseFile(string file)
         {
             allProperties.Add(variable.Name.ToLowerInvariant());
         }
-
-        if (GetText(gameClass.Metadata, "auto_apply_material") is { } material && material != "materials/tools/toolstrigger.vmat")
-        {
-            entityMaterials[gameClass.Name] = material;
-        }
     }
 }
 
@@ -488,18 +481,4 @@ void WriteProperties()
     }
 
     File.WriteAllText("properties.txt", propertiesString.ToString());
-}
-
-void WriteMaterials()
-{
-    Console.WriteLine($"Found {entityMaterials.Count} entity materials");
-
-    var str = new StringBuilder();
-
-    foreach (var (name, material) in entityMaterials.OrderBy(x => x.Key))
-    {
-        str.AppendLine(CultureInfo.InvariantCulture, $"\"{name}\" => \"{material}\"");
-    }
-
-    File.WriteAllText("entity_materials.txt", str.ToString());
 }

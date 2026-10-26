@@ -405,7 +405,7 @@ internal static class DmxMeshBuilder
 
                 if (material == null && Mesh.IsOccluder(drawCall))
                 {
-                    material = "materials/tools/toolsoccluder.vmat";
+                    material = ToolsMaterials.Occluder;
                 }
 
                 material ??= "materials/default.vmat";

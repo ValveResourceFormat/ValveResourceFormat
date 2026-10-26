@@ -529,92 +529,6 @@ public sealed partial class MapExtract
         };
     }
 
-    // Tools materials by the interact-as tags their collision compiles with. A material
-    // gets a tag of the same name from each of its "mapbuilder.<tag>" attributes that is one of ladder, blocklos,
-    // blocksound, passbullets, npcclip, playerclip, sky, water, teleportclip and navclip, or the tags of the entry in
-    // scripts/collision_properties.txt that its "mapbuilder.collisionproperties" attribute names. Where several
-    // materials compile to the same tags, the one they are usually made with is listed.
-    private static readonly (string[] InteractAs, string Material)[] ToolsMaterialsByInteractAs =
-    [
-        (["blocklos"], "materials/tools/toolsblock_los.vmat"),
-        (["blocksound"], "materials/tools/toolsblocksound.vmat"),
-        (["csgo_grenadeclip"], "materials/tools/toolsgrenadeclip.vmat"),
-        (["ladder", "npcclip", "playerclip"], "materials/tools/toolsinvisibleladder.vmat"),
-        (["ladder", "passbullets"], "materials/tools/toolsinvisibleladder_wood.vmat"),
-        (["navclip"], "materials/tools/toolsnavclip.vmat"),
-        (["npcclip"], "materials/tools/toolsnpcclip.vmat"),
-        (["npcclip", "passbullets"], "materials/tools/toolsinvisible.vmat"),
-        (["npcclip", "playerclip"], "materials/tools/toolsclip.vmat"),
-        (["playerclip"], "materials/tools/toolsplayerclip.vmat"),
-        (["sky"], "materials/tools/toolsskybox.vmat"),
-        (["teleportclip"], "materials/tools/toolsteleportclip.vmat"),
-    ];
-
-    /// <summary>
-    /// Gets the tools material that compiles to collision which interacts as the given tags.
-    /// </summary>
-    /// <param name="interactAs">The interact-as tags of a group of collision, see <see cref="PhysAggregateData.GetInteractAsTags(KVObject)"/>.</param>
-    /// <returns>The path of the material, or <see langword="null"/> when no tools material compiles to exactly these tags.</returns>
-    public static string? GetToolsMaterialForInteractAs(ReadOnlySpan<string> interactAs)
-    {
-        foreach (var (tags, material) in ToolsMaterialsByInteractAs)
-        {
-            if (tags.Length == interactAs.Length && HasAllTags(interactAs, tags))
-            {
-                return material;
-            }
-        }
-
-        return null;
-    }
-
-    private static bool HasAllTags(ReadOnlySpan<string> interactAs, string[] tags)
-    {
-        foreach (var tag in tags)
-        {
-            var found = false;
-
-            foreach (var other in interactAs)
-            {
-                if (other.Equals(tag, StringComparison.OrdinalIgnoreCase))
-                {
-                    found = true;
-                    break;
-                }
-            }
-
-            if (!found)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Gets the auto-applied tool texture material for an entity class name.
-    /// </summary>
-    // These appear in FGD as "auto_apply_material"
-    public static string? GetToolTextureForEntity(string? entityClassName)
-    {
-        if (string.IsNullOrEmpty(entityClassName))
-        {
-            return default;
-        }
-
-        return entityClassName switch
-        {
-            "env_cs_place" => "materials/tools/tools_cs_place.vmat",
-            "func_nav_blocker" => "materials/tools/toolsnavattribute.vmat",
-            "func_nav_markup" => "materials/tools/toolsnavattribute.vmat",
-            "func_precipitation" => "materials/tools/toolsprecipitation.vmat",
-            "post_processing_volume" => "materials/tools_postprocess_volume.vmat",
-            "trigger_no_wards" => "materials/tools/tools_no_wards.vmat",
-            _ => "materials/tools/toolstrigger.vmat",
-        };
-    }
-
     /// <summary>
     /// Converts the map extract to a content file with all dependencies.
     /// </summary>
@@ -1812,7 +1726,7 @@ public sealed partial class MapExtract
 
         var materialOverride = string.IsNullOrEmpty(entityClassname)
             ? null
-            : GetToolTextureForEntity(entityClassname);
+            : ToolsMaterials.GetForEntity(entityClassname, FileLoader);
 
         for (var i = 0; i < phys.Parts.Length; i++)
         {
@@ -2689,7 +2603,7 @@ public sealed partial class MapExtract
             return;
         }
 
-        var toolTexture = GetToolTextureForEntity(associatedEntityClass);
+        var toolTexture = ToolsMaterials.GetForEntity(associatedEntityClass, FileLoader);
         Debug.Assert(toolTexture is not null);
         var modelExtract = new ModelExtract(model, FileLoader)
         {

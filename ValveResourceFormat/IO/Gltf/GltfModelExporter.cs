@@ -101,7 +101,7 @@ namespace ValveResourceFormat.IO
         private CancellationToken CancellationToken;
         private Vector2 LightmapUvScale = Vector2.One;
         private bool SkipToolsMaterials;
-        private readonly Dictionary<string, bool> ToolsMaterials = [];
+        private readonly Dictionary<string, bool> ToolsMaterialCache = [];
         private readonly Dictionary<(string Name, Vector4 TintColor), Mesh> ExportedMeshes = [];
         private readonly Dictionary<Node[], Skin> ExportedSkins = [];
         private readonly List<(PhysAggregateData Phys, string? Classname, Matrix4x4 Transform)> PhysicsToExport = [];
@@ -182,7 +182,7 @@ namespace ValveResourceFormat.IO
                 ExportedSkins.Clear();
                 LightmapUvScale = Vector2.One;
                 SkipToolsMaterials = false;
-                ToolsMaterials.Clear();
+                ToolsMaterialCache.Clear();
                 MaterialInputSignatures.Clear();
                 PhysicsToExport.Clear();
                 TextureExportingTasks.Clear();

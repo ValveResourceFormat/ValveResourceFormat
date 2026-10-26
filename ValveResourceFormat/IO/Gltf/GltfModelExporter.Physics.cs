@@ -423,8 +423,8 @@ public partial class GltfModelExporter
 
             // Try to load and use tool material first. Physics meshes have no tangents or detail worth shading, so only its base color is bound
             var toolMaterialPath = classname != null
-                ? MapExtract.GetToolTextureForEntity(classname)
-                : MapExtract.GetToolsMaterialForInteractAs(PhysAggregateData.GetInteractAsTags(collisionAttributes));
+                ? ToolsMaterials.GetForEntity(classname, FileLoader)
+                : ToolsMaterials.GetForCollision(collisionAttributes);
             var usedToolMaterial = false;
 
             if (toolMaterialPath != null && FileLoader.LoadFileCompiled(toolMaterialPath)?.DataBlock is VMaterial toolMaterial)
