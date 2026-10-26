@@ -56,18 +56,15 @@ namespace ValveResourceFormat.Renderer.PostProcess
         /// </summary>
         public float ExposureCompensation { get; set; }
 
-        /// <summary>The displayed luminance that auto-exposure places the scene's log-average on.</summary>
+        /// <summary>The pre-tonemap luminance that auto-exposure places the scene's log-average on.</summary>
         private const float MiddleGrey = 0.18f;
 
-        /// <summary>
-        /// Gets the pre-tonemap scene luminance auto-exposure aims for: the value the active tonemap
-        /// curve displays as <see cref="MiddleGrey"/>.
-        /// </summary>
-        public float ExposureTargetLuminance { get; private set; } = MiddleGrey;
+        /// <summary>Gets the pre-tonemap scene luminance auto-exposure aims for.</summary>
+        public static float ExposureTargetLuminance => MiddleGrey;
         /// <summary>Gets the smoothed exposure value applied in the current frame.</summary>
         public float CurrentExposure { get; private set; } = 1.0f;
         /// <summary>Gets the target exposure value that <see cref="CurrentExposure"/> is adapting towards.</summary>
-        public float TargetExposure { get; private set; }
+        public float TargetExposure { get; private set; } = 1.0f;
         /// <summary>Gets or sets the final linear tonemap scalar passed to the post-process shader.</summary>
         public float TonemapScalar { get; set; }
         /// <summary>
@@ -352,7 +349,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
             exposure = AutoAdjustExposure(exposure, deltaTime);
 
-            exposure *= MathF.Pow(2.0f, State.ExposureSettings.ExposureCompensation + ExposureCompensation);
+            exposure *= MathF.Pow(2.0f, ExposureCompensation);
             TonemapScalar = exposure;
 
             ReportTonemapStats();
@@ -387,13 +384,10 @@ namespace ValveResourceFormat.Renderer.PostProcess
                 return CurrentExposure;
             }
 
-            var curveInput = State.TonemapSettings.InvertTonemapping(MiddleGrey);
-            ExposureTargetLuminance = float.IsNaN(curveInput) ? MiddleGrey : curveInput;
-
-            var rawScalar = ExposureTargetLuminance / AverageLuminance;
+            var rawScalar = MiddleGrey / AverageLuminance;
             if (!float.IsFinite(rawScalar))
             {
-                return exposure;
+                return CurrentExposure;
             }
 
             if (ExposureHistory.Count >= 10)
@@ -406,10 +400,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
             var settings = State.ExposureSettings;
             // CurrentExposure is persistent between frames
 
-            // Sequential min-then-max clamp: authored data contains locked (min == max) and even
-            // inverted ranges
-            var (min, max) = (settings.ExposureMin, settings.ExposureMax);
-            var clampedScalar = MathF.Max(MathF.Min(rawScalar, max), min);
+            var averagedScalar = rawScalar;
             if (ExposureHistory.Count == 10)
             {
                 var weightedSum = 0.0f;
@@ -417,23 +408,26 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
                 for (var i = 0; i < 10; i++)
                 {
-                    var weight = Math.Abs(5 - i) * 0.2f; // might be (5 - Math.Abs(5 - i))
+                    var weight = Math.Abs(5 - i) * 0.2f;
                     weightTotal += weight;
                     weightedSum += weight * ExposureHistory[i];
                 }
 
-                clampedScalar = MathF.Max(MathF.Min(weightedSum * (1.0f / weightTotal), max), min);
+                averagedScalar = weightedSum * (1.0f / weightTotal);
             }
 
-            if (!float.IsFinite(clampedScalar))
+            // Authored data contains locked (min == max) and even inverted ranges; an inverted range
+            // gives the minimum below it and the maximum above it
+            var clampedScalar = averagedScalar < settings.ExposureMin
+                ? settings.ExposureMin
+                : MathF.Min(settings.ExposureMax, averagedScalar);
+
+            // A non-finite average keeps the previous target and still adapts towards it
+            if (float.IsFinite(clampedScalar))
             {
-                return CurrentExposure;
+                // Compensation moves the target, so the exposure adapts to it at the authored speed
+                TargetExposure = clampedScalar * MathF.Pow(2.0f, settings.ExposureCompensation);
             }
-
-            TargetExposure = clampedScalar;
-
-            //if (Unknown > 0.0)
-            //    TargetExposure *= Unknown;
 
             if (settings.ExposureSpeedUp == 0.0)
             {

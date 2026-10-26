@@ -126,67 +126,6 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             var denom = inputValue * (inputValue * ShoulderStrength + LinearStrength) + (ToeStrength * ToeDenom);
             return (num / denom) - (ToeNum / ToeDenom);
         }
-
-        /// <summary>
-        /// Runs the full tonemap the shader performs: the pre-curve scale and clamp, the curve, and the
-        /// white point normalization.
-        /// </summary>
-        /// <param name="sceneValue">The exposed linear scene value.</param>
-        /// <returns>The displayed value, in the 0-1 range before the sRGB encode.</returns>
-        public readonly float Display(float sceneValue)
-        {
-            var effectiveWhitePoint = EffectiveWhitePoint;
-            var curveInput = MathF.Min(sceneValue * PreTonemapScale, effectiveWhitePoint);
-
-            return ApplyTonemapping(curveInput) / ApplyTonemapping(effectiveWhitePoint);
-        }
-
-        /// <summary>
-        /// Inverts <see cref="Display"/>: the exposed scene value that displays as <paramref name="displayValue"/>.
-        /// </summary>
-        /// <param name="displayValue">The desired displayed value, in the 0-1 range the shader outputs.</param>
-        /// <returns>
-        /// The exposed linear scene value, or <see cref="float.NaN"/> if this curve cannot be inverted.
-        /// </returns>
-        public readonly float InvertTonemapping(float displayValue)
-        {
-            // Solving ApplyTonemapping(x) = displayValue * ApplyTonemapping(EffectiveWhitePoint) for x, after
-            // clearing the curve's denominator, leaves a quadratic in x with these coefficients. g is the
-            // curve's numerator/denominator ratio before the ToeNum/ToeDenom shift. x is the curve input,
-            // so the result is divided by the pre-curve scale to land back in scene space.
-            var g = (displayValue * ApplyTonemapping(EffectiveWhitePoint)) + (ToeNum / ToeDenom);
-
-            var a = ShoulderStrength * (1f - g);
-            var b = LinearStrength * (LinearAngle - g);
-            var c = ToeStrength * (ToeNum - (g * ToeDenom));
-
-            float result;
-
-            if (a == 0f)
-            {
-                // No shoulder, so the curve is a straight line.
-                result = -c / b;
-            }
-            else
-            {
-                var discriminant = (b * b) - (4f * a * c);
-
-                if (discriminant < 0f)
-                {
-                    return float.NaN;
-                }
-
-                var root = MathF.Sqrt(discriminant);
-                result = (-b + root) / (2f * a);
-
-                if (result <= 0f)
-                {
-                    result = (-b - root) / (2f * a);
-                }
-            }
-
-            return (float.IsFinite(result) && result > 0f) ? result / PreTonemapScale : float.NaN;
-        }
     }
 
     /// <summary>
@@ -222,7 +161,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             ExposureMin = 0.25f;
             ExposureMax = 8.0f;
             ExposureSpeedUp = 1.0f;
-            ExposureSpeedDown = 1.0f;
+            ExposureSpeedDown = 2.0f;
             ExposureSmoothingRange = 100f;
             ExposureCompensation = 0.0f;
         }
@@ -233,12 +172,8 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             var def = new ExposureSettings();
             var settings = new ExposureSettings
             {
-                ExposureMin = entity.ContainsKey("minlogexposure")
-                    ? MathF.Pow(2, entity.GetFloatProperty("minlogexposure"))
-                    : entity.GetFloatProperty("minexposure", def.ExposureMin),
-                ExposureMax = entity.ContainsKey("maxlogexposure")
-                    ? MathF.Pow(2, entity.GetFloatProperty("maxlogexposure"))
-                    : entity.GetFloatProperty("maxexposure", def.ExposureMax),
+                ExposureMin = GetExposureBound(entity, "minexposure", "minlogexposure", def.ExposureMin),
+                ExposureMax = GetExposureBound(entity, "maxexposure", "maxlogexposure", def.ExposureMax),
                 ExposureSpeedUp = entity.GetFloatProperty("exposurespeedup", def.ExposureSpeedUp),
                 ExposureSpeedDown = entity.GetFloatProperty("exposurespeeddown", def.ExposureSpeedDown),
                 ExposureCompensation = entity.GetFloatProperty("exposurecompensation", def.ExposureCompensation),
@@ -247,6 +182,23 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             };
 
             return settings;
+        }
+
+        // A positive linear bound wins; otherwise the log2 bound applies
+        private static float GetExposureBound(Entity entity, string linearKey, string logKey, float defaultValue)
+        {
+            var linear = entity.GetFloatProperty(linearKey);
+            if (linear > 0f)
+            {
+                return linear;
+            }
+
+            if (entity.ContainsKey(logKey))
+            {
+                return MathF.Pow(2f, entity.GetFloatProperty(logKey));
+            }
+
+            return defaultValue;
         }
 
         /// <summary>Linearly interpolates the numeric fields between two exposure settings.</summary>

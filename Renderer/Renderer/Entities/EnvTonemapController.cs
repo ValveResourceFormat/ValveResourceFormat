@@ -31,6 +31,7 @@ public sealed class EnvTonemapController : BaseEntity
         {
             ControllerExposureSettings = new ExposureSettings()
             {
+                AutoExposureEnabled = true,
                 ExposureMin = minExposure,
                 ExposureMax = maxExposure,
                 ExposureSpeedDown = exposureRate,
