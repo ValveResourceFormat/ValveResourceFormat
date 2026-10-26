@@ -36,6 +36,10 @@ public sealed class PropAnimInteractable : BaseModelEntity, IAimGrabbable
     // How quickly a free resistance follows the aim, per second
     private const float FollowRate = 30f;
 
+    private readonly List<AnimInteractablePart> parts = [];
+    private int[] partBones = [];
+    private Matrix4x4[] partBinds = [];
+
     private AnimationBase? sequence;
     private int interactBone = -1;
     private readonly Vector3[] path = new Vector3[PathSamples + 1];
@@ -137,6 +141,61 @@ public sealed class PropAnimInteractable : BaseModelEntity, IAimGrabbable
 
         PrepareSequence();
         ApplyPose();
+        CreateParts();
+    }
+
+    // Each physics part follows the bone it is bound to, starting from where its bind pose puts it
+    private void CreateParts()
+    {
+        if (ModelNode is not { } node || LoadedModel is not { } model || EntityCollider.LoadPhysics(model, EntitySystem.FileLoader) is not { } physics)
+        {
+            return;
+        }
+
+        // Collision cannot scale, so a scaled model stays passable rather than blocking at the wrong size
+        if (Vector3.Distance(EntityScale, Vector3.One) > 1e-3f)
+        {
+            return;
+        }
+
+        var controller = node.AnimationController;
+        var physicsBinds = physics.BindPose;
+        var boneNames = physics.BoneNames;
+
+        partBones = new int[physics.Parts.Length];
+        partBinds = new Matrix4x4[physics.Parts.Length];
+
+        for (var i = 0; i < physics.Parts.Length; i++)
+        {
+            var bone = i < boneNames.Length ? controller.Skeleton.GetBoneIndex(boneNames[i]) : -1;
+            var partBind = i < physicsBinds.Length ? physicsBinds[i] : Matrix4x4.Identity;
+
+            partBones[i] = bone;
+            partBinds[i] = bone >= 0 ? partBind * controller.InverseBindPose[bone] : partBind;
+
+            var part = new AnimInteractablePart(this, physics, i, IsRigidBodySimulated);
+            parts.Add(part);
+            EntitySystem.AddEntity(part);
+        }
+
+        PlaceParts();
+    }
+
+    private Matrix4x4 PartPose(int index)
+    {
+        var controller = ModelNode!.AnimationController;
+        var bone = partBones[index];
+        var model = bone >= 0 ? partBinds[index] * controller.Pose[bone] : partBinds[index];
+
+        return model * ModelToWorld;
+    }
+
+    private void PlaceParts()
+    {
+        for (var i = 0; i < parts.Count; i++)
+        {
+            parts[i].Place(PartPose(i));
+        }
     }
 
     private string? NonEmpty(string key) => KeyValues.GetStringProperty(key) is { Length: > 0 } value ? value : null;
@@ -376,7 +435,16 @@ public sealed class PropAnimInteractable : BaseModelEntity, IAimGrabbable
     internal override void FrameSimulate(float frameTime)
     {
         base.FrameSimulate(frameTime);
+        UpdateMotion(frameTime);
 
+        for (var i = 0; i < parts.Count; i++)
+        {
+            parts[i].Steer(PartPose(i), frameTime);
+        }
+    }
+
+    private void UpdateMotion(float frameTime)
+    {
         if (grabber != null)
         {
             return;
@@ -568,6 +636,13 @@ public sealed class PropAnimInteractable : BaseModelEntity, IAimGrabbable
     {
         grabber?.ReleaseAimGrab();
         StopMoveSound();
+
+        foreach (var part in parts)
+        {
+            EntitySystem.Remove(part);
+        }
+
+        parts.Clear();
 
         base.OnRemove();
     }

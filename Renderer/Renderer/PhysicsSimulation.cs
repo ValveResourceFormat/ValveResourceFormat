@@ -699,6 +699,22 @@ public sealed class PhysicsSimulation : IDisposable
         return body;
     }
 
+    /// <summary>Creates a kinematic body from one part of a model, in its own space, that pushes props as the part moves.</summary>
+    public Body? CreateMoverPartBody(PhysAggregateData phys, int partIndex, Vector3 origin, Quaternion rotation)
+    {
+        var body = World.CreateKinematicBody(origin, rotation);
+
+        AddPartShapes(body, phys, phys.Parts[partIndex].Shape, Matrix4x4.Identity, MoverCategory, new BodyGeometry());
+
+        if (body.ShapeCount == 0)
+        {
+            body.Destroy();
+            return null;
+        }
+
+        return body;
+    }
+
     // Meshes are skipped, dynamic bodies cannot carry them and movers are hull-compiled
     private BodyGeometry AddAggregateShapes(Body body, PhysAggregateData phys, ulong categories)
     {
