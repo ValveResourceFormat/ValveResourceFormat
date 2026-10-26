@@ -10,9 +10,12 @@ using ValveResourceFormat.IO.ContentFormats.ValveMap;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.Helpers;
+using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Utils;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace ValveResourceFormat.Renderer.Editor.Map;
@@ -40,6 +43,15 @@ public sealed class MapDocumentLoader : IDisposable
     private readonly List<MapEntity> mapEntities = [];
     private readonly HammerEntityVisuals entityVisuals;
     private readonly string? contentRoot;
+
+    // The faces things collide with, grouped by the collision tags they have. Only kept while the map is loaded.
+    private readonly List<CollisionGroup> collisionGroups = [];
+
+    private sealed record CollisionGroup(string[] InteractAs, string[] InteractExclude)
+    {
+        public List<Vector3> Positions { get; } = [];
+        public List<uint> SurfaceProperties { get; } = [];
+    }
 
     private CancellationToken CancellationToken => rendererContext.CancellationToken;
 
@@ -159,8 +171,12 @@ public sealed class MapDocumentLoader : IDisposable
             AddMesh(placedNode, mesh, owner);
         }
 
+        AddWorldCollision();
+        AddModelCollision();
+
         // The render data is only shared between the placements of a mesh while they are being made
         renderData.Clear();
+        collisionGroups.Clear();
 
         LinkEntities();
         ApplyEnvironment();
@@ -400,7 +416,8 @@ public sealed class MapDocumentLoader : IDisposable
         for (var i = 0; i < meshRenderData.MaterialGroups.Length; i++)
         {
             var group = meshRenderData.MaterialGroups[i];
-            var material = GetMaterial(group, owner, shaderArguments);
+            var materialPath = GetMaterialPath(group, owner);
+            var material = rendererContext.MaterialLoader.GetMaterial(materialPath, shaderArguments);
             var nodeName = string.Create(CultureInfo.InvariantCulture, $"{name}_{i}");
 
             // Tools materials show as tool brushes do, and those that block light cast shadows through a mesh
@@ -419,12 +436,14 @@ public sealed class MapDocumentLoader : IDisposable
             {
                 mapMesh.AddNode(AddMeshNode(nodeName, material, meshRenderData.GetBuffers(i, material.Material.InputSignature), placedNode, mesh, owner));
             }
+
+            AddCollision(mesh, owner, group, materialPath, material.Material, placedNode.Transform);
         }
     }
 
     // The class of the entity a mesh is tied to can draw all of it with one material, leaving its faces as they are
-    private RenderMaterial GetMaterial(PolygonMesh.BakedSubmesh group, MapEntity? owner, Dictionary<string, byte> shaderArguments)
-        => rendererContext.MaterialLoader.GetMaterial(owner?.EntityClass?.AutoApplyMaterial ?? (group.Material.Length > 0 ? group.Material : null), shaderArguments);
+    private static string? GetMaterialPath(PolygonMesh.BakedSubmesh group, MapEntity? owner)
+        => owner?.EntityClass?.AutoApplyMaterial ?? (group.Material.Length > 0 ? group.Material : null);
 
     private MeshSceneNode AddMeshNode(string name, RenderMaterial material, (VBIB Buffers, AABB Bounds) geometry, PlacedMapNode placedNode, CMapMesh mesh, MapEntity? owner, bool castsShadowOnly = false)
     {
@@ -462,6 +481,157 @@ public sealed class MapDocumentLoader : IDisposable
 
     private static string GetLayerName(PlacedMapNode placedNode, MapEntity? owner)
         => placedNode.WorldLayer ?? (owner == null ? WorldLayerName : EntitiesLayerName);
+
+    // Faces collide as their material compiles to, unless the entity they belong to is not solid, and in the
+    // interaction layers their mesh adds
+    private void AddCollision(CMapMesh mesh, MapEntity? owner, PolygonMesh.BakedSubmesh group, string? materialPath, Material material, Matrix4x4 transform)
+    {
+        if (scene.PhysicsWorld == null || !IsSolidAtStart(owner) || mesh.PhysicsType.Equals("none", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        // A material that did not load has no name, and a tools material compiles the same without the game that has it
+        var materialCollision = material.Name.Length == 0 && materialPath != null && ToolsMaterials.GetCollision(materialPath) is { } toolsCollision
+            ? toolsCollision
+            : new MaterialCollision(material);
+
+        if (!materialCollision.IsSolid)
+        {
+            return;
+        }
+
+        var interactAs = new SortedSet<string>(StringComparer.Ordinal);
+        var interactExclude = new SortedSet<string>(StringComparer.Ordinal);
+
+        // The layers of a material only count when it gives a collision group
+        if (materialCollision.CollisionGroup.Length > 0)
+        {
+            AddLayers(interactAs, materialCollision.InteractAs);
+            AddLayers(interactExclude, materialCollision.InteractExclude);
+        }
+
+        AddLayers(interactAs, MaterialCollision.SplitLayers(mesh.PhysicsInteractsAs));
+        AddLayers(interactExclude, MaterialCollision.SplitLayers(mesh.PhysicsInteractsExclude));
+
+        var collision = GetCollisionGroup([.. interactAs], [.. interactExclude]);
+        var surfaceProperty = materialCollision.SurfaceProperty.Length > 0 ? StringToken.Store(materialCollision.SurfaceProperty) : 0u;
+
+        foreach (var index in group.Indices)
+        {
+            collision.Positions.Add(Vector3.Transform(group.Positions[index], transform));
+        }
+
+        for (var i = 0; i < group.Indices.Length / 3; i++)
+        {
+            collision.SurfaceProperties.Add(surfaceProperty);
+        }
+    }
+
+    // Layers are matched ignoring case
+    private static void AddLayers(SortedSet<string> layers, IEnumerable<string> added)
+    {
+        foreach (var layer in added)
+        {
+            layers.Add(layer.ToLowerInvariant());
+        }
+    }
+
+    // The group of the faces that have exactly these collision tags, which are sorted
+    private CollisionGroup GetCollisionGroup(string[] interactAs, string[] interactExclude)
+    {
+        foreach (var group in collisionGroups)
+        {
+            if (group.InteractAs.AsSpan().SequenceEqual(interactAs) && group.InteractExclude.AsSpan().SequenceEqual(interactExclude))
+            {
+                return group;
+            }
+        }
+
+        var created = new CollisionGroup(interactAs, interactExclude);
+        collisionGroups.Add(created);
+
+        return created;
+    }
+
+    // A brush entity that starts disabled is not solid until it is enabled. A func_brush is never solid unless its
+    // solidity says otherwise: always (2), or while it is enabled (0).
+    private static bool IsSolidAtStart(MapEntity? owner)
+    {
+        if (owner == null)
+        {
+            return true;
+        }
+
+        var startsEnabled = GetIntegerKey("startdisabled", 0) == 0;
+
+        return owner.Classname == "func_brush"
+            ? GetIntegerKey("solidity", 1) switch
+            {
+                0 => startsEnabled,
+                2 => true,
+                _ => false,
+            }
+            : startsEnabled;
+
+        int GetIntegerKey(string key, int defaultValue)
+            => EnvironmentKeys.ParseInteger(owner.KeyValues.GetStringProperty(key) ?? string.Empty, defaultValue);
+    }
+
+    private void AddWorldCollision()
+    {
+        if (scene.PhysicsWorld is not { } physics || collisionGroups.Count == 0)
+        {
+            return;
+        }
+
+        var meshes = new List<Rubikon.PhysicsMeshData>(collisionGroups.Count);
+
+        foreach (var group in collisionGroups)
+        {
+            meshes.Add(Rubikon.CreateMeshFromTriangles(group.InteractAs, group.InteractExclude, group.Positions, group.SurfaceProperties));
+        }
+
+        physics.Add(scene, new Rubikon(meshes), Matrix4x4.Identity);
+    }
+
+    // Props collide with the physics of their models where they are placed, unless they are set not to be solid
+    private void AddModelCollision()
+    {
+        if (scene.PhysicsWorld is not { } physics)
+        {
+            return;
+        }
+
+        var shapes = new Dictionary<Model, Rubikon?>();
+
+        foreach (var mapEntity in mapEntities)
+        {
+            if (!mapEntity.Classname.StartsWith("prop_", StringComparison.Ordinal)
+                || EnvironmentKeys.ParseInteger(mapEntity.KeyValues.GetStringProperty("solid") ?? string.Empty, 6) == 0)
+            {
+                continue;
+            }
+
+            foreach (var helper in mapEntity.Helpers)
+            {
+                if (helper is not ModelHelper { IsEditorModel: false, Model: { } model, ModelNode: { } modelNode })
+                {
+                    continue;
+                }
+
+                if (!shapes.TryGetValue(model, out var shape))
+                {
+                    shapes[model] = shape = EntityCollider.LoadPhysics(model, rendererContext.FileLoader) is { } data ? new Rubikon(data) : null;
+                }
+
+                if (shape != null)
+                {
+                    physics.Add(scene, shape, modelNode.Transform);
+                }
+            }
+        }
+    }
 
     // Faces that are not drawn in the compiled map, such as the sky box around it, and occluders cast no
     // shadows, unless they are there to block light
