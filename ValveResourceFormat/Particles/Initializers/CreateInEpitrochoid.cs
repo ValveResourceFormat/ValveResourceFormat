@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Particles.Initializers
     /// <remarks>
     /// Both terms of the curve are added, where the classical epitrochoid subtracts the second, and an
     /// axis of -1 leaves that term out. Placed by creation time, particles created at the same moment
-    /// share a point. The transform is read once per emission, and the count keeps running across
+    /// share a point. The transform is read once per function call, and the count keeps running across
     /// restarts.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreateInEpitrochoid">C_INIT_CreateInEpitrochoid</seealso>
@@ -28,7 +28,6 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly bool offsetExistingPos;
 
         private int count;
-        private Matrix4x4 transform;
 
         public CreateInEpitrochoid(ParticleDefinitionParser parse) : base(parse)
         {
@@ -49,57 +48,58 @@ namespace ValveResourceFormat.Particles.Initializers
             count = 0;
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
+        public override ulong WrittenFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask();
+
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-        }
+            var transform = transformInput.NextTransform(particleSystemState);
+            var rollingRadii = radius2.Fill(run, particleSystemState);
+            var outerRadii = radius1.Fill(run, particleSystemState);
+            var penOffsets = offset.Fill(run, particleSystemState);
+            var densities = particleDensity.Fill(run, particleSystemState);
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious);
+            var creationTimes = run.ReadFloats(ParticleField.CreationTime);
+            var positions = run.Vectors(ParticleField.Position);
+            var previous = run.Vectors(ParticleField.PositionPrevious);
 
-        public override void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            transform = transformInput.NextTransform(particleSystemState);
-            base.Initialize(batch, particles, particleSystemState);
-        }
-
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            var rollingRadius = radius2.NextNumber(ref particle, particleSystemState) + ParticleMath.FloatEpsilon;
-            var outerRadius = radius1.NextNumber(ref particle, particleSystemState) + rollingRadius;
-            var penOffset = offset.NextNumber(ref particle, particleSystemState);
-            var density = particleDensity.NextNumber(ref particle, particleSystemState);
-
-            var t = useCount ? count++ * density : density * particle.CreationTime;
-            var rollAngle = t / rollingRadius * outerRadius;
-
-            var curve = Vector3.Zero;
-
-            if (component1 != -1)
+            for (var i = 0; i < run.Length; i++)
             {
-                curve[component1] = (MathF.Cos(t) * outerRadius) + (MathF.Cos(rollAngle) * penOffset);
-            }
+                var rollingRadius = rollingRadii[i] + ParticleMath.FloatEpsilon;
+                var outerRadius = outerRadii[i] + rollingRadius;
+                var penOffset = penOffsets[i];
+                var density = densities[i];
 
-            if (component2 != -1)
-            {
-                curve[component2] = (MathF.Sin(t) * outerRadius) + (MathF.Sin(rollAngle) * penOffset);
-            }
+                var t = useCount ? count++ * density : density * creationTimes[i];
+                var rollAngle = t / rollingRadius * outerRadius;
 
-            if (useLocalCoords)
-            {
-                curve = Vector3.TransformNormal(curve, transform);
-            }
+                var curve = Vector3.Zero;
 
-            if (offsetExistingPos)
-            {
-                particle.Position += curve;
-                particle.PositionPrevious += curve;
-            }
-            else
-            {
-                particle.Position = transform.Translation + curve;
-                particle.PositionPrevious = transform.Translation + curve;
-            }
+                if (component1 != -1)
+                {
+                    curve[component1] = (MathF.Cos(t) * outerRadius) + (MathF.Cos(rollAngle) * penOffset);
+                }
 
-            return particle;
+                if (component2 != -1)
+                {
+                    curve[component2] = (MathF.Sin(t) * outerRadius) + (MathF.Sin(rollAngle) * penOffset);
+                }
+
+                if (useLocalCoords)
+                {
+                    curve = Vector3.TransformNormal(curve, transform);
+                }
+
+                if (offsetExistingPos)
+                {
+                    positions[i] += curve;
+                    previous[i] += curve;
+                }
+                else
+                {
+                    positions[i] = transform.Translation + curve;
+                    previous[i] = transform.Translation + curve;
+                }
+            }
         }
     }
 }

@@ -26,49 +26,57 @@ namespace ValveResourceFormat.Particles.Initializers
             useOffset = offsetMin != Vector3.Zero && offsetMax != Vector3.Zero;
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.LifeDuration)
-            | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.Normal);
+        public override ulong WrittenFields => ParticleField.Position.Mask() | ParticleField.LifeDuration.Mask()
+            | ParticleField.PositionPrevious.Mask() | ParticleField.Normal.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
+            var positions = run.Vectors(ParticleField.Position);
+            var previous = run.Vectors(ParticleField.PositionPrevious);
             var cache = particleSystemState.ParentSystem == null ? null : particleSystemState.CollisionPlaneSets[0];
 
             if (cache == null || cache.Count <= 0)
             {
-                particle.Position = Vector3.Zero;
-                particle.PositionPrevious = Vector3.Zero;
-                return particle;
+                positions.Clear();
+                previous.Clear();
+                return;
             }
 
+            var lifetimes = run.Floats(ParticleField.LifeDuration);
+            var normals = useNormal ? run.Vectors(ParticleField.Normal) : default;
             var random = particleSystemState.Random;
-            var slot = (int)(cache.Count * random.Next());
-            random.Next();
 
-            var (point, normal) = cache.GetPlane(Math.Min(slot, CollisionPlaneSet.MaxPlanes - 1));
-
-            if (normal == new Vector3(float.MaxValue) || point == new Vector3(float.MaxValue))
+            for (var i = 0; i < run.Length; i++)
             {
-                particle.Lifetime = 0f;
-                return particle;
+                var slot = (int)(cache.Count * random.Next());
+
+                // Each pick takes a second draw that selects nothing, keeping the offset draws in step
+                random.Next();
+
+                var (point, normal) = cache.GetPlane(Math.Min(slot, CollisionPlaneSet.MaxPlanes - 1));
+
+                if (normal == new Vector3(float.MaxValue) || point == new Vector3(float.MaxValue))
+                {
+                    lifetimes[i] = 0f;
+                    continue;
+                }
+
+                if (useOffset)
+                {
+                    var offset = random.NextBetweenPerComponentSeededTwice(offsetMin, offsetMax);
+
+                    var frame = EntityTransformHelper.ForwardDirectionToRotationMatrix(normal);
+                    point += Vector3.TransformNormal(new Vector3(offset.Z, offset.Y, offset.X), frame);
+                }
+
+                positions[i] = point;
+                previous[i] = point;
+
+                if (useNormal)
+                {
+                    normals[i] = normal;
+                }
             }
-
-            if (useOffset)
-            {
-                var offset = random.NextBetweenPerComponentSeededTwice(offsetMin, offsetMax);
-
-                var frame = EntityTransformHelper.ForwardDirectionToRotationMatrix(normal);
-                point += Vector3.TransformNormal(new Vector3(offset.Z, offset.Y, offset.X), frame);
-            }
-
-            particle.Position = point;
-            particle.PositionPrevious = point;
-
-            if (useNormal)
-            {
-                particle.Normal = normal;
-            }
-
-            return particle;
         }
     }
 }

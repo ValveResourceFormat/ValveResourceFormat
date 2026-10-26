@@ -41,6 +41,9 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Effects rendered in the bloom buffer.</summary>
         Bloom,
+
+        /// <summary>Effects drawn over the finished scene through the fixed screen-space view.</summary>
+        ScreenSpace,
     }
 
     /// <summary>
@@ -77,6 +80,12 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Draws in the tools pass, over the final image after post processing.</summary>
         Tools = 1 << 6,
+
+        /// <summary>
+        /// Draws in the translucent pass of the screen-space layer, over the finished scene and through the
+        /// fixed screen-space view rather than the scene camera. Such a node is never culled.
+        /// </summary>
+        ScreenSpace = 1 << 7,
 
         /// <summary>Draws in the opaque and translucent passes, the default for a node that draws itself.</summary>
         Default = Opaque | Translucent,

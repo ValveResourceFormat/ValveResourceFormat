@@ -92,12 +92,22 @@ uniform float uDepthBias = 0.0;
 uniform vec4 uLayerUvScaleOffset[S_TEXTURE_LAYERS + 1];
 uniform float uLayerUvRotation[S_TEXTURE_LAYERS + 1];
 uniform bool uLayerUvClamp[S_TEXTURE_LAYERS + 1];
+uniform bool uLayerUvSheet[S_TEXTURE_LAYERS + 1];
 
-// Places one card corner in a layer's texture, matching ParticleTextureLayer.PlaceCorner: the card
-// coordinate turns about the card centre, is divided by the scale, and lands at the wrapped offset;
-// the result then maps into whichever sheet frame rect the layer is showing.
+// Places one card corner in a layer's texture, matching ParticleTextureLayer.PlaceCorner, then maps the
+// result into whichever sheet frame rect the layer is showing. On a layer with a sheet the card
+// coordinate is divided by the scale and offset; otherwise it turns about the card centre, is divided
+// by the scale, and lands at the wrapped offset.
 vec2 PlaceCorner(vec2 cardUv, int layer, vec2 rectMin, vec2 rectMax)
 {
+    vec4 scaleOffset = uLayerUvScaleOffset[layer];
+
+    if (uLayerUvSheet[layer])
+    {
+        vec2 sheetPlaced = (cardUv / scaleOffset.xy) + scaleOffset.zw;
+        return rectMin + (sheetPlaced * (rectMax - rectMin));
+    }
+
     vec2 centred = cardUv - vec2(0.5);
 
     float rotation = uLayerUvRotation[layer];
@@ -108,7 +118,6 @@ vec2 PlaceCorner(vec2 cardUv, int layer, vec2 rectMin, vec2 rectMax)
         (centred.x * cosRotation) - (centred.y * sinRotation),
         (centred.x * sinRotation) + (centred.y * cosRotation));
 
-    vec4 scaleOffset = uLayerUvScaleOffset[layer];
     vec2 origin = scaleOffset.zw + vec2(0.5);
     vec2 wrapped = origin - floor(origin);
 

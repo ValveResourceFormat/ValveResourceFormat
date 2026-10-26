@@ -5,7 +5,8 @@ namespace ValveResourceFormat.Particles.Initializers
     /// <summary>
     /// Gives new particles that start inside the hitboxes, or bones, of the model a control point
     /// carries, or with <c>m_bCullOutside</c> outside them, a life of -1. <c>m_bBoundBox</c> tests
-    /// the box around all of them instead.
+    /// the box around all of them instead. When the system falls back to the render bounds for a
+    /// model without hitboxes, every new particle gets a life of -1.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_ModelCull">C_INIT_ModelCull</seealso>
     class ModelCull : ParticleFunctionInitializer
@@ -25,17 +26,34 @@ namespace ValveResourceFormat.Particles.Initializers
             hitboxSetName = parse.String("m_HitboxSetName", hitboxSetName);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.LifeDuration);
+        public override ulong WrittenFields => ParticleField.LifeDuration.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            if (HitBoxCache.Refresh(particleSystemState, controlPoint, hitboxSetName, useBones) is { Count: > 0 } cache
-                && (cache.Object == null || cache.Contains(particle.Position, boundBox) != cullOutside))
+            if (HitBoxCache.Refresh(particleSystemState, controlPoint, hitboxSetName, useBones) is not { Count: > 0 } cache)
             {
-                particle.Lifetime = -1f;
+                return;
             }
 
-            return particle;
+            var lifetimes = run.Floats(ParticleField.LifeDuration);
+
+            // The render bounds box is not tested against, so every particle is culled
+            if (cache.IsRenderBoundsFallback)
+            {
+                lifetimes.Fill(-1f);
+                return;
+            }
+
+            var positions = run.ReadVectors(ParticleField.Position);
+
+            // The outer box should be the entity's collision box rather than the box around every hitbox
+            for (var i = 0; i < lifetimes.Length; i++)
+            {
+                if (cache.Contains(positions[i], boundBox) != cullOutside)
+                {
+                    lifetimes[i] = -1f;
+                }
+            }
         }
     }
 }

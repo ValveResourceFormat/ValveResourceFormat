@@ -31,8 +31,6 @@ namespace ValveResourceFormat.Particles.Initializers
             cpPairs = parse.Boolean("m_bCPPairs", cpPairs);
             saveOffset = parse.Boolean("m_bSaveOffset", saveOffset);
             pathParams = new ParticlePathParameters(parse).WithClampedControlPoints();
-
-            Reset();
         }
 
         public override void Reset()
@@ -53,81 +51,89 @@ namespace ValveResourceFormat.Particles.Initializers
             }
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.HitboxOffsetPosition);
+        public override void Restart(ParticleSystemState particleSystemState) => Reset();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override ulong WrittenFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask() | ParticleField.HitboxOffsetPosition.Mask();
+
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var t = pathParameter;
-            var cp = controlPoint;
+            var creationTimes = run.ReadFloats(ParticleField.CreationTime);
+            var positions = run.Vectors(ParticleField.Position);
+            var previous = run.Vectors(ParticleField.PositionPrevious);
+            var hitboxOffsets = saveOffset ? run.Vectors(ParticleField.HitboxOffsetPosition) : default;
 
-            int segmentStart;
-            int segmentEnd;
+            for (var i = 0; i < run.Length; i++)
+            {
+                var t = pathParameter;
+                var cp = controlPoint;
 
-            if (!cpPairs)
-            {
-                segmentStart = pathParams.StartControlPointNumber;
-                segmentEnd = pathParams.EndControlPointNumber;
-            }
-            else
-            {
-                if ((int)cp > pathParams.EndControlPointNumber || (int)cp < pathParams.StartControlPointNumber)
+                int segmentStart;
+                int segmentEnd;
+
+                if (!cpPairs)
                 {
-                    if (loop)
+                    segmentStart = pathParams.StartControlPointNumber;
+                    segmentEnd = pathParams.EndControlPointNumber;
+                }
+                else
+                {
+                    if ((int)cp > pathParams.EndControlPointNumber || (int)cp < pathParams.StartControlPointNumber)
                     {
-                        cp = pathParams.StartControlPointNumber;
-                        controlPoint = cp;
+                        if (loop)
+                        {
+                            cp = pathParams.StartControlPointNumber;
+                            controlPoint = cp;
+                        }
+                        else
+                        {
+                            controlPointStep = -controlPointStep;
+                            parameterStep = -parameterStep;
+                            wrapDirection = -wrapDirection;
+                            cp += 2f * controlPointStep;
+                            controlPoint = cp;
+                            t += 2f * parameterStep;
+                            pathParameter = t;
+                        }
+                    }
+
+                    segmentStart = (int)cp;
+                    segmentEnd = segmentStart == pathParams.EndControlPointNumber ? segmentStart : segmentStart + 1;
+                }
+
+                if (t > 1.0000001f || t < 0f)
+                {
+                    if (loop || cpPairs)
+                    {
+                        t += wrapDirection;
+                        pathParameter = t;
                     }
                     else
                     {
-                        controlPointStep = -controlPointStep;
                         parameterStep = -parameterStep;
                         wrapDirection = -wrapDirection;
-                        cp += 2f * controlPointStep;
-                        controlPoint = cp;
                         t += 2f * parameterStep;
                         pathParameter = t;
                     }
                 }
 
-                segmentStart = (int)cp;
-                segmentEnd = segmentStart == pathParams.EndControlPointNumber ? segmentStart : segmentStart + 1;
-            }
+                var segment = pathParams.WithControlPoints(segmentStart, segmentEnd);
+                var (start, mid, end) = ParticlePath.CalculatePathValues(particleSystemState, segment, creationTimes[i]);
 
-            if (t > 1.0000001f || t < 0f)
-            {
-                if (loop || cpPairs)
+                var position = ParticlePath.Evaluate(start, mid, end, t);
+
+                if (saveOffset)
                 {
-                    t += wrapDirection;
-                    pathParameter = t;
+                    hitboxOffsets[i] = new Vector3(t, segmentStart, segmentEnd);
                 }
-                else
-                {
-                    parameterStep = -parameterStep;
-                    wrapDirection = -wrapDirection;
-                    t += 2f * parameterStep;
-                    pathParameter = t;
-                }
+
+                position += particleSystemState.Random.NextBetweenPerComponent(new Vector3(-maxDistance), new Vector3(maxDistance));
+
+                positions[i] = position;
+                previous[i] = position;
+
+                pathParameter += parameterStep;
+                controlPoint += controlPointStep;
             }
-
-            var segment = pathParams.WithControlPoints(segmentStart, segmentEnd);
-            var (start, mid, end) = ParticlePath.CalculatePathValues(particleSystemState, segment, particle.CreationTime);
-
-            var position = ParticlePath.Evaluate(start, mid, end, t);
-
-            if (saveOffset)
-            {
-                particle.HitboxOffsetPosition = new Vector3(t, segmentStart, segmentEnd);
-            }
-
-            position += particleSystemState.Random.NextBetweenPerComponent(new Vector3(-maxDistance), new Vector3(maxDistance));
-
-            particle.Position = position;
-            particle.PositionPrevious = position;
-
-            pathParameter += parameterStep;
-            controlPoint += controlPointStep;
-
-            return particle;
         }
     }
 }

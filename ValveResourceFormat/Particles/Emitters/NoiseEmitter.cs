@@ -51,7 +51,7 @@ namespace ValveResourceFormat.Particles.Emitters
 
             if (parse.BehaviorVersion < 2)
             {
-                emissionScale = parse.Float("m_flEmissionScale", emissionScale);
+                emissionScale = MathF.Max(0f, parse.Float("m_flEmissionScale", emissionScale));
             }
 
             scaleControlPoint = parse.Int32("m_nScaleControlPoint", scaleControlPoint);
@@ -77,15 +77,42 @@ namespace ValveResourceFormat.Particles.Emitters
 
         public override void Restart(ParticleSystemState particleSystemState)
         {
-            if (emissionDuration.NextNumber(particleSystemState) != 0f)
+            if (EmissionDuration(particleSystemState) != 0f)
             {
                 timeBase = particleSystemState.Age;
             }
         }
 
-        public override void StartEmission()
+        // A negative duration counts as 0, which emits without an end
+        private float EmissionDuration(ParticleSystemState particleSystemState)
+            => MathF.Max(0f, emissionDuration.NextNumber(particleSystemState));
+
+        public override void StartEmission(ParticleSystemState particleSystemState)
         {
             active = true;
+            RearmFirstParticle(particleSystemState, particleSystemState.Age);
+        }
+
+        public override void SkipToTime(float time, ParticleSystemSimulation simulation)
+        {
+            RearmFirstParticle(simulation.RenderState, time);
+        }
+
+        /// <summary>
+        /// Once the start time has passed, restores the accumulator to its initial state, which
+        /// emits a particle on the next step and drops the fractional carry.
+        /// </summary>
+        private void RearmFirstParticle(ParticleSystemState particleSystemState, float time)
+        {
+            var start = timeBase + startTime.NextNumber(particleSystemState);
+
+            if (start >= time)
+            {
+                return;
+            }
+
+            totalToEmit = 1d;
+            totalEmitted = 0;
         }
 
         public override void StopEmission()
@@ -95,7 +122,7 @@ namespace ValveResourceFormat.Particles.Emitters
 
         public override bool MayCreateMoreParticles(ParticleSystemState particleSystemState)
         {
-            var duration = emissionDuration.NextNumber(particleSystemState);
+            var duration = EmissionDuration(particleSystemState);
             var start = timeBase + startTime.NextNumber(particleSystemState);
 
             return active
@@ -121,6 +148,7 @@ namespace ValveResourceFormat.Particles.Emitters
             }
 
             var timeTerm = (noiseOffset + time) * noiseScale.NextNumber(particleSystemState);
+            // The time term is the process wall clock in milliseconds, read once per axis; simulation world time is used here to keep playback deterministic
             var worldTimeTerm = (int)(particleSystemState.WorldTime * 1000f) * worldTimeScale;
             var noise = Noise.Value3D((position * worldScale) + new Vector3(timeTerm) + new Vector3(worldTimeTerm));
 
@@ -152,7 +180,7 @@ namespace ValveResourceFormat.Particles.Emitters
                 rate *= indexScale;
             }
 
-            var duration = emissionDuration.NextNumber(particleSystemState);
+            var duration = EmissionDuration(particleSystemState);
             var start = timeBase + startTime.NextNumber(particleSystemState);
 
             if (rate == 0f || !active || (duration != 0f && time - step > start + duration) || IsPastFadeOut(particleSystemState) || start > time)

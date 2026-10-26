@@ -32,41 +32,50 @@ namespace ValveResourceFormat.Particles.Initializers
             setMethod = parse.Enum("m_nSetMethod", setMethod);
         }
 
-        public override ulong WrittenFields => FieldMask(outputField);
+        public override ulong WrittenFields => outputField.Mask();
 
-        public override void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
+        /// <inheritdoc/>
+        public override ulong LiveWrittenFields => outputField.Mask();
+
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var (head, blocks, tail) = SplitIntoCalls(batch);
-
-            InitializeEach(batch[head], particles, particleSystemState);
-
-            if (!batch[blocks].IsEmpty)
-            {
-                InitializeEach(particles.Current, particles, particleSystemState);
-            }
-
-            InitializeEach(batch[tail], particles, particleSystemState);
+            InitializeRun(run, particles, particleSystemState, blockRun: false);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeBlocks(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var value1 = input1.NextNumber(ref particle, particleSystemState);
-            var value2 = input2.NextNumber(ref particle, particleSystemState);
+            InitializeRun(run, particles, particleSystemState, blockRun: true);
+        }
 
-            if (expression.Evaluate(value1, value2) is not { } value)
-            {
-                return particle;
-            }
+        private void InitializeRun(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState, bool blockRun)
+        {
+            var target = blockRun ? particles.Current : run;
+            var values1 = input1.Fill(target, particleSystemState);
+            var values2 = input2.Fill(target, particleSystemState);
 
-            if (outputRemap != null)
+            if (!ParticleBuffer.IsScalar(outputField))
             {
-                value = outputRemap.ApplyMapping(value);
+                return;
             }
 
             var (min, max) = outputField.SetFloatRange();
-            particle.SetScalar(outputField, Math.Clamp(particle.ModifyScalarBySetMethodAtSpawn(particles, outputField, value, setMethod), min, max));
+            var outputs = target.Floats(outputField);
+            var deltaTime = particleSystemState.CurrentStep;
+            for (var i = 0; i < outputs.Length; i++)
+            {
+                var current = outputs[i];
 
-            return particle;
+                // An unknown expression passes the current value on as the result
+                var value = expression.Evaluate(values1[i], values2[i], truncatedRemainder: blockRun) ?? current;
+
+                if (outputRemap != null)
+                {
+                    value = outputRemap.ApplyMapping(value);
+                }
+
+                var result = ParticleFieldExtensions.ApplySetMethod(value, current, current, deltaTime, setMethod);
+                outputs[i] = Math.Clamp(result, min, max);
+            }
         }
     }
 }

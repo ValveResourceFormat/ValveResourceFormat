@@ -1,3 +1,5 @@
+using System.Numerics.Tensors;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -19,7 +21,12 @@ namespace ValveResourceFormat.Particles.Operators
             fadeEndTime = parse.Float("m_flFadeEndTime", fadeEndTime);
             fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
             easeInOut = parse.Boolean("m_bEaseInOut", easeInOut);
+
+            parse.AddInitialRead(fieldOutput);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -28,17 +35,43 @@ namespace ValveResourceFormat.Particles.Operators
                 return;
             }
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsVector(fieldOutput))
             {
-                var initialColor = particle.GetInitialVector(particles, fieldOutput);
-                var color = particle.GetVector(fieldOutput);
+                return;
+            }
 
-                if (particle.Lifetime > 0f)
+            var current = particles.Current;
+            var lifetimes = current.ReadFloats(ParticleField.LifeDuration);
+            var colors = current.Vectors(fieldOutput);
+            var initialColors = particles.Initial.ReadVectors(fieldOutput);
+
+            // Each age is replaced by its fade fraction, which particles without a lifetime never use
+            var fractions = current.ReadAges();
+            TensorPrimitives.Divide(fractions, lifetimes, fractions);
+            TensorPrimitives.Subtract(fractions, fadeStartTime, fractions);
+            TensorPrimitives.Divide(fractions, fadeEndTime - fadeStartTime, fractions);
+            TensorPrimitives.Clamp(fractions, 0f, 1f, fractions);
+
+            if (easeInOut)
+            {
+                var easing = ParticleScratch.Floats(fractions.Length);
+                TensorPrimitives.Multiply(fractions, -2f, easing);
+                TensorPrimitives.Add(easing, 3f, easing);
+                TensorPrimitives.Multiply(easing, fractions, easing);
+                TensorPrimitives.Multiply(easing, fractions, fractions);
+            }
+
+            for (var i = 0; i < colors.Length; i++)
+            {
+                var initialColor = initialColors[i];
+                var color = colors[i];
+
+                if (lifetimes[i] > 0f)
                 {
-                    color = MathUtils.Lerp(initialColor, colorFade, FadeFraction(particle.Age / particle.Lifetime, fadeStartTime, fadeEndTime, easeInOut));
+                    color = MathUtils.Lerp(initialColor, colorFade, fractions[i]);
                 }
 
-                particle.SetVector(fieldOutput, BlendByStrength(initialColor, color, strength));
+                colors[i] = BlendByStrength(initialColor, color, strength);
             }
         }
 

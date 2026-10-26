@@ -24,23 +24,31 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         public override bool DrawsInPasses => false;
 
         /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Roll.Mask();
+
+        /// <inheritdoc/>
         public override void UpdateBuffers(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
             var view = camera.CameraViewMatrix;
             var forward = float.DegreesToRadians(forwardDegrees);
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var positions = current.ReadVectors(ParticleField.Position);
+            var previousPositions = current.ReadVectors(ParticleField.PositionPrevious);
+            var rolls = current.Floats(ParticleField.Roll);
+
+            for (var i = 0; i < current.Length; i++)
             {
-                var screen = Vector3.Transform(particle.Position, view);
+                var screen = Vector3.Transform(positions[i], view);
 
                 if (!float.IsFinite(screen.X))
                 {
                     continue;
                 }
 
-                var previous = Vector3.Transform(particle.PositionPrevious, view);
+                var previous = Vector3.Transform(previousPositions[i], view);
 
-                particle.Rotation = particle.Rotation with { Z = MathF.Atan2(screen.Y - previous.Y, screen.X - previous.X) + forward };
+                rolls[i] = MathF.Atan2(screen.Y - previous.Y, screen.X - previous.X) + forward;
             }
         }
 

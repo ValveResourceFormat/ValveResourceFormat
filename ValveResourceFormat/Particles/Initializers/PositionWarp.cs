@@ -47,12 +47,14 @@ namespace ValveResourceFormat.Particles.Initializers
             warpCount = 0;
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.Radius);
+        public override void Restart(ParticleSystemState particleSystemState) => Reset();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        public override ulong WrittenFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask() | ParticleField.Radius.Mask();
+
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var rampStart = warpMin.NextVector(ref particle, particleSystemState);
-            var rampEnd = warpMax.NextVector(ref particle, particleSystemState);
+            var rampStart = warpMin.NextVector(particleSystemState);
+            var rampEnd = warpMax.NextVector(particleSystemState);
 
             if (invertWarp)
             {
@@ -66,39 +68,57 @@ namespace ValveResourceFormat.Particles.Initializers
                 rampEnd *= scale;
             }
 
-            Vector3 warp;
+            var positions = run.Vectors(ParticleField.Position);
+            var previousPositions = run.Vectors(ParticleField.PositionPrevious);
+            var radii = radiusComponent >= 0 ? run.Floats(ParticleField.Radius) : default;
+            var creationTimes = run.ReadFloats(ParticleField.CreationTime);
 
-            if (warpTime == 0f)
+            var controlPoint = particleSystemState.GetControlPoint(controlPointNumber);
+
+            for (var i = 0; i < run.Length; i++)
             {
-                warp = particleSystemState.Random.NextBetweenPerComponentSeededTwice(rampStart, rampEnd);
-            }
-            else
-            {
-                var (rampInput, rampBase) = useCount
-                    ? (warpCount++, 0f)
-                    : (particle.CreationTime, particleSystemState.OperatorTimeBase);
+                Vector3 warp;
 
-                var rampStartTime = warpStartTime + rampBase;
-                var progress = MathUtils.RemapValClamped(rampInput, rampStartTime, rampStartTime + warpTime, 0f, 1f);
-                warp = Vector3.Lerp(rampStart, rampEnd, progress);
-            }
+                if (warpTime == 0f)
+                {
+                    warp = particleSystemState.Random.NextBetweenPerComponentSeededTwice(rampStart, rampEnd);
+                }
+                else
+                {
+                    var (rampInput, rampBase) = useCount
+                        ? (warpCount++, 0f)
+                        : (creationTimes[i], particleSystemState.OperatorTimeBase);
 
-            var frame = particleSystemState.GetControlPoint(controlPointNumber).GetBasisAtTime(particle.CreationTime);
+                    var rampStartTime = warpStartTime + rampBase;
+                    var progress = MathUtils.RemapValClamped(rampInput, rampStartTime, rampStartTime + warpTime, 0f, 1f);
+                    warp = Vector3.Lerp(rampStart, rampEnd, progress);
+                }
+
+                var frame = controlPoint.GetBasisAtTime(creationTimes[i]);
+                Warp(frame, warp, prevPosScale, ref positions[i], ref previousPositions[i]);
+
+                if (radiusComponent >= 0)
+                {
+                    radii[i] *= warp.GetComponent(radiusComponent);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Scales <paramref name="position"/> by <paramref name="warp"/> and <paramref name="previous"/> by
+        /// <paramref name="warp"/> times <paramref name="previousScale"/>, each in the local axes of
+        /// <paramref name="frame"/> about its origin.
+        /// </summary>
+        internal static void Warp(Matrix4x4 frame, Vector3 warp, float previousScale, ref Vector3 position, ref Vector3 previous)
+        {
             var origin = frame.Translation;
             var toLocal = Matrix4x4.Transpose(frame with { Translation = Vector3.Zero });
 
-            var local = Vector3.TransformNormal(particle.Position - origin, toLocal);
-            particle.Position = Vector3.Transform(local * warp, frame);
+            var local = Vector3.TransformNormal(position - origin, toLocal);
+            position = Vector3.Transform(local * warp, frame);
 
-            var localPrevious = Vector3.TransformNormal(particle.PositionPrevious - origin, toLocal);
-            particle.PositionPrevious = Vector3.Transform(prevPosScale * warp * localPrevious, frame);
-
-            if (radiusComponent >= 0)
-            {
-                particle.Radius *= warp.GetComponent(radiusComponent);
-            }
-
-            return particle;
+            var localPrevious = Vector3.TransformNormal(previous - origin, toLocal);
+            previous = Vector3.Transform(previousScale * warp * localPrevious, frame);
         }
     }
 }

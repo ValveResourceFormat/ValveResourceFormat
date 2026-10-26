@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Particles.Operators
                 return;
             }
 
-            particleSystemState.SetControlPointValue(outControlPoint, particles.Current[particleNumber].GetVector(fieldInput));
+            particleSystemState.SetControlPointValue(outControlPoint, particles.Current.ReadVector(fieldInput, particleNumber));
         }
     }
 }

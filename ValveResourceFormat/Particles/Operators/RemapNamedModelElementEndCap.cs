@@ -31,9 +31,8 @@ namespace ValveResourceFormat.Particles.Operators
             remap.Resolve(particleSystemState);
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-        }
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -44,9 +43,18 @@ namespace ValveResourceFormat.Particles.Operators
 
             done = true;
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(fieldOutput))
             {
-                particle.SetScalar(fieldOutput, remap.Remap((int)particle.GetScalar(fieldInput), particleSystemState));
+                return;
+            }
+
+            var current = particles.Current;
+            var inputs = current.ReadFloats(fieldInput);
+            var output = current.Floats(fieldOutput);
+
+            for (var i = 0; i < output.Length; i++)
+            {
+                output[i] = remap.Remap((int)inputs[i], particleSystemState);
             }
         }
     }

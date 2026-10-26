@@ -9,8 +9,7 @@ namespace ValveResourceFormat.Particles.Operators
     /// ratio adds no epsilon to the span length, so coincident transforms give an infinite percentage.
     /// </summary>
     /// <remarks>
-    /// The engine implementation never reads operator strength, so the strength passed to
-    /// <see cref="Operate"/> is ignored.
+    /// Operator strength is not read, so the strength passed to <see cref="Operate"/> is ignored.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_PercentageBetweenTransformsVector">C_OP_PercentageBetweenTransformsVector</seealso>
     class PercentageBetweenTransformsVector : ParticleFunctionOperator
@@ -38,7 +37,12 @@ namespace ValveResourceFormat.Particles.Operators
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
             activeRange = parse.Boolean("m_bActiveRange", activeRange);
             radialCheck = parse.Boolean("m_bRadialCheck", radialCheck);
+
+            AddInitialReadOf(parse, setMethod, outputField);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -46,23 +50,31 @@ namespace ValveResourceFormat.Particles.Operators
             var end = transformEnd.NextTransform(particleSystemState).Translation;
             var length = Vector3.Distance(start, end);
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsVector(outputField))
             {
+                return;
+            }
+
+            var current = particles.Current;
+            var positions = current.ReadVectors(ParticleField.Position);
+            var output = current.Vectors(outputField);
+            var initial = particles.Initial.ReadVectors(outputField);
+
+            for (var i = 0; i < output.Length; i++)
+            {
+                var position = positions[i];
                 var percentage = radialCheck
-                    ? 1f / (length / (Vector3.Distance(particle.Position, start) + ParticleMath.FloatEpsilon))
-                    : PercentageBetweenTransforms.Percentage(particle.Position, start, end, length, radialCheck: false);
+                    ? 1f / (length / (Vector3.Distance(position, start) + ParticleMath.FloatEpsilon))
+                    : PercentageBetweenTransforms.Percentage(position, start, end, length, radialCheck: false);
 
                 if (activeRange && !(inputMin <= percentage && percentage <= inputMax))
                 {
                     continue;
                 }
 
-                var divisor = inputMax == inputMin ? 1f : inputMax - inputMin;
-                var finalValue = Vector3.Lerp(outputMin, outputMax, MathUtils.Saturate((percentage - inputMin) / divisor));
+                var finalValue = Vector3.Lerp(outputMin, outputMax, ParticleMath.ClampedFraction(percentage, inputMin, inputMax));
 
-                finalValue = particle.ModifyVectorBySetMethod(particles, outputField, finalValue, setMethod);
-
-                particle.SetVector(outputField, finalValue);
+                output[i] = ParticleFieldExtensions.ApplySetMethod(finalValue, initial[i], output[i], particleSystemState.CurrentStep, setMethod);
             }
         }
     }

@@ -23,6 +23,7 @@ namespace ValveResourceFormat.Particles.Operators
         private readonly INumberProvider fullLoopIncrement = new LiteralNumberProvider(0f);
         private readonly INumberProvider startPoint = new LiteralNumberProvider(0f);
         private readonly INumberProvider interpolation = new LiteralNumberProvider(1f);
+        private readonly ulong storedFields;
 
         private int randomCounter;
 
@@ -40,12 +41,30 @@ namespace ValveResourceFormat.Particles.Operators
             fullLoopIncrement = parse.CollectionNumberProvider("m_nFullLoopIncrement", fullLoopIncrement);
             startPoint = parse.CollectionNumberProvider("m_nSnapShotStartPoint", startPoint);
             interpolation = parse.NumberProvider("m_flInterpolation", interpolation);
+
+            storedFields = ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask() | ParticleField.HitboxOffsetPosition.Mask()
+                | ParticleField.BoneIndices.Mask() | ParticleField.BoneWeights.Mask();
+
+            if (setNormal)
+            {
+                storedFields |= ParticleField.Normal.Mask();
+            }
+
+            if (setRadius)
+            {
+                storedFields |= ParticleField.Radius.Mask();
+            }
         }
 
         public override void Reset()
         {
             randomCounter = 0;
         }
+
+        public override void Restart(ParticleSystemState particleSystemState) => Reset();
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => storedFields;
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -65,14 +84,34 @@ namespace ValveResourceFormat.Particles.Operators
             var count = columns.Count;
             var model = cache is { Count: > 0 } ? cache.Object?.Model : null;
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var positions = current.Vectors(ParticleField.Position);
+            var previousPositions = current.Vectors(ParticleField.PositionPrevious);
+            var normals = setNormal ? current.Vectors(ParticleField.Normal) : default;
+            var radii = setRadius ? current.Floats(ParticleField.Radius) : default;
+            var boneIndices = current.BoneIndices;
+            var boneWeights = current.Vectors(ParticleField.BoneWeights);
+            var hitboxOffsets = current.Vectors(ParticleField.HitboxOffsetPosition);
+
+            var weights = interpolation.Fill(current, particleSystemState);
+
+            var readIndices = default(Span<float>);
+
+            if (indexType == SnapshotIndexType.SNAPSHOT_INDEX_DIRECT)
             {
-                var weight = interpolation.NextNumber(ref particle, particleSystemState);
+                readIndices = readIndex.Fill(current, particleSystemState);
+            }
+
+            for (var i = 0; i < positions.Length; i++)
+            {
+                var weight = weights[i];
                 int row;
 
                 if (indexType == SnapshotIndexType.SNAPSHOT_INDEX_DIRECT)
                 {
-                    row = (int)readIndex.NextNumber(ref particle, particleSystemState) % count;
+                    // A negative index wraps to a valid row
+                    var directIndex = (int)readIndices[i];
+                    row = (int)((uint)directIndex % (uint)count);
                 }
                 else if (random)
                 {
@@ -95,25 +134,27 @@ namespace ValveResourceFormat.Particles.Operators
 
                 if (model != null)
                 {
-                    columns.Bind(ref particle, row, model, cache!.Count);
+                    boneIndices[i] = columns.BoneIndices(row, model, cache!.Count);
+                    hitboxOffsets[i] = columns.Positions[row];
+                    boneWeights[i] = columns.BoneWeights(row);
 
-                    cache.ComputeSkinningMatrix(particle.BoneIndices, particle.BoneWeights, false, out var skin, out _);
+                    cache.ComputeSkinningMatrix(boneIndices[i], boneWeights[i], false, out var skin, out _);
                     target = Vector3.Transform(target, skin);
                     normal = MathUtils.SafeNormalize(Vector3.TransformNormal(normal, skin));
                     radius *= skin.MaxAxisScale();
                 }
 
-                particle.Position = MathUtils.Lerp(particle.Position, target, weight);
-                particle.PositionPrevious = MathUtils.Lerp(particle.PositionPrevious, target, weight);
+                positions[i] = MathUtils.Lerp(positions[i], target, weight);
+                previousPositions[i] = MathUtils.Lerp(previousPositions[i], target, weight);
 
                 if (setNormal)
                 {
-                    particle.Normal = MathUtils.Lerp(particle.Normal, normal, weight);
+                    normals[i] = MathUtils.Lerp(normals[i], normal, weight);
                 }
 
                 if (setRadius)
                 {
-                    particle.Radius = MathUtils.Lerp(particle.Radius, radius, weight);
+                    radii[i] = MathUtils.Lerp(radii[i], radius, weight);
                 }
             }
         }

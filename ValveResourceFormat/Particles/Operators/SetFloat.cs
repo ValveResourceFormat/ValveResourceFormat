@@ -1,3 +1,5 @@
+using System.Numerics.Tensors;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -19,46 +21,69 @@ namespace ValveResourceFormat.Particles.Operators
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
             lerp = parse.NumberProvider("m_Lerp", lerp);
 
+            AddInitialReadOf(parse, setMethod, outputField);
+
             // there's also a Lerp value that every frame sets the value to the lerp of the current one to the set one.
             // Thus it's basically like exponential decay, except it works with the
             // initial value, which works because they store the init value
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var (min, max) = outputField.SetFloatRange();
+            var current = particles.Current;
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(outputField))
             {
-                var value = this.value.NextNumber(ref particle, particleSystemState);
-                var lerp = MathUtils.Saturate(this.lerp.NextNumber(ref particle, particleSystemState));
-
-                // Angles are authored in degrees and stored in radians, as in InitFloat. The scaling
-                // set methods take a unitless multiplier, not an angle, so they are left alone.
-                if (outputField.IsAngleField()
-                    && setMethod is not (ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_SCALE_CURRENT_VALUE))
-                {
-                    value = float.DegreesToRadians(value);
-                }
-
-                var currentValue = particle.GetScalar(outputField);
-
-                // A ramp takes the strength into its rate instead of blending toward the result
-                if (setMethod == ParticleSetMethod.PARTICLE_SET_RAMP_CURRENT_VALUE)
-                {
-                    particle.SetScalar(outputField, Math.Clamp((lerp * (strength * frameTime) * value) + currentValue, min, max));
-                    continue;
-                }
-
-                var target = particle.ModifyScalarBySetMethod(particles, outputField, value, setMethod);
-                var blended = Math.Clamp(MathUtils.Lerp(currentValue, target, lerp), min, max);
-
-                // Strength lerps from the spawn initial for the two initial-value set methods
-                var strengthBase = setMethod is ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_ADD_TO_INITIAL_VALUE
-                    ? particle.GetInitialScalar(particles, outputField)
-                    : currentValue;
-
-                particle.SetScalar(outputField, BlendByStrength(strengthBase, blended, strength));
+                return;
             }
+
+            var output = current.Floats(outputField);
+            var initial = particles.Initial.ReadFloats(outputField);
+
+            // Angles are authored in degrees and stored in radians, as in InitFloat. The scaling
+            // set methods take a unitless multiplier, not an angle, so they are left alone.
+            var toRadians = outputField.IsAngleField()
+                && setMethod is not (ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_SCALE_CURRENT_VALUE);
+
+            // Each input is evaluated for every particle before the next; the lerp comes first, which
+            // decides the order of their random draws
+            var lerps = lerp.Fill(current, particleSystemState);
+            var values = value.Fill(current, particleSystemState);
+
+            if (toRadians)
+            {
+                TensorPrimitives.DegreesToRadians(values, values);
+            }
+
+            TensorPrimitives.Clamp(lerps, 0f, 1f, lerps);
+
+            // A ramp takes the strength into its rate instead of blending toward the result
+            if (setMethod == ParticleSetMethod.PARTICLE_SET_RAMP_CURRENT_VALUE)
+            {
+                TensorPrimitives.Multiply(lerps, strength * frameTime, lerps);
+                TensorPrimitives.MultiplyAdd(lerps, values, output, output);
+                TensorPrimitives.Clamp(output, min, max, output);
+                return;
+            }
+
+            ParticleFieldExtensions.ApplySetMethod(values, initial, output, particleSystemState.CurrentStep, setMethod);
+            TensorPrimitives.Lerp(output, values, lerps, values);
+            TensorPrimitives.Clamp(values, min, max, values);
+
+            if (strength >= 1f)
+            {
+                values.CopyTo(output);
+                return;
+            }
+
+            // Strength lerps from the spawn initial for the two initial-value set methods
+            var strengthBase = setMethod.ReadsInitialValue() ? initial : output;
+
+            TensorPrimitives.Lerp(strengthBase, values, strength, output);
         }
     }
 }

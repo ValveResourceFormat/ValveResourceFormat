@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Particles.Constraints
     /// runs from <c>m_flMaxDistance0</c> at the start through <c>m_flMaxDistanceMid</c> to
     /// <c>m_flMaxDistance1</c> at the end. Every maximum is raised to at least the minimum, so the
     /// -1 defaults of the middle and end only mean "same as before" with a negative minimum. Only
-    /// <see cref="Particle.Position"/> is written.
+    /// <see cref="ParticleField.Position"/> is written.
     /// </summary>
     /// <remarks>
     /// Particles are handled in blocks of four. When any of a block exceeds the largest of the three
@@ -19,6 +19,9 @@ namespace ValveResourceFormat.Particles.Constraints
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_ConstrainDistanceToPath">C_OP_ConstrainDistanceToPath</seealso>
     class ConstrainDistanceToPath : ParticleFunctionConstraint
     {
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Position.Mask();
+
         private const int BlockSize = 4;
 
         private readonly float minDistance;
@@ -59,6 +62,10 @@ namespace ValveResourceFormat.Particles.Constraints
             Span<float> distanceSquared = stackalloc float[BlockSize];
 
             var current = particles.Current;
+            var positions = current.Vectors(ParticleField.Position);
+            var manualValues = manualTField != ParticleField.NoneDisabled ? current.ReadFloats(manualTField) : default;
+            var scales = fieldScale != ParticleField.NoneDisabled ? current.ReadFloats(fieldScale) : default;
+            var creationTimes = manualTField == ParticleField.NoneDisabled ? current.ReadFloats(ParticleField.CreationTime) : default;
             var moved = false;
 
             for (var blockStart = 0; blockStart < current.Length; blockStart += BlockSize)
@@ -68,13 +75,13 @@ namespace ValveResourceFormat.Particles.Constraints
 
                 for (var lane = 0; lane < lanes; lane++)
                 {
-                    ref var particle = ref current[blockStart + lane];
-                    var t = PathParameter(ref particle, time);
+                    var index = blockStart + lane;
+                    var t = PathParameter(index, time, manualValues, scales, creationTimes);
                     var point = ParticlePath.Evaluate(start, mid, end, t);
 
                     pathT[lane] = t;
                     target[lane] = point;
-                    distanceSquared[lane] = Vector3.DistanceSquared(particle.Position, point);
+                    distanceSquared[lane] = Vector3.DistanceSquared(positions[index], point);
                     anyBeyondLargest |= largest * largest < distanceSquared[lane];
                 }
 
@@ -100,10 +107,10 @@ namespace ValveResourceFormat.Particles.Constraints
                         continue;
                     }
 
-                    ref var particle = ref current[blockStart + lane];
-                    var direction = lengthSquared > 0f ? (particle.Position - target[lane]) / MathF.Sqrt(lengthSquared) : Vector3.Zero;
+                    ref var position = ref positions[blockStart + lane];
+                    var direction = lengthSquared > 0f ? (position - target[lane]) / MathF.Sqrt(lengthSquared) : Vector3.Zero;
 
-                    particle.Position = target[lane] + (direction * (under ? minDistance : limit[lane]));
+                    position = target[lane] + (direction * (under ? minDistance : limit[lane]));
                     moved = true;
                 }
             }
@@ -111,16 +118,16 @@ namespace ValveResourceFormat.Particles.Constraints
             return moved;
         }
 
-        private float PathParameter(ref Particle particle, float time)
+        private float PathParameter(int index, float time, ReadOnlySpan<float> manualValues, ReadOnlySpan<float> scales, ReadOnlySpan<float> creationTimes)
         {
             if (manualTField != ParticleField.NoneDisabled)
             {
-                return particle.GetScalar(manualTField);
+                return manualValues[index];
             }
 
-            var scale = fieldScale != ParticleField.NoneDisabled ? particle.GetScalar(fieldScale) : 1f;
+            var scale = fieldScale != ParticleField.NoneDisabled ? scales[index] : 1f;
 
-            return MathF.Min(1f, (time - particle.CreationTime) / MathF.Max(travelTime * scale, ParticleMath.FloatEpsilon));
+            return MathF.Min(1f, (time - creationTimes[index]) / MathF.Max(travelTime * scale, ParticleMath.FloatEpsilon));
         }
     }
 }

@@ -14,7 +14,9 @@ namespace ValveResourceFormat.Particles.Operators
     /// The averages lag one step behind, so the first step only measures them. <c>m_nCPBroadcast</c>
     /// receives the average speed in all three components and faces the average direction. The facing
     /// weight tests the dot product of the raw velocities, so with the default facing strength of 1 a
-    /// pair gets full weight once that product reaches 1 and none below it.
+    /// pair gets full weight once that product reaches 1 and none below it. With <c>m_bUseAABB</c> only
+    /// the pairs whose boxes, grown by each radius plus the neighbour distance, overlap are matched, in
+    /// the order <see cref="ParticleObjectTree"/> finds them.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_VelocityMatchingForce">C_OP_VelocityMatchingForce</seealso>
     class VelocityMatchingForce : ParticleFunctionOperator
@@ -24,6 +26,8 @@ namespace ValveResourceFormat.Particles.Operators
         private readonly float neighborDistance = -1f;
         private readonly float facingStrength = 1f;
         private readonly int cpBroadcast = -1;
+        private readonly bool useAABB;
+        private readonly ParticleObjectTree objectTree = new();
 
         private Vector3 averageDirection;
         private float averageSpeed;
@@ -35,6 +39,7 @@ namespace ValveResourceFormat.Particles.Operators
             neighborDistance = parse.Float("m_flNeighborDistance", neighborDistance);
             facingStrength = parse.Float("m_flFacingStrength", facingStrength);
             cpBroadcast = parse.Int32("m_nCPBroadcast", cpBroadcast);
+            useAABB = parse.Boolean("m_bUseAABB", useAABB);
         }
 
         public override void Reset()
@@ -43,9 +48,8 @@ namespace ValveResourceFormat.Particles.Operators
             averageSpeed = 0f;
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-        }
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -56,25 +60,45 @@ namespace ValveResourceFormat.Particles.Operators
             }
 
             var current = particles.Current;
+            var positions = current.Vectors(ParticleField.Position);
+            var previousPositions = current.ReadVectors(ParticleField.PositionPrevious);
             var distanceSquared = neighborDistance * neighborDistance;
 
-            for (var i = 0; i < current.Length - 1; i++)
+            if (useAABB)
             {
-                for (var j = i + 1; j < current.Length; j++)
+                objectTree.Build(positions, current.ReadFloats(ParticleField.Radius), neighborDistance, particleSystemState.Data?.WorldBoundingBox);
+                var slotToParticle = objectTree.SlotToParticle;
+
+                // Slots are mapped back to particles. The game passes the slot numbers on as particle
+                // indices, which matches unrelated particles; that is not reproduced
+                foreach (var (first, second) in objectTree.Pairs)
                 {
-                    MatchPair(ref current[i], ref current[j], frameTime, strength, distanceSquared);
+                    MatchPair(positions, previousPositions, slotToParticle[first], slotToParticle[second], frameTime, strength, distanceSquared);
+                }
+
+                return;
+            }
+
+            for (var i = 0; i < positions.Length - 1; i++)
+            {
+                for (var j = i + 1; j < positions.Length; j++)
+                {
+                    MatchPair(positions, previousPositions, i, j, frameTime, strength, distanceSquared);
                 }
             }
         }
 
         private void MatchAverage(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState)
         {
+            var current = particles.Current;
+            var positions = current.Vectors(ParticleField.Position);
+            var previousPositions = current.ReadVectors(ParticleField.PositionPrevious);
             var velocitySum = Vector3.Zero;
             var speedSum = 0f;
 
-            foreach (ref var particle in particles.Current)
+            for (var i = 0; i < positions.Length; i++)
             {
-                var velocity = particle.GetVelocity(frameTime);
+                var velocity = GetVelocity(positions[i], previousPositions[i], frameTime);
                 var speed = velocity.Length();
                 velocitySum += velocity;
                 speedSum += speed;
@@ -88,7 +112,7 @@ namespace ValveResourceFormat.Particles.Operators
                 direction = ParticleMath.NormalizeWithEpsilon(MathUtils.Lerp(direction, averageDirection, dirScale));
                 var newSpeed = MathUtils.Lerp(speed, averageSpeed, spdScale);
 
-                particle.Position = (direction * newSpeed * frameTime) + particle.PositionPrevious;
+                positions[i] = (direction * newSpeed * frameTime) + previousPositions[i];
             }
 
             averageDirection = ParticleMath.NormalizeWithEpsilon(velocitySum);
@@ -105,9 +129,12 @@ namespace ValveResourceFormat.Particles.Operators
             particleSystemState.SetControlPointOrientation(cpBroadcast, averageDirection, left, up);
         }
 
-        private void MatchPair(ref Particle first, ref Particle second, float frameTime, float strength, float distanceSquared)
+        private static Vector3 GetVelocity(Vector3 position, Vector3 previousPosition, float frameTime)
+            => frameTime > 0f ? (position - previousPosition) / frameTime : Vector3.Zero;
+
+        private void MatchPair(Span<Vector3> positions, ReadOnlySpan<Vector3> previousPositions, int first, int second, float frameTime, float strength, float distanceSquared)
         {
-            var separation = (second.Position - first.Position).LengthSquared();
+            var separation = (positions[second] - positions[first]).LengthSquared();
 
             if (separation <= ParticleMath.FloatEpsilon || separation >= distanceSquared)
             {
@@ -117,8 +144,8 @@ namespace ValveResourceFormat.Particles.Operators
             var closeness = (1f - MathUtils.Saturate(separation / distanceSquared)) * strength;
             var weight = closeness * closeness;
 
-            var firstVelocity = first.GetVelocity(frameTime);
-            var secondVelocity = second.GetVelocity(frameTime);
+            var firstVelocity = GetVelocity(positions[first], previousPositions[first], frameTime);
+            var secondVelocity = GetVelocity(positions[second], previousPositions[second], frameTime);
             var firstSpeed = firstVelocity.Length();
             var secondSpeed = secondVelocity.Length();
             var averagePairSpeed = (secondSpeed + firstSpeed) * 0.5f;
@@ -133,14 +160,11 @@ namespace ValveResourceFormat.Particles.Operators
             var turn = weight * dirScale;
             var speedBlend = MathUtils.Saturate(weight * spdScale);
 
-            Steer(ref first, firstVelocity, firstSpeed);
-            Steer(ref second, secondVelocity, secondSpeed);
+            var newFirstVelocity = MathUtils.Lerp(MathUtils.SafeNormalize(firstVelocity), shared, turn) * MathUtils.Lerp(firstSpeed, averagePairSpeed, speedBlend);
+            var newSecondVelocity = MathUtils.Lerp(MathUtils.SafeNormalize(secondVelocity), shared, turn) * MathUtils.Lerp(secondSpeed, averagePairSpeed, speedBlend);
 
-            void Steer(ref Particle particle, Vector3 velocity, float speed)
-            {
-                var newVelocity = MathUtils.Lerp(MathUtils.SafeNormalize(velocity), shared, turn) * MathUtils.Lerp(speed, averagePairSpeed, speedBlend);
-                particle.Position = (newVelocity * frameTime) + particle.PositionPrevious;
-            }
+            positions[first] = (newFirstVelocity * frameTime) + previousPositions[first];
+            positions[second] = (newSecondVelocity * frameTime) + previousPositions[second];
         }
     }
 }

@@ -23,7 +23,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             playEndCap = parse.Boolean("m_bPlayEndCap", playEndCap);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             if (particleSystemState.EmissionStopped)
             {

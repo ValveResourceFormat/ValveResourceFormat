@@ -37,7 +37,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             defaults.AddColor(colorCP);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             if (particleSystemState.GetControlPoint(colorGemEnableCP).Position.X <= 0f)
             {

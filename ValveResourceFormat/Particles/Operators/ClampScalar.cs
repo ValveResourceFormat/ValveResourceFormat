@@ -1,3 +1,5 @@
+using System.Numerics.Tensors;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -17,20 +19,30 @@ namespace ValveResourceFormat.Particles.Operators
             outputMax = parse.NumberProvider("m_flOutputMax", outputMax);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(outputField))
             {
-                var min = outputMin.NextNumber(ref particle, particleSystemState);
-                var max = outputMax.NextNumber(ref particle, particleSystemState);
+                return;
+            }
 
-                var currentValue = particle.GetScalar(outputField);
+            var current = particles.Current;
+            var mins = outputMin.Fill(current, particleSystemState);
+            var maxs = outputMax.Fill(current, particleSystemState);
 
-                // An inverted range is not corrected: the engine applies the bounds in order, so
-                // the maximum wins outright.
-                var clampedValue = MathF.Min(max, MathF.Max(currentValue, min));
+            var outputs = current.Floats(outputField);
+            var clamped = strength >= 1f ? outputs : ParticleScratch.Floats(outputs.Length);
 
-                particle.SetScalar(outputField, BlendByStrength(currentValue, clampedValue, strength));
+            // An inverted range is not corrected: the bounds apply in order, so the maximum wins outright
+            TensorPrimitives.Max(outputs, mins, clamped);
+            TensorPrimitives.Min(clamped, maxs, clamped);
+
+            if (strength < 1f)
+            {
+                TensorPrimitives.Lerp(outputs, clamped, strength, outputs);
             }
         }
     }

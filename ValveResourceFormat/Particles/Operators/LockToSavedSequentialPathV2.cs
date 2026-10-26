@@ -10,13 +10,13 @@ namespace ValveResourceFormat.Particles.Operators
     /// path is evaluated once per frame the first time a particle references it.
     /// </summary>
     /// <remarks>
-    /// <c>m_flFadeStart</c> and <c>m_flFadeEnd</c> are parsed but the engine never reads them, and
+    /// <c>m_flFadeStart</c> and <c>m_flFadeEnd</c> are not read, and
     /// operator strength is not applied either.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_LockToSavedSequentialPathV2">C_OP_LockToSavedSequentialPathV2</seealso>
     class LockToSavedSequentialPathV2 : ParticleFunctionOperator
     {
-        private const int ControlPointCount = 64;
+        private const int ControlPointCount = ParticleSystemState.ControlPointCount;
 
         private readonly bool cpPairs;
         private readonly ParticlePathParameters pathParams;
@@ -27,8 +27,6 @@ namespace ValveResourceFormat.Particles.Operators
 
         public LockToSavedSequentialPathV2(ParticleDefinitionParser parse) : base(parse)
         {
-            _ = parse.Float("m_flFadeStart", 1f);
-            _ = parse.Float("m_flFadeEnd", 1f);
             cpPairs = parse.Boolean("m_bCPPairs", cpPairs);
 
             var parsed = new ParticlePathParameters(parse);
@@ -47,13 +45,24 @@ namespace ValveResourceFormat.Particles.Operators
             Array.Clear(previousPaths);
         }
 
+        public override void Restart(ParticleSystemState particleSystemState) => Reset();
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             Array.Clear(evaluatedThisFrame);
 
-            foreach (ref var particle in particles.Current)
+            var particleSpan = particles.Current;
+            var positions = particleSpan.Vectors(ParticleField.Position);
+            var previousPositions = particleSpan.Vectors(ParticleField.PositionPrevious);
+            var savedValues = particleSpan.ReadVectors(ParticleField.HitboxOffsetPosition);
+            var ages = particleSpan.ReadAges();
+
+            for (var i = 0; i < positions.Length; i++)
             {
-                var saved = particle.HitboxOffsetPosition;
+                var saved = savedValues[i];
                 var startControlPoint = Math.Clamp((int)saved.Y, 0, ControlPointCount - 1);
 
                 if (!evaluatedThisFrame[startControlPoint])
@@ -66,16 +75,10 @@ namespace ValveResourceFormat.Particles.Operators
                     evaluatedThisFrame[startControlPoint] = true;
                 }
 
-                var current = currentPaths[startControlPoint];
-                var previous = previousPaths[startControlPoint]!.Value;
+                var delta = LockToSavedSequentialPath.PathDelta(currentPaths[startControlPoint], previousPaths[startControlPoint]!.Value, saved.X, ages[i], frameTime);
 
-                var creationFraction = LivedStepFraction(particle, frameTime);
-
-                var delta = (ParticlePath.Evaluate(current.Start, current.Mid, current.End, saved.X)
-                    - ParticlePath.Evaluate(previous.Start, previous.Mid, previous.End, saved.X)) * creationFraction;
-
-                particle.Position += delta;
-                particle.PositionPrevious += delta;
+                positions[i] += delta;
+                previousPositions[i] += delta;
             }
 
             for (var i = 0; i < ControlPointCount; i++)

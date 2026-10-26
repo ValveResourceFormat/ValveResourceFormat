@@ -35,19 +35,25 @@ namespace ValveResourceFormat.Particles.Operators
         }
 
         /// <summary>
-        /// Fade duration for this particle, as a fraction of lifetime or in seconds per
-        /// <see cref="proportional"/>. Constant across frames.
+        /// Writes the fade duration of every particle in <paramref name="current"/>, as a fraction of
+        /// lifetime or in seconds per <see cref="proportional"/>. Constant across frames.
         /// </summary>
-        protected float GetFadeTime(ref Particle particle, ParticleSystemState particleSystemState)
+        protected void FillFadeTimes(ParticleSpan current, ParticleSystemState particleSystemState, Span<float> fadeTimes)
         {
             if (fadeTimeMin == fadeTimeMax)
             {
-                return fadeTimeMin;
+                fadeTimes.Fill(fadeTimeMin);
+                return;
             }
 
-            var draw = ParticleMath.PowQuarterSteps(particleSystemState.Random.ForParticle(particle.ParticleId), randomExponent);
+            var particleIds = current.ReadIntegers(ParticleField.ParticleId);
 
-            return (draw * (fadeTimeMax - fadeTimeMin)) + fadeTimeMin;
+            for (var i = 0; i < fadeTimes.Length; i++)
+            {
+                var draw = ParticleMath.PowQuarterSteps(particleSystemState.Random.ForParticle(particleIds[i]), randomExponent);
+
+                fadeTimes[i] = (draw * (fadeTimeMax - fadeTimeMin)) + fadeTimeMin;
+            }
         }
     }
 }

@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -7,8 +9,7 @@ namespace ValveResourceFormat.Particles.Operators
     /// points. The percentage is computed exactly as in <see cref="PercentageBetweenTransforms"/>.
     /// </summary>
     /// <remarks>
-    /// The engine implementation never reads operator strength, so the strength passed to
-    /// <see cref="Operate"/> is ignored.
+    /// Operator strength is not read, so the strength passed to <see cref="Operate"/> is ignored.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_PercentageBetweenTransformLerpCPs">C_OP_PercentageBetweenTransformLerpCPs</seealso>
     class PercentageBetweenTransformLerpCPs : ParticleFunctionOperator
@@ -40,7 +41,12 @@ namespace ValveResourceFormat.Particles.Operators
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
             activeRange = parse.Boolean("m_bActiveRange", activeRange);
             radialCheck = parse.Boolean("m_bRadialCheck", radialCheck);
+
+            AddInitialReadOf(parse, setMethod, outputField);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -51,21 +57,28 @@ namespace ValveResourceFormat.Particles.Operators
             var outputMin = particleSystemState.GetControlPoint(outputStartCP).Position.GetComponent(outputStartField);
             var outputMax = particleSystemState.GetControlPoint(outputEndCP).Position.GetComponent(outputEndField);
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(outputField))
             {
-                var percentage = PercentageBetweenTransforms.Percentage(particle.Position, start, end, length, radialCheck);
+                return;
+            }
+
+            var current = particles.Current;
+            var positions = current.ReadVectors(ParticleField.Position);
+            var values = current.Floats(outputField);
+            var initialValues = particles.Initial.ReadFloats(outputField);
+
+            for (var i = 0; i < values.Length; i++)
+            {
+                var percentage = PercentageBetweenTransforms.Percentage(positions[i], start, end, length, radialCheck);
 
                 if (activeRange && !(inputMin <= percentage && percentage <= inputMax))
                 {
                     continue;
                 }
 
-                var divisor = inputMax == inputMin ? 1f : inputMax - inputMin;
-                var finalValue = MathUtils.Lerp(outputMin, outputMax, MathUtils.Saturate((percentage - inputMin) / divisor));
+                var finalValue = MathUtils.Lerp(outputMin, outputMax, ParticleMath.ClampedFraction(percentage, inputMin, inputMax));
 
-                finalValue = particle.ModifyScalarBySetMethod(particles, outputField, finalValue, setMethod);
-
-                particle.SetScalar(outputField, finalValue);
+                values[i] = ParticleFieldExtensions.ApplySetMethod(finalValue, initialValues[i], values[i], particleSystemState.CurrentStep, setMethod);
             }
         }
     }

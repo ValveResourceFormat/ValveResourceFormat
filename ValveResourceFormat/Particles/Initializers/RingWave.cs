@@ -51,52 +51,60 @@ namespace ValveResourceFormat.Particles.Initializers
             orbitCount = 0;
         }
 
-        /// <summary>A restart keeps counting round the ring.</summary>
-        public override void Restart(ParticleSystemState particleSystemState)
+        public override ulong WrittenFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask();
+
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-        }
+            var thicknesses = thickness.Fill(run, particleSystemState);
+            var perOrbit = particlesPerOrbit.NextNumber(particleSystemState);
+            var radii = initialRadius.Fill(run, particleSystemState);
+            var pitches = pitch.Fill(run, particleSystemState);
+            var yaws = yaw.Fill(run, particleSystemState);
+            var rolls = roll.Fill(run, particleSystemState);
+            var speedMins = initialSpeedMin.Fill(run, particleSystemState);
+            var speedMaxes = initialSpeedMax.Fill(run, particleSystemState);
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious);
+            var creationTimes = run.ReadFloats(ParticleField.CreationTime);
+            var positions = run.Vectors(ParticleField.Position);
+            var previousPositions = SpawnPreviousPositions(run, particleSystemState);
+            var activeParticles = particles.Count;
+            var previousFrameTime = particleSystemState.PreviousStep;
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            var thickness = this.thickness.NextNumber(ref particle, particleSystemState);
-            var particlesPerOrbit = this.particlesPerOrbit.NextNumber(ref particle, particleSystemState);
-
-            var thicknessOffset = particleSystemState.Random.NextInUnitBall(out _) * thickness;
-
-            var radius = initialRadius.NextNumber(ref particle, particleSystemState);
-
-            var transform = transformInput.NextTransformAtTime(ref particle, particleSystemState, particle.CreationTime);
-
-            var angle = GetNextAngle(particlesPerOrbit, particles.Count, particleSystemState);
-            var (sin, cos) = MathF.SinCos(angle);
-            var ringAngles = new Vector3(
-                pitch.NextNumber(ref particle, particleSystemState),
-                yaw.NextNumber(ref particle, particleSystemState),
-                roll.NextNumber(ref particle, particleSystemState));
-            var ring = Vector3.TransformNormal(new Vector3(radius * cos, radius * sin, 0f), EntityTransformHelper.EulerAnglesToRotationMatrix(ringAngles));
-
-            var position = Vector3.Transform(ring + thicknessOffset, transform);
-
-            // Initial speed pushes outward, along the line from the transform to where the particle
-            // actually landed, so the thickness offset tilts the direction as well as the position.
-            var outward = MathUtils.SafeNormalize(position - transform.Translation);
-
-            var speedMin = initialSpeedMin.NextNumber(ref particle, particleSystemState);
-            var speedMax = initialSpeedMax.NextNumber(ref particle, particleSystemState);
-            var speed = particleSystemState.Random.NextBetween(speedMin, speedMax);
-
-            var previous = position - (outward * (speed * particles.PreviousFrameTime));
-
-            if (xyVelocityOnly)
+            for (var i = 0; i < run.Length; i++)
             {
-                previous.Z = position.Z;
+                var thicknessOffset = particleSystemState.Random.NextInUnitBall(out _) * thicknesses[i];
+
+                var radius = radii[i];
+
+                var transform = transformInput.NextTransformAtTime(particleSystemState, creationTimes[i]);
+
+                var angle = GetNextAngle(perOrbit, activeParticles, particleSystemState);
+                var (sin, cos) = MathF.SinCos(angle);
+                var ringAngles = new Vector3(pitches[i], yaws[i], rolls[i]);
+                var ring = Vector3.TransformNormal(new Vector3(radius * cos, radius * sin, 0f), EntityTransformHelper.EulerAnglesToRotationMatrix(ringAngles));
+
+                var position = Vector3.Transform(ring + thicknessOffset, transform);
+
+                // Initial speed pushes outward, along the line from the transform to where the particle
+                // actually landed, so the thickness offset tilts the direction as well as the position.
+                var outward = MathUtils.SafeNormalize(position - transform.Translation);
+
+                var speed = particleSystemState.Random.NextBetween(speedMins[i], speedMaxes[i]);
+
+                var previous = position - (outward * (speed * previousFrameTime));
+
+                if (xyVelocityOnly)
+                {
+                    previous.Z = position.Z;
+                }
+
+                positions[i] = position;
+
+                if (!previousPositions.IsEmpty)
+                {
+                    previousPositions[i] = previous;
+                }
             }
-
-            SetSpawnPosition(ref particle, particleSystemState, position, previous);
-
-            return particle;
         }
 
         /// <summary>

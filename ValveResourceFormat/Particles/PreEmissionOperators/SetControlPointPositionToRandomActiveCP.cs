@@ -32,7 +32,9 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             nextResetTime = ParticleMath.FloatMin;
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Restart(ParticleSystemState particleSystemState) => Reset();
+
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             if (nextResetTime > particleSystemState.Age)
             {

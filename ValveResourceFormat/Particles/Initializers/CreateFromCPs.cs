@@ -28,8 +28,6 @@ namespace ValveResourceFormat.Particles.Initializers
             {
                 (minControlPoint, maxControlPoint) = (maxControlPoint, minControlPoint);
             }
-
-            Reset();
         }
 
         public override void Reset()
@@ -37,13 +35,9 @@ namespace ValveResourceFormat.Particles.Initializers
             currentControlPoint = minControlPoint;
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-        }
+        public override ulong WrittenFields => ParticleField.Position.Mask() | ParticleField.LifeDuration.Mask() | ParticleField.PositionPrevious.Mask();
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.LifeDuration) | FieldMask(ParticleField.PositionPrevious);
-
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var max = useHighestControlPoint ? particleSystemState.HighestControlPoint : maxControlPoint;
             var count = max - minControlPoint + 1;
@@ -57,22 +51,27 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (count == 0)
             {
-                particle.Lifetime = 0f;
-                return particle;
+                run.Floats(ParticleField.LifeDuration).Clear();
+                return;
             }
 
-            if (currentControlPoint > max)
+            var creationTimes = run.ReadFloats(ParticleField.CreationTime);
+            var positions = run.Vectors(ParticleField.Position);
+            var previous = run.Vectors(ParticleField.PositionPrevious);
+
+            for (var i = 0; i < run.Length; i++)
             {
-                currentControlPoint = minControlPoint;
+                if (currentControlPoint > max)
+                {
+                    currentControlPoint = minControlPoint;
+                }
+
+                var position = particleSystemState.GetControlPoint(currentControlPoint).GetPositionAtTime(creationTimes[i]);
+                positions[i] = position;
+                previous[i] = position;
+
+                currentControlPoint += increment;
             }
-
-            var position = particleSystemState.GetControlPoint(currentControlPoint).GetPositionAtTime(particle.CreationTime);
-            particle.Position = position;
-            particle.PositionPrevious = position;
-
-            currentControlPoint += increment;
-
-            return particle;
         }
     }
 }

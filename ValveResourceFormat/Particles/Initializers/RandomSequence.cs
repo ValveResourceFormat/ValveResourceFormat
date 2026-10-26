@@ -68,11 +68,12 @@ namespace ValveResourceFormat.Particles.Initializers
             Array.Clear(table);
             next = 0;
 
-            if (weightedList.Length > 0 || !(shuffle || linear))
+            if (!(shuffle || linear))
             {
                 return;
             }
 
+            // A weighted list never reads the table, but the shuffle still takes its draws from the shared stream
             next = sequenceMin;
 
             for (var sequence = Math.Max(sequenceMin, 0); sequence <= Math.Min(sequenceMax, TableSize - 1); sequence++)
@@ -86,40 +87,38 @@ namespace ValveResourceFormat.Particles.Initializers
             }
         }
 
-        /// <summary>A restart keeps the walk where it is.</summary>
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-        }
+        public override ulong WrittenFields => ParticleField.SequenceNumber.Mask();
 
-        public override ulong WrittenFields => FieldMask(ParticleField.SequenceNumber);
-
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            if (weightedList.Length > 0)
+            var sequences = run.Floats(ParticleField.SequenceNumber);
+
+            for (var i = 0; i < sequences.Length; i++)
             {
-                particle.SequenceNumber = NextWeightedSequence(particleSystemState);
-            }
-            else if (shuffle || linear)
-            {
-                if (next > sequenceMax)
+                if (weightedList.Length > 0)
                 {
-                    if (shuffle)
+                    sequences[i] = NextWeightedSequence(particleSystemState);
+                }
+                else if (shuffle || linear)
+                {
+                    if (next > sequenceMax)
                     {
-                        Shuffle(particleSystemState);
+                        if (shuffle)
+                        {
+                            Shuffle(particleSystemState);
+                        }
+
+                        next = sequenceMin;
                     }
 
-                    next = sequenceMin;
+                    sequences[i] = GetEntry(next);
+                    next++;
                 }
-
-                particle.SequenceNumber = GetEntry(next);
-                next++;
+                else
+                {
+                    sequences[i] = sequenceMin + particleSystemState.Random.NextIndex(sequenceMax - sequenceMin + 1);
+                }
             }
-            else
-            {
-                particle.SequenceNumber = sequenceMin + particleSystemState.Random.NextIndex(sequenceMax - sequenceMin + 1);
-            }
-
-            return particle;
         }
 
         /// <summary>
@@ -177,6 +176,7 @@ namespace ValveResourceFormat.Particles.Initializers
             }
         }
 
+        // The table has 64 entries and is indexed without a bounds check, so sequences outside 0..63 overrun it; here they read as 0 and are not written
         private int GetEntry(int sequence) => (uint)sequence < TableSize ? table[sequence] : 0;
 
         private void SetEntry(int sequence, int value)

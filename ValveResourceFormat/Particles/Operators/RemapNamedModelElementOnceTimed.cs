@@ -34,27 +34,22 @@ namespace ValveResourceFormat.Particles.Operators
             done = false;
         }
 
+        public override void Restart(ParticleSystemState particleSystemState) => Reset();
+
         public override void Initialize(ParticleSystemState particleSystemState)
         {
-            Reset();
+            base.Initialize(particleSystemState);
             remap.Resolve(particleSystemState);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             if (proportional)
             {
-                foreach (ref var particle in particles.Current)
-                {
-                    var life = particle.Lifetime + ParticleMath.FloatEpsilon;
-                    var lifeFraction = (particleSystemState.Age - particle.CreationTime) / life;
-
-                    if (lifeFraction > remapTime && (frameTime / life) + remapTime > lifeFraction)
-                    {
-                        particle.SetScalar(fieldOutput, remap.Remap((int)particle.GetScalar(fieldInput), particleSystemState));
-                    }
-                }
-
+                OperateProportional(particles, frameTime, particleSystemState);
                 return;
             }
 
@@ -65,9 +60,43 @@ namespace ValveResourceFormat.Particles.Operators
 
             done = true;
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(fieldOutput))
             {
-                particle.SetScalar(fieldOutput, remap.Remap((int)particle.GetScalar(fieldInput), particleSystemState));
+                return;
+            }
+
+            var current = particles.Current;
+            var inputs = current.ReadFloats(fieldInput);
+            var output = current.Floats(fieldOutput);
+
+            for (var i = 0; i < output.Length; i++)
+            {
+                output[i] = remap.Remap((int)inputs[i], particleSystemState);
+            }
+        }
+
+        private void OperateProportional(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState)
+        {
+            if (!ParticleBuffer.IsScalar(fieldOutput))
+            {
+                return;
+            }
+
+            var current = particles.Current;
+            var lifetimes = current.ReadFloats(ParticleField.LifeDuration);
+            var ages = current.ReadAges();
+            var inputs = current.ReadFloats(fieldInput);
+            var output = current.Floats(fieldOutput);
+
+            for (var i = 0; i < output.Length; i++)
+            {
+                var life = lifetimes[i] + ParticleMath.FloatEpsilon;
+                var lifeFraction = ages[i] / life;
+
+                if (lifeFraction > remapTime && (frameTime / life) + remapTime > lifeFraction)
+                {
+                    output[i] = remap.Remap((int)inputs[i], particleSystemState);
+                }
             }
         }
     }

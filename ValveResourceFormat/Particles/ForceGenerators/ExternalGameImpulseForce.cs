@@ -11,7 +11,7 @@ class ExternalGameImpulseForce : ParticleFunctionForceGenerator
     {
     }
 
-    public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
+    public override void GenerateForces(ParticleCollection particles, Span<Vector3> forces, float frameTime, ParticleSystemState particleSystemState, float strength)
     {
     }
 }

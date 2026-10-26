@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
@@ -20,16 +22,26 @@ namespace ValveResourceFormat.Particles.Initializers
             rotOffset = float.DegreesToRadians(parse.Float("m_flRotOffset", 0f));
         }
 
-        public override ulong WrittenFields => FieldMask(fieldOutput);
+        public override ulong WrittenFields => fieldOutput.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            if (Angle(particle.Position, particleSystemState.GetControlPoint(cp).Position) is { } angle)
+            if (!ParticleBuffer.IsScalar(fieldOutput))
             {
-                particle.SetScalar(fieldOutput, angle + rotOffset);
+                return;
             }
 
-            return particle;
+            var positions = run.ReadVectors(ParticleField.Position);
+            var outputs = run.Floats(fieldOutput);
+            var center = particleSystemState.GetControlPoint(cp).Position;
+
+            for (var i = 0; i < outputs.Length; i++)
+            {
+                if (Angle(positions[i], center) is { } angle)
+                {
+                    outputs[i] = angle + rotOffset;
+                }
+            }
         }
 
         /// <summary>
@@ -38,15 +50,14 @@ namespace ValveResourceFormat.Particles.Initializers
         /// </summary>
         internal static float? Angle(Vector3 position, Vector3 center)
         {
-            var dx = position.X - center.X;
-            var dy = position.Y - center.Y;
+            var direction = position - center;
 
-            if (dx == 0f && dy == 0f)
+            if (direction.X == 0f && direction.Y == 0f)
             {
                 return null;
             }
 
-            return MathF.Atan2(dy, dx) + MathF.PI;
+            return ParticleMath.Heading(direction);
         }
     }
 }

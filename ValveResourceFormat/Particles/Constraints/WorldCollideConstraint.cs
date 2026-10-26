@@ -4,7 +4,7 @@ namespace ValveResourceFormat.Particles.Constraints
     /// Keeps particles, as spheres of their radius, on the front side of the world surfaces found by
     /// tracing in 26 directions from control point 0. The first step traces every direction; each
     /// later step retraces one more slot, so the surfaces follow a moving control point gradually.
-    /// Only <see cref="Particle.Position"/> is written, so a push also becomes velocity.
+    /// Only <see cref="ParticleField.Position"/> is written, so a push also becomes velocity.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_WorldCollideConstraint">C_OP_WorldCollideConstraint</seealso>
     class WorldCollideConstraint : ParticleFunctionConstraint
@@ -16,14 +16,13 @@ namespace ValveResourceFormat.Particles.Constraints
         {
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Position.Mask();
+
         public override void Reset()
         {
             planes = new CollisionPlaneSet();
             planesTime = float.NaN;
-        }
-
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
         }
 
         public override bool ApplyConstraint(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
@@ -45,13 +44,14 @@ namespace ValveResourceFormat.Particles.Constraints
 
             var pushed = false;
 
-            foreach (ref var particle in particles.Current)
-            {
-                var position = particle.Position;
+            var current = particles.Current;
+            var positions = current.Vectors(ParticleField.Position);
+            var radii = current.ReadFloats(ParticleField.Radius);
 
-                if (planes.PushOut(ref position, particle.Radius))
+            for (var i = 0; i < positions.Length; i++)
+            {
+                if (planes.PushOut(ref positions[i], radii[i]))
                 {
-                    particle.Position = position;
                     pushed = true;
                 }
             }

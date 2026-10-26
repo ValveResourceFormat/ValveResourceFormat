@@ -21,8 +21,12 @@ namespace ValveResourceFormat.Particles.Operators
             localSpace = parse.Boolean("m_bLocalSpace", localSpace);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
+            var angle = float.DegreesToRadians(rotationRate.NextNumber(particleSystemState)) * frameTime;
             var axis = MathUtils.SafeNormalize(rotationAxis.NextVector(particleSystemState), Vector3.UnitZ);
 
             var transform = transformInput.NextTransform(particleSystemState);
@@ -33,16 +37,19 @@ namespace ValveResourceFormat.Particles.Operators
             }
 
             var center = transform.Translation;
-            var angle = float.DegreesToRadians(rotationRate.NextNumber(particleSystemState)) * frameTime;
             var rotation = Matrix4x4.CreateFromAxisAngle(axis, angle);
 
-            foreach (ref var particle in particles.Current)
-            {
-                var rotated = center + Vector3.Transform(particle.Position - center, rotation);
-                var rotatedPrevious = center + Vector3.Transform(particle.PositionPrevious - center, rotation);
+            var current = particles.Current;
+            var positions = current.Vectors(ParticleField.Position);
+            var previousPositions = current.Vectors(ParticleField.PositionPrevious);
 
-                particle.Position = Vector3.Lerp(particle.Position, rotated, strength);
-                particle.PositionPrevious = Vector3.Lerp(particle.PositionPrevious, rotatedPrevious, strength);
+            for (var i = 0; i < positions.Length; i++)
+            {
+                var rotated = center + Vector3.Transform(positions[i] - center, rotation);
+                var rotatedPrevious = center + Vector3.Transform(previousPositions[i] - center, rotation);
+
+                positions[i] = Vector3.Lerp(positions[i], rotated, strength);
+                previousPositions[i] = Vector3.Lerp(previousPositions[i], rotatedPrevious, strength);
             }
         }
     }

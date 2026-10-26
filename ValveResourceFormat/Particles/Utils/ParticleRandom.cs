@@ -1,8 +1,8 @@
 namespace ValveResourceFormat.Particles.Utils
 {
     /// <summary>
-    /// One particle system's access to the shared random table. Every random value in the
-    /// particle system comes from here, and nothing else reads <see cref="RandomFloats"/>.
+    /// One particle system's access to the shared random table. Every value the particle system
+    /// takes from the table comes from here, and nothing else reads <see cref="RandomFloats"/>.
     ///
     /// <para>There are three ways in, and which one a draw uses decides whether the value changes
     /// between frames:</para>
@@ -78,17 +78,13 @@ namespace ValveResourceFormat.Particles.Utils
         public void RedrawInputSeeds() => inputSeedGeneration++;
 
         /// <summary>
-        /// Marks the start of a function call. Inputs are evaluated once per call: a varying random input
-        /// draws once per block of four particles within a call, and once per call at collection level.
+        /// Marks the start of a function call. Inputs are evaluated once per call, so a varying random
+        /// input read for the whole collection draws once per call.
         /// </summary>
         public void BeginFunctionCall() => functionCall++;
 
-        /// <summary>
-        /// Identifies one evaluation of an input within the current function call, for the block of four
-        /// particles holding <paramref name="particleIndex"/>, or for the whole collection when it is negative.
-        /// </summary>
-        public EvaluationKey Evaluation(int particleIndex)
-            => new(this, functionCall, particleIndex < 0 ? -1 : particleIndex >> 2);
+        /// <summary>Identifies the evaluation of an input for the whole collection within the current function call.</summary>
+        public EvaluationKey Evaluation() => new(this, functionCall);
 
         /// <summary>Takes the next value from the table, in [0, 1).</summary>
         public float Next() => At(queryCount++ + Seed);
@@ -148,23 +144,6 @@ namespace ValveResourceFormat.Particles.Utils
         }
 
         /// <summary>
-        /// Takes three values per attempt as a point in the cube from -1 to 1 until one lands inside
-        /// the unit ball.
-        /// </summary>
-        public Vector3 NextInUnitBallByRejection()
-        {
-            Vector3 point;
-
-            do
-            {
-                point = NextBetweenPerComponent(-Vector3.One, Vector3.One);
-            }
-            while (point.LengthSquared() >= 1f);
-
-            return point;
-        }
-
-        /// <summary>
         /// Takes the next value, interpolated into [<paramref name="min"/>, <paramref name="max"/>].
         /// </summary>
         public float NextBetween(float min, float max) => MathUtils.Lerp(min, max, Next());
@@ -200,14 +179,7 @@ namespace ValveResourceFormat.Particles.Utils
         /// <paramref name="fieldOffset"/> separates the draws one operator makes for different fields
         /// of the same particle.
         /// </summary>
-        public float ForParticle(int particleId, int fieldOffset = 0)
-        {
-            ParticleIdRead = true;
-            return At(Seed + OperatorOffset + fieldOffset + particleId);
-        }
-
-        /// <summary>Set by every draw keyed by a particle id, so the system can tell whether a function read the ids.</summary>
-        public bool ParticleIdRead { get; set; }
+        public float ForParticle(int particleId, int fieldOffset = 0) => At(Seed + OperatorOffset + fieldOffset + particleId);
 
         /// <inheritdoc cref="ForParticle(int, int)"/>
         public float ForParticleBetween(int particleId, int fieldOffset, float min, float max)
@@ -241,11 +213,10 @@ namespace ValveResourceFormat.Particles.Utils
         // Unsigned modulo keeps the index valid for any id, including ids that wrapped negative
         private static float At(int index) => RandomFloats.List[(uint)index % RandomFloats.List.Length];
 
-        /// <summary>See <see cref="Evaluation(int)"/>.</summary>
+        /// <summary>See <see cref="Evaluation"/>.</summary>
         /// <param name="Random">The system the input is evaluated for.</param>
         /// <param name="FunctionCall">The function call the evaluation belongs to.</param>
-        /// <param name="Block">The block of four particles, or -1 for the whole collection.</param>
-        internal readonly record struct EvaluationKey(ParticleRandom Random, int FunctionCall, int Block);
+        internal readonly record struct EvaluationKey(ParticleRandom Random, int FunctionCall);
 
         /// <summary>
         /// The per-function seed of an input whose random value is constant per particle. It is drawn

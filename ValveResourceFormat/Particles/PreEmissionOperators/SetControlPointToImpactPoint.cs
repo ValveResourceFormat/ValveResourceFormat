@@ -46,11 +46,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             nextUpdateTime = -1f;
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-        }
-
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             var time = particleSystemState.Age;
 
@@ -100,6 +96,8 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
                 if (!hit)
                 {
+                    // With m_bSetToEndpoint the control point is still moved when every axis misses, to an undefined end
+                    // position facing along a zero normal; it is left unchanged here
                     if (!setToEndpoint)
                     {
                         SetFacingAway(particleSystemState);

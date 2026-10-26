@@ -51,28 +51,111 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             cookiePath = parse.Data.GetStringProperty("m_hLightCookie") is { Length: > 0 } cookie ? cookie : null;
         }
 
+        /// <summary>Whether the light faces its target rather than a normal or the particle's angles.</summary>
+        private bool TargetsDirection => orientationType is ParticleOmni2LightOrientationChoiceList.PARTICLE_OMNI2_LIGHT_ORIENTATION_TARGET
+            or ParticleOmni2LightOrientationChoiceList.PARTICLE_OMNI2_LIGHT_ORIENTATION_TARGET_ROLL;
+
         /// <inheritdoc/>
         protected override bool UpdateLights(ParticleCollection particles, ParticleSystemState systemState)
         {
-            var blend = new Vector4(ParticleColorBlend.ConvertScale(ColorBlendType, colorBlend.NextVector(systemState)), 1f);
+            var current = particles.Current;
+            var particleIds = current.ReadIntegers(ParticleField.ParticleId);
+            var columns = new LightColumns(current);
 
-            foreach (ref var particle in particles.Current)
+            // The colour blend is set up before the other inputs and read after them, so only an input drawing per
+            // block draws after them
+            var setUpColorBlend = colorBlend.DrawsPerBlock ? Vector3.Zero : colorBlend.NextVector(systemState);
+
+            // Both brightness inputs are evaluated whichever unit is used, so the draws stay in this order
+            var inputs = new LightInputs
             {
-                var lightRange = range.NextNumber(ref particle, systemState);
-                var brightness = brightnessUnit == ParticleLightUnitChoiceList.PARTICLE_LIGHT_UNIT_CANDELAS
-                    ? brightnessCandelas.NextNumber(ref particle, systemState)
-                    : brightnessLumens.NextNumber(ref particle, systemState);
+                Ranges = range.Fill(current, systemState),
+                Skirts = skirt.Fill(current, systemState),
+                LuminaireRadii = luminaireRadius.Fill(current, systemState),
+                InnerAngles = innerConeAngle.Fill(current, systemState),
+                OuterAngles = outerConeAngle.Fill(current, systemState),
+            };
 
-                if (lightRange <= 0f || brightness == 0f || Lights.Claim(particle.ParticleId) is not { } slot)
+            var lumens = brightnessLumens.Fill(current, systemState);
+            var candelas = brightnessCandelas.Fill(current, systemState);
+            var brightnesses = brightnessUnit == ParticleLightUnitChoiceList.PARTICLE_LIGHT_UNIT_CANDELAS ? candelas : lumens;
+
+            var targets = target.Prepare(current, systemState);
+            var normals = normal != null ? normal.Prepare(current, systemState) : default;
+
+            var colorBlendValue = colorBlend.DrawsPerBlock ? colorBlend.NextVector(systemState) : setUpColorBlend;
+            var blend = new Vector4(ParticleColorBlend.ConvertScale(ColorBlendType, colorBlendValue), 1f);
+
+            var directionInput = normal;
+            var directions = normals;
+
+            if (TargetsDirection)
+            {
+                directionInput = target;
+                directions = targets;
+            }
+            else if (orientationType == ParticleOmni2LightOrientationChoiceList.PARTICLE_OMNI2_LIGHT_ORIENTATION_ROTATIONS)
+            {
+                directionInput = null;
+            }
+
+            var nextDirectionBlock = 0;
+
+            for (var i = 0; i < current.Length; i++)
+            {
+                var lightRange = inputs.Ranges[i];
+                var brightness = brightnesses[i];
+
+                if (lightRange <= 0f || brightness == 0f || Lights.Claim(particleIds[i]) is not { } slot)
                 {
                     continue;
                 }
 
+                // A direction input drawing per block of four draws for the first particle of a block that claims a light
+                if (directionInput != null && i >= nextDirectionBlock)
+                {
+                    var (offset, block) = current.BlockAt(i);
+                    directionInput.FillPerBlock(block, block.Start & 3, systemState, directions[offset..]);
+                    nextDirectionBlock = offset + block.Length;
+                }
+
                 slot.Touched = true;
-                slot.State = BuildLight(ref particle, systemState, blend, lightRange, brightness);
+                slot.State = BuildLight(i, columns, inputs, blend, brightness, directions);
             }
 
             return true;
+        }
+
+        /// <summary>The attributes a light is built from, for every particle of a span.</summary>
+        private readonly ref struct LightColumns(ParticleSpan particles)
+        {
+            public ReadOnlySpan<Vector3> Positions { get; } = particles.ReadVectors(ParticleField.Position);
+
+            public ReadOnlySpan<Vector3> Normals { get; } = particles.ReadVectors(ParticleField.Normal);
+
+            public ReadOnlySpan<Vector3> Colors { get; } = particles.ReadVectors(ParticleField.Color);
+
+            public ReadOnlySpan<float> Alphas { get; } = particles.ReadFloats(ParticleField.Alpha);
+
+            public ReadOnlySpan<float> Yaws { get; } = particles.ReadFloats(ParticleField.Yaw);
+
+            public ReadOnlySpan<float> Pitches { get; } = particles.ReadFloats(ParticleField.Pitch);
+
+            public ReadOnlySpan<float> Rolls { get; } = particles.ReadFloats(ParticleField.Roll);
+        }
+
+        /// <summary>The evaluated inputs a light is built from, for every particle of a span.</summary>
+        private readonly ref struct LightInputs
+        {
+            public ReadOnlySpan<float> Ranges { get; init; }
+
+            public ReadOnlySpan<float> Skirts { get; init; }
+
+            public ReadOnlySpan<float> LuminaireRadii { get; init; }
+
+            public ReadOnlySpan<float> InnerAngles { get; init; }
+
+            public ReadOnlySpan<float> OuterAngles { get; init; }
         }
 
         /// <inheritdoc/>
@@ -84,7 +167,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 Entity = SceneLight.EntityType.Omni2,
                 DirectLight = SceneLight.DirectLightType.Dynamic,
                 CastShadows = castShadows ? 1 : 0,
-                BrightnessScale = 0f,
                 LuminaireShape = lightType == ParticleOmni2LightTypeChoiceList.PARTICLE_OMNI2_LIGHT_TYPE_POINT ? -1 : 0,
                 MinRoughness = SceneLight.MinSpecularRoughness,
                 Name = nameof(RenderOmni2Light),
@@ -97,50 +179,53 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// The light's frame, facing along its first row: the particle's angles, its normal or the way to
         /// its target, the roll variants turning that about the facing direction by the particle's roll.
         /// </summary>
-        private Matrix4x4 LightRotation(ref Particle particle, ParticleSystemState systemState)
+        private Matrix4x4 LightRotation(int index, in LightColumns columns, ReadOnlySpan<Vector3> directions)
         {
             if (orientationType == ParticleOmni2LightOrientationChoiceList.PARTICLE_OMNI2_LIGHT_ORIENTATION_ROTATIONS)
             {
-                return particle.GetRotationMatrix();
+                return EntityTransformHelper.EulerAnglesToRotationMatrixRadians(new Vector3(columns.Pitches[index], columns.Yaws[index], columns.Rolls[index]));
             }
 
-            var direction = orientationType is ParticleOmni2LightOrientationChoiceList.PARTICLE_OMNI2_LIGHT_ORIENTATION_TARGET
-                    or ParticleOmni2LightOrientationChoiceList.PARTICLE_OMNI2_LIGHT_ORIENTATION_TARGET_ROLL
-                ? MathUtils.SafeNormalize(target.NextVector(ref particle, systemState) - particle.Position, -Vector3.UnitZ)
-                : MathUtils.SafeNormalize(normal?.NextVector(ref particle, systemState) ?? particle.Normal);
+            var direction = TargetsDirection
+                ? MathUtils.SafeNormalize(directions[index] - columns.Positions[index], -Vector3.UnitZ)
+                : MathUtils.SafeNormalize(normal != null ? directions[index] : columns.Normals[index]);
 
             var frame = EntityTransformHelper.ForwardDirectionToRotationMatrix(direction);
 
             return orientationType is ParticleOmni2LightOrientationChoiceList.PARTICLE_OMNI2_LIGHT_ORIENTATION_NORMAL_ROLL
                     or ParticleOmni2LightOrientationChoiceList.PARTICLE_OMNI2_LIGHT_ORIENTATION_TARGET_ROLL
-                ? Matrix4x4.CreateRotationX(particle.Rotation.Z) * frame
+                ? Matrix4x4.CreateRotationX(columns.Rolls[index]) * frame
                 : frame;
         }
 
-        private ParticleLightPool.LightState BuildLight(ref Particle particle, ParticleSystemState systemState, Vector4 blend, float lightRange, float brightness)
+        private ParticleLightPool.LightState BuildLight(int index, in LightColumns columns, in LightInputs inputs,
+            Vector4 blend, float brightness, ReadOnlySpan<Vector3> directions)
         {
-            var color = ParticleColorBlend.Apply(ColorBlendType, ParticleColorBlend.ToWrappedBytes(particle.Color, 255f), blend);
+            var color = ParticleColorBlend.Apply(ColorBlendType, ParticleColorBlend.ToWrappedBytes(columns.Colors[index], 255f), blend);
 
-            var outerAngle = Math.Clamp(outerConeAngle.NextNumber(ref particle, systemState), 0f, 180f);
-            var innerAngle = Math.Clamp(innerConeAngle.NextNumber(ref particle, systemState), 0f, outerAngle);
-            var luminaireSize = luminaireRadius.NextNumber(ref particle, systemState);
+            var outerAngle = Math.Clamp(inputs.OuterAngles[index], 0f, 180f);
+            var innerAngle = Math.Clamp(inputs.InnerAngles[index], 0f, outerAngle);
 
-            // Lumens spread over the cone, as the intensity the faces are lit with 100 units away
-            var solidAngle = SceneLight.ComputeConeSolidAngle(outerAngle, innerAngle);
-            var linearBrightness = brightness * 4f * MathF.PI * 10f
-                * (brightnessUnit == ParticleLightUnitChoiceList.PARTICLE_LIGHT_UNIT_CANDELAS ? 1f : 1f / solidAngle)
-                / (SceneLight.LinearBrightnessDistance * SceneLight.LinearBrightnessDistance);
+            // Lumens are spread over the cone's solid angle
+            var candelas = brightness;
+
+            if (brightnessUnit != ParticleLightUnitChoiceList.PARTICLE_LIGHT_UNIT_CANDELAS)
+            {
+                candelas /= SceneLight.ComputeConeSolidAngle(outerAngle, innerAngle);
+            }
+
+            var linearBrightness = SceneLight.LinearBrightnessFromCandelas(candelas);
 
             return new ParticleLightPool.LightState(
                 Color: color.AsVector3() / 255f,
                 LinearBrightness: linearBrightness,
-                BrightnessScale: MathF.Max(0f, particle.Alpha),
-                Range: lightRange,
+                BrightnessScale: MathF.Max(0f, columns.Alphas[index]),
+                Range: inputs.Ranges[index],
                 SpotInnerAngle: innerAngle,
                 SpotOuterAngle: outerAngle,
-                LuminaireSize: luminaireSize,
-                FallOff: skirt.NextNumber(ref particle, systemState),
-                Transform: LightRotation(ref particle, systemState) * Matrix4x4.CreateTranslation(particle.Position));
+                LuminaireSize: inputs.LuminaireRadii[index],
+                FallOff: inputs.Skirts[index],
+                Transform: LightRotation(index, columns, directions) * Matrix4x4.CreateTranslation(columns.Positions[index]));
         }
     }
 }

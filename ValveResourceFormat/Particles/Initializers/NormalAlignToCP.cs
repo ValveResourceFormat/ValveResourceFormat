@@ -16,9 +16,9 @@ namespace ValveResourceFormat.Particles.Initializers
             controlPointAxis = parse.Enum("m_nControlPointAxis", controlPointAxis);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Normal);
+        public override ulong WrittenFields => ParticleField.Normal.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var axis = controlPointAxis switch
             {
@@ -30,10 +30,14 @@ namespace ValveResourceFormat.Particles.Initializers
                 _ => Vector3.UnitX,
             };
 
-            var transform = transformInput.NextTransformAtTime(ref particle, particleSystemState, particle.CreationTime);
-            particle.Normal = Vector3.TransformNormal(axis, transform);
+            var normals = run.Vectors(ParticleField.Normal);
+            var creationTimes = run.ReadFloats(ParticleField.CreationTime);
 
-            return particle;
+            for (var i = 0; i < normals.Length; i++)
+            {
+                var transform = transformInput.NextTransformAtTime(particleSystemState, creationTimes[i]);
+                normals[i] = Vector3.TransformNormal(axis, transform);
+            }
         }
     }
 }

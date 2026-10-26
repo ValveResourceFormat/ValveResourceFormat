@@ -3,6 +3,7 @@ using System.Reflection;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Editor.Picking;
 using ValveResourceFormat.Renderer.Entities;
+using ValveResourceFormat.Renderer.Particles;
 using ValveResourceFormat.Renderer.PostProcess;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -85,6 +86,9 @@ public class Renderer : ISceneHost
     /// Camera the 3D sky is drawn through.
     /// </summary>
     public Camera SkyCamera { get; }
+
+    /// <summary>The fixed view screen-space particle effects are drawn through.</summary>
+    private readonly Camera screenSpaceCamera = new();
 
     /// <summary>
     /// Per-frame rendering statistics, including CPU/GPU profiling timings
@@ -1532,6 +1536,11 @@ public class Renderer : ISceneHost
             DrawThrough(mainView, mainState, ref renderContext);
         }
 
+        if (renderContext.ReplacementShader == null)
+        {
+            RenderScreenSpaceLayer(mainView, ref renderContext);
+        }
+
         wireframeScope.Dispose();
 
         if (isStandardPass)
@@ -1817,6 +1826,57 @@ public class Renderer : ISceneHost
         RenderReducedResolutionLayer(view, renderContext, EffectsBloomBuffer, new Vector2(EffectsBloomDownsample), RenderLayer.Bloom);
 
         Postprocess.EffectsBloom = EffectsBloomBuffer.Color;
+    }
+
+    /// <summary>
+    /// Draws the screen-space particle effects of every scene in <paramref name="view"/> over the finished
+    /// scene, through the fixed screen-space view. Fog is off, since the effects' positions are not places
+    /// in the world. Leaves <paramref name="view"/>'s first scene bound.
+    /// </summary>
+    private void RenderScreenSpaceLayer(in SceneView view, ref Scene.RenderContext renderContext)
+    {
+        Debug.Assert(ViewBuffer != null);
+
+        var hasDraws = false;
+
+        foreach (var state in view.States)
+        {
+            hasDraws |= state.HasScreenSpaceEffects;
+        }
+
+        if (!hasDraws)
+        {
+            return;
+        }
+
+        using var _ = new GLDebugGroup("Screen Space Effects");
+
+        ParticleScreenSpaceView.Configure(screenSpaceCamera, view.Camera.WindowSize);
+
+        // The light cull remap assumes two perspective views, so the orthographic one keeps the identity
+        var screenSpaceView = view with { Camera = screenSpaceCamera, BinnedFor = null };
+
+        // Drawn straight onto the scene at full resolution with no depth, rather than into a cleared
+        // half-resolution target composited over it afterwards
+        using (GraphicsContext.RenderState.Scope(depthTest: false, depthWrite: false, blend: true))
+        {
+            foreach (var state in view.States)
+            {
+                if (!state.HasScreenSpaceEffects)
+                {
+                    continue;
+                }
+
+                DrawThrough(screenSpaceView, state, ref renderContext);
+
+                Scene.FogInfo.SetFogUniforms(ViewBuffer.Data, viewerFogEnabled: false, FogSpace.World);
+                ViewBuffer.Update();
+
+                state.RenderScreenSpaceLayer(renderContext);
+            }
+        }
+
+        DrawThrough(view, view.States[0], ref renderContext);
     }
 
     // Must run before any water layer this frame

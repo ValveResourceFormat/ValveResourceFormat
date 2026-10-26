@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             cpOutput = parse.ControlPoint("m_nCPOutput", cpOutput);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             var delta = particleSystemState.GetControlPoint(cpInput).StepDelta;
 

@@ -193,6 +193,24 @@ namespace ValveResourceFormat.Particles.Utils
             return MathF.Min(MathF.Max(y, curveDomainMin.Y), curveDomainMax.Y);
         }
 
+        /// <summary>
+        /// Gets the end of the curve's domain and the value of its last key, which the curve holds from
+        /// there on. Returns false for a curve with fewer than two keys.
+        /// </summary>
+        public bool TryGetEnd(out float x, out float y)
+        {
+            x = curveDomainMax.X;
+            y = 0f;
+
+            if (keyX.Length < 2)
+            {
+                return false;
+            }
+
+            y = keyY[^1];
+            return true;
+        }
+
         /// <summary>The first key after the first one that is not below <paramref name="value"/>, or the last key.</summary>
         private int FindSegmentEnd(float value)
         {

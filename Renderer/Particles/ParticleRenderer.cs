@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Runtime.CompilerServices;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Particles;
@@ -26,8 +27,17 @@ namespace ValveResourceFormat.Renderer.Particles
         private readonly RendererContext rendererContext;
         private readonly ParticleSourceLights sourceLights;
 
+        /// <summary>The view this system is drawn through when it is a screen-space effect, otherwise null.</summary>
+        private readonly Camera? screenSpaceCamera;
+
         /// <summary>The system this draws.</summary>
         public ParticleSystemSimulation Simulation { get; }
+
+        /// <summary>
+        /// Whether this system draws over the screen in the screen-space layer rather than in the world.
+        /// Systems nested under it decide for themselves.
+        /// </summary>
+        public bool IsScreenSpace => Simulation.IsScreenSpaceEffect;
 
         /// <summary>
         /// The passes this system draws in, unioned over its renderers and its children's. Fixed once
@@ -86,9 +96,15 @@ namespace ValveResourceFormat.Renderer.Particles
 
             SetupRenderers(simulation.Definition.GetArray("m_Renderers") ?? [], scene);
 
+            if (IsScreenSpace)
+            {
+                screenSpaceCamera = new Camera();
+            }
+
             foreach (var renderer in renderers)
             {
                 ObservedEvents |= renderer.ObservedEvents;
+                renderer.ScreenSpaceCamera = screenSpaceCamera;
             }
 
             simulation.RenderState.SequenceDurations = CollectSequenceDurations();
@@ -108,9 +124,11 @@ namespace ValveResourceFormat.Renderer.Particles
 
         private void SetupRenderers(IReadOnlyList<KVObject> rendererData, Scene scene)
         {
+            var initialReads = new StrongBox<ulong>();
+
             foreach (var rendererInfo in rendererData)
             {
-                var parse = new ParticleDefinitionParser(rendererInfo, rendererContext.Logger, Simulation.BehaviorVersion);
+                var parse = new ParticleDefinitionParser(rendererInfo, rendererContext.Logger, initialReads, Simulation.BehaviorVersion);
 
                 if (parse.Boolean("m_bDisableOperator", default))
                 {
@@ -129,6 +147,17 @@ namespace ValveResourceFormat.Renderer.Particles
 
                 renderers.Add(renderer);
             }
+
+            var writtenFields = 0UL;
+            var blendedFields = 0UL;
+
+            foreach (var renderer in renderers)
+            {
+                writtenFields |= renderer.StoredFields;
+                blendedFields |= renderer.BlendedFields;
+            }
+
+            Simulation.AddRendererFields(writtenFields, initialReads.Value, blendedFields);
         }
 
         /// <summary>
@@ -165,6 +194,16 @@ namespace ValveResourceFormat.Renderer.Particles
             {
                 if (!renderer.DrawsInPasses)
                 {
+                    continue;
+                }
+
+                if (IsScreenSpace)
+                {
+                    if (DrawsInScreenSpaceLayer(renderer))
+                    {
+                        passes |= CustomRenderPasses.ScreenSpace;
+                    }
+
                     continue;
                 }
 
@@ -207,6 +246,7 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             foreach (var renderer in renderers)
             {
+                using var scratch = ParticleScratch.Scope();
                 renderer.Simulate(particles, state);
             }
         }
@@ -216,6 +256,7 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             foreach (var renderer in renderers)
             {
+                using var scratch = ParticleScratch.Scope();
                 renderer.InitializeParticles(particles, state, first, count);
             }
         }
@@ -230,6 +271,7 @@ namespace ValveResourceFormat.Renderer.Particles
             {
                 if ((renderer.ObservedEvents & eventType) != 0)
                 {
+                    using var scratch = ParticleScratch.Scope();
                     renderer.OnParticleEvent(particles, eventType, indices);
                 }
             }
@@ -251,10 +293,11 @@ namespace ValveResourceFormat.Renderer.Particles
             {
                 if (!withinDrawDistance || renderer.GetOperatorRunStrength(Simulation.RenderState) <= 0.0f)
                 {
-                    renderer.Hide();
+                    renderer.Hide(Simulation.Particles);
                 }
                 else if (stepped)
                 {
+                    using var scratch = ParticleScratch.Scope();
                     renderer.Act(Simulation.Particles, Simulation.RenderState);
                 }
             }
@@ -272,7 +315,7 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             foreach (var renderer in renderers)
             {
-                renderer.Hide();
+                renderer.Hide(Simulation.Particles);
             }
 
             sourceLights.Apply(visible: false);
@@ -301,6 +344,8 @@ namespace ValveResourceFormat.Renderer.Particles
                 return;
             }
 
+            UpdateScreenSpaceCamera(camera);
+
             foreach (var renderer in renderers)
             {
                 if (renderer.GetOperatorRunStrength(Simulation.RenderState) <= 0.0f)
@@ -308,6 +353,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
+                using var scratch = ParticleScratch.Scope();
                 renderer.UpdateBuffers(Simulation.Particles, Simulation.RenderState, camera);
             }
         }
@@ -348,6 +394,8 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
+                using var scratch = ParticleScratch.Scope();
+
                 if (depthPass)
                 {
                     renderer.RenderDepth(Simulation.Particles, Simulation.RenderState, camera);
@@ -370,10 +418,16 @@ namespace ValveResourceFormat.Renderer.Particles
         /// Whether <paramref name="renderer"/> draws in <paramref name="pass"/> on <paramref name="layer"/>.
         /// A bloom-only renderer draws in the effects bloom layer and nowhere else, whatever pass its
         /// material would otherwise pick. Every other renderer of the system draws in the pass that draws
-        /// everything at once.
+        /// everything at once. A screen-space system draws in the translucent pass of the screen-space layer
+        /// and nowhere else, and no other system draws there.
         /// </summary>
-        private static bool InPass(ParticleFunctionRenderer renderer, RenderPass pass, RenderLayer layer)
+        private bool InPass(ParticleFunctionRenderer renderer, RenderPass pass, RenderLayer layer)
         {
+            if (IsScreenSpace || layer == RenderLayer.ScreenSpace)
+            {
+                return IsScreenSpace && layer == RenderLayer.ScreenSpace && pass == RenderPass.Translucent && DrawsInScreenSpaceLayer(renderer);
+            }
+
             if (renderer.OnlyRenderInEffectsBloomPass || layer == RenderLayer.Bloom)
             {
                 return renderer.OnlyRenderInEffectsBloomPass && layer == RenderLayer.Bloom && pass == RenderPass.Translucent;
@@ -388,6 +442,13 @@ namespace ValveResourceFormat.Renderer.Particles
                 _ => renderer.Pass == pass && renderer.OnlyRenderInEffectsWaterPass == waterEffectsLayer,
             };
         }
+
+        /// <summary>
+        /// Whether a renderer of a screen-space system draws in the screen-space layer. Those that draw only
+        /// into the world's effects maps draw nowhere.
+        /// </summary>
+        private static bool DrawsInScreenSpaceLayer(ParticleFunctionRenderer renderer)
+            => !renderer.OnlyRenderInEffectsBloomPass && !renderer.OnlyRenderInEffectsWaterPass;
 
         /// <inheritdoc cref="ParticleFunctionRenderer.CanRenderReplacement"/>
         public bool CanRenderReplacement { get; }
@@ -424,9 +485,22 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
         /// <summary>
-        /// Whether the camera is near enough for this system to draw and simulate.
+        /// Whether the camera is near enough for this system to draw and simulate. A screen-space system
+        /// always is, since its bounds are not where it is placed.
         /// </summary>
-        public bool IsWithinDrawDistance(Camera camera) => Simulation.IsWithinDrawDistance(camera.Location);
+        public bool IsWithinDrawDistance(Camera camera) => IsScreenSpace || Simulation.IsWithinDrawDistance(camera.Location);
+
+        /// <summary>Whether this system, or any system nested under it, draws in the screen-space layer.</summary>
+        public bool DrawsInScreenSpace => (Passes & CustomRenderPasses.ScreenSpace) != 0;
+
+        /// <summary>Points the screen-space view at the viewport <paramref name="camera"/> draws into.</summary>
+        private void UpdateScreenSpaceCamera(Camera camera)
+        {
+            if (screenSpaceCamera != null)
+            {
+                ParticleScreenSpaceView.Configure(screenSpaceCamera, camera.WindowSize);
+            }
+        }
 
         /// <summary>
         /// Force-renders each active sub-renderer once with temporary particles.
@@ -448,6 +522,8 @@ namespace ValveResourceFormat.Renderer.Particles
                 return;
             }
 
+            UpdateScreenSpaceCamera(camera);
+
             foreach (var renderer in renderers)
             {
                 if (renderer.GetOperatorRunStrength(Simulation.RenderState) <= 0.0f)
@@ -455,6 +531,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
+                using var scratch = ParticleScratch.Scope();
                 renderer.UpdateBuffers(Simulation.Particles, Simulation.RenderState, camera);
                 renderer.Render(Simulation.Particles, Simulation.RenderState, camera);
             }

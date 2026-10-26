@@ -1,3 +1,4 @@
+using System.Numerics.Tensors;
 using ValveResourceFormat.Particles.Utils;
 
 namespace ValveResourceFormat.Particles.Operators
@@ -51,44 +52,61 @@ namespace ValveResourceFormat.Particles.Operators
             proportional = parse.Boolean("m_bProportional", proportional);
             proportionalWindow = parse.Boolean("m_bProportionalOp", proportionalWindow);
 
-            clampToUnit = outputField is ParticleField.Alpha or ParticleField.AlphaAlternate;
+            clampToUnit = outputField.IsAlpha();
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var systemPhase = (oscillationMultiplier * particleSystemState.Age) + oscillationOffset;
             var step = strength * frameTime;
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(outputField))
             {
-                if (particle.Lifetime <= 0f)
+                return;
+            }
+
+            var current = particles.Current;
+            var values = current.Floats(outputField);
+            var lifetimes = current.ReadFloats(ParticleField.LifeDuration);
+            var particleIds = current.ReadIntegers(ParticleField.ParticleId);
+            var ages = current.ReadAges();
+
+            for (var i = 0; i < values.Length; i++)
+            {
+                var age = ages[i];
+                var lifetime = lifetimes[i];
+
+                if (lifetime <= 0f)
                 {
                     continue;
                 }
 
-                var windowTime = proportionalWindow
-                    ? particle.NormalizedAge
-                    : particle.Age;
+                var particleId = particleIds[i];
+                var startTime = particleSystemState.Random.ForParticleBetween(particleId, StartTimeOffset, startTimeMin, startTimeMax);
+                var endTime = particleSystemState.Random.ForParticleBetween(particleId, EndTimeOffset, endTimeMin, endTimeMax);
 
-                var startTime = particleSystemState.Random.ForParticleBetween(particle.ParticleId, StartTimeOffset, startTimeMin, startTimeMax);
-                var endTime = particleSystemState.Random.ForParticleBetween(particle.ParticleId, EndTimeOffset, endTimeMin, endTimeMax);
+                var normalizedAge = ParticleMath.NormalizedAge(age, lifetime);
+                var windowTime = proportionalWindow ? normalizedAge : age;
 
                 if (windowTime < startTime || windowTime >= endTime)
                 {
                     continue;
                 }
 
-                var frequency = particleSystemState.Random.ForParticleBetween(particle.ParticleId, FrequencyOffset, frequencyMin, frequencyMax);
-                var rate = particleSystemState.Random.ForParticleBetween(particle.ParticleId, RateOffset, rateMin, rateMax);
+                var frequency = particleSystemState.Random.ForParticleBetween(particleId, FrequencyOffset, frequencyMin, frequencyMax);
+                var rate = particleSystemState.Random.ForParticleBetween(particleId, RateOffset, rateMin, rateMax);
 
                 // Proportional scales the age term alone, the other branch scales the whole system phase.
-                var delta = ParticleMath.SinPi(proportional
-                    ? (particle.NormalizedAge * frequency * oscillationMultiplier) + oscillationOffset
-                    : frequency * systemPhase);
+                var phase = proportional
+                    ? (normalizedAge * frequency * oscillationMultiplier) + oscillationOffset
+                    : frequency * systemPhase;
 
-                var oscillated = particle.GetScalar(outputField) + (delta * (rate * step));
+                var oscillated = values[i] + (ParticleMath.SinPi(phase) * (rate * step));
 
-                particle.SetScalar(outputField, clampToUnit ? MathUtils.Saturate(oscillated) : oscillated);
+                values[i] = clampToUnit ? MathUtils.Saturate(oscillated) : oscillated;
             }
         }
     }
@@ -116,13 +134,11 @@ namespace ValveResourceFormat.Particles.Operators
             oscillationMultiplier = parse.Float("m_flOscMult", oscillationMultiplier);
             oscillationOffset = parse.Float("m_flOscAdd", oscillationOffset);
 
-            (clampMin, clampMax) = outputField switch
-            {
-                ParticleField.Alpha or ParticleField.AlphaAlternate => (0f, 1f),
-                ParticleField.Radius or ParticleField.TrailLength => (0f, float.MaxValue),
-                _ => (-float.MaxValue, float.MaxValue),
-            };
+            (clampMin, clampMax) = outputField.SetFloatRange();
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -131,11 +147,15 @@ namespace ValveResourceFormat.Particles.Operators
             var delta = ParticleMath.SinPi(frequency * ((oscillationMultiplier * particleSystemState.Age) + oscillationOffset));
             var finalScalar = delta * (rate * (strength * frameTime));
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(outputField))
             {
-                var oscillated = particle.GetScalar(outputField) + finalScalar;
-                particle.SetScalar(outputField, Math.Clamp(oscillated, clampMin, clampMax));
+                return;
             }
+
+            var values = particles.Current.Floats(outputField);
+
+            TensorPrimitives.Add(values, finalScalar, values);
+            TensorPrimitives.Clamp(values, clampMin, clampMax, values);
         }
     }
 }

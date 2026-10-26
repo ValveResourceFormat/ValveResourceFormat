@@ -10,9 +10,9 @@ namespace ValveResourceFormat.Particles.Initializers
     /// non-0.5 bias reshapes the remapped output while clamping it into [0, 1].
     /// </summary>
     /// <remarks>
-    /// Color-type outputs (color, alpha, glow color, glow alpha) are clamped to
-    /// [0, 1] and skip the offset and accelerate paths entirely. The offset paths also add the
-    /// result to <see cref="Particle.PositionPrevious"/> whatever the output field, and combining
+    /// The transforms are evaluated once per call, whether or not a particle is in the time window.
+    /// Normalized outputs (colours and alphas) are clamped to [0, 1] and skip the offset and accelerate paths entirely. The offset paths also add the
+    /// result to <see cref="ParticleField.PositionPrevious"/> whatever the output field, and combining
     /// accelerate with offset multiplies the written value by one plus the frame time.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RemapTransformToVector">C_INIT_RemapTransformToVector</seealso>
@@ -31,11 +31,6 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly bool offset;
         private readonly bool accelerate;
         private readonly float remapBias = 0.5f;
-
-        private bool callPending;
-        private Vector3 position;
-        private Vector3 outMin;
-        private Vector3 outMax;
 
         public RemapTransformToVector(ParticleDefinitionParser parse) : base(parse)
         {
@@ -60,74 +55,113 @@ namespace ValveResourceFormat.Particles.Initializers
             remapBias = parse.Float("m_flRemapBias", remapBias);
         }
 
-        public override ulong WrittenFields => FieldMask(fieldOutput) | FieldMask(ParticleField.PositionPrevious);
-
-        protected override void BeginCall(ref Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            callPending = true;
-        }
+        public override ulong WrittenFields => fieldOutput.Mask() | ParticleField.PositionPrevious.Mask();
 
         /// <summary>
         /// A -1 sentinel on either bound disables the time window.
         /// </summary>
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            if (startTime != -1f && endTime != -1f
-                && (particle.CreationTime < startTime || particle.CreationTime >= endTime))
+            var creationTimes = run.ReadFloats(ParticleField.CreationTime);
+            var isScalar = ParticleBuffer.IsScalar(fieldOutput);
+            var currentValues = isScalar ? default : run.ReadVectors(fieldOutput);
+            var outputs = ParticleBuffer.IsVector(fieldOutput) ? run.Vectors(fieldOutput) : default;
+
+            // A scalar output is still read and written as three components, the Y and Z of each
+            // particle landing in the particles four and eight further on. Within the batch, later
+            // particles read those back as their current value before writing their own.
+            var scalarOutputs = isScalar ? run.WithEnd(particleSystemState.InitializerBatchEnd).Floats(fieldOutput) : default;
+            var previousPositions = offset ? run.Vectors(ParticleField.PositionPrevious) : default;
+            var deltaTime = particleSystemState.CurrentStep;
+            var hasWindow = startTime != -1f && endTime != -1f;
+            var isNormalized = fieldOutput.IsNormalizedField();
+
+            var position = transformInput.NextTransform(particleSystemState).Translation;
+            var outMin = outputMin;
+            var outMax = outputMax;
+
+            if (localSpaceTransform != null)
             {
-                return particle;
+                var rotation = Quaternion.CreateFromRotationMatrix(localSpaceTransform.NextTransform(particleSystemState));
+                outMin = Vector3.Transform(outMin, rotation);
+                outMax = Vector3.Transform(outMax, rotation);
             }
 
-            if (callPending)
+            for (var i = 0; i < run.Length; i++)
             {
-                callPending = false;
-                position = transformInput.NextTransform(particleSystemState).Translation;
-                outMin = outputMin;
-                outMax = outputMax;
-
-                if (localSpaceTransform != null)
+                if (hasWindow && (creationTimes[i] < startTime || creationTimes[i] >= endTime))
                 {
-                    var rotation = Quaternion.CreateFromRotationMatrix(localSpaceTransform.NextTransform(particleSystemState));
-                    outMin = Vector3.Transform(outMin, rotation);
-                    outMax = Vector3.Transform(outMax, rotation);
+                    continue;
+                }
+
+                var value = new Vector3(
+                    MathUtils.RemapValClamped(position.X, inputMin.X, inputMax.X, outMin.X, outMax.X),
+                    MathUtils.RemapValClamped(position.Y, inputMin.Y, inputMax.Y, outMin.Y, outMax.Y),
+                    MathUtils.RemapValClamped(position.Z, inputMin.Z, inputMax.Z, outMin.Z, outMax.Z));
+
+                if (remapBias != 0.5f)
+                {
+                    value = new Vector3(
+                        ParticleMath.Bias(MathUtils.Saturate(value.X), remapBias),
+                        ParticleMath.Bias(MathUtils.Saturate(value.Y), remapBias),
+                        ParticleMath.Bias(MathUtils.Saturate(value.Z), remapBias));
+                }
+
+                var current = isScalar ? ReadScalarComponents(scalarOutputs, i) : currentValues[i];
+                value = ParticleFieldExtensions.ApplySetMethod(value, current, current, deltaTime, setMethod);
+
+                if (isNormalized)
+                {
+                    value = Vector3.Clamp(value, Vector3.Zero, Vector3.One);
+                }
+                else if (accelerate && !offset)
+                {
+                    value *= deltaTime;
+                }
+                else if (offset)
+                {
+                    value += current;
+                    previousPositions[i] += value;
+
+                    if (accelerate)
+                    {
+                        value *= 1f + deltaTime;
+                    }
+                }
+
+                if (!outputs.IsEmpty)
+                {
+                    outputs[i] = value;
+                }
+                else if (!scalarOutputs.IsEmpty)
+                {
+                    WriteScalarComponents(scalarOutputs, i, value);
                 }
             }
+        }
 
-            var value = new Vector3(
-                MathUtils.RemapValClamped(position.X, inputMin.X, inputMax.X, outMin.X, outMax.X),
-                MathUtils.RemapValClamped(position.Y, inputMin.Y, inputMax.Y, outMin.Y, outMax.Y),
-                MathUtils.RemapValClamped(position.Z, inputMin.Z, inputMax.Z, outMin.Z, outMax.Z));
+        // Components that fall past the end of the batch are dropped on write and read as 0 instead of
+        // whatever those slots last held, which only reaches the offset path's previous position.
+        private static Vector3 ReadScalarComponents(Span<float> values, int index)
+        {
+            var y = index + 4 < values.Length ? values[index + 4] : 0f;
+            var z = index + 8 < values.Length ? values[index + 8] : 0f;
+            return new Vector3(values[index], y, z);
+        }
 
-            if (remapBias != 0.5f)
+        private static void WriteScalarComponents(Span<float> values, int index, Vector3 value)
+        {
+            values[index] = value.X;
+
+            if (index + 4 < values.Length)
             {
-                value = new Vector3(
-                    ParticleMath.Bias(MathUtils.Saturate(value.X), remapBias),
-                    ParticleMath.Bias(MathUtils.Saturate(value.Y), remapBias),
-                    ParticleMath.Bias(MathUtils.Saturate(value.Z), remapBias));
+                values[index + 4] = value.Y;
             }
 
-            value = particle.ModifyVectorBySetMethodAtSpawn(particles, fieldOutput, value, setMethod);
-
-            if (fieldOutput is ParticleField.Color or ParticleField.Alpha or ParticleField.GlowRgb or ParticleField.GlowAlpha)
+            if (index + 8 < values.Length)
             {
-                particle.SetVector(fieldOutput, Vector3.Clamp(value, Vector3.Zero, Vector3.One));
+                values[index + 8] = value.Z;
             }
-            else if (accelerate && !offset)
-            {
-                particle.SetVector(fieldOutput, value * particles.CurrentFrameTime);
-            }
-            else if (offset)
-            {
-                value += particle.GetVector(fieldOutput);
-                particle.PositionPrevious += value;
-                particle.SetVector(fieldOutput, accelerate ? value * (1f + particles.CurrentFrameTime) : value);
-            }
-            else
-            {
-                particle.SetVector(fieldOutput, value);
-            }
-
-            return particle;
         }
     }
 }

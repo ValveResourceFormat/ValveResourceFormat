@@ -33,7 +33,12 @@ namespace ValveResourceFormat.Particles.Operators
                 outputMin = MathUtils.Saturate(outputMin);
                 outputMax = MathUtils.Saturate(outputMax);
             }
+
+            AddInitialReadOf(parse, setMethod, fieldOutput);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask() | fieldOutputAnim.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -52,15 +57,34 @@ namespace ValveResourceFormat.Particles.Operators
 
             var value = MathUtils.RemapValClamped(sequence, inputMin, inputMax, outputMin, outputMax);
 
-            foreach (ref var particle in particles.Current)
-            {
-                var output = particle.ModifyScalarBySetMethod(particles, fieldOutput, value, setMethod);
-                particle.SetScalar(fieldOutput, fieldOutput.IsIntegerAttribute() ? MathF.Truncate(output) : output);
+            var current = particles.Current;
 
-                if (fieldOutputAnim != ParticleField.NoneDisabled)
+            if (ParticleBuffer.IsScalar(fieldOutput))
+            {
+                var output = current.Floats(fieldOutput);
+                var isInteger = fieldOutput.IsIntegerAttribute();
+                var integerOutput = isInteger ? current.Integers(fieldOutput) : default;
+                var initial = particles.Initial.ReadFloats(fieldOutput);
+                var deltaTime = particleSystemState.CurrentStep;
+
+                for (var i = 0; i < output.Length; i++)
                 {
-                    particle.SetScalar(fieldOutputAnim, rate);
+                    var result = ParticleFieldExtensions.ApplySetMethod(value, initial[i], output[i], deltaTime, setMethod);
+
+                    if (isInteger)
+                    {
+                        integerOutput[i] = (int)result;
+                    }
+                    else
+                    {
+                        output[i] = result;
+                    }
                 }
+            }
+
+            if (ParticleBuffer.IsScalar(fieldOutputAnim))
+            {
+                current.Floats(fieldOutputAnim).Fill(rate);
             }
         }
     }

@@ -38,9 +38,15 @@ namespace ValveResourceFormat.Particles.Operators
             offset = parse.Boolean("m_bOffset", offset);
             accelerate = parse.Boolean("m_bAccelerate", accelerate);
 
-            outputsVector = fieldOutput.FieldType() == "vector";
+            outputsVector = ParticleBuffer.IsVector(fieldOutput);
             clampsToUnit = fieldOutput is ParticleField.Color or ParticleField.GlowRgb;
             timing = new ControlPointRemapTiming(parse);
+
+            // Ramping reads the initial value without declaring an initial read, so the initial stream may be missing in the format
+            if (setMethod.ReadsInitialValue() || setMethod == ParticleSetMethod.PARTICLE_SET_RAMP_CURRENT_VALUE)
+            {
+                parse.AddInitialRead(fieldOutput);
+            }
         }
 
         public override void AddControlPointDefaults(ControlPointDefaults defaults)
@@ -52,6 +58,10 @@ namespace ValveResourceFormat.Particles.Operators
         {
             timing.Reset();
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields
+            => fieldOutput.Mask() | (fieldOutput == ParticleField.Position ? ParticleField.PositionPrevious.Mask() : 0);
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -77,21 +87,30 @@ namespace ValveResourceFormat.Particles.Operators
                 MathUtils.RemapValClamped(input.Y, inputMin.Y, inputMax.Y, outputMin.Y, outputMax.Y),
                 MathUtils.RemapValClamped(input.Z, inputMin.Z, inputMax.Z, outputMin.Z, outputMax.Z));
 
-            foreach (ref var particle in particles.Current)
+            var live = particles.Current;
+            var creationTimes = live.ReadFloats(ParticleField.CreationTime);
+            var output = live.Vectors(fieldOutput);
+            var writesPosition = fieldOutput is ParticleField.Position or ParticleField.PositionPrevious;
+            var previousPositions = writesPosition ? live.Vectors(ParticleField.PositionPrevious) : default;
+            var initial = particles.Initial.ReadVectors(fieldOutput);
+
+            for (var i = 0; i < output.Length; i++)
             {
-                if (!timing.Covers(particle.CreationTime))
+                if (!timing.Covers(creationTimes[i]))
                 {
                     continue;
                 }
 
-                var current = particle.GetVector(fieldOutput);
+                var current = output[i];
+
+                // Scaling the current value scales every axis by its X, and ramping adds to the initial value
                 var value = setMethod switch
                 {
-                    ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE => remapped * particle.GetInitialVector(particles, fieldOutput),
-                    ParticleSetMethod.PARTICLE_SET_ADD_TO_INITIAL_VALUE => remapped + particle.GetInitialVector(particles, fieldOutput),
+                    ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE => remapped * initial[i],
+                    ParticleSetMethod.PARTICLE_SET_ADD_TO_INITIAL_VALUE => remapped + initial[i],
                     ParticleSetMethod.PARTICLE_SET_SCALE_CURRENT_VALUE => remapped * current.X,
                     ParticleSetMethod.PARTICLE_SET_ADD_TO_CURRENT_VALUE => remapped + current,
-                    ParticleSetMethod.PARTICLE_SET_RAMP_CURRENT_VALUE => (remapped * frameTime) + particle.GetInitialVector(particles, fieldOutput),
+                    ParticleSetMethod.PARTICLE_SET_RAMP_CURRENT_VALUE => (remapped * frameTime) + initial[i],
                     _ => remapped,
                 };
 
@@ -102,19 +121,19 @@ namespace ValveResourceFormat.Particles.Operators
                     value = Vector3.Clamp(value, Vector3.Zero, Vector3.One);
                 }
 
-                if (fieldOutput is not (ParticleField.Position or ParticleField.PositionPrevious))
+                if (!writesPosition)
                 {
-                    particle.SetVector(fieldOutput, value);
+                    output[i] = value;
                     continue;
                 }
 
                 if (accelerate && !offset)
                 {
-                    particle.SetVector(fieldOutput, value * frameTime);
+                    output[i] = value * frameTime;
                     continue;
                 }
 
-                var previous = particle.PositionPrevious;
+                var previous = previousPositions[i];
 
                 if (offset)
                 {
@@ -126,8 +145,8 @@ namespace ValveResourceFormat.Particles.Operators
                     previous = value;
                 }
 
-                particle.SetVector(fieldOutput, accelerate ? (value * frameTime) + value : value);
-                particle.PositionPrevious = previous;
+                output[i] = accelerate ? (value * frameTime) + value : value;
+                previousPositions[i] = previous;
             }
         }
     }

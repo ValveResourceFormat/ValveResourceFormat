@@ -23,27 +23,42 @@ namespace ValveResourceFormat.Particles.Initializers
         }
 
         public override ulong WrittenFields => writePreviousPosition && outputField == ParticleField.Position
-            ? FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious)
-            : FieldMask(outputField);
+            ? ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask()
+            : outputField.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var input = inputValue.NextVector(ref particle, particleSystemState);
-            var value = particle.ModifyVectorBySetMethodAtSpawn(particles, outputField, input, setMethod);
+            var inputs = inputValue.Fill(run, particleSystemState);
 
-            if (normalizedOutput)
+            // A vector written to bone indices or a scalar lands as raw floats over other storage in the
+            // game; it is skipped
+            if (!ParticleBuffer.IsVector(outputField))
             {
-                value = MathUtils.SafeNormalize(value);
+                return;
             }
 
-            particle.SetVector(outputField, value);
+            var values = run.Vectors(outputField);
+            var writesPrevious = writePreviousPosition && outputField == ParticleField.Position;
+            var previousPositions = writesPrevious ? run.Vectors(ParticleField.PositionPrevious) : default;
 
-            if (writePreviousPosition && outputField == ParticleField.Position)
+            for (var i = 0; i < values.Length; i++)
             {
-                particle.PositionPrevious = value;
-            }
+                var current = values[i];
+                var value = ParticleFieldExtensions.ApplySetMethod(inputs[i], current, current, particleSystemState.CurrentStep, setMethod);
 
-            return particle;
+                if (normalizedOutput)
+                {
+                    // A zero vector stays zero in whole blocks too, rather than becoming NaN
+                    value = MathUtils.SafeNormalize(value);
+                }
+
+                values[i] = value;
+
+                if (writesPrevious)
+                {
+                    previousPositions[i] = value;
+                }
+            }
         }
     }
 }

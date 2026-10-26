@@ -23,10 +23,6 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly string hitboxSetName = "default";
         private readonly INumberProvider shellSize = new LiteralNumberProvider(1f);
 
-        private int callParticles;
-        private int batchHitbox;
-        private int haltonIndex;
-
         public SetHitboxToModel(ParticleDefinitionParser parse) : base(parse)
         {
             controlPoint = parse.Int32("m_nControlPointNumber", controlPoint);
@@ -41,44 +37,45 @@ namespace ValveResourceFormat.Particles.Initializers
             shellSize = parse.CollectionNumberProvider("m_flShellSize", shellSize);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.HitboxIndex) | FieldMask(ParticleField.HitboxOffsetPosition);
+        public override ulong WrittenFields => ParticleField.HitboxIndex.Mask() | ParticleField.HitboxOffsetPosition.Mask();
 
-        protected override void BeginCall(ref Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            callParticles = 0;
-            haltonIndex = first.UniqueParticleId;
-        }
-
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            if (callParticles++ % BatchSize == 0)
-            {
-                batchHitbox = particle.HitboxIndex;
-            }
-
             if (HitBoxCache.Refresh(particleSystemState, controlPoint, hitboxSetName, useBones) is not { } cache)
             {
-                return particle;
+                return;
             }
 
-            var scale = hitBoxScale.NextVector(ref particle, particleSystemState);
-            var shell = shellSize.NextNumber(ref particle, particleSystemState);
-            var desired = maintainHitbox ? batchHitbox : desiredHitbox;
-            var sampling = new HitBoxSampling(forceInModel, desired, scale, directionBias, shell, evenDistribution, WeightByVolume: false);
+            var haltonIndex = particleSystemState.SpawnIndex(run.Start);
+            var batchHitbox = 0;
+            var scale = hitBoxScale.NextVector(particleSystemState);
+            var shell = shellSize.NextNumber(particleSystemState);
             var origin = particleSystemState.GetControlPoint(controlPoint).Position;
-            var (_, fraction, index) = cache.RandomPoint(particleSystemState, origin, sampling, ref haltonIndex);
+            var currentIndices = run.ReadIntegers(ParticleField.HitboxIndex);
+            var offsets = UnwrittenVectors(run, particleSystemState, ParticleField.HitboxOffsetPosition);
+            var indices = UnwrittenIntegers(run, particleSystemState, ParticleField.HitboxIndex);
 
-            if (IsUnwritten(particleSystemState, ParticleField.HitboxOffsetPosition))
+            for (var i = 0; i < run.Length; i++)
             {
-                particle.HitboxOffsetPosition = fraction;
-            }
+                if (i % BatchSize == 0)
+                {
+                    batchHitbox = currentIndices[i];
+                }
 
-            if (IsUnwritten(particleSystemState, ParticleField.HitboxIndex))
-            {
-                particle.HitboxIndex = index;
-            }
+                var desired = maintainHitbox ? batchHitbox : desiredHitbox;
+                var sampling = new HitBoxSampling(forceInModel, desired, scale, directionBias, shell, evenDistribution, WeightByVolume: false);
+                var (_, fraction, index) = cache.RandomPoint(particleSystemState, origin, sampling, ref haltonIndex);
 
-            return particle;
+                if (!offsets.IsEmpty)
+                {
+                    offsets[i] = fraction;
+                }
+
+                if (!indices.IsEmpty)
+                {
+                    indices[i] = index;
+                }
+            }
         }
     }
 }

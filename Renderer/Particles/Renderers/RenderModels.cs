@@ -27,6 +27,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly Scene scene;
         private readonly List<(Model? Model, float Weight, string[] Skins)> models = [];
         private readonly float totalWeight;
+
+        /// <summary>How many models the list was authored with, before models from the model input are added.</summary>
+        private readonly int authoredModelCount;
         private readonly int modelInputControlPoint = -1;
         private readonly Dictionary<Model, int> inputModels = [];
 
@@ -45,12 +48,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly string? overrideMaterial;
         private readonly bool overrideTranslucentMaterials = true;
 
-        // A particle no model was picked for has no node
-        private readonly PlacedPerParticle<(ModelSceneNode? Node, int Model, int Skin)> placed = new();
-
-        /// <summary>The model each live particle was given when it was created, by unique particle id, or -1 for none.</summary>
-        private readonly Dictionary<int, int> pickedModels = [];
-        private readonly HashSet<int> liveParticleIds = [];
+        /// <summary>
+        /// The model each particle was given when it was created, with the node drawing it and that node's
+        /// skin, at the slot the particle's handle names less one. A particle no model was picked for, or
+        /// that is hidden, has no node.
+        /// </summary>
+        private readonly ParticleHandlePool<(ModelSceneNode? Node, int Model, int Skin)> pool = new();
+        private readonly Action<(ModelSceneNode? Node, int Model, int Skin)> releaseNode;
         private readonly List<Stack<(ModelSceneNode Node, int Skin)>> idle;
         private readonly Dictionary<ModelSceneNode, ParticleModelNodeObject> nodeObjects = [];
         private readonly IFileLoader fileLoader;
@@ -59,6 +63,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             this.scene = scene;
             fileLoader = rendererContext.FileLoader;
+            releaseNode = Release;
 
             if (!OnlyRenderInEffectsBloomPass && !OnlyRenderInEffectsWaterPass)
             {
@@ -87,6 +92,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 }
             }
 
+            authoredModelCount = models.Count;
             totalWeight = models.Where(static entry => entry.Model != null && entry.Weight > 0f).Sum(static entry => entry.Weight);
             idle = [.. models.Select(static _ => new Stack<(ModelSceneNode, int)>())];
 
@@ -118,25 +124,37 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <inheritdoc/>
         public override void Act(ParticleCollection particles, ParticleSystemState systemState)
         {
-            if (models.Count == 0)
+            if (models.Count == 0 || pool.Column is not { } column)
             {
                 return;
             }
 
+            pool.ReleaseDead(particles, column, releaseNode);
+
             var scales = EvaluateScales(systemState);
             var controlPointScale = modelScaleControlPoint >= 0 ? systemState.GetControlPoint(modelScaleControlPoint).Position : Vector3.One;
+            var current = particles.Current;
+            var handles = particles.Handles(column);
+            var columns = new ModelColumns(current);
+            var colors = current.ReadVectors(ParticleField.Color);
+            var radii = current.ReadFloats(ParticleField.Radius);
+            var alphas = current.ReadFloats(ParticleField.Alpha);
+            var alpha2s = ReadAlpha2(current);
+            var componentScales = componentScale.Prepare(current, systemState);
+            var localOffsets = localOffset.Prepare(current, systemState);
+            var localRotations = localRotation.Prepare(current, systemState);
+            var skinIndices = skin.Fill(current, systemState);
+            var nextInputBlock = 0;
 
-            placed.BeginFrame();
-
-            foreach (ref var particle in particles.Current)
+            for (var i = 0; i < current.Length; i++)
             {
-                var model = pickedModels.GetValueOrDefault(particle.UniqueParticleId, -1);
-                var skinIndex = (int)skin.NextNumber(ref particle, systemState);
+                var slot = handles[i] - 1;
+                var entry = slot >= 0 ? pool[slot] : (Node: null, Model: -1, Skin: 0);
+                var skinIndex = (int)skinIndices[i];
 
-                if (!placed.TryGetValue(particle.UniqueParticleId, out var entry) || entry.Model != model)
+                if (entry.Node == null && entry.Model >= 0)
                 {
-                    Release(entry);
-                    entry = model < 0 ? (null, model, 0) : TakeNode(model);
+                    entry = TakeNode(entry.Model);
                 }
 
                 if (entry.Node is { } node)
@@ -150,34 +168,41 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         entry = entry with { Skin = modelSkin };
                     }
 
-                    var scale = componentScale.NextVector(ref particle, systemState) * controlPointScale
-                        * (ignoreRadius ? 1f : MathF.Max(ParticleMath.FloatEpsilon, particle.Radius * scales.Radius));
+                    // Vector inputs drawing per block of four draw only for the blocks with a model drawn, in this order,
+                    // all in one pass rather than in parallel chunks of particles
+                    if (i >= nextInputBlock)
+                    {
+                        var (blockOffset, block) = current.BlockAt(i);
+                        var lane = block.Start & 3;
+                        localRotation.FillPerBlock(block, lane, systemState, localRotations[blockOffset..]);
+                        componentScale.FillPerBlock(block, lane, systemState, componentScales[blockOffset..]);
+                        localOffset.FillPerBlock(block, lane, systemState, localOffsets[blockOffset..]);
+                        nextInputBlock = blockOffset + block.Length;
+                    }
+
+                    var rotation = localRotations[i];
+                    var scale = componentScales[i] * controlPointScale
+                        * (ignoreRadius ? 1f : MathF.Max(ParticleMath.FloatEpsilon, radii[i] * scales.Radius));
+                    var offset = localOffsets[i];
 
                     // The alpha scale applies twice: once with the particle's alpha and again in the blend
-                    var color = BlendColor(ref particle, scales, scales.Alpha);
+                    var color = BlendColor(colors[i], alphas[i], alpha2s[i], scales, scales.Alpha);
 
-                    node.Transform = ParticleTransform(ref particle, systemState, node, scale, scales.Roll);
+                    node.Transform = ParticleTransform(i, columns, node, rotation, scale, offset, scales.Roll);
                     node.Tint = suppressTint ? Vector3.One : color.AsVector3();
                     node.Alpha = color.W;
                     node.Visible = true;
 
                     if (systemState.ModelParticleControlPoints.Count > 0 && models[entry.Model].Model is { } nodeModel)
                     {
-                        BindControlPoints(particles, systemState, particle.Index, node, nodeModel);
+                        BindControlPoints(particles, systemState, i, node, nodeModel);
                     }
                 }
 
-                placed.Keep(particle.UniqueParticleId, entry);
-            }
-
-            foreach (var entry in placed.Sweep())
-            {
-                Release(entry);
-            }
-
-            if (pickedModels.Count > particles.Count)
-            {
-                ForgetDeadParticles(particles);
+                if (slot >= 0)
+                {
+                    pool[slot] = entry;
+                }
             }
         }
 
@@ -223,39 +248,37 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
-            foreach (ref var particle in particles.Current.Slice(first, count))
-            {
-                pickedModels[particle.UniqueParticleId] = PickModel(ref particle, systemState);
-            }
-        }
+            var current = particles.Current;
+            var handles = particles.Handles(pool.Claim(particles));
 
-        private void ForgetDeadParticles(ParticleCollection particles)
-        {
-            liveParticleIds.Clear();
+            // The selection is evaluated for every particle before any pick draws. Each new particle reads
+            // its own value; reading the value of the particle at its offset among the new ones instead
+            // would make a per-particle selection pick from the oldest particles.
+            var manualSelections = manualModelSelection.Fill(current, systemState);
 
-            foreach (ref var particle in particles.Current)
+            for (var i = first; i < first + count; i++)
             {
-                liveParticleIds.Add(particle.UniqueParticleId);
-            }
-
-            foreach (var particleId in pickedModels.Keys)
-            {
-                if (!liveParticleIds.Contains(particleId))
-                {
-                    pickedModels.Remove(particleId);
-                }
+                var slot = pool.Allocate((null, PickModel((int)manualSelections[i], systemState), 0));
+                handles[i] = slot + 1;
             }
         }
 
         /// <inheritdoc/>
-        public override void Hide()
+        public override void Hide(ParticleCollection particles)
         {
-            foreach (var entry in placed.Values)
+            if (pool.Column is { } column)
             {
-                Release(entry);
+                pool.ReleaseDead(particles, column, releaseNode);
             }
 
-            placed.Clear();
+            // The nodes stay with their particles, to be shown again by the next render
+            for (var i = 0; i < pool.Count; i++)
+            {
+                if (pool[i].Node is { } node)
+                {
+                    node.Visible = false;
+                }
+            }
         }
 
         /// <summary>
@@ -264,16 +287,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// picked by relative probability with one draw from the system's random sequence, or -1 when
         /// there is no model to draw.
         /// </summary>
-        private int PickModel(ref Particle particle, ParticleSystemState systemState)
+        private int PickModel(int manual, ParticleSystemState systemState)
         {
             if (systemState.GetControlPointModel(modelInputControlPoint) is { } inputModel)
             {
                 return InputModelIndex(inputModel);
             }
 
-            var manual = (int)manualModelSelection.NextNumber(ref particle, systemState);
-
-            if ((uint)manual < (uint)models.Count)
+            if ((uint)manual < (uint)authoredModelCount)
             {
                 return models[manual].Model != null ? manual : -1;
             }
@@ -381,24 +402,35 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// turned into the frame its normal gives, unless the normal is ignored. A local scale applies
         /// along the model's own axes, otherwise it applies after the turns, along the axes of that frame.
         /// </summary>
-        private Matrix4x4 ParticleTransform(ref Particle particle, ParticleSystemState systemState, ModelSceneNode node, Vector3 scale, float roll)
+        private Matrix4x4 ParticleTransform(int index, in ModelColumns columns, ModelSceneNode node, Vector3 rotation, Vector3 scale, Vector3 offset, float roll)
         {
-            var angles = particle.Rotation;
-            var turn = EntityTransformHelper.EulerAnglesToRotationMatrix(localRotation.NextVector(ref particle, systemState))
-                * EntityTransformHelper.EulerAnglesToRotationMatrixRadians(new Vector3(angles.Y, angles.X, angles.Z * roll));
+            var turn = EntityTransformHelper.EulerAnglesToRotationMatrix(rotation)
+                * EntityTransformHelper.EulerAnglesToRotationMatrixRadians(new Vector3(columns.Pitches[index], columns.Yaws[index], columns.Rolls[index] * roll));
 
             var scaling = Matrix4x4.CreateScale(scale);
-            var basis = ignoreNormal ? Matrix4x4.Identity : NormalBasis(particle.Normal, orientZ);
+            var basis = ignoreNormal ? Matrix4x4.Identity : NormalBasis(columns.Normals[index], orientZ);
             var model = localScale ? scaling * turn * basis : turn * scaling * basis;
-
-            var offset = localOffset.NextVector(ref particle, systemState);
 
             if (centerOffset)
             {
                 offset -= node.LocalBoundingBox.Center;
             }
 
-            return Matrix4x4.CreateTranslation(offset) * model * Matrix4x4.CreateTranslation(particle.Position);
+            return Matrix4x4.CreateTranslation(offset) * model * Matrix4x4.CreateTranslation(columns.Positions[index]);
+        }
+
+        /// <summary>The attributes a model is placed by, for every particle of a span.</summary>
+        private readonly ref struct ModelColumns(ParticleSpan particles)
+        {
+            public ReadOnlySpan<Vector3> Positions { get; } = particles.ReadVectors(ParticleField.Position);
+
+            public ReadOnlySpan<Vector3> Normals { get; } = particles.ReadVectors(ParticleField.Normal);
+
+            public ReadOnlySpan<float> Yaws { get; } = particles.ReadFloats(ParticleField.Yaw);
+
+            public ReadOnlySpan<float> Pitches { get; } = particles.ReadFloats(ParticleField.Pitch);
+
+            public ReadOnlySpan<float> Rolls { get; } = particles.ReadFloats(ParticleField.Roll);
         }
 
         /// <summary>
@@ -415,8 +447,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
 
             var direction = normal / length;
-            var perpendicular = MathUtils.SafeNormalize(new Vector3(((1f - direction.Z) * direction.Y * direction.Y) + direction.Z, 0f, -direction.X));
-            perpendicular = MathUtils.SafeNormalize(MathUtils.ProjectOntoPlane(perpendicular, direction));
+            var perpendicular = MathUtils.Perpendicular(direction);
             var third = Vector3.Cross(direction, perpendicular);
 
             return orientZ
@@ -433,7 +464,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <inheritdoc/>
         public override void Delete()
         {
-            foreach (var (node, _, _) in placed.Values)
+            foreach (var (node, _, _) in pool.Entries)
             {
                 if (node != null)
                 {
@@ -451,7 +482,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 stack.Clear();
             }
 
-            placed.Clear();
+            pool.Clear();
+            nodeObjects.Clear();
         }
 
         /// <summary>Takes a node out of the scene and deletes it, unless the scene no longer holds it, as when it deletes all of its nodes itself.</summary>

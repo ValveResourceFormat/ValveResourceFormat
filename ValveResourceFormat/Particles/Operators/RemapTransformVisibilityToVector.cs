@@ -28,18 +28,32 @@ namespace ValveResourceFormat.Particles.Operators
             inputMax = parse.Float("m_flInputMax", inputMax);
             outputMin = parse.Vector3("m_vecOutputMin", outputMin);
             outputMax = parse.Vector3("m_vecOutputMax", outputMax);
+
+            AddInitialReadOf(parse, setMethod, outputField);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var fraction = MathUtils.RemapValClamped(RemapTransformVisibilityToScalar.FullyVisible, inputMin, inputMax, 0f, 1f);
             var value = Vector3.Lerp(outputMin, outputMax, fraction);
 
-            foreach (ref var particle in particles.Current)
+            // All three components are written into scalar fields too, spilling into the same field of the particles 4 and 8 slots later
+            if (!ParticleBuffer.IsVector(outputField))
             {
-                var current = particle.GetVector(outputField);
-                var final = particle.ModifyVectorBySetMethod(particles, outputField, value, setMethod);
-                particle.SetVector(outputField, current + ((final - current) * strength));
+                return;
+            }
+
+            var output = particles.Current.Vectors(outputField);
+            var initial = particles.Initial.ReadVectors(outputField);
+
+            for (var i = 0; i < output.Length; i++)
+            {
+                var current = output[i];
+                var final = ParticleFieldExtensions.ApplySetMethod(value, initial[i], current, particleSystemState.CurrentStep, setMethod);
+                output[i] = current + ((final - current) * strength);
             }
         }
     }

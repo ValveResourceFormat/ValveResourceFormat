@@ -26,18 +26,30 @@ namespace ValveResourceFormat.Particles.Operators
             fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var center = particleSystemState.GetControlPoint(cp).Position;
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(fieldOutput))
             {
-                if (Initializers.Orient2DRelToCP.Angle(particle.Position, center) is not { } angle)
+                return;
+            }
+
+            var current = particles.Current;
+            var positions = current.ReadVectors(ParticleField.Position);
+            var values = current.Floats(fieldOutput);
+
+            for (var i = 0; i < values.Length; i++)
+            {
+                if (Initializers.Orient2DRelToCP.Angle(positions[i], center) is not { } angle)
                 {
                     continue;
                 }
 
-                particle.SetScalar(fieldOutput, MathUtils.Lerp(particle.GetScalar(fieldOutput), angle + rotOffset, spinStrength));
+                values[i] = MathUtils.Lerp(values[i], angle + rotOffset, spinStrength);
             }
         }
     }

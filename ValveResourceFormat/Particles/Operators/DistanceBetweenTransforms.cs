@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -41,7 +43,12 @@ namespace ValveResourceFormat.Particles.Operators
             maxTraceLength = parse.Float("m_flMaxTraceLength", maxTraceLength);
             losScale = parse.Float("m_flLOSScale", losScale);
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
+
+            AddInitialReadOf(parse, setMethod, outputField);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -54,20 +61,28 @@ namespace ValveResourceFormat.Particles.Operators
                 distance = LineOfSightTrace.ScaleDistance(particleSystemState.Collision, start, end, distance, maxTraceLength, losScale);
             }
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(outputField))
             {
-                var inputMin = this.inputMin.NextNumber(ref particle, particleSystemState);
-                var inputMax = this.inputMax.NextNumber(ref particle, particleSystemState);
-                var outputMin = this.outputMin.NextNumber(ref particle, particleSystemState);
-                var outputMax = this.outputMax.NextNumber(ref particle, particleSystemState);
+                return;
+            }
 
-                var divisor = inputMax == inputMin ? 1f : inputMax - inputMin;
-                var remapped = MathUtils.Saturate((distance - inputMin) / divisor);
-                var finalValue = MathUtils.Lerp(outputMin, outputMax, remapped);
+            var current = particles.Current;
+            var inputMins = inputMin.Fill(current, particleSystemState);
+            var inputMaxs = inputMax.Fill(current, particleSystemState);
+            var outputMins = outputMin.Fill(current, particleSystemState);
+            var outputMaxs = outputMax.Fill(current, particleSystemState);
 
-                finalValue = particle.ModifyScalarBySetMethod(particles, outputField, finalValue, setMethod);
+            var outputs = current.Floats(outputField);
+            var initials = particles.Initial.ReadFloats(outputField);
 
-                particle.SetScalar(outputField, MathUtils.Lerp(particle.GetScalar(outputField), finalValue, strength));
+            for (var i = 0; i < outputs.Length; i++)
+            {
+                var remapped = ParticleMath.ClampedFraction(distance, inputMins[i], inputMaxs[i]);
+                var finalValue = MathUtils.Lerp(outputMins[i], outputMaxs[i], remapped);
+
+                finalValue = ParticleFieldExtensions.ApplySetMethod(finalValue, initials[i], outputs[i], particleSystemState.CurrentStep, setMethod);
+
+                outputs[i] = MathUtils.Lerp(outputs[i], finalValue, strength);
             }
         }
     }

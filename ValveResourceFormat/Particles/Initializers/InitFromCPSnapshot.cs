@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Particles.Utils;
 
@@ -25,8 +26,7 @@ namespace ValveResourceFormat.Particles.Initializers
         private int sampleCounter;
         private int cursor;
         private ParticleSnapshot? cursorSnapshot;
-        private bool callPending;
-        private int callIncrement;
+        private int cursorSerial;
 
         public InitFromCPSnapshot(ParticleDefinitionParser parse) : base(parse)
         {
@@ -46,25 +46,25 @@ namespace ValveResourceFormat.Particles.Initializers
             sampleCounter = 0;
             cursor = 0;
             cursorSnapshot = null;
+            cursorSerial = 0;
         }
+
+        public override void Restart(ParticleSystemState particleSystemState) => Reset();
 
         public override ulong WrittenFields => snapshot.AttributeToWrite == ParticleField.Position
-            ? FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious)
-            : FieldMask(snapshot.AttributeToWrite);
+            ? ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask()
+            : snapshot.AttributeToWrite.Mask();
 
-        protected override void BeginCall(ref Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            callPending = true;
-        }
-
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var field = snapshot.AttributeToWrite;
             var column = snapshot.Column(particleSystemState);
             var rowCount = snapshot.RowCount(particleSystemState);
 
-            var isVector = field.FieldType() == "vector";
-            var usable = column switch
+            // No snapshot column holds bone indices, so writing them takes no row and draws nothing
+            var storage = ParticleBuffer.StorageOf(field);
+            var isVector = storage == ParticleFieldStorage.Vector;
+            var usable = storage != ParticleFieldStorage.BoneIndices && column switch
             {
                 Vector3[] => isVector,
                 float[] => !isVector && !field.IsIntegerAttribute(),
@@ -74,52 +74,56 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (!usable || rowCount == 0)
             {
-                return particle;
+                return;
             }
 
-            if (callPending)
+            var callIncrement = Math.Max((int)increment.NextNumber(particleSystemState), 1);
+            var step = isVector ? (2 * callIncrement) - 1 : callIncrement;
+
+            StartCursor(particleSystemState, rowCount);
+
+            var manualIndices = hasManualIndex ? manualIndex.Fill(run, particleSystemState) : default;
+            var rows = MemoryMarshal.Cast<float, int>(ParticleScratch.Floats(run.Length));
+
+            for (var i = 0; i < rows.Length; i++)
             {
-                callPending = false;
-                StartCursor(particleSystemState, rowCount);
+                rows[i] = SelectRow(manualIndices, i, rowCount, step, particleSystemState);
             }
-
-            var row = SelectRow(ref particle, rowCount, isVector, particleSystemState);
 
             switch (column)
             {
-                case Vector3[] vectors when (uint)row < (uint)vectors.Length:
-                    WriteVector(ref particle, vectors[row], particles.PreviousFrameTime, particleSystemState);
+                case Vector3[] vectors:
+                    WriteVectors(run, rows, vectors, particleSystemState);
                     break;
-                case float[] floats when (uint)row < (uint)floats.Length:
-                    WriteFloat(ref particle, floats[row], particleSystemState);
+                case float[] floats:
+                    WriteFloats(run, rows, floats, particleSystemState);
                     break;
-                case int[] ints when (uint)row < (uint)ints.Length:
-                    particle.SetScalar(field, ints[row]);
+                case int[] ints:
+                    WriteIntegers(run, rows, ints);
                     break;
             }
-
-            return particle;
         }
 
         private void StartCursor(ParticleSystemState particleSystemState, int rowCount)
         {
-            callIncrement = (int)increment.NextNumber(particleSystemState);
-
             var current = snapshot.Snapshot(particleSystemState);
-            if (resetIndexOnChanges && !ReferenceEquals(current, cursorSnapshot))
+            var serial = current?.Serial ?? 0;
+
+            if (resetIndexOnChanges && (!ReferenceEquals(current, cursorSnapshot) || serial != cursorSerial))
             {
                 cursorSnapshot = current;
+                cursorSerial = serial;
                 cursor = 0;
             }
 
             cursor = Math.Min(cursor, rowCount - 1);
         }
 
-        private int SelectRow(ref Particle particle, int rowCount, bool isVector, ParticleSystemState particleSystemState)
+        private int SelectRow(ReadOnlySpan<float> manualIndices, int i, int rowCount, int step, ParticleSystemState particleSystemState)
         {
             if (hasManualIndex)
             {
-                return Math.Max((int)manualIndex.NextNumber(ref particle, particleSystemState), 0) % rowCount;
+                return Math.Max((int)manualIndices[i], 0) % rowCount;
             }
 
             if (random)
@@ -130,7 +134,6 @@ namespace ValveResourceFormat.Particles.Initializers
             }
 
             var row = reverse ? rowCount - cursor - 1 : cursor;
-            var step = isVector ? (2 * callIncrement) - 1 : callIncrement;
             cursor = MathUtils.WrapIndex(cursor + step, rowCount);
 
             return row;
@@ -142,46 +145,128 @@ namespace ValveResourceFormat.Particles.Initializers
         /// <c>m_bLocalSpaceAngles</c>. A previous position row is a velocity, turned into the position
         /// one previous step back from the current one.
         /// </summary>
-        private void WriteVector(ref Particle particle, Vector3 value, float previousStep, ParticleSystemState particleSystemState)
+        private void WriteVectors(ParticleSpan run, ReadOnlySpan<int> rows, Vector3[] vectors, ParticleSystemState particleSystemState)
         {
             var field = snapshot.AttributeToWrite;
             var localSpaceCP = snapshot.LocalSpaceCP;
             var local = localSpaceCP != -1;
 
-            switch (field)
+            if (field == ParticleField.PositionPrevious)
             {
-                case ParticleField.PositionPrevious:
-                    var dt = previousStep != 0f ? previousStep : 1f / 30f;
-                    var step = value * dt;
-                    particle.PositionPrevious = particle.Position
+                var previousStep = particleSystemState.PreviousStep;
+                var dt = previousStep != 0f ? previousStep : 1f / 30f;
+                var currentPositions = run.ReadVectors(ParticleField.Position);
+                var previousPositions = run.Vectors(ParticleField.PositionPrevious);
+
+                for (var i = 0; i < rows.Length; i++)
+                {
+                    if ((uint)rows[i] >= (uint)vectors.Length)
+                    {
+                        continue;
+                    }
+
+                    var step = vectors[rows[i]] * dt;
+                    previousPositions[i] = currentPositions[i]
                         - (local ? ControlPointTransformProvider.TransformDirection(particleSystemState, localSpaceCP, step) : step);
-                    return;
-                case ParticleField.Position:
-                    var position = local ? ControlPointTransformProvider.TransformPosition(particleSystemState, localSpaceCP, value) : value;
-                    particle.Position = position;
-                    particle.PositionPrevious = position;
-                    return;
-                case ParticleField.Normal when local:
-                    value = ControlPointTransformProvider.TransformDirection(particleSystemState, localSpaceCP, value);
-                    break;
-                case ParticleField.BoxAngles when local && localSpaceAngles:
-                    value = ControlPointTransformProvider.TransformAngles(particleSystemState, localSpaceCP, value);
-                    break;
+                }
+
+                return;
             }
 
-            particle.SetVector(field, value);
+            if (field == ParticleField.Position)
+            {
+                var positions = run.Vectors(ParticleField.Position);
+                var previousPositions = run.Vectors(ParticleField.PositionPrevious);
+
+                for (var i = 0; i < rows.Length; i++)
+                {
+                    if ((uint)rows[i] >= (uint)vectors.Length)
+                    {
+                        continue;
+                    }
+
+                    var value = vectors[rows[i]];
+                    var position = local ? ControlPointTransformProvider.TransformPosition(particleSystemState, localSpaceCP, value) : value;
+                    positions[i] = position;
+                    previousPositions[i] = position;
+                }
+
+                return;
+            }
+
+            if (!ParticleBuffer.IsVector(field))
+            {
+                return;
+            }
+
+            var outputs = run.Vectors(field);
+
+            for (var i = 0; i < rows.Length; i++)
+            {
+                if ((uint)rows[i] >= (uint)vectors.Length)
+                {
+                    continue;
+                }
+
+                var value = vectors[rows[i]];
+
+                if (field == ParticleField.Normal && local)
+                {
+                    value = ControlPointTransformProvider.TransformDirection(particleSystemState, localSpaceCP, value);
+                }
+                // Box angles are rotated by the control point as if they were a direction, which is not a meaningful
+                // rotation, so they are composed with the control point rotation instead
+                else if (field == ParticleField.BoxAngles && local && localSpaceAngles)
+                {
+                    value = ControlPointTransformProvider.TransformAngles(particleSystemState, localSpaceCP, value);
+                }
+
+                outputs[i] = value;
+            }
         }
 
-        private void WriteFloat(ref Particle particle, float value, ParticleSystemState particleSystemState)
+        private void WriteFloats(ParticleSpan run, ReadOnlySpan<int> rows, float[] floats, ParticleSystemState particleSystemState)
         {
             var field = snapshot.AttributeToWrite;
 
-            if (localSpaceAngles && snapshot.LocalSpaceCP != -1 && field.IsOrientationField())
+            if (!ParticleBuffer.IsScalar(field))
             {
-                value = ControlPointTransformProvider.TransformAngle(particleSystemState, snapshot.LocalSpaceCP, field, value);
+                return;
             }
 
-            particle.SetScalar(field, value);
+            var outputs = run.Floats(field);
+            // Without a local space control point, orientation values pass through an undefined frame, so they are copied unchanged
+            var transformAngles = localSpaceAngles && snapshot.LocalSpaceCP != -1 && field.IsOrientationField();
+
+            for (var i = 0; i < rows.Length; i++)
+            {
+                if ((uint)rows[i] >= (uint)floats.Length)
+                {
+                    continue;
+                }
+
+                var value = floats[rows[i]];
+
+                if (transformAngles)
+                {
+                    value = ControlPointTransformProvider.TransformAngle(particleSystemState, snapshot.LocalSpaceCP, field, value);
+                }
+
+                outputs[i] = value;
+            }
+        }
+
+        private void WriteIntegers(ParticleSpan run, ReadOnlySpan<int> rows, int[] ints)
+        {
+            var outputs = run.Integers(snapshot.AttributeToWrite);
+
+            for (var i = 0; i < rows.Length; i++)
+            {
+                if ((uint)rows[i] < (uint)ints.Length)
+                {
+                    outputs[i] = ints[rows[i]];
+                }
+            }
         }
     }
 }

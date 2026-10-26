@@ -25,6 +25,11 @@ namespace ValveResourceFormat.Particles.Operators
             additive = parse.Boolean("m_bAdditive", additive);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => additive && outputField == ParticleField.Position
+            ? ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask()
+            : outputField.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             // Coefficients for noise scaling (noise returns -1..1)
@@ -33,34 +38,45 @@ namespace ValveResourceFormat.Particles.Operators
 
             var timeOffset = noiseAnimationTimeScale * particleSystemState.Age;
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsVector(outputField))
             {
-                // The engine scrolls the field along X only, and walks the second and third
+                return;
+            }
+
+            var current = particles.Current;
+            var output = current.Vectors(outputField);
+            var positions = current.ReadVectors(ParticleField.Position);
+            var movesPrevious = additive && outputField == ParticleField.Position;
+            var previousPositions = movesPrevious ? current.Vectors(ParticleField.PositionPrevious) : default;
+
+            var step = frameTime * strength;
+
+            for (var i = 0; i < output.Length; i++)
+            {
+                // The field scrolls along X only, and walks the second and third
                 // channels cumulatively away from the first to decorrelate them
-                var coordinate = (particle.Position * noiseScale) + new Vector3(timeOffset, 0f, 0f);
-                var secondChannel = coordinate + new Vector3(100000.5f, 300000.25f, 9000001f);
-                var thirdChannel = secondChannel + new Vector3(110000.25f, 310000.75f, 9100000f);
+                var first = positions[i] * noiseScale;
+                first.X += timeOffset;
 
-                var noise = new Vector3(
-                    Utils.Noise.Value3D(coordinate),
-                    Utils.Noise.Value3D(secondChannel),
-                    Utils.Noise.Value3D(thirdChannel));
+                var second = first + new Vector3(100000.5f, 300000.25f, 9000001f);
+                var third = second + new Vector3(110000.25f, 310000.75f, 9100000f);
 
+                var noise = new Vector3(Utils.Noise.Value3D(first), Utils.Noise.Value3D(second), Utils.Noise.Value3D(third));
                 var value = (noise * valueScale) + valueBase;
 
                 if (!additive)
                 {
-                    particle.SetVector(outputField, value);
+                    output[i] = value;
                     continue;
                 }
 
-                value *= frameTime * strength;
-                particle.SetVector(outputField, particle.GetVector(outputField) + value);
+                value *= step;
+                output[i] += value;
 
                 // The previous position moves with the offset so it is not read back as velocity
-                if (outputField == ParticleField.Position)
+                if (movesPrevious)
                 {
-                    particle.PositionPrevious += value;
+                    previousPositions[i] += value;
                 }
             }
         }

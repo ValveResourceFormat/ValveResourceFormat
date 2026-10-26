@@ -8,9 +8,11 @@ namespace ValveResourceFormat.Particles.Initializers
     /// result can be normalized.
     /// </summary>
     /// <remarks>
-    /// The lerp expression clamps <c>m_flLerp</c> to [0, 1] only for the whole blocks of four of an
-    /// emission of 16 or more particles, as <see cref="ParticleFunctionInitializer.SplitIntoCalls"/>
-    /// splits it, and takes it as is everywhere else.
+    /// The whole blocks of four of an emission of 16 or more particles, as
+    /// <see cref="ParticleFunctionInitializer.SplitIntoCalls"/> splits it, clamp <c>m_flLerp</c> to
+    /// [0, 1], keep a zero divisor component off zero, and normalize without an epsilon. Everywhere
+    /// else the lerp is taken as is, the division is plain, and the normalize adds an epsilon to the
+    /// squared length.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_SetVectorAttributeToVectorExpression">C_INIT_SetVectorAttributeToVectorExpression</seealso>
     class SetVectorAttributeToVectorExpression : ParticleFunctionInitializer
@@ -23,8 +25,6 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
         private readonly bool normalizedOutput;
 
-        private bool clampLerp;
-
         public SetVectorAttributeToVectorExpression(ParticleDefinitionParser parse) : base(parse)
         {
             expression = parse.Enum("m_nExpression", expression);
@@ -36,45 +36,79 @@ namespace ValveResourceFormat.Particles.Initializers
             normalizedOutput = parse.Boolean("m_bNormalizedOutput", normalizedOutput);
         }
 
-        public override ulong WrittenFields => FieldMask(outputField);
+        public override ulong WrittenFields => outputField.Mask();
 
-        public override void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var (head, blocks, tail) = SplitIntoCalls(batch);
-
-            InitializeEach(batch[head], particles, particleSystemState);
-            clampLerp = true;
-            InitializeEach(batch[blocks], particles, particleSystemState);
-            clampLerp = false;
-            InitializeEach(batch[tail], particles, particleSystemState);
+            InitializeRun(run, particles, particleSystemState, blockRun: false);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeBlocks(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var value1 = input1.NextVector(ref particle, particleSystemState);
-            var value2 = input2.NextVector(ref particle, particleSystemState);
-            var lerpAmount = lerp.NextNumber(ref particle, particleSystemState);
+            InitializeRun(run, particles, particleSystemState, blockRun: true);
+        }
 
-            if (expression.Evaluate(value1, value2, lerpAmount, clampLerp) is not { } result)
+        private void InitializeRun(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState, bool blockRun)
+        {
+            var values1 = input1.Prepare(run, particleSystemState);
+            var values2 = input2.Prepare(run, particleSystemState);
+
+            // The lerp is evaluated for every live particle, and each particle of the run reads its own value
+            // rather than the value of the particle as far into the collection as it is into the run
+            var lerps = lerp.Fill(run, particles.Current, particleSystemState);
+
+            foreach (var (offset, block, lane) in run.InputBlocks())
             {
-                return particle;
+                input1.FillPerBlock(block, lane, particleSystemState, values1[offset..]);
+                input2.FillPerBlock(block, lane, particleSystemState, values2[offset..]);
             }
 
-            var value = particle.ModifyVectorBySetMethodAtSpawn(particles, outputField, result, setMethod);
-
-            if (outputField.IsNormalizedField())
+            if (!ParticleBuffer.IsVector(outputField))
             {
-                value = Vector3.Clamp(value, Vector3.Zero, Vector3.One);
+                return;
             }
 
-            if (normalizedOutput)
+            var outputs = run.Vectors(outputField);
+            var deltaTime = particleSystemState.CurrentStep;
+            var clampsToUnit = outputField.IsNormalizedField();
+
+            for (var i = 0; i < outputs.Length; i++)
             {
-                value = ParticleMath.NormalizeWithEpsilon(value);
+                var current = outputs[i];
+
+                // An unknown expression passes the current value on, or in whole blocks the previous block's output
+                var fallback = blockRun ? ParticleExpressions.PreviousBlockResult(outputs, i) : current;
+                var result = expression.Evaluate(values1[i], values2[i], lerps[i], blockRun) ?? fallback;
+                var value = ParticleFieldExtensions.ApplySetMethod(result, current, current, deltaTime, setMethod);
+
+                if (clampsToUnit)
+                {
+                    value = Vector3.Clamp(value, Vector3.Zero, Vector3.One);
+                }
+
+                if (normalizedOutput)
+                {
+                    value = blockRun ? NormalizeBlock(value) : ParticleMath.NormalizeWithEpsilon(value);
+                }
+
+                outputs[i] = value;
+            }
+        }
+
+        /// <summary>
+        /// Scales <paramref name="value"/> to unit length, taking a squared length below
+        /// <see cref="ParticleMath.FloatMin"/> as <see cref="ParticleMath.FloatEpsilon"/> so a zero vector stays zero.
+        /// </summary>
+        private static Vector3 NormalizeBlock(Vector3 value)
+        {
+            var lengthSquared = value.LengthSquared();
+
+            if (lengthSquared < ParticleMath.FloatMin)
+            {
+                lengthSquared = ParticleMath.FloatEpsilon;
             }
 
-            particle.SetVector(outputField, value);
-
-            return particle;
+            return value / MathF.Sqrt(lengthSquared);
         }
     }
 }

@@ -5,8 +5,9 @@ namespace ValveResourceFormat.Particles.Initializers
     /// <summary>
     /// Initializes a scalar particle attribute from the value lattice sampled at the particle's
     /// scaled creation position with a time term added to every component, remapped into an output
-    /// range. The time term is taken from the first particle of each batch and shared by the rest.
-    /// Angle fields author the range in degrees; alpha fields clamp to [0, 1].
+    /// range. The time term is taken once per call, from the first particle, and shared by the rest; in
+    /// the whole blocks of a batch each lane takes it from the first block. Angle fields author the
+    /// range in degrees; alpha fields clamp to [0, 1].
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreationNoise">C_INIT_CreationNoise</seealso>
     class CreationNoise : ParticleFunctionInitializer
@@ -22,8 +23,6 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly float worldTimeScale;
         private readonly Vector3 offsetLoc = Vector3.Zero;
 
-        private float callTimeTerm;
-
         public CreationNoise(ParticleDefinitionParser parse) : base(parse)
         {
             fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
@@ -38,37 +37,79 @@ namespace ValveResourceFormat.Particles.Initializers
             offsetLoc = parse.Vector3("m_vecOffsetLoc", offsetLoc);
         }
 
-        public override ulong WrittenFields => FieldMask(fieldOutput);
+        public override ulong WrittenFields => fieldOutput.Mask();
 
-        protected override void BeginCall(ref Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            // The world time term ticks in milliseconds
-            callTimeTerm = ((first.CreationTime + offset) * noiseScale)
+            if (!ParticleBuffer.IsScalar(fieldOutput))
+            {
+                return;
+            }
+
+            var creationTimes = run.ReadFloats(ParticleField.CreationTime);
+
+            // The world time term ticks in milliseconds of the simulated world time. Wall clock milliseconds since process
+            // start would be scaled otherwise, which cannot be reproduced
+            var timeTerm = ((creationTimes[0] + offset) * noiseScale)
                 + (particleSystemState.WorldTime * 1000f * worldTimeScale);
+
+            Span<float> laneTimeTerms = stackalloc float[4];
+            laneTimeTerms.Fill(timeTerm);
+
+            WriteNoise(run, laneTimeTerms);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        /// <summary>
+        /// Takes the time term of each lane from the creation time of the particle in that lane of the
+        /// first block, for every block, and leaves the world time out.
+        /// </summary>
+        protected override void InitializeBlocks(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            if (fieldOutput.FieldType() != "float")
+            if (!ParticleBuffer.IsScalar(fieldOutput))
             {
-                return particle;
+                return;
             }
 
-            var samplePosition = (particle.Position + offsetLoc) * noiseScaleLoc;
-            var noise = Noise.Value3D(samplePosition + new Vector3(callTimeTerm));
+            var creationTimes = run.ReadFloats(ParticleField.CreationTime);
 
-            var value = fieldOutput is ParticleField.Roll or ParticleField.Yaw or ParticleField.Pitch
-                ? MapToRange(noise, absVal, absValInv, float.DegreesToRadians(outputMin), float.DegreesToRadians(outputMax))
-                : MapToRange(noise, absVal, absValInv, outputMin, outputMax);
+            Span<float> laneTimeTerms = stackalloc float[4];
 
-            if (fieldOutput is ParticleField.Alpha or ParticleField.AlphaAlternate)
+            for (var lane = 0; lane < laneTimeTerms.Length; lane++)
             {
-                value = MathUtils.Saturate(value);
+                laneTimeTerms[lane] = (creationTimes[lane] + offset) * noiseScale;
             }
 
-            particle.SetScalar(fieldOutput, value);
+            WriteNoise(run, laneTimeTerms);
+        }
 
-            return particle;
+        /// <summary>
+        /// Writes the mapped noise at each particle's position, offset by the time term of its lane in
+        /// <paramref name="laneTimeTerms"/>.
+        /// </summary>
+        private void WriteNoise(ParticleSpan run, ReadOnlySpan<float> laneTimeTerms)
+        {
+            var positions = run.ReadVectors(ParticleField.Position);
+            var outputs = run.Floats(fieldOutput);
+
+            var isAngle = fieldOutput.IsOrientationField();
+            var min = isAngle ? float.DegreesToRadians(outputMin) : outputMin;
+            var max = isAngle ? float.DegreesToRadians(outputMax) : outputMax;
+            var isAlpha = fieldOutput.IsAlpha();
+
+            for (var i = 0; i < run.Length; i++)
+            {
+                var samplePosition = (positions[i] + offsetLoc) * noiseScaleLoc;
+                var noise = Noise.Value3D(samplePosition + new Vector3(laneTimeTerms[i & 3]));
+
+                var value = MapToRange(noise, absVal, absValInv, min, max);
+
+                if (isAlpha)
+                {
+                    value = MathUtils.Saturate(value);
+                }
+
+                outputs[i] = value;
+            }
         }
 
         /// <summary>

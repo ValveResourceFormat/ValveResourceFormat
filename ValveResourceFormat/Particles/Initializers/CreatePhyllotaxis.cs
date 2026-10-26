@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using ValveResourceFormat.Particles.Utils;
 
 namespace ValveResourceFormat.Particles.Initializers
@@ -63,36 +62,17 @@ namespace ValveResourceFormat.Particles.Initializers
             pointIndex = 0;
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
+        public override ulong WrittenFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask() | ParticleField.Radius.Mask();
+
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-        }
-
-        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.Radius);
-
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            Initialize(MemoryMarshal.CreateSpan(ref particle, 1), particles, particleSystemState);
-            return particle;
-        }
-
-        public override void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            var (head, blocks, tail) = SplitIntoCalls(batch);
-
-            InitializeCall(batch[head], particleSystemState);
-            InitializeCall(batch[blocks], particleSystemState);
-            InitializeCall(batch[tail], particleSystemState);
-        }
-
-        private void InitializeCall(Span<Particle> batch, ParticleSystemState particleSystemState)
-        {
-            if (batch.IsEmpty || radPerPoint == 0f || radPerPointTo == 0f)
+            if (radPerPoint == 0f || radPerPointTo == 0f)
             {
                 return;
             }
 
             var controlPoint = particleSystemState.GetControlPoint(controlPointNumber);
-            float totalPoints = pointIndex + batch.Length;
+            float totalPoints = pointIndex + run.Length;
 
             var scale = 1f;
             var radiusScale = 1f;
@@ -108,7 +88,11 @@ namespace ValveResourceFormat.Particles.Initializers
             var size = MathF.Abs(sizeOverall) * scale;
             var rotation = controlPoint.GetRotationMatrix();
 
-            foreach (ref var particle in batch)
+            var positions = run.Vectors(ParticleField.Position);
+            var previous = run.Vectors(ParticleField.PositionPrevious);
+            var radii = run.Floats(ParticleField.Radius);
+
+            for (var i = 0; i < run.Length; i++)
             {
                 float n = pointIndex;
                 var fraction = n / totalPoints;
@@ -145,9 +129,10 @@ namespace ValveResourceFormat.Particles.Initializers
                     offset = Vector3.TransformNormal(offset, rotation);
                 }
 
-                particle.Position = controlPoint.Position + offset;
-                particle.PositionPrevious = particle.Position;
-                particle.Radius = useOrigRadius ? radius * particle.Radius : radius;
+                var position = controlPoint.Position + offset;
+                positions[i] = position;
+                previous[i] = position;
+                radii[i] = useOrigRadius ? radius * radii[i] : radius;
 
                 pointIndex++;
             }

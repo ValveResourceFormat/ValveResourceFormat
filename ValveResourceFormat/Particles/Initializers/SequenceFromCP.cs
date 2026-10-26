@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
@@ -11,7 +9,8 @@ namespace ValveResourceFormat.Particles.Initializers
     /// <remarks>
     /// A particle left over once every digit is placed gets a lifetime of -1, which kills it unless a
     /// later initializer sets the lifetime again. <c>m_bKillUnused</c> only declares the lifetime as
-    /// written for the first-writer rule. A fractional component keeps its fraction in the lowest digit.
+    /// written for the first-writer rule; when no function declares it, the lifetime is not stored and
+    /// the leftover particle lives. A fractional component keeps its fraction in the lowest digit.
     /// An emission of 16 or more particles starts the digits over in each run
     /// <see cref="ParticleFunctionInitializer.SplitIntoCalls"/> splits it into.
     /// </remarks>
@@ -40,45 +39,36 @@ namespace ValveResourceFormat.Particles.Initializers
         {
             get
             {
-                var fields = FieldMask(ParticleField.SequenceNumber);
+                var fields = ParticleField.SequenceNumber.Mask();
 
                 if (offset != Vector3.Zero)
                 {
-                    fields |= FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious);
+                    fields |= ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask();
                 }
 
                 if (killUnused)
                 {
-                    fields |= FieldMask(ParticleField.LifeDuration);
+                    fields |= ParticleField.LifeDuration.Mask();
                 }
 
                 return fields;
             }
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            Initialize(MemoryMarshal.CreateSpan(ref particle, 1), particles, particleSystemState);
-            return particle;
-        }
-
-        public override void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            var (head, blocks, tail) = SplitIntoCalls(batch);
-
-            InitializeCall(batch[head], particleSystemState);
-            InitializeCall(batch[blocks], particleSystemState);
-            InitializeCall(batch[tail], particleSystemState);
-        }
-
-        private void InitializeCall(Span<Particle> batch, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var numbers = particleSystemState.GetControlPoint(cp).Position;
-            var digitCount = Math.Min(batch.Length, DigitCount(numbers.X) + DigitCount(numbers.Y) + DigitCount(numbers.Z));
+            var digitCount = Math.Min(run.Length, DigitCount(numbers.X) + DigitCount(numbers.Y) + DigitCount(numbers.Z));
             var layout = (digitCount - 1) * offset * 0.5f;
             var component = 2;
+            var placesDigits = offset != Vector3.Zero;
+            var sequenceNumbers = run.Floats(ParticleField.SequenceNumber);
+            var storesLifetime = run.TryGetFloats(ParticleField.LifeDuration, out var lifetimes, out _);
+            var positions = placesDigits ? run.Vectors(ParticleField.Position) : default;
+            var previousPositions = placesDigits ? run.Vectors(ParticleField.PositionPrevious) : default;
+            var radii = placesDigits && radiusScale ? run.ReadFloats(ParticleField.Radius) : default;
 
-            foreach (ref var particle in batch)
+            for (var i = 0; i < run.Length; i++)
             {
                 while (component >= 0 && numbers[component] < 1f)
                 {
@@ -87,19 +77,23 @@ namespace ValveResourceFormat.Particles.Initializers
 
                 if (component < 0)
                 {
-                    particle.Lifetime = -1f;
+                    if (storesLifetime)
+                    {
+                        lifetimes[i] = -1f;
+                    }
+
                     continue;
                 }
 
                 var number = numbers[component];
-                particle.SequenceNumber = (number % 10f) + (10f * component);
+                sequenceNumbers[i] = (number % 10f) + (10f * component);
                 numbers[component] = MathF.Max(MathF.Floor(number / 10f), 0f);
 
-                if (offset != Vector3.Zero)
+                if (placesDigits)
                 {
-                    var shift = layout * (radiusScale ? particle.Radius : 1f);
-                    particle.Position += shift;
-                    particle.PositionPrevious += shift;
+                    var shift = layout * (radiusScale ? radii[i] : 1f);
+                    positions[i] += shift;
+                    previousPositions[i] += shift;
                     layout -= offset;
                 }
             }

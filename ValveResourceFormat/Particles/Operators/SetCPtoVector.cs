@@ -20,13 +20,16 @@ namespace ValveResourceFormat.Particles.Operators
             defaults.AddField(inputCpNumber, fieldOutput);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var value = particleSystemState.GetControlPoint(inputCpNumber).Position;
 
-            foreach (ref var particle in particles.Current)
+            if (ParticleBuffer.IsVector(fieldOutput))
             {
-                particle.SetVector(fieldOutput, value);
+                particles.Current.Vectors(fieldOutput).Fill(value);
             }
         }
     }

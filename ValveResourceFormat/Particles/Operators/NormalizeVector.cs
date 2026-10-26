@@ -17,19 +17,28 @@ namespace ValveResourceFormat.Particles.Operators
             outputField = parse.ParticleField("m_nFieldOutput", outputField);
             scale = parse.Float("m_flScale", scale);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsVector(outputField))
             {
-                var vector = particle.GetVector(outputField);
+                return;
+            }
+
+            var vectors = particles.Current.Vectors(outputField);
+
+            for (var i = 0; i < vectors.Length; i++)
+            {
+                var vector = vectors[i];
 
                 // Z carries an epsilon before the length is taken, so a vector with no direction
                 // comes out pointing along Z rather than staying at zero
                 vector.Z += ParticleMath.FloatEpsilon;
 
-                vector = MathUtils.SafeNormalize(vector) * scale;
-
-                particle.SetVector(outputField, vector);
+                vectors[i] = MathUtils.SafeNormalize(vector) * scale;
             }
         }
     }

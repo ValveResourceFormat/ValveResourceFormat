@@ -15,27 +15,32 @@ namespace ValveResourceFormat.Particles.Initializers
             velocityScale = parse.Float("m_flVelocityScale", velocityScale);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.PositionPrevious);
+        public override ulong WrittenFields => ParticleField.PositionPrevious.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var frameTime = particles.CurrentFrameTime;
+            var frameTime = particleSystemState.CurrentStep;
 
             if (frameTime <= 0f)
             {
-                return particle;
+                return;
             }
 
             // A rescaled move of 100 units or more is treated as a teleport
-            var step = particleSystemState.GetControlPoint(controlPointNumber).StepDelta * particles.PreviousFrameTime / frameTime;
+            var step = particleSystemState.GetControlPoint(controlPointNumber).StepDelta * particleSystemState.PreviousStep / frameTime;
 
             if (step.Length() >= 100f)
             {
-                return particle;
+                return;
             }
 
-            particle.PositionPrevious -= step * velocityScale;
-            return particle;
+            var previous = run.Vectors(ParticleField.PositionPrevious);
+            var scaledStep = step * velocityScale;
+
+            for (var i = 0; i < previous.Length; i++)
+            {
+                previous[i] -= scaledStep;
+            }
         }
     }
 }

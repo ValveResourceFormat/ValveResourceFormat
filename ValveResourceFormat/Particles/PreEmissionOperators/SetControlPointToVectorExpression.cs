@@ -30,13 +30,25 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             normalizedOutput = parse.Boolean("m_bNormalizedOutput", normalizedOutput);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
-            var vec1 = input1.NextVector(particleSystemState);
-            var vec2 = input2.NextVector(particleSystemState);
-            var lerpAmount = particleSystemState.Data is { Particles.Count: > 0 } simulation
-                ? lerp.NextNumber(ref simulation.Particles.Current[0], particleSystemState)
-                : lerp.NextNumber(particleSystemState);
+            // The inputs are set up before the lerp is evaluated and read after it, so only inputs drawing per block
+            // draw after the lerp
+            var setUpVec1 = input1.DrawsPerBlock ? Vector3.Zero : input1.NextVector(particleSystemState);
+            var setUpVec2 = input2.DrawsPerBlock ? Vector3.Zero : input2.NextVector(particleSystemState);
+            float lerpAmount;
+
+            if (particleSystemState.Data is { Particles.Count: > 0 } simulation)
+            {
+                lerpAmount = lerp.NextNumber(simulation.Particles.Current, 0, particleSystemState);
+            }
+            else
+            {
+                lerpAmount = lerp.NextNumber(particleSystemState);
+            }
+
+            var vec1 = input1.DrawsPerBlock ? input1.NextVector(particleSystemState) : setUpVec1;
+            var vec2 = input2.DrawsPerBlock ? input2.NextVector(particleSystemState) : setUpVec2;
 
             var output = expression switch
             {

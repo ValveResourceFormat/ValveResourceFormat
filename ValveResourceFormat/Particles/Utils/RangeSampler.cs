@@ -37,16 +37,17 @@ namespace ValveResourceFormat.Particles.Utils
 
             var parameters = parse.Nested(block);
 
-            return new RangeSampler(parameters.Boolean("m_bDistributeEvenly"), parameters.Int32("m_nSeed"));
+            return new RangeSampler(parameters.Boolean("m_bDistributeEvenly"), parameters.Int32("m_nSeed", -1));
         }
 
         /// <summary>
         /// Interpolates per component between <paramref name="min"/> and <paramref name="max"/>, either from
         /// three consecutive values off the system's shared random table or, when an even distribution is
         /// asked for, from a stratified sample that takes nothing from that table. A negative authored seed
-        /// is displaced by the system's own seed, giving each instance of an effect its own sequence.
+        /// is displaced by the system's own seed, giving each instance of an effect its own sequence. The
+        /// stratified sample is keyed to the spawn index of the particle at collection index <paramref name="index"/>.
         /// </summary>
-        public Vector3 NextVectorBetween(ref Particle particle, ParticleSystemState particleSystemState, Vector3 min, Vector3 max)
+        public Vector3 NextVectorBetween(int index, ParticleSystemState particleSystemState, Vector3 min, Vector3 max)
         {
             if (!distributeEvenly)
             {
@@ -54,12 +55,12 @@ namespace ValveResourceFormat.Particles.Utils
             }
 
             var start = seed < 0 ? seed + particleSystemState.Random.Seed : seed;
-            var index = (start + particle.UniqueParticleId) & 0x7FFFFFFF;
+            var sample = (start + particleSystemState.SpawnIndex(index)) & 0x7FFFFFFF;
 
             var fractions = new Vector3(
-                MathUtils.RadicalInverse(index, 2),
-                MathUtils.RadicalInverse(index, 3),
-                MathUtils.RadicalInverse(index, 5));
+                MathUtils.RadicalInverse(sample, 2),
+                MathUtils.RadicalInverse(sample, 3),
+                MathUtils.RadicalInverse(sample, 5));
 
             return MathUtils.Lerp(min, max, fractions);
         }

@@ -75,9 +75,15 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             if (drawn && GetOperatorRunStrength(systemState) > 0f)
             {
-                foreach (ref var particle in particles.Current)
+                var current = particles.Current;
+                var particleIds = current.ReadIntegers(ParticleField.ParticleId);
+                var positions = current.ReadVectors(ParticleField.Position);
+                var hasVolume = volumeField is not (ParticleField.NoneDisabled or < 0);
+                var volumes = hasVolume ? current.ReadFloats(volumeField) : default;
+
+                for (var i = 0; i < current.Length; i++)
                 {
-                    var index = FindSlot(particle.ParticleId);
+                    var index = FindSlot(particleIds[i]);
 
                     if (index < 0)
                     {
@@ -86,8 +92,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                     ref var slot = ref slots[index];
                     slot.Used = true;
-                    slot.Position = particle.Position;
-                    slot.Volume = volumeField is ParticleField.NoneDisabled or < 0 ? 1f : particle.GetScalar(volumeField);
+                    slot.Position = positions[i];
+                    slot.Volume = hasVolume ? volumes[i] : 1f;
                 }
             }
 
@@ -178,7 +184,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>Stops every sound, as when the system stops drawing.</summary>
-        public override void Hide()
+        public override void Hide(ParticleCollection particles)
         {
             for (var i = 0; i < slots.Length; i++)
             {

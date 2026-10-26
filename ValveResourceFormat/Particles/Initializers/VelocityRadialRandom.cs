@@ -35,40 +35,61 @@ namespace ValveResourceFormat.Particles.Initializers
             controlPoint = parse.ControlPoint("m_nControlPointNumber", controlPoint);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.PositionPrevious);
+        public override ulong WrittenFields => ParticleField.PositionPrevious.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var center = perParticleCenter
-                ? centerPosition.NextVector(ref particle, particleSystemState)
-                : ParticlePath.GetControlPointAtTime(particleSystemState, controlPoint, particle.CreationTime);
+            var speedMins = speedMin.Fill(run, particleSystemState);
+            var speedMaxes = speedMax.Fill(run, particleSystemState);
 
-            var direction = MathUtils.SafeNormalize(particle.Position - center);
+            // Without a per-particle centre the inputs are set up but never evaluated per block
+            var centers = centerPosition.Prepare(run, particleSystemState);
+            var forwards = centerForward.Prepare(run, particleSystemState);
 
-            if (localSpeedScale != Vector3.One)
+            var hasLocalSpeedScale = localSpeedScale != Vector3.One;
+
+            var creationTimes = run.ReadFloats(ParticleField.CreationTime);
+            var positions = run.ReadVectors(ParticleField.Position);
+            var previousPositions = run.Vectors(ParticleField.PositionPrevious);
+
+            for (var i = 0; i < previousPositions.Length; i++)
             {
-                direction *= WorldSpeedScale(ref particle, particleSystemState);
+                // Centres drawing per block draw at the start of each block, between the speed draws of its particles
+                var lane = (run.Start + i) & 3;
+                if (perParticleCenter && (i == 0 || lane == 0))
+                {
+                    var block = run.Slice(i, Math.Min(4 - lane, run.Length - i));
+                    centerPosition.FillPerBlock(block, lane, particleSystemState, centers[i..]);
+                    centerForward.FillPerBlock(block, lane, particleSystemState, forwards[i..]);
+                }
+
+                var center = perParticleCenter
+                    ? centers[i]
+                    : ParticlePath.GetControlPointAtTime(particleSystemState, controlPoint, creationTimes[i]);
+
+                var direction = MathUtils.SafeNormalize(positions[i] - center);
+
+                if (hasLocalSpeedScale)
+                {
+                    var forward = perParticleCenter ? forwards[i] : Vector3.Zero;
+                    direction *= WorldSpeedScale(creationTimes[i], forward, particleSystemState);
+                }
+
+                var speed = particleSystemState.Random.NextBetween(speedMins[i], speedMaxes[i]);
+
+                previousPositions[i] -= VelocityStep(particleSystemState, direction * speed, ignoreDelta);
             }
-
-            var speed = particleSystemState.Random.NextBetween(
-                speedMin.NextNumber(ref particle, particleSystemState),
-                speedMax.NextNumber(ref particle, particleSystemState));
-
-            AddVelocity(ref particle, particles, direction * speed, ignoreDelta);
-
-            return particle;
         }
 
         /// <summary>The local speed scale rotated into world space by the centre's basis.</summary>
-        private Vector3 WorldSpeedScale(ref Particle particle, ParticleSystemState particleSystemState)
+        private Vector3 WorldSpeedScale(float creationTime, Vector3 forward, ParticleSystemState particleSystemState)
         {
             if (!perParticleCenter)
             {
-                var basis = particleSystemState.GetControlPoint(controlPoint).GetBasisAtTime(particle.CreationTime);
+                var basis = particleSystemState.GetControlPoint(controlPoint).GetBasisAtTime(creationTime);
                 return Vector3.TransformNormal(localSpeedScale, basis);
             }
 
-            var forward = centerForward.NextVector(ref particle, particleSystemState);
             var (left, up) = BasisFromForward(forward);
 
             return (forward * localSpeedScale.X) + (left * localSpeedScale.Y) + (up * localSpeedScale.Z);
@@ -76,7 +97,8 @@ namespace ValveResourceFormat.Particles.Initializers
 
         /// <summary>
         /// Completes a left and up axis for <paramref name="forward"/>, with world up as the hint. A
-        /// forward too close to the hint to cross with it falls back to <see cref="ParticleMath.VectorVectors"/>.
+        /// forward too close to the hint to cross with it takes the world Y axis as its left axis, and the
+        /// up axis is always the normalized cross product, so it stays a unit vector for any forward length.
         /// </summary>
         private static (Vector3 Left, Vector3 Up) BasisFromForward(Vector3 forward)
         {
@@ -84,10 +106,12 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (left.LengthSquared() < ParticleMath.Square(ParticleMath.FloatEpsilon))
             {
-                return ParticleMath.VectorVectors(forward);
+                left = Vector3.UnitY;
             }
-
-            left = Vector3.Normalize(left);
+            else
+            {
+                left = Vector3.Normalize(left);
+            }
 
             return (left, MathUtils.SafeNormalize(Vector3.Cross(forward, left)));
         }

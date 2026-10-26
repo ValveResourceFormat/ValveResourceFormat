@@ -25,6 +25,7 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly float traceOffset;
         private readonly float maxTraceLength = 1024f;
         private readonly float traceTolerance = 64f;
+        private readonly float traceSpan;
         private readonly int maxPlaneSlot;
 
         public LifespanFromVelocity(ParticleDefinitionParser parse) : base(parse)
@@ -34,55 +35,151 @@ namespace ValveResourceFormat.Particles.Initializers
             maxTraceLength = parse.Float("m_flMaxTraceLength", maxTraceLength);
             traceTolerance = parse.Float("m_flTraceTolerance", traceTolerance);
             maxPlaneSlot = Math.Min(parse.Int32("m_nMaxPlanes", 16), CollisionPlaneSet.MaxPlanes) - 1;
+            traceSpan = maxTraceLength - traceOffset;
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.LifeDuration);
+        public override ulong WrittenFields => ParticleField.LifeDuration.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            if (particle.Lifetime < 0f)
+            var lifetimes = run.Floats(ParticleField.LifeDuration);
+            var positions = run.ReadVectors(ParticleField.Position);
+            var previousPositions = run.ReadVectors(ParticleField.PositionPrevious);
+            var frameTime = particleSystemState.PreviousStep;
+            var cache = particleSystemState.CollisionPlaneSets[0] ??= new CollisionPlaneSet();
+
+            for (var i = 0; i < lifetimes.Length; i++)
             {
-                return particle;
+                if (lifetimes[i] < 0f || !TryGetTrace(positions[i], previousPositions[i], frameTime, out var start, out var end, out var speed))
+                {
+                    continue;
+                }
+
+                var point = NoHit;
+
+                if (traceTolerance * traceTolerance < cache.FindNearestTrace(start, end, ref point))
+                {
+                    point = Trace(particleSystemState.Collision, start, end, out var normal);
+                    cache.AddTrace(start, end, point, normal, maxPlaneSlot);
+                }
+
+                if (point == NoHit)
+                {
+                    lifetimes[i] = -1f;
+                    continue;
+                }
+
+                lifetimes[i] = TimeToHit(start, point, speed);
+            }
+        }
+
+        /// <summary>
+        /// Initializes whole blocks of four. Each block looks its particles up in the cache as it stood
+        /// before the block, then traces the ones no cached trace is close to in order. A particle the
+        /// trace finds nothing for gets a lifetime of 0 rather than being culled.
+        /// </summary>
+        protected override void InitializeBlocks(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
+        {
+            var lifetimes = run.Floats(ParticleField.LifeDuration);
+            var positions = run.ReadVectors(ParticleField.Position);
+            var previousPositions = run.ReadVectors(ParticleField.PositionPrevious);
+            var frameTime = particleSystemState.PreviousStep;
+            var cache = particleSystemState.CollisionPlaneSets[0] ??= new CollisionPlaneSet();
+
+            Span<Vector3> starts = stackalloc Vector3[4];
+            Span<Vector3> ends = stackalloc Vector3[4];
+            Span<Vector3> points = stackalloc Vector3[4];
+            Span<float> speeds = stackalloc float[4];
+            Span<bool> needsTrace = stackalloc bool[4];
+
+            for (var blockStart = 0; blockStart < lifetimes.Length; blockStart += 4)
+            {
+                for (var lane = 0; lane < 4; lane++)
+                {
+                    var i = blockStart + lane;
+                    speeds[lane] = 0f;
+                    needsTrace[lane] = false;
+
+                    // A particle that is not moving keeps its lifetime, as it does outside whole blocks,
+                    // instead of tracing along a NaN direction
+                    if (lifetimes[i] < 0f || !TryGetTrace(positions[i], previousPositions[i], frameTime, out starts[lane], out ends[lane], out speeds[lane]))
+                    {
+                        continue;
+                    }
+
+                    points[lane] = NoHit;
+                    needsTrace[lane] = traceTolerance * traceTolerance < cache.FindNearestTrace(starts[lane], ends[lane], ref points[lane]);
+                }
+
+                for (var lane = 0; lane < 4; lane++)
+                {
+                    if (needsTrace[lane])
+                    {
+                        points[lane] = Trace(particleSystemState.Collision, starts[lane], ends[lane], out var normal);
+                        cache.AddTrace(starts[lane], ends[lane], points[lane], normal, maxPlaneSlot);
+                    }
+                }
+
+                for (var lane = 0; lane < 4; lane++)
+                {
+                    if (speeds[lane] == 0f)
+                    {
+                        continue;
+                    }
+
+                    var i = blockStart + lane;
+
+                    if (points[lane] == NoHit)
+                    {
+                        lifetimes[i] = 0f;
+                        continue;
+                    }
+
+                    lifetimes[i] = TimeToHit(starts[lane], points[lane], speeds[lane]);
+                }
+            }
+        }
+
+        /// <summary>
+        /// The trace along the velocity a particle moved at over the previous step, or false when it is
+        /// not moving.
+        /// </summary>
+        private bool TryGetTrace(Vector3 position, Vector3 previousPosition, float frameTime, out Vector3 start, out Vector3 end, out float speed)
+        {
+            var velocity = Vector3.Zero;
+
+            if (frameTime > 0f)
+            {
+                velocity = (position - previousPosition) / frameTime;
             }
 
-            var velocity = particle.GetVelocity(particles.PreviousFrameTime);
-            var speed = velocity.Length();
+            speed = velocity.Length();
 
             if (speed == 0f)
             {
-                return particle;
+                start = Vector3.Zero;
+                end = Vector3.Zero;
+                return false;
             }
 
             var direction = velocity / speed;
-            var traceSpan = maxTraceLength - traceOffset;
-            var start = (direction * traceOffset) + particle.Position;
-            var end = (direction * traceSpan) + start;
-
-            var cache = particleSystemState.CollisionPlaneSets[0] ??= new CollisionPlaneSet();
-            var point = NoHit;
-
-            if (traceTolerance * traceTolerance < cache.FindNearestTrace(start, end, ref point))
-            {
-                point = Trace(particleSystemState.Collision, start, end, traceSpan, out var normal);
-                cache.AddTrace(start, end, point, normal, maxPlaneSlot);
-            }
-
-            if (point == NoHit)
-            {
-                particle.Lifetime = -1f;
-                return particle;
-            }
-
-            var distance = ((start - point) * componentScale).Length();
-            particle.Lifetime = (distance + traceOffset) / (speed + ParticleMath.FloatEpsilon);
-
-            return particle;
+            start = (direction * traceOffset) + position;
+            end = (direction * traceSpan) + start;
+            return true;
         }
 
-        private Vector3 Trace(IParticleCollision collision, Vector3 start, Vector3 end, float traceSpan, out Vector3 normal)
+        private float TimeToHit(Vector3 start, Vector3 point, float speed)
+        {
+            var distance = ((start - point) * componentScale).Length();
+            return (distance + traceOffset) / (speed + ParticleMath.FloatEpsilon);
+        }
+
+        private Vector3 Trace(IParticleCollision collision, Vector3 start, Vector3 end, out Vector3 normal)
         {
             var surfaceFraction = 1f - (maxTraceLength / (traceSpan + ParticleMath.FloatEpsilon));
 
+            // The trace set and collision group are not parsed, so the trace hits all geometry.
+            // A ray that starts inside a solid is not reported, so it keeps the hit on the solid's far side instead of counting as a miss.
             collision.TraceRay(start, end, out var point, out normal, out var fraction);
 
             if (fraction == 1f)

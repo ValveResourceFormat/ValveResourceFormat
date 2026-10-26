@@ -23,16 +23,15 @@ namespace ValveResourceFormat.Particles.Emitters
         /// </summary>
         public virtual ParticleEventType EventTypeMask => ParticleEventType.PARTICLE_EVENT_TYPE_MASK_NONE;
 
+        /// <inheritdoc/>
+        /// <remarks>The creation time each particle is emitted at.</remarks>
+        public override ulong StoredFields => ParticleField.CreationTime.Mask();
+
         /// <summary>Builds the running state the emitter starts with.</summary>
-        public abstract void Reset();
+        public abstract override void Reset();
 
-        /// <summary>Called when the system restarts without being destroyed.</summary>
-        public virtual void Restart(ParticleSystemState particleSystemState)
-        {
-        }
-
-        /// <summary>Lets the emitter emit again.</summary>
-        public abstract void StartEmission();
+        /// <summary>Lets the emitter emit again, at the age of the system.</summary>
+        public abstract void StartEmission(ParticleSystemState particleSystemState);
 
         /// <summary>Stops the emitter.</summary>
         public abstract void StopEmission();

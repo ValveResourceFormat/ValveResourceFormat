@@ -28,7 +28,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private const int MaxTubeRings = 8192;
 
         // A segment is sized for tessellation by its bounding sphere, whose diameter is the segment length
-        // scaled by this (the default r_particle_cables_culling_bounds_scale).
+        // scaled by this.
         private const float SegmentBoundsScale = 1.2f;
 
         private readonly int roundness = 1;
@@ -50,16 +50,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private float[] lastRadii = [];
         private Vector3[] lastColors = [];
         private float[] lastAlphas = [];
-
-        // Per-frame scratch reused across frames so a settled cable allocates nothing. Grow-only,
-        // sliced to the live particle (or segment) count each frame.
-        private (Vector3 Position, float Radius, Vector3 Color, float Alpha)[] chainScratch = [];
-        private Vector3[] positionsScratch = [];
-        private float[] radiiScratch = [];
-        private Vector3[] colorsScratch = [];
-        private float[] alphasScratch = [];
-        private int[] levelsScratch = [];
-        private Vector3[] directionsScratch = [];
 
         public RenderCables(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene) : base(parse, scene)
         {
@@ -113,35 +103,30 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
 
             var count = particles.Count;
-            chainScratch = EnsureCapacity(chainScratch, count);
-            var chain = chainScratch.AsSpan(0, count);
-            var index = 0;
-            foreach (ref var particle in particles.Current)
-            {
-                var color = ParticleColorBlend.Apply(ColorBlendType,
-                    ParticleColorBlend.ToWrappedBytes(particle.Color, Math.Clamp(scales.Alpha * 255f * particle.Alpha, 0f, 255f)),
-                    scales.Color) / 255f;
+            var current = particles.Current;
+            var positions = current.ReadVectors(ParticleField.Position);
+            var particleColors = current.ReadVectors(ParticleField.Color);
+            var particleRadii = current.ReadFloats(ParticleField.Radius);
+            var particleAlphas = current.ReadFloats(ParticleField.Alpha);
 
-                chain[index++] = (particle.Position, MathF.Max(0f, scales.Radius * particle.Radius), color.AsVector3(), color.W);
-            }
+            var radii = ParticleScratch.Floats(count);
+            var colors = ParticleScratch.Vectors(count);
+            var alphas = ParticleScratch.Floats(count);
 
-            positionsScratch = EnsureCapacity(positionsScratch, count);
-            radiiScratch = EnsureCapacity(radiiScratch, count);
-            colorsScratch = EnsureCapacity(colorsScratch, count);
-            alphasScratch = EnsureCapacity(alphasScratch, count);
-            var positions = positionsScratch.AsSpan(0, count);
-            var radii = radiiScratch.AsSpan(0, count);
-            var colors = colorsScratch.AsSpan(0, count);
-            var alphas = alphasScratch.AsSpan(0, count);
             for (var i = 0; i < count; i++)
             {
-                positions[i] = chain[i].Position;
-                radii[i] = chain[i].Radius;
-                colors[i] = chain[i].Color;
-                alphas[i] = chain[i].Alpha;
+                var color = ParticleColorBlend.Apply(ColorBlendType,
+                    ParticleColorBlend.ToWrappedBytes(particleColors[i], Math.Clamp(scales.Alpha * 255f * particleAlphas[i], 0f, 255f)),
+                    scales.Color) / 255f;
+
+                radii[i] = MathF.Max(0f, scales.Radius * particleRadii[i]);
+                colors[i] = color.AsVector3();
+                alphas[i] = color.W;
             }
 
-            var levels = ComputeTessellationLevels(positions, camera);
+            using var levelsBuffer = new RentedBuffer<int>(count - 1);
+            var levels = levelsBuffer.Span;
+            ComputeTessellationLevels(positions, camera, levels);
 
             if (!GeometryChanged(positions, levels, radii, colors, alphas))
             {
@@ -168,7 +153,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             // In PATH mode the authored repeat count is spread over the whole cable instead of per segment.
             var repeats = textureRepetitionMode == TextureRepetitionMode.TEXTURE_REPETITION_PATH
-                ? repeatsPerSegment / (chain.Length - 1)
+                ? repeatsPerSegment / (count - 1)
                 : repeatsPerSegment;
 
             // Exact sizes are known up front, so build buffers are rented and filled by index. Rented
@@ -183,7 +168,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             using var vertexBuffer = new RentedBuffer<CableVertex>(vertexCount);
             using var indexBuffer = new RentedBuffer<uint>(tubeIndexCount);
 
-            BuildRings(positions, chain, levels, repeats, ringPositions.Span, ringSamples.Span);
+            BuildRings(positions, radii, colors, alphas, levels, repeats, ringPositions.Span, ringSamples.Span);
 
             if (!CableMeshBuilder.BuildTubeMesh(ringPositions.Span, ringSamples.Span,
                 sides, circumference, colorMapOffset, vertexBuffer.Span, indexBuffer.Span))
@@ -198,6 +183,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             indexCount = tubeIndexCount;
         }
 
+        /// <inheritdoc/>
         public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
             DrawTube(material.Shader);
@@ -223,18 +209,16 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// Per-segment length tessellation: the apparent on-screen size of the segment's bounding sphere scaled
         /// by m_flTessScale picks a power-of-two subdivision count within [m_nMinTesselation, m_nMaxTesselation],
         /// bumped one or two levels where adjacent segments bend sharply, then clamped between its neighbours.
+        /// Writes one level per segment into <paramref name="levels"/>.
         /// </summary>
-        private Span<int> ComputeTessellationLevels(ReadOnlySpan<Vector3> positions, Camera camera)
+        private void ComputeTessellationLevels(ReadOnlySpan<Vector3> positions, Camera camera, Span<int> levels)
         {
-            var segmentCount = positions.Length - 1;
-            levelsScratch = EnsureCapacity(levelsScratch, segmentCount);
-            var levels = levelsScratch.AsSpan(0, segmentCount);
+            var segmentCount = levels.Length;
 
             // Scaled against a 1920 reference resolution, in integer math.
             var resolutionScale = (int)camera.WindowSize.Y * 64 / 1920;
 
-            directionsScratch = EnsureCapacity(directionsScratch, segmentCount);
-            var directions = directionsScratch.AsSpan(0, segmentCount);
+            var directions = ParticleScratch.Vectors(segmentCount);
             for (var i = 0; i < segmentCount; i++)
             {
                 var direction = positions[i + 1] - positions[i];
@@ -245,15 +229,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             {
                 var boundsRadius = Vector3.Distance(positions[i], positions[i + 1]) * SegmentBoundsScale * 0.5f;
                 var midpoint = (positions[i] + positions[i + 1]) * 0.5f;
-                var distanceSquared = Vector3.DistanceSquared(midpoint, camera.Location);
+                var size = ScreenSizeFraction(midpoint, boundsRadius, camera);
 
-                // Apparent bounds radius as a fraction of the viewport; full when the camera is inside them.
-                var size = boundsRadius * boundsRadius > distanceSquared
-                    ? 1f
-                    : MathUtils.Saturate(boundsRadius * camera.ProjectionMatrix.M22 / MathF.Sqrt(distanceSquared));
-
+                // The ceiling is applied after the floor, so it wins when it is below the floor
                 var tess = size * tessScale * resolutionScale;
-                var subdivisions = Math.Clamp(MathUtils.Clamp((int)tess, minTessellation, maxTessellation), 1, 1 << MaxTessellationLevel);
+                var subdivisions = Math.Clamp(Math.Min(Math.Max((int)tess, minTessellation), maxTessellation), 1, 1 << MaxTessellationLevel);
                 var level = BitOperations.Log2((uint)subdivisions);
 
                 var bendPrev = i > 0 ? Vector3.Dot(directions[i], directions[i - 1]) : 1f;
@@ -288,8 +268,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     levels[i] = Math.Max(0, levels[i] - 1);
                 }
             }
-
-            return levels;
         }
 
         private static int TotalRings(int nodeCount, ReadOnlySpan<int> levels)
@@ -306,7 +284,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         // Expands each particle segment into 2^level rings. Position and radius follow a Catmull-Rom spline
         // through the particles, with the end particles repeated past both ends; colour and V are linear.
         // Fills exactly TotalRings entries of the (pooled, possibly larger) output arrays.
-        private static void BuildRings(ReadOnlySpan<Vector3> positions, ReadOnlySpan<(Vector3 Position, float Radius, Vector3 Color, float Alpha)> chain,
+        private static void BuildRings(ReadOnlySpan<Vector3> positions, ReadOnlySpan<float> radii, ReadOnlySpan<Vector3> colors, ReadOnlySpan<float> alphas,
             ReadOnlySpan<int> levels, float repeats, Span<Vector3> ringPositions, Span<RopeSample> ringSamples)
         {
             var cursor = 0;
@@ -326,15 +304,15 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                     // Particles are roughly evenly spaced, so index-based V tracks arc length.
                     ringSamples[cursor] = new RopeSample(position,
-                        CableMeshBuilder.CatmullRom(chain[before].Radius, chain[i].Radius, chain[i + 1].Radius, chain[after].Radius, t),
-                        Vector3.Lerp(chain[i].Color, chain[i + 1].Color, t),
-                        (i + t) * repeats, false, MathUtils.Lerp(chain[i].Alpha, chain[i + 1].Alpha, t));
+                        CableMeshBuilder.CatmullRom(radii[before], radii[i], radii[i + 1], radii[after], t),
+                        Vector3.Lerp(colors[i], colors[i + 1], t),
+                        (i + t) * repeats, pinned: false, MathUtils.Lerp(alphas[i], alphas[i + 1], t));
                     cursor++;
                 }
             }
 
             ringPositions[cursor] = positions[last];
-            ringSamples[cursor] = new RopeSample(positions[last], chain[last].Radius, chain[last].Color, last * repeats, false, chain[last].Alpha);
+            ringSamples[cursor] = new RopeSample(positions[last], radii[last], colors[last], last * repeats, pinned: false, alphas[last]);
         }
 
         private bool GeometryChanged(ReadOnlySpan<Vector3> positions, ReadOnlySpan<int> levels, ReadOnlySpan<float> radii, ReadOnlySpan<Vector3> colors,
@@ -370,8 +348,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             material.PostRender();
         }
 
+        /// <inheritdoc/>
         public override IEnumerable<string> GetSupportedRenderModes() => material.Shader.RenderModes;
 
+        /// <inheritdoc/>
         public override void Delete()
         {
             VertexArray.Delete(vaoHandle);

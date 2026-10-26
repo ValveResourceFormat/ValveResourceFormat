@@ -46,10 +46,16 @@ namespace ValveResourceFormat.Particles.Operators
             var parentScale = useRadius ? parentRadiusScale.NextNumber(particleSystemState) : 0f;
             var count = Math.Min(parentParticles.Length, children.Count);
 
+            var positions = current.ReadVectors(ParticleField.Position);
+            var previousPositions = current.ReadVectors(ParticleField.PositionPrevious);
+            var radii = current.ReadFloats(ParticleField.Radius);
+            var parentPositions = parentParticles.ReadVectors(ParticleField.Position);
+            var parentRadii = parentParticles.ReadFloats(ParticleField.Radius);
+
             for (var i = 0; i < count; i++)
             {
-                var parentPosition = parentParticles[i].Position;
-                var parentRadius = parentParticles[i].Radius * parentScale;
+                var parentPosition = parentPositions[i];
+                var parentRadius = parentRadii[i] * parentScale;
 
                 var nearest = -1;
                 var best = float.MaxValue;
@@ -57,8 +63,8 @@ namespace ValveResourceFormat.Particles.Operators
                 for (var j = 0; j < current.Length; j++)
                 {
                     var distance = useRadius
-                        ? Vector3.Distance(current[j].Position, parentPosition) - parentRadius - (current[j].Radius * scale)
-                        : Vector3.DistanceSquared(current[j].Position, parentPosition);
+                        ? Vector3.Distance(positions[j], parentPosition) - parentRadius - (radii[j] * scale)
+                        : Vector3.DistanceSquared(positions[j], parentPosition);
 
                     if (distance < best || (distance == best && j % SearchLanes < nearest % SearchLanes))
                     {
@@ -72,21 +78,21 @@ namespace ValveResourceFormat.Particles.Operators
                     continue;
                 }
 
-                ref var particle = ref current[nearest];
+                var nearestPosition = positions[nearest];
                 var first = parentPosition;
-                var second = particle.Position;
+                var second = nearestPosition;
 
                 if (useRadius)
                 {
                     if (best <= 0f)
                     {
-                        first = second = (parentPosition + particle.Position) * 0.5f;
+                        first = second = (parentPosition + nearestPosition) * 0.5f;
                     }
                     else
                     {
-                        var direction = MathUtils.SafeNormalize(particle.Position - parentPosition);
+                        var direction = MathUtils.SafeNormalize(nearestPosition - parentPosition);
                         first = parentPosition + (direction * parentRadius);
-                        second = particle.Position - (direction * (particle.Radius * scale));
+                        second = nearestPosition - (direction * (radii[nearest] * scale));
                     }
                 }
 
@@ -102,9 +108,11 @@ namespace ValveResourceFormat.Particles.Operators
                     firstPoint.Orientation = second - first;
                 }
 
-                if (second != particle.PositionPrevious)
+                var nearestPreviousPosition = previousPositions[nearest];
+
+                if (second != nearestPreviousPosition)
                 {
-                    secondPoint.Orientation = second - particle.PositionPrevious;
+                    secondPoint.Orientation = second - nearestPreviousPosition;
                 }
             }
         }

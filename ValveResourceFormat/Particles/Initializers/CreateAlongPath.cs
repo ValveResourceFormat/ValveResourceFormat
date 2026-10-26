@@ -37,35 +37,51 @@ namespace ValveResourceFormat.Particles.Initializers
             pathParams = new ParticlePathParameters(parse).WithClampedControlPoints();
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.HitboxOffsetPosition);
+        public override ulong WrittenFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask() | ParticleField.HitboxOffsetPosition.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var path = pathParams;
+            // The inputs are evaluated for every live particle, and each particle of the run reads its own value
+            // rather than the value of the particle as far into the collection as it is into the run
+            var distances = maxDistance.Fill(run, particles.Current, particleSystemState);
+            var pathParameters = pathParameter.Fill(run, particles.Current, particleSystemState);
 
-            if (useRandomCPs)
+            var creationTimes = run.ReadFloats(ParticleField.CreationTime);
+            var positions = run.Vectors(ParticleField.Position);
+            var previous = SpawnPreviousPositions(run, particleSystemState);
+            var hitboxOffsets = saveOffset ? run.Vectors(ParticleField.HitboxOffsetPosition) : default;
+
+            for (var i = 0; i < run.Length; i++)
             {
-                var endCp = path.StartControlPointNumber + 1
-                    + (int)(particleSystemState.Random.Next() * (path.EndControlPointNumber - path.StartControlPointNumber));
-                path = path.WithControlPoints(endCp - 1, endCp);
+                var path = pathParams;
+
+                if (useRandomCPs)
+                {
+                    var endCp = path.StartControlPointNumber + 1
+                        + (int)(particleSystemState.Random.Next() * (path.EndControlPointNumber - path.StartControlPointNumber));
+                    path = path.WithControlPoints(endCp - 1, endCp);
+                }
+
+                var (start, mid, end) = ParticlePath.CalculatePathValues(particleSystemState, path, creationTimes[i]);
+
+                var t = pathParameters[i];
+                var distance = distances[i];
+
+                var position = ParticlePath.Evaluate(start, mid, end, t);
+                position += particleSystemState.Random.NextBetweenPerComponent(new Vector3(-distance), new Vector3(distance));
+
+                positions[i] = position;
+
+                if (!previous.IsEmpty)
+                {
+                    previous[i] = position;
+                }
+
+                if (saveOffset)
+                {
+                    hitboxOffsets[i] = new Vector3(t, path.StartControlPointNumber, path.EndControlPointNumber);
+                }
             }
-
-            var (start, mid, end) = ParticlePath.CalculatePathValues(particleSystemState, path, particle.CreationTime);
-
-            var t = pathParameter.NextNumber(ref particle, particleSystemState);
-            var distance = maxDistance.NextNumber(ref particle, particleSystemState);
-
-            var position = ParticlePath.Evaluate(start, mid, end, t);
-            position += particleSystemState.Random.NextBetweenPerComponent(new Vector3(-distance), new Vector3(distance));
-
-            SetSpawnPosition(ref particle, particleSystemState, position, position);
-
-            if (saveOffset)
-            {
-                particle.HitboxOffsetPosition = new Vector3(t, path.StartControlPointNumber, path.EndControlPointNumber);
-            }
-
-            return particle;
         }
     }
 }

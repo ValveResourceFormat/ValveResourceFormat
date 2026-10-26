@@ -17,19 +17,40 @@ namespace ValveResourceFormat.Particles.Operators
         {
             fadeInTime = parse.Float("m_flFadeInTime", fadeInTime);
             fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
+
+            parse.AddInitialRead(fieldOutput);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(fieldOutput))
             {
-                var fadeInLength = fadeInTime * particle.Lifetime;
+                return;
+            }
 
-                if (MathF.Max(0f, particle.Age - frameTime) < fadeInLength)
+            var current = particles.Current;
+            var ages = current.ReadAges();
+
+            var lifetimes = current.ReadFloats(ParticleField.LifeDuration);
+            var outputs = current.Floats(fieldOutput);
+            var initials = particles.Initial.ReadFloats(fieldOutput);
+
+            for (var i = 0; i < outputs.Length; i++)
+            {
+                var age = ages[i];
+                var fadeInLength = fadeInTime * lifetimes[i];
+                var fading = MathF.Max(0f, age - frameTime) < fadeInLength;
+
+                if (!fading)
                 {
-                    var blend = MathUtils.Smoothstep(0f, fadeInLength, particle.Age);
-                    particle.SetScalar(fieldOutput, blend * particle.GetInitialScalar(particles, fieldOutput));
+                    continue;
                 }
+
+                // A fading particle has a positive fade length, so the smoothstep's edges cannot meet here
+                outputs[i] = MathUtils.Smoothstep(0f, fadeInLength, age) * initials[i];
             }
         }
     }

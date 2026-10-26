@@ -32,21 +32,17 @@ namespace ValveResourceFormat.Particles.Operators
                 return;
             }
 
-            var raiseCullEvents = particleSystemState.ListensFor(ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED_ON_CULL);
+            var positions = particles.Current.ReadVectors(ParticleField.Position);
 
-            foreach (ref var particle in particles.Current)
+            // Every particle is tested every step; a batch whose query fails does not hold back the particles after it
+            for (var i = 0; i < positions.Length; i++)
             {
-                if (cache.Contains(particle.Position, boundBox) == cullOutside)
+                if (cache.Contains(positions[i], boundBox) == cullOutside)
                 {
                     continue;
                 }
 
-                particle.Kill();
-
-                if (raiseCullEvents)
-                {
-                    particles.RaiseEvent(particle.Index, ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED_ON_CULL);
-                }
+                KillCulled(particles, i, particleSystemState);
             }
         }
     }

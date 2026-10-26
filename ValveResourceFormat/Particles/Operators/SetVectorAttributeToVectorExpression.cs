@@ -32,24 +32,43 @@ namespace ValveResourceFormat.Particles.Operators
             outputField = parse.ParticleField("m_nOutputField", outputField);
             setMethod = parse.Enum("m_nSetMethod", setMethod);
             normalizedOutput = parse.Boolean("m_bNormalizedOutput", normalizedOutput);
+
+            AddInitialReadOf(parse, setMethod, outputField);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var values1 = input1.Prepare(current, particleSystemState);
+            var values2 = input2.Prepare(current, particleSystemState);
+            var lerps = lerp.Fill(current, particleSystemState);
+
+            foreach (var (offset, block, lane) in current.InputBlocks())
             {
-                var value1 = input1.NextVector(ref particle, particleSystemState);
-                var value2 = input2.NextVector(ref particle, particleSystemState);
-                var lerpAmount = lerp.NextNumber(ref particle, particleSystemState);
+                input1.FillPerBlock(block, lane, particleSystemState, values1[offset..]);
+                input2.FillPerBlock(block, lane, particleSystemState, values2[offset..]);
+            }
 
-                if (expression.Evaluate(value1, value2, lerpAmount, clampLerp: true) is not { } result)
-                {
-                    continue;
-                }
+            if (!ParticleBuffer.IsVector(outputField))
+            {
+                return;
+            }
 
-                var value = particle.ModifyVectorBySetMethod(particles, outputField, result * strength, setMethod);
+            var outputs = current.Vectors(outputField);
+            var initial = particles.Initial.ReadVectors(outputField);
+            var deltaTime = particleSystemState.CurrentStep;
+            var clampsToUnit = outputField.IsNormalizedField();
 
-                if (outputField.IsNormalizedField())
+            for (var i = 0; i < outputs.Length; i++)
+            {
+                // An unknown expression passes the previous block's output on, unscaled
+                var result = expression.Evaluate(values1[i], values2[i], lerps[i], blockForm: true) * strength ?? ParticleExpressions.PreviousBlockResult(outputs, i);
+                var value = ParticleFieldExtensions.ApplySetMethod(result, initial[i], outputs[i], deltaTime, setMethod);
+
+                if (clampsToUnit)
                 {
                     value = Vector3.Clamp(value, Vector3.Zero, Vector3.One);
                 }
@@ -59,7 +78,7 @@ namespace ValveResourceFormat.Particles.Operators
                     value = ParticleMath.NormalizeWithEpsilon(value);
                 }
 
-                particle.SetVector(outputField, value);
+                outputs[i] = value;
             }
         }
     }

@@ -33,7 +33,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             interpolation = parse.CollectionNumberProvider("m_flInterpolation", interpolation);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             var value = expression.Evaluate(input1.NextNumber(particleSystemState), input2.NextNumber(particleSystemState)) ?? 0f;
 
@@ -42,13 +42,14 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                 value = outputRemap.ApplyMapping(value);
             }
 
+            var amount = interpolation.NextNumber(particleSystemState);
+
             if (outVectorField is < 0 or > 2)
             {
                 return;
             }
 
             var point = particleSystemState.GetControlPoint(outputCP);
-            var amount = interpolation.NextNumber(particleSystemState);
 
             if (amount != 1f)
             {

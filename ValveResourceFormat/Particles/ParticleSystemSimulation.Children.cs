@@ -127,7 +127,7 @@ namespace ValveResourceFormat.Particles
             for (var slot = 0; slot < children.Count; slot++)
             {
                 var childInfo = children[slot];
-                var parse = new ParticleDefinitionParser(childInfo, logger, BehaviorVersion);
+                var parse = new ParticleDefinitionParser(childInfo, logger, new(), BehaviorVersion);
 
                 if (parse.Boolean("m_bDisableChild", false))
                 {

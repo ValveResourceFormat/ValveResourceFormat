@@ -4,6 +4,11 @@ namespace ValveResourceFormat.Particles.Operators
     /// Remaps each particle's slot in the collection, within a configurable input range, to a scalar
     /// output range and writes the result to a particle attribute.
     /// </summary>
+    /// <remarks>
+    /// All four bounds are collection scoped, so they are evaluated once for the whole call rather
+    /// than per particle. The input bounds address particle slots, so they truncate to whole slots
+    /// and the range they select is exclusive on the high side.
+    /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RemapParticleCountToScalar">C_OP_RemapParticleCountToScalar</seealso>
     class RemapParticleCountToScalar : ParticleFunctionOperator
     {
@@ -25,41 +30,49 @@ namespace ValveResourceFormat.Particles.Operators
             outputMax = parse.NumberProvider("m_flOutputMax", outputMax);
             activeRange = parse.Boolean("m_bActiveRange", activeRange);
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
+
+            AddInitialReadOf(parse, setMethod, outputField);
         }
 
         public override bool IsOrderImportant => true;
 
-        /// <summary>
-        /// All four bounds are collection scoped, so they are evaluated once for the whole call rather
-        /// than per particle. The input bounds address particle slots, so they truncate to whole slots
-        /// and the range they select is exclusive on the high side.
-        /// </summary>
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            var inputMin = (int)this.inputMin.NextNumber(particleSystemState);
-            var inputMax = (int)this.inputMax.NextNumber(particleSystemState);
-            var outputMin = this.outputMin.NextNumber(particleSystemState);
-            var outputMax = this.outputMax.NextNumber(particleSystemState);
+            var minimumInput = (int)inputMin.NextNumber(particleSystemState);
+            var maximumInput = (int)inputMax.NextNumber(particleSystemState);
+            var minimumOutput = outputMin.NextNumber(particleSystemState);
+            var maximumOutput = outputMax.NextNumber(particleSystemState);
 
-            if (outputField is ParticleField.Alpha or ParticleField.AlphaAlternate)
+            if (outputField.IsAlpha())
             {
-                outputMin = MathUtils.Saturate(outputMin);
-                outputMax = MathUtils.Saturate(outputMax);
+                minimumOutput = MathUtils.Saturate(minimumOutput);
+                maximumOutput = MathUtils.Saturate(maximumOutput);
             }
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(outputField))
             {
-                if (activeRange && (particle.Index < inputMin || particle.Index >= inputMax))
+                return;
+            }
+
+            var output = particles.Current.Floats(outputField);
+            var initial = particles.Initial.ReadFloats(outputField);
+
+            for (var i = 0; i < output.Length; i++)
+            {
+                // A negative input minimum is not clamped, so particle data writes land outside the buffer; here those slots are skipped
+                if (activeRange && (i < minimumInput || i >= maximumInput))
                 {
                     continue;
                 }
 
-                // A degenerate input range is a threshold, inclusive on the high side
-                var finalValue = MathUtils.RemapValClamped(particle.Index, inputMin, inputMax, outputMin, outputMax);
+                var finalValue = MathUtils.RemapValClamped(i, minimumInput, maximumInput, minimumOutput, maximumOutput);
 
-                finalValue = particle.ModifyScalarBySetMethod(particles, outputField, finalValue, setMethod);
+                finalValue = ParticleFieldExtensions.ApplySetMethod(finalValue, initial[i], output[i], particleSystemState.CurrentStep, setMethod);
 
-                particle.SetScalar(outputField, MathUtils.Lerp(particle.GetScalar(outputField), finalValue, strength));
+                output[i] = MathUtils.Lerp(output[i], finalValue, strength);
             }
         }
     }

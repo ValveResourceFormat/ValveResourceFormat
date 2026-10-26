@@ -46,10 +46,6 @@ namespace ValveResourceFormat.Particles.Operators
             interpStartTime = 0f;
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-        }
-
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var input = particleSystemState.GetControlPoint(inputControlPoint);
@@ -71,6 +67,7 @@ namespace ValveResourceFormat.Particles.Operators
                 var start = position + new Vector3(0f, 0f, traceOffset);
                 var end = start - new Vector3(0f, 0f, maxTraceLength);
 
+                // A ray that starts inside a solid is not reported, so it does not fall back to straight up
                 var forward = particleSystemState.Collision.TraceRay(start, end, out _, out var normal, out _) ? normal : Vector3.UnitZ;
                 var rotation = EntityTransformHelper.ForwardDirectionToQuaternion(forward);
 

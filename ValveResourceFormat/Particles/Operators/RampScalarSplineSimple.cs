@@ -12,7 +12,7 @@ namespace ValveResourceFormat.Particles.Operators
         private readonly float rate;
         private readonly float startTime;
         private readonly float endTime = 1f;
-        private readonly ParticleField field = ParticleField.Radius;
+        private readonly ParticleField outputField = ParticleField.Radius;
         private readonly bool easeOut;
 
         public RampScalarSplineSimple(ParticleDefinitionParser parse) : base(parse)
@@ -20,24 +20,38 @@ namespace ValveResourceFormat.Particles.Operators
             rate = parse.Float("m_Rate", rate);
             startTime = parse.Float("m_flStartTime", startTime);
             endTime = parse.Float("m_flEndTime", endTime);
-            field = parse.ParticleField("m_nField", field);
+            outputField = parse.ParticleField("m_nField", outputField);
             easeOut = parse.Boolean("m_bEaseOut", easeOut);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var step = strength * frameTime * rate;
             var inverseWindow = 1f / (endTime - startTime + ParticleMath.FloatEpsilon);
-            var (min, max) = field.SetFloatRange();
+            var (min, max) = outputField.SetFloatRange();
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(outputField))
             {
-                if (particle.Lifetime <= 0f)
+                return;
+            }
+
+            var current = particles.Current;
+            var ages = current.ReadAges();
+
+            var lifetimes = current.ReadFloats(ParticleField.LifeDuration);
+            var output = current.Floats(outputField);
+
+            for (var i = 0; i < output.Length; i++)
+            {
+                if (lifetimes[i] <= 0f)
                 {
                     continue;
                 }
 
-                var normalizedAge = particle.Age / particle.Lifetime;
+                var normalizedAge = ages[i] / lifetimes[i];
 
                 if (normalizedAge < startTime || normalizedAge >= endTime)
                 {
@@ -51,7 +65,7 @@ namespace ValveResourceFormat.Particles.Operators
                     fraction = (fraction > 0.5f ? 1f - fraction : fraction) * 2f;
                 }
 
-                particle.SetScalar(field, Math.Clamp(particle.GetScalar(field) + (MathUtils.Smoothstep(0f, 1f, fraction) * step), min, max));
+                output[i] = Math.Clamp(output[i] + (MathUtils.Smoothstep(0f, 1f, fraction) * step), min, max);
             }
         }
     }

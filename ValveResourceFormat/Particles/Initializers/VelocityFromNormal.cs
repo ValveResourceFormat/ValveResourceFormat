@@ -17,15 +17,19 @@ namespace ValveResourceFormat.Particles.Initializers
             ignoreDt = parse.Boolean("m_bIgnoreDt", ignoreDt);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.PositionPrevious);
+        public override ulong WrittenFields => ParticleField.PositionPrevious.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var velocity = particle.GetVector(ParticleField.Normal) * particleSystemState.Random.NextBetween(speedMin, speedMax);
+            var normals = run.ReadVectors(ParticleField.Normal);
+            var previousPositions = run.Vectors(ParticleField.PositionPrevious);
 
-            AddVelocity(ref particle, particles, velocity, ignoreDt);
+            for (var i = 0; i < previousPositions.Length; i++)
+            {
+                var velocity = normals[i] * particleSystemState.Random.NextBetween(speedMin, speedMax);
 
-            return particle;
+                previousPositions[i] -= VelocityStep(particleSystemState, velocity, ignoreDt);
+            }
         }
     }
 }

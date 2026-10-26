@@ -40,6 +40,9 @@ namespace ValveResourceFormat.Particles.Operators
             }
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             if (desiredVelocityCP < 0 || latencyCP < 0)
@@ -55,16 +58,29 @@ namespace ValveResourceFormat.Particles.Operators
                 : desiredVelocityPosition.GetComponent(desiredVelocityCPField);
             var catchUpSpeed = speed * 3f;
 
-            foreach (ref var particle in particles.Current)
-            {
-                var stepSpeed = latency == 0f
-                    ? (particle.Age < 0f ? catchUpSpeed : speed)
-                    : MathUtils.Lerp(catchUpSpeed, speed, MathUtils.Saturate(particle.Age / latency));
+            var current = particles.Current;
+            var positions = current.Vectors(ParticleField.Position);
+            var previousPositions = current.Vectors(ParticleField.PositionPrevious);
+            var ages = current.ReadAges();
 
-                var step = particle.Position - particle.PositionPrevious;
+            for (var i = 0; i < positions.Length; i++)
+            {
+                var age = ages[i];
+                float stepSpeed;
+
+                if (latency != 0f)
+                {
+                    stepSpeed = MathUtils.Lerp(catchUpSpeed, speed, MathUtils.Saturate(age / latency));
+                }
+                else
+                {
+                    stepSpeed = age < 0f ? catchUpSpeed : speed;
+                }
+
+                var step = positions[i] - previousPositions[i];
                 var direction = ParticleMath.NormalizeWithEpsilon(step);
 
-                particle.Position = (direction * (stepSpeed * frameTime)) + particle.PositionPrevious;
+                positions[i] = (direction * (stepSpeed * frameTime)) + previousPositions[i];
             }
         }
     }

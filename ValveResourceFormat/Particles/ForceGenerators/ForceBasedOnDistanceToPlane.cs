@@ -33,19 +33,27 @@ class ForceBasedOnDistanceToPlane : ParticleFunctionForceGenerator
         exponent = ParticleMath.TruncateToQuarterSteps(parse.Float("m_flExponent", exponent));
     }
 
-    public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
+    public override void GenerateForces(ParticleCollection particles, Span<Vector3> forces, float frameTime, ParticleSystemState particleSystemState, float strength)
     {
         var range = maxDist - minDist;
         var inverseRange = range != 0f ? 1f / range : 0f;
         var origin = particleSystemState.GetControlPoint(controlPoint).Position;
+        var positions = particles.Current.ReadVectors(ParticleField.Position);
 
-        foreach (ref var particle in particles.Current)
+        for (var i = 0; i < positions.Length; i++)
         {
-            var distance = Vector3.Dot(particle.Position - origin, planeNormal);
+            var distance = Vector3.Dot(positions[i] - origin, planeNormal);
             var t = MathUtils.Saturate((distance - minDist) * inverseRange);
-            var blend = exponent == 0f ? 1f : t == 0f ? 0f : MathF.Pow(t, exponent);
+            var blend = 1f;
 
-            particle.ForceAccumulator += MathUtils.Lerp(forceAtMinDist, forceAtMaxDist, blend) * strength;
+            // A particle on the near plane takes no blend even when a negative exponent would make it infinite.
+            // A zero base with a negative exponent becomes a blend of about 8.4e6 in the format, which is not reproduced
+            if (exponent != 0f)
+            {
+                blend = t == 0f ? 0f : MathF.Pow(t, exponent);
+            }
+
+            forces[i] += MathUtils.Lerp(forceAtMinDist, forceAtMaxDist, blend) * strength;
         }
     }
 }

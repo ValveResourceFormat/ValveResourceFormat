@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             outputControlPoint = parse.Int32("m_nCPOutput", outputControlPoint);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             var scale = particleSystemState.GetControlPoint(inputControlPoint).ResolveModelObject()?.Transform.MaxAxisScale() ?? 1f;
             particleSystemState.SetControlPointValue(outputControlPoint, new Vector3(scale));

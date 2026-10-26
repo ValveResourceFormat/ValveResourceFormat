@@ -5,11 +5,14 @@ namespace ValveResourceFormat.Particles.Constraints
     /// with the fourth and so on, and holds each line's length between <c>m_flMinDistance</c> and
     /// <c>m_flMaxDistance</c> by moving both ends evenly about its midpoint. Particles are handled in
     /// blocks of four, two blocks at a time, so with four particles or fewer nothing is held, and the
-    /// particles of an odd last block are left alone. Only <see cref="Particle.Position"/> is written.
+    /// particles of an odd last block are left alone. Only <see cref="ParticleField.Position"/> is written.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_ConstrainLineLength">C_OP_ConstrainLineLength</seealso>
     class ConstrainLineLength : ParticleFunctionConstraint
     {
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Position.Mask();
+
         private const int BlockSize = 4;
 
         private readonly float minDistance = 1f;
@@ -32,25 +35,27 @@ namespace ValveResourceFormat.Particles.Constraints
             }
 
             var handled = Math.Min(current.Length, blocks / 2 * 2 * BlockSize);
+            var positions = current.Vectors(ParticleField.Position);
 
             for (var i = 0; i + 1 < handled; i += 2)
             {
-                ref var first = ref current[i];
-                ref var second = ref current[i + 1];
+                ref var first = ref positions[i];
+                ref var second = ref positions[i + 1];
 
-                var delta = first.Position - second.Position;
+                var delta = first - second;
                 var length = delta.Length();
 
+                // Coincident ends are left alone rather than turned into NaN positions
                 if (length == 0f)
                 {
                     continue;
                 }
 
-                var middle = (first.Position + second.Position) * 0.5f;
+                var middle = (first + second) * 0.5f;
                 var half = delta * (0.5f * MathF.Max(minDistance, MathF.Min(maxDistance, length)) / length);
 
-                first.Position = middle + half;
-                second.Position = middle - half;
+                first = middle + half;
+                second = middle - half;
             }
 
             return true;

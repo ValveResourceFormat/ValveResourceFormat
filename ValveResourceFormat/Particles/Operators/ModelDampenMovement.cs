@@ -30,23 +30,33 @@ namespace ValveResourceFormat.Particles.Operators
             drag = Math.Clamp(parse.Float("m_fDrag", drag), 0f, float.BitDecrement(1f));
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Position.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            if (particles.PreviousFrameTime <= 0f
+            if (particleSystemState.PreviousStep <= 0f
                 || HitBoxCache.Refresh(particleSystemState, controlPoint, hitboxSetName, useBones) is not { Count: > 0, Object: not null } cache)
             {
                 return;
             }
 
-            var keep = frameTime / particles.PreviousFrameTime * MathF.Pow(1f - drag, frameTime * 30f);
+            var keep = frameTime / particleSystemState.PreviousStep * MathF.Pow(1f - drag, frameTime * 30f);
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var positions = current.Vectors(ParticleField.Position);
+            var previousPositions = current.ReadVectors(ParticleField.PositionPrevious);
+
+            var offsets = positionOffset.Fill(current, particleSystemState);
+
+            // Every particle is tested every step; a batch whose query fails does not hold back the particles after it
+            for (var i = 0; i < positions.Length; i++)
             {
-                var point = particle.Position + positionOffset.NextVector(ref particle, particleSystemState);
+                var point = positions[i] + offsets[i];
 
                 if (cache.Contains(point, boundBox) != outside)
                 {
-                    particle.Position = MathUtils.Lerp(particle.PositionPrevious, particle.Position, keep);
+                    positions[i] = MathUtils.Lerp(previousPositions[i], positions[i], keep);
                 }
             }
         }

@@ -1,3 +1,4 @@
+using System.Numerics.Tensors;
 using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -37,14 +38,11 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (fieldOutput.IsAlpha())
             {
-                for (var i = 0; i < values.Length; i++)
-                {
-                    values[i] = MathUtils.Saturate(values[i]);
-                }
+                TensorPrimitives.Clamp(values, 0f, 1f, values);
             }
         }
 
-        public override ulong WrittenFields => FieldMask(fieldOutput);
+        public override ulong WrittenFields => fieldOutput.Mask();
 
         public override void Initialize(ParticleSystemState particleSystemState)
         {
@@ -52,17 +50,29 @@ namespace ValveResourceFormat.Particles.Initializers
             range = ModelElements.Range(indices);
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-        }
+            if (!ParticleBuffer.IsScalar(fieldOutput))
+            {
+                return;
+            }
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            var position = ModelElements.PlaceOf(indices, range, (int)particle.GetScalar(fieldInput), values.Length - 1);
-            var value = (uint)position < (uint)values.Length ? values[position] : 0f;
-            var output = particle.ModifyScalarBySetMethodAtSpawn(particles, fieldOutput, value, setMethod);
-            particle.SetScalar(fieldOutput, fieldOutput.IsIntegerAttribute() ? MathF.Truncate(output) : output);
-            return particle;
+            var isIntegerInput = fieldInput.IsIntegerAttribute();
+            var floatInputs = run.ReadFloats(fieldInput);
+            var integerInputs = run.ReadIntegers(fieldInput);
+            var outputs = run.Floats(fieldOutput);
+            var isInteger = fieldOutput.IsIntegerAttribute();
+
+            for (var i = 0; i < outputs.Length; i++)
+            {
+                var input = isIntegerInput ? integerInputs[i] : (int)floatInputs[i];
+                var position = ModelElements.PlaceOf(indices, range, input, values.Length - 1);
+                var value = (uint)position < (uint)values.Length ? values[position] : 0f;
+                var current = outputs[i];
+                var output = ParticleFieldExtensions.ApplySetMethod(value, current, current, particleSystemState.CurrentStep, setMethod);
+
+                outputs[i] = isInteger ? BitConverter.Int32BitsToSingle((int)output) : output;
+            }
         }
     }
 }

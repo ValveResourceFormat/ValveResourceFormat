@@ -21,27 +21,42 @@ namespace ValveResourceFormat.Particles.Initializers
             localSpace = parse.Boolean("m_bLocalSpace", localSpace);
         }
 
-        public override ulong WrittenFields => FieldMask(fieldOutput);
+        public override ulong WrittenFields => fieldOutput.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
+            if (!ParticleBuffer.IsVector(fieldOutput))
+            {
+                return;
+            }
+
             var point = particleSystemState.GetControlPoint(controlPoint);
-            var input = particle.GetVector(fieldInput);
+            var inputs = run.ReadVectors(fieldInput);
+            var outputs = run.Vectors(fieldOutput);
 
             if (!localSpace)
             {
-                particle.SetVector(fieldOutput, input + point.Position);
-                return particle;
+                var position = point.Position;
+
+                for (var i = 0; i < outputs.Length; i++)
+                {
+                    outputs[i] = inputs[i] + position;
+                }
+
+                return;
             }
 
             var frame = point.GetTransform();
 
-            if (Matrix4x4.Invert(frame, out var toLocal))
+            if (!Matrix4x4.Invert(frame, out var toLocal))
             {
-                particle.SetVector(fieldOutput, Vector3.Transform(input, toLocal));
+                return;
             }
 
-            return particle;
+            for (var i = 0; i < outputs.Length; i++)
+            {
+                outputs[i] = Vector3.Transform(inputs[i], toLocal);
+            }
         }
     }
 }

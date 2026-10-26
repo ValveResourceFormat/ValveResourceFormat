@@ -11,25 +11,16 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
         /// Whether this operator runs only in the system's first frame, before the initial particles,
         /// and never in the steps after it.
         /// </summary>
-        public virtual bool RunOnce { get; }
+        public bool RunOnce { get; }
 
         protected ParticleFunctionPreEmissionOperator(ParticleDefinitionParser parse) : base(parse)
         {
             RunOnce = parse.Boolean("m_bRunOnce", false);
         }
 
-        // "remap average scalar value to cp" requires knowing particles as well as system status...s
-        public abstract void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength);
-
-        /// <summary>Builds the per-instance running state the operator starts with.</summary>
-        public virtual void Reset()
-        {
-        }
-
-        /// <summary>Builds the running state when the system is created or replayed; <see cref="Reset"/> unless overridden.</summary>
-        public virtual void Initialize(ParticleSystemState particleSystemState) => Reset();
-
-        /// <summary>Called when the system restarts; rebuilds the running state unless overridden.</summary>
-        public virtual void Restart(ParticleSystemState particleSystemState) => Reset();
+        /// <summary>
+        /// Runs the operator on the system state, before any particles are emitted or simulated this step.
+        /// </summary>
+        public abstract void Operate(ParticleSystemState particleSystemState, float frameTime, float strength);
     }
 }

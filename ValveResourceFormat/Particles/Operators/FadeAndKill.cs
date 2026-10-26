@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -46,54 +48,60 @@ namespace ValveResourceFormat.Particles.Operators
             startAlpha = parse.Float("m_flStartAlpha", startAlpha);
             endAlpha = parse.Float("m_flEndAlpha", endAlpha);
             forcePreserveParticleOrder = parse.Boolean("m_bForcePreserveParticleOrder", forcePreserveParticleOrder);
+
+            parse.AddInitialRead(ParticleField.Alpha);
         }
 
         public override bool IsOrderImportant => forcePreserveParticleOrder;
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Alpha.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var ages = current.ReadAges();
+
+            var lifetimes = current.ReadFloats(ParticleField.LifeDuration);
+            var alphas = current.Floats(ParticleField.Alpha);
+            var initialAlphas = particles.Initial.ReadFloats(ParticleField.Alpha);
+
+            for (var i = 0; i < alphas.Length; i++)
             {
                 // The particle ends when it outlives its lifetime, which is not the same instant as
                 // the end of the fade-out: a fade-out that finishes early leaves it alive and faded
-                if (HasExpired(particle.Age, particle.Lifetime))
+                if (lifetimes[i] < ages[i])
                 {
-                    Expire(ref particle, frameTime);
+                    particles.Kill(i);
                     continue;
                 }
 
-                var time = particle.NormalizedAge;
-                var initialAlpha = particle.GetInitialScalar(particles, ParticleField.Alpha);
-                var alpha = particle.Alpha;
+                var time = ParticleMath.NormalizedAge(ages[i], lifetimes[i]);
+                var alpha = FadedAlpha(time, initialAlphas[i], alphas[i]);
 
-                if (time >= startFadeInTime && time < endFadeInTime)
-                {
-                    var blend = MathUtils.Smoothstep(startFadeInTime, endFadeInTime, time);
-
-                    alpha = initialAlpha * MathUtils.Lerp(startAlpha, 1f, blend);
-                }
-
-                if (time >= startFadeOutTime && time < endFadeOutTime)
-                {
-                    var blend = MathUtils.Smoothstep(startFadeOutTime, endFadeOutTime, time);
-
-                    alpha = initialAlpha * MathUtils.Lerp(1f, endAlpha, blend);
-                }
-
-                particle.Alpha = BlendsWithStrength ? BlendByStrength(particle.Alpha, alpha, strength) : alpha;
+                alphas[i] = BlendByStrength(alphas[i], alpha, strength);
             }
         }
 
-        /// <summary>Whether a particle whose age has exactly reached its lifetime counts as spent.</summary>
-        protected virtual bool HasExpired(float age, float lifetime) => lifetime < age;
-
-        /// <summary>Whether the run strength blends the alpha this operator writes.</summary>
-        protected virtual bool BlendsWithStrength => true;
-
-        /// <summary>Ends a particle that has outlived its lifetime.</summary>
-        protected virtual void Expire(ref Particle particle, float frameTime)
+        /// <summary>
+        /// The alpha of a particle at <paramref name="time"/> through its life, inside the fade-out
+        /// window or else the fade-in window, and <paramref name="alpha"/> outside both.
+        /// </summary>
+        protected float FadedAlpha(float time, float initialAlpha, float alpha)
         {
-            particle.Kill();
+            if (time >= startFadeOutTime && time < endFadeOutTime)
+            {
+                var fadeOut = MathUtils.Smoothstep(startFadeOutTime, endFadeOutTime, time);
+                return initialAlpha * ((fadeOut * (endAlpha - 1f)) + 1f);
+            }
+
+            if (time >= startFadeInTime && time < endFadeInTime)
+            {
+                var fadeIn = MathUtils.Smoothstep(startFadeInTime, endFadeInTime, time);
+                return initialAlpha * ((fadeIn * (1f - startAlpha)) + startAlpha);
+            }
+
+            return alpha;
         }
     }
 }

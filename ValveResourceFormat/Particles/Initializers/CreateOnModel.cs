@@ -35,8 +35,6 @@ namespace ValveResourceFormat.Particles.Initializers
 
         private const int MeshCandidates = 16;
 
-        private bool haltonPending;
-        private int haltonIndex;
         private int meshRandomCounter;
         private Matrix4x4[] meshSkin = [];
         private Matrix4x4 meshRigid;
@@ -69,86 +67,127 @@ namespace ValveResourceFormat.Particles.Initializers
         }
 
         public override ulong WrittenFields
-            => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.CreationTime)
-                | FieldMask(ParticleField.HitboxIndex) | FieldMask(ParticleField.HitboxOffsetPosition)
-                | (useMesh ? FieldMask(ParticleField.Normal) | FieldMask(ParticleField.BoneIndices) | FieldMask(ParticleField.BoneWeights) : 0UL);
+            => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask() | ParticleField.CreationTime.Mask()
+                | ParticleField.HitboxIndex.Mask() | ParticleField.HitboxOffsetPosition.Mask()
+                | (useMesh ? ParticleField.Normal.Mask() | ParticleField.BoneIndices.Mask() | ParticleField.BoneWeights.Mask() : 0UL);
 
-        protected override void BeginCall(ref Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            haltonPending = true;
-        }
+            var directionBiasValue = directionBias.NextVector(particleSystemState);
+            var shell = shellSize.NextNumber(particleSystemState);
+            var transform = transformInput.NextTransform(particleSystemState);
+            var desired = (int)desiredHitbox.NextNumber(particleSystemState);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            var shell = shellSize.NextNumber(ref particle, particleSystemState);
-
-            if (useMesh && PlaceOnMesh(ref particle, particleSystemState, shell))
+            if (hitboxValueFromControlPoint >= 0)
             {
-                return particle;
+                desired = (int)particleSystemState.GetControlPoint(hitboxValueFromControlPoint).Position.X;
             }
 
-            var desired = hitboxValueFromControlPoint >= 0
-                ? (int)particleSystemState.GetControlPoint(hitboxValueFromControlPoint).Position.X
-                : (int)desiredHitbox.NextNumber(ref particle, particleSystemState);
-            var scale = hitBoxScale.NextVector(ref particle, particleSystemState);
-            var bias = directionBias.NextVector(ref particle, particleSystemState);
-            var transform = transformInput.NextTransformAtTime(ref particle, particleSystemState, particle.CreationTime);
+            var scale = hitBoxScale.NextVector(particleSystemState);
+
+            var bias = directionBiasValue;
 
             if (localCoords)
             {
                 bias = Vector3.TransformNormal(bias, transform);
             }
 
-            if (modelControlPoint < 0 || HitBoxCache.Refresh(particleSystemState, modelControlPoint, hitboxSetName, useBones, scaleToVolume && !useBones) is not { } cache)
+            var positions = run.Vectors(ParticleField.Position);
+            var previous = SpawnPreviousPositions(run, particleSystemState);
+            var hitboxIndices = UnwrittenIntegers(run, particleSystemState, ParticleField.HitboxIndex);
+            var hitboxOffsets = UnwrittenVectors(run, particleSystemState, ParticleField.HitboxOffsetPosition);
+            var normals = useMesh ? UnwrittenVectors(run, particleSystemState, ParticleField.Normal) : default;
+            var boneIndices = useMesh && IsUnwritten(particleSystemState, ParticleField.BoneIndices) ? run.BoneIndices : default;
+            var boneWeights = useMesh ? UnwrittenVectors(run, particleSystemState, ParticleField.BoneWeights) : default;
+
+            var haltonIndex = particleSystemState.SpawnIndex(run.Start);
+
+            for (var i = 0; i < run.Length; i++)
             {
-                return particle;
-            }
-
-            var sampling = new HitBoxSampling(forceInModel, desired, scale, bias, shell, evenDistribution, scaleToVolume && !useBones);
-            if (haltonPending)
-            {
-                haltonPending = false;
-                haltonIndex = particle.UniqueParticleId;
-            }
-
-            var (position, fraction, index) = cache.RandomPoint(particleSystemState, transform.Translation, sampling, ref haltonIndex);
-
-            particle.Position = position;
-
-            if (IsUnwritten(particleSystemState, ParticleField.HitboxIndex))
-            {
-                particle.HitboxIndex = index;
-            }
-
-            if (IsUnwritten(particleSystemState, ParticleField.HitboxOffsetPosition))
-            {
-                particle.HitboxOffsetPosition = fraction;
-            }
-
-            if (!IsUnwritten(particleSystemState, ParticleField.PositionPrevious))
-            {
-                return particle;
-            }
-
-            particle.PositionPrevious = position;
-
-            if (boneVelocity != 0f && cache.BoxVelocity(index) is { } velocity)
-            {
-                velocity *= boneVelocity;
-
-                if (maxBoneVelocity > 0f)
+                if (useMesh && TryPickOnMesh(particleSystemState, shell, out var meshPoint, out var meshNormal, out var meshBones))
                 {
-                    velocity = MathUtils.ClampLength(velocity, maxBoneVelocity);
+                    positions[i] = meshPoint;
+
+                    if (!previous.IsEmpty)
+                    {
+                        previous[i] = meshPoint;
+                    }
+
+                    if (!hitboxOffsets.IsEmpty)
+                    {
+                        hitboxOffsets[i] = meshPoint;
+                    }
+
+                    if (!normals.IsEmpty)
+                    {
+                        normals[i] = meshNormal;
+                    }
+
+                    if (!hitboxIndices.IsEmpty)
+                    {
+                        hitboxIndices[i] = 0;
+                    }
+
+                    if (!boneIndices.IsEmpty)
+                    {
+                        boneIndices[i] = meshBones;
+                    }
+
+                    if (!boneWeights.IsEmpty)
+                    {
+                        boneWeights[i] = Vector3.UnitX;
+                    }
+
+                    continue;
                 }
 
-                particle.PositionPrevious -= velocity * particles.PreviousFrameTime;
-            }
+                if (modelControlPoint < 0 || HitBoxCache.Refresh(particleSystemState, modelControlPoint, hitboxSetName, useBones, scaleToVolume && !useBones) is not { } cache)
+                {
+                    continue;
+                }
 
-            return particle;
+                var sampling = new HitBoxSampling(forceInModel, desired, scale, bias, shell, evenDistribution, scaleToVolume && !useBones);
+                var (position, fraction, index) = cache.RandomPoint(particleSystemState, transform.Translation, sampling, ref haltonIndex);
+
+                positions[i] = position;
+
+                if (!hitboxIndices.IsEmpty)
+                {
+                    hitboxIndices[i] = index;
+                }
+
+                if (!hitboxOffsets.IsEmpty)
+                {
+                    hitboxOffsets[i] = fraction;
+                }
+
+                if (previous.IsEmpty)
+                {
+                    continue;
+                }
+
+                previous[i] = position;
+
+                if (boneVelocity != 0f && cache.BoxVelocity(index) is { } velocity)
+                {
+                    velocity *= boneVelocity;
+
+                    if (maxBoneVelocity > 0f)
+                    {
+                        velocity = MathUtils.ClampLength(velocity, maxBoneVelocity);
+                    }
+
+                    previous[i] -= velocity * particleSystemState.PreviousStep;
+                }
+            }
         }
 
-        private bool PlaceOnMesh(ref Particle particle, ParticleSystemState particleSystemState, float shell)
+        private bool TryPickOnMesh(ParticleSystemState particleSystemState, float shell, out Vector3 point, out Vector3 normal, out ulong bones)
         {
+            point = Vector3.Zero;
+            normal = Vector3.Zero;
+            bones = 0;
+
             if (modelControlPoint < 0
                 || particleSystemState.GetControlPoint(modelControlPoint).ResolveModelObject() is not { } modelObject
                 || MeshTriangles.Get(modelObject.Model, particleSystemState.Data?.FileLoader) is not { TriangleCount: > 0 } mesh)
@@ -198,44 +237,15 @@ namespace ValveResourceFormat.Particles.Initializers
                 (u, v) = (1f - u, 1f - v);
             }
 
-            var normal = MathUtils.SafeNormalize(MathUtils.TriangleCross(v0, v1, v2));
-            var point = (v1 * u) + (v0 * (1f - u - v)) + (v2 * v) + ((shell - 1f) * normal);
-
-            particle.Position = point;
-
-            if (IsUnwritten(particleSystemState, ParticleField.PositionPrevious))
-            {
-                particle.PositionPrevious = point;
-            }
-
-            if (IsUnwritten(particleSystemState, ParticleField.HitboxOffsetPosition))
-            {
-                particle.HitboxOffsetPosition = point;
-            }
-
-            if (IsUnwritten(particleSystemState, ParticleField.Normal))
-            {
-                particle.Normal = normal;
-            }
-
-            if (IsUnwritten(particleSystemState, ParticleField.HitboxIndex))
-            {
-                particle.HitboxIndex = 0;
-            }
-
-            if (IsUnwritten(particleSystemState, ParticleField.BoneIndices))
-            {
-                particle.BoneIndices = mesh.Corner(triangle, 0).Bones;
-            }
-
-            if (IsUnwritten(particleSystemState, ParticleField.BoneWeights))
-            {
-                particle.BoneWeights = Vector3.UnitX;
-            }
+            normal = MathUtils.SafeNormalize(MathUtils.TriangleCross(v0, v1, v2));
+            point = (v1 * u) + (v0 * (1f - u - v)) + (v2 * v) + ((shell - 1f) * normal);
+            bones = mesh.Corner(triangle, 0).Bones;
 
             return true;
         }
 
+        // Mesh placement draws the candidates, area pick and barycentrics from a global random stream, so it differs
+        // on every play; a seeded counter keeps it repeatable here
         private float NextMeshRandom(ParticleSystemState particleSystemState)
             => ParticleRandom.ForSample(particleSystemState.Random.Seed + meshRandomCounter++);
 

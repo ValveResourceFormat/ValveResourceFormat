@@ -18,7 +18,18 @@ namespace ValveResourceFormat.Particles.Operators
     {
         private const float SphereVolume = 4f / 3f * MathF.PI;
         private const float MinimumIntensity = 0.001f;
-        private static readonly Vector3 Luminance = new(0.2126f, 0.7152f, 0.0722f);
+
+        /// <summary>Floor of the lit sphere volume the brightness is spread over.</summary>
+        private const float MinimumSpreadVolume = 0.1f;
+
+        /// <summary>Scale from the particles' tinted volume to light brightness.</summary>
+        private const float BrightnessUnit = 10000f;
+
+        /// <summary>Colour length below which the light is too dark to show, one 8-bit step.</summary>
+        private const float MinimumColorLength = 1f / 256f;
+
+        /// <summary>Largest share of the previous light kept per step, so the light always follows.</summary>
+        private const float MaximumDamping = 0.99f;
 
         private readonly Vector3 colorTint = Vector3.One;
         private readonly float brightnessScale = 1f;
@@ -48,28 +59,26 @@ namespace ValveResourceFormat.Particles.Operators
             }
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-        }
-
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            if (particles.Count == 0)
-            {
-                return;
-            }
-
             var weightedPosition = Vector3.Zero;
             var weightSum = 0f;
             var tintedVolume = Vector3.Zero;
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var radii = current.ReadFloats(ParticleField.Radius);
+            var colors = current.ReadVectors(ParticleField.Color);
+            var alphas = current.ReadFloats(ParticleField.Alpha);
+            var positions = current.ReadVectors(ParticleField.Position);
+
+            for (var i = 0; i < radii.Length; i++)
             {
-                var volume = particle.Radius * particle.Radius * particle.Radius;
-                var tint = particle.Color * particle.Alpha;
+                var radius = radii[i];
+                var volume = radius * radius * radius;
+                var tint = colors[i] * alphas[i];
                 var weight = tint.Length() * volume;
 
-                weightedPosition += particle.Position * weight;
+                weightedPosition += positions[i] * weight;
                 weightSum += weight;
                 tintedVolume += tint * volume;
             }
@@ -84,21 +93,21 @@ namespace ValveResourceFormat.Particles.Operators
 
             var extent = Vector3.Distance(bounds.Min, bounds.Center);
             var range = MathF.Max(minimumLightingRadius, MathF.Min(maximumLightingRadius, extent * radiusScale));
-            var spread = 2f / MathF.Max(0.1f, SphereVolume * range * range * range);
-            var color = colorTint * tintedVolume * SphereVolume * (brightnessScale * 10000f) * spread;
+            var spread = 2f / MathF.Max(MinimumSpreadVolume, SphereVolume * range * range * range);
+            var color = colorTint * tintedVolume * SphereVolume * (brightnessScale * BrightnessUnit) * spread;
 
-            if (range <= 1f || color.Length() <= 1f / 256f)
+            if (range <= 1f || color.Length() <= MinimumColorLength)
             {
                 PutOut(observer);
                 return;
             }
 
             var position = weightedPosition / (ParticleMath.FloatEpsilon + weightSum);
-            range = MathF.Min(range, MathF.Sqrt(Vector3.Dot(color, Luminance) / MinimumIntensity));
+            range = MathF.Min(range, MathF.Sqrt(Vector3.Dot(color, ParticleMath.LuminanceWeights) / MinimumIntensity));
 
             if (light.IsLit)
             {
-                var damping = Math.Clamp(MathF.Pow(positionDampingConstant, frameTime), 0f, 0.99f);
+                var damping = Math.Clamp(MathF.Pow(positionDampingConstant, frameTime), 0f, MaximumDamping);
 
                 position = MathUtils.Lerp(position, light.Position, damping);
                 color = MathUtils.Lerp(color, light.Color, damping);

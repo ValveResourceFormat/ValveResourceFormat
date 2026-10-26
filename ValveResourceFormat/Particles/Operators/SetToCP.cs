@@ -18,6 +18,9 @@ namespace ValveResourceFormat.Particles.Operators
             offsetLocal = parse.Boolean("m_bOffsetLocal", offsetLocal);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var cp = particleSystemState.GetControlPoint(controlPoint);
@@ -26,11 +29,9 @@ namespace ValveResourceFormat.Particles.Operators
                 ? cp.Position + Vector3.Transform(offset, cp.GetRotation())
                 : cp.Position + offset;
 
-            foreach (ref var particle in particles.Current)
-            {
-                particle.Position = position;
-                particle.PositionPrevious = position;
-            }
+            var current = particles.Current;
+            current.Vectors(ParticleField.Position).Fill(position);
+            current.Vectors(ParticleField.PositionPrevious).Fill(position);
         }
     }
 }

@@ -1,7 +1,7 @@
 namespace ValveResourceFormat.Particles.Utils
 {
     /// <summary>
-    /// The engine's particle noise primitives. The default is a value-noise lattice whose corners come
+    /// Particle noise primitives. The default is a value-noise lattice whose corners come
     /// from a packed-index integer hash, trilinearly interpolated with unsmoothed weights, returning
     /// [-1, 1]. The hash is a MurmurHash3 mixing round followed by a finalizer. The
     /// gradient and cellular primitives share the corner packing with a shorter hash chain; the curl
@@ -223,7 +223,7 @@ namespace ValveResourceFormat.Particles.Utils
         }
 
         /// <summary>
-        /// The feature point jitter the engine derives from the authored noise offset, in
+        /// The feature point jitter derived from the authored noise offset, in
         /// [0.75, 0.815]. The negative half of the remainder clamps to the 0.75 floor.
         /// </summary>
         public static float WorleyJitter(float noiseOffset)
@@ -294,7 +294,7 @@ namespace ValveResourceFormat.Particles.Utils
 
         /// <summary>
         /// Hashes one lattice corner with a seed folded in mid-chain, as the gradient and cellular
-        /// primitives do. Unlike <see cref="Hash"/> there is no second mixing round and the mask
+        /// primitives do. Unlike <see cref="Hash(int, int, int)"/> there is no second mixing round and the mask
         /// precedes the final multiply. The rotates come from sign-extending shifts, so a seed sign
         /// bit floods the rotated lanes.
         /// </summary>

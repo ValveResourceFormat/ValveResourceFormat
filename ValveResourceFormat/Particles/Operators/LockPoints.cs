@@ -25,16 +25,20 @@ namespace ValveResourceFormat.Particles.Operators
             blendValue = parse.Float("m_flBlendValue", blendValue);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Position.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var current = particles.Current;
+            var positions = current.Vectors(ParticleField.Position);
             var blend = MathUtils.Lerp(1f, blendValue, strength);
             var target = particleSystemState.GetControlPoint(controlPoint).Position;
             var last = Math.Min(maxCol, current.Length - 1);
 
             for (var i = Math.Max(minCol, 0); i <= last; i++)
             {
-                current[i].Position = MathUtils.Lerp(target, current[i].Position, blend);
+                positions[i] = MathUtils.Lerp(target, positions[i], blend);
             }
         }
     }

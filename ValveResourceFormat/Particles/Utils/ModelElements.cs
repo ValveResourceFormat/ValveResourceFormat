@@ -316,9 +316,9 @@ namespace ValveResourceFormat.Particles.Utils
             }
         }
 
-        /// <summary>The smallest and largest of <paramref name="indices"/>, or <see cref="int.MaxValue"/> and 0 when there are none.</summary>
+        /// <summary>The smallest of <paramref name="indices"/> and the largest of them, which is never below 0; both are 0 when there are none.</summary>
         public static (int Min, int Max) Range(int[] indices)
-            => indices.Length > 0 ? (indices.Min(), indices.Max()) : (int.MaxValue, 0);
+            => indices.Length > 0 ? (indices.Min(), Math.Max(indices.Max(), 0)) : (0, 0);
 
         /// <summary>
         /// The place of <paramref name="value"/> among <paramref name="indices"/>, whose range

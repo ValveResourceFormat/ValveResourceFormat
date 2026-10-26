@@ -1,3 +1,5 @@
+using System.Collections;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Particles.Utils;
 
 namespace ValveResourceFormat.Particles.PreEmissionOperators
@@ -56,7 +58,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             }
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             if (outputControlPoint < 0)
             {
@@ -64,6 +66,12 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             }
 
             var model = particleSystemState.GetControlPoint(inputControlPoint).ResolveModelObject()?.Model;
+
+            if (model == null && MeasureSnapshot(particleSystemState))
+            {
+                return;
+            }
+
             var fileLoader = particleSystemState.Data?.FileLoader;
             var bounds = model != null ? ModelElements.PhysicsBounds(model, fileLoader) : default;
             var size = bounds.Size;
@@ -108,6 +116,93 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                     SetComponent(particleSystemState, Vector3.Distance(bounds.Min, bounds.Center));
                     break;
             }
+        }
+
+        /// <summary>
+        /// Measures the snapshot on the input control point when the system lets a control point without
+        /// a model fall back to its snapshot. Only the volume and surface area are measured. A snapshot
+        /// that carries a box per particle is measured by its radii and positions instead, and the sphere
+        /// volume is never cube rooted.
+        /// </summary>
+        private bool MeasureSnapshot(ParticleSystemState particleSystemState)
+        {
+            if (boxType is not (BBoxVolumeType.BBOX_VOLUME or BBoxVolumeType.BBOX_SURFACE_AREA))
+            {
+                return false;
+            }
+
+            if (particleSystemState.Data is not { HitboxesFallBackToSnapshot: true })
+            {
+                return false;
+            }
+
+            var snapshot = particleSystemState.GetControlPointSnapshot(inputControlPoint);
+
+            if (snapshot == null)
+            {
+                return false;
+            }
+
+            var count = (int)snapshot.NumParticles;
+
+            if (boxType == BBoxVolumeType.BBOX_VOLUME)
+            {
+                SetComponent(particleSystemState, SnapshotSphereVolume(snapshot, count));
+                return true;
+            }
+
+            if (SnapshotColumn(snapshot, ParticleField.Position) is not Vector3[] positions)
+            {
+                particleSystemState.SetControlPointValue(outputControlPoint, Vector3.Zero);
+                return true;
+            }
+
+            var min = new Vector3(float.MaxValue);
+            var max = new Vector3(float.MinValue);
+
+            for (var i = 0; i < Math.Min(count, positions.Length); i++)
+            {
+                min = Vector3.Min(min, positions[i]);
+                max = Vector3.Max(max, positions[i]);
+            }
+
+            var size = count > 0 ? max - min : Vector3.Zero;
+            SetComponent(particleSystemState, MathF.Sqrt(((size.Z * size.X) + (size.X * size.Y) + (size.Z * size.Y)) * 2f));
+            return true;
+        }
+
+        private static float SnapshotSphereVolume(ParticleSnapshot snapshot, int count)
+        {
+            const float DefaultRadiusCubed = 512f;
+
+            var radiusCubedSum = count * DefaultRadiusCubed;
+
+            if (SnapshotColumn(snapshot, ParticleField.Radius) is float[] radii)
+            {
+                radiusCubedSum = 0f;
+
+                for (var i = 0; i < Math.Min(count, radii.Length); i++)
+                {
+                    radiusCubedSum += radii[i] * radii[i] * radii[i];
+                }
+            }
+
+            return 4f / 3f * MathF.PI * radiusCubedSum;
+        }
+
+        private static IEnumerable? SnapshotColumn(ParticleSnapshot snapshot, ParticleField field)
+        {
+            var attributeName = ParticleSnapshot.GetSnapshotAttributeName(field);
+
+            foreach (var ((name, _), data) in snapshot.AttributeData)
+            {
+                if (name == attributeName)
+                {
+                    return data;
+                }
+            }
+
+            return null;
         }
 
         private void SetComponent(ParticleSystemState particleSystemState, float value)

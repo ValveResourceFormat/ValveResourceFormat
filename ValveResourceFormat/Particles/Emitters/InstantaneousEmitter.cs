@@ -35,6 +35,9 @@ namespace ValveResourceFormat.Particles.Emitters
         private float emitTime = -1f;
         private float timeBase;
         private bool burstComputed;
+
+        /// <summary>Set once an event emitter with a literal burst size has seen its first parent event after the start.</summary>
+        private bool eventBurstSettled;
         private bool emitting = true;
 
         /// <summary>The next snapshot row the walk releases.</summary>
@@ -43,6 +46,7 @@ namespace ValveResourceFormat.Particles.Emitters
         /// <summary>The next snapshot row whose creation time an emitted particle takes.</summary>
         private int snapshotEmitIndex;
         private ParticleSnapshot? walkedSnapshot;
+        private int walkedSerial;
 
         public InstantaneousEmitter(ParticleDefinitionParser parse) : base(parse)
         {
@@ -71,10 +75,12 @@ namespace ValveResourceFormat.Particles.Emitters
             emitTime = -1f;
             timeBase = 0f;
             burstComputed = false;
+            eventBurstSettled = false;
             emitting = true;
             snapshotIndex = 0;
             snapshotEmitIndex = 0;
             walkedSnapshot = null;
+            walkedSerial = 0;
         }
 
         public override void Restart(ParticleSystemState particleSystemState)
@@ -85,11 +91,13 @@ namespace ValveResourceFormat.Particles.Emitters
             remainingToEmit = 0;
             emitTime = -1f;
             burstComputed = false;
+            eventBurstSettled = false;
+            emitting = true;
             snapshotIndex = 0;
             snapshotEmitIndex = 0;
         }
 
-        public override void StartEmission()
+        public override void StartEmission(ParticleSystemState particleSystemState)
         {
             emitting = true;
         }
@@ -100,7 +108,15 @@ namespace ValveResourceFormat.Particles.Emitters
         }
 
         public override bool MayCreateMoreParticles(ParticleSystemState particleSystemState)
-            => emitting && !IsEventEmitter && (!burstComputed || remainingToEmit > 0);
+        {
+            if (IsEventEmitter)
+            {
+                // An event emitter stays alive until its first parent event, or forever when the burst size is not a literal
+                return emitting && (!eventBurstSettled || remainingToEmit > 0);
+            }
+
+            return emitting && (!burstComputed || remainingToEmit > 0);
+        }
 
         private void UpdateParticlesToEmit(ParticleSystemState particleSystemState)
         {
@@ -112,6 +128,12 @@ namespace ValveResourceFormat.Particles.Emitters
                 var events = particleSystemState.ParentSystem != null ? particleSystemState.EmitterEventCount : 0;
                 remainingToEmit = (int)(events * (burst * initFromKilledParentParticles));
                 emitTime = time;
+
+                if (emitCount is LiteralNumberProvider && time > 0f)
+                {
+                    eventBurstSettled = true;
+                }
+
                 return;
             }
 
@@ -146,26 +168,57 @@ namespace ValveResourceFormat.Particles.Emitters
                 return;
             }
 
+            if (burstComputed)
+            {
+                return;
+            }
+
             var snapshot = snapshotBinding.Resolve(particleSystemState);
 
-            if (resetSnapshotIndexOnChanges && !ReferenceEquals(snapshot, walkedSnapshot))
+            var serial = snapshot?.Serial ?? 0;
+
+            if (resetSnapshotIndexOnChanges && (!ReferenceEquals(snapshot, walkedSnapshot) || serial != walkedSerial))
             {
                 snapshotIndex = 0;
                 snapshotEmitIndex = 0;
             }
 
             walkedSnapshot = snapshot;
+            walkedSerial = serial;
+
+            // A resettable snapshot walk can start over, so it never finishes
+            var canFinish = !resetSnapshotIndexOnChanges;
 
             if (snapshot == null)
             {
+                burstComputed = canFinish;
                 return;
             }
 
             var count = (int)snapshot.NumParticles;
             var creationTimes = SnapshotCreationTimes(particleSystemState);
+
+            if (creationTimes == null)
+            {
+                remainingToEmit += Math.Max(count - snapshotIndex, 0);
+                snapshotIndex = Math.Max(snapshotIndex, count);
+                burstComputed = canFinish;
+                return;
+            }
+
+            if (snapshotEmitIndex >= count)
+            {
+                remainingToEmit = 0;
+                burstComputed = canFinish;
+                return;
+            }
+
+            // Ready rows are counted from the emit cursor on every update and added to the remaining count, so a capped
+            // step counts rows twice and emits past the last row. Each row is counted once here, so rows skipped by
+            // strength or a full buffer are never emitted later
             var elapsed = time - timeBase;
 
-            while (snapshotIndex < count && (creationTimes == null || snapshotIndex >= creationTimes.Length || creationTimes[snapshotIndex] <= elapsed))
+            while (snapshotIndex < count && (snapshotIndex >= creationTimes.Length || creationTimes[snapshotIndex] <= elapsed))
             {
                 snapshotIndex++;
                 remainingToEmit++;

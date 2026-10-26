@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -24,19 +26,33 @@ namespace ValveResourceFormat.Particles.Operators
             fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var directions = input.Fill(current, particleSystemState);
+
+            // A non-scalar output is left alone rather than having the angle written over its first component
+            if (!ParticleBuffer.IsScalar(fieldOutput))
             {
-                var direction = input.NextVector(ref particle, particleSystemState);
+                return;
+            }
+
+            var values = current.Floats(fieldOutput);
+
+            for (var i = 0; i < values.Length; i++)
+            {
+                var direction = directions[i];
 
                 if (direction.X == 0f && direction.Y == 0f)
                 {
                     continue;
                 }
 
-                var target = MathF.Atan2(direction.Y, direction.X) + MathF.PI + rotationOffset;
-                particle.SetScalar(fieldOutput, MathUtils.Lerp(particle.GetScalar(fieldOutput), target, spinStrength));
+                var target = ParticleMath.Heading(direction) + rotationOffset;
+                values[i] = MathUtils.Lerp(values[i], target, spinStrength);
             }
         }
     }

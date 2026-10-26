@@ -35,6 +35,8 @@ namespace ValveResourceFormat.Particles.Operators
         private readonly IVectorProvider rotation = new LiteralVectorProvider(Vector3.Zero);
         private readonly INumberProvider rotationLerp = new LiteralNumberProvider(1f);
 
+        private readonly ulong storedFields;
+
         private Quaternion[] boxRotations = [];
 
         public LockToBone(ParticleDefinitionParser parse) : base(parse)
@@ -55,10 +57,31 @@ namespace ValveResourceFormat.Particles.Operators
             rigidRotationLock = parse.Boolean("m_bRigidRotationLock", rigidRotationLock);
             rotation = parse.VectorProvider("m_vecRotation", rotation);
             rotationLerp = parse.NumberProvider("m_flRotLerp", rotationLerp);
+
+            storedFields = fieldOutput.Mask();
+
+            if (fieldOutputPrev != ParticleField.NoneDisabled)
+            {
+                storedFields |= fieldOutputPrev.Mask();
+            }
+
+            if (rotationSetType == RotationLockType.PARTICLE_ROTATION_LOCK_ROTATIONS)
+            {
+                storedFields |= ParticleField.Yaw.Mask() | ParticleField.Pitch.Mask() | ParticleField.Roll.Mask();
+            }
+            else if (rotationSetType == RotationLockType.PARTICLE_ROTATION_LOCK_NORMAL)
+            {
+                storedFields |= ParticleField.Normal.Mask();
+            }
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => storedFields;
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
+            // The cache never holds boxes from a snapshot, whose hitbox index table would remap the hitbox
+            // indices and move nothing that step
             if (frameTime <= 0f || modelControlPoint < 0 || HitBoxCache.Refresh(particleSystemState, modelControlPoint, hitboxSetName, useBones) is not { IsStable: true } cache)
             {
                 return;
@@ -68,13 +91,13 @@ namespace ValveResourceFormat.Particles.Operators
             var previous = cache.Previous;
 
             var position = transformInput.NextTransform(particleSystemState).Translation;
-            var previousPosition = transformInput.NextTransformAtTime(ref Particle.Default, particleSystemState, particleSystemState.StepStartAge).Translation;
+            var previousPosition = transformInput.NextTransformAtTime(particleSystemState, particleSystemState.StepStartAge).Translation;
             var jumped = Vector3.DistanceSquared(position, previousPosition) > jumpThreshold;
 
-            var fadeEnd = lifeTimeFadeEnd > 0f ? lifeTimeFadeEnd : 1e20f;
+            var fadeEnd = lifeTimeFadeEnd > 0f ? lifeTimeFadeEnd : ParticleMath.NoFadeEnd;
             var inverseFade = lifeTimeFadeEnd > lifeTimeFadeStart ? 1f / (lifeTimeFadeEnd - lifeTimeFadeStart) : 0f;
             var prevScale = jumped ? 1f : prevPosScale;
-            var writePrevious = prevScale != 0f && fieldOutputPrev != ParticleField.NoneDisabled;
+            var writePrevious = prevScale != 0f && ParticleBuffer.IsVector(fieldOutputPrev);
             var lockRotation = rotationSetType != RotationLockType.PARTICLE_ROTATION_LOCK_NONE;
 
             if (lockRotation)
@@ -82,30 +105,58 @@ namespace ValveResourceFormat.Particles.Operators
                 BuildBoxRotations(current, previous);
             }
 
-            var time = particleSystemState.Age;
+            var particleSpan = particles.Current;
+            var ages = particleSpan.ReadAges();
+            var hitboxIndices = particleSpan.ReadIntegers(ParticleField.HitboxIndex);
+            var hitboxOffsets = particleSpan.ReadVectors(ParticleField.HitboxOffsetPosition);
 
-            foreach (ref var particle in particles.Current)
+            var writeOutput = ParticleBuffer.IsVector(fieldOutput);
+            var outputs = writeOutput ? particleSpan.Vectors(fieldOutput) : default;
+            var previousOutputs = writePrevious ? particleSpan.Vectors(fieldOutputPrev) : default;
+
+            var lockNormal = rotationSetType == RotationLockType.PARTICLE_ROTATION_LOCK_NORMAL;
+            var normals = lockRotation && lockNormal ? particleSpan.Vectors(ParticleField.Normal) : default;
+            var yaws = lockRotation && !lockNormal ? particleSpan.Floats(ParticleField.Yaw) : default;
+            var pitches = lockRotation && !lockNormal ? particleSpan.Floats(ParticleField.Pitch) : default;
+            var rolls = lockRotation && !lockNormal ? particleSpan.Floats(ParticleField.Roll) : default;
+
+            var rotationAngles = rotation.Prepare(particleSpan, particleSystemState);
+            var rotationLerps = rotationLerp.Fill(particleSpan, particleSystemState);
+            var nextRotationBlock = 0;
+
+            // The rotation lerp is read one block of four at a time by the blocks that lock a rotation, so
+            // the nth such block reads the values of the nth block
+            var lerpBlockStart = -4;
+
+            // Locking stops for every later particle of the step once a block of four has none to lock, because that block
+            // is skipped without advancing the streams; every particle is considered here
+            for (var i = 0; i < particleSpan.Length; i++)
             {
-                var age = time - particle.CreationTime;
-                var index = particle.HitboxIndex;
+                var age = ages[i];
+                var index = hitboxIndices[i];
 
+                // Skipped particles that share a block of four with a locked one still have their normal or rotation
+                // lerped toward the rotation of the last cached hitbox; they are left untouched here
                 if ((age >= fadeEnd && !jumped) || (uint)index >= (uint)current.Length)
                 {
                     continue;
                 }
 
                 var stepFraction = MathF.Min(age, frameTime) / frameTime;
-                var fraction = particle.HitboxOffsetPosition;
+                var fraction = hitboxOffsets[i];
                 var target = current[index].PointAt(fraction);
                 var weight = (1f - ((age - lifeTimeFadeStart) * inverseFade)) * strength;
 
                 if (rigid)
                 {
-                    particle.SetVector(fieldOutput, target);
+                    if (writeOutput)
+                    {
+                        outputs[i] = target;
+                    }
 
                     if (writePrevious)
                     {
-                        particle.SetVector(fieldOutputPrev, target);
+                        previousOutputs[i] = target;
                     }
                 }
                 else
@@ -117,17 +168,53 @@ namespace ValveResourceFormat.Particles.Operators
                         delta *= weight;
                     }
 
-                    particle.SetVector(fieldOutput, particle.GetVector(fieldOutput) + delta);
+                    if (writeOutput)
+                    {
+                        outputs[i] += delta;
+                    }
 
                     if (writePrevious)
                     {
-                        particle.SetVector(fieldOutputPrev, particle.GetVector(fieldOutputPrev) + (delta * prevScale));
+                        previousOutputs[i] += delta * prevScale;
                     }
                 }
 
-                if (lockRotation)
+                if (!lockRotation)
                 {
-                    LockRotation(ref particle, particleSystemState, boxRotations[index], weight * stepFraction);
+                    continue;
+                }
+
+                var boxRotation = boxRotations[index];
+                var rotationWeight = stepFraction;
+
+                if (!rigid)
+                {
+                    rotationWeight *= weight;
+                }
+
+                if (rigidRotationLock)
+                {
+                    // A per-block rotation draws only for the blocks of four that have a particle on a hitbox
+                    if (i >= nextRotationBlock)
+                    {
+                        var (offset, block) = particleSpan.BlockAt(i);
+                        rotation.FillPerBlock(block, block.Start & 3, particleSystemState, rotationAngles[offset..]);
+                        nextRotationBlock = offset + block.Length;
+                        lerpBlockStart += 4;
+                    }
+
+                    var angles = rotationAngles[i];
+                    boxRotation *= EntityTransformHelper.EulerAnglesToQuaternion(new Vector3(angles.Y, angles.Z, angles.X));
+                    rotationWeight = rotationLerps[lerpBlockStart + ((particleSpan.Start + i) & 3)];
+                }
+
+                if (lockNormal)
+                {
+                    LockNormal(normals, i, boxRotation, rotationWeight);
+                }
+                else
+                {
+                    LockRotationAngles(yaws, pitches, rolls, i, boxRotation, rotationWeight);
                 }
             }
         }
@@ -151,25 +238,20 @@ namespace ValveResourceFormat.Particles.Operators
             }
         }
 
-        private void LockRotation(ref Particle particle, ParticleSystemState particleSystemState, Quaternion boxRotation, float weight)
+        private void LockNormal(Span<Vector3> normals, int i, Quaternion boxRotation, float weight)
         {
-            if (rigidRotationLock)
-            {
-                var angles = rotation.NextVector(ref particle, particleSystemState);
-                boxRotation *= EntityTransformHelper.EulerAnglesToQuaternion(new Vector3(angles.Y, angles.Z, angles.X));
-                weight = rotationLerp.NextNumber(ref particle, particleSystemState);
-            }
+            var target = rigidRotationLock ? Vector3.Transform(Vector3.UnitX, boxRotation) : Vector3.Transform(normals[i], boxRotation);
+            normals[i] = MathUtils.Lerp(normals[i], target, weight);
+        }
 
-            if (rotationSetType == RotationLockType.PARTICLE_ROTATION_LOCK_NORMAL)
-            {
-                var target = rigidRotationLock ? Vector3.Transform(Vector3.UnitX, boxRotation) : Vector3.Transform(particle.Normal, boxRotation);
-                particle.Normal = MathUtils.Lerp(particle.Normal, target, weight);
-                return;
-            }
-
+        private static void LockRotationAngles(Span<float> yaws, Span<float> pitches, Span<float> rolls, int i, Quaternion boxRotation, float weight)
+        {
             var pitchYawRoll = Vector3.DegreesToRadians(EntityTransformHelper.ToEulerAngles(boxRotation));
             var targetRotation = new Vector3(pitchYawRoll.Y, pitchYawRoll.X, pitchYawRoll.Z);
-            particle.Rotation = MathUtils.Lerp(particle.Rotation, targetRotation, weight);
+            var newRotation = MathUtils.Lerp(new Vector3(yaws[i], pitches[i], rolls[i]), targetRotation, weight);
+            yaws[i] = newRotation.X;
+            pitches[i] = newRotation.Y;
+            rolls[i] = newRotation.Z;
         }
     }
 }

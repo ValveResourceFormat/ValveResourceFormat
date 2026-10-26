@@ -25,9 +25,11 @@ namespace ValveResourceFormat.Particles.Operators
                 return;
             }
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+
+            for (var i = 0; i < current.Length; i++)
             {
-                particle.MarkedAsKilled = true;
+                particles.Kill(i);
             }
         }
     }

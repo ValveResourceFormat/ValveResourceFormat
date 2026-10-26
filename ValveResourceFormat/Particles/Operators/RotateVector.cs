@@ -31,25 +31,38 @@ namespace ValveResourceFormat.Particles.Operators
             normalize = parse.Boolean("m_bNormalize", normalize);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var scales = perParticleScale.Fill(current, particleSystemState);
+
+            if (!ParticleBuffer.IsVector(outputField))
+            {
+                return;
+            }
+
+            var output = current.Vectors(outputField);
+            var particleIds = current.ReadIntegers(ParticleField.ParticleId);
+
+            for (var i = 0; i < output.Length; i++)
             {
                 // The rotation rate shares the axis draw rather than taking one of its own
-                var random = ParticleRandom.ForSample(particleSystemState.Random.Seed + particle.ParticleId);
+                var random = ParticleRandom.ForSample(particleSystemState.Random.Seed + particleIds[i]);
                 var axis = MathUtils.SafeNormalize(MathUtils.Lerp(rotAxisMin, rotAxisMax, random));
                 var rotationRate = float.DegreesToRadians(MathUtils.Lerp(rotRateMin, rotRateMax, random));
 
-                var scale = perParticleScale.NextNumber(ref particle, particleSystemState);
+                var currentVector = output[i];
+                var rotatedVector = Vector3.TransformNormal(currentVector, Matrix4x4.CreateFromAxisAngle(axis, rotationRate * scales[i] * frameTime));
 
-                var currentVector = particle.GetVector(outputField);
-                var rotatedVector = Vector3.TransformNormal(currentVector, Matrix4x4.CreateFromAxisAngle(axis, rotationRate * scale * frameTime));
+                if (normalize)
+                {
+                    rotatedVector = MathUtils.SafeNormalize(rotatedVector);
+                }
 
-                rotatedVector = normalize
-                    ? MathUtils.SafeNormalize(rotatedVector)
-                    : rotatedVector;
-
-                particle.SetVector(outputField, Vector3.Lerp(currentVector, rotatedVector, strength));
+                output[i] = Vector3.Lerp(currentVector, rotatedVector, strength);
             }
         }
     }

@@ -6,7 +6,7 @@ namespace ValveResourceFormat.Particles.Utils;
 
 static class NoiseTables
 {
-    // The engine's curl noise lattice: 256 random vectors and three distinct permutations
+    // Curl noise lattice:256 random vectors and three distinct permutations
     public static readonly float[] CurlVectors =
     [
     -0.460087001F,-0.887462974F,-0.0585939996F,-0.458151013F,0.861645997F,-0.43017599F,

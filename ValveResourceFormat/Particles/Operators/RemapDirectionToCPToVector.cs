@@ -27,14 +27,28 @@ namespace ValveResourceFormat.Particles.Operators
             rotation = Matrix4x4.CreateFromAxisAngle(parse.Vector3("m_vecOffsetAxis"), float.DegreesToRadians(parse.Float("m_flOffsetRot")));
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var center = particleSystemState.GetControlPoint(cp).Position;
-            var factor = normalize ? scale : scale / MathF.Max(1e-20f, particles.PreviousFrameTime);
+            var factor = normalize ? scale : particleSystemState.PerPreviousSecond(scale);
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsVector(fieldOutput))
             {
-                var direction = Vector3.Transform(particle.Position - center, rotation);
+                return;
+            }
+
+            var current = particles.Current;
+            var positions = current.ReadVectors(ParticleField.Position);
+            var output = current.Vectors(fieldOutput);
+            var usesStrength = fieldStrength != ParticleField.NoneDisabled;
+            var strengths = usesStrength ? current.ReadFloats(fieldStrength) : default;
+
+            for (var i = 0; i < output.Length; i++)
+            {
+                var direction = Vector3.Transform(positions[i] - center, rotation);
 
                 if (normalize)
                 {
@@ -43,12 +57,12 @@ namespace ValveResourceFormat.Particles.Operators
 
                 var value = direction * factor;
 
-                if (fieldStrength != ParticleField.NoneDisabled)
+                if (usesStrength)
                 {
-                    value = MathUtils.Lerp(particle.GetVector(fieldOutput), value, MathUtils.Saturate(particle.GetScalar(fieldStrength)));
+                    value = MathUtils.Lerp(output[i], value, MathUtils.Saturate(strengths[i]));
                 }
 
-                particle.SetVector(fieldOutput, value);
+                output[i] = value;
             }
         }
     }

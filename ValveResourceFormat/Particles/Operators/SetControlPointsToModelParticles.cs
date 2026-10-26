@@ -14,12 +14,14 @@ namespace ValveResourceFormat.Particles.Operators
 
         public SetControlPointsToModelParticles(ParticleDefinitionParser parse) : base(parse)
         {
-            var attachment = parse.Boolean("m_bAttachment") ? parse.String("m_AttachmentName") : string.Empty;
+            var followAttachment = parse.Boolean("m_bAttachment");
+            var attachment = followAttachment ? parse.String("m_AttachmentName") : string.Empty;
 
             binding = new ModelParticleControlPoints(
                 parse.ControlPoint("m_nFirstControlPoint"),
                 parse.Int32("m_nNumControlPoints", 1),
                 parse.Int32("m_nFirstSourcePoint"),
+                followAttachment,
                 attachment.Length > 0 ? attachment : null);
         }
 
@@ -35,14 +37,16 @@ namespace ValveResourceFormat.Particles.Operators
         {
             var count = binding.ActiveCount(particles.Count);
 
-            if (binding.Attachment != null)
+            if (binding.FollowAttachment)
             {
                 return;
             }
 
+            var current = particles.Current;
+
             for (var k = 0; k < count; k++)
             {
-                particleSystemState.SetControlPointValue(binding.FirstControlPoint + k, particles.Current[binding.FirstSourcePoint + k].Position);
+                particleSystemState.SetControlPointValue(binding.FirstControlPoint + k, current.ReadVector(ParticleField.Position, binding.FirstSourcePoint + k));
             }
         }
     }

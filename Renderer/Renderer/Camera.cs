@@ -264,6 +264,31 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
+        /// Replaces <see cref="ProjectionMatrix"/> with a reverse-Z orthographic projection centred on the
+        /// view axis, until the next <see cref="CreateProjectionMatrix"/>. Call <see cref="RecalculateMatrices"/>
+        /// after it.
+        /// </summary>
+        /// <param name="width">The width of the view volume.</param>
+        /// <param name="height">The height of the view volume.</param>
+        /// <param name="nearPlane">Distance along the view direction to the near plane, which may be behind the eye.</param>
+        /// <param name="farPlane">Distance along the view direction to the far plane.</param>
+        public void SetOrthographicProjection(float width, float height, float nearPlane, float farPlane)
+        {
+            var range = farPlane - nearPlane;
+
+            // A point d along the view direction sits at view z -d and lands at ndc z (far - d) / range,
+            // so the near plane maps to 1 and the far plane to 0
+            ProjectionMatrix = new Matrix4x4
+            {
+                M11 = 2f / width,
+                M22 = 2f / height,
+                M33 = 1f / range,
+                M43 = farPlane / range,
+                M44 = 1f,
+            };
+        }
+
+        /// <summary>
         /// Maps a pixel of this camera's view to the one the same world ray lands on in
         /// <paramref name="target"/>'s view, as an xy scale and a zw bias in pixels. This is what lets a
         /// pass drawn at a different field of view find its light cull tile from gl_FragCoord alone.

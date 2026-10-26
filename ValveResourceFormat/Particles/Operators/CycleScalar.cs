@@ -30,10 +30,12 @@ namespace ValveResourceFormat.Particles.Operators
             cycleTime = parse.Float("m_flCycleTime", cycleTime);
             doNotRepeatCycle = parse.Boolean("m_bDoNotRepeatCycle", doNotRepeatCycle);
             synchronizeParticles = parse.Boolean("m_bSynchronizeParticles", synchronizeParticles);
-            cpScale = Math.Clamp(parse.Int32("m_nCPScale", cpScale), -1, 64);
+            cpScale = Math.Clamp(parse.Int32("m_nCPScale", cpScale), -1, ParticleSystemState.ControlPointCount);
             cpFieldMin = Math.Clamp(parse.Int32("m_nCPFieldMin", cpFieldMin), -1, 2);
             cpFieldMax = Math.Clamp(parse.Int32("m_nCPFieldMax", cpFieldMax), -1, 2);
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
+
+            AddInitialReadOf(parse, setMethod, destField);
         }
 
         public override void AddControlPointDefaults(ControlPointDefaults defaults)
@@ -41,6 +43,9 @@ namespace ValveResourceFormat.Particles.Operators
             defaults.AddScale(cpScale, cpFieldMin);
             defaults.AddScale(cpScale, cpFieldMax);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => destField.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -71,16 +76,27 @@ namespace ValveResourceFormat.Particles.Operators
                 rate *= 0.5f;
             }
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(destField))
             {
-                var time = synchronizeParticles ? particleSystemState.Age : particle.Age;
+                return;
+            }
+
+            var current = particles.Current;
+            var ages = current.ReadAges();
+
+            var outputs = current.Floats(destField);
+            var initials = particles.Initial.ReadFloats(destField);
+
+            for (var i = 0; i < outputs.Length; i++)
+            {
+                var time = synchronizeParticles ? particleSystemState.Age : ages[i];
                 var phase = MathF.Min(time, clamp) * rate;
                 phase -= MathF.Truncate(phase);
 
                 var triangle = 2f * MathF.Min(phase, 1f - phase);
                 var value = MathUtils.Lerp(start, end, triangle);
 
-                particle.SetScalar(destField, particle.ModifyScalarBySetMethod(particles, destField, value, setMethod));
+                outputs[i] = ParticleFieldExtensions.ApplySetMethod(value, initials[i], outputs[i], particleSystemState.CurrentStep, setMethod);
             }
         }
     }

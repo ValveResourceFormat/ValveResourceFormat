@@ -14,7 +14,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             simulationScale = parse.NumberProvider("m_flSimulationScale", simulationScale);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             particleSystemState.TimeScale = simulationScale.NextNumber(particleSystemState);
         }

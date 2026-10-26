@@ -23,31 +23,56 @@ namespace ValveResourceFormat.Particles.Operators
             startTime = parse.Float("m_flStartTime", startTime);
             endTime = parse.Float("m_flEndTime", endTime);
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
+
+            AddInitialReadOf(parse, setMethod, fieldOutput);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsVector(fieldOutput))
             {
-                var time = particle.Age / (particle.Lifetime + ParticleMath.FloatEpsilon);
+                return;
+            }
+
+            var current = particles.Current;
+            var values = current.Vectors(fieldOutput);
+            var lifetimes = current.ReadFloats(ParticleField.LifeDuration);
+            var readsInitial = setMethod.ReadsInitialValue();
+            var initialValues = readsInitial ? particles.Initial.ReadVectors(fieldOutput) : default;
+
+            var ages = current.ReadAges();
+
+            for (var i = 0; i < values.Length; i++)
+            {
+                var time = ages[i] / (lifetimes[i] + ParticleMath.FloatEpsilon);
 
                 if (time < startTime || time > endTime)
                 {
                     continue;
                 }
 
-                var weight = startTime == endTime
-                    ? (time - endTime < 0f ? 0f : 1f)
-                    : MathUtils.Saturate((time - startTime) / (endTime - startTime));
+                float weight;
+
+                if (startTime == endTime)
+                {
+                    weight = time - endTime < 0f ? 0f : 1f;
+                }
+                else
+                {
+                    weight = MathUtils.Saturate((time - startTime) / (endTime - startTime));
+                }
 
                 // The set method affects the value the vector is interpolating to, instead of the current interpolated value.
-                var lerpTarget = particle.ModifyVectorBySetMethod(particles, fieldOutput, output, setMethod);
+                var initialValue = readsInitial ? initialValues[i] : Vector3.Zero;
+                var lerpTarget = ParticleFieldExtensions.ApplySetMethod(output, initialValue, values[i], particleSystemState.CurrentStep, setMethod);
 
                 // The lerp runs from the spawn initial only for the two initial-value set methods
-                var lerpBase = setMethod is ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_ADD_TO_INITIAL_VALUE
-                    ? particle.GetInitialVector(particles, fieldOutput)
-                    : particle.GetVector(fieldOutput);
+                var lerpBase = readsInitial ? initialValue : values[i];
 
-                particle.SetVector(fieldOutput, MathUtils.Lerp(lerpBase, lerpTarget, weight * strength));
+                values[i] = MathUtils.Lerp(lerpBase, lerpTarget, weight * strength);
             }
         }
     }

@@ -23,6 +23,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private static readonly string[] UvScaleOffsetNames = ["uLayerUvScaleOffset[0]", "uLayerUvScaleOffset[1]", "uLayerUvScaleOffset[2]", "uLayerUvScaleOffset[3]", "uLayerUvScaleOffset[4]"];
         private static readonly string[] UvRotationNames = ["uLayerUvRotation[0]", "uLayerUvRotation[1]", "uLayerUvRotation[2]", "uLayerUvRotation[3]", "uLayerUvRotation[4]"];
         private static readonly string[] UvClampNames = ["uLayerUvClamp[0]", "uLayerUvClamp[1]", "uLayerUvClamp[2]", "uLayerUvClamp[3]", "uLayerUvClamp[4]"];
+        private static readonly string[] UvSheetNames = ["uLayerUvSheet[0]", "uLayerUvSheet[1]", "uLayerUvSheet[2]", "uLayerUvSheet[3]", "uLayerUvSheet[4]"];
 
         private static readonly INumberProvider One = new LiteralNumberProvider(1f);
         private static readonly INumberProvider Zero = new LiteralNumberProvider(0f);
@@ -53,7 +54,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         /// <summary>
         /// m_flFinalTextureUVRotation: how far this layer's texture turns about the card centre, in
-        /// radians on a texture with a sheet and in degrees on one without.
+        /// degrees. A texture with a sheet does not turn; the value scales how fast it plays instead.
         /// </summary>
         public INumberProvider Rotation { get; init; } = Zero;
 
@@ -61,7 +62,15 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         public bool ClampUVs { get; init; }
 
         /// <summary>One layer's resolved coordinate transform, in card space.</summary>
-        public readonly record struct UvTransform(Vector2 Scale, Vector2 Offset, float Rotation, bool Clamp)
+        /// <param name="Scale">How many times the texture tiles across the card.</param>
+        /// <param name="Offset">Where the texture starts within the card.</param>
+        /// <param name="Rotation">How far the texture turns about the card centre, in radians.</param>
+        /// <param name="Clamp">Whether the coordinate stops at the edges of the texture.</param>
+        /// <param name="Sheet">
+        /// Whether the layer shows a sheet frame. Its coordinate is then scaled about the card corner and
+        /// offset without wrapping, and neither turns nor clamps.
+        /// </param>
+        public readonly record struct UvTransform(Vector2 Scale, Vector2 Offset, float Rotation, bool Clamp, bool Sheet)
         {
             /// <summary>The sine and cosine of <see cref="Rotation"/>.</summary>
             public (float Sin, float Cos) RotationSinCos { get; } = MathF.SinCos(Rotation);
@@ -124,28 +133,67 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 shader.SetUniform4(UvScaleOffsetNames[layer], new Vector4(transform.Scale, transform.Offset.X, transform.Offset.Y));
                 shader.SetUniform1(UvRotationNames[layer], transform.Rotation);
                 shader.SetUniform1(UvClampNames[layer], transform.Clamp);
+                shader.SetUniform1(UvSheetNames[layer], transform.Sheet);
             }
         }
+
+        /// <summary>Whether this layer's texture carries a sheet with any sequences.</summary>
+        private bool HasSheet => Texture.SpriteSheetData is { Sequences.Length: > 0 };
 
         /// <summary>Resolves this layer's transform for the frame.</summary>
         public UvTransform ResolveUvTransform(ParticleSystemState systemState)
         {
-            var rotation = Rotation.NextNumber(systemState);
+            var hasSheet = HasSheet;
+            var rotation = hasSheet ? 0f : float.DegreesToRadians(Rotation.NextNumber(systemState));
 
             return new(
                 new Vector2(ScaleU.NextNumber(systemState), ScaleV.NextNumber(systemState)),
                 new Vector2(OffsetU.NextNumber(systemState), OffsetV.NextNumber(systemState)),
-                Texture.SpriteSheetData != null ? rotation : float.DegreesToRadians(rotation),
-                ClampUVs);
+                rotation,
+                ClampUVs && !hasSheet,
+                hasSheet);
+        }
+
+        /// <summary>Resolves every layer's <see cref="SheetRateScale"/> for the frame, in layer order.</summary>
+        public static void ResolveSheetRateScales(ParticleTextureLayer[] layers, ParticleSystemState systemState, Span<float> rateScales)
+        {
+            for (var layer = 0; layer < layers.Length; layer++)
+            {
+                rateScales[layer] = layers[layer].SheetRateScale(systemState);
+            }
         }
 
         /// <summary>
-        /// Places one card corner in the layer's texture. The card coordinate turns about the card centre,
-        /// is divided by the scale, and lands at the wrapped offset; the result then maps into whichever
-        /// sheet frame rect the layer is showing.
+        /// How fast this layer plays its sheet, as a multiple of the renderer's animation rate: its UV
+        /// rotation, or 1 when that is 0 or the layer has no sheet.
+        /// </summary>
+        public float SheetRateScale(ParticleSystemState systemState)
+        {
+            if (!HasSheet)
+            {
+                return 1f;
+            }
+
+            var rate = Rotation.NextNumber(systemState);
+
+            return rate == 0f ? 1f : rate;
+        }
+
+        /// <summary>
+        /// Places one card corner in the layer's texture, then maps the result into whichever sheet frame
+        /// rect the layer is showing. On a layer with a sheet the card coordinate is divided by the scale
+        /// and offset; otherwise it turns about the card centre, is divided by the scale, and lands at
+        /// the wrapped offset.
         /// </summary>
         public static Vector2 PlaceCorner(Vector2 cardUv, in UvTransform transform, Vector2 rectMin, Vector2 rectMax)
         {
+            if (transform.Sheet)
+            {
+                var sheetPlaced = (cardUv / transform.Scale) + transform.Offset;
+
+                return rectMin + (sheetPlaced * (rectMax - rectMin));
+            }
+
             var centred = cardUv - new Vector2(0.5f);
             var (sin, cos) = transform.RotationSinCos;
 

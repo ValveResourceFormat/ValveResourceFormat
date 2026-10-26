@@ -50,7 +50,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             hasRunBefore = false;
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             if (setOnce)
             {

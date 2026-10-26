@@ -61,7 +61,7 @@ namespace ValveResourceFormat.Particles.Emitters
             rateBudget = 0f;
         }
 
-        public override void StartEmission()
+        public override void StartEmission(ParticleSystemState particleSystemState)
         {
             emitting = true;
             finalEmitPending = false;

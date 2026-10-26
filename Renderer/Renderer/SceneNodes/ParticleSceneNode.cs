@@ -98,9 +98,19 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             {
                 OwnerNode = this,
             };
-            LocalBoundingBox = particleRenderer.LocalBoundingBox;
-
             RenderPasses = particleRenderer.Passes;
+
+            // Screen-space systems are drawn wherever the camera looks, so the node is never culled
+            if (particleRenderer.DrawsInScreenSpace)
+            {
+                Flags |= ObjectTypeFlags.DisableVisCulling;
+                LocalBoundingBox = new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue));
+            }
+            else
+            {
+                LocalBoundingBox = particleRenderer.LocalBoundingBox;
+            }
+
             WantsSceneDepth = particleRenderer.WantsSceneDepth;
             WantsSceneColor = particleRenderer.WantsSceneColor;
 
@@ -659,6 +669,17 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
 
             var controlPoint = particleRenderer.MainControlPoint;
+
+            // A screen-space effect is laid out around the origin of the screen-space view, wherever it
+            // was placed, so control point 0 stays at the world origin
+            if (particleRenderer.Simulation.IsScreenSpaceEffect)
+            {
+                controlPoint.Position = Vector3.Zero;
+                controlPoint.Rotation = Quaternion.Identity;
+                seededTransform = Transform;
+                return;
+            }
+
             controlPoint.Position = Vector3.Transform(previewOrigin, Transform);
 
             if (!Preview)
@@ -725,12 +746,15 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 particleRenderer.Update(frameTime, context.Uptime);
                 stepped = true;
 
-                if (!Preview)
+                if (!Preview && !particleRenderer.Simulation.IsScreenSpaceEffect)
                 {
                     ReflectControlPointTransform();
                 }
 
-                UpdateBounds();
+                if (!particleRenderer.DrawsInScreenSpace)
+                {
+                    UpdateBounds();
+                }
             }
 
             // The endcap starts where emission ends, so the particles it decays and freezes are still alive.

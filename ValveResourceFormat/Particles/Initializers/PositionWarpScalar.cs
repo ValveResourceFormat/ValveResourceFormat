@@ -33,10 +33,16 @@ namespace ValveResourceFormat.Particles.Initializers
             defaults.AddScale(scaleControlPointNumber);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.Radius);
+        public override ulong WrittenFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask() | ParticleField.Radius.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
+            var inputValues = inputValue.Fill(run, particleSystemState);
+
+            var positions = run.Vectors(ParticleField.Position);
+            var previousPositions = run.Vectors(ParticleField.PositionPrevious);
+            var creationTimes = run.ReadFloats(ParticleField.CreationTime);
+
             var rampStart = warpMin;
             var rampEnd = warpMax;
 
@@ -47,19 +53,15 @@ namespace ValveResourceFormat.Particles.Initializers
                 rampEnd *= scale;
             }
 
-            var warp = MathUtils.Lerp(rampStart, rampEnd, inputValue.NextNumber(ref particle, particleSystemState));
+            var controlPoint = particleSystemState.GetControlPoint(controlPointNumber);
 
-            var frame = particleSystemState.GetControlPoint(controlPointNumber).GetBasisAtTime(particle.CreationTime);
-            var origin = frame.Translation;
-            var toLocal = Matrix4x4.Transpose(frame with { Translation = Vector3.Zero });
+            for (var i = 0; i < run.Length; i++)
+            {
+                var warp = Vector3.Lerp(rampStart, rampEnd, inputValues[i]);
 
-            var local = Vector3.TransformNormal(particle.Position - origin, toLocal);
-            particle.Position = Vector3.Transform(local * warp, frame);
-
-            var localPrevious = Vector3.TransformNormal(particle.PositionPrevious - origin, toLocal);
-            particle.PositionPrevious = Vector3.Transform(prevPosScale * warp * localPrevious, frame);
-
-            return particle;
+                var frame = controlPoint.GetBasisAtTime(creationTimes[i]);
+                PositionWarp.Warp(frame, warp, prevPosScale, ref positions[i], ref previousPositions[i]);
+            }
         }
     }
 }

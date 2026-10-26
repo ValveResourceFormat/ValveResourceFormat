@@ -16,23 +16,34 @@ namespace ValveResourceFormat.Particles.Initializers
             outputField = parse.ParticleField("m_nOutputField", outputField);
         }
 
-        public override ulong WrittenFields => FieldMask(outputField);
+        public override ulong WrittenFields => outputField.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var step = inputValue.NextNumber(ref particle, particleSystemState);
+            var steps = inputValue.Fill(run, particleSystemState);
 
-            if (outputField.IsOrientationField())
+            if (!ParticleBuffer.IsScalar(outputField))
             {
-                step = float.DegreesToRadians(step);
+                return;
             }
 
-            if (step != 0f)
-            {
-                particle.SetScalar(outputField, MathF.Floor((particle.GetScalar(outputField) / step) + 0.5f) * step);
-            }
+            var values = run.Floats(outputField);
+            var toRadians = outputField.IsOrientationField();
 
-            return particle;
+            for (var i = 0; i < values.Length; i++)
+            {
+                var step = steps[i];
+
+                if (toRadians)
+                {
+                    step = float.DegreesToRadians(step);
+                }
+
+                if (step != 0f)
+                {
+                    values[i] = MathF.Floor((values[i] / step) + 0.5f) * step;
+                }
+            }
         }
     }
 }

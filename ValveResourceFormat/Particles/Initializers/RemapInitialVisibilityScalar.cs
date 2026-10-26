@@ -31,13 +31,17 @@ namespace ValveResourceFormat.Particles.Initializers
             }
         }
 
-        public override ulong WrittenFields => FieldMask(fieldOutput);
+        public override ulong WrittenFields => fieldOutput.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            particle.SetScalar(fieldOutput, MathUtils.RemapValClamped(Visibility, inputMin, inputMax, outputMin, outputMax));
+            if (!ParticleBuffer.IsScalar(fieldOutput))
+            {
+                return;
+            }
 
-            return particle;
+            var value = MathUtils.RemapValClamped(Visibility, inputMin, inputMax, outputMin, outputMax);
+            run.Floats(fieldOutput).Fill(value);
         }
     }
 }

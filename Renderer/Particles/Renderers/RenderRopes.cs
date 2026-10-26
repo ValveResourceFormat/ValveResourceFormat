@@ -20,15 +20,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     /// particles are first grouped by that value, in the order each value first appears.</para>
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderRopes">C_OP_RenderRopes</seealso>
-    internal class RenderRopes : ParticleFunctionRenderer
+    internal class RenderRopes : ParticleSpritecardRenderer
     {
-        private const string ShaderName = "particle_spritecard";
-
         private const string DefaultTextureName = "materials/particle/base_trail.vtex";
 
         /// <summary>The shared quad index buffer covers 65532 indices, six per quad.</summary>
         private const int MaxQuads = 65532 / 6;
-        private const int MaxTessellationLevel = 7;
+        private const int MaxSubdivisions = 128;
 
         /// <summary>
         /// How many segments are written in one batch. The V offset carried over when the first particle
@@ -36,20 +34,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// </summary>
         private const int SegmentBatchSize = 527;
 
-        private readonly Shader shader;
-        private readonly RendererContext rendererContext;
-        private readonly int vaoHandle;
-        private readonly int vertexBufferHandle;
-
-        private readonly ParticleBlendMode blendMode = ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ALPHA;
-        private readonly ParticleTextureLayer[] layers;
         private readonly ParticleOrientation orientationType = ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED;
         private readonly ParticleField orientationField = ParticleField.Normal;
-
-        private readonly float animationRate = 0.1f;
-        private readonly ParticleAnimationType animationType = ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE;
-        private readonly bool animateInFps;
-        private readonly bool blendFrames = true;
 
         private readonly int minTessellation = 1;
         private readonly int maxTessellation = 128;
@@ -82,15 +68,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly float maxSize = 2000f;
         private readonly INumberProvider startFadeSize = new LiteralNumberProvider(1000f);
         private readonly INumberProvider endFadeSize = new LiteralNumberProvider(2000f);
-        private readonly float startFadeDot = 1f;
-        private readonly float endFadeDot = 2f;
-
-        private RopeNode[] nodeScratch = [];
-        private long[] sortKeyScratch = [];
-        private readonly Dictionary<int, int> segmentRanks = [];
 
         private readonly Dictionary<int, int> segmentRepeats = [];
+        private readonly Dictionary<int, int> segmentStarts = [];
         private bool segmentDataDirty;
+
+        /// <summary>
+        /// The particle indices grouped by segment, as <see cref="UpdateSegmentData"/> last built them.
+        /// Only the first <see cref="segmentOrderCount"/> entries are valid.
+        /// </summary>
+        private int[] segmentOrder = [];
+        private int segmentOrderCount;
 
         private float vOffsetAccumulator;
         private float firstSegmentLength;
@@ -99,7 +87,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private struct RopeNode
         {
             public int ParticleIndex;
-            public float Segment;
+
+            /// <summary>The bits of the split field, which segments are told apart by.</summary>
+            public int SegmentBits;
+
             public Vector3 Position;
             public float Radius;
             public Vector3 Color;
@@ -109,7 +100,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             public Vector2 AlphaReference;
         }
 
-        private struct RopeSample
+        private struct RibbonSample
         {
             public Vector3 Position { get; init; }
             public Vector3 WidthAxis { get; set; }
@@ -119,28 +110,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             public Vector2 AlphaReference { get; init; }
         }
 
-        public RenderRopes(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene) : base(parse, scene)
+        public RenderRopes(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene)
+            : base(parse, rendererContext, scene, DefaultTextureName, instancing: 0)
         {
-            this.rendererContext = rendererContext;
-
-            blendMode = parse.Enum("m_nOutputBlendMode", blendMode);
-
-            (layers, var textureName) = ParticleTextureLayer.Build(parse, rendererContext, DefaultTextureName, srgbRead: TexturesAreColor);
-
-            var shaderArguments = CreateShaderArguments();
-            shaderArguments["S_TEXTURE_LAYERS"] = (byte)(layers.Length - 1);
-            AddSpritecardShaderArguments(shaderArguments);
-
-            shader = rendererContext.ShaderLoader.LoadShader(ShaderName, shaderArguments);
-            (vaoHandle, vertexBufferHandle) = SetupQuadBuffer($"{nameof(RenderRopes)}: {System.IO.Path.GetFileName(textureName)}");
+            CreateVertexArray(SpritecardVertex.InputLayout, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
 
             orientationType = parse.Enum("m_nOrientationType", orientationType);
             orientationField = parse.ParticleField("m_nVectorFieldForOrientation", orientationField);
-
-            animationRate = parse.Float("m_flAnimationRate", animationRate);
-            animationType = parse.Enum("m_nAnimationType", animationType);
-            animateInFps = parse.Boolean("m_bAnimateInFPS", animateInFps);
-            blendFrames = parse.Boolean("m_bBlendFramesSeq0", blendFrames);
 
             minTessellation = parse.Int32("m_nMinTesselation", minTessellation);
             maxTessellation = parse.Int32("m_nMaxTesselation", maxTessellation);
@@ -173,8 +149,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             maxSize = parse.Float("m_flMaxSize", maxSize);
             startFadeSize = parse.NumberProvider("m_flStartFadeSize", startFadeSize);
             endFadeSize = parse.NumberProvider("m_flEndFadeSize", endFadeSize);
-            startFadeDot = parse.Float("m_flStartFadeDot", startFadeDot);
-            endFadeDot = parse.Float("m_flEndFadeDot", endFadeDot);
 
             orientationType = (ParticleOrientation)Math.Clamp((int)orientationType,
                 (int)ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED, (int)ParticleOrientation.PARTICLE_ORIENTATION_FULL_3AXIS_ROTATION);
@@ -182,10 +156,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             Pass = drawAsOpaque ? RenderPass.Opaque : RenderPass.Translucent;
         }
 
-        /// <inheritdoc/>
-        public override Texture.SpritesheetData? SpriteSheet => ParticleTextureLayer.FindSpriteSheet(layers);
-
         private bool Splits => splitField is >= 0 and not ParticleField.NoneDisabled;
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => Splits ? ParticleField.RopeSegmentData.Mask() : 0;
 
         /// <inheritdoc/>
         public override ParticleEventType ObservedEvents => Splits
@@ -215,46 +189,63 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>
-        /// Writes each particle's place in its rope segment to <see cref="Particle.RopeSegmentData"/>:
+        /// Writes each particle's place in its rope segment to <see cref="ParticleField.RopeSegmentData"/>:
         /// how many particles of the segment come before it in x, that as a fraction of the segment's
         /// last place in y, and the last place in z. Segments are told apart by the bits of their value.
+        /// Also groups the particles by segment into <see cref="segmentOrder"/>, keeping the walk order
+        /// within each segment and ordering the segments by where each first appears in the walk.
         /// </summary>
-        private void UpdateSegmentData(Span<Particle> particles)
+        private void UpdateSegmentData(ParticleSpan particles)
         {
             segmentRepeats.Clear();
+            segmentStarts.Clear();
 
-            foreach (ref var particle in particles)
+            var count = particles.Length;
+            var segments = particles.ReadFloats(splitField);
+            var segmentData = particles.Vectors(ParticleField.RopeSegmentData);
+
+            for (var i = 0; i < count; i++)
             {
-                var segmentBits = BitConverter.SingleToInt32Bits(particle.GetScalar(splitField));
+                var segmentBits = BitConverter.SingleToInt32Bits(segments[i]);
                 var place = segmentRepeats.TryGetValue(segmentBits, out var repeats) ? repeats + 1 : 0;
 
                 segmentRepeats[segmentBits] = place;
-                particle.RopeSegmentData = new Vector3(place, 0f, 0f);
+                segmentData[i] = new Vector3(place, 0f, 0f);
             }
 
-            foreach (ref var particle in particles)
+            var nextStart = 0;
+
+            for (var n = 0; n < count; n++)
             {
-                var last = segmentRepeats[BitConverter.SingleToInt32Bits(particle.GetScalar(splitField))];
-                var place = particle.RopeSegmentData.X;
+                var segmentBits = BitConverter.SingleToInt32Bits(segments[WalkIndex(n, count)]);
 
-                particle.RopeSegmentData = new Vector3(place, last > 0 ? place / last : 0f, last);
+                if (segmentStarts.TryAdd(segmentBits, nextStart))
+                {
+                    nextStart += segmentRepeats[segmentBits] + 1;
+                }
             }
+
+            if (segmentOrder.Length < count)
+            {
+                segmentOrder = new int[count];
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                var segmentBits = BitConverter.SingleToInt32Bits(segments[i]);
+                var last = segmentRepeats[segmentBits];
+                var place = (int)segmentData[i].X;
+                var rank = reverseOrder ? last - place : place;
+
+                segmentOrder[segmentStarts[segmentBits] + rank] = i;
+                segmentData[i] = new Vector3(place, last > 0 ? place / (float)last : 0f, last);
+            }
+
+            segmentOrderCount = count;
         }
 
-        /// <inheritdoc/>
-        public override void SetTextureOverride(RenderTexture texture)
-        {
-            // The override stands in for the base texture; layers composited over it keep their own.
-            layers[0].Texture = texture;
-        }
-
-        private (int Vao, int Buffer) SetupQuadBuffer(string label)
-        {
-            var buffer = GraphicsDevice.CreateBuffer(label);
-            var vao = SpritecardVertex.InputLayout.CreateVertexArray(label, buffer, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
-
-            return (vao, buffer);
-        }
+        /// <summary>The particle the rope visits <paramref name="n"/>-th, from the last one when reversed.</summary>
+        private int WalkIndex(int n, int count) => reverseOrder ? count - 1 - n : n;
 
         /// <summary>
         /// Resolves a spline control point index against the chain. A closed loop wraps so the seam
@@ -276,9 +267,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>
-        /// Picks one subdivision level for the whole collection from its projected size. The ceiling
-        /// is lowered to the measured value before the floor is applied, so a ceiling above 128 or
-        /// below 1 both leave the count pinned rather than following the floor.
+        /// Picks one subdivision level for the whole collection from its projected size: the level of the
+        /// smallest power of two at least the subdivision count. The count is lowered to the ceiling before
+        /// the floor is applied, so the floor wins when it is above the ceiling.
         /// </summary>
         private int ComputeTessellationLevel(ReadOnlySpan<RopeNode> nodes, Camera camera)
         {
@@ -292,36 +283,21 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
 
             var diagonal = Vector3.Distance(max, min);
-            var centre = (min + max) * 0.5f;
-            var distanceSquared = Vector3.DistanceSquared(centre, camera.Location);
-
-            var coverage = distanceSquared <= diagonal * diagonal
-                ? 1f
-                : MathUtils.Saturate(diagonal * camera.ProjectionMatrix.M22 / MathF.Sqrt(distanceSquared));
+            var coverage = ScreenSizeFraction((min + max) * 0.5f, diagonal, camera);
 
             var metric = MathF.Sqrt(coverage) * 1024f / nodes.Length;
             var raw = (int)(metric * tessScale * 0.1f);
 
-            var subdivisions = maxTessellation >= raw ? raw : maxTessellation;
+            var subdivisions = Math.Min(raw, maxTessellation);
 
             if (minTessellation > subdivisions)
             {
                 subdivisions = minTessellation;
             }
 
-            if (subdivisions is > 128 or < 1)
-            {
-                subdivisions = subdivisions > 128 ? 128 : 1;
-            }
+            subdivisions = Math.Clamp(subdivisions, 1, MaxSubdivisions);
 
-            var level = 0;
-
-            while (level < MaxTessellationLevel && 1 << level < subdivisions)
-            {
-                level++;
-            }
-
-            return level;
+            return subdivisions == 1 ? 0 : BitOperations.Log2((uint)(subdivisions - 1)) + 1;
         }
 
         /// <summary>
@@ -374,22 +350,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>
-        /// Copies the live particles into the node scratch in walk order, applying the size clamp and
-        /// the distance fade that <c>m_bEnableFadingAndClamping</c> gates.
+        /// Copies the live particles into <paramref name="nodes"/> in walk order, grouped by segment when
+        /// sorted, applying the size clamp and the distance fade that <c>m_bEnableFadingAndClamping</c> gates.
         /// </summary>
         /// <remarks>
         /// The tint is truncated to bytes without a clamp, so a channel past 1 wraps around. The alpha
         /// scale applies twice: once with the particle's alpha and again where the colour scale combines.
         /// </remarks>
-        private int CollectNodes(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera)
+        private int CollectNodes(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera, Span<RopeNode> nodes)
         {
             var count = particleBag.Count;
-
-            if (nodeScratch.Length < count)
-            {
-                nodeScratch = new RopeNode[count];
-            }
-
+            var grouped = sortBySegmentId && segmentOrderCount == count;
             var startFadeSlope = startFadeSize.NextNumber(systemState);
             var endFadeSlope = endFadeSize.NextNumber(systemState);
             var splits = Splits;
@@ -400,21 +371,31 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return 0;
             }
 
+            var particles = particleBag.Current;
+            var positions = particles.ReadVectors(ParticleField.Position);
+            var colors = particles.ReadVectors(ParticleField.Color);
+            var orientations = particles.ReadVectors(orientationField);
+            var radii = particles.ReadFloats(ParticleField.Radius);
+            var alphas = particles.ReadFloats(ParticleField.Alpha);
+            var alpha2s = ReadAlpha2(particles);
+            var segments = splits ? particles.ReadFloats(splitField) : default;
+            var scalarCoordinates = useScalarForTextureCoordinate ? particles.ReadFloats(scalarFieldForTextureCoordinate) : default;
+            var alphaReferenceInputs = ReadAlphaReferenceInputs(particles);
+
             for (var i = 0; i < count; i++)
             {
-                var particleIndex = reverseOrder ? count - i - 1 : i;
-                ref var particle = ref particleBag.Current[particleIndex];
+                var particleIndex = grouped ? segmentOrder[i] : WalkIndex(i, count);
 
-                var radius = particle.Radius * scales.Radius;
+                var radius = radii[particleIndex] * scales.Radius;
                 var color = ParticleColorBlend.Apply(ColorBlendType,
-                    ParticleColorBlend.ToWrappedBytes(particle.Color, Math.Clamp(scales.Alpha * 255f * GetAlpha2(ref particle) * particle.Alpha, 0f, 255f)),
+                    ParticleColorBlend.ToWrappedBytes(colors[particleIndex], Math.Clamp(scales.Alpha * 255f * alpha2s[particleIndex] * alphas[particleIndex], 0f, 255f)),
                     scales.Color) / 255f;
                 var alpha = color.W;
-                var alphaReference = GetAlphaReference(ref particle, radius, alpha);
+                var alphaReference = GetAlphaReference(alphaReferenceInputs, particleIndex, radius, alpha);
 
                 if (enableFadingAndClamping)
                 {
-                    var cameraDistance = Vector3.Distance(camera.Location, particle.Position);
+                    var cameraDistance = Vector3.Distance(camera.Location, positions[particleIndex]);
                     var fadeStart = startFadeSlope * cameraDistance;
                     var fadeEnd = endFadeSlope * cameraDistance;
 
@@ -426,58 +407,23 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     radius = MathF.Min(MathF.Max(radius, minSize * cameraDistance), maxSize * cameraDistance);
                 }
 
-                nodeScratch[i] = new RopeNode
+                nodes[i] = new RopeNode
                 {
                     ParticleIndex = particleIndex,
-                    Segment = splits ? particle.GetScalar(splitField) : 0f,
-                    Position = particle.Position,
+                    SegmentBits = splits ? BitConverter.SingleToInt32Bits(segments[particleIndex]) : 0,
+                    Position = positions[particleIndex],
                     Radius = radius,
                     Color = color.AsVector3(),
                     Alpha = alpha,
-                    Orientation = particle.GetVector(orientationField),
+                    Orientation = orientations[particleIndex],
                     ScalarCoordinate = useScalarForTextureCoordinate
-                        ? particle.GetScalar(scalarFieldForTextureCoordinate) * scalarAttributeTextureCoordScale
+                        ? scalarCoordinates[particleIndex] * scalarAttributeTextureCoordScale
                         : 0f,
                     AlphaReference = alphaReference,
                 };
             }
 
-            if (sortBySegmentId)
-            {
-                GroupBySegment(nodeScratch.AsSpan(0, count));
-            }
-
             return count;
-        }
-
-        /// <summary>
-        /// Stably groups the nodes by segment, ordering the groups by where each segment first appears.
-        /// Segments are told apart by the bits of their value, so 0 and -0 are separate segments.
-        /// </summary>
-        private void GroupBySegment(Span<RopeNode> nodes)
-        {
-            if (sortKeyScratch.Length < nodes.Length)
-            {
-                sortKeyScratch = new long[nodes.Length];
-            }
-
-            var keys = sortKeyScratch.AsSpan(0, nodes.Length);
-            segmentRanks.Clear();
-
-            for (var i = 0; i < nodes.Length; i++)
-            {
-                var segmentBits = BitConverter.SingleToInt32Bits(nodes[i].Segment);
-
-                if (!segmentRanks.TryGetValue(segmentBits, out var rank))
-                {
-                    rank = segmentRanks.Count;
-                    segmentRanks.Add(segmentBits, rank);
-                }
-
-                keys[i] = ((long)rank << 32) | (uint)i;
-            }
-
-            keys.Sort(nodes);
         }
 
         /// <summary>
@@ -487,31 +433,48 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// rope segments, or one of no length, is not drawn, but its length still advances V. The
         /// segment of an open rope that ends on the first particle ends at V 0.
         /// </summary>
-        private int UpdateVertices(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera)
+        protected override int UpdateVertices(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera)
         {
-            var nodeCount = CollectNodes(particleBag, systemState, camera);
+            using var nodeBuffer = new RentedBuffer<RopeNode>(particleBag.Count);
+            var nodeCount = CollectNodes(particleBag, systemState, camera, nodeBuffer.Span);
 
             if (nodeCount < 2)
             {
                 return 0;
             }
 
-            var nodes = nodeScratch.AsSpan(0, nodeCount);
+            var nodes = nodeBuffer.Span[..nodeCount];
             var segmentCount = closedLoop ? nodeCount : nodeCount - 1;
             var subdivisions = 1 << ComputeTessellationLevel(nodes, camera);
 
             var (scrollRate, vOffset, oneOverWorldSize) = ResolveTextureV(systemState);
             CarryVOffset(particleBag, oneOverWorldSize);
 
-            var viewAngleFadeActive = startFadeDot < 1f && endFadeDot > startFadeDot;
-            Span<SheetFrame> sheets = stackalloc SheetFrame[ParticleTextureLayer.MaxLayers];
+            var viewAngleFadeActive = FadesByViewAngle;
+            Span<SheetRects> sheets = stackalloc SheetRects[ParticleTextureLayer.MaxLayers];
             Span<ParticleTextureLayer.UvTransform> uvTransforms = stackalloc ParticleTextureLayer.UvTransform[ParticleTextureLayer.MaxLayers];
 
-            ParticleTextureLayer.ResolveUvTransforms(layers, systemState, uvTransforms);
+            ParticleTextureLayer.ResolveUvTransforms(Layers, systemState, uvTransforms);
 
-            for (var layer = 0; layer < layers.Length; layer++)
+            // Every node is its own particle with its own age, but the ribbon carries one texture, so it
+            // takes the frames of the head node
+            var head = new SheetInputs(particleBag.Current[..1]);
+            var headSequence = (int)head.SequenceNumbers[0];
+            var frameBlend = 0f;
+
+            for (var layer = 0; layer < Layers.Length; layer++)
             {
-                sheets[layer] = ResolveSheetFrame(particleBag, layers[layer].Texture);
+                sheets[layer] = SheetRects.Whole;
+
+                if (GetSheetFrames(layer, headSequence, head, 0, Layers[layer].SheetRateScale(systemState)) is { } frames)
+                {
+                    sheets[layer] = UncroppedRects(frames);
+
+                    if (layer == 0)
+                    {
+                        frameBlend = frames.Blend;
+                    }
+                }
             }
 
             var maxQuads = Math.Min(MaxQuads, segmentCount * subdivisions);
@@ -540,7 +503,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     var vEnd = endsAtFirst ? 0f : arcLength + segmentLength;
                     arcLength += segmentLength;
 
-                    if (n1.Segment != n2.Segment || segmentLength == 0f)
+                    if (n1.SegmentBits != n2.SegmentBits || segmentLength == 0f)
                     {
                         stripAxis = Vector3.Zero;
                         continue;
@@ -548,8 +511,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                     ref readonly var before = ref nodes[ResolveIndex(segment - 1, nodeCount)];
                     ref readonly var after = ref nodes[ResolveIndex(segment + 2, nodeCount)];
-                    ref readonly var n0 = ref before.Segment == n1.Segment ? ref before : ref n1;
-                    ref readonly var n3 = ref after.Segment == n2.Segment ? ref after : ref n2;
+                    ref readonly var n0 = ref before.SegmentBits == n1.SegmentBits ? ref before : ref n1;
+                    ref readonly var n3 = ref after.SegmentBits == n2.SegmentBits ? ref after : ref n2;
 
                     if (useScalarForTextureCoordinate)
                     {
@@ -569,7 +532,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         WriteQuad(vertices, quadCount, previous, current,
                             MapV(MathUtils.Lerp(vStart, vEnd, (step - 1) / (float)subdivisions), oneOverWorldSize, vOffset),
                             MapV(MathUtils.Lerp(vStart, vEnd, t), oneOverWorldSize, vOffset),
-                            sheets, uvTransforms, viewAngleFadeActive, camera);
+                            sheets, frameBlend, uvTransforms, viewAngleFadeActive, camera);
 
                         quadCount++;
                         previous = current;
@@ -578,7 +541,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                 if (quadCount > 0)
                 {
-                    GL.NamedBufferData(vertexBufferHandle, quadCount * 4 * SpritecardVertex.InputLayout.Stride, vertexBuffer.ByteArray, BufferUsageHint.DynamicDraw);
+                    UploadVertices(vertexBuffer.ByteArray, quadCount * 4);
                 }
             }
 
@@ -591,7 +554,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// </summary>
         private void CarryVOffset(ParticleCollection particleBag, float oneOverWorldSize)
         {
-            var particleId = particleBag.Current[0].ParticleId;
+            var particleId = particleBag.Current.ReadInteger(ParticleField.ParticleId, 0);
 
             if (firstParticleId != -1 && particleId != firstParticleId)
             {
@@ -612,7 +575,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// Splines position, radius and colour between the two middle control points and builds the
         /// ribbon's width axis from the spline tangent and the plane the orientation type selects.
         /// </summary>
-        private RopeSample EvaluateSample(in RopeNode n0, in RopeNode n1, in RopeNode n2, in RopeNode n3, float t, Camera camera)
+        private RibbonSample EvaluateSample(in RopeNode n0, in RopeNode n1, in RopeNode n2, in RopeNode n3, float t, Camera camera)
         {
             var position = CableMeshBuilder.CatmullRom(n0.Position, n1.Position, n2.Position, n3.Position, t);
             var radius = CableMeshBuilder.CatmullRom(n0.Radius, n1.Radius, n2.Radius, n3.Radius, t);
@@ -627,26 +590,20 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 _ => camera.Location - position,
             };
 
-            var widthAxis = Vector3.Cross(tangent, planeNormal);
-            widthAxis = widthAxis.LengthSquared() > ParticleMath.MinimumLengthSquared
-                ? Vector3.Normalize(widthAxis)
-                : Vector3.Normalize(Vector3.Cross(tangent, MathF.Abs(tangent.Z) < 0.999f ? Vector3.UnitZ : Vector3.UnitX));
-
-            return new RopeSample
+            // The node colours and alphas are already in [0, 1], so their blend is too
+            return new RibbonSample
             {
                 Position = position,
-                WidthAxis = widthAxis,
+                WidthAxis = RibbonWidthAxis(tangent, planeNormal),
                 Tangent = tangent,
                 Radius = radius,
-                Color = Vector4.Clamp(
-                    new Vector4(Vector3.Lerp(n1.Color, n2.Color, t), MathUtils.Lerp(n1.Alpha, n2.Alpha, t)),
-                    Vector4.Zero, Vector4.One),
+                Color = new Vector4(Vector3.Lerp(n1.Color, n2.Color, t), MathUtils.Lerp(n1.Alpha, n2.Alpha, t)),
                 AlphaReference = n1.AlphaReference,
             };
         }
 
-        private void WriteQuad(Span<SpritecardVertex> vertices, int quadIndex, in RopeSample start, in RopeSample end,
-            float vStart, float vEnd, ReadOnlySpan<SheetFrame> sheets, ReadOnlySpan<ParticleTextureLayer.UvTransform> uvTransforms,
+        private void WriteQuad(Span<SpritecardVertex> vertices, int quadIndex, in RibbonSample start, in RibbonSample end,
+            float vStart, float vEnd, ReadOnlySpan<SheetRects> sheets, float frameBlend, ReadOnlySpan<ParticleTextureLayer.UvTransform> uvTransforms,
             bool viewAngleFadeActive, Camera camera)
         {
             var startColor = start.Color;
@@ -654,8 +611,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             if (viewAngleFadeActive)
             {
-                startColor.W *= ViewAngleFade(start, camera);
-                endColor.W *= ViewAngleFade(end, camera);
+                startColor.W *= ViewAngleFade(start.Tangent, start.Position, camera.Location);
+                endColor.W *= ViewAngleFade(end.Tangent, end.Position, camera.Location);
             }
 
             Span<Vector3> positions =
@@ -683,15 +640,15 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 vertex = default;
                 vertex.Position = positions[j];
                 vertex.Color = atStart ? startColor : endColor;
-                vertex.FrameBlendAlphaReference = new Vector3(sheets[0].Blend, start.AlphaReference.X, start.AlphaReference.Y);
-                vertex.UV = ParticleTextureLayer.PlaceCorner(coordinates[j], uvTransforms[0], sheets[0].Offset, sheets[0].Offset + sheets[0].Scale);
-                vertex.UVNextFrame = ParticleTextureLayer.PlaceCorner(coordinates[j], uvTransforms[0], sheets[0].NextOffset, sheets[0].NextOffset + sheets[0].NextScale);
+                vertex.FrameBlendAlphaReference = new Vector3(frameBlend, start.AlphaReference.X, start.AlphaReference.Y);
+                vertex.UV = ParticleTextureLayer.PlaceCorner(coordinates[j], uvTransforms[0], sheets[0].Min, sheets[0].Max);
+                vertex.UVNextFrame = ParticleTextureLayer.PlaceCorner(coordinates[j], uvTransforms[0], sheets[0].NextMin, sheets[0].NextMax);
 
-                for (var layer = 1; layer < layers.Length; layer++)
+                for (var layer = 1; layer < Layers.Length; layer++)
                 {
                     ref readonly var sheet = ref sheets[layer];
-                    var layerUv = ParticleTextureLayer.PlaceCorner(coordinates[j], uvTransforms[layer], sheet.Offset, sheet.Offset + sheet.Scale);
-                    var layerUvNext = ParticleTextureLayer.PlaceCorner(coordinates[j], uvTransforms[layer], sheet.NextOffset, sheet.NextOffset + sheet.NextScale);
+                    var layerUv = ParticleTextureLayer.PlaceCorner(coordinates[j], uvTransforms[layer], sheet.Min, sheet.Max);
+                    var layerUvNext = ParticleTextureLayer.PlaceCorner(coordinates[j], uvTransforms[layer], sheet.NextMin, sheet.NextMax);
                     vertex.SetLayerUv(layer - 1, new Vector4(layerUv.X, layerUv.Y, layerUvNext.X, layerUvNext.Y));
                 }
             }
@@ -702,7 +659,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// is visually symmetric per sample, but letting it flip between neighboring samples folds
         /// their shared quad into a bowtie where the tangent passes through the view direction.
         /// </summary>
-        private static void AlignWidthAxis(ref RopeSample sample, ref Vector3 stripAxis)
+        private static void AlignWidthAxis(ref RibbonSample sample, ref Vector3 stripAxis)
         {
             if (Vector3.Dot(sample.WidthAxis, stripAxis) < 0f)
             {
@@ -712,103 +669,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             stripAxis = sample.WidthAxis;
         }
 
-        private float ViewAngleFade(in RopeSample sample, Camera camera)
-        {
-            var toCamera = camera.Location - sample.Position;
-
-            if (toCamera.LengthSquared() <= ParticleMath.MinimumLengthSquared)
-            {
-                return 1f;
-            }
-
-            var facing = MathF.Abs(Vector3.Dot(sample.Tangent, Vector3.Normalize(toCamera)));
-
-            return 1f - MathUtils.Smoothstep(startFadeDot, endFadeDot, facing);
-        }
-
-        private readonly struct SheetFrame
-        {
-            public Vector2 Offset { get; init; }
-            public Vector2 Scale { get; init; }
-            public Vector2 NextOffset { get; init; }
-            public Vector2 NextScale { get; init; }
-            public float Blend { get; init; }
-        }
-
-        /// <summary>
-        /// Picks the sheet frame for the whole ribbon. Every node is its own particle with its own
-        /// age, but the ribbon carries one texture, so it takes the head node's frame.
-        /// </summary>
-        private SheetFrame ResolveSheetFrame(ParticleCollection particleBag, RenderTexture layerTexture)
-        {
-            var identity = new SheetFrame { Offset = Vector2.Zero, Scale = Vector2.One, NextOffset = Vector2.Zero, NextScale = Vector2.One };
-
-            var spriteSheetData = layerTexture.SpriteSheetData;
-
-            if (spriteSheetData == null || spriteSheetData.Sequences.Length == 0)
-            {
-                return identity;
-            }
-
-            ref var head = ref particleBag.Current[0];
-            var sequenceNumber = (int)head.SequenceNumber;
-            var sequence = spriteSheetData.Sequences[(uint)sequenceNumber < (uint)spriteSheetData.Sequences.Length ? sequenceNumber : 0];
-
-            if (sequence.Frames.Length == 0)
-            {
-                return identity;
-            }
-            var (frame, nextFrame, blend) = GetSheetFrame(ref head, sequence, animationRate, animationType, animateInFps);
-
-            var currentImage = sequence.Frames[frame].Images[0];
-            var nextImage = sequence.Frames[nextFrame].Images[0];
-
-            return new SheetFrame
-            {
-                Offset = currentImage.UncroppedMin,
-                Scale = currentImage.UncroppedMax - currentImage.UncroppedMin,
-                NextOffset = nextImage.UncroppedMin,
-                NextScale = nextImage.UncroppedMax - nextImage.UncroppedMin,
-                Blend = blend,
-            };
-        }
-
-        private int quadCount;
-
         /// <inheritdoc/>
-        public override void UpdateBuffers(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
+        protected override void Draw()
         {
-            quadCount = particles.Count == 0 ? 0 : UpdateVertices(particles, systemState, camera);
-        }
-
-        /// <inheritdoc/>
-        public override void Render(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera)
-        {
-            if (particleBag.Count < 2)
-            {
-                return;
-            }
-
-            if (quadCount == 0)
-            {
-                return;
-            }
-
-            using var _ = SpritecardStateScope(blendMode, drawAsOpaque);
-
-            shader.Use();
-            VertexArray.Bind(vaoHandle, shader);
-
-            ParticleTextureLayer.Bind(shader, layers, systemState);
-            SetSharedUniforms(shader, systemState);
-            shader.SetUniform1("uBlendFrames", blendFrames);
-
-            // Set every draw: the program is shared with every other spritecard renderer, whatever their mode.
-            shader.SetUniform1("uBlendMode", (int)blendMode);
-            shader.SetUniform1("uOutline", false);
-
-            PerfStats.Active.Count(Counter.ParticleDraw);
-            GL.DrawElements(PrimitiveType.Triangles, quadCount * 6, DrawElementsType.UnsignedShort, 0);
+            GL.DrawElements(PrimitiveType.Triangles, QuadCount * 6, DrawElementsType.UnsignedShort, 0);
         }
 
         /// <inheritdoc/>
@@ -816,21 +680,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         /// <inheritdoc/>
         public override void RenderReplacement(Shader replacement, uint objectId)
-            => DrawReplacement(replacement, objectId, vaoHandle, quadCount * 6, DrawElementsType.UnsignedShort);
-
-        /// <inheritdoc/>
-        public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;
-
-        /// <inheritdoc/>
-        public override void SetRenderMode(string renderMode)
-        {
-        }
-
-        /// <inheritdoc/>
-        public override void Delete()
-        {
-            VertexArray.Delete(vaoHandle);
-            GL.DeleteBuffer(vertexBufferHandle);
-        }
+            => DrawReplacement(replacement, objectId, VertexArrayHandle, QuadCount * 6, DrawElementsType.UnsignedShort);
     }
 }

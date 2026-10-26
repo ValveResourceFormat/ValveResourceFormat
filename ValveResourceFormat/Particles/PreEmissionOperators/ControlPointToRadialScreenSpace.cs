@@ -26,7 +26,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             cpScreenSpacePositionOut = parse.ControlPoint("m_nCPSSPosOut", cpScreenSpacePositionOut);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             if (cpOutField < 0)
             {

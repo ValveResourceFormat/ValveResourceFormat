@@ -50,6 +50,9 @@ namespace ValveResourceFormat.Particles.Operators
             breakValue = parse.CollectionNumberProvider("m_flBreakValue", breakValue);
             interpolation = parse.NumberProvider("m_flInterpolation", interpolation);
             retainInitialVelocity = parse.Boolean("m_bRetainInitialVelocity", retainInitialVelocity);
+
+            parse.AddInitialRead(ParticleField.Position);
+            parse.AddInitialRead(ParticleField.PositionPrevious);
         }
 
         public override void Reset()
@@ -61,6 +64,11 @@ namespace ValveResourceFormat.Particles.Operators
             pinnedParticleId = -1;
             inheritedVelocity = new Vector3(float.MaxValue);
         }
+
+        public override void Restart(ParticleSystemState particleSystemState) => Reset();
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask() | ParticleField.ForceScale.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -77,22 +85,28 @@ namespace ValveResourceFormat.Particles.Operators
                 return;
             }
 
-            ref var particle = ref particles.Current[pinnedParticle];
+            var current = particles.Current;
+            var forceScales = current.Floats(ParticleField.ForceScale);
 
             if (IsBroken(particles, frameTime, particleSystemState, cp))
             {
-                particle.ForceScale = 1f;
+                forceScales[pinnedParticle] = 1f;
                 broken = true;
                 return;
             }
 
-            particle.ForceScale = 0f;
+            forceScales[pinnedParticle] = 0f;
 
             var pinOffset = offset.NextVector(particleSystemState);
             var target = cp.Position + (offsetLocal ? Vector3.TransformNormal(pinOffset, cp.GetRotationMatrix()) : pinOffset);
 
-            particle.Position = MathUtils.Lerp(particle.Position, target, interpolation.NextNumber(ref particle, particleSystemState));
-            particle.PositionPrevious = particle.Position;
+            var positions = current.Vectors(ParticleField.Position);
+            var previousPositions = current.Vectors(ParticleField.PositionPrevious);
+
+            var amount = interpolation.NextNumber(current, pinnedParticle, particleSystemState);
+
+            positions[pinnedParticle] = MathUtils.Lerp(positions[pinnedParticle], target, amount);
+            previousPositions[pinnedParticle] = positions[pinnedParticle];
         }
 
         private void UpdatePinnedParticle(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, ControlPoint cp)
@@ -113,14 +127,14 @@ namespace ValveResourceFormat.Particles.Operators
 
                     if (previous != -1 && previous != pinnedParticle && previous < count)
                     {
-                        live[previous].ForceScale = 1f;
+                        live.Floats(ParticleField.ForceScale)[previous] = 1f;
                     }
 
                     break;
 
                 case ParticleSelection.PARTICLE_SELECTION_LAST:
                     pinnedParticle = Math.Clamp(count - number - 1, 0, count - 1);
-                    SwitchLastPinned(particles, frameTime, cp);
+                    SwitchLastPinned(particles, frameTime, particleSystemState, cp);
                     break;
             }
 
@@ -133,6 +147,8 @@ namespace ValveResourceFormat.Particles.Operators
                 _ => referenceParticle,
             };
 
+            // The reference is clamped to count rather than count - 1, so FIRST with NEIGHBOR on the last particle
+            // measures to the dead slot past the end; it is clamped to the last live particle here
             referenceParticle = Math.Clamp(referenceParticle, 0, count - 1);
         }
 
@@ -140,10 +156,11 @@ namespace ValveResourceFormat.Particles.Operators
         /// Releases the particle pinned last step once another particle has become the last, handing it
         /// the velocity it was created with, turned with the control point, when that is retained.
         /// </summary>
-        private void SwitchLastPinned(ParticleCollection particles, float frameTime, ControlPoint cp)
+        private void SwitchLastPinned(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, ControlPoint cp)
         {
             var live = particles.Current;
-            var id = live[pinnedParticle].ParticleId;
+            var ids = live.ReadIntegers(ParticleField.ParticleId);
+            var id = ids[pinnedParticle];
 
             if (id == pinnedParticleId)
             {
@@ -154,7 +171,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             for (var i = live.Length - 1; i >= 0; i--)
             {
-                if (live[i].ParticleId == pinnedParticleId)
+                if (ids[i] == pinnedParticleId)
                 {
                     released = i;
                     break;
@@ -165,24 +182,26 @@ namespace ValveResourceFormat.Particles.Operators
 
             if (released >= 0)
             {
-                live[released].ForceScale = 1f;
+                live.Floats(ParticleField.ForceScale)[released] = 1f;
 
                 if (retainInitialVelocity)
                 {
                     var velocity = Vector3.TransformNormal(inheritedVelocity, cp.GetRotationMatrix());
-                    live[released].PositionPrevious -= velocity * frameTime;
-                    inheritedVelocity = GetLocalInitialVelocity(particles, cp);
+                    live.Vectors(ParticleField.PositionPrevious)[released] -= velocity * frameTime;
+                    inheritedVelocity = GetLocalInitialVelocity(particles, particleSystemState, cp);
                 }
             }
             else if (retainInitialVelocity && inheritedVelocity == new Vector3(float.MaxValue))
             {
-                inheritedVelocity = GetLocalInitialVelocity(particles, cp);
+                inheritedVelocity = GetLocalInitialVelocity(particles, particleSystemState, cp);
             }
         }
 
-        private Vector3 GetLocalInitialVelocity(ParticleCollection particles, ControlPoint cp)
+        private Vector3 GetLocalInitialVelocity(ParticleCollection particles, ParticleSystemState particleSystemState, ControlPoint cp)
         {
-            var velocity = particles.Initial[pinnedParticle].GetVelocity(particles.PreviousFrameTime);
+            var initial = particles.Initial;
+            var step = initial.ReadVector(ParticleField.Position, pinnedParticle) - initial.ReadVector(ParticleField.PositionPrevious, pinnedParticle);
+            var velocity = particleSystemState.PreviousStep > 0f ? step / particleSystemState.PreviousStep : Vector3.Zero;
 
             return new Vector3(Vector3.Dot(velocity, cp.Forward), Vector3.Dot(velocity, cp.Left), Vector3.Dot(velocity, cp.Up));
         }
@@ -219,9 +238,9 @@ namespace ValveResourceFormat.Particles.Operators
             return GetPinDistance(particles.Current, particleSystemState, cp) / initialDistance > maxStretch;
         }
 
-        private float GetPinDistance(Span<Particle> positions, ParticleSystemState particleSystemState, ControlPoint cp)
+        private float GetPinDistance(ParticleSpan positions, ParticleSystemState particleSystemState, ControlPoint cp)
         {
-            var pinned = positions[pinnedParticle].Position;
+            var pinned = positions.ReadVector(ParticleField.Position, pinnedParticle);
 
             return pinBreakType switch
             {
@@ -235,7 +254,7 @@ namespace ValveResourceFormat.Particles.Operators
                 ParticlePinDistance.PARTICLE_PIN_DISTANCE_CP_PAIR_BOTH => MathF.Min(
                     DistanceToBreakPoint(particleSystemState, cp, breakControlPoint),
                     DistanceToBreakPoint(particleSystemState, cp, breakControlPoint2)),
-                _ => Vector3.Distance(pinned, positions[referenceParticle].Position),
+                _ => Vector3.Distance(pinned, positions.ReadVector(ParticleField.Position, referenceParticle)),
             };
         }
 

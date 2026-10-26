@@ -33,7 +33,12 @@ namespace ValveResourceFormat.Particles.Operators
 
             var authoredBias = parse.Float("m_flBias", bias);
             bias = authoredBias == 0f ? 0.5f : authoredBias;
+
+            parse.AddInitialRead(ParticleField.Radius);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Radius.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -42,42 +47,53 @@ namespace ValveResourceFormat.Particles.Operators
                 return;
             }
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var radii = current.Floats(ParticleField.Radius);
+            var initialRadii = particles.Initial.ReadFloats(ParticleField.Radius);
+            var lifetimes = current.ReadFloats(ParticleField.LifeDuration);
+            var ages = current.ReadAges();
+
+            var startScales = startScale.Fill(current, particleSystemState);
+            var endScales = endScale.Fill(current, particleSystemState);
+
+            for (var i = 0; i < radii.Length; i++)
             {
-                if (particle.Lifetime <= 0f)
+                var lifetime = lifetimes[i];
+                var time = ParticleMath.NormalizedAge(ages[i], lifetime);
+                var frameFraction = frameTime / lifetime;
+
+                // A window shorter than a frame would otherwise fall between two updates and never
+                // be entered, so the window's far end carries a frame's worth of slack
+                var shortWindow = lifetime * (endTime - startTime) <= frameTime;
+                var windowEnd = shortWindow ? startTime + frameFraction : endTime;
+
+                var scaling = lifetime > 0f && time >= startTime && time <= frameFraction + windowEnd;
+
+                if (!scaling)
                 {
                     continue;
                 }
 
-                var time = particle.NormalizedAge;
-                var frameFraction = frameTime / particle.Lifetime;
+                var timeScale = (time - startTime) / (endTime - startTime);
 
-                // A window shorter than a frame would otherwise fall between two updates and never
-                // be entered, so the window's far end carries a frame's worth of slack
-                var windowEnd = particle.Lifetime * (endTime - startTime) <= frameTime
-                    ? startTime + frameFraction
-                    : endTime;
-
-                if (time >= startTime && time <= frameFraction + windowEnd)
+                if (easeInAndOut)
                 {
-                    var startScale = this.startScale.NextNumber(ref particle, particleSystemState);
-                    var endScale = this.endScale.NextNumber(ref particle, particleSystemState);
-
-                    var timeScale = MathUtils.Remap(time, startTime, endTime);
-
-                    if (easeInAndOut)
-                    {
-                        timeScale = timeScale * timeScale * (3 - 2 * timeScale); // smoothstep
-                    }
-                    else if (bias != 0.5f)
-                    {
-                        timeScale = ParticleMath.Bias(timeScale, bias);
-                    }
-
-                    var radiusScale = MathUtils.Clamp(MathUtils.Lerp(startScale, endScale, timeScale), startScale, endScale);
-
-                    particle.Radius = particle.GetInitialScalar(particles, ParticleField.Radius) * radiusScale;
+                    // The smoothstep curve without clamping, which the slack past the window's end runs beyond
+                    timeScale = timeScale * timeScale * (3f - (2f * timeScale));
                 }
+                else if (bias != 0.5f)
+                {
+                    timeScale = ParticleMath.Bias(timeScale, bias);
+                }
+
+                var start = startScales[i];
+                var end = endScales[i];
+                var radiusScale = MathUtils.Lerp(start, end, timeScale);
+
+                // Clamped between the two scales in whichever order they come
+                radiusScale = Math.Clamp(radiusScale, MathF.Min(start, end), MathF.Max(start, end));
+
+                radii[i] = initialRadii[i] * radiusScale;
             }
         }
     }

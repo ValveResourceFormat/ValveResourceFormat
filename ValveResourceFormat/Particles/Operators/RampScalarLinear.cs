@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -19,7 +21,7 @@ namespace ValveResourceFormat.Particles.Operators
         private readonly float endTimeMin = 1f;
         private readonly float endTimeMax = 1f;
         private readonly bool proportional = true;
-        private readonly ParticleField field = ParticleField.Radius;
+        private readonly ParticleField outputField = ParticleField.Radius;
 
         private readonly bool hasTimeWindow;
         private readonly float clampMin;
@@ -34,45 +36,58 @@ namespace ValveResourceFormat.Particles.Operators
             endTimeMin = parse.Float("m_flEndTime_min", endTimeMin);
             endTimeMax = parse.Float("m_flEndTime_max", endTimeMax);
             proportional = parse.Boolean("m_bProportionalOp", proportional);
-            field = parse.ParticleField("m_nField", field);
+            outputField = parse.ParticleField("m_nField", outputField);
 
             // A window spanning the whole normalized lifetime is not tested at all, so particles
             // past their lifetime keep ramping
             hasTimeWindow = startTimeMin != 0f || startTimeMax != 0f || endTimeMin != 1f || endTimeMax != 1f || !proportional;
 
-            (clampMin, clampMax) = field switch
-            {
-                ParticleField.Alpha or ParticleField.AlphaAlternate => (0f, 1f),
-                ParticleField.Radius or ParticleField.TrailLength => (0f, float.MaxValue),
-                _ => (-float.MaxValue, float.MaxValue),
-            };
+            (clampMin, clampMax) = outputField.SetFloatRange();
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(outputField))
             {
-                if (particle.Lifetime <= 0f)
+                return;
+            }
+
+            var current = particles.Current;
+            var ages = current.ReadAges();
+
+            var lifetimes = current.ReadFloats(ParticleField.LifeDuration);
+            var ids = current.ReadIntegers(ParticleField.ParticleId);
+            var output = current.Floats(outputField);
+            var random = particleSystemState.Random;
+
+            // The rate is a lookup keyed by particle id, so it is only looked up inside the window
+            for (var i = 0; i < output.Length; i++)
+            {
+                var lifetime = lifetimes[i];
+
+                if (lifetime <= 0f)
                 {
                     continue;
                 }
 
                 if (hasTimeWindow)
                 {
-                    var time = proportional ? particle.NormalizedAge : particle.Age;
-                    var startTime = particleSystemState.Random.ForParticleBetween(particle.ParticleId, StartTimeOffset, startTimeMin, startTimeMax);
-                    var endTime = particleSystemState.Random.ForParticleBetween(particle.ParticleId, EndTimeOffset, endTimeMin, endTimeMax);
+                    var age = ages[i];
+                    var windowTime = proportional ? ParticleMath.NormalizedAge(age, lifetime) : age;
+                    var startTime = random.ForParticleBetween(ids[i], StartTimeOffset, startTimeMin, startTimeMax);
+                    var endTime = random.ForParticleBetween(ids[i], EndTimeOffset, endTimeMin, endTimeMax);
 
-                    if (time < startTime || time >= endTime)
+                    if (windowTime < startTime || windowTime >= endTime)
                     {
                         continue;
                     }
                 }
 
-                var rate = particleSystemState.Random.ForParticleBetween(particle.ParticleId, RateOffset, rateMin, rateMax);
-                var value = particle.GetScalar(field) + (rate * frameTime * strength);
-
-                particle.SetScalar(field, Math.Clamp(value, clampMin, clampMax));
+                var rate = random.ForParticleBetween(ids[i], RateOffset, rateMin, rateMax);
+                output[i] = Math.Clamp(output[i] + (rate * frameTime * strength), clampMin, clampMax);
             }
         }
     }

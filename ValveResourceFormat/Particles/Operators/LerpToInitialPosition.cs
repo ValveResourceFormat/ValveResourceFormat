@@ -26,7 +26,14 @@ namespace ValveResourceFormat.Particles.Operators
             cacheField = parse.ParticleField("m_nCacheField", cacheField);
             scale = parse.CollectionNumberProvider("m_flScale", scale);
             vectorScale = parse.CollectionVectorProvider("m_vecScale", vectorScale);
+
+            parse.AddInitialRead(cacheField);
+            parse.AddInitialRead(ParticleField.Position);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields
+            => cacheField.Mask() | ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -38,23 +45,37 @@ namespace ValveResourceFormat.Particles.Operators
                 toLocal = Matrix4x4.Identity;
             }
 
-            var localScale = vectorScale.NextVector(particleSystemState) * scale.NextNumber(particleSystemState);
+            var current = particles.Current;
+            var interpolations = interpolation.Fill(current, particleSystemState);
+            var uniformScale = scale.NextNumber(particleSystemState);
+            var localScale = vectorScale.NextVector(particleSystemState) * uniformScale;
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsVector(cacheField))
             {
-                var cache = particle.GetVector(cacheField);
+                return;
+            }
 
-                if (Vector3.Distance(cache, particle.GetInitialVector(particles, cacheField)) == 0f)
+            var caches = current.Vectors(cacheField);
+            var positions = current.Vectors(ParticleField.Position);
+            var previousPositions = current.Vectors(ParticleField.PositionPrevious);
+            var initialCaches = particles.Initial.ReadVectors(cacheField);
+            var initialPositions = particles.Initial.ReadVectors(ParticleField.Position);
+
+            for (var i = 0; i < positions.Length; i++)
+            {
+                var cache = caches[i];
+
+                if (Vector3.Distance(cache, initialCaches[i]) == 0f)
                 {
-                    cache = Vector3.Transform(particle.GetInitialVector(particles, ParticleField.Position), toLocal);
-                    particle.SetVector(cacheField, cache);
+                    cache = Vector3.Transform(initialPositions[i], toLocal);
+                    caches[i] = cache;
                 }
 
                 var target = Vector3.Transform(cache * localScale, toWorld);
-                var amount = MathUtils.Saturate(strength * interpolation.NextNumber(ref particle, particleSystemState));
+                var amount = MathUtils.Saturate(strength * interpolations[i]);
 
-                particle.Position = MathUtils.Lerp(particle.Position, target, amount);
-                particle.PositionPrevious = MathUtils.Lerp(particle.PositionPrevious, target, amount);
+                positions[i] = MathUtils.Lerp(positions[i], target, amount);
+                previousPositions[i] = MathUtils.Lerp(previousPositions[i], target, amount);
             }
         }
     }

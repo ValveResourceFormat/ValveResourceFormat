@@ -25,59 +25,64 @@ namespace ValveResourceFormat.Particles.Operators
             value = parse.NumberProvider("m_InputValue", value);
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
             lerp = parse.NumberProvider("m_Lerp", lerp);
+
+            AddInitialReadOf(parse, setMethod, outputField);
+        }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
+
+        /// <inheritdoc/>
+        /// <remarks>Evaluates the value once and discards it, so a varying random value takes its draw.</remarks>
+        public override void Restart(ParticleSystemState particleSystemState)
+        {
+            value.NextNumber(particleSystemState);
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            if (particles.Count == 0)
-            {
-                return;
-            }
-
             var input = value.NextNumber(particleSystemState) * strength;
             var blend = MathUtils.Saturate(lerp.NextNumber(particleSystemState) * strength);
             var (min, max) = outputField.SetFloatRange();
 
+            if (!ParticleBuffer.IsScalar(outputField))
+            {
+                return;
+            }
+
+            var output = particles.Current.Floats(outputField);
+
             if (setMethod == ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE)
             {
-                var current = particles.Current;
                 Span<float> replacements = stackalloc float[4];
 
-                for (var lane = 0; lane < Math.Min(4, current.Length); lane++)
+                for (var lane = 0; lane < Math.Min(4, output.Length); lane++)
                 {
-                    replacements[lane] = Math.Clamp(MathUtils.Lerp(current[lane].GetScalar(outputField), input, blend), min, max);
+                    replacements[lane] = Math.Clamp(MathUtils.Lerp(output[lane], input, blend), min, max);
                 }
 
-                for (var i = 0; i < current.Length; i++)
+                for (var i = 0; i < output.Length; i++)
                 {
-                    current[i].SetScalar(outputField, replacements[i & 3]);
+                    output[i] = replacements[i & 3];
                 }
 
                 return;
             }
 
-            foreach (ref var particle in particles.Current)
+            var initial = particles.Initial.ReadFloats(outputField);
+
+            for (var i = 0; i < output.Length; i++)
             {
-                var current = particle.GetScalar(outputField);
+                var current = output[i];
 
                 if (setMethod == ParticleSetMethod.PARTICLE_SET_RAMP_CURRENT_VALUE)
                 {
-                    particle.SetScalar(outputField, Math.Clamp(current + (blend * frameTime * input), min, max));
+                    output[i] = Math.Clamp(current + (blend * frameTime * input), min, max);
                     continue;
                 }
 
-                var initial = particle.GetInitialScalar(particles, outputField);
-
-                var target = setMethod switch
-                {
-                    ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE => input * initial,
-                    ParticleSetMethod.PARTICLE_SET_ADD_TO_INITIAL_VALUE => initial + input,
-                    ParticleSetMethod.PARTICLE_SET_SCALE_CURRENT_VALUE => input * current,
-                    ParticleSetMethod.PARTICLE_SET_ADD_TO_CURRENT_VALUE => current + input,
-                    _ => input,
-                };
-
-                particle.SetScalar(outputField, Math.Clamp(MathUtils.Lerp(current, target, blend), min, max));
+                var target = ParticleFieldExtensions.ApplySetMethod(input, initial[i], current, frameTime, setMethod);
+                output[i] = Math.Clamp(MathUtils.Lerp(current, target, blend), min, max);
             }
         }
     }

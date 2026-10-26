@@ -23,6 +23,9 @@ namespace ValveResourceFormat.Particles.Operators
             radiusScale = parse.Boolean("m_bRadiusScale", radiusScale);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var step = offset;
@@ -33,13 +36,16 @@ namespace ValveResourceFormat.Particles.Operators
             }
 
             var current = particles.Current;
+            var positions = current.Vectors(ParticleField.Position);
+            var previousPositions = current.Vectors(ParticleField.PositionPrevious);
+            var radii = radiusScale ? current.ReadFloats(ParticleField.Radius) : default;
             var sum = Vector3.Zero;
             var sumPrevious = Vector3.Zero;
 
-            foreach (ref var particle in current)
+            for (var i = 0; i < positions.Length; i++)
             {
-                sum += particle.Position;
-                sumPrevious += particle.PositionPrevious;
+                sum += positions[i];
+                sumPrevious += previousPositions[i];
             }
 
             var inverseCount = 1f / current.Length;
@@ -47,12 +53,12 @@ namespace ValveResourceFormat.Particles.Operators
             var meanPrevious = sumPrevious * inverseCount;
             var placement = step * (current.Length - 1) * 0.5f;
 
-            foreach (ref var particle in current)
+            for (var i = 0; i < positions.Length; i++)
             {
-                var scaled = radiusScale ? placement * particle.Radius : placement;
+                var scaled = radiusScale ? placement * radii[i] : placement;
 
-                particle.Position = scaled + mean;
-                particle.PositionPrevious = scaled + meanPrevious;
+                positions[i] = scaled + mean;
+                previousPositions[i] = scaled + meanPrevious;
 
                 placement -= step;
             }

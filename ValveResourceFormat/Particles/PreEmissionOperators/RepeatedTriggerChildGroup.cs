@@ -46,16 +46,15 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
         public override void Restart(ParticleSystemState particleSystemState) => Initialize(particleSystemState);
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             if (particleSystemState.EmissionStopped || particleSystemState.Data is not { } simulation)
             {
                 return;
             }
 
-            var refireTime = clusterRefireTime.NextNumber(particleSystemState);
+            // The refire time is only evaluated once the fire time is reached, and the cooldown when a cluster ends
             var size = clusterSize.NextNumber(particleSystemState);
-            var cooldown = clusterCooldown.NextNumber(particleSystemState);
 
             if (!initialized)
             {
@@ -106,11 +105,11 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                 firedInCluster++;
             }
 
-            nextFireTime = particleSystemState.Age + refireTime;
+            nextFireTime = particleSystemState.Age + clusterRefireTime.NextNumber(particleSystemState);
 
             if (firedInCluster > currentClusterSize)
             {
-                nextFireTime += cooldown;
+                nextFireTime += clusterCooldown.NextNumber(particleSystemState);
                 firedInCluster = 0;
                 currentClusterSize = (int)size;
             }

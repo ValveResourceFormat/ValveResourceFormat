@@ -6,37 +6,27 @@ namespace ValveResourceFormat.Particles.Initializers
     /// an angle triple. The transform's orientation is ignored.
     /// </summary>
     /// <remarks>
-    /// The transform is read once per emission, so all particles of an emission get the same angles.
+    /// The transform is read once per function call, so all particles of a call get the same angles.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RemapQAnglesToRotation">C_INIT_RemapQAnglesToRotation</seealso>
     class RemapQAnglesToRotation : ParticleFunctionInitializer
     {
         private readonly ITransformProvider transformInput = new ControlPointTransformProvider();
 
-        private Vector3 angles;
-
         public RemapQAnglesToRotation(ParticleDefinitionParser parse) : base(parse)
         {
             transformInput = parse.TransformInput("m_TransformInput", transformInput);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Roll) | FieldMask(ParticleField.Yaw) | FieldMask(ParticleField.Pitch);
+        public override ulong WrittenFields => ParticleField.Roll.Mask() | ParticleField.Yaw.Mask() | ParticleField.Pitch.Mask();
 
-        public override void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var degrees = transformInput.NextTransform(particleSystemState).Translation;
-            angles = new Vector3(float.DegreesToRadians(degrees.X), float.DegreesToRadians(degrees.Y), float.DegreesToRadians(degrees.Z));
 
-            base.Initialize(batch, particles, particleSystemState);
-        }
-
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            particle.SetScalar(ParticleField.Pitch, angles.X);
-            particle.SetScalar(ParticleField.Yaw, angles.Y);
-            particle.SetScalar(ParticleField.Roll, angles.Z);
-
-            return particle;
+            run.Floats(ParticleField.Pitch).Fill(float.DegreesToRadians(degrees.X));
+            run.Floats(ParticleField.Yaw).Fill(float.DegreesToRadians(degrees.Y));
+            run.Floats(ParticleField.Roll).Fill(float.DegreesToRadians(degrees.Z));
         }
     }
 }

@@ -19,21 +19,31 @@ namespace ValveResourceFormat.Particles.Operators
             inputVec2 = parse.VectorProvider("m_InputVec2", inputVec2);
             normalize = parse.Boolean("m_bNormalize", normalize);
         }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsVector(fieldOutput))
             {
-                var vec1 = inputVec1.NextVector(ref particle, particleSystemState);
-                var vec2 = inputVec2.NextVector(ref particle, particleSystemState);
+                return;
+            }
 
-                var cross = Vector3.Cross(vec1, vec2);
+            var current = particles.Current;
+            var output = current.Vectors(fieldOutput);
+            current.FillVectorInputs(inputVec1, inputVec2, particleSystemState, out var vectors1, out var vectors2);
+
+            for (var i = 0; i < output.Length; i++)
+            {
+                var cross = Vector3.Cross(vectors1[i], vectors2[i]);
 
                 if (normalize)
                 {
                     cross = MathUtils.SafeNormalize(cross);
                 }
 
-                particle.SetVector(fieldOutput, cross);
+                output[i] = cross;
             }
         }
     }

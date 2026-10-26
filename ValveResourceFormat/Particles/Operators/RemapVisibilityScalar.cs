@@ -1,3 +1,5 @@
+using System.Numerics.Tensors;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -29,14 +31,21 @@ namespace ValveResourceFormat.Particles.Operators
             }
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            var value = MathUtils.RemapValClamped(RemapTransformVisibilityToScalar.FullyVisible, inputMin, inputMax, outputMin, outputMax);
-
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(fieldOutput))
             {
-                particle.SetScalar(fieldOutput, MathUtils.Lerp(particle.GetScalar(fieldOutput), value, strength));
+                return;
             }
+
+            var value = MathUtils.RemapValClamped(RemapTransformVisibilityToScalar.FullyVisible, inputMin, inputMax, outputMin, outputMax);
+            var output = particles.Current.Floats(fieldOutput);
+
+            TensorPrimitives.Multiply(output, 1f - strength, output);
+            TensorPrimitives.Add(output, value * strength, output);
         }
     }
 }

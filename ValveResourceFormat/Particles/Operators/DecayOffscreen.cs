@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Particles.Operators
         }
 
         public override void Initialize(ParticleSystemState particleSystemState)
-            => lastOnscreenTime = particleSystemState.Age == float.MinValue ? 0f : particleSystemState.Age;
+            => lastOnscreenTime = particleSystemState.StartedAge;
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -37,11 +37,17 @@ namespace ValveResourceFormat.Particles.Operators
                 return;
             }
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var ages = current.ReadAges();
+            var lifetimes = current.ReadFloats(ParticleField.LifeDuration);
+
+            for (var i = 0; i < current.Length; i++)
             {
-                if (particle.Lifetime <= 0f || particle.Lifetime <= particle.Age)
+                var lifetime = lifetimes[i];
+
+                if (lifetime <= 0f || lifetime <= ages[i])
                 {
-                    particle.Kill();
+                    particles.Kill(i);
                 }
             }
         }

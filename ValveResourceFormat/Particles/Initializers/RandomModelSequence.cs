@@ -5,7 +5,8 @@ namespace ValveResourceFormat.Particles.Initializers
     /// <summary>
     /// Writes the index of a named sequence of a model into the second sequence number of new
     /// particles, 0 without a model and -1 when the model lacks it. Despite the name nothing is
-    /// random. Looking the sequence up by activity is not supported and gives -1.
+    /// random. Looking the sequence up by activity is not supported and gives -1, and so does a name
+    /// that matches no sequence but matches the activity of one.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RandomModelSequence">C_INIT_RandomModelSequence</seealso>
     class RandomModelSequence : ParticleFunctionInitializer
@@ -21,7 +22,7 @@ namespace ValveResourceFormat.Particles.Initializers
             model = new ModelReference(parse);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.SecondSequenceNumber);
+        public override ulong WrittenFields => ParticleField.SecondSequenceNumber.Mask();
 
         public override void Initialize(ParticleSystemState particleSystemState)
         {
@@ -35,14 +36,9 @@ namespace ValveResourceFormat.Particles.Initializers
             }
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-        }
-
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            particle.SecondSequenceNumber = sequence;
-            return particle;
+            run.Floats(ParticleField.SecondSequenceNumber).Fill(sequence);
         }
     }
 }

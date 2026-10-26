@@ -15,12 +15,15 @@ namespace ValveResourceFormat.Particles.ForceGenerators;
 class ExternalWindForce : ParticleFunctionForceGenerator
 {
     private const float WorldGravity = -800f;
+    private const int BlocksPerBatch = 100;
 
     private readonly IVectorProvider scale = new LiteralVectorProvider(Vector3.One);
     private readonly bool sampleGravity;
     private readonly IVectorProvider gravityForce = new LiteralVectorProvider(Vector3.Zero);
+    private readonly IVectorProvider buoyancyForce = new LiteralVectorProvider(Vector3.Zero);
     private readonly bool useBasicMovementGravity;
     private readonly INumberProvider localGravityScale = new LiteralNumberProvider(1f);
+    private readonly INumberProvider localBuoyancyScale = new LiteralNumberProvider(1f);
     private readonly bool samplesPerParticle;
 
     public ExternalWindForce(ParticleDefinitionParser parse) : base(parse)
@@ -28,23 +31,95 @@ class ExternalWindForce : ParticleFunctionForceGenerator
         scale = parse.VectorProvider("m_vecScale", scale);
         sampleGravity = parse.Boolean("m_bSampleGravity", sampleGravity);
         gravityForce = parse.VectorProvider("m_vecGravityForce", gravityForce);
+        buoyancyForce = parse.VectorProvider("m_vecBuoyancyForce", buoyancyForce);
+        localBuoyancyScale = parse.NumberProvider("m_flLocalBuoyancyScale", localBuoyancyScale);
         useBasicMovementGravity = parse.Boolean("m_bUseBasicMovementGravity", useBasicMovementGravity);
         localGravityScale = parse.NumberProvider("m_flLocalGravityScale", localGravityScale);
         samplesPerParticle = parse.Data.GetSubCollection("m_vecSamplePosition")?.GetStringProperty("m_nType") is
             "PVEC_TYPE_PARTICLE_VECTOR" or "PVEC_TYPE_PARTICLE_INITIAL_VECTOR" or "PVEC_TYPE_PARTICLE_VELOCITY" or "PVEC_TYPE_PARTICLE_GRAVITY";
     }
 
-    public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
+    public override void GenerateForces(ParticleCollection particles, Span<Vector3> forces, float frameTime, ParticleSystemState particleSystemState, float strength)
     {
         var movementGravity = useBasicMovementGravity ? MovementGravity : Vector3.Zero;
         var gravityScale = useBasicMovementGravity ? movementGravity.Z / WorldGravity : 1f;
+        var current = particles.Current;
+        var scales = scale.Prepare(current, particleSystemState);
+        var gravities = gravityForce.Prepare(current, particleSystemState);
+        var localGravityScales = localGravityScale.Fill(current, particleSystemState);
 
-        foreach (ref var particle in particles.Current)
+        if (samplesPerParticle)
+        {
+            localBuoyancyScale.Fill(current, particleSystemState);
+            FillPerParticleInputs(current, particleSystemState, scales, gravities);
+        }
+        else
+        {
+            foreach (var (offset, block, lane) in current.InputBlocks())
+            {
+                if (!sampleGravity)
+                {
+                    gravityForce.FillPerBlock(block, lane, particleSystemState, gravities[offset..]);
+                }
+
+                scale.FillPerBlock(block, lane, particleSystemState, scales[offset..]);
+            }
+        }
+
+        // Buoyancy and the sample position are not modelled
+        var gravityOffset = samplesPerParticle ? movementGravity : Vector3.Zero;
+
+        for (var i = 0; i < scales.Length; i++)
         {
             var force = sampleGravity
-                ? new Vector3(0f, 0f, WorldGravity * localGravityScale.NextNumber(ref particle, particleSystemState) * gravityScale) - movementGravity
-                : gravityForce.NextVector(ref particle, particleSystemState) - (samplesPerParticle ? movementGravity : Vector3.Zero);
-            particle.ForceAccumulator += scale.NextVector(ref particle, particleSystemState) * force;
+                ? new Vector3(0f, 0f, WorldGravity * localGravityScales[i] * gravityScale) - movementGravity
+                : gravities[i] - gravityOffset;
+            forces[i] += scales[i] * force;
+        }
+    }
+
+    /// <summary>
+    /// Fills the inputs as a sample position read from each particle evaluates them: in batches of up
+    /// to <see cref="BlocksPerBatch"/> blocks, the gravity of every block of the batch first, then
+    /// the scale and buoyancy of every block. The buoyancy is drawn and never used.
+    /// </summary>
+    private void FillPerParticleInputs(ParticleSpan current, ParticleSystemState particleSystemState, Span<Vector3> scales, Span<Vector3> gravities)
+    {
+        var buoyancies = sampleGravity ? default : buoyancyForce.Prepare(current, particleSystemState);
+        var batchStart = 0;
+
+        while (batchStart < current.Length)
+        {
+            var batchEnd = batchStart;
+            var blocks = 0;
+
+            foreach (var (offset, block, lane) in current[batchStart..].InputBlocks())
+            {
+                if (blocks == BlocksPerBatch)
+                {
+                    break;
+                }
+
+                if (!sampleGravity)
+                {
+                    gravityForce.FillPerBlock(block, lane, particleSystemState, gravities[(batchStart + offset)..]);
+                }
+
+                batchEnd = batchStart + offset + block.Length;
+                blocks++;
+            }
+
+            foreach (var (offset, block, lane) in current[batchStart..batchEnd].InputBlocks())
+            {
+                scale.FillPerBlock(block, lane, particleSystemState, scales[(batchStart + offset)..]);
+
+                if (!sampleGravity)
+                {
+                    buoyancyForce.FillPerBlock(block, lane, particleSystemState, buoyancies[(batchStart + offset)..]);
+                }
+            }
+
+            batchStart = batchEnd;
         }
     }
 }

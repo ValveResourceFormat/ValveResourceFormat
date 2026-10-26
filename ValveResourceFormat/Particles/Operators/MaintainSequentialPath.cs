@@ -33,9 +33,8 @@ namespace ValveResourceFormat.Particles.Operators
             useParticleCount = parse.Boolean("m_bUseParticleCount", useParticleCount);
             pathParams = new ParticlePathParameters(parse);
 
-            tolerance = parse.Float("m_flTolerance", 0f);
-
-            Reset();
+            var distanceTolerance = parse.Float("m_flTolerance", 0f);
+            tolerance = distanceTolerance * distanceTolerance;
         }
 
         public override void Reset()
@@ -46,6 +45,9 @@ namespace ValveResourceFormat.Particles.Operators
             lastEndPosition = new Vector3(float.MaxValue);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             if (tolerance > 0f)
@@ -53,7 +55,6 @@ namespace ValveResourceFormat.Particles.Operators
                 var startNow = particleSystemState.GetControlPoint(pathParams.StartControlPointNumber).Position;
                 var endNow = particleSystemState.GetControlPoint(pathParams.EndControlPointNumber).Position;
 
-                // The raw tolerance value is compared against the squared control point movement.
                 if (Vector3.DistanceSquared(startNow, lastStartPosition) < tolerance
                     && Vector3.DistanceSquared(endNow, lastEndPosition) < tolerance)
                 {
@@ -76,7 +77,11 @@ namespace ValveResourceFormat.Particles.Operators
 
             var (start, mid, end) = ParticlePath.CalculatePathValues(particleSystemState, pathParams, particleSystemState.Age);
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var positions = current.Vectors(ParticleField.Position);
+            var previousPositions = current.Vectors(ParticleField.PositionPrevious);
+
+            for (var i = 0; i < positions.Length; i++)
             {
                 var index = slotIndex;
 
@@ -97,8 +102,8 @@ namespace ValveResourceFormat.Particles.Operators
 
                 var target = ParticlePath.Evaluate(start, mid, end, index * parameterStep);
 
-                particle.Position = PullTowards(particle.Position, target, maxOffset, offsetRetention);
-                particle.PositionPrevious = PullTowards(particle.PositionPrevious, target, maxOffset, offsetRetention);
+                positions[i] = PullTowards(positions[i], target, maxOffset, offsetRetention);
+                previousPositions[i] = PullTowards(previousPositions[i], target, maxOffset, offsetRetention);
 
                 slotIndex += slotStep;
             }

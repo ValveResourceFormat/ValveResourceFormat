@@ -10,21 +10,104 @@ namespace ValveResourceFormat.Particles
     internal interface IVectorProvider
     {
         /// <summary>
-        /// Returns the next vector value, evaluated per particle.
+        /// Returns the value for the whole collection, as emitters and renderers read it. Inputs that
+        /// read a particle return zero here.
         /// </summary>
-        Vector3 NextVector(ref Particle particle, ParticleSystemState renderState);
+        Vector3 NextVector(ParticleSystemState renderState);
 
         /// <summary>
-        /// Returns the next vector value using system-level state only.
+        /// Writes the value for each particle of <paramref name="particles"/> into
+        /// <paramref name="values"/>, which holds one entry per particle. An input that reads no particle
+        /// writes its collection value, and evaluates nothing for an empty span.
         /// </summary>
-        Vector3 NextVector(ParticleSystemState renderState)
-            => NextVector(ref Particle.Default, renderState);
+        void Fill(ParticleSpan particles, ParticleSystemState renderState, Span<Vector3> values)
+        {
+            if (!particles.IsEmpty)
+            {
+                values.Fill(NextVector(renderState));
+            }
+        }
+
+        /// <summary>
+        /// Evaluates the value for each particle of <paramref name="particles"/> as
+        /// <see cref="Fill(ParticleSpan, ParticleSystemState, Span{Vector3})"/> does, into a scratch column
+        /// valid until the running function returns.
+        /// </summary>
+        Span<Vector3> Fill(ParticleSpan particles, ParticleSystemState renderState)
+        {
+            var values = ParticleScratch.Vectors(particles.Length);
+            Fill(particles, renderState, values);
+            return values;
+        }
+
+        /// <summary>
+        /// Whether the input takes its random draws block by block as the function walks its particles,
+        /// rather than when the function sets its inputs up.
+        /// </summary>
+        bool DrawsPerBlock => false;
+
+        /// <summary>
+        /// Writes the values of <paramref name="block"/>, the up to four particles one evaluation of the
+        /// input covers, the first of which reads lane <paramref name="lane"/> of it. Only an input that
+        /// <see cref="DrawsPerBlock"/> fills a block differently from any other span.
+        /// </summary>
+        void FillBlock(ParticleSpan block, int lane, ParticleSystemState renderState, Span<Vector3> values)
+            => Fill(block, renderState, values);
+
+        /// <summary>
+        /// Fills the values of <paramref name="block"/> at the start of <paramref name="values"/> if the
+        /// input <see cref="DrawsPerBlock"/>, as the function reaches the block while walking the
+        /// <see cref="ParticleSpan.InputBlocks"/> of its particles. Any other input keeps the values it
+        /// was prepared with.
+        /// </summary>
+        void FillPerBlock(ParticleSpan block, int lane, ParticleSystemState renderState, Span<Vector3> values)
+        {
+            if (DrawsPerBlock)
+            {
+                FillBlock(block, lane, renderState, values[..block.Length]);
+            }
+        }
+
+        /// <summary>
+        /// Sets the input up for a function call over <paramref name="particles"/>, as the function does
+        /// with each of its inputs before walking them. Returns a scratch column valid until the running
+        /// function returns, filled now unless the input <see cref="DrawsPerBlock"/>, in which case
+        /// <see cref="FillPerBlock"/> fills it.
+        /// </summary>
+        Span<Vector3> Prepare(ParticleSpan particles, ParticleSystemState renderState)
+        {
+            var values = ParticleScratch.Vectors(particles.Length);
+
+            if (!DrawsPerBlock)
+            {
+                Fill(particles, renderState, values);
+            }
+
+            return values;
+        }
+
+        /// <summary>
+        /// Sets the input up as <see cref="Prepare(ParticleSpan, ParticleSystemState)"/> does, for a function
+        /// that sets it up over <paramref name="evaluated"/>, which contains <paramref name="particles"/>,
+        /// such as every live particle. Returns the column of <paramref name="particles"/>, each of them
+        /// reading its own value.
+        /// </summary>
+        Span<Vector3> Prepare(ParticleSpan particles, ParticleSpan evaluated, ParticleSystemState renderState)
+            => Prepare(evaluated, renderState).Slice(particles.Start - evaluated.Start, particles.Length);
+
+        /// <summary>Returns the value <see cref="Fill(ParticleSpan, ParticleSystemState, Span{Vector3})"/> writes for the particle at <paramref name="index"/> of <paramref name="particles"/>.</summary>
+        public Vector3 NextVector(ParticleSpan particles, int index, ParticleSystemState renderState)
+        {
+            var value = Vector3.Zero;
+            Fill(particles.Slice(index, 1), renderState, new Span<Vector3>(ref value));
+            return value;
+        }
     }
 
     /// <summary>The single render camera is always the closest one.</summary>
     class ClosestCameraPositionVectorProvider : IVectorProvider
     {
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => renderState.CameraPosition;
+        public Vector3 NextVector(ParticleSystemState renderState) => renderState.CameraPosition;
     }
 
     readonly struct LiteralVectorProvider : IVectorProvider
@@ -36,7 +119,9 @@ namespace ValveResourceFormat.Particles
             this.value = value;
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => value;
+        public Vector3 NextVector(ParticleSystemState renderState) => value;
+
+        public void Fill(ParticleSpan particles, ParticleSystemState renderState, Span<Vector3> values) => values.Fill(value);
     }
 
     /// <summary>
@@ -52,8 +137,6 @@ namespace ValveResourceFormat.Particles
             this.input = input;
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => input.NextVector(renderState);
-
         public Vector3 NextVector(ParticleSystemState renderState) => input.NextVector(renderState);
     }
 
@@ -68,7 +151,9 @@ namespace ValveResourceFormat.Particles
             this.value = value / 255.0f;
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => value;
+        public Vector3 NextVector(ParticleSystemState renderState) => value;
+
+        public void Fill(ParticleSpan particles, ParticleSystemState renderState, Span<Vector3> values) => values.Fill(value);
     }
 
     /// <summary>
@@ -86,15 +171,25 @@ namespace ValveResourceFormat.Particles
             vectorAttribute = parse.ParticleField("m_nVectorAttribute", vectorAttribute);
             vectorAttributeScale = parse.Vector3("m_vVectorAttributeScale", vectorAttributeScale);
             this.initial = initial;
-        }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
-        {
-            ref var source = ref initial ? ref renderState.InitialOf(ref particle) : ref particle;
-            return vectorAttributeScale * source.GetVector(vectorAttribute);
+            if (initial)
+            {
+                parse.AddInitialRead(vectorAttribute);
+            }
         }
 
         public Vector3 NextVector(ParticleSystemState renderState) => Vector3.Zero;
+
+        public void Fill(ParticleSpan particles, ParticleSystemState renderState, Span<Vector3> values)
+        {
+            var source = initial ? renderState.InitialOf(particles) : particles;
+            var vectors = source.ReadVectors(vectorAttribute);
+
+            for (var i = 0; i < values.Length; i++)
+            {
+                values[i] = vectorAttributeScale * vectors[i];
+            }
+        }
     }
 
     /// <summary>PVEC_TYPE_PARTICLE_VELOCITY. The particle's velocity scaled per component. Zero for the collection.</summary>
@@ -112,10 +207,26 @@ namespace ValveResourceFormat.Particles
             vectorAttributeScale = parse.Vector3("m_vVectorAttributeScale", vectorAttributeScale);
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
-            => vectorAttributeScale * particle.GetVelocity(renderState.Data?.CurrentFrameTime ?? 0f);
-
         public Vector3 NextVector(ParticleSystemState renderState) => Vector3.Zero;
+
+        public void Fill(ParticleSpan particles, ParticleSystemState renderState, Span<Vector3> values)
+        {
+            var frameTime = renderState.Data?.CurrentFrameTime ?? 0f;
+            var positions = particles.ReadVectors(ParticleField.Position);
+            var previousPositions = particles.ReadVectors(ParticleField.PositionPrevious);
+
+            for (var i = 0; i < values.Length; i++)
+            {
+                values[i] = vectorAttributeScale * Velocity(positions[i], previousPositions[i], frameTime);
+            }
+        }
+
+        /// <summary>
+        /// The velocity of a particle that moved from <paramref name="previous"/> to
+        /// <paramref name="position"/> over <paramref name="frameTime"/>, or zero for no time.
+        /// </summary>
+        public static Vector3 Velocity(Vector3 position, Vector3 previous, float frameTime)
+            => frameTime > 0f ? (position - previous) / frameTime : Vector3.Zero;
     }
 
     /// <summary>
@@ -133,7 +244,7 @@ namespace ValveResourceFormat.Particles
             follow = parse.Boolean("m_bFollowNamedValue");
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
+        public Vector3 NextVector(ParticleSystemState renderState)
             => renderState.Data?.NamedValues.GetVector(name, follow) ?? Vector3.Zero;
     }
 
@@ -153,7 +264,7 @@ namespace ValveResourceFormat.Particles
             cp = controlPoint;
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
+        public Vector3 NextVector(ParticleSystemState renderState)
         {
             return renderState.GetControlPoint(cp).Position * scale;
         }
@@ -169,7 +280,7 @@ namespace ValveResourceFormat.Particles
             deltaCP = parse.Int32("m_nDeltaControlPoint");
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
+        public Vector3 NextVector(ParticleSystemState renderState)
         {
             return renderState.GetControlPoint(cp).Position - renderState.GetControlPoint(deltaCP).Position;
         }
@@ -186,7 +297,7 @@ namespace ValveResourceFormat.Particles
             relativePosition = parse.Vector3("m_vCPRelativePosition", relativePosition);
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
+        public Vector3 NextVector(ParticleSystemState renderState)
             => ControlPointTransformProvider.TransformPosition(renderState, cp, relativePosition);
     }
 
@@ -201,7 +312,7 @@ namespace ValveResourceFormat.Particles
             relativeDirection = parse.Vector3("m_vCPRelativeDir", relativeDirection);
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
+        public Vector3 NextVector(ParticleSystemState renderState)
             => ControlPointTransformProvider.TransformDirection(renderState, cp, relativeDirection);
     }
 
@@ -234,18 +345,58 @@ namespace ValveResourceFormat.Particles
             isDegenerate = Vector3.DistanceSquared(min, max) <= MinimumRangeSquared;
         }
 
-        public virtual Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => Draw(renderState.Random, particle.Index);
+        public virtual Vector3 NextVector(ParticleSystemState renderState) => DrawOnce(renderState.Random);
 
-        public virtual Vector3 NextVector(ParticleSystemState renderState) => Draw(renderState.Random, -1);
+        public bool DrawsPerBlock => true;
 
-        private Vector3 Draw(ParticleRandom random, int particleIndex)
+        public void Fill(ParticleSpan particles, ParticleSystemState renderState, Span<Vector3> values)
+        {
+            foreach (var (offset, block) in particles.Blocks())
+            {
+                FillBlock(block, block.Start & 3, renderState, values.Slice(offset, block.Length));
+            }
+        }
+
+        public void FillBlock(ParticleSpan block, int lane, ParticleSystemState renderState, Span<Vector3> values)
+        {
+            if (isDegenerate)
+            {
+                values.Fill(min);
+            }
+            else
+            {
+                var random = renderState.Random;
+                var counter = random.Reserve(BlockDraws);
+
+                for (var i = 0; i < block.Length; i++)
+                {
+                    values[i] = Lane(random, counter, lane + i);
+                }
+            }
+
+            Apply(block, renderState, values);
+        }
+
+        /// <summary>
+        /// Turns the drawn <paramref name="values"/> of <paramref name="particles"/> into the input's
+        /// values, for the input types built on this one.
+        /// </summary>
+        protected virtual void Apply(ParticleSpan particles, ParticleSystemState renderState, Span<Vector3> values)
+        {
+        }
+
+        /// <summary>
+        /// Returns the drawn value for the collection, drawing its block only at the first read in the
+        /// function call.
+        /// </summary>
+        private Vector3 DrawOnce(ParticleRandom random)
         {
             if (isDegenerate)
             {
                 return min;
             }
 
-            var key = random.Evaluation(particleIndex);
+            var key = random.Evaluation();
 
             if (blockKey != key)
             {
@@ -253,9 +404,14 @@ namespace ValveResourceFormat.Particles
                 blockCounter = random.Reserve(BlockDraws);
             }
 
-            var lane = blockCounter + (particleIndex < 0 ? 0 : particleIndex & 3);
+            return Lane(random, blockCounter, 0);
+        }
 
-            return MathUtils.Lerp(min, max, new Vector3(random.Drawn(lane), random.Drawn(lane + 4), random.Drawn(lane + 8)));
+        /// <summary>Reads the value of <paramref name="lane"/> from the block whose draws start at <paramref name="counter"/>.</summary>
+        private Vector3 Lane(ParticleRandom random, int counter, int lane)
+        {
+            var first = counter + lane;
+            return MathUtils.Lerp(min, max, new Vector3(random.Drawn(first), random.Drawn(first + 4), random.Drawn(first + 8)));
         }
     }
 
@@ -270,11 +426,25 @@ namespace ValveResourceFormat.Particles
             vectorAttributeScale = parse.Vector3("m_vVectorAttributeScale", vectorAttributeScale);
         }
 
-        public override Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
-            => (vectorAttributeScale * particle.GetVector(vectorAttribute)) + base.NextVector(ref particle, renderState);
-
+        /// <summary>
+        /// The collection reads the attribute of the first slot of its particles, live or not.
+        /// </summary>
         public override Vector3 NextVector(ParticleSystemState renderState)
-            => (vectorAttributeScale * Particle.Default.GetVector(vectorAttribute)) + base.NextVector(renderState);
+        {
+            var value = base.NextVector(renderState);
+            var attribute = renderState.Data?.Particles.FirstSlotVector(vectorAttribute) ?? Vector3.Zero;
+            return (vectorAttributeScale * attribute) + value;
+        }
+
+        protected override void Apply(ParticleSpan particles, ParticleSystemState renderState, Span<Vector3> values)
+        {
+            var vectors = particles.ReadVectors(vectorAttribute);
+
+            for (var i = 0; i < values.Length; i++)
+            {
+                values[i] = (vectorAttributeScale * vectors[i]) + values[i];
+            }
+        }
     }
 
     /// <summary>
@@ -290,15 +460,24 @@ namespace ValveResourceFormat.Particles
             controlPoint = new ControlPointTransformProvider(parse.Int32("m_nControlPoint"), true);
         }
 
-        public override Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
-            => Vector3.TransformNormal(base.NextVector(ref particle, renderState),
-                controlPoint.NextTransformAtTime(ref particle, renderState, particle.CreationTime));
-
         public override Vector3 NextVector(ParticleSystemState renderState)
-            => Vector3.TransformNormal(base.NextVector(renderState), controlPoint.NextTransform(ref Particle.Default, renderState));
+            => Vector3.TransformNormal(base.NextVector(renderState), controlPoint.NextTransform(renderState));
+
+        protected override void Apply(ParticleSpan particles, ParticleSystemState renderState, Span<Vector3> values)
+        {
+            var creationTimes = particles.ReadFloats(ParticleField.CreationTime);
+
+            for (var i = 0; i < values.Length; i++)
+            {
+                values[i] = Vector3.TransformNormal(values[i], controlPoint.NextTransformAtTime(renderState, creationTimes[i]));
+            }
+        }
     }
 
-    // 3 Float Inputs
+    /// <summary>
+    /// PVEC_TYPE_FLOAT_COMPONENTS. Three float inputs, each evaluated over all the particles before the
+    /// next, so all of X's random draws come before Y's and Z's.
+    /// </summary>
     readonly struct FloatComponentsVectorProvider : IVectorProvider
     {
         private readonly INumberProvider x = new LiteralNumberProvider(0);
@@ -312,15 +491,23 @@ namespace ValveResourceFormat.Particles
             z = parse.NumberProvider("m_FloatComponentZ", z);
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => new(
-            x.NextNumber(ref particle, renderState),
-            y.NextNumber(ref particle, renderState),
-            z.NextNumber(ref particle, renderState));
-
         public Vector3 NextVector(ParticleSystemState renderState) => new(
             x.NextNumber(renderState),
             y.NextNumber(renderState),
             z.NextNumber(renderState));
+
+        public void Fill(ParticleSpan particles, ParticleSystemState renderState, Span<Vector3> values)
+        {
+            var evaluated = renderState.VectorInputParticles(particles);
+            var xs = x.Fill(evaluated, renderState);
+            var ys = y.Fill(evaluated, renderState);
+            var zs = z.Fill(evaluated, renderState);
+
+            for (var i = 0; i < values.Length; i++)
+            {
+                values[i] = new Vector3(xs[i], ys[i], zs[i]);
+            }
+        }
     }
 
     /// <summary>
@@ -353,11 +540,18 @@ namespace ValveResourceFormat.Particles
             }
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
-            => Interpolate(floatInterp.NextNumber(ref particle, renderState));
-
         public Vector3 NextVector(ParticleSystemState renderState)
             => Interpolate(floatInterp.NextNumber(renderState));
+
+        public void Fill(ParticleSpan particles, ParticleSystemState renderState, Span<Vector3> values)
+        {
+            var inputs = floatInterp.Fill(renderState.VectorInputParticles(particles), renderState);
+
+            for (var i = 0; i < values.Length; i++)
+            {
+                values[i] = Interpolate(inputs[i]);
+            }
+        }
 
         private Vector3 Interpolate(float value)
         {
@@ -376,25 +570,4 @@ namespace ValveResourceFormat.Particles
             return MathUtils.Lerp(output0, output1, t);
         }
     }
-
-    /* NOISE PARAMS
-     * 		m_flNoiseOutputMin = 0.000000
-			m_flNoiseOutputMax = 1.000000
-			m_flNoiseScale = 0.100000
-			m_vecNoiseOffsetRate =
-			[
-				0.000000,
-				0.000000,
-				0.000000,
-			]
-			m_flNoiseOffset = 0.000000
-			m_nNoiseOctaves = 1
-			m_nNoiseTurbulence = "PF_NOISE_TURB_NONE"
-			m_nNoiseType = "PF_NOISE_TYPE_PERLIN"
-			m_nNoiseModifier = "PF_NOISE_MODIFIER_NONE"
-			m_flNoiseTurbulenceScale = 1.000000
-			m_flNoiseTurbulenceMix = 0.500000
-			m_flNoiseImgPreviewScale = 1.000000
-			m_bNoiseImgPreviewLive = true
-    */
 }

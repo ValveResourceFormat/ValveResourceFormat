@@ -38,6 +38,9 @@ namespace ValveResourceFormat.Particles
 
         private readonly List<ParticleFunctionConstraint> constraints = [];
 
+        /// <summary>Every function of the system, in the order the definition lists their kinds.</summary>
+        private readonly ParticleFunction[] functions;
+
         /// <summary>The most substeps a pre-simulation runs; earlier time is skipped.</summary>
         private const int MaxPreSimulationSteps = 2048;
 
@@ -99,6 +102,19 @@ namespace ValveResourceFormat.Particles
         public float MaxDrawDistanceSquared { get; }
 
         /// <summary>
+        /// Whether the system is drawn over the screen rather than in the world (<c>m_bScreenSpaceEffect</c>).
+        /// Its particles are laid out in a fixed view around the world origin, while its control points
+        /// stay where the system is placed. Each system in a tree carries its own.
+        /// </summary>
+        public bool IsScreenSpaceEffect { get; }
+
+        /// <summary>
+        /// Units added to the camera distance the system is sorted by among translucent objects
+        /// (<c>m_flDepthSortBias</c>). Positive values sort it as if it were further away.
+        /// </summary>
+        public float DepthSortBias { get; }
+
+        /// <summary>
         /// Seconds the system keeps simulating after it was last drawn (<c>m_flNoDrawTimeToGoToSleep</c>).
         /// </summary>
         public float NoDrawTimeToGoToSleep { get; }
@@ -129,7 +145,7 @@ namespace ValveResourceFormat.Particles
 
         /// <summary>The file the system was loaded from, used in warnings.</summary>
         public string Name { get; set; }
-        /// <summary>The behavior version the definition was authored against, which gates several engine behaviours.</summary>
+        /// <summary>The behavior version the definition was authored against, which gates several behaviours.</summary>
         public int BehaviorVersion { get; }
 
         /// <summary>
@@ -168,6 +184,12 @@ namespace ValveResourceFormat.Particles
         /// (<c>m_bShouldHitboxesFallbackToRenderBounds</c>).
         /// </summary>
         internal bool HitboxesFallBackToRenderBounds { get; }
+
+        /// <summary>
+        /// Whether a control point without a model reads as the particles of the snapshot it carries
+        /// (<c>m_bShouldHitboxesFallbackToSnapshot</c>).
+        /// </summary>
+        internal bool HitboxesFallBackToSnapshot { get; }
 
         /// <summary>The lowest detail tier this child appears at (<c>m_nDetailLevel</c>).</summary>
         private ParticleDetailLevel detailLevel;
@@ -260,7 +282,19 @@ namespace ValveResourceFormat.Particles
         internal ParticleEventType ListenedEvents => eventListenMask;
 
         private readonly ParticleCollection particleCollection;
-        private int particlesEmitted;
+
+        /// <summary>
+        /// How many particles this system's emitters created in earlier frames: the spawn index initializers
+        /// count from. Particles of the frame being simulated, initial particles and particles spawned for
+        /// a parent's events are not counted.
+        /// </summary>
+        private int particlesCreated;
+
+        /// <summary>How many particles the emitters created so far in the frame being simulated.</summary>
+        private int particlesCreatedThisFrame;
+
+        /// <summary>How many particles the emitters created so far in the current emission pass.</summary>
+        private int particlesCreatedThisStep;
 
         /// <summary>Where the next particle id is drawn from, before the seed displaces it.</summary>
         private int particleIdCounter;
@@ -282,7 +316,7 @@ namespace ValveResourceFormat.Particles
 
             var rootData = particleSystem.GetUpgradedData();
             Definition = rootData;
-            var parse = new ParticleDefinitionParser(rootData, this.logger);
+            var parse = new ParticleDefinitionParser(rootData, this.logger, initialReads);
             BehaviorVersion = parse.Int32("m_nBehaviorVersion", 0);
             parse = parse with { BehaviorVersion = BehaviorVersion };
             firstMultipleOverride = parse.Int32("m_nFirstMultipleOverride_BackwardCompat", -1);
@@ -301,12 +335,16 @@ namespace ValveResourceFormat.Particles
             preSimulationTime = parse.Float("m_flPreSimulationTime", 0f);
             stopSimulationAfterTime = parse.Float("m_flStopSimulationAfterTime", 1e9f);
             HitboxesFallBackToRenderBounds = parse.Boolean("m_bShouldHitboxesFallbackToRenderBounds", true);
+            HitboxesFallBackToSnapshot = parse.Boolean("m_bShouldHitboxesFallbackToSnapshot", false);
 
             // Non-positive distances, and ones large enough to overflow when squared, draw at any range.
             var maxDrawDistance = parse.Float("m_flMaxDrawDistance", -1f);
             MaxDrawDistanceSquared = maxDrawDistance is <= 0f or >= 1e10f
                 ? float.MaxValue
                 : maxDrawDistance * maxDrawDistance;
+
+            IsScreenSpaceEffect = parse.Boolean("m_bScreenSpaceEffect", false);
+            DepthSortBias = parse.Float("m_flDepthSortBias", 0f);
 
             // A negative time keeps the system awake for practically ever
             var noDrawTimeToGoToSleep = parse.Float("m_flNoDrawTimeToGoToSleep", 8f);
@@ -320,7 +358,7 @@ namespace ValveResourceFormat.Particles
                 parse.Vector3("m_BoundingBoxMax", new Vector3(10))
             );
 
-            var constantAttributes = new Particle(parse);
+            var constantAttributes = ParticleBuffer.CreateConstants(parse);
             particleCollection = new ParticleCollection(constantAttributes, maxParticles);
 
             systemState = new ParticleSystemState(parentSystemState)
@@ -332,12 +370,14 @@ namespace ValveResourceFormat.Particles
 
             IReadOnlyList<KVObject> Functions(string key) => rootData.GetArray(key) ?? [];
 
-            SetupFunctions(Functions("m_PreEmissionOperators"), ParticleControllerFactory.TryCreatePreEmissionOperator, preEmissionOperators, "pre-emission operator");
-            SetupFunctions(Functions("m_Emitters"), ParticleControllerFactory.TryCreateEmitter, emitters, "emitter");
-            SetupFunctions(Functions("m_Initializers"), ParticleControllerFactory.TryCreateInitializer, initializers, "initializer");
-            SetupFunctions(Functions("m_Operators"), ParticleControllerFactory.TryCreateOperator, operators, "operator");
-            SetupFunctions(Functions("m_ForceGenerators"), ParticleControllerFactory.TryCreateForceGenerator, ForceGenerators, "force generator");
-            SetupFunctions(Functions("m_Constraints"), ParticleControllerFactory.TryCreateConstraint, constraints, "constraint");
+            SetupFunctions(parse, Functions("m_PreEmissionOperators"), ParticleControllerFactory.TryCreatePreEmissionOperator, preEmissionOperators, "pre-emission operator");
+            SetupFunctions(parse, Functions("m_Emitters"), ParticleControllerFactory.TryCreateEmitter, emitters, "emitter");
+            SetupFunctions(parse, Functions("m_Initializers"), ParticleControllerFactory.TryCreateInitializer, initializers, "initializer");
+            SetupFunctions(parse, Functions("m_Operators"), ParticleControllerFactory.TryCreateOperator, operators, "operator");
+            SetupFunctions(parse, Functions("m_ForceGenerators"), ParticleControllerFactory.TryCreateForceGenerator, ForceGenerators, "force generator");
+            SetupFunctions(parse, Functions("m_Constraints"), ParticleControllerFactory.TryCreateConstraint, constraints, "constraint");
+            functions = [.. preEmissionOperators, .. emitters, .. initializers, .. operators, .. ForceGenerators, .. constraints];
+            DeclareFunctionFields();
 
             SetupChildParticles(Functions("m_Children"));
 
@@ -422,13 +462,10 @@ namespace ValveResourceFormat.Particles
         /// The live particle states this frame. Read by a child particle system's
         /// <c>C_INIT_CreateFromParentParticles</c> to seed new particles from this system's current positions/velocities.
         /// </summary>
-        internal Span<Particle> CurrentParticles => particleCollection.Current;
+        internal ParticleSpan CurrentParticles => particleCollection.Current;
 
         /// <summary>The most particles this system can hold at once.</summary>
         internal int ParticleCapacity => particleCollection.Capacity;
-
-        /// <summary>How many particles the last kill removed from this system.</summary>
-        internal int KilledLastPass => particleCollection.KilledLastPass;
 
         /// <summary>
         /// Sets the particle detail tier for this system; child systems inherit it.
@@ -440,11 +477,11 @@ namespace ValveResourceFormat.Particles
 
         /// <summary>
         /// Seeds this system and its children, starts their draws over and rebuilds every function's
-        /// state from it. As the engine does with a given seed, every entry of <c>m_Children</c> steps
-        /// the seed by 129, including entries that are skipped, so the child in slot n takes the seed
-        /// 129 * (n + 1) above it and this system the step after the last slot. The engine seeds a new
-        /// system from the clock; here it is seeded from its name, so instances of one effect play out
-        /// alike unless each is seeded apart, such as from where it is placed.
+        /// state from it. Every entry of <c>m_Children</c> steps the seed by 129, including entries that
+        /// are skipped, so the child in slot n takes the seed 129 * (n + 1) above it and this system the
+        /// step after the last slot. A new system is seeded from its name rather than the clock, so
+        /// instances of one effect play out alike unless each is seeded apart, such as from where it is
+        /// placed.
         /// </summary>
         /// <param name="seed">Any value, of which the low 12 bits are used.</param>
         internal void SeedRandom(int seed)
@@ -459,7 +496,7 @@ namespace ValveResourceFormat.Particles
         /// Each replay also puts the control points that functions wrote back to how the host left them.
         /// Takes effect at the next replay.
         /// </summary>
-        /// <param name="seed">The seed, or null to let each replay run on from the last as the engine does.</param>
+        /// <param name="seed">The seed, or null to let each replay run on from the last.</param>
         internal void PinRandomSeed(int? seed) => pinnedSeed = seed;
 
         /// <summary>
@@ -498,7 +535,7 @@ namespace ValveResourceFormat.Particles
         /// captures the emission state they disturb. Returns null when the system already holds particles.
         /// </summary>
         /// <param name="count">How many particles to spawn.</param>
-        public PrewarmScope? BeginPrewarm(int count)
+        internal PrewarmScope? BeginPrewarm(int count)
         {
             if (particleCollection.Count > 0)
             {
@@ -507,7 +544,7 @@ namespace ValveResourceFormat.Particles
 
             // Spawning moves emission-order state that real spawns rely on for determinism, so
             // EndPrewarm puts it back and these leave no trace once the real simulation starts.
-            var scope = new PrewarmScope(particlesEmitted, systemState.ParticleCount) { ParticleIdCounter = particleIdCounter };
+            var scope = new PrewarmScope(systemState.ParticleCount) { ParticleIdCounter = particleIdCounter };
 
             for (var i = 0; i < count; i++)
             {
@@ -521,18 +558,16 @@ namespace ValveResourceFormat.Particles
 
         /// <summary>Drops the particles <see cref="BeginPrewarm"/> spawned and restores emission state.</summary>
         /// <param name="scope">What <see cref="BeginPrewarm"/> returned.</param>
-        public void EndPrewarm(PrewarmScope scope)
+        internal void EndPrewarm(PrewarmScope scope)
         {
             particleCollection.Clear();
-            particlesEmitted = scope.ParticlesEmitted;
             particleIdCounter = scope.ParticleIdCounter;
             systemState.ParticleCount = scope.ParticleCount;
         }
 
         /// <summary>The emission state a prewarm disturbed, handed back to <see cref="EndPrewarm"/>.</summary>
-        /// <param name="ParticlesEmitted">Emission counter before the prewarm.</param>
         /// <param name="ParticleCount">Particle count before the prewarm.</param>
-        public readonly record struct PrewarmScope(int ParticlesEmitted, long ParticleCount)
+        internal readonly record struct PrewarmScope(long ParticleCount)
         {
             /// <summary>Particle id counter before the prewarm.</summary>
             internal int ParticleIdCounter { get; init; }
@@ -542,8 +577,7 @@ namespace ValveResourceFormat.Particles
         /// Gets how far to blend from <see cref="ParticleCollection.PreviousStep"/> toward
         /// <see cref="ParticleCollection.Current"/> to draw the system at the time it was asked to reach.
         /// A minimum time step can carry the simulation past that time, and the blend draws it where
-        /// it would have been. Particles created after <see cref="ParticleSystemState.RequestedAge"/> do
-        /// not exist yet at that time and should not be drawn.
+        /// it would have been. Particles created during the step are not drawn in the blend.
         /// </summary>
         /// <param name="fraction">0 for the previous step, 1 for the current one.</param>
         /// <returns>Whether the last step overshot and the blend applies.</returns>
@@ -576,9 +610,9 @@ namespace ValveResourceFormat.Particles
             CalculateBounds();
         }
 
-        private delegate bool TryCreateFunction<T>(string className, KVObject data, ILogger logger, int behaviorVersion, [MaybeNullWhen(false)] out T result);
+        private delegate bool TryCreateFunction<T>(string className, ParticleDefinitionParser parse, [MaybeNullWhen(false)] out T result);
 
-        private void SetupFunctions<T>(IEnumerable<KVObject> data, TryCreateFunction<T> tryCreate, List<T> target, string label)
+        private void SetupFunctions<T>(ParticleDefinitionParser parse, IEnumerable<KVObject> data, TryCreateFunction<T> tryCreate, List<T> target, string label)
         {
             var definitionIndex = 0;
             var listIndex = 0;
@@ -599,11 +633,14 @@ namespace ValveResourceFormat.Particles
                     continue;
                 }
 
-                if (tryCreate(className, info, logger, BehaviorVersion, out var function))
+                var functionParse = parse.Function(info);
+
+                if (tryCreate(className, functionParse, out var function))
                 {
                     if (function is ParticleFunctionInitializer initializer)
                     {
                         initializer.DefinitionIndex = definitionIndex;
+                        initializer.HasRandomInput = functionParse.RandomInputs!.Value;
                     }
                     else if (function is ParticleFunctionEmitter emitter)
                     {
@@ -641,8 +678,6 @@ namespace ValveResourceFormat.Particles
         /// </summary>
         internal void AddControlPointDefaults(ControlPointDefaults defaults)
         {
-            ParticleFunction[] functions = [.. preEmissionOperators, .. emitters, .. initializers, .. operators, .. ForceGenerators, .. constraints];
-
             foreach (var function in functions)
             {
                 function.AddControlPointDefaults(defaults);
@@ -686,7 +721,7 @@ namespace ValveResourceFormat.Particles
 
         private static bool IsOperatorDisabled(KVObject op, ILogger logger)
         {
-            var parse = new ParticleDefinitionParser(op, logger);
+            var parse = new ParticleDefinitionParser(op, logger, new());
 
             return parse.Boolean("m_bDisableOperator", default);
         }

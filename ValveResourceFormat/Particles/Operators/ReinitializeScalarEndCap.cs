@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Particles.Operators
             outputMin = parse.Float("m_flOutputMin", outputMin);
             outputMax = parse.Float("m_flOutputMax", outputMax);
 
-            if (outputField is ParticleField.Alpha or ParticleField.AlphaAlternate)
+            if (outputField.IsAlpha())
             {
                 outputMin = MathUtils.Saturate(outputMin);
                 outputMax = MathUtils.Saturate(outputMax);
@@ -31,9 +31,8 @@ namespace ValveResourceFormat.Particles.Operators
             hasRun = false;
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-        }
+        /// <inheritdoc/>
+        public override ulong StoredFields => outputField.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -44,11 +43,18 @@ namespace ValveResourceFormat.Particles.Operators
 
             hasRun = true;
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(outputField))
+            {
+                return;
+            }
+
+            var output = particles.Current.Floats(outputField);
+
+            for (var i = 0; i < output.Length; i++)
             {
                 var value = particleSystemState.Random.NextBetween(outputMin, outputMax);
 
-                particle.SetScalar(outputField, MathUtils.Lerp(particle.GetScalar(outputField), value, strength));
+                output[i] = MathUtils.Lerp(output[i], value, strength);
             }
         }
     }

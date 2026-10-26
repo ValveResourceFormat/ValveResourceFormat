@@ -16,13 +16,15 @@ class CPVelocityForce : ParticleFunctionForceGenerator
         scale = parse.NumberProvider("m_flScale", scale);
     }
 
-    public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
+    public override void GenerateForces(ParticleCollection particles, Span<Vector3> forces, float frameTime, ParticleSystemState particleSystemState, float strength)
     {
         var velocity = particleSystemState.GetControlPoint(controlPoint).StepDelta / frameTime;
+        var current = particles.Current;
+        var scales = scale.Fill(current, particleSystemState);
 
-        foreach (ref var particle in particles.Current)
+        for (var i = 0; i < scales.Length; i++)
         {
-            particle.ForceAccumulator += velocity * (strength * scale.NextNumber(ref particle, particleSystemState));
+            forces[i] += velocity * (strength * scales[i]);
         }
     }
 }

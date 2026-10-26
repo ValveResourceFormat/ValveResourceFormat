@@ -58,6 +58,9 @@ namespace ValveResourceFormat.IO
         /// <summary><c>Particles/EnableParticleShaderFeatureBranching</c>: whether particle shader features switch at run time.</summary>
         public bool ParticleShaderFeatureBranching { get; }
 
+        /// <summary><c>Particles/ParticleTraceOffsetOnlyHit</c>: whether ground placement pushes particles off what they hit.</summary>
+        public bool ParticleTraceOffsetOnlyHit { get; }
+
         /// <summary><c>WorldRenderer/DirectLightBaking</c>: whether direct light is baked into maps.</summary>
         public bool DirectLightBaking { get; } = true;
 
@@ -128,6 +131,7 @@ namespace ValveResourceFormat.IO
             {
                 ParticlesFoggedByDefault = particles.GetBooleanProperty("ParticlesFoggedByDefault");
                 ParticleShaderFeatureBranching = particles.GetBooleanProperty("EnableParticleShaderFeatureBranching");
+                ParticleTraceOffsetOnlyHit = particles.GetBooleanProperty("ParticleTraceOffsetOnlyHit");
             }
 
             if (root.TryGetValue("WorldRenderer", out var worldRenderer))

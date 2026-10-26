@@ -16,13 +16,16 @@ namespace ValveResourceFormat.Particles.Initializers
             sequenceMax = parse.Int32("m_nSequenceMax", sequenceMax);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.SecondSequenceNumber);
+        public override ulong WrittenFields => ParticleField.SecondSequenceNumber.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            particle.SecondSequenceNumber = sequenceMin + particleSystemState.Random.NextIndex(sequenceMax - sequenceMin + 1);
+            var sequences = run.Floats(ParticleField.SecondSequenceNumber);
 
-            return particle;
+            for (var i = 0; i < sequences.Length; i++)
+            {
+                sequences[i] = sequenceMin + particleSystemState.Random.NextIndex(sequenceMax - sequenceMin + 1);
+            }
         }
     }
 }

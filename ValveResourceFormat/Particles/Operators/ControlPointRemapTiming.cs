@@ -50,6 +50,7 @@ namespace ValveResourceFormat.Particles.Operators
             if (!interpolating)
             {
                 interpolating = true;
+                // Storing a different input makes the next step see a change and restart the clock
                 lastInput = -input;
                 return 1f;
             }

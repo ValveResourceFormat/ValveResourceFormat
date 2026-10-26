@@ -15,24 +15,32 @@ namespace ValveResourceFormat.Particles.Utils
         public const float MinimumLengthSquared = 1e-12f;
 
         /// <summary>
-        /// FLT_EPSILON, which the engine adds to a divisor so a zero-length span is a step rather
-        /// than an infinity.
+        /// FLT_EPSILON, added to a divisor so a zero-length span is a step rather than an infinity.
         /// </summary>
         public const float FloatEpsilon = 1.1920929e-7f;
 
         /// <summary>FLT_MIN, the smallest positive normal float.</summary>
         public const float FloatMin = 1.17549435e-38f;
 
+        /// <summary>The fade end time taken when none is set, so far off that the fade never ends.</summary>
+        public const float NoFadeEnd = 1e20f;
+
+        /// <summary>The Rec. 709 weights of the red, green and blue channels in a colour's luminance.</summary>
+        public static readonly Vector3 LuminanceWeights = new(0.2126f, 0.7152f, 0.0722f);
+
         /// <summary>Clamps <paramref name="value"/> to [0, 1], with NaN giving 0.</summary>
         public static float ClampToUnit(float value) => value >= 0f ? MathF.Min(value, 1f) : 0f;
 
         /// <summary>
-        /// The parabola <c>4t(1 - t)</c> over [0, 1], which the engine uses in place of a sine half
-        /// period and as a triangle-like wave.
+        /// The parabola <c>4t(1 - t)</c> over [0, 1], used in place of a sine half period and as a
+        /// triangle-like wave.
         /// </summary>
         public static float HalfWave(float t) => (4f - (4f * t)) * t;
 
         public static float Square(float value) => value * value;
+
+        /// <summary>The heading of <paramref name="direction"/> in the XY plane plus pi, in (0, 2 pi].</summary>
+        public static float Heading(Vector3 direction) => MathF.Atan2(direction.Y, direction.X) + MathF.PI;
 
         /// <summary>
         /// <paramref name="exponent"/> clamped to [-255, 255] and truncated toward zero to a multiple of
@@ -49,7 +57,7 @@ namespace ValveResourceFormat.Particles.Utils
             => MathF.Pow(value, TruncateToQuarterSteps(exponent));
 
         /// <summary>
-        /// The engine's approximation of <c>sin(pi * x)</c>, used by the oscillation operators. The
+        /// An approximation of <c>sin(pi * x)</c>, used by the oscillation operators. The
         /// phase is wrapped to one period of 2 and each half is <see cref="HalfWave"/>, which runs up
         /// to 0.056 above a true sine and is 4/pi times it as the phase approaches a zero crossing.
         /// </summary>
@@ -63,7 +71,13 @@ namespace ValveResourceFormat.Particles.Utils
         }
 
         /// <summary>
-        /// The engine's standard bias curve, <c>x / ((1 - x) * (1/bias - 2) + 1)</c>, for parameters
+        /// Divides <paramref name="age"/> by <paramref name="lifetime"/>, taking a lifetime below 0.0001 as
+        /// 0.0001 so a particle without one gets a large age rather than an infinite one.
+        /// </summary>
+        public static float NormalizedAge(float age, float lifetime) => age / MathF.Max(0.0001f, lifetime);
+
+        /// <summary>
+        /// The standard bias curve, <c>x / ((1 - x) * (1/bias - 2) + 1)</c>, for parameters
         /// authored directly on an operator field. A bias of 0.5 is the identity; at or below 0 the
         /// result is always 0, and at or above 1 it is always 1.
         /// </summary>
@@ -197,6 +211,23 @@ namespace ValveResourceFormat.Particles.Utils
         /// </summary>
         public static Vector3 NormalizeWithEpsilon(Vector3 value)
             => value / MathF.Sqrt(value.LengthSquared() + FloatEpsilon);
+
+        /// <summary>
+        /// The tint the light colour <paramref name="light"/> gives: the light quantised to bytes, as the
+        /// lighting query returns it, clamped between the byte colours <paramref name="tintMin"/> and
+        /// <paramref name="tintMax"/>, and scaled by <paramref name="amplification"/> / 255.
+        /// </summary>
+        public static Vector3 LightTint(Vector3 light, Vector3 tintMin, Vector3 tintMax, float amplification)
+        {
+            var lightBytes = new Vector3(LightToByte(light.X), LightToByte(light.Y), LightToByte(light.Z));
+            var tintMinBytes = Vector3.Round(tintMin * 255f);
+            var tintMaxBytes = Vector3.Round(tintMax * 255f);
+
+            return Vector3.Max(Vector3.Min(lightBytes, tintMaxBytes), tintMinBytes) * (amplification / 255f);
+        }
+
+        /// <summary>Converts a light channel to its byte value, clamped to [0, 1] and truncated, with NaN giving 0.</summary>
+        private static float LightToByte(float value) => MathF.Truncate(ClampToUnit(value) * 255f);
 
         /// <summary>
         /// Where <paramref name="x"/> lies between <paramref name="min"/> and <paramref name="max"/> as a

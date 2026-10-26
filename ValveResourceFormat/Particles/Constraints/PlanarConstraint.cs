@@ -15,6 +15,9 @@ namespace ValveResourceFormat.Particles.Constraints
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_PlanarConstraint">C_OP_PlanarConstraint</seealso>
     class PlanarConstraint : ParticleFunctionConstraint
     {
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Position.Mask();
+
         private readonly Vector3 pointOnPlane;
         private readonly Vector3 planeNormal = Vector3.UnitZ;
         private readonly int controlPoint;
@@ -57,20 +60,24 @@ namespace ValveResourceFormat.Particles.Constraints
 
             var moved = false;
             var current = particles.Current;
+            var positions = current.Vectors(ParticleField.Position);
+            var radii = current.ReadFloats(ParticleField.Radius);
+            var radiusScales = radiusScale.Fill(current, particleSystemState);
             Span<float> depths = stackalloc float[4];
 
-            for (var blockStart = 0; blockStart < current.Length; blockStart += 4)
+            for (var blockStart = 0; blockStart < positions.Length; blockStart += 4)
             {
-                var block = current.Slice(blockStart, Math.Min(4, current.Length - blockStart));
+                var blockLength = Math.Min(4, positions.Length - blockStart);
                 var anyHeld = false;
 
-                for (var lane = 0; lane < block.Length; lane++)
+                for (var lane = 0; lane < blockLength; lane++)
                 {
-                    ref var particle = ref block[lane];
-                    var radius = particle.Radius * radiusScale.NextNumber(ref particle, particleSystemState);
-                    depths[lane] = Vector3.Dot(particle.Position - origin, normal) - radius;
+                    var index = blockStart + lane;
+                    var position = positions[index];
+                    var radius = radii[index] * radiusScales[index];
+                    depths[lane] = Vector3.Dot(position - origin, normal) - radius;
 
-                    var withinReach = maxDistance <= 0f || Vector3.DistanceSquared(particle.Position, origin) < maxDistance * maxDistance;
+                    var withinReach = maxDistance <= 0f || Vector3.DistanceSquared(position, origin) < maxDistance * maxDistance;
 
                     if (!useOldCode && !withinReach)
                     {
@@ -85,11 +92,11 @@ namespace ValveResourceFormat.Particles.Constraints
                     continue;
                 }
 
-                for (var lane = 0; lane < block.Length; lane++)
+                for (var lane = 0; lane < blockLength; lane++)
                 {
                     if (depths[lane] < 0f)
                     {
-                        block[lane].Position -= normal * depths[lane];
+                        positions[blockStart + lane] -= normal * depths[lane];
                         moved = true;
                     }
                 }

@@ -38,7 +38,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             interpRate = parse.Float("m_flInterpRate", interpRate);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             if (inputField is < 0 or > 2 || outputField is < 0 or > 2)
             {
@@ -62,6 +62,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
             if (interpRate != 1f)
             {
+                // The output point's component at the input field, not the output field, is blended from
                 var previous = particleSystemState.GetControlPoint(outputControlPoint).Position.GetComponent(inputField);
                 value = MathUtils.Lerp(previous, value, MathUtils.Saturate(interpRate));
             }

@@ -36,18 +36,20 @@ class TurbulenceForce : ParticleFunctionForceGenerator
         noiseAmount3 = parse.Vector3("m_vecNoiseAmount3", noiseAmount3);
     }
 
-    public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
+    public override void GenerateForces(ParticleCollection particles, Span<Vector3> forces, float frameTime, ParticleSystemState particleSystemState, float strength)
     {
-        foreach (ref var particle in particles.Current)
+        var positions = particles.Current.ReadVectors(ParticleField.Position);
+
+        for (var i = 0; i < positions.Length; i++)
         {
-            var position = particle.Position;
+            var position = positions[i];
 
             var force = noiseAmount0 * Utils.Noise.ValueVector3(position * noiseCoordScale0);
             force += noiseAmount1 * Utils.Noise.ValueVector3(position * noiseCoordScale1);
             force += noiseAmount2 * Utils.Noise.ValueVector3(position * noiseCoordScale2);
             force += noiseAmount3 * Utils.Noise.ValueVector3(position * noiseCoordScale3);
 
-            particle.ForceAccumulator += force;
+            forces[i] += force;
         }
     }
 }

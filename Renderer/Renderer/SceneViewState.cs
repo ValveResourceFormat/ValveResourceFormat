@@ -33,6 +33,9 @@ public sealed class SceneViewState
     /// <summary>Gets whether anything is queued to draw into the effects bloom map this frame.</summary>
     public bool HasEffectsBloom => effectsBloomRenderList.Count > 0;
 
+    /// <summary>Gets whether anything is queued to draw in the screen-space layer this frame.</summary>
+    public bool HasScreenSpaceEffects => screenSpaceRenderList.Count > 0;
+
     /// <summary>Gets whether any water surface is queued to draw this frame.</summary>
     public bool HasWater => renderLists[RenderPass.Water].Count > 0;
 
@@ -94,6 +97,9 @@ public sealed class SceneViewState
     /// over the final image.
     /// </summary>
     public IReadOnlyList<MeshBatchRenderer.Request> ToolsRenderList => toolsRenderList;
+
+    /// <summary>Draws that go over the finished scene through the screen-space view.</summary>
+    private readonly List<MeshBatchRenderer.Request> screenSpaceRenderList = [];
 
     /// <summary>Translucent shapes whose fills skip the sorted translucent layer when it draws them order independently.</summary>
     private readonly List<ShapeSceneNode> orderIndependentFills = [];
@@ -410,6 +416,7 @@ public sealed class SceneViewState
 
         waterEffectsRenderList.Clear();
         effectsBloomRenderList.Clear();
+        screenSpaceRenderList.Clear();
         orderIndependentFills.Clear();
         toolsRenderList.Clear();
         customBufferNodes.Clear();
@@ -596,6 +603,11 @@ public sealed class SceneViewState
                 if ((customPasses & CustomRenderPasses.EffectsBloom) != 0)
                 {
                     effectsBloomRenderList.Add(customRender);
+                }
+
+                if ((customPasses & CustomRenderPasses.ScreenSpace) != 0)
+                {
+                    screenSpaceRenderList.Add(customRender);
                 }
 
                 if ((customPasses & CustomRenderPasses.Tools) != 0)
@@ -1211,6 +1223,15 @@ public sealed class SceneViewState
         renderContext.RenderPass = RenderPass.Translucent;
         renderContext.Layer = RenderLayer.Bloom;
         MeshBatchRenderer.Render(effectsBloomRenderList, renderContext);
+    }
+
+    /// <summary>Renders the draw calls of the screen-space layer; the caller binds the screen-space view.</summary>
+    /// <param name="renderContext">The render context for this pass.</param>
+    public void RenderScreenSpaceLayer(Scene.RenderContext renderContext)
+    {
+        renderContext.RenderPass = RenderPass.Translucent;
+        renderContext.Layer = RenderLayer.ScreenSpace;
+        MeshBatchRenderer.Render(screenSpaceRenderList, renderContext);
     }
 
     /// <summary>Renders water draw calls collected during <see cref="CollectSceneDrawCalls"/>.</summary>

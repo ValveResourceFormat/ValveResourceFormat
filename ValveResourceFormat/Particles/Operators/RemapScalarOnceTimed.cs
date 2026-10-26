@@ -42,21 +42,16 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Reset() => done = false;
 
+        public override void Restart(ParticleSystemState particleSystemState) => Reset();
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             if (proportional)
             {
-                foreach (ref var particle in particles.Current)
-                {
-                    var lifetime = particle.Lifetime + ParticleMath.FloatEpsilon;
-                    var normalizedAge = particle.Age / lifetime;
-
-                    if (normalizedAge > remapTime && (frameTime / lifetime) + remapTime > normalizedAge)
-                    {
-                        Remap(ref particle, strength);
-                    }
-                }
-
+                OperateProportional(particles, frameTime, strength);
                 return;
             }
 
@@ -67,16 +62,50 @@ namespace ValveResourceFormat.Particles.Operators
 
             done = true;
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(fieldOutput))
             {
-                Remap(ref particle, strength);
+                return;
+            }
+
+            var current = particles.Current;
+            var inputs = current.ReadFloats(fieldInput);
+            var outputs = current.Floats(fieldOutput);
+
+            for (var i = 0; i < outputs.Length; i++)
+            {
+                outputs[i] = Remap(inputs[i], outputs[i], strength);
             }
         }
 
-        private void Remap(ref Particle particle, float strength)
+        private void OperateProportional(ParticleCollection particles, float frameTime, float strength)
         {
-            var value = MathUtils.RemapValClamped(particle.GetScalar(fieldInput), inputMin, inputMax, outputMin, outputMax);
-            particle.SetScalar(fieldOutput, MathUtils.Lerp(particle.GetScalar(fieldOutput), value, strength));
+            if (!ParticleBuffer.IsScalar(fieldOutput))
+            {
+                return;
+            }
+
+            var current = particles.Current;
+            var ages = current.ReadAges();
+            var lifetimes = current.ReadFloats(ParticleField.LifeDuration);
+            var inputs = current.ReadFloats(fieldInput);
+            var outputs = current.Floats(fieldOutput);
+
+            for (var i = 0; i < outputs.Length; i++)
+            {
+                var lifetime = lifetimes[i] + ParticleMath.FloatEpsilon;
+                var normalizedAge = ages[i] / lifetime;
+
+                if (normalizedAge > remapTime && (frameTime / lifetime) + remapTime > normalizedAge)
+                {
+                    outputs[i] = Remap(inputs[i], outputs[i], strength);
+                }
+            }
+        }
+
+        private float Remap(float input, float output, float strength)
+        {
+            var value = MathUtils.RemapValClamped(input, inputMin, inputMax, outputMin, outputMax);
+            return MathUtils.Lerp(output, value, strength);
         }
     }
 }

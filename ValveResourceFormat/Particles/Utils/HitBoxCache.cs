@@ -45,6 +45,9 @@ namespace ValveResourceFormat.Particles.Utils
         /// <summary>The object the boxes were read from, or null when the control point carries none.</summary>
         public IParticleModelObject? Object { get; private set; }
 
+        /// <summary>Whether the last refresh found no hitboxes and holds the one box around the render bounds instead.</summary>
+        public bool IsRenderBoundsFallback { get; private set; }
+
         /// <summary>The boxes of the last refresh.</summary>
         public ReadOnlySpan<HitBox> Current => current.AsSpan(0, Count);
 
@@ -89,6 +92,7 @@ namespace ValveResourceFormat.Particles.Utils
             TotalVolume = 0f;
             (current, previous) = (previous, current);
             Object = modelObject;
+            IsRenderBoundsFallback = false;
             Count = 0;
 
             if (useBones)
@@ -106,6 +110,7 @@ namespace ValveResourceFormat.Particles.Utils
                 ReadHitBoxes(modelObject, hitboxSetName, computeVolumes);
             }
 
+            // Falling back to boxes built from the control point's snapshot (m_bShouldHitboxesFallbackToSnapshot) is not modelled
             if (Count == 0 && systemState.Data is { HitboxesFallBackToRenderBounds: true } simulation)
             {
                 var (transform, modelBounds) = modelObject == null
@@ -117,6 +122,7 @@ namespace ValveResourceFormat.Particles.Utils
                 current[0] = HitBox.FromTransform(transform, modelBounds.Min, modelBounds.Max, volume);
                 Count = 1;
                 TotalVolume = volume;
+                IsRenderBoundsFallback = true;
             }
         }
 
@@ -346,7 +352,7 @@ namespace ValveResourceFormat.Particles.Utils
                 boundsTime = UpdateTime;
                 bounds = new AABB(new Vector3(float.MaxValue), new Vector3(float.MinValue));
 
-                foreach (var box in Current)
+                foreach (ref readonly var box in Current)
                 {
                     for (var corner = 0; corner < 8; corner++)
                     {
@@ -363,7 +369,7 @@ namespace ValveResourceFormat.Particles.Utils
                 return inBounds;
             }
 
-            foreach (var box in Current)
+            foreach (ref readonly var box in Current)
             {
                 if (new AABB(box.Mins, box.Maxs).Contains(box.InverseTransformPoint(point)))
                 {
@@ -401,11 +407,13 @@ namespace ValveResourceFormat.Particles.Utils
             var random = systemState.Random;
 
             var bestDistance = float.MaxValue;
+
+            // When every box is passed over, the particle should keep the box and fraction of the particle before it
             var result = (Fraction: Vector3.Zero, Index: 0);
 
             for (var i = first; i <= last; i++)
             {
-                var box = current[i];
+                ref readonly var box = ref current[i];
 
                 if (!closestPoint)
                 {

@@ -31,25 +31,39 @@ class CurlNoiseForce : ParticleFunctionForceGenerator
         worleyJitter = parse.NumberProvider("m_flWorleyJitter", worleyJitter);
     }
 
-    public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
+    public override void GenerateForces(ParticleCollection particles, Span<Vector3> forces, float frameTime, ParticleSystemState particleSystemState, float strength)
     {
-        foreach (ref var particle in particles.Current)
+        var current = particles.Current;
+        var positions = current.ReadVectors(ParticleField.Position);
+        var frequencies = noiseFrequency.Prepare(current, particleSystemState);
+        var scales = noiseScale.Prepare(current, particleSystemState);
+        var offsets = offset.Prepare(current, particleSystemState);
+        var offsetRates = offsetRate.Prepare(current, particleSystemState);
+        var seeds = worleySeed.Fill(current, particleSystemState);
+        var jitters = worleyJitter.Fill(current, particleSystemState);
+
+        foreach (var (blockOffset, block, lane) in current.InputBlocks())
         {
-            var sample = offset.NextVector(ref particle, particleSystemState)
-                + (particleSystemState.Age * offsetRate.NextVector(ref particle, particleSystemState))
-                + (particle.Position * noiseFrequency.NextVector(ref particle, particleSystemState));
+            noiseFrequency.FillPerBlock(block, lane, particleSystemState, frequencies[blockOffset..]);
+            noiseScale.FillPerBlock(block, lane, particleSystemState, scales[blockOffset..]);
+            offsetRate.FillPerBlock(block, lane, particleSystemState, offsetRates[blockOffset..]);
+            offset.FillPerBlock(block, lane, particleSystemState, offsets[blockOffset..]);
+        }
+
+        for (var i = 0; i < positions.Length; i++)
+        {
+            var sample = offsets[i]
+                + (particleSystemState.Age * offsetRates[i])
+                + (positions[i] * frequencies[i]);
 
             var noise = noiseType switch
             {
                 ParticleDirectionNoiseType.PARTICLE_DIR_NOISE_CURL => Utils.Noise.Curl3D(sample),
-                ParticleDirectionNoiseType.PARTICLE_DIR_NOISE_WORLEY_BASIC => Utils.Noise.WorleyOffset3D(
-                    sample,
-                    worleyJitter.NextNumber(ref particle, particleSystemState),
-                    worleySeed.NextNumber(ref particle, particleSystemState)),
+                ParticleDirectionNoiseType.PARTICLE_DIR_NOISE_WORLEY_BASIC => Utils.Noise.WorleyOffset3D(sample, jitters[i], seeds[i]),
                 _ => Utils.Noise.ValueVector3(sample),
             };
 
-            particle.ForceAccumulator += noise * noiseScale.NextVector(ref particle, particleSystemState) * strength;
+            forces[i] += noise * scales[i] * strength;
         }
     }
 }

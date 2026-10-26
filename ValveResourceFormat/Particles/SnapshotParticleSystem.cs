@@ -232,12 +232,7 @@ namespace ValveResourceFormat.Particles
                     continue;
                 }
 
-                return field.FieldType() switch
-                {
-                    "vector" => data as Vector3[],
-                    "float" => data as float[],
-                    _ => null,
-                };
+                return ParticleBuffer.IsVector(field) ? data as Vector3[] : data as float[];
             }
 
             return null;

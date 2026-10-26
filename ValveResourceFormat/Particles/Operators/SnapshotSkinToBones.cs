@@ -31,23 +31,37 @@ namespace ValveResourceFormat.Particles.Operators
             prevPosScale = parse.Float("m_flPrevPosScale", prevPosScale);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields
+            => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask() | ParticleField.Radius.Mask() | ParticleField.Normal.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            if (HitBoxCache.Refresh(particleSystemState, controlPoint, string.Empty, useBones: true) is not { IsStable: true } cache)
+            if (HitBoxCache.Refresh(particleSystemState, controlPoint, string.Empty, useBones: true) is not { IsStable: true } cache
+                || !particles.Current.HasBones)
             {
                 return;
             }
 
             var point = particleSystemState.GetControlPoint(controlPoint);
             var jumped = Vector3.DistanceSquared(point.Position, point.PositionPrevious) > jumpThreshold;
-            var fadeEnd = lifeTimeFadeEnd <= 0f ? 1e20f : lifeTimeFadeEnd;
+            var fadeEnd = lifeTimeFadeEnd <= 0f ? ParticleMath.NoFadeEnd : lifeTimeFadeEnd;
             var inverseFade = lifeTimeFadeEnd > lifeTimeFadeStart ? 1f / (lifeTimeFadeEnd - lifeTimeFadeStart) : 0f;
             var prevScale = jumped ? 1f : prevPosScale;
-            var time = particleSystemState.Age;
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var positions = current.Vectors(ParticleField.Position);
+            var previousPositions = current.Vectors(ParticleField.PositionPrevious);
+            var ages = current.ReadAges();
+            var boneWeights = current.ReadVectors(ParticleField.BoneWeights);
+            var boneIndices = current.BoneIndices;
+
+            var normals = transformNormals ? current.Vectors(ParticleField.Normal) : default;
+            var radii = transformRadii ? current.Floats(ParticleField.Radius) : default;
+
+            for (var i = 0; i < positions.Length; i++)
             {
-                var age = time - particle.CreationTime;
+                var age = ages[i];
                 var weight = frameTime >= age ? 0f : 1f;
 
                 if (!jumped && age >= fadeEnd)
@@ -55,7 +69,7 @@ namespace ValveResourceFormat.Particles.Operators
                     continue;
                 }
 
-                if (!cache.ComputeSkinningMatrix(particle.BoneIndices, particle.BoneWeights, true, out var skin, out var previousSkin)
+                if (!cache.ComputeSkinningMatrix(boneIndices[i], boneWeights[i], true, out var skin, out var previousSkin)
                     || !Matrix4x4.Invert(previousSkin, out var previousInverse))
                 {
                     continue;
@@ -68,17 +82,19 @@ namespace ValveResourceFormat.Particles.Operators
                     weight *= (1f - ((age - lifeTimeFadeStart) * inverseFade)) * strength;
                 }
 
-                particle.Position = MathUtils.Lerp(particle.Position, Vector3.Transform(particle.Position, delta), weight);
-                particle.PositionPrevious = MathUtils.Lerp(particle.PositionPrevious, Vector3.Transform(particle.PositionPrevious, delta), weight * prevScale);
+                var position = positions[i];
+                var previousPosition = previousPositions[i];
+                positions[i] = MathUtils.Lerp(position, Vector3.Transform(position, delta), weight);
+                previousPositions[i] = MathUtils.Lerp(previousPosition, Vector3.Transform(previousPosition, delta), weight * prevScale);
 
                 if (transformNormals)
                 {
-                    particle.Normal = MathUtils.SafeNormalize(Vector3.TransformNormal(particle.Normal, delta));
+                    normals[i] = MathUtils.SafeNormalize(Vector3.TransformNormal(normals[i], delta));
                 }
 
                 if (transformRadii)
                 {
-                    particle.Radius *= delta.MaxAxisScale();
+                    radii[i] *= delta.MaxAxisScale();
                 }
             }
         }

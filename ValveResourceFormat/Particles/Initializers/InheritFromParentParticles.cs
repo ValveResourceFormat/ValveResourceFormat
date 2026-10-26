@@ -20,6 +20,8 @@ namespace ValveResourceFormat.Particles.Initializers
         /// <summary>The parent particle attributes are only written from behavior version 9.</summary>
         private readonly bool writeParentIndex;
 
+        private readonly ParticleFieldStorage storage;
+
         private int runningIndex;
         private int randomCounter;
 
@@ -27,6 +29,7 @@ namespace ValveResourceFormat.Particles.Initializers
         {
             scale = parse.Float("m_flScale", scale);
             fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
+            storage = ParticleBuffer.StorageOf(fieldOutput);
             increment = parse.Int32("m_nIncrement", increment);
             randomDistribution = parse.Boolean("m_bRandomDistribution", randomDistribution);
             randomSeed = parse.Int32("m_nRandomSeed", randomSeed);
@@ -39,87 +42,91 @@ namespace ValveResourceFormat.Particles.Initializers
             randomCounter = 0;
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-        }
-
         public override ulong WrittenFields
-            => FieldMask(fieldOutput) | FieldMask(ParticleField.ParentParticleIndex) | FieldMask(ParticleField.ParentParticleId);
+            => fieldOutput.Mask() | ParticleField.ParentParticleIndex.Mask() | ParticleField.ParentParticleId.Mask();
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var parentData = particleSystemState.ParentSystem?.Data;
             if (parentData == null)
             {
-                return particle;
+                return;
             }
 
             var parentParticles = parentData.CurrentParticles;
             var count = parentParticles.Length;
             if (count == 0)
             {
-                return particle;
+                return;
             }
 
-            int index;
-            if (randomDistribution)
-            {
-                var fraction = particleSystemState.Random.NextOrSeeded(randomSeed, ref randomCounter);
-                index = (int)(count * fraction);
-                runningIndex = index;
-            }
-            else if (runningIndex > count - 1)
-            {
-                runningIndex = 0;
-                index = 0;
-            }
-            else
-            {
-                index = runningIndex;
-            }
+            var boneIndices = storage == ParticleFieldStorage.BoneIndices ? run.BoneIndices : default;
+            var vectorOutput = storage == ParticleFieldStorage.Vector ? run.Vectors(fieldOutput) : default;
+            var scalarOutput = (storage is ParticleFieldStorage.Integer or ParticleFieldStorage.Scalar) ? run.Floats(fieldOutput) : default;
+            var parentIndices = writeParentIndex ? run.Integers(ParticleField.ParentParticleIndex) : default;
+            var parentIds = writeParentIndex ? run.Integers(ParticleField.ParentParticleId) : default;
 
-            ref var parent = ref parentParticles[index];
+            var parentVectors = storage == ParticleFieldStorage.Vector ? parentParticles.ReadVectors(fieldOutput) : default;
+            var parentScalars = (storage is ParticleFieldStorage.Integer or ParticleFieldStorage.Scalar) ? parentParticles.ReadFloats(fieldOutput) : default;
+            var parentParticleIds = writeParentIndex ? parentParticles.ReadIntegers(ParticleField.ParticleId) : default;
 
-            if (fieldOutput == ParticleField.BoneIndices)
+            for (var i = 0; i < run.Length; i++)
             {
-                particle.BoneIndices = parent.BoneIndices;
-            }
-            else if (fieldOutput.FieldType() == "vector")
-            {
-                var value = parent.GetVector(fieldOutput) * scale;
-
-                if (fieldOutput is ParticleField.Color or ParticleField.GlowRgb)
+                int index;
+                if (randomDistribution)
                 {
-                    value = Vector3.Clamp(value, Vector3.Zero, Vector3.One);
+                    var fraction = particleSystemState.Random.NextOrSeeded(randomSeed, ref randomCounter);
+                    index = (int)(count * fraction);
+                    runningIndex = index;
+                }
+                else if (runningIndex < 0 || runningIndex > count - 1)
+                {
+                    runningIndex = 0;
+                    index = 0;
+                }
+                else
+                {
+                    index = runningIndex;
                 }
 
-                particle.SetVector(fieldOutput, value);
-            }
-            else if (fieldOutput.IsIntegerAttribute())
-            {
-                particle.SetScalar(fieldOutput, parent.GetScalar(fieldOutput));
-            }
-            else
-            {
-                var value = parent.GetScalar(fieldOutput) * scale;
-
-                if (fieldOutput is ParticleField.Alpha or ParticleField.AlphaAlternate)
+                switch (storage)
                 {
-                    value = MathUtils.Saturate(value);
+                    case ParticleFieldStorage.BoneIndices:
+                        boneIndices[i] = parentParticles.ReadBoneIndices(index);
+                        break;
+                    case ParticleFieldStorage.Vector:
+                        var vector = parentVectors[index] * scale;
+
+                        if (fieldOutput.IsNormalizedField())
+                        {
+                            vector = Vector3.Clamp(vector, Vector3.Zero, Vector3.One);
+                        }
+
+                        vectorOutput[i] = vector;
+                        break;
+                    case ParticleFieldStorage.Integer:
+                        scalarOutput[i] = parentScalars[index];
+                        break;
+                    case ParticleFieldStorage.Scalar:
+                        var scalar = parentScalars[index] * scale;
+
+                        if (fieldOutput.IsAlpha())
+                        {
+                            scalar = MathUtils.Saturate(scalar);
+                        }
+
+                        scalarOutput[i] = scalar;
+                        break;
                 }
 
-                particle.SetScalar(fieldOutput, value);
+                if (writeParentIndex)
+                {
+                    parentIndices[i] = index;
+                    parentIds[i] = parentParticleIds[index];
+                }
+
+                runningIndex += increment;
             }
-
-            if (writeParentIndex)
-            {
-                particle.ParentParticleIndex = index;
-                particle.ParentParticleId = parent.ParticleId;
-            }
-
-            runningIndex += increment;
-
-            return particle;
         }
     }
 }

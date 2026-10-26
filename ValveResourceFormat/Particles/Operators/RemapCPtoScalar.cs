@@ -28,6 +28,8 @@ namespace ValveResourceFormat.Particles.Operators
             outputMax = parse.Float("m_flOutputMax", outputMax);
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
             timing = new ControlPointRemapTiming(parse);
+
+            AddInitialReadOf(parse, setMethod, fieldOutput);
         }
 
         public override void AddControlPointDefaults(ControlPointDefaults defaults)
@@ -40,39 +42,49 @@ namespace ValveResourceFormat.Particles.Operators
             timing.Reset();
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var outputMin = this.outputMin;
             var outputMax = this.outputMax;
 
-            if (fieldOutput is ParticleField.Alpha or ParticleField.AlphaAlternate)
+            if (fieldOutput.IsAlpha())
             {
                 outputMin = MathUtils.Saturate(outputMin);
                 outputMax = MathUtils.Saturate(outputMax);
             }
 
             var input = particleSystemState.GetControlPoint(cpInput).Position;
-            var component = field switch
-            {
-                0 => input.X,
-                1 => input.Y,
-                _ => input.Z,
-            };
+            var component = input.GetComponent(field);
 
             var interpolation = timing.NextInterpolation(new Vector3(component, 0f, 0f), particleSystemState.Age);
             var remapped = MathUtils.RemapValClamped(component, inputMin, inputMax, outputMin, outputMax);
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(fieldOutput))
             {
-                if (!timing.Covers(particle.CreationTime))
+                return;
+            }
+
+            var current = particles.Current;
+            var creationTimes = current.ReadFloats(ParticleField.CreationTime);
+            var output = current.Floats(fieldOutput);
+            var initial = particles.Initial.ReadFloats(fieldOutput);
+            var isInteger = fieldOutput.IsIntegerAttribute();
+
+            for (var i = 0; i < output.Length; i++)
+            {
+                if (!timing.Covers(creationTimes[i]))
                 {
                     continue;
                 }
 
-                var current = particle.GetScalar(fieldOutput);
-                var target = particle.ModifyScalarBySetMethod(particles, fieldOutput, remapped, setMethod);
+                var currentValue = output[i];
+                var target = ParticleFieldExtensions.ApplySetMethod(remapped, initial[i], currentValue, particleSystemState.CurrentStep, setMethod);
+                var value = MathUtils.Lerp(currentValue, target, interpolation);
 
-                particle.SetScalar(fieldOutput, MathUtils.Lerp(current, target, interpolation));
+                output[i] = isInteger ? BitConverter.Int32BitsToSingle((int)value) : value;
             }
         }
     }

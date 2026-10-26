@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Particles.Operators
     /// Particles keep whatever offset they have from the path rather than being snapped back onto it.
     /// </summary>
     /// <remarks>
-    /// <c>m_flFadeStart</c> and <c>m_flFadeEnd</c> are parsed but the engine never reads them, and
+    /// <c>m_flFadeStart</c> and <c>m_flFadeEnd</c> are not read, and
     /// operator strength is not applied either.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_LockToSavedSequentialPath">C_OP_LockToSavedSequentialPath</seealso>
@@ -24,8 +24,6 @@ namespace ValveResourceFormat.Particles.Operators
 
         public LockToSavedSequentialPath(ParticleDefinitionParser parse) : base(parse)
         {
-            _ = parse.Float("m_flFadeStart", 1f);
-            _ = parse.Float("m_flFadeEnd", 1f);
             cpPairs = parse.Boolean("m_bCPPairs", cpPairs);
 
             var parsed = new ParticlePathParameters(parse);
@@ -46,9 +44,8 @@ namespace ValveResourceFormat.Particles.Operators
             Array.Clear(previousPaths);
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-        }
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -66,27 +63,40 @@ namespace ValveResourceFormat.Particles.Operators
                 previousPaths[i] ??= ParticlePath.CalculatePathValues(particleSystemState, segment, particleSystemState.Age - frameTime);
             }
 
-            foreach (ref var particle in particles.Current)
+            var particleSpan = particles.Current;
+            var positions = particleSpan.Vectors(ParticleField.Position);
+            var previousPositions = particleSpan.Vectors(ParticleField.PositionPrevious);
+            var savedValues = particleSpan.ReadVectors(ParticleField.HitboxOffsetPosition);
+            var ages = particleSpan.ReadAges();
+
+            for (var i = 0; i < positions.Length; i++)
             {
-                var saved = particle.HitboxOffsetPosition;
+                var saved = savedValues[i];
                 var segmentIndex = Math.Clamp((int)(saved.Y - pathParams.StartControlPointNumber), 0, pathCount - 1);
 
-                var current = currentPaths[segmentIndex];
-                var previous = previousPaths[segmentIndex]!.Value;
+                var delta = PathDelta(currentPaths[segmentIndex], previousPaths[segmentIndex]!.Value, saved.X, ages[i], frameTime);
 
-                var creationFraction = LivedStepFraction(particle, frameTime);
-
-                var delta = (ParticlePath.Evaluate(current.Start, current.Mid, current.End, saved.X)
-                    - ParticlePath.Evaluate(previous.Start, previous.Mid, previous.End, saved.X)) * creationFraction;
-
-                particle.Position += delta;
-                particle.PositionPrevious += delta;
+                positions[i] += delta;
+                previousPositions[i] += delta;
             }
 
             for (var i = 0; i < pathCount; i++)
             {
                 previousPaths[i] = currentPaths[i];
             }
+        }
+
+        /// <summary>
+        /// How far the point at <paramref name="pathParameter"/> moved from the previous path to the current
+        /// one, scaled down for a particle created during the step by the part of it that it lived.
+        /// </summary>
+        internal static Vector3 PathDelta((Vector3 Start, Vector3 Mid, Vector3 End) current, (Vector3 Start, Vector3 Mid, Vector3 End) previous,
+            float pathParameter, float age, float frameTime)
+        {
+            var creationFraction = MathF.Min(age, frameTime) / frameTime;
+
+            return (ParticlePath.Evaluate(current.Start, current.Mid, current.End, pathParameter)
+                - ParticlePath.Evaluate(previous.Start, previous.Mid, previous.End, pathParameter)) * creationFraction;
         }
     }
 }

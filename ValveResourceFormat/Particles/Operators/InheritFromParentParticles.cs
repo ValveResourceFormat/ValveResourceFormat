@@ -33,9 +33,8 @@ namespace ValveResourceFormat.Particles.Operators
             parentIndex = 0;
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-        }
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
@@ -46,66 +45,97 @@ namespace ValveResourceFormat.Particles.Operators
                 return;
             }
 
+            var current = particles.Current;
             var parentParticles = parentData.CurrentParticles;
-            var lastIndex = parentParticles.Length - 1;
+            var parentCount = parentParticles.Length;
 
-            foreach (ref var particle in particles.Current)
+            var storage = ParticleBuffer.StorageOf(fieldOutput);
+            var copiesBoneIndices = storage == ParticleFieldStorage.BoneIndices;
+            var copiesVectors = storage == ParticleFieldStorage.Vector;
+            var copiesScalars = storage is ParticleFieldStorage.Integer or ParticleFieldStorage.Scalar;
+
+            var boneIndices = copiesBoneIndices ? current.BoneIndices : default;
+            var parentBoneIndices = copiesBoneIndices ? parentParticles.ReadBoneIndices() : default;
+            var vectors = copiesVectors ? current.Vectors(fieldOutput) : default;
+            var parentVectors = copiesVectors ? parentParticles.ReadVectors(fieldOutput) : default;
+            var scalars = copiesScalars ? current.Floats(fieldOutput) : default;
+            var parentScalars = copiesScalars ? parentParticles.ReadFloats(fieldOutput) : default;
+
+            // A field that is not copied still walks the parent list
+            for (var i = 0; i < current.Length; i++)
             {
-                if (randomDistribution)
+                var source = NextParentIndex(parentCount, particleSystemState);
+
+                // A negative increment walks the index below zero, which reads other lanes of the first block and then
+                // memory before the buffer; the particle is skipped here
+                if ((uint)source >= (uint)parentCount)
                 {
-                    parentIndex = particleSystemState.Random.NextIndex(parentParticles.Length);
-                }
-                else if (parentIndex > lastIndex)
-                {
-                    parentIndex = 0;
+                    continue;
                 }
 
-                if ((uint)parentIndex < (uint)parentParticles.Length)
+                switch (storage)
                 {
-                    CopyAttribute(ref particle, ref parentParticles[parentIndex], fieldOutput, fieldOutput, scale);
+                    case ParticleFieldStorage.BoneIndices:
+                        boneIndices[i] = parentBoneIndices[source];
+                        break;
+                    case ParticleFieldStorage.Vector:
+                        vectors[i] = ScaleVector(parentVectors[source]);
+                        break;
+                    case ParticleFieldStorage.Integer:
+                        scalars[i] = parentScalars[source];
+                        break;
+                    case ParticleFieldStorage.Scalar:
+                        scalars[i] = ScaleScalar(parentScalars[source]);
+                        break;
                 }
-
-                parentIndex += increment;
             }
         }
 
-        /// <summary>
-        /// Writes <paramref name="source"/>'s <paramref name="input"/> into <paramref name="target"/>'s
-        /// <paramref name="output"/>, by the type of the output: integers and bone indices copied as is,
-        /// everything else scaled, with color and alpha clamped to [0, 1].
-        /// </summary>
-        internal static void CopyAttribute(ref Particle target, ref Particle source, ParticleField input, ParticleField output, float scale)
+        /// <summary>Scales a copied vector, clamping a normalized field to [0, 1].</summary>
+        private Vector3 ScaleVector(Vector3 value)
         {
-            if (output == ParticleField.BoneIndices)
-            {
-                target.SetVector(output, source.GetVector(input));
-            }
-            else if (output.FieldType() == "vector")
-            {
-                var value = source.GetVector(input) * scale;
+            var scaled = value * scale;
 
-                if (output.IsNormalizedField())
-                {
-                    value = Vector3.Clamp(value, Vector3.Zero, Vector3.One);
-                }
-
-                target.SetVector(output, value);
-            }
-            else if (output.IsIntegerAttribute())
+            if (fieldOutput.IsNormalizedField())
             {
-                target.SetScalar(output, source.GetScalar(input));
+                scaled = Vector3.Clamp(scaled, Vector3.Zero, Vector3.One);
             }
-            else
+
+            return scaled;
+        }
+
+        /// <summary>Scales a copied scalar, clamping alpha to [0, 1].</summary>
+        private float ScaleScalar(float value)
+        {
+            var scaled = value * scale;
+
+            if (fieldOutput.IsAlpha())
             {
-                var value = source.GetScalar(input) * scale;
-
-                if (output.IsAlpha())
-                {
-                    value = ParticleMath.ClampToUnit(value);
-                }
-
-                target.SetScalar(output, value);
+                scaled = ParticleMath.ClampToUnit(scaled);
             }
+
+            return scaled;
+        }
+
+        /// <summary>
+        /// Returns the parent particle the next particle copies from, then moves the walk on by the
+        /// increment. The result is outside the parent list when a negative increment walked off its start.
+        /// </summary>
+        private int NextParentIndex(int parentCount, ParticleSystemState particleSystemState)
+        {
+            if (randomDistribution)
+            {
+                parentIndex = particleSystemState.Random.NextIndex(parentCount);
+            }
+            else if (parentIndex > parentCount - 1)
+            {
+                parentIndex = 0;
+            }
+
+            var index = parentIndex;
+            parentIndex += increment;
+
+            return index;
         }
     }
 }

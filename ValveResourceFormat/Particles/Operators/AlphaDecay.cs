@@ -20,11 +20,15 @@ namespace ValveResourceFormat.Particles.Operators
         {
             var threshold = minAlpha + ParticleMath.FloatEpsilon;
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var alphas = current.ReadFloats(ParticleField.Alpha);
+            var alternates = current.ReadFloats(ParticleField.AlphaAlternate);
+
+            for (var i = 0; i < current.Length; i++)
             {
-                if (particle.Alpha * particle.AlphaAlternate <= threshold)
+                if (alphas[i] * alternates[i] <= threshold)
                 {
-                    particle.Kill();
+                    particles.Kill(i);
                 }
             }
         }

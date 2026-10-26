@@ -48,8 +48,11 @@ namespace ValveResourceFormat.Particles.Emitters
         private readonly bool forceEmitOnFirstUpdate;
         private readonly bool forceEmitOnLastUpdate;
 
-        /// <summary>False when the rate is a constant that never rises above zero.</summary>
-        private readonly bool steadyRateCanBePositive = true;
+        /// <summary>False when the rate settles at zero or below.</summary>
+        private bool steadyRateCanBePositive = true;
+
+        /// <summary>The age from which a settling rate holds its final value.</summary>
+        private float steadyTime;
 
         private double emitAccumulator;
         private long emitted;
@@ -77,20 +80,46 @@ namespace ValveResourceFormat.Particles.Emitters
             limitPerUpdate = parse.Int32("m_nLimitPerUpdate", limitPerUpdate);
             forceEmitOnFirstUpdate = parse.Boolean("m_bForceEmitOnFirstUpdate", forceEmitOnFirstUpdate);
             forceEmitOnLastUpdate = parse.Boolean("m_bForceEmitOnLastUpdate", forceEmitOnLastUpdate);
-
-            if (emitRate is LiteralNumberProvider { Value: var rate })
-            {
-                steadyRateCanBePositive = rate > 0f;
-            }
         }
 
         public override ParticleEventType EventTypeMask => initFromKilledParentParticles ? eventType : ParticleEventType.PARTICLE_EVENT_TYPE_MASK_NONE;
 
-        /// <summary>Whether emission ends: a duration is set, or the rate never rises above zero.</summary>
+        /// <summary>Whether emission ends: a duration is set, or the rate settles at zero or below.</summary>
         private bool IsFinite => duration != 0f || !steadyRateCanBePositive;
 
-        /// <summary>How long a finite emitter emits for after its start.</summary>
-        private float EmitSpan => steadyRateCanBePositive ? duration : 0f;
+        /// <summary>
+        /// How long a finite emitter emits for after its start: the duration, cut short to when the rate
+        /// settles at zero or below.
+        /// </summary>
+        private float EmitSpan
+        {
+            get
+            {
+                if (steadyRateCanBePositive)
+                {
+                    return duration;
+                }
+
+                return duration == 0f ? steadyTime : MathF.Min(duration, steadyTime);
+            }
+        }
+
+        public override void Initialize(ParticleSystemState particleSystemState)
+        {
+            base.Initialize(particleSystemState);
+
+            steadyRateCanBePositive = true;
+            steadyTime = 0f;
+
+            // The settle point is taken as seconds after the start of emission whatever the rate input
+            // measures, so a rate driven by the endcap age or a named value ends emission that long after
+            // the start
+            if (emitRate.TryGetSteadyState(particleSystemState, out var time, out var value))
+            {
+                steadyTime = time;
+                steadyRateCanBePositive = value > 0f;
+            }
+        }
 
         public override void Reset()
         {
@@ -117,7 +146,7 @@ namespace ValveResourceFormat.Particles.Emitters
             timeBase = particleSystemState.Age;
         }
 
-        public override void StartEmission()
+        public override void StartEmission(ParticleSystemState particleSystemState)
         {
             emitting = true;
         }
@@ -134,12 +163,23 @@ namespace ValveResourceFormat.Particles.Emitters
 
         public override bool MayCreateMoreParticles(ParticleSystemState particleSystemState)
         {
-            if (initFromKilledParentParticles || (!emitting && !forcePending) || IsPastFadeOut(particleSystemState))
+            if (!emitting && !forcePending)
             {
                 return false;
             }
 
-            var start = windowStart == -1f ? timeBase + startTime.NextNumber(particleSystemState) : windowStart;
+            // Before its first emission the emitter keeps the system alive until the endcap has run for a while
+            if (windowStart == -1f)
+            {
+                return !particleSystemState.InEndCap || particleSystemState.Age <= 2f;
+            }
+
+            if (initFromKilledParentParticles || IsPastFadeOut(particleSystemState))
+            {
+                return false;
+            }
+
+            var start = windowStart;
             var time = particleSystemState.Age;
 
             if (duration != 0f && time - particleSystemState.CurrentStep > start + duration)
@@ -147,7 +187,7 @@ namespace ValveResourceFormat.Particles.Emitters
                 return false;
             }
 
-            return steadyRateCanBePositive || time <= start;
+            return steadyRateCanBePositive || time <= start + steadyTime;
         }
 
         public override void Emit(ParticleSystemState particleSystemState, float strength, Action<float> emit)
@@ -300,7 +340,7 @@ namespace ValveResourceFormat.Particles.Emitters
             var now = state.Age;
             var from = now - time;
 
-            if (duration != 0f || !steadyRateCanBePositive)
+            if (IsFinite)
             {
                 from = MathF.Max(start, from);
             }

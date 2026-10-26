@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             for (var i = 0; i < excess; i++)
             {
-                current[i].Kill();
+                particles.Kill(i);
             }
         }
     }

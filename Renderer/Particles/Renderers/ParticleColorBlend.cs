@@ -56,6 +56,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return Vector4.Clamp(new Vector4(rgb, color.W * scale.W), Vector4.Zero, new Vector4(255f));
         }
 
+        /// <summary>
+        /// Combines as <see cref="Apply"/> does and rounds each channel to a whole byte, halves to even,
+        /// for a colour that is stored as bytes before it is used.
+        /// </summary>
+        public static Vector4 ApplyRounded(ParticleColorBlendType type, Vector4 color, Vector4 scale)
+            => Vector4.Round(Apply(type, color, scale));
+
         /// <summary>A division by a zero scale channel gives 0 in that channel.</summary>
         private static Vector3 FiniteOrZero(Vector3 value)
             => new(float.IsFinite(value.X) ? value.X : 0f, float.IsFinite(value.Y) ? value.Y : 0f, float.IsFinite(value.Z) ? value.Z : 0f);

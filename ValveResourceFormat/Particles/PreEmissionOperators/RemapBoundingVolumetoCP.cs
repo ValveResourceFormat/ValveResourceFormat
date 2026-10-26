@@ -7,7 +7,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
     /// </summary>
     /// <remarks>
     /// The box is the one last calculated for the system, so the value lags a frame behind, and a
-    /// system without bounds gives <c>m_flOutputMin</c>.
+    /// system without bounds counts as infinitely large.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RemapBoundingVolumetoCP">C_OP_RemapBoundingVolumetoCP</seealso>
     class RemapBoundingVolumetoCP : ParticleFunctionPreEmissionOperator
@@ -27,25 +27,24 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             outputMax = parse.Float("m_flOutputMax", outputMax);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             if (outControlPoint < 0)
             {
                 return;
             }
 
-            var value = outputMin;
+            var edge = float.PositiveInfinity;
 
             if (particleSystemState.Data?.WorldBoundingBox is { } bounds)
             {
                 var size = bounds.Max - bounds.Min;
-                var edge = MathF.Pow(size.X * size.Y * size.Z, 1f / 3f);
-
-                if (!float.IsNaN(edge))
-                {
-                    value = MathUtils.RemapValClamped(edge, inputMin, inputMax, outputMin, outputMax);
-                }
+                edge = MathF.Pow(size.X * size.Y * size.Z, 1f / 3f);
             }
+
+            var value = float.IsNaN(edge)
+                ? outputMin
+                : MathUtils.RemapValClamped(edge, inputMin, inputMax, outputMin, outputMax);
 
             particleSystemState.SetControlPointValue(outControlPoint, new Vector3(value, 0f, 0f));
         }

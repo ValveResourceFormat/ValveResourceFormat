@@ -49,5 +49,5 @@ public static class ParticleRendererFactory
     /// <summary>Renderers that draw nothing in the viewer, so they are created as no-ops rather than reported.</summary>
     private static bool IsGameOnly(string className) => className is "C_OP_ClientPhysics" or "C_OP_RenderGpuImplicit"
         or "C_OP_RenderScreenShake" or "C_OP_RenderStatusEffect" or "C_OP_RenderStatusEffectCitadel" or "C_OP_RenderText"
-        or "C_OP_RenderTreeShake" or "C_OP_RenderVRHapticEvent";
+        or "C_OP_RenderTonemapController" or "C_OP_RenderTreeShake" or "C_OP_RenderVRHapticEvent";
 }

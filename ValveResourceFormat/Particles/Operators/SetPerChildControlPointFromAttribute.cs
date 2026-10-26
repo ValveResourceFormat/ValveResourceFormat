@@ -31,7 +31,11 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            if (attributeToRead == ParticleField.NoneDisabled)
+            var storage = ParticleBuffer.StorageOf(attributeToRead);
+
+            // Packed bone indices could only go into a component as the raw bits of their low half,
+            // so they are not written at all
+            if (attributeToRead == ParticleField.NoneDisabled || storage == ParticleFieldStorage.BoneIndices)
             {
                 return;
             }
@@ -40,10 +44,12 @@ namespace ValveResourceFormat.Particles.Operators
             var limit = numBasedOnParticleCount ? live.Length : numControlPoints;
             var remaining = Math.Min(limit, Math.Min(live.Length - firstSourcePoint, particleSystemState.Children.Count));
             var source = firstSourcePoint;
-            var isVector = attributeToRead.FieldType() == "vector";
+            var isVector = storage == ParticleFieldStorage.Vector;
 
             foreach (var child in particleSystemState.Children)
             {
+                // Only a non-zero count is checked for, so stale particle data would be read when the source
+                // steps past the live particles or the first source point is beyond them
                 if (remaining <= 0 || (uint)source >= (uint)live.Length)
                 {
                     return;
@@ -54,15 +60,13 @@ namespace ValveResourceFormat.Particles.Operators
                     continue;
                 }
 
-                ref var particle = ref live[source];
-
                 if (isVector)
                 {
-                    child.GetControlPoint(firstControlPoint).Position = particle.GetVector(attributeToRead);
+                    child.GetControlPoint(firstControlPoint).Position = live.ReadVector(attributeToRead, source);
                 }
                 else if (controlPointField is >= 0 and <= 2)
                 {
-                    child.SetControlPointValueComponent(firstControlPoint, controlPointField, particle.GetScalar(attributeToRead));
+                    child.SetControlPointValueComponent(firstControlPoint, controlPointField, live.ReadFloat(attributeToRead, source));
                 }
 
                 remaining--;

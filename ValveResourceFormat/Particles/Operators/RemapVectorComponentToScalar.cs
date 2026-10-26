@@ -18,14 +18,33 @@ namespace ValveResourceFormat.Particles.Operators
             component = parse.Int32("m_nComponent", component);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
+            if (!ParticleBuffer.IsScalar(fieldOutput))
+            {
+                return;
+            }
+
+            var current = particles.Current;
+            var output = current.Floats(fieldOutput);
+
+            // A field that is not a vector attribute reads as zero
+            if (!ParticleBuffer.IsVector(fieldInput))
+            {
+                output.Clear();
+                return;
+            }
+
+            var input = current.ReadVectors(fieldInput);
             var clamp = fieldOutput.IsNormalizedField();
 
-            foreach (ref var particle in particles.Current)
+            for (var i = 0; i < output.Length; i++)
             {
-                var value = particle.GetVectorComponent(fieldInput, component);
-                particle.SetScalar(fieldOutput, clamp ? MathUtils.Saturate(value) : value);
+                var value = input[i].GetComponent(component);
+                output[i] = clamp ? MathUtils.Saturate(value) : value;
             }
         }
     }

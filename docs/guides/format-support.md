@@ -339,6 +339,9 @@ subset of particle functions and lists any unsupported functions per system in r
 of failing. Omni2 particle lights of the barn type are drawn as point lights. Model particles
 render in bind pose with default body groups, without `m_bAnimated` or `m_bManualAnimFrame`
 ([#716](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/716)).
+Screen-space effects (`m_bScreenSpaceEffect`) draw over the scene at full resolution rather than
+into a half-resolution layer, are not pickable, and only their sprite renderers face the
+screen-space view.
 
 Particle snapshots (`vsnap`) preview and extract. Bone name streams survive, but skinning
 streams are written into the extracted `.vsnap` as empty streams: their values show in the

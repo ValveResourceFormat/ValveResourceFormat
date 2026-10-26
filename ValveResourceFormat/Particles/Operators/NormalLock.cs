@@ -14,21 +14,24 @@ namespace ValveResourceFormat.Particles.Operators
         private Matrix4x4 previousTransform = Matrix4x4.Identity;
         private bool hasPrevious;
 
-        public override void Reset()
-        {
-            previousTransform = Matrix4x4.Identity;
-            hasPrevious = false;
-        }
-
         public NormalLock(ParticleDefinitionParser parse) : base(parse)
         {
             controlPoint = parse.ControlPoint("m_nControlPointNumber", controlPoint);
             transform = new ControlPointTransformProvider(controlPoint, true);
         }
 
+        public override void Reset()
+        {
+            previousTransform = Matrix4x4.Identity;
+            hasPrevious = false;
+        }
+
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Normal.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            var current = transform.NextTransform(ref Particle.Default, particleSystemState);
+            var currentTransform = transform.NextTransform(particleSystemState);
 
             if (!hasPrevious)
             {
@@ -36,7 +39,7 @@ namespace ValveResourceFormat.Particles.Operators
                 previousTransform = controlPointState.PreviousStepTime > 0f
                     ? Matrix4x4.CreateFromQuaternion(controlPointState.GetPreviousRotation())
                         * Matrix4x4.CreateTranslation(controlPointState.PositionPrevious)
-                    : current;
+                    : currentTransform;
                 hasPrevious = true;
             }
 
@@ -44,19 +47,23 @@ namespace ValveResourceFormat.Particles.Operators
 
             if (Matrix4x4.Invert(previousTransform, out var previousInverse))
             {
-                delta = previousInverse * current;
+                delta = previousInverse * currentTransform;
             }
 
-            foreach (ref var particle in particles.Current)
+            var current = particles.Current;
+            var normals = current.Vectors(ParticleField.Normal);
+            var ages = current.ReadAges();
+
+            for (var i = 0; i < normals.Length; i++)
             {
-                var ratio = LivedStepFraction(particle, frameTime);
+                var ratio = MathF.Min(ages[i], frameTime) / frameTime;
 
-                var rotated = Vector3.TransformNormal(particle.Normal, delta);
+                var rotated = Vector3.TransformNormal(normals[i], delta);
 
-                particle.Normal = Vector3.Lerp(particle.Normal, rotated, ratio);
+                normals[i] = Vector3.Lerp(normals[i], rotated, ratio);
             }
 
-            previousTransform = current;
+            previousTransform = currentTransform;
         }
     }
 }

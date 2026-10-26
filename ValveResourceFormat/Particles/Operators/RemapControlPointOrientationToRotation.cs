@@ -22,15 +22,21 @@ namespace ValveResourceFormat.Particles.Operators
             component = parse.Int32("m_nComponent", component);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => fieldOutput.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var angles = EntityTransformHelper.ToEulerAngles(particleSystemState.GetControlPoint(cp).GetRotation());
+            // The angles are indexed without a range check, so other component values read garbage; they are clamped instead
             var value = offsetRotation - float.DegreesToRadians(angles.GetComponent(component));
 
-            foreach (ref var particle in particles.Current)
+            if (!ParticleBuffer.IsScalar(fieldOutput))
             {
-                particle.SetScalar(fieldOutput, value);
+                return;
             }
+
+            particles.Current.Floats(fieldOutput).Fill(value);
         }
     }
 }

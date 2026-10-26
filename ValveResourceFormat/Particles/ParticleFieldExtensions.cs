@@ -1,3 +1,5 @@
+using System.Numerics.Tensors;
+
 namespace ValveResourceFormat.Particles
 {
     static class ParticleFieldExtensions
@@ -15,347 +17,15 @@ namespace ValveResourceFormat.Particles
             };
         }
 
-        // Extra utility for when one operator can set either scalars or vectors
-        public static string? FieldType(this ParticleField field)
-        {
-#pragma warning disable IDE0066 // Convert switch statement to expression
-            switch (field)
-            {
-                case ParticleField.Position:
-                case ParticleField.PositionPrevious:
-                case ParticleField.Color:
-                case ParticleField.HitboxOffsetPosition:
-                case ParticleField.ScratchVector:
-                case ParticleField.Normal:
-                case ParticleField.GlowRgb:
-                case ParticleField.ScratchVector2:
-                case ParticleField.BoneIndices:
-                case ParticleField.BoneWeights:
-                case ParticleField.BoxMins:
-                case ParticleField.BoxMaxs:
-                case ParticleField.BoxAngles:
-                case ParticleField.RopeSegmentData:
-                    return "vector";
-                case ParticleField.LifeDuration:
-                case ParticleField.Radius:
-                case ParticleField.Roll:
-                case ParticleField.RollSpeed:
-                case ParticleField.Alpha:
-                case ParticleField.CreationTime:
-                case ParticleField.TrailLength:
-                case ParticleField.Yaw:
-                case ParticleField.SecondSequenceNumber:
-                case ParticleField.AlphaAlternate:
-                case ParticleField.ScratchFloat:
-                case ParticleField.Pitch:
-                case ParticleField.GlowAlpha:
-                case ParticleField.SceneObjectPointer:
-                case ParticleField.ModelHelperPointer:
-                case ParticleField.ScratchFloat1:
-                case ParticleField.ScratchFloat2:
-                case ParticleField.SceneObjectPointer2:
-                case ParticleField.RefCountedPointer:
-                case ParticleField.ParentParticleIndex:
-                case ParticleField.ForceScale:
-                case ParticleField.ModelHelperPointer2:
-                case ParticleField.ModelHelperPointer3:
-                case ParticleField.ModelHelperPointer4:
-                case ParticleField.ManualAnimationFrame:
-                case ParticleField.SequenceNumber:
-                case ParticleField.ParticleId:
-                case ParticleField.HitboxIndex:
-                case ParticleField.NoneDisabled:
-                case ParticleField.ShaderExtraData1:
-                case ParticleField.ShaderExtraData2:
-                case ParticleField.BoxFlags:
-                case ParticleField.UserEventStates:
-                case ParticleField.ParentParticleId:
-                case ParticleField.RopeSegmentId:
-                    return "float";
-                default:
-                    return null;
-            }
-#pragma warning restore IDE0066 // Convert switch statement to expression
-        }
-
-        // Scalar fields
-        public static float GetScalar(this ref Particle particle, ParticleField field)
-        {
-            return field switch
-            {
-                ParticleField.Alpha => particle.Alpha,
-                ParticleField.AlphaAlternate => particle.AlphaAlternate,
-                ParticleField.Radius => particle.Radius,
-                ParticleField.TrailLength => particle.TrailLength,
-                ParticleField.CreationTime => particle.CreationTime,
-                ParticleField.LifeDuration => particle.Lifetime,
-                ParticleField.Yaw => particle.Rotation.X,
-                ParticleField.ParticleId => particle.ParticleId & 0xFFF,
-                ParticleField.HitboxIndex => particle.HitboxIndex,
-                ParticleField.Pitch => particle.Rotation.Y,
-                ParticleField.Roll => particle.Rotation.Z,
-                ParticleField.RollSpeed => particle.RotationSpeed.Z,
-                ParticleField.SequenceNumber => particle.SequenceNumber,
-                ParticleField.SecondSequenceNumber => particle.SecondSequenceNumber,
-                ParticleField.ManualAnimationFrame => particle.ManualAnimationFrame,
-                ParticleField.ParentParticleIndex => particle.ParentParticleIndex,
-                ParticleField.ParentParticleId => particle.ParentParticleId,
-                ParticleField.RopeSegmentId => particle.RopeSegmentId,
-                ParticleField.UserEventStates => particle.UserEventStates,
-                ParticleField.BoxFlags => particle.BoxFlags,
-                ParticleField.ScratchFloat => particle.ScratchFloat0,
-                ParticleField.ScratchFloat1 => particle.ScratchFloat1,
-                ParticleField.ScratchFloat2 => particle.ScratchFloat2,
-                ParticleField.ForceScale => particle.ForceScale,
-                ParticleField.GlowAlpha => particle.GlowAlpha,
-                ParticleField.ShaderExtraData1 => particle.ShaderExtraData1,
-                ParticleField.ShaderExtraData2 => particle.ShaderExtraData2,
-                _ => 0f,
-            };
-        }
-        public static void SetScalar(this ref Particle particle, ParticleField field, float value)
-        {
-            switch (field)
-            {
-                case ParticleField.GlowAlpha:
-                    particle.GlowAlpha = value;
-                    break;
-                case ParticleField.ShaderExtraData1:
-                    particle.ShaderExtraData1 = value;
-                    break;
-                case ParticleField.ShaderExtraData2:
-                    particle.ShaderExtraData2 = value;
-                    break;
-                case ParticleField.Radius:
-                    particle.Radius = value;
-                    break;
-                case ParticleField.Alpha:
-                    particle.Alpha = value;
-                    break;
-                case ParticleField.AlphaAlternate:
-                    particle.AlphaAlternate = value;
-                    break;
-                case ParticleField.TrailLength:
-                    particle.TrailLength = value;
-                    break;
-                case ParticleField.RollSpeed:
-                    particle.RotationSpeed = new Vector3(particle.RotationSpeed.X, particle.RotationSpeed.Y, value);
-                    break;
-                case ParticleField.Yaw:
-                    particle.Rotation = new Vector3(value, particle.Rotation.Y, particle.Rotation.Z);
-                    break;
-                case ParticleField.Pitch:
-                    particle.Rotation = new Vector3(particle.Rotation.X, value, particle.Rotation.Z);
-                    break;
-                case ParticleField.Roll:
-                    particle.Rotation = new Vector3(particle.Rotation.X, particle.Rotation.Y, value);
-                    break;
-                case ParticleField.LifeDuration:
-                    particle.Lifetime = value;
-                    break;
-                case ParticleField.SequenceNumber:
-                    particle.SequenceNumber = value;
-                    break;
-                case ParticleField.SecondSequenceNumber:
-                    particle.SecondSequenceNumber = value;
-                    break;
-                case ParticleField.ManualAnimationFrame:
-                    particle.ManualAnimationFrame = value;
-                    break;
-                case ParticleField.ParticleId:
-                    particle.ParticleId = (int)value;
-                    break;
-                case ParticleField.HitboxIndex:
-                    particle.HitboxIndex = (int)value;
-                    break;
-                case ParticleField.ParentParticleIndex:
-                    particle.ParentParticleIndex = (int)value;
-                    break;
-                case ParticleField.ParentParticleId:
-                    particle.ParentParticleId = (int)value;
-                    break;
-                case ParticleField.RopeSegmentId:
-                    particle.RopeSegmentId = (int)value;
-                    break;
-                case ParticleField.UserEventStates:
-                    particle.UserEventStates = (int)value;
-                    break;
-                case ParticleField.BoxFlags:
-                    particle.BoxFlags = value;
-                    break;
-                case ParticleField.CreationTime:
-                    particle.CreationTime = value;
-                    break;
-                case ParticleField.ScratchFloat:
-                    particle.ScratchFloat0 = value;
-                    break;
-                case ParticleField.ScratchFloat1:
-                    particle.ScratchFloat1 = value;
-                    break;
-                case ParticleField.ScratchFloat2:
-                    particle.ScratchFloat2 = value;
-                    break;
-                case ParticleField.ForceScale:
-                    particle.ForceScale = value;
-                    break;
-                default:
-                    break;
-            }
-        }
-
-        // Vector field
-        public static Vector3 GetVector(this ref Particle particle, ParticleField field)
-        {
-            return field switch
-            {
-                ParticleField.Position => particle.Position,
-                ParticleField.PositionPrevious => particle.PositionPrevious,
-                ParticleField.Color => particle.Color,
-                ParticleField.HitboxOffsetPosition => particle.HitboxOffsetPosition,
-                ParticleField.BoneIndices => new Vector3(
-                    BitConverter.UInt32BitsToSingle((uint)particle.BoneIndices),
-                    BitConverter.UInt32BitsToSingle((uint)(particle.BoneIndices >> 32)),
-                    0f),
-                ParticleField.BoneWeights => particle.BoneWeights,
-                ParticleField.ScratchVector => particle.ScratchVector,
-                ParticleField.ScratchVector2 => particle.ScratchVector2,
-                ParticleField.Normal => particle.Normal,
-                ParticleField.BoxMins => particle.BoxMins,
-                ParticleField.BoxMaxs => particle.BoxMaxs,
-                ParticleField.BoxAngles => particle.BoxAngles,
-                ParticleField.GlowRgb => particle.GlowRgb,
-                ParticleField.RopeSegmentData => particle.RopeSegmentData,
-                _ => Vector3.Zero,
-            };
-        }
-
-        public static float GetVectorComponent(this ref Particle particle, ParticleField field, int component)
-        {
-            var vector = particle.GetVector(field);
-            return vector.GetComponent(component);
-        }
-
-        public static void SetVectorComponent(this ref Particle particle, ParticleField field, float value, int component)
-        {
-
-            var joinedVector = particle.GetVector(field);
-
-            switch (component)
-            {
-                case 0:
-                    joinedVector.X = value;
-                    break;
-                case 1:
-                    joinedVector.Y = value;
-                    break;
-                case 2:
-                    joinedVector.Z = value;
-                    break;
-                default:
-                    throw new NotImplementedException($"Unknown vector component with ID {component}");
-            }
-
-            particle.SetVector(field, joinedVector);
-        }
-
-        public static void SetVector(this ref Particle particle, ParticleField field, Vector3 value)
-        {
-            switch (field)
-            {
-                case ParticleField.GlowRgb:
-                    particle.GlowRgb = value;
-                    break;
-                case ParticleField.RopeSegmentData:
-                    particle.RopeSegmentData = value;
-                    break;
-                case ParticleField.Color:
-                    particle.Color = value;
-                    break;
-                case ParticleField.Normal:
-                    particle.Normal = value;
-                    break;
-                case ParticleField.Position:
-                    particle.Position = value;
-                    break;
-                case ParticleField.PositionPrevious:
-                    particle.PositionPrevious = value;
-                    break;
-                case ParticleField.HitboxOffsetPosition:
-                    particle.HitboxOffsetPosition = value;
-                    break;
-                case ParticleField.BoneIndices:
-                    particle.BoneIndices = BitConverter.SingleToUInt32Bits(value.X) | ((ulong)BitConverter.SingleToUInt32Bits(value.Y) << 32);
-                    break;
-                case ParticleField.BoneWeights:
-                    particle.BoneWeights = value;
-                    break;
-                case ParticleField.ScratchVector:
-                    particle.ScratchVector = value;
-                    break;
-                case ParticleField.ScratchVector2:
-                    particle.ScratchVector2 = value;
-                    break;
-                case ParticleField.BoxMins:
-                    particle.BoxMins = value;
-                    break;
-                case ParticleField.BoxMaxs:
-                    particle.BoxMaxs = value;
-                    break;
-                case ParticleField.BoxAngles:
-                    particle.BoxAngles = value;
-                    break;
-                default:
-                    break;
-            }
-        }
-
-        // Initial Scalars
-        public static float GetInitialScalar(this in Particle particle, ParticleCollection particles, ParticleField field)
-        {
-            ref var initialParticle = ref particles.Initial[particle.Index];
-            return initialParticle.GetScalar(field);
-        }
-
-        // Initial vector
-        public static Vector3 GetInitialVector(this in Particle particle, ParticleCollection particles, ParticleField field)
-        {
-            ref var initialParticle = ref particles.Initial[particle.Index];
-            return initialParticle.GetVector(field);
-        }
-
-        /// <summary>
-        /// Rewrites the spawn snapshot for endcap lerps, so a mid-life fade runs from the current value.
-        /// </summary>
-        public static void SetInitialScalar(this ref Particle particle, ParticleCollection particles, ParticleField field, float value)
-            => particles.Initial[particle.Index].SetScalar(field, value);
-
-        /// <inheritdoc cref="SetInitialScalar"/>
-        public static void SetInitialVector(this ref Particle particle, ParticleCollection particles, ParticleField field, Vector3 value)
-            => particles.Initial[particle.Index].SetVector(field, value);
-
-        // Set methods, shared by a bunch of different operators and initializers.
-        // The operator form: the particle has a spawn snapshot, so "initial" and "current" differ.
-        public static float ModifyScalarBySetMethod(this ref Particle particle, ParticleCollection particles, ParticleField field, float value, ParticleSetMethod setMethod)
-        {
-            var initial = ReadsInitialValue(setMethod) ? particle.GetInitialScalar(particles, field) : 0f;
-            return ApplySetMethod(value, initial, particle.GetScalar(field), particles.CurrentFrameTime, setMethod);
-        }
-
-        private static bool ReadsInitialValue(ParticleSetMethod setMethod)
+        /// <summary>Whether <paramref name="setMethod"/> combines the value with the particle's initial value.</summary>
+        public static bool ReadsInitialValue(this ParticleSetMethod setMethod)
             => setMethod is ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_ADD_TO_INITIAL_VALUE;
 
         /// <summary>
-        /// The initializer-time form. No spawn snapshot exists yet (the initial array holds the
-        /// constant template), so the "initial value" is what earlier initializers in the same pass
-        /// wrote to the particle.
+        /// Combines <paramref name="value"/> with a particle's initial and current values as
+        /// <paramref name="setMethod"/> says. A ramp adds the value as a rate over <paramref name="deltaTime"/>.
         /// </summary>
-        public static float ModifyScalarBySetMethodAtSpawn(this ref Particle particle, ParticleCollection particles, ParticleField field, float value, ParticleSetMethod setMethod)
-        {
-            var current = particle.GetScalar(field);
-            return ApplySetMethod(value, current, current, particles.CurrentFrameTime, setMethod);
-        }
-
-        private static float ApplySetMethod(float value, float initialValue, float currentValue, float deltaTime, ParticleSetMethod setMethod)
+        public static float ApplySetMethod(float value, float initialValue, float currentValue, float deltaTime, ParticleSetMethod setMethod)
             => setMethod switch
             {
                 ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE => value,
@@ -367,20 +37,8 @@ namespace ValveResourceFormat.Particles
                 _ => throw new NotImplementedException($"Unknown particle set type {Enum.GetName(setMethod)}!"),
             };
 
-        public static Vector3 ModifyVectorBySetMethod(this ref Particle particle, ParticleCollection particles, ParticleField field, Vector3 value, ParticleSetMethod setMethod)
-        {
-            var initial = ReadsInitialValue(setMethod) ? particle.GetInitialVector(particles, field) : Vector3.Zero;
-            return ApplySetMethod(value, initial, particle.GetVector(field), particles.CurrentFrameTime, setMethod);
-        }
-
-        /// <inheritdoc cref="ModifyScalarBySetMethodAtSpawn"/>
-        public static Vector3 ModifyVectorBySetMethodAtSpawn(this ref Particle particle, ParticleCollection particles, ParticleField field, Vector3 value, ParticleSetMethod setMethod)
-        {
-            var current = particle.GetVector(field);
-            return ApplySetMethod(value, current, current, particles.CurrentFrameTime, setMethod);
-        }
-
-        private static Vector3 ApplySetMethod(Vector3 value, Vector3 initialValue, Vector3 currentValue, float deltaTime, ParticleSetMethod setMethod)
+        /// <inheritdoc cref="ApplySetMethod(float, float, float, float, ParticleSetMethod)"/>
+        public static Vector3 ApplySetMethod(Vector3 value, Vector3 initialValue, Vector3 currentValue, float deltaTime, ParticleSetMethod setMethod)
             => setMethod switch
             {
                 ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE => value,
@@ -392,6 +50,36 @@ namespace ValveResourceFormat.Particles
                 ParticleSetMethod.PARTICLE_SET_RAMP_CURRENT_VALUE => currentValue + (value * deltaTime),
                 _ => throw new NotImplementedException($"Unknown particle set type {Enum.GetName(setMethod)}!"),
             };
+
+        /// <summary>
+        /// Combines every value in <paramref name="values"/> in place, as
+        /// <see cref="ApplySetMethod(float, float, float, float, ParticleSetMethod)"/> does.
+        /// </summary>
+        public static void ApplySetMethod(Span<float> values, ReadOnlySpan<float> initialValues, ReadOnlySpan<float> currentValues, float deltaTime, ParticleSetMethod setMethod)
+        {
+            switch (setMethod)
+            {
+                case ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE:
+                    break;
+                case ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE:
+                    TensorPrimitives.Multiply(values, initialValues, values);
+                    break;
+                case ParticleSetMethod.PARTICLE_SET_ADD_TO_INITIAL_VALUE:
+                    TensorPrimitives.Add(values, initialValues, values);
+                    break;
+                case ParticleSetMethod.PARTICLE_SET_SCALE_CURRENT_VALUE:
+                    TensorPrimitives.Multiply(values, currentValues, values);
+                    break;
+                case ParticleSetMethod.PARTICLE_SET_ADD_TO_CURRENT_VALUE:
+                    TensorPrimitives.Add(values, currentValues, values);
+                    break;
+                case ParticleSetMethod.PARTICLE_SET_RAMP_CURRENT_VALUE:
+                    TensorPrimitives.MultiplyAdd(values, deltaTime, currentValues, values);
+                    break;
+                default:
+                    throw new NotImplementedException($"Unknown particle set type {Enum.GetName(setMethod)}!");
+            }
+        }
 
         /// <summary>
         /// Whether the field holds an angle, and so is stored in radians while content authors it in
@@ -409,13 +97,13 @@ namespace ValveResourceFormat.Particles
             => field is ParticleField.Roll or ParticleField.Yaw or ParticleField.Pitch;
 
         /// <summary>
-        /// Whether the field holds an integer, which is copied as is and truncated when a float is
-        /// written to it.
+        /// Whether the field holds an integer. Functions read and write it as the bits of a float; only
+        /// inputs convert it to its value.
         /// </summary>
-        public static bool IsIntegerAttribute(this ParticleField field)
-            => field is ParticleField.ParticleId or ParticleField.HitboxIndex or ParticleField.ParentParticleIndex
-                or ParticleField.BoxFlags or ParticleField.UserEventStates or ParticleField.ParentParticleId
-                or ParticleField.RopeSegmentId;
+        public static bool IsIntegerAttribute(this ParticleField field) => ParticleBuffer.StorageOf(field) == ParticleFieldStorage.Integer;
+
+        /// <summary>The bit of the field in a <see cref="ParticleField"/> bit mask.</summary>
+        public static ulong Mask(this ParticleField field) => 1UL << (int)field;
 
         /// <summary>
         /// The range the float set operators hold a written value inside. Alpha is bounded to [0, 1],

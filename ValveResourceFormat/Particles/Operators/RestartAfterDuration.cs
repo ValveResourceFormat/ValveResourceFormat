@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Particles.Operators
         {
             durationMin = parse.Float("m_flDurationMin", durationMin);
             durationMax = parse.Float("m_flDurationMax", durationMax);
-            controlPoint = Math.Clamp(parse.Int32("m_nCP", controlPoint), -1, 64);
+            controlPoint = Math.Clamp(parse.Int32("m_nCP", controlPoint), -1, ParticleSystemState.ControlPointCount);
             controlPointField = Math.Clamp(parse.Int32("m_nCPField", controlPointField), -1, 2);
             childGroupId = parse.Int32("m_nChildGroupID", childGroupId);
             onlyChildren = parse.Boolean("m_bOnlyChildren", onlyChildren);
@@ -37,10 +37,6 @@ namespace ValveResourceFormat.Particles.Operators
         {
             lastRestartTime = 0f;
             duration = particleSystemState.Random.NextBetween(durationMin, durationMax);
-        }
-
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)

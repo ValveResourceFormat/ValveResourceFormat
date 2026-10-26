@@ -27,10 +27,6 @@ namespace ValveResourceFormat.Particles.Initializers
         private float parameterStep;
         private float cachedNumToAssign = float.NaN;
 
-        private bool endpointsDistinct;
-        private (int Start, int End)? cachedSegment;
-        private (Vector3 Start, Vector3 Mid, Vector3 End) cachedPath;
-
         public CreateSequentialPathV2(ParticleDefinitionParser parse) : base(parse)
         {
             maxDistance = parse.NumberProvider("m_fMaxDistance", maxDistance);
@@ -65,13 +61,15 @@ namespace ValveResourceFormat.Particles.Initializers
             cachedNumToAssign = float.NaN;
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.HitboxOffsetPosition);
+        public override void Restart(ParticleSystemState particleSystemState) => Reset();
+
+        public override ulong WrittenFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask() | ParticleField.HitboxOffsetPosition.Mask();
 
         /// <summary>
         /// Reads the count to assign and whether a looping pair walk is open, once for every call over
-        /// a batch of new particles, and forgets the path evaluated by the previous call.
+        /// a batch of new particles, then places the particles along the path.
         /// </summary>
-        protected override void BeginCall(ref Particle first, ParticleCollection particles, ParticleSystemState particleSystemState)
+        protected override void InitializeCall(ParticleSpan run, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var assignCount = numToAssign.NextNumber(particleSystemState);
             if (assignCount != cachedNumToAssign)
@@ -85,7 +83,7 @@ namespace ValveResourceFormat.Particles.Initializers
                 }
             }
 
-            endpointsDistinct = true;
+            var endpointsDistinct = true;
             if (cpPairs && loop)
             {
                 var startPos = particleSystemState.GetControlPoint(pathParams.StartControlPointNumber).Position;
@@ -95,100 +93,108 @@ namespace ValveResourceFormat.Particles.Initializers
                     || MathF.Abs(startPos.Z - endPos.Z) > 0.001f;
             }
 
-            cachedSegment = null;
-        }
+            // The jitter is evaluated for every live particle, and each particle of the run reads its own value
+            // rather than the value of the particle as far into the collection as it is into the run
+            var jitters = maxDistance.Fill(run, particles.Current, particleSystemState);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
-        {
-            var t = pathParameter;
+            var creationTimes = run.ReadFloats(ParticleField.CreationTime);
+            var positions = run.Vectors(ParticleField.Position);
+            var previous = run.Vectors(ParticleField.PositionPrevious);
+            var hitboxOffsets = saveOffset ? run.Vectors(ParticleField.HitboxOffsetPosition) : default;
 
-            int segmentStart;
-            int segmentEnd;
+            (int Start, int End)? cachedSegment = null;
+            var cachedPath = (Start: Vector3.Zero, Mid: Vector3.Zero, End: Vector3.Zero);
 
-            if (!cpPairs)
+            for (var i = 0; i < run.Length; i++)
             {
-                segmentStart = pathParams.StartControlPointNumber;
-                segmentEnd = pathParams.EndControlPointNumber;
-            }
-            else
-            {
-                segmentStart = pathParams.StartControlPointNumber + (int)t * spanDirection;
-                segmentEnd = segmentStart + spanDirection;
-                t -= (int)t;
+                var t = pathParameter;
 
-                if (spanDirection * (spanDirection + segmentStart - pathParams.EndControlPointNumber) >= 1)
+                int segmentStart;
+                int segmentEnd;
+
+                if (!cpPairs)
                 {
+                    segmentStart = pathParams.StartControlPointNumber;
                     segmentEnd = pathParams.EndControlPointNumber;
-                    segmentStart = pathParams.EndControlPointNumber - spanDirection;
-                    t = 1f;
-                }
-            }
-
-            if (cachedSegment != (segmentStart, segmentEnd))
-            {
-                cachedSegment = (segmentStart, segmentEnd);
-                cachedPath = ParticlePath.CalculatePathValues(particleSystemState, pathParams.WithControlPoints(segmentStart, segmentEnd), particle.CreationTime);
-            }
-
-            var (start, mid, end) = cachedPath;
-
-            var position = ParticlePath.Evaluate(start, mid, end, t);
-
-            if (saveOffset)
-            {
-                particle.HitboxOffsetPosition = new Vector3(t, segmentStart, segmentEnd);
-            }
-
-            var jitter = maxDistance.NextNumber(ref particle, particleSystemState);
-            position += particleSystemState.Random.NextBetweenPerComponent(new Vector3(-jitter), new Vector3(jitter));
-
-            particle.Position = position;
-            particle.PositionPrevious = position;
-
-            var previousParameter = pathParameter;
-            pathParameter += parameterStep;
-            var advanced = pathParameter;
-
-            if (parameterStep > PathParameterEpsilon)
-            {
-                if (MathF.Abs(advanced - spanLength) < PathParameterEpsilon)
-                {
-                    advanced = spanLength;
-                    pathParameter = advanced;
-                }
-                else if (MathF.Abs(advanced) < PathParameterEpsilon)
-                {
-                    advanced = 0f;
-                    pathParameter = 0f;
-                }
-            }
-
-            if (advanced > spanLength || advanced < 0f)
-            {
-                var wrapped = parameterStep <= 0f ? -advanced : advanced - spanLength;
-
-                if (loop)
-                {
-                    pathParameter = wrapped;
-
-                    if (endpointsDistinct && previousParameter == spanLength)
-                    {
-                        pathParameter = 0f;
-                    }
                 }
                 else
                 {
-                    if (parameterStep >= 0f)
-                    {
-                        wrapped = spanLength - wrapped;
-                    }
+                    segmentStart = pathParams.StartControlPointNumber + (int)t * spanDirection;
+                    segmentEnd = segmentStart + spanDirection;
+                    t -= (int)t;
 
-                    pathParameter = wrapped;
-                    parameterStep = -parameterStep;
+                    if (spanDirection * (spanDirection + segmentStart - pathParams.EndControlPointNumber) >= 1)
+                    {
+                        segmentEnd = pathParams.EndControlPointNumber;
+                        segmentStart = pathParams.EndControlPointNumber - spanDirection;
+                        t = 1f;
+                    }
+                }
+
+                if (cachedSegment != (segmentStart, segmentEnd))
+                {
+                    cachedSegment = (segmentStart, segmentEnd);
+                    cachedPath = ParticlePath.CalculatePathValues(particleSystemState, pathParams.WithControlPoints(segmentStart, segmentEnd), creationTimes[i]);
+                }
+
+                var (start, mid, end) = cachedPath;
+
+                var position = ParticlePath.Evaluate(start, mid, end, t);
+
+                if (saveOffset)
+                {
+                    hitboxOffsets[i] = new Vector3(t, segmentStart, segmentEnd);
+                }
+
+                var jitter = jitters[i];
+                position += particleSystemState.Random.NextBetweenPerComponent(new Vector3(-jitter), new Vector3(jitter));
+
+                positions[i] = position;
+                previous[i] = position;
+
+                var previousParameter = pathParameter;
+                pathParameter += parameterStep;
+                var advanced = pathParameter;
+
+                if (parameterStep > PathParameterEpsilon)
+                {
+                    if (MathF.Abs(advanced - spanLength) < PathParameterEpsilon)
+                    {
+                        advanced = spanLength;
+                        pathParameter = advanced;
+                    }
+                    else if (MathF.Abs(advanced) < PathParameterEpsilon)
+                    {
+                        advanced = 0f;
+                        pathParameter = 0f;
+                    }
+                }
+
+                if (advanced > spanLength || advanced < 0f)
+                {
+                    var wrapped = parameterStep <= 0f ? -advanced : advanced - spanLength;
+
+                    if (loop)
+                    {
+                        pathParameter = wrapped;
+
+                        if (endpointsDistinct && previousParameter == spanLength)
+                        {
+                            pathParameter = 0f;
+                        }
+                    }
+                    else
+                    {
+                        if (parameterStep >= 0f)
+                        {
+                            wrapped = spanLength - wrapped;
+                        }
+
+                        pathParameter = wrapped;
+                        parameterStep = -parameterStep;
+                    }
                 }
             }
-
-            return particle;
         }
     }
 }

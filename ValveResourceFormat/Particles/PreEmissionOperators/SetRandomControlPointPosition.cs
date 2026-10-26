@@ -55,11 +55,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             }
         }
 
-        public override void Restart(ParticleSystemState particleSystemState)
-        {
-        }
-
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
+        public override void Operate(ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             // Both inputs are sampled before the gate so their draws stay in step whether or not it fires
             var lerpAmount = interpolation.NextNumber(particleSystemState);

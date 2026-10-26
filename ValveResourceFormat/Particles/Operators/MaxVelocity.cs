@@ -22,66 +22,73 @@ namespace ValveResourceFormat.Particles.Operators
             minVelocityProvider = parse.NumberProvider("m_flMinVelocity", minVelocityProvider);
         }
 
+        /// <inheritdoc/>
+        public override ulong StoredFields => ParticleField.Position.Mask() | ParticleField.PositionPrevious.Mask();
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var current = particles.Current;
-            Span<float> maxSteps = stackalloc float[4];
-            Span<float> minSteps = stackalloc float[4];
+            var positions = current.Vectors(ParticleField.Position);
+            var previousPositions = current.Vectors(ParticleField.PositionPrevious);
             Span<Vector3> steps = stackalloc Vector3[4];
 
-            for (var blockStart = 0; blockStart < current.Length; blockStart += 4)
+            var maxVelocities = maxVelocityProvider.Fill(current, particleSystemState);
+            var minVelocities = minVelocityProvider.Fill(current, particleSystemState);
+
+            foreach (var (offset, block) in current.Blocks())
             {
-                var block = current.Slice(blockStart, Math.Min(4, current.Length - blockStart));
+                var blockLength = block.Length;
                 var anyMinimum = false;
                 var anyAtRest = false;
 
-                for (var lane = 0; lane < block.Length; lane++)
+                for (var lane = 0; lane < blockLength; lane++)
                 {
-                    ref var particle = ref block[lane];
-                    var maxVelocity = maxVelocityProvider.NextNumber(ref particle, particleSystemState);
-                    var minVelocity = minVelocityProvider.NextNumber(ref particle, particleSystemState);
+                    var i = offset + lane;
 
-                    maxSteps[lane] = maxVelocity * frameTime;
-                    minSteps[lane] = minVelocity * frameTime;
-                    steps[lane] = particle.Position - particle.PositionPrevious;
-                    anyMinimum |= minVelocity > 0f;
+                    steps[lane] = positions[i] - previousPositions[i];
+                    anyMinimum |= minVelocities[i] > 0f;
                     anyAtRest |= steps[lane].LengthSquared() <= 0f;
                 }
 
                 if (anyMinimum && anyAtRest)
                 {
-                    for (var lane = 0; lane < block.Length; lane++)
+                    var kicksX = particleSystemState.ThreadRandom.NextBetween(-0.1f, 0.1f);
+                    var kicksY = particleSystemState.ThreadRandom.NextBetween(-0.1f, 0.1f);
+
+                    for (var lane = 0; lane < blockLength; lane++)
                     {
                         var step = steps[lane];
 
                         if (step.LengthSquared() <= 0f)
                         {
-                            step.X = particleSystemState.Random.NextBetween(-0.1f, 0.1f);
-                            step.Y = particleSystemState.Random.NextBetween(-0.1f, 0.1f);
+                            step.X = kicksX[lane];
+                            step.Y = kicksY[lane];
                         }
 
                         steps[lane] = step with { Z = 0.1f - step.X - step.Y };
                     }
                 }
 
-                for (var lane = 0; lane < block.Length; lane++)
+                for (var lane = 0; lane < blockLength; lane++)
                 {
-                    ref var particle = ref block[lane];
+                    var i = offset + lane;
                     var step = steps[lane];
                     var length = step.Length();
+                    var maxStep = maxVelocities[i] * frameTime;
+                    var minStep = minVelocities[i] * frameTime;
                     var scale = 1f;
 
-                    if (maxSteps[lane] < length && length > 0f)
+                    if (maxStep < length && length > 0f)
                     {
-                        scale = maxSteps[lane] / length;
+                        scale = maxStep / length;
                     }
 
-                    if (length < minSteps[lane])
+                    if (length < minStep)
                     {
-                        scale = minSteps[lane] / length;
+                        scale = minStep / length;
                     }
 
-                    particle.Position = BlendByStrength(particle.Position, (step * scale) + particle.PositionPrevious, strength);
+                    positions[i] = BlendByStrength(positions[i], (step * scale) + previousPositions[i], strength);
                 }
             }
         }

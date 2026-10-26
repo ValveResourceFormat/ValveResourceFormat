@@ -204,7 +204,8 @@ namespace ValveResourceFormat.Particles.Constraints
 
         /// <summary>
         /// Caches a trace in the ring of slots up to <paramref name="maxSlot"/>, writing after the
-        /// last one written and wrapping to the first past it.
+        /// last one written and wrapping to the first past it. The slot at <paramref name="maxSlot"/> is
+        /// written like the others but never searched.
         /// </summary>
         public void AddTrace(Vector3 start, Vector3 end, Vector3 point, Vector3 normal, int maxSlot)
         {
@@ -215,7 +216,7 @@ namespace ValveResourceFormat.Particles.Constraints
             Store(slot, point, normal);
 
             nextSlot = slot + 1;
-            count = Math.Max(count, nextSlot);
+            count = Math.Min(maxSlot, count + 1);
         }
 
         /// <summary>Gets the surface point and normal held in <paramref name="slot"/>.</summary>

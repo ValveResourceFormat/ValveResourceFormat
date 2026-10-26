@@ -608,6 +608,13 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <summary>Distance, in world units, in front of the luminaire at which a light reaches its <see cref="LinearBrightness"/>.</summary>
     internal const float LinearBrightnessDistance = 100f;
 
+    /// <summary>The brightness one candela gives at the luminaire, before the falloff to <see cref="LinearBrightnessDistance"/>.</summary>
+    private const float BrightnessPerCandela = 40f * MathF.PI;
+
+    /// <summary>The <see cref="LinearBrightness"/> of a light with an intensity of <paramref name="candelas"/>.</summary>
+    internal static float LinearBrightnessFromCandelas(float candelas)
+        => candelas * BrightnessPerCandela / (LinearBrightnessDistance * LinearBrightnessDistance);
+
     // Mirrored by the BARN_LIGHT_FLAG_ constants in lighting.barn.slang
     private const uint RectLuminaireFlag = 0x1000u;
     private const uint DiscLuminaireFlag = 0x2000u;

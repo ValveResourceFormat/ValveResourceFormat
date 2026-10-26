@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using ValveKeyValue;
 using ValveResourceFormat.Particles.Upgrade;
@@ -12,13 +13,36 @@ namespace ValveResourceFormat.Particles;
 /// </summary>
 /// <param name="Data">The block being read.</param>
 /// <param name="Logger">Where parse warnings go.</param>
+/// <param name="InitialReads">
+/// Collects the bit mask over <see cref="Particles.ParticleField"/> of the attributes whose initial value the
+/// inputs of the definition read.
+/// </param>
 /// <param name="BehaviorVersion">
 /// The <c>m_nBehaviorVersion</c> of the definition this block belongs to, for parse-time version gates.
 /// </param>
-internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, int BehaviorVersion = 0)
+/// <param name="RandomInputs">
+/// Set when the particle function being read declares a random float input, or null outside a function.
+/// </param>
+internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, StrongBox<ulong> InitialReads, int BehaviorVersion = 0,
+    StrongBox<bool>? RandomInputs = null)
 {
     /// <summary>Reads a block nested in this one.</summary>
-    public readonly ParticleDefinitionParser Nested(KVObject data) => new(data, Logger, BehaviorVersion);
+    public readonly ParticleDefinitionParser Nested(KVObject data) => new(data, Logger, InitialReads, BehaviorVersion, RandomInputs);
+
+    /// <summary>Reads the block of a particle function, tracking its random inputs apart from other functions.</summary>
+    public readonly ParticleDefinitionParser Function(KVObject data) => Nested(data) with { RandomInputs = new() };
+
+    /// <summary>Records that an input of the definition reads the initial value of <paramref name="field"/>.</summary>
+    public readonly void AddInitialRead(ParticleField field) => InitialReads.Value |= field.Mask();
+
+    /// <summary>Records that the function being read declares a random float input.</summary>
+    public readonly void AddRandomInput()
+    {
+        if (RandomInputs is not null)
+        {
+            RandomInputs.Value = true;
+        }
+    }
 
     private readonly T GetValueOrDefault<T>(string key, Func<string, T?> parsingMethod, T @default)
     {
@@ -70,7 +94,7 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
         if (value.IsCollection)
         {
             Logger.LogUniqueWarning("Field {Key} is authored as a number provider, but is parsed as a literal float; it should be read with NumberProvider", key);
-            return ReadNumberProvider(value)?.NextNumber() ?? 0f;
+            return ReadNumberProvider(value)?.NextNumber(ParticleSystemState.Default) ?? 0f;
         }
 
         return (float)value.CoerceDouble(0f);
@@ -87,7 +111,7 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
         if (value.IsCollection)
         {
             Logger.LogUniqueWarning("Field {Key} is authored as a number provider, but is parsed as a literal int; it should be read with NumberProvider", key);
-            return (int)(ReadNumberProvider(value)?.NextNumber() ?? 0f);
+            return (int)(ReadNumberProvider(value)?.NextNumber(ParticleSystemState.Default) ?? 0f);
         }
 
         return ScalarInt32(value);
