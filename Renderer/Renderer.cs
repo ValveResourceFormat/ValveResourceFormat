@@ -655,11 +655,12 @@ public class Renderer : ISceneHost
 
             state.Pvs = pvsEnabled && scene.VoxelVisibility is { } visibility ? visibility.SunVisibility : default;
 
-            // Casters marked to only cast into the lightmap have nothing else to hold their shadow without one
-            var sunShadowBaked = scene.LightingInfo.HasBakedShadowsFromLightmap && scene.LightingInfo.IsSunShadowBaked;
+            // Static casters are left to the lightmap only where it holds the sun shadows, including the casters
+            // marked to cast only into it
+            var lightmapHoldsStatics = !Settings.StaticSunShadows && scene.LightingInfo.HasBakedShadowsFromLightmap && scene.LightingInfo.IsSunShadowBaked;
 
-            var (min, max) = state.CollectShadowCasters(frustum, includeStatic: includeBakedStatic || !sunShadowBaked,
-                sunShadowBaked ? ObjectTypeFlags.NoShadows | ObjectTypeFlags.NoSunShadows : ObjectTypeFlags.NoShadows,
+            var (min, max) = state.CollectShadowCasters(frustum, includeStatic: includeBakedStatic || !lightmapHoldsStatics,
+                lightmapHoldsStatics ? ObjectTypeFlags.NoShadows | ObjectTypeFlags.NoSunShadows : ObjectTypeFlags.NoShadows,
                 from.States[i].VisibilityBoxes, depthFitAxis, cullAggregatesOnGpu: true);
 
             depthMin = MathF.Min(depthMin, min);

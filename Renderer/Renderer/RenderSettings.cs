@@ -21,6 +21,9 @@ public sealed class RenderSettings
     /// <summary>Gets or sets whether barn lights are drawn.</summary>
     public bool EnableBarnLights { get; set; } = true;
 
+    /// <summary>Gets or sets whether static geometry casts sun shadows even where the lightmap already holds them.</summary>
+    public bool StaticSunShadows { get; set; }
+
     /// <summary>Gets or sets whether a depth prepass is drawn before opaques.</summary>
     public bool EnableDepthPrepass { get; set; }
 

@@ -530,6 +530,7 @@ namespace GUI.Types.GLViewers
             QuadOverdrawRenderer.Load();
 
             Renderer.ShadowTextureSize = Settings.Config.ShadowResolution;
+            Renderer.Settings.StaticSunShadows = Settings.Config.ShadowResolution >= 2048; // High and Very High
             Renderer.Initialize();
 
             Renderer.MainFramebuffer = MainFramebuffer;
