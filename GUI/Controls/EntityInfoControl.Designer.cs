@@ -61,7 +61,7 @@ namespace GUI.Forms
             OutputsDelay = new DataGridViewTextBoxColumn();
             OutputsTimesToFire = new DataGridViewTextBoxColumn();
             OutputsFire = new DataGridViewButtonColumn();
-            tabPageInputs = new TabPage();
+            tabPageInputs = new ThemedTabPage();
             dataGridInputs = new DataGridViewDoubleBuffered();
             InputsSource = new DataGridViewTextBoxColumn();
             InputsOutput = new DataGridViewTextBoxColumn();
@@ -511,7 +511,7 @@ namespace GUI.Forms
         private DataGridViewTextBoxColumn OutputsTimesToFire;
         private DataGridViewButtonColumn OutputsFire;
         private ThemedTabControl tabControl;
-        private TabPage tabPageInputs;
+        private ThemedTabPage tabPageInputs;
         private ThemedTabPage tabPageProperties;
         private ThemedTabPage tabPageOutputs;
         private DataGridViewDoubleBuffered dataGridInputs;

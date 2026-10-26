@@ -1,4 +1,5 @@
 using System.Windows.Forms;
+using GUI.Utils;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
@@ -63,6 +64,8 @@ namespace GUI.Forms
 
             if (shouldShow && !isShown)
             {
+                // A tab hidden when the theme was applied missed it
+                Themer.ThemeControl(page);
                 tabControl.TabPages.Insert(GetInsertIndex(page), page);
             }
             else if (!shouldShow && isShown)
