@@ -53,6 +53,7 @@ jobs:
       run: dotnet test --project ./Tests/Tests.csproj --configuration Release --minimum-expected-tests 400 ${{ env.SKIP_ANALYSIS }} ${{ matrix.coverage }}
       env:
         TUNIT_ENABLE_JUNIT_REPORTER: 1
+        TUNIT_DISABLE_GITHUB_REPORTER: true
 
 #    - name: Check formatting
 #      if: matrix.os == 'ubuntu-latest'
