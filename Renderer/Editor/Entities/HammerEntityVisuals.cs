@@ -44,6 +44,7 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
 
     private readonly Lazy<EntityClassTable> classes;
     private readonly ConditionalWeakTable<BaseEntity, EntityHelperOwner> gameEntities = [];
+    private readonly ConditionalWeakTable<EntityLump.Entity, IHelperOwner> mapEntities = [];
 
     /// <summary>Gets the entity classes the entities are drawn by, loaded when they are first needed.</summary>
     public EntityClassTable Classes => classes.Value;
@@ -66,7 +67,21 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
     {
         ArgumentNullException.ThrowIfNull(node);
 
-        return node.EntityInstance is { Data: not null } entity ? GetEntity(entity) : null;
+        if (node.EntityInstance is { Data: not null } entity)
+        {
+            return GetEntity(entity);
+        }
+
+        return node.EntityData != null && mapEntities.TryGetValue(node.EntityData, out var mapEntity) ? mapEntity : null;
+    }
+
+    /// <summary>Adds an entity of a source map, so the nodes it is drawn with are found to belong to it.</summary>
+    /// <param name="entity">The entity, with its helpers.</param>
+    public void AddMapEntity(IHelperOwner entity)
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+
+        mapEntities.AddOrUpdate(entity.KeyValues, entity);
     }
 
     // Every entity of the game has one set of helpers, made the first time anything asks for them

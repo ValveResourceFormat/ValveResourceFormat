@@ -76,6 +76,12 @@ public static class EntityHelperFactory
                     isSeen |= helper.IsVisual;
                 }
             }
+
+            // Never what the entity is seen by, so it does not keep the box away
+            if (entityClass.RequiredParentClass is { Length: > 0 } && Create(owner, new HelperDeclaration { Name = "error_indicator" }) is { } errorIndicator)
+            {
+                helpers.Add(errorIndicator);
+            }
         }
 
         // An entity made of map geometry is seen by that, and a node of a path by the path it is on
@@ -168,6 +174,7 @@ public static class EntityHelperFactory
         Add(OrientedWidthHeightHelper.Create, "orientedwidthheight");
         Add(static (owner, declaration) => new LightOrthoHelper(owner, declaration), "lightortho");
         Add(static (owner, declaration) => new TextHelper(owner, declaration), "text_local");
+        Add(static (owner, declaration) => new ErrorIndicatorHelper(owner, declaration), "error_indicator");
         Add(DotaObstructionHelper.Create, "dota_obstruction");
         Add(GameUnitModelHelper.Create, "gameUnitModel", "gameItemModel");
         Add(static (owner, declaration) => new FrustumHelper(owner, declaration), "frustum");

@@ -1,5 +1,8 @@
+using System.Globalization;
 using ValveResourceFormat.IO.Fgd;
+using ValveResourceFormat.Renderer.Editor.Map;
 using ValveResourceFormat.Renderer.SceneEnvironment;
+using ValveMapEntity = ValveResourceFormat.IO.ContentFormats.ValveMap.BaseEntity;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
@@ -30,6 +33,22 @@ internal sealed class ToneMappingHelper(IHelperOwner owner, HelperDeclaration de
         Owner.Scene.PostProcessInfo.AddTonemapController(controller, isMaster: true);
     }
 
+    // Only a key in exactly this case counts, so one of the map is looked up as the map stores it
     private float? GetExposure(string key)
-        => Owner.KeyValues.ContainsKey(key.ToLowerInvariant()) ? GetFloatKey(key.ToLowerInvariant()) : null;
+    {
+        if (Owner is not MapEntity { PlacedNode.Node: ValveMapEntity node })
+        {
+            return Owner.KeyValues.ContainsKey(key.ToLowerInvariant()) ? GetFloatKey(key.ToLowerInvariant()) : null;
+        }
+
+        foreach (var (name, value) in node.EntityProperties)
+        {
+            if (name.Equals(key, StringComparison.Ordinal) && value is string text)
+            {
+                return float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var exposure) ? exposure : null;
+            }
+        }
+
+        return null;
+    }
 }
