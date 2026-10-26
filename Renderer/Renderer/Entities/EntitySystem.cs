@@ -617,11 +617,8 @@ public sealed class EntitySystem
 
         if (Enabled)
         {
-            // The rigid body world steps with the rendered frame, like the player movement does:
-            // physics that only ever saw the camera at the tick rate reads back quantized however
-            // it is drawn. Steering runs first and drawing happens after, so what the carry asks
-            // for this frame is on screen this frame. The entity tick above stays the cadence of
-            // game logic; this is only the integrator.
+            // Stepped per rendered frame rather than per tick, keeping carried and pushed props off the
+            // tick rate. Steering runs before the step, putting the carry on screen this frame.
             var physicsStep = MathF.Min(frameTime, MaxPhysicsFrameStep);
 
             for (var i = 0; i < entities.Count; i++)
