@@ -925,7 +925,7 @@ public class CMapOverlayMaterialAdjustmentParams : DMElement
 /// Hammer's editable mesh, stored as a half edge mesh with parallel index arrays and data streams.
 /// </summary>
 [CamelCaseProperties]
-public class CDmePolygonMesh : DMElement
+public partial class CDmePolygonMesh : DMElement
 {
     /// <summary>
     /// Index to one of the edges stemming from this vertex.
@@ -1043,6 +1043,28 @@ public class CDmePolygonMeshSubdivisionData : DMElement
 }
 
 /// <summary>
+/// Tells how a subdivided face fills a stream of its corners for the points of its patches.
+/// </summary>
+[CamelCaseProperties]
+public class CDmePolygonMeshSubdivisiondataBinding : DMElement
+{
+    /// <summary>
+    /// Data type of the subdivision stream the values are read from, -1 for none.
+    /// </summary>
+    public int TargetDataType { get; set; } = -1;
+
+    /// <summary>
+    /// Index of that stream among the subdivision streams of its data type, -1 for none.
+    /// </summary>
+    public int TargetStreamIndex { get; set; } = -1;
+
+    /// <summary>
+    /// Where the values come from: 0 the subdivision stream, anything else is worked out from the mesh.
+    /// </summary>
+    public int StreamSourceType { get; set; }
+}
+
+/// <summary>
 /// One named data stream of a <see cref="CDmePolygonMeshDataArray"/>, such as position, uv, or material index.
 /// </summary>
 [CamelCaseProperties]
@@ -1074,7 +1096,7 @@ public class CDmePolygonMeshDataStream : DMElement
     public int DataStateFlags { get; set; }
 
     /// <summary>
-    /// Subdivision stream this one mirrors, or null.
+    /// How a subdivided face fills this stream for its points, a <see cref="CDmePolygonMeshSubdivisiondataBinding"/>, or null.
     /// </summary>
     public DMElement? SubdivisionBinding { get; init; }
 
