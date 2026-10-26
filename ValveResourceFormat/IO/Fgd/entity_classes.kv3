@@ -2071,7 +2071,7 @@
 			helpers = 
 			[
 				{
-					name = "model"
+					name = "editormodel"
 					arguments = 
 					[
 						"agents/models/ctm_sas/ctm_sas",
@@ -2084,7 +2084,7 @@
 			helpers = 
 			[
 				{
-					name = "model"
+					name = "editormodel"
 					arguments = 
 					[
 						"models/editor/counterterrorist_team_intro",
@@ -2097,7 +2097,7 @@
 			helpers = 
 			[
 				{
-					name = "model"
+					name = "editormodel"
 					arguments = 
 					[
 						"models/editor/counterterrorist_team_intro_variant2",
@@ -2110,7 +2110,7 @@
 			helpers = 
 			[
 				{
-					name = "model"
+					name = "editormodel"
 					arguments = 
 					[
 						"models/editor/counterterrorist_wingman_intro",
@@ -2339,7 +2339,7 @@
 			helpers = 
 			[
 				{
-					name = "model"
+					name = "editormodel"
 					arguments = 
 					[
 						"models/editor/end_of_match",
@@ -4407,7 +4407,7 @@
 			helpers = 
 			[
 				{
-					name = "model"
+					name = "editormodel"
 					arguments = 
 					[
 						"models/editor/arrow.vmdl",
@@ -4885,7 +4885,7 @@
 			helpers = 
 			[
 				{
-					name = "studio"
+					name = "editormodel"
 					arguments = 
 					[
 						"agents/models/ctm_st6/ctm_st6_variantl.vmdl",
@@ -4898,7 +4898,7 @@
 			helpers = 
 			[
 				{
-					name = "studio"
+					name = "editormodel"
 					arguments = 
 					[
 						"agents/models/tm_leet/tm_leet_varianta.mdl",
@@ -4948,7 +4948,7 @@
 			helpers = 
 			[
 				{
-					name = "studio"
+					name = "editormodel"
 					arguments = 
 					[
 						"agents/models/tm_professional/tm_professional_varh.mdl",
@@ -4992,7 +4992,7 @@
 			helpers = 
 			[
 				{
-					name = "studio"
+					name = "editormodel"
 					arguments = 
 					[
 						"agents/models/tm_phoenix/tm_phoenix.vmdl",
@@ -5141,7 +5141,7 @@
 			helpers = 
 			[
 				{
-					name = "studio"
+					name = "editormodel"
 					arguments = 
 					[
 						"models/hostage/hostage.vmdl",
@@ -6994,7 +6994,7 @@
 			helpers = 
 			[
 				{
-					name = "studio"
+					name = "editormodel"
 					arguments = 
 					[
 						"characters/models/shared/spawn/ctm_spawnpoint.vmdl",
@@ -7021,7 +7021,7 @@
 			helpers = 
 			[
 				{
-					name = "studio"
+					name = "editormodel"
 					arguments = 
 					[
 						"models/heroes/axe/axe.vmdl",
@@ -7034,7 +7034,7 @@
 			helpers = 
 			[
 				{
-					name = "studio"
+					name = "editormodel"
 					arguments = 
 					[
 						"models/heroes/axe/axe.vmdl",
@@ -7047,7 +7047,7 @@
 			helpers = 
 			[
 				{
-					name = "studio"
+					name = "editormodel"
 					arguments = 
 					[
 						"models/heroes/axe/axe.vmdl",
@@ -7060,7 +7060,7 @@
 			helpers = 
 			[
 				{
-					name = "studio"
+					name = "editormodel"
 					arguments = 
 					[
 						"characters/models/shared/spawn/tm_spawnpoint.vmdl",
@@ -7112,7 +7112,7 @@
 					]
 				},
 				{
-					name = "studio"
+					name = "editormodel"
 					arguments = 
 					[
 						"models/editor/axis_helper.mdl",
@@ -11225,7 +11225,7 @@
 			helpers = 
 			[
 				{
-					name = "studio"
+					name = "editormodel"
 					arguments = 
 					[
 						"characters/models/shared/spawn/ctm_spawnpoint.vmdl",
@@ -13917,7 +13917,7 @@
 			helpers = 
 			[
 				{
-					name = "model"
+					name = "editormodel"
 					arguments = 
 					[
 						"models/editor/team_select",
@@ -13930,7 +13930,7 @@
 			helpers = 
 			[
 				{
-					name = "model"
+					name = "editormodel"
 					arguments = 
 					[
 						"agents/models/tm_phoenix/tm_phoenix",
@@ -13943,7 +13943,7 @@
 			helpers = 
 			[
 				{
-					name = "model"
+					name = "editormodel"
 					arguments = 
 					[
 						"models/editor/terrorist_team_intro",
@@ -13956,7 +13956,7 @@
 			helpers = 
 			[
 				{
-					name = "model"
+					name = "editormodel"
 					arguments = 
 					[
 						"models/editor/terrorist_team_intro_variant2",
@@ -13969,7 +13969,7 @@
 			helpers = 
 			[
 				{
-					name = "model"
+					name = "editormodel"
 					arguments = 
 					[
 						"models/editor/terrorist_wingman_intro",

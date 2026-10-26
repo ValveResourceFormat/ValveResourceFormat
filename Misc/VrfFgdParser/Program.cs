@@ -24,6 +24,33 @@ var games = installedGames
 
 var allProperties = new HashSet<string>();
 
+HashSet<string> editorModelClasses =
+[
+    "info_player_counterterrorist",
+    "info_player_terrorist",
+    "info_deathmatch_spawn",
+    "info_armsrace_counterterrorist",
+    "info_armsrace_terrorist",
+    "info_enemy_terrorist_spawn",
+    "info_hostage_spawn",
+    "point_scale_reference_human",
+    "team_select",
+    "end_of_match",
+    "terrorist_team_intro",
+    "terrorist_team_intro_variant2",
+    "counterterrorist_team_intro",
+    "counterterrorist_team_intro_variant2",
+    "terrorist_wingman_intro",
+    "counterterrorist_wingman_intro",
+    "terrorist_rush_intro",
+    "counterterrorist_rush_intro",
+    "info_player_start_dota",
+    "info_player_start_goodguys",
+    "info_player_start_badguys",
+    "info_roquelaire_perch",
+    "func_nav_gen_proj",
+];
+
 // The table the library embeds is written over, and the games not installed here keep the classes it has of them
 var classesPath = Path.GetFullPath(Path.Join(Path.GetDirectoryName(GetSourcePath()), "..", "..", "ValveResourceFormat", "IO", "Fgd", "entity_classes.kv3"));
 var previous = File.Exists(classesPath) ? KVDocumentExtensions.ParseKV3(classesPath).Root : new KVObject();
@@ -117,6 +144,7 @@ KVObject? ParseGameClasses(GameFolderLocator.SteamLibraryGameInfo game, string g
     {
         if (ConvertClass(gameClass, requiredParentClasses) is { } data)
         {
+            FixValveShit(data);
             classIds.Add(AddDefinition(gameClass.Name, data, game.AppID));
         }
     }
@@ -202,6 +230,7 @@ string KeepDefinition(string previousId, int appId)
         }
     }
 
+    FixValveShit(data);
     return AddDefinition(data.GetStringProperty("name"), data, appId);
 }
 
@@ -337,6 +366,22 @@ static KVObject? ConvertClass(FgdClass gameClass, HashSet<string> requiredParent
     }
 
     return data;
+}
+
+void FixValveShit(KVObject data)
+{
+    if (!editorModelClasses.Contains(data.GetStringProperty("name")) || data.GetArray("helpers") is not { } helpers)
+    {
+        return;
+    }
+
+    foreach (var helper in helpers)
+    {
+        if (helper.GetStringProperty("name") is "model" or "studio")
+        {
+            helper["name"] = new KVObject("editormodel");
+        }
+    }
 }
 
 static KVObject ConvertHelper(string name, IReadOnlyList<string> arguments, KVObject? metadata)
