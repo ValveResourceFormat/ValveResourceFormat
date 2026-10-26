@@ -69,27 +69,11 @@ public sealed class ToolsPass : IDisposable
 
             using (GraphicsContext.RenderState.Scope(multisampleEnable: output.NumSamples > 1))
             {
-                renderer.DrawOverScenes(output, context =>
+                var state = (Pass: this, Renderer: renderer, Selection: selection, TextRenderer: textRenderer);
+
+                renderer.DrawOverScenes(output, ref state, static (context, ref state) =>
                 {
-                    var view = context.View!;
-                    CollectNodes(view);
-
-                    // The shapes of the selection are in the space of the main scene
-                    var isMainView = view == renderer.MainViewState;
-                    var selectionShapes = isMainView && !selection.Shapes.IsEmpty ? selection.Shapes : null;
-
-                    AddLabels(textRenderer, renderer.Camera);
-                    AddLabels(textRenderer, renderer.Camera, selectionShapes);
-
-                    foreach (var layer in Layers)
-                    {
-                        foreach (var (node, _) in nodes)
-                        {
-                            node.RenderTools(layer, shaders);
-                        }
-
-                        selectionShapes?.DrawLayer(layer, shaders, objectId: 0);
-                    }
+                    state.Pass.RenderScene(context.View!, state.Renderer, state.Selection, state.TextRenderer);
                 });
             }
 
@@ -101,6 +85,28 @@ public sealed class ToolsPass : IDisposable
 
         // What is drawn over the final image after this, such as text, goes to the target
         target.Bind(FramebufferTarget.Framebuffer);
+    }
+
+    private void RenderScene(SceneViewState view, Renderer renderer, SelectionVisuals selection, TextRenderer textRenderer)
+    {
+        CollectNodes(view);
+
+        // The shapes of the selection are in the space of the main scene
+        var isMainView = view == renderer.MainViewState;
+        var selectionShapes = isMainView && !selection.Shapes.IsEmpty ? selection.Shapes : null;
+
+        AddLabels(textRenderer, renderer.Camera);
+        AddLabels(textRenderer, renderer.Camera, selectionShapes);
+
+        foreach (var layer in Layers)
+        {
+            foreach (var (node, _) in nodes)
+            {
+                node.RenderTools(layer, shaders);
+            }
+
+            selectionShapes?.DrawLayer(layer, shaders, objectId: 0);
+        }
     }
 
     private void AddLabels(TextRenderer textRenderer, Camera camera)
@@ -147,11 +153,13 @@ public sealed class ToolsPass : IDisposable
     {
         nodes.Clear();
 
-        foreach (var request in view.ToolsRenderList)
+        var requests = view.ToolsRenderList;
+
+        for (var i = 0; i < requests.Count; i++)
         {
-            if (request.Node is ToolSceneNode { IsHiddenWhileSelected: false } node)
+            if (requests[i].Node is ToolSceneNode { IsHiddenWhileSelected: false } node)
             {
-                nodes.Add((node, request.DistanceFromCamera));
+                nodes.Add((node, requests[i].DistanceFromCamera));
             }
         }
 

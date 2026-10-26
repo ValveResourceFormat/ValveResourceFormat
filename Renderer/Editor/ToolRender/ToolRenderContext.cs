@@ -61,8 +61,23 @@ public sealed class ToolRenderContext
         ArgumentNullException.ThrowIfNull(output);
 
         Output = output;
+        Reset();
+    }
+
+    /// <summary>Goes back to the default mode, transform and draw settings, to draw again from the start.</summary>
+    internal void Reset()
+    {
         modeStack[0] = ToolRenderMode.Default;
         transformStack[0] = Matrix4x4.Identity;
+        modeDepth = 0;
+        transformDepth = 0;
+        pickTargets = null;
+        pickId = 0;
+        DrawColor = Color32.White;
+        LineWidth = 0f;
+        LayerOverride = null;
+        ComputeFaceNormals = false;
+        Camera = null;
     }
 
     // The flags shapes are drawn with right now: lines get thick when there is a line width

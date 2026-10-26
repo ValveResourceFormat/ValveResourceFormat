@@ -99,10 +99,16 @@ public sealed class ToolsVisibility : IDrawFilter
 
     /// <summary>Sets the nodes that are selected, which draw their tools materials while those are hidden.</summary>
     /// <param name="nodes">The selected nodes.</param>
-    public void SetSelectedNodes(IEnumerable<SceneNode> nodes)
+    public void SetSelectedNodes(IReadOnlyList<SceneNode> nodes)
     {
+        ArgumentNullException.ThrowIfNull(nodes);
+
         selectedNodes.Clear();
-        selectedNodes.UnionWith(nodes);
+
+        for (var i = 0; i < nodes.Count; i++)
+        {
+            selectedNodes.Add(nodes[i]);
+        }
     }
 
     /// <inheritdoc/>

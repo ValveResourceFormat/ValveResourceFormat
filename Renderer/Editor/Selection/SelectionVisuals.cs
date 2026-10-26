@@ -1,4 +1,3 @@
-using System.Linq;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.Helpers;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
@@ -38,7 +37,9 @@ public sealed class SelectionVisuals
     private readonly HashSet<IHelperOwner> selectedEntities = [];
     private readonly HashSet<IHelperOwner> previouslySelectedEntities = [];
     private readonly Dictionary<IHelperOwner, Matrix4x4> pathsOfSelectedNodes = [];
+    private readonly HashSet<object> selectedObjects = [];
     private readonly SelectionOutline outline;
+    private readonly ToolRenderContext shapesContext;
 
     /// <summary>Gets the shapes of the selection, in world space, as the last <see cref="Update"/> drew them.</summary>
     public ToolGeometry Shapes { get; } = new();
@@ -59,6 +60,7 @@ public sealed class SelectionVisuals
         this.entityVisuals = entityVisuals;
         this.tools = tools;
         outline = new SelectionOutline(rendererContext);
+        shapesContext = new ToolRenderContext(Shapes);
     }
 
     /// <summary>Draws the shapes and labels of the current selection again.</summary>
@@ -74,18 +76,27 @@ public sealed class SelectionVisuals
         selectedEntities.Clear();
         pathsOfSelectedNodes.Clear();
 
-        var context = new ToolRenderContext(Shapes);
+        var context = shapesContext;
+        context.Reset();
+
         var nodes = selection.Nodes;
         AABB? bounds = null;
 
         tools.SetSelectedNodes(nodes);
 
         // What is selected is counted by the entities and other objects it is, not by the nodes drawing them
-        var objectCount = nodes.Select(node => (object?)FindEntity(node) ?? node).Distinct().Count();
+        selectedObjects.Clear();
 
-        foreach (var node in nodes)
+        for (var i = 0; i < nodes.Count; i++)
         {
-            if (DrawNode(context, renderContext.Camera, updateContext.TextRenderer, node, isOnlySelected: objectCount == 1) is { } nodeBounds)
+            selectedObjects.Add((object?)FindEntity(nodes[i]) ?? nodes[i]);
+        }
+
+        var isOnlySelected = selectedObjects.Count == 1;
+
+        for (var i = 0; i < nodes.Count; i++)
+        {
+            if (DrawNode(context, renderContext.Camera, updateContext.TextRenderer, nodes[i], isOnlySelected) is { } nodeBounds)
             {
                 bounds = bounds?.Union(nodeBounds) ?? nodeBounds;
             }

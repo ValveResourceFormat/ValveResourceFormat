@@ -17,6 +17,11 @@ namespace ValveResourceFormat.Renderer;
 /// </summary>
 public class Renderer : ISceneHost
 {
+    /// <summary>Draws into one scene for <see cref="DrawOverScenes"/>.</summary>
+    /// <param name="context">The render context with the view state the scene was culled with.</param>
+    /// <param name="state">What the draw works with.</param>
+    public delegate void OverSceneDraw<TState>(Scene.RenderContext context, ref TState state);
+
     /// <summary>
     /// Depth range for a single layer of the scene.
     /// </summary>
@@ -2026,8 +2031,9 @@ public class Renderer : ISceneHost
     /// rendered. The scene textures stay bound. The caller binds the target and sets the render state.
     /// </summary>
     /// <param name="framebuffer">What is drawn into, the size of the scene.</param>
+    /// <param name="state">What <paramref name="draw"/> works with, passed along so it does not need to capture it.</param>
     /// <param name="draw">Draws into one scene, given a render context with the view state it was culled with.</param>
-    public void DrawOverScenes(Framebuffer framebuffer, Action<Scene.RenderContext> draw)
+    public void DrawOverScenes<TState>(Framebuffer framebuffer, ref TState state, OverSceneDraw<TState> draw)
     {
         ArgumentNullException.ThrowIfNull(framebuffer);
         ArgumentNullException.ThrowIfNull(draw);
@@ -2052,7 +2058,7 @@ public class Renderer : ISceneHost
             for (var j = states.Count - 1; j >= 0; j--)
             {
                 DrawThrough(views[i], states[j], ref renderContext);
-                draw(renderContext);
+                draw(renderContext, ref state);
             }
         }
     }
@@ -2076,14 +2082,14 @@ public class Renderer : ISceneHost
             return false;
         }
 
-        var drewAny = false;
+        var state = (Shader: shader, Nodes: nodes, DrewAny: false);
 
-        DrawOverScenes(framebuffer, context =>
+        DrawOverScenes(framebuffer, ref state, static (context, ref state) =>
         {
-            drewAny |= context.View!.RenderNodes(context with { ReplacementShader = shader }, nodes);
+            state.DrewAny |= context.View!.RenderNodes(context with { ReplacementShader = state.Shader }, state.Nodes);
         });
 
-        return drewAny;
+        return state.DrewAny;
     }
 
     /// <summary>
