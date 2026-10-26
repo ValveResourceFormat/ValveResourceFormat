@@ -49,11 +49,11 @@ namespace GUI.Forms
             var dataGridViewCellStyle16 = new DataGridViewCellStyle();
             tabControl = new ThemedTabControl();
             tabPageProperties = new ThemedTabPage();
-            dataGridProperties = new DataGridView();
+            dataGridProperties = new DataGridViewDoubleBuffered();
             ColumnName = new DataGridViewTextBoxColumn();
             ColumnValue = new DataGridViewTextBoxColumn();
             tabPageOutputs = new ThemedTabPage();
-            dataGridOutputs = new DataGridView();
+            dataGridOutputs = new DataGridViewDoubleBuffered();
             OutputsOutput = new DataGridViewTextBoxColumn();
             OutputsTargetEntity = new DataGridViewTextBoxColumn();
             OutputsTargetInput = new DataGridViewTextBoxColumn();
@@ -62,7 +62,7 @@ namespace GUI.Forms
             OutputsTimesToFire = new DataGridViewTextBoxColumn();
             OutputsFire = new DataGridViewButtonColumn();
             tabPageInputs = new TabPage();
-            dataGridInputs = new DataGridView();
+            dataGridInputs = new DataGridViewDoubleBuffered();
             InputsSource = new DataGridViewTextBoxColumn();
             InputsOutput = new DataGridViewTextBoxColumn();
             InputsTargetInput = new DataGridViewTextBoxColumn();
@@ -71,7 +71,7 @@ namespace GUI.Forms
             InputsTimeToFire = new DataGridViewTextBoxColumn();
             InputsFire = new DataGridViewButtonColumn();
             tabPageReferences = new ThemedTabPage();
-            dataGridReferences = new DataGridView();
+            dataGridReferences = new DataGridViewDoubleBuffered();
             ReferencesSource = new DataGridViewTextBoxColumn();
             ReferencesClass = new DataGridViewTextBoxColumn();
             ReferencesProperty = new DataGridViewTextBoxColumn();
@@ -499,10 +499,10 @@ namespace GUI.Forms
         }
 
         #endregion
-        private DataGridView dataGridProperties;
+        private DataGridViewDoubleBuffered dataGridProperties;
         private DataGridViewTextBoxColumn ColumnName;
         private DataGridViewTextBoxColumn ColumnValue;
-        private DataGridView dataGridOutputs;
+        private DataGridViewDoubleBuffered dataGridOutputs;
         private DataGridViewTextBoxColumn OutputsOutput;
         private DataGridViewTextBoxColumn OutputsTargetEntity;
         private DataGridViewTextBoxColumn OutputsTargetInput;
@@ -514,7 +514,7 @@ namespace GUI.Forms
         private TabPage tabPageInputs;
         private ThemedTabPage tabPageProperties;
         private ThemedTabPage tabPageOutputs;
-        private DataGridView dataGridInputs;
+        private DataGridViewDoubleBuffered dataGridInputs;
         private DataGridViewTextBoxColumn InputsSource;
         private DataGridViewTextBoxColumn InputsOutput;
         private DataGridViewTextBoxColumn InputsTargetInput;
@@ -523,7 +523,7 @@ namespace GUI.Forms
         private DataGridViewTextBoxColumn InputsTimeToFire;
         private DataGridViewButtonColumn InputsFire;
         private ThemedTabPage tabPageReferences;
-        private DataGridView dataGridReferences;
+        private DataGridViewDoubleBuffered dataGridReferences;
         private DataGridViewTextBoxColumn ReferencesSource;
         private DataGridViewTextBoxColumn ReferencesClass;
         private DataGridViewTextBoxColumn ReferencesProperty;
