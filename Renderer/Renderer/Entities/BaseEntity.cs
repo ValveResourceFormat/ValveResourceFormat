@@ -1589,6 +1589,19 @@ public abstract class BaseEntity
         previousAngles = angles;
         isInterpolating = false;
         UpdateTransform();
+        SnapRigidBodies();
+    }
+
+    /// <summary>Places the rigid bodies that follow this entity and its move children outright, for a jump.</summary>
+    internal virtual void SnapRigidBodies()
+    {
+        foreach (var child in moveChildren)
+        {
+            if (!child.IsRemoved)
+            {
+                child.SnapRigidBodies();
+            }
+        }
     }
 
     private void SetTransform(Vector3 origin, Vector3 angles)

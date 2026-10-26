@@ -222,8 +222,6 @@ public abstract class BaseModelEntity : BaseEntity
     // Only the main world group has a rigid body world, matching the static geometry the loader adds
     private bool IsRigidBodySimulated => Scene.WorldGroup == null;
 
-    private const float MoverSnapDistance = 256f;
-
     /// <summary>
     /// Finds the rigid body a physics constraint anchored at <paramref name="anchor"/> holds this entity
     /// by: its kinematic mirror, so a constraint can hang things off a moving brush. A brush with no
@@ -278,15 +276,28 @@ public abstract class BaseModelEntity : BaseEntity
             return;
         }
 
-        // Ordinary motion is steered in FrameSimulate. A paused world steps nothing that would carry the
-        // body, and a jump across the map is a teleport rather than a sweep, so both place it outright.
-        var pose = RigidTransform;
-        var isTeleport = Vector3.DistanceSquared(moverBody.Position, pose.Translation) > MoverSnapDistance * MoverSnapDistance;
-
-        if (isTeleport || !EntitySystem.Enabled)
+        // Motion is steered in FrameSimulate, but a paused world steps nothing that would carry the body
+        if (!EntitySystem.Enabled)
         {
-            moverBody.SetTransform(pose.Translation, Quaternion.CreateFromRotationMatrix(pose));
+            PlaceMoverBody();
         }
+    }
+
+    /// <inheritdoc/>
+    internal override void SnapRigidBodies()
+    {
+        if (hasMoverBody && moverBodyEnabled)
+        {
+            PlaceMoverBody();
+        }
+
+        base.SnapRigidBodies();
+    }
+
+    private void PlaceMoverBody()
+    {
+        var pose = RigidTransform;
+        moverBody.SetTransform(pose.Translation, Quaternion.CreateFromRotationMatrix(pose));
     }
 
     /// <inheritdoc/>
