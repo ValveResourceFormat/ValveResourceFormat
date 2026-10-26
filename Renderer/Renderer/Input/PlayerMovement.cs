@@ -231,6 +231,9 @@ public class PlayerMovement : IPlayerController
     /// <inheritdoc/>
     public Vector3 ViewAngles => Input.Camera.GetQAngle();
 
+    /// <inheritdoc/>
+    public int TeleportCount { get; private set; }
+
     // Buttons seen since the entity tick last collected them, and what it collected that time. Frames
     // are folded together rather than replaced so a tap between two ticks survives to be reported.
     private TrackedKeys PendingButtons;
@@ -304,6 +307,7 @@ public class PlayerMovement : IPlayerController
     public void ResetPosition(Camera camera)
     {
         TracePosition = camera.Location - Vector3.UnitZ * ViewHeightStanding + new Vector3(0, 0, StandingHullHalfExtents.Z);
+        TeleportCount++;
         Velocity = Vector3.Zero;
         HasValidPosition = false; // Do not restore positions from before the reset
         pushViewLag = Vector3.Zero;
@@ -345,6 +349,7 @@ public class PlayerMovement : IPlayerController
         Input.Camera.Location += moved;
 
         TracePosition = feetPosition + new Vector3(0, 0, HullHalfExtents.Z);
+        TeleportCount++;
         HasValidPosition = false; // Do not restore positions from before the teleport
         pushViewLag = Vector3.Zero;
         pushViewLagTimeLeft = 0f;
