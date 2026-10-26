@@ -5,15 +5,9 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
-/// <summary>
-/// The physics constraints, Source's <c>CPhysConstraint</c>: a joint in <see cref="PhysicsSimulation"/>
-/// between the bodies of the entities <c>attach1</c> and <c>attach2</c> name, anchored at this entity's
-/// origin. A blank name stands for the world. Limits measure <c>attach2</c> relative to
-/// <c>attach1</c>, which is how the solver measures its second body against its first.
-/// </summary>
+/// <summary>Base of the constraint entities: a joint between the <c>attach1</c> and <c>attach2</c> bodies, where a blank name is the world.</summary>
 public abstract class PhysConstraint : BaseEntity
 {
-    /// <summary>The <c>spawnflags</c> every constraint reads, Source's <c>SF_CONSTRAINT_*</c>.</summary>
     [Flags]
     private enum ConstraintSpawnFlags : uint
     {
@@ -29,13 +23,10 @@ public abstract class PhysConstraint : BaseEntity
         NoConnectUntilTurnedOn = 16,
     }
 
-    // The break limits are authored in pounds, the weight the constraint can hold before it gives
+    // Break limits are authored as a weight in pounds
     private const float PoundsToKilograms = 0.45359237f;
 
-    /// <summary>
-    /// Joint friction is authored as a torque in newton-metres; the solver works in kilograms and map
-    /// units, so it scales by the square of the unit length.
-    /// </summary>
+    /// <summary>Scales a friction torque in newton-metres to map units.</summary>
     protected const float FrictionTorqueScale = PhysicsSimulation.UnitsPerMeter * PhysicsSimulation.UnitsPerMeter;
 
     private Joint joint;
@@ -63,35 +54,27 @@ public abstract class PhysConstraint : BaseEntity
         torqueLimit = KeyValues.GetFloatProperty("torquelimit") * weight;
     }
 
-    // In Activate, as the attached entities may be authored after this one and need their bodies
+    // Not in Spawn, as the attached entities may be authored after this one
     /// <inheritdoc/>
     public override void Activate()
     {
-        // Built as the map spawned its bodies: a picture authored asleep on its hinge stays asleep
+        // Bodies authored asleep stay asleep
         if (!HasSpawnFlags(ConstraintSpawnFlags.StartInactive) && !HasSpawnFlags(ConstraintSpawnFlags.NoConnectUntilTurnedOn))
         {
             TurnOn(wakeBodies: false);
         }
     }
 
-    /// <summary>
-    /// Gets the direction the joint turns about in the world, the Z axis of both joint frames. A
-    /// ball socket or a weld does not care; a hinge overrides it with its authored axis.
-    /// </summary>
+    /// <summary>Gets the world axis the joint turns about, the Z axis of both joint frames.</summary>
     protected virtual Vector3 JointAxis => Vector3.Transform(Vector3.UnitZ, EntityTransformHelper.EulerAnglesToQuaternion(Angles));
 
-    /// <summary>Gets the point in the world the two bodies are joined at: the entity's origin, unless the joint says otherwise.</summary>
+    /// <summary>Gets the world point the two bodies are joined at.</summary>
     protected virtual Vector3 JointAnchor => Origin;
 
-    // A frictionless joint still loses its swing, the way drag would take it: this is the torque of
-    // the held body's weight on a lever of a quarter unit. A picture on a nail then stops within a few
-    // swings, hanging no more than a degree or two off plumb, rather than swinging for good.
+    // Frictionless joints would swing forever; a quarter unit lever settles them within a few swings
     private const float FallbackFrictionLever = 0.25f;
 
-    /// <summary>
-    /// The resisting torque for a joint's authored friction, scaled from newton-metres. A joint
-    /// authored without friction gets a small one sized to the lightest moving body it holds.
-    /// </summary>
+    /// <summary>Gets the torque limit of a zero speed motor standing in for joint friction, with a small fallback when none is authored.</summary>
     protected static float FrictionTorque(float authoredFriction, in JointDefinition connection)
     {
         if (authoredFriction > 0f)
@@ -112,11 +95,7 @@ public abstract class PhysConstraint : BaseEntity
         return float.IsPositiveInfinity(mass) ? 0f : mass * PhysicsSimulation.GravityValue * FallbackFrictionLever;
     }
 
-    /// <summary>
-    /// Builds this constraint's kind of joint from the connection between the two bodies, which carries
-    /// both joint frames and the collision setting.
-    /// </summary>
-    /// <returns>The joint, or <see langword="null"/> when the authored settings have no equivalent.</returns>
+    /// <summary>Creates the joint for the connection, or <see langword="null"/> when the authored settings have no equivalent.</summary>
     protected abstract Joint? CreateJoint(Box3D.PhysicsWorld world, JointDefinition connection);
 
     private void TurnOn(bool wakeBodies)
@@ -158,8 +137,7 @@ public abstract class PhysConstraint : BaseEntity
             joint = created;
             hasJoint = true;
 
-            // The world is a single body to the engine, so no collision with it frees the other body of all
-            // static geometry, such as a drawer of the cabinet it slides in
+            // The world is one body: disabling world collision means disabling all static geometry
             if (!connection.CollideConnected && (body1.Equals(physics.WorldAnchor) || body2.Equals(physics.WorldAnchor)))
             {
                 worldFreedBody = body1.Equals(physics.WorldAnchor) ? body2 : body1;
@@ -174,14 +152,10 @@ public abstract class PhysConstraint : BaseEntity
         }
     }
 
-    // The heaviest one jointed body may be against the other. The solver holds a joint well to
-    // around this ratio and lets it stretch far past it: a two-metre metal chandelier weighs over a
-    // tonne as solid hulls, and the half-kilogram wire it hangs from came apart by fifty units.
+    // Joints stretch apart past about this mass ratio
     private const float MaxMassRatio = 10f;
 
-    // Raises the lighter of two dynamic bodies until the pair is within the ratio. The light one is
-    // a wire, a hinge pin, a handle - its extra weight barely shows, while a heavy body falling
-    // through its constraint does.
+    // Raising the lighter body barely shows on a wire or hinge pin, unlike a heavy body falling through its joint
     private static void LimitMassRatio(Body body1, Body body2)
     {
         if (body1.Type != BodyType.Dynamic || body2.Type != BodyType.Dynamic)
@@ -206,11 +180,7 @@ public abstract class PhysConstraint : BaseEntity
         }
     }
 
-    /// <summary>
-    /// Finds the body an <c>attach1</c>/<c>attach2</c> style key names, for anything that ties two
-    /// bodies together. A blank name is the world; a name that finds nothing with a body fails,
-    /// rather than silently pinning the other side to the world.
-    /// </summary>
+    // A name that finds no body fails rather than pinning the other side to the world
     internal static bool TryResolveAttachment(BaseEntity self, PhysicsSimulation physics, string key, out Body body)
     {
         var name = self.SpawnData?.GetStringProperty(key);
@@ -244,7 +214,7 @@ public abstract class PhysConstraint : BaseEntity
             return;
         }
 
-        // A body it held was destroyed, which takes the joint with it
+        // Destroying an attached body destroys the joint
         if (!joint.IsValid)
         {
             hasJoint = false;

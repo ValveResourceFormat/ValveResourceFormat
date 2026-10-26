@@ -306,10 +306,7 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
             return physSceneNodes;
         }
 
-        /// <summary>
-        /// Creates a node visualizing one part's shapes in the part's own local space, for a
-        /// ragdoll that moves the node with the part's rigid body every frame.
-        /// </summary>
+        /// <summary>Creates a collision node for one part, in part space.</summary>
         public static PhysSceneNode CreatePartPhysSceneNode(Scene scene, PhysAggregateData phys, int partIndex, string? name)
         {
             var verts = new List<SimpleVertexNormal>(128);
@@ -332,8 +329,7 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
             return CreateNode(scene, phys, verts, inds, lines, labels, name, collisionAttributeIndex: 0, toolsMaterial: null);
         }
 
-        // Adds one part's shapes of a collision attribute group, or of all groups for -1. Meshes are only
-        // collected, as their triangles are added once the edges of all the group's meshes are known.
+        // A collisionAttributeIndex of -1 adds every group
         private static void AddPartShapes(List<SimpleVertexNormal> verts, List<int> inds, List<int> lines, List<GroupMesh> meshes,
             Dictionary<Vector3, int> weldedVertices, MeshEdges meshEdges, RnShape shape, Matrix4x4 pose, int collisionAttributeIndex)
         {
@@ -514,7 +510,7 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
                 OverlayRenderOrder = collisionAttributeIndex,
                 Physics = phys,
                 CollisionAttributeIndex = collisionAttributeIndex,
-                // Shown as the viewer's collision choice says, for a node made after it was applied
+                // The collision filter was applied before this node existed
                 Enabled = scene.Settings.DrawFilter is ToolsVisibility tools && labels.Any(tools.ShownCollision.Contains),
             };
 

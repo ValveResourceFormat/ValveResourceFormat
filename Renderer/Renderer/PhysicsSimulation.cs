@@ -9,21 +9,13 @@ using RnShape = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shape;
 
 namespace ValveResourceFormat.Renderer;
 
-/// <summary>
-/// The scene's rigid body world, built on Box3D. The static world geometry goes in once as a compound
-/// shape, physics props add themselves as dynamic bodies, and <see cref="EntitySystem"/> steps the
-/// simulation every rendered frame. <see cref="Rubikon"/> stays the tracer the player moves against;
-/// this world is what makes props fall, tumble and get pushed around.
-/// </summary>
+/// <summary>Box3D rigid body world for props, ragdolls and movers.</summary>
 public sealed class PhysicsSimulation : IDisposable
 {
-    /// <summary>Downward acceleration in units per second squared, matching the player's <c>sv_gravity</c>.</summary>
+    /// <summary>Downward acceleration in units per second squared, matching <c>sv_gravity</c>.</summary>
     public const float GravityValue = 800f;
 
-    /// <summary>
-    /// Source units per meter. The solver's tolerances (contact slop, sleep thresholds, speed caps) are
-    /// authored in meters, so the library is told the scale once and everything else stays in map units.
-    /// </summary>
+    /// <summary>Source units per meter, the length scale of solver tolerances.</summary>
     public const float UnitsPerMeter = 39.3701f;
 
     /// <summary>Collision category of the immovable world geometry.</summary>
@@ -32,28 +24,18 @@ public sealed class PhysicsSimulation : IDisposable
     /// <summary>Collision category of simulated props.</summary>
     public const ulong PropCategory = 2;
 
-    /// <summary>Collision category of the player's pushing hull.</summary>
+    /// <summary>Collision category of the player pushing hull.</summary>
     public const ulong PlayerCategory = 4;
 
-    /// <summary>
-    /// Collision category of solid entities that move on the entity tick - doors and the func
-    /// movers - which push props but leave the player to the movement traces.
-    /// </summary>
+    /// <summary>Collision category of kinematic doors and func movers.</summary>
     public const ulong MoverCategory = 8;
 
-    /// <summary>
-    /// Collision category of debris: props and ragdolls flagged as debris, and the pieces a broken
-    /// model marks so. Debris collides with neither the player nor other debris, as authored,
-    /// which also spares a heap of shards colliding with itself. The player shoves it with a
-    /// horizontal velocity instead.
-    /// </summary>
+    /// <summary>Collision category of debris, which collides with neither the player nor other debris.</summary>
     public const ulong DebrisCategory = 16;
 
     /// <summary>
-    /// Collision category of ragdoll parts that are not debris. They collide with everything but
-    /// the player's pushing hull: a fast overlap with that kinematic box resolves out its nearest
-    /// face, which for a part lying on the floor is the bottom, pushing it through the one-sided
-    /// mesh world. The player shoves them with a horizontal velocity instead.
+    /// Collision category of non-debris ragdoll parts. They skip the player hull, whose overlap
+    /// resolves out the bottom face and pushes a lying part through the one-sided world mesh.
     /// </summary>
     public const ulong RagdollCategory = 32;
 
@@ -61,7 +43,7 @@ public sealed class PhysicsSimulation : IDisposable
     public static ulong CollidesWith(ulong category)
         => category == DebrisCategory ? ~(PlayerCategory | DebrisCategory) : ulong.MaxValue;
 
-    /// <summary>Sets whether every shape of a body collides with the given categories, keeping the rest of their filters.</summary>
+    /// <summary>Sets whether all shapes of a body collide with the given categories.</summary>
     public static void SetCollidesWith(Body body, ulong categories, bool collide)
     {
         Span<Shape> shapes = stackalloc Shape[body.ShapeCount];
@@ -75,23 +57,14 @@ public sealed class PhysicsSimulation : IDisposable
         }
     }
 
-    /// <summary>
-    /// The world steps once per rendered frame, so the sub-step count scales with the frame:
-    /// at high framerates the steps are already small and two sub-steps keep stacks stable, but
-    /// a vsynced 60 fps frame needs more - measured on ragdolls, a heap stepped in 1/64 slices
-    /// with two sub-steps jitters at 8 u/s forever, while the same heap in finer effective
-    /// slices comes to rest and sleeps. The target is roughly 240 solver slices per second.
-    /// </summary>
+    // About 240 solver slices per second; coarser slices leave ragdoll heaps jittering instead of sleeping
     private static int SubStepsFor(float timeStep)
         => Math.Clamp((int)MathF.Ceiling(timeStep * 240f), 2, 8);
 
     /// <summary>Gets the underlying Box3D world.</summary>
     public Box3D.PhysicsWorld World { get; }
 
-    /// <summary>
-    /// Gets a static body with no shapes that stands for the world in joints, which always connect two
-    /// bodies: a constraint that names no entity on one side holds on to this.
-    /// </summary>
+    /// <summary>Gets a shapeless static body for joints attached to the world.</summary>
     public Body WorldAnchor
     {
         get
@@ -109,27 +82,19 @@ public sealed class PhysicsSimulation : IDisposable
     private Body worldAnchor;
     private bool hasWorldAnchor;
 
-    // Hulls handed to the compound builder and meshes attached to bodies are borrowed by the native
-    // side rather than copied, so they must stay alive until the world is destroyed
+    // Borrowed rather than copied by the native side, must outlive the world
     private readonly List<IDisposable> borrowedGeometry = [];
 
-    // The world's static geometry is built on the thread pool, off the map load, and attached at the
-    // first step after it is ready. The world does not step until all of it is attached, so nothing
-    // falls through a floor that is not there yet.
     private readonly List<Task<StaticGeometry?>> pendingStaticGeometry = [];
 
     private sealed record StaticGeometry(CompoundGeometry Compound, List<IDisposable> Borrowed, Matrix4x4 Placement);
 
-    // Bodies carry only a ulong, so entity lookup for raycast hits goes through this table
     private readonly Dictionary<ulong, BaseEntity> bodyOwners = [];
     private ulong nextBodyId;
 
-    // The bounds of each simulated body's shapes in the body's own space. The solver only reports
-    // broadphase bounds, which gain and lose a margin as the body moves.
+    // Solver bounds include a broadphase margin that changes as the body moves
     private readonly Dictionary<ulong, BodyGeometry> bodyGeometry = [];
 
-    // A simulated body's shapes in its own space: the bounds they cover, the corners of its hulls
-    // and its rounded shapes, which say how close the body can come to the world when held
     private sealed class BodyGeometry
     {
         public BoundingBox? Bounds { get; private set; }
@@ -142,26 +107,17 @@ public sealed class PhysicsSimulation : IDisposable
                 : other;
     }
 
-    // The game's surface table, or null when the game offers none; every shape then simulates as
-    // the fallback surface
     private readonly SurfaceProperties? surfaces;
     private readonly PhysicsImpactSounds? impactSounds;
 
     static PhysicsSimulation()
     {
-        // Must happen before anything else in the library: the native defaults are derived from the
-        // length unit on first use, and a world created first would bake meter-scale tolerances
+        // Native defaults are derived from the length unit on first use
         Box3D.Native.B3.b3SetLengthUnitsPerMeter(UnitsPerMeter);
     }
 
-    /// <summary>
-    /// Creates an empty world with Source gravity. Geometry arrives via
-    /// <see cref="AddStaticGeometry"/> and <see cref="CreatePropBody"/>.
-    /// </summary>
-    /// <param name="fileLoader">
-    /// Loader for the game's surface property table, which is where friction, elasticity, density
-    /// and impact sounds come from. Without one, everything simulates as the default surface, silently.
-    /// </param>
+    /// <summary>Creates an empty world with Source gravity.</summary>
+    /// <param name="fileLoader">Loader for the surface property table; without one all shapes use the fallback surface and make no sound.</param>
     public PhysicsSimulation(IO.IFileLoader? fileLoader = null)
     {
         World = new Box3D.PhysicsWorld(WorldSettings.Default with
@@ -181,9 +137,7 @@ public sealed class PhysicsSimulation : IDisposable
         }
     }
 
-    /// <summary>
-    /// Advances the simulation by one step, and plays the impacts it made.
-    /// </summary>
+    /// <summary>Advances the simulation by one step and plays impact sounds.</summary>
     public void Step(float tickInterval)
     {
         if (!AttachStaticGeometry())
@@ -195,21 +149,14 @@ public sealed class PhysicsSimulation : IDisposable
         impactSounds?.Play(World.Events.ContactHits, tickInterval);
     }
 
-    /// <summary>
-    /// Punches the first prop along a ray - a bullet, or a knife swing - at the point it was hit.
-    /// The world and the movers block the ray, so nothing is punched through a wall.
-    /// </summary>
-    /// <param name="from">Ray start, the muzzle or the eyes.</param>
+    /// <summary>Applies an impulse at the first hit along a ray and returns the entity struck, if any.</summary>
+    /// <param name="from">Ray start.</param>
     /// <param name="direction">Normalized ray direction.</param>
-    /// <param name="distance">How far the ray reaches.</param>
-    /// <param name="impulse">Impulse along the ray, applied off-center so the hit also spins the prop.</param>
-    /// <returns>
-    /// The entity the ray struck, to take the hit's damage - a prop, or a brush such as a breakable
-    /// window - or <see langword="null"/> for the world or a miss. Only a simulated body is pushed.
-    /// </returns>
+    /// <param name="distance">Ray length.</param>
+    /// <param name="impulse">Impulse along the ray, applied at the hit point.</param>
     public BaseEntity? ApplyImpactImpulse(Vector3 from, Vector3 direction, float distance, float impulse)
     {
-        // Not as the player, whom debris pieces are filtered against
+        // Not as the player, or debris would be skipped
         var hit = World.RaycastClosest(from, direction * distance,
             new QueryFilter(~PlayerCategory, StaticCategory | PropCategory | DebrisCategory | RagdollCategory | MoverCategory));
 
@@ -229,17 +176,7 @@ public sealed class PhysicsSimulation : IDisposable
         return GetOwner(body);
     }
 
-    /// <summary>
-    /// Shortens a reach along a ray so that a body held at its end is not asked to stand deeper in
-    /// the world and the movers there than its thinnest side allows: pressed into a wall, a held
-    /// body may be pushed in until it lies flat against it. Other props are left out: they get
-    /// pushed aside.
-    /// </summary>
-    /// <param name="from">Ray start, the eyes.</param>
-    /// <param name="direction">Normalized ray direction.</param>
-    /// <param name="reach">How far along the ray the body would like to be held.</param>
-    /// <param name="body">The held body, whose bounds say how much room it needs.</param>
-    /// <returns>The reach, shortened when the ray meets something first.</returns>
+    /// <summary>Shortens a hold distance so the thinnest side of a held body stays out of the world and movers.</summary>
     public float ClearReach(Vector3 from, Vector3 direction, float reach, Body body)
     {
         if (!bodyGeometry.TryGetValue(body.UserData, out var geometry) || geometry.Bounds is not { } bounds)
@@ -251,19 +188,12 @@ public sealed class PhysicsSimulation : IDisposable
         return ShortenReach(from, direction, reach, MathF.Min(extents.X, MathF.Min(extents.Y, extents.Z)));
     }
 
-    /// <summary>
-    /// Shortens a reach along a ray so that a body held at its end, turned as it is now, stops just
-    /// short of the world and the movers there: the body's shapes are swept along the ray from the
-    /// eyes, its hull corners as rays and its rounded shapes as capsules. From the eyes, not from
-    /// the closest it is ever held: looking down, a body that close would already be in the floor,
-    /// where the rays see no surface to stop at.
-    /// </summary>
-    /// <param name="from">Ray start, the eyes.</param>
+    /// <summary>Shortens a hold distance by sweeping the shapes of a held body from the eyes until they touch the world or movers.</summary>
+    /// <param name="from">Ray start.</param>
     /// <param name="direction">Normalized ray direction.</param>
-    /// <param name="reach">How far along the ray the body would like to be held.</param>
-    /// <param name="body">The held body, whose shapes say how much room it needs.</param>
-    /// <param name="normal">The normal of what the ray itself meets within the reach, or zero for nothing.</param>
-    /// <returns>The reach, shortened when the body meets something first.</returns>
+    /// <param name="reach">Desired hold distance.</param>
+    /// <param name="body">Held body.</param>
+    /// <param name="normal">Normal of the surface the ray meets, or zero.</param>
     public float TouchReach(Vector3 from, Vector3 direction, float reach, Body body, out Vector3 normal)
     {
         normal = Vector3.Zero;
@@ -310,8 +240,7 @@ public sealed class PhysicsSimulation : IDisposable
         return MathF.Max((fraction * reach) - TouchMargin, MinClearReach);
     }
 
-    // A body held against the world stops this far short, so it rests beside it rather than in
-    // constant contact
+    // Keeps a held body out of constant contact
     private const float TouchMargin = 0.5f;
 
     private float ShortenReach(Vector3 from, Vector3 direction, float reach, float extent)
@@ -327,33 +256,17 @@ public sealed class PhysicsSimulation : IDisposable
         return MathF.Min(reach, MathF.Max(Vector3.Distance(from, hit.Point) - extent, MinClearReach));
     }
 
-    // However cramped, a held body is not pulled into the carrier's face
+    // Never hold a body inside the face of the carrier
     private const float MinClearReach = 16f;
 
-    /// <summary>
-    /// Density conversion from the surface table to the solver. The table speaks kilograms per
-    /// cubic meter, but shape volumes integrate in map units, so the density must come down by
-    /// the cubed unit scale - otherwise every prop weighs tens of thousands of times too much
-    /// and impulses (blasts, bullets) divide away into nothing.
-    /// </summary>
+    // Table densities are kg/m^3, shape volumes are in cubic units
     private const float DensityScale = 1f / (UnitsPerMeter * UnitsPerMeter * UnitsPerMeter);
 
-    /// <summary>
-    /// The solver restitution a table elasticity maps to. The table's values are vphysics
-    /// flavored, not plain coefficients of restitution: weapons carry 0.95 and soda cans 0.99,
-    /// which taken raw are superballs - and the solver combines a contact's restitution by
-    /// taking the larger side, so one hot surface bounces off everything. Compressing through
-    /// e/(1+e) keeps the authored ordering while landing the hot end near a half, and the cap
-    /// leaves the authored metal_bouncy (1000) an honest trampoline.
-    /// </summary>
+    // Table elasticities near 1 are not restitution coefficients, and the solver takes the larger
+    // side of a contact; e/(1+e) keeps the order but tames them, the cap is for metal_bouncy (1000)
     private static float ToRestitution(float elasticity)
         => MathF.Min(elasticity / (1f + elasticity), 0.9f);
 
-    /// <summary>
-    /// The shape properties a surface hash dictates: the table's friction, elasticity and density,
-    /// and the hash itself riding along as the material id so a contact can find the surface again.
-    /// A simulated shape reports its hits, for impact sounds and impact damage.
-    /// </summary>
     private ShapeDefinition MakeShapeDefinition(uint surfaceHash, ulong categories)
     {
         var surface = (surfaces?.Find(surfaceHash)) ?? SurfaceProperties.Fallback;
@@ -378,11 +291,7 @@ public sealed class PhysicsSimulation : IDisposable
         };
     }
 
-    /// <summary>
-    /// Finds the sound a model plays as it breaks: the break sound of the first surface its collision
-    /// names that has one - a pot's pottery, a bottle's glass.
-    /// </summary>
-    /// <returns>The sound event, or <see langword="null"/> when none of its surfaces break audibly.</returns>
+    /// <summary>Finds the break sound of the first surface in the collision that has one.</summary>
     public string? FindBreakSound(PhysAggregateData phys)
     {
         if (surfaces == null)
@@ -410,8 +319,7 @@ public sealed class PhysicsSimulation : IDisposable
         return null;
     }
 
-    // The surface a shape descriptor names, as the hash the table is keyed by. Old assets carry no
-    // surface list, in which case everything is the fallback.
+    // Old assets have no surface list
     private static uint GetSurfaceHash(PhysAggregateData phys, int surfacePropertyIndex)
     {
         var hashes = phys.SurfacePropertyHashes;
@@ -421,13 +329,9 @@ public sealed class PhysicsSimulation : IDisposable
             : 0;
     }
 
-    /// <summary>
-    /// Bakes a physics aggregate into one static compound body: every solid hull and mesh, placed where
-    /// its spawn group is. Clip geometry is left out, because clips block players and NPCs rather than
-    /// physics.
-    /// </summary>
-    /// <param name="phys">The world's compiled physics.</param>
-    /// <param name="placement">Where the spawn group the physics belongs to is placed, a rigid transform.</param>
+    /// <summary>Builds a physics aggregate into a static compound body in the background, leaving out clips.</summary>
+    /// <param name="phys">Compiled world physics.</param>
+    /// <param name="placement">Rigid transform of the spawn group.</param>
     public void AddStaticGeometry(PhysAggregateData phys, Matrix4x4 placement)
     {
         if (phys.Parts.Length == 0)
@@ -438,7 +342,7 @@ public sealed class PhysicsSimulation : IDisposable
         pendingStaticGeometry.Add(Task.Run(() => BuildStaticGeometry(phys, placement)));
     }
 
-    // Builds the geometry alone, touching nothing of the world, which only the stepping thread may
+    // Runs off the stepping thread, must not touch the world
     private StaticGeometry? BuildStaticGeometry(PhysAggregateData phys, Matrix4x4 placement)
     {
         var builder = new CompoundBuilder();
@@ -522,17 +426,14 @@ public sealed class PhysicsSimulation : IDisposable
         return new StaticGeometry(builder.Build(), borrowed, placement);
     }
 
-    /// <summary>
-    /// Waits for the static geometry still being built and attaches it, for a caller that queries
-    /// the world straight after loading it rather than waiting for it to step.
-    /// </summary>
+    /// <summary>Waits for pending static geometry and attaches it.</summary>
     public void FinishStaticGeometry()
     {
         Task.WaitAll([.. pendingStaticGeometry]);
         AttachStaticGeometry();
     }
 
-    // Attaches the static geometry that is ready, returning whether all of it is
+    // The world does not step until this returns true, or props would fall through missing floors
     private bool AttachStaticGeometry()
     {
         for (var i = 0; i < pendingStaticGeometry.Count; i++)
@@ -564,9 +465,6 @@ public sealed class PhysicsSimulation : IDisposable
         return pendingStaticGeometry.Count == 0;
     }
 
-    /// <summary>
-    /// The contact material a surface hash dictates, for the compound's per-child materials.
-    /// </summary>
     private PhysicsMaterial MakeMaterial(uint surfaceHash)
     {
         var surface = (surfaces?.Find(surfaceHash)) ?? SurfaceProperties.Fallback;
@@ -579,20 +477,14 @@ public sealed class PhysicsSimulation : IDisposable
         };
     }
 
-    /// <summary>
-    /// Creates the rigid body for a physics prop from its compiled physics: every sphere, capsule
-    /// and convex hull, in the prop's local space. A soccer ball is a single sphere, a crate a
-    /// single hull, and both must come through. Falls back to a box over the bounds when the
-    /// aggregate offers nothing usable.
-    /// </summary>
-    /// <param name="phys">The prop model's physics aggregate.</param>
-    /// <param name="localBounds">Bounds of its traced shape, for the fallback box.</param>
-    /// <param name="origin">Spawn position in the world.</param>
+    /// <summary>Creates a prop body from its spheres, capsules and hulls, or a box over the bounds when there are none.</summary>
+    /// <param name="phys">Physics aggregate of the model.</param>
+    /// <param name="localBounds">Bounds for the fallback box.</param>
+    /// <param name="origin">Spawn position.</param>
     /// <param name="rotation">Spawn orientation.</param>
-    /// <param name="motionEnabled">Whether the body simulates; a motion-disabled prop stands as a static obstacle.</param>
-    /// <param name="startAsleep">Whether the body waits for a touch before simulating.</param>
-    /// <param name="owner">The entity the body reports as, from <see cref="GetOwner"/>.</param>
-    /// <returns>The created body, or <see langword="null"/> when there was nothing to build one from.</returns>
+    /// <param name="motionEnabled">False makes the body static.</param>
+    /// <param name="startAsleep">Whether the body starts asleep.</param>
+    /// <param name="owner">Entity returned by <see cref="GetOwner"/>.</param>
     public Body? CreatePropBody(PhysAggregateData phys, AABB localBounds, Vector3 origin, Quaternion rotation,
         bool motionEnabled, bool startAsleep, BaseEntity owner)
     {
@@ -600,9 +492,7 @@ public sealed class PhysicsSimulation : IDisposable
             ? BodyDefinition.Dynamic(origin, rotation) with { StartAwake = !startAsleep }
             : BodyDefinition.Static(origin, rotation);
 
-        // Props author their energy loss per part too, most of them as zero. The solver has no air
-        // drag, so a prop authored with none would keep what it has forever: a picture on a
-        // frictionless hinge swung for good. A zero falls back to gentle damping instead.
+        // There is no air drag, so undamped props would swing on hinges forever
         if (motionEnabled)
         {
             var linearDamping = phys.Parts.Length > 0 ? phys.Parts[0].LinearDamping : 0f;
@@ -644,27 +534,18 @@ public sealed class PhysicsSimulation : IDisposable
         return body;
     }
 
-    /// <summary>
-    /// Creates one rigid body of a ragdoll: the given part's shapes in the part's own local
-    /// space, placed at a world pose, with the part's authored mass. Ragdoll parts are authored
-    /// per bone with real kilogram masses, so after attaching the shapes the densities are
-    /// scaled until the body weighs exactly what the artist said.
-    /// </summary>
-    /// <param name="phys">The ragdoll model's physics aggregate.</param>
-    /// <param name="partIndex">Which part to build.</param>
-    /// <param name="position">The part's bone position in the world.</param>
-    /// <param name="rotation">The part's bone orientation in the world.</param>
-    /// <param name="isDebris">Whether the ragdoll is debris, colliding with neither the player nor other debris.</param>
-    /// <param name="owner">The entity the body reports as, from <see cref="GetOwner"/>.</param>
-    /// <returns>The created body, or <see langword="null"/> when the part offers no shapes.</returns>
+    /// <summary>Creates the body of one ragdoll part with its authored mass.</summary>
+    /// <param name="phys">Physics aggregate of the ragdoll model.</param>
+    /// <param name="partIndex">Part to build.</param>
+    /// <param name="position">World position of the part.</param>
+    /// <param name="rotation">World orientation of the part.</param>
+    /// <param name="isDebris">Whether to use <see cref="DebrisCategory"/>.</param>
+    /// <param name="owner">Entity returned by <see cref="GetOwner"/>.</param>
     public Body? CreateRagdollBody(PhysAggregateData phys, int partIndex, Vector3 position, Quaternion rotation, bool isDebris, BaseEntity owner)
     {
         var part = phys.Parts[partIndex];
 
-        // The authored per-part damping is the ragdoll's energy loss. Without it a held ragdoll
-        // spins forever about the grip: rigid whole-body rotation moves no joint, so joint
-        // friction never sees it. Some characters author zero everywhere, which falls back to
-        // a typical limb value.
+        // Joint friction does not resist rigid whole-body rotation, a held ragdoll needs damping to stop spinning
         var angularDamping = part.AngularDamping > 0f ? part.AngularDamping : FallbackAngularDamping;
 
         var body = World.CreateBody(BodyDefinition.Dynamic(position, rotation) with
@@ -701,9 +582,7 @@ public sealed class PhysicsSimulation : IDisposable
         return body;
     }
 
-    // Damping for a prop authored without any, standing in for drag: a swing or a spin loses most of
-    // itself over a few seconds, while a throw or a fall barely notices. A hinged body swings with its
-    // mass center more than it spins, so the swing needs the linear half too.
+    // Linear damping too, since a hinged body swings its mass center more than it spins
     private const float FallbackPropLinearDamping = 0.1f;
     private const float FallbackPropAngularDamping = 0.5f;
 
@@ -711,19 +590,9 @@ public sealed class PhysicsSimulation : IDisposable
     private const float FallbackAngularDamping = 2f;
     private const float FallbackJointFriction = 0.3f;
 
-    // How far in front of the crossed surface a caught body is placed
     private const float TunnelRescueMargin = 0.25f;
 
-    /// <summary>
-    /// Catches a body whose center crossed a static surface since the last look and puts it back
-    /// on the near side, killing the velocity into the surface. Contact push-out moves positions
-    /// directly, so a small shape squeezed hard - a ragdoll hand under a shove - can be ejected
-    /// straight through the one-sided mesh world with no sweep test ever running; this is the
-    /// sweep, at tick rate. One-sided on purpose: a body climbing back out of geometry crosses
-    /// backfaces, which the ray does not hit, so recovery is never fought.
-    /// </summary>
-    /// <param name="body">The body to check.</param>
-    /// <param name="previousPosition">The body's center as of the last check.</param>
+    /// <summary>Moves a body back in front of a static surface its center crossed since <paramref name="previousPosition"/>.</summary>
     public void CatchTunneledBody(Body body, Vector3 previousPosition)
     {
         var delta = body.Position - previousPosition;
@@ -733,6 +602,8 @@ public sealed class PhysicsSimulation : IDisposable
             return;
         }
 
+        // Contact push-out can eject squeezed parts through the one-sided world mesh. Backfaces
+        // are not hit, letting bodies climb back out of geometry
         var hit = World.RaycastClosest(previousPosition, delta,
             new QueryFilter(RagdollCategory, StaticCategory));
 
@@ -752,25 +623,16 @@ public sealed class PhysicsSimulation : IDisposable
         }
     }
 
-    /// <summary>
-    /// Creates the constraint a ragdoll joint describes between two of its bodies: the authored
-    /// swing cone and twist range, self-collision setting, and joint friction as a zero-velocity
-    /// motor resisting motion with the authored torque.
-    /// </summary>
-    /// <returns>The created joint, or <see langword="null"/> for a joint type nothing maps to.</returns>
+    /// <summary>Creates a ragdoll joint, or <see langword="null"/> for an unsupported type.</summary>
     public Joint? CreateRagdollJoint(in ResourceTypes.RubikonPhysics.Joint joint, Body body1, Body body2)
     {
-        // The authored frames and limits pass to the solver as they are; both engines measure
-        // hinge and twist about the same frame axis. The solver's own constraint stiffness is
-        // kept: softening it lets limbs stretch under load.
+        // Default constraint stiffness, softer lets limbs stretch under load
         var baseDefinition = JointDefinition.Connect(body1, body2,
             new JointFrame(joint.Frame1.Position, joint.Frame1.Rotation),
             new JointFrame(joint.Frame2.Position, joint.Frame2.Rotation))
             with
         { CollideConnected = joint.EnableCollision };
 
-        // Some characters author no joint friction at all, and a frictionless doll swings for
-        // many seconds
         var frictionAmount = joint.HasFriction && joint.Friction > 0f ? joint.Friction : FallbackJointFriction;
 
         switch (joint.Type)
@@ -818,21 +680,10 @@ public sealed class PhysicsSimulation : IDisposable
         }
     }
 
-    // The authored joint friction is a small unitless number (0.15 to 0.7); this turns it into
-    // the resisting torque of the zero-velocity motor, sized against limb masses in kilograms
-    // so a ragdoll settles rather than swinging like pendulums
+    // Authored joint friction (0.15 to 0.7) to motor torque against kilogram limb masses
     private const float RagdollFrictionTorque = 100f;
 
-    /// <summary>
-    /// Creates the kinematic body mirroring a solid entity's collision - a door, or one of the
-    /// func movers - so props collide with it and get pushed when it moves. The entity keeps the
-    /// body on its tick pose; the player still collides with the entity through the movement
-    /// traces rather than through this.
-    /// </summary>
-    /// <param name="phys">The entity model's physics aggregate.</param>
-    /// <param name="origin">The entity's current position.</param>
-    /// <param name="rotation">The entity's current orientation.</param>
-    /// <returns>The created body, or <see langword="null"/> when the aggregate offers no shapes.</returns>
+    /// <summary>Creates a kinematic body for a door or func mover that pushes props.</summary>
     public Body? CreateMoverBody(PhysAggregateData phys, Vector3 origin, Quaternion rotation)
     {
         var body = World.CreateKinematicBody(origin, rotation);
@@ -848,9 +699,7 @@ public sealed class PhysicsSimulation : IDisposable
         return body;
     }
 
-    // Attaches every sphere, capsule and convex hull of an aggregate to a body, in the model's
-    // local space, and returns them there. Meshes are left out on purpose: dynamic bodies cannot
-    // carry triangle meshes, and the movers this also serves are hull-compiled brush models.
+    // Meshes are skipped, dynamic bodies cannot carry them and movers are hull-compiled
     private BodyGeometry AddAggregateShapes(Body body, PhysAggregateData phys, ulong categories)
     {
         var bindPose = phys.BindPose;
@@ -896,7 +745,7 @@ public sealed class PhysicsSimulation : IDisposable
 
             if (BuildHull(points, pose) is { } hull)
             {
-                // Copied on attach, unlike the compound path, so nothing to keep alive
+                // Copied on attach, unlike compound hulls
                 using (hull)
                 {
                     body.AddHull(hull,
@@ -912,14 +761,9 @@ public sealed class PhysicsSimulation : IDisposable
         }
     }
 
-    /// <summary>
-    /// Creates the kinematic body that stands where the player stands, so walking into a prop shoves
-    /// it aside. It collides with props alone: the world cannot move it, and the player's own movement
-    /// already handles walls.
-    /// </summary>
-    /// <param name="feetPosition">The player's feet, which is the body origin.</param>
-    /// <param name="hullHalfExtents">Half-extents of the player's collision hull.</param>
-    /// <returns>The created body.</returns>
+    /// <summary>Creates a kinematic player hull body that collides only with props.</summary>
+    /// <param name="feetPosition">Body origin at the feet.</param>
+    /// <param name="hullHalfExtents">Half-extents of the player hull.</param>
     public Body CreatePlayerBody(Vector3 feetPosition, Vector3 hullHalfExtents)
     {
         var body = World.CreateKinematicBody(feetPosition, null);
@@ -932,18 +776,14 @@ public sealed class PhysicsSimulation : IDisposable
         return body;
     }
 
-    /// <summary>
-    /// Links a body to the entity it simulates, for <see cref="GetOwner"/> to find again.
-    /// </summary>
+    /// <summary>Links a body to an entity for <see cref="GetOwner"/>.</summary>
     public void Register(Body body, BaseEntity owner)
     {
         body.UserData = ++nextBodyId;
         bodyOwners[body.UserData] = owner;
     }
 
-    /// <summary>
-    /// Unlinks a body from its entity. Call before destroying a registered body.
-    /// </summary>
+    /// <summary>Unlinks a registered body before it is destroyed.</summary>
     public void Forget(Body body)
     {
         bodyOwners.Remove(body.UserData);
@@ -951,14 +791,11 @@ public sealed class PhysicsSimulation : IDisposable
         impactSounds?.Forget(body.UserData);
     }
 
-    /// <summary>
-    /// Finds the entity a body simulates, or <see langword="null"/> for one that stands for no
-    /// entity, such as the static world.
-    /// </summary>
+    /// <summary>Finds the entity of a body, or <see langword="null"/> for the world.</summary>
     public BaseEntity? GetOwner(Body body)
         => bodyOwners.TryGetValue(body.UserData, out var owner) ? owner : null;
 
-    // 3V-6 edges at 40 vertices is 114, comfortably inside the solver's 128 edge budget
+    // 3V-6 edges at 40 vertices is 114, inside the 128 edge budget
     private const int ReducedHullVertexBudget = 40;
 
     private static ConvexHull? BuildHull(ReadOnlySpan<Vector3> points, Matrix4x4 pose)
@@ -984,26 +821,19 @@ public sealed class PhysicsSimulation : IDisposable
 
         try
         {
-            // Zero keeps the engine's own vertex budget; oversized hulls are merged down
+            // Zero keeps the default vertex budget
             return ConvexHull.FromPoints(transformed, 0);
         }
         catch (ArgumentException)
         {
-            // The library's budget is 256 HALF-EDGES - the same order as RnHull's byte-indexed
-            // caps, so the authored hull always fit. But only the vertex positions survive the
-            // trip here, and the rebuild's quickhull splits coplanar faces the compiler had
-            // merged into n-gons: a rounded ~70 vertex hull comes back with more edges than its
-            // authored topology had. A convex hull has at most 3V-6 edges, so a 40 vertex retry
-            // is guaranteed to fit - the round shape simplifies slightly instead of vanishing
-            // from the world.
+            // Quickhull splits coplanar n-gons, a rebuilt rounded hull can exceed the edge budget
             try
             {
                 return ConvexHull.FromPoints(transformed, ReducedHullVertexBudget);
             }
             catch (ArgumentException)
             {
-                // Degenerate (flat or tiny) input the quickhull cannot enclose; skip the hull
-                // rather than lose the whole aggregate
+                // Degenerate (flat or tiny) input
                 return null;
             }
         }
@@ -1028,8 +858,6 @@ public sealed class PhysicsSimulation : IDisposable
 
         for (var i = 0; i < triangles.Length; i++)
         {
-            // Source triangles wind counter-clockwise seen from the solid side, which is the
-            // winding the mesh builder expects
             indices[i * 3 + 0] = triangles[i].X;
             indices[i * 3 + 1] = triangles[i].Y;
             indices[i * 3 + 2] = triangles[i].Z;
@@ -1038,10 +866,6 @@ public sealed class PhysicsSimulation : IDisposable
         return CollisionMesh.FromTriangles(positions, indices, null, default);
     }
 
-    /// <summary>
-    /// Whether props pass through geometry with these collision attributes. Clips exist to steer
-    /// players, NPCs and grenades; a ladder is a climbing volume. None of them stop a thrown crate.
-    /// </summary>
     private static bool SkipsPropCollision(PhysAggregateData phys, int collisionAttributeIndex)
     {
         var attributes = phys.CollisionAttributes[collisionAttributeIndex];
@@ -1080,8 +904,6 @@ public sealed class PhysicsSimulation : IDisposable
 
         pendingStaticGeometry.Clear();
 
-        // The world goes first: the geometry below is borrowed by shapes inside it, and must
-        // outlive them
         World.Dispose();
 
         foreach (var geometry in borrowedGeometry)

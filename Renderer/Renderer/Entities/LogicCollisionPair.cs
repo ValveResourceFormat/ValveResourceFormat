@@ -3,14 +3,9 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
-/// <summary>
-/// <c>logic_collision_pair</c>: switches collision off, or back on, between the two bodies
-/// <c>attach1</c> and <c>attach2</c> name. Maps use it for parts of one object that overlap by design -
-/// a toilet handle sunk into its cistern - so they do not shove each other apart.
-/// </summary>
+/// <summary><c>logic_collision_pair</c>: toggles collision between the <c>attach1</c> and <c>attach2</c> bodies.</summary>
 public sealed class LogicCollisionPair : BaseEntity
 {
-    // A filter joint does nothing but stop its two bodies colliding
     private Joint filter;
     private bool hasFilter;
 
@@ -22,11 +17,11 @@ public sealed class LogicCollisionPair : BaseEntity
     /// <summary>Gets whether the two bodies currently pass through each other.</summary>
     public bool CollisionsDisabled => hasFilter;
 
-    // In Activate, as the attached entities may be authored after this one and need their bodies
+    // Not in Spawn, as the attached entities may be authored after this one
     /// <inheritdoc/>
     public override void Activate()
     {
-        // The key reads from the pair's point of view: disabled means the pair's collisions are
+        // Disabling the entity means disabling collisions
         if (KeyValues.GetBooleanProperty("startdisabled"))
         {
             DisableCollisions();

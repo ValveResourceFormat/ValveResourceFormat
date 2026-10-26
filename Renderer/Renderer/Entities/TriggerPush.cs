@@ -4,27 +4,21 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
-/// <summary>
-/// <c>trigger_push</c>. Pushes what is inside it along <c>pushdir</c> at <c>speed</c>: the player as a
-/// base velocity carried on top of their own, physics objects as an acceleration.
-/// </summary>
+/// <summary>Pushes the player and physics objects inside along <c>pushdir</c> at <c>speed</c>.</summary>
 /// <remarks>
 /// <c>alternateticksfix</c> is not read.
 /// </remarks>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CTriggerPush">CTriggerPush</seealso>
 public sealed class TriggerPush : BaseTrigger
 {
-    /// <summary>The <c>spawnflags</c> only a push reads.</summary>
     [Flags]
     private enum PushSpawnFlag : uint
     {
-        /// <summary>The push accelerates every physics object alike, whatever its mass.</summary>
+        // Accelerates every physics object alike, whatever the mass
         AccountForMass = 4096,
     }
 
-    // Without accounting for mass, the push on a physics object is an impulse per tick of speed
-    // times this mass, so an object of this many kilograms gains the push speed every second and
-    // a lighter one more
+    // Mass the impulse is scaled by without AccountForMass, lighter objects gain more speed
     private const float PropReferenceMass = 100f;
 
     private float speed;
@@ -32,7 +26,6 @@ public sealed class TriggerPush : BaseTrigger
     private bool isPushDirLocal;
     private bool pushesOnStartTouchOnly;
 
-    // Reused by the prop push every tick
     private readonly List<Body> bodies = [];
     private readonly HashSet<ulong> bodyIds = [];
 
@@ -57,7 +50,6 @@ public sealed class TriggerPush : BaseTrigger
         }
     }
 
-    // The push velocity in the world, turned with the trigger when the direction is local to it
     private Vector3 PushVelocity
     {
         get
@@ -101,10 +93,7 @@ public sealed class TriggerPush : BaseTrigger
         }
     }
 
-    /// <summary>
-    /// Pushes the physics objects whose mass center is inside the volume, every tick: only the
-    /// player opens touch links with triggers. Debris only when the flags name it.
-    /// </summary>
+    /// <summary>Pushes physics objects by overlap, as only the player opens touch links.</summary>
     public override void Think()
     {
         SetNextThink(EntitySystem.CurrentTime + EntitySystem.TickInterval);

@@ -27,11 +27,7 @@ public interface IPlayerController
     /// <summary>Gets the direction the player is looking.</summary>
     Vector3 ViewForward { get; }
 
-    /// <summary>
-    /// Gets the view orientation as a QAngle in degrees. Unlike a direction vector, the yaw here
-    /// stays well-defined looking straight up or down, because it comes from the input state
-    /// rather than being reconstructed from <see cref="ViewForward"/>.
-    /// </summary>
+    /// <summary>Gets the view angles in degrees, with yaw kept when looking straight up or down.</summary>
     Vector3 ViewAngles { get; }
 
     /// <summary>Gets the entity the player stands on, or null in the air.</summary>
@@ -55,11 +51,7 @@ public interface IPlayerController
     /// </summary>
     void Push(Vector3 delta);
 
-    /// <summary>
-    /// Sets the velocity pushing the player this tick, such as a <c>trigger_push</c>, which moves them on
-    /// top of their own. Zero once nothing pushes, which carries what was pushing on as their momentum.
-    /// </summary>
-    /// <param name="velocity">The push velocity, summed over everything pushing.</param>
+    /// <summary>Sets the velocity added on top of player movement this tick, summed over all pushers.</summary>
     void SetBaseVelocity(Vector3 velocity);
 
     /// <summary>

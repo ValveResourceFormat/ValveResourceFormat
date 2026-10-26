@@ -532,8 +532,7 @@ public class PlayerMovement : IPlayerController
 
         ClampVelocity();
 
-        // A push, such as a trigger_push, carries the player along for the move on top of their own
-        // velocity, which friction and acceleration have already acted on
+        // Added after friction and acceleration, and taken out again after the move
         var pushVelocity = BaseVelocity with { Z = 0f };
         Velocity += pushVelocity;
 
@@ -564,8 +563,7 @@ public class PlayerMovement : IPlayerController
             position = TryPlayerMove(position, playerHull);
         }
 
-        // A move stopped dead also drops the rest of the tick's acceleration. The push was the move's
-        // alone and comes back out of the player's own velocity.
+        // A move stopped dead also drops the rest of the tick's acceleration
         if (Velocity != Vector3.Zero)
         {
             Velocity += deferredVelocity - pushVelocity;
@@ -1843,7 +1841,6 @@ public class PlayerMovement : IPlayerController
         pushViewLagTimeLeft = TickInterval;
     }
 
-    // The push of a trigger_push, set every tick it acts
     private Vector3 BaseVelocity;
 
     /// <inheritdoc/>
@@ -1851,8 +1848,7 @@ public class PlayerMovement : IPlayerController
     {
         if (velocity == Vector3.Zero)
         {
-            // Nothing pushes any more: the push carries on as the player's own momentum. Its upward
-            // part acted as an acceleration and is in the velocity already.
+            // The push carries on as momentum, its upward part is in the velocity already
             Velocity += BaseVelocity with { Z = 0f };
             BaseVelocity = Vector3.Zero;
             return;

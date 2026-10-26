@@ -7,18 +7,15 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
-/// <summary>
-/// How a model breaks: its health and per-type damage scales, resolved from its <c>prop_data</c>
-/// against the game's <c>scripts/propdata.txt</c> base classes, and the pieces it breaks into.
-/// </summary>
+/// <summary>Breakable behaviour of a model, resolved from its <c>prop_data</c>.</summary>
 /// <param name="Health">Damage it takes to break; zero or less is unbreakable.</param>
 /// <param name="BulletScale">Multiplier on bullet damage.</param>
 /// <param name="ClubScale">Multiplier on melee damage.</param>
 /// <param name="ExplosiveScale">Multiplier on blast damage.</param>
-/// <param name="FragileImpacts">Whether impacts use the fragile table, for glass, rather than the default one.</param>
+/// <param name="FragileImpacts">Whether impacts use the glass damage table.</param>
 /// <param name="Pieces">What it breaks into.</param>
-/// <param name="Particles">The effects it bursts into as it breaks.</param>
-/// <param name="SpawnMotionDisabled">Whether a prop of the model spawns with its motion disabled, as a shattering pane's piece does, its shards falling in its shader.</param>
+/// <param name="Particles">Effects spawned on break.</param>
+/// <param name="SpawnMotionDisabled">Whether a prop of the model spawns with motion disabled.</param>
 public sealed record PropBreakData(float Health, float BulletScale, float ClubScale, float ExplosiveScale, bool FragileImpacts,
     IReadOnlyList<BreakPiece> Pieces, IReadOnlyList<BreakParticle> Particles, bool SpawnMotionDisabled)
 {
@@ -34,11 +31,7 @@ public sealed record PropBreakData(float Health, float BulletScale, float ClubSc
         _ => 1f,
     };
 
-    /// <summary>
-    /// The damage a physics impact at <paramref name="speed"/> deals. Below the first step nothing
-    /// happens, so setting a prop down or a slow shove never hurts it; each step up the table deals
-    /// its damage. Glass breaks far sooner.
-    /// </summary>
+    /// <summary>Gets the damage a physics impact at <paramref name="speed"/> deals.</summary>
     public float ImpactDamage(float speed)
     {
         var table = FragileImpacts ? FragileImpactTable : DefaultImpactTable;
@@ -65,47 +58,39 @@ public sealed record PropBreakData(float Health, float BulletScale, float ClubSc
 }
 
 /// <summary>One piece a broken model spawns, from its <c>break_list</c>.</summary>
-/// <param name="Model">The piece's model.</param>
-/// <param name="Offset">Where it sits in the broken model's frame.</param>
-/// <param name="Angles">How it is turned in the broken model's frame, as a QAngle.</param>
-/// <param name="FadeTime">Seconds until it is removed; zero keeps it.</param>
-/// <param name="Health">Its own health, overriding its model's; zero keeps the model's.</param>
-/// <param name="SpawnChance">Chance from 0 to 1 that it spawns at all.</param>
-/// <param name="IsDebris">Whether it stays out of the player's way.</param>
+/// <param name="Model">Model name.</param>
+/// <param name="Offset">Position in the broken model frame.</param>
+/// <param name="Angles">QAngle in the broken model frame.</param>
+/// <param name="FadeTime">Seconds until removal; zero keeps it.</param>
+/// <param name="Health">Health override; zero keeps the model health.</param>
+/// <param name="SpawnChance">Spawn chance from 0 to 1.</param>
+/// <param name="IsDebris">Whether it does not collide with the player.</param>
 /// <param name="CanPlayerPickup">Whether the player may pick it up.</param>
 public sealed record BreakPiece(string Model, Vector3 Offset, Vector3 Angles, float FadeTime, float Health, float SpawnChance, bool IsDebris, bool CanPlayerPickup);
 
-/// <summary>
-/// An effect a broken model bursts into, from a <c>break_create_particle</c> in its
-/// <c>break_command_list</c>. Control point 0 is the model's pose; the others are handed what the
-/// effect needs to know, each at the index the command names, or not at all for -1.
-/// </summary>
+/// <summary>A <c>break_create_particle</c> command; control point indices of -1 are unset.</summary>
 /// <param name="Name">The particle system.</param>
-/// <param name="Snapshot">Particles to start from, laid out on the model - a bottle's shards.</param>
-/// <param name="SkinControlPoint">Receives the model's skin index.</param>
+/// <param name="Snapshot">Initial particle snapshot.</param>
+/// <param name="SkinControlPoint">Receives the skin index.</param>
 /// <param name="DamagePositionControlPoint">Receives where the breaking hit landed.</param>
 /// <param name="DamageDirectionControlPoint">Receives the direction the breaking hit travelled.</param>
-/// <param name="VelocityControlPoint">Receives the model's velocity.</param>
-/// <param name="AngularVelocityControlPoint">Receives the model's spin.</param>
-/// <param name="LocalGravityControlPoint">Receives gravity in the model's own frame.</param>
+/// <param name="VelocityControlPoint">Receives the velocity.</param>
+/// <param name="AngularVelocityControlPoint">Receives the angular velocity.</param>
+/// <param name="LocalGravityControlPoint">Receives gravity in model space.</param>
 public sealed record BreakParticle(string Name, string? Snapshot, int SkinControlPoint, int DamagePositionControlPoint,
     int DamageDirectionControlPoint, int VelocityControlPoint, int AngularVelocityControlPoint, int LocalGravityControlPoint);
 
-/// <summary>
-/// The game's <c>scripts/propdata.txt</c>: named base classes of breakable behaviour that model
-/// <c>prop_data</c> derives from with its <c>base</c> key. A model value of -1, or a blank one,
-/// means it takes the base class's.
-/// </summary>
+/// <summary>Base classes from <c>scripts/propdata.txt</c> that model <c>prop_data</c> inherits through its <c>base</c> key.</summary>
 public sealed class PropDataTable
 {
     private const int MaxBaseDepth = 8;
 
     private readonly Dictionary<string, KVObject> sections = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Gets the table with no base classes, for a game that ships none.</summary>
+    /// <summary>Gets the table with no base classes.</summary>
     public static PropDataTable Empty { get; } = new();
 
-    /// <summary>Loads the game's table, or <see cref="Empty"/> when it has none.</summary>
+    /// <summary>Loads the table, or <see cref="Empty"/> when there is none.</summary>
     public static PropDataTable Load(IFileLoader fileLoader)
     {
         using var stream = fileLoader.GetFileStream("scripts/propdata.txt");
@@ -169,7 +154,7 @@ public sealed class PropDataTable
             return;
         }
 
-        // The deepest base first, so each derived class overrides what it inherits
+        // Deepest base first, derived classes override
         ApplyBase(section.GetStringProperty("base"), values, ref fragile, depth + 1);
         Apply(section, values, ref fragile);
     }
@@ -190,7 +175,7 @@ public sealed class PropDataTable
         }
     }
 
-    // Base classes are text keyvalues, where every value is a string; compiled model data is typed
+    // Text keyvalues store every value as a string, compiled model data is typed
     private static bool TryReadNumber(KVObject section, string key, out float value)
     {
         if (section.GetStringProperty(key) is { } text)

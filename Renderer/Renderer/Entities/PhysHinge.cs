@@ -4,20 +4,15 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
-/// <summary>
-/// <c>phys_hinge</c> and <c>phys_hinge_local</c>: lets the two bodies turn about one axis through this
-/// entity's origin, within <c>min_rotation</c> and <c>max_rotation</c> degrees, against the authored
-/// <c>hingefriction</c>. The plain hinge names a world point its axis runs toward; the local one gives
-/// a direction in the entity's own frame, so the hinge keeps its axis when the entity is rotated.
-/// </summary>
+/// <summary><c>phys_hinge</c> and <c>phys_hinge_local</c>: lets two bodies turn about one axis within a range of degrees.</summary>
 public sealed class PhysHinge : PhysConstraint
 {
     private readonly bool axisIsLocal;
 
     /// <summary>Initializes a hinge from its keyvalues.</summary>
-    /// <param name="system">The entity system the hinge belongs to.</param>
-    /// <param name="spawnInfo">The hinge's keyvalues and placement.</param>
-    /// <param name="axisIsLocal">Whether <c>hingeaxis</c> is a direction in the entity's frame, as for <c>phys_hinge_local</c>, rather than a world point.</param>
+    /// <param name="system">The owning entity system.</param>
+    /// <param name="spawnInfo">The spawn keyvalues.</param>
+    /// <param name="axisIsLocal">Whether <c>hingeaxis</c> is in entity space, as for <c>phys_hinge_local</c>, rather than a world point.</param>
     public PhysHinge(EntitySystem system, EntitySpawnInfo spawnInfo, bool axisIsLocal) : base(system, spawnInfo)
     {
         this.axisIsLocal = axisIsLocal;
@@ -31,7 +26,7 @@ public sealed class PhysHinge : PhysConstraint
     {
         get
         {
-            // The hinge turns about the whole line, so the anchor is the point on it nearest the entity
+            // Any point on the axis line works, take the one nearest the origin
             if (!TryGetAxisLine(out var point, out var direction) || direction.LengthSquared() < 1e-8f)
             {
                 return base.JointAnchor;
@@ -42,8 +37,7 @@ public sealed class PhysHinge : PhysConstraint
         }
     }
 
-    // The axis as a line in the world. The plain hinge runs it from its origin toward a world point;
-    // the local one names two points on it in its own frame, "x y z, x y z".
+    // Local hinges author two entity space points as "x y z, x y z"
     private bool TryGetAxisLine(out Vector3 point, out Vector3 direction)
     {
         point = Origin;
@@ -84,19 +78,18 @@ public sealed class PhysHinge : PhysConstraint
         var maxRotation = KeyValues.GetFloatProperty("max_rotation");
         var friction = KeyValues.GetFloatProperty("hingefriction");
 
-        // The pose the bodies spawn in reads as the initial rotation, so the limits are measured from it
+        // Limits are measured from the spawn pose, which is at initial_rotation
         var initialRotation = KeyValues.GetFloatProperty("initial_rotation");
 
         var definition = RevoluteJointDefinition.Default with
         {
             Base = connection,
 
-            // A range of zero width is how an unlimited hinge is authored
+            // An empty range means unlimited
             LimitsEnabled = minRotation != maxRotation,
             LowerAngle = float.DegreesToRadians(MathF.Min(minRotation, maxRotation) - initialRotation),
             UpperAngle = float.DegreesToRadians(MathF.Max(minRotation, maxRotation) - initialRotation),
 
-            // Friction as a motor that wants no motion and gives up past the friction torque
             MotorEnabled = true,
             MotorSpeed = 0f,
             MaxMotorTorque = FrictionTorque(friction, connection),

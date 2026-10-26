@@ -16,36 +16,24 @@ public sealed class PlayerEntity : BaseEntity
     /// <summary>How far the player can reach to press something.</summary>
     public float UseRange { get; set; } = 80f;
 
-    // The +USE carry: how far the pickup trace reaches, and how far ahead of the mass center the
-    // base hold point sits
     private const float PickupReach = 300f;
     private const float HoldDistance = 40f;
 
-    // The shadow controller: the held body hangs off a kinematic hand, moved onto the hold pose
-    // every frame, by the damped springs of a motor joint. Their force and torque are capped, so
-    // the body follows the view closely in the open while anything solid in the way holds its
-    // ground: a wall stops it with a steady push rather than being rammed, and a contact off the
-    // mass center turns it, which is how a plank pushed into a wall turns to fit. The caps are
-    // accelerations, so a heavy prop is held as firmly as a light one.
+    // Capped springs yield to obstacles instead of ramming them, caps are accelerations scaled by mass
     private const float CarryHertz = 12f;
     private const float CarryDampingRatio = 1f;
     private const float MaxCarryAcceleration = 20000f;
     private const float MaxCarryAngularAcceleration = 150f;
 
-    // A view flick throws the held body no faster than this
     private const float MaxCarrySpeed = 1000f;
 
-    // A fresh pickup's hand starts at the body and travels to the hold pose no faster than this,
-    // braking to arrive, so a prop pulled in from afar comes steadily rather than flung at the
-    // full spring
+    // The hand travels from the body to the hold pose, pulling far props in steadily
     private const float PickupTravelSpeed = 500f;
     private const float PickupTravelBraking = 4000f;
 
-    // A held prop takes part of its impact damage, so pressing it into the world as it turns to fit
-    // does not shatter everything fragile
+    // Pressing a held prop into the world as it turns to fit should not shatter it
     private const float CarriedImpactDamageScale = 0.4f;
 
-    // How long the prop may strain far from the hold pose before the player loses hold of it
     private const float CarryBreakDistance = 64f;
     private const float CarryBreakTime = 0.5f;
 
@@ -60,36 +48,29 @@ public sealed class PlayerEntity : BaseEntity
     // Held and changed buttons, latched once per tick
     private PlayerButtonState Buttons;
 
-    // The kinematic body standing where the player stands, so walking into props shoves them
+    // Kinematic stand-in for the hull, shoving props the player walks into
     private Body presenceBody;
     private bool hasPresenceBody;
 
-    // The debris shove, see ShoveDebris
     private const float MinShoveSpeed = 20f;
     private const float MaxShoveSpeed = 350f;
     private const float ShoveMargin = 2f;
 
-    // What pushes the player this tick, summed over every trigger_push touching them
     private Vector3 baseVelocity;
 
-    /// <summary>Adds to what pushes the player on the next tick, such as a <c>trigger_push</c>.</summary>
-    /// <param name="velocity">The push velocity.</param>
+    /// <summary>Adds a push velocity applied on the next tick.</summary>
     public void AddBaseVelocity(Vector3 velocity) => baseVelocity += velocity;
 
-    // Reused by the debris shove every tick
     private readonly List<Body> debrisBodies = [];
     private readonly HashSet<ulong> debrisBodyIds = [];
 
-    // How long the carried prop has been stuck far from its hold pose; a flick spikes this for a
-    // tick or two, a wedged prop keeps it climbing until the carry gives up
+    // A flick spikes this for a tick or two, a wedged prop keeps it climbing
     private float carryStrainTime;
 
-    // The kinematic hand the carried body hangs off, and the joint it hangs by
     private Body carryHand;
     private MotorJoint carryJoint;
     private bool hasCarryJoint;
 
-    // Whether the hand has reached the hold pose since the pickup
     private bool carryHandArrived;
 
     /// <summary>Creates the player entity for a movement controller.</summary>
@@ -140,7 +121,6 @@ public sealed class PlayerEntity : BaseEntity
         // unpressed and pressed again in within 3 frames the tick will see it as one press.
         Buttons = Controller.ConsumeButtons();
 
-        // The pushes touched last tick, or none, which hands the last push over as momentum
         Controller.SetBaseVelocity(baseVelocity);
         baseVelocity = Vector3.Zero;
 
@@ -149,8 +129,6 @@ public sealed class PlayerEntity : BaseEntity
 
         if (Buttons.Pressed(TrackedKeys.E))
         {
-            // The engine's +use order: hands full means let go, a usable entity in reach wins the
-            // press, and only a press nothing answered becomes a pickup attempt
             if (Carried != null)
             {
                 Drop();
@@ -167,8 +145,6 @@ public sealed class PlayerEntity : BaseEntity
     /// <inheritdoc/>
     internal override void FrameSimulate(float frameTime)
     {
-        // Per frame, not per tick: the carry chases the camera, and a chase sampled at 64 Hz
-        // reads back quantized however smoothly it is drawn
         UpdateCarry(frameTime);
     }
 
@@ -178,15 +154,9 @@ public sealed class PlayerEntity : BaseEntity
         Velocity = Controller.Velocity;
     }
 
-    /// <summary>
-    /// Keeps the kinematic pushing body where the player stands. Moving it with a velocity rather
-    /// than teleporting it is what lets the solver shove props out of the way with the player's
-    /// real speed; a jump across the map is not a shove, so that snaps instead.
-    /// </summary>
+    // Moved with a velocity to shove props at the player speed, snapped on teleports
     private void UpdatePhysicsPresence(float tickInterval)
     {
-        // Only once something else has built the rigid body world; a player in a map with no
-        // physics props has nothing to push
         if (EntitySystem.PhysicsOrNull is not { } physics)
         {
             return;
@@ -211,19 +181,13 @@ public sealed class PlayerEntity : BaseEntity
         ShoveDebris(physics);
     }
 
-    /// <summary>
-    /// Shoves the debris and ragdoll parts the player's hull overlaps with a purely horizontal
-    /// velocity, away from the player at the player's own speed. Neither meets the pushing body in
-    /// the solver (see <see cref="PhysicsSimulation.DebrisCategory"/> and
-    /// <see cref="PhysicsSimulation.RagdollCategory"/>), and a horizontal velocity can never press
-    /// anything into the ground.
-    /// </summary>
+    // Debris and ragdolls do not collide with the player body, a horizontal shove never presses them into the ground
     private void ShoveDebris(PhysicsSimulation physics)
     {
         var horizontalVelocity = Velocity with { Z = 0f };
         var speed = horizontalVelocity.Length();
 
-        // A still player is not a jitter source for whatever they stand in
+        // A still player must not jitter what they stand in
         if (speed < MinShoveSpeed)
         {
             return;
@@ -245,7 +209,6 @@ public sealed class PlayerEntity : BaseEntity
 
         foreach (var body in debrisBodies)
         {
-            // The carried body is the carry's to steer, not the hull's to shove
             if (body.UserData == heldBody?.UserData)
             {
                 continue;
@@ -254,7 +217,6 @@ public sealed class PlayerEntity : BaseEntity
             var direction = (body.Position - center) with { Z = 0f };
             var distance = direction.Length();
 
-            // Radially away from the player, or along the motion when standing dead centered
             direction = distance > 0.5f ? direction / distance : horizontalVelocity / speed;
 
             var current = Vector3.Dot(body.LinearVelocity, direction);
@@ -284,12 +246,7 @@ public sealed class PlayerEntity : BaseEntity
         }
     }
 
-    /// <summary>
-    /// The +USE carry, the way Half-Life 2's shadow controller holds what the player picks up: the
-    /// hand moves onto the hold pose, and the joint pulls the body after it. The body keeps its
-    /// velocity on release, so dropping mid-stride carries the player's motion and a view flick is
-    /// a throw.
-    /// </summary>
+    // The hand moves onto the hold pose and the joint pulls the body after it
     private void UpdateCarry(float deltaTime)
     {
         // A zero-length frame has no step to move the hand over
@@ -300,7 +257,7 @@ public sealed class PlayerEntity : BaseEntity
 
         if (carried.IsRemoved)
         {
-            // Gone from the world mid-carry; nothing left to restore state on
+            // Removed mid-carry, nothing to restore state on
             ReleaseCarryJoint();
             Carried = null;
             return;
@@ -327,9 +284,7 @@ public sealed class PlayerEntity : BaseEntity
 
         carryHand.MoveTowards(handPosition, handRotation, deltaTime, wake: true);
 
-        // A prop that stays far from its hold pose is wedged somewhere it cannot leave; the
-        // engine drops what it cannot keep hold of, but only after a strain the flick of a
-        // throw never sustains
+        // A wedged prop is dropped, after a strain longer than a throw flick
         if (Vector3.Distance(body.CenterOfMass, handPosition) > CarryBreakDistance)
         {
             carryStrainTime += deltaTime;
@@ -354,8 +309,7 @@ public sealed class PlayerEntity : BaseEntity
         }
     }
 
-    // Where the hand goes: the held body's mass center at the hold pose, turned as the hold pose
-    // is, or as the body is when only its position is held
+    // Keeps the body rotation when only the position is held
     private static (Vector3 Position, Quaternion Rotation) ComputeHandPose(ICarryable carried, Body body, float deltaTime)
     {
         var (holdPosition, holdRotation) = carried.ComputeHoldPose(deltaTime);
@@ -371,8 +325,7 @@ public sealed class PlayerEntity : BaseEntity
         carryHand = physics.World.CreateKinematicBody(body.CenterOfMass, handRotation);
         carryHandArrived = false;
 
-        // The turning caps as a torque need the body's rotational inertia, which the solver keeps
-        // to itself; its mass at the reach of its shapes stands in
+        // The solver hides rotational inertia, mass at the shape reach approximates it
         Span<Shape> shapes = stackalloc Shape[body.ShapeCount];
         var count = body.GetShapes(shapes);
         var radius = 0f;
@@ -405,7 +358,7 @@ public sealed class PlayerEntity : BaseEntity
             return;
         }
 
-        // Gone already when the carried body was destroyed, by breaking
+        // Destroyed with the carried body when it breaks
         if (carryJoint.AsJoint.IsValid)
         {
             carryJoint.AsJoint.Destroy();
@@ -415,11 +368,7 @@ public sealed class PlayerEntity : BaseEntity
         hasCarryJoint = false;
     }
 
-    /// <summary>
-    /// The view a carried object is held in front of: the camera the frame is drawn with when
-    /// there is one, since view smoothing and punch sit between the input camera and the drawn
-    /// view, and a carry steered by the wrong one trails the picture by exactly that gap.
-    /// </summary>
+    // The drawn camera includes view smoothing and punch, a carry steered by the input camera trails it
     internal (Vector3 EyePosition, Vector3 Forward, Vector3 ViewAngles) GetHoldView()
     {
         if (EntitySystem.RenderCamera is { } camera)
@@ -440,9 +389,7 @@ public sealed class PlayerEntity : BaseEntity
         var eyePosition = Controller.EyePosition;
         var forward = Controller.ViewForward;
 
-        // Cast against the world and the movers too, not just props, so a crate behind a wall or
-        // a closed door is not grabbable through it: the obstacle wins the raycast and the pickup
-        // finds nothing. Not as the player, whom debris is filtered against.
+        // World and movers included to block pickups through them, player category left out for debris
         var hit = physics.World.RaycastClosest(eyePosition, forward * PickupReach,
             new QueryFilter(~PhysicsSimulation.PlayerCategory,
                 PhysicsSimulation.StaticCategory | PhysicsSimulation.PropCategory
@@ -460,10 +407,7 @@ public sealed class PlayerEntity : BaseEntity
             return;
         }
 
-        // The sandbox gravgun's hold distance: a fixed reach plus how far the grabbed surface sits
-        // from the mass center, so a big crate hangs further out than a soda can and neither clips
-        // the player's hull. The grabbed body's own center, which for a ragdoll is the one part
-        // under the crosshair rather than the whole body.
+        // Adding the grab point offset from the mass center of the grabbed part keeps large props clear of the hull
         Carried = carryable;
         carryStrainTime = 0f;
         carryable.BeginCarry(this, HoldDistance + Vector3.Distance(hit.Point, grabbedBody.CenterOfMass), grabbedBody);
@@ -481,9 +425,7 @@ public sealed class PlayerEntity : BaseEntity
 
         if (Carried is { IsRemoved: false } carried)
         {
-            // Lets go rather than throws: the body keeps the velocity it was carried with - the
-            // player's own motion plus whatever a view flick added - which the carry's speed cap
-            // already bounds
+            // Keeps the carried velocity, already bounded by MaxCarrySpeed
             carried.EndCarry();
 
             if (carried is PropPhysics prop)

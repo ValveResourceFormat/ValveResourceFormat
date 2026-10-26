@@ -186,7 +186,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
     }
 
-    // After the push, so pieces of a prop the hit breaks inherit it
+    // Called after the impulse, letting the pieces of a broken prop inherit it
     private void DealDamage(BaseEntity? target, float amount, DamageType type, Vector3 direction)
     {
         if (target is IDamageable damageable)
@@ -395,7 +395,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         if (input.EntitySystem?.PhysicsOrNull is { } physics)
         {
-            // Not as the player, whom debris pieces are filtered against
+            // Without the player category, which debris filters out
             var hit = physics.World.RaycastClosest(from, to - from,
                 new Box3D.QueryFilter(~PhysicsSimulation.PlayerCategory, PhysicsSimulation.PropCategory | PhysicsSimulation.DebrisCategory | PhysicsSimulation.RagdollCategory));
 
@@ -727,9 +727,6 @@ public class ViewmodelSceneNode : ModelSceneNode
     private const float DropSpinSpeed = 2f;
     private const float DropSpinRandomness = 3f;
 
-    /// <summary>
-    /// Drops the held item as a physics prop where the third person body holds it, and draws the item anew.
-    /// </summary>
     private void DropHeldItem(UserInput input)
     {
         if (ItemModelPath(SelectedItemIndex) is not { } modelPath || entitySystem.ActiveSpawnGroup is not { } spawnGroup)
