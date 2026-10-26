@@ -938,7 +938,7 @@ public sealed class SceneViewState
         cpuVisibleGpu.BindBufferBase();
 
         cullShader.SetUniform("g_bCpuVisibleEnabled", cpuVisibleActive);
-        cullShader.SetUniform("g_bTwoSided", collectsShadowCasters);
+        cullShader.SetUniform("g_bBackfaceCulling", !collectsShadowCasters);
 
         var occlusionDebugEnabled = !collectsShadowCasters && scene.Settings.OcclusionDebugEnabled && scene.OcclusionDebug != null;
 
