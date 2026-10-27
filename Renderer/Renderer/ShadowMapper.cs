@@ -43,11 +43,10 @@ public readonly record struct ShadowFacePlacement(ShadowAtlasRegion Region, Vect
 public class ShadowMapper
 {
     private const float ShadowTexelsPerPixel = 1f;
-    private const int MinShadowFaceSize = 128;
+    internal const int MinShadowFaceSize = 128;
     private const float AtlasAreaBudget = 0.85f;
     private const int ShadowGutterTexels = 2;
 
-    private readonly ShadowAtlasPacker shadowAtlas = new();
     private readonly ShadowFacePlacement[] facePlacements = new ShadowFacePlacement[BarnLightConstants.MAX_BARN_LIGHTS];
 
     private BinnedLight[] candidates = new BinnedLight[BarnLightConstants.MAX_BARN_LIGHTS];
@@ -59,6 +58,9 @@ public class ShadowMapper
 
     /// <summary>Gets the shadow faces queued for rendering into the atlas by the last <see cref="Bin"/> call.</summary>
     public List<BinnedShadowCaster> ShadowCasters { get; } = new(BarnLightConstants.MAX_BARN_LIGHTS);
+
+    /// <summary>Gets or sets what places the shadow faces in the atlas and decides which of them are rendered.</summary>
+    public ShadowAtlasAllocator Allocator { get; set; } = new();
 
     /// <summary>Gets the atlas placement for an absolute face index (<see cref="BinnedLight.FirstFaceIndex"/> plus face index).</summary>
     public ShadowFacePlacement GetFacePlacement(int index) => facePlacements[index];
@@ -258,7 +260,7 @@ public class ShadowMapper
         }
     }
 
-    private static void ShrinkFace(ref int width, ref int height)
+    internal static void ShrinkFace(ref int width, ref int height)
     {
         if (width >= height)
         {
@@ -346,15 +348,32 @@ public class ShadowMapper
 
     private void AssignRegions(Span<BinnedLight> candidateSpan, int atlasSize)
     {
-        shadowAtlas.Begin(atlasSize);
+        Allocator.BeginFrame(atlasSize);
+
+        bool placedAll;
+
+        do
+        {
+            placedAll = PlaceFaces(candidateSpan, atlasSize);
+        }
+        while (Allocator.Repack(placedAll));
+    }
+
+    /// <returns>Whether every face found a region.</returns>
+    private bool PlaceFaces(Span<BinnedLight> candidateSpan, int atlasSize)
+    {
+        ShadowCasters.Clear();
 
         var usedTexels = 0L;
         var assignedFaces = 0;
+        var shadowedLights = 0;
+        var placedAll = true;
 
         // Most important first
         for (var i = 0; i < candidateSpan.Length; i++)
         {
             ref var candidate = ref candidateSpan[i];
+            candidate.FirstFaceIndex = -1;
 
             if (!candidate.WantsShadows)
             {
@@ -363,6 +382,7 @@ public class ShadowMapper
 
             var light = candidate.Light;
             var faceCount = light.BarnFaces.Length;
+            var lightPlace = shadowedLights++;
 
             if (assignedFaces + faceCount > facePlacements.Length)
             {
@@ -380,39 +400,34 @@ public class ShadowMapper
                     continue;
                 }
 
-                var width = candidate.FaceWidth;
-                var height = candidate.FaceHeight;
-
-                ShadowAtlasRegion region;
-                while (!shadowAtlas.TryAllocate(width, height, out region) && Math.Max(width, height) > MinShadowFaceSize)
+                if (!Allocator.TryPlaceFace(light, lightPlace, face, candidate.FaceWidth, candidate.FaceHeight, out var region, out var isUpToDate))
                 {
-                    ShrinkFace(ref width, ref height);
+                    placedAll = false;
+                    facePlacements[assignedFaces++] = default;
+                    continue;
                 }
 
-                if (region.IsValid)
-                {
-                    var shadowMatrix = light.BarnFaces[face].WorldToFrustum;
-                    var offsetScale = ComputeShadowOffsetScale(region, atlasSize, ref shadowMatrix);
+                var shadowMatrix = light.BarnFaces[face].WorldToFrustum;
+                var offsetScale = ComputeShadowOffsetScale(region, atlasSize, ref shadowMatrix);
 
-                    facePlacements[assignedFaces] = new ShadowFacePlacement(region, offsetScale);
-                    ShadowCasters.Add(new BinnedShadowCaster
-                    {
-                        WorldToFrustum = shadowMatrix,
-                        Region = region,
-                        Light = light,
-                        FaceIndex = face,
-                    });
+                facePlacements[assignedFaces++] = new ShadowFacePlacement(region, offsetScale);
 
-                    // Each submitted face is a separate GPU shadow render; an omni light contributes up to 6.
-                    PerfStats.Active.Count(Counter.ShadowFaceSubmitted);
-                    usedTexels += (long)region.Width * region.Height;
-                }
-                else
+                PerfStats.Active.Count(Counter.ShadowFaceSubmitted);
+                usedTexels += (long)region.Width * region.Height;
+
+                if (isUpToDate)
                 {
-                    facePlacements[assignedFaces] = default;
+                    continue;
                 }
 
-                assignedFaces++;
+                // Each rendered face is a separate GPU shadow render; an omni light contributes up to 6.
+                ShadowCasters.Add(new BinnedShadowCaster
+                {
+                    WorldToFrustum = shadowMatrix,
+                    Region = region,
+                    Light = light,
+                    FaceIndex = face,
+                });
             }
         }
 
@@ -420,5 +435,7 @@ public class ShadowMapper
         var atlasUsage = atlasTexels > 0 ? (float)usedTexels / atlasTexels : 0f;
 
         PerfStats.Active.Set(Metric.ShadowAtlasUsage, atlasUsage);
+
+        return placedAll;
     }
 }

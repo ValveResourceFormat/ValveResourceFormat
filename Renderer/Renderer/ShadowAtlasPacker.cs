@@ -88,6 +88,20 @@ public class ShadowAtlasPacker
         return false;
     }
 
+    /// <summary>Returns a region allocated by <see cref="TryAllocate"/> since the last <see cref="Begin"/> to the atlas.</summary>
+    /// <param name="region">The region to free.</param>
+    public void Free(ShadowAtlasRegion region)
+    {
+        var cellX = region.X / CellSize;
+        var wCells = MathUtils.DivideRoundUp(region.Width, CellSize);
+        var hCells = MathUtils.DivideRoundUp(region.Height, CellSize);
+
+        for (var r = region.Y / CellSize; r < region.Y / CellSize + hCells; r++)
+        {
+            ClearBits(occupancy.AsSpan(r * wordsPerRow, wordsPerRow), cellX, wCells);
+        }
+    }
+
     private void BuildCombinedRow(int y, int hCells, Span<ulong> combined)
     {
         occupancy.AsSpan(y * wordsPerRow, wordsPerRow).CopyTo(combined);
@@ -143,6 +157,19 @@ public class ShadowAtlasPacker
             var bit = start & 63;
             var take = Math.Min(count, 64 - bit);
             row[word] |= (take == 64 ? ulong.MaxValue : (1UL << take) - 1) << bit;
+            start += take;
+            count -= take;
+        }
+    }
+
+    private static void ClearBits(Span<ulong> row, int start, int count)
+    {
+        while (count > 0)
+        {
+            var word = start >> 6;
+            var bit = start & 63;
+            var take = Math.Min(count, 64 - bit);
+            row[word] &= ~((take == 64 ? ulong.MaxValue : (1UL << take) - 1) << bit);
             start += take;
             count -= take;
         }

@@ -230,6 +230,8 @@ public sealed class MapDocumentLoader : IDisposable
 
         scene.LightingInfo.StoreLights(lights);
 
+        scene.LightingInfo.ShadowMapper.Allocator = new TimeSlicedShadowAtlasAllocator();
+
         // Lights that are off stay in the scene without brightness
         HasLights = lights.Exists(static light => light.Brightness * light.BrightnessScale > 0f);
     }

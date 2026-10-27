@@ -1662,10 +1662,6 @@ public class Renderer : ISceneHost
             Textures.Add(new(ReservedTextureSlots.BarnLightShadowDepth, "g_tBarnLightShadowDepth", BarnLightShadowBuffer.Depth!));
         }
 
-        GL.Viewport(0, 0, BarnLightShadowBuffer.Width, BarnLightShadowBuffer.Height);
-        GL.Scissor(0, 0, BarnLightShadowBuffer.Width, BarnLightShadowBuffer.Height);
-        GL.Clear(ClearBufferMask.DepthBufferBit);
-
         // The sun pass leaves the buffers of whichever scene cast last bound
         renderContext.Scene = Scene;
         Scene.BindDrawBuffers();
@@ -1677,8 +1673,12 @@ public class Renderer : ISceneHost
 
             PerfStats.Active.Count(Counter.BarnShadowMap);
 
+            // Only the faces being rendered are cleared, the rest of the atlas may hold faces kept from earlier frames.
+            // A material of the face before may have left depth writes off, which a clear obeys.
             GL.Viewport(region.X, region.Y, region.Width, region.Height);
             GL.Scissor(region.X, region.Y, region.Width, region.Height);
+            GraphicsContext.RenderState.RestorePassBaseline();
+            GL.Clear(ClearBufferMask.DepthBufferBit);
 
             ViewBuffer.Data.WorldToProjection = view.Camera.ViewProjectionMatrix;
             ViewBuffer.Update();
