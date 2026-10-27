@@ -306,6 +306,14 @@ namespace ValveResourceFormat.Utils
             return Math.Clamp(x, 0.0f, 1.0f);
         }
 
+        /// <summary>The Rec. 709 weights of the red, green and blue channels in a color's luminance.</summary>
+        public static readonly Vector3 LuminanceWeights = new(0.2126f, 0.7152f, 0.0722f);
+
+        /// <summary>
+        /// Rec. 709 luminance of a linear RGB color.
+        /// </summary>
+        public static float Luminance(Vector3 color) => Vector3.Dot(color, LuminanceWeights);
+
         /// <summary>
         /// Clamps a value between two bounds given in either order, unlike <see cref="Math.Clamp(float, float, float)"/>
         /// which throws when <paramref name="min"/> is greater than <paramref name="max"/>.

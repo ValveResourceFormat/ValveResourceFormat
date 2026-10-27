@@ -1,3 +1,5 @@
+using ValveResourceFormat.Utils;
+
 namespace ValveResourceFormat.Particles.Utils
 {
     /// <summary>A light's distance falloff, <c>1 / (constant + linear*d + quadratic*d^2)</c>.</summary>
@@ -44,7 +46,7 @@ namespace ValveResourceFormat.Particles.Utils
             }
 
             var range = 0f;
-            var luminance = Vector3.Dot(color, ParticleMath.LuminanceWeights);
+            var luminance = MathUtils.Luminance(color);
 
             if (luminance > 0f)
             {

@@ -58,7 +58,8 @@ public sealed class LightEntity : BaseEntity
             return;
         }
 
-        light = SceneLight.FromEntityProperties(Scene, type, KeyValues);
+        var name = string.IsNullOrEmpty(TargetName) ? Classname : TargetName;
+        light = SceneLight.FromEntityProperties(Scene, type, KeyValues, name);
         light.Flags |= ObjectTypeFlags.NoShadows;
 
         IsEnabled = light.Enabled;

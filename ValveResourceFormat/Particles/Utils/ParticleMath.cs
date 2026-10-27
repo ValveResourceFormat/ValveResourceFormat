@@ -25,9 +25,6 @@ namespace ValveResourceFormat.Particles.Utils
         /// <summary>The fade end time taken when none is set, so far off that the fade never ends.</summary>
         public const float NoFadeEnd = 1e20f;
 
-        /// <summary>The Rec. 709 weights of the red, green and blue channels in a colour's luminance.</summary>
-        public static readonly Vector3 LuminanceWeights = new(0.2126f, 0.7152f, 0.0722f);
-
         /// <summary>Clamps <paramref name="value"/> to [0, 1], with NaN giving 0.</summary>
         public static float ClampToUnit(float value) => value >= 0f ? MathF.Min(value, 1f) : 0f;
 

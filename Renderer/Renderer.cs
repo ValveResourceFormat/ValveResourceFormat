@@ -310,7 +310,7 @@ public class Renderer : ISceneHost
     private int sunCascadeViewCount;
 
     private readonly List<SceneView> barnLightFaceViews = [];
-    private readonly ShadowAtlasRegion[] barnLightFaceRegions = new ShadowAtlasRegion[BarnLightConstants.MAX_BARN_LIGHTS];
+    private readonly ShadowAtlasRegion[] barnLightFaceRegions = new ShadowAtlasRegion[BarnLightConstants.MAX_BARN_LIGHT_FACES];
     private int barnLightFaceViewCount;
 
     private readonly Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> shadowCasterDraws = SceneViewState.CreateDepthOnlyBuckets();

@@ -66,11 +66,14 @@ public sealed class TiledCullFeeder
     private const float EnvMapCullExtend = 0.1f;
 
     /// <summary>
-    /// Slots reserved per batch. Must be a multiple of <see cref="ItemsPerMask"/>: <see cref="End"/> pads
+    /// Slots reserved per batch other than barn lights. Must be a multiple of <see cref="ItemsPerMask"/>: <see cref="End"/> pads
     /// each batch out to whole masks, so a stride that is not would run past the item array.
     /// </summary>
     private const int MaxItemsPerBatch = 320; // 10 words
-    private const int MaxItems = BatchCount * MaxItemsPerBatch;
+
+    /// <summary>Slots reserved for the barn light batch, which holds a face per item. Same multiple-of-mask rule as <see cref="MaxItemsPerBatch"/>.</summary>
+    private const int MaxBarnLightItems = BarnLightConstants.MAX_BARN_LIGHT_FACES;
+    private const int MaxItems = MaxBarnLightItems + ((BatchCount - 1) * MaxItemsPerBatch);
 
     private const int TileGroupSizeX = 8;
     private const int TileGroupSizeY = 4;
@@ -167,6 +170,10 @@ public sealed class TiledCullFeeder
     /// <param name="batch">Batch index.</param>
     public int BinnedCount(int batch) => batchBinnedCount[batch];
 
+    /// <summary>First slot of a batch in the item array before <see cref="End"/> packs them together.</summary>
+    private static int FirstSlot(int batch)
+        => batch == BatchBarnLights ? 0 : MaxBarnLightItems + ((batch - 1) * MaxItemsPerBatch);
+
     /// <summary>Whether an item projected to nothing and can never match a tile or a bin.</summary>
     private static bool IsRejected(in CullItem item) => item.DepthMin > item.DepthMax;
 
@@ -189,8 +196,10 @@ public sealed class TiledCullFeeder
         Debug.Assert(EnvMapArray.MAX_ENVMAPS <= MaxItemsPerBatch,
             $"Env map probes must fit the {MaxItemsPerBatch} slot batch stride");
 
-        Debug.Assert(BarnLightConstants.MAX_BARN_LIGHTS <= MaxItemsPerBatch,
-            $"Barn light faces must fit the {MaxItemsPerBatch} slot batch stride");
+        Debug.Assert(MaxBarnLightItems % ItemsPerMask == 0, $"Barn light stride must be a multiple of {ItemsPerMask}");
+
+        Debug.Assert(BarnLightConstants.MAX_BARN_LIGHTS * BarnLightConstants.MAX_FACES_PER_LIGHT <= MaxBarnLightItems,
+            $"Barn light faces must fit the {MaxBarnLightItems} slot barn batch");
 
         Debug.Assert(LightProbeVolumeArray.MAX_PROBES <= MaxItemsPerBatch,
             $"Light probe volumes must fit the {MaxItemsPerBatch} slot batch stride");
@@ -244,7 +253,7 @@ public sealed class TiledCullFeeder
     /// <param name="decals">Projected decals the decal pass will iterate.</param>
     public void AddCounts(int barnLights, int envMaps, int lightProbes, int decals)
     {
-        batchItemCount[BatchBarnLights] = Math.Min(barnLights, MaxItemsPerBatch);
+        batchItemCount[BatchBarnLights] = Math.Min(barnLights, MaxBarnLightItems);
         batchItemCount[BatchEnvMaps] = Math.Min(envMaps, MaxItemsPerBatch);
         batchItemCount[BatchLightProbes] = Math.Min(lightProbes, MaxItemsPerBatch);
         batchItemCount[BatchDecals] = Math.Min(decals, MaxItemsPerBatch);
@@ -263,8 +272,8 @@ public sealed class TiledCullFeeder
     /// <param name="volumes">Cull volume per barn light face, in shading pass index order.</param>
     public void AddBarnLights(ReadOnlySpan<BarnLightCullVolume> volumes)
     {
-        var count = Math.Min(volumes.Length, MaxItemsPerBatch);
-        var first = BatchBarnLights * MaxItemsPerBatch;
+        var count = Math.Min(volumes.Length, MaxBarnLightItems);
+        var first = FirstSlot(BatchBarnLights);
         var binned = 0;
 
         Span<Vector3> corners = stackalloc Vector3[8];
@@ -325,7 +334,7 @@ public sealed class TiledCullFeeder
     /// <summary>Adds one item per environment map probe, slotted by <see cref="SceneEnvMap.ShaderIndex"/>.</summary>
     public void AddEnvMaps(List<SceneEnvMap> envMaps)
     {
-        var first = BatchEnvMaps * MaxItemsPerBatch;
+        var first = FirstSlot(BatchEnvMaps);
         var count = 0;
         var binned = 0;
 
@@ -365,7 +374,7 @@ public sealed class TiledCullFeeder
     /// <param name="lightProbes">Volumes in shader index order.</param>
     public void AddLightProbes(IReadOnlyList<SceneLightProbe> lightProbes)
     {
-        var first = BatchLightProbes * MaxItemsPerBatch;
+        var first = FirstSlot(BatchLightProbes);
         var count = Math.Min(lightProbes.Count, MaxItemsPerBatch);
         var binned = 0;
 
@@ -396,7 +405,7 @@ public sealed class TiledCullFeeder
     /// <param name="boxTransforms">Maps the unit cube centred on the origin onto each decal box.</param>
     public void AddDecals(ReadOnlySpan<Matrix4x4> boxTransforms)
     {
-        var first = BatchDecals * MaxItemsPerBatch;
+        var first = FirstSlot(BatchDecals);
         var count = Math.Min(boxTransforms.Length, MaxItemsPerBatch);
         var binned = 0;
 
@@ -457,7 +466,7 @@ public sealed class TiledCullFeeder
         {
             var count = batchItemCount[batch];
             var masks = MathUtils.DivideRoundUp(count, ItemsPerMask);
-            var source = batch * MaxItemsPerBatch;
+            var source = FirstSlot(batch);
 
             if (source != itemCursor)
             {

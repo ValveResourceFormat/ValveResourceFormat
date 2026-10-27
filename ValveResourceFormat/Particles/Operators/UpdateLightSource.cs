@@ -1,4 +1,5 @@
 using ValveResourceFormat.Particles.Utils;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Particles.Operators
 {
@@ -103,7 +104,7 @@ namespace ValveResourceFormat.Particles.Operators
             }
 
             var position = weightedPosition / (ParticleMath.FloatEpsilon + weightSum);
-            range = MathF.Min(range, MathF.Sqrt(Vector3.Dot(color, ParticleMath.LuminanceWeights) / MinimumIntensity));
+            range = MathF.Min(range, MathF.Sqrt(MathUtils.Luminance(color) / MinimumIntensity));
 
             if (light.IsLit)
             {

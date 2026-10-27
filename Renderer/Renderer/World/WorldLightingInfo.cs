@@ -90,9 +90,48 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>Gets the shadow mapper that culls and packs light shadow faces each frame.</summary>
         public ShadowMapper ShadowMapper { get; } = new();
 
-        private readonly BarnLightConstants[] BinnedBarnLightGpuData = new BarnLightConstants[BarnLightConstants.MAX_BARN_LIGHTS];
-        private readonly BarnLightCullVolume[] BinnedBarnLightCullVolumes = new BarnLightCullVolume[BarnLightConstants.MAX_BARN_LIGHTS];
-        private readonly BarnLightFaceSlot[] BinnedBarnLightFaceSlots = new BarnLightFaceSlot[BarnLightConstants.MAX_BARN_LIGHTS];
+        private readonly BarnLightConstants[] BinnedBarnLightGpuData = new BarnLightConstants[BarnLightConstants.MAX_BARN_LIGHT_FACES];
+        private readonly BarnLightCullVolume[] BinnedBarnLightCullVolumes = new BarnLightCullVolume[BarnLightConstants.MAX_BARN_LIGHT_FACES];
+        private readonly BarnLightFaceSlot[] BinnedBarnLightFaceSlots = new BarnLightFaceSlot[BarnLightConstants.MAX_BARN_LIGHT_FACES];
+
+        private BarnLightSortKey[] BarnLightSortKeys = new BarnLightSortKey[BarnLightConstants.MAX_BARN_LIGHTS];
+
+        /// <summary>What decides which visible lights make the per view cap, in order of priority.</summary>
+        private struct BarnLightSortKey : IComparable<BarnLightSortKey>
+        {
+            public int BinnedIndex;
+            public float ScreenSize;
+            public float DistanceSquared;
+            public float Luminance;
+            public float Facing;
+            public float LightFade;
+            public float ShadowFade;
+
+            /// <summary>Orders the most important light first: larger on screen, then nearer, brighter and facing the camera's view.</summary>
+            public readonly int CompareTo(BarnLightSortKey other)
+            {
+                var screenSize = other.ScreenSize.CompareTo(ScreenSize);
+                if (screenSize != 0)
+                {
+                    return screenSize;
+                }
+
+                var distance = DistanceSquared.CompareTo(other.DistanceSquared);
+                if (distance != 0)
+                {
+                    return distance;
+                }
+
+                var luminance = other.Luminance.CompareTo(Luminance);
+                if (luminance != 0)
+                {
+                    return luminance;
+                }
+
+                var facing = other.Facing.CompareTo(Facing);
+                return facing != 0 ? facing : BinnedIndex.CompareTo(other.BinnedIndex);
+            }
+        }
 
         private Dictionary<string, int> BarnLightCookiePaths { get; } = new(StringComparer.OrdinalIgnoreCase);
         private StorageBuffer? BarnLightStorageBuffer;
@@ -640,9 +679,18 @@ namespace ValveResourceFormat.Renderer.World
                 binner?.VisibilitySequence ?? 0);
 
             var tanHalfHorizontalFov = MathF.Tan(camera.GetFOV() * 0.5f) * camera.AspectRatio;
+            var binnedLights = ShadowMapper.BinnedLights;
 
-            foreach (ref readonly var binned in ShadowMapper.BinnedLights)
+            if (BarnLightSortKeys.Length < binnedLights.Length)
             {
+                BarnLightSortKeys = new BarnLightSortKey[binnedLights.Length];
+            }
+
+            var keyCount = 0;
+
+            for (var binnedIndex = 0; binnedIndex < binnedLights.Length; binnedIndex++)
+            {
+                ref readonly var binned = ref binnedLights[binnedIndex];
                 var light = binned.Light;
 
                 // Wanted shadows but got no placements, don't render the light.
@@ -657,27 +705,43 @@ namespace ValveResourceFormat.Renderer.World
                     continue;
                 }
 
-                if (LightingData.NumBarnLights + light.BarnFaces.Length > BarnLightConstants.MAX_BARN_LIGHTS)
-                {
-                    if (!light.WasDropped)
-                    {
-                        light.WasDropped = true;
-                        scene.RendererContext.Logger.LogWarning(
-                            "Max barn light count ({Max}) reached, dropping light '{LightName}'",
-                            BarnLightConstants.MAX_BARN_LIGHTS, light.Name);
-                    }
-
-                    continue;
-                }
-
                 // Lights and their shadows fade out as they get small on screen
-                var (lightFade, shadowFade) = light.ComputeScreenSizeFades(camera.Location, tanHalfHorizontalFov);
+                var screenSize = light.ComputeScreenSize(camera.Location, tanHalfHorizontalFov);
+                var (lightFade, shadowFade) = light.ComputeScreenSizeFades(screenSize);
 
                 if (lightFade <= 0f)
                 {
                     continue;
                 }
 
+                var faceColor = light.BarnFaces[0].GpuData.BarnLightColor_flCookie.AsVector3();
+
+                BarnLightSortKeys[keyCount++] = new BarnLightSortKey
+                {
+                    BinnedIndex = binnedIndex,
+                    ScreenSize = screenSize,
+                    DistanceSquared = Vector3.DistanceSquared(camera.Location, light.BoundsCenter),
+                    Luminance = MathUtils.Luminance(faceColor),
+                    Facing = Vector3.Dot(camera.Forward, light.Direction),
+                    LightFade = lightFade,
+                    ShadowFade = shadowFade,
+                };
+            }
+
+            var sortedKeys = BarnLightSortKeys.AsSpan(0, keyCount);
+            sortedKeys.Sort();
+
+            // Past the cap the least important lights are dropped silently, counted per light while the
+            // buffers below hold one entry per face
+            var keptKeys = sortedKeys[..Math.Min(keyCount, BarnLightConstants.MAX_BARN_LIGHTS)];
+
+            foreach (var key in keptKeys)
+            {
+                ref readonly var binned = ref binnedLights[key.BinnedIndex];
+                var light = binned.Light;
+
+                var lightFade = key.LightFade;
+                var shadowFade = key.ShadowFade;
                 var colorScale = lightFade * light.StyleBrightness;
 
                 var anyFaceDropped = false;
@@ -821,7 +885,7 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>Allocates the GPU storage buffer used to pass barn light data to shaders.</summary>
         public void CreateBarnLightBuffer()
         {
-            BarnLightStorageBuffer ??= StorageBuffer.Allocate<BarnLightConstants>(ReservedBufferSlots.BarnLights, nameof(ReservedBufferSlots.BarnLights), BarnLightConstants.MAX_BARN_LIGHTS, BufferUsage.Dynamic);
+            BarnLightStorageBuffer ??= StorageBuffer.Allocate<BarnLightConstants>(ReservedBufferSlots.BarnLights, nameof(ReservedBufferSlots.BarnLights), BarnLightConstants.MAX_BARN_LIGHT_FACES, BufferUsage.Dynamic);
         }
 
         /// <summary>Binds the barn light storage buffer to its reserved shader slot.</summary>

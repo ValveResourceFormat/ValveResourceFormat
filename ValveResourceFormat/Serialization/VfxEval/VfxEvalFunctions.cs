@@ -1,3 +1,5 @@
+using ValveResourceFormat.Utils;
+
 namespace ValveResourceFormat.Serialization.VfxEval
 {
     /// <summary>
@@ -5,8 +7,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
     /// </summary>
     public static class VfxEvalFunctions
     {
-        // Rec. 709 luminance coefficients, normalized to unit length for axis-angle rotation
-        private static readonly Vector3 LuminanceCoefficientsNormalised = Vector3.Normalize(new Vector3(0.2126f, 0.7152f, 0.0722f));
+        // Normalized to unit length for axis-angle rotation
+        private static readonly Vector3 LuminanceCoefficientsNormalised = Vector3.Normalize(MathUtils.LuminanceWeights);
 
         // Rotation taking the luminance axis onto the Z axis
         private static readonly Matrix4x4 LuminanceRotation = CreateLuminanceRotation();

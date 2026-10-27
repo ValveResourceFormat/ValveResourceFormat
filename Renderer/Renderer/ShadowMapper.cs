@@ -48,17 +48,17 @@ public class ShadowMapper
     private const int ShadowGutterTexels = 2;
 
     private readonly ShadowAtlasPacker shadowAtlas = new();
-    private readonly ShadowFacePlacement[] facePlacements = new ShadowFacePlacement[BarnLightConstants.MAX_BARN_LIGHTS];
+    private readonly ShadowFacePlacement[] facePlacements = new ShadowFacePlacement[BarnLightConstants.MAX_BARN_LIGHT_FACES];
 
     private BinnedLight[] candidates = new BinnedLight[BarnLightConstants.MAX_BARN_LIGHTS];
     private (float NegativeImportance, int SceneIndex)[] sortKeys = new (float, int)[BarnLightConstants.MAX_BARN_LIGHTS];
     private int candidateCount;
 
-    /// <summary>Gets the lights binned by the last <see cref="Bin"/> call, in deterministic scene order.</summary>
+    /// <summary>Gets the lights binned by the last <see cref="Bin"/> call, nearest first.</summary>
     public ReadOnlySpan<BinnedLight> BinnedLights => candidates.AsSpan(0, candidateCount);
 
     /// <summary>Gets the shadow faces queued for rendering into the atlas by the last <see cref="Bin"/> call.</summary>
-    public List<BinnedShadowCaster> ShadowCasters { get; } = new(BarnLightConstants.MAX_BARN_LIGHTS);
+    public List<BinnedShadowCaster> ShadowCasters { get; } = new(BarnLightConstants.MAX_BARN_LIGHT_FACES);
 
     /// <summary>Gets the atlas placement for an absolute face index (<see cref="BinnedLight.FirstFaceIndex"/> plus face index).</summary>
     public ShadowFacePlacement GetFacePlacement(int index) => facePlacements[index];

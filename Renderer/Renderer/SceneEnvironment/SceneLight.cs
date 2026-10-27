@@ -333,10 +333,15 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <summary>
     /// Creates a <see cref="SceneLight"/> populated from entity key-value properties.
     /// </summary>
-    public static SceneLight FromEntityProperties(Scene scene, EntityType type, Entity entity)
+    /// <param name="scene">The scene the light belongs to.</param>
+    /// <param name="type">The light entity class.</param>
+    /// <param name="entity">The entity key-values.</param>
+    /// <param name="name">The name to give the light node, or <see langword="null"/> for none.</param>
+    public static SceneLight FromEntityProperties(Scene scene, EntityType type, Entity entity, string? name = null)
     {
         var light = new SceneLight(scene)
         {
+            Name = name,
             StationaryLightIndex =
                 entity.GetInt32Property("bakedshadowindex", entity.GetInt32Property("bakelightindex", -1)),
             Entity = type,
@@ -926,21 +931,31 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     }
 
     /// <summary>
-    /// How much of the light, and of its shadows, is left after fading out with the fraction of the screen its bounds cover.
+    /// The fraction of the screen the light's bounds cover, from 0 to 1.
     /// </summary>
     /// <param name="cameraPosition">Position of the camera the light is seen from.</param>
     /// <param name="tanHalfHorizontalFov">Tangent of half the camera's horizontal field of view.</param>
-    internal (float Light, float Shadow) ComputeScreenSizeFades(Vector3 cameraPosition, float tanHalfHorizontalFov)
+    internal float ComputeScreenSize(Vector3 cameraPosition, float tanHalfHorizontalFov)
     {
         var bounds = PrecomputedFieldsValid ? PrecomputedBounds : new AABB(Position, Range);
         var diagonal = PrecomputedFieldsValid ? PrecomputedBoundsDiagonal : Vector3.Distance(bounds.Min, bounds.Max);
         var distanceSq = Vector3.DistanceSquared(cameraPosition, bounds.Center);
 
         // Covers the whole screen with the camera close enough to be inside the bounds
-        var screenSize = diagonal * diagonal > distanceSq
+        return diagonal * diagonal > distanceSq
             ? 1f
             : MathUtils.Saturate(diagonal / (MathF.Sqrt(distanceSq) * tanHalfHorizontalFov));
+    }
 
+    /// <summary>The center of the light's bounds, which its distance to the camera is measured to.</summary>
+    internal Vector3 BoundsCenter => PrecomputedFieldsValid ? PrecomputedBounds.Center : Position;
+
+    /// <summary>
+    /// How much of the light, and of its shadows, is left after fading out with the fraction of the screen its bounds cover.
+    /// </summary>
+    /// <param name="screenSize">Result of <see cref="ComputeScreenSize"/>.</param>
+    internal (float Light, float Shadow) ComputeScreenSizeFades(float screenSize)
+    {
         float Fade(float start, float end) => 1f - MathUtils.Saturate((start - screenSize) / MathF.Max(1e-4f, start - end));
 
         return (Fade(FadeSizeStart, FadeSizeEnd), Fade(ShadowFadeSizeStart, ShadowFadeSizeEnd));

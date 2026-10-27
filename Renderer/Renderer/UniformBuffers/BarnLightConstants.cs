@@ -6,8 +6,17 @@ namespace ValveResourceFormat.Renderer.Buffers
     [StructLayout(LayoutKind.Sequential)]
     public struct BarnLightConstants
     {
-        /// <summary>Maximum number of barn lights that can be active in a scene.</summary>
-        public const int MAX_BARN_LIGHTS = 320;
+        /// <summary>Maximum number of barn lights that can be lit in a view. An omni2 or rect light counts once.</summary>
+        public const int MAX_BARN_LIGHTS = 315;
+
+        /// <summary>Faces a single light can have, which an omni2 light uses all of.</summary>
+        public const int MAX_FACES_PER_LIGHT = 6;
+
+        /// <summary>
+        /// Capacity of the per face barn light buffers. Rounded up from <see cref="MAX_BARN_LIGHTS"/> times
+        /// <see cref="MAX_FACES_PER_LIGHT"/> to a whole number of 32 bit cull masks.
+        /// </summary>
+        public const int MAX_BARN_LIGHT_FACES = (MAX_BARN_LIGHTS * MAX_FACES_PER_LIGHT + 31) / 32 * 32;
 
         /// <summary>Frustum matrix used for barn light shadow projection.</summary>
         public Matrix4x4 BarnFrustum;

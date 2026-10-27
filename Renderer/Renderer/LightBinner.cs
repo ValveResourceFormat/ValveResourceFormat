@@ -32,7 +32,7 @@ public sealed class LightBinner(SceneViewState view)
     private const float MaxSliceFar = 32768f;
 
     /// <summary>Words one batch's mask spans, which is also the reduce pass's dispatch width.</summary>
-    private const int MaxBatchWords = BarnLightConstants.MAX_BARN_LIGHTS / TiledCullFeeder.ItemsPerMask;
+    private const int MaxBatchWords = BarnLightConstants.MAX_BARN_LIGHT_FACES / TiledCullFeeder.ItemsPerMask;
 
     private readonly TiledCullFeeder Feeder = new();
 
@@ -311,7 +311,7 @@ public sealed class LightBinner(SceneViewState view)
         // The slot order this mask is against only exists this frame, so what each bit meant travels with
         // the copy, per ring slot because three are in flight at once.
         ref var snapshot = ref VisibilitySnapshots[slot];
-        snapshot ??= new BarnLightFaceSlot[BarnLightConstants.MAX_BARN_LIGHTS];
+        snapshot ??= new BarnLightFaceSlot[BarnLightConstants.MAX_BARN_LIGHT_FACES];
 
         faces.CopyTo(snapshot);
         VisibilitySnapshotCounts[slot] = faces.Length;
