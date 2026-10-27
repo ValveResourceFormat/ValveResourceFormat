@@ -101,7 +101,7 @@ internal sealed class SpawnGroupLoader
     /// Spawns the entities as the engine does: every entity is created, then the groups they place finish, then
     /// the group spawns and activates its own entities as one batch.
     /// </summary>
-    private List<BaseEntity> SpawnEntities(List<Entity> groupEntities, string originalLayerName)
+    private List<BaseEntity> SpawnEntities(List<Entity> groupEntities, string layerName)
     {
         static bool IsCubemapOrProbe(string cls)
             => cls == "env_combined_light_probe_volume"
@@ -129,7 +129,7 @@ internal sealed class SpawnGroupLoader
                 // The game creates no entity for one that places a map, other than the reference of a 3D sky. A
                 // stopped world still shows it, as the editor does.
                 if ((!placesMap || classname == "skybox_reference" || !entitySystem.Enabled)
-                    && CreateEntity(entity, classname, originalLayerName) is { } created)
+                    && CreateEntity(entity, layerName) is { } created)
                 {
                     batch.Add(created);
                 }
@@ -170,11 +170,8 @@ internal sealed class SpawnGroupLoader
         return batch;
     }
 
-    private BaseEntity? CreateEntity(Entity entity, string classname, string originalLayerName)
+    private BaseEntity? CreateEntity(Entity entity, string layerName)
     {
-        // A point_template shares its layer with what it shows while stopped
-        var layerName = classname == "point_template" ? WorldLoader.TemplateLayerName : originalLayerName;
-
         var disabled = entity.GetBooleanProperty("startdisabled");
 
         if (!disabled)

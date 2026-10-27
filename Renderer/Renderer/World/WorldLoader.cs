@@ -50,8 +50,8 @@ namespace ValveResourceFormat.Renderer.World
         private const string PhysicsDebugLayerName = "Physics Visualization Layer";
 
         /// <summary>
-        /// Visibility layer of a <c>point_template</c>, and of the entities it shows while the world is stopped.
-        /// What it spawns in game goes on the layer its lump would spawn on.
+        /// Visibility layer of the entities a <c>point_template</c> shows while the world is stopped. The template
+        /// itself stays on its own layer, and what it spawns in game goes on the layer its lump would spawn on.
         /// </summary>
         public const string TemplateLayerName = "Template Entities";
 
