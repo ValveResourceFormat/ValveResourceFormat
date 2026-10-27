@@ -221,7 +221,8 @@ uniform sampler2D g_tTintMask;
 
 #if (selfillum)
     #if (GameVfx_vr_skin == 0) // Shaders that pack the mask into another texture
-        uniform sampler2D g_tSelfIllumMask;
+        // generic reads the mask as linear, but sRGB reads apply to the whole source file
+        uniform sampler2D g_tSelfIllumMask; // SrgbRead(true)
     #endif
     uniform float g_flSelfIllumAlbedoFactor = 1.0;
     uniform float g_flSelfIllumBrightness = 0.0;

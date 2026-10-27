@@ -25,7 +25,7 @@ uniform float g_flOpacityScale = 1.0;
 #endif
 
 #if (F_SELF_ILLUM == 1)
-    uniform sampler2D g_tSelfIllumMask;
+    uniform sampler2D g_tSelfIllumMask; // SrgbRead(true)
     uniform float g_flOverbrightness = 0.0;
     uniform float g_flSelfIllumAlbedoFactor = 1.0;
     uniform float g_flSelfIllumBrightness = 0.0;
