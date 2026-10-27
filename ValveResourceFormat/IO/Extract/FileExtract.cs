@@ -160,6 +160,9 @@ namespace ValveResourceFormat.IO
         /// <inheritdoc/>
         public Stream? GetFileStream(string file) => fileLoader.GetFileStream(file);
 
+        /// <inheritdoc/>
+        public GameInfo GameInfo => fileLoader.GameInfo;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="TrackingFileLoader"/> class.
         /// </summary>

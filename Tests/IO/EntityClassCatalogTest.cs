@@ -1,21 +1,17 @@
 using System.Linq;
 using System.Threading.Tasks;
 using TUnit.Assertions.Enums;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.IO.Fgd;
 
 namespace Tests.IO
 {
     public class EntityClassCatalogTest
     {
-        private const int CounterStrike2 = 730;
-        private const int Dota2 = 570;
-        private const int SteamVRHome = 250820;
-        private const int HalfLifeAlyx = 546560;
-
         [Test]
         public async Task ReadsWhatHelpersAreDeclaredWith()
         {
-            var light = EntityClassCatalog.GetTable(CounterStrike2).FindClass("LIGHT_OMNI2")!;
+            var light = EntityClassCatalog.GetTable(Game.Csgo).FindClass("LIGHT_OMNI2")!;
 
             await Assert.That(light.Kind).IsEqualTo(EntityClassKind.Point);
             await Assert.That(light.Helpers.Select(static helper => helper.Name)).IsEquivalentTo(["omnilight", "iconsprite"], StringComparer.Ordinal);
@@ -30,7 +26,7 @@ namespace Tests.IO
         [Test]
         public async Task ReadsTheMaterialAClassDrawsItsMeshesWith()
         {
-            var classes = EntityClassCatalog.GetTable(CounterStrike2);
+            var classes = EntityClassCatalog.GetTable(Game.Csgo);
 
             await Assert.That(classes.FindClass("post_processing_volume")?.AutoApplyMaterial).IsEqualTo("materials/tools_postprocess_volume.vmat");
             await Assert.That(classes.FindClass("trigger_multiple")?.AutoApplyMaterial).IsEqualTo("materials/tools/toolstrigger.vmat");
@@ -41,7 +37,7 @@ namespace Tests.IO
         [Test]
         public async Task ReadsTheKeysThatNameTheAnimationPlayed()
         {
-            var prop = EntityClassCatalog.GetTable(CounterStrike2).FindClass("prop_dynamic")!;
+            var prop = EntityClassCatalog.GetTable(Game.Csgo).FindClass("prop_dynamic")!;
 
             // Keys the class takes from its bases are there, the one that matters most first
             await Assert.That(prop.PreviewAnimationKeys).IsEquivalentTo(["StartingAnim", "IdleAnim"], StringComparer.Ordinal, CollectionOrdering.Matching);
@@ -50,11 +46,11 @@ namespace Tests.IO
         [Test]
         public async Task KeepsWhatEachGameDeclares()
         {
-            await Assert.That(EntityClassCatalog.GetTable(Dota2).GridNav?.EdgeSize).IsEqualTo(64);
-            await Assert.That(EntityClassCatalog.GetTable(CounterStrike2).GridNav).IsNull();
+            await Assert.That(EntityClassCatalog.GetTable(Game.Dota).GridNav?.EdgeSize).IsEqualTo(64);
+            await Assert.That(EntityClassCatalog.GetTable(Game.Csgo).GridNav).IsNull();
 
             // A class two games declare differently is the one of each game
-            var games = new[] { CounterStrike2, Dota2, SteamVRHome }.Select(static appId => EntityClassCatalog.GetTable(appId).FindClass("info_target"));
+            var games = new[] { Game.Csgo, Game.Dota, Game.Steamtours }.Select(static game => EntityClassCatalog.GetTable(game).FindClass("info_target"));
 
             await Assert.That(games.Distinct().Count()).IsGreaterThan(1);
         }
@@ -62,15 +58,15 @@ namespace Tests.IO
         [Test]
         public async Task ShowsAnyOtherGameWithTheClassesOfEveryGame()
         {
-            var merged = EntityClassCatalog.GetTable(0);
+            var merged = EntityClassCatalog.GetTable(Game.Unknown);
 
             // Classes only one game declares are all there
-            await Assert.That(merged.FindClass("ent_dota_tree")).IsSameReferenceAs(EntityClassCatalog.GetTable(Dota2).FindClass("ent_dota_tree"));
-            await Assert.That(merged.FindClass("cs_minimap_boundary")).IsSameReferenceAs(EntityClassCatalog.GetTable(CounterStrike2).FindClass("cs_minimap_boundary"));
+            await Assert.That(merged.FindClass("ent_dota_tree")).IsSameReferenceAs(EntityClassCatalog.GetTable(Game.Dota).FindClass("ent_dota_tree"));
+            await Assert.That(merged.FindClass("cs_minimap_boundary")).IsSameReferenceAs(EntityClassCatalog.GetTable(Game.Csgo).FindClass("cs_minimap_boundary"));
             await Assert.That(merged.GridNav).IsNotNull();
 
             // Where games declare a class differently, it is the version most of them declare
-            var games = new[] { Dota2, CounterStrike2, SteamVRHome, HalfLifeAlyx }.Select(EntityClassCatalog.GetTable).ToList();
+            var games = new[] { Game.Dota, Game.Csgo, Game.Steamtours, Game.Hlvr }.Select(EntityClassCatalog.GetTable).ToList();
 
             var outnumbered = merged.Classes.Where(entityClass =>
             {
@@ -83,7 +79,7 @@ namespace Tests.IO
 
             // The classes kept by hand are only used where no game has a table of its own
             await Assert.That(merged.FindClass("ai_reaction")).IsNotNull();
-            await Assert.That(EntityClassCatalog.GetTable(CounterStrike2).FindClass("ai_reaction")).IsNull();
+            await Assert.That(EntityClassCatalog.GetTable(Game.Csgo).FindClass("ai_reaction")).IsNull();
         }
     }
 }

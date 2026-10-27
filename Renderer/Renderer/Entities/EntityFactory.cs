@@ -109,6 +109,7 @@ public static class EntityFactory
         Register<SpawnPoint>("info_player_counterterrorist", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
         Register<SpawnPoint>("info_player_start", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
         Register<SpawnPoint>("info_player_start_badguys", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
+        Register<SpawnPoint>("info_player_start_dota", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
         Register<SpawnPoint>("info_player_start_goodguys", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
         Register<SpawnPoint>("info_player_terrorist", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
         Register<SpawnPoint>("info_team_spawn", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));

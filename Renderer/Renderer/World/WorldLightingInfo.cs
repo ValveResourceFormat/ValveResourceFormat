@@ -3,6 +3,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.ResourceTypes;
@@ -517,7 +518,7 @@ namespace ValveResourceFormat.Renderer.World
         /// <param name="lightMinRoughness">The minimum roughness the light itself asks for.</param>
         /// <returns>The minimum roughness, zero where it does not apply.</returns>
         public float GetSunMinRoughness(float lightMinRoughness = SceneLight.MinSpecularRoughness)
-            => scene.RendererContext.FileLoader.GameInfo.IsCounterStrike2
+            => scene.RendererContext.FileLoader.GameInfo.Game == Game.Csgo
                 ? MathF.Max(SceneLight.MinSpecularRoughness, lightMinRoughness)
                 : 0f;
 

@@ -10,7 +10,7 @@ namespace ValveResourceFormat.IO.Fgd;
 
 /// <summary>
 /// Gives the entity classes a map is shown with, from the tables built into the library. Each game whose
-/// classes are known has a table of its own, found by the Steam app it is installed as. Any other game is
+/// classes are known has a table of its own, found by its <see cref="GameInfo.Game"/>. Any other game is
 /// shown with the classes of every known game, each the version most of them declare, and the ones kept by
 /// hand for entities none of them declares.
 /// </summary>
@@ -20,7 +20,7 @@ public static class EntityClassCatalog
     private const string GeneratedFileName = "entity_classes.kv3";
     private const string ExtraFileName = "entity_classes_extra.kv3";
 
-    private static readonly Lazy<(Dictionary<int, EntityClassTable> Games, EntityClassTable Merged)> BuiltIn = new(LoadBuiltIn);
+    private static readonly Lazy<(Dictionary<Game, EntityClassTable> Games, EntityClassTable Merged)> BuiltIn = new(LoadBuiltIn);
     private static readonly ConditionalWeakTable<IFileLoader, EntityClassTable> Loaded = [];
 
     /// <summary>
@@ -38,15 +38,15 @@ public static class EntityClassCatalog
         return Loaded.GetValue(fileLoader, loader => FindTable(loader, logger));
     }
 
-    /// <summary>Gets the entity classes of a game by the Steam app it is installed as.</summary>
-    /// <param name="appId">The app id, or zero where it is not known.</param>
+    /// <summary>Gets the entity classes of a game.</summary>
+    /// <param name="game">The game, or <see cref="Game.Unknown"/> where it is not known.</param>
     /// <returns>The classes of the game, or the ones of every game where it is not one whose classes are known.</returns>
     /// <exception cref="InvalidDataException">The built in classes are missing or cannot be read.</exception>
-    public static EntityClassTable GetTable(int appId)
+    public static EntityClassTable GetTable(Game game)
     {
         var (games, merged) = BuiltIn.Value;
 
-        return games.GetValueOrDefault(appId) ?? merged;
+        return games.GetValueOrDefault(game) ?? merged;
     }
 
     /// <summary>Gets the entity classes of the game a file loader has found.</summary>
@@ -57,19 +57,16 @@ public static class EntityClassCatalog
     {
         ArgumentNullException.ThrowIfNull(fileLoader);
 
-        return GetTable(GetAppId(fileLoader));
+        return GetTable(fileLoader.GameInfo.Game);
     }
-
-    private static int GetAppId(IFileLoader fileLoader)
-        => fileLoader is GameFileLoader gameFileLoader ? gameFileLoader.GameInfo.InstalledSteamAppId : 0;
 
     private static EntityClassTable FindTable(IFileLoader fileLoader, ILogger logger)
     {
-        var appId = GetAppId(fileLoader);
+        var game = fileLoader.GameInfo.Game;
 
-        if (BuiltIn.Value.Games.TryGetValue(appId, out var table))
+        if (BuiltIn.Value.Games.TryGetValue(game, out var table))
         {
-            logger.LogInformation("Entities are shown with the {Count} classes of Steam app {AppId}", table.Classes.Count, appId);
+            logger.LogInformation("Entities are shown with the {Count} classes of {Game}", table.Classes.Count, game);
             return table;
         }
 
@@ -77,7 +74,7 @@ public static class EntityClassCatalog
         return BuiltIn.Value.Merged;
     }
 
-    private static (Dictionary<int, EntityClassTable> Games, EntityClassTable Merged) LoadBuiltIn()
+    private static (Dictionary<Game, EntityClassTable> Games, EntityClassTable Merged) LoadBuiltIn()
     {
         var generated = ReadResource(GeneratedFileName);
         var extra = ReadResource(ExtraFileName);
@@ -91,7 +88,7 @@ public static class EntityClassCatalog
             definitions.Add(data.GetStringProperty("id", data.GetStringProperty("name")), ReadClass(data));
         }
 
-        var games = new Dictionary<int, EntityClassTable>();
+        var games = new Dictionary<Game, EntityClassTable>();
         var gameClasses = new List<EntityClass>();
         (int, int, int, int)? mergedGridNav = null;
 
@@ -102,7 +99,14 @@ public static class EntityClassCatalog
                 .ToList();
             var gridNav = ReadGridNav(game);
 
-            games.Add(game.GetInt32Property("app_id"), new EntityClassTable(classes, gridNav));
+            // A game that is not detected only adds its classes to the merged table
+            var detectedGame = GameInfo.GetGame(game.GetInt32Property("app_id"));
+
+            if (detectedGame != Game.Unknown)
+            {
+                games.Add(detectedGame, new EntityClassTable(classes, gridNav));
+            }
+
             gameClasses.AddRange(classes);
             mergedGridNav ??= gridNav;
         }

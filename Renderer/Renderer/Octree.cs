@@ -579,14 +579,14 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Clears all nodes and roughly sizes root to the specified bounds.
+        /// Clears all nodes and roughly sizes root to the specified bounds, limited to <paramref name="maxCoord"/> on each axis.
         /// </summary>
-        public void Clear(AABB rootBounds)
+        public void Clear(AABB rootBounds, float maxCoord)
         {
             Clear();
 
-            var min = Vector3.Max(-new Vector3(16384), rootBounds.Min);
-            var max = Vector3.Min(new Vector3(16384), rootBounds.Max);
+            var min = Vector3.Max(-new Vector3(maxCoord), rootBounds.Min);
+            var max = Vector3.Min(new Vector3(maxCoord), rootBounds.Max);
 
             max = new Vector3(max.Length());
             Root = new Node(null, min, max - min);

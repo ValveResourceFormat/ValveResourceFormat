@@ -267,14 +267,15 @@ namespace ValveResourceFormat.Renderer
         private List<SceneLightProbe>? boundLightProbes;
 
         /// <summary>
-        /// Initializes a new scene with the given renderer context and optional spatial size hint.
+        /// Initializes a new scene with the given renderer context, its static octree sized to the game's whole map extent.
         /// </summary>
         /// <param name="context">The renderer context providing shared GPU resources.</param>
-        /// <param name="sizeHint">The initial world-space extent used to size the static octree.</param>
-        public Scene(RendererContext context, float sizeHint = 32768)
+        public Scene(RendererContext context)
         {
             RendererContext = context;
-            StaticOctree = new(sizeHint);
+
+            var gameInfo = context.FileLoader.GameInfo;
+            StaticOctree = new(gameInfo.MapMaxCoord * 2f);
 
             LightingInfo = new(this);
             ProjectedDecals = new(this);
@@ -1574,7 +1575,7 @@ namespace ValveResourceFormat.Renderer
                     }
                 }
 
-                StaticOctree.Clear(maxBounds);
+                StaticOctree.Clear(maxBounds, RendererContext.FileLoader.GameInfo.MapMaxCoord);
 
                 foreach (var node in staticNodes)
                 {

@@ -47,5 +47,7 @@ namespace CLI
 
             return entry != null ? package.GetMemoryMappedStreamIfPossible(entry) : fallback.GetFileStream(file);
         }
+
+        public GameInfo GameInfo => fallback.GameInfo;
     }
 }

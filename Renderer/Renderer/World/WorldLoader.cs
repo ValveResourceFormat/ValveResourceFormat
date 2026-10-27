@@ -75,7 +75,7 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>
         /// Spawn marker classnames in priority order; earlier entries win regardless of entity order.
         /// team_select and T/CT spawns are CS2, info_team_spawn is Deadlock, goodguys/badguys are
-        /// Dota 2, then the generic player start, then the camera entities as last resorts.
+        /// Dota 2, then the generic player starts, then the camera entities as last resorts.
         /// </summary>
         private static readonly string[] SpawnCameraClasses =
         [
@@ -86,6 +86,7 @@ namespace ValveResourceFormat.Renderer.World
             "info_player_start_goodguys",
             "info_player_start_badguys",
             "info_player_start",
+            "info_player_start_dota",
             "point_camera",
             "point_camera_vertical_fov",
             "point_devshot_camera",
