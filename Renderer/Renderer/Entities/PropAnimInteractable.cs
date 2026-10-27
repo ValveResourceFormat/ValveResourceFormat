@@ -77,6 +77,11 @@ public sealed class PropAnimInteractable : BaseModelEntity, IAimGrabbable
     private PlayerEntity? grabber;
     private float grabDistance;
     private float grabPitch;
+    private Vector3 grabTarget;
+    private float grabCompletion;
+
+    // How far off the aim line the interact bone can be and still be taken hold of
+    private const float AimRadius = 8f;
 
     // A move toward a goal, from a tap, an input or the return to completion
     private bool isMoving;
@@ -218,16 +223,15 @@ public sealed class PropAnimInteractable : BaseModelEntity, IAimGrabbable
             interactBone = match.Index;
         }
 
-        var bestLength = -1f;
-
+        // The first sequence that moves the interact bone, as variants for each hand may follow it
         foreach (var animation in node.Animations.Values)
         {
-            var length = SamplePath(node, animation);
+            sequence ??= animation;
 
-            if (length > bestLength)
+            if (SamplePath(node, animation) >= MinPathLength)
             {
-                bestLength = length;
                 sequence = animation;
+                break;
             }
         }
 
@@ -301,21 +305,57 @@ public sealed class PropAnimInteractable : BaseModelEntity, IAimGrabbable
     private Matrix4x4 ModelToWorld => ModelNode?.Transform ?? Matrix4x4.Identity;
 
     /// <inheritdoc/>
-    public Vector3? GrabPoint => isInteractionDisabled || ModelNode == null || interactBone < 0
-        ? null
-        : Vector3.Transform(PathPoint(SequencePosition(cycle)), ModelToWorld);
-
-    /// <inheritdoc/>
-    public void BeginAimGrab(PlayerEntity player, Vector3 eyePosition, Vector3 forward)
+    public bool TryAim(Vector3 eyePosition, Vector3 forward, float reach, out float distance)
     {
-        if (GrabPoint is not { } point)
+        distance = reach;
+
+        if (isInteractionDisabled || ModelNode == null)
         {
-            return;
+            return false;
         }
 
+        var found = false;
+
+        // Any of its parts, which is where the aim lands on a wide model
+        foreach (var part in parts)
+        {
+            if (part.Collider is not { IsEmpty: false } collider)
+            {
+                continue;
+            }
+
+            var hit = collider.TraceRay(eyePosition, eyePosition + forward * reach, "player");
+
+            if (hit.Hit && hit.Distance < distance)
+            {
+                distance = hit.Distance;
+                found = true;
+            }
+        }
+
+        if (interactBone >= 0)
+        {
+            var point = Vector3.Transform(PathPoint(SequencePosition(cycle)), ModelToWorld);
+            var along = Vector3.Dot(point - eyePosition, forward);
+
+            if (along > 0f && along < distance && Vector3.Distance(point, eyePosition + forward * along) <= AimRadius)
+            {
+                distance = along;
+                found = true;
+            }
+        }
+
+        return found;
+    }
+
+    /// <inheritdoc/>
+    public void BeginAimGrab(PlayerEntity player, Vector3 eyePosition, Vector3 forward, float distance)
+    {
         grabber = player;
-        grabDistance = Vector3.Distance(eyePosition, point);
+        grabDistance = distance;
+        grabTarget = AimedPoint(eyePosition, forward);
         grabPitch = PitchOf(forward);
+        grabCompletion = cycle;
         isMoving = false;
 
         if (isLocked)
@@ -338,26 +378,32 @@ public sealed class PropAnimInteractable : BaseModelEntity, IAimGrabbable
             return;
         }
 
-        float delta;
-
+        // The aim moves the completion by how far it travels along the bone path, wherever on the model it
+        // took hold, rather than pulling the bone onto the aimed point
         if (followsPath)
         {
-            // The step along the path that brings the bone closest to the aimed point, from the local slope
-            Matrix4x4.Invert(ModelToWorld, out var worldToModel);
-            var target = Vector3.Transform(eyePosition + forward * grabDistance, worldToModel);
+            var target = AimedPoint(eyePosition, forward);
             var position = SequencePosition(cycle);
             const float Step = 1f / PathSamples;
             var tangent = (PathPoint(position + Step) - PathPoint(position - Step)) / (2f * Step);
             var slope = tangent.LengthSquared();
 
-            delta = slope > 1e-6f ? Vector3.Dot(target - PathPoint(position), tangent) / slope : 0f;
+            if (slope > 1e-6f)
+            {
+                grabCompletion += Vector3.Dot(target - grabTarget, tangent) / slope;
+            }
+
+            grabTarget = target;
         }
         else
         {
             var pitch = PitchOf(forward);
-            delta = (grabPitch - pitch) / PitchPerCycle;
+            grabCompletion += (grabPitch - pitch) / PitchPerCycle;
             grabPitch = pitch;
         }
+
+        grabCompletion = Math.Clamp(grabCompletion, limitBackward, isLocked ? MathF.Min(limitForward, limitLocked) : limitForward);
+        var delta = grabCompletion - cycle;
 
         // A resistance below one lags the aim, as a heavy door does
         if (positiveResistance < 1f)
@@ -366,6 +412,13 @@ public sealed class PropAnimInteractable : BaseModelEntity, IAimGrabbable
         }
 
         SetCycle(cycle + Math.Clamp(delta, -0.25f, 0.25f));
+    }
+
+    // In model space, where the bone path is
+    private Vector3 AimedPoint(Vector3 eyePosition, Vector3 forward)
+    {
+        Matrix4x4.Invert(ModelToWorld, out var worldToModel);
+        return Vector3.Transform(eyePosition + forward * grabDistance, worldToModel);
     }
 
     /// <inheritdoc/>

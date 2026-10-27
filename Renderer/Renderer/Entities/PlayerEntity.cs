@@ -40,9 +40,6 @@ public sealed class PlayerEntity : BaseEntity
     // Holding use this long on a body grabs it at the aimed point, letting go sooner is a press
     private const float GrabHoldTime = 0.25f;
 
-    // How far off the aim an interactable grab point can be and still be taken hold of
-    private const float AimGrabRadius = 8f;
-
     /// <summary>Gets the controller whose state this entity reflects.</summary>
     public IPlayerController Controller { get; }
 
@@ -209,30 +206,23 @@ public sealed class PlayerEntity : BaseEntity
         }
     }
 
-    // The nearest interactable whose grab point lies within reach close to the aim line
-    private IAimGrabbable? FindAimGrabbable()
+    // The nearest interactable along the aim within reach
+    private IAimGrabbable? FindAimGrabbable() => FindAimGrabbable(out _);
+
+    private IAimGrabbable? FindAimGrabbable(out float distance)
     {
         var eyePosition = Controller.EyePosition;
         var forward = Controller.ViewForward;
         IAimGrabbable? nearest = null;
-        var nearestAlong = UseRange;
+        distance = UseRange;
 
         foreach (var entity in EntitySystem.Entities)
         {
-            if (entity.IsRemoved || entity is not IAimGrabbable grabbable || grabbable.GrabPoint is not { } point)
+            if (!entity.IsRemoved && entity is IAimGrabbable grabbable && grabbable.TryAim(eyePosition, forward, distance, out var along))
             {
-                continue;
+                nearest = grabbable;
+                distance = along;
             }
-
-            var along = Vector3.Dot(point - eyePosition, forward);
-
-            if (along <= 0f || along > nearestAlong || Vector3.Distance(point, eyePosition + forward * along) > AimGrabRadius)
-            {
-                continue;
-            }
-
-            nearest = grabbable;
-            nearestAlong = along;
         }
 
         return nearest;
@@ -560,10 +550,10 @@ public sealed class PlayerEntity : BaseEntity
 
     private void TryGrab()
     {
-        if (FindAimGrabbable() is { } interactable)
+        if (FindAimGrabbable(out var aimDistance) is { } interactable)
         {
             aimGrab = interactable;
-            interactable.BeginAimGrab(this, Controller.EyePosition, Controller.ViewForward);
+            interactable.BeginAimGrab(this, Controller.EyePosition, Controller.ViewForward, aimDistance);
             return;
         }
 
