@@ -74,10 +74,11 @@ namespace ValveResourceFormat.Particles.Initializers
                 }
 
                 // Without per-particle traces, the game keeps the shared offset scaled by each radius for
-                // the next particle of the call, compounding the radii; that is not reproduced
+                // the next particle of the call, compounding the radii
                 if (proportional)
                 {
                     offset *= radii[i];
+                    runOffset = offset;
                 }
 
                 positions[i] += offset;
