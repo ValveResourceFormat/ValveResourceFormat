@@ -284,10 +284,11 @@ namespace ValveResourceFormat.ResourceTypes
             var entity = new Entity { ParentLump = this };
 
             entityKv.TryGetValue("values", out var values);
-            entityKv.TryGetValue("attributes", out var attributes);
+            // ignore CEntityKeyValues attributes
+            // entityKv.TryGetValue("attributes", out var attributes);
 
             ReadValues(entity, values);
-            ReadValues(entity, attributes);
+            // ReadValues(entity, attributes);
 
             return entity;
         }
@@ -328,8 +329,8 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new UnexpectedMagicException("Unsupported entity data version", entityVersion, nameof(entityVersion));
             }
 
-            var hashedFieldsCount = dataReader.ReadUInt32();
-            var stringFieldsCount = dataReader.ReadUInt32();
+            var keyValuesFieldsCount = dataReader.ReadUInt32();
+            var attributesFieldsCount = dataReader.ReadUInt32();
 
             var entity = new Entity { ParentLump = this };
 
@@ -352,9 +353,11 @@ namespace ValveResourceFormat.ResourceTypes
                     _ => throw new UnexpectedMagicException("Unknown type", (int)type, nameof(type)),
                 };
 
+                // ignore CEntityKeyValues attributes
                 if (keyName == null)
                 {
                     keyName = ToPropertyKey(StringToken.GetKnownString(keyHash));
+                    entity.Add(keyName, entityProperty);
                 }
                 else
                 {
@@ -366,11 +369,9 @@ namespace ValveResourceFormat.ResourceTypes
                         );
                     }
                 }
-
-                entity.Add(keyName, entityProperty);
             }
 
-            for (var i = 0; i < hashedFieldsCount; i++)
+            for (var i = 0; i < keyValuesFieldsCount; i++)
             {
                 // murmur2 hashed field name (see EntityLumpKeyLookup)
                 var keyHash = dataReader.ReadUInt32();
@@ -379,7 +380,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             // TODO: Is this attributes like in KV3 version, should we put them into separate property?
-            for (var i = 0; i < stringFieldsCount; i++)
+            for (var i = 0; i < attributesFieldsCount; i++)
             {
                 var keyHash = dataReader.ReadUInt32();
                 var keyName = dataReader.ReadNullTermString(Encoding.UTF8);
