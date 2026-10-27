@@ -519,8 +519,6 @@ namespace GUI.Types.GLViewers
             TextRenderer.Load();
             Renderer.Postprocess.Load(NumSamples);
 
-            Renderer.Postprocess.FullScreenGamma = 2.0f; // 100% Brightness
-
             baseGrid = new InfiniteGrid(Scene);
             Debug.Assert(MainFramebuffer != null);
 
