@@ -81,7 +81,7 @@ namespace ValveResourceFormat.Particles.Operators
                     first = forward1;
                 }
 
-                var dot = Vector3.Dot(first, forward2);
+                var dot = ((first.Y * forward2.Y) + (first.Z * forward2.Z)) + (first.X * forward2.X);
 
                 if (activeRange && (dot < inputMin || dot > inputMax))
                 {
