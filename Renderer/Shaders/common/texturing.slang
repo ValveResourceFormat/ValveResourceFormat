@@ -388,7 +388,7 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
 // CS2 Decals
 #if (F_DECAL_TEXTURE == 1)
 
-    uniform sampler2D g_tDecal;
+    uniform sampler2D g_tDecal; // SrgbRead(true)
     #if defined(secondary_uv_vfx_common)
         uniform bool g_bUseSecondaryUvForDecal = true;
     #endif
