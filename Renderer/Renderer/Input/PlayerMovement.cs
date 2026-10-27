@@ -12,8 +12,23 @@ namespace ValveResourceFormat.Renderer.Input;
 public class PlayerMovement : IPlayerController
 {
     // Half-extents around the hull center. Standing 32x32x72, ducked 32x32x54.
-    private static readonly Vector3 StandingHullHalfExtents = new(16, 16, 36);
-    private static readonly Vector3 DuckedHullHalfExtents = new(16, 16, 27);
+    private Vector3 StandingHullHalfExtents = new(16, 16, 36);
+    private Vector3 DuckedHullHalfExtents = new(16, 16, 27);
+
+    /// <summary>
+    /// Gets or sets whether the player has the narrow hull and deep crouch of a VR player, a 16 by 16 footprint
+    /// ducking to 32 units tall, rather than the 32 by 32 hull ducking to 54.
+    /// </summary>
+    public bool CompactHull
+    {
+        get;
+        set
+        {
+            field = value;
+            StandingHullHalfExtents = value ? new(8, 8, 36) : new(16, 16, 36);
+            DuckedHullHalfExtents = value ? new(8, 8, 16) : new(16, 16, 27);
+        }
+    }
 
     // Movement constants from Source engine (movevars_shared.cpp)
     private const float GravityValue = 800f;              // sv_gravity
@@ -40,7 +55,7 @@ public class PlayerMovement : IPlayerController
     private const float AirMaxWishSpeed = 30f;            // Air-control wishspeed cap (AirAccelerate)
 
     private const float ViewHeightOffset = 8f;
-    private static readonly float ViewHeightStanding = StandingHullHalfExtents.Z * 2f - ViewHeightOffset;
+    private float ViewHeightStanding => StandingHullHalfExtents.Z * 2f - ViewHeightOffset;
 
     private const float BunnyjumpMaxSpeedFactor = 1.1f;   // Only allow bunny jumping up to 1.1x max speed
 
@@ -59,7 +74,7 @@ public class PlayerMovement : IPlayerController
     private const float DuckUnflagAmount = 0.75f;         // Unducking drops the ducked flag once the amount falls to this
     private const float DuckSpeedRecoveryDistance = 64f;  // Moving this far from the last full duck speed spot recovers it faster
     private const int CrouchStuckMaxRise = 36;            // How far a freshly ducked hull may be lifted out of the floor
-    private static readonly float CrouchHeightDifference = (StandingHullHalfExtents.Z - DuckedHullHalfExtents.Z) * 2f;
+    private float CrouchHeightDifference => (StandingHullHalfExtents.Z - DuckedHullHalfExtents.Z) * 2f;
 
     /// <summary>Gets the current player velocity in world units per second.</summary>
     public Vector3 Velocity { get; private set; }
@@ -193,7 +208,7 @@ public class PlayerMovement : IPlayerController
     private float DuckViewOffset;
 
     // Both offsets ease at the hull height difference per 0.2 seconds
-    private static readonly float DuckOffsetSpeed = CrouchHeightDifference / 0.2f;
+    private float DuckOffsetSpeed => CrouchHeightDifference / 0.2f;
 
     /// <summary>
     /// Gets how far the rendered body sits from <see cref="Position"/>. An airborne hull switch moves

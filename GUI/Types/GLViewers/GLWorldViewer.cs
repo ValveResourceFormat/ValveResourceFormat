@@ -294,6 +294,9 @@ namespace GUI.Types.GLViewers
 
                 ShowSpeed = isKzMap;
                 Input.PlayerMovement.AutoBunnyHop = isKzMap;
+
+                var gameInfo = Renderer.RendererContext.FileLoader.GameInfo;
+                Input.PlayerMovement.CompactHull = gameInfo.Game is Game.Hlvr or Game.Steamtours;
                 Input.PlayerMovement.AirAccelerate = isKzMap
                     ? PlayerMovement.AirAccelerateMovementMaps
                     : PlayerMovement.AirAccelerateCompetitive;
