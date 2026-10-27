@@ -1031,34 +1031,86 @@ namespace GUI
 
         private void MainForm_DragDrop(object sender, DragEventArgs e)
         {
-            // Despite us setting drag effect only on FileDrop this can still be null on drop
-            if (e.Data?.GetData(DataFormats.FileDrop) is string[] files)
+            if (e.Data?.GetData(DataFormats.FileDrop) is string[] paths)
             {
-                OpenFiles(files);
+                OpenFiles(paths);
+                return;
             }
-            else if (e.Data?.GetData(DataFormats.UnicodeText) is string text) // Dropping files from web based apps such as VS code
+
+            var text = e.Data?.GetData("ObjectData") as string ?? e.Data?.GetData(typeof(string)) as string
+                ?? e.Data?.GetData(DataFormats.UnicodeText) as string;
+            var files = GetDroppedFiles(text).ToList();
+            OpenFiles(files.Where(file => file.Entry == null).Select(file => file.Path).ToList());
+
+            foreach (var file in files)
             {
-                var existingFiles = new List<string>();
-
-                foreach (var line in text.AsSpan().EnumerateLines())
+                if (file.Entry is { } entry)
                 {
-                    var fileName = line.ToString();
-
-                    if (File.Exists(fileName))
-                    {
-                        existingFiles.Add(fileName);
-                    }
+                    OpenDroppedPackageFile(file.PackageContext, entry);
                 }
+            }
+        }
 
-                OpenFiles(existingFiles);
+        private void OpenDroppedPackageFile(VrfGuiContext? packageContext, PackageEntry entry)
+        {
+            var context = new VrfGuiContext(entry.GetFullPath(), packageContext);
+            try
+            {
+                OpenFile(context, entry);
+                context = null;
+            }
+            finally
+            {
+                context?.Dispose();
             }
         }
 
         private void MainForm_DragEnter(object sender, DragEventArgs e)
         {
-            if (e.Data?.GetDataPresent(DataFormats.FileDrop) == true)
+            e.Effect = DragDropEffects.None;
+
+            if (e.Data?.GetData(DataFormats.FileDrop) is string[] paths)
             {
-                e.Effect = DragDropEffects.Move;
+                if (paths.Any(File.Exists))
+                {
+                    e.Effect = e.AllowedEffect & DragDropEffects.Move;
+                }
+
+                return;
+            }
+
+            // Dropping files from apps that provide a path string (e.g. VS Code, Source 2 asset browser).
+            var text = e.Data?.GetData("ObjectData") as string ?? e.Data?.GetData(typeof(string)) as string
+                ?? e.Data?.GetData(DataFormats.UnicodeText) as string;
+            if (GetDroppedFiles(text).Any())
+            {
+                e.Effect = (e.AllowedEffect & DragDropEffects.Copy) != 0
+                    ? DragDropEffects.Copy
+                    : e.AllowedEffect & DragDropEffects.Move;
+            }
+        }
+
+        private IEnumerable<(string Path, VrfGuiContext? PackageContext, PackageEntry? Entry)> GetDroppedFiles(string? text)
+        {
+            var packageContext = mainTabs.SelectedTab is { } tab ? PackageViewer.FromTab(tab)?.GuiContext : null;
+
+            using var reader = new StringReader(text ?? string.Empty);
+            while (reader.ReadLine() is { } path)
+            {
+                if (Path.IsPathRooted(path) && File.Exists(path))
+                {
+                    yield return (path, null, null);
+                }
+
+                // If it's a relative path then check if we have an open and active package to use as root.
+                else if (!string.IsNullOrWhiteSpace(path) && packageContext?.CurrentPackage is { } package)
+                {
+                    var entry = package.FindEntry(path) ?? package.FindEntry(path + GameFileLoader.CompiledFileSuffix);
+                    if (entry != null)
+                    {
+                        yield return (path, packageContext, entry);
+                    }
+                }
             }
         }
 
