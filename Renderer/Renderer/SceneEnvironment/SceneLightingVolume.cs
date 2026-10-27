@@ -101,27 +101,40 @@ public static class SceneLightingVolume
         var volume = ReadVolume(entity, isSphere);
         var materialLoader = scene.RendererContext.MaterialLoader;
 
+        // A texture that does not load reads as one the volume was baked without
         RenderTexture? LoadTexture(string key, bool srgbRead = false)
-            => entity.GetStringProperty(key) is { Length: > 0 } name ? materialLoader.GetTexture(name, srgbRead) : null;
+            => entity.GetStringProperty(key) is { Length: > 0 } name && materialLoader.GetTexture(name, srgbRead) is var texture
+                && texture != materialLoader.GetErrorTexture() ? texture : null;
+
+        var irradiance = LoadTexture("lightprobetexture", srgbRead: true);
+        var atlasSize = new Vector3(
+            entity.GetFloatProperty("light_probe_size_x"),
+            entity.GetFloatProperty("light_probe_size_y"),
+            entity.GetFloatProperty("light_probe_size_z"));
+        var atlasOffset = new Vector3(
+            entity.GetFloatProperty("light_probe_atlas_x"),
+            entity.GetFloatProperty("light_probe_atlas_y"),
+            entity.GetFloatProperty("light_probe_atlas_z"));
+
+        // The keys only give the volume a place in its texture when that place is inside it. Keys of a map compiled
+        // before, such as on a volume the editor baked a texture of its own for, do not, and the texture is read whole.
+        var isInAtlas = irradiance != null && atlasSize is { X: > 0, Y: > 0, Z: > 0 } && atlasOffset is { X: >= 0, Y: >= 0, Z: >= 0 }
+            && atlasOffset.X + atlasSize.X <= irradiance.Width
+            && atlasOffset.Y + atlasSize.Y <= irradiance.Height
+            && (atlasOffset.Z + atlasSize.Z) * 6 <= irradiance.Depth;
 
         var lightProbe = new SceneLightProbe(scene, volume.Bounds)
         {
             LayerName = layerName,
             Transform = transform,
             HandShake = volume.HandShake,
-            Irradiance = LoadTexture("lightprobetexture", srgbRead: true),
+            Irradiance = irradiance,
             IndoorOutdoorLevel = volume.IndoorOutdoorLevel,
             EdgeFadeDists = fadesAtEdges ? volume.EdgeFadeDists : Vector3.Zero,
             VoxelSize = entity.GetFloatProperty("voxel_size"),
 
-            AtlasSize = new Vector3(
-                entity.GetFloatProperty("light_probe_size_x"),
-                entity.GetFloatProperty("light_probe_size_y"),
-                entity.GetFloatProperty("light_probe_size_z")),
-            AtlasOffset = new Vector3(
-                entity.GetFloatProperty("light_probe_atlas_x"),
-                entity.GetFloatProperty("light_probe_atlas_y"),
-                entity.GetFloatProperty("light_probe_atlas_z")),
+            AtlasSize = isInAtlas ? atlasSize : Vector3.Zero,
+            AtlasOffset = isInAtlas ? atlasOffset : Vector3.Zero,
         };
 
         // A texture the volume was baked without reads as no direct light and no shadow
