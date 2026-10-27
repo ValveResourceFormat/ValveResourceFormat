@@ -110,14 +110,7 @@ public class InfoParticleSystem : BaseEntity
             effect.Transform = target.Transform;
         }
 
-        if (target.RootNode is { } targetNode)
-        {
-            effect.BindControlPoint(index, targetNode, target.Transform);
-        }
-        else
-        {
-            effect.SetControlPoint(index, target.Transform);
-        }
+        effect.BindControlPoint(index, target);
 
         if (target is BaseModelEntity { LoadedModel: { } model } modelEntity)
         {

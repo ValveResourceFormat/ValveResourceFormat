@@ -404,44 +404,35 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             var forward = Vector3.TransformNormal(Vector3.UnitX, transform);
 
-            if (forward.LengthSquared() > ParticleMath.MinimumLengthSquared)
+            if (forward.LengthSquared() > ParticleMath.MinimumLengthSquared && Matrix4x4.Decompose(transform, out _, out var rotation, out _))
             {
                 controlPoint.Orientation = Vector3.Normalize(forward);
-                controlPoint.Rotation = Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(transform));
+                controlPoint.Rotation = rotation;
             }
         }
 
         /// <summary>
-        /// Places a control point at a transform and keeps it there relative to a scene node, so a
-        /// control point bound to an entity follows that entity when something moves it.
+        /// Places a control point at an entity and keeps it there, so it follows the entity when
+        /// something moves it.
         /// </summary>
         /// <param name="index">The index of the control point to place.</param>
-        /// <param name="target">The node the control point follows.</param>
-        /// <param name="transform">The world transform the control point takes while the node is still.</param>
-        public void BindControlPoint(int index, SceneNode target, Matrix4x4 transform)
+        /// <param name="target">The entity the control point follows.</param>
+        public void BindControlPoint(int index, Entities.BaseEntity target)
         {
             controlPointBindings ??= [];
-            controlPointBindings.Add(new ControlPointBinding(index, target, target.Transform, transform));
-            SetControlPoint(index, transform);
+            controlPointBindings.Add(new ControlPointBinding(index, target));
+            SetControlPoint(index, target.Transform);
         }
 
         private List<ControlPointBinding>? controlPointBindings;
 
-        private readonly record struct ControlPointBinding(int Index, SceneNode Target, Matrix4x4 TargetOrigin, Matrix4x4 Transform);
+        private readonly record struct ControlPointBinding(int Index, Entities.BaseEntity Target);
 
         private void UpdateBoundControlPoints()
         {
             foreach (var binding in controlPointBindings!)
             {
-                var moved = binding.Target.Transform;
-                var transform = binding.Transform;
-
-                if (moved != binding.TargetOrigin && Matrix4x4.Invert(binding.TargetOrigin, out var toOrigin))
-                {
-                    transform *= toOrigin * moved;
-                }
-
-                SetControlPoint(binding.Index, transform);
+                SetControlPoint(binding.Index, binding.Target.Transform);
             }
         }
 
@@ -685,10 +676,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             if (!Preview)
             {
                 var controlPointForward = Vector3.TransformNormal(Vector3.UnitX, Transform);
-                if (controlPointForward.LengthSquared() > ParticleMath.MinimumLengthSquared)
+                if (controlPointForward.LengthSquared() > ParticleMath.MinimumLengthSquared && Matrix4x4.Decompose(Transform, out _, out var rotation, out _))
                 {
                     controlPoint.Orientation = Vector3.Normalize(controlPointForward);
-                    controlPoint.Rotation = Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(Transform));
+                    controlPoint.Rotation = rotation;
                 }
             }
 
