@@ -2,8 +2,6 @@
 
 #include "common/utils.slang"
 
-layout(binding = 0) uniform sampler2D inputImage;
-
 // Global histogram buffer (256 bins)
 layout(binding = 15, std430) buffer HistogramBuffer
 {
@@ -19,6 +17,7 @@ uniform float logLuminanceRange;    // Range of log luminance (inverse scale fac
 layout(binding = 11, std140) buffer Luminance { float outputLuminance; };
 
 #define D_HISTOGRAM_MODE 0
+#define D_MSAA_SAMPLES 1
 
 #if D_HISTOGRAM_MODE == 0
     layout (local_size_x = 16, local_size_y = 16) in;
@@ -26,12 +25,22 @@ layout(binding = 11, std140) buffer Luminance { float outputLuminance; };
     layout (local_size_x = 256) in;
 #endif
 
+#if D_MSAA_SAMPLES > 1
+    layout(binding = 0) uniform sampler2DMS inputImage;
+#else
+    layout(binding = 0) uniform sampler2D inputImage;
+#endif
+
 void main()
 {
     uvec3 globalID = gl_GlobalInvocationID;
     uint bin       = gl_LocalInvocationIndex;
 
+#if D_MSAA_SAMPLES > 1
+    uvec2 imageResolution = uvec2(textureSize(inputImage).xy);
+#else
     uvec2 imageResolution = uvec2(textureSize(inputImage, 0).xy);
+#endif
 
 #if D_HISTOGRAM_MODE == 0
 
@@ -41,7 +50,18 @@ void main()
 
     if (globalID.x < imageResolution.x && globalID.y < imageResolution.y)
     {
+#if D_MSAA_SAMPLES > 1
+        vec3 color = vec3(0.0);
+        for (int i = 0; i < D_MSAA_SAMPLES; i++)
+        {
+            vec3 texel = texelFetch(inputImage, ivec2(globalID.xy), i).rgb;
+            bvec3 valid = lessThanEqual(texel, vec3(65504.0));
+            vec3 s = mix(vec3(0.0), clamp(texel, vec3(0.0), vec3(65504.0)), valid);
+            color += s * (1.0 / float(D_MSAA_SAMPLES));
+        }
+#else
         vec3 color = texelFetch(inputImage, ivec2(globalID.xy), 0).rgb;
+#endif
         float luma = GetLuma(color);
 
         // log2(0) = undefined

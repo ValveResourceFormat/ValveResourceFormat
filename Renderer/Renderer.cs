@@ -250,6 +250,7 @@ public class Renderer : ISceneHost
 
     private readonly Shader[] histogramShaders = new Shader[2];
     private readonly StorageBuffer[] histogramBuffers = new StorageBuffer[2];
+    private int histogramShaderSamples = 1;
 
     // Injected
     /// <summary>
@@ -1467,6 +1468,11 @@ public class Renderer : ISceneHost
 
                 GrabFramebufferCopy(renderContext.Framebuffer, copyColor, copyDepth);
 
+                if (isStandardPass && !isWireframe && computeFramebufferLuminance && renderContext.Framebuffer.NumSamples > 1)
+                {
+                    ComputeAverageLuminance(renderContext.Framebuffer.Color!, renderContext.Framebuffer.NumSamples);
+                }
+
                 if (generateDepthPyramid)
                 {
                     Debug.Assert(ResolvedSceneColor != null && ResolvedSceneDepth != null);
@@ -1548,9 +1554,9 @@ public class Renderer : ISceneHost
             RenderEffectsBloomMap(mainView, renderContext);
         }
 
-        if (isStandardPass && computeFramebufferLuminance)
+        if (isStandardPass && computeFramebufferLuminance && (isWireframe || renderContext.Framebuffer.NumSamples <= 1))
         {
-            ComputeAverageLuminance(renderContext);
+            ComputeAverageLuminance(ResolvedSceneColor!);
         }
 
         if (isStandardPass)
@@ -1705,7 +1711,7 @@ public class Renderer : ISceneHost
         }
     }
 
-    private void ComputeAverageLuminance(Scene.RenderContext renderContext)
+    private void ComputeAverageLuminance(RenderTexture histogramInput, int samples = 1)
     {
         Debug.Assert(ResolvedSceneColor != null);
 
@@ -1733,10 +1739,16 @@ public class Renderer : ISceneHost
 
         var inputTex = ResolvedSceneColor;
 
+        if (histogramShaderSamples != samples)
+        {
+            histogramShaderSamples = samples;
+            histogramShaders[0] = Scene.RendererContext.ShaderLoader.LoadShader("histogram", ("D_MSAA_SAMPLES", (byte)samples));
+        }
+
         // Build histogram
         var groupsX = Math.Max(1, MathUtils.DivideRoundUp(width, 16));
         var groupsY = Math.Max(1, MathUtils.DivideRoundUp(height, 16));
-        Dispatch(histogramShaders[0], inputTex, groupsX, groupsY);
+        Dispatch(histogramShaders[0], histogramInput, groupsX, groupsY);
         GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
 
         // Reduce histogram
