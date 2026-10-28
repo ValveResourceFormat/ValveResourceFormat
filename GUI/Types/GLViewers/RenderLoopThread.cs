@@ -23,7 +23,10 @@ namespace GUI.Types.GLViewers
 #endif
         }
 
-        private static void OnAppActivated(object? sender, EventArgs e)
+        /// <summary>
+        /// Resumes the render loop while the app was in the background.
+        /// </summary>
+        public static void OnAppActivated(object? sender, EventArgs e)
         {
             if (currentGLControl != null)
             {
