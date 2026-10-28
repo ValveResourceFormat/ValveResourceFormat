@@ -884,6 +884,7 @@ namespace GUI.Types.GLViewers
                 }
 
                 entityInfoForm.FormClosed += OnEntityInfoFormClosed;
+                entityInfoForm.Activated += RenderLoopThread.OnAppActivated;
                 entityInfoForm.Show();
             }
 
@@ -996,7 +997,18 @@ namespace GUI.Types.GLViewers
                 Program.MainForm.Invoke(() =>
                 {
                     ShowSceneNodeDetails(sceneNode);
-                    entityInfoForm?.EntityInfoControl.Focus();
+
+                    if (entityInfoForm == null)
+                    {
+                        return;
+                    }
+
+                    if (entityInfoForm.WindowState == FormWindowState.Minimized)
+                    {
+                        entityInfoForm.WindowState = FormWindowState.Normal;
+                    }
+
+                    entityInfoForm.EntityInfoControl.Focus();
                 });
                 return;
             }
