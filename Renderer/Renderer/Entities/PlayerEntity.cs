@@ -84,6 +84,9 @@ public sealed class PlayerEntity : BaseEntity
     private bool isUsePending;
     private float usePressTime;
 
+    // A prop out of grab reach pulled in by a held use, grabbed once it comes within reach
+    private bool isPullingIn;
+
     // The aim when use went down, which a tap acts on even after the view moves away
     private Vector3 pressEyePosition;
     private Vector3 pressForward;
@@ -168,6 +171,7 @@ public sealed class PlayerEntity : BaseEntity
         {
             pressEyePosition = Controller.EyePosition;
             pressForward = Controller.ViewForward;
+            usePressTime = EntitySystem.CurrentTime;
 
             if (Carried != null)
             {
@@ -176,12 +180,12 @@ public sealed class PlayerEntity : BaseEntity
             else if (isHolding && (FindAimGrabbable(out _) != null || FindGrabTarget(out _, out _)))
             {
                 isUsePending = true;
-                usePressTime = EntitySystem.CurrentTime;
                 TryGrab();
             }
             else
             {
                 Press();
+                isPullingIn = isHolding && Carried != null;
             }
 
             return;
@@ -189,11 +193,15 @@ public sealed class PlayerEntity : BaseEntity
 
         if (isHolding)
         {
-            if (isUsePending && (EntitySystem.CurrentTime - usePressTime >= TapTime
-                || float.RadiansToDegrees(MathUtils.AngleBetween(pressForward, Controller.ViewForward)) > TapAngle))
+            if (isUsePending && IsPastTap)
             {
                 isUsePending = false;
                 TakeHold();
+            }
+
+            if (isPullingIn && IsPastTap)
+            {
+                GrabPulledIn();
             }
 
             return;
@@ -207,6 +215,54 @@ public sealed class PlayerEntity : BaseEntity
             isUsePending = false;
             Press();
         }
+
+        // A pull let go of as a hold drops the prop, a tap keeps carrying it
+        if (isPullingIn)
+        {
+            isPullingIn = false;
+
+            if (IsPastTap)
+            {
+                Drop();
+            }
+        }
+    }
+
+    private bool IsPastTap => EntitySystem.CurrentTime - usePressTime >= TapTime
+        || float.RadiansToDegrees(MathUtils.AngleBetween(pressForward, Controller.ViewForward)) > TapAngle;
+
+    // Swaps the carry for a grab at the aimed point once the pulled prop comes within grab reach
+    private void GrabPulledIn()
+    {
+        if (Carried is not { IsRemoved: false } carried)
+        {
+            isPullingIn = false;
+            return;
+        }
+
+        var body = carried.CarryBody;
+        var eyePosition = Controller.EyePosition;
+        var hit = EntitySystem.Physics.World.RaycastClosest(eyePosition, Controller.ViewForward * UseRange,
+            new QueryFilter(~PhysicsSimulation.PlayerCategory, PhysicsSimulation.PropCategory | PhysicsSimulation.DebrisCategory | PhysicsSimulation.RagdollCategory));
+
+        Vector3 point;
+
+        if (hit.Hit && hit.Shape.Body.Equals(body))
+        {
+            point = hit.Point;
+        }
+        else if (carryHandArrived && Vector3.Distance(eyePosition, body.CenterOfMass) <= UseRange)
+        {
+            point = body.CenterOfMass;
+        }
+        else
+        {
+            return;
+        }
+
+        isPullingIn = false;
+        Drop();
+        Grab(body, point);
     }
 
     private void Press()
@@ -582,6 +638,11 @@ public sealed class PlayerEntity : BaseEntity
             return;
         }
 
+        Grab(body, point);
+    }
+
+    private void Grab(Body body, Vector3 point)
+    {
         var physics = EntitySystem.Physics;
 
         grabBody = body;
