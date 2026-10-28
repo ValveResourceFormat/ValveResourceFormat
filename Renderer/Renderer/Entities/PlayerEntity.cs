@@ -38,13 +38,11 @@ public sealed class PlayerEntity : BaseEntity
     private const float CarryBreakDistance = 64f;
     private const float CarryBreakTime = 0.5f;
 
-    // A press on a body grabs it at once. Held this long without turning the view or moving the eye further
-    // than these, or let go sooner, it is a press instead, and the press runs while use stays held. Turning or
-    // moving past them makes it a grab, which takes over from the press, stopping a door's motor or an
-    // interactable.
+    // A press on a body grabs it at once, and letting go within this long, having turned the view no further
+    // than this, turns it into a press instead. Only past either does the grab take over what the press would
+    // have done, stopping a door's motor or an interactable.
     private const float TapTime = 0.15f;
     private const float TapAngle = 3f;
-    private const float TapMove = 4f;
 
     /// <summary>Gets the controller whose state this entity reflects.</summary>
     public IPlayerController Controller { get; }
@@ -85,9 +83,6 @@ public sealed class PlayerEntity : BaseEntity
 
     private bool isUsePending;
     private float usePressTime;
-
-    // A press made by holding still, which still becomes a grab once the aim moves
-    private bool isPressHeld;
 
     // The aim when use went down, which a tap acts on even after the view moves away
     private Vector3 pressEyePosition;
@@ -164,7 +159,7 @@ public sealed class PlayerEntity : BaseEntity
         UpdatePhysicsPresence(tickInterval);
     }
 
-    // A press on a body grabs it until it turns out to be a press, anything else acts at once
+    // A press on a body grabs it until it turns out to be a tap, anything else acts at once
     private void UpdateUse()
     {
         var isHolding = Buttons.Holding(TrackedKeys.E);
@@ -194,28 +189,10 @@ public sealed class PlayerEntity : BaseEntity
 
         if (isHolding)
         {
-            var hasAimMoved = HasAimMovedSincePress();
-
-            if (isUsePending && hasAimMoved)
+            if (isUsePending && (EntitySystem.CurrentTime - usePressTime >= TapTime
+                || float.RadiansToDegrees(MathUtils.AngleBetween(pressForward, Controller.ViewForward)) > TapAngle))
             {
                 isUsePending = false;
-                TakeHold();
-            }
-            else if (isUsePending && EntitySystem.CurrentTime - usePressTime >= TapTime)
-            {
-                // The grab lets go, so it does not hold back what the press sets moving
-                isUsePending = false;
-                ReleaseGrab();
-                Press();
-                isPressHeld = Carried == null;
-            }
-            else if (isPressHeld && hasAimMoved)
-            {
-                // Taken from where the aim is now, as the body has moved since the press
-                isPressHeld = false;
-                pressEyePosition = Controller.EyePosition;
-                pressForward = Controller.ViewForward;
-                TryGrab();
                 TakeHold();
             }
 
@@ -224,7 +201,6 @@ public sealed class PlayerEntity : BaseEntity
 
         ReleaseGrab();
         ReleaseAimGrab();
-        isPressHeld = false;
 
         if (isUsePending)
         {
@@ -232,10 +208,6 @@ public sealed class PlayerEntity : BaseEntity
             Press();
         }
     }
-
-    private bool HasAimMovedSincePress()
-        => float.RadiansToDegrees(MathUtils.AngleBetween(pressForward, Controller.ViewForward)) > TapAngle
-        || Vector3.Distance(pressEyePosition, Controller.EyePosition) > TapMove;
 
     private void Press()
     {
