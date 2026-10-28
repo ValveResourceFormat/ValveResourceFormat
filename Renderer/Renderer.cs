@@ -248,9 +248,9 @@ public class Renderer : ISceneHost
     /// </summary>
     public bool ForceResolveSceneDepth { get; set; }
 
-    private readonly Shader[] histogramShaders = new Shader[2];
+    private Shader HistogramReduceShader = null!;
     private readonly StorageBuffer[] histogramBuffers = new StorageBuffer[2];
-    private int histogramShaderSamples = 1;
+    private bool MeterSceneLuminance;
 
     // Injected
     /// <summary>
@@ -818,8 +818,7 @@ public class Renderer : ISceneHost
         depthDownsampleShader = Scene.RendererContext.ShaderLoader.LoadShader("depth_downsample");
         orderIndependentCompositeShader = Scene.RendererContext.ShaderLoader.LoadShader("oit_composite");
 
-        histogramShaders[0] = Scene.RendererContext.ShaderLoader.LoadShader("histogram");
-        histogramShaders[1] = Scene.RendererContext.ShaderLoader.LoadShader("histogram", ("D_HISTOGRAM_MODE", 1));
+        HistogramReduceShader = Scene.RendererContext.ShaderLoader.LoadShader("histogram", ("D_HISTOGRAM_MODE", 1));
 
         histogramBuffers[0] = StorageBuffer.Allocate<uint>(ReservedBufferSlots.BufferSlot15, "Histogram", 256, BufferUsage.GpuOnly);
         histogramBuffers[1] = StorageBuffer.Allocate<uint>(ReservedBufferSlots.BufferSlot11, "HistogramReadback", 4, BufferUsage.Readback);
@@ -1373,7 +1372,7 @@ public class Renderer : ISceneHost
         }
 
         var isWireframe = IsWireframe && isStandardPass; // To avoid toggling it mid frame
-        var computeFramebufferLuminance = Postprocess.State.ExposureSettings.AutoExposureEnabled;
+        MeterSceneLuminance = isStandardPass && Postprocess.State.ExposureSettings.AutoExposureEnabled;
 
         // TODO: check if renderpass allows wireframe mode
         // TODO+: replace wireframe shaders with solid color
@@ -1444,8 +1443,6 @@ public class Renderer : ISceneHost
                 }
             }
 
-            copyColor |= computeFramebufferLuminance;
-
             if (isMainFramebuffer)
             {
                 var generateDepthPyramid = Settings.EnableOcclusionCulling
@@ -1467,11 +1464,6 @@ public class Renderer : ISceneHost
                 }
 
                 GrabFramebufferCopy(renderContext.Framebuffer, copyColor, copyDepth);
-
-                if (isStandardPass && !isWireframe && computeFramebufferLuminance && renderContext.Framebuffer.NumSamples > 1)
-                {
-                    ComputeAverageLuminance(renderContext.Framebuffer.Color!, renderContext.Framebuffer.NumSamples);
-                }
 
                 if (generateDepthPyramid)
                 {
@@ -1552,11 +1544,6 @@ public class Renderer : ISceneHost
         if (isStandardPass)
         {
             RenderEffectsBloomMap(mainView, renderContext);
-        }
-
-        if (isStandardPass && computeFramebufferLuminance && (isWireframe || renderContext.Framebuffer.NumSamples <= 1))
-        {
-            ComputeAverageLuminance(ResolvedSceneColor!);
         }
 
         if (isStandardPass)
@@ -1711,48 +1698,23 @@ public class Renderer : ISceneHost
         }
     }
 
-    private void ComputeAverageLuminance(RenderTexture histogramInput, int samples = 1)
+    private void ComputeAverageLuminance()
     {
         Debug.Assert(ResolvedSceneColor != null);
 
         using var _ = new GLDebugGroup("Compute Average Luminance");
 
-        var width = ResolvedSceneColor.Width;
-        var height = ResolvedSceneColor.Height;
-
-        static void Dispatch(Shader shader, RenderTexture texture, int x, int y)
-        {
-            var logMin = -8f;
-            var logRange = 13f;
-
-            shader.Use();
-            shader.SetTexture(0, "inputImage", texture);
-            shader.SetUniform1("logMinLuminance", logMin);
-            shader.SetUniform1("logLuminanceRange", logRange);
-
-            GL.DispatchCompute(x, y, 1);
-        }
-
-        histogramBuffers[0].Clear();
         histogramBuffers[0].BindBufferBase();
         histogramBuffers[1].BindBufferBase();
 
-        var inputTex = ResolvedSceneColor;
-
-        if (histogramShaderSamples != samples)
-        {
-            histogramShaderSamples = samples;
-            histogramShaders[0] = Scene.RendererContext.ShaderLoader.LoadShader("histogram", ("D_MSAA_SAMPLES", (byte)samples));
-        }
-
-        // Build histogram
-        var groupsX = Math.Max(1, MathUtils.DivideRoundUp(width, 16));
-        var groupsY = Math.Max(1, MathUtils.DivideRoundUp(height, 16));
-        Dispatch(histogramShaders[0], histogramInput, groupsX, groupsY);
         GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
 
         // Reduce histogram
-        Dispatch(histogramShaders[1], inputTex, 1, 1); // local_size_x = 256
+        HistogramReduceShader.Use();
+        HistogramReduceShader.SetTexture(0, "inputImage", ResolvedSceneColor);
+        HistogramReduceShader.SetUniform1("logMinLuminance", -8f);
+        HistogramReduceShader.SetUniform1("logLuminanceRange", 13f);
+        GL.DispatchCompute(1, 1, 1); // local_size_x = 256
 
         GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit | MemoryBarrierFlags.BufferUpdateBarrierBit);
 
@@ -2183,7 +2145,21 @@ public class Renderer : ISceneHost
 
         EnsureResolvedTextureSize(inputFramebuffer.Width, inputFramebuffer.Height);
 
-        Postprocess.Render(inputFramebuffer, outputFramebuffer, ResolvedSceneColor!, Camera, flipY);
+        var meterLuminance = MeterSceneLuminance && ReferenceEquals(inputFramebuffer, MainFramebuffer);
+
+        if (meterLuminance)
+        {
+            histogramBuffers[0].Clear();
+            histogramBuffers[0].BindBufferBase();
+            histogramBuffers[1].BindBufferBase();
+        }
+
+        Postprocess.Render(inputFramebuffer, outputFramebuffer, ResolvedSceneColor!, Camera, flipY, meterLuminance);
+
+        if (meterLuminance)
+        {
+            ComputeAverageLuminance();
+        }
     }
 
     /// <summary>

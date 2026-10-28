@@ -14,6 +14,8 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
         private readonly RendererContext RendererContext;
         private Shader? shaderMsaaResolve;
+        private Shader? ShaderMsaaResolveHistogram;
+        private Shader? ShaderMsaaResolveDofHistogram;
         private Shader? shaderDepthResolve;
         private Shader? shaderPostProcess;
         private Shader? shaderPostProcessBloom;
@@ -100,13 +102,12 @@ namespace ValveResourceFormat.Renderer.PostProcess
         public void Load(int msaaSamples)
         {
             var msaa = (byte)msaaSamples;
-            shaderMsaaResolve = RendererContext.ShaderLoader.LoadShader("msaa_resolve", ("D_MSAA_SAMPLES", msaa));
+            shaderMsaaResolve = RendererContext.ShaderLoader.LoadShader("msaa_resolve");
             shaderDepthResolve = RendererContext.ShaderLoader.LoadShader("depth_resolve", ("D_MSAA_SAMPLES", msaa));
             shaderPostProcess = RendererContext.ShaderLoader.LoadShader("post_processing", ("D_BLOOM", 0));
             shaderPostProcessBloom = RendererContext.ShaderLoader.LoadShader("post_processing", ("D_BLOOM", 1));
             shaderCombineLuts = RendererContext.ShaderLoader.LoadShader("combine_luts");
 
-            DOF.MsaaSamples = msaa;
             Bloom.Load();
         }
 
@@ -127,6 +128,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
             {
                 shaderMsaaResolve.Use();
                 shaderMsaaResolve.SetTexture(0, "g_tSourceMsaa", source.Color);
+                shaderMsaaResolve.SetUniform("g_iSampleCount", source.NumSamples);
                 GL.BindImageTexture(1, destColor.Handle, 0, false, 0,
                     TextureAccess.WriteOnly, SizedInternalFormat.Rgba16f);
                 GL.DispatchCompute(groupsX, groupsY, 1);
@@ -142,6 +144,13 @@ namespace ValveResourceFormat.Renderer.PostProcess
             }
 
             GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit | MemoryBarrierFlags.TextureFetchBarrierBit);
+        }
+
+        private Shader MsaaResolveHistogram(bool dof)
+        {
+            return dof
+                ? ShaderMsaaResolveDofHistogram ??= RendererContext.ShaderLoader.LoadShader("msaa_resolve", ("D_DOF", 1), ("D_HISTOGRAM", 1))
+                : ShaderMsaaResolveHistogram ??= RendererContext.ShaderLoader.LoadShader("msaa_resolve", ("D_HISTOGRAM", 1));
         }
 
         /// <summary>
@@ -243,7 +252,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
         /// Resolves MSAA, applies DOF/bloom, tonemaps, and writes the final LDR image to <paramref name="colorBufferDraw"/>.
         /// </summary>
         public void Render(Framebuffer colorBufferRead, Framebuffer colorBufferDraw,
-            RenderTexture resolveTarget, Camera camera, bool flipY)
+            RenderTexture resolveTarget, Camera camera, bool flipY, bool meterLuminance = false)
         {
             Debug.Assert(shaderMsaaResolve != null);
             Debug.Assert(shaderPostProcess != null && shaderPostProcessBloom != null);
@@ -254,13 +263,22 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
             using (new GLDebugGroup("MSAA Resolve"))
             {
-                var msaaResolveShader = DOF.Enabled ? DOF.MsaaResolveDof : shaderMsaaResolve;
+                var msaaResolveShader = meterLuminance
+                    ? MsaaResolveHistogram(DOF.Enabled)
+                    : DOF.Enabled ? DOF.MsaaResolveDof : shaderMsaaResolve;
 
                 msaaResolveShader.Use();
                 msaaResolveShader.SetTexture(0, "g_tSourceMsaa", colorBufferRead.Color);
                 GL.BindImageTexture(1, resolveTarget.Handle, 0, false, 0,
                     TextureAccess.WriteOnly, SizedInternalFormat.Rgba16f);
                 msaaResolveShader.SetUniform("g_bFlipY", flipY);
+                msaaResolveShader.SetUniform("g_iSampleCount", colorBufferRead.NumSamples);
+
+                if (meterLuminance)
+                {
+                    msaaResolveShader.SetUniform1("logMinLuminance", -8f);
+                    msaaResolveShader.SetUniform1("logLuminanceRange", 13f);
+                }
 
                 if (DOF.Enabled)
                 {

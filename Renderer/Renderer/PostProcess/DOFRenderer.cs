@@ -41,30 +41,14 @@ public class DOFRenderer
 
     private Shader? DOF;
 
-    /// <summary>Gets or sets the MSAA sample count passed to the DOF resolve shader.</summary>
-    public byte MsaaSamples
-    {
-        get;
-        set
-        {
-            if (field == value)
-            {
-                return;
-            }
-
-            field = value;
-            msaaResolveDof = null;
-        }
-    }
-
     private Shader? msaaResolveDof;
 
     /// <summary>
     /// Gets the MSAA resolve shader variant that encodes circle-of-confusion in the alpha channel, loading
-    /// it on first use and whenever <see cref="MsaaSamples"/> selects a different variant.
+    /// it on first use
     /// </summary>
     public Shader MsaaResolveDof
-        => msaaResolveDof ??= RendererContext.ShaderLoader.LoadShader("msaa_resolve", ("D_DOF", 1), ("D_MSAA_SAMPLES", MsaaSamples));
+        => msaaResolveDof ??= RendererContext.ShaderLoader.LoadShader("msaa_resolve", ("D_DOF", 1));
 
     private readonly RendererContext RendererContext;
 
