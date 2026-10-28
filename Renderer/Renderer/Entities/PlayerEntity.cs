@@ -38,7 +38,7 @@ public sealed class PlayerEntity : BaseEntity
     private const float CarryBreakTime = 0.5f;
 
     // Holding use this long on a body grabs it at the aimed point, letting go sooner is a press
-    private const float GrabHoldTime = 0.25f;
+    private const float GrabHoldTime = 0.15f;
 
     /// <summary>Gets the controller whose state this entity reflects.</summary>
     public IPlayerController Controller { get; }
@@ -79,6 +79,10 @@ public sealed class PlayerEntity : BaseEntity
 
     private bool isUsePending;
     private float usePressTime;
+
+    // The aim when use went down, which a pending press or grab acts on even after the view moves away
+    private Vector3 pressEyePosition;
+    private Vector3 pressForward;
 
     private Body grabBody;
     private Body grabHand;
@@ -121,10 +125,11 @@ public sealed class PlayerEntity : BaseEntity
     /// Presses whatever the player is looking at within <see cref="UseRange"/>, the <c>+use</c> command.
     /// </summary>
     /// <returns>The entity that was pressed, or <see langword="null"/> if nothing was in reach.</returns>
-    public BaseEntity? PressUse()
+    public BaseEntity? PressUse() => PressUse(Controller.EyePosition, Controller.ViewForward);
+
+    private BaseEntity? PressUse(Vector3 eyePosition, Vector3 forward)
     {
-        var from = Controller.EyePosition;
-        var target = EntitySystem.FindUseTarget(from, from + Controller.ViewForward * UseRange);
+        var target = EntitySystem.FindUseTarget(eyePosition, eyePosition + forward * UseRange);
 
         target?.Use(this);
 
@@ -156,11 +161,14 @@ public sealed class PlayerEntity : BaseEntity
 
         if (Buttons.Pressed(TrackedKeys.E))
         {
+            pressEyePosition = Controller.EyePosition;
+            pressForward = Controller.ViewForward;
+
             if (Carried != null)
             {
                 Drop();
             }
-            else if (isHolding && (FindAimGrabbable() != null || FindGrabTarget(out _, out _)))
+            else if (isHolding && (FindAimGrabbable(out _) != null || FindGrabTarget(out _, out _)))
             {
                 isUsePending = true;
                 usePressTime = EntitySystem.CurrentTime;
@@ -196,23 +204,21 @@ public sealed class PlayerEntity : BaseEntity
 
     private void Press()
     {
-        if (FindAimGrabbable() is BaseEntity interactable)
+        if (FindAimGrabbable(out _) is BaseEntity interactable)
         {
             interactable.Use(this);
         }
-        else if (PressUse() == null)
+        else if (PressUse(pressEyePosition, pressForward) == null)
         {
             TryPickup();
         }
     }
 
-    // The nearest interactable along the aim within reach
-    private IAimGrabbable? FindAimGrabbable() => FindAimGrabbable(out _);
-
+    // The nearest interactable along the aim at the press within reach
     private IAimGrabbable? FindAimGrabbable(out float distance)
     {
-        var eyePosition = Controller.EyePosition;
-        var forward = Controller.ViewForward;
+        var eyePosition = pressEyePosition;
+        var forward = pressForward;
         IAimGrabbable? nearest = null;
         distance = UseRange;
 
@@ -488,8 +494,8 @@ public sealed class PlayerEntity : BaseEntity
             return;
         }
 
-        var eyePosition = Controller.EyePosition;
-        var forward = Controller.ViewForward;
+        var eyePosition = pressEyePosition;
+        var forward = pressForward;
 
         // World and movers included to block pickups through them, player category left out for debris
         var hit = physics.World.RaycastClosest(eyePosition, forward * PickupReach,
@@ -532,8 +538,7 @@ public sealed class PlayerEntity : BaseEntity
             return false;
         }
 
-        var eyePosition = Controller.EyePosition;
-        var hit = physics.World.RaycastClosest(eyePosition, Controller.ViewForward * UseRange,
+        var hit = physics.World.RaycastClosest(pressEyePosition, pressForward * UseRange,
             new QueryFilter(~PhysicsSimulation.PlayerCategory,
                 PhysicsSimulation.StaticCategory | PhysicsSimulation.PropCategory
                 | PhysicsSimulation.DebrisCategory | PhysicsSimulation.RagdollCategory | PhysicsSimulation.MoverCategory));
@@ -553,7 +558,7 @@ public sealed class PlayerEntity : BaseEntity
         if (FindAimGrabbable(out var aimDistance) is { } interactable)
         {
             aimGrab = interactable;
-            interactable.BeginAimGrab(this, Controller.EyePosition, Controller.ViewForward, aimDistance);
+            interactable.BeginAimGrab(this, pressEyePosition, pressForward, aimDistance);
             return;
         }
 
