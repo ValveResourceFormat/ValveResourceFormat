@@ -34,6 +34,7 @@ public static class EntityFactory
         Register<FuncWater>("func_water", static (system, spawnInfo) => new FuncWater(system, spawnInfo));
         Register<FuncCombineBarrier>("func_combine_barrier", static (system, spawnInfo) => new FuncCombineBarrier(system, spawnInfo));
         Register<FuncButton>("func_button", static (system, spawnInfo) => new FuncButton(system, spawnInfo));
+        Register<FuncPhysicalButton>("func_physical_button", static (system, spawnInfo) => new FuncPhysicalButton(system, spawnInfo));
         Register<FuncDoor>("func_door", static (system, spawnInfo) => new FuncDoor(system, spawnInfo));
         Register<FuncDoorRotating>("func_door_rotating", static (system, spawnInfo) => new FuncDoorRotating(system, spawnInfo));
         Register<FuncMoveLinear>("func_movelinear", static (system, spawnInfo) => new FuncMoveLinear(system, spawnInfo));
