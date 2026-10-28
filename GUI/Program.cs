@@ -12,9 +12,9 @@ namespace GUI
 {
     static class Program
     {
+        public static Assembly Assembly { get; private set; } = typeof(Program).Assembly;
 #nullable disable
         public static MainForm MainForm { get; private set; }
-        public static Assembly Assembly { get; private set; }
         public static string ProductVersion { get; private set; }
         public static string DisplayVersion { get; private set; }
 #nullable enable

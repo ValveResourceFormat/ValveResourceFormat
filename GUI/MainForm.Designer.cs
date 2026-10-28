@@ -120,10 +120,10 @@ namespace GUI
             menuStrip.Dock = DockStyle.Fill;
             menuStrip.ImageScalingSize = new System.Drawing.Size(24, 24);
             menuStrip.Items.AddRange(new ToolStripItem[] { fileToolStripMenuItem, explorerToolStripMenuItem, findToolStripButton, settingsToolStripMenuItem, aboutToolStripMenuItem });
-            menuStrip.Location = new System.Drawing.Point(38, 0);
+            menuStrip.Location = new System.Drawing.Point(40, 0);
             menuStrip.Name = "menuStrip";
             menuStrip.Padding = new Padding(0, 8, 0, 8);
-            menuStrip.Size = new System.Drawing.Size(511, 48);
+            menuStrip.Size = new System.Drawing.Size(559, 48);
             menuStrip.TabIndex = 0;
             // 
             // fileToolStripMenuItem
@@ -131,7 +131,7 @@ namespace GUI
             fileToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { openToolStripMenuItem, toolStripSeparator2, registerVpkFileAssociationToolStripMenuItem, createVpkToolStripMenuItem, createVpkFromFolderToolStripMenuItem, editVpkToolStripMenuItem, toolStripSeparator4, openWelcomeScreenToolStripMenuItem, validateShadersToolStripMenuItem });
             fileToolStripMenuItem.Name = "fileToolStripMenuItem";
             fileToolStripMenuItem.Padding = new Padding(4);
-            fileToolStripMenuItem.Size = new System.Drawing.Size(61, 32);
+            fileToolStripMenuItem.Size = new System.Drawing.Size(37, 32);
             fileToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Folder.svg";
             fileToolStripMenuItem.Text = "F&ile";
             // 
@@ -139,7 +139,7 @@ namespace GUI
             // 
             openToolStripMenuItem.Name = "openToolStripMenuItem";
             openToolStripMenuItem.ShortcutKeys = Keys.Control | Keys.O;
-            openToolStripMenuItem.Size = new System.Drawing.Size(211, 30);
+            openToolStripMenuItem.Size = new System.Drawing.Size(203, 22);
             openToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Open.svg";
             openToolStripMenuItem.Text = "&Open";
             openToolStripMenuItem.Click += OpenToolStripMenuItem_Click;
@@ -147,12 +147,12 @@ namespace GUI
             // toolStripSeparator2
             // 
             toolStripSeparator2.Name = "toolStripSeparator2";
-            toolStripSeparator2.Size = new System.Drawing.Size(208, 6);
+            toolStripSeparator2.Size = new System.Drawing.Size(200, 6);
             // 
             // registerVpkFileAssociationToolStripMenuItem
             // 
             registerVpkFileAssociationToolStripMenuItem.Name = "registerVpkFileAssociationToolStripMenuItem";
-            registerVpkFileAssociationToolStripMenuItem.Size = new System.Drawing.Size(211, 30);
+            registerVpkFileAssociationToolStripMenuItem.Size = new System.Drawing.Size(203, 22);
             registerVpkFileAssociationToolStripMenuItem.SVGImageResourceName = "GUI.Icons.VPKLink.svg";
             registerVpkFileAssociationToolStripMenuItem.Text = "Open VPKs with this app";
             registerVpkFileAssociationToolStripMenuItem.Click += RegisterVpkFileAssociationToolStripMenuItem_Click;
@@ -160,7 +160,7 @@ namespace GUI
             // createVpkToolStripMenuItem
             // 
             createVpkToolStripMenuItem.Name = "createVpkToolStripMenuItem";
-            createVpkToolStripMenuItem.Size = new System.Drawing.Size(211, 30);
+            createVpkToolStripMenuItem.Size = new System.Drawing.Size(203, 22);
             createVpkToolStripMenuItem.SVGImageResourceName = "GUI.Icons.VPKCreate.svg";
             createVpkToolStripMenuItem.Text = "Create VPK";
             createVpkToolStripMenuItem.Click += CreateVpkToolStripMenuItem_Click;
@@ -168,7 +168,7 @@ namespace GUI
             // createVpkFromFolderToolStripMenuItem
             // 
             createVpkFromFolderToolStripMenuItem.Name = "createVpkFromFolderToolStripMenuItem";
-            createVpkFromFolderToolStripMenuItem.Size = new System.Drawing.Size(211, 30);
+            createVpkFromFolderToolStripMenuItem.Size = new System.Drawing.Size(203, 22);
             createVpkFromFolderToolStripMenuItem.SVGImageResourceName = "GUI.Icons.VPKCreateFromFolder.svg";
             createVpkFromFolderToolStripMenuItem.Text = "Create VPK from folder";
             createVpkFromFolderToolStripMenuItem.Click += CreateVpkFromFolderToolStripMenuItem_Click;
@@ -176,7 +176,7 @@ namespace GUI
             // editVpkToolStripMenuItem
             // 
             editVpkToolStripMenuItem.Name = "editVpkToolStripMenuItem";
-            editVpkToolStripMenuItem.Size = new System.Drawing.Size(211, 30);
+            editVpkToolStripMenuItem.Size = new System.Drawing.Size(203, 22);
             editVpkToolStripMenuItem.SVGImageResourceName = "GUI.Icons.VPKEdit.svg";
             editVpkToolStripMenuItem.Text = "Edit VPK";
             editVpkToolStripMenuItem.Click += EditVpkToolStripMenuItem_Click;
@@ -184,12 +184,12 @@ namespace GUI
             // toolStripSeparator4
             // 
             toolStripSeparator4.Name = "toolStripSeparator4";
-            toolStripSeparator4.Size = new System.Drawing.Size(208, 6);
+            toolStripSeparator4.Size = new System.Drawing.Size(200, 6);
             // 
             // openWelcomeScreenToolStripMenuItem
             // 
             openWelcomeScreenToolStripMenuItem.Name = "openWelcomeScreenToolStripMenuItem";
-            openWelcomeScreenToolStripMenuItem.Size = new System.Drawing.Size(211, 30);
+            openWelcomeScreenToolStripMenuItem.Size = new System.Drawing.Size(203, 22);
             openWelcomeScreenToolStripMenuItem.SVGImageResourceName = "GUI.Icons.WelcomeScreen.svg";
             openWelcomeScreenToolStripMenuItem.Text = "Open welcome screen";
             openWelcomeScreenToolStripMenuItem.Click += OnOpenWelcomeScreenToolStripMenuItem_Click;
@@ -197,7 +197,7 @@ namespace GUI
             // validateShadersToolStripMenuItem
             // 
             validateShadersToolStripMenuItem.Name = "validateShadersToolStripMenuItem";
-            validateShadersToolStripMenuItem.Size = new System.Drawing.Size(211, 30);
+            validateShadersToolStripMenuItem.Size = new System.Drawing.Size(203, 22);
             validateShadersToolStripMenuItem.SVGImageResourceName = "GUI.Icons.ValidateShaders.svg";
             validateShadersToolStripMenuItem.Text = "Validate shaders";
             validateShadersToolStripMenuItem.Click += OnValidateShadersToolStripMenuItem_Click;
@@ -206,7 +206,7 @@ namespace GUI
             // 
             explorerToolStripMenuItem.Name = "explorerToolStripMenuItem";
             explorerToolStripMenuItem.Padding = new Padding(4);
-            explorerToolStripMenuItem.Size = new System.Drawing.Size(85, 32);
+            explorerToolStripMenuItem.Size = new System.Drawing.Size(61, 32);
             explorerToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Explorer.svg";
             explorerToolStripMenuItem.Text = "Explorer";
             explorerToolStripMenuItem.Click += OpenExplorer_Click;
@@ -217,7 +217,7 @@ namespace GUI
             findToolStripButton.Name = "findToolStripButton";
             findToolStripButton.Padding = new Padding(4);
             findToolStripButton.ShortcutKeys = Keys.Control | Keys.F;
-            findToolStripButton.Size = new System.Drawing.Size(66, 32);
+            findToolStripButton.Size = new System.Drawing.Size(42, 32);
             findToolStripButton.SVGImageResourceName = "GUI.Icons.Find.svg";
             findToolStripButton.Text = "&Find";
             findToolStripButton.Click += FindToolStripMenuItem_Click;
@@ -225,7 +225,7 @@ namespace GUI
             // settingsToolStripMenuItem
             // 
             settingsToolStripMenuItem.Name = "settingsToolStripMenuItem";
-            settingsToolStripMenuItem.Size = new System.Drawing.Size(85, 32);
+            settingsToolStripMenuItem.Size = new System.Drawing.Size(61, 32);
             settingsToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Settings.svg";
             settingsToolStripMenuItem.Text = "Settings";
             settingsToolStripMenuItem.Click += OnSettingsItemClick;
@@ -233,7 +233,7 @@ namespace GUI
             // aboutToolStripMenuItem
             // 
             aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            aboutToolStripMenuItem.Size = new System.Drawing.Size(76, 32);
+            aboutToolStripMenuItem.Size = new System.Drawing.Size(52, 32);
             aboutToolStripMenuItem.SVGImageResourceName = "GUI.Icons.About.svg";
             aboutToolStripMenuItem.Text = "About";
             aboutToolStripMenuItem.Click += OnAboutItemClick;
@@ -242,7 +242,7 @@ namespace GUI
             // 
             recoverDeletedToolStripMenuItem.ImageTransparentColor = System.Drawing.Color.Magenta;
             recoverDeletedToolStripMenuItem.Name = "recoverDeletedToolStripMenuItem";
-            recoverDeletedToolStripMenuItem.Size = new System.Drawing.Size(207, 30);
+            recoverDeletedToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
             recoverDeletedToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Recover.svg";
             recoverDeletedToolStripMenuItem.Text = "Recover deleted files";
             recoverDeletedToolStripMenuItem.Click += RecoverDeletedToolStripMenuItem_Click;
@@ -250,29 +250,27 @@ namespace GUI
             // editThisVpkToolStripMenuItem
             // 
             editThisVpkToolStripMenuItem.Name = "editThisVpkToolStripMenuItem";
-            editThisVpkToolStripMenuItem.Size = new System.Drawing.Size(207, 30);
+            editThisVpkToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
             editThisVpkToolStripMenuItem.SVGImageResourceName = "GUI.Icons.VPKEdit.svg";
             editThisVpkToolStripMenuItem.Text = "Edit this VPK";
             editThisVpkToolStripMenuItem.Click += EditThisVpkToolStripMenuItem_Click;
             // 
             // mainTabs
             // 
-            mainTabs.AccentColor = System.Drawing.Color.FromArgb(99, 161, 255);
             mainTabs.Appearance = TabAppearance.Buttons;
             mainTabs.BaseTabWidth = 200;
+            mainTabs.ConfirmClose = null;
             mainTabs.Dock = DockStyle.Fill;
             mainTabs.DrawMode = TabDrawMode.OwnerDrawFixed;
             mainTabs.EndEllipsis = false;
-            mainTabs.HoverColor = System.Drawing.Color.FromArgb(99, 161, 255);
+            mainTabs.HideTabHeader = false;
             mainTabs.ItemSize = new System.Drawing.Size(200, 32);
             mainTabs.Location = new System.Drawing.Point(0, 52);
             mainTabs.Margin = new Padding(16);
             mainTabs.Name = "mainTabs";
             mainTabs.Padding = new System.Drawing.Point(16, 16);
-            mainTabs.SelectedForeColor = System.Drawing.Color.Black;
             mainTabs.SelectedIndex = 0;
             mainTabs.SelectionLine = true;
-            mainTabs.SelectTabColor = System.Drawing.Color.FromArgb(231, 236, 236);
             mainTabs.Size = new System.Drawing.Size(749, 343);
             mainTabs.SizeMode = TabSizeMode.Fixed;
             mainTabs.TabHeight = 32;
@@ -287,13 +285,13 @@ namespace GUI
             tabContextMenuStrip.Items.AddRange(new ToolStripItem[] { closeToolStripMenuItem, closeOtherTabsToolStripMenuItem, closeToolStripMenuItems, closeToolStripMenuItemsToRight, closeToolStripMenuItemsToLeft, muteTabToolStripMenuItem, toolStripSeparator5, exportAsIsToolStripMenuItem, decompileExportToolStripMenuItem, clearConsoleToolStripMenuItem });
             tabContextMenuStrip.LayoutStyle = ToolStripLayoutStyle.Table;
             tabContextMenuStrip.Name = "contextMenuStrip1";
-            tabContextMenuStrip.Size = new System.Drawing.Size(234, 220);
+            tabContextMenuStrip.Size = new System.Drawing.Size(226, 208);
             // 
             // closeToolStripMenuItem
             // 
             closeToolStripMenuItem.Name = "closeToolStripMenuItem";
             closeToolStripMenuItem.ShortcutKeys = Keys.Control | Keys.W;
-            closeToolStripMenuItem.Size = new System.Drawing.Size(233, 30);
+            closeToolStripMenuItem.Size = new System.Drawing.Size(225, 22);
             closeToolStripMenuItem.SVGImageResourceName = "GUI.Icons.CloseTab.svg";
             closeToolStripMenuItem.Text = "Close &tab";
             closeToolStripMenuItem.Click += CloseToolStripMenuItem_Click;
@@ -301,7 +299,7 @@ namespace GUI
             // closeOtherTabsToolStripMenuItem
             // 
             closeOtherTabsToolStripMenuItem.Name = "closeOtherTabsToolStripMenuItem";
-            closeOtherTabsToolStripMenuItem.Size = new System.Drawing.Size(233, 30);
+            closeOtherTabsToolStripMenuItem.Size = new System.Drawing.Size(225, 22);
             closeOtherTabsToolStripMenuItem.SVGImageResourceName = "GUI.Icons.CloseOtherTabs.svg";
             closeOtherTabsToolStripMenuItem.Text = "Close all &other tabs";
             closeOtherTabsToolStripMenuItem.Click += CloseOtherTabsToolStripMenuItem_Click;
@@ -310,7 +308,7 @@ namespace GUI
             // 
             closeToolStripMenuItems.Name = "closeToolStripMenuItems";
             closeToolStripMenuItems.ShortcutKeys = Keys.Control | Keys.Q;
-            closeToolStripMenuItems.Size = new System.Drawing.Size(233, 30);
+            closeToolStripMenuItems.Size = new System.Drawing.Size(225, 22);
             closeToolStripMenuItems.SVGImageResourceName = "GUI.Icons.CloseAllTabs.svg";
             closeToolStripMenuItems.Text = "Close &all tabs";
             closeToolStripMenuItems.Click += CloseToolStripMenuItems_Click;
@@ -319,7 +317,7 @@ namespace GUI
             // 
             closeToolStripMenuItemsToRight.Name = "closeToolStripMenuItemsToRight";
             closeToolStripMenuItemsToRight.ShortcutKeys = Keys.Control | Keys.E;
-            closeToolStripMenuItemsToRight.Size = new System.Drawing.Size(233, 30);
+            closeToolStripMenuItemsToRight.Size = new System.Drawing.Size(225, 22);
             closeToolStripMenuItemsToRight.SVGImageResourceName = "GUI.Icons.CloseAllTabsRight.svg";
             closeToolStripMenuItemsToRight.Text = "Close all tabs to &right";
             closeToolStripMenuItemsToRight.Click += CloseToolStripMenuItemsToRight_Click;
@@ -327,28 +325,28 @@ namespace GUI
             // closeToolStripMenuItemsToLeft
             // 
             closeToolStripMenuItemsToLeft.Name = "closeToolStripMenuItemsToLeft";
-            closeToolStripMenuItemsToLeft.Size = new System.Drawing.Size(233, 30);
+            closeToolStripMenuItemsToLeft.Size = new System.Drawing.Size(225, 22);
             closeToolStripMenuItemsToLeft.SVGImageResourceName = "GUI.Icons.CloseAllTabsLeft.svg";
             closeToolStripMenuItemsToLeft.Text = "Close all tabs to &left";
             closeToolStripMenuItemsToLeft.Click += CloseToolStripMenuItemsToLeft_Click;
-            //
+            // 
             // muteTabToolStripMenuItem
-            //
+            // 
             muteTabToolStripMenuItem.Name = "muteTabToolStripMenuItem";
-            muteTabToolStripMenuItem.Size = new System.Drawing.Size(233, 30);
+            muteTabToolStripMenuItem.Size = new System.Drawing.Size(225, 22);
             muteTabToolStripMenuItem.SVGImageResourceName = "GUI.Icons.AudioVolume.svg";
             muteTabToolStripMenuItem.Text = "&Mute tab";
             muteTabToolStripMenuItem.Click += MuteTabToolStripMenuItem_Click;
-            //
+            // 
             // toolStripSeparator5
             // 
             toolStripSeparator5.Name = "toolStripSeparator5";
-            toolStripSeparator5.Size = new System.Drawing.Size(230, 6);
+            toolStripSeparator5.Size = new System.Drawing.Size(222, 6);
             // 
             // exportAsIsToolStripMenuItem
             // 
             exportAsIsToolStripMenuItem.Name = "exportAsIsToolStripMenuItem";
-            exportAsIsToolStripMenuItem.Size = new System.Drawing.Size(233, 30);
+            exportAsIsToolStripMenuItem.Size = new System.Drawing.Size(225, 22);
             exportAsIsToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Export.svg";
             exportAsIsToolStripMenuItem.Text = "Export as is";
             exportAsIsToolStripMenuItem.Click += ExtractToolStripMenuItem_Click;
@@ -356,7 +354,7 @@ namespace GUI
             // decompileExportToolStripMenuItem
             // 
             decompileExportToolStripMenuItem.Name = "decompileExportToolStripMenuItem";
-            decompileExportToolStripMenuItem.Size = new System.Drawing.Size(233, 30);
+            decompileExportToolStripMenuItem.Size = new System.Drawing.Size(225, 22);
             decompileExportToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Decompile.svg";
             decompileExportToolStripMenuItem.Text = "Decompile && export";
             decompileExportToolStripMenuItem.Click += DecompileToolStripMenuItem_Click;
@@ -364,7 +362,7 @@ namespace GUI
             // clearConsoleToolStripMenuItem
             // 
             clearConsoleToolStripMenuItem.Name = "clearConsoleToolStripMenuItem";
-            clearConsoleToolStripMenuItem.Size = new System.Drawing.Size(233, 30);
+            clearConsoleToolStripMenuItem.Size = new System.Drawing.Size(225, 22);
             clearConsoleToolStripMenuItem.SVGImageResourceName = "GUI.Icons.ClearLog.svg";
             clearConsoleToolStripMenuItem.Text = "Clear console";
             clearConsoleToolStripMenuItem.Click += ClearConsoleToolStripMenuItem_Click;
@@ -375,12 +373,12 @@ namespace GUI
             vpkContextMenu.ImageScalingSize = new System.Drawing.Size(24, 24);
             vpkContextMenu.Items.AddRange(new ToolStripItem[] { extractToolStripMenuItem, decompileToolStripMenuItem, toolStripSeparator1, copyFileNameToolStripMenuItem, copyFileNameOnDiskToolStripMenuItem, toolStripSeparator3, searchInFolderToolStripMenuItem, openWithoutViewerToolStripMenuItem, openWithDefaultAppToolStripMenuItem, viewAssetInfoToolStripMenuItem, verifyPackageContentsToolStripMenuItem, recoverDeletedToolStripMenuItem, editThisVpkToolStripMenuItem });
             vpkContextMenu.Name = "vpkContextMenu";
-            vpkContextMenu.Size = new System.Drawing.Size(208, 286);
+            vpkContextMenu.Size = new System.Drawing.Size(200, 258);
             // 
             // extractToolStripMenuItem
             // 
             extractToolStripMenuItem.Name = "extractToolStripMenuItem";
-            extractToolStripMenuItem.Size = new System.Drawing.Size(207, 30);
+            extractToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
             extractToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Export.svg";
             extractToolStripMenuItem.Text = "Export as is";
             extractToolStripMenuItem.Click += ExtractToolStripMenuItem_Click;
@@ -388,7 +386,7 @@ namespace GUI
             // decompileToolStripMenuItem
             // 
             decompileToolStripMenuItem.Name = "decompileToolStripMenuItem";
-            decompileToolStripMenuItem.Size = new System.Drawing.Size(207, 30);
+            decompileToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
             decompileToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Decompile.svg";
             decompileToolStripMenuItem.Text = "Decompile && export";
             decompileToolStripMenuItem.Click += DecompileToolStripMenuItem_Click;
@@ -396,12 +394,12 @@ namespace GUI
             // toolStripSeparator1
             // 
             toolStripSeparator1.Name = "toolStripSeparator1";
-            toolStripSeparator1.Size = new System.Drawing.Size(204, 6);
+            toolStripSeparator1.Size = new System.Drawing.Size(196, 6);
             // 
             // copyFileNameToolStripMenuItem
             // 
             copyFileNameToolStripMenuItem.Name = "copyFileNameToolStripMenuItem";
-            copyFileNameToolStripMenuItem.Size = new System.Drawing.Size(207, 30);
+            copyFileNameToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
             copyFileNameToolStripMenuItem.SVGImageResourceName = "GUI.Icons.CopyName.svg";
             copyFileNameToolStripMenuItem.Text = "Copy name";
             copyFileNameToolStripMenuItem.Click += CopyFileNameToolStripMenuItem_Click;
@@ -409,7 +407,7 @@ namespace GUI
             // copyFileNameOnDiskToolStripMenuItem
             // 
             copyFileNameOnDiskToolStripMenuItem.Name = "copyFileNameOnDiskToolStripMenuItem";
-            copyFileNameOnDiskToolStripMenuItem.Size = new System.Drawing.Size(207, 30);
+            copyFileNameOnDiskToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
             copyFileNameOnDiskToolStripMenuItem.SVGImageResourceName = "GUI.Icons.CopyURL.svg";
             copyFileNameOnDiskToolStripMenuItem.Text = "Copy URL";
             copyFileNameOnDiskToolStripMenuItem.Click += CopyFileNameOnDiskToolStripMenuItem_Click;
@@ -417,12 +415,12 @@ namespace GUI
             // toolStripSeparator3
             // 
             toolStripSeparator3.Name = "toolStripSeparator3";
-            toolStripSeparator3.Size = new System.Drawing.Size(204, 6);
+            toolStripSeparator3.Size = new System.Drawing.Size(196, 6);
             // 
             // searchInFolderToolStripMenuItem
             // 
             searchInFolderToolStripMenuItem.Name = "searchInFolderToolStripMenuItem";
-            searchInFolderToolStripMenuItem.Size = new System.Drawing.Size(207, 30);
+            searchInFolderToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
             searchInFolderToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Find.svg";
             searchInFolderToolStripMenuItem.Text = "Search in folder";
             searchInFolderToolStripMenuItem.Click += SearchInFolderToolStripMenuItem_Click;
@@ -430,7 +428,7 @@ namespace GUI
             // openWithoutViewerToolStripMenuItem
             // 
             openWithoutViewerToolStripMenuItem.Name = "openWithoutViewerToolStripMenuItem";
-            openWithoutViewerToolStripMenuItem.Size = new System.Drawing.Size(207, 30);
+            openWithoutViewerToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
             openWithoutViewerToolStripMenuItem.SVGImageResourceName = "GUI.Icons.OpenWithoutViewer.svg";
             openWithoutViewerToolStripMenuItem.Text = "Open without viewer";
             openWithoutViewerToolStripMenuItem.Click += OpenWithoutViewerToolStripMenuItem_Click;
@@ -438,7 +436,7 @@ namespace GUI
             // openWithDefaultAppToolStripMenuItem
             // 
             openWithDefaultAppToolStripMenuItem.Name = "openWithDefaultAppToolStripMenuItem";
-            openWithDefaultAppToolStripMenuItem.Size = new System.Drawing.Size(207, 30);
+            openWithDefaultAppToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
             openWithDefaultAppToolStripMenuItem.SVGImageResourceName = "GUI.Icons.OpenWithDefaultApp.svg";
             openWithDefaultAppToolStripMenuItem.Text = "Open with default app";
             openWithDefaultAppToolStripMenuItem.Click += OpenWithDefaultAppToolStripMenuItem_Click;
@@ -446,7 +444,7 @@ namespace GUI
             // viewAssetInfoToolStripMenuItem
             // 
             viewAssetInfoToolStripMenuItem.Name = "viewAssetInfoToolStripMenuItem";
-            viewAssetInfoToolStripMenuItem.Size = new System.Drawing.Size(207, 30);
+            viewAssetInfoToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
             viewAssetInfoToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Info.svg";
             viewAssetInfoToolStripMenuItem.Text = "View asset info";
             viewAssetInfoToolStripMenuItem.Click += OnViewAssetInfoToolStripMenuItemClick;
@@ -454,7 +452,7 @@ namespace GUI
             // verifyPackageContentsToolStripMenuItem
             // 
             verifyPackageContentsToolStripMenuItem.Name = "verifyPackageContentsToolStripMenuItem";
-            verifyPackageContentsToolStripMenuItem.Size = new System.Drawing.Size(207, 30);
+            verifyPackageContentsToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
             verifyPackageContentsToolStripMenuItem.SVGImageResourceName = "GUI.Icons.VPKVerifyContent.svg";
             verifyPackageContentsToolStripMenuItem.Text = "Verify package contents";
             verifyPackageContentsToolStripMenuItem.Click += VerifyPackageContentsToolStripMenuItem_Click;
@@ -466,12 +464,12 @@ namespace GUI
             vpkEditingContextMenu.ImeMode = ImeMode.Off;
             vpkEditingContextMenu.Items.AddRange(new ToolStripItem[] { vpkEditCreateFolderToolStripMenuItem, vpkEditAddExistingFolderToolStripMenuItem, vpkEditAddExistingFilesToolStripMenuItem, vpkEditRenameToolStripMenuItem, vpkEditRemoveThisFolderToolStripMenuItem, vpkEditRemoveThisFileToolStripMenuItem, vpkEditSeparator1, vpkEditExtractToolStripMenuItem, vpkEditDecompileToolStripMenuItem, vpkEditSeparator2, vpkEditSaveToDiskToolStripMenuItem, vpkEditSaveAsToolStripMenuItem });
             vpkEditingContextMenu.Name = "vpkEditingContextMenu";
-            vpkEditingContextMenu.Size = new System.Drawing.Size(182, 184);
+            vpkEditingContextMenu.Size = new System.Drawing.Size(181, 236);
             // 
             // vpkEditCreateFolderToolStripMenuItem
             // 
             vpkEditCreateFolderToolStripMenuItem.Name = "vpkEditCreateFolderToolStripMenuItem";
-            vpkEditCreateFolderToolStripMenuItem.Size = new System.Drawing.Size(181, 30);
+            vpkEditCreateFolderToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             vpkEditCreateFolderToolStripMenuItem.SVGImageResourceName = "GUI.Icons.FolderCreate.svg";
             vpkEditCreateFolderToolStripMenuItem.Text = "Create folder";
             vpkEditCreateFolderToolStripMenuItem.Click += OnVpkCreateFolderToolStripMenuItem_Click;
@@ -479,7 +477,7 @@ namespace GUI
             // vpkEditAddExistingFolderToolStripMenuItem
             // 
             vpkEditAddExistingFolderToolStripMenuItem.Name = "vpkEditAddExistingFolderToolStripMenuItem";
-            vpkEditAddExistingFolderToolStripMenuItem.Size = new System.Drawing.Size(181, 30);
+            vpkEditAddExistingFolderToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             vpkEditAddExistingFolderToolStripMenuItem.SVGImageResourceName = "GUI.Icons.FolderAdd.svg";
             vpkEditAddExistingFolderToolStripMenuItem.Text = "&Add existing folder";
             vpkEditAddExistingFolderToolStripMenuItem.Click += OnVpkAddNewFolderToolStripMenuItem_Click;
@@ -487,7 +485,7 @@ namespace GUI
             // vpkEditAddExistingFilesToolStripMenuItem
             // 
             vpkEditAddExistingFilesToolStripMenuItem.Name = "vpkEditAddExistingFilesToolStripMenuItem";
-            vpkEditAddExistingFilesToolStripMenuItem.Size = new System.Drawing.Size(181, 30);
+            vpkEditAddExistingFilesToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             vpkEditAddExistingFilesToolStripMenuItem.SVGImageResourceName = "GUI.Icons.FileAdd.svg";
             vpkEditAddExistingFilesToolStripMenuItem.Text = "Add existing &files";
             vpkEditAddExistingFilesToolStripMenuItem.Click += OnVpkAddNewFileToolStripMenuItem_Click;
@@ -495,7 +493,7 @@ namespace GUI
             // vpkEditRenameToolStripMenuItem
             // 
             vpkEditRenameToolStripMenuItem.Name = "vpkEditRenameToolStripMenuItem";
-            vpkEditRenameToolStripMenuItem.Size = new System.Drawing.Size(181, 30);
+            vpkEditRenameToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             vpkEditRenameToolStripMenuItem.SVGImageResourceName = "GUI.Icons.VPKRename.svg";
             vpkEditRenameToolStripMenuItem.Text = "Re&name";
             vpkEditRenameToolStripMenuItem.Click += OnVpkEditingRenameToolStripMenuItem_Click;
@@ -503,7 +501,7 @@ namespace GUI
             // vpkEditRemoveThisFolderToolStripMenuItem
             // 
             vpkEditRemoveThisFolderToolStripMenuItem.Name = "vpkEditRemoveThisFolderToolStripMenuItem";
-            vpkEditRemoveThisFolderToolStripMenuItem.Size = new System.Drawing.Size(181, 30);
+            vpkEditRemoveThisFolderToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             vpkEditRemoveThisFolderToolStripMenuItem.SVGImageResourceName = "GUI.Icons.FolderRemove.svg";
             vpkEditRemoveThisFolderToolStripMenuItem.Text = "&Remove this folder";
             vpkEditRemoveThisFolderToolStripMenuItem.Click += OnVpkEditingRemoveThisToolStripMenuItem_Click;
@@ -511,28 +509,20 @@ namespace GUI
             // vpkEditRemoveThisFileToolStripMenuItem
             // 
             vpkEditRemoveThisFileToolStripMenuItem.Name = "vpkEditRemoveThisFileToolStripMenuItem";
-            vpkEditRemoveThisFileToolStripMenuItem.Size = new System.Drawing.Size(181, 30);
+            vpkEditRemoveThisFileToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             vpkEditRemoveThisFileToolStripMenuItem.SVGImageResourceName = "GUI.Icons.FileRemove.svg";
             vpkEditRemoveThisFileToolStripMenuItem.Text = "&Remove this file";
             vpkEditRemoveThisFileToolStripMenuItem.Click += OnVpkEditingRemoveThisToolStripMenuItem_Click;
             // 
-            // vpkEditSaveToDiskToolStripMenuItem
-            // 
-            vpkEditSaveToDiskToolStripMenuItem.Name = "vpkEditSaveToDiskToolStripMenuItem";
-            vpkEditSaveToDiskToolStripMenuItem.Size = new System.Drawing.Size(181, 30);
-            vpkEditSaveToDiskToolStripMenuItem.SVGImageResourceName = "GUI.Icons.VPKSave.svg";
-            vpkEditSaveToDiskToolStripMenuItem.Text = "&Save";
-            vpkEditSaveToDiskToolStripMenuItem.Click += OnSaveVPKToDiskToolStripMenuItem_Click;
-            // 
             // vpkEditSeparator1
             // 
             vpkEditSeparator1.Name = "vpkEditSeparator1";
-            vpkEditSeparator1.Size = new System.Drawing.Size(178, 6);
+            vpkEditSeparator1.Size = new System.Drawing.Size(177, 6);
             // 
             // vpkEditExtractToolStripMenuItem
             // 
             vpkEditExtractToolStripMenuItem.Name = "vpkEditExtractToolStripMenuItem";
-            vpkEditExtractToolStripMenuItem.Size = new System.Drawing.Size(181, 30);
+            vpkEditExtractToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             vpkEditExtractToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Export.svg";
             vpkEditExtractToolStripMenuItem.Text = "Export as is";
             vpkEditExtractToolStripMenuItem.Click += ExtractToolStripMenuItem_Click;
@@ -540,7 +530,7 @@ namespace GUI
             // vpkEditDecompileToolStripMenuItem
             // 
             vpkEditDecompileToolStripMenuItem.Name = "vpkEditDecompileToolStripMenuItem";
-            vpkEditDecompileToolStripMenuItem.Size = new System.Drawing.Size(181, 30);
+            vpkEditDecompileToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             vpkEditDecompileToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Decompile.svg";
             vpkEditDecompileToolStripMenuItem.Text = "Decompile && export";
             vpkEditDecompileToolStripMenuItem.Click += DecompileToolStripMenuItem_Click;
@@ -548,12 +538,20 @@ namespace GUI
             // vpkEditSeparator2
             // 
             vpkEditSeparator2.Name = "vpkEditSeparator2";
-            vpkEditSeparator2.Size = new System.Drawing.Size(178, 6);
+            vpkEditSeparator2.Size = new System.Drawing.Size(177, 6);
+            // 
+            // vpkEditSaveToDiskToolStripMenuItem
+            // 
+            vpkEditSaveToDiskToolStripMenuItem.Name = "vpkEditSaveToDiskToolStripMenuItem";
+            vpkEditSaveToDiskToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            vpkEditSaveToDiskToolStripMenuItem.SVGImageResourceName = "GUI.Icons.VPKSave.svg";
+            vpkEditSaveToDiskToolStripMenuItem.Text = "&Save";
+            vpkEditSaveToDiskToolStripMenuItem.Click += OnSaveVPKToDiskToolStripMenuItem_Click;
             // 
             // vpkEditSaveAsToolStripMenuItem
             // 
             vpkEditSaveAsToolStripMenuItem.Name = "vpkEditSaveAsToolStripMenuItem";
-            vpkEditSaveAsToolStripMenuItem.Size = new System.Drawing.Size(181, 30);
+            vpkEditSaveAsToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             vpkEditSaveAsToolStripMenuItem.SVGImageResourceName = "GUI.Icons.VPKSave.svg";
             vpkEditSaveAsToolStripMenuItem.Text = "Save &as";
             vpkEditSaveAsToolStripMenuItem.Click += OnSaveVpkAsToolStripMenuItem_Click;
@@ -600,7 +598,7 @@ namespace GUI
             controlsBoxPanel.ControlBoxIconColor = System.Drawing.Color.Black;
             controlsBoxPanel.CurrentHoveredButton = ControlsBoxPanel.CustomTitleBarHoveredButton.None;
             controlsBoxPanel.Dock = DockStyle.Right;
-            controlsBoxPanel.Location = new System.Drawing.Point(549, 0);
+            controlsBoxPanel.Location = new System.Drawing.Point(599, 0);
             controlsBoxPanel.Name = "controlsBoxPanel";
             controlsBoxPanel.Size = new System.Drawing.Size(150, 48);
             controlsBoxPanel.TabIndex = 1;
