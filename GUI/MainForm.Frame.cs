@@ -146,6 +146,9 @@ partial class MainForm
                         case ControlsBoxPanel.CustomTitleBarHoveredButton.Close:
                             m.Result = new IntPtr(PInvoke.HTCLOSE);
                             return;
+                        case ControlsBoxPanel.CustomTitleBarHoveredButton.Discord:
+                            m.Result = new IntPtr(PInvoke.HTOBJECT);
+                            return;
                     }
                 }
 
@@ -155,7 +158,7 @@ partial class MainForm
         }
         else if (m.Msg == PInvoke.WM_NCLBUTTONDOWN)
         {
-            if ((uint)m.WParam is PInvoke.HTCLOSE or PInvoke.HTMINBUTTON or PInvoke.HTMAXBUTTON)
+            if ((uint)m.WParam is PInvoke.HTCLOSE or PInvoke.HTMINBUTTON or PInvoke.HTMAXBUTTON or PInvoke.HTOBJECT)
             {
                 m.Result = 0;
                 return;
@@ -179,6 +182,12 @@ partial class MainForm
             {
                 var mode = IsWindowMaximised() ? SHOW_WINDOW_CMD.SW_NORMAL : SHOW_WINDOW_CMD.SW_MAXIMIZE;
                 PInvoke.ShowWindow((HWND)Handle, mode);
+                m.Result = 0;
+                return;
+            }
+            else if (m.WParam == PInvoke.HTOBJECT)
+            {
+                Forms.AboutForm.OpenUrl(Forms.AboutForm.DiscordUrl);
                 m.Result = 0;
                 return;
             }

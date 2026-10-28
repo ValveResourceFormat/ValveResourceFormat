@@ -17,6 +17,8 @@ namespace GUI.Forms
 {
     partial class AboutForm : ThemedForm
     {
+        public const string DiscordUrl = "https://discord.gg/s9QQ7Wg7r4";
+
         public AboutForm()
         {
             InitializeComponent();
@@ -122,7 +124,7 @@ namespace GUI.Forms
 
         private void OnDiscordClick(object sender, EventArgs e)
         {
-            OpenUrl("https://discord.gg/s9QQ7Wg7r4");
+            OpenUrl(DiscordUrl);
         }
 
         private void OnLicensesClick(object sender, EventArgs e)

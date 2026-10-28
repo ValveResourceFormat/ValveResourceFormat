@@ -14,6 +14,7 @@ public class ControlsBoxPanel : Panel
 
     // These are DPI compensated.
     private readonly int ControlBoxIconSize = 10;
+    private readonly int DiscordIconSize = 16;
     private readonly int TitleBarHeight = 35;
     private readonly int TitleBarButtonWidth = 45;
 
@@ -21,9 +22,22 @@ public class ControlsBoxPanel : Panel
     public Color ControlBoxHoverColor { get; set; } = Color.DimGray;
     public Color ControlBoxHoverCloseColor { get; set; } = Color.Red;
 
+    private Bitmap? discordIcon;
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            discordIcon?.Dispose();
+        }
+
+        base.Dispose(disposing);
+    }
+
     public enum CustomTitleBarHoveredButton
     {
         None,
+        Discord,
         Minimize,
         Maximize,
         Close,
@@ -34,6 +48,7 @@ public class ControlsBoxPanel : Panel
         internal Rectangle Close;
         internal Rectangle Maximize;
         internal Rectangle Minimize;
+        internal Rectangle Discord;
     }
 
     public CustomTitleBarHoveredButton CurrentHoveredButton { get; set; }
@@ -62,6 +77,9 @@ public class ControlsBoxPanel : Panel
 
         titleBarButtonRects.Minimize = titleBarButtonRects.Maximize;
         titleBarButtonRects.Minimize.X -= titleBarButtonWidth;
+
+        titleBarButtonRects.Discord = titleBarButtonRects.Minimize;
+        titleBarButtonRects.Discord.X -= titleBarButtonWidth;
 
         return titleBarButtonRects;
     }
@@ -135,6 +153,12 @@ public class ControlsBoxPanel : Panel
         {
             e.Graphics.FillRectangle(controlBoxButtonBrush, titleBarButtonRects.Minimize);
         }
+        else if (CurrentHoveredButton == CustomTitleBarHoveredButton.Discord)
+        {
+            e.Graphics.FillRectangle(controlBoxButtonBrush, titleBarButtonRects.Discord);
+        }
+
+        DrawDiscordIcon(e.Graphics, titleBarButtonRects.Discord);
 
         // Draws the horizontal line for the minimise icon.
         e.Graphics.DrawLine(controlBoxPen, minimiseIconRect3.X, minimiseIconRect3.Y, minimiseIconRect3.X + minimiseIconRect3.Width, minimiseIconRect3.Y);
@@ -182,6 +206,22 @@ public class ControlsBoxPanel : Panel
         }
     }
 
+    private void DrawDiscordIcon(Graphics graphics, Rectangle buttonRect)
+    {
+        var iconSize = this.AdjustForDPI(DiscordIconSize);
+
+        if (discordIcon == null || discordIcon.Width != iconSize)
+        {
+            discordIcon?.Dispose();
+            discordIcon = Themer.SvgToBitmap(AppIcons.ExtensionSVGS["Discord"], iconSize, iconSize);
+        }
+
+        var iconX = buttonRect.X + ((buttonRect.Width - iconSize) / 2);
+        var iconY = buttonRect.Y + ((buttonRect.Height - iconSize) / 2);
+
+        graphics.DrawImage(discordIcon, iconX, iconY, iconSize, iconSize);
+    }
+
     protected override void WndProc(ref Message m)
     {
         if (m.Msg == PInvoke.WM_NCHITTEST)
@@ -211,6 +251,10 @@ public class ControlsBoxPanel : Panel
         else if (titleBarButtonRects.Minimize.Contains(point))
         {
             CurrentHoveredButton = CustomTitleBarHoveredButton.Minimize;
+        }
+        else if (titleBarButtonRects.Discord.Contains(point))
+        {
+            CurrentHoveredButton = CustomTitleBarHoveredButton.Discord;
         }
         else
         {
