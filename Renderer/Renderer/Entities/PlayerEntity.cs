@@ -529,7 +529,9 @@ public sealed class PlayerEntity : BaseEntity
 
         var grabbedBody = hit.Shape.Body;
 
-        if (physics.GetOwner(grabbedBody) is not ICarryable carryable || carryable.IsRemoved || !carryable.CanBeCarried)
+        // A drawer or cabinet door out of grab reach stays on its constraint
+        if (physics.GetOwner(grabbedBody) is not ICarryable carryable || carryable.IsRemoved || !carryable.CanBeCarried
+            || PhysConstraint.FindHolding(EntitySystem, grabbedBody) != null)
         {
             return;
         }
