@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -63,6 +64,7 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
+                Debug.Assert(apart is not null);
                 await Assert.That(apart).IsNotNull();
                 await Assert.That(apartCurvature).IsEqualTo(0f);
                 await Assert.That(apart!.GetValueOrDefault(1) + apart.GetValueOrDefault(5)).IsEqualTo(0f).Within(0.02f);
@@ -105,6 +107,7 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
+                Debug.Assert(paint is not null);
                 await Assert.That(paint).IsNotNull();
                 await Assert.That(curvature).IsEqualTo(0f);
                 await Assert.That(paint!.GetValueOrDefault(1) + paint.GetValueOrDefault(5)).IsEqualTo(0.25f).Within(0.02f);
@@ -161,6 +164,7 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
+                Debug.Assert(paint is not null);
                 await Assert.That(paint).IsNotNull();
                 await Assert.That(curvature).IsEqualTo(0.25f);
                 await Assert.That(paint!.GetValueOrDefault(1) + paint.GetValueOrDefault(5)).IsEqualTo(1f).Within(0.02f);
@@ -320,6 +324,7 @@ namespace Tests.IO
 
             using (Assert.Multiple())
             {
+                Debug.Assert(folded is not null);
                 await Assert.That(paint).IsNull();
                 await Assert.That(curvature).IsEqualTo(0.64999986f);
                 await Assert.That(folded).IsNotNull();

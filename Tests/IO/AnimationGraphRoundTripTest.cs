@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -239,7 +240,8 @@ namespace Tests.IO
             using (Assert.Multiple())
             {
                 await Assert.That(authored).IsNotNull();
-                await Assert.That(authored!.GetFloatProperty("m_fMinValue")).IsEqualTo(-1f);
+                Debug.Assert(authored is not null);
+                await Assert.That(authored.GetFloatProperty("m_fMinValue")).IsEqualTo(-1f);
                 await Assert.That(authored.GetFloatProperty("m_fMaxValue")).IsEqualTo(1f);
                 await Assert.That(bound).IsNotEmpty();
                 await Assert.That(bound.Where(id => !ids.Contains(id))).IsEmpty();

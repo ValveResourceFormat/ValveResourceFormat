@@ -146,7 +146,18 @@ namespace ValveResourceFormat.IO
         {
             ArgumentNullException.ThrowIfNull(files);
 
-            var size = package?.Entries?.Values.Sum(static entries => entries.Sum(static entry => (long)entry.Length)) ?? 0;
+            long size = 0;
+
+            if (package?.Entries is { } entries)
+            {
+                foreach (var entryGroup in entries.Values)
+                {
+                    foreach (var entry in entryGroup)
+                    {
+                        size += entry.Length;
+                    }
+                }
+            }
 
             foreach (var (entryPath, length) in files)
             {
