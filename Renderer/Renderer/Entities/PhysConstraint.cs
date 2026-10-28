@@ -37,6 +37,23 @@ public abstract class PhysConstraint : BaseEntity
     private float forceLimit;
     private float torqueLimit;
 
+    // A press runs a body to the far end of its travel. One that gains less than its stall progress over this long
+    // is blocked, and ends where it is.
+    private const float DriveStallTime = 0.3f;
+
+    private Body drivenBody;
+    private bool isDriving;
+    private float driveGoal;
+    private float driveStallError;
+    private float driveStallTimeLeft;
+
+    /// <summary>How a press drives a body along its travel, in units or degrees as the travel is measured.</summary>
+    /// <param name="Speed">The top speed per second.</param>
+    /// <param name="ApproachRate">The speed per second for each unit left, which slows the body into the end rather than slamming it.</param>
+    /// <param name="ArriveTolerance">How close to the end counts as there.</param>
+    /// <param name="StallProgress">The least progress over the stall time that still counts as moving.</param>
+    protected readonly record struct DriveTuning(float Speed, float ApproachRate, float ArriveTolerance, float StallProgress);
+
     /// <summary>Initializes a constraint from its keyvalues.</summary>
     protected PhysConstraint(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
     {
@@ -106,6 +123,105 @@ public abstract class PhysConstraint : BaseEntity
 
     /// <summary>Creates the joint for the connection, or <see langword="null"/> when the authored settings have no equivalent.</summary>
     protected abstract Joint? CreateJoint(Box3D.PhysicsWorld world, JointDefinition connection);
+
+    /// <summary>Gets how a press drives the body, for constraints whose <see cref="TryGetTravel"/> gives one.</summary>
+    protected virtual DriveTuning Tuning => default;
+
+    /// <summary>Gets where <paramref name="body"/> is along the travel a press can run it over, and both ends of it.</summary>
+    /// <returns><see langword="false"/> when a press cannot move the body.</returns>
+    protected virtual bool TryGetTravel(Body body, out float position, out float firstEnd, out float secondEnd)
+    {
+        position = firstEnd = secondEnd = 0f;
+        return false;
+    }
+
+    /// <summary>Runs the joint motor at a speed along the travel, or with <see langword="null"/> hands it back to the joint friction.</summary>
+    protected virtual void SetDriveSpeed(float? speed)
+    {
+    }
+
+    /// <summary>Finds the active constraint holding <paramref name="body"/>.</summary>
+    internal static PhysConstraint? FindHolding(EntitySystem system, Body body)
+    {
+        foreach (var entity in system.Entities)
+        {
+            if (entity is PhysConstraint { hasJoint: true } constraint && constraint.joint.IsValid
+                && (constraint.joint.BodyA.Equals(body) || constraint.joint.BodyB.Equals(body)))
+            {
+                return constraint;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Runs <paramref name="body"/> to whichever end of its travel it is further from, as a press opens or shuts a drawer or cabinet door.</summary>
+    internal void Press(Body body)
+    {
+        if (!hasJoint || !joint.IsValid || !TryGetTravel(body, out var position, out var firstEnd, out var secondEnd))
+        {
+            return;
+        }
+
+        drivenBody = body;
+        driveGoal = MathF.Abs(position - firstEnd) < MathF.Abs(position - secondEnd) ? secondEnd : firstEnd;
+        isDriving = true;
+        driveStallError = MathF.Abs(driveGoal - position);
+        driveStallTimeLeft = DriveStallTime;
+        Drive(position);
+    }
+
+    /// <summary>Stops a run a press started, leaving the body to whatever holds it.</summary>
+    internal void StopDrive()
+    {
+        if (!isDriving)
+        {
+            return;
+        }
+
+        isDriving = false;
+
+        if (hasJoint && joint.IsValid)
+        {
+            SetDriveSpeed(null);
+        }
+    }
+
+    private void Drive(float position)
+    {
+        var error = driveGoal - position;
+        SetDriveSpeed(MathF.CopySign(MathF.Min(Tuning.Speed, MathF.Abs(error) * Tuning.ApproachRate), error));
+    }
+
+    private void UpdateDrive(float tickInterval)
+    {
+        if (!TryGetTravel(drivenBody, out var position, out _, out _))
+        {
+            StopDrive();
+            return;
+        }
+
+        var error = MathF.Abs(driveGoal - position);
+
+        if (error <= Tuning.ArriveTolerance)
+        {
+            StopDrive();
+            return;
+        }
+
+        if (driveStallError - error > Tuning.StallProgress)
+        {
+            driveStallError = error;
+            driveStallTimeLeft = DriveStallTime;
+        }
+        else if ((driveStallTimeLeft -= tickInterval) <= 0f)
+        {
+            StopDrive();
+            return;
+        }
+
+        Drive(position);
+    }
 
     private void TurnOn(bool wakeBodies)
     {
@@ -238,6 +354,12 @@ public abstract class PhysConstraint : BaseEntity
         if (IsOverloaded(joint, tickInterval))
         {
             Break(this);
+            return;
+        }
+
+        if (isDriving)
+        {
+            UpdateDrive(tickInterval);
         }
     }
 
@@ -266,6 +388,7 @@ public abstract class PhysConstraint : BaseEntity
         }
 
         hasJoint = false;
+        isDriving = false;
 
         if (hasWorldFreedBody)
         {

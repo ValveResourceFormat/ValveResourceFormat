@@ -4,10 +4,24 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
-/// <summary><c>phys_hinge</c> and <c>phys_hinge_local</c>: lets two bodies turn about one axis within a range of degrees.</summary>
+/// <summary>
+/// <c>phys_hinge</c> and <c>phys_hinge_local</c>: lets two bodies turn about one axis within a range of degrees.
+/// A press on the swinging body runs it to the far end of its range, as a cabinet door opens or shuts.
+/// </summary>
 public sealed class PhysHinge : PhysConstraint
 {
+    // How hard a press swings the body, in radians per second squared at its centre of mass
+    private const float DriveAcceleration = 40f;
+
+    // An unlimited hinge swings this far from where it spawned on a press
+    private const float UnlimitedSwing = 90f;
+
     private readonly bool axisIsLocal;
+
+    private RevoluteJoint hinge;
+    private bool hasHinge;
+    private Body swingingBody;
+    private float frictionTorque;
 
     /// <summary>Initializes a hinge from its keyvalues.</summary>
     /// <param name="system">The owning entity system.</param>
@@ -104,6 +118,57 @@ public sealed class PhysHinge : PhysConstraint
             MaxMotorTorque = FrictionTorque(friction, connection),
         };
 
-        return world.CreateRevoluteJoint(definition).AsJoint;
+        hinge = world.CreateRevoluteJoint(definition);
+        hasHinge = true;
+        swingingBody = connection.BodyA.Type == BodyType.Dynamic && connection.BodyB.Type != BodyType.Dynamic ? connection.BodyA : connection.BodyB;
+        frictionTorque = definition.MaxMotorTorque;
+
+        return hinge.AsJoint;
+    }
+
+    /// <inheritdoc/>
+    protected override DriveTuning Tuning => new(Speed: 120f, ApproachRate: 15f, ArriveTolerance: 0.5f, StallProgress: 0.05f);
+
+    /// <inheritdoc/>
+    protected override bool TryGetTravel(Body body, out float position, out float firstEnd, out float secondEnd)
+    {
+        position = firstEnd = secondEnd = 0f;
+
+        if (!hasHinge || !swingingBody.Equals(body) || body.Type != BodyType.Dynamic)
+        {
+            return false;
+        }
+
+        position = float.RadiansToDegrees(hinge.Angle);
+
+        if (hinge.LimitsEnabled)
+        {
+            firstEnd = float.RadiansToDegrees(hinge.LowerAngle);
+            secondEnd = float.RadiansToDegrees(hinge.UpperAngle);
+        }
+        else
+        {
+            secondEnd = position < 0f ? -UnlimitedSwing : UnlimitedSwing;
+        }
+
+        return true;
+    }
+
+    /// <inheritdoc/>
+    protected override void SetDriveSpeed(float? speed)
+    {
+        if (speed is not { } driveSpeed)
+        {
+            hinge.MotorSpeed = 0f;
+            hinge.MaxMotorTorque = frictionTorque;
+            return;
+        }
+
+        // Enough to lift the body against gravity too, as a toilet seat swings up. Kept awake, or a body slowing
+        // near its goal falls asleep short of it.
+        var reach = MathF.Max(Vector3.Distance(swingingBody.CenterOfMass, JointAnchor), 1f);
+        hinge.MaxMotorTorque = swingingBody.Mass * reach * (reach * DriveAcceleration + PhysicsSimulation.GravityValue);
+        hinge.MotorSpeed = float.DegreesToRadians(driveSpeed);
+        swingingBody.IsAwake = true;
     }
 }

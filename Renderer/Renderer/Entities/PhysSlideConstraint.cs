@@ -16,16 +16,8 @@ public sealed class PhysSlideConstraint : PhysConstraint
         LimitEndpoints = 2,
     }
 
-    // A press slides the body at this many units per second, slowing over the last stretch at this many units
-    // per second per unit left so it does not slam into the end and rebound
-    private const float DriveSpeed = 60f;
-    private const float ApproachRate = 8f;
+    // How hard a press pushes the body along, in units per second squared
     private const float DriveAcceleration = 2000f;
-    private const float ArriveTolerance = 0.25f;
-
-    // A slide that gains less than this over the stall time is blocked, and ends where it is
-    private const float StallProgress = 0.1f;
-    private const float StallTime = 0.3f;
 
     private PrismaticJoint slider;
     private bool hasSlider;
@@ -33,11 +25,6 @@ public sealed class PhysSlideConstraint : PhysConstraint
     private float closedTranslation;
     private float openTranslation;
     private float frictionForce;
-
-    private bool isDriving;
-    private float goalTranslation;
-    private float stallError;
-    private float stallTimeLeft;
 
     /// <summary>Initializes a slide constraint from its keyvalues.</summary>
     public PhysSlideConstraint(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
@@ -97,101 +84,40 @@ public sealed class PhysSlideConstraint : PhysConstraint
         return slider.AsJoint;
     }
 
-    /// <summary>Finds the active slide constraint that <paramref name="body"/> slides on.</summary>
-    internal static PhysSlideConstraint? FindSliding(EntitySystem system, Body body)
+    /// <inheritdoc/>
+    protected override DriveTuning Tuning => new(Speed: 60f, ApproachRate: 8f, ArriveTolerance: 0.25f, StallProgress: 0.1f);
+
+    /// <inheritdoc/>
+    protected override bool TryGetTravel(Body body, out float position, out float firstEnd, out float secondEnd)
     {
-        foreach (var entity in system.Entities)
+        position = firstEnd = secondEnd = 0f;
+
+        if (!hasSlider || !slidingBody.Equals(body) || body.Type != BodyType.Dynamic)
         {
-            if (entity is PhysSlideConstraint { IsActive: true, hasSlider: true } slide && slide.slidingBody.Equals(body))
-            {
-                return slide;
-            }
+            return false;
         }
 
-        return null;
+        position = slider.Translation;
+        firstEnd = closedTranslation;
+        secondEnd = openTranslation;
+        return true;
     }
 
-    /// <summary>Slides the body to whichever end of the line it is further from.</summary>
-    internal void Press()
+    /// <inheritdoc/>
+    protected override void SetDriveSpeed(float? speed)
     {
-        if (!slider.AsJoint.IsValid || slidingBody.Type != BodyType.Dynamic)
-        {
-            return;
-        }
-
-        var translation = slider.Translation;
-
-        goalTranslation = MathF.Abs(translation - closedTranslation) < MathF.Abs(translation - openTranslation)
-            ? openTranslation
-            : closedTranslation;
-        isDriving = true;
-        stallError = MathF.Abs(goalTranslation - translation);
-        stallTimeLeft = StallTime;
-        slider.MotorEnabled = true;
-        slider.MaxMotorForce = slidingBody.Mass * DriveAcceleration;
-        Drive(goalTranslation - translation);
-    }
-
-    /// <summary>Stops a slide a press started, leaving the body to whatever holds it.</summary>
-    internal void StopDrive()
-    {
-        if (!isDriving)
-        {
-            return;
-        }
-
-        isDriving = false;
-
-        if (slider.AsJoint.IsValid)
+        if (speed is not { } driveSpeed)
         {
             slider.MotorSpeed = 0f;
             slider.MaxMotorForce = frictionForce;
             slider.MotorEnabled = frictionForce > 0f;
+            return;
         }
-    }
 
-    // Kept awake, or a body slowing near its goal falls asleep short of it
-    private void Drive(float error)
-    {
-        slider.MotorSpeed = MathF.CopySign(MathF.Min(DriveSpeed, MathF.Abs(error) * ApproachRate), error);
+        // Kept awake, or a body slowing near its goal falls asleep short of it
+        slider.MotorEnabled = true;
+        slider.MaxMotorForce = slidingBody.Mass * DriveAcceleration;
+        slider.MotorSpeed = driveSpeed;
         slidingBody.IsAwake = true;
-    }
-
-    /// <inheritdoc/>
-    protected override void PhysicsSimulate(float tickInterval)
-    {
-        base.PhysicsSimulate(tickInterval);
-
-        if (!isDriving)
-        {
-            return;
-        }
-
-        if (!IsActive || !slider.AsJoint.IsValid)
-        {
-            isDriving = false;
-            return;
-        }
-
-        var error = goalTranslation - slider.Translation;
-
-        if (MathF.Abs(error) <= ArriveTolerance)
-        {
-            StopDrive();
-            return;
-        }
-
-        if (stallError - MathF.Abs(error) > StallProgress)
-        {
-            stallError = MathF.Abs(error);
-            stallTimeLeft = StallTime;
-        }
-        else if ((stallTimeLeft -= tickInterval) <= 0f)
-        {
-            StopDrive();
-            return;
-        }
-
-        Drive(error);
     }
 }
