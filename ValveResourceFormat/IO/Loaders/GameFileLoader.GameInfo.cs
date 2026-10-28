@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.IO.Enumeration;
 using Microsoft.Extensions.Logging;
+using ValveResourceFormat.Blocks;
 
 namespace ValveResourceFormat.IO
 {
@@ -391,6 +392,107 @@ namespace ValveResourceFormat.IO
                 return;
             }
 
+            FindGameFoldersInSteamApp(folders, gamePath);
+        }
+
+        /// <summary>
+        /// Mounts the installed Steam game named by the content search paths a resource was compiled with, such as
+        /// <c>csgo_addons/example</c>, when no game was found otherwise.
+        /// </summary>
+        /// <remarks>
+        /// Call it for each opened file before loading its dependencies. It is passed on to <see cref="GameInfoFallback"/>,
+        /// so the package the file was opened from is still searched before the game.
+        /// </remarks>
+        /// <param name="resource">The opened resource.</param>
+        public void FindGameFromResource(Resource resource)
+        {
+            ArgumentNullException.ThrowIfNull(resource);
+
+            if (GameInfoFallback is { } fallback)
+            {
+                fallback.FindGameFromResource(resource);
+                return;
+            }
+
+            // Files are opened in parallel and must wait for a game that is being mounted
+            lock (AddonDependenciesLock)
+            {
+                if (FoundGameInfo != null || ResourceGame != Game.Unknown || resource.EditInfo is not { } editInfo)
+                {
+                    return;
+                }
+
+                foreach (var searchPath in EnumerateContentSearchPaths(editInfo))
+                {
+                    var game = GameInfo.GetGameOfMod(GetModOfContentSearchPath(searchPath));
+
+                    if (game == Game.Unknown)
+                    {
+                        continue;
+                    }
+
+                    Logger.LogInformation("Found {Game} from content search path \"{SearchPath}\" of \"{File}\"", game, searchPath, resource.FileName);
+
+                    ResourceGame = game;
+                    MountSteamGame(game);
+                    return;
+                }
+            }
+        }
+
+        private static IEnumerable<string> EnumerateContentSearchPaths(ResourceEditInfo editInfo)
+        {
+            foreach (var dependency in editInfo.InputDependencies)
+            {
+                yield return dependency.ContentSearchPath;
+            }
+
+            foreach (var dependency in editInfo.AdditionalInputDependencies)
+            {
+                yield return dependency.ContentSearchPath;
+            }
+
+            foreach (var relatedFile in editInfo.AdditionalRelatedFiles)
+            {
+                yield return relatedFile.ContentSearchPath;
+            }
+        }
+
+        // "csgo_addons/example" is an addon of csgo
+        private static string GetModOfContentSearchPath(string searchPath)
+        {
+            var separator = searchPath.IndexOfAny(['/', '\\']);
+            var mod = separator < 0 ? searchPath : searchPath[..separator];
+
+            if (mod.EndsWith(AddonsSuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                mod = mod[..^AddonsSuffix.Length];
+            }
+
+            return mod;
+        }
+
+        private void MountSteamGame(Game game)
+        {
+            foreach (var steamAppId in GameInfo.GetSteamAppIds(game))
+            {
+                if (GameFolderLocator.FindSteamGameByAppId(steamAppId) is not { GamePath: var gamePath })
+                {
+                    continue;
+                }
+
+                var folders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                FindGameFoldersInSteamApp(folders, gamePath);
+                FindAndLoadVpksInFolders(folders);
+                return;
+            }
+
+            Logger.LogInformation("No Steam app of {Game} is installed", game);
+        }
+
+        private void FindGameFoldersInSteamApp(HashSet<string> folders, string gamePath)
+        {
             // Find all the gameinfo.gi files, open them to get game paths
             var gameInfos = new FileSystemEnumerable<string>(
                 gamePath,

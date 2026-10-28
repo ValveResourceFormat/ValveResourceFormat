@@ -48,7 +48,7 @@ namespace ValveResourceFormat.IO
 
         private readonly Dictionary<string, ShaderCollection> CachedShaders = [];
         private readonly Lock CachedShadersLock = new();
-        private readonly HashSet<string> CurrentGameSearchPaths = [];
+        private ImmutableArray<string> CurrentGameSearchPaths = [];
         private readonly HashSet<string> CurrentGameOfficialAddonsPaths = [];
         private readonly HashSet<string> CurrentGameAddonsPaths = [];
         private ImmutableArray<Package> CurrentGamePackages = [];
@@ -81,6 +81,7 @@ namespace ValveResourceFormat.IO
         private bool ShaderPackagesScanned;
         private volatile bool AddonDependenciesPending;
         private readonly Lock AddonDependenciesLock = new();
+        private Game ResourceGame;
         private bool StoredSurfacePropertyStringTokens;
 
         /// <summary>
@@ -469,7 +470,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         public bool AddDiskPathToSearch(string searchPath)
         {
-            var success = CurrentGameSearchPaths.Add(searchPath);
+            var success = ImmutableInterlocked.Update(ref CurrentGameSearchPaths, static (searchPaths, searchPath) => searchPaths.Contains(searchPath) ? searchPaths : searchPaths.Add(searchPath), searchPath);
 
             if (success)
             {
@@ -484,7 +485,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         public bool RemoveDiskPathFromSearch(string searchPath)
         {
-            var success = CurrentGameSearchPaths.Remove(searchPath);
+            var success = ImmutableInterlocked.Update(ref CurrentGameSearchPaths, static (searchPaths, searchPath) => searchPaths.Remove(searchPath), searchPath);
 
             if (success)
             {

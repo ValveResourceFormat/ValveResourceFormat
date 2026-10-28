@@ -81,6 +81,8 @@ namespace GUI.Types.Viewers
                 resourceTemp?.Dispose();
             }
 
+            vrfGuiContext.FindGameFromResource(resource);
+
             if (viewMode != ResourceViewMode.ResourceBlocksOnly)
             {
                 try

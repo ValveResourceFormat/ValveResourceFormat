@@ -1103,6 +1103,7 @@ namespace CLI
                 if (OutputFile != null)
                 {
                     using var outputFileLoader = CreateGameFileLoader(null, resource.FileName);
+                    outputFileLoader.FindGameFromResource(resource);
 
                     path = Path.ChangeExtension(path, extension);
                     var outFilePath = GetOutputPath(path);
@@ -1782,7 +1783,7 @@ namespace CLI
         }
 
         private void ProcessVPKEntries(string parentPath, Package package,
-            IFileLoader fileLoader, string type, Dictionary<string, uint> manifestData)
+            GameFileLoader fileLoader, string type, Dictionary<string, uint> manifestData)
         {
             if (!MatchesExtensionFilter(type))
             {
@@ -1898,6 +1899,7 @@ namespace CLI
                             };
 #pragma warning restore CA2000
                             resource.Read(memory);
+                            fileLoader.FindGameFromResource(resource);
 
                             if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
                             {

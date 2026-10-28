@@ -24,6 +24,7 @@ namespace ValveResourceFormat.IO
             [205790] = Game.Dota,
             [247040] = Game.Dota,
             [250820] = Game.Steamtours,
+            [453170] = Game.Steamtours,
             [546560] = Game.Hlvr,
             [1422450] = Game.Citadel,
             [1902490] = Game.Steampal,
@@ -144,6 +145,30 @@ namespace ValveResourceFormat.IO
         internal static GameInfo Read(string filePath) => new(filePath, ReadLayered(filePath, depth: 0));
 
         internal static Game GetGame(int steamAppId) => GamesBySteamAppId.GetValueOrDefault(steamAppId);
+
+        internal static IEnumerable<int> GetSteamAppIds(Game game)
+        {
+            foreach (var (steamAppId, appGame) in GamesBySteamAppId)
+            {
+                if (appGame == game)
+                {
+                    yield return steamAppId;
+                }
+            }
+        }
+
+        internal static Game GetGameOfMod(string mod)
+        {
+            foreach (var game in Enum.GetValues<Game>())
+            {
+                if (game != Game.Unknown && game.ToString().Equals(mod, StringComparison.OrdinalIgnoreCase))
+                {
+                    return game;
+                }
+            }
+
+            return Game.Unknown;
+        }
 
         private static KVObject ReadLayered(string filePath, int depth)
         {
