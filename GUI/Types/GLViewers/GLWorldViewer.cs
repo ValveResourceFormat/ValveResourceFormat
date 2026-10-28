@@ -675,9 +675,17 @@ namespace GUI.Types.GLViewers
             EnsureNodeVisible(node);
         }
 
-        /// <summary>Bounds to focus on for an entity that has no scene node, from its authored origin.</summary>
+        /// <summary>Bounds to focus on for an entity that has no scene node, at its origin.</summary>
         internal AABB EntityOriginBounds(EntityLump.Entity entity)
         {
+            // Try to find the entity in the system and fall back to its lump location otherwise
+            var spawned = Renderer.EntitySystem.Entities.FirstOrDefault(candidate => !candidate.IsRemoved && candidate.Data == entity);
+
+            if (spawned != null)
+            {
+                return PointBounds(Vector3.Transform(spawned.WorldOrigin, spawned.Scene.ToViewerWorld));
+            }
+
             var origin = entity.GetVector3Property("origin");
 
             if (OwnSceneSpawnGroups.FirstOrDefault(group => group.Entities.Contains(entity)) is { } spawnGroup)
