@@ -23,6 +23,9 @@ public sealed partial class VMixGraphExtract
         public Dictionary<string, int> ControlValues { get; } = new(StringComparer.Ordinal);
 
         public bool IsAccumulatingMix { get; set; }
+
+        /// <summary>Whether a subgraph switch names its plugs after every subgraph instead of the first.</summary>
+        public bool DetailedPlugs { get; set; }
         public int MeteredValue { get; set; } = -1;
 
         public void SetInput(string plug, PlugSource source)
@@ -542,6 +545,12 @@ public sealed partial class VMixGraphExtract
                 properties.Add("m_nMixDown", submix.MixDownRule.Length > 0 ? submix.MixDownRule : "SUM");
                 properties.Add("m_nSendOperator", submix.SendOperator);
                 properties.Add("m_SendNames", KVObject.Array(submix.Sends.Select(static send => (KVObject)send)));
+
+                if (submix.UpMixRule.Length > 0)
+                {
+                    properties.Add("m_nUpMixRule", submix.UpMixRule);
+                }
+
                 return properties;
             }
 
@@ -694,22 +703,59 @@ public sealed partial class VMixGraphExtract
         private static string SubgraphPlug(MixProcessor processor, string node)
             => processor.Subgraphs.Length > 0 ? $"{node} ({processor.Subgraphs[0]})" : node;
 
-        private string SwitchOutputPlug(string switchName, MixProcessor processor, uint hash)
+        private string SwitchOutputPlug(MixNode node, MixProcessor processor, uint hash)
         {
-            if (processor.Subgraphs.Length > 0)
+            for (var index = 1; index <= 64 && processor.Subgraphs.Length > 0; index++)
             {
-                for (var index = 1; index <= 64; index++)
-                {
-                    var plug = SubgraphPlug(processor, string.Create(CultureInfo.InvariantCulture, $"audio.Output{index}"));
+                var output = string.Create(CultureInfo.InvariantCulture, $"audio.Output{index}");
+                var plug = SubgraphPlug(processor, output);
 
-                    if (StringToken.Get($"{switchName}/{plug}") == hash)
-                    {
-                        return plug;
-                    }
+                if (StringToken.Get($"{node.Name}/{plug}") == hash)
+                {
+                    return plug;
+                }
+
+                plug = DetailedSubgraphPlug(processor, output);
+
+                if (StringToken.Get($"{node.Name}/{plug}") == hash)
+                {
+                    node.DetailedPlugs = true;
+                    return plug;
                 }
             }
 
             return SubgraphPlug(processor, SubgraphNode(processor, "audio.Output"));
+        }
+
+        /// <summary>The subgraphs a switch lists in the editor, without the default one the compiled list ends with.</summary>
+        private static string[] EditorSubgraphs(MixProcessor processor) => processor.Subgraphs.Length > 1 ? processor.Subgraphs[..^1] : processor.Subgraphs;
+
+        private static string DetailedSubgraphPlug(MixProcessor processor, string node)
+            => string.Join(", \n", EditorSubgraphs(processor).Select(subgraph => $"{node} ({subgraph})"));
+
+        /// <summary>
+        /// Switches with detailed plug names name every plug after all of their subgraphs, and the selection plugs list them.
+        /// </summary>
+        private static void ApplyDetailedPlugNames(MixNode node)
+        {
+            var processor = node.Processor!;
+            var subgraphs = EditorSubgraphs(processor);
+            var selectionIndex = string.Concat("Selection Index", string.Concat(subgraphs.Select((subgraph, index) => string.Create(CultureInfo.InvariantCulture, $", {index}: {subgraph}"))));
+            var selectionName = string.Concat("Selection Name ( ", string.Concat(subgraphs.Select(static subgraph => $"{subgraph}, ")), ")");
+            var first = processor.Subgraphs.Length > 0 ? $" ({processor.Subgraphs[0]})" : string.Empty;
+
+            for (var k = 0; k < node.Inputs.Count; k++)
+            {
+                var (plug, source) = node.Inputs[k];
+                var renamed = plug switch
+                {
+                    "Selection Index" => selectionIndex,
+                    "Selection Name" => selectionName,
+                    _ when first.Length > 0 && plug.EndsWith(first, StringComparison.Ordinal) => DetailedSubgraphPlug(processor, plug[..^first.Length]),
+                    _ => plug,
+                };
+                node.Inputs[k] = new(renamed, source);
+            }
         }
 
         /// <summary>A node type sharing a processor with the one it was compiled from: limiters are compressors.</summary>
@@ -795,7 +841,7 @@ public sealed partial class VMixGraphExtract
                     var debug = Split(NameOf(command.ParamName));
                     submixHolders[output] = debug is var (debugNode, debugPlug) && debugNode == name
                         ? new(name, debugPlug)
-                        : new(name, type == "sys.SubgraphSwitch" ? SwitchOutputPlug(name, processor, command.ParamName) : "audio:Out");
+                        : new(name, type == "sys.SubgraphSwitch" ? SwitchOutputPlug(node, processor, command.ParamName) : "audio:Out");
                 }
                 else if (command.Op == MixOp.SubmixMeterSpectrum && command.InputSubmix0 == output)
                 {
@@ -872,7 +918,11 @@ public sealed partial class VMixGraphExtract
         }
 
         private static string? ParameterPlugByHash(string type, uint hash)
-            => NodeTypesByName.TryGetValue(type, out var nodeType) ? nodeType.Inputs.FirstOrDefault(plug => StringToken.Get(plug) == hash) : null;
+            // Some compilers hash the plug name with underscores for spaces, as in selection_index
+            => NodeTypesByName.TryGetValue(type, out var nodeType)
+                ? nodeType.Inputs.Concat(type == "sys.SubgraphSwitch" ? ["Selection Index"] : [])
+                    .FirstOrDefault(plug => StringToken.Get(plug) == hash || StringToken.Get(plug.Replace(' ', '_')) == hash)
+                : null;
 
         private static readonly Dictionary<string, string> ParameterAliases = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -1633,7 +1683,8 @@ public sealed partial class VMixGraphExtract
                     break;
 
                 default:
-                    target.Properties = CurveProperties(parametersStart);
+                    // A curve used only for its inverse output is stored inverted
+                    target.Properties = CurveProperties(parametersStart, outputPlugs.GetValueOrDefault(remaps[0].Value0) == "inverseOut");
                     break;
             }
 
@@ -1648,7 +1699,7 @@ public sealed partial class VMixGraphExtract
             return j;
         }
 
-        private KVObject CurveProperties(int curveIndex)
+        private KVObject CurveProperties(int curveIndex, bool inverted)
         {
             var spline = KVObject.Array();
             var tangents = KVObject.Array();
@@ -1662,15 +1713,18 @@ public sealed partial class VMixGraphExtract
             for (var k = start; k + 3 < points.Length && k < start + 4 * count; k += 4)
             {
                 var point = KVObject.Collection();
+                var sign = inverted ? -1f : 1f;
                 point.Add("x", points[k]);
-                point.Add("y", points[k + 1]);
-                point.Add("m_flSlopeIncoming", points[k + 2]);
-                point.Add("m_flSlopeOutgoing", points[k + 3]);
+                point.Add("y", inverted ? 1f - points[k + 1] : points[k + 1]);
+                point.Add("m_flSlopeIncoming", sign * points[k + 2]);
+                point.Add("m_flSlopeOutgoing", sign * points[k + 3]);
                 spline.Add(point);
 
                 var tangent = KVObject.Collection();
-                tangent.Add("m_nIncomingTangent", "CURVE_TANGENT_SPLINE");
-                tangent.Add("m_nOutgoingTangent", "CURVE_TANGENT_SPLINE");
+                // A point whose slopes differ was edited by hand, which only free tangents keep
+                var tangentType = points[k + 2] == points[k + 3] ? "CURVE_TANGENT_SPLINE" : "CURVE_TANGENT_FREE";
+                tangent.Add("m_nIncomingTangent", tangentType);
+                tangent.Add("m_nOutgoingTangent", tangentType);
                 tangents.Add(tangent);
             }
 
@@ -2072,6 +2126,11 @@ public sealed partial class VMixGraphExtract
 
             foreach (var node in nodes.Values)
             {
+                if (node.DetailedPlugs)
+                {
+                    ApplyDetailedPlugNames(node);
+                }
+
                 if (node.Processor != null)
                 {
                     node.Properties = ProcessorProperties(node);
@@ -2328,7 +2387,7 @@ public sealed partial class VMixGraphExtract
                 case "sys.SubgraphSwitch":
                 {
                     var subgraphs = processor.Subgraphs;
-                    properties.Add("bUseDetailedPlugNames", false);
+                    properties.Add("bUseDetailedPlugNames", node.DetailedPlugs);
                     properties.Add("defaultSubgraph", SelectableSubgraph(subgraphs.Length > 0 ? subgraphs[^1] : string.Empty));
                     Copy("interpolationMode", "m_interpolationMode");
                     Copy("bOnlyTailsOnFadeOut", "m_bOnlyTailsOnFadeOut");

@@ -1,6 +1,7 @@
 using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.IO;
 
@@ -154,11 +155,18 @@ public sealed partial class VMixGraphExtract
     /// <summary>
     /// The 32 bits an offset is packed into: the category in the top 3 bits, then 10 bits of type, then a 19 bit index.
     /// </summary>
-    private static uint RawOperand(KVObject obj, string key)
+    private static uint RawOperand(KVObject obj, params string[] keys)
     {
-        if (!obj.TryGetValue(key, out var value) || value.ValueType != KVValueType.Collection)
+        var value = keys.Select(key => obj.TryGetValue(key, out var found) ? found : null).FirstOrDefault(static found => found != null);
+        if (value == null)
         {
             return 0;
+        }
+
+        // Graphs before the heap keep plain integers, which commands with constants fill with float bits
+        if (value.ValueType != KVValueType.Collection)
+        {
+            return value.ValueType is KVValueType.String or KVValueType.Boolean ? 0 : unchecked((uint)(long)value);
         }
 
         static uint Field(KVObject value, string key, string[] names)
@@ -192,7 +200,10 @@ public sealed partial class VMixGraphExtract
         public Dictionary<string, int> InputParameters { get; } = new(StringComparer.Ordinal);
     }
 
-    internal sealed record MixSubmix(string Name, uint SoloNameHash, int Channels, string SendOperator, string MixDownRule, string[] Sends);
+    internal sealed record MixSubmix(string Name, uint SoloNameHash, int Channels, string SendOperator, string MixDownRule, string[] Sends)
+    {
+        public string UpMixRule { get; init; } = string.Empty;
+    }
 
     internal sealed record MixNamedValue(string Name, int Value);
 
@@ -377,7 +388,7 @@ public sealed partial class VMixGraphExtract
                 Operand(command, "inputValue0", "m_nInputValue0"),
                 Operand(command, "inputValue1", "m_nInputValue1"))
             {
-                Raw = (RawOperand(command, "inputSubmix0"), RawOperand(command, "inputSubmix1"), RawOperand(command, "m_nInputValue1")),
+                Raw = (RawOperand(command, "inputSubmix0"), RawOperand(command, "inputSubmix1"), RawOperand(command, "inputValue1", "m_nInputValue1")),
             });
         }
 
@@ -413,7 +424,10 @@ public sealed partial class VMixGraphExtract
                 (int)GetInteger(submix, -1, "m_nChannels", "channels"),
                 GetString(submix, "m_nSendOperator", "sendOperator"),
                 mixDown,
-                sends));
+                sends)
+            {
+                UpMixRule = GetString(submix, "m_nUpMixRule"),
+            });
         }
 
         foreach (var meter in GetList(graph, "m_audioMeters"))
@@ -461,7 +475,9 @@ public sealed partial class VMixGraphExtract
 
         foreach (var curve in GetList(graph, "m_curves"))
         {
-            result.Curves.Add(((int)GetInteger(curve, 0, "m_nControlPointStart", "start"), (int)GetInteger(curve, 0, "m_nControlPointCount", "count")));
+            // Newer graphs count the start in points of four floats, older ones in floats
+            var start = curve.ContainsKey("m_nControlPointStart") ? 4 * (int)curve.GetIntegerProperty("m_nControlPointStart") : (int)GetInteger(curve, 0, "start");
+            result.Curves.Add((start, (int)GetInteger(curve, 0, "m_nControlPointCount", "count")));
         }
 
         foreach (var input in GetList(graph, "m_automaticControlInputs"))
@@ -532,6 +548,14 @@ public sealed partial class VMixGraphExtract
                     result.ControlInputs.Add(new MixControlInput(name, result.Value(index), index));
                     break;
                 case "VO_UINT32" when name != "debug.solo":
+                    // The default name is only kept as its token, usually the name of a subgraph the input selects
+                    if (defaultValue.Length == 0 && index < result.RawValues.Length && result.RawValues[index] != 0)
+                    {
+                        var token = result.RawValues[index];
+                        defaultValue = result.Processors.SelectMany(static processor => processor.Subgraphs).Append("core_null").Append("core.null")
+                            .FirstOrDefault(subgraph => StringToken.Get(subgraph) == token) ?? string.Empty;
+                    }
+
                     result.NameInputs.Add(new MixStringInput(name, defaultValue, index));
                     break;
             }

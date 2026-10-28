@@ -80,7 +80,7 @@ public sealed partial class VMixGraphExtract
     public ContentFile ToContentFile() => new()
     {
         Data = Encoding.UTF8.GetBytes(ToEditorDocument()),
-        FileName = Path.ChangeExtension(resource.FileName, "vmix"),
+        FileName = Path.ChangeExtension(resource.FileName, "vmix") ?? "mixgraph.vmix",
     };
 
     /// <summary>
@@ -132,7 +132,7 @@ public sealed partial class VMixGraphExtract
         var outputNames = new Dictionary<(string Graph, PlugSource Source), string>();
         var allGraphs = mixGraphs.Concat(siblings).ToList();
 
-        if (allGraphs.Any(static graph => graph.AudioMeters.Any(static meter => meter.Count(static c => c == '/') >= 1 && meter.Contains("audio.Output", StringComparison.Ordinal))))
+        if (allGraphs.Any(static graph => graph.AudioMeters.Any(static meter => meter.Contains('/', StringComparison.Ordinal) && meter.Contains("audio.Output", StringComparison.Ordinal))))
         {
             foreach (var graph in allGraphs)
             {
@@ -224,7 +224,7 @@ public sealed partial class VMixGraphExtract
 
             var compiled = sibling.ResourceType == ResourceType.Sound
                 ? GetGraphSound(sibling)?.GetSubCollection("m_graphDesc")
-                : (sibling.DataBlock as BinaryKV3)?.Data.Root.GetArray("Graphs")?.FirstOrDefault();
+                : (sibling.DataBlock as BinaryKV3)?.Data.Root.GetArray("Graphs") is [var first, ..] ? first : null;
 
             if (compiled == null)
             {
