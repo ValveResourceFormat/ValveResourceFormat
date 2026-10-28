@@ -243,21 +243,21 @@ public sealed class PlayerEntity : BaseEntity
         {
             interactable.Use(this);
         }
-        else if (PressUse(pressEyePosition, pressForward) == null && !TryPressSlide())
+        else if (PressUse(pressEyePosition, pressForward) == null && !TryPressConstrained())
         {
             TryPickup();
         }
     }
 
-    // Drawers and other sliding bodies run open or shut
-    private bool TryPressSlide()
+    // A body held by a constraint is never picked up: drawers and cabinet doors run open or shut instead
+    private bool TryPressConstrained()
     {
-        if (!FindGrabTarget(out var body, out _) || PhysSlideConstraint.FindSliding(EntitySystem, body) is not { } slide)
+        if (!FindGrabTarget(out var body, out _) || PhysConstraint.FindHolding(EntitySystem, body) is not { } constraint)
         {
             return false;
         }
 
-        slide.Press();
+        constraint.Press(body);
         return true;
     }
 
@@ -647,7 +647,7 @@ public sealed class PlayerEntity : BaseEntity
             return;
         }
 
-        PhysSlideConstraint.FindSliding(EntitySystem, grabBody)?.StopDrive();
+        PhysConstraint.FindHolding(EntitySystem, grabBody)?.StopDrive();
 
         if (EntitySystem.Physics.GetOwner(grabBody) is IHandGrabbable grabbable)
         {
