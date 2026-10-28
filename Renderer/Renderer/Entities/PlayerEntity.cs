@@ -211,10 +211,22 @@ public sealed class PlayerEntity : BaseEntity
         {
             interactable.Use(this);
         }
-        else if (PressUse(pressEyePosition, pressForward) == null)
+        else if (PressUse(pressEyePosition, pressForward) == null && !TryPressSlide())
         {
             TryPickup();
         }
+    }
+
+    // Drawers and other sliding bodies run open or shut
+    private bool TryPressSlide()
+    {
+        if (!FindGrabTarget(out var body, out _) || PhysSlideConstraint.FindSliding(EntitySystem, body) is not { } slide)
+        {
+            return false;
+        }
+
+        slide.Press();
+        return true;
     }
 
     // The nearest interactable along the aim at the press within reach
@@ -598,7 +610,14 @@ public sealed class PlayerEntity : BaseEntity
             return;
         }
 
-        if (hasGrab && grabBody.IsValid && EntitySystem.Physics.GetOwner(grabBody) is IHandGrabbable grabbable)
+        if (!hasGrab || !grabBody.IsValid)
+        {
+            return;
+        }
+
+        PhysSlideConstraint.FindSliding(EntitySystem, grabBody)?.StopDrive();
+
+        if (EntitySystem.Physics.GetOwner(grabBody) is IHandGrabbable grabbable)
         {
             isHandGrabbing = true;
             grabbable.BeginHandGrab();
