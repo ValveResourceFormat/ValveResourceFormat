@@ -1,5 +1,6 @@
 using Box3D;
 using ValveResourceFormat.Renderer.Input;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
@@ -37,9 +38,11 @@ public sealed class PlayerEntity : BaseEntity
     private const float CarryBreakDistance = 64f;
     private const float CarryBreakTime = 0.5f;
 
-    // A press on a body grabs it at once, and letting go within this long turns it into a press instead. Only
-    // past it does the grab take over what the press would have done, stopping a door's motor or an interactable.
-    private const float TapTime = 0.2f;
+    // A press on a body grabs it at once, and letting go within this long, having turned the view no further
+    // than this, turns it into a press instead. Only past either does the grab take over what the press would
+    // have done, stopping a door's motor or an interactable.
+    private const float TapTime = 0.15f;
+    private const float TapAngle = 3f;
 
     /// <summary>Gets the controller whose state this entity reflects.</summary>
     public IPlayerController Controller { get; }
@@ -186,7 +189,8 @@ public sealed class PlayerEntity : BaseEntity
 
         if (isHolding)
         {
-            if (isUsePending && EntitySystem.CurrentTime - usePressTime >= TapTime)
+            if (isUsePending && (EntitySystem.CurrentTime - usePressTime >= TapTime
+                || float.RadiansToDegrees(MathUtils.AngleBetween(pressForward, Controller.ViewForward)) > TapAngle))
             {
                 isUsePending = false;
                 TakeHold();
