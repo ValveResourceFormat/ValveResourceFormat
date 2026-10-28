@@ -780,11 +780,15 @@ public sealed class SceneViewState
         });
     }
 
-    // The skinning variant is picked per draw, so the bucket only says which shader draws it
     private static DepthOnlyBucket GetDepthOnlyBucket(DrawCall opaqueCall)
-        => opaqueCall.Material.VertexAnimation ? DepthOnlyBucket.MaterialDepthMode
-            : opaqueCall.Material.IsAlphaTest ? DepthOnlyBucket.AlphaTest
-            : DepthOnlyBucket.Specialized;
+        => opaqueCall.Material switch
+        {
+            { VertexAnimation: true } => DepthOnlyBucket.MaterialDepthMode,
+            { IsAlphaTest: true } material => material.Shader.DepthMode != null
+                ? DepthOnlyBucket.MaterialDepthMode
+                : DepthOnlyBucket.AlphaTest,
+            _ => DepthOnlyBucket.Specialized,
+        };
 
     internal void BindIndirectDrawBuffers()
     {

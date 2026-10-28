@@ -517,21 +517,30 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         private RenderMaterial? depthMaterial;
+        private uint depthMaterialVersion;
 
         /// <summary>This material as a shared depth-only shader sees it: the color texture and the alpha reference.</summary>
         private RenderMaterial GetDepthMaterial(Shader depthShader)
         {
-            depthMaterial ??= new RenderMaterial(depthShader);
-
-            depthMaterial.FloatParams["g_flAlphaTestReference"] =
-                FloatParams.GetValueOrDefault("g_flAlphaTestReference", 0.5f);
-
-            if (Textures.TryGetValue("g_tColor", out var colorTexture))
+            if (depthMaterial != null && depthMaterialVersion == InputsVersion)
             {
-                depthMaterial.Textures["g_tColor"] = colorTexture;
+                return depthMaterial;
             }
 
-            return depthMaterial;
+            var depth = depthMaterial ??= new RenderMaterial(depthShader);
+            depthMaterialVersion = InputsVersion;
+
+            depth.FloatParams["g_flAlphaTestReference"] = FloatParams.GetValueOrDefault("g_flAlphaTestReference", 0.5f);
+
+            // Without a color texture the alpha test would sample whatever the unit was left holding
+            var colorTexture = Textures.GetValueOrDefault("g_tColor") ?? Loader?.GetDefaultColor();
+
+            if (colorTexture != null)
+            {
+                depth.Textures["g_tColor"] = colorTexture;
+            }
+
+            return depth;
         }
 
         /// <summary>Binds textures, sets material uniforms, and applies blend/depth render state for this material.</summary>
