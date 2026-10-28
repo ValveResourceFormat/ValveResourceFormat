@@ -7,12 +7,26 @@ layout (local_size_x = 8, local_size_y = 8) in;
 
 #define D_DOF 0
 
-#define D_MSAA_SAMPLES 1
+#define D_HISTOGRAM 0
 
 uniform bool g_bFlipY = false;
 
+uniform int g_iSampleCount = 1;
+
 layout(binding = 0) uniform sampler2DMS g_tSourceMsaa;
 layout(binding = 1, rgba16f) uniform writeonly image2D g_tDest;
+
+#if D_HISTOGRAM == 1
+layout(binding = 15, std430) buffer HistogramBuffer
+{
+    uint histogram[256];
+};
+
+shared uint localHistogram[256];
+
+uniform float logMinLuminance;
+uniform float logLuminanceRange;
+#endif
 
 #if D_DOF == 1
 uniform mat4 g_invViewProjMatrix;
@@ -25,78 +39,112 @@ void main()
 {
     ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
     ivec2 destSize = imageSize(g_tDest);
+    bool inBounds = coord.x < destSize.x && coord.y < destSize.y;
 
-    if (coord.x >= destSize.x || coord.y >= destSize.y)
-        return;
-
-    ivec2 sampleCoord = coord;
-    sampleCoord.y = g_bFlipY ? textureSize(g_tSourceMsaa).y - sampleCoord.y - 1 : sampleCoord.y;
-
-    float invNumSamples = 1.0 / float(D_MSAA_SAMPLES);
-    vec3 resolved = vec3(0.0);
-
-#if D_DOF == 1
-    float lowestDepth = 1.0;
-    // Alpha carries the circle of confusion for the depth of field pass (set below)
-    float outputAlpha = 1.0;
-#else
-    // Box-average the source alpha so a transparent background survives (e.g. for screenshots)
-    float outputAlpha = 0.0;
-#endif
-
-    for (int i = 0; i < D_MSAA_SAMPLES; i++)
+#if D_HISTOGRAM == 1
+    for (uint i = gl_LocalInvocationIndex; i < 256u; i += gl_WorkGroupSize.x * gl_WorkGroupSize.y)
     {
-        vec4 texel = texelFetch(g_tSourceMsaa, sampleCoord, i);
-        // Flush NaN/+Inf to 0; clamp(NaN/+Inf, ...) otherwise returns 65504 (white) on NVIDIA and blows up bloom.
-        // The range test catches both and survives the fast-math no-NaN folding that would defeat isnan().
-        bvec3 valid = lessThanEqual(texel.rgb, vec3(65504.0));
-        vec3 s = mix(vec3(0.0), clamp(texel.rgb, vec3(0.0), vec3(65504.0)), valid);
-        // Karis average: weight by inverse luminance to reduce fireflies
-        resolved += s * (invNumSamples / (max3(s) + 1.0));
+        localHistogram[i] = 0u;
+    }
+    barrier();
+
+    vec3 metered = vec3(0.0);
+#endif
+
+    if (inBounds)
+    {
+        ivec2 sampleCoord = coord;
+        sampleCoord.y = g_bFlipY ? textureSize(g_tSourceMsaa).y - sampleCoord.y - 1 : sampleCoord.y;
+
+        float invNumSamples = 1.0 / float(g_iSampleCount);
+        vec3 resolved = vec3(0.0);
 
 #if D_DOF == 1
-        lowestDepth = min(texelFetch(g_tSceneDepthMsaa, sampleCoord, i).x, lowestDepth);
+        float lowestDepth = 1.0;
+        // Alpha carries the circle of confusion for the depth of field pass (set below)
+        float outputAlpha = 1.0;
 #else
-        outputAlpha += texel.a * invNumSamples;
+        // Box-average the source alpha so a transparent background survives (e.g. for screenshots)
+        float outputAlpha = 0.0;
 #endif
+
+        for (int i = 0; i < g_iSampleCount; i++)
+        {
+            vec4 texel = texelFetch(g_tSourceMsaa, sampleCoord, i);
+            // Flush NaN/+Inf to 0; clamp(NaN/+Inf, ...) otherwise returns 65504 (white) on NVIDIA and blows up bloom.
+            // The range test catches both and survives the fast-math no-NaN folding that would defeat isnan().
+            bvec3 valid = lessThanEqual(texel.rgb, vec3(65504.0));
+            vec3 s = mix(vec3(0.0), clamp(texel.rgb, vec3(0.0), vec3(65504.0)), valid);
+            // Karis average: weight by inverse luminance to reduce fireflies
+            resolved += s * (invNumSamples / (max3(s) + 1.0));
+#if D_HISTOGRAM == 1
+            metered += s * invNumSamples;
+#endif
+
+#if D_DOF == 1
+            lowestDepth = min(texelFetch(g_tSceneDepthMsaa, sampleCoord, i).x, lowestDepth);
+#else
+            outputAlpha += texel.a * invNumSamples;
+#endif
+        }
+
+        // Inverse Karis tonemap
+        resolved *= 1.0 / (1.0 - max3(resolved));
+
+#if D_DOF == 1
+        vec2 sampleUV = (vec2(coord) + 0.5) * g_vInvViewportSize.xy;
+
+        // Convert from screen coords to clipspace (normalised device coordinates)
+        vec4 screenToClip = vec4(
+            sampleUV.x * 2.0 - 1.0,
+            sampleUV.y * 2.0 - 1.0,
+            LinearRamp(g_flViewportMinZ, g_flViewportMaxZ, lowestDepth),
+            1.0
+        );
+
+        // Undo view projection to get back 3d world coordinates
+        vec4 worldPos = g_invViewProjMatrix * screenToClip;
+
+        if (worldPos.w != 0.0)
+        {
+            vec4 worldPos3D = vec4(worldPos.xyz / worldPos.w, 1.0);
+
+            // Projecting worldpos onto the lens plane gives us how far away the point is from the plane
+            // g_vLensPlane.w is the plane offset, using dot between 4d vectors for this is clever
+            float distanceFromLensPlane = dot(g_vLensPlane, worldPos3D);
+
+            float nearScale = g_vNearFarScaleBias.x;
+            float nearBias = g_vNearFarScaleBias.y;
+            float farScale = g_vNearFarScaleBias.z;
+            float farBias = g_vNearFarScaleBias.w;
+
+            float closeCoC = saturate((distanceFromLensPlane * nearScale) + nearBias);
+            float farCoC = saturate((distanceFromLensPlane * farScale) + farBias);
+
+            outputAlpha = max(closeCoC, farCoC);
+        }
+#endif
+
+        imageStore(g_tDest, coord, vec4(resolved, outputAlpha));
     }
 
-    // Inverse Karis tonemap
-    resolved *= 1.0 / (1.0 - max3(resolved));
-
-#if D_DOF == 1
-    vec2 sampleUV = (vec2(coord) + 0.5) * g_vInvViewportSize.xy;
-
-    // Convert from screen coords to clipspace (normalised device coordinates)
-    vec4 screenToClip = vec4(
-        sampleUV.x * 2.0 - 1.0,
-        sampleUV.y * 2.0 - 1.0,
-        LinearRamp(g_flViewportMinZ, g_flViewportMaxZ, lowestDepth),
-        1.0
-    );
-
-    // Undo view projection to get back 3d world coordinates
-    vec4 worldPos = g_invViewProjMatrix * screenToClip;
-
-    if (worldPos.w != 0.0)
+#if D_HISTOGRAM == 1
+    if (inBounds)
     {
-        vec4 worldPos3D = vec4(worldPos.xyz / worldPos.w, 1.0);
+        float luma = max(GetLuma(metered), 0.005);
+        float normalizedLogLuma = saturate((log2(luma) - logMinLuminance) / logLuminanceRange);
+        atomicAdd(localHistogram[uint(normalizedLogLuma * 255.0)], 1u);
+    }
 
-        // Projecting worldpos onto the lens plane gives us how far away the point is from the plane
-        // g_vLensPlane.w is the plane offset, using dot between 4d vectors for this is clever
-        float distanceFromLensPlane = dot(g_vLensPlane, worldPos3D);
+    memoryBarrierShared();
+    barrier();
 
-        float nearScale = g_vNearFarScaleBias.x;
-        float nearBias = g_vNearFarScaleBias.y;
-        float farScale = g_vNearFarScaleBias.z;
-        float farBias = g_vNearFarScaleBias.w;
-
-        float closeCoC = saturate((distanceFromLensPlane * nearScale) + nearBias);
-        float farCoC = saturate((distanceFromLensPlane * farScale) + farBias);
-
-        outputAlpha = max(closeCoC, farCoC);
+    for (uint i = gl_LocalInvocationIndex; i < 256u; i += gl_WorkGroupSize.x * gl_WorkGroupSize.y)
+    {
+        if (localHistogram[i] > 0u)
+        {
+            atomicAdd(histogram[i], localHistogram[i]);
+        }
     }
 #endif
-
-    imageStore(g_tDest, coord, vec4(resolved, outputAlpha));
 }
