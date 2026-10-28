@@ -37,8 +37,9 @@ public sealed class PlayerEntity : BaseEntity
     private const float CarryBreakDistance = 64f;
     private const float CarryBreakTime = 0.5f;
 
-    // Holding use this long on a body grabs it at the aimed point, letting go sooner is a press
-    private const float GrabHoldTime = 0.15f;
+    // A press on a body grabs it at once, and letting go within this long turns it into a press instead. Only
+    // past it does the grab take over what the press would have done, stopping a door's motor or an interactable.
+    private const float TapTime = 0.2f;
 
     /// <summary>Gets the controller whose state this entity reflects.</summary>
     public IPlayerController Controller { get; }
@@ -80,7 +81,7 @@ public sealed class PlayerEntity : BaseEntity
     private bool isUsePending;
     private float usePressTime;
 
-    // The aim when use went down, which a pending press or grab acts on even after the view moves away
+    // The aim when use went down, which a tap acts on even after the view moves away
     private Vector3 pressEyePosition;
     private Vector3 pressForward;
 
@@ -88,6 +89,7 @@ public sealed class PlayerEntity : BaseEntity
     private Body grabHand;
     private MotorJoint grabJoint;
     private bool hasGrab;
+    private bool isHandGrabbing;
     private Vector3 grabLocalPoint;
     private float grabDistance;
     private float grabStrainTime;
@@ -154,7 +156,7 @@ public sealed class PlayerEntity : BaseEntity
         UpdatePhysicsPresence(tickInterval);
     }
 
-    // A press on a body waits to see whether it becomes a hold, anything else acts at once
+    // A press on a body grabs it until it turns out to be a tap, anything else acts at once
     private void UpdateUse()
     {
         var isHolding = Buttons.Holding(TrackedKeys.E);
@@ -172,6 +174,7 @@ public sealed class PlayerEntity : BaseEntity
             {
                 isUsePending = true;
                 usePressTime = EntitySystem.CurrentTime;
+                TryGrab();
             }
             else
             {
@@ -181,24 +184,24 @@ public sealed class PlayerEntity : BaseEntity
             return;
         }
 
-        if (isUsePending)
+        if (isHolding)
         {
-            if (!isHolding)
+            if (isUsePending && EntitySystem.CurrentTime - usePressTime >= TapTime)
             {
                 isUsePending = false;
-                Press();
+                TakeHold();
             }
-            else if (EntitySystem.CurrentTime - usePressTime >= GrabHoldTime)
-            {
-                isUsePending = false;
-                TryGrab();
-            }
+
+            return;
         }
 
-        if (!isHolding)
+        ReleaseGrab();
+        ReleaseAimGrab();
+
+        if (isUsePending)
         {
-            ReleaseGrab();
-            ReleaseAimGrab();
+            isUsePending = false;
+            Press();
         }
     }
 
@@ -553,16 +556,10 @@ public sealed class PlayerEntity : BaseEntity
         return true;
     }
 
+    // Takes a body by the aimed point, leaving what it belongs to alone until the press becomes a hold
     private void TryGrab()
     {
-        if (FindAimGrabbable(out var aimDistance) is { } interactable)
-        {
-            aimGrab = interactable;
-            interactable.BeginAimGrab(this, pressEyePosition, pressForward, aimDistance);
-            return;
-        }
-
-        if (hasGrab || !FindGrabTarget(out var body, out var point))
+        if (hasGrab || FindAimGrabbable(out _) != null || !FindGrabTarget(out var body, out var point))
         {
             return;
         }
@@ -589,8 +586,23 @@ public sealed class PlayerEntity : BaseEntity
         });
         hasGrab = true;
         body.IsAwake = true;
+    }
 
-        (physics.GetOwner(body) as IHandGrabbable)?.BeginHandGrab();
+    // An interactable starts from the aim at the press, so it catches up with how far the view has moved since
+    private void TakeHold()
+    {
+        if (FindAimGrabbable(out var aimDistance) is { } interactable)
+        {
+            aimGrab = interactable;
+            interactable.BeginAimGrab(this, pressEyePosition, pressForward, aimDistance);
+            return;
+        }
+
+        if (hasGrab && grabBody.IsValid && EntitySystem.Physics.GetOwner(grabBody) is IHandGrabbable grabbable)
+        {
+            isHandGrabbing = true;
+            grabbable.BeginHandGrab();
+        }
     }
 
     // The grabbed point follows the aim at the distance it was taken at
@@ -643,10 +655,12 @@ public sealed class PlayerEntity : BaseEntity
 
         grabHand.Destroy();
 
-        if (grabBody.IsValid)
+        if (isHandGrabbing && grabBody.IsValid)
         {
             (EntitySystem.PhysicsOrNull?.GetOwner(grabBody) as IHandGrabbable)?.EndHandGrab();
         }
+
+        isHandGrabbing = false;
     }
 
     private void Drop()
