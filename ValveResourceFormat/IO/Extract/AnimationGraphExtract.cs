@@ -13,7 +13,7 @@ namespace ValveResourceFormat.IO;
 /// <summary>
 /// Extracts and converts animation graph resources to editable format.
 /// </summary>
-public class AnimationGraphExtract : IDisposable
+public partial class AnimationGraphExtract : IDisposable
 {
     private readonly BinaryKV3 resourceData;
     private KVObject Graph => resourceData.Data;
@@ -80,7 +80,7 @@ public class AnimationGraphExtract : IDisposable
             ["CSelector"] = new(StringComparer.Ordinal)
             {
                 ["m_eTagBehavior"] = (PropAction.TagBehavior, null),
-                ["m_flBlendTime"] = (PropAction.BlendDuration, null),
+                ["m_flBlendTime"] = (PropAction.BlendDuration, "m_blendDuration"),
                 ["m_blendCurve"] = (PropAction.BlendCurve, null),
                 ["m_nTagIndex"] = (PropAction.TagIndex, null),
                 ["m_bResetOnChange"] = (PropAction.Copy, null),
@@ -414,7 +414,7 @@ public class AnimationGraphExtract : IDisposable
             case PropAction.TagIndex:
             {
                 var tagIndex = compiledNode.GetIntegerProperty("m_nTagIndex");
-                node.Add("m_tag", MakeNodeIdObjectValue(GetTagIdFromIndex(tagIndex)));
+                node.Add("m_tagID", MakeNodeIdObjectValue(GetTagIdFromIndex(tagIndex)));
                 if (tagIndex != -1 && !node.ContainsKey("m_selectionSource"))
                 {
                     node.Add("m_selectionSource", "SelectionSource_Tag");
@@ -879,6 +879,7 @@ public class AnimationGraphExtract : IDisposable
         }
 
         var createdNodes = new Dictionary<long, KVObject>();
+        var groupPaths = new Dictionary<long, long[]>();
 
         for (var i = 0; i < compiledNodes.Count; i++)
         {
@@ -893,12 +894,10 @@ public class AnimationGraphExtract : IDisposable
             nodeData.Add("m_nNodeID", MakeNodeIdObjectValue(nodeId));
 
             createdNodes[nodeId] = nodeData;
+            groupPaths[nodeId] = GetGroupPath(compiledNode);
         }
 
-        foreach (var (nodeId, nodeData) in createdNodes)
-        {
-            nodeManager.Children.Add(MakeNodeManagerEntry(nodeId, nodeData));
-        }
+        AddNodesInGroups(nodeManager.Children, createdNodes, groupPaths);
 
         var localParameters = MakeArray(Parameters);
         var localTags = MakeArray(Tags);
@@ -991,16 +990,56 @@ public class AnimationGraphExtract : IDisposable
         return nodeIdObject;
     }
 
-    private static KVObject MakeInputConnection(long nodeId)
+    private static KVObject MakeInputConnection(long nodeId) => MakeInputConnection(nodeId, nodeId);
+
+    private static KVObject MakeInputConnection(long nodeId, long outputId)
     {
-        var nodeIdObject = MakeNodeIdObjectValue(nodeId);
         var inputConnection = new KVObject
         {
-            { "m_nodeID", nodeIdObject },
-            { "m_outputID", nodeIdObject }
+            { "m_nodeID", MakeNodeIdObjectValue(nodeId) },
+            { "m_outputID", MakeNodeIdObjectValue(outputId) }
         };
 
         return inputConnection;
+    }
+
+    private KVObject ConvertAction(KVObject compiledAction)
+    {
+        var className = compiledAction.GetStringProperty("_class").Replace("Updater", string.Empty, StringComparison.Ordinal);
+        var action = MakeNode(className);
+
+        if (compiledAction.ContainsKey("m_hScript"))
+        {
+            var scriptCode = TryGetFuseGeneralScriptCode(compiledAction.GetSubCollection("m_hScript").GetIntegerProperty("m_id"));
+            if (scriptCode != null)
+            {
+                action.Add("m_expression", scriptCode);
+            }
+        }
+
+        if (compiledAction.ContainsKey("m_nTagIndex"))
+        {
+            action.Add("m_tag", MakeNodeIdObjectValue(GetTagIdFromIndex(compiledAction.GetIntegerProperty("m_nTagIndex"))));
+        }
+
+        if (compiledAction.ContainsKey("m_hParam"))
+        {
+            action.Add("m_param", ExtractParameterID(compiledAction.GetSubCollection("m_hParam")));
+        }
+
+        CopyIfPresent(compiledAction, action, "m_value");
+
+        foreach (var (key, value) in compiledAction.Children)
+        {
+            if (key is "_class" or "m_nTagIndex" or "m_hParam" or "m_value" or "m_hScript" or "m_eScriptType" or "m_code")
+            {
+                continue;
+            }
+
+            action.Add(key, value);
+        }
+
+        return action;
     }
 
     private static KVObject MakeNodeManagerEntry(long nodeId, KVObject nodeData)
@@ -1340,45 +1379,9 @@ public class AnimationGraphExtract : IDisposable
                 {
                     var action = MakeNode("CStateAction");
 
-                    if (compiledAction.ContainsKey("m_pAction"))
+                    if (compiledAction.GetSubCollection("m_pAction") is { ValueType: KVValueType.Collection } compiledActionData)
                     {
-                        var compiledActionData = compiledAction.GetSubCollection("m_pAction");
-                        var actionClassName = compiledActionData.GetStringProperty("_class");
-                        var newActionClassName = actionClassName.Replace("Updater", string.Empty, StringComparison.Ordinal);
-                        var actionData = MakeNode(newActionClassName);
-
-                        if (compiledActionData.ContainsKey("m_hScript"))
-                        {
-                            var scriptCode = TryGetFuseGeneralScriptCode(compiledActionData.GetSubCollection("m_hScript").GetIntegerProperty("m_id"));
-                            if (scriptCode != null)
-                            {
-                                actionData.Add("m_expression", scriptCode);
-                            }
-                        }
-
-                        if (compiledActionData.ContainsKey("m_nTagIndex"))
-                        {
-                            actionData.Add("m_tag", MakeNodeIdObjectValue(GetTagIdFromIndex(compiledActionData.GetIntegerProperty("m_nTagIndex"))));
-                        }
-
-                        if (compiledActionData.ContainsKey("m_hParam"))
-                        {
-                            actionData.Add("m_param", ExtractParameterID(compiledActionData.GetSubCollection("m_hParam")));
-                        }
-
-                        CopyIfPresent(compiledActionData, actionData, "m_value");
-
-                        foreach (var (childKey, childValue) in compiledActionData.Children)
-                        {
-                            if (childKey is "_class" or "m_nTagIndex" or "m_hParam" or "m_value" or "m_hScript" or "m_eScriptType" or "m_code")
-                            {
-                                continue;
-                            }
-
-                            actionData.Add(childKey, childValue);
-                        }
-
-                        action.Add("m_pAction", actionData);
+                        action.Add("m_pAction", ConvertAction(compiledActionData));
                     }
 
                     if (compiledAction.ContainsKey("m_eBehavior"))
@@ -2284,54 +2287,7 @@ public class AnimationGraphExtract : IDisposable
             if (compiledComponent.ContainsKey("m_actions"))
             {
                 var actions = compiledComponent.GetArray("m_actions");
-                var convertedActions = actions.Select(action =>
-                {
-                    var actionClassName = action.GetStringProperty("_class");
-                    var newActionClassName = actionClassName.Replace("Updater", string.Empty, StringComparison.Ordinal);
-                    var newAction = MakeNode(newActionClassName);
-
-                    foreach (var (actionChildKey, actionChildValue) in action.Children)
-                    {
-                        if (actionChildKey == "_class")
-                        {
-                            continue;
-                        }
-
-                        if (actionChildKey == "m_nTagIndex")
-                        {
-                            var tagIndex = action.GetIntegerProperty("m_nTagIndex");
-                            newAction.Add("m_tag", MakeNodeIdObjectValue(GetTagIdFromIndex(tagIndex)));
-                            continue;
-                        }
-
-                        if (actionChildKey == "m_hParam")
-                        {
-                            newAction.Add("m_param", ExtractParameterID(actionChildValue));
-                            continue;
-                        }
-
-                        if (actionChildKey == "m_hScript")
-                        {
-                            var scriptCode = TryGetFuseGeneralScriptCode(actionChildValue.GetIntegerProperty("m_id"));
-                            if (scriptCode != null)
-                            {
-                                newAction.Add("m_expression", scriptCode);
-                            }
-                            continue;
-                        }
-
-                        if (actionChildKey is "m_eScriptType" or "m_code")
-                        {
-                            continue;
-                        }
-
-                        newAction.Add(actionChildKey, actionChildValue);
-                    }
-
-                    return newAction;
-                });
-
-                component.Add("m_actions", MakeArray(convertedActions));
+                component.Add("m_actions", MakeArray(actions.Select(ConvertAction)));
             }
 
             return component;
@@ -2820,6 +2776,13 @@ public class AnimationGraphExtract : IDisposable
             if (key is "m_pChildNode" or "m_pChild1" or "m_pChild2" or "m_pChild" && value.ValueType == KVValueType.Collection)
             {
                 var nodeIndex = value.GetIntegerProperty("m_nodeIndex");
+
+                // An unconnected input is left out of the document
+                if (nodeIndex == -1)
+                {
+                    continue;
+                }
+
                 if (nodeIndexToIdMap?.TryGetValue(nodeIndex, out var nodeId) == true)
                 {
                     var connectionKey = key switch
@@ -4047,7 +4010,7 @@ public class AnimationGraphExtract : IDisposable
             {
                 if (inputNodeIds is not null)
                 {
-                    node.Add(key, MakeArray(inputNodeIds.Select(MakeInputConnection)));
+                    node.Add(key, MakeArray(inputNodeIds.Select(id => MakeInputConnection(id))));
                 }
                 continue;
             }
@@ -4083,6 +4046,12 @@ public class AnimationGraphExtract : IDisposable
             if (key is "m_paramIndex" or "m_hParam")
             {
                 node.Add("m_param", ExtractParameterID(value));
+                continue;
+            }
+
+            if (key == "m_actions")
+            {
+                node.Add(key, MakeArray(compiledNode.GetArray(key).Select(ConvertAction)));
                 continue;
             }
 
