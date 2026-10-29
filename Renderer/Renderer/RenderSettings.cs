@@ -9,6 +9,9 @@ public sealed class RenderSettings
     /// </summary>
     public IDrawFilter? DrawFilter { get; set; }
 
+    /// <summary>Gets or sets the shader id of the active render mode, 0 being the regular lit view.</summary>
+    public int RenderMode { get; set; }
+
     /// <summary>Gets or sets whether fog is drawn.</summary>
     public bool FogEnabled { get; set; } = true;
 

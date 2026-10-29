@@ -1279,9 +1279,9 @@ namespace GUI.Types.GLViewers
             Debug.Assert(Picker != null);
             Debug.Assert(selectionVisuals != null);
 
-            Renderer.ViewBuffer!.Data!.RenderMode = RenderModes.GetShaderId(renderMode);
+            Renderer.Settings.RenderMode = RenderModes.GetShaderId(renderMode);
 
-            Renderer.Postprocess.Enabled = Renderer.ViewBuffer.Data.RenderMode == 0;
+            Renderer.Postprocess.Enabled = Renderer.Settings.RenderMode == 0;
 
             Renderer.Settings.EnableCompaction = renderMode != "Meshlets";
 

@@ -1019,6 +1019,7 @@ public class Renderer : ISceneHost
         Scene.SetFogConstants(ViewBuffer.Data, view.Fog, view.FogSpace);
 
         ViewBuffer.Data.IsSkybox = view.Sky != null;
+        ViewBuffer.Data.RenderMode = Settings.RenderMode;
         ViewBuffer.Data.SceneIndex = (uint)scenes.IndexOf(state.Scene);
 
         // A sky receives the cascades from where the viewer sees it
@@ -1604,7 +1605,7 @@ public class Renderer : ISceneHost
 
         if (isStandardPass)
         {
-            var overlayBatch = ValveResourceFormat.Renderer.LightTilesOverlay.BatchFor(ViewBuffer!.Data.RenderMode);
+            var overlayBatch = ValveResourceFormat.Renderer.LightTilesOverlay.BatchFor(Settings.RenderMode);
 
             if (overlayBatch != ValveResourceFormat.Renderer.LightTilesOverlay.Batch.None)
             {
