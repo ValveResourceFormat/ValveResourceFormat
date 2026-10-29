@@ -619,6 +619,7 @@ namespace ValveResourceFormat.Renderer.World
             LightingData.SpecularLitColor = new Vector4(specularColor * specularIndependence * brightness, 0f);
 
             LastStaticSunCascade = GetLastStaticSunCascade(envLight);
+            IsSunShadowBaked = envLight.HasMixedShadows;
 
             HasOwnSun = true;
             isSunBorrowed = false;
@@ -645,6 +646,9 @@ namespace ValveResourceFormat.Renderer.World
         /// lightmap holds their sun shadows, so only the nearest cascades redraw them.
         /// </summary>
         public int LastStaticSunCascade { get; private set; } = int.MaxValue;
+
+        /// <summary>Gets whether the map's own sun is a mixed light, so the lightmap holds the sun shadows of static geometry.</summary>
+        public bool IsSunShadowBaked { get; private set; }
 
         /// <summary>Gets whether the source map has an environment light.</summary>
         public bool HasOwnSun { get; private set; }

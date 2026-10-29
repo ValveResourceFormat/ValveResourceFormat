@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.Decals;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -32,6 +33,19 @@ namespace ValveResourceFormat.Renderer.World
             this.externalReferences = externalReferences;
             RendererContext = rendererContext;
             LayerNames = node.LayerNames;
+        }
+
+        // World NoShadows means a baked shadow, dynamic lights still need these casters
+        internal static ObjectTypeFlags ReadObjectFlags(KVObject data, string key)
+        {
+            var flags = data.GetEnumValue<ObjectTypeFlags>(key, normalize: true);
+
+            if ((flags & ObjectTypeFlags.NoShadows) != 0)
+            {
+                flags = (flags & ~ObjectTypeFlags.NoShadows) | ObjectTypeFlags.NoSunShadows;
+            }
+
+            return flags;
         }
 
         /// <summary>
@@ -79,7 +93,7 @@ namespace ValveResourceFormat.Renderer.World
                 // sceneObject is SceneObject_t
                 var renderableModel = sceneObject.GetStringProperty("m_renderableModel");
                 var matrix = sceneObject.GetArray("m_vTransform").ToMatrix4x4() * root;
-                var flags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_nObjectTypeFlags", normalize: true);
+                var flags = ReadObjectFlags(sceneObject, "m_nObjectTypeFlags");
                 var visClusters = node.GetSceneObjectVisClusters(sceneObject);
 
                 // Per-placement forced LoD baked by the compiler (-1 = automatic).
@@ -178,8 +192,8 @@ namespace ValveResourceFormat.Renderer.World
                     {
                         LayerName = LayerNames[(int)layerIndex],
                         Name = renderableModel,
-                        AllFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_allFlags", normalize: true),
-                        AnyFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_anyFlags", normalize: true),
+                        AllFlags = ReadObjectFlags(sceneObject, "m_allFlags"),
+                        AnyFlags = ReadObjectFlags(sceneObject, "m_anyFlags"),
                     };
 
                     scene.Add(aggregate, false);

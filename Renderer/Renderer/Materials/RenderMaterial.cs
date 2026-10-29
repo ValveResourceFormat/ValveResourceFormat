@@ -524,6 +524,7 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         private RenderMaterial? depthMaterial;
+        private RenderTexture? depthColorTexture;
         private uint depthMaterialVersion;
 
         /// <summary>Gets the texture holding this material's color and opacity, under whichever name its shader gives it.</summary>
@@ -554,12 +555,7 @@ namespace ValveResourceFormat.Renderer.Materials
             depth.FloatParams["g_flAlphaTestReference"] = FloatParams.GetValueOrDefault("g_flAlphaTestReference", 0.5f);
 
             // Without a color texture the alpha test would sample whatever the unit was left holding
-            var colorTexture = GetColorTexture() ?? Loader?.GetDefaultColor();
-
-            if (colorTexture != null)
-            {
-                depth.Textures["g_tColor"] = colorTexture;
-            }
+            depthColorTexture = GetColorTexture() ?? Loader?.GetDefaultColor();
 
             return depth;
         }
@@ -577,13 +573,11 @@ namespace ValveResourceFormat.Renderer.Materials
             {
                 if (shader.IsAlphaTestVariant)
                 {
-                    var depthMaterial = GetDepthMaterial(shader);
-                    depthMaterial.BindGlobals(shader);
+                    GetDepthMaterial(shader).BindGlobals(shader);
 
-                    var colorTexture = depthMaterial.Textures.GetValueOrDefault("g_tColor");
-                    if (colorTexture != null)
+                    if (depthColorTexture != null)
                     {
-                        shader.SetTexture(textureUnit, "g_tColor", colorTexture);
+                        shader.SetTexture(textureUnit, "g_tColor", depthColorTexture);
                     }
                 }
 

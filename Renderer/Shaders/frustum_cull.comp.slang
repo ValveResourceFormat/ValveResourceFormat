@@ -60,6 +60,7 @@ layout(binding = 7, std430) buffer OccludedBoundsDebugBuffer
 
 uniform bool g_bOcclusionDebugEnabled;
 uniform bool g_bCpuVisibleEnabled;
+uniform bool g_bBackfaceCulling;
 
 // Depth pyramid (hierarchical depth buffer)
 uniform sampler2D g_tDepthPyramid; // bound above the reserved slots by SceneViewState.SetOcclusionUniforms
@@ -336,7 +337,6 @@ void main()
     }
 
     const bool FrustumCull = true;
-    const bool BackfaceCull = true;
 
     bool visible = true;
 
@@ -345,7 +345,7 @@ void main()
         visible = testAABBFrustum(meshletMin, meshletMax);
     }
 
-    if (visible && BackfaceCull)
+    if (visible && g_bBackfaceCulling)
     {
         vec3 meshletCenter = (meshletMin + meshletMax) * 0.5;
         vec3 meshletSize = meshletMax - meshletMin;
