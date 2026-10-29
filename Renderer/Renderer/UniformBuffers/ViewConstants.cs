@@ -56,7 +56,7 @@ namespace ValveResourceFormat.Renderer.Buffers
         public Matrix4x4 WorldToShadow = Matrix4x4.Identity;
         /// <summary>Transform into the second, wider sun shadow cascade. Forms <c>g_matWorldToShadow[1]</c>.</summary>
         public Matrix4x4 WorldToShadowCascade1 = Matrix4x4.Identity;
-        /// <summary>Transform into the third, widest sun shadow cascade, when three are drawn. Forms <c>g_matWorldToShadow[2]</c>.</summary>
+        /// <summary>Transform into the third, widest sun shadow cascade. Forms <c>g_matWorldToShadow[2]</c>.</summary>
         public Matrix4x4 WorldToShadowCascade2 = Matrix4x4.Identity;
         /// <summary>Index of the drawn scene in <see cref="Renderer.Scenes"/>, which replacement shaders can write out.</summary>
         public uint SceneIndex;
