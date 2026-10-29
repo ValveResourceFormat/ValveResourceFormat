@@ -60,7 +60,7 @@ layout(binding = 7, std430) buffer OccludedBoundsDebugBuffer
 
 uniform bool g_bOcclusionDebugEnabled;
 uniform bool g_bCpuVisibleEnabled;
-uniform bool g_bBackfaceCulling; // off for shadow views, which draw both faces
+uniform bool g_bBackfaceCulling;
 
 // Depth pyramid (hierarchical depth buffer)
 uniform sampler2D g_tDepthPyramid; // bound above the reserved slots by SceneViewState.SetOcclusionUniforms
