@@ -25,7 +25,7 @@ public sealed class RenderSettings
     public bool StaticSunShadows { get; set; }
 
     /// <summary>Gets or sets whether a depth prepass is drawn before opaques.</summary>
-    public bool EnableDepthPrepass { get; set; }
+    public bool EnableDepthPrepass { get; set; } = true;
 
     /// <summary>Gets or sets whether aggregates are culled on the GPU and drawn indirectly.</summary>
     public bool EnableIndirectDraws { get; set; } = true;
