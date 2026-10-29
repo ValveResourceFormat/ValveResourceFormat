@@ -16,19 +16,28 @@ float SampleSunCascadePCF(vec3 projCoords, int cascade)
     // Positive bias moves the reference toward the light so surfaces pass their own comparison
     float currentDepth = saturate(projCoords.z) + g_flSunShadowBias;
 
+    // Zero gradients pin the lod, like textureLod, which shadow array samplers do not offer
+    float center = textureGrad(g_tShadowDepthBufferDepth, vec4(shadowCoords, float(cascade), currentDepth), vec2(0.0), vec2(0.0));
+
+    // Where the four nearest texels agree the tent is skipped, losing only the outer fringe of a penumbra
+    if (center == 0.0 || center == 1.0)
+    {
+        return center;
+    }
+
     float visibility = 0.0;
     vec2 texelSize = 1.0 / vec2(textureSize(g_tShadowDepthBufferDepth, 0).xy);
-    for (int x = -1; x <= 1; ++x)
+    // Four bilinear comparisons half a texel apart filter the same 3x3 texels as a tent
+    for (int x = 0; x < 2; ++x)
     {
-        for (int y = -1; y <= 1; ++y)
+        for (int y = 0; y < 2; ++y)
         {
-            // Zero gradients pin the lod, like textureLod, which shadow array samplers do not offer
             visibility += textureGrad(g_tShadowDepthBufferDepth,
-                vec4(shadowCoords + vec2(x, y) * texelSize, float(cascade), currentDepth), vec2(0.0), vec2(0.0));
+                vec4(shadowCoords + (vec2(x, y) - 0.5) * texelSize, float(cascade), currentDepth), vec2(0.0), vec2(0.0));
         }
     }
 
-    return visibility / 9.0;
+    return visibility / 4.0;
 }
 
 float CalculateSunShadowMapVisibility(vec3 vPosition)
