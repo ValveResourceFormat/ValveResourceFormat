@@ -829,6 +829,12 @@ public sealed partial class VMixGraphExtract
             node.Processor = processor;
             processorNodes[processorIndex] = node;
 
+            // Editor compiled graphs name the processor a name input feeds instead of setting it with a command
+            if (graph.Format == MixGraphFormat.EditorCompiled && graph.NameInputs.FindIndex(input => input.Processor == processorIndex) is var nameInput and >= 0)
+            {
+                Edge(node, type == "sys.SubgraphSwitch" ? "Selection Name" : "effect", new(EffectInput(nameInput).Name, "Effect Name"));
+            }
+
             if (process.Op == MixOp.SubmixProcess)
             {
                 var input = type switch
@@ -1124,6 +1130,19 @@ public sealed partial class VMixGraphExtract
             if (next is { Op: MixOp.SubmixMeter } splitMeter && Split(MeterName(splitMeter)) is var (node, _) && TypeOf(node) == "audio.Splitter")
             {
                 return SplitterBlock(i);
+            }
+
+            // Older graphs compile an amp to a copy in place, its debug name and its meter; its volume meter names it
+            if (command.OutputSubmix == command.InputSubmix0 && next is { Op: MixOp.SubmixDebug }
+                && Next(i + 2, MixOp.SubmixMeter) is { } ampMeter && ampMeter.InputSubmix0 == command.OutputSubmix
+                && meteredInputs.FirstOrDefault(pair => pair.Value == command.Value0 && pair.Key.Plug == "volume" && TypeOf(pair.Key.Node) == "audio.Amp").Key.Node is { } amp)
+            {
+                var ampNode = Node(amp, "audio.Amp");
+                Edge(ampNode, "audio:In", submixHolders.TryGetValue(command.InputSubmix0, out var ampSource) ? ampSource : null);
+                SetVolume(ampNode, "volume", "m_flVolume", command.Value0);
+                ampNode.FriendlyName = MeterName(ampMeter);
+                submixHolders[command.OutputSubmix] = new(amp, "audio:Out");
+                return i + 3;
             }
 
             return MixBlock(i);
@@ -1828,7 +1847,7 @@ public sealed partial class VMixGraphExtract
 
         private int ControlOutput(int i, MixCommand command)
         {
-            var (outputIndex, value) = graph.Format == MixGraphFormat.Heap ? (command.Value0, command.Value1) : (command.Value1, command.Value0);
+            var (outputIndex, value) = graph.Format is MixGraphFormat.Heap or MixGraphFormat.EditorCompiled ? (command.Value0, command.Value1) : (command.Value1, command.Value0);
             var output = outputIndex >= 0 && outputIndex < graph.ControlOutputs.Count ? graph.ControlOutputs[outputIndex] : null;
             var name = meteredInputs.FirstOrDefault(pair => pair.Value == value && pair.Key.Plug == "value" && TypeOf(pair.Key.Node) == "control.Output").Key.Node
                 ?? (output != null && TypeOf(output.Name) == "control.Output" ? output.Name : Fresh("control.Output"));

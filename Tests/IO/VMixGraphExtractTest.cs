@@ -35,11 +35,12 @@ namespace Tests.IO
             {
                 await Assert.That(document.ContainsKey("dsp_presets")).IsTrue();
                 await Assert.That(graph.GetStringProperty("Name")).IsEqualTo("main");
-                await Assert.That(nodes.Count).IsEqualTo(19);
+                await Assert.That(nodes.Count).IsEqualTo(20);
                 await Assert.That(nodes["audio.Processor1"]).IsEqualTo("audio.Processor");
                 await Assert.That(nodes["audio.Output1"]).IsEqualTo("audio.Output");
                 await Assert.That(Edges(graph)).Contains("audio.Track3/audio:Source -> audio.Mix3/audio:In1");
                 await Assert.That(Edges(graph)).Contains("control.Input3/value -> audio.Processor1/mix");
+                await Assert.That(Edges(graph)).Contains("effect.Input1/Effect Name -> audio.Processor1/effect");
             }
         }
 
