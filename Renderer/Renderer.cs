@@ -589,8 +589,11 @@ public class Renderer : ISceneHost
                 Fog = main.Fog,
             };
 
+            // No sky lightmap holds the shadows of the world, so its static geometry casts too while a sky shares the
+            // cascades. Where the world lightmap already shadows, the two multiply into the same shadow.
             var cullFrustum = CullFrustumFor(view);
-            var (depthMin, depthMax) = CollectSunCascadeCasters(view, main, cullFrustum ?? view.Camera.ViewFrustum, sunCascades.CastDirection, cascade);
+            var (depthMin, depthMax) = CollectSunCascadeCasters(view, main, cullFrustum ?? view.Camera.ViewFrustum, sunCascades.CastDirection,
+                includeBakedStatic: sky != null);
 
             sunCascadeSkyViews[cascade] = null;
 
@@ -611,9 +614,9 @@ public class Renderer : ISceneHost
                 }
 
                 // Its depth is measured along the cast direction scaled into sky space, then offset to where the
-                // viewer sees it.
+                // viewer sees it. No world lightmap holds the shadows of the sky, so its static geometry casts too.
                 var (skyDepthMin, skyDepthMax) = CollectSunCascadeCasters(skyView, skyFrom, cullFrustum ?? viewerSpaceCascadeFrustum,
-                    sunCascades.CastDirection * skyTransform.Scale, cascade);
+                    sunCascades.CastDirection * skyTransform.Scale, includeBakedStatic: true);
                 var skyDepthOffset = Vector3.Dot(skyToWorld.Translation, sunCascades.CastDirection);
 
                 depthMin = MathF.Min(depthMin, skyDepthMin + skyDepthOffset);
@@ -638,9 +641,8 @@ public class Renderer : ISceneHost
         return list;
     }
 
-    // Casters cull with the visibility boxes of the frame view they cast from, as split for its eye.
-    // Static objects only cast into the cascades their scene's sun allows, and never with NoSunShadows.
-    private (float Min, float Max) CollectSunCascadeCasters(in SceneView view, in SceneView from, Frustum frustum, Vector3 depthFitAxis, int cascade)
+    // Casters cull with the visibility boxes of the frame view they cast from, as split for its eye
+    private (float Min, float Max) CollectSunCascadeCasters(in SceneView view, in SceneView from, Frustum frustum, Vector3 depthFitAxis, bool includeBakedStatic)
     {
         var pvsEnabled = !Settings.DisableAllCulling && Settings.EnablePvsCulling;
         var depthMin = float.MaxValue;
@@ -653,10 +655,9 @@ public class Renderer : ISceneHost
 
             state.Pvs = pvsEnabled && scene.VoxelVisibility is { } visibility ? visibility.SunVisibility : default;
 
-            // NoShadows keeps an object out of every shadow view; games ignore NoSunShadows
-            var includeStatic = cascade <= scene.LightingInfo.LastStaticSunCascade;
-            var (min, max) = state.CollectShadowCasters(frustum, includeStatic,
-                ObjectTypeFlags.NoShadows, from.States[i].VisibilityBoxes, depthFitAxis);
+            var (min, max) = state.CollectShadowCasters(frustum,
+                includeStatic: includeBakedStatic || !scene.LightingInfo.HasBakedShadowsFromLightmap || !scene.LightingInfo.IsSunShadowBaked,
+                ObjectTypeFlags.NoShadows | ObjectTypeFlags.NoSunShadows, from.States[i].VisibilityBoxes, depthFitAxis);
 
             depthMin = MathF.Min(depthMin, min);
             depthMax = MathF.Max(depthMax, max);
@@ -1349,8 +1350,13 @@ public class Renderer : ISceneHost
 
         CullClutter(renderContext.Camera);
 
+        // Render backfaces into shadow maps
+        GL.FrontFace(FrontFaceDirection.Cw);
+
         RenderSceneShadows(renderContext);
         RenderBarnLightShadows(renderContext);
+
+        GL.FrontFace(FrontFaceDirection.Ccw);
 
         RenderScenesWithView(renderContext);
     }
@@ -1633,7 +1639,7 @@ public class Renderer : ISceneHost
         }
 
         using var _ = GraphicsContext.RenderState.Scope(multisampleEnable: ShadowDepthBuffer.NumSamples > 1,
-            slopeScaledDepthBias: -2f);
+            cullMode: RsCullMode.None, slopeScaledDepthBias: -2f);
 
         using var shadowDepth = GraphicsContext.RenderState.ScopeDynamic(DepthRange.Full);
 

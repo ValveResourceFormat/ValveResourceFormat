@@ -618,36 +618,19 @@ namespace ValveResourceFormat.Renderer.World
             LightingData.SpecularAlbedoColor = new Vector4(specularColor * (1f - specularIndependence), 0f);
             LightingData.SpecularLitColor = new Vector4(specularColor * specularIndependence * brightness, 0f);
 
-            LastStaticSunCascade = GetLastStaticSunCascade(envLight);
-
             HasOwnSun = true;
+            IsSunShadowBaked = envLight.HasMixedShadows;
             isSunBorrowed = false;
         }
 
-        private int GetLastStaticSunCascade(SceneLight envLight)
-        {
-            if (!envLight.HasMixedShadows)
-            {
-                return int.MaxValue;
-            }
-
-            // CS2 ignores the light's key and renders static objects into every cascade at its high shadow quality settings
-            if (scene.RendererContext.FileLoader.GameInfo.Game == Game.Csgo)
-            {
-                return int.MaxValue;
-            }
-
-            return envLight.CascadeRenderStaticObjects;
-        }
-
-        /// <summary>
-        /// Gets the last sun shadow cascade that static objects cast into, -1 for none. With mixed shadows the
-        /// lightmap holds their sun shadows, so only the nearest cascades redraw them.
-        /// </summary>
-        public int LastStaticSunCascade { get; private set; } = int.MaxValue;
-
         /// <summary>Gets whether the source map has an environment light.</summary>
         public bool HasOwnSun { get; private set; }
+
+        /// <summary>
+        /// Gets whether the map's own sun is a mixed light. Static geometry's shadows from it are baked,
+        /// so static geometry stays out of its shadow cascades.
+        /// </summary>
+        public bool IsSunShadowBaked { get; private set; }
 
         private bool isSunBorrowed;
 
@@ -673,7 +656,6 @@ namespace ValveResourceFormat.Renderer.World
                     LightingData.SpecularDirection_Power = Vector4.Zero;
                     LightingData.SpecularAlbedoColor = Vector4.Zero;
                     LightingData.SpecularLitColor = Vector4.Zero;
-                    LastStaticSunCascade = int.MaxValue;
                     isSunBorrowed = false;
                 }
 
@@ -690,9 +672,6 @@ namespace ValveResourceFormat.Renderer.World
             LightingData.SpecularDirection_Power = donor.LightingData.SpecularDirection_Power;
             LightingData.SpecularAlbedoColor = donor.LightingData.SpecularAlbedoColor;
             LightingData.SpecularLitColor = donor.LightingData.SpecularLitColor;
-
-            // The borrowed sun is the same light, so the same cascades take static objects
-            LastStaticSunCascade = donor.LastStaticSunCascade;
 
             // These lightmaps have no sun baked in, so nothing is in baked shadow
             LightingData.SunLightBakedShadowMask = new Vector4(-1f, 0f, 0f, 0f);
