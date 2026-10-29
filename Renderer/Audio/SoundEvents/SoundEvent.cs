@@ -118,6 +118,8 @@ public abstract class SoundEvent
     private SampleProvider3D? spatializedTrackSource;
     private SoundEvent?[]? children;
 
+    private volatile bool finishedPending;
+
     /// <summary>Gets the random source for randomized event properties (track picking, volume/pitch jitter, retrigger intervals).</summary>
     private protected SoundRandom Random => Mixer.Player.Random;
 
@@ -140,7 +142,7 @@ public abstract class SoundEvent
 
         // Start() fills the providers in, no point seeding them here
         SampleProvider = new SampleProviderMulti();
-        SampleProvider.OnOver += OnFinished;
+        SampleProvider.OnOver += () => finishedPending = true;
     }
 
     /// <summary>
@@ -154,6 +156,7 @@ public abstract class SoundEvent
     /// </returns>
     public bool Start()
     {
+        finishedPending = false;
         SampleProviders.Clear();
         ChildSoundEvents.Clear();
         SampleProvider.ClearProviders();
@@ -707,6 +710,12 @@ public abstract class SoundEvent
     /// <summary>Updates spatialization and time-based behavior. Returns whether any sample provider is currently audible.</summary>
     public virtual bool Update(in ListenerState listener)
     {
+        if (finishedPending)
+        {
+            finishedPending = false;
+            OnFinished();
+        }
+
         if (Started && !FadingOut && waitingForRetrigger && Stopwatch.GetTimestamp() >= retriggerTimestamp)
         {
             waitingForRetrigger = false;
