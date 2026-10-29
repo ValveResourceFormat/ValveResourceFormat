@@ -44,6 +44,15 @@ public sealed class SunCascades
     // one holding a 3D sky, would otherwise hide the shadows of anything close to what it falls on.
     private const float MaxWorldBias = 4f;
 
+    // The shadow bias of a scene fitted to its bounds, in shadow map texels
+    private const float SceneBoundsBiasTexels = 3f;
+
+    // The depth kept around the sphere a scene fitted to its bounds, as a fraction of its radius
+    private const float SceneBoundsDepthMargin = 0.1f;
+
+    // Radius steps a scene fitted to its bounds snaps to, in world units
+    private const float SceneBoundsQuantize = 8f;
+
     private readonly Vector3[] eyes = new Vector3[Count];
     private readonly float[] halfExtents = new float[Count];
     private readonly float[] cullDepthRanges = new float[Count];
@@ -96,6 +105,7 @@ public sealed class SunCascades
         var sceneBoundsMode = false;
         var sceneEye = Vector3.Zero;
         var sceneHalfExtent = 0f;
+        var sceneFarPlane = 0f;
         var sceneNearPlaneExtend = 0f;
 
         if (sun.UseSceneBoundsForSunLightFrustum)
@@ -107,10 +117,18 @@ public sealed class SunCascades
 
             if (max > 0 && max < shadowMapSize)
             {
-                sceneNearPlaneExtend = max / 2f;
-                sceneEye = staticBounds.Center - sunDir * sceneNearPlaneExtend;
-                sceneHalfExtent = max * 1.6f;
-                bias = 0.01f;
+                // The bounding sphere fits the scene whichever way the sun points, and rounding its radius up
+                // keeps the fit from drifting with the bounds
+                var radius = MathF.Ceiling(sceneBounds.Size.Length() / 2f / SceneBoundsQuantize) * SceneBoundsQuantize;
+
+                // The eye sits at the sphere's edge toward the sun, with a margin of depth around it
+                sceneNearPlaneExtend = radius * SceneBoundsDepthMargin;
+                sceneEye = sceneBounds.Center - sunDir * radius;
+                sceneHalfExtent = radius;
+                sceneFarPlane = radius * (2f + SceneBoundsDepthMargin);
+
+                // A fixed number of texels, normalized by the depth range, keeps the bias small on a small scene
+                bias = SceneBoundsBiasTexels * 2f * radius / shadowMapSize / (sceneFarPlane + sceneNearPlaneExtend);
                 sceneBoundsMode = true;
                 fitsDepthToCasters = false;
             }
@@ -146,7 +164,7 @@ public sealed class SunCascades
             if (sceneBoundsMode)
             {
                 bbox = sceneHalfExtent;
-                farPlane = bbox;
+                farPlane = sceneFarPlane;
                 nearPlaneExtend = sceneNearPlaneExtend;
                 eye = sceneEye;
             }
@@ -183,6 +201,7 @@ public sealed class SunCascades
             halfExtents[cascade] = bbox;
             cullDepthRanges[cascade] = farPlane;
             biasOffsets[cascade] = sceneBoundsMode ? 0f : BiasOffset(bias, farPlane + nearPlaneExtend);
+
         }
 
         ShadowBias = bias;
