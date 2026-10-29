@@ -684,26 +684,76 @@ namespace ValveResourceFormat.Renderer.Shaders
                 name = null;
             }
 
+            List<(Shader Shader, Shader Replacement)> compiled = [];
+            List<string> failures = [];
+
+            try
+            {
+                foreach (var shader in CachedShaders.Values)
+                {
+                    if (name != null && shader.FileName != name)
+                    {
+                        continue;
+                    }
+
+                    var fileName = GetShaderFileByName(shader.Name);
+                    var parsed = GetOrParseShader(fileName);
+
+                    try
+                    {
+                        compiled.Add((shader, CompileAndLinkShader(shader.Name, fileName, parsed, shader.Parameters, blocking: false)));
+                    }
+                    catch (ShaderCompilerException e)
+                    {
+                        failures.Add(e.Message);
+                    }
+                }
+            }
+            catch
+            {
+                foreach (var (_, replacement) in compiled)
+                {
+                    replacement.Delete();
+                }
+
+                throw;
+            }
+
+            // Compiled as a batch first, so that the driver links them in parallel. A shader whose
+            // replacement fails to compile or link keeps its previous program, so the scene still draws.
             List<Shader> reloaded = [];
 
-            foreach (var shader in CachedShaders.Values)
+            foreach (var (shader, replacement) in compiled)
             {
-                if (name != null && shader.FileName != name)
+                GL.GetProgram(replacement.Program, GetProgramParameterName.LinkStatus, out var linkStatus);
+
+                if (linkStatus == 1)
                 {
+                    shader.ReplaceWith(replacement);
+                    reloaded.Add(shader);
                     continue;
                 }
 
-                var fileName = GetShaderFileByName(shader.Name);
-                var parsed = GetOrParseShader(fileName);
-                var newShader = CompileAndLinkShader(shader.Name, fileName, parsed, shader.Parameters, blocking: false);
-                shader.ReplaceWith(newShader);
-                reloaded.Add(shader);
+                try
+                {
+                    replacement.EnsureLoaded();
+                }
+                catch (ShaderCompilerException e)
+                {
+                    failures.Add(e.Message);
+                }
+
+                replacement.Delete();
             }
 
-            // Compiled as a batch first, so that the driver links them in parallel
             foreach (var shader in reloaded)
             {
                 shader.EnsureLoaded();
+            }
+
+            if (failures.Count > 0)
+            {
+                throw new ShaderCompilerException(string.Join("\n\n", failures));
             }
         }
 #endif

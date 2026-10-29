@@ -22,6 +22,9 @@ using GUI.Types.Exporter;
 using GUI.Types.GLViewers;
 using GUI.Utils;
 using ValveResourceFormat.Renderer;
+using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace GUI.Automation;
 
@@ -566,7 +569,7 @@ internal sealed partial class McpTools : IDisposable
         {
             "array" when schema["minItems"] is not null => "[x, y, z]",
             "array" => "an array",
-            "object" when schema["additionalProperties"] is not null => "an object of indices to [x, y, z]",
+            "object" when schema["propertyNames"] is not null => "an object of indices to [x, y, z]",
             "object" => "an object",
             "integer" => "an integer",
             "boolean" => "true or false",
@@ -647,8 +650,23 @@ internal sealed partial class McpTools : IDisposable
     }
 
     /// <summary>A case insensitive regular expression, or null for no pattern.</summary>
-    private static Regex? Pattern(string? pattern)
-        => pattern == null ? null : new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+    /// <param name="argument">The argument the pattern came from, for the error.</param>
+    private static Regex? Pattern(string? pattern, string argument)
+    {
+        if (pattern == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+        }
+        catch (RegexParseException e)
+        {
+            throw new ArgumentException($"'{argument}' is a regular expression, not a wildcard, and a plain word matches anywhere. {e.Message}");
+        }
+    }
 
     /// <summary>Whether text matches a pattern from <see cref="Pattern"/>. A null pattern matches all text.</summary>
     private static bool Matches(Regex? pattern, string? text) => pattern == null || pattern.IsMatch(text ?? string.Empty);
@@ -730,13 +748,28 @@ internal sealed partial class McpTools : IDisposable
         await OnUi(() =>
         {
             // Frames still draw while minimized
-            if (readsPixels && Program.MainForm.WindowState == FormWindowState.Minimized)
+            if (readsPixels)
             {
-                throw new ToolException("The viewer window is minimized, so there is nothing to capture. Restore it.");
+                RestoreMinimized();
             }
 
             ShowViewer(viewer);
         }, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Restores a minimized viewer window without activating it, so the app in front keeps the focus.
+    /// The window lays out its controls at the restored size before this returns, and the next frame
+    /// resizes the render area to match. Call on the UI thread.
+    /// </summary>
+    private static void RestoreMinimized()
+    {
+        var form = Program.MainForm;
+
+        if (form.WindowState == FormWindowState.Minimized)
+        {
+            PInvoke.ShowWindow((HWND)form.Handle, SHOW_WINDOW_CMD.SW_SHOWNOACTIVATE);
+        }
     }
 
     /// <summary>

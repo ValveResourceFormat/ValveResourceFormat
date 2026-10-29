@@ -5,6 +5,9 @@
 uniform bool g_bFlipY = false;
 uniform bool g_bPostProcessEnabled = true;
 
+// Only the exposure scalar and the sRGB encode: no exposure bias, bloom, tonemap, color correction, gamma or dither
+uniform bool g_bRawOutput = false;
+
 uniform float g_flToneMapScalarLinear;
 uniform float g_flExposureBiasScaleFactor;
 uniform float g_flShoulderStrength;
@@ -85,6 +88,12 @@ void main()
 
     if (g_bPostProcessEnabled)
     {
+        if (g_bRawOutput)
+        {
+            outputColor = vec4(SrgbLinearToGamma(saturate(vColor.rgb * g_flToneMapScalarLinear)), vColor.a);
+            return;
+        }
+
         // The bloom terms are weighted by the exposure on its own, not by the exposed color, so keep it
         // around after the scene has been multiplied through.
         float flExposure = g_flToneMapScalarLinear * g_flExposureBiasScaleFactor;

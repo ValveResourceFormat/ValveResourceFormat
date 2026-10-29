@@ -30,14 +30,16 @@ internal sealed partial class McpTools
     /// <summary>The particle systems that spawn_particle added, the only ones set_particles removes. Only the keys are used.</summary>
     private readonly ConditionalWeakTable<ParticleSceneNode, object?> SpawnedParticles = [];
 
-    [Tool("Freeze the simulation in every tab: entities, particles, animation and shader time. Frames still render, so the camera can move and screenshots are repeatable. Particles do not emit while paused, so use step to run them.", Concurrent = true, Redraws = true)]
+    [Tool("Freeze the simulation in every tab: entities, particles, animation and shader time. Frames still render, so the camera can move and screenshots are repeatable. Particles do not emit while paused, so use step to run them. "
+        + "This freezes time only. Whether a map's entity logic runs at all is the simulation tool's state, the Play and Stop buttons.", Concurrent = true, Redraws = true)]
     private static object Pause([Description("False to return to real time. This also ends a running step.")] bool paused = true)
     {
         AutomationClock.SetPaused(paused);
         return new { Paused = paused };
     }
 
-    [Tool("Pause, advance the simulation of a 3D tab by exactly 'seconds' in fixed frames, and stay paused. A tab reloaded while paused restarts at time zero, so two runs with the same steps match. The seed of a particle system comes from its effect and placement, and each replay continues from the last. So a system restarted in place plays differently each time, unless set_particles pins its seed. Returns the scene time in seconds. If pause ends the step early, the time is less than the full step.")]
+    [Tool("Pause, advance the simulation of a 3D tab by exactly 'seconds' in fixed frames, and stay paused. A tab reloaded while paused restarts at time zero, so two runs with the same steps match. The seed of a particle system comes from its effect and placement, and each replay continues from the last. So a system restarted in place plays differently each time, unless set_particles pins its seed. Returns the scene time in seconds. If pause ends the step early, the time is less than the full step. "
+        + "A map's entity logic, such as logic_auto and point_template spawns, only runs in the steps after the simulation tool sets it playing.")]
     private static async Task<object> Step(
         GLSceneViewer viewer,
         [Description("Seconds to simulate.")][Range(0d, 600d, MinimumIsExclusive = true)] float seconds,
@@ -74,6 +76,54 @@ internal sealed partial class McpTools
         }
 
         return new { Time = viewer.Renderer.Uptime };
+    }
+
+    [Tool("Read or set the world simulation of a map tab, as its Play, Pause and Stop buttons do, and return the state once a frame has applied it. "
+        + "Playing from stopped spawns the map's entities again at round start, runs their logic, and walks the camera as the player, with gravity. Stopping puts the world back as it loaded and lifts the camera off the player. Both spawn the entities again, and the map's entities keep their ids. "
+        + "This is apart from pause and step, which freeze or advance time in every tab: a playing world advances only while time runs, so after playing, step to run logic such as logic_auto outputs and point_template spawns.", Redraws = true)]
+    private static async Task<object> Simulation(
+        GLWorldViewer viewer,
+        [Description("The state to set. Paused from stopped plays first, so the world spawns and holds. Setting the current state changes nothing. Omit to only read the state.")] GLWorldViewer.SimulationState? state = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (state == null || state == viewer.Simulation)
+        {
+            return new UnchangedReply(new { State = viewer.Simulation });
+        }
+
+        await ShowForFrames(viewer, readsPixels: false, cancellationToken).ConfigureAwait(false);
+        var crash = ReportedErrors.NextAsync();
+
+        if (state == GLWorldViewer.SimulationState.Paused && viewer.Simulation == GLWorldViewer.SimulationState.Stopped)
+        {
+            viewer.QueueSimulation(GLWorldViewer.SimulationRequest.Play);
+            await DrawShownFrames(viewer, 1, crash, cancellationToken).ConfigureAwait(false);
+        }
+
+        var request = state switch
+        {
+            GLWorldViewer.SimulationState.Playing => GLWorldViewer.SimulationRequest.Play,
+            GLWorldViewer.SimulationState.Paused => GLWorldViewer.SimulationRequest.Pause,
+            _ => GLWorldViewer.SimulationRequest.Stop,
+        };
+
+        // The render thread owns the entity world, so the next frame applies the change
+        viewer.QueueSimulation(request);
+        await DrawShownFrames(viewer, 1, crash, cancellationToken).ConfigureAwait(false);
+
+        // Stopping lifts the camera with a fly-out, which would run on scene time
+        if (state == GLWorldViewer.SimulationState.Stopped)
+        {
+            await WithGl(viewer, () => viewer.Input.SaveCameraForTransition(transitionDuration: 0f), cancellationToken).ConfigureAwait(false);
+        }
+
+        // World geometry opened without its map has no entities to run
+        if (viewer.Simulation != state)
+        {
+            throw new ToolException($"The world stayed {viewer.Simulation.ToString().ToLowerInvariant()}. Only a map has entities to simulate.");
+        }
+
+        return new { State = viewer.Simulation };
     }
 
     [Tool("Inspect the particle systems of a 3D tab: paused or finished, age in seconds, live particle count including children, and control points. It also lists the renderer classes that are not implemented and so draw nothing.")]

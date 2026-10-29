@@ -181,14 +181,10 @@ internal sealed class McpServer : IDisposable
             return (202, null);
         }
 
-        var meta = parameters?["_meta"];
-        var version = (string?)meta?[Meta + "protocolVersion"];
+        // A plain script may leave out the protocol metadata and headers, and then speaks this server's revision
+        var metaVersion = (string?)parameters?["_meta"]?[Meta + "protocolVersion"];
+        var version = metaVersion ?? request.Headers["MCP-Protocol-Version"] ?? ProtocolVersion;
         var toolName = method == "tools/call" ? (string?)parameters?["name"] : null;
-
-        if (version == null || meta?[Meta + "clientCapabilities"] == null)
-        {
-            return (400, Error(id, -32602, $"MCP {ProtocolVersion} needs '{Meta}protocolVersion' and '{Meta}clientCapabilities' in params._meta of every request."));
-        }
 
         if (CheckHeaders(request, method, version, toolName) is { } mismatch)
         {
@@ -242,22 +238,23 @@ internal sealed class McpServer : IDisposable
     }
 
     /// <summary>
-    /// The transport copies the version, method and tool name into headers. They must match the body,
-    /// so that an intermediary that routes on a header and this server that acts on the body agree.
+    /// The transport copies the version, method and tool name into headers. A header that is sent must
+    /// match the body, so that an intermediary that routes on a header and this server that acts on the
+    /// body agree. Without the header, nothing routes on it.
     /// </summary>
     private static string? CheckHeaders(HttpListenerRequest request, string method, string version, string? toolName)
     {
-        if (request.Headers["MCP-Protocol-Version"] != version)
+        if (request.Headers["MCP-Protocol-Version"] is { } headerVersion && headerVersion != version)
         {
             return "MCP-Protocol-Version header does not match params._meta.";
         }
 
-        if (request.Headers["Mcp-Method"] != method)
+        if (request.Headers["Mcp-Method"] is { } headerMethod && headerMethod != method)
         {
             return "Mcp-Method header does not match the method.";
         }
 
-        if (toolName != null && request.Headers["Mcp-Name"] != toolName)
+        if (toolName != null && request.Headers["Mcp-Name"] is { } headerName && headerName != toolName)
         {
             return "Mcp-Name header does not match the tool name.";
         }

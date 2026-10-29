@@ -60,7 +60,7 @@ namespace GUI.Types.GLViewers
         public WorldLoader? LoadedWorld;
         private EntityLump.Entity? entityInfoEntity;
 
-        private enum SimulationState
+        internal enum SimulationState
         {
             /// <summary>The world rests as it loaded.</summary>
             Stopped,
@@ -72,7 +72,7 @@ namespace GUI.Types.GLViewers
             Paused,
         }
 
-        private enum SimulationRequest
+        internal enum SimulationRequest
         {
             None,
             Play,
@@ -1280,6 +1280,19 @@ namespace GUI.Types.GLViewers
 
             // Hands the keyboard back to the viewport, which the click took, so the player can be walked
             GLControl?.Focus();
+        }
+
+        /// <summary>Gets whether the world is stopped, playing or paused, as the next frame left it.</summary>
+        internal SimulationState Simulation => simulationState;
+
+        /// <summary>
+        /// Queues a simulation change for the next frame without taking the keyboard, and leaves the cursor
+        /// free in walk mode, as after escape, until the viewport is clicked.
+        /// </summary>
+        internal void QueueSimulation(SimulationRequest request)
+        {
+            MouseReleased = true;
+            Interlocked.Exchange(ref simulationRequest, (int)request);
         }
 
         private void UpdateSimulationButtons(SimulationState state)

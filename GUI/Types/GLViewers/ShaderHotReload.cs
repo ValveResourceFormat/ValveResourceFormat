@@ -102,9 +102,17 @@ internal class ShaderHotReload : IDisposable
     public void ReloadShaders(string? name = null)
     {
         using var lockedGl = ViewerControl.MakeCurrent();
-        ShaderLoader.ReloadAllShaders(name);
-        ShadersReloaded?.Invoke(this, name);
-        ViewerControl.GLControl?.Invalidate();
+
+        try
+        {
+            ShaderLoader.ReloadAllShaders(name);
+        }
+        finally
+        {
+            // The shaders that did compile are replaced even when others fail
+            ShadersReloaded?.Invoke(this, name);
+            ViewerControl.GLControl?.Invalidate();
+        }
     }
 
     private void Hotload(object sender, FileSystemEventArgs e)

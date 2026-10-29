@@ -71,6 +71,13 @@ internal sealed partial class McpTools
         var world = viewer.LoadedWorld ?? throw new ToolException("This tab shows world geometry without a map, so it has no entities.");
         var table = EntityTables.GetOrCreateValue(viewer);
 
+        // Playing or stopping the world parses its lumps again. The new entities come in the same order, so they take the old ids.
+        if (world.Entities.Count > 0 && !table.Ids.ContainsKey(world.Entities[0]))
+        {
+            table.Entities.Clear();
+            table.Ids.Clear();
+        }
+
         table.Add(world.Entities, null);
 
         foreach (var group in viewer.OwnSceneSpawnGroups.ToArray())
@@ -180,7 +187,7 @@ internal sealed partial class McpTools
     /// <summary>A keyvalue as the entity properties show it.</summary>
     private static string KeyValueText(KVObject value) => EntityInfoControl.BareText(value) ?? EntityLump.StringifyValue(value);
 
-    [Tool("Search the entities of a map, its 3D sky and the other spawn groups it loaded. Text filters are case insensitive regular expressions. They match anywhere unless anchored with ^ and $. Positions are where each entity renders. Returns 'next_offset' when more entities match.")]
+    [Tool("Search the entities of a map, its 3D sky and the other spawn groups it loaded. There is no free text search or 'query': 'classname', 'targetname', 'key' and 'value' are separate filters, and an entity must match all that are given. Text filters are case insensitive regular expressions, not wildcards, so use 'decal' or '.*decal.*' rather than '*decal*'. They match anywhere unless anchored with ^ and $. Positions are where each entity renders. Returns 'next_offset' when more entities match.")]
     private async Task<object> FindEntities(
         GLWorldViewer viewer,
         [Description("Classname to match.")] string? classname = null,
@@ -196,9 +203,9 @@ internal sealed partial class McpTools
         [Description("Maximum matches to return.")][Range(1, int.MaxValue)] int limit = 50,
         CancellationToken cancellationToken = default)
     {
-        var classnamePattern = Pattern(classname);
-        var targetnamePattern = Pattern(targetname);
-        var valuePattern = Pattern(value);
+        var classnamePattern = Pattern(classname, nameof(classname));
+        var targetnamePattern = Pattern(targetname, nameof(targetname));
+        var valuePattern = Pattern(value, nameof(value));
 
         // Only the live state is read between frames. The keyvalues from the map load are matched afterwards, so rendering does not wait
         var entities = await WithGl(viewer, () => EntityRows(viewer), cancellationToken).ConfigureAwait(false);

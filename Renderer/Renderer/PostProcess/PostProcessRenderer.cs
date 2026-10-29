@@ -32,6 +32,12 @@ namespace ValveResourceFormat.Renderer.PostProcess
         /// </summary>
         internal bool AnimateDither { get; set; } = true;
 
+        /// <summary>
+        /// Gets or sets whether the frame is only multiplied by <see cref="TonemapScalar"/> and encoded to
+        /// sRGB, without exposure bias, bloom, tonemapping, color correction, gamma or dither.
+        /// </summary>
+        internal bool RawOutput { get; set; }
+
         /// <summary>Gets or sets the scene average luminance used for auto-exposure calculations.</summary>
         public float AverageLuminance { get; set; }
         /// <summary>Gets or sets the current post-processing state (tonemap, bloom, exposure settings).</summary>
@@ -284,7 +290,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
             {
                 colorBufferDraw.Bind(FramebufferTarget.DrawFramebuffer);
 
-                var runBloom = State.HasBloom || EffectsBloom != null;
+                var runBloom = !RawOutput && (State.HasBloom || EffectsBloom != null);
                 var bloomSettings = State.HasBloom ? State.BloomSettings : DefaultBloomSettings;
                 var postProcessShader = runBloom ? shaderPostProcessBloom : shaderPostProcess;
 
@@ -326,6 +332,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
                 postProcessShader.SetUniform("g_bFlipY", flipY);
 
                 postProcessShader.SetUniform("g_bPostProcessEnabled", Enabled);
+                postProcessShader.SetUniform("g_bRawOutput", RawOutput);
 
                 postProcessShader.SetUniform("g_flToneMapScalarLinear", TonemapScalar);
                 SetPostProcessUniforms(postProcessShader, State.TonemapSettings);

@@ -26,8 +26,10 @@ internal sealed partial class McpTools
     private static List<object> ListControls(GLBaseControl viewer, [Description("Include the items of dropdowns and lists. An animation list can have hundreds.")] bool items = false)
         => SidebarControls(viewer).Select(control => DescribeControl(control, items)).ToList();
 
-    [Tool("Change sidebar or toolbar controls in order, as a user would. Stops at the first change that fails and keeps the changes before it. A choice that moves the camera, such as a map camera, moves it at once. Returns each changed control once.", Redraws = true)]
-    private static List<object> SetControls(
+    [Tool("Change sidebar or toolbar controls in order, as a user would. Stops at the first change that fails and keeps the changes before it. A choice that moves the camera, such as a map camera, moves it at once. Returns each changed control once in 'controls'. "
+        + "On a map, the Exposure slider sets a manual exposure of 10 times its value, even when the value is the current one, until the tab is reloaded. "
+        + "After a change to it, 'exposure' gives the mode, auto or manual, and the exposure value.", Redraws = true)]
+    private static object SetControls(
         GLBaseControl viewer,
         [Description("'name' is the label from list_controls. Give 'group' only when two controls have the same label. 'item' is the list item to check. 'value' is true or false for a checkbox, toggle or list item, and the item text or index for a dropdown. It is a number for a slider or number, and a number array for a vector. Omit 'value' to press a button.")] List<ControlChange> changes)
     {
@@ -52,8 +54,19 @@ internal sealed partial class McpTools
             }
         }
 
-        // A checked list item is reported through the list, so the list comes back with its items
-        return changed.Select(static control => DescribeControl(control, items: control.Control is CheckedListBox)).ToList();
+        object? exposure = null;
+
+        if (viewer is GLSceneViewer scene && changed.Exists(static control => control.Label == "Exposure"))
+        {
+            exposure = DescribeExposure(scene);
+        }
+
+        return new
+        {
+            // A checked list item is reported through the list, so the list comes back with its items
+            Controls = changed.Select(static control => DescribeControl(control, items: control.Control is CheckedListBox)).ToList(),
+            Exposure = exposure,
+        };
     }
 
     private static SidebarControl ApplyControl(GLBaseControl viewer, ControlChange change)

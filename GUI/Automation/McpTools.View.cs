@@ -15,6 +15,7 @@ using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.Shaders;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Utils;
 
 namespace GUI.Automation;
 
@@ -56,9 +57,17 @@ internal sealed partial class McpTools
         [Description("On a model, mesh or material tab, draw only the object on a transparent background, as image export does. The inline JPEG shows transparency as black.")] bool transparent = false,
         [Description("Crop to [x, y, width, height] in render pixels from the top left.")] int[]? region = null,
         [Description("Factor that shrinks the capture after any 'region', for both the PNG and the inline JPEG.")][Range(0.01d, 1d)] float scale = 1f,
+        [Description("On a 3D tab, skip post processing as CS2 does with r_csgo_postprocess_enable 0: the output is sRGB(saturate(linear color * exposure)), with the exposure that get_render_stats reports and without exposure bias, bloom, tonemapping, color correction, gamma or dither. Depth of field still applies when it is on. The window shows the normal look again afterwards.")] bool raw = false,
         CancellationToken cancellationToken = default)
     {
         RequireAbsolute(path, nameof(path));
+
+        var postprocess = (viewer as GLSceneViewer)?.Renderer.Postprocess;
+
+        if (raw && postprocess == null)
+        {
+            throw new ArgumentException("'raw' needs a 3D tab, which has post processing.");
+        }
 
         // The captured frames load every texture first, as streaming would given enough time
         var streaming = viewer.RendererContext.TextureStreaming;
@@ -68,6 +77,7 @@ internal sealed partial class McpTools
 
         try
         {
+            postprocess?.RawOutput = raw;
             await RenderFrames(viewer, 1 + settleFrames, cancellationToken, readsPixels: true).ConfigureAwait(false);
 
             // A single node viewer's own capture is its transparent image export
@@ -76,6 +86,13 @@ internal sealed partial class McpTools
         finally
         {
             streaming.Mode = streamingMode;
+            postprocess?.RawOutput = false;
+        }
+
+        // The window would otherwise keep showing the raw frame while it is in the background
+        if (raw)
+        {
+            await RenderLoopThread.DrawFrames(viewer, 1, FrameTimeout, cancellationToken).ConfigureAwait(false);
         }
 
         using var captured = frame ?? throw new ToolException("The viewer has nothing to capture yet.");
@@ -96,27 +113,37 @@ internal sealed partial class McpTools
         return new ImageReply(new { bitmap.Width, bitmap.Height, Path = path }, jpeg.ToArray());
     }
 
-    [Tool("Compare two image files pixel by pixel, such as screenshots saved with 'path'. Returns how many pixels differ by more than 'threshold' in any channel. It also returns the largest and mean difference, and the box around the differing pixels.", Concurrent = true)]
+    [Tool("Compare two image files pixel by pixel, such as screenshots saved with 'path'. Returns how many pixels differ by more than 'threshold' in any channel. It also returns the largest and mean difference, and the box around the differing pixels. "
+        + "'regions' also measures named boxes in both images, such as the sky of a game frame and of a viewer frame.", Concurrent = true)]
     private static object CompareScreenshots(
         [Description("Absolute path of the first image.")] string a,
-        [Description("Absolute path of the second image, which must have the same size.")] string b,
+        [Description("Absolute path of the second image, which must have the same size unless 'resize' is true.")] string b,
         [Description("Largest difference in a channel, from 0 to 255, that still counts as equal.")][Range(0, 255)] int threshold = 0,
-        [Description("Absolute path of a .png file that shows the differing pixels in red over a dimmed copy of the first image.")] string? diff = null)
+        [Description("Absolute path of a .png file that shows the differing pixels in red over a dimmed copy of the first image.")] string? diff = null,
+        [Description("Named boxes [x, y, width, height] in pixels of 'a' from the top left, such as {\"sky\": [0, 0, 200, 100]}. Each returns the mean sRGB color (0 to 255) and mean linear color (0 to 1) of both images, and the ratio b/a of each linear channel and of the linear luminance.")] Dictionary<string, int[]>? regions = null,
+        [Description("Scale 'b' to the size of 'a' before comparing, for images of different sizes, such as a game capture and a viewer capture.")] bool resize = false,
+        [Description("Absolute path of a .png file with 'a', 'b' and the diff image side by side.")] string? sideBySide = null)
     {
         RequireAbsolute(diff, nameof(diff));
+        RequireAbsolute(sideBySide, nameof(sideBySide));
 
         using var first = LoadImage(a, nameof(a));
-        using var second = LoadImage(b, nameof(b));
+        using var loadedSecond = LoadImage(b, nameof(b));
+        var sameSize = first.Width == loadedSecond.Width && first.Height == loadedSecond.Height;
 
-        if (first.Width != second.Width || first.Height != second.Height)
+        if (!sameSize && !resize)
         {
-            throw new ToolException($"The images are different sizes: {first.Width}x{first.Height} and {second.Width}x{second.Height}.");
+            throw new ToolException($"The images are different sizes: {first.Width}x{first.Height} and {loadedSecond.Width}x{loadedSecond.Height}. Pass 'resize' true to scale 'b' to the size of 'a'.");
         }
 
+        using var resized = sameSize ? null : Resize(loadedSecond, first.Width, first.Height);
+        var second = resized ?? loadedSecond;
+
         var (width, height) = (first.Width, first.Height);
+        var measured = regions?.ToDictionary(static region => region.Key, region => MeasureRegion(first, second, region.Key, region.Value));
         var firstPixels = first.GetPixelSpan();
         var secondPixels = second.GetPixelSpan();
-        using var marked = diff == null ? null : new SKBitmap(new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Unpremul));
+        using var marked = diff != null || sideBySide != null ? new SKBitmap(new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Unpremul)) : null;
         var markedPixels = marked != null ? marked.GetPixelSpan() : default;
 
         var differing = 0;
@@ -167,9 +194,14 @@ internal sealed partial class McpTools
             }
         }
 
-        if (marked != null)
+        if (diff != null)
         {
-            File.WriteAllBytes(diff!, TextureExtract.ToPngImage(marked));
+            File.WriteAllBytes(diff, TextureExtract.ToPngImage(marked!));
+        }
+
+        if (sideBySide != null)
+        {
+            WriteSideBySide(sideBySide, first, second, marked!);
         }
 
         var pixels = (double)width * height;
@@ -178,14 +210,100 @@ internal sealed partial class McpTools
         {
             Width = width,
             Height = height,
+            ResizedFrom = sameSize ? null : new[] { loadedSecond.Width, loadedSecond.Height },
             DifferingPixels = differing,
             DifferingPercent = Math.Round(differing * 100 / pixels, 3),
             MaxDelta = maxDelta,
             MeanDelta = Math.Round(deltaSum / pixels, 3),
             DifferingRegion = differing > 0 ? new[] { minX, minY, maxX - minX + 1, maxY - minY + 1 } : null,
+            Regions = measured,
             Diff = diff,
+            SideBySide = sideBySide,
         };
     }
+
+    /// <summary>Writes three images of the same size next to each other as a PNG file.</summary>
+    private static void WriteSideBySide(string path, SKBitmap left, SKBitmap middle, SKBitmap right)
+    {
+        var (width, height) = (left.Width, left.Height);
+        using var combined = new SKBitmap(new SKImageInfo(width * 3, height, SKColorType.Rgba8888, SKAlphaType.Premul));
+
+        using (var canvas = new SKCanvas(combined))
+        {
+            canvas.DrawBitmap(left, new SKPoint(0, 0), SKSamplingOptions.Default);
+            canvas.DrawBitmap(middle, new SKPoint(width, 0), SKSamplingOptions.Default);
+            canvas.DrawBitmap(right, new SKPoint(width * 2, 0), SKSamplingOptions.Default);
+        }
+
+        File.WriteAllBytes(path, TextureExtract.ToPngImage(combined));
+    }
+
+    /// <summary>The linear value of each 8 bit sRGB value.</summary>
+    private static readonly float[] SrgbToLinear = [.. Enumerable.Range(0, 256).Select(static value => ColorSpace.SrgbGammaToLinear(new Vector3(value / 255f)).X)];
+
+    /// <summary>The mean colors of a box in two images of the same size, and how the second compares to the first.</summary>
+    private static object MeasureRegion(SKBitmap first, SKBitmap second, string name, int[] region)
+    {
+        var bounds = RegionBounds(region, first.Width, first.Height, $"regions.{name}");
+        var (firstSrgb, firstLinear) = MeanColor(first, bounds);
+        var (secondSrgb, secondLinear) = MeanColor(second, bounds);
+
+        var ratio = new double?[3];
+
+        for (var channel = 0; channel < 3; channel++)
+        {
+            ratio[channel] = Ratio(secondLinear[channel], firstLinear[channel]);
+        }
+
+        return new
+        {
+            A = new { Srgb = Rounded(firstSrgb, 2), Linear = Rounded(firstLinear, 5) },
+            B = new { Srgb = Rounded(secondSrgb, 2), Linear = Rounded(secondLinear, 5) },
+            Ratio = ratio,
+            LuminanceRatio = Ratio(Luminance(secondLinear), Luminance(firstLinear)),
+        };
+    }
+
+    /// <summary>The mean 8 bit sRGB color of a box, and the mean of its pixels converted to linear, as [r, g, b].</summary>
+    private static (double[] Srgb, double[] Linear) MeanColor(SKBitmap bitmap, SKRectI bounds)
+    {
+        var pixels = bitmap.GetPixelSpan();
+        var srgb = new double[3];
+        var linear = new double[3];
+
+        for (var y = bounds.Top; y < bounds.Bottom; y++)
+        {
+            for (var x = bounds.Left; x < bounds.Right; x++)
+            {
+                var offset = (y * bitmap.Width + x) * 4;
+
+                for (var channel = 0; channel < 3; channel++)
+                {
+                    var value = pixels[offset + channel];
+                    srgb[channel] += value;
+                    linear[channel] += SrgbToLinear[value];
+                }
+            }
+        }
+
+        var count = (double)bounds.Width * bounds.Height;
+
+        for (var channel = 0; channel < 3; channel++)
+        {
+            srgb[channel] /= count;
+            linear[channel] /= count;
+        }
+
+        return (srgb, linear);
+    }
+
+    private static double Luminance(double[] linear)
+        => MathUtils.LuminanceWeights.X * linear[0] + MathUtils.LuminanceWeights.Y * linear[1] + MathUtils.LuminanceWeights.Z * linear[2];
+
+    /// <summary>The ratio of two values, or null when the divisor is zero.</summary>
+    private static double? Ratio(double value, double divisor) => divisor > 0 ? Math.Round(value / divisor, 4) : null;
+
+    private static double[] Rounded(double[] values, int digits) => [.. values.Select(value => Math.Round(value, digits))];
 
     /// <summary>Decodes an image file into 8 bit RGBA, so two of them compare channel by channel.</summary>
     private static SKBitmap LoadImage(string path, string argument)
@@ -205,20 +323,27 @@ internal sealed partial class McpTools
         }
     }
 
-    private static SKBitmap Crop(SKBitmap bitmap, int[] region)
+    /// <summary>The box of an [x, y, width, height] argument, which must lie inside an image of the given size.</summary>
+    private static SKRectI RegionBounds(int[] region, int width, int height, string argument)
     {
         if (region.Length != 4 || region[2] <= 0 || region[3] <= 0)
         {
-            throw new ArgumentException("'region' must be [x, y, width, height] with a width and height more than zero.");
+            throw new ArgumentException($"'{argument}' must be [x, y, width, height] with a width and height more than zero.");
         }
 
         var bounds = SKRectI.Create(region[0], region[1], region[2], region[3]);
 
-        if (!SKRectI.Create(bitmap.Width, bitmap.Height).Contains(bounds))
+        if (!SKRectI.Create(width, height).Contains(bounds))
         {
-            throw new ArgumentException($"'region' [{string.Join(", ", region)}] is not inside the {bitmap.Width}x{bitmap.Height} capture.");
+            throw new ArgumentException($"'{argument}' [{string.Join(", ", region)}] is not inside the {width}x{height} image.");
         }
 
+        return bounds;
+    }
+
+    private static SKBitmap Crop(SKBitmap bitmap, int[] region)
+    {
+        var bounds = RegionBounds(region, bitmap.Width, bitmap.Height, nameof(region));
         var subset = new SKBitmap();
 
         if (!bitmap.ExtractSubset(subset, bounds))
@@ -235,8 +360,11 @@ internal sealed partial class McpTools
         var width = Math.Max(1, (int)MathF.Round(bitmap.Width * scale));
         var height = Math.Max(1, (int)MathF.Round(bitmap.Height * scale));
 
-        return bitmap.Resize(bitmap.Info.WithSize(width, height), new SKSamplingOptions(SKCubicResampler.Mitchell));
+        return Resize(bitmap, width, height);
     }
+
+    private static SKBitmap Resize(SKBitmap bitmap, int width, int height)
+        => bitmap.Resize(bitmap.Info.WithSize(width, height), new SKSamplingOptions(SKCubicResampler.Mitchell));
 
     /// <summary>Cameras saved by name for the camera tool, with exact values instead of the rounded numbers in its replies.</summary>
     private readonly Dictionary<string, (Vector3 Location, Vector3 Angles, float FieldOfView)> SavedCameras = new(StringComparer.OrdinalIgnoreCase);
@@ -349,13 +477,10 @@ internal sealed partial class McpTools
 
         if (width != null && height != null)
         {
+            // A minimized window has no area to cap the size to
+            RestoreMinimized();
+
             var area = control.Parent!.ClientSize;
-
-            if (area.Width == 0 || area.Height == 0)
-            {
-                throw new ToolException("The viewer window is minimized. Restore it.");
-            }
-
             control.Dock = DockStyle.None;
             control.Bounds = new Rectangle(0, 0, Math.Clamp(width.Value, 1, area.Width), Math.Clamp(height.Value, 1, area.Height));
         }
@@ -367,7 +492,7 @@ internal sealed partial class McpTools
         return new { control.Width, control.Height };
     }
 
-    [Tool("Recompile the shaders of every open tab from the source tree and redraw, without a viewer restart. A saved shader file already reloads the shown tab, and tabs opened later compile the saved sources. If that reload fails, the viewer opens a dialog. If this tool fails to compile, it returns the compiler error.", Redraws = true)]
+    [Tool("Recompile the shaders of every open tab from the source tree and redraw, without a viewer restart. A saved shader file already reloads the shown tab, and tabs opened later compile the saved sources. If that reload fails, the viewer opens a dialog. If this tool fails to compile or link a shader, it returns the error, and the viewer keeps drawing with the previous programs of the shaders that failed.", Redraws = true)]
     private static Task<object> ReloadShaders(
         [Description("Only reload the shaders built from this file, such as complex.frag.slang. A file without a stage in its name is an include, so it reloads every shader.")] string? name = null,
         CancellationToken cancellationToken = default)
@@ -411,7 +536,24 @@ internal sealed partial class McpTools
         }, cancellationToken, TimeSpan.FromMinutes(5));
     }
 
-    [Tool("Render new frames of a 3D tab and return the numbers behind its performance overlays. Counters are the last frame's draw counts and renderer metrics, without zeros. Timings are the CPU and GPU milliseconds of each timed render pass, averaged over the frames, in frame order with depth for nesting. GPU readings arrive a few frames late and not every frame. So each row counts its GPU readings, and a single frame may have none.")]
+    /// <summary>
+    /// Whether the scene's own exposure or the Exposure slider applies, and the linear exposure scalar in
+    /// use. A manual value is the slider's, which applies from the next frame on, and an auto value is
+    /// the last drawn frame's.
+    /// </summary>
+    private static object DescribeExposure(GLSceneViewer viewer)
+    {
+        var postprocess = viewer.Renderer.Postprocess;
+        var manual = postprocess.CustomExposure != -1;
+
+        return new
+        {
+            Mode = manual ? "manual" : "auto",
+            Value = Math.Round(manual ? postprocess.CustomExposure : postprocess.TonemapScalar, 4),
+        };
+    }
+
+    [Tool("Render new frames of a 3D tab and return the numbers behind its performance overlays. Exposure is 'auto' while the scene sets it, or 'manual' with the Exposure slider, and its value is the linear scalar the frame is multiplied by before tonemapping. Counters are the last frame's draw counts and renderer metrics, without zeros. Timings are the CPU and GPU milliseconds of each timed render pass, averaged over the frames, in frame order with depth for nesting. GPU readings arrive a few frames late and not every frame. So each row counts its GPU readings, and a single frame may have none.")]
     private static async Task<object> GetRenderStats(
         GLSceneViewer viewer,
         [Description("Frames to average the timings over.")][Range(1, 600)] int frames = 1,
@@ -444,6 +586,7 @@ internal sealed partial class McpTools
 
         return new
         {
+            Exposure = DescribeExposure(viewer),
             Counters = viewer.Renderer.PerfStats.Snapshot()
                 .Where(static stat => stat.Value != 0 && double.IsFinite(stat.Value))
                 .ToDictionary(static stat => JsonNamingPolicy.SnakeCaseLower.ConvertName(stat.Key), static stat => Math.Round(stat.Value, 3)),
