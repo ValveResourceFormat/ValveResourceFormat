@@ -1,6 +1,6 @@
 #version 460
 
-#include "common/ViewConstants.slang"
+#include "common/view_constants.slang"
 #include "common/structs.slang"
 
 layout(binding = 7, std430) readonly buffer OccludedBoundsDebugBuffer

@@ -8,7 +8,7 @@ ValveResourceFormat (VRF) is a C# library and toolset for parsing Valve's Source
 - **CLI/**: Command-line decompiler and file viewer, usage in `docs/guides/command-line.md`
 - **Renderer/**: OpenGL renderer
     - Shaders are GLSL in `.slang` files (`.frag.slang`, `.vert.slang`) and must be ASCII only.
-    - After changing shaders, run `dotnet run --project Misc/ShaderValidator -- <name filter>` to compile all their combos on a real GL context. `complex` is too slow for this, so iterate on a smaller shader.
+    - After changing shaders, run `dotnet run --project Misc/ShaderValidator -- <name filter>` to compile all their combos on a real GL context. An unfiltered run takes several minutes, so run it only before committing.
     - `Renderer/Editor/` is the editor like layer on top of the renderer: selection, picking, tools visibility, and the Hammer stand-ins and lines drawn for entities. The rest of the renderer only draws what the game shows and leaves tool visuals to the `IEntityToolVisuals` hook.
 - **Tests/**: TUnit suite for the library, plus headless Renderer logic tests in `Tests/Renderer/`. GUI and CLI are not covered.
     - Run the full suite with `dotnet test` when changing `ValveResourceFormat/` or `Renderer/`. On `Zero tests ran` (exit code 5), do a full `dotnet build` and retry.
@@ -39,8 +39,11 @@ ValveResourceFormat (VRF) is a C# library and toolset for parsing Valve's Source
 
 ### Shader Pipeline
 
-- `GetShaderFileByName()` maps each `.vfx` name to one of our shaders (e.g. `csgo_environment_blend.vfx` -> `csgo_environment`), falling back to `complex`.
-- At compile time, `GameVfx_{vfxName}` (e.g. `GameVfx_vr_complex`) is defined as 1 to enable shader-specific `#if` paths; all other `GameVfx_` defines are 0.
+- One renderer shader per game shader, named as the `.vfx`, in `Renderer/Shaders/<game>/<name>.{frag,vert}.slang` plus `_features.slang`, in the folder of each game that ships it. `<game>` is the lowercase `Game` member; `core/` holds the shaders every game ships.
+- Lookup: `<game>/<name>`, then the folders of `ShaderLoader.GameFallbackOrder`, then `core/<name>`, then `fallback`.
+- A shader declares only the combos it ships (an undeclared combo is 0 in `#if`), its uniforms (`// SrgbRead(true)` as the game shader converts them) and `GetMaterial()`. It sets the UPPER_CASE lighting knobs, includes `common/surface_base_ps.slang`, and ends with `RenderSurface()` built from the functions in `common/surface_*.slang` and `features/`.
+- Games or shaders that share code include a body file without a stage extension (`hlvr/vr_complex.slang`), or a stub includes the shared file. `GameVfx_{vfxName}` is 1 for the loaded name, for shaders of one game that differ in a couple of lines.
+- `// RepresentativeTexture` on a sampler marks the texture that holds the color of a material.
 
 ### Transforms and Angles
 

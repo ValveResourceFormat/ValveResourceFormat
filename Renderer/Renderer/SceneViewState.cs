@@ -389,8 +389,10 @@ public sealed class SceneViewState
         if (isLatePass)
         {
             WantsSceneColor |= readsSceneColor;
-            WantsSceneDepth |= request.Call.Material.Shader.ReservedTexturesUsed.Contains("g_tSceneDepth");
         }
+
+        // A draw before the grab reads the depth copy of the previous frame
+        WantsSceneDepth |= request.Call.Material.Shader.ReservedTexturesUsed.Contains("g_tSceneDepth");
 
         queueList.Add(request);
     }
@@ -1149,12 +1151,7 @@ public sealed class SceneViewState
                 continue;
             }
 
-            renderContext.ReplacementShader = bucket switch
-            {
-                DepthOnlyBucket.AlphaTest => depthOnlyShader.WithCombo(Shader.AlphaTestCombo, 1),
-                DepthOnlyBucket.MaterialDepthMode => null,
-                _ => depthOnlyShader,
-            };
+            renderContext.ReplacementShader = bucket == DepthOnlyBucket.Specialized ? depthOnlyShader : null;
 
             MeshBatchRenderer.Render(calls, renderContext);
             calls.Clear();

@@ -1,0 +1,12 @@
+#version 460
+
+// BLENDING
+#define F_ALPHA_TEST 0
+#define F_TRANSLUCENT 0
+// TEXTURING
+#define F_TINT_MASK 0
+#define F_SELF_ILLUM 0
+// SHADING
+#define F_USE_BENT_NORMALS 0
+// SKIN
+#define F_USE_PER_VERTEX_CURVATURE 0

@@ -42,7 +42,7 @@
 #define ENVMAP_OBJECT_VISIBILITY ((S_LIGHTMAP_VERSION_MINOR < 2) || ((S_LIGHTMAP_VERSION_MINOR == 2) && (D_BAKED_LIGHTING_FROM_LIGHTMAP == 0) && (D_BAKED_LIGHTING_FROM_PROBE == 0)))
 #define ENVMAP_COVERAGE_NORMALIZED (S_LIGHTMAP_VERSION_MINOR == 2) // The maps found share all of the weight
 #define SKY_FILLS_UNCOVERED (S_LIGHTMAP_VERSION_MINOR >= 3) // In both environment maps and light probes
-#define LIGHTMAP_SH_REFLECTIONS LIGHTMAP_SH // Rough non metals reflect the lightmap instead
+#define ENVMAP_LOD_SKIPS_SMALLEST_MIP ((S_LIGHTMAP_VERSION_MINOR == 2) && !VR_SHADING) // Full roughness stops at the second smallest mip
 
 // Ceiling on cubemap normalization brightening: 1 up to the starting roughness, rising to the maximum at 1
 #if (VR_SHADING)
@@ -66,5 +66,14 @@
 #define MULTISCATTER_REFLECTS_ENVIRONMENT ((S_LIGHTMAP_VERSION_MINOR == 2) && !VR_SHADING) // Else the irradiance
 #define DIFFUSE_ENERGY_CLAMPED (S_LIGHTMAP_VERSION_MINOR < 2)
 #define SPECULAR_ENERGY_COMPENSATION (!VR_SHADING)
+#define SPECULAR_HEIGHT_CORRELATED_VISIBILITY (S_LIGHTMAP_VERSION_MINOR >= 3) // Else Schlick-Smith
+#define GEOMETRIC_ROUGHNESS (S_LIGHTMAP_VERSION_MINOR < 3) // Roughness raised where the normal changes quickly
+#define ROUGHNESS_FLOOR_OPAQUE (S_LIGHTMAP_VERSION_MINOR >= 3) // Opaque surfaces are lit with a minimum roughness; translucent and glass are not
+
+// Fog
+#define FOG_GRADIENT_HORIZONTAL_DISTANCE (VR_SHADING || (S_LIGHTMAP_VERSION_MINOR >= 3)) // Else the distance from the camera
+// Fog takes the pixels past its start or above its culling height. Else the pixels past its start and on the side
+// of the culling height its height range grows to.
+#define FOG_CULLING_FIXED_HEIGHT_SIDE (S_LIGHTMAP_VERSION_MINOR == 1)
 
 #endif

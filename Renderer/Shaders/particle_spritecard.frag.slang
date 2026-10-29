@@ -1,13 +1,13 @@
 #version 460
 
 #include "common/utils.slang"
-#include "common/ViewConstants.slang"
+#include "common/view_constants.slang"
 #include "common/fog.slang"
 #include "common/depth.slang"
 #include "common/spritecard_channels.slang"
 
 #include "common/texturing.slang"
-#include "common/lighting.particle.slang"
+#include "common/lighting_particle.slang"
 
 // Render modes -- Switched on/off by code
 #define renderMode_Color 0
@@ -126,7 +126,6 @@ uniform float uLayerZoomScale[MAX_TEXTURE_LAYERS];
 // The frame blend of a layer without sheet frames, which then neither cross-fades nor warps.
 #define NO_FRAME_BLEND (-1.0)
 
-
 // Indexed by mask mode: .x premultiplies the ramp's source colour by its alpha, .y switches the lookup
 // to read alpha as the luma.
 const vec2 MASK_RAMP_FLAGS[15] = vec2[](
@@ -221,7 +220,6 @@ vec4 DistortPrevious(int previousLayer, vec4 source, vec2 previousUv, float stre
     return SampleLayer(previousLayer, previousUv - (offset * (strength * 0.125 * source.a)));
 }
 
-
 // A 1D ramp, looked up by the luminance of whatever is beneath this layer. The lookup runs in gamma
 // space. The layer's controls place the luminance across the ramp, and alone pick the row, so the row
 // is the same over the whole particle.
@@ -244,11 +242,11 @@ vec3 ApplyHsvShift(vec3 sourceColor)
 {
     // The conversion runs on a normalized copy and the magnitude is put back afterwards, so a colour
     // brighter than 1 keeps its overbright rather than being crushed to the top of the value axis.
-    float overbright = max(max3(sourceColor), 1.0);
+    float overbright = max(Max3(sourceColor), 1.0);
     vec3 rgb = saturate(sourceColor / overbright);
 
-    float valueMax = max3(rgb);
-    float chroma = valueMax - min3(rgb);
+    float valueMax = Max3(rgb);
+    float chroma = valueMax - Min3(rgb);
 
     vec3 hsv = vec3(0.0, 0.0, valueMax);
 
@@ -386,24 +384,77 @@ float AlphaReference(float textureAlpha, float vertexAlpha)
     return max(uAlphaReferenceOpaque.x, textureAlpha) * band * max(uAlphaReferenceOpaque.y, vertexAlpha);
 }
 
-void main(void) {
-    // Each layer is folded into an accumulator seeded to white. Layer 0 is the base texture, so with one
-    // layer and the default MULTIPLY this collapses to a straight sample.
+// The push of the current frame toward the next in xy, and of the next back toward the current in zw.
+vec4 MotionFlows()
+{
+#if S_MOTION_VECTORS
+    if (uBlendFrames)
+    {
+        return vec4(SampleFlow(vMotionVectorUvOut.xy), SampleFlow(vMotionVectorUvOut.zw));
+    }
+#endif
+
+    return vec4(0.0);
+}
+
+// A layer's texel at its current frame, cross-faded toward its next frame when the layer blends frames.
+vec4 SampleFrames(int layer, vec2 uv, vec2 uvNext, float frameBlend)
+{
+    // Modulate-2x pulls both base frames down by a fixed offset before anything else reads them;
+    // re-samples for zoom or distortion keep the raw texture.
+    vec3 mod2xBias = (layer == 0 && uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_MOD2X) ? MOD2X_BASE_BIAS : vec3(0.0);
+
+    vec4 texel = SampleLayer(layer, uv);
+    texel.rgb -= mod2xBias;
+
+    if (!uBlendFrames || layer >= 2)
+    {
+        return texel;
+    }
+
+    vec4 nextFrame = SampleLayer(layer, uvNext);
+    nextFrame.rgb -= mod2xBias;
+
+    if (layer == 0 && uMaxLuminanceFrameBlend)
+    {
+        // Weighting each frame by the square root of its luminance keeps the brighter one
+        // dominant through the cross-fade, so a spark does not dim as it crosses a frame.
+        float weight = (1.0 - frameBlend) * sqrt(max(0.001, GetLuma(texel.rgb)));
+        float nextWeight = frameBlend * sqrt(max(0.001, GetLuma(nextFrame.rgb)));
+
+        return ((texel * weight) + (nextFrame * nextWeight)) / (weight + nextWeight);
+    }
+
+    return mix(texel, nextFrame, frameBlend);
+}
+
+// Folds a layer into the accumulator by its mask mode, blend mode and strength.
+vec4 FoldLayer(vec4 accum, vec4 layer, int index, float blendWeight)
+{
+    int maskMode = uLayerChannels[index];
+    int blendMode = uLayerBlendMode[index];
+    float sub = float(blendMode == SPRITECARD_TEXTURE_BLEND_SUBTRACT);
+
+    vec4 masked = ApplyChannelMask(accum, layer, maskMode, sub);
+    vec4 blended = ApplyLayerBlend(accum, masked, blendMode);
+
+    // m_flTextureBlend fades the layer's contribution back toward what was already there.
+    vec4 faded = mix(accum, blended, uLayerBlend[index] * blendWeight);
+
+    return uClampLayers ? saturate(faded) : max(faded, vec4(0.0));
+}
+
+// Each layer is folded into an accumulator seeded to white. Layer 0 is the base texture, so with one
+// layer and the default MULTIPLY this collapses to a straight sample.
+vec4 CompositeLayers()
+{
     vec4 accum = vec4(1.0);
     vec2 previousUv = LayerUvs(0).xy;
     int previousLayer = 0;
 
-    // The push of the current frame toward the next, and of the next back toward the current
-    vec2 flow = vec2(0.0);
-    vec2 flowNext = vec2(0.0);
-
-#if S_MOTION_VECTORS
-    if (uBlendFrames)
-    {
-        flow = SampleFlow(vMotionVectorUvOut.xy);
-        flowNext = SampleFlow(vMotionVectorUvOut.zw);
-    }
-#endif
+    vec4 flows = MotionFlows();
+    vec2 flow = flows.xy;
+    vec2 flowNext = flows.zw;
 
     for (int i = 0; i < uLayerCount; ++i)
     {
@@ -427,31 +478,7 @@ void main(void) {
 
         frameBlend = max(frameBlend, 0.0);
 
-        // Modulate-2x pulls both base frames down by a fixed offset before anything else reads them;
-        // re-samples for zoom or distortion keep the raw texture.
-        vec3 mod2xBias = (i == 0 && uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_MOD2X) ? MOD2X_BASE_BIAS : vec3(0.0);
-
-        vec4 layer = SampleLayer(i, layerUv);
-        layer.rgb -= mod2xBias;
-
-        if (uBlendFrames && i < 2)
-        {
-            vec4 nextFrame = SampleLayer(i, layerUvNext);
-            nextFrame.rgb -= mod2xBias;
-
-            if (i == 0 && uMaxLuminanceFrameBlend)
-            {
-                // Weighting each frame by the square root of its luminance keeps the brighter one
-                // dominant through the cross-fade, so a spark does not dim as it crosses a frame.
-                float weight = (1.0 - frameBlend) * sqrt(max(0.001, GetLuma(layer.rgb)));
-                float nextWeight = frameBlend * sqrt(max(0.001, GetLuma(nextFrame.rgb)));
-                layer = ((layer * weight) + (nextFrame * nextWeight)) / (weight + nextWeight);
-            }
-            else
-            {
-                layer = mix(layer, nextFrame, frameBlend);
-            }
-        }
+        vec4 layer = SampleFrames(i, layerUv, layerUvNext, frameBlend);
 
         vec4 controls = LayerControls(i);
         bool distorts = effectMode == SPRITECARD_TEXTURE_UVDISTORTION || effectMode == SPRITECARD_TEXTURE_UVDISTORTION_ZOOM;
@@ -482,55 +509,41 @@ void main(void) {
             blendWeight = controls.w;
         }
 
-        int blendMode = uLayerBlendMode[i];
-        float sub = float(blendMode == SPRITECARD_TEXTURE_BLEND_SUBTRACT);
-
-        vec4 masked = ApplyChannelMask(accum, layer, maskMode, sub);
-        vec4 blended = ApplyLayerBlend(accum, masked, blendMode);
-
-        // m_flTextureBlend fades the layer's contribution back toward what was already there.
-        vec4 faded = mix(accum, blended, uLayerBlend[i] * blendWeight);
-        accum = uClampLayers ? saturate(faded) : max(faded, vec4(0.0));
+        accum = FoldLayer(accum, layer, i, blendWeight);
     }
 
-    vec4 color = accum;
+    return accum;
+}
 
+// The scene behind the card when it refracts, otherwise the card's own colour.
+vec3 ResolveCardColor(vec4 composite)
+{
 #if S_REFRACT
-    color.rgb = SampleRefraction(accum);
+    return SampleRefraction(composite);
+#else
+    return composite.rgb;
 #endif
+}
 
-    vec3 finalColor = vColor.rgb * color.rgb;
-
-    if (uHsvShift != vec3(0.0, 1.0, 1.0))
+// Overlays the outline colour across its alpha band. Solid between Start1 and End0, feathered outside.
+void ApplyOutline(float rawAlpha, inout vec3 color, inout float alpha)
+{
+    if (uAlphaReference || !uOutline || rawAlpha < uOutlineRanges.x || rawAlpha > uOutlineRanges.w)
     {
-        finalColor = ApplyHsvShift(finalColor);
+        return;
     }
 
-    // Both the soft edge and the outline band read the raw texture alpha; only the soft edge's result is
-    // carried forward, so an outline lands in the same place whether or not soft edges are on.
-    float rawAlpha = color.a;
-    float alpha = rawAlpha;
+    float outlineRamp = rawAlpha <= uOutlineRanges.z
+        ? smoothstep(uOutlineRanges.x, uOutlineRanges.z, rawAlpha)
+        : 1.0 - smoothstep(uOutlineRanges.y, uOutlineRanges.w, rawAlpha);
 
-    if (!uAlphaReference && uEdgeSoftness.x < uEdgeSoftness.y)
-    {
-        alpha = smoothstep(uEdgeSoftness.x, uEdgeSoftness.y, rawAlpha);
-    }
+    color = mix(color, uOutlineColor.rgb, outlineRamp);
+    alpha = mix(alpha, uOutlineColor.a, outlineRamp);
+}
 
-    // Overlay the outline colour across its alpha band. Solid between Start1 and End0, feathered outside.
-    if (!uAlphaReference && uOutline && rawAlpha >= uOutlineRanges.x && rawAlpha <= uOutlineRanges.w)
-    {
-        float outlineRamp = rawAlpha <= uOutlineRanges.z
-            ? smoothstep(uOutlineRanges.x, uOutlineRanges.z, rawAlpha)
-            : 1.0 - smoothstep(uOutlineRanges.y, uOutlineRanges.w, rawAlpha);
-
-        finalColor = mix(finalColor, uOutlineColor.rgb, outlineRamp);
-        alpha = mix(alpha, uOutlineColor.a, outlineRamp);
-    }
-
-    // Pulls the whole card toward its own luminance, after the outline so the overlay desaturates with
-    // everything else.
-    finalColor = mix(finalColor, vec3(GetLuma(finalColor)), uDesaturation);
-
+// The alpha after the remap and the particle's own alpha.
+float ApplyAlphaRemap(float alpha)
+{
     // The offset is not scaled, so only a remap whose zero point is 0 sends it to 0. The result is only
     // saturated when frames blend.
     alpha = alpha * uAlphaRemap.x + uAlphaRemap.y;
@@ -540,93 +553,155 @@ void main(void) {
         alpha = saturate(alpha);
     }
 
-    alpha = uAlphaReference ? AlphaReference(alpha, vColor.a) : alpha * vColor.a;
+    return uAlphaReference ? AlphaReference(alpha, vColor.a) : alpha * vColor.a;
+}
 
-    if (uFeathering)
+// Fades the card out where it comes within the feather range of the scene behind it.
+float ApplyFeathering(float alpha)
+{
+    if (!uFeathering)
     {
-        vec3 toFragment = vFragPosition - g_vCameraPositionWs;
-        vec3 scenePosition = GetWorldPositionFromDepth(ivec2(gl_FragCoord.xy), toFragment);
-
-        float spread = 1.0 - alpha;
-        float halfWidening = 1.0;
-
-        if (!uBlendFrames)
-        {
-            spread += length((vCardUvOut * 2.0) - vec2(1.0));
-            halfWidening = 0.5;
-        }
-
-        float offset = spread * (uFeatheringRange.y * uFeatheringFilter * halfWidening);
-
-        float pastMin = distance(vFragPosition, scenePosition) - offset - uFeatheringRange.x;
-        float range = uFeatheringRange.y - uFeatheringRange.x;
-
-        // An empty range is a hard cut at the minimum distance
-        alpha *= range != 0.0 ? saturate(pastMin / range) : float(pastMin > 0.0);
+        return alpha;
     }
 
+    vec3 toFragment = vFragPosition - g_vCameraPositionWs;
+    vec3 scenePosition = GetWorldPositionFromDepth(ivec2(gl_FragCoord.xy), toFragment);
+
+    float spread = 1.0 - alpha;
+    float halfWidening = 1.0;
+
+    if (!uBlendFrames)
+    {
+        spread += length((vCardUvOut * 2.0) - vec2(1.0));
+        halfWidening = 0.5;
+    }
+
+    float offset = spread * (uFeatheringRange.y * uFeatheringFilter * halfWidening);
+
+    float pastMin = distance(vFragPosition, scenePosition) - offset - uFeatheringRange.x;
+    float range = uFeatheringRange.y - uFeatheringRange.x;
+
+    // An empty range is a hard cut at the minimum distance
+    return alpha * (range != 0.0 ? saturate(pastMin / range) : float(pastMin > 0.0));
+}
+
+float ApplyRefractSolid(float alpha)
+{
 #if S_REFRACT
     if (uRefractSolid)
     {
-        alpha = saturate(alpha * 128.0);
+        return saturate(alpha * 128.0);
     }
 #endif
+
+    return alpha;
+}
+
+// Modulate-2x is its own output, not an additive one: 0.5 is the neutral that leaves the
+// destination untouched, and the vertex colour weights each channel away from grey rather than
+// scaling it. The lighting and fog stages are skipped on this path.
+vec4 Modulate2xOutput(vec3 color, float alpha)
+{
+    vec3 mod2xColor = mix(vec3(0.5), mix(vec3(0.5), color * uOverbrightFactor, vColor.rgb), vec3(alpha));
+
+    return vec4(saturate(mod2xColor), alpha);
+}
+
+// Lights the colour with the scene light and applies the overbright, self add, saturation and fog stages.
+vec3 ShadeColor(vec3 color, float blendAlphaFactor)
+{
+    vec3 litColor = color * uSelfIllumAmount;
+
+    if (uDiffuseAmount != 0.0)
+    {
+        vec3 light = vLightOut;
+
+        // TODO: Whether per pixel lighting tessellates the card rather than lighting its fragments is not
+        // known, so it is lit per fragment
+        if (uLightingMode == PARTICLE_LIGHTING_PER_PIXEL)
+        {
+            ParticleLight_t pixelLight = CalculateParticleLighting(vFragPosition, -g_vCameraDirWs, 0.0, false);
+            light = pixelLight.Ambient + pixelLight.Direct;
+        }
+
+        litColor += color * light * uDiffuseAmount;
+    }
+
+    vec3 shaded = uOverbrightFactor * litColor;
+
+    // m_flAddSelfAmount arrives as 1 + amount; over an alpha blend the extra term lays the
+    // particle's own colour additively on top.
+    shaded *= uAddSelfAmount;
+
+    if (uSaturateColor)
+    {
+        shaded = saturate(shaded);
+    }
+
+    // The fog colour is scaled by the blend mode's alpha factor, so additive output only fades with
+    // fog density. ApplyFog is affine in the colour, so fogging black gives the fog colour term.
+    if (uFogParticles)
+    {
+        vec3 fogColor = vec3(0.0);
+        vec3 fogWhite = vec3(1.0);
+        ApplyFog(fogColor, vFragPosition);
+        ApplyFog(fogWhite, vFragPosition);
+        shaded = shaded * saturate(fogWhite.g - fogColor.g) + fogColor * blendAlphaFactor;
+    }
+
+    return shaded;
+}
+
+vec4 BlendedOutput(vec3 color, float alpha, float blendAlphaFactor)
+{
+    if (uUnsignedBlendAlpha)
+    {
+        return vec4(color * mix(alpha, 1.0, saturate(-blendAlphaFactor)), alpha * abs(blendAlphaFactor));
+    }
+
+    return vec4(color * alpha, alpha * blendAlphaFactor);
+}
+
+void main(void) {
+    vec4 composite = CompositeLayers();
+
+    vec3 finalColor = vColor.rgb * ResolveCardColor(composite);
+
+    if (uHsvShift != vec3(0.0, 1.0, 1.0))
+    {
+        finalColor = ApplyHsvShift(finalColor);
+    }
+
+    // Both the soft edge and the outline band read the raw texture alpha; only the soft edge's result is
+    // carried forward, so an outline lands in the same place whether or not soft edges are on.
+    float rawAlpha = composite.a;
+    float alpha = rawAlpha;
+
+    if (!uAlphaReference && uEdgeSoftness.x < uEdgeSoftness.y)
+    {
+        alpha = smoothstep(uEdgeSoftness.x, uEdgeSoftness.y, rawAlpha);
+    }
+
+    ApplyOutline(rawAlpha, finalColor, alpha);
+
+    // Pulls the whole card toward its own luminance, after the outline so the overlay desaturates with
+    // everything else.
+    finalColor = mix(finalColor, vec3(GetLuma(finalColor)), uDesaturation);
+
+    alpha = ApplyAlphaRemap(alpha);
+    alpha = ApplyFeathering(alpha);
+    alpha = ApplyRefractSolid(alpha);
 
     float blendAlphaFactor = OUTPUT_BLEND_MODE_ALPHA_FACTOR[clamp(uBlendMode, 0, 6)];
 
     if (uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_MOD2X)
     {
-        // Modulate-2x is its own output, not an additive one: 0.5 is the neutral that leaves the
-        // destination untouched, and the vertex colour weights each channel away from grey rather than
-        // scaling it. The lighting and fog stages are skipped on this path.
-        vec3 mod2xColor = mix(vec3(0.5), mix(vec3(0.5), finalColor * uOverbrightFactor, vColor.rgb), vec3(alpha));
-
-        fragColor = vec4(saturate(mod2xColor), alpha);
+        fragColor = Modulate2xOutput(finalColor, alpha);
     }
     else
     {
-        vec3 litColor = finalColor * uSelfIllumAmount;
-
-        if (uDiffuseAmount != 0.0)
-        {
-            vec3 light = vLightOut;
-
-            // TODO: Whether per pixel lighting tessellates the card rather than lighting its fragments is not
-            // known, so it is lit per fragment
-            if (uLightingMode == PARTICLE_LIGHTING_PER_PIXEL)
-            {
-                ParticleLight_t pixelLight = CalculateParticleLighting(vFragPosition, -g_vCameraDirWs, 0.0, false);
-                light = pixelLight.Ambient + pixelLight.Direct;
-            }
-
-            litColor += finalColor * light * uDiffuseAmount;
-        }
-
-        finalColor = uOverbrightFactor * litColor;
-
-        // m_flAddSelfAmount arrives as 1 + amount; over an alpha blend the extra term lays the
-        // particle's own colour additively on top.
-        finalColor *= uAddSelfAmount;
-
-        if (uSaturateColor)
-        {
-            finalColor = saturate(finalColor);
-        }
-
-        // The fog colour is scaled by the blend mode's alpha factor, so additive output only fades with
-        // fog density. ApplyFog is affine in the colour, so fogging black gives the fog colour term.
-        if (uFogParticles)
-        {
-            vec3 fogColor = vec3(0.0);
-            vec3 fogWhite = vec3(1.0);
-            ApplyFog(fogColor, vFragPosition);
-            ApplyFog(fogWhite, vFragPosition);
-            finalColor = finalColor * saturate(fogWhite.g - fogColor.g) + fogColor * blendAlphaFactor;
-        }
-
-        fragColor = uUnsignedBlendAlpha
-            ? vec4(finalColor * mix(alpha, 1.0, saturate(-blendAlphaFactor)), alpha * abs(blendAlphaFactor))
-            : vec4(finalColor * alpha, alpha * blendAlphaFactor);
+        finalColor = ShadeColor(finalColor, blendAlphaFactor);
+        fragColor = BlendedOutput(finalColor, alpha, blendAlphaFactor);
     }
 
     if (g_iRenderMode == renderMode_Color)

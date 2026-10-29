@@ -6,7 +6,7 @@
 
 #if (F_ALPHA_TEST == 1)
     layout (location = 0) in vec2 texCoord;
-    uniform sampler2D g_tColor;
+    uniform sampler2D g_tColor; // RepresentativeTexture
     uniform float g_flAlphaTestReference = 0.5;
 #endif
 

@@ -1,0 +1,55 @@
+#version 460
+
+#include "csgo_decalmodulate_features.slang"
+
+#define IBL 1
+#define SUBSURFACE 0
+#define DIFFUSE_WRAP 0
+#define ANISO_CUBEMAP_WARP_OPTIONAL 0
+
+#include "../common/surface_base_ps.slang"
+#include "../common/surface_material.slang"
+#include "../common/surface_shading.slang"
+
+uniform sampler2D g_tColor; // SrgbRead(true) Sampler(UserConfig) RepresentativeTexture
+
+uniform float g_flOpacityScale = 1.0;
+uniform float g_flAlphaTestReference = 0.0;
+
+#if (F_TINT_MASK == 1)
+    uniform sampler2D g_tTintMask;
+#endif
+
+MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
+{
+    MaterialProperties_t mat;
+    InitProperties(mat, vertexNormals, vFragPosition, vTangentOut.xyz, GetBitangent(vNormalOut, vTangentOut));
+
+    vec4 color = texture(g_tColor, texCoord);
+
+    mat.Albedo = color.rgb;
+
+    float alpha = color.a * vVertexColorOut.a;
+    InitOpacity(mat, alpha, g_flOpacityScale, true, false, texCoord, g_flAlphaTestReference);
+
+    if (mat.Opacity < g_flAlphaTestReference)
+    {
+        discard;
+    }
+
+#if (F_TINT_MASK == 1)
+    mat.Albedo *= GetMaskedVertexTint(texture(g_tTintMask, texCoord).x);
+#else
+    mat.Albedo *= vVertexColorOut.rgb;
+#endif
+
+    FinishUnlitMaterial(mat);
+    return mat;
+}
+
+void main()
+{
+    SurfaceOptions_t options = DefaultSurfaceOptions();
+    options.BlendMode = 7;
+    RenderUnlitSurface(g_tColor, options);
+}

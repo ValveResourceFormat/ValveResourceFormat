@@ -54,6 +54,18 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// <summary>Blue channel of the ambient lighting.</summary>
         public Vector4 AmbientLightingSHB;
 
+        /// <summary>Direction the directional ambient lighting is facing (XYZ), and how much the sun shadow darkens it (W).</summary>
+        public Vector4 AmbientDirection_ShadowAmount;
+        /// <summary>Linear color of the directional ambient lighting multiplied by its intensity, zero when there is none.</summary>
+        public Vector4 AmbientDirectionColor;
+
+        /// <summary>Direction the specular light travels (XYZ), and the exponent of its highlight (W).</summary>
+        public Vector4 SpecularDirection_Power;
+        /// <summary>Linear specular color whose highlight is added to the albedo before it is lit, zero when there is none.</summary>
+        public Vector4 SpecularAlbedoColor;
+        /// <summary>Linear specular color whose highlight is added after lighting where the sun reaches, zero when there is none.</summary>
+        public Vector4 SpecularLitColor;
+
         /// <summary>Gets or sets the number of lightmapped lights in the scene.</summary>
         public uint StaticLightCount { get => NumLights[0]; set => NumLights[0] = value; }
 

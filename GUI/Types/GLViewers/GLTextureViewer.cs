@@ -1714,7 +1714,6 @@ namespace GUI.Types.GLViewers
             shader.Use();
 
             shader.SetUniform("g_bTextureViewer", true);
-            shader.SetUniform("g_bShowLightBackground", ShowLightBackground);
             shader.SetUniform("g_vViewportSize", new Vector2(fbo.Width, fbo.Height));
 
             var theme1 = Themer.CurrentTheme == Themer.AppTheme.Dark

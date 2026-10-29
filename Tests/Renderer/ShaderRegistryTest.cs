@@ -66,9 +66,9 @@ namespace Tests.Renderer
         [Test]
         public async Task MountedIncludeOverridesBuiltinOne()
         {
-            await Assert.That(Preprocess("complex.vert.slang")).DoesNotContain("CustomUtilsMarker");
+            await Assert.That(Preprocess("fallback.vert.slang")).DoesNotContain("CustomUtilsMarker");
 
-            // complex.vert.slang includes common/utils.slang
+            // fallback.vert.slang includes common/utils.slang
             await WriteShader("common/utils.slang", """
                 #version 460
                 void CustomUtilsMarker() {}
@@ -76,7 +76,7 @@ namespace Tests.Renderer
 
             ShaderRegistry.AddShaderDirectory(customShaderDirectory);
 
-            await Assert.That(Preprocess("complex.vert.slang")).Contains("void CustomUtilsMarker() {}");
+            await Assert.That(Preprocess("fallback.vert.slang")).Contains("void CustomUtilsMarker() {}");
         }
 
         [Test]
@@ -87,13 +87,13 @@ namespace Tests.Renderer
 
             try
             {
-                await WriteShader("complex.vert.slang", "#version 460\nvoid main() { First(); }");
-                await File.WriteAllTextAsync(Path.Combine(secondDirectory, "complex.vert.slang"), "#version 460\nvoid main() { Second(); }");
+                await WriteShader("fallback.vert.slang", "#version 460\nvoid main() { First(); }");
+                await File.WriteAllTextAsync(Path.Combine(secondDirectory, "fallback.vert.slang"), "#version 460\nvoid main() { Second(); }");
 
                 ShaderRegistry.AddShaderDirectory(customShaderDirectory);
                 ShaderRegistry.AddShaderDirectory(secondDirectory);
 
-                await Assert.That(Preprocess("complex.vert.slang")).Contains("void main() { Second(); }");
+                await Assert.That(Preprocess("fallback.vert.slang")).Contains("void main() { Second(); }");
             }
             finally
             {
@@ -107,7 +107,7 @@ namespace Tests.Renderer
             // Shaders can also be customized by patching the preprocessed source instead of overriding whole files.
             // Note the result cannot be written back out as a shader file, as it is already fully inlined.
             var parsedData = new ShaderLoader.ParsedShaderData();
-            var patched = Preprocess("complex.vert.slang", parsedData)
+            var patched = Preprocess("fallback.vert.slang", parsedData)
                 .Replace("void main()", "void PatchedMain()", StringComparison.Ordinal);
 
             using (Assert.Multiple())
@@ -178,12 +178,12 @@ namespace Tests.Renderer
         }
 
         [Test]
-        public async Task OnlyVfxShaderNamesFallBackToComplex()
+        public async Task OnlyVfxShaderNamesFallBackToFallbackShader()
         {
             using (Assert.Multiple())
             {
-                await Assert.That(ShaderLoader.GetShaderFileByName("mygame_glass.vfx")).IsEqualTo("complex");
-                await Assert.That(ShaderLoader.GetShaderFileByName("sky.vfx")).IsEqualTo("sky");
+                await Assert.That(ShaderLoader.GetShaderFileByName("mygame_glass.vfx")).IsEqualTo("fallback");
+                await Assert.That(ShaderLoader.GetShaderFileByName("sky.vfx")).IsEqualTo("core/sky");
 
                 // Renderer shader files are loaded as themselves, and throw when they do not exist
                 await Assert.That(ShaderLoader.GetShaderFileByName("mygame_glass")).IsEqualTo("mygame_glass");
@@ -194,7 +194,7 @@ namespace Tests.Renderer
         [Test]
         public async Task ShaderMappingsOverrideBuiltinOnes()
         {
-            await Assert.That(ShaderLoader.GetShaderFileByName("mygame_glass.vfx")).IsEqualTo("complex");
+            await Assert.That(ShaderLoader.GetShaderFileByName("mygame_glass.vfx")).IsEqualTo("fallback");
 
             ShaderRegistry.AddShaderMapping("mygame_glass.vfx", "mygame_glass");
             ShaderRegistry.AddShaderMapping("sky.vfx", "mygame_sky");

@@ -28,7 +28,7 @@ namespace ValveResourceFormat.Renderer.Buffers
 
         /// <summary>Combined world-to-clip transform (view * projection).</summary>
         public Matrix4x4 WorldToProjection = Matrix4x4.Identity;
-        /// <summary>Inverse of <see cref="WorldToProjection"/>, mapping clip space back to world space.</summary>
+        /// <summary>Inverse of the projection matrix alone, mapping clip space back to view space.</summary>
         public Matrix4x4 ProjectionToWorld = Matrix4x4.Identity;
         /// <summary>View matrix transforming world-space positions into camera space.</summary>
         public Matrix4x4 WorldToView = Matrix4x4.Identity;
@@ -105,8 +105,8 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// </summary>
         public Vector2 SceneDepthFetchScale = Vector2.One;
 
-        /// <summary>Padding to satisfy alignment requirements.</summary>
-        public Vector2 Padding1;
+        /// <summary>Distance of the volumetric fog volume's first slice and the distance from it to the last slice.</summary>
+        public Vector2 VolumetricFogNearRange;
 
         /// <summary>Cull mask layout of the scene being drawn, from its <see cref="LightBinner"/>.</summary>
         public LightCullConstants LightCull;

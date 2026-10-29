@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.IO;
 
 namespace ValveResourceFormat.Renderer.Shaders
 {
@@ -28,18 +29,16 @@ namespace ValveResourceFormat.Renderer.Shaders
             var folder = ShaderParser.ShaderSourceDirectory
                 ?? throw new DirectoryNotFoundException("Shader validation requires the shader source files, but this build only has the embedded copies.");
 
-            var vertShaders = Directory.GetFiles(folder, "*.vert.slang")
-                .Concat(ShaderRegistry.EnumerateShaderFiles("*.vert.slang"));
-            var compShaders = Directory.GetFiles(folder, "*.comp.slang")
-                .Concat(ShaderRegistry.EnumerateShaderFiles("*.comp.slang"));
-
-            var allShaders = vertShaders.Concat(compShaders)
-                .DistinctBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+            // Every entry point with a vertex or compute stage, including the shaders in the game folders
+            var allShaders = Parser.AvailableShaders
+                .Where(static shader => shader.Value[(int)ShaderProgramType.Vertex] || shader.Value[(int)ShaderProgramType.Compute])
+                .Select(static shader => shader.Key)
+                .Order(StringComparer.Ordinal)
                 .ToArray();
 
             if (filter != null)
             {
-                allShaders = [.. allShaders.Where(s => Path.GetFileName(s).Contains(filter, StringComparison.OrdinalIgnoreCase))];
+                allShaders = [.. allShaders.Where(s => s.Contains(filter, StringComparison.OrdinalIgnoreCase))];
             }
 
             if (allShaders.Length == 0)
@@ -55,7 +54,7 @@ namespace ValveResourceFormat.Renderer.Shaders
 
             foreach (var shader in allShaders)
             {
-                CompileShaderVariants(ShaderNameFromPath(shader));
+                CompileShaderVariants(shader);
             }
 
             LinkAndDeleteBatch();
@@ -66,7 +65,18 @@ namespace ValveResourceFormat.Renderer.Shaders
             void Compile(string name, IReadOnlyDictionary<string, byte>? arguments = null)
             {
                 loader.LoadShader(name, arguments);
+                LinkIfBatchIsFull();
+            }
 
+            // A Source 2 shader name loaded as the file under test instead of resolving to a game's file
+            void CompileVariant(string vfxName, string shaderFileName, IReadOnlyDictionary<string, byte>? arguments = null)
+            {
+                loader.LoadShaderFile(vfxName, shaderFileName, Game.Unknown, arguments ?? EmptyArgs, blocking: false);
+                LinkIfBatchIsFull();
+            }
+
+            void LinkIfBatchIsFull()
+            {
                 if (loader.ShaderCount >= 128)
                 {
                     LinkAndDeleteBatch();
@@ -111,6 +121,11 @@ namespace ValveResourceFormat.Renderer.Shaders
                 loader.DeleteCachedShaders();
             }
 
+            static Dictionary<string, byte> CreateArguments(string define, int value) => new()
+            {
+                [define] = (byte)value,
+            };
+
             void CompileShaderVariants(string shaderName)
             {
                 progressReporter.Report($"Compiling {shaderName}");
@@ -129,7 +144,9 @@ namespace ValveResourceFormat.Renderer.Shaders
                 // Test all defines one by one
                 var shaderFileName = GetShaderFileByName(shaderName);
                 var parsed = GetOrParseShader(shaderFileName);
-                var defines = parsed.Defines.Where(static x => !x.Key.StartsWith("GameVfx_", StringComparison.Ordinal)).ToDictionary();
+                var defines = parsed.Defines
+                    .Where(static x => !x.Key.StartsWith("GameVfx_", StringComparison.Ordinal))
+                    .ToDictionary();
                 var variants = parsed.Defines.Keys.Where(static x => x.StartsWith("GameVfx_", StringComparison.Ordinal));
                 var sourceLines = parsed.SourceFileLines;
                 var maxValues = ExtractMaxDefineValues(defines, sourceLines);
@@ -142,11 +159,25 @@ namespace ValveResourceFormat.Renderer.Shaders
                     {
                         progressReporter.Report($"Compiling {shaderName} with {define}={value}");
 
-                        Compile(shaderName, new Dictionary<string, byte>
-                        {
-                            [define] = (byte)value,
-                        });
+                        Compile(shaderName, CreateArguments(define, value));
                     }
+                }
+
+                // Combos that only fail together, such as a material feature reached from the depth pass of an alpha tested material
+                var allDefines = defines.Keys.ToDictionary(static d => d, d => (byte)maxValues.GetValueOrDefault(d, 1));
+
+                progressReporter.Report($"Compiling {shaderName} with all defines");
+                Compile(shaderName, allDefines);
+
+                if (allDefines.ContainsKey(Shader.DepthModeCombo))
+                {
+                    var allDefinesLit = new Dictionary<string, byte>(allDefines)
+                    {
+                        [Shader.DepthModeCombo] = 0,
+                    };
+
+                    progressReporter.Report($"Compiling {shaderName} with all defines outside the depth pass");
+                    Compile(shaderName, allDefinesLit);
                 }
 
                 // Test all variants
@@ -155,7 +186,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                     var vfxName = string.Concat(name.AsSpan()["GameVfx_".Length..], ".vfx");
                     progressReporter.Report($"Compiling variant {vfxName}");
 
-                    Compile(vfxName);
+                    CompileVariant(vfxName, shaderName);
 
                     // Test all defines one by one in combination with the shader variant name
                     foreach (var define in defines.Keys)
@@ -166,17 +197,14 @@ namespace ValveResourceFormat.Renderer.Shaders
                         {
                             progressReporter.Report($"Compiling variant {vfxName} with {define}={value}");
 
-                            Compile(vfxName, new Dictionary<string, byte>
-                            {
-                                [define] = (byte)value,
-                            });
+                            CompileVariant(vfxName, shaderName, CreateArguments(define, value));
                         }
                     }
 
                     // Test all defines at once with their maximum values
                     progressReporter.Report($"Compiling variant {vfxName} with all defines");
 
-                    Compile(vfxName, defines.Keys.ToDictionary(static d => d, d => (byte)maxValues.GetValueOrDefault(d, 1)));
+                    CompileVariant(vfxName, shaderName, allDefines);
                 }
             }
         }

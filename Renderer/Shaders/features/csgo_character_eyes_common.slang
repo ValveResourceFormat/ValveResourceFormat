@@ -3,8 +3,6 @@
 #ifndef VRF_CSGO_CHARACTER_EYES_COMMON_INCLUDE
 #define VRF_CSGO_CHARACTER_EYES_COMMON_INCLUDE
 
-#define F_EYEBALLS 0 // csgo_character
-
 struct EyePixelInput
 {
     vec4 vEyeViewDir_PosX;

@@ -23,7 +23,6 @@ vec3 CalculateFullbrightLighting(vec3 albedo, vec3 normal, vec3 viewVector)
 
     float xtraLight = GetFullbrightAxisLight(normal);
 
-    //return XtraLightDiffuse * albedo * flFakeDiffuseLighting + flFakeSpecularLighting;
     return xtraLight * albedo * flFakeDiffuseLighting + flFakeSpecularLighting;
 }
 

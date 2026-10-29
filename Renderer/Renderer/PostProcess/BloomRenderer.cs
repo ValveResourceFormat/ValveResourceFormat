@@ -13,6 +13,8 @@ public class BloomRenderer
 {
     private Shader? downsampleBloomThreshold;
     private Shader? downsampleBloomThresholdExposed;
+    private Shader? downsampleBloomThresholdPointTaps;
+    private Shader? downsampleBloomThresholdBilinear;
     private Shader? downsample;
     private Shader? horizontalBlur;
     private Shader? verticalBlur;
@@ -69,7 +71,9 @@ public class BloomRenderer
     public void Load()
     {
         downsampleBloomThreshold = RendererContext.ShaderLoader.LoadShader("downsample_bloomthreshold");
-        downsampleBloomThresholdExposed = RendererContext.ShaderLoader.LoadShader("downsample_bloomthreshold", ("D_EXPOSED_THRESHOLD", 1));
+        downsampleBloomThresholdExposed = RendererContext.ShaderLoader.LoadShader("downsample_bloomthreshold", ("D_THRESHOLD_MODE", 1));
+        downsampleBloomThresholdPointTaps = RendererContext.ShaderLoader.LoadShader("downsample_bloomthreshold", ("D_THRESHOLD_MODE", 2));
+        downsampleBloomThresholdBilinear = RendererContext.ShaderLoader.LoadShader("downsample_bloomthreshold", ("D_THRESHOLD_MODE", 3));
         downsample = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur");
         horizontalBlur = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur", ("D_BLUR_PASS", 1));
         verticalBlur = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur", ("D_BLUR_PASS", 2));
@@ -138,10 +142,24 @@ public class BloomRenderer
 
         Debug.Assert(input.Target == TextureTarget.Texture2D);
         Debug.Assert(downsampleBloomThreshold != null && downsampleBloomThresholdExposed != null);
+        Debug.Assert(downsampleBloomThresholdPointTaps != null && downsampleBloomThresholdBilinear != null);
 
-        // TODO: Half-Life: Alyx downsamples with 16 point taps weighted by 1 / (max(rgb) + 1) and thresholds after
-        // decoding the sum, and Deadlock scales the threshold luminance and colour by 20 times the self-illum mask
-        var shader = ThresholdsExposedScene ? downsampleBloomThresholdExposed : downsampleBloomThreshold;
+        // TODO: Deadlock scales the threshold luminance and colour of a texel by 20 times the per-pixel bloom
+        // amount, where that is above zero. Only materials that override the bloom amount write it, as the amount
+        // times their self illum mask over 20 (the amount itself for environment layers). The scene renders to a
+        // single target here, so that per-pixel value does not exist.
+        // TODO: Dota 2 has no threshold and never blooms the scene colour. It blooms a per-pixel glow amount (alpha of a
+        // target sized like the deferred lighting terms, times 20, saturated) tinted by a global bloom colour, through
+        // a 13 tap diamond kernel (centre 1, nearest four 0.75, rest 0.5) normalised by the weight sum.
+        // TODO: SteamVR Home has no threshold either: four bilinear taps, the colour times its luminance to an
+        // exponent (default 2), then a tint and a brightness, from parameters whose source is not known.
+        var shader = Game switch
+        {
+            Game.Csgo or Game.Steampal => downsampleBloomThresholdExposed,
+            Game.Hlvr => downsampleBloomThresholdPointTaps,
+            Game.Citadel => downsampleBloomThresholdBilinear,
+            _ => downsampleBloomThreshold,
+        };
 
         // The scene blooms by the strongest of the three modes, the composite weighs the modes against each other
         var scalesSceneByStrongestMode = Game is Game.Csgo or Game.Steampal or Game.Citadel;
@@ -161,7 +179,6 @@ public class BloomRenderer
         shader.SetUniform("g_flSceneBloomWeight", sceneWeight);
         shader.SetUniform("g_bEffectsBloom", effectsBloom != null);
         // The effects bloom layer is clamped to [0, 1] where it is stored in an 8-bit target rather than in floating point.
-        // TODO: Dota 2 blooms the scene without a threshold, which is not modelled
         var clampsEffectsBloom = Game is Game.Csgo or Game.Steampal or Game.Dota;
 
         shader.SetUniform("g_bEffectsBloomClamped", clampsEffectsBloom);

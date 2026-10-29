@@ -1,0 +1,10 @@
+#version 460
+
+// MODES
+#define F_LIT 0
+#define F_MATERIAL_REFERENCE 0
+// BLENDING
+#define F_BLEND_MODE 0
+// TEXTURING
+#define F_TINT_MASK 0
+#define F_PAINT_VERTEX_COLORS 0

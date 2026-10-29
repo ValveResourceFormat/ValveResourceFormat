@@ -19,30 +19,30 @@
     in vec4 vBLENDWEIGHT2;
 #endif
 
-#define meshBoneData (g_instanceBuffer[gl_BaseInstance].MeshBoneData)
+#define MESH_BONE_DATA (g_instanceBuffer[gl_BaseInstance].MeshBoneData)
 
-#define bAnimated ((meshBoneData & 0x80000000u) != 0u)
-#define meshBoneOffset (meshBoneData & 0xFFFFu)
-#define meshBoneCount ((meshBoneData >> 16u) & 0x7FFFu)
+#define IS_ANIMATED ((MESH_BONE_DATA & 0x80000000u) != 0u)
+#define MESH_BONE_OFFSET (MESH_BONE_DATA & 0xFFFFu)
+#define MESH_BONE_COUNT ((MESH_BONE_DATA >> 16u) & 0x7FFFu)
 
-mat3x4 getMatrix(uint boneIndex, uint objectBoneOffset)
+mat3x4 GetMatrix(uint boneIndex, uint objectBoneOffset)
 {
     // Issue #705 out of bounds bone index (model needs ApplyVBIBDefaults)
     // Model:  hlvr/models/props/xen/xen_villi_medium.vmdl
     // In map: hlvr/maps/a3_distillery.vmap
-    if (boneIndex >= meshBoneCount) {
+    if (boneIndex >= MESH_BONE_COUNT) {
         return mat3x4(1.0);
     }
 
-    boneIndex += objectBoneOffset + meshBoneOffset;
+    boneIndex += objectBoneOffset + MESH_BONE_OFFSET;
 
     return g_transformBuffer[boneIndex];
 }
 
 #if (D_SKINNING > 0)
-mat3x4 getSkinMatrix()
+mat3x4 GetSkinMatrix()
 {
-    if (!bAnimated)
+    if (!IS_ANIMATED)
     {
         return mat3x4(1.0);
     }
@@ -50,20 +50,20 @@ mat3x4 getSkinMatrix()
     uint objectBoneOffset = GetObjectBoneOffset();
 
     #if (D_SKINNING == 1)
-        return getMatrix(vBLENDINDICES.x, objectBoneOffset);
+        return GetMatrix(vBLENDINDICES.x, objectBoneOffset);
     #else
         mat3x4 skinMatrix = mat3x4(0.0);
 
-        skinMatrix += vBLENDWEIGHT.x * getMatrix(vBLENDINDICES.x, objectBoneOffset);
-        skinMatrix += vBLENDWEIGHT.y * getMatrix(vBLENDINDICES.y, objectBoneOffset);
-        skinMatrix += vBLENDWEIGHT.z * getMatrix(vBLENDINDICES.z, objectBoneOffset);
-        skinMatrix += vBLENDWEIGHT.w * getMatrix(vBLENDINDICES.w, objectBoneOffset);
+        skinMatrix += vBLENDWEIGHT.x * GetMatrix(vBLENDINDICES.x, objectBoneOffset);
+        skinMatrix += vBLENDWEIGHT.y * GetMatrix(vBLENDINDICES.y, objectBoneOffset);
+        skinMatrix += vBLENDWEIGHT.z * GetMatrix(vBLENDINDICES.z, objectBoneOffset);
+        skinMatrix += vBLENDWEIGHT.w * GetMatrix(vBLENDINDICES.w, objectBoneOffset);
 
         #if (D_SKINNING == 3)
-            skinMatrix += vBLENDWEIGHT2.x * getMatrix(vBLENDINDICES2.x, objectBoneOffset);
-            skinMatrix += vBLENDWEIGHT2.y * getMatrix(vBLENDINDICES2.y, objectBoneOffset);
-            skinMatrix += vBLENDWEIGHT2.z * getMatrix(vBLENDINDICES2.z, objectBoneOffset);
-            skinMatrix += vBLENDWEIGHT2.w * getMatrix(vBLENDINDICES2.w, objectBoneOffset);
+            skinMatrix += vBLENDWEIGHT2.x * GetMatrix(vBLENDINDICES2.x, objectBoneOffset);
+            skinMatrix += vBLENDWEIGHT2.y * GetMatrix(vBLENDINDICES2.y, objectBoneOffset);
+            skinMatrix += vBLENDWEIGHT2.z * GetMatrix(vBLENDINDICES2.z, objectBoneOffset);
+            skinMatrix += vBLENDWEIGHT2.w * GetMatrix(vBLENDINDICES2.w, objectBoneOffset);
         #endif
 
         return skinMatrix;
@@ -78,7 +78,7 @@ mat3x4 CalculateSkinTransform()
 #if (D_SKINNING == 0)
     return CalculateObjectToWorldMatrix();
 #else
-    return ConcatTransforms(getSkinMatrix(), CalculateObjectToWorldMatrix());
+    return ConcatTransforms(GetSkinMatrix(), CalculateObjectToWorldMatrix());
 #endif
 }
 

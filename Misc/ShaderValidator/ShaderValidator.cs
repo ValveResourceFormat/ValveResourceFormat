@@ -30,6 +30,7 @@ internal class ShaderValidator
             APIVersion = GLEnvironment.RequiredVersion,
             Flags = OpenTK.Windowing.Common.ContextFlags.ForwardCompatible | OpenTK.Windowing.Common.ContextFlags.Offscreen,
             StartVisible = false,
+            StartFocused = false,
             Title = "Source 2 Viewer Shader Validator"
         });
 

@@ -4,7 +4,7 @@ in vec2 vPOSITION;
 sample out vec3 nearPoint;
 sample out vec3 farPoint;
 
-#include "common/ViewConstants.slang"
+#include "common/view_constants.slang"
 
 vec3 UnprojectPoint(float x, float y, float z) {
     mat4 viewInv = inverse(g_matWorldToView);

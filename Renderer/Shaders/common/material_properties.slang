@@ -47,11 +47,15 @@ struct MaterialProperties_t
     vec3 AmbientGeometricNormal; // Indirect geometric normal
     vec3 AmbientNormal; // Indirect normal
 
-#if defined(NEED_CURVATURE)
-    float Curvature;
+#if (DIFFUSE_WRAP)
+    vec3 DiffuseWrapColor;
 #endif
 
-#if defined(ANISO_ROUGHNESS)
+#if (F_USE_NPR_LIGHTING == 1)
+    float RimLightMask;
+#endif
+
+#if ((F_ANISOTROPIC_GLOSS == 1) || (F_HIGH_QUALITY_GLOSS == 1))
     vec3 AnisotropicTangent;
     vec3 AnisotropicBitangent;
 #endif

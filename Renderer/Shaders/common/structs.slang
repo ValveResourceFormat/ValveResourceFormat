@@ -1,5 +1,8 @@
 #version 460
 
+#ifndef VRF_STRUCTS_INCLUDE
+#define VRF_STRUCTS_INCLUDE
+
 struct DrawCommand
 {
     uint indexCount;
@@ -29,3 +32,5 @@ struct MeshletCullInfo
     uint m_PackedCone;
     uint m_nParentDrawBoundsIndex;
 };
+
+#endif

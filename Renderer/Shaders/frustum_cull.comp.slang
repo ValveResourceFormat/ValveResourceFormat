@@ -1,6 +1,6 @@
 #version 460
 
-#include "common/ViewConstants.slang"
+#include "common/view_constants.slang"
 #include "common/instancing_base.slang"
 #include "common/structs.slang"
 
@@ -46,7 +46,6 @@ layout(binding = 10, std430) readonly buffer CpuVisibleBuffer
 {
     uint cpuVisibleBits[]; // one bit per object id, marking the objects the CPU found past PVS and the visibility boxes
 };
-
 
 layout(binding = 7, std430) buffer OccludedBoundsDebugBuffer
 {
@@ -258,7 +257,6 @@ vec4 unpackSByteVector(uint packedData)
 
     return vec4(s0, s1, s2, s3) / 127.0;
 }
-
 
 void main()
 {

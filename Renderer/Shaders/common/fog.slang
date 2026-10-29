@@ -3,7 +3,8 @@
 #ifndef VRF_FOG_INCLUDE
 #define VRF_FOG_INCLUDE
 
-#include "ViewConstants.slang"
+#include "view_constants.slang"
+#include "shared_combos.slang"
 #include "utils.slang"
 
 // Fog pixel shaders.
@@ -11,27 +12,73 @@
 // Per-material
 uniform bool g_bFogEnabled = true;
 
-#define USE_VOLUMETRIC_FOG 0
-#define USE_SPHERICAL_VIGNETTE_TERRIBLEIDEA 0
-
-void ApplyGradientFog(inout vec3 pixelColor, vec3 positionWS, vec3 cameraCenteredPixelPos)
+// The fog color in rgb and its opacity in a
+vec4 GetGradientFog(vec3 positionWS, vec3 cameraCenteredPixelPos)
 {
-    vec2 gradientFogComponents; // x for View Space depth, y for height in World Space
-    gradientFogComponents.x = length(cameraCenteredPixelPos);
+    vec2 gradientFogComponents; // x for the distance from the camera, y for height in World Space
+
+    #if (FOG_GRADIENT_HORIZONTAL_DISTANCE)
+        gradientFogComponents.x = length(cameraCenteredPixelPos.xy);
+    #else
+        gradientFogComponents.x = length(cameraCenteredPixelPos);
+    #endif
+
     gradientFogComponents.y = positionWS.z;
 
     gradientFogComponents = pow( clamp(gradientFogComponents * g_vGradientFogBiasAndScale.zw + g_vGradientFogBiasAndScale.xy, 0.0001, 1.0), m_vGradientFogExponents );
 
     float gradientFogBlend = gradientFogComponents.x * gradientFogComponents.y * g_vGradientFogColor_Opacity.a;
 
-    pixelColor = mix(pixelColor, g_vGradientFogColor_Opacity.rgb, gradientFogBlend);
+    return vec4(g_vGradientFogColor_Opacity.rgb, gradientFogBlend);
 }
 
-// ExposureBias is actually a separate param, but Z is unused and exposurebias stupidly only uses x
+float GetGradientFogDistanceSquared(vec3 cameraCenteredPixelPos)
+{
+    #if (FOG_GRADIENT_HORIZONTAL_DISTANCE)
+        return length_squared(cameraCenteredPixelPos.xy);
+    #else
+        return length_squared(cameraCenteredPixelPos);
+    #endif
+}
+
+// The culling height is where a height term reaches zero, and the term grows on the side of it its scale points to.
+// Without a height range the scale is 0 and the term is 1 at every height.
+bool IsFogHeightInRange(float height, float heightScale, float cullingHeight)
+{
+    if (heightScale > 0.0)
+    {
+        return height > cullingHeight;
+    }
+
+    if (heightScale < 0.0)
+    {
+        return height < cullingHeight;
+    }
+
+    return true;
+}
+
+// A vertical exponent of 0 also leaves the height term at 1
+bool IsGradientFogHeightInRange(float height)
+{
+    if (m_vGradientFogExponents.y == 0.0)
+    {
+        return true;
+    }
+
+    return IsFogHeightInRange(height, g_vGradientFogBiasAndScale.w, g_vGradientFogCullingParams.y);
+}
+
+void ApplyGradientFog(inout vec3 pixelColor, vec3 positionWS, vec3 cameraCenteredPixelPos)
+{
+    vec4 fog = GetGradientFog(positionWS, cameraCenteredPixelPos);
+    pixelColor = mix(pixelColor, fog.rgb, fog.a);
+}
 
 uniform samplerCube g_tFogCubeTexture; // reserved
 
-void ApplyCubemapFog(inout vec3 pixelColor, vec3 positionWS, vec3 posRelativeToCamera)
+// The fog color in rgb and its opacity in a
+vec4 GetCubemapFog(vec3 positionWS, vec3 posRelativeToCamera)
 {
     vec2 cubeFogComponents;
     cubeFogComponents.x = pow(max(length(posRelativeToCamera) * g_vCubeFog_Offset_Scale_Bias_Exponent.y + g_vCubeFog_Offset_Scale_Bias_Exponent.x, 0.0001), g_vCubeFog_Offset_Scale_Bias_Exponent.w);
@@ -45,70 +92,55 @@ void ApplyCubemapFog(inout vec3 pixelColor, vec3 positionWS, vec3 posRelativeToC
     float cubemapFogOpacity = saturate(cubemapFogBlend) * g_vCubeFogCullingParams_ExposureBias_MaxOpacity.a;
 
     vec3 cubemapFogColor = textureLod(g_tFogCubeTexture, fogCoords.xyz, cubemapFogLod).rgb;
-    cubemapFogColor *= g_vCubeFogCullingParams_ExposureBias_MaxOpacity.z;  //* g_vCubeFog_ExposureBias.x;
-    pixelColor = mix(pixelColor, cubemapFogColor, cubemapFogOpacity);
+    cubemapFogColor *= g_vCubeFogCullingParams_ExposureBias_MaxOpacity.z;
+
+    return vec4(cubemapFogColor, cubemapFogOpacity);
 }
 
-
-#if (USE_VOLUMETRIC_FOG == 1) && 0
-// I have all the shader code for volumetric fog, but it would be HARD to implement. Disabled for now.
-uniform vec4 g_vVolFog_VolumeScale_Shift_Near_Range;
-uniform vec4 g_vVolFogDitherScaleBias;
-uniform vec4 g_vVolFogPostWorldToFrustumScale;
-uniform vec4 g_vVolFogPostWorldToFrustumBias;
-uniform mat4 g_mVolFogFromWorld; // original code is an array of length 2, and the code uses address [1]
-uniform sampler3D g_tFogVolume;
-uniform sampler2D g_tBlueNoise; // reserved
-
-void ApplyVolumetricFog( inout vec3 PixelColor, vec3 positionWS )
+void ApplyCubemapFog(inout vec3 pixelColor, vec3 positionWS, vec3 posRelativeToCamera)
 {
-    vec3 blueNoise = texture(g_tBlueNoise, gl_FragCoord.xy * g_vScreenSpaceDitherParams.zz + g_vScreenSpaceDitherParams.xy ) );
-	vec3 volFogWorldPosJittered = positionWS + (blueNoise * g_vVolFogDitherScaleBias.xxx + g_vVolFogDitherScaleBias.yyy);
-
-	vec4 projectedWorldPos = vec4(volFogWorldPosJittered, 1.0 ) * g_mVolFogFromWorld[0];
-
-	vec3 frustumProjection = vec3(projectedWorldPos.xy / projectedWorldPos.ww, projectedWorldPos.w );
-    frustumProjection = frustumProjection * g_vVolFogPostWorldToFrustumScale.xyz + g_vVolFogPostWorldToFrustumBias.xyz;
-	vec4 volFogCoords = vec4( frustumProjection.xy, sqrt(ClampToPositive(frustumProjection.z)), ProjectedWorldPos.w ); //coords for the volfog sample are xyw in asm and xyz in vulkan
-
-	vec4 volumetricFogColor = texture( g_tFogVolume, volFogCoords);
-	PixelColor = ( PixelColor * volumetricFogColor.a ) + volumetricFogColor.rgb;
+    vec4 fog = GetCubemapFog(positionWS, posRelativeToCamera);
+    pixelColor = mix(pixelColor, fog.rgb, fog.a);
 }
-#endif
 
-#if (USE_SPHERICAL_VIGNETTE_TERRIBLEIDEA == 42069)
-// Spherical vignette is a bad idea, plain and simple. Would destroy visibility on maps that use it, since it's usually controlled by code.
-vec4 g_vSphericalVignetteBiasAndScale;
-vec4 g_vSphericalVignetteOrigin_Exponent;
-vec4 g_vSphericalVignetteColor_Opacity;
+uniform sampler3D g_tFogVolume; // reserved
 
-void ApplySphericalVignette( inout vec3 pixelColor, vec3 worldPositionLightingOffset)
+// The volumetric fog between the camera and a position: the light it scatters in rgb, what it lets through in a.
+// The volume is a grid of the screen, with slices at near + range * w^2 along the view direction.
+vec4 GetVolumetricFog(vec3 positionWS)
 {
-	float sphericalVignetteLinear = clamp(g_vSphericalVignetteBiasAndScale.y * distance(worldPositionLightingOffset, g_vSphericalVignetteOrigin_Exponent.xyz) + g_vSphericalVignetteBiasAndScale.x, 0.0001, 1.0);
-	float sphericalVignetteBlend = pow(sphericalVignetteLinear, g_vSphericalVignetteOrigin_Exponent.w);
-	PixelColor = mix(pixelColor, g_vSphericalVignetteColor_Opacity.rgb, g_vSphericalVignetteColor_Opacity.a * sphericalVignetteBlend);
+    vec4 clipPos = g_matWorldToProjection * vec4(positionWS, 1.0);
+    float viewDepth = dot(positionWS - g_vCameraPositionWs, g_vCameraDirWs);
+
+    vec3 volumeCoords;
+    volumeCoords.xy = clipPos.xy / clipPos.w * 0.5 + 0.5;
+    volumeCoords.z = sqrt(saturate((viewDepth - g_vVolumetricFogNearRange.x) / g_vVolumetricFogNearRange.y));
+
+    return textureLod(g_tFogVolume, volumeCoords, 0.0);
 }
-#endif
+
+void ApplyVolumetricFog(inout vec3 pixelColor, vec3 positionWS)
+{
+    vec4 fog = GetVolumetricFog(positionWS);
+    pixelColor = fog.rgb + pixelColor * fog.a;
+}
 
 void ApplyFog(inout vec3 pixelColor, vec3 positionWS)
 {
     if (g_bFogEnabled)
     {
-
-#if (USE_VOLUMETRIC_FOG == 1)
-		if (g_bFogTypeEnabled.x)
-		{
-    	    ApplyVolumetricFog(pixelColor, LightingPos);
-		}
-#endif
-
         vec3 cameraCenteredPixelPos = positionWS - g_vCameraPositionWs;
 
         if (g_bFogTypeEnabled.y)
         {
-            float horizontalDistanceQuadratic = length_squared(cameraCenteredPixelPos.xy);
-
-            bool bPixelHasGradientFog = (horizontalDistanceQuadratic > g_vGradientFogCullingParams.x) || (positionWS.z > g_vGradientFogCullingParams.y);
+            #if (FOG_CULLING_FIXED_HEIGHT_SIDE)
+                float horizontalDistanceQuadratic = length_squared(cameraCenteredPixelPos.xy);
+                bool bPixelHasGradientFog = (horizontalDistanceQuadratic > g_vGradientFogCullingParams.x) || (positionWS.z > g_vGradientFogCullingParams.y);
+            #else
+                // Skips the pixels where the fog is zero anyway: nearer than the start, or outside of the height range
+                float distanceQuadratic = GetGradientFogDistanceSquared(cameraCenteredPixelPos);
+                bool bPixelHasGradientFog = (distanceQuadratic > g_vGradientFogCullingParams.x) && IsGradientFogHeightInRange(positionWS.z);
+            #endif
             if (bPixelHasGradientFog)
             {
                 ApplyGradientFog(pixelColor, positionWS, cameraCenteredPixelPos);
@@ -118,35 +150,99 @@ void ApplyFog(inout vec3 pixelColor, vec3 positionWS)
         if (g_bFogTypeEnabled.z)
         {
             float distanceQuadratic = length_squared(cameraCenteredPixelPos);
+            bool bPixelPastCubeFogStart = distanceQuadratic > g_vCubeFogCullingParams_ExposureBias_MaxOpacity.x;
 
-            bool bPixelHasCubemapFog = (distanceQuadratic > g_vCubeFogCullingParams_ExposureBias_MaxOpacity.x) || (positionWS.z > g_vCubeFogCullingParams_ExposureBias_MaxOpacity.y);
+            #if (FOG_CULLING_FIXED_HEIGHT_SIDE)
+                bool bPixelHasCubemapFog = bPixelPastCubeFogStart || (positionWS.z > g_vCubeFogCullingParams_ExposureBias_MaxOpacity.y);
+            #else
+                // Skips the pixels where the fog is zero anyway, as for the gradient fog
+                float cubeFogHeightScale = g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.y;
+                bool bPixelInCubeFogHeight = IsFogHeightInRange(positionWS.z, cubeFogHeightScale, g_vCubeFogCullingParams_ExposureBias_MaxOpacity.y);
+                bool bPixelHasCubemapFog = bPixelPastCubeFogStart && bPixelInCubeFogHeight;
+            #endif
             if (bPixelHasCubemapFog)
             {
                 ApplyCubemapFog(pixelColor, positionWS, cameraCenteredPixelPos);
             }
         }
 
-#if (USE_SPHERICAL_VIGNETTE_TERRIBLEIDEA == 42069)
-		// Spherical Vignette (Exclusive to Half-Life: Alyx. Used in a1_intro_world and startup, maybe others)
-        //if (g_bFogTypeEnabled.w)
-        //{
-        //    ApplySphericalVignette(pixelColor, LightingPos);
-        //}
-#endif
-
+        #if (!FOG_NO_VOLUMETRIC)
+            if (g_bFogTypeEnabled.x)
+            {
+                ApplyVolumetricFog(pixelColor, positionWS);
+            }
+        #endif
     }
 }
 
 // Fog attenuation factor for additive/mod2x contributions, which must fade with fog density rather
-// than tint toward the fog color (tinting would add the fog color to the scene). ApplyFog is affine
-// in the input color, so probing it at white and black recovers the pure attenuation term.
+// than tint toward the fog color (tinting would add the fog color to the scene). Every pixel takes it,
+// without the culling of ApplyFog().
 float GetFogAttenuation(vec3 positionWS)
 {
-    vec3 fogWhite = vec3(1.0);
-    vec3 fogBlack = vec3(0.0);
-    ApplyFog(fogWhite, positionWS);
-    ApplyFog(fogBlack, positionWS);
-    return saturate(fogWhite.g - fogBlack.g);
+    if (!g_bFogEnabled)
+    {
+        return 1.0;
+    }
+
+    vec3 cameraCenteredPixelPos = positionWS - g_vCameraPositionWs;
+    float attenuation = 1.0;
+
+    if (g_bFogTypeEnabled.y)
+    {
+        attenuation *= 1.0 - GetGradientFog(positionWS, cameraCenteredPixelPos).a;
+    }
+
+    if (g_bFogTypeEnabled.z)
+    {
+        attenuation *= 1.0 - GetCubemapFog(positionWS, cameraCenteredPixelPos).a;
+    }
+
+    #if (!FOG_NO_VOLUMETRIC)
+        if (g_bFogTypeEnabled.x)
+        {
+            attenuation *= GetVolumetricFog(positionWS).a;
+        }
+    #endif
+
+    return saturate(attenuation);
+}
+
+// Mod2x blending darkens and brightens what is behind it around a gray of 0.5, so the fog fades it out
+// instead of tinting it, faster for a darker fog. A saturated fog also lifts the color towards its own hue.
+vec4 ApplyFogLayerMod2x(vec4 color, vec4 fog)
+{
+    float minFogColor = Min3(fog.rgb);
+    float maxFogColor = Max3(fog.rgb);
+    float saturation = maxFogColor == 0.0 ? 0.0 : (maxFogColor - minFogColor) / maxFogColor;
+
+    vec3 liftedColor = max(color.rgb, fog.rgb * normalize(max(fog.rgb, vec3(0.0003))) * 1.06);
+    float fadeExponent = mix(1.0, 2.0, pow(1.0 - saturate((minFogColor + maxFogColor) * 0.5), 8.0));
+
+    color.rgb = mix(color.rgb * 2.0, liftedColor, saturation * fog.a) * 0.5;
+    color.a *= 1.0 - pow(fog.a, fadeExponent);
+    return color;
+}
+
+// Fog for mod2x blended surfaces. Every pixel takes it, without the culling of ApplyFog().
+void ApplyFogMod2x(inout vec4 color, vec3 positionWS)
+{
+    if (!g_bFogEnabled)
+    {
+        return;
+    }
+
+    vec3 cameraCenteredPixelPos = positionWS - g_vCameraPositionWs;
+
+    if (g_bFogTypeEnabled.y)
+    {
+        color = ApplyFogLayerMod2x(color, GetGradientFog(positionWS, cameraCenteredPixelPos));
+    }
+
+    if (g_bFogTypeEnabled.z)
+    {
+        color = ApplyFogLayerMod2x(color, GetCubemapFog(positionWS, cameraCenteredPixelPos));
+    }
 }
 
 #endif

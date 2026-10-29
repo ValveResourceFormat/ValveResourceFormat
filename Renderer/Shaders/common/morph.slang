@@ -6,7 +6,7 @@
 #include "instancing_base.slang"
 
 #define F_MORPH_SUPPORTED 0 // most shaders
-#define bMorphed (g_instanceBuffer[gl_BaseInstance].MorphVertexIdOffset != -1)
+#define IS_MORPHED (g_instanceBuffer[gl_BaseInstance].MorphVertexIdOffset != -1)
 
 #if (F_MORPH_SUPPORTED == 1)
     uniform sampler2D g_tCompositeMorphTextureAtlas; // reserved
@@ -16,7 +16,7 @@
 
     // The atlas holds two fields of the same size side by side: position/speed on the left, normal/wrinkle on the
     // right. A mesh's composite is a rect at the same place in both, laid out row by row at the morph set's width.
-    ivec2 getMorphTexel(int field)
+    ivec2 GetMorphTexel(int field)
     {
         InstanceDataStandard instance = g_instanceBuffer[gl_BaseInstance];
 
@@ -31,12 +31,12 @@
     }
 #endif
 
-vec3 getMorphOffset()
+vec3 GetMorphOffset()
 {
     #if (F_MORPH_SUPPORTED == 1)
-        if (bMorphed)
+        if (IS_MORPHED)
         {
-            return texelFetch(g_tCompositeMorphTextureAtlas, getMorphTexel(MORPH_FIELD_POSITION_SPEED), 0).xyz;
+            return texelFetch(g_tCompositeMorphTextureAtlas, GetMorphTexel(MORPH_FIELD_POSITION_SPEED), 0).xyz;
         }
     #endif
 
@@ -44,12 +44,12 @@ vec3 getMorphOffset()
 }
 
 // Normal/wrinkle field: normal delta in rgb, wrinkle weight in a. Wrinkle is only composited so far.
-vec3 applyMorphNormal(vec3 normal)
+vec3 ApplyMorphNormal(vec3 normal)
 {
     #if (F_MORPH_SUPPORTED == 1)
-        if (bMorphed)
+        if (IS_MORPHED)
         {
-            return normalize(normal + texelFetch(g_tCompositeMorphTextureAtlas, getMorphTexel(MORPH_FIELD_NORMAL_WRINKLE), 0).xyz);
+            return normalize(normal + texelFetch(g_tCompositeMorphTextureAtlas, GetMorphTexel(MORPH_FIELD_NORMAL_WRINKLE), 0).xyz);
         }
     #endif
 

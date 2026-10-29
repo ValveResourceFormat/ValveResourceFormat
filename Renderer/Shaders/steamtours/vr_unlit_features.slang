@@ -1,0 +1,7 @@
+#version 460
+
+// BLENDING
+#define F_ALPHA_TEST 0
+#define F_TRANSLUCENT 0
+
+// Not implemented: F_VERTEX_COLOR, F_DISABLE_FOG and F_RECEIVE_UNLIT_SHADOWS

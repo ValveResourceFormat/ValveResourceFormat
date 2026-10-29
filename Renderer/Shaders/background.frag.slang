@@ -4,7 +4,7 @@ in vec3 vSkyLookupInterpolant;
 out vec4 outputColor;
 
 #include "common/utils.slang"
-#include "common/ViewConstants.slang"
+#include "common/view_constants.slang"
 
 uniform bool g_bShowLightBackground = false;
 uniform bool g_bShowSolidBackground = false;

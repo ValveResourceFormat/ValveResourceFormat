@@ -9,7 +9,7 @@ in vec3 vPositionWs;
 in vec4 vLineStartPs;
 in vec4 vThisVertexPs;
 
-#include "common/ViewConstants.slang"
+#include "common/view_constants.slang"
 
 // 0 solid, 1 dashed, 2 dotted
 uniform float g_flPatternType;
@@ -19,7 +19,15 @@ out vec4 outputColor;
 // Dashes run from the start of each segment, measured on the screen
 bool IsInPatternGap()
 {
-    float gap = g_flPatternType == 1.0 ? 16.0 : g_flPatternType == 2.0 ? 3.0 : 0.0;
+    float gap = 0.0;
+    if (g_flPatternType == 1.0)
+    {
+        gap = 16.0;
+    }
+    else if (g_flPatternType == 2.0)
+    {
+        gap = 3.0;
+    }
 
     if (gap == 0.0)
     {

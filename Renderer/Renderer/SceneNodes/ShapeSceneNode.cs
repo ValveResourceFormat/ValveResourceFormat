@@ -142,7 +142,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         protected void SetToolsMaterial(string materialName)
         {
             ToolsMaterial = Scene.RendererContext.MaterialLoader.GetMaterial(materialName, null);
-            toolTexture = ToolsMaterial.Textures.GetValueOrDefault("g_tColor");
+            toolTexture = ToolsMaterial.GetColorTexture();
         }
 
         private void Init(List<SimpleVertexNormal> verts, List<int> inds)

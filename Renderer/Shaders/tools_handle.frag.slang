@@ -7,7 +7,7 @@ in vec4 vColorOut;
 in vec2 vTexCoord;
 flat in vec4 vRectPx;
 
-uniform sampler2D g_tColor;
+uniform sampler2D g_tColor; // RepresentativeTexture
 
 // Below this alpha the texture is cut away, or nothing is when negative
 uniform float g_flAlphaTestReference;

@@ -8,7 +8,7 @@ in vec2 vTEXCOORD;
 
 out vec2 vTexCoordOut;
 
-#include "common/ViewConstants.slang"
+#include "common/view_constants.slang"
 
 void main(void) {
     vTexCoordOut = vTEXCOORD;

@@ -42,11 +42,11 @@ float Random2D(vec2 Seed)
     return fract(sin( dot(Seed, vec2(12.9898, 78.233)) ) * 43758.5469);
 }
 
-float min3( vec3 Vector )
+float Min3( vec3 Vector )
 {
 	return min( min( Vector.x, Vector.y ), Vector.z );
 }
-float max3( vec3 Vector )
+float Max3( vec3 Vector )
 {
 	return max( max( Vector.x, Vector.y ), Vector.z );
 }
@@ -58,10 +58,7 @@ float length_squared<T : IFloat>(T vector)
 
 // Color
 
-const vec3 gamma = vec3(2.4);
-const vec3 invGamma = vec3(1.0 / gamma);
-
-const vec3 LumaWeights = vec3(0.2125, 0.7154, 0.0721); // BT.709-1, same as Valve
+const vec3 LumaWeights = vec3(0.2125, 0.7154, 0.0721); // BT.709-1
 
 float GetLuma(vec3 color) { return dot(color, LumaWeights); }
 
@@ -80,18 +77,16 @@ vec3 SrgbGammaToLinear(vec3 color)
 
     return vec3(select, select1, select2);
 }
+
 vec4 SrgbGammaToLinear(vec4 color)
 {
     vec4 vLinearSegment = color / vec4(12.92);
     vec4 vExpSegment = pow((color / vec4(1.055)) + vec4(0.0521327), vec4(2.4));
 
     const float cap = 0.04045;
-    float select = color.r > cap ? vExpSegment.r : vLinearSegment.r;
-    float select1 = color.g > cap ? vExpSegment.g : vLinearSegment.g;
-    float select2 = color.b > cap ? vExpSegment.b : vLinearSegment.b;
     float select3 = color.a > cap ? vExpSegment.a : vLinearSegment.a;
 
-    return vec4(select, select1, select2, select3);
+    return vec4(SrgbGammaToLinear(color.rgb), select3);
 }
 
 vec3 SrgbLinearToGamma( vec3 vLinearColor )
@@ -147,12 +142,21 @@ vec2 RotateVector2D(vec2 vectorInput, float rotation, vec2 scale, vec2 offset)
     return scale * RotateVector2D(vectorInput - vec2(0.5), rotation) + vec2(0.5) + offset;
 }
 
-vec2 RotateVector2D(vec2 vectorInput, float rotation, vec2 scale, vec2 offset, vec2 center)
+// The secondary texture transform of the CS2 generic shaders. The v row adds the center's x
+// where a plain rotation around the center would subtract it.
+vec2 TransformSecondaryTexCoord(vec2 texCoord, float rotation, vec2 scale, vec2 offset, vec2 center)
 {
-    return RotateVector2D(scale * (vectorInput - center), rotation) + center + offset;
+    float rotationRadians = radians(rotation);
+    float sinRot = sin(rotationRadians);
+    float cosRot = cos(rotationRadians);
+
+    vec2 centered = texCoord - center;
+    float u = cosRot * scale.x * centered.x - sinRot * scale.y * centered.y;
+    float v = sinRot * scale.x * (texCoord.x + center.x) + cosRot * scale.y * centered.y;
+
+    return vec2(u, v) + center + offset;
 }
 
-// From vr_common in sbox
 vec4 QuaternionMultiplication( vec4 q1, vec4 q2 )
 {
 	return vec4(
@@ -167,9 +171,6 @@ vec3 QuaternionRotation( vec3 v, vec4 q )
 	return QuaternionMultiplication( q, QuaternionMultiplication( vec4( v.xyz, 0 ), q_c.xyzw ) ).xyz;
 }
 
-// All of this is directly ported from The Lab Renderer from the unity store.
-// These are their utility functions, at least as of the lab.
-
 T ClampToPositive<T : IFloat>( T vValue )
 {
 	return max( T(0.0), vValue );
@@ -179,16 +180,6 @@ T ClampToPositive<T : IFloat>( T vValue )
 float LinearRamp( float flMin, float flMax, float flInput )
 {
 	return saturate( ( flInput - flMin ) / ( flMax - flMin ) );
-}
-
-// Remap a value in the range [A,B] to [C,D].
-float RemapVal( float flOldVal, float flOldMin, float flOldMax, float flNewMin, float flNewMax )
-{
-	// Put the old val into 0-1 range based on the old min/max
-	float flValNormalized = ( flOldVal - flOldMin ) / ( flOldMax - flOldMin );
-
-	// Map 0-1 range into new min/max
-	return ( flValNormalized * ( flNewMax - flNewMin ) ) + flNewMin;
 }
 
 // Remap a value in the range [A,B] to [C,D]. Values <A map to C, and >B maps to D.
@@ -226,29 +217,14 @@ vec3 DecodeDxt5Normal(vec4 bumpTexel)
     return vec3(temp, sqrt(saturate(1 - length_squared(temp))));
 }
 
-vec2 sign_not_zero(vec2 v)
-{
-    return step(0.0, v) * 2.0 - 1.0;
-}
-
-vec3 hemi_oct_to_float32x3(vec2 e)
+vec3 HemiOctToFloat32x3(vec2 e)
 {
     vec3 v = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
-    return normalize(v);
-}
-
-vec3 oct_to_float32x3(vec2 e)
-{
-    vec3 v = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
-    if (v.z < 0.0)
-    {
-        v.xy = (1.0 - abs(v.yx)) * sign_not_zero(v.xy);
-    }
     return normalize(v);
 }
 
 // Safe normalize that handles degenerate normals from zero-scaled bones
-vec3 safeNormalize(vec3 v)
+vec3 SafeNormalize(vec3 v)
 {
     float len2 = length_squared(v);
     if (len2 < 1e-8)
@@ -262,7 +238,7 @@ vec3 safeNormalize(vec3 v)
 vec3 TransformDirectionToWorld(mat3x4 objectToWorld, vec3 vDirectionOs)
 {
     // Plain normalize would give us NaN for zero-scaled bones.
-    return safeNormalize(vec4(vDirectionOs, 0.0) * objectToWorld);
+    return SafeNormalize(vec4(vDirectionOs, 0.0) * objectToWorld);
 }
 
 // Unpack HemiOct normal map
@@ -270,7 +246,7 @@ vec3 DecodeHemiOctahedronNormal(vec2 vHemiOct)
 {
     //Reconstruct the tangent vector from the map
     vec2 temp = vec2(vHemiOct.x + vHemiOct.y - 1.003922, vHemiOct.x - vHemiOct.y);
-    vec3 tangentNormal = hemi_oct_to_float32x3(temp);
+    vec3 tangentNormal = HemiOctToFloat32x3(temp);
 
     // This is free, it gets compiled into the TS->WS matrix mul
     tangentNormal.y = -tangentNormal.y;

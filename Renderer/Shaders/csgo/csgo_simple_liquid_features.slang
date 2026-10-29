@@ -1,0 +1,7 @@
+#version 460
+
+// LIQUID
+#define F_NO_LIQUID 0
+#define F_USE_TEST_VALUES 0
+// REFRACTION
+#define F_OPAQUE_REFRACT 0

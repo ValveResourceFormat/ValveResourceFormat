@@ -1,6 +1,6 @@
 #version 460
 
-#include "common/ViewConstants.slang"
+#include "common/view_constants.slang"
 #include "common/utils.slang"
 #include "common/light_cull.slang"
 

@@ -1,0 +1,17 @@
+#version 460
+
+// MODES
+#define F_UNLIT 0
+// BLENDING
+#define F_ALPHA_TEST 0
+#define F_TRANSLUCENT 0
+// TEXTURING
+#define F_TINT_MASK 0
+#define F_METALNESS_TEXTURE 0
+#define F_SELF_ILLUM 0
+#define F_SECONDARY_UV 0
+uniform int F_DETAIL_TEXTURE;
+#define F_FOLIAGE_ANIMATION 0
+// SHADING
+#define F_SPECULAR 0
+#define F_TRANSMISSIVE_BACKFACE_NDOTL 0

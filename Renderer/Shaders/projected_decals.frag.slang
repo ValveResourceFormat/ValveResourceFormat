@@ -1,12 +1,12 @@
 #version 460
 
 #include "common/utils.slang"
-#include "common/features.slang"
+#include "common/shared_combos.slang"
 
 // Set for the pass after the translucent layer, which decals the translucent surfaces in front of the opaque scene
 #define D_TRANSLUCENT_SCENE_DEPTH 0
 
-#define ENABLE_LPV_BLENDING
+#define ENABLE_LPV_BLENDING 1
 
 // Dual source: the destination becomes outputColor + destination * outputMultiplier, one channel at a time,
 // which is the same shape as every decal blend mode, so any mix of them stacks in order in one draw
@@ -134,8 +134,8 @@ uniform sampler2DArray g_tDecalOcclusion; // r = occlusion, g = metalness
 uniform sampler2DArray g_tDecalHeight;
 uniform sampler2DArray g_tDecalSelfIllum; // g = self-illum mask
 
-#include "common/ViewConstants.slang"
-#include "common/LightingConstants.slang"
+#include "common/view_constants.slang"
+#include "common/lighting_constants.slang"
 #include "common/depth.slang"
 
 #if (D_TRANSLUCENT_SCENE_DEPTH == 1)
@@ -430,7 +430,6 @@ void main()
 
             vec2 texCoordDdx = vec2(dot(positionDdx, axisX), dot(positionDdx, -axisY)) * 0.5;
             vec2 texCoordDdy = vec2(dot(positionDdy, axisX), dot(positionDdy, -axisY)) * 0.5;
-
 
             // A triplanar decal has no single depth axis to fade along, it fades toward every box face instead
             float fade = material.F_TRIPLANAR_MAPPING || material.F_BLOOD_AGING ? 1.0 : saturate(decalCoords.z * material.Fade.z);

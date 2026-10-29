@@ -11,7 +11,7 @@ out vec3 vtxNormalWs;
 
 out vec3 camPos;
 
-#include "common/ViewConstants.slang"
+#include "common/view_constants.slang"
 #include "common/instancing.slang"
 
 // Lines along the shape's edges instead of its faces

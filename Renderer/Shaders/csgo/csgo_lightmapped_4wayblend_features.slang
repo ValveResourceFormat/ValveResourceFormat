@@ -1,0 +1,5 @@
+#version 460
+
+// SHADING
+#define F_SPECULAR_DIRECT 0
+#define F_SPECULAR_INDIRECT 0

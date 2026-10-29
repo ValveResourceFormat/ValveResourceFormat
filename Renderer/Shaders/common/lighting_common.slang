@@ -3,7 +3,8 @@
 #ifndef VRF_LIGHTING_COMMON_INCLUDE
 #define VRF_LIGHTING_COMMON_INCLUDE
 
-#include "LightingConstants.slang"
+#include "lighting_constants.slang"
+#include "utils.slang"
 
 struct LightingTerms_t
 {
@@ -22,7 +23,6 @@ LightingTerms_t InitLighting()
 
 // Mirrors SceneLight.LightType
 #define LIGHT_TYPE_DIRECTIONAL 0
-#define LIGHT_TYPE_POINT 1
 #define LIGHT_TYPE_SPOT 2
 
 vec3 GetSunDirection()
@@ -72,6 +72,25 @@ vec3 GetLightDirection(vec3 vPositionWs, uint nLightIndex)
 vec3 GetLightColor(uint nLightIndex)
 {
     return g_vLightColor_Brightness[nLightIndex].rgb;
+}
+
+// Colors a tile by how many lights or environment maps it iterated, from blue through green and yellow to red at
+// busyTile. Returns false for a tile that iterated none.
+bool GetTileHeatmap(uint count, float busyTile, out vec3 color)
+{
+    if (count == 0u)
+    {
+        color = vec3(0.0);
+        return false;
+    }
+
+    float t = saturate(float(count) / busyTile) * 3.0;
+
+    color = mix(vec3(0.0, 0.0, 1.0), vec3(0.0, 1.0, 0.0), saturate(t));
+    color = mix(color, vec3(1.0, 1.0, 0.0), saturate(t - 1.0));
+    color = mix(color, vec3(1.0, 0.0, 0.0), saturate(t - 2.0));
+
+    return true;
 }
 
 // Render gates: x = diffuse, y = specular, z = transmissive. Specular is the light color flag;

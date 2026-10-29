@@ -3,8 +3,6 @@
 // https://github.com/BabylonJS/Babylon.js/blob/bd7351cfc97884d3293d5858b8a0190cda640b2f/packages/dev/materials/src/grid/grid.fragment.fx
 // https://asliceofrendering.com/scene%20helper/2020/01/05/InfiniteGrid/
 
-float near = 0.01;
-float far = 100;
 vec3 colorRed = vec3(0.9, 0.2, 0.2);
 vec3 colorGreen = vec3(0.2, 0.8, 0.2);
 
@@ -13,18 +11,14 @@ sample in vec3 farPoint;
 
 out vec4 outputColor;
 
-#include "common/ViewConstants.slang"
-
-float computeDepth(vec4 clip_space_pos) {
-    return (clip_space_pos.z / clip_space_pos.w);
-}
+#include "common/view_constants.slang"
 
 void main() {
     float t = -nearPoint.z / (farPoint.z - nearPoint.z);
     vec3 fragPos3D = nearPoint + t * (farPoint - nearPoint);
     vec2 fragPosAbs = abs(fragPos3D.xy);
     vec4 clip_space_pos = g_matViewToProjection * g_matWorldToView * vec4(fragPos3D.xyz, 1.0);
-    float linearDepth = computeDepth(clip_space_pos);
+    float linearDepth = clip_space_pos.z / clip_space_pos.w;
 
     gl_FragDepth = ((gl_DepthRange.diff * linearDepth) + gl_DepthRange.near);
 
@@ -76,6 +70,6 @@ void main() {
     gridColor.a *= fading * angleFade;
     outputColor = gridColor *  float(t > 0);
 
-    // output to sRGB space
+    // The grid colors are picked in gamma space, convert them to linear
     outputColor.rgb = pow(outputColor.rgb, vec3(2.2));
 }

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.World;
 
@@ -51,6 +52,12 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
         /// <summary>Gets or sets a manually overridden exposure value; set to -1 to use auto-exposure.</summary>
         public float CustomExposure { get; set; } = -1;
+
+        /// <summary>
+        /// Gets whether the game tonemaps with its own fixed curve and applies no exposure, so the scene
+        /// is only exposed when <see cref="CustomExposure"/> is set.
+        /// </summary>
+        private bool UsesGameTonemap => RendererContext.FileLoader.GameInfo.Game == Game.Dota;
 
         /// <summary>Gets or sets the display gamma, the game's brightness setting. 2.2 is identity; lower is brighter.</summary>
         public float FullScreenGamma { get; set; } = 2.2f;
@@ -329,10 +336,10 @@ namespace ValveResourceFormat.Renderer.PostProcess
                     postProcessShader.SetUniform("g_vUnNormalizedBloomStrengths", unnormalizedStrengths);
                     postProcessShader.SetUniform("g_bBloomExposed", Bloom.ThresholdsExposedScene);
                 }
-                postProcessShader.SetUniform("g_bFlipY", flipY);
 
                 postProcessShader.SetUniform("g_bPostProcessEnabled", Enabled);
                 postProcessShader.SetUniform("g_bRawOutput", RawOutput);
+                postProcessShader.SetUniform("g_bGameTonemap", UsesGameTonemap);
 
                 postProcessShader.SetUniform("g_flToneMapScalarLinear", TonemapScalar);
                 SetPostProcessUniforms(postProcessShader, State.TonemapSettings);
@@ -359,6 +366,13 @@ namespace ValveResourceFormat.Renderer.PostProcess
             {
                 TonemapScalar = CustomExposure;
                 State = State with { ExposureSettings = State.ExposureSettings with { AutoExposureEnabled = false } };
+                ReportTonemapStats();
+                return;
+            }
+
+            if (UsesGameTonemap)
+            {
+                TonemapScalar = exposure;
                 ReportTonemapStats();
                 return;
             }

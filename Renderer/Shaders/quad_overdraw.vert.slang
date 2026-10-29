@@ -11,7 +11,7 @@ in vec3 vPOSITION;
     layout (location = 0) out vec2 texCoord;
 #endif
 
-#include "common/ViewConstants.slang"
+#include "common/view_constants.slang"
 
 void main(void) {
 #if (F_ALPHA_TEST == 1)

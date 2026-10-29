@@ -3,7 +3,7 @@
 #ifndef VRF_SHADOWMAPPING_INCLUDE
 #define VRF_SHADOWMAPPING_INCLUDE
 
-#include "ViewConstants.slang"
+#include "view_constants.slang"
 
 #define SUN_CASCADE_COUNT 2
 

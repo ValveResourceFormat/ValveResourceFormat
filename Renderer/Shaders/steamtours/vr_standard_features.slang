@@ -1,0 +1,18 @@
+#version 460
+
+// MODES
+#define F_UNLIT 0
+// BLENDING
+#define F_ALPHA_TEST 0
+#define F_TRANSLUCENT 0
+#define F_GLASS 0
+// TEXTURING
+#define F_TINT_MASK 0
+#define F_SELF_ILLUM 0
+#define F_BLEND 0
+#define F_BLEND_NORMALS 0
+// SHADING
+#define F_SPECULAR 0
+#define F_SPECULAR_CUBE_MAP 0
+#define F_HIGH_QUALITY_GLOSS 0
+#define F_METALNESS_TEXTURE 0

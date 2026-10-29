@@ -91,7 +91,6 @@ vec3 EquirectangularProjection(vec2 vTexCoord)
 // https://wiki.panotools.org/Cubic_Projection
 vec3 CubicProjection(vec2 vTexCoord)
 {
-//   /*
     vec4 vTop = vec4(0, 3, 0, 0);
     vec4 vFront = vec4(2, 5, 1, 6);
     vec4 vBottom = vec4(0, 4, 0, 0);
@@ -111,7 +110,6 @@ vec3 CubicProjection(vec2 vTexCoord)
 uniform bool g_bTextureViewer = false;
 uniform vec3 g_vCheckerboardTheme = vec3(0.9);
 uniform bool g_bCapturingScreenshot = false;
-uniform bool g_bShowLightBackground = false;
 uniform bool g_bVisualizeTiling = false;
 uniform vec2 g_vViewportSize;
 uniform vec2 g_vViewportPosition;
@@ -251,7 +249,7 @@ void main()
 
     if ((g_nDecodeFlags & HemiOctNormal) != 0)
     {
-        vColor.rgb = PackToColor(hemi_oct_to_float32x3(vec2(vColor.x + vColor.y - 1.003922, vColor.x - vColor.y)));
+        vColor.rgb = PackToColor(HemiOctToFloat32x3(vec2(vColor.x + vColor.y - 1.003922, vColor.x - vColor.y)));
     }
 
     if ((g_nDecodeFlags & NormalizeNormals) != 0)
@@ -301,7 +299,6 @@ void main()
         vec4 vRemappedColor = vec4(vColor[vRemapIndices.x], vColor[vRemapIndices.y], vColor[vRemapIndices.z], vColor[vRemapIndices.w]);
 
         vColorOutput = mix(vec4(0, 0, 0, 1), vRemappedColor, bWriteMask);
-        //vColorOutput = vec4(vColorOutput.rgb, 1.0);
     }
 
     if (g_bTextureViewer)
