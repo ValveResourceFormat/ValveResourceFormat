@@ -585,9 +585,6 @@ public class Renderer : ISceneHost
 
         for (var cascade = 0; cascade < sunCascades.ActiveCount; cascade++)
         {
-            // Static sun shadows add their detail to every cascade but the outermost
-            var staticSunShadows = cascade == 0 || cascade < sunCascades.ActiveCount - 1;
-
             var view = new SceneView
             {
                 States = SunCascadeStates(sunCascadeViewStates[cascade], sunCascadeSceneStates[cascade], main),
@@ -599,7 +596,7 @@ public class Renderer : ISceneHost
             // cascades. Where the world lightmap already shadows, the two multiply into the same shadow.
             var cullFrustum = CullFrustumFor(view);
             var (depthMin, depthMax) = CollectSunCascadeCasters(view, main, cullFrustum ?? view.Camera.ViewFrustum, sunCascades.CastDirection,
-                includeBakedStatic: sky != null, staticSunShadows: staticSunShadows);
+                includeBakedStatic: sky != null, cascade);
 
             sunCascadeSkyViews[cascade] = null;
 
@@ -622,7 +619,7 @@ public class Renderer : ISceneHost
                 // Its depth is measured along the cast direction scaled into sky space, then offset to where the
                 // viewer sees it. No world lightmap holds the shadows of the sky, so its static geometry casts too.
                 var (skyDepthMin, skyDepthMax) = CollectSunCascadeCasters(skyView, skyFrom, cullFrustum ?? viewerSpaceCascadeFrustum,
-                    sunCascades.CastDirection * skyTransform.Scale, includeBakedStatic: true, staticSunShadows: staticSunShadows);
+                    sunCascades.CastDirection * skyTransform.Scale, includeBakedStatic: true, cascade);
                 var skyDepthOffset = Vector3.Dot(skyToWorld.Translation, sunCascades.CastDirection);
 
                 depthMin = MathF.Min(depthMin, skyDepthMin + skyDepthOffset);
@@ -649,7 +646,7 @@ public class Renderer : ISceneHost
 
     // Casters cull with the visibility boxes of the frame view they cast from, as split for its eye
     private (float Min, float Max) CollectSunCascadeCasters(in SceneView view, in SceneView from, Frustum frustum, Vector3 depthFitAxis, bool includeBakedStatic,
-        bool staticSunShadows)
+        int cascade)
     {
         var pvsEnabled = !Settings.DisableAllCulling && Settings.EnablePvsCulling;
         var depthMin = float.MaxValue;
@@ -664,8 +661,9 @@ public class Renderer : ISceneHost
 
             var sunShadowBaked = scene.LightingInfo.HasBakedShadowsFromLightmap && scene.LightingInfo.IsSunShadowBaked;
 
-            // Static casters are left to the lightmap only where it holds the sun shadows
-            var lightmapHoldsStatics = sunShadowBaked && !(staticSunShadows && Settings.StaticSunShadows);
+            // Static casters are left to the lightmap only where it holds the sun shadows, and past the cascades
+            // the sun redraws them into
+            var lightmapHoldsStatics = sunShadowBaked && !(Settings.StaticSunShadows && cascade <= scene.LightingInfo.LastStaticSunCascade);
 
             // Casters marked to cast only into the lightmap stay out wherever it holds the sun shadows, even
             // while the other statics add their detail
@@ -1368,13 +1366,8 @@ public class Renderer : ISceneHost
 
         CullClutter(renderContext.Camera);
 
-        // Render backfaces into shadow maps
-        GL.FrontFace(FrontFaceDirection.Cw);
-
         RenderSceneShadows(renderContext);
         RenderBarnLightShadows(renderContext);
-
-        GL.FrontFace(FrontFaceDirection.Ccw);
 
         RenderScenesWithView(renderContext);
     }
@@ -1657,7 +1650,7 @@ public class Renderer : ISceneHost
         }
 
         using var _ = GraphicsContext.RenderState.Scope(multisampleEnable: ShadowDepthBuffer.NumSamples > 1,
-            cullMode: RsCullMode.None, slopeScaledDepthBias: -2f);
+            slopeScaledDepthBias: -2f);
 
         using var shadowDepth = GraphicsContext.RenderState.ScopeDynamic(DepthRange.Full);
 
@@ -1702,11 +1695,21 @@ public class Renderer : ISceneHost
 
         foreach (var state in view.States)
         {
+            using var cull = GraphicsContext.RenderState.Scope(cullMode: ShadowCullMode(state.Scene));
+
             renderContext.Scene = state.Scene;
             state.Scene.BindDrawBuffers();
             state.RenderShadowCasters(renderContext, depthOnlyShader, shadowCasterDraws);
         }
     }
+
+    /// <summary>Lightmapped scenes cast shadows with each material's own cull state, and the rest from both sides.</summary>
+    /// <remarks>Without a lightmap to fill them in, single sided geometry facing away from the light would leak it.</remarks>
+    private static RsCullMode? ShadowCullMode(Scene scene) => scene.LightingInfo.HasValidLightmaps ? null : RsCullMode.None;
+
+    /// <summary>Like <see cref="ShadowCullMode"/>, for the barn light projections, which are left handed.</summary>
+    /// <remarks>The mirrored projection reverses the winding, so culling front faces actually culls the back faces.</remarks>
+    private static RsCullMode BarnLightShadowCullMode(Scene scene) => scene.LightingInfo.HasValidLightmaps ? RsCullMode.Front : RsCullMode.None;
 
     private void RenderBarnLightShadows(Scene.RenderContext renderContext)
     {
@@ -1722,7 +1725,7 @@ public class Renderer : ISceneHost
 
         // The barn shadow atlas uses forward depth, unlike the reverse-Z main view.
         using var forwardDepth = GraphicsContext.RenderState.Scope(depthFunc: RsComparison.FartherEqual,
-            slopeScaledDepthBias: 2f, multisampleEnable: BarnLightShadowBuffer.NumSamples > 1);
+            slopeScaledDepthBias: 2f, multisampleEnable: BarnLightShadowBuffer.NumSamples > 1, cullMode: BarnLightShadowCullMode(Scene));
 
         using var atlasDepth = GraphicsContext.RenderState.ScopeDynamic(DepthRange.Full, clearDepth: 1f, scissorTest: true);
 

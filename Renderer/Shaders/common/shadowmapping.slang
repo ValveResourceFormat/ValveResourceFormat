@@ -25,8 +25,7 @@ float SampleSunCascadePCF(vec3 projCoords, int cascade)
 
     vec2 texelSize = 1.0 / vec2(textureSize(g_tShadowDepthBufferDepth, 0).xy);
 
-    // The 3x3 gaussian of the barn light shadows. The corners bound the whole footprint, so where they agree
-    // the rest would too.
+    // The corners bound the whole footprint, so check them first.
     float corners = dot(vec4(
         SampleSunCascadeTap(shadowCoords, vec2( 1.0,  1.0), texelSize, cascade, currentDepth),
         SampleSunCascadeTap(shadowCoords, vec2(-1.0,  1.0), texelSize, cascade, currentDepth),
