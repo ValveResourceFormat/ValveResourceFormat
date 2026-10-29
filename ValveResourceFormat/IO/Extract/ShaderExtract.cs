@@ -1287,17 +1287,15 @@ public sealed class ShaderExtract
     {
         var intDefsCutOff = 0;
         var floatDefsCutOff = 0;
-        for (var i = 3; i >= 0; i--)
-        {
-            if (param.IntDefs[i] == 0)
-            {
-                intDefsCutOff++;
-            }
 
-            if (param.FloatDefs[i] == 0f)
-            {
-                floatDefsCutOff++;
-            }
+        for (var i = 3; i >= 0 && param.IntDefs[i] == 0; i--)
+        {
+            intDefsCutOff++;
+        }
+
+        for (var i = 3; i >= 0 && param.FloatDefs[i] == 0f; i--)
+        {
+            floatDefsCutOff++;
         }
 
         static string GetFuncName(string func, int cutOff)
