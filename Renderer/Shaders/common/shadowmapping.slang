@@ -9,6 +9,13 @@
 
 uniform sampler2DArrayShadow g_tShadowDepthBufferDepth; // reserved
 
+float SampleSunCascadeTap(vec2 shadowCoords, vec2 offset, vec2 texelSize, int cascade, float currentDepth)
+{
+    // The shadow map has a single level, so the implicit lod is free to be anything. Explicit zero gradients,
+    // the only lod control shadow array samplers offer, sample at a much lower rate.
+    return texture(g_tShadowDepthBufferDepth, vec4(shadowCoords + offset * texelSize, float(cascade), currentDepth));
+}
+
 float SampleSunCascadePCF(vec3 projCoords, int cascade)
 {
     vec2 shadowCoords = clamp(projCoords.xy * 0.5 + 0.5, vec2(-1), vec2(2));
@@ -16,28 +23,30 @@ float SampleSunCascadePCF(vec3 projCoords, int cascade)
     // Positive bias moves the reference toward the light so surfaces pass their own comparison
     float currentDepth = saturate(projCoords.z) + g_flSunShadowBias;
 
-    // Zero gradients pin the lod, like textureLod, which shadow array samplers do not offer
-    float center = textureGrad(g_tShadowDepthBufferDepth, vec4(shadowCoords, float(cascade), currentDepth), vec2(0.0), vec2(0.0));
-
-    // Where the four nearest texels agree the tent is skipped, losing only the outer fringe of a penumbra
-    if (center == 0.0 || center == 1.0)
-    {
-        return center;
-    }
-
-    float visibility = 0.0;
     vec2 texelSize = 1.0 / vec2(textureSize(g_tShadowDepthBufferDepth, 0).xy);
-    // Four bilinear comparisons half a texel apart filter the same 3x3 texels as a tent
-    for (int x = 0; x < 2; ++x)
+
+    // The 3x3 gaussian of the barn light shadows. The corners bound the whole footprint, so where they agree
+    // the rest would too.
+    float corners = dot(vec4(
+        SampleSunCascadeTap(shadowCoords, vec2( 1.0,  1.0), texelSize, cascade, currentDepth),
+        SampleSunCascadeTap(shadowCoords, vec2(-1.0,  1.0), texelSize, cascade, currentDepth),
+        SampleSunCascadeTap(shadowCoords, vec2( 1.0, -1.0), texelSize, cascade, currentDepth),
+        SampleSunCascadeTap(shadowCoords, vec2(-1.0, -1.0), texelSize, cascade, currentDepth)
+    ), vec4(0.25));
+
+    if (corners == 0.0 || corners == 1.0)
     {
-        for (int y = 0; y < 2; ++y)
-        {
-            visibility += textureGrad(g_tShadowDepthBufferDepth,
-                vec4(shadowCoords + (vec2(x, y) - 0.5) * texelSize, float(cascade), currentDepth), vec2(0.0), vec2(0.0));
-        }
+        return corners;
     }
 
-    return visibility / 4.0;
+    float edges = dot(vec4(
+        SampleSunCascadeTap(shadowCoords, vec2( 1.0,  0.0), texelSize, cascade, currentDepth),
+        SampleSunCascadeTap(shadowCoords, vec2(-1.0,  0.0), texelSize, cascade, currentDepth),
+        SampleSunCascadeTap(shadowCoords, vec2( 0.0, -1.0), texelSize, cascade, currentDepth),
+        SampleSunCascadeTap(shadowCoords, vec2( 0.0,  1.0), texelSize, cascade, currentDepth)
+    ), vec4(0.1236));
+
+    return corners * 0.2996 + edges + SampleSunCascadeTap(shadowCoords, vec2(0.0), texelSize, cascade, currentDepth) * 0.206;
 }
 
 float CalculateSunShadowMapVisibility(vec3 vPosition)
@@ -104,8 +113,7 @@ float CalculateSunShadowThickness(vec3 vPosition)
     for (int i = 1; i <= nThicknessSteps; ++i)
     {
         float flReference = currentDepth - flThicknessStep * float(i);
-        flThickness += textureGrad(g_tShadowDepthBufferDepth,
-            vec4(shadowCoords, 0.0, flReference), vec2(0.0), vec2(0.0));
+        flThickness += texture(g_tShadowDepthBufferDepth, vec4(shadowCoords, 0.0, flReference));
     }
 
     return flThickness / float(nThicknessSteps);
