@@ -306,11 +306,14 @@ namespace ValveResourceFormat.Utils
             return Math.Clamp(x, 0.0f, 1.0f);
         }
 
-        /// <summary>The Rec. 709 weights of the red, green and blue channels in a color's luminance.</summary>
-        public static readonly Vector3 LuminanceWeights = new(0.2126f, 0.7152f, 0.0722f);
+        /// <summary>The BT.709-1 weights of the red, green and blue channels in a color's luminance, as the game shaders use them.</summary>
+        public static readonly Vector3 LuminanceWeights = new(0.2125f, 0.7154f, 0.0721f);
+
+        /// <summary>The Rec. 709 weights of the red, green and blue channels in a color's luminance, as the engine uses them for cubemap normalization.</summary>
+        public static readonly Vector3 Rec709LuminanceWeights = new(0.2126f, 0.7152f, 0.0722f);
 
         /// <summary>
-        /// Rec. 709 luminance of a linear RGB color.
+        /// BT.709-1 luminance of a linear RGB color.
         /// </summary>
         public static float Luminance(Vector3 color) => Vector3.Dot(color, LuminanceWeights);
 
