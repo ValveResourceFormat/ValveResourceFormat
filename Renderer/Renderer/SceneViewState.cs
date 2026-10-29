@@ -1025,6 +1025,9 @@ public sealed class SceneViewState
                 | MemoryBarrierFlags.BufferUpdateBarrierBit);
         }
 
+        alphaTestAggregateDraws.Sort(MeshBatchRenderer.CompareStageThenProgram);
+        alphaTestOpaqueDraws.Sort(MeshBatchRenderer.CompareCustomPipeline);
+
         if (depthPrepass)
         {
             using (new GLDebugGroup("Depth Prepass"))
@@ -1045,6 +1048,8 @@ public sealed class SceneViewState
 
                 PerfStats.Active.ResumeTriangleCounter();
             }
+
+            RenderAlphaTestDepthPrepass(renderContext, depthOnlyShader!);
 
             using (new GLDebugGroup("Opaque Prepassed"))
             using (GraphicsContext.RenderState.Scope(depthWrite: false, depthFunc: RsComparison.Equal))
@@ -1069,7 +1074,7 @@ public sealed class SceneViewState
             MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
         }
 
-        RenderAlphaTestGeometry(renderContext, depthOnlyShader);
+        RenderAlphaTestGeometry(renderContext, depthPrepass);
 
         if (renderLists[RenderPass.StaticOverlay].Count == 0)
         {
@@ -1082,39 +1087,39 @@ public sealed class SceneViewState
         MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
     }
 
-    /// <summary>Prepasses the alpha tested geometry and then draws it, both after the opaque geometry.</summary>
-    private void RenderAlphaTestGeometry(Scene.RenderContext renderContext, Shader? depthOnlyShader)
+    /// <summary>Writes the depth of the alpha tested geometry, so the color passes after it can draw with an equal depth test.</summary>
+    private void RenderAlphaTestDepthPrepass(Scene.RenderContext renderContext, Shader depthOnlyShader)
     {
         if (alphaTestAggregateDraws.Count == 0 && alphaTestOpaqueDraws.Count == 0)
         {
             return;
         }
 
-        // Both lists are drawn twice, so they are ordered once here instead of per pass.
-        alphaTestAggregateDraws.Sort(MeshBatchRenderer.CompareStageThenProgram);
-        alphaTestOpaqueDraws.Sort(MeshBatchRenderer.CompareCustomPipeline);
+        using var prepassGroup = new GLDebugGroup("Alpha Test Depth Prepass");
+        using var prepassState = GraphicsContext.RenderState.Scope(colorWriteMask: RsColorWriteEnableBits.None);
 
-        var prepassed = depthOnlyShader != null;
+        PerfStats.Active.SuspendTriangleCounter();
 
-        if (prepassed)
+        var passShader = renderContext.ReplacementShader;
+        renderContext.ReplacementShader = null;
+
+        renderContext.RenderPass = RenderPass.DepthOnly;
+        renderContext.DepthOnlyShader = depthOnlyShader;
+        MeshBatchRenderer.Render(alphaTestAggregateDraws, renderContext);
+        MeshBatchRenderer.Render(alphaTestOpaqueDraws, renderContext);
+
+        renderContext.DepthOnlyShader = null;
+        renderContext.ReplacementShader = passShader;
+
+        PerfStats.Active.ResumeTriangleCounter();
+    }
+
+    /// <summary>Draws the alpha tested geometry after the opaque geometry.</summary>
+    private void RenderAlphaTestGeometry(Scene.RenderContext renderContext, bool prepassed)
+    {
+        if (alphaTestAggregateDraws.Count == 0 && alphaTestOpaqueDraws.Count == 0)
         {
-            using var prepassGroup = new GLDebugGroup("Alpha Test Depth Prepass");
-            using var prepassState = GraphicsContext.RenderState.Scope(colorWriteMask: RsColorWriteEnableBits.None);
-
-            PerfStats.Active.SuspendTriangleCounter();
-
-            var passShader = renderContext.ReplacementShader;
-            renderContext.ReplacementShader = null;
-
-            renderContext.RenderPass = RenderPass.DepthOnly;
-            renderContext.DepthOnlyShader = depthOnlyShader;
-            MeshBatchRenderer.Render(alphaTestAggregateDraws, renderContext);
-            MeshBatchRenderer.Render(alphaTestOpaqueDraws, renderContext);
-
-            renderContext.DepthOnlyShader = null;
-            renderContext.ReplacementShader = passShader;
-
-            PerfStats.Active.ResumeTriangleCounter();
+            return;
         }
 
         using var drawGroup = new GLDebugGroup("Alpha Test Render");
