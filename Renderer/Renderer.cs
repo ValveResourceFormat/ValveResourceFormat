@@ -322,8 +322,10 @@ public class Renderer : ISceneHost
     private readonly HashSet<Scene> scenesCulled = [];
     private readonly Dictionary<string, SceneSkybox2D> skyOverrides = [];
 
-    /// <summary>Gets the rendering toggles for all scenes.</summary>
-    public RenderSettings Settings { get; } = new();
+    private RenderSettings settings = new();
+
+    /// <summary>Gets the rendering toggles for all scenes, which each scene reads a copy of that is refreshed once per frame in <see cref="Update"/>.</summary>
+    public ref RenderSettings Settings => ref settings;
 
     /// <summary>
     /// Width and height in texels of the shadow depth buffers.
@@ -1447,7 +1449,7 @@ public class Renderer : ISceneHost
             GraphicsContext.RenderState.SetDepthRange(DepthRange.Viewmodel);
 
             DrawThrough(ViewmodelView(mainView), mainState, ref renderContext);
-            mainState.RenderViewmodelOpaqueLayer(renderContext);
+            mainState.RenderViewmodelOpaqueLayer(renderContext, isMaterialPass ? depthOnlyShader : null);
 
             GraphicsContext.RenderState.SetDepthRange(DepthRange.Scene);
         }
@@ -2292,6 +2294,11 @@ public class Renderer : ISceneHost
         }
 
         RendererContext.ParallelSimulation = ParallelSimulation;
+
+        foreach (var scene in scenes)
+        {
+            scene.Settings = Settings;
+        }
 
         Uptime += updateContext.Timestep;
         DeltaTime = updateContext.Timestep;

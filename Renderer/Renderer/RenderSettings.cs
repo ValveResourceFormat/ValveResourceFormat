@@ -1,8 +1,13 @@
 namespace ValveResourceFormat.Renderer;
 
 /// <summary>Rendering toggles shared by all scenes.</summary>
-public sealed class RenderSettings
+public record struct RenderSettings
 {
+    /// <summary>Initializes the toggles to their defaults.</summary>
+    public RenderSettings()
+    {
+    }
+
     /// <summary>
     /// Gets or sets what decides which materials of the nodes are drawn, such as a tool hiding tools materials.
     /// Without one, every material is drawn.
@@ -35,6 +40,9 @@ public sealed class RenderSettings
 
     /// <summary>Gets or sets whether GPU culled draws are compacted.</summary>
     public bool EnableCompaction { get; set; } = true;
+
+    /// <summary>Gets or sets whether consecutive draws of one mesh and material are drawn by a single multidraw.</summary>
+    public bool EnableDrawBatching { get; set; } = true;
 
     /// <summary>Gets or sets whether GPU culling also tests occlusion.</summary>
     public bool EnableOcclusionCulling { get; set; } = true;

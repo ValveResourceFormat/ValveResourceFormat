@@ -1061,6 +1061,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             foreach (var material in legsMaterials)
             {
                 material.IntParams["g_bFirstpersonLegsDistortion"] = distortionValue;
+                material.IntParams["F_NO_Z_PREPASS"] = distortionValue;
             }
 
             Legs.UpdateHierarchy(context);
