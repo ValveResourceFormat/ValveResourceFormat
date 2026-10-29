@@ -21,6 +21,7 @@ public sealed partial class VMixGraphExtract
     private const float RowSpacing = 60f;
 
     private const string ManifestName = "mixgraphs.vrman";
+    private const string GraphsFolder = "sounds/graphs/";
 
     private readonly Resource resource;
     private readonly IFileLoader? fileLoader;
@@ -188,38 +189,31 @@ public sealed partial class VMixGraphExtract
     }
 
     /// <summary>
-    /// Subgraphs of graphs in separate files are named after the file, which sits beside the graph that uses it.
-    /// </summary>
-    /// <summary>
-    /// Graphs in their own files are listed by the resource manifest of their folder.
+    /// Graphs in their own files sit together in one folder. The resource manifest of the folder lists the graphs
+    /// the game loads, but not the ones only other graphs inline, so graphs in <c>sounds/graphs</c> are also found
+    /// by listing that folder on disk and in the current package.
     /// </summary>
     private List<MixGraph> LoadSiblingGraphs(HashSet<string> ownNames)
     {
         var graphs = new List<MixGraph>();
         var file = SourceFileName();
         var folder = file.LastIndexOf('/') is var slash and >= 0 ? file[..(slash + 1)] : string.Empty;
+        var loaded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        using var manifest = fileLoader?.LoadFileCompiled(string.Concat(folder, ManifestName));
-
-        if (manifest?.ExternalReferences == null)
+        void Add(string compiledName, Func<Resource?> load)
         {
-            return graphs;
-        }
+            var source = Path.ChangeExtension(compiledName[..^GameFileLoader.CompiledFileSuffix.Length], "vmix").Replace('\\', '/');
 
-        foreach (var reference in manifest.ExternalReferences.ResourceRefInfoList)
-        {
-            var source = Path.ChangeExtension(reference.Name, "vmix").Replace('\\', '/');
-
-            if (string.Equals(source, file, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(source, file, StringComparison.OrdinalIgnoreCase) || !loaded.Add(compiledName))
             {
-                continue;
+                return;
             }
 
-            using var sibling = fileLoader!.LoadFileCompiled(reference.Name);
+            using var sibling = load();
 
             if (sibling == null)
             {
-                continue;
+                return;
             }
 
             var compiled = sibling.ResourceType == ResourceType.Sound
@@ -228,18 +222,52 @@ public sealed partial class VMixGraphExtract
 
             if (compiled == null)
             {
-                continue;
+                return;
             }
 
             var graph = ReadGraph(compiled, MixGraphFormat.Heap);
 
-            if (ownNames.Contains(graph.Name))
+            // A graph compiled both as a vmix and as a sound is only read once
+            if (ownNames.Contains(graph.Name) || !siblingFiles.TryAdd(graph.Name, source))
             {
-                continue;
+                return;
             }
 
-            siblingFiles.TryAdd(graph.Name, source);
             graphs.Add(graph);
+        }
+
+        if (string.Equals(folder, GraphsFolder, StringComparison.OrdinalIgnoreCase))
+        {
+            var extension = Path.GetExtension(resource.FileName) ?? string.Empty;
+
+            if (Path.IsPathRooted(resource.FileName) && Path.GetDirectoryName(resource.FileName) is { } directory && !string.IsNullOrEmpty(extension))
+            {
+                foreach (var path in Directory.EnumerateFiles(directory, string.Concat("*", extension)).Order(StringComparer.OrdinalIgnoreCase))
+                {
+                    Add(string.Concat(folder, Path.GetFileName(path)), () =>
+                    {
+                        var sibling = new Resource { FileName = path };
+                        sibling.Read(path);
+                        return sibling;
+                    });
+                }
+            }
+
+            if (fileLoader is GameFileLoader { CurrentPackage.Entries: { } packageEntries } && packageEntries.TryGetValue(extension.TrimStart('.'), out var entries))
+            {
+                foreach (var entry in entries.Where(static entry => string.Equals(entry.DirectoryName, GraphsFolder.TrimEnd('/'), StringComparison.OrdinalIgnoreCase)))
+                {
+                    var name = entry.GetFullPath();
+                    Add(name, () => fileLoader.LoadFile(name));
+                }
+            }
+        }
+
+        using var manifest = fileLoader?.LoadFileCompiled(string.Concat(folder, ManifestName));
+
+        foreach (var reference in manifest?.ExternalReferences?.ResourceRefInfoList ?? [])
+        {
+            Add(string.Concat(reference.Name, GameFileLoader.CompiledFileSuffix), () => fileLoader!.LoadFileCompiled(reference.Name));
         }
 
         return graphs;

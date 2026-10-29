@@ -920,7 +920,7 @@ public sealed partial class VMixGraphExtract
         private static string? ParameterPlugByHash(string type, uint hash)
             // Some compilers hash the plug name with underscores for spaces, as in selection_index
             => NodeTypesByName.TryGetValue(type, out var nodeType)
-                ? nodeType.Inputs.Concat(type == "sys.SubgraphSwitch" ? ["Selection Index"] : [])
+                ? nodeType.Inputs.Concat(nodeType.LegacyPlugs).Concat(type == "sys.SubgraphSwitch" ? ["Selection Index"] : [])
                     .FirstOrDefault(plug => StringToken.Get(plug) == hash || StringToken.Get(plug.Replace(' ', '_')) == hash)
                 : null;
 
@@ -1119,15 +1119,36 @@ public sealed partial class VMixGraphExtract
 
             if (node == null)
             {
-                node = Node(Fresh("audio.Mix"), "audio.Mix");
+                // Older graphs meter the mix after its last input, under the mix's own name
+                var j = i;
+
+                while (j < commands.Count && commands[j].Op == MixOp.SubmixAccumulate && commands[j].OutputSubmix == command.OutputSubmix)
+                {
+                    j++;
+                }
+
+                var metered = Next(j, MixOp.SubmixMeter) is { } meter && meter.InputSubmix0 == command.OutputSubmix
+                    && MeterName(meter) is { } meterName && TypeOf(meterName) == "audio.Mix" && !nodes.ContainsKey(meterName) ? meterName : null;
+
+                node = Node(metered ?? Fresh("audio.Mix"), "audio.Mix");
                 node.IsAccumulatingMix = true;
-                node.FriendlyName = string.Concat(holder is { } source && nodes.TryGetValue(source.Node, out var sourceNode) ? sourceNode.FriendlyName ?? source.Node : "mix", "_sum");
+                node.FriendlyName = metered ?? string.Concat(holder is { } source && nodes.TryGetValue(source.Node, out var sourceNode) ? sourceNode.FriendlyName ?? source.Node : "mix", "_sum");
                 node.Properties.Add("m_flVolume1", 1.0f);
                 Edge(node, "audio:In1", holder);
                 Warnings.Add($"{node.Name}: accumulate at {i} outside a mix, modelled as a mix");
             }
 
-            var k = 1 + node.Inputs.Count(static input => input.Key.StartsWith("audio:In", StringComparison.Ordinal));
+            // The control meters "MixN/volumeK" tell which input this is, as inputs may be left unconnected
+            var k = meteredInputs
+                .Where(pair => pair.Key.Node == node.Name && pair.Value == command.Value0 && pair.Key.Plug.StartsWith("volume", StringComparison.Ordinal))
+                .Select(static pair => int.TryParse(pair.Key.Plug.AsSpan(6), CultureInfo.InvariantCulture, out var index) ? index : 0)
+                .FirstOrDefault(index => index > 0 && !node.HasInput(Indexed("audio:In", index)));
+
+            if (k == 0)
+            {
+                k = 1 + node.Inputs.Count(static input => input.Key.StartsWith("audio:In", StringComparison.Ordinal));
+            }
+
             Edge(node, Indexed("audio:In", k), submixHolders.TryGetValue(command.InputSubmix0, out var input) ? input : null);
             SetVolume(node, Indexed("volume", k), Indexed("m_flVolume", k), command.Value0);
             submixHolders[command.OutputSubmix] = new(node.Name, "audio:Out");
@@ -1568,10 +1589,20 @@ public sealed partial class VMixGraphExtract
 
             var remaps = new List<MixCommand>();
 
-            while (j < commands.Count && commands[j].Op is MixOp.ControlRemapLinear or MixOp.ControlRemapSine or MixOp.ControlRemapLogLinear or MixOp.ControlEvaluateCurve)
+            static bool IsRemap(MixOp op) => op is MixOp.ControlRemapLinear or MixOp.ControlRemapSine or MixOp.ControlRemapLogLinear or MixOp.ControlEvaluateCurve;
+
+            while (j < commands.Count && IsRemap(commands[j].Op))
             {
                 remaps.Add(commands[j]);
                 j++;
+
+                // Older graphs compile a second output as a copy of the first, remapped again in place
+                if (j + 1 < commands.Count && commands[j].Op == MixOp.ControlCopy && commands[j + 1].Op == commands[j - 1].Op
+                    && remaps.Any(remap => remap.Value0 == commands[j].Value1) && commands[j + 1].Value0 == commands[j].Value0)
+                {
+                    copies.Add(commands[j]);
+                    j++;
+                }
             }
 
             if (remaps.Count == 0)
@@ -2367,6 +2398,13 @@ public sealed partial class VMixGraphExtract
                 case "audio.PitchShift":
                     properties.Add("m_nChannels", processor.Channels);
                     properties.Add("m_flPitchScale", ConstantControl(node, "pitchScale") ?? 1.0f);
+
+                    // The compiler keeps the grain length in samples at 44.1 kHz
+                    if (desc.TryGetValue("m_nGrainSampleCount", out var grainSamples) && !grainSamples.IsNull)
+                    {
+                        properties.Add("m_flGrainMs", (long)grainSamples * 1000f / 44100f);
+                    }
+
                     Copy("m_nProcType", "m_nProcType");
                     Copy("m_nQuality", "m_nQuality");
                     break;
