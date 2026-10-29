@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Reflection;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.Editor.Picking;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.Particles;
@@ -395,6 +396,22 @@ public class Renderer : ISceneHost
         scene.Dispose();
     }
 
+    private void ConfigureSkyCamera(SkyTransform sky, Camera camera)
+    {
+        var gameInfo = RendererContext.FileLoader.GameInfo;
+
+        if (gameInfo.Game == Game.Csgo)
+        {
+            // CS2 draws its 3D sky up to a fixed distance in sky units, whatever the sky scale. Its near plane is a
+            // fixed 2 sky units too, which is not copied so a free camera can fly up to sky geometry.
+            var farPlane = 2f * gameInfo.MapMaxCoord * MathF.Sqrt(3f);
+            sky.ConfigureCamera(SkyCamera, camera, camera.NearPlane / sky.Scale, farPlane);
+            return;
+        }
+
+        sky.ConfigureCamera(SkyCamera, camera);
+    }
+
     /// <summary>
     /// The views this frame draws, main view first, valid until the next call.
     /// Also updates <see cref="SkyCamera"/> from <paramref name="camera"/>.
@@ -427,7 +444,7 @@ public class Renderer : ISceneHost
             // The map's own world seen from the target: the sky view draws what the main view draws
             var sky = new SkyTransform(volume.Transform.Translation, target.Transform.Translation, target.SkyScale);
 
-            sky.ConfigureCamera(SkyCamera, camera);
+            ConfigureSkyCamera(sky, camera);
             skyFog.SetToVolumeSkyView(Scene.FogInfo);
 
             skyViewSceneStates.Clear();
@@ -474,7 +491,7 @@ public class Renderer : ISceneHost
         {
             var sky = SkyTransform.FromEntities(reference.Transform.Translation, skyCamera);
 
-            sky.ConfigureCamera(SkyCamera, camera);
+            ConfigureSkyCamera(sky, camera);
 
             // Every frame: the sky loads part way through the map, possibly before the map fog spawns
             skyFog.SetToSkyView(Scene.FogInfo, skyViewSceneStates[0].Scene.FogInfo);
@@ -572,11 +589,8 @@ public class Renderer : ISceneHost
                 Fog = main.Fog,
             };
 
-            // No sky lightmap holds the shadows of the world, so its static geometry casts too while a sky shares the
-            // cascades. Where the world lightmap already shadows, the two multiply into the same shadow.
             var cullFrustum = CullFrustumFor(view);
-            var (depthMin, depthMax) = CollectSunCascadeCasters(view, main, cullFrustum ?? view.Camera.ViewFrustum, sunCascades.CastDirection,
-                includeBakedStatic: sky != null);
+            var (depthMin, depthMax) = CollectSunCascadeCasters(view, main, cullFrustum ?? view.Camera.ViewFrustum, sunCascades.CastDirection, cascade);
 
             sunCascadeSkyViews[cascade] = null;
 
@@ -597,9 +611,9 @@ public class Renderer : ISceneHost
                 }
 
                 // Its depth is measured along the cast direction scaled into sky space, then offset to where the
-                // viewer sees it. No world lightmap holds the shadows of the sky, so its static geometry casts too.
+                // viewer sees it.
                 var (skyDepthMin, skyDepthMax) = CollectSunCascadeCasters(skyView, skyFrom, cullFrustum ?? viewerSpaceCascadeFrustum,
-                    sunCascades.CastDirection * skyTransform.Scale, includeBakedStatic: true);
+                    sunCascades.CastDirection * skyTransform.Scale, cascade);
                 var skyDepthOffset = Vector3.Dot(skyToWorld.Translation, sunCascades.CastDirection);
 
                 depthMin = MathF.Min(depthMin, skyDepthMin + skyDepthOffset);
@@ -624,8 +638,9 @@ public class Renderer : ISceneHost
         return list;
     }
 
-    // Casters cull with the visibility boxes of the frame view they cast from, as split for its eye
-    private (float Min, float Max) CollectSunCascadeCasters(in SceneView view, in SceneView from, Frustum frustum, Vector3 depthFitAxis, bool includeBakedStatic)
+    // Casters cull with the visibility boxes of the frame view they cast from, as split for its eye.
+    // Static objects only cast into the cascades their scene's sun allows, and never with NoSunShadows.
+    private (float Min, float Max) CollectSunCascadeCasters(in SceneView view, in SceneView from, Frustum frustum, Vector3 depthFitAxis, int cascade)
     {
         var pvsEnabled = !Settings.DisableAllCulling && Settings.EnablePvsCulling;
         var depthMin = float.MaxValue;
@@ -638,9 +653,10 @@ public class Renderer : ISceneHost
 
             state.Pvs = pvsEnabled && scene.VoxelVisibility is { } visibility ? visibility.SunVisibility : default;
 
-            var (min, max) = state.CollectShadowCasters(frustum,
-                includeStatic: includeBakedStatic || !scene.LightingInfo.HasBakedShadowsFromLightmap || !scene.LightingInfo.IsSunShadowBaked,
-                ObjectTypeFlags.NoShadows | ObjectTypeFlags.NoSunShadows, from.States[i].VisibilityBoxes, depthFitAxis);
+            // NoShadows keeps an object out of every shadow view; games ignore NoSunShadows
+            var includeStatic = cascade <= scene.LightingInfo.LastStaticSunCascade;
+            var (min, max) = state.CollectShadowCasters(frustum, includeStatic,
+                ObjectTypeFlags.NoShadows, from.States[i].VisibilityBoxes, depthFitAxis);
 
             depthMin = MathF.Min(depthMin, min);
             depthMax = MathF.Max(depthMax, max);
@@ -785,6 +801,12 @@ public class Renderer : ISceneHost
         scene.LightingInfo.LightingData.SunDirection = new Vector4(-sunForward, scene.LightingInfo.GetSunMinRoughness());
         scene.LightingInfo.LightingData.SunColor =
             new Vector4(DefaultSunColor.AsVector3() * DefaultSunColor.W, 1f);
+
+        // Dota's global light shaders have no environment map term, their shadowed side only gets this ambient
+        if (scene.RendererContext.FileLoader.GameInfo.Game == Game.Dota)
+        {
+            scene.LightingInfo.SetHemisphereAmbientLighting(new Vector3(0.6f), new Vector3(0.3f));
+        }
     }
 
     /// <summary>
@@ -953,6 +975,7 @@ public class Renderer : ISceneHost
     private void DrawThrough(in SceneView view, SceneViewState state, ref Scene.RenderContext renderContext)
     {
         BindView(view, state);
+        view.Fog.BindVolumetricFog();
         state.Scene.SetSceneBuffers();
         state.LightBinner.Bind();
 
@@ -1098,6 +1121,20 @@ public class Renderer : ISceneHost
             {
                 states[j].Scene.UpdateLightingBuffer();
                 UpdateViewGpuBuffers(views[i], states[j]);
+            }
+        }
+
+        // With the main view bound, which the fog grid is built for
+        if (Scene.FogInfo.Volumetric is { } volumetricFog)
+        {
+            if (Settings.FogEnabled && Settings.VolumetricFogEnabled)
+            {
+                using var _ = new GLDebugGroup("Volumetric Fog");
+                volumetricFog.Render(Scene, mainCamera.Location);
+            }
+            else
+            {
+                volumetricFog.Dispose();
             }
         }
 
@@ -1312,13 +1349,8 @@ public class Renderer : ISceneHost
 
         CullClutter(renderContext.Camera);
 
-        // Render backfaces into shadow maps
-        GL.FrontFace(FrontFaceDirection.Cw);
-
         RenderSceneShadows(renderContext);
         RenderBarnLightShadows(renderContext);
-
-        GL.FrontFace(FrontFaceDirection.Ccw);
 
         RenderScenesWithView(renderContext);
     }
@@ -1601,7 +1633,7 @@ public class Renderer : ISceneHost
         }
 
         using var _ = GraphicsContext.RenderState.Scope(multisampleEnable: ShadowDepthBuffer.NumSamples > 1,
-            cullMode: RsCullMode.None, slopeScaledDepthBias: -2f);
+            slopeScaledDepthBias: -2f);
 
         using var shadowDepth = GraphicsContext.RenderState.ScopeDynamic(DepthRange.Full);
 

@@ -96,13 +96,15 @@ public class SceneEnvMap : SceneNode
     /// </summary>
     /// <param name="radianceCoefficients">Coefficients for every probe in the array, or null.</param>
     /// <param name="arrayIndex">Index of this probe within the array.</param>
-    public static Vector4 CalculateNormalizationSH(float[]? radianceCoefficients, int arrayIndex)
+    /// <param name="transform">Placement of the env map; its rotation turns the linear band into world space.</param>
+    public static Vector4 CalculateNormalizationSH(float[]? radianceCoefficients, int arrayIndex, in Matrix4x4 transform)
     {
         const int CoefficientsPerChannel = 9;
         const int CoefficientsPerProbe = CoefficientsPerChannel * 3;
 
         const float ConstantBand = 0.282095f;   // Y00
         const float LinearBand = 0.325735f;     // Y1x * 2/3
+        const float MaxLinearToConstant = 0.99f;
 
         var offset = arrayIndex * CoefficientsPerProbe;
 
@@ -111,8 +113,6 @@ public class SceneEnvMap : SceneNode
             return NoNormalization;
         }
 
-        // The same weights the shaders use for luma.
-        var luminanceWeights = new Vector3(0.2125f, 0.7154f, 0.0721f);
         Span<float> luma = stackalloc float[4];
 
         for (var band = 0; band < luma.Length; band++)
@@ -122,17 +122,25 @@ public class SceneEnvMap : SceneNode
                 radianceCoefficients[offset + CoefficientsPerChannel + band],
                 radianceCoefficients[offset + (CoefficientsPerChannel * 2) + band]);
 
-            luma[band] = Vector3.Dot(rgb, luminanceWeights);
+            luma[band] = Vector3.Dot(rgb, MathUtils.Rec709LuminanceWeights);
         }
 
-        // Source 2 orders the linear band y, z, x, while the shader dots against (normal, 1).
-        // Fitting a free 3x3 between a hand projection and the stored coefficients comes back
-        // diagonal, so there is no permutation hiding in here beyond this reorder.
-        return new Vector4(
-            luma[3] * LinearBand,
-            luma[1] * LinearBand,
-            luma[2] * LinearBand,
-            luma[0] * ConstantBand);
+        var constant = luma[0] * ConstantBand;
+
+        if (constant <= 0f)
+        {
+            return new Vector4(0f, 0f, 0f, 0.01f);
+        }
+
+        // The linear band is stored y, z, x, with y and x of opposite sign to the normal's axes
+        var localLinear = new Vector3(-luma[3], -luma[1], luma[2]) * LinearBand;
+        var linear = Vector3.TransformNormal(localLinear, transform);
+
+        // Keeps dot((normal, 1), sh) positive for every normal; the length includes the constant term
+        var length = new Vector4(linear, constant).Length();
+        var scale = MathF.Min(constant * MaxLinearToConstant / length, 1f);
+
+        return new Vector4(linear * scale, constant);
     }
 
     /// <summary>

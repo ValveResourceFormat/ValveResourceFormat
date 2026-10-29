@@ -465,6 +465,27 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             return false;
         }
 
+        /// <summary>Finds the first sequence that is not hidden and plays the named activity.</summary>
+        /// <param name="activityName">The activity name, such as <c>ACT_IDLE</c>.</param>
+        /// <returns>The sequence, or <see langword="null"/> when no sequence plays the activity.</returns>
+        public SequenceAnimation? FindSequenceByActivity(string activityName)
+        {
+            foreach (var animation in Animations.Values)
+            {
+                if (animation is not SequenceAnimation { Hidden: false } sequence)
+                {
+                    continue;
+                }
+
+                if (Array.Exists(sequence.Activities, activity => activity.Name.Equals(activityName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return sequence;
+                }
+            }
+
+            return null;
+        }
+
         /// <summary>Activates the given animation instance with a blend-in time, or clears the active animation when <see langword="null"/>.</summary>
         /// <param name="activeAnimation">The animation to activate, or <see langword="null"/> to clear.</param>
         /// <param name="blendTime">The time in seconds to blend from the current animation to the new one.</param>

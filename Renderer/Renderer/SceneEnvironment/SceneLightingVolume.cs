@@ -74,7 +74,7 @@ public static class SceneLightingVolume
             EdgeFadeDists = volume.EdgeFadeDists,
             ProjectionMode = isSphere ? 0 : 1,
             EnvMapTexture = envMapTexture,
-            NormalizationSH = SceneEnvMap.CalculateNormalizationSH(envMapTexture.RadianceCoefficients, arrayIndex),
+            NormalizationSH = SceneEnvMap.CalculateNormalizationSH(envMapTexture.RadianceCoefficients, arrayIndex, transform),
         };
 
         if (entity.GetStringProperty("customcubemaptexture") == null)

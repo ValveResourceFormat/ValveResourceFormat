@@ -6,14 +6,17 @@ namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
 /// <c>env_sky</c>, and Dota's <c>env_global_light</c>, which names the sky material too. Each sets the
-/// scene's <see cref="Scene.Skybox2D"/>, replacing an earlier one. <c>env_global_light</c> also adds a
-/// fixed dynamic sun.
+/// scene's <see cref="Scene.Skybox2D"/>, replacing an earlier one. <c>env_global_light</c> also adds the
+/// dynamic sun it describes.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CEnvSky">CEnvSky</seealso>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/client/C_GlobalLight">C_GlobalLight</seealso>
 public sealed class EnvSky : BaseEntity
 {
     private readonly bool isGlobalLight;
+
+    // Default of the r_dota_shadow_ambient_light convar, which scales the ambient lighting of the global light pass
+    private const float ShadowAmbientLightScale = 1.5f;
 
     // Where the angular fog fades below and above the horizon, while the entity does not say
     private static readonly Vector4 DefaultAngularFog = new(-25f, -35f, 25f, 35f);
@@ -89,19 +92,48 @@ public sealed class EnvSky : BaseEntity
 
     private void AddDynamicSun()
     {
-        var angles = new Vector3(50, 43, 0);
+        var skyColor = KeyValues.GetColor32Property("ambientcolor2");
+        var groundColor = KeyValues.TryGetValue("ambientcolor3", out _) ? KeyValues.GetColor32Property("ambientcolor3") : skyColor;
+        var ambientAngles = KeyValues.GetVector3Property("ambientangles");
+
+        // The sky and ground colors fade over the hemisphere, scaled by groundscale. ambientscale2 is not used by the
+        // global light pass, and ambientcolor3 is the second sky color where the entity has no such key.
+        // TODO: the game replaces these every frame from the ent_dota_lightinfo entities around the camera. Each one
+        // weighs 1 - (distance in the XY plane - inner_radius) / (outer_radius - inner_radius), the weights are
+        // multiplied by (1 - weight) of every other one and normalized, and every field is the weighted sum of its
+        // *_day and *_night keys mixed by the time of day. The keys map as color, light_scale, ambient_color,
+        // ambient_scale, shadow_color, shadow_secondary_color, shadow_scale, shadow_ground_scale, light_direction,
+        // ambient_direction and ambient_shadow_amount to color, lightscale, ambientcolor1, ambientscale1,
+        // ambientcolor2, ambientcolor3, ambientscale2, groundscale, angles, ambientangles and ambient_shadow_amount,
+        // and specular_color, specular_power, specular_direction and specular_independence to specularcolor,
+        // specularpower, specularangles and specularindependence.
+        // dota.vmap places many overlapping lightinfos at the same origins and the client picks among them by a
+        // filter that is not decoded, so the entity is used as is.
         var dynamicSun = new SceneLight(Scene)
         {
             Type = SceneLight.LightType.Directional,
-            Color = new Vector3(1.0f, 1.0f, 1.0f),
-            Brightness = 1.0f,
+            Color = KeyValues.GetColor32Property("color"),
+            Brightness = KeyValues.GetFloatProperty("lightscale", 1f),
+            SkyColor = skyColor,
+            SkyIntensity = KeyValues.GetFloatProperty("groundscale", 1f) * ShadowAmbientLightScale,
+            GroundColor = groundColor,
+            AmbientDirectionColor = KeyValues.GetColor32Property("ambientcolor1"),
+            AmbientDirectionIntensity = KeyValues.GetFloatProperty("ambientscale1", 1f) * ShadowAmbientLightScale,
+            AmbientDirection = EntityTransformHelper.EulerAnglesToForwardDirection(ambientAngles),
+            AmbientShadowAmount = KeyValues.GetFloatProperty("ambient_shadow_amount"),
+            SpecularDirection = EntityTransformHelper.EulerAnglesToForwardDirection(KeyValues.GetVector3Property("specularangles")),
+            SpecularColor = KeyValues.GetColor32Property("specularcolor"),
+            SpecularPower = KeyValues.GetFloatProperty("specularpower", 16f),
+            SpecularIndependence = KeyValues.GetFloatProperty("specularindependence"),
             LayerName = "world_layer_base",
             Name = "Source 2 Viewer dynamic sunlight for Dota",
         };
 
-        // Fixed in the spawn group rather than at the entity
-        dynamicSun.PlaceAt(EntityTransformHelper.EulerAnglesToRotationMatrix(angles) * SpawnTransform);
+        dynamicSun.PlaceAt(Transform);
         AddNode(dynamicSun, followsEntity: false);
+
+        // Dota fogs everything it draws with the fog controller, not only the sky
+        Scene.FogInfo.ObjectsUseLinearFog = true;
 
         Scene.LightingInfo.EnableDynamicShadows = true;
         Scene.LightingInfo.SunLightShadowCoverageScale = 4f;

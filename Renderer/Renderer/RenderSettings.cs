@@ -12,6 +12,9 @@ public sealed class RenderSettings
     /// <summary>Gets or sets whether fog is drawn.</summary>
     public bool FogEnabled { get; set; } = true;
 
+    /// <summary>Gets or sets whether volumetric fog is drawn. Off by default, as its strength and lighting are not yet matched to the games.</summary>
+    public bool VolumetricFogEnabled { get; set; }
+
     /// <summary>Gets or sets whether the 3D sky is drawn.</summary>
     public bool ShowSkybox { get; set; } = true;
 

@@ -29,6 +29,15 @@ public sealed class AmbientEffectEntity : BaseModelEntity
     {
         base.Spawn();
 
+        // A unit plays its model's constant layer, such as the bobbing top of the Radiant towers
+        // TODO: The ACT_DOTA_IDLE sequence is not played under the layer
+        if (Classname.StartsWith("npc_dota_", StringComparison.Ordinal)
+            && ModelNode is { AnimationController.ActiveAnimation: null } unitNode
+            && unitNode.FindSequenceByActivity("ACT_DOTA_CONSTANT_LAYER") is { } constantLayer)
+        {
+            unitNode.SetAnimation(constantLayer);
+        }
+
         Effect = CreateEffect(KeyValues.GetStringProperty("ambientfx") ?? KeyValues.GetStringProperty("ambienteffect"));
 
         if (Effect == null)

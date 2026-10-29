@@ -425,17 +425,19 @@ namespace ValveResourceFormat.Renderer.World
         /// <param name="lights">The list of scene lights to store.</param>
         public void StoreLightMappedLights_V1(List<SceneLight> lights)
         {
-            void AddLight(SceneLight light, uint index)
+            void AddLight(SceneLight light, uint index, float colorScale)
             {
+                var range = light.GetAttenuatedRange();
+
                 LightingData.LightPosition_Type[index] = new Vector4(light.Position, (int)light.Type);
-                LightingData.LightDirection_InvRange[index] = new Vector4(light.Direction, 1.0f / light.Range);
+                LightingData.LightDirection_InvRange[index] = new Vector4(light.Direction, range > 0f ? 1f / range : 0f);
                 LightingData.LightToWorld[index] = light.Transform;
 
                 // g_vBakedLightColor: linear color premultiplied by brightness, render-specular flag in w.
-                // The strength texels hold plain sqrt(saturate(attenuation) * visibility); lights that
-                // look far dimmer than their surroundings in baked cubemaps (like the "light_disabled"
-                // prefabs) are scripted to raise their brightness at runtime, not scaled at load.
-                var premultipliedColor = ColorSpace.SrgbGammaToLinear(light.Color) * light.Brightness * light.BrightnessScale * light.StyleBrightness;
+                // Stationary lights also carry the scale of their baked strengths; lights that look far
+                // dimmer than their surroundings in baked cubemaps (like the "light_disabled" prefabs)
+                // are scripted to raise their brightness at runtime, not scaled at load.
+                var premultipliedColor = ColorSpace.SrgbGammaToLinear(light.Color) * light.Brightness * light.BrightnessScale * light.StyleBrightness * colorScale;
                 LightingData.LightColor_Brightness[index] = new Vector4(premultipliedColor, light.RenderSpecular ? 1f : 0f);
 
                 // zw carry the remaining render gates (diffuse, transmissive); specular sits in the color
@@ -450,19 +452,17 @@ namespace ValveResourceFormat.Renderer.World
                         MathF.Cos(float.DegreesToRadians(light.SpotOuterAngle)),
                         diffuseGate, transmissiveGate);
 
-                // g_vSingleLightFalloffParams. The shader evaluates 1 / (x * d + y * d^2) in world units,
-                // so the coefficients carry the range normalization: the entity's attenuation is stated
-                // over the light's range, not per unit. Without it a quadratic light is 1/d^2 with no
-                // scale, which is black everywhere past a couple of units. The bias then makes the curve
-                // reach zero exactly at the range, where the normalized distance is 1.
-                var invRange = light.Range > 0f ? 1f / light.Range : 0f;
-                var falloffAtRange = light.AttenuationLinear + light.AttenuationQuadratic;
+                // g_vSingleLightFalloffParams: the raw linear and quadratic terms, as the shader evaluates
+                // saturate(1 / (x * d + y * d^2) - w) in world units before the color, which carries the
+                // q*10000 + l*100 + c scale. The bias w brings the curve to zero at the range; a light with a
+                // constant term gets none.
+                // TODO: light_ortho packs other values here, with no distance limit in z
+                var linear = light.AttenuationLinear;
+                var quadratic = light.AttenuationQuadratic;
+                var hasBias = light.AttenuationConstant == 0f && range > 0f;
+                var falloffAtRange = (quadratic * range * range) + (linear * range) + 1.1920929e-7f;
 
-                LightingData.LightFallOff[index] = new Vector4(
-                    light.AttenuationLinear * invRange,
-                    light.AttenuationQuadratic * invRange * invRange,
-                    light.Range * light.Range,
-                    falloffAtRange > 0f ? 1f / falloffAtRange : 0f);
+                LightingData.LightFallOff[index] = new Vector4(linear, quadratic, range * range, hasBias ? 1f / falloffAtRange : 0f);
             }
 
             foreach (var light in lights)
@@ -475,7 +475,7 @@ namespace ValveResourceFormat.Renderer.World
                 }
 
                 var index = (uint)light.StationaryLightIndex;
-                AddLight(light, index);
+                AddLight(light, index, light.BakedStrengthScale);
 
                 LightingData.StaticLightCount = Math.Max(LightingData.StaticLightCount, index + 1);
             }
@@ -509,7 +509,7 @@ namespace ValveResourceFormat.Renderer.World
                     break;
                 }
 
-                AddLight(light, currentLightIndex++);
+                AddLight(light, currentLightIndex++, light.AttenuationColorScale);
             }
 
             LightingData.DynamicLightCount = currentLightIndex;
@@ -529,7 +529,21 @@ namespace ValveResourceFormat.Renderer.World
             UpdateAmbientLighting();
         }
 
+        /// <summary>
+        /// Fills the ambient lighting with a sky color that fades into a ground color over the hemisphere, for
+        /// scenes without an environment light of their own.
+        /// </summary>
+        /// <param name="sky">Linear color of the ambient lighting facing up.</param>
+        /// <param name="ground">Linear color of the ambient lighting facing down.</param>
+        public void SetHemisphereAmbientLighting(Vector3 sky, Vector3 ground)
+        {
+            skyLight = sky;
+            groundLight = ground;
+            UpdateAmbientLighting();
+        }
+
         private Vector3 skyLight;
+        private Vector3? groundLight;
         private Vector3 skyAmbientBounce;
 
         /// <summary>
@@ -538,6 +552,17 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         private void UpdateAmbientLighting()
         {
+            if (groundLight is { } ground)
+            {
+                var skyVertical = (skyLight - ground) * 0.5f;
+                var skyConstant = (skyLight + ground) * 0.5f;
+
+                LightingData.AmbientLightingSHR = new Vector4(0f, 0f, skyVertical.X, skyConstant.X);
+                LightingData.AmbientLightingSHG = new Vector4(0f, 0f, skyVertical.Y, skyConstant.Y);
+                LightingData.AmbientLightingSHB = new Vector4(0f, 0f, skyVertical.Z, skyConstant.Z);
+                return;
+            }
+
             var sunDown = -LightingData.SunDirection.Z;
             var sunBounce = LightingData.SunColor.AsVector3() * skyAmbientBounce * 0.5f;
             var skyBounce = skyLight * skyAmbientBounce * 0.5f;
@@ -568,29 +593,61 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         private void StoreSunLight(SceneLight envLight, Vector4 bakedShadowData)
         {
-            var premultipliedColor = ColorSpace.SrgbGammaToLinear(envLight.Color) * envLight.Brightness * envLight.BrightnessScale * envLight.StyleBrightness;
+            var brightness = envLight.Brightness * envLight.BrightnessScale * envLight.StyleBrightness;
+            var premultipliedColor = ColorSpace.SrgbGammaToLinear(envLight.Color) * brightness;
 
             LightingData.SunDirection = new Vector4(-envLight.Direction, GetSunMinRoughness(envLight.MinRoughness));
             LightingData.SunColor = new Vector4(premultipliedColor, envLight.RenderSpecular ? 1f : 0f);
             LightingData.SunLightBakedShadowMask = bakedShadowData;
 
             skyLight = ColorSpace.SrgbGammaToLinear(envLight.SkyColor) * envLight.SkyIntensity;
+            groundLight = envLight.GroundColor is { } groundColor
+                ? ColorSpace.SrgbGammaToLinear(groundColor) * envLight.SkyIntensity
+                : null;
             skyAmbientBounce = ColorSpace.SrgbGammaToLinear(envLight.SkyAmbientBounce);
             UpdateAmbientLighting();
 
+            var ambientDirectionColor = ColorSpace.SrgbGammaToLinear(envLight.AmbientDirectionColor) * envLight.AmbientDirectionIntensity;
+            LightingData.AmbientDirection_ShadowAmount = new Vector4(envLight.AmbientDirection, envLight.AmbientShadowAmount);
+            LightingData.AmbientDirectionColor = new Vector4(ambientDirectionColor, 0f);
+
+            // The independent part of the highlight is scaled like the sun, the rest only by the light falling on the albedo
+            var specularColor = ColorSpace.SrgbGammaToLinear(envLight.SpecularColor);
+            var specularIndependence = MathUtils.Saturate(envLight.SpecularIndependence);
+            LightingData.SpecularDirection_Power = new Vector4(envLight.SpecularDirection, envLight.SpecularPower);
+            LightingData.SpecularAlbedoColor = new Vector4(specularColor * (1f - specularIndependence), 0f);
+            LightingData.SpecularLitColor = new Vector4(specularColor * specularIndependence * brightness, 0f);
+
+            LastStaticSunCascade = GetLastStaticSunCascade(envLight);
+
             HasOwnSun = true;
-            IsSunShadowBaked = envLight.StationaryLightIndex >= 0 && envLight.CastShadows == 1;
             isSunBorrowed = false;
         }
 
-        /// <summary>Gets whether the source map has an environment light.</summary>
-        public bool HasOwnSun { get; private set; }
+        private int GetLastStaticSunCascade(SceneLight envLight)
+        {
+            if (!envLight.HasMixedShadows)
+            {
+                return int.MaxValue;
+            }
+
+            // CS2 ignores the light's key and renders static objects into every cascade at its high shadow quality settings
+            if (scene.RendererContext.FileLoader.GameInfo.Game == Game.Csgo)
+            {
+                return int.MaxValue;
+            }
+
+            return envLight.CascadeRenderStaticObjects;
+        }
 
         /// <summary>
-        /// Gets whether the map's own sun is a mixed light. Static geometry's shadows from it are baked,
-        /// so static geometry stays out of its shadow cascades.
+        /// Gets the last sun shadow cascade that static objects cast into, -1 for none. With mixed shadows the
+        /// lightmap holds their sun shadows, so only the nearest cascades redraw them.
         /// </summary>
-        public bool IsSunShadowBaked { get; private set; }
+        public int LastStaticSunCascade { get; private set; } = int.MaxValue;
+
+        /// <summary>Gets whether the source map has an environment light.</summary>
+        public bool HasOwnSun { get; private set; }
 
         private bool isSunBorrowed;
 
@@ -611,6 +668,12 @@ namespace ValveResourceFormat.Renderer.World
                     LightingData.AmbientLightingSHR = Vector4.Zero;
                     LightingData.AmbientLightingSHG = Vector4.Zero;
                     LightingData.AmbientLightingSHB = Vector4.Zero;
+                    LightingData.AmbientDirection_ShadowAmount = Vector4.Zero;
+                    LightingData.AmbientDirectionColor = Vector4.Zero;
+                    LightingData.SpecularDirection_Power = Vector4.Zero;
+                    LightingData.SpecularAlbedoColor = Vector4.Zero;
+                    LightingData.SpecularLitColor = Vector4.Zero;
+                    LastStaticSunCascade = int.MaxValue;
                     isSunBorrowed = false;
                 }
 
@@ -622,6 +685,14 @@ namespace ValveResourceFormat.Renderer.World
             LightingData.AmbientLightingSHR = donor.LightingData.AmbientLightingSHR;
             LightingData.AmbientLightingSHG = donor.LightingData.AmbientLightingSHG;
             LightingData.AmbientLightingSHB = donor.LightingData.AmbientLightingSHB;
+            LightingData.AmbientDirection_ShadowAmount = donor.LightingData.AmbientDirection_ShadowAmount;
+            LightingData.AmbientDirectionColor = donor.LightingData.AmbientDirectionColor;
+            LightingData.SpecularDirection_Power = donor.LightingData.SpecularDirection_Power;
+            LightingData.SpecularAlbedoColor = donor.LightingData.SpecularAlbedoColor;
+            LightingData.SpecularLitColor = donor.LightingData.SpecularLitColor;
+
+            // The borrowed sun is the same light, so the same cascades take static objects
+            LastStaticSunCascade = donor.LastStaticSunCascade;
 
             // These lightmaps have no sun baked in, so nothing is in baked shadow
             LightingData.SunLightBakedShadowMask = new Vector4(-1f, 0f, 0f, 0f);

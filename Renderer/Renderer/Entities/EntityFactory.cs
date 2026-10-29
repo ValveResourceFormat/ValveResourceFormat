@@ -70,6 +70,8 @@ public static class EntityFactory
         Register<EnvLightProbeVolume>("env_combined_light_probe_volume", static (system, spawnInfo) => new EnvLightProbeVolume(system, spawnInfo, bakesCubemap: true));
         Register<EnvLightProbeVolume>("env_light_probe_volume", static (system, spawnInfo) => new EnvLightProbeVolume(system, spawnInfo, bakesCubemap: false));
         Register<EnvGradientFog>("env_gradient_fog", static (system, spawnInfo) => new EnvGradientFog(system, spawnInfo));
+        Register<EnvVolumetricFogController>("env_volumetric_fog_controller", static (system, spawnInfo) => new EnvVolumetricFogController(system, spawnInfo));
+        Register<EnvVolumetricFogVolume>("env_volumetric_fog_volume", static (system, spawnInfo) => new EnvVolumetricFogVolume(system, spawnInfo));
         Register<EnvSky>("env_global_light", static (system, spawnInfo) => new EnvSky(system, spawnInfo, isGlobalLight: true));
         Register<EnvSky>("env_sky", static (system, spawnInfo) => new EnvSky(system, spawnInfo, isGlobalLight: false));
         Register<EnvTonemapController>("env_tonemap_controller", static (system, spawnInfo) => new EnvTonemapController(system, spawnInfo));

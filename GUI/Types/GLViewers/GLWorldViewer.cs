@@ -437,6 +437,7 @@ namespace GUI.Types.GLViewers
                     }
 
                     UiControl.AddCheckBox("Show Fog", Renderer.Settings.FogEnabled, v => Renderer.Settings.FogEnabled = v);
+                    UiControl.AddCheckBox("Show Volumetric Fog", Renderer.Settings.VolumetricFogEnabled, v => Renderer.Settings.VolumetricFogEnabled = v);
 
                     UiControl.AddCheckBox("Color Correction", Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
 

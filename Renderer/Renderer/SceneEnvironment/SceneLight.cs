@@ -144,6 +144,39 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <summary>Gets or sets the sRGB color the ground bounces an environment light's sun and sky back up with.</summary>
     public Vector3 SkyAmbientBounce { get; set; } = Vector3.One;
 
+    /// <summary>
+    /// Gets or sets the sRGB color the ambient lighting has facing down, for an environment light that fades from
+    /// <see cref="SkyColor"/> to it over the hemisphere instead of bouncing the sun and sky back up.
+    /// </summary>
+    public Vector3? GroundColor { get; set; }
+
+    /// <summary>Gets or sets the sRGB color that lights surfaces facing <see cref="AmbientDirection"/>, for an environment light.</summary>
+    public Vector3 AmbientDirectionColor { get; set; }
+
+    /// <summary>Gets or sets the intensity of <see cref="AmbientDirectionColor"/>, zero when the light has no directional ambient.</summary>
+    public float AmbientDirectionIntensity { get; set; }
+
+    /// <summary>Gets or sets the direction the directional ambient lighting is facing.</summary>
+    public Vector3 AmbientDirection { get; set; }
+
+    /// <summary>Gets or sets how much the sun's shadow also darkens the directional ambient lighting, from none (0) to fully (1).</summary>
+    public float AmbientShadowAmount { get; set; }
+
+    /// <summary>Gets or sets the direction the specular light of an environment light travels, which places its highlight.</summary>
+    public Vector3 SpecularDirection { get; set; }
+
+    /// <summary>Gets or sets the sRGB color of the specular light of an environment light, black when it has none.</summary>
+    public Vector3 SpecularColor { get; set; }
+
+    /// <summary>Gets or sets the exponent that sharpens the highlight of <see cref="SpecularColor"/>.</summary>
+    public float SpecularPower { get; set; } = 1.0f;
+
+    /// <summary>
+    /// Gets or sets how much of the highlight of <see cref="SpecularColor"/> is added after lighting where the sun reaches,
+    /// from none (0), where all of it is lit with the albedo, to all (1).
+    /// </summary>
+    public float SpecularIndependence { get; set; }
+
     /// <summary>Gets or sets the additional brightness scale multiplier.</summary>
     public float BrightnessScale { get; set; } = 1.0f;
 
@@ -168,11 +201,49 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// </summary>
     internal bool NoAngleFade { get; set; }
 
+    /// <summary>Gets or sets the constant attenuation coefficient.</summary>
+    public float AttenuationConstant { get; set; } = 1f;
+
     /// <summary>Gets or sets the linear attenuation coefficient.</summary>
     public float AttenuationLinear { get; set; }
 
     /// <summary>Gets or sets the quadratic attenuation coefficient.</summary>
     public float AttenuationQuadratic { get; set; }
+
+    /// <summary>
+    /// Gets the factor a point or spot light's color is brightened by, so that its brightness is the one
+    /// 100 units from the light: <c>q*10000 + l*100 + c</c>.
+    /// </summary>
+    public float AttenuationColorScale => Type is LightType.Point or LightType.Spot
+        ? (AttenuationQuadratic * 10000f) + (AttenuationLinear * 100f) + AttenuationConstant
+        : 1f;
+
+    /// <summary>
+    /// Gets or sets the attenuation that a baked light strength of 1 stands for, or <see langword="null"/>
+    /// when the lightmap stores the attenuation itself.
+    /// </summary>
+    public float? BakedLightIndexScale { get; set; }
+
+    /// <summary>
+    /// Gets the factor that turns this light's baked strengths into its intensity. The strengths hold the
+    /// attenuation divided by <see cref="BakedLightIndexScale"/>, and the brightness is stated 100 units
+    /// from the light, which the attenuation terms brighten by <c>l*100 + q*10000</c>.
+    /// </summary>
+    public float BakedStrengthScale
+    {
+        get
+        {
+            if (BakedLightIndexScale is not { } indexScale)
+            {
+                return 1f;
+            }
+
+            var referenceScale = (AttenuationLinear * 100f) + (AttenuationQuadratic * 10000f);
+
+            // Without attenuation terms the strength is the attenuation itself
+            return referenceScale > 0f ? indexScale * referenceScale : 1f;
+        }
+    }
 
     /// <summary>Gets or sets the horizontal soft edge width for barn lights.</summary>
     public float SoftX { get; set; } = 0.25f;
@@ -250,11 +321,29 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <summary>Gets or sets whether this light passes through transmissive materials.</summary>
     public bool RenderTransmissive { get; set; } = true;
 
+    /// <summary>Gets or sets how this light lights volumetric fog: 0 none, 1 baked, 2 dynamic.</summary>
+    public int FogLighting { get; set; }
+
+    /// <summary>Gets or sets how strongly this light lights volumetric fog.</summary>
+    public float FogContributionStrength { get; set; } = 1f;
+
     /// <summary>Gets or sets whether this light casts shadows.</summary>
     public int CastShadows { get; set; } = 1;
 
     /// <summary>Gets or sets the shadow map resolution in texels.</summary>
     public int ShadowMapSize { get; set; } = 1024;
+
+    /// <summary>
+    /// Gets or sets the last sun cascade that static objects render into when the shadows are mixed,
+    /// -1 for none.
+    /// </summary>
+    public int CascadeRenderStaticObjects { get; set; } = -1;
+
+    /// <summary>
+    /// Gets whether the baked shadows of this light are mixed with dynamic shadow maps, which only
+    /// static objects without a baked shadow need to cast into.
+    /// </summary>
+    public bool HasMixedShadows => CastShadows == 1 && StationaryLightIndex != -1;
 
     /// <summary>Gets or sets whether the precomputed OBB fields below are valid.</summary>
     public bool PrecomputedFieldsValid { get; set; }
@@ -380,7 +469,12 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             RenderDiffuse = entity.GetInt32Property("renderdiffuse", 1) != 0,
             RenderSpecular = entity.GetInt32Property("renderspecular", 1) == 1, // 0 = off, 1 = real time, 2 = baked into cubemaps
             RenderTransmissive = entity.GetInt32Property("rendertransmissive", 1) != 0,
+            FogContributionStrength = entity.GetFloatProperty("fogcontributionstrength", 1.0f),
         };
+
+        // The sun and ortho lights light the fog unless told not to, the other lights only when told to
+        var defaultFogLighting = type is EntityType.Environment or EntityType.Ortho ? 1 : 0;
+        light.FogLighting = entity.GetInt32Property("fog_lighting", defaultFogLighting);
 
         if (light.IsLight2)
         {
@@ -395,8 +489,12 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         }
         else
         {
-            light.AttenuationLinear = entity.GetFloatProperty("attenuation1");
-            light.AttenuationQuadratic = entity.GetFloatProperty("attenuation2");
+            SetAttenuation(light, entity.GetFloatProperty("attenuation0"), entity.GetFloatProperty("attenuation1"), entity.GetFloatProperty("attenuation2"));
+
+            if (entity.ContainsKey("bakelightindexscale"))
+            {
+                light.BakedLightIndexScale = entity.GetFloatProperty("bakelightindexscale");
+            }
 
             if (entity.GetInt32Property("baked_light_indexing", 1) == 0)
             {
@@ -410,6 +508,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
         light.DirectLight = (DirectLightType)entity.GetInt32Property("directlight", (int)defaultDirectLight);
         light.CastShadows = entity.GetInt32Property("castshadows", 1);
+        light.CascadeRenderStaticObjects = entity.GetInt32Property("cascaderenderstaticobj", -1);
         light.ShadowMapSize = entity.GetInt32Property("shadowmapsize", 1024);
         if (light.ShadowMapSize <= 0)
         {
@@ -500,6 +599,63 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
         // The caller places the light with PlaceAt, the keyvalues are in the entity's local space
         return light;
+    }
+
+    /// <summary>
+    /// Sets the attenuation terms as the engine keeps them: a term below 0.001 is zero, and a light
+    /// left with no terms at all does not fade.
+    /// </summary>
+    private static void SetAttenuation(SceneLight light, float constant, float linear, float quadratic)
+    {
+        const float MinTerm = 0.001f;
+
+        light.AttenuationConstant = constant < MinTerm ? 0f : constant;
+        light.AttenuationLinear = linear < MinTerm ? 0f : linear;
+        light.AttenuationQuadratic = quadratic < MinTerm ? 0f : quadratic;
+
+        var hasNoTerms = light.AttenuationConstant == 0f && light.AttenuationLinear == 0f && light.AttenuationQuadratic == 0f;
+
+        if (hasNoTerms)
+        {
+            light.AttenuationConstant = 1f;
+        }
+    }
+
+    /// <summary>
+    /// Gets how far a point or spot light shades per pixel. Without a constant attenuation term the light
+    /// ends where its intensity falls to 0.001, or at <see cref="Range"/> when that is nearer.
+    /// </summary>
+    public float GetAttenuatedRange()
+    {
+        const float MinIntensity = 0.001f;
+
+        if (AttenuationConstant > 0f || Type is not (LightType.Point or LightType.Spot))
+        {
+            return Range;
+        }
+
+        var color = ColorSpace.SrgbGammaToLinear(Color) * Brightness * BrightnessScale * AttenuationColorScale;
+        var luminance = MathUtils.Luminance(color);
+        var reach = 0f;
+
+        if (luminance > 0f)
+        {
+            // Solves luminance / (q * d^2 + l * d) = MinIntensity for d
+            var scale = MinIntensity / luminance;
+            var a = scale * AttenuationQuadratic;
+            var b = scale * AttenuationLinear;
+
+            if (a > 0f)
+            {
+                reach = (MathF.Sqrt((b * b) + (4f * a)) - b) / (2f * a);
+            }
+            else if (b > 0f)
+            {
+                reach = 1f / b;
+            }
+        }
+
+        return Range > 0f ? MathF.Min(Range, reach) : reach;
     }
 
     /// <summary>
@@ -632,7 +788,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     internal static float LinearBrightnessFromCandelas(float candelas)
         => candelas * BrightnessPerCandela / (LinearBrightnessDistance * LinearBrightnessDistance);
 
-    // Mirrored by the BARN_LIGHT_FLAG_ constants in lighting.barn.slang
+    // Mirrored by the BARN_LIGHT_FLAG_ constants in lighting_barn.slang
     private const uint RectLuminaireFlag = 0x1000u;
     private const uint DiscLuminaireFlag = 0x2000u;
 
