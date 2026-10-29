@@ -664,13 +664,15 @@ public class Renderer : ISceneHost
 
             var sunShadowBaked = scene.LightingInfo.HasBakedShadowsFromLightmap && scene.LightingInfo.IsSunShadowBaked;
 
-            // Static casters are left to the lightmap only where it holds the sun shadows, including the casters
-            // marked to cast only into it
+            // Static casters are left to the lightmap only where it holds the sun shadows
             var lightmapHoldsStatics = sunShadowBaked && !(staticSunShadows && Settings.StaticSunShadows);
 
+            // Casters marked to cast only into the lightmap stay out wherever it holds the sun shadows, even
+            // while the other statics add their detail
+            var skipFlags = sunShadowBaked ? ObjectTypeFlags.NoShadows | ObjectTypeFlags.NoSunShadows : ObjectTypeFlags.NoShadows;
+
             // Statics the lightmap already shadows only add detail, so they draw the faces the camera sees
-            var (min, max) = state.CollectShadowCasters(frustum, includeStatic: includeBakedStatic || !lightmapHoldsStatics,
-                lightmapHoldsStatics ? ObjectTypeFlags.NoShadows | ObjectTypeFlags.NoSunShadows : ObjectTypeFlags.NoShadows,
+            var (min, max) = state.CollectShadowCasters(frustum, includeStatic: includeBakedStatic || !lightmapHoldsStatics, skipFlags,
                 from.States[i].VisibilityBoxes, depthFitAxis, cullAggregatesOnGpu: true, staticFrontFacesOnly: sunShadowBaked);
 
             depthMin = MathF.Min(depthMin, min);
