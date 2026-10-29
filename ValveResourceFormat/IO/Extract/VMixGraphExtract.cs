@@ -156,10 +156,7 @@ public sealed partial class VMixGraphExtract
                 OutputName = source => outputNames.GetValueOrDefault((graph.Name, source)),
             }.Run();
 
-            if (format != MixGraphFormat.EditorCompiled)
-            {
-                decompiler.AddControlStoreFallbacks();
-            }
+            decompiler.AddControlStoreFallbacks();
 
             warnings.AddRange(decompiler.Warnings.Select(warning => $"{graph.Name}: {warning}"));
             graphs.Add(ToEditorGraph(graph, decompiler));

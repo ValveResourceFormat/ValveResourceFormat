@@ -104,6 +104,8 @@ public sealed partial class VMixGraphExtract
         private static IEnumerable<string> PlugsOf(string? type)
             => type != null && NodeTypesByName.TryGetValue(type, out var nodeType) ? nodeType.Plugs : [];
 
+        private static readonly uint EmptyMeterInput = StringToken.Get("/audio:In");
+
         private static readonly string[] GenericPlugs =
         [
             "audio:Out", "audio:Source", "audio:In", "value", "value:Out", "valueOut", "out", "Effect Name", "Vsnd Name", "effect",
@@ -419,6 +421,13 @@ public sealed partial class VMixGraphExtract
                         return i + 1;
                     }
 
+                    // Older graphs name the meter after the node's own name, which may be left empty
+                    if (command.ParamName == EmptyMeterInput && i > 0 && commands[i - 1] is { Op: MixOp.SubmixMeter } emptyMeter && MeterName(emptyMeter)?.Length == 0)
+                    {
+                        AudioMeter(i, Fresh("audio.Meter"), command.InputSubmix0);
+                        return i + 1;
+                    }
+
                     if (graph.Format == MixGraphFormat.Heap && Next(i + 1, MixOp.SubmixProcess) != null)
                     {
                         return ProcessorBlock(i + 1);
@@ -554,7 +563,16 @@ public sealed partial class VMixGraphExtract
                 return properties;
             }
 
-            properties.Add("m_trackName", submix.Name);
+            // Desk Job graphs, the only editor compiled ones with a main graph flag, keep the sends on a submix track
+            if (graph.Format == MixGraphFormat.EditorCompiled && graph.Source.ContainsKey("m_bIsMainGraph"))
+            {
+                properties.Add("_class", "CMixSubmixTrack");
+            }
+            else
+            {
+                properties.Add("m_trackName", submix.Name);
+            }
+
             properties.Add("m_nChannels", submix.Channels);
             properties.Add("m_nMixDownRule", int.TryParse(submix.MixDownRule, CultureInfo.InvariantCulture, out var rule) ? rule : 0);
             properties.Add("m_sendOperator", submix.SendOperator);
@@ -1115,21 +1133,25 @@ public sealed partial class VMixGraphExtract
         {
             var command = commands[i];
             var holder = submixHolders.TryGetValue(command.OutputSubmix, out var current) ? current : (PlugSource?)null;
-            var node = holder is { } held && nodes.TryGetValue(held.Node, out var heldNode) && heldNode.IsAccumulatingMix ? heldNode : null;
+
+            // Older graphs meter the mix after its last input, under the mix's own name
+            var j = i;
+
+            while (j < commands.Count && commands[j].Op == MixOp.SubmixAccumulate && commands[j].OutputSubmix == command.OutputSubmix)
+            {
+                j++;
+            }
+
+            var meterName = Next(j, MixOp.SubmixMeter) is { } meter && meter.InputSubmix0 == command.OutputSubmix
+                && MeterName(meter) is { } name && TypeOf(name) == "audio.Mix" ? name : null;
+
+            // A mix metered under another name is a new mix summing onto the previous one
+            var node = holder is { } held && nodes.TryGetValue(held.Node, out var heldNode) && heldNode.IsAccumulatingMix
+                && (meterName == null || meterName == heldNode.Name) ? heldNode : null;
 
             if (node == null)
             {
-                // Older graphs meter the mix after its last input, under the mix's own name
-                var j = i;
-
-                while (j < commands.Count && commands[j].Op == MixOp.SubmixAccumulate && commands[j].OutputSubmix == command.OutputSubmix)
-                {
-                    j++;
-                }
-
-                var metered = Next(j, MixOp.SubmixMeter) is { } meter && meter.InputSubmix0 == command.OutputSubmix
-                    && MeterName(meter) is { } meterName && TypeOf(meterName) == "audio.Mix" && !nodes.ContainsKey(meterName) ? meterName : null;
-
+                var metered = meterName != null && !nodes.ContainsKey(meterName) ? meterName : null;
                 node = Node(metered ?? Fresh("audio.Mix"), "audio.Mix");
                 node.IsAccumulatingMix = true;
                 node.FriendlyName = metered ?? string.Concat(holder is { } source && nodes.TryGetValue(source.Node, out var sourceNode) ? sourceNode.FriendlyName ?? source.Node : "mix", "_sum");
