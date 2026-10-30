@@ -42,9 +42,25 @@ public static class EntityFactory
         Register<FuncTrackTrain>("func_tracktrain", static (system, spawnInfo) => new FuncTrackTrain(system, spawnInfo));
         Register<PathTrack>("path_track", static (system, spawnInfo) => new PathTrack(system, spawnInfo));
         Register<PropDoorRotating>("prop_door_rotating", static (system, spawnInfo) => new PropDoorRotating(system, spawnInfo));
-        Register<PropDoorRotating>("prop_door_rotating_physics", static (system, spawnInfo) => new PropDoorRotating(system, spawnInfo));
+        Register<PropDoorRotatingPhysics>("prop_door_rotating_physics", static (system, spawnInfo) => new PropDoorRotatingPhysics(system, spawnInfo));
         Register<PropDynamic>("prop_dynamic", static (system, spawnInfo) => new PropDynamic(system, spawnInfo));
         Register<PropDynamic>("prop_dynamic_override", static (system, spawnInfo) => new PropDynamic(system, spawnInfo));
+        Register<RagdollProp>("prop_ragdoll", static (system, spawnInfo) => new RagdollProp(system, spawnInfo));
+        Register<PhysBallSocket>("phys_ballsocket", static (system, spawnInfo) => new PhysBallSocket(system, spawnInfo));
+        Register<PhysHinge>("phys_hinge", static (system, spawnInfo) => new PhysHinge(system, spawnInfo, axisIsLocal: false));
+        Register<PhysHinge>("phys_hinge_local", static (system, spawnInfo) => new PhysHinge(system, spawnInfo, axisIsLocal: true));
+        Register<PhysFixedConstraint>("phys_constraint", static (system, spawnInfo) => new PhysFixedConstraint(system, spawnInfo));
+        Register<PropAnimInteractable>("prop_animinteractable", static (system, spawnInfo) => new PropAnimInteractable(system, spawnInfo));
+        Register<PhysSlideConstraint>("phys_slideconstraint", static (system, spawnInfo) => new PhysSlideConstraint(system, spawnInfo));
+        Register<PhysRagdollConstraint>("phys_ragdollconstraint", static (system, spawnInfo) => new PhysRagdollConstraint(system, spawnInfo));
+        Register<PhysLengthConstraint>("phys_lengthconstraint", static (system, spawnInfo) => new PhysLengthConstraint(system, spawnInfo));
+        Register<PhysSpring>("phys_spring", static (system, spawnInfo) => new PhysSpring(system, spawnInfo));
+        Register<PhysGenericConstraint>("phys_genericconstraint", static (system, spawnInfo) => new PhysGenericConstraint(system, spawnInfo));
+        Register<InfoConstraintAnchor>("info_constraint_anchor", static (system, spawnInfo) => new InfoConstraintAnchor(system, spawnInfo));
+        Register<LogicCollisionPair>("logic_collision_pair", static (system, spawnInfo) => new LogicCollisionPair(system, spawnInfo));
+        Register<PropPhysics>("prop_physics", static (system, spawnInfo) => new PropPhysics(system, spawnInfo));
+        Register<PropPhysics>("prop_physics_multiplayer", static (system, spawnInfo) => new PropPhysics(system, spawnInfo));
+        Register<PropPhysics>("prop_physics_override", static (system, spawnInfo) => new PropPhysics(system, spawnInfo));
         Register<FuncBreakable>("func_breakable", static (system, spawnInfo) => new FuncBreakable(system, spawnInfo));
         Register<FuncShatterglass>("func_shatterglass", static (system, spawnInfo) => new FuncShatterglass(system, spawnInfo));
         Register<XenFloraAnimatedMover>("xen_flora_animatedmover", static (system, spawnInfo) => new XenFloraAnimatedMover(system, spawnInfo));
@@ -52,6 +68,7 @@ public static class EntityFactory
         Register<TriggerOnce>("trigger_once", static (system, spawnInfo) => new TriggerOnce(system, spawnInfo));
         Register<TriggerLook>("trigger_look", static (system, spawnInfo) => new TriggerLook(system, spawnInfo));
         Register<TriggerTeleport>("trigger_teleport", static (system, spawnInfo) => new TriggerTeleport(system, spawnInfo));
+        Register<TriggerPush>("trigger_push", static (system, spawnInfo) => new TriggerPush(system, spawnInfo));
         Register<PointTeleport>("point_teleport", static (system, spawnInfo) => new PointTeleport(system, spawnInfo));
 
         // lights

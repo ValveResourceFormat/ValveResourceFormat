@@ -8,12 +8,11 @@ namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
 /// <c>prop_door_rotating</c>: a swinging model door. Swings away from whoever uses it unless <c>opendir</c>
-/// forces a side, can spawn open or ajar, and drives the other half of a double door. Breaking and the NPC
-/// blocker are not simulated. Alyx's <c>prop_door_rotating_physics</c> is the same thing, with the VR hand
-/// swing acting as a use press.
+/// forces a side, can spawn open or ajar, and drives the other half of a double door. Doors with damage stages
+/// or break pieces in their model are breakable. The NPC blocker is not simulated.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CPropDoorRotating">CPropDoorRotating</seealso>
-public class PropDoorRotating : BaseToggle
+public class PropDoorRotating : BaseToggle, IDamageable
 {
     /// <summary>What a <c>prop_door_rotating</c>'s <c>spawnflags</c> mean.</summary>
     [Flags]
@@ -88,7 +87,7 @@ public class PropDoorRotating : BaseToggle
     private const float LockSoundWait = 1f;
 
     /// <summary>Gets where the door is in its swing.</summary>
-    public DoorState State { get; private set; }
+    public DoorState State { get; protected set; }
 
     /// <summary>Gets whether the door refuses to open.</summary>
     public bool IsLocked { get; private set; }
@@ -109,9 +108,35 @@ public class PropDoorRotating : BaseToggle
     public override EntityCapability ObjectCaps
         => HasSpawnFlags(SpawnFlag.IgnorePlayerUse) ? EntityCapability.None : EntityCapability.ImpulseUse;
 
+    /// <summary>Gets the damage left before the door breaks.</summary>
+    public float Health { get; private set; }
+
+    /// <summary>Gets whether the door has been broken apart.</summary>
+    public bool IsBroken { get; private set; }
+
+    /// <summary>Gets the current damage stage, zero when undamaged.</summary>
+    public int DamageStage { get; private set; }
+
+    /// <summary>Gets whether the door can still be damaged and broken.</summary>
+    public bool IsBreakable => breakData != null && maxHealth > 0f && !IsBroken;
+
+    // Null for doors without damage stages or break pieces, as every door inherits a health value
+    private PropBreakData? breakData;
+    private float maxHealth;
+    private string[] damageModels = [];
+
+    private SceneNodes.ModelSceneNode? stageNode;
+    private PropBreakData? stageBreakData;
+
+    /// <inheritdoc/>
+    public override SceneNodes.ModelSceneNode? ShownModelNode => stageNode ?? ModelNode;
+
     private readonly List<PropDoorRotating> slaves = [];
 
     private Vector3 angleClosed;
+
+    /// <summary>Gets the angles of the shut door.</summary>
+    protected Vector3 ClosedAngles => angleClosed;
     private Vector3 angleOpenForward;
     private Vector3 angleOpenBack;
     private Vector3 goalAngles;
@@ -173,7 +198,157 @@ public class PropDoorRotating : BaseToggle
         TeleportToSpawnPosition();
         CalculateDoorVolumes(angleClosed);
         CalcDoorSounds();
+
+        if (LoadedModel is { } model)
+        {
+            var data = EntitySystem.PropData.Resolve(model);
+            damageModels = ReadDamageModels(model);
+
+            if (data.IsBreakable && (damageModels.Length > 0 || data.Pieces.Count > 0))
+            {
+                breakData = stageBreakData = data;
+                maxHealth = Health = data.Health;
+            }
+        }
     }
+
+    // damageN names leave out the folder and extension
+    private static string[] ReadDamageModels(Model model)
+    {
+        var keyValues = model.KeyValues;
+
+        if (!keyValues.ContainsKey("door_options") || keyValues.GetSubCollection("door_options") is not { } options)
+        {
+            return [];
+        }
+
+        if (options.ContainsKey("model_paths") && options.GetArray<string>("model_paths") is { Length: > 0 } paths)
+        {
+            return paths;
+        }
+
+        if (!options.ContainsKey("defaults") || options.GetSubCollection("defaults") is not { } defaults)
+        {
+            return [];
+        }
+
+        var stages = new List<string>();
+
+        for (var stage = 1; defaults.GetStringProperty($"damage{stage}") is { Length: > 0 } name; stage++)
+        {
+            stages.Add($"models/{name}.vmdl");
+        }
+
+        return [.. stages];
+    }
+
+    /// <inheritdoc/>
+    public void TakeDamage(in DamageInfo info)
+    {
+        if (!IsBreakable)
+        {
+            return;
+        }
+
+        var amount = info.Amount * breakData!.ScaleFor(info.Type);
+
+        if (amount <= 0f)
+        {
+            return;
+        }
+
+        Health -= amount;
+        EntitySystem.TriggerOutput(this, "OnHealthChanged", info.Attacker);
+
+        if (Health <= 0f)
+        {
+            Break(info.Attacker, info.Direction);
+            return;
+        }
+
+        // Stages split the health evenly, the last one showing before the break
+        var stage = Math.Clamp((int)((1f - (Health / maxHealth)) * (damageModels.Length + 1)), 0, damageModels.Length);
+
+        while (DamageStage < stage)
+        {
+            ShowDamageStage(DamageStage + 1, info.Direction);
+        }
+    }
+
+    private void ShowDamageStage(int stage, Vector3 direction)
+    {
+        DamageStage = stage;
+
+        if (EntitySystem.FileLoader.LoadFileCompiled(damageModels[stage - 1])?.DataBlock is not Model model)
+        {
+            return;
+        }
+
+        BreakShownModel(direction);
+        stageBreakData = EntitySystem.PropData.Resolve(model);
+
+        var node = new SceneNodes.ModelSceneNode(Scene, model, Data?.GetStringProperty("skin"))
+        {
+            Name = damageModels[stage - 1],
+        };
+
+        // Some door meshes sit a quarter turn off until posed like the door model
+        var animation = ModelNode?.AnimationController.ActiveAnimation?.Name;
+
+        if (animation == null || !node.SetAnimationForWorldPreview(animation))
+        {
+            node.SetAnimationForWorldPreview("ref");
+        }
+
+        var previousNode = ShownModelNode;
+
+        if (previousNode != null)
+        {
+            node.TintAlpha = previousNode.TintAlpha;
+            previousNode.Visible = false;
+        }
+
+        AddNode(node);
+        stageNode = node;
+    }
+
+    /// <summary>Breaks the door into its pieces and leaves it hidden and passable.</summary>
+    /// <param name="attacker">The activator for <c>OnBreak</c>.</param>
+    /// <param name="direction">Direction of the breaking hit, zero when unknown.</param>
+    public void Break(BaseEntity? attacker = null, Vector3 direction = default)
+    {
+        if (IsBroken || breakData == null)
+        {
+            return;
+        }
+
+        // Kept rather than removed, as the other half of a double door may still lead or follow it
+        IsBroken = true;
+        Health = 0f;
+
+        EntitySystem.TriggerOutput(this, "OnBreak", attacker);
+
+        BreakShownModel(direction);
+
+        StopMoveSound();
+        IsDrawn = false;
+        IsSolid = false;
+    }
+
+    private void BreakShownModel(Vector3 direction)
+    {
+        if (stageBreakData == null)
+        {
+            return;
+        }
+
+        var center = ShownModelNode?.BoundingBox.Center ?? Origin;
+        PropPhysics.BreakApart(this, stageBreakData, Origin, EntityTransformHelper.EulerAnglesToQuaternion(Angles),
+            Vector3.Zero, Vector3.Zero, center, direction);
+    }
+
+    [EntityInput("Break")]
+    private void InputBreak(EntityInputData data) => Break(data.Activator);
 
     /// <summary>
     /// Links a double door: a named door takes the other doors called its <c>slavename</c> (or its own name
@@ -203,6 +378,11 @@ public class PropDoorRotating : BaseToggle
     /// <summary>Runs when something presses the door; the leading door of a double door answers for both.</summary>
     public override void Use(BaseEntity? activator)
     {
+        if (IsBroken)
+        {
+            return;
+        }
+
         if (Master != null)
         {
             Master.Use(activator);
@@ -569,7 +749,8 @@ public class PropDoorRotating : BaseToggle
         SetMoveDoneTime(ReturnDelay + 0.1f);
     }
 
-    private void RotateTo(Vector3 angles)
+    /// <summary>Swings the door toward <paramref name="angles"/> at <see cref="BaseToggle.Speed"/>, calling <see cref="MoveDone"/> on arrival.</summary>
+    protected virtual void RotateTo(Vector3 angles)
     {
         goalAngles = angles;
         AngularMove(angles, Speed);

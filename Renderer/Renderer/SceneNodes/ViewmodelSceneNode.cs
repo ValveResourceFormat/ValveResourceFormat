@@ -155,6 +155,16 @@ public class ViewmodelSceneNode : ModelSceneNode
     // Both knife buttons share one timer, which a swing that connects pushes back further
     private const float KnifeHitDelay = 0.1f;
 
+    // Impulses in prop mass units times units per second
+    private const float RifleBulletImpulse = 12000f;
+    private const float PistolBulletImpulse = 6000f;
+    private const float KnifeImpulse = 25000f;
+
+    private const float RifleBulletDamage = 36f;
+    private const float PistolBulletDamage = 35f;
+    private const float KnifeLightDamage = 40f;
+    private const float KnifeHeavyDamage = 65f;
+
     // A missed line trace is retried with swept spheres shrinking from 14 to 2 units, each ending that much
     // short, keeping the smallest that still connects. We are currently missing sphere traces, so cubes stand in.
     private const float KnifeSweepMaxRadius = 14f;
@@ -176,28 +186,53 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
     }
 
+    // Called after the impulse, letting the pieces of a broken prop inherit it
+    private void DealDamage(BaseEntity? target, float amount, DamageType type, Vector3 direction)
+    {
+        if (target is IDamageable damageable)
+        {
+            damageable.TakeDamage(new DamageInfo(amount, type, entitySystem.Player, direction));
+        }
+    }
+
     // Returns whether a knife swing connected
     private bool PlayAttackSound(UserInput input, bool heavyKnifeAttack)
     {
+        var rigidBodies = entitySystem.PhysicsOrNull;
+
         switch (SelectedItemIndex)
         {
             case 1:
                 Sound.Play(RifleAttackSound, volume: AttackSoundVolume);
                 FireBullet(input);
+                DealDamage(rigidBodies?.ApplyImpactImpulse(input.Camera.Location, input.Camera.Forward, BulletRange, RifleBulletImpulse),
+                    RifleBulletDamage, DamageType.Bullet, input.Camera.Forward);
                 return false;
 
             case 2:
                 Sound.Play(PistolAttackSound, volume: AttackSoundVolume);
                 FireBullet(input);
+                DealDamage(rigidBodies?.ApplyImpactImpulse(input.Camera.Location, input.Camera.Forward, BulletRange, PistolBulletImpulse),
+                    PistolBulletDamage, DamageType.Bullet, input.Camera.Forward);
                 return false;
 
             case KnifeItemIndex:
                 var camera = input.Camera;
                 var range = (heavyKnifeAttack ? KnifeHeavyRange : KnifeLightRange) + KnifeRangePadding;
 
+                var struck = rigidBodies?.ApplyImpactImpulse(camera.Location, camera.Forward, range, KnifeImpulse);
+                DealDamage(struck, heavyKnifeAttack ? KnifeHeavyDamage : KnifeLightDamage, DamageType.Club, camera.Forward);
+                var hitProp = struck != null;
+
                 if (TraceKnifeSwing(input, camera.Location, camera.Forward, range) is not { } hit)
                 {
-                    return false;
+                    if (!hitProp)
+                    {
+                        return false;
+                    }
+
+                    Sound.Play(heavyKnifeAttack ? KnifeHeavyHitSound : KnifeLightHitSound);
+                    return true;
                 }
 
                 // this is played in-ear but i'd like to keep it positional
@@ -214,7 +249,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     private static Rubikon.TraceResult? TraceKnifeSwing(UserInput input, Vector3 from, Vector3 forward, float range)
     {
         var to = from + forward * range;
-        var trace = TraceWorldAndEntities(input, from, to);
+        var trace = TraceShot(input, from, to);
 
         if (trace.Hit)
         {
@@ -261,7 +296,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         // Swept hits carry no surface property, so find the struck surface with a ray toward the contact
         var direction = Vector3.Normalize(toContact);
-        var surface = TraceWorldAndEntities(input, from, contactPoint + direction * KnifeDecalTraceOvershoot);
+        var surface = TraceShot(input, from, contactPoint + direction * KnifeDecalTraceOvershoot);
 
         if (!surface.Hit)
         {
@@ -295,7 +330,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             0f);
 
         var end = camera.Location + direction * BulletRange;
-        var trace = TraceWorldAndEntities(input, camera.Location, end);
+        var trace = TraceShot(input, camera.Location, end);
 
         if (trace.Hit)
         {
@@ -349,6 +384,31 @@ public class ViewmodelSceneNode : ModelSceneNode
     {
         var trace = input.PhysicsWorld?.TraceRay(from, to, collisionName) ?? new Rubikon.TraceResult();
         input.EntitySystem?.TraceRay(from, to, collisionName, ref trace);
+
+        return trace;
+    }
+
+    // Physics props are only in the rigid body world
+    private static Rubikon.TraceResult TraceShot(UserInput input, Vector3 from, Vector3 to)
+    {
+        var trace = TraceWorldAndEntities(input, from, to);
+
+        if (input.EntitySystem?.PhysicsOrNull is { } physics)
+        {
+            // Without the player category, which debris filters out
+            var hit = physics.World.RaycastClosest(from, to - from,
+                new Box3D.QueryFilter(~PhysicsSimulation.PlayerCategory, PhysicsSimulation.PropCategory | PhysicsSimulation.DebrisCategory | PhysicsSimulation.RagdollCategory));
+
+            if (hit.Hit && hit.Shape.IsValid)
+            {
+                trace.MinimizeWith(new Rubikon.TraceResult(true, hit.Point, hit.Normal, Vector3.Distance(from, hit.Point), -1)
+                {
+                    ContactPoint = hit.Point,
+                    HitEntity = physics.GetOwner(hit.Shape.Body),
+                    SurfacePropertyHash = (uint)hit.UserMaterialId,
+                });
+            }
+        }
 
         return trace;
     }
@@ -651,6 +711,67 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
     }
 
+    // The arms, the stattrak module, then the items in slot order
+    private static readonly string[] ViewmodelResources = [
+        "agents/models/tm_professional/tm_professional_varf3.vmdl",
+        "weapons/models/shared/stattrak/stattrak_module.vmdl",
+        "weapons/models/m4a1_silencer/weapon_rif_m4a1_silencer.vmdl",
+        "weapons/models/usp_silencer/weapon_pist_usp_silencer.vmdl",
+        "weapons/models/knife/knife_karambit/weapon_knife_karambit.vmdl",
+    ];
+
+    private static string? ItemModelPath(int itemIndex)
+        => itemIndex >= 1 && itemIndex + 1 < ViewmodelResources.Length ? ViewmodelResources[itemIndex + 1] : null;
+
+    private const float DropTossSpeed = 300f;
+    private const float DropSpinSpeed = 2f;
+    private const float DropSpinRandomness = 3f;
+
+    private void DropHeldItem(UserInput input)
+    {
+        if (ItemModelPath(SelectedItemIndex) is not { } modelPath || entitySystem.ActiveSpawnGroup is not { } spawnGroup)
+        {
+            return;
+        }
+
+        var camera = input.Camera;
+        var heldTransform = thirdpersonItems[SelectedItemIndex - 1].Transform;
+
+        // The body holds nothing while it has no weapon bone
+        if (!Matrix4x4.Decompose(heldTransform, out var scale, out var rotation, out var origin) || scale.X == 0f)
+        {
+            origin = camera.Location + camera.Forward * 24f;
+            rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, camera.Yaw + MathF.PI / 2f);
+        }
+
+        var angles = EntityTransformHelper.ToEulerAngles(rotation);
+
+        var data = new EntityLump.Entity { ParentLump = new EntityLump { Resource = new Resource() } };
+        data.Add("classname", "prop_physics_override");
+        data.Add("model", modelPath);
+        data.Add("origin", FormattableString.Invariant($"{origin.X} {origin.Y} {origin.Z}"));
+        data.Add("angles", FormattableString.Invariant($"{angles.X} {angles.Y} {angles.Z}"));
+        data.Add("defaultanim", "dropped");
+
+        var dropped = new PropPhysics(entitySystem, new EntitySpawnInfo(data, "Entities", spawnGroup));
+        dropped.Spawn();
+        entitySystem.AddEntity(dropped);
+
+        if (dropped.HasBody && entitySystem.Player is { } player)
+        {
+            dropped.ReleaseFrom(player);
+
+            var randomSpin = new Vector3(Random.Shared.NextSingle(), Random.Shared.NextSingle(), Random.Shared.NextSingle()) * 2f - Vector3.One;
+
+            var body = dropped.Body;
+            body.LinearVelocity = camera.Forward * DropTossSpeed + input.Velocity;
+            body.AngularVelocity = Vector3.UnitZ * DropSpinSpeed + randomSpin * DropSpinRandomness;
+        }
+
+        deployTimeLeft = DeployDuration;
+        SetState(AnimationState.Draw);
+    }
+
     /// <summary>
     /// Try to load the CS2 viewmodel, returning null if the necessary resources are not found.
     /// </summary>
@@ -661,16 +782,8 @@ public class ViewmodelSceneNode : ModelSceneNode
     {
         var loader = scene.RendererContext.FileLoader;
 
-        Span<string> resources = [
-            "agents/models/tm_professional/tm_professional_varf3.vmdl",
-            "weapons/models/shared/stattrak/stattrak_module.vmdl",
-            "weapons/models/m4a1_silencer/weapon_rif_m4a1_silencer.vmdl",
-            "weapons/models/usp_silencer/weapon_pist_usp_silencer.vmdl",
-            "weapons/models/knife/knife_karambit/weapon_knife_karambit.vmdl",
-        ];
-
         List<Model> models = [];
-        foreach (var name in resources)
+        foreach (var name in ViewmodelResources)
         {
             var resource = loader.LoadFileCompiled(name);
             if (resource?.DataBlock is not Model model)
@@ -864,6 +977,10 @@ public class ViewmodelSceneNode : ModelSceneNode
         else if (input.Pressed(TrackedKeys.Q))
         {
             SelectPreviousItem();
+        }
+        else if (input.Pressed(TrackedKeys.G))
+        {
+            DropHeldItem(input);
         }
 
         if (input.Pressed(TrackedKeys.F) && CanInspect)

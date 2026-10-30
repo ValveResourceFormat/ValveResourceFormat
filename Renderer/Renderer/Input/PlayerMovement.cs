@@ -228,6 +228,12 @@ public class PlayerMovement : IPlayerController
     /// <inheritdoc/>
     public Vector3 ViewForward => Input.Camera.Forward;
 
+    /// <inheritdoc/>
+    public Vector3 ViewAngles => Input.Camera.GetQAngle();
+
+    /// <inheritdoc/>
+    public int TeleportCount { get; private set; }
+
     // Buttons seen since the entity tick last collected them, and what it collected that time. Frames
     // are folded together rather than replaced so a tap between two ticks survives to be reported.
     private TrackedKeys PendingButtons;
@@ -301,6 +307,7 @@ public class PlayerMovement : IPlayerController
     public void ResetPosition(Camera camera)
     {
         TracePosition = camera.Location - Vector3.UnitZ * ViewHeightStanding + new Vector3(0, 0, StandingHullHalfExtents.Z);
+        TeleportCount++;
         Velocity = Vector3.Zero;
         HasValidPosition = false; // Do not restore positions from before the reset
         pushViewLag = Vector3.Zero;
@@ -342,6 +349,7 @@ public class PlayerMovement : IPlayerController
         Input.Camera.Location += moved;
 
         TracePosition = feetPosition + new Vector3(0, 0, HullHalfExtents.Z);
+        TeleportCount++;
         HasValidPosition = false; // Do not restore positions from before the teleport
         pushViewLag = Vector3.Zero;
         pushViewLagTimeLeft = 0f;
@@ -522,9 +530,16 @@ public class PlayerMovement : IPlayerController
             var halfGravity = new Vector3(0f, 0f, GravityValue * TickInterval * 0.5f);
             Velocity -= halfGravity;
             deferredVelocity -= halfGravity;
+
+            // An upward push acts as an acceleration against gravity rather than a velocity
+            Velocity += new Vector3(0f, 0f, BaseVelocity.Z * TickInterval);
         }
 
         ClampVelocity();
+
+        // Added after friction and acceleration, and taken out again after the move
+        var pushVelocity = BaseVelocity with { Z = 0f };
+        Velocity += pushVelocity;
 
         // The freshest impact speed for a landing the move below may produce is the tick's midpoint
         fallSpeed = MathF.Max(fallSpeed, -Velocity.Z);
@@ -556,7 +571,7 @@ public class PlayerMovement : IPlayerController
         // A move stopped dead also drops the rest of the tick's acceleration
         if (Velocity != Vector3.Zero)
         {
-            Velocity += deferredVelocity;
+            Velocity += deferredVelocity - pushVelocity;
         }
 
         CategorizePosition(ref position, playerHull);
@@ -1829,6 +1844,30 @@ public class PlayerMovement : IPlayerController
         // moving there over the same interval
         pushViewLag -= delta;
         pushViewLagTimeLeft = TickInterval;
+    }
+
+    private Vector3 BaseVelocity;
+
+    /// <inheritdoc/>
+    public void SetBaseVelocity(Vector3 velocity)
+    {
+        if (velocity == Vector3.Zero)
+        {
+            // The push carries on as momentum, its upward part is in the velocity already
+            Velocity += BaseVelocity with { Z = 0f };
+            BaseVelocity = Vector3.Zero;
+            return;
+        }
+
+        // Lifted a unit off the ground, or the next ground probe would hold the player down
+        if (velocity.Z > 0f && OnGround)
+        {
+            OnGround = false;
+            GroundEntity = null;
+            Push(Vector3.UnitZ);
+        }
+
+        BaseVelocity = velocity;
     }
 
     // How far the view still trails the hull the entity tick pushed, and how much of the tick interval

@@ -38,6 +38,9 @@ public interface IEntityToolVisuals
     /// <returns>The nodes.</returns>
     IEnumerable<SceneNode> CreateCollisionVisuals(Scene scene, PhysAggregateData physics, string name, BaseEntity? entity);
 
+    /// <summary>Creates the collision visual of one part in part space, not added to the scene.</summary>
+    SceneNode CreatePartCollisionVisual(Scene scene, PhysAggregateData physics, int partIndex, string? name);
+
     /// <summary>Adds nodes relating the entities a world spawned into a scene, once all of them have spawned.</summary>
     /// <param name="scene">The scene they spawned into.</param>
     /// <param name="entities">The spawned entities.</param>

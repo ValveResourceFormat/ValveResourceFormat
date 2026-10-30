@@ -1,4 +1,5 @@
 using System.IO;
+using Box3D;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.SceneEnvironment;
@@ -106,6 +107,66 @@ public sealed class EntitySystem
     /// </summary>
     public WorldEntity? World { get; private set; }
 
+    /// <summary>Gets the rigid body world, creating it on first use.</summary>
+    public PhysicsSimulation Physics => physics ??= new PhysicsSimulation(FileLoader);
+
+    /// <summary>Gets the rigid body world if one has been created.</summary>
+    public PhysicsSimulation? PhysicsOrNull => physics;
+
+    /// <summary>Gets the breakable prop base classes, loaded on first use.</summary>
+    public PropDataTable PropData => propData ??= PropDataTable.Load(FileLoader);
+
+    private PropDataTable? propData;
+
+    // Gathered in full before any impact breaks a prop
+    private readonly Dictionary<PropPhysics, float> impactSpeeds = [];
+
+    // Player hull contacts are shoves, not strikes
+    private void DispatchPhysicsImpacts(PhysicsSimulation simulation)
+    {
+        impactSpeeds.Clear();
+
+        foreach (var hit in simulation.World.Events.ContactHits)
+        {
+            if (!hit.ShapeA.IsValid || !hit.ShapeB.IsValid
+                || ((hit.ShapeA.Filter.Categories | hit.ShapeB.Filter.Categories) & PhysicsSimulation.PlayerCategory) != 0)
+            {
+                continue;
+            }
+
+            NoteImpact(simulation, hit.ShapeA.Body, hit.ShapeB.Body, hit.ApproachSpeed);
+            NoteImpact(simulation, hit.ShapeB.Body, hit.ShapeA.Body, hit.ApproachSpeed);
+        }
+
+        foreach (var (prop, speed) in impactSpeeds)
+        {
+            prop.TakeImpact(speed);
+        }
+    }
+
+    // Scaled by striker mass to keep debris from chain-breaking, static and kinematic bodies strike in full
+    private void NoteImpact(PhysicsSimulation simulation, Body struck, Body other, float speed)
+    {
+        if (simulation.GetOwner(struck) is not PropPhysics { IsBreakable: true } prop)
+        {
+            return;
+        }
+
+        // Held objects break nothing unless the struck prop opts in
+        if (!prop.AcceptsDamageFromHeldObjects && Player?.Carried is { } held && ReferenceEquals(simulation.GetOwner(other), held))
+        {
+            return;
+        }
+
+        if (other.Type == BodyType.Dynamic && struck.Mass > 0f)
+        {
+            speed *= MathF.Min(1f, MathF.Sqrt(other.Mass / struck.Mass));
+        }
+
+        // One collision reports per contact point, the hardest counts
+        impactSpeeds[prop] = MathF.Max(impactSpeeds.GetValueOrDefault(prop), speed);
+    }
+
     /// <summary>Gets the current simulation time in seconds.</summary>
     public float CurrentTime { get; private set; }
 
@@ -141,6 +202,7 @@ public sealed class EntitySystem
     private long sequence;
     private float tickAccumulator;
     private bool hasRemovedEntities;
+    private PhysicsSimulation? physics;
 
     /// <summary>
     /// Initializes an entity world. Prefer <see cref="Renderer.EntitySystem"/> over constructing one.
@@ -191,6 +253,19 @@ public sealed class EntitySystem
         if (entity != null)
         {
             Add(entity);
+        }
+
+        return entity;
+    }
+
+    /// <summary>Creates, spawns and activates an entity in an already spawned group, or returns null without a classname.</summary>
+    public BaseEntity? SpawnEntity(Entity data, string? layerName, SpawnGroup spawnGroup)
+    {
+        var entity = CreateEntity(data, layerName, spawnGroup);
+
+        if (entity != null)
+        {
+            SpawnEntities([entity]);
         }
 
         return entity;
@@ -464,6 +539,8 @@ public sealed class EntitySystem
 
         PhysicsWorld.Clear();
         worldGroupPhysicsWorlds.Clear();
+        physics?.Dispose();
+        physics = null;
     }
 
     /// <summary>
@@ -498,9 +575,13 @@ public sealed class EntitySystem
         TickCount = 0;
     }
 
+    /// <summary>Gets the camera the current frame is drawn with, after view smoothing and punch.</summary>
+    public Camera? RenderCamera { get; private set; }
+
     /// <summary>Advances the world by a frame's worth of time, running whole ticks.</summary>
-    public void Update(float frameTime)
+    public void Update(float frameTime, Camera? renderCamera = null)
     {
+        RenderCamera = renderCamera;
         TempEntities.Update();
 
         if (entities.Count <= 1)
@@ -534,6 +615,29 @@ public sealed class EntitySystem
             tickAccumulator = 0f;
         }
 
+        if (Enabled)
+        {
+            // Stepped per rendered frame rather than per tick, keeping carried and pushed props off the
+            // tick rate. Steering runs before the step, putting the carry on screen this frame.
+            var physicsStep = MathF.Min(frameTime, MaxPhysicsFrameStep);
+
+            for (var i = 0; i < entities.Count; i++)
+            {
+                var entity = entities[i];
+
+                if (!entity.IsRemoved)
+                {
+                    entity.FrameSimulate(physicsStep);
+                }
+            }
+
+            if (physics != null)
+            {
+                physics.Step(physicsStep);
+                DispatchPhysicsImpacts(physics);
+            }
+        }
+
         // Entities are not scene nodes, so nothing else places what they own. Parents first, so a child
         // follows its parent's current pose.
         foreach (var entity in entities)
@@ -549,6 +653,9 @@ public sealed class EntitySystem
             entity.Update();
         }
     }
+
+    // Load stalls and breakpoints must not become one giant integration step
+    private const float MaxPhysicsFrameStep = 0.1f;
 
     private void Tick()
     {

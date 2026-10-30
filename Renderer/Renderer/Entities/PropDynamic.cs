@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Linq;
 using Microsoft.Extensions.Logging;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -8,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>A dynamic model.</summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CDynamicProp">CDynamicProp</seealso>
-public sealed class PropDynamic : BaseModelEntity
+public sealed class PropDynamic : BaseModelEntity, IDamageable
 {
     /// <summary>Spawn flags for dynamic props.</summary>
     [Flags]
@@ -23,6 +24,15 @@ public sealed class PropDynamic : BaseModelEntity
 
     /// <summary>Gets whether an ended animation stays on its last frame instead of returning to <see cref="IdleAnimation"/>.</summary>
     public bool HoldAnimation { get; private set; }
+
+    /// <summary>Gets the damage left before the prop breaks.</summary>
+    public float Health { get; private set; }
+
+    /// <summary>Gets whether the model has health and the prop has not broken yet.</summary>
+    public bool IsBreakable => breakData?.IsBreakable == true && !isBroken;
+
+    private PropBreakData? breakData;
+    private bool isBroken;
 
     // Null leaves looping to the animation itself, see PlayAnimation
     private bool? idleLooping;
@@ -50,6 +60,12 @@ public sealed class PropDynamic : BaseModelEntity
         hasCollision = Solid != SolidType.SOLID_NONE && EntityScale == Vector3.One;
         IsSolid = hasCollision && !HasSpawnFlags(SpawnFlag.StartCollisionDisabled);
         IsDrawn = !KeyValues.GetBooleanProperty("startdisabled");
+
+        if (LoadedModel is { } model)
+        {
+            breakData = EntitySystem.PropData.Resolve(model);
+            Health = breakData.Health;
+        }
 
         // HL:A only
         if (KeyValues.GetInt32Property("setbodygroup") is > 0 and var bodyGroupChoice)
@@ -96,6 +112,52 @@ public sealed class PropDynamic : BaseModelEntity
 
         ReturnToIdle();
     }
+
+    /// <inheritdoc/>
+    public void TakeDamage(in DamageInfo info)
+    {
+        if (!IsBreakable)
+        {
+            return;
+        }
+
+        var amount = info.Amount * breakData!.ScaleFor(info.Type);
+
+        if (amount <= 0f)
+        {
+            return;
+        }
+
+        Health -= amount;
+        EntitySystem.TriggerOutput(this, "OnHealthChanged", info.Attacker);
+
+        if (Health <= 0f)
+        {
+            Break(info.Attacker, info.Direction);
+        }
+    }
+
+    /// <summary>Fires <c>OnBreak</c>, spawns the break pieces and removes the prop.</summary>
+    public void Break(BaseEntity? attacker = null, Vector3 direction = default)
+    {
+        if (isBroken || breakData == null)
+        {
+            return;
+        }
+
+        isBroken = true;
+        Health = 0f;
+
+        EntitySystem.TriggerOutput(this, "OnBreak", attacker);
+
+        var rotation = EntityTransformHelper.EulerAnglesToQuaternion(Angles);
+        PropPhysics.BreakApart(this, breakData, Origin, rotation, Vector3.Zero, Vector3.Zero, RootNode?.BoundingBox.Center ?? Origin, direction);
+
+        EntitySystem.Remove(this);
+    }
+
+    [EntityInput("Break")]
+    private void InputBreak(EntityInputData data) => Break(data.Activator);
 
     [EntityInput("SetAnimationLooping")]
     private void InputSetAnimationLooping(EntityInputData data) => PlayForcedAnimation(data, looping: true, restart: true);

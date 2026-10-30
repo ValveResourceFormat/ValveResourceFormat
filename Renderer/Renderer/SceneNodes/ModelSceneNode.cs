@@ -186,6 +186,27 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
+        /// <summary>Gets or sets whether <see cref="AnimationController.Pose"/> is written externally instead of by playback.</summary>
+        public bool PoseDrivenExternally
+        {
+            get;
+            set
+            {
+                field = value;
+
+                if (value)
+                {
+                    // Skinning normally switches on when an animation activates, and an externally posed model may have none
+                    SetupSkinning();
+
+                    foreach (var renderer in meshRenderers)
+                    {
+                        renderer.SetSkinningActive(IsAnimated);
+                    }
+                }
+            }
+        }
+
         /// <inheritdoc/>
         public override void Delete()
         {
@@ -205,6 +226,18 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public override void Update(Scene.UpdateContext context)
         {
             UpdateAutoLod(context.Camera);
+
+            if (PoseDrivenExternally)
+            {
+                if (IsAnimated)
+                {
+                    Scene.UpdateSkinningTransforms(this);
+                    UpdateAnimatedBoundingBox();
+                }
+
+                return;
+            }
+
             var animationUpdated = AnimationController.Update(context.Timestep);
 
             if (!animationUpdated)
