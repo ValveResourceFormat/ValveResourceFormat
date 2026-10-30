@@ -297,6 +297,12 @@ public sealed class LightEntity : BaseEntity
 
     [EntityInput("Toggle")] private void InputToggle(EntityInputData data) => SetEnabled(!IsEnabled);
 
+    [EntityInput("TurnOn")] private void InputTurnOn(EntityInputData data) => SetEnabled(true);
+
+    [EntityInput("TurnOff")] private void InputTurnOff(EntityInputData data) => SetEnabled(false);
+
+    [EntityInput("SetLightEnabled")] private void InputSetLightEnabled(EntityInputData data) => SetEnabled(data.Bool());
+
     [EntityInput("SetStyle")] private void InputSetStyle(EntityInputData data) => PlayStyles(data.Parameter ?? string.Empty, randomStart: false);
 
     [EntityInput("SetAppearance")] private void InputSetAppearance(EntityInputData data) => PlayStyle(PatternLightStyle.FromAppearance(data.Int()));

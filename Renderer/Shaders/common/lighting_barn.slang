@@ -5,6 +5,7 @@
 
 #include "light_cull.slang"
 #include "lighting_common.slang"
+#include "shadow_pcf.slang"
 
 // A light that is not a point never shines sharper than a roughness of its own
 void ApplyMinRoughness(inout MaterialProperties_t mat, float minRoughness)
@@ -92,34 +93,6 @@ float BarnLightFade(float x)
 // Sampled as 2D arrays
 uniform sampler2DArray g_tLightCookieTexture; // ClampToBorder, reserved
 uniform sampler2DArray g_tLightCookieTextureWrap; // Wrap, reserved
-
-// We currently have a separate shadow map for all barn lights
-uniform sampler2DShadow g_tBarnLightShadowDepth; // reserved
-
-// Fixed 3x3 gaussian weights
-float ComputeBarnLightShadow_PCF_3x3_Gaussian(vec2 shadowUV, float shadowRef, vec2 texelSize)
-{
-    float shadow = dot(vec4(
-        textureLod(g_tBarnLightShadowDepth, vec3(shadowUV + texelSize * vec2( 1.0,  1.0), shadowRef), 0.0),
-        textureLod(g_tBarnLightShadowDepth, vec3(shadowUV + texelSize * vec2(-1.0,  1.0), shadowRef), 0.0),
-        textureLod(g_tBarnLightShadowDepth, vec3(shadowUV + texelSize * vec2( 1.0, -1.0), shadowRef), 0.0),
-        textureLod(g_tBarnLightShadowDepth, vec3(shadowUV + texelSize * vec2(-1.0, -1.0), shadowRef), 0.0)
-    ), vec4(0.25));
-
-    if (shadow == 0.0 || shadow == 1.0)
-        return shadow;
-
-    shadow *= 0.2996;
-    shadow += dot(vec4(
-        textureLod(g_tBarnLightShadowDepth, vec3(shadowUV + texelSize * vec2( 1.0,  0.0), shadowRef), 0.0),
-        textureLod(g_tBarnLightShadowDepth, vec3(shadowUV + texelSize * vec2(-1.0,  0.0), shadowRef), 0.0),
-        textureLod(g_tBarnLightShadowDepth, vec3(shadowUV + texelSize * vec2( 0.0, -1.0), shadowRef), 0.0),
-        textureLod(g_tBarnLightShadowDepth, vec3(shadowUV + texelSize * vec2( 0.0,  1.0), shadowRef), 0.0)
-    ), vec4(0.1236));
-    shadow += textureLod(g_tBarnLightShadowDepth, vec3(shadowUV, shadowRef), 0.0) * 0.206;
-
-    return shadow;
-}
 
 float GetBarnLightVisibility(BarnLightConstants barnLight, vec4 bakedShadow)
 {
@@ -314,8 +287,7 @@ float GetBarnLightShadow(BarnLightConstants barnLight, vec3 ndc)
     shadowUV = shadowUV * barnLight.m_vBarnLightShadowOffsetScale.zw
              + barnLight.m_vBarnLightShadowOffsetScale.xy;
 
-    const float g_flShadowCascadeReceiverDepthBias = -0.000015;
-    float shadowRef = saturate(ndc.z + g_flShadowCascadeReceiverDepthBias);
+    float shadowRef = saturate(ndc.z + SHADOW_RECEIVER_DEPTH_BIAS);
 
     float shadow = ComputeBarnLightShadow_PCF_3x3_Gaussian(shadowUV, shadowRef, texelSize);
 

@@ -87,8 +87,14 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>The volumetric fog volume of the view being drawn.</summary>
         [SamplerName("g_tFogVolume")]
         FogVolume,
-        /// <summary>Last reserved slot; equal to <see cref="FogVolume"/>.</summary>
-        Last = FogVolume,
+        /// <summary>The gradient fog texture of the view being drawn.</summary>
+        [SamplerName("g_tGradientFogTexture")]
+        GradientFogTexture,
+        /// <summary>The volume texture whose slices are the cookies of per-pixel spot lights.</summary>
+        [SamplerName("g_tLightCookieVolume")]
+        LightCookieVolume,
+        /// <summary>Last reserved slot.</summary>
+        Last = LightCookieVolume,
     }
 
     /// <summary>
@@ -345,7 +351,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 return;
             }
 
-            VertexAnimation = ShaderName == "csgo_foliage.vfx"
+            VertexAnimation = ShaderName is "csgo_foliage.vfx" or "vr_xen_foliage.vfx"
                 || IntParams.GetValueOrDefault("F_VERTEX_ANIMATION") > 0
                 || IntParams.GetValueOrDefault("F_FOLIAGE_ANIMATION") > 0
                 || IntParams.GetValueOrDefault("F_JITTER_VERTICES") > 0;

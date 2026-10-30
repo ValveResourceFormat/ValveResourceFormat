@@ -10,6 +10,8 @@
 #define D_LPV_BLENDING 0
 
 #define S_LIGHTMAP_VERSION_MINOR 0
+#define S_FOG_CUBE_BLEND_MAX 1 // Cubemap fog takes the stronger of its distance and height terms
+#define S_VR_FAST_PATH_LIGHTING 0 // Shades one shadowed light and diffuse-only point lights, and lights the rest with the sky only
 
 #include "lighting_profile.slang"
 

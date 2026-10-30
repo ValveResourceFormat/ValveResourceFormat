@@ -144,6 +144,15 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <summary>Gets or sets the sRGB color the ground bounces an environment light's sun and sky back up with.</summary>
     public Vector3 SkyAmbientBounce { get; set; } = Vector3.One;
 
+    /// <summary>Gets or sets how much of the sky colour <see cref="SkyAmbientBounce"/> mixes in, from its alpha.</summary>
+    public float SkyAmbientBounceAlpha { get; set; } = 1.0f;
+
+    /// <summary>
+    /// Gets or sets whether the sky of an environment light lights only the upper hemisphere,
+    /// or <see langword="null"/> if the light has no such setting.
+    /// </summary>
+    public bool? LowerHemisphereIsBlack { get; set; }
+
     /// <summary>
     /// Gets or sets the sRGB color the ambient lighting has facing down, for an environment light that fades from
     /// <see cref="SkyColor"/> to it over the hemisphere instead of bouncing the sun and sky back up.
@@ -300,6 +309,9 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <summary>Gets or sets the material path of the cookie texture, or <see langword="null"/> if none.</summary>
     public string? CookieTexturePath { get; set; }
 
+    /// <summary>Gets or sets the name a spot light asks its cookie by, to be looked up in the game's light cookie table, or <see langword="null"/> if none.</summary>
+    public string? CookieName { get; set; }
+
     /// <summary>Gets or sets the shader light type used during rendering.</summary>
     public LightType Type { get; set; }
 
@@ -321,14 +333,132 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <summary>Gets or sets whether this light passes through transmissive materials.</summary>
     public bool RenderTransmissive { get; set; } = true;
 
-    /// <summary>Gets or sets how this light lights volumetric fog: 0 none, 1 baked, 2 dynamic.</summary>
+    /// <summary>Gets or sets how this light lights volumetric fog: 0 none, 1 baked, 2 dynamic, 3 baked without shadows, 4 dynamic without shadows.</summary>
     public int FogLighting { get; set; }
 
     /// <summary>Gets or sets how strongly this light lights volumetric fog.</summary>
     public float FogContributionStrength { get; set; } = 1f;
 
+    /// <summary>
+    /// Gets or sets the range the light was precomputed to, as set by the <c>precomputedmaxrange</c> key,
+    /// or zero if the key is not set.
+    /// </summary>
+    public float PrecomputedMaxRange { get; set; }
+
+    /// <summary>
+    /// Gets the distance up to which the light lights volumetric fog: <see cref="PrecomputedMaxRange"/> when set,
+    /// otherwise the range the light shades to.
+    /// </summary>
+    public float FogRange => PrecomputedMaxRange > 0f ? PrecomputedMaxRange : GetAttenuatedRange();
+
     /// <summary>Gets or sets whether this light casts shadows.</summary>
     public int CastShadows { get; set; } = 1;
+
+    /// <summary>
+    /// Gets or sets whether the stationary light also casts a real-time shadow over its baked one,
+    /// as set by the <c>mixedshadows</c> key.
+    /// </summary>
+    public bool MixedShadows { get; set; }
+
+    /// <summary>
+    /// Gets or sets the distance from which the light starts to fade out, as set by the <c>fademindist</c> key.
+    /// A negative value is an offset from <see cref="FadeMaxDist"/>.
+    /// </summary>
+    public float FadeMinDist { get; set; }
+
+    /// <summary>
+    /// Gets or sets the distance at which the light is fully faded out, as set by the <c>fademaxdist</c> key.
+    /// Zero or less disables the fade.
+    /// </summary>
+    public float FadeMaxDist { get; set; }
+
+    /// <summary>Gets or sets the priority of this light among the lights of the VR light binner, as set by the <c>priority</c> key.</summary>
+    public int Priority { get; set; }
+
+    /// <summary>
+    /// Gets how visible this light is from a position: 1 when it is closer than the fade start, 0 when it is
+    /// beyond the fade end. The distance is measured from the position to the box around the light's range.
+    /// </summary>
+    /// <param name="viewPosition">The position of the viewer.</param>
+    internal float GetDistanceFade(Vector3 viewPosition)
+    {
+        if (DirectLight == DirectLightType.Static || FadeMaxDist <= 0f)
+        {
+            return 1f;
+        }
+
+        const float MaxFadeDistance = 1e10f;
+
+        var fadeStart = FadeMinDist;
+
+        if (fadeStart < 0f)
+        {
+            fadeStart = MathF.Max(fadeStart + FadeMaxDist, 0f);
+        }
+
+        var fadeStartSquared = fadeStart >= MaxFadeDistance ? float.MaxValue : fadeStart * fadeStart;
+        var fadeEndSquared = FadeMaxDist >= MaxFadeDistance ? float.MaxValue : FadeMaxDist * FadeMaxDist;
+
+        var bounds = new AABB(Position - new Vector3(Range), Position + new Vector3(Range));
+        var distanceSquared = bounds.DistanceSquared(viewPosition);
+
+        if (distanceSquared > fadeEndSquared)
+        {
+            return 0f;
+        }
+
+        if (fadeStartSquared == fadeEndSquared)
+        {
+            return distanceSquared < fadeStartSquared ? 0f : 1f;
+        }
+
+        var fade = (distanceSquared - fadeEndSquared) / (fadeStartSquared - fadeEndSquared);
+
+        return Math.Clamp(fade, 0f, 1f);
+    }
+
+    /// <summary>
+    /// Gets whether the VR light binner gives this stationary light a real-time shadow map: a spot light
+    /// that casts shadows, bakes a light index and has mixed shadows.
+    /// </summary>
+    internal bool HasVrMixedLocalShadow
+        => MixedShadows && CastShadows == 1 && StationaryLightIndex != -1 && Entity == EntityType.Spot;
+
+    /// <summary>
+    /// Gets whether the VR light binner shades this light as a cheap diffuse-only point light: a point light with
+    /// no shadows, no specular and no quadratic attenuation.
+    /// </summary>
+    internal bool IsFastPathFxLight
+        => Entity == EntityType.Omni && CastShadows == 0 && !RenderSpecular && AttenuationQuadratic <= 0f;
+
+    /// <summary>
+    /// Gets whether the VR light binner can pick this light as its one fully shaded light: a spot or ortho
+    /// light with shadows.
+    /// </summary>
+    internal bool IsFastPathSingleLightCandidate
+        => CastShadows == 1 && Entity is EntityType.Spot or EntityType.Ortho;
+
+    /// <summary>
+    /// Gets how much the VR light binner favors this light when seen from a position: the nearer, the more.
+    /// An ortho light always outranks the others, and the distance fade scales the importance down.
+    /// </summary>
+    /// <param name="viewPosition">The position of the viewer.</param>
+    /// <param name="distanceFade">How visible the light is from the position, see <see cref="GetDistanceFade"/>.</param>
+    internal float GetFastPathImportance(Vector3 viewPosition, float distanceFade)
+    {
+        if (Entity == EntityType.Ortho)
+        {
+            return distanceFade;
+        }
+
+        var distance = MathF.Max(Vector3.Distance(Position, viewPosition), 1f);
+
+        var importance = Type == LightType.Point
+            ? 0.5f / (distance * distance)
+            : 0.5f / distance;
+
+        return importance * distanceFade;
+    }
 
     /// <summary>Gets or sets the shadow map resolution in texels.</summary>
     public int ShadowMapSize { get; set; } = 1024;
@@ -461,6 +591,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             SkyColor = entity.GetColor32Property("skycolor"),
             SkyIntensity = entity.GetFloatProperty("skyintensity", 1.0f),
             SkyAmbientBounce = entity.GetColor32Property("skyambientbounce"),
+            SkyAmbientBounceAlpha = entity.GetColor32Alpha("skyambientbounce"),
             Range = entity.GetFloatProperty("range", 512.0f),
             FallOff = entity.GetFloatProperty("skirt", 0.1f),
             MinRoughness = entity.GetFloatProperty("minroughness", MinSpecularRoughness),
@@ -470,10 +601,19 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             RenderSpecular = entity.GetInt32Property("renderspecular", 1) == 1, // 0 = off, 1 = real time, 2 = baked into cubemaps
             RenderTransmissive = entity.GetInt32Property("rendertransmissive", 1) != 0,
             FogContributionStrength = entity.GetFloatProperty("fogcontributionstrength", 1.0f),
+            PrecomputedMaxRange = entity.GetFloatProperty("precomputedmaxrange", 0f),
         };
+
+        if (entity.TryGetValue("lower_hemisphere_is_black", out _))
+        {
+            light.LowerHemisphereIsBlack = entity.GetInt32Property("lower_hemisphere_is_black", 1) != 0;
+        }
 
         // The sun and ortho lights light the fog unless told not to, the other lights only when told to
         var defaultFogLighting = type is EntityType.Environment or EntityType.Ortho ? 1 : 0;
+
+        // TODO: barn lights use the fog key instead and weight the fog by exp2(fogstrength) * fogscale, but lighting the fog
+        // with them is far brighter than the games show, which skip most fog lights
         light.FogLighting = entity.GetInt32Property("fog_lighting", defaultFogLighting);
 
         if (light.IsLight2)
@@ -508,6 +648,10 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
         light.DirectLight = (DirectLightType)entity.GetInt32Property("directlight", (int)defaultDirectLight);
         light.CastShadows = entity.GetInt32Property("castshadows", 1);
+        light.MixedShadows = entity.GetInt32Property("mixedshadows", 0) != 0;
+        light.FadeMinDist = entity.GetFloatProperty("fademindist", 0f);
+        light.FadeMaxDist = entity.GetFloatProperty("fademaxdist", 0f);
+        light.Priority = entity.GetInt32Property("priority", 0);
         light.CascadeRenderStaticObjects = entity.GetInt32Property("cascaderenderstaticobj", -1);
         light.ShadowMapSize = entity.GetInt32Property("shadowmapsize", 1024);
         if (light.ShadowMapSize <= 0)
@@ -519,6 +663,11 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         {
             light.SpotInnerAngle = entity.GetFloatProperty("innerconeangle", light.SpotInnerAngle);
             light.SpotOuterAngle = entity.GetFloatProperty("outerconeangle", light.SpotOuterAngle);
+        }
+
+        if (type is EntityType.Spot)
+        {
+            light.CookieName = GetCookieProperty(entity);
         }
 
         if (type is EntityType.Ortho)
@@ -539,7 +688,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             light.LuminaireShape = entity.GetInt32Property("luminaire_shape");
             light.LuminaireAnisotropy = entity.GetFloatProperty("luminaire_anisotropy");
             light.SizeParams = entity.GetVector3Property("size_params");
-            light.CookieTexturePath = entity.GetStringProperty("lightcookie") is { Length: > 0 } cookie ? cookie : null;
+            light.CookieTexturePath = GetCookieProperty(entity);
 
             light.Shear = entity.GetVector2Property("shear");
         }
@@ -558,7 +707,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             light.SpotInnerAngle = entity.GetFloatProperty("inner_angle");
             light.SpotOuterAngle = entity.GetFloatProperty("outer_angle", 180f);
             light.SizeParams = entity.GetVector3Property("size_params");
-            light.CookieTexturePath = entity.GetStringProperty("lightcookie") is { Length: > 0 } cookie ? cookie : null;
+            light.CookieTexturePath = GetCookieProperty(entity);
             light.LuminaireShape = entity.GetInt32Property("shape");
             light.LuminaireSize = entity.GetFloatProperty("luminaire_size");
         }
@@ -600,6 +749,17 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         // The caller places the light with PlaceAt, the keyvalues are in the entity's local space
         return light;
     }
+
+    private static string? GetCookieProperty(Entity entity)
+    {
+        var cookie = entity.GetStringProperty("lightcookie");
+
+        return string.IsNullOrEmpty(cookie) ? null : cookie;
+    }
+
+    /// <summary>The unit direction of a transform's axis in world space, ignoring its translation.</summary>
+    private static Vector3 GetAxisDirection(in Matrix4x4 transform, Vector3 axis)
+        => Vector3.Normalize(Vector3.TransformNormal(axis, transform));
 
     /// <summary>
     /// Sets the attenuation terms as the engine keeps them: a term below 0.001 is zero, and a light
@@ -717,12 +877,8 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             return false;
         }
 
-        return light.DirectLight switch
-        {
-            DirectLightType.None => false,
-            DirectLightType.Static => light.StationaryLightIndex is >= 0 and <= 3,
-            _ => true
-        };
+        // A baked light stays out of the real-time lights even when it has a baked shadow index
+        return light.DirectLight is not (DirectLightType.None or DirectLightType.Static);
     }
 
     /// <summary>
@@ -753,6 +909,41 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         {
             ComputeOmni2Faces(this, cookiePaths);
         }
+        else if (Entity == EntityType.Spot && CastShadows == 1)
+        {
+            if (BarnFaces is not { Length: 1 })
+            {
+                BarnFaces = new BarnFaceData[1];
+            }
+
+            BarnFaces[0] = ComputeSpotLightShadowFace(this);
+        }
+    }
+
+    /// <summary>
+    /// The one face a shadowed spot light renders its shadow from: a square frustum from the light position
+    /// whose field of view is twice the outer cone angle, out to the light's range.
+    /// </summary>
+    private static BarnFaceData ComputeSpotLightShadowFace(SceneLight light)
+    {
+        // TODO: the engine's near plane for these shadows is not known
+        const float NearPlane = 1f;
+
+        var forward = GetAxisDirection(light.Transform, Vector3.UnitX);
+        var up = GetAxisDirection(light.Transform, Vector3.UnitZ);
+        var origin = light.Transform.Translation;
+
+        var fieldOfView = float.DegreesToRadians(Math.Clamp(light.SpotOuterAngle, 1f, 89f) * 2f);
+        var lightView = Matrix4x4.CreateLookAtLeftHanded(origin, origin + forward, up);
+        var lightProj = Matrix4x4.CreatePerspectiveFieldOfViewLeftHanded(fieldOfView, 1f, NearPlane, MathF.Max(light.Range, NearPlane + 1f));
+        var worldToFrustum = lightView * lightProj;
+
+        return new BarnFaceData
+        {
+            WorldToFrustum = worldToFrustum,
+            FrustumToWorld = InvertFrustum(worldToFrustum),
+            ObbToWorld = Matrix4x4.Identity,
+        };
     }
 
     /// <summary>
@@ -761,7 +952,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <param name="size">Target resolution in texels along the longer axis.</param>
     public (int W, int H) GetShadowFaceDimensions(int size)
     {
-        if (UsesOmni2Faces)
+        if (UsesOmni2Faces || Entity == EntityType.Spot)
         {
             return (size, size);
         }
@@ -881,9 +1072,8 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
     private static BarnFaceData ComputeBarnLightFace(SceneLight light, Dictionary<string, int> cookiePaths)
     {
-        var noTranslation = light.Transform with { Translation = Vector3.Zero };
-        var forwardDir = Vector3.Normalize(Vector3.Transform(Vector3.UnitX, noTranslation));
-        var upDir = Vector3.Normalize(Vector3.Transform(Vector3.UnitZ, noTranslation));
+        var forwardDir = GetAxisDirection(light.Transform, Vector3.UnitX);
+        var upDir = GetAxisDirection(light.Transform, Vector3.UnitZ);
         var rightDir = Vector3.Normalize(Vector3.Cross(upDir, forwardDir));
 
         var (worldToFrustum, barnLightPosition, skirtNear, skirtFar) = light.SizeParams.Z <= 0
@@ -944,10 +1134,9 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
     private static void ComputeOmni2Faces(SceneLight light, Dictionary<string, int> cookiePaths)
     {
-        var noTranslation = light.Transform with { Translation = Vector3.Zero };
-        var forward = Vector3.Normalize(Vector3.Transform(Vector3.UnitX, noTranslation));
-        var right = Vector3.Normalize(Vector3.Transform(Vector3.UnitY, noTranslation));
-        var up = Vector3.Normalize(Vector3.Transform(Vector3.UnitZ, noTranslation));
+        var forward = GetAxisDirection(light.Transform, Vector3.UnitX);
+        var right = GetAxisDirection(light.Transform, Vector3.UnitY);
+        var up = GetAxisDirection(light.Transform, Vector3.UnitZ);
 
         var angleRad = float.DegreesToRadians(Math.Clamp(light.SpotOuterAngle, 1f, 180f));
         var heightOffset = light.LuminaireShape is 1 or 2 ? light.SizeParams.Y : 0f;

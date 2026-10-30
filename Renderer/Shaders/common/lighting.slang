@@ -54,6 +54,7 @@
 #include "envmap.slang"
 
 #include "lighting_barn.slang"
+#include "light_cookie.slang"
 
 #ifndef DYNAMIC_LIGHT_ROUGHNESS_SHAPED_DIFFUSE
     #define DYNAMIC_LIGHT_ROUGHNESS_SHAPED_DIFFUSE 0 // Lightmap version 1 shades the dynamic lights, not the baked ones, with GetRoughnessShapedDiffuse()
@@ -88,6 +89,13 @@ void CalculateSunLighting(inout LightingTerms_t lighting, MaterialProperties_t m
         return;
     }
 
+#if (LIGHT_GEOMETRIC_NORMAL_GATE) && (!GLASS_BACKLIGHT)
+    if (dot(GetSunDirection(), mat.GeometricNormal) <= 0.0)
+    {
+        return;
+    }
+#endif
+
     float visibility = bakedVisibility;
 
     if (visibility > MIN_LIGHT_ALPHA)
@@ -110,26 +118,63 @@ void CalculateSunLighting(inout LightingTerms_t lighting, MaterialProperties_t m
     }
 }
 
+// The shadow of a dynamic spot light, rendered into the barn light shadow atlas
+float CalculateDynamicLightShadow(uint nShadowSlot, vec3 vPositionWs)
+{
+    vec4 vClipPos = g_matLightWorldToShadow[nShadowSlot] * vec4(vPositionWs, 1.0);
+    vec3 vNdc = vClipPos.xyz / vClipPos.w;
+
+    vec4 vOffsetScale = g_vLightShadowOffsetScale[nShadowSlot];
+    vec2 vShadowUv = vNdc.xy * vOffsetScale.zw + vOffsetScale.xy;
+    vec2 vTexelSize = 1.0 / vec2(textureSize(g_tBarnLightShadowDepth, 0));
+
+    float flShadowRef = saturate(vNdc.z + SHADOW_RECEIVER_DEPTH_BIAS);
+
+    return ComputeBarnLightShadow_PCF_3x3_Gaussian(vShadowUv, flShadowRef, vTexelSize);
+}
+
+// The factor a stationary light's baked strength takes from its real-time shadow, 1 for lights without one
 float CalculateStationaryLightRealtimeShadow(uint nLightIndex, vec3 vPositionWs)
 {
+    float flShadow = 1.0;
+
     if (float(nLightIndex) == g_vSunLightBakedShadowMask.x)
     {
-        return CalculateSunShadowMapVisibility(vPositionWs);
+        flShadow = CalculateSunShadowMapVisibility(vPositionWs);
     }
+#if (S_VR_FAST_PATH_LIGHTING)
+    else
+    {
+        int nShadowSlot = int(g_vLightShadowParams[nLightIndex].x);
 
-    // TODO: one stationary light per view, the index in g_vBakedLightShadowIntParams.x, gets a realtime
-    // shadow map that scales its baked strength by lerp(1, shadow, g_vBakedLightShadowStrengthVignette.x).
-    // With g_vBakedLightCascadeThreshold[0].w set it reads two cascades through g_matWorldToBakedLightShadow[0..1],
-    // faded by smoothstep(1, vignette.y or .z, max(|dot(threshold[2c], pos)|, |dot(threshold[2c+1], pos)|));
-    // otherwise one projection through g_matWorldToBakedLightShadow[0], lit outside g_vBakedLightShadowBounds.
-    // Each read is a 3x3 PCF. The engine picks the light per view, by a rule not known here.
-    return 1.0;
+        if (nShadowSlot >= 0)
+        {
+            flShadow = CalculateDynamicLightShadow(uint(nShadowSlot), vPositionWs);
+        }
+    }
+#endif
+
+    return flShadow;
 }
 
 // Per-pixel dynamic light evaluation for legacy lights
 void CalculateDynamicLightV1(inout LightingTerms_t lighting, MaterialProperties_t mat, uint nLightIndex)
 {
     uint nLightType = GetLightType(nLightIndex);
+
+    bool bDiffuseOnly = false;
+
+    #if (S_VR_FAST_PATH_LIGHTING)
+        // The fast path lights a pixel with one full light and diffuse-only point lights, nothing else
+        float flFastPathMode = g_vLightShadowParams[nLightIndex].w;
+
+        if (flFastPathMode < 0.0)
+        {
+            return;
+        }
+
+        bDiffuseOnly = flFastPathMode > 0.0;
+    #endif
 
     vec4 vFalloffParams = g_vLightFallOff[nLightIndex];
     vec3 vLightVector;
@@ -169,17 +214,34 @@ void CalculateDynamicLightV1(inout LightingTerms_t lighting, MaterialProperties_
     float flClampedDistanceSquared = max(flDistanceSquared, 1.0);
     float flAttenuation = saturate(1.0 / dot(vec2(sqrt(flClampedDistanceSquared), flClampedDistanceSquared), vFalloffParams.xy) - vFalloffParams.w);
 
+    vec3 vCookie = vec3(1.0);
+
     if (nLightType == LIGHT_TYPE_SPOT)
     {
-        // todo: light cookie
+        float flCookieSlice = g_vLightShadowParams[nLightIndex].y;
 
-        vec2 vConeCosines = g_vLightSpotInnerOuterConeCosines[nLightIndex].xy;
-        vec3 vForward = g_vLightDirection_InvRange[nLightIndex].xyz;
-        float flCosAngle = dot(vForward, -vLightVector);
-        flAttenuation *= saturate((flCosAngle - vConeCosines.y) / max(vConeCosines.x - vConeCosines.y, 0.0001));
+        if (flCookieSlice >= 0.0)
+        {
+            // The cookie takes the place of the cone falloff
+            vCookie = CalculateDynamicLightCookie(nLightIndex, GetLightPositionWs(nLightIndex), mat.PositionWS, flCookieSlice);
+        }
+        else
+        {
+            vec2 vConeCosines = g_vLightSpotInnerOuterConeCosines[nLightIndex].xy;
+            vec3 vForward = g_vLightDirection_InvRange[nLightIndex].xyz;
+            float flCosAngle = dot(vForward, -vLightVector);
+            flAttenuation *= saturate((flCosAngle - vConeCosines.y) / max(vConeCosines.x - vConeCosines.y, 0.01));
+        }
+
+        int nShadowSlot = int(g_vLightShadowParams[nLightIndex].x);
+
+        if (nShadowSlot >= 0 && flAttenuation > 0.0)
+        {
+            flAttenuation *= CalculateDynamicLightShadow(uint(nShadowSlot), mat.PositionWS);
+        }
     }
 
-    if (flAttenuation <= MIN_LIGHT_ALPHA)
+    if (flAttenuation <= 0.0)
     {
         return;
     }
@@ -190,7 +252,19 @@ void CalculateDynamicLightV1(inout LightingTerms_t lighting, MaterialProperties_
         roughnessShapedDiffuse = true;
     #endif
 
-    CalculateShadingGated(lighting, vLightVector, GetLightColor(nLightIndex) * flAttenuation, mat, nLightIndex, roughnessShapedDiffuse);
+    if (bDiffuseOnly)
+    {
+        vec3 vPreviousSpecular = lighting.SpecularDirect;
+        vec3 vPreviousTransmissive = lighting.TransmissiveDirect;
+
+        CalculateShadingGated(lighting, vLightVector, GetLightColor(nLightIndex) * flAttenuation, mat, nLightIndex, false);
+
+        lighting.SpecularDirect = vPreviousSpecular;
+        lighting.TransmissiveDirect = vPreviousTransmissive;
+        return;
+    }
+
+    CalculateShadingGated(lighting, vLightVector, GetLightColor(nLightIndex) * flAttenuation * vCookie, mat, nLightIndex, roughnessShapedDiffuse);
 }
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1) && (BAKED_LIGHT_SHADOW_MASK)
@@ -256,6 +330,10 @@ void CalculateDynamicLights(inout LightingTerms_t lighting, MaterialProperties_t
 // Shades the stationary lights that the lightmap or probe references by index, and the sun where it bakes none
 void CalculateBakedIndexedLights(inout LightingTerms_t lighting, MaterialProperties_t mat)
 {
+#if (SUBSURFACE_SKIN)
+    vec3 previousTransmissive = lighting.TransmissiveDirect;
+#endif
+
 #if (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
     // Per-vertex baked geometry carries no direct light info.
 #elif (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1) || (D_BAKED_LIGHTING_FROM_PROBE == 1)
@@ -290,6 +368,11 @@ void CalculateBakedIndexedLights(inout LightingTerms_t lighting, MaterialPropert
     }
 #else
     CalculateSunLighting(lighting, mat, 1.0);
+#endif
+
+#if (SUBSURFACE_SKIN)
+    // Skin passes the light of the dynamic lights only, which have a shadow map to measure the thickness from
+    lighting.TransmissiveDirect = previousTransmissive;
 #endif
 }
 
@@ -477,9 +560,26 @@ void CalculateLightmapIndirectLighting(inout LightingTerms_t lighting, MaterialP
 
 #endif
 
+#if (SUBSURFACE_SKIN) && (D_BAKED_LIGHTING_FROM_LIGHTMAP == 0) && (D_BAKED_LIGHTING_FROM_PROBE == 1)
+vec3 ComputeSkinLightProbeShading(MaterialProperties_t mat)
+{
+    vec3 irradiance;
+
+    for (int i = 0; i < 3; i++)
+    {
+        vec3 channelNormal = normalize(mix(mat.AmbientNormal, mat.AmbientGeometricNormal, g_vAmbientNormalSoftness[i]));
+        irradiance[i] = SampleLightProbeIrradiance(mat.PositionWS, channelNormal)[i];
+    }
+
+    return irradiance;
+}
+#endif
+
 void CalculateBakedIndirectLighting(inout LightingTerms_t lighting, MaterialProperties_t mat)
 {
-#if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
+#if (INDIRECT_LIGHT_TEXTURE)
+    lighting.DiffuseIndirect = mat.IndirectLightTexture;
+#elif (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     CalculateLightmapIndirectLighting(lighting, mat);
 #elif (D_BAKED_LIGHTING_FROM_PROBE == 1)
     if (g_iRenderMode == renderMode_LightmapCharts)
@@ -488,7 +588,11 @@ void CalculateBakedIndirectLighting(inout LightingTerms_t lighting, MaterialProp
         return;
     }
 
-    lighting.DiffuseIndirect = ComputeLightProbeShading(mat);
+    #if (SUBSURFACE_SKIN)
+        lighting.DiffuseIndirect = ComputeSkinLightProbeShading(mat);
+    #else
+        lighting.DiffuseIndirect = ComputeLightProbeShading(mat);
+    #endif
 #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
     if (g_iRenderMode == renderMode_LightmapCharts)
     {
@@ -536,7 +640,9 @@ vec3 GetEnvironmentReflectionScale(EnvBRDF_t envBrdf)
 // Without baked lighting the environment alone lights the diffuse
 void ApplyEnvironmentDiffuse(inout LightingTerms_t lighting, MaterialProperties_t mat)
 {
-#if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 0 && D_BAKED_LIGHTING_FROM_PROBE == 0 && D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 0)
+#if (INDIRECT_LIGHT_TEXTURE)
+    lighting.DiffuseIndirect = mat.IndirectLightTexture;
+#elif (D_BAKED_LIGHTING_FROM_LIGHTMAP == 0 && D_BAKED_LIGHTING_FROM_PROBE == 0 && D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 0)
     #if (F_USE_NPR_LIGHTING == 1)
         // The bounce light already comes from the sky
         if (g_bNPRBounceDiffuse)
@@ -545,7 +651,15 @@ void ApplyEnvironmentDiffuse(inout LightingTerms_t lighting, MaterialProperties_
         }
     #endif
 
+    #if (S_VR_FAST_PATH_LIGHTING)
+        lighting.DiffuseIndirect = GetSkyAmbientLighting(mat.AmbientNormal);
+        return;
+    #endif
+
     mat.Roughness = vec2(1.0);
+    #if (ENV_SPECULAR_SIMPLE)
+        mat.IsometricRoughness = 1.0;
+    #endif
     mat.RetroReflectivity = 0.0;
     // Roughness is at 1 here, so the full correction lands the lookup on the normal.
     lighting.DiffuseIndirect = GetEnvironmentNoBRDF(mat, 1.0);
@@ -574,6 +688,28 @@ void ApplyMultiscatter(inout LightingTerms_t lighting, EnvBRDF_t envBrdf, Materi
 #endif
 }
 
+#if (ENV_SPECULAR_SCHLICK)
+// How far the surface is turned from the eye, raised to the power that Schlick's fresnel rises by
+float GetSchlickGrazing(MaterialProperties_t mat)
+{
+    float turned = 1.0 - saturate(dot(mat.ViewDir, mat.AmbientNormal));
+
+    return pow(turned, mat.FresnelExponent);
+}
+
+// The fresnel of the reflectance by the angle to the eye, which metals tint with the albedo
+vec3 GetSchlickEnvironmentScale(MaterialProperties_t mat)
+{
+    float fresnel = mat.Reflectance + (1.0 - mat.Reflectance) * GetSchlickGrazing(mat);
+
+    return fresnel * mix(vec3(1.0), mat.Albedo, mat.Metalness);
+}
+
+void CalculateEnvironmentLighting(inout LightingTerms_t lighting, MaterialProperties_t mat)
+{
+    lighting.SpecularIndirect = GetProbeReflection(mat) * GetSchlickEnvironmentScale(mat);
+}
+#else
 void CalculateEnvironmentLighting(inout LightingTerms_t lighting, MaterialProperties_t mat)
 {
     EnvBRDF_t envBrdf = EnvBRDF(mat.SpecularColor, mat.IsometricRoughness, mat.AmbientNormal, mat.ViewDir, mat.ClothMask);
@@ -591,12 +727,36 @@ void CalculateEnvironmentLighting(inout LightingTerms_t lighting, MaterialProper
 
     BlendLightmapReflection(environment, environmentLuma, mat, lightmapReflection);
 
-    environment *= GetEnvMapNormalization(mat.IsometricRoughness, environmentLuma, lighting.DiffuseIndirect);
-    lighting.SpecularIndirect = environment * GetEnvironmentReflectionScale(envBrdf);
+    vec3 specular = environment * GetEnvironmentReflectionScale(envBrdf);
+    float normalizationRoughness = mat.IsometricRoughness;
+
+    #if (SECOND_SPECULAR_LOBE)
+        MaterialProperties_t secondLobe = mat;
+        float secondRoughness = max(mat.RoughnessTex.x * (1.0 - g_flSecondSpecularLobeGlossiness), mat.GeometricRoughness);
+        secondLobe.Roughness = vec2(secondRoughness);
+        secondLobe.IsometricRoughness = secondRoughness;
+
+        EnvBRDF_t secondBrdf = EnvBRDF(secondLobe.SpecularColor, secondRoughness, mat.AmbientNormal, mat.ViewDir, mat.ClothMask);
+        vec3 secondEnvironment = vec3(0.0);
+        float secondEnvironmentLuma = 0.0;
+
+        if (lightmapReflection < 1.0)
+        {
+            secondEnvironment = GetEnvironmentNoBRDF(secondLobe, 1.0);
+        }
+
+        BlendLightmapReflection(secondEnvironment, secondEnvironmentLuma, secondLobe, lightmapReflection);
+
+        specular = mix(specular, secondEnvironment * GetEnvironmentReflectionScale(secondBrdf), g_flSecondSpecularLobeRatio);
+        normalizationRoughness = (mat.IsometricRoughness + secondRoughness) * 0.5;
+    #endif
+
+    lighting.SpecularIndirect = specular * GetEnvMapNormalization(normalizationRoughness, environmentLuma, lighting.DiffuseIndirect);
 
     ApplyEnvironmentDiffuse(lighting, mat);
     ApplyMultiscatter(lighting, envBrdf, mat);
 }
+#endif
 
 #endif
 
@@ -706,6 +866,19 @@ void ApplyNprBounce(inout LightingTerms_t lighting, MaterialProperties_t mat)
 
 #endif
 
+#if (ENV_SPECULAR_SCHLICK)
+// The baked light is not given the share of the reflectance that the direct light is, so it takes back what DiffuseColor
+// gave up. Where an environment map is reflected, the fresnel gives up the part that the angle to the eye adds.
+float GetBakedDiffuseScale(MaterialProperties_t mat)
+{
+    #if (IBL == 1)
+        return 1.0 - GetSchlickGrazing(mat);
+    #else
+        return 1.0 / max(1.0 - mat.Reflectance, 0.05);
+    #endif
+}
+#endif
+
 void CalculateIndirectLighting(inout LightingTerms_t lighting, MaterialProperties_t mat)
 {
     lighting.DiffuseIndirect = vec3(0.3);
@@ -723,6 +896,10 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, MaterialPropertie
 
 #if (IBL == 1)
     CalculateEnvironmentLighting(lighting, mat);
+#endif
+
+#if (ENV_SPECULAR_SCHLICK)
+    lighting.DiffuseIndirect *= GetBakedDiffuseScale(mat);
 #endif
 
 #if (F_USE_NPR_LIGHTING == 1)
@@ -758,7 +935,9 @@ LightingTerms_t CalculateLighting(inout MaterialProperties_t mat)
         mat.Roughness = max(mat.Roughness, vec2(0.05));
     #endif
 
-    #if ((F_ANISOTROPIC_GLOSS == 1) || (F_HIGH_QUALITY_GLOSS == 1))
+    #if (ENV_SPECULAR_SIMPLE)
+        mat.IsometricRoughness = dot(mat.Roughness, vec2(0.5)) * mat.EnvironmentBlur;
+    #elif ((F_ANISOTROPIC_GLOSS == 1) || (F_HIGH_QUALITY_GLOSS == 1))
         mat.IsometricRoughness = dot(mat.Roughness, vec2(0.5));
     #else
         mat.IsometricRoughness = max(mat.Roughness.x, mat.Roughness.y);

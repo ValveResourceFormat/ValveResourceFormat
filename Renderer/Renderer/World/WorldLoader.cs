@@ -591,7 +591,17 @@ namespace ValveResourceFormat.Renderer.World
                 }
             }
 
-            scene.RenderAttributes.TryAdd("S_LIGHTMAP_VERSION_MINOR", (byte)scene.LightingInfo.LightmapGameVersionNumber);
+            var attributes = scene.RenderAttributes;
+            attributes.TryAdd("S_LIGHTMAP_VERSION_MINOR", (byte)scene.LightingInfo.LightmapGameVersionNumber);
+
+            var blendsFogByMax = attributes["S_LIGHTMAP_VERSION_MINOR"] < 2
+                || scene.RendererContext.FileLoader.GameInfo.TonemappingVrForward;
+            attributes.TryAdd("S_FOG_CUBE_BLEND_MAX", (byte)(blendsFogByMax ? 1 : 0));
+
+            if (scene.RendererContext.FileLoader.GameInfo.VrLightBinnerSingleLightFastPath)
+            {
+                scene.RenderAttributes.TryAdd("S_VR_FAST_PATH_LIGHTING", 1);
+            }
         }
 
         // Lumps of entities parsed for Entities that have not spawned yet, by lump name. The first spawn takes

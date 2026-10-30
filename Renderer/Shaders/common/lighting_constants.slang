@@ -6,6 +6,7 @@
 #include "utils.slang"
 
 #define MAX_LIGHTS 256
+#define MAX_SHADOWED_DYNAMIC_LIGHTS 16
 
 layout(std140, binding = 1) uniform LightingConstants {
     vec2 g_vLightmapUvScale;
@@ -21,6 +22,9 @@ layout(std140, binding = 1) uniform LightingConstants {
     vec4[MAX_LIGHTS] g_vLightColor_Brightness;
     vec4[MAX_LIGHTS] g_vLightSpotInnerOuterConeCosines;
     vec4[MAX_LIGHTS] g_vLightFallOff;
+    vec4[MAX_LIGHTS] g_vLightShadowParams; // x: slot in the shadow arrays below, -1 for none. y: cookie slice, -1 for none. z: 1 / tan(outer cone angle). w: fast path mode, -1 unlit, 0 full, 1 diffuse only
+    mat4[MAX_SHADOWED_DYNAMIC_LIGHTS] g_matLightWorldToShadow;
+    vec4[MAX_SHADOWED_DYNAMIC_LIGHTS] g_vLightShadowOffsetScale; // xy: atlas offset, zw: atlas scale
 
     vec4 g_vEnvMapSizeConstants;
 
