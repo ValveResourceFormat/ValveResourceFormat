@@ -124,7 +124,6 @@ vec3 DecodeRGBM(vec4 color)
 
 vec3 DecodeBakedLightRGBM(vec4 color)
 {
-    color.rgb = SrgbLinearToGamma(color.rgb);
     return pow2(DecodeRGBM(color));
 }
 
@@ -190,6 +189,13 @@ float RemapValClamped( float flOldVal, float flOldMin, float flOldMax, float flN
 
 	// Map 0-1 range into new min/max
 	return ( flValNormalized * ( flNewMax - flNewMin ) ) + flNewMin;
+}
+
+// The texel scaled to the range, which may be given with its ends in either order
+float RemapByRange(float texel, vec2 range)
+{
+    float scale = max(range.x, range.y) - range.x;
+    return texel * scale + range.x;
 }
 
 float ApplyBlendModulation(float blendFactor, float blendMask, float blendSoftness)

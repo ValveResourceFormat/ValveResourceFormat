@@ -11,10 +11,12 @@ struct SurfaceOptions_t
     bool DirectSpecular;
     bool OccludeDirectDiffuse;
     bool SpecularIgnoresOpacity;
+    bool PremultipliedOpacity;
     bool FogMod2x;
     bool FogFadesAlpha;
     bool KeepColorInFullBright;
     float SpecularIndirectScale;
+    vec3 IndirectLightScale;
     float DirectDiffuseAO;
     float DirectSpecularAO;
     vec3 BlendValues;
@@ -28,10 +30,12 @@ SurfaceOptions_t DefaultSurfaceOptions()
     options.DirectSpecular = true;
     options.OccludeDirectDiffuse = true;
     options.SpecularIgnoresOpacity = false;
+    options.PremultipliedOpacity = false;
     options.FogMod2x = false;
     options.FogFadesAlpha = false;
     options.KeepColorInFullBright = false;
     options.SpecularIndirectScale = 1.0;
+    options.IndirectLightScale = vec3(1.0);
     options.DirectDiffuseAO = 1.0;
     options.DirectSpecularAO = 1.0;
     options.BlendValues = vec3(0.0);
@@ -51,7 +55,7 @@ vec4 ShadeUnlit(MaterialProperties_t mat, out LightingTerms_t lighting)
 
 // Lights the material into the diffuse and specular light that reach the eye.
 // Ambient occlusion also darkens the direct diffuse light when OccludeDirectDiffuse is set, the direct AO weights scale its effect on the direct light.
-// SpecularIndirectScale scales the indirect specular light after the occlusion.
+// SpecularIndirectScale scales the indirect specular light after the occlusion, and IndirectLightScale both indirect lights.
 void LightSurface(inout MaterialProperties_t mat, out LightingTerms_t lighting, SurfaceOptions_t options, out vec3 diffuseLighting, out vec3 specularLighting)
 {
     lighting = CalculateLighting(mat);
@@ -72,7 +76,10 @@ void LightSurface(inout MaterialProperties_t mat, out LightingTerms_t lighting, 
         lighting.DiffuseDirect = unoccludedDiffuseDirect;
     }
 
+    lighting.DiffuseDirect *= mat.DirectDiffuseScale;
     lighting.SpecularIndirect *= options.SpecularIndirectScale;
+    lighting.DiffuseIndirect *= options.IndirectLightScale;
+    lighting.SpecularIndirect *= options.IndirectLightScale;
 
     diffuseLighting = lighting.DiffuseDirect + lighting.DiffuseIndirect;
     specularLighting = lighting.SpecularDirect + lighting.SpecularIndirect;
@@ -85,16 +92,20 @@ void LightSurface(inout MaterialProperties_t mat, out LightingTerms_t lighting, 
 
 // Lights the material and combines the light with its color.
 // Translucency fades the diffuse light only, and leaves the surface opaque, when SpecularIgnoresOpacity is set.
+// With PremultipliedOpacity the diffuse light is faded and the specular light is not, and the color is left premultiplied
+// by the opacity until FinishSurface() divides it out.
 vec4 ShadeSurface(inout MaterialProperties_t mat, out LightingTerms_t lighting, SurfaceOptions_t options)
 {
     vec3 diffuseLighting;
     vec3 specularLighting;
     LightSurface(mat, lighting, options, diffuseLighting, specularLighting);
 
-    if (options.SpecularIgnoresOpacity)
+    if (options.PremultipliedOpacity || options.SpecularIgnoresOpacity)
     {
         vec3 diffuseAndEmission = mat.DiffuseColor * diffuseLighting + lighting.TransmissiveDirect + mat.IllumColor;
-        return vec4(specularLighting + diffuseAndEmission * mat.Opacity, 1.0);
+        float alpha = options.PremultipliedOpacity ? mat.Opacity : 1.0;
+
+        return vec4(specularLighting + diffuseAndEmission * mat.Opacity, alpha);
     }
 
     vec3 combinedLighting = mat.DiffuseColor * diffuseLighting + specularLighting + lighting.TransmissiveDirect + mat.IllumColor;
@@ -224,6 +235,12 @@ bool FinishSurface(MaterialProperties_t mat, LightingTerms_t lighting, SurfaceOp
     }
 
     ApplyToneMappingOverride(outputColor);
+
+    if (options.PremultipliedOpacity)
+    {
+        outputColor.rgb /= max(outputColor.a, 0.0001);
+    }
+
     ApplyBlendModeOutput(outputColor, options.BlendMode);
 
     if (options.FogFadesAlpha)

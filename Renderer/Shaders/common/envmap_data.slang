@@ -19,6 +19,10 @@ struct EnvMapData
     vec3 Color;
     int AssociatedLPV; // The light probe volume sharing its handshake, -1 when none
     vec4 NormalizationSH;
+    vec3 ProjectionMins; // The box a box projected reflection hits, in local space
+    float InvRadius; // Of the influence sphere
+    vec3 ProjectionMaxs;
+    uint _padding2;
 };
 
 // Maximum number of environment maps supported

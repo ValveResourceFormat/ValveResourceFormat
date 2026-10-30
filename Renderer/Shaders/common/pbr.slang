@@ -128,7 +128,7 @@ uniform int F_CLOTH_SHADING; // csgo_character, csgo_complex, csgo_customglove, 
     vec3 GetNormalSoftness()
     {
     #if (SUBSURFACE_SKIN)
-        return g_vAmbientNormalSoftness;
+        return vec3(1.0, 0.3, 0.0);
     #else
         return g_vNormalSoftness;
     #endif
@@ -211,7 +211,7 @@ float BlendSecondSpecularLobe(float ndfVis, MaterialProperties_t mat, float NoL,
 {
 #if (SECOND_SPECULAR_LOBE)
     // Glossiness is authored inverted. The game floors the scaled roughness by the geometric roughness, not the base
-    float flSecondPerceptualRoughness = mat.IsometricRoughness * (1.0 - g_flSecondSpecularLobeGlossiness);
+    float flSecondPerceptualRoughness = max(mat.RoughnessTex.x * (1.0 - g_flSecondSpecularLobeGlossiness), mat.GeometricRoughness);
     float flSecondRoughness = max(pow2(flSecondPerceptualRoughness), MIN_GGX_ALPHA);
     float flSecondNdfVis = D_GGX(NoH, flSecondRoughness) * GetSpecularVisibility(NoL, NoV, flSecondPerceptualRoughness);
 
@@ -233,9 +233,36 @@ float GetClothNdfVis(MaterialProperties_t mat, float NoL, float NoV, float NoH)
 #endif
 }
 
+vec3 SpecularBlinnPhong(vec3 lightVector, vec3 normal, MaterialProperties_t mat)
+{
+    float NoL = saturate(dot(normal, lightVector));
+
+    vec3 halfVector = normalize(mat.ViewDir + lightVector);
+    float NoH = saturate(dot(normal, halfVector));
+    float VoH = saturate(dot(lightVector, halfVector));
+
+    vec2 exponents = exp2(pow(vec2(1.0) - mat.Roughness, vec2(1.5)) * 14.0);
+    float exponent = dot(exponents, vec2(0.5));
+    float smoothness = dot(vec2(1.0) - saturate(mat.Roughness * 0.5), vec2(1.0 / 3.0));
+    float normalization = ((exponent + 2.0) * (exponent + 4.0)) / (8.0 * (exp2(exponent * -0.5) + exponent));
+
+#if (SPECULAR_FRESNEL_TINT_AFTER)
+    vec3 metalTint = mix(vec3(1.0), mat.Albedo, mat.Metalness);
+    float grazing = pow(1.0 - VoH, mat.FresnelExponent);
+    vec3 F = vec3(mat.Reflectance + (1.0 - mat.Reflectance) * grazing) * metalTint;
+#else
+    vec3 F = F_Schlick(VoH, mat.SpecularColor);
+#endif
+
+    return F * (pow(NoH, exponent) * smoothness * NoL * normalization);
+}
+
 // Still pass normal due to some effects modifying normal per light
 vec3 SpecularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat, float sheenAlbedoScaling)
 {
+#if (SPECULAR_BLINN_PHONG)
+    return SpecularBlinnPhong(lightVector, normal, mat);
+#else
     float NoL = saturate(dot(normal, lightVector));
 
     vec3 halfVector = normalize(mat.ViewDir + lightVector);
@@ -269,6 +296,7 @@ vec3 SpecularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat, f
     }
 
     return specular;
+#endif
 }
 
 // Base lobe energy left after the sheen. The directional albedo is read at light and view, as a
@@ -341,7 +369,13 @@ vec3 GetSubsurfaceDiffuse(MaterialProperties_t mat, vec3 lightVector, vec3 diffu
         vChannelNoL[i] = saturate(dot(vChannelNormal, lightVector));
     }
 
-    vec3 vFalloff = textureLod(g_tDiffuseFalloff, vec2(flSoftNoL * 0.5 + 0.5, flCurvature), 0.0).rgb * 0.5 - 0.25;
+    vec3 vFalloffSample = textureLod(g_tDiffuseFalloff, vec2(flSoftNoL * 0.5 + 0.5, flCurvature), 0.0).rgb;
+
+    #if (SUBSURFACE_FALLOFF_RAW)
+        vFalloffSample = SrgbLinearToGamma(vFalloffSample);
+    #endif
+
+    vec3 vFalloff = vFalloffSample * 0.5 - 0.25;
 
     return mix(diffuseLight, saturate(vChannelNoL + vFalloff), mat.SSSMask);
 }
@@ -419,8 +453,18 @@ void CalculateShading(inout LightingTerms_t lighting, vec3 lightVector, vec3 lig
 
     vec3 specularLight = SpecularLighting(lightVector, mat.Normal, mat, sheenAlbedoScaling);
 
-    lighting.SpecularDirect += specularLight * lightColor;
-    lighting.DiffuseDirect += diffuseLight * lightColor;
+#if (LIGHT_GEOMETRIC_NORMAL_GATE) && (GLASS_BACKLIGHT)
+    // A light behind the geometric normal passes through the surface, and only that light shows
+    bool lightFacesSurface = dot(lightVector, mat.GeometricNormal) > 0.0;
+#else
+    bool lightFacesSurface = true;
+#endif
+
+    if (lightFacesSurface)
+    {
+        lighting.SpecularDirect += specularLight * lightColor;
+        lighting.DiffuseDirect += diffuseLight * lightColor;
+    }
 
     AddTransmissiveLight(lighting, lightVector, lightColor, mat);
 }

@@ -22,6 +22,11 @@ struct MaterialProperties_t
     vec2 Roughness;
     float IsometricRoughness;
     vec2 RoughnessTex;
+    float EnvironmentBlur;
+    float Reflectance; // Read where ENV_SPECULAR_SCHLICK is set: the fresnel at normal incidence, before the metalness tints it
+    float FresnelExponent; // Read where ENV_SPECULAR_SCHLICK is set: the power the fresnel rises by
+    vec3 IndirectLightTexture; // Read where INDIRECT_LIGHT_TEXTURE is set
+    float GeometricRoughness; // The roughness floor from the change of the geometric normal, 0 where it does not apply
     float AmbientOcclusion;
     float Height;
     vec3 DiffuseAO; // vec3 because Diffuse AO can be tinted
@@ -40,6 +45,7 @@ struct MaterialProperties_t
     vec3 DiffuseColor;
     vec3 SpecularColor;
     vec3 TransmissiveColor;
+    float DirectDiffuseScale;
     vec3 IllumColor;
 
     vec3 LightmapUv;

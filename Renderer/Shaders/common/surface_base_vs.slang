@@ -83,13 +83,16 @@ uniform float g_flAnimationFrame;
 // Texture animation atlases scroll with g_vTexCoordScrollSpeed too when scrollsAnimatedAtlas is set.
 vec2 ApplyTextureAnimation(vec2 texCoords, bool scrollsAnimatedAtlas)
 {
-    if (F_TEXTURE_ANIMATION == 1)
+    if (F_TEXTURE_ANIMATION > 0)
     {
+        // Shaders without a mode combo pick random frames with F_TEXTURE_ANIMATION 2
+        int mode = F_TEXTURE_ANIMATION == 2 ? 1 : F_TEXTURE_ANIMATION_MODE;
+
         uint frame = uint(g_flAnimationFrame);
         uint cells = uint(g_nNumAnimationCells);
-        if (F_TEXTURE_ANIMATION_MODE == 0) // Sequential
+        if (mode == 0) // Sequential
             frame = uint((g_flAnimationTimeOffset + g_flTime) / g_flAnimationTimePerFrame) % cells;
-        else if (F_TEXTURE_ANIMATION_MODE == 1) // Random
+        else if (mode == 1) // Random
             frame = uint(Random2D(vec2(float(uint(g_flAnimationFrame)))) * float(g_nNumAnimationCells));
 
         vec2 atlasGridInv = vec2(1.0) / g_vAnimationGrid.xy;

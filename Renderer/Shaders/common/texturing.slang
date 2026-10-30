@@ -44,6 +44,9 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal, vec3 Pos
     mat.Roughness = vec2(0.0);
     mat.IsometricRoughness = 0.0;
     mat.RoughnessTex = vec2(0.0);
+    mat.EnvironmentBlur = 1.0;
+    mat.Reflectance = 0.0;
+    mat.FresnelExponent = 5.0;
     mat.AmbientOcclusion = 1.0;
     mat.Height = 0.5;
     mat.DiffuseAO = vec3(1.0);
@@ -60,6 +63,7 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal, vec3 Pos
     mat.DiffuseColor = vec3(0.0);
     mat.SpecularColor = vec3(0.04);
     mat.TransmissiveColor = vec3(0.0);
+    mat.DirectDiffuseScale = 1.0;
     mat.IllumColor = vec3(0.0);
 
     mat.LightmapUv = vec3(0.0);
@@ -89,8 +93,10 @@ void AdjustRoughnessByGeometricNormal(inout MaterialProperties_t mat)
 
     vec2 geometricAdjusted = max(mat.RoughnessTex, vec2(geometricRoughnessFactor));
 
+    mat.GeometricRoughness = geometricRoughnessFactor;
     mat.Roughness = geometricAdjusted;
 #else
+    mat.GeometricRoughness = 0.0;
     mat.Roughness = mat.RoughnessTex;
 #endif
 }
