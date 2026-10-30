@@ -60,7 +60,7 @@ layout(binding = 7, std430) buffer OccludedBoundsDebugBuffer
 
 uniform bool g_bOcclusionDebugEnabled;
 uniform bool g_bCpuVisibleEnabled;
-uniform bool g_bBackfaceCulling;
+uniform bool g_bBackfaceCulling; // off for the orthographic sun cascades, which the cone test from g_vCameraPositionWs does not fit
 
 // Depth pyramid (hierarchical depth buffer)
 uniform sampler2D g_tDepthPyramid; // bound above the reserved slots by SceneViewState.SetOcclusionUniforms

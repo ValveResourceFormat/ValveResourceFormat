@@ -667,13 +667,8 @@ public class Renderer : ISceneHost
             // the sun redraws them into
             var lightmapHoldsStatics = sunShadowBaked && !(Settings.StaticSunShadows && cascade <= scene.LightingInfo.LastStaticSunCascade);
 
-            // Casters marked to cast only into the lightmap stay out wherever it holds the sun shadows, even
-            // while the other statics add their detail
-            var skipFlags = sunShadowBaked ? ObjectTypeFlags.NoShadows | ObjectTypeFlags.NoSunShadows : ObjectTypeFlags.NoShadows;
-
-            // Statics the lightmap already shadows only add detail, so they draw the faces the camera sees
-            var (min, max) = state.CollectShadowCasters(frustum, includeStatic: includeBakedStatic || !lightmapHoldsStatics, skipFlags,
-                from.States[i].VisibilityBoxes, depthFitAxis, cullAggregatesOnGpu: true, staticFrontFacesOnly: sunShadowBaked);
+            var (min, max) = state.CollectShadowCasters(frustum, includeStatic: includeBakedStatic || !lightmapHoldsStatics,
+                from.States[i].VisibilityBoxes, depthFitAxis, cullAggregatesOnGpu: true);
 
             depthMin = MathF.Min(depthMin, min);
             depthMax = MathF.Max(depthMax, max);
@@ -714,8 +709,7 @@ public class Renderer : ISceneHost
             // Static shadows of stationary lights are baked
             view.States[0].CollectShadowCasters(view.Camera.ViewFrustum,
                 includeStatic: caster.Light.DirectLight != SceneLight.DirectLightType.Stationary,
-                ObjectTypeFlags.NoShadows, Scene.VisibilityBoxes.PrepareSecondaryView(caster.Light.Position), Vector3.Zero, cullAggregatesOnGpu: false,
-                staticFrontFacesOnly: false);
+                Scene.VisibilityBoxes.PrepareSecondaryView(caster.Light.Position), Vector3.Zero, cullAggregatesOnGpu: false);
 
             barnLightFaceRegions[barnLightFaceViewCount++] = caster.Region;
         }

@@ -201,7 +201,6 @@ public sealed class SunCascades
             halfExtents[cascade] = bbox;
             cullDepthRanges[cascade] = farPlane;
             biasOffsets[cascade] = sceneBoundsMode ? 0f : BiasOffset(bias, farPlane + nearPlaneExtend);
-
         }
 
         ShadowBias = bias;

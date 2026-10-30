@@ -60,8 +60,9 @@ float CalculateSunShadowMapVisibility(vec3 vPosition)
         vec4 projCoordsW = g_matWorldToShadow[cascade] * vec4(vPosition, 1.0);
         vec3 projCoords = projCoordsW.xyz / projCoordsW.w;
 
-        vec2 distFromEdge = vec2(1.0) - abs(projCoords.xy);
-        float edgeFade = smoothstep(0.0, 0.08, min(distFromEdge.x, distFromEdge.y));
+        // A linear band over the outer tenth of each axis
+        vec2 axisFade = vec2(1.0) - saturate(abs(projCoords.xy) * 10.0 - 9.0);
+        float edgeFade = axisFade.x * axisFade.y;
 
         if (edgeFade <= 0.0)
         {
