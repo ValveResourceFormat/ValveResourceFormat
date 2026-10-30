@@ -12,7 +12,3 @@ uniform int F_SELF_ILLUM_CUSTOM_FLOW_TIMER;
 // XEN
 #define F_XEN_GLOW 0
 #define F_XEN_ANIMATION_TEXTURE 0
-
-// Where the Xen glow center comes from: 0 = unknown, the glow is off; 1 = the mesh's prop origin stream;
-// 2 = g_vXenGlowCenterPos in object space, for meshes without that stream
-#define D_XEN_GLOW_ORIGIN 0

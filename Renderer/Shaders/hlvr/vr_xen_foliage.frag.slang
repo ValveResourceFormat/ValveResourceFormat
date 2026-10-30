@@ -26,7 +26,7 @@ uniform vec3 g_vDiffuseWrapColor = vec3(1.0, 0.5, 0.3);
 uniform float g_flAmbientOcclusionDirectDiffuse = 1.0;
 uniform float g_flAmbientOcclusionDirectSpecular = 1.0;
 
-#if (F_XEN_GLOW == 1) && (D_XEN_GLOW_ORIGIN != 0)
+#if (F_XEN_GLOW == 1)
     in vec3 vXenGlowCenterOut;
 
     uniform sampler2D g_tXenGlowMask;
@@ -94,7 +94,7 @@ vec3 GetXenDiffuseNormal(vec2 texCoord, MaterialProperties_t mat)
     return CalculateWorldNormal(blurredNormalMap, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
 }
 
-#if (F_XEN_GLOW == 1) && (D_XEN_GLOW_ORIGIN != 0)
+#if (F_XEN_GLOW == 1)
 
 // A pulsing glow around the prop's glow center, strongest where the view ray passes closest to it
 vec3 GetXenGlow(vec2 texCoord)
@@ -171,7 +171,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     mat.IllumColor = GetXenSelfIllumination(maskParameters);
 #endif
 
-#if (F_XEN_GLOW == 1) && (D_XEN_GLOW_ORIGIN != 0)
+#if (F_XEN_GLOW == 1)
     mat.IllumColor += GetXenGlow(texCoord);
 #endif
 

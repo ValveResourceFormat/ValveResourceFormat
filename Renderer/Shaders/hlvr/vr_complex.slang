@@ -5,8 +5,8 @@
 
 #define UNLIT (F_UNLIT == 1)
 
-// Rect lights shade as area lights
-#define BARN_LIGHT_AREA_LIGHTS 1
+// Rect lights shade as area lights only with specular, otherwise they light from their centre
+#define BARN_LIGHT_AREA_LIGHTS (F_SPECULAR == 1)
 #define LIGHTMAP_VR_SHADING 1
 #define DYNAMIC_LIGHT_ROUGHNESS_SHAPED_DIFFUSE 1
 #define IBL (F_SPECULAR == 1)

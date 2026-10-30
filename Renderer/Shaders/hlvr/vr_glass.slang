@@ -10,6 +10,7 @@
 #define SUBSURFACE 0
 #define DIFFUSE_WRAP 0
 #define ANISO_CUBEMAP_WARP_OPTIONAL 0
+#define FOG_NO_VOLUMETRIC 1
 
 #include "../common/surface_base_ps.slang"
 #include "../common/surface_material.slang"
@@ -94,6 +95,29 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
 #if (S_MODE_DEPTH == 0)
 
+uniform bool g_bAvoidDoubleFogging = true;
+uniform float g_flGlassFogExtinctionAmount = 0.0;
+
+vec3 FogGlassVolumetric(vec3 color, inout vec3 transmission, float opacity, vec3 positionWs)
+{
+    if (!g_bFogEnabled || !g_bFogTypeEnabled.x)
+    {
+        return color;
+    }
+
+    vec4 volumetric = GetVolumetricFog(positionWs);
+    float transmitted = g_bAvoidDoubleFogging ? mix(volumetric.a, 1.0, 1.0 - opacity) : volumetric.a;
+    transmission *= transmitted;
+
+    vec3 scattered = volumetric.rgb * (1.0 - g_flGlassFogExtinctionAmount * volumetric.a);
+    if (g_bAvoidDoubleFogging)
+    {
+        scattered *= vec3(1.0) - transmission;
+    }
+
+    return color * volumetric.a + scattered;
+}
+
 vec4 GetGlassOutput(MaterialProperties_t mat, vec3 diffuseLighting, vec3 transmissiveLighting, vec3 specularLighting)
 {
     diffuseLighting += transmissiveLighting;
@@ -102,6 +126,7 @@ vec4 GetGlassOutput(MaterialProperties_t mat, vec3 diffuseLighting, vec3 transmi
     vec3 transmission = glassTransmission;
 
     color = FogGlass(color, transmission, mat.PositionWS);
+    color = FogGlassVolumetric(color, transmission, mat.Opacity, mat.PositionWS);
 
     float fade = vVertexColorOut.a;
     color *= fade;

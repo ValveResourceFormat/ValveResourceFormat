@@ -19,13 +19,8 @@ out vec4 vFoliageParamsOut;
     out vec4 vColorBlendValues;
 #endif
 
-#if (F_XEN_GLOW == 1) && (D_XEN_GLOW_ORIGIN != 0)
-    #if (D_XEN_GLOW_ORIGIN == 1)
-        in vec3 vPropWorldOrigin;
-    #else
-        uniform vec3 g_vXenGlowCenterPos;
-    #endif
-
+#if (F_XEN_GLOW == 1)
+    in vec3 vPropWorldOrigin;
     out vec3 vXenGlowCenterOut;
 #endif
 
@@ -101,14 +96,8 @@ void main()
     vFragPosition = XenAnimation(vFragPosition, vNormalOut, vCOLOR.x);
     gl_Position = g_matWorldToProjection * vec4(vFragPosition, 1.0);
 
-#if (F_XEN_GLOW == 1) && (D_XEN_GLOW_ORIGIN != 0)
-    #if (D_XEN_GLOW_ORIGIN == 1)
-        vec3 glowCenter = vPropWorldOrigin;
-    #else
-        vec3 glowCenter = g_vXenGlowCenterPos;
-    #endif
-
-    vXenGlowCenterOut = vec4(glowCenter, 1.0) * CalculateObjectToWorldMatrix();
+#if (F_XEN_GLOW == 1)
+    vXenGlowCenterOut = vec4(vPropWorldOrigin, 1.0) * CalculateObjectToWorldMatrix();
 #endif
 
 #if (F_BLEND == 1)
