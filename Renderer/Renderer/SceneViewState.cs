@@ -613,13 +613,19 @@ public sealed class SceneViewState
                     customBufferNodes.Add(node);
                 }
 
-                var customLists = (customPasses & CustomRenderPasses.Viewmodel) != 0
-                    ? viewmodelRenderLists
-                    : renderLists;
+                var isViewmodel = (customPasses & CustomRenderPasses.Viewmodel) != 0;
+                var customLists = isViewmodel ? viewmodelRenderLists : renderLists;
 
                 if ((customPasses & CustomRenderPasses.Opaque) != 0)
                 {
-                    customLists[RenderPass.Opaque].Add(customRender);
+                    var opaqueList = (Scene.Settings.EnableDepthPrepass, isViewmodel) switch
+                    {
+                        (false, _) => customLists[RenderPass.Opaque],
+                        (true, false) => unprimedOpaqueDraws,
+                        (true, true) => viewmodelUnprimedOpaqueDraws,
+                    };
+
+                    opaqueList.Add(customRender);
                 }
 
                 if ((customPasses & CustomRenderPasses.Translucent) != 0)
