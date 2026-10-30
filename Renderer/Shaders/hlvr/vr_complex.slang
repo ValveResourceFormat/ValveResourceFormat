@@ -14,6 +14,7 @@
 #define DIFFUSE_WRAP (F_DIFFUSE_WRAP == 1)
 #define ANISO_CUBEMAP_WARP_OPTIONAL 1
 #define ANISO_CUBEMAP_WARP_VERTEX_FRAME 1
+#define ALPHA_TEST_COVERAGE_BY_UV_FOOTPRINT 1
 
 #include "../common/surface_base_ps.slang"
 #include "../common/surface_material.slang"

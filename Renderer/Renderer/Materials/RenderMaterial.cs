@@ -172,7 +172,8 @@ namespace ValveResourceFormat.Renderer.Materials
         public bool IsAlphaTest { get; private set; }
 
         /// <summary>Gets whether this material can perform early depth priming and then shade with Equal comparison.</summary>
-        public bool CanPrimeDepth => !hasDepthBias && !IsOverlay && !disableDepthTest && IntParams.GetValueOrDefault("F_NO_Z_PREPASS") == 0;
+        public bool CanPrimeDepth => !hasDepthBias && !IsOverlay && !disableDepthTest && IntParams.GetValueOrDefault("F_NO_Z_PREPASS") == 0
+            && IntParams.GetValueOrDefault("F_DISABLE_Z_PREPASS") == 0;
 
         private readonly MaterialLoader? Loader;
 
