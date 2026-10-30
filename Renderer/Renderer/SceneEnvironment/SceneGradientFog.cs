@@ -39,6 +39,12 @@ public class SceneGradientFog(Scene scene) : SceneNode(scene)
     public float MaxOpacity { get; set; }
 
     /// <summary>
+    /// Gets or sets the texture of the fog color and opacity over the distance and the height, or <see langword="null"/>
+    /// when the entity has none. The shaders that fog with a texture ignore the color, exponents and opacity above.
+    /// </summary>
+    public RenderTexture? Texture { get; set; }
+
+    /// <summary>
     /// Returns a <see cref="Vector4"/> encoding the distance bias, height bias, distance scale, and height scale for shader use.
     /// </summary>
     /// <param name="fogSpace">Converts authored distances and heights into the view's space.</param>
@@ -76,15 +82,14 @@ public class SceneGradientFog(Scene scene) : SceneNode(scene)
 
     /// <summary>
     /// Gets the squared start distance and the culling height packed as a <see cref="Vector2"/> for GPU culling.
-    /// The culling height is where the height term reaches zero, or the height start in Half-Life: Alyx.
+    /// The culling height is where the height term reaches zero.
     /// </summary>
     /// <param name="fogSpace">Converts authored distances and heights into the view's space.</param>
     public Vector2 CullingParams(FogSpace fogSpace)
     {
         var startDist = fogSpace.Distance(StartDist);
-        var cullingHeight = Scene.RendererContext.FileLoader.GameInfo.Game == Game.Hlvr ? HeightStart : HeightEnd;
 
-        return new Vector2(startDist * startDist, fogSpace.Height(cullingHeight));
+        return new Vector2(startDist * startDist, fogSpace.Height(HeightEnd));
     }
 
     /// <summary>Creates the fog an <c>env_gradient_fog</c> entity describes.</summary>
@@ -137,8 +142,18 @@ public class SceneGradientFog(Scene scene) : SceneNode(scene)
             distExponent = 2.0f; // Need the value for SteamVR
         }
 
+        RenderTexture? texture = null;
+        var textureName = entity.GetStringProperty("gradientfogtexture");
+
+        if (!string.IsNullOrEmpty(textureName))
+        {
+            texture = scene.RendererContext.MaterialLoader.GetTexture(textureName, srgbRead: true);
+            texture.SetWrapMode(RsTextureAddressMode.Clamp);
+        }
+
         return new SceneGradientFog(scene)
         {
+            Texture = texture,
             StartDist = startDist,
             EndDist = endDist,
             FalloffExponent = distExponent,

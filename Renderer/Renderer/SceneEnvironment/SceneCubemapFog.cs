@@ -77,9 +77,19 @@ public class SceneCubemapFog(Scene scene) : SceneNode(scene)
         if (HasHeightRange)
         {
             var heightStart = fogSpace.Height(HeightStart);
+            var heightEnd = fogSpace.Height(HeightEnd);
 
-            scale = 1f / (heightStart - fogSpace.Height(HeightEnd));
-            offset = 1f - (heightStart * scale);
+            if (BlendsByMax)
+            {
+                scale = 1f / (heightEnd - heightStart);
+                offset = -(heightStart * scale);
+            }
+            else
+            {
+                scale = 1f / (heightStart - heightEnd);
+                offset = 1f - (heightStart * scale);
+            }
+
             exponent = HeightExponent;
         }
 
@@ -97,9 +107,9 @@ public class SceneCubemapFog(Scene scene) : SceneNode(scene)
         var distCull = startDist * startDist;
         var heightCull = float.PositiveInfinity;
 
-        if (IsHalfLifeAlyx)
+        if (BlendsByMax)
         {
-            if (UseHeightFog || HasHeightRange)
+            if (HasHeightRange)
             {
                 heightCull = fogSpace.Height(HeightStart);
             }
@@ -112,10 +122,12 @@ public class SceneCubemapFog(Scene scene) : SceneNode(scene)
         return new Vector4(distCull, heightCull, MathF.Pow(2f, ExposureBias), Opacity);
     }
 
-    private bool IsHalfLifeAlyx => Scene.RendererContext.FileLoader.GameInfo.Game == Game.Hlvr;
+    // The VR shaders take the stronger of the distance and height terms. Those are the lightmap versions below 2
+    // and the games with a VR forward pipeline. The shaders read the same attribute.
+    private bool BlendsByMax => Scene.RenderAttributes.GetValueOrDefault("S_FOG_CUBE_BLEND_MAX", (byte)1) == 1;
 
-    // Without height fog both heights are infinite, so they compare equal. Half-Life: Alyx takes only upward ranges.
-    private bool HasHeightRange => IsHalfLifeAlyx ? HeightEnd - HeightStart > 0 : HeightEnd != HeightStart;
+    // Without height fog both heights are infinite, so they compare equal. The VR shaders take only upward ranges.
+    private bool HasHeightRange => BlendsByMax ? HeightEnd - HeightStart > 0 : HeightEnd != HeightStart;
 
     /// <summary>The <c>cubemapfogsource</c> values.</summary>
     public enum FogSource : uint

@@ -183,7 +183,7 @@ namespace Tests.Renderer
             using (Assert.Multiple())
             {
                 await Assert.That(ShaderLoader.GetShaderFileByName("mygame_glass.vfx")).IsEqualTo("fallback");
-                await Assert.That(ShaderLoader.GetShaderFileByName("sky.vfx")).IsEqualTo("core/sky");
+                await Assert.That(ShaderLoader.GetShaderFileByName("cables.vfx")).IsEqualTo("core/cables");
 
                 // Renderer shader files are loaded as themselves, and throw when they do not exist
                 await Assert.That(ShaderLoader.GetShaderFileByName("mygame_glass")).IsEqualTo("mygame_glass");

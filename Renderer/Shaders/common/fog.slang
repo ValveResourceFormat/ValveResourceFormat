@@ -12,24 +12,48 @@
 // Per-material
 uniform bool g_bFogEnabled = true;
 
+// A shader that sets this fogs with a texture of the fog color and opacity, over the horizontal distance from the
+// camera and the height, instead of the fog color, exponents and maximum opacity.
+#ifndef FOG_GRADIENT_TEXTURE
+#define FOG_GRADIENT_TEXTURE 0
+#endif
+
+// A shader that sets this to 1 looks the texture up by the distance from the camera in all three axes alone, at the
+// same coordinate in both directions of the texture.
+#ifndef FOG_GRADIENT_TEXTURE_DISTANCE
+#define FOG_GRADIENT_TEXTURE_DISTANCE 0
+#endif
+
+#if (FOG_GRADIENT_TEXTURE)
+uniform sampler2D g_tGradientFogTexture; // SrgbRead(true)
+#endif
+
 // The fog color in rgb and its opacity in a
 vec4 GetGradientFog(vec3 positionWS, vec3 cameraCenteredPixelPos)
 {
-    vec2 gradientFogComponents; // x for the distance from the camera, y for height in World Space
-
-    #if (FOG_GRADIENT_HORIZONTAL_DISTANCE)
-        gradientFogComponents.x = length(cameraCenteredPixelPos.xy);
+    #if (FOG_GRADIENT_TEXTURE && FOG_GRADIENT_TEXTURE_DISTANCE)
+        float fogDistance = length(cameraCenteredPixelPos) * g_vGradientFogBiasAndScale.z + g_vGradientFogBiasAndScale.x;
+        return texture(g_tGradientFogTexture, vec2(fogDistance));
+    #elif (FOG_GRADIENT_TEXTURE)
+        vec2 fogTexCoord = vec2(length(cameraCenteredPixelPos.xy), positionWS.z) * g_vGradientFogBiasAndScale.zw + g_vGradientFogBiasAndScale.xy;
+        return texture(g_tGradientFogTexture, fogTexCoord);
     #else
-        gradientFogComponents.x = length(cameraCenteredPixelPos);
+        vec2 gradientFogComponents; // x for the distance from the camera, y for height in World Space
+
+        #if (FOG_GRADIENT_HORIZONTAL_DISTANCE)
+            gradientFogComponents.x = length(cameraCenteredPixelPos.xy);
+        #else
+            gradientFogComponents.x = length(cameraCenteredPixelPos);
+        #endif
+
+        gradientFogComponents.y = positionWS.z;
+
+        gradientFogComponents = pow( clamp(gradientFogComponents * g_vGradientFogBiasAndScale.zw + g_vGradientFogBiasAndScale.xy, 0.0001, 1.0), m_vGradientFogExponents );
+
+        float gradientFogBlend = gradientFogComponents.x * gradientFogComponents.y * g_vGradientFogColor_Opacity.a;
+
+        return vec4(g_vGradientFogColor_Opacity.rgb, gradientFogBlend);
     #endif
-
-    gradientFogComponents.y = positionWS.z;
-
-    gradientFogComponents = pow( clamp(gradientFogComponents * g_vGradientFogBiasAndScale.zw + g_vGradientFogBiasAndScale.xy, 0.0001, 1.0), m_vGradientFogExponents );
-
-    float gradientFogBlend = gradientFogComponents.x * gradientFogComponents.y * g_vGradientFogColor_Opacity.a;
-
-    return vec4(g_vGradientFogColor_Opacity.rgb, gradientFogBlend);
 }
 
 float GetGradientFogDistanceSquared(vec3 cameraCenteredPixelPos)
@@ -80,6 +104,30 @@ uniform samplerCube g_tFogCubeTexture; // reserved
 // The fog color in rgb and its opacity in a
 vec4 GetCubemapFog(vec3 positionWS, vec3 posRelativeToCamera)
 {
+#if (FOG_CUBE_BLEND_MAX)
+    float distanceTerm = pow(max(length(posRelativeToCamera) * g_vCubeFog_Offset_Scale_Bias_Exponent.y + g_vCubeFog_Offset_Scale_Bias_Exponent.x, 0.0), g_vCubeFog_Offset_Scale_Bias_Exponent.w);
+
+    // Without a height range the height term is left at zero
+    float heightTerm = 0.0;
+
+    if (g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.z != 0.0)
+    {
+        heightTerm = pow(max(positionWS.z * g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.y + g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.x, 0.0), g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.z);
+    }
+
+    float cubemapFogTerm = max(distanceTerm, heightTerm);
+
+    vec3 fogCoords = normalize((vec4(normalize(posRelativeToCamera), 0.0) * g_matvCubeFogSkyWsToOs).xyz);
+    float cubemapFogLod = saturate(1.0 - cubemapFogTerm * g_vCubeFog_Offset_Scale_Bias_Exponent.z) * g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.w;
+
+    vec3 cubemapFogColor = textureLod(g_tFogCubeTexture, fogCoords, cubemapFogLod).rgb;
+
+    #if (FOG_CUBE_EXPOSURE_BIAS)
+        cubemapFogColor *= g_vCubeFogCullingParams_ExposureBias_MaxOpacity.z;
+    #endif
+
+    return vec4(cubemapFogColor, saturate(cubemapFogTerm));
+#else
     vec2 cubeFogComponents;
     cubeFogComponents.x = pow(max(length(posRelativeToCamera) * g_vCubeFog_Offset_Scale_Bias_Exponent.y + g_vCubeFog_Offset_Scale_Bias_Exponent.x, 0.0001), g_vCubeFog_Offset_Scale_Bias_Exponent.w);
     cubeFogComponents.y = pow(max(positionWS.z * g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.y + g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.x, 0.0001), g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.z);
@@ -95,6 +143,7 @@ vec4 GetCubemapFog(vec3 positionWS, vec3 posRelativeToCamera)
     cubemapFogColor *= g_vCubeFogCullingParams_ExposureBias_MaxOpacity.z;
 
     return vec4(cubemapFogColor, cubemapFogOpacity);
+#endif
 }
 
 void ApplyCubemapFog(inout vec3 pixelColor, vec3 positionWS, vec3 posRelativeToCamera)
@@ -133,7 +182,13 @@ void ApplyFog(inout vec3 pixelColor, vec3 positionWS)
 
         if (g_bFogTypeEnabled.y)
         {
-            #if (FOG_CULLING_FIXED_HEIGHT_SIDE)
+            #if (FOG_GRADIENT_TEXTURE)
+                // The texture holds the start and the height range of the fog, there is nothing to cull by
+                bool bPixelHasGradientFog = true;
+            #elif (FOG_CULLING_BELOW_HEIGHT)
+                float horizontalDistanceQuadratic = length_squared(cameraCenteredPixelPos.xy);
+                bool bPixelHasGradientFog = (horizontalDistanceQuadratic > g_vGradientFogCullingParams.x) && (positionWS.z < g_vGradientFogCullingParams.y);
+            #elif (FOG_CULLING_FIXED_HEIGHT_SIDE)
                 float horizontalDistanceQuadratic = length_squared(cameraCenteredPixelPos.xy);
                 bool bPixelHasGradientFog = (horizontalDistanceQuadratic > g_vGradientFogCullingParams.x) || (positionWS.z > g_vGradientFogCullingParams.y);
             #else
@@ -152,7 +207,7 @@ void ApplyFog(inout vec3 pixelColor, vec3 positionWS)
             float distanceQuadratic = length_squared(cameraCenteredPixelPos);
             bool bPixelPastCubeFogStart = distanceQuadratic > g_vCubeFogCullingParams_ExposureBias_MaxOpacity.x;
 
-            #if (FOG_CULLING_FIXED_HEIGHT_SIDE)
+            #if (FOG_CUBE_BLEND_MAX)
                 bool bPixelHasCubemapFog = bPixelPastCubeFogStart || (positionWS.z > g_vCubeFogCullingParams_ExposureBias_MaxOpacity.y);
             #else
                 // Skips the pixels where the fog is zero anyway, as for the gradient fog

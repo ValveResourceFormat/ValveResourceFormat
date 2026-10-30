@@ -988,6 +988,7 @@ public class Renderer : ISceneHost
     {
         BindView(view, state);
         view.Fog.BindVolumetricFog();
+        view.Fog.BindGradientFogTexture();
         state.Scene.SetSceneBuffers();
         state.LightBinner.Bind();
 
@@ -1144,7 +1145,7 @@ public class Renderer : ISceneHost
             if (Settings.FogEnabled && Settings.VolumetricFogEnabled)
             {
                 using var _ = new GLDebugGroup("Volumetric Fog");
-                volumetricFog.Render(Scene, mainCamera.Location);
+                volumetricFog.Render(Scene, mainCamera.Location, BarnLightShadowBuffer?.Depth);
             }
             else
             {

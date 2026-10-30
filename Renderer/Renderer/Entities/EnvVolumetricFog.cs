@@ -40,6 +40,9 @@ public sealed class EnvVolumetricFogVolume : BaseEntity
         base.Spawn();
 
         var entity = KeyValues;
+        var fogInfo = Scene.FogInfo;
+        fogInfo.Volumetric ??= new VolumetricFog(Scene.RendererContext);
+        fogInfo.Volumetric.VolumeEntityCount++;
 
         if (entity.GetBooleanProperty("startdisabled"))
         {
@@ -47,8 +50,6 @@ public sealed class EnvVolumetricFogVolume : BaseEntity
         }
 
         var origin = WorldOrigin;
-        var fogInfo = Scene.FogInfo;
-        fogInfo.Volumetric ??= new VolumetricFog(Scene.RendererContext);
 
         var newVolume = new VolumetricFog.FogVolume(
             origin + entity.GetVector3Property("box_mins"),
@@ -64,9 +65,14 @@ public sealed class EnvVolumetricFogVolume : BaseEntity
     /// <inheritdoc/>
     protected override void OnRemove()
     {
-        if (fogVolume is { } volume)
+        if (Scene.FogInfo.Volumetric is { } volumetric)
         {
-            Scene.FogInfo.Volumetric?.Volumes.Remove(volume);
+            volumetric.VolumeEntityCount--;
+
+            if (fogVolume is { } volume)
+            {
+                volumetric.Volumes.Remove(volume);
+            }
         }
 
         base.OnRemove();

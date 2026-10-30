@@ -1,3 +1,4 @@
+using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 
 namespace ValveResourceFormat.Renderer.World
@@ -73,7 +74,18 @@ namespace ValveResourceFormat.Renderer.World
         {
             if (Volumetric?.Volume is { } volume)
             {
-                OpenTK.Graphics.OpenGL.GL.BindTextureUnit((int)Materials.ReservedTextureSlots.FogVolume, volume.Handle);
+                GL.BindTextureUnit((int)ReservedTextureSlots.FogVolume, volume.Handle);
+            }
+        }
+
+        /// <summary>
+        /// Binds the gradient fog texture to its texture unit, for the shaders that fog with one.
+        /// </summary>
+        internal void BindGradientFogTexture()
+        {
+            if (GradientFogActive && GradientFog?.Texture is { } texture)
+            {
+                GL.BindTextureUnit((int)ReservedTextureSlots.GradientFogTexture, texture.Handle);
             }
         }
 
@@ -83,7 +95,7 @@ namespace ValveResourceFormat.Renderer.World
         /// <param name="viewConstants">The view constants buffer to update.</param>
         /// <param name="viewerFogEnabled">Whether fog rendering is enabled in the viewer settings.</param>
         /// <param name="fogSpace">Converts authored distances and heights into the view's space.</param>
-        public void SetFogUniforms(Buffers.ViewConstants viewConstants, bool viewerFogEnabled, FogSpace fogSpace)
+        public void SetFogUniforms(ViewConstants viewConstants, bool viewerFogEnabled, FogSpace fogSpace)
         {
             viewConstants.VolumetricFogActive = viewerFogEnabled && Volumetric is { Volume: not null };
 
@@ -121,7 +133,7 @@ namespace ValveResourceFormat.Renderer.World
         // The gradient fog of the shaders covers a pixel by pow(saturate(distance * scale + bias), exponent) times its
         // opacity. The height term is a constant 1 here, so the culling height is unused. Without a range after the
         // start every pixel is fully in the fog, which the culling distance must not skip.
-        private static void SetLinearFogUniforms(Buffers.ViewConstants viewConstants, bool viewerFogEnabled, LinearFog fog, FogSpace fogSpace)
+        private static void SetLinearFogUniforms(ViewConstants viewConstants, bool viewerFogEnabled, LinearFog fog, FogSpace fogSpace)
         {
             var start = fogSpace.Distance(fog.Start);
             var end = fogSpace.Distance(fog.End);

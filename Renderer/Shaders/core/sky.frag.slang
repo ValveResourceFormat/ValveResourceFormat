@@ -2,8 +2,19 @@
 
 #include "../common/utils.slang"
 #include "../common/view_constants.slang"
+#ifndef SKY_VOLUMETRIC_FOG
+#define SKY_VOLUMETRIC_FOG 0
+#endif
+
+#if (SKY_VOLUMETRIC_FOG)
+#include "../common/fog.slang"
+
+// Far enough that the volumetric fog lookup clamps to the end of the volume
+#define SKY_BOX_DISTANCE 500000.0
+#endif
 
 in vec3 vSkyLookupInterpolant;
+in vec3 vSkyBoxPositionWs;
 out vec4 vColor;
 
 #define VRF_TEXTURE_FORMAT_YCOCG 2
@@ -80,6 +91,13 @@ void main()
 
         vColor.rgb = mix(vColor.rgb, g_vSkyFogColor, flFog);
     }
+
+#if (SKY_VOLUMETRIC_FOG)
+    if (g_bFogTypeEnabled.x)
+    {
+        ApplyVolumetricFog(vColor.rgb, g_vCameraPositionWs + vSkyBoxPositionWs * SKY_BOX_DISTANCE);
+    }
+#endif
 
     // Every render mode draws the sky as it is, shown as it is written without post processing
     if (g_iRenderMode != 0)

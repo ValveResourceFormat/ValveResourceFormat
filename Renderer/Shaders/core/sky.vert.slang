@@ -47,6 +47,7 @@ const vec4 BOX[36] =
 };
 
 out vec3 vSkyLookupInterpolant;
+out vec3 vSkyBoxPositionWs;
 
 #include "../common/view_constants.slang"
 
@@ -62,4 +63,5 @@ void main()
     gl_Position = vPositionWs.xyww;
     gl_Position.z = 0.0;
     vSkyLookupInterpolant = vPositionOs.xyz;
+    vSkyBoxPositionWs = vRotatedPosition.xyz;
 }
