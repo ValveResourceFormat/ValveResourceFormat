@@ -742,7 +742,8 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         /// <param name="camera">The camera used for culling and shadow resolution selection.</param>
         /// <param name="atlasSize">Pixel size of the shadow atlas texture.</param>
-        public void BinBarnLights(Camera camera, int atlasSize)
+        /// <param name="cull">Whether to drop lights outside the camera frustum or faded out by their screen size.</param>
+        public void BinBarnLights(Camera camera, int atlasSize, bool cull)
         {
             BarnLightShadowAtlasSize = atlasSize;
             LightingData.NumBarnLights = 0;
@@ -751,7 +752,7 @@ namespace ValveResourceFormat.Renderer.World
             binner?.PollBarnLightVisibility();
 
             ShadowMapper.Bin(BarnLights, camera, atlasSize, BarnLightCookiePaths,
-                binner?.VisibilitySequence ?? 0);
+                binner?.VisibilitySequence ?? 0, cull);
 
             var tanHalfHorizontalFov = MathF.Tan(camera.GetFOV() * 0.5f) * camera.AspectRatio;
             var binnedLights = ShadowMapper.BinnedLights;
@@ -784,7 +785,7 @@ namespace ValveResourceFormat.Renderer.World
                 var screenSize = light.ComputeScreenSize(camera.Location, tanHalfHorizontalFov);
                 var (lightFade, shadowFade) = light.ComputeScreenSizeFades(screenSize);
 
-                if (lightFade <= 0f)
+                if (cull && lightFade <= 0f)
                 {
                     continue;
                 }

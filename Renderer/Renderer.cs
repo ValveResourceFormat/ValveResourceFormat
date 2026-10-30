@@ -2355,7 +2355,7 @@ public class Renderer : ISceneHost
 
         if (Settings.EnableBarnLights)
         {
-            Scene.LightingInfo.BinBarnLights(Camera, ShadowTextureSize);
+            Scene.LightingInfo.BinBarnLights(Camera, ShadowTextureSize, cull: !Settings.DisableAllCulling);
         }
         else
         {

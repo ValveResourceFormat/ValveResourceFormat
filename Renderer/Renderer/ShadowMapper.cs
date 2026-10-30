@@ -70,8 +70,9 @@ public class ShadowMapper
     /// <param name="cookiePaths">Map from cookie material path to cookie atlas index, used when recomputing dirty faces.</param>
     /// <param name="visibilitySequence">Readback the per face cull mask is taken from. A light not stamped
     /// with it is treated as lit, so a sequence no light carries shadows every face.</param>
+    /// <param name="cull">Whether to drop lights outside the camera frustum and faces the readback found reaching no visible tile.</param>
     public void Bin(List<SceneLight> lights, Camera camera, int atlasSize, Dictionary<string, int> cookiePaths,
-        int visibilitySequence)
+        int visibilitySequence, bool cull)
     {
         candidateCount = 0;
         ShadowCasters.Clear();
@@ -89,7 +90,7 @@ public class ShadowMapper
         {
             var light = lights[sceneIndex];
 
-            if (light.PrecomputedFieldsValid && !cameraFrustum.Intersects(light.PrecomputedBounds))
+            if (cull && light.PrecomputedFieldsValid && !cameraFrustum.Intersects(light.PrecomputedBounds))
             {
                 continue;
             }
@@ -106,7 +107,7 @@ public class ShadowMapper
             }
 
             var importance = ComputeImportance(light, camera.Location, pixelsPerUnit);
-            var maskCulledFaces = ComputeMaskCulledFaces(light, visibilitySequence);
+            var maskCulledFaces = cull ? ComputeMaskCulledFaces(light, visibilitySequence) : 0u;
 
             var candidate = new BinnedLight
             {
