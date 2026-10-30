@@ -488,9 +488,8 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
             };
 
             // Shown as its tools material is, rather than as the collision chosen to be shown
-            if (toolsMaterial != null)
+            if (toolsMaterial != null && node.SetToolsMaterial(toolsMaterial))
             {
-                node.SetToolsMaterial(toolsMaterial);
                 node.Enabled = true;
             }
 

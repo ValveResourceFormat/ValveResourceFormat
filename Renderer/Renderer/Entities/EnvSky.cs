@@ -1,6 +1,7 @@
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
@@ -69,7 +70,7 @@ public sealed class EnvSky : BaseEntity
 
     private SceneSkybox2D CreateSkybox2D(string materialName)
     {
-        var tint = isGlobalLight ? Vector3.One : KeyValues.GetColor32Property("tint_color") * BrightnessScale;
+        var tint = isGlobalLight ? Vector3.One : ColorSpace.SrgbGammaToLinear(KeyValues.GetColor32Property("tint_color")) * BrightnessScale;
         var rendererContext = Scene.RendererContext;
 
         using var skyMaterial = rendererContext.FileLoader.LoadFileCompiled(materialName);

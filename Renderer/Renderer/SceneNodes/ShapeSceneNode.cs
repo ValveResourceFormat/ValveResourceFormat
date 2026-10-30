@@ -139,10 +139,19 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         /// <summary>Makes the shape stand for a tools material, see <see cref="ToolsMaterial"/>.</summary>
         /// <param name="materialName">The path of the material.</param>
-        protected void SetToolsMaterial(string materialName)
+        protected bool SetToolsMaterial(string materialName)
         {
-            ToolsMaterial = Scene.RendererContext.MaterialLoader.GetMaterial(materialName, null);
-            toolTexture = ToolsMaterial.GetColorTexture();
+            var material = Scene.RendererContext.MaterialLoader.GetMaterial(materialName, null);
+
+            // A game that does not ship the material loads the error material, which hiding tools would not hide
+            if (!material.IsToolsMaterial)
+            {
+                return false;
+            }
+
+            ToolsMaterial = material;
+            toolTexture = material.GetColorTexture();
+            return true;
         }
 
         private void Init(List<SimpleVertexNormal> verts, List<int> inds)

@@ -271,7 +271,8 @@ public sealed class SceneViewState
 
     private NodeCull TestNodeCull(SceneNode node, ReadOnlySpan<byte> pvs, VisibilityBoxCuller? boxes)
     {
-        if (!node.Visible)
+        // A node faded out entirely is culled in every view, shadows included
+        if (!node.Visible || node.Alpha <= 0f)
         {
             return NodeCull.Hidden;
         }
@@ -396,7 +397,9 @@ public sealed class SceneViewState
             }
             else if (Scene.Settings.EnableDepthPrepass)
             {
-                if (!material.CanPrimeDepth)
+                // The depth only shader cannot fade, so a surface that fades out by its alpha would write full depth
+                // and leave a hole where the color pass discards it
+                if (!material.CanPrimeDepth || request.Node.Alpha < 1f)
                 {
                     queueList = isViewmodelLayer ? viewmodelUnprimedOpaqueDraws : unprimedOpaqueDraws;
                 }

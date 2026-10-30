@@ -154,9 +154,26 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
         var fallbackMaterial = entity is BaseModelEntity { ModelNode: null } ? ToolsMaterials.Trigger : null;
 
         // A group built from a tools material is all the compiled map keeps of the faces Hammer drew with it
-        return PhysSceneNode.Create(scene, physics, name, group => autoApplyMaterial
-            ?? ToolsMaterials.GetForCollision(physics.CollisionAttributes[group])
-            ?? fallbackMaterial);
+        var drawsMeshes = entity is BaseModelEntity { ModelNode: not null };
+
+        return PhysSceneNode.Create(scene, physics, name, group =>
+        {
+            if (autoApplyMaterial != null)
+            {
+                return autoApplyMaterial;
+            }
+
+            var attributes = physics.CollisionAttributes[group];
+
+            // The collision of a prop compiles to the same attributes as a tools material of the default group
+            // that excludes a layer, so a model that draws meshes only traces back groups in a layer of their own
+            if (drawsMeshes && PhysAggregateData.GetInteractAsTags(attributes).Length == 0)
+            {
+                return null;
+            }
+
+            return ToolsMaterials.GetForCollision(attributes) ?? fallbackMaterial;
+        });
     }
 
     /// <inheritdoc/>

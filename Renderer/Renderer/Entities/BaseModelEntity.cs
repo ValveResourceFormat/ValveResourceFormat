@@ -100,6 +100,11 @@ public abstract class BaseModelEntity : BaseEntity
             TintAlpha = Data?.GetRenderTint() ?? Vector4.One,
         };
 
+        if (Data != null && DisablesShadows(Data))
+        {
+            modelNode.Flags |= ObjectTypeFlags.NoShadows;
+        }
+
         // Model-referenced particles spawn regardless of meshes
         var particleNodes = ParticleSceneNode.CreateModelParticles(Scene, model, modelNode);
 
@@ -170,6 +175,33 @@ public abstract class BaseModelEntity : BaseEntity
         }
 
         return ModelNode ?? base.CreateRootNode();
+    }
+
+    // Older games store a boolean, newer ones a cast shadows mode where 1 is no shadows. The modes that keep
+    // only realtime (2) or only baked (3) shadows are not modelled.
+    private static bool DisablesShadows(EntityLump.Entity data)
+    {
+        if (!data.TryGetValue("disableshadows", out var value))
+        {
+            return false;
+        }
+
+        return value.ValueType switch
+        {
+            KVValueType.Boolean => (bool)value,
+            KVValueType.String => ParseDisable((string)value),
+            _ => (int)value == 1,
+        };
+    }
+
+    private static bool ParseDisable(string text)
+    {
+        if (bool.TryParse(text, out var disabled))
+        {
+            return disabled;
+        }
+
+        return text == "1";
     }
 
     /// <summary>
