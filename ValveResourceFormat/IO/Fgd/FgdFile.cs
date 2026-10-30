@@ -64,6 +64,7 @@ public sealed partial class FgdFile
     private readonly Func<string, Stream?>? openFile;
 
     private readonly Dictionary<string, FgdClass> classesByName = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<FgdClass> extensions = [];
 
     /// <summary>Gets the classes, in the order they are declared.</summary>
     public List<FgdClass> Classes { get; } = [];
@@ -79,6 +80,18 @@ public sealed partial class FgdFile
 
     /// <summary>Gets the filters a file declares for what is shown of a map, as the keys they are declared with.</summary>
     public List<KVObject> VisGroupFilters { get; } = [];
+
+    /// <summary>Gets the material folders the material browser leaves out, where a file of an older game declares them.</summary>
+    public List<string> MaterialExclusions { get; } = [];
+
+    /// <summary>Gets the groups that show or hide entities by their class, where a file of an older game declares them.</summary>
+    public List<FgdAutoVisGroup> AutoVisGroups { get; } = [];
+
+    /// <summary>Gets the help file of each class that names one, by the name of the class.</summary>
+    public Dictionary<string, string> HelpFiles { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Gets the version a file declares for the editor to check it against, where one does.</summary>
+    public int? Version { get; private set; }
 
     /// <summary>
     /// Gets what could not be read. Reading carries on past it at the next section, or the next key of a class
@@ -148,13 +161,24 @@ public sealed partial class FgdFile
     }
 
     /// <summary>
-    /// Gives every class what it takes from the classes it is based on: their variables, inputs and outputs,
+    /// Adds the <see cref="FgdClassType.ExtendClass"/> classes read so far to the classes they extend, then
+    /// gives every class what it takes from the classes it is based on: their variables, inputs and outputs,
     /// their tags and keys, and their size and color where it declares none. Helpers are not taken. It can be
     /// called again after more files are read: what a class has by then counts as its own, so it keeps the
     /// variables it already took over the ones its bases have since changed, and gains the ones they added.
     /// </summary>
     public void ResolveBaseClasses()
     {
+        foreach (var extension in extensions)
+        {
+            if (classesByName.GetValueOrDefault(extension.Name) is { } existing)
+            {
+                Extend(existing, extension);
+            }
+        }
+
+        extensions.Clear();
+
         foreach (var gameClass in Classes)
         {
             var variables = gameClass.Variables;
@@ -230,7 +254,7 @@ public sealed partial class FgdFile
     {
         foreach (var inputOutput in own)
         {
-            if (all.Find(other => other.Name.Equals(inputOutput.Name, StringComparison.OrdinalIgnoreCase)) is { } inherited)
+            if (FindByName(all, inputOutput.Name) is { } inherited)
             {
                 inherited.CopyFrom(inputOutput);
             }
@@ -277,13 +301,26 @@ public sealed partial class FgdFile
     {
         foreach (var inputOutput in inherited)
         {
-            if (!all.Exists(other => other.Name.Equals(inputOutput.Name, StringComparison.OrdinalIgnoreCase)))
+            if (FindByName(all, inputOutput.Name) == null)
             {
                 var copy = new FgdInputOutput();
                 copy.CopyFrom(inputOutput);
                 all.Add(copy);
             }
         }
+    }
+
+    private static FgdInputOutput? FindByName(List<FgdInputOutput> all, string name)
+    {
+        foreach (var inputOutput in all)
+        {
+            if (inputOutput.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+            {
+                return inputOutput;
+            }
+        }
+
+        return null;
     }
 
     private static void AddMissingKeys(KVObject keys, KVObject other)
@@ -391,8 +428,12 @@ public sealed partial class FgdFile
         {
             "exclude" => ParseExclude(tokens),
             "include" => ParseInclude(tokens, depth),
-            // Only the files of older games have this section
+            // Only the files of older games have these sections
             "mapsize" => ParseMapSize(tokens),
+            "materialexclusion" => ParseMaterialExclusion(tokens),
+            "autovisgroup" => ParseAutoVisGroup(tokens),
+            "helpinfo" => ParseHelpInfo(tokens),
+            "version" => ParseVersion(tokens),
             "gridnav" => ParseGridNav(tokens),
             "visgroupfilter" => ParseVisGroupFilter(tokens),
             "entitygroup" => ParseEntityGroup(tokens),
@@ -434,6 +475,12 @@ public sealed partial class FgdFile
         }
 
         gameClass.Type = type;
+
+        if (type == FgdClassType.ExtendClass)
+        {
+            extensions.Add(gameClass);
+            return true;
+        }
 
         switch (type)
         {
@@ -515,24 +562,7 @@ public sealed partial class FgdFile
             }
         }
 
-        foreach (var variable in overriding.Variables)
-        {
-            var index = existing.Variables.FindIndex(other => other.Name.Equals(variable.Name, StringComparison.OrdinalIgnoreCase));
-
-            if (index < 0)
-            {
-                existing.AddVariable(variable);
-            }
-            else if (variable.DeclaredType == FgdVariableType.RemoveKey)
-            {
-                existing.Variables.RemoveAt(index);
-            }
-            else
-            {
-                existing.Variables[index] = variable;
-            }
-        }
-
+        ReplaceVariables(existing, overriding.Variables);
         AddOwn(existing.Inputs, overriding.Inputs);
         AddOwn(existing.Outputs, overriding.Outputs);
 
@@ -559,6 +589,47 @@ public sealed partial class FgdFile
 
         AddMissingKeys(overriding.Metadata, existing.Metadata);
         existing.Metadata = overriding.Metadata;
+    }
+
+    // An extension adds every helper unless one of the same name has the same arguments, and replaces the
+    // variables it declares again
+    private static void Extend(FgdClass existing, FgdClass extension)
+    {
+        foreach (var helper in extension.Helpers)
+        {
+            var exists = existing.Helpers.Exists(other => other.Name.Equals(helper.Name, StringComparison.OrdinalIgnoreCase)
+                && other.Arguments.SequenceEqual(helper.Arguments, StringComparer.OrdinalIgnoreCase));
+
+            if (!exists)
+            {
+                existing.Helpers.Add(helper);
+            }
+        }
+
+        ReplaceVariables(existing, extension.Variables);
+    }
+
+    // The variables declared again replace the ones of the same name, or remove them where they are declared
+    // with remove_key
+    private static void ReplaceVariables(FgdClass existing, List<FgdVariable> variables)
+    {
+        foreach (var variable in variables)
+        {
+            var index = existing.IndexOfVariable(variable.Name);
+
+            if (index < 0)
+            {
+                existing.AddVariable(variable);
+            }
+            else if (variable.DeclaredType == FgdVariableType.RemoveKey)
+            {
+                existing.Variables.RemoveAt(index);
+            }
+            else
+            {
+                existing.Variables[index] = variable;
+            }
+        }
     }
 
     private bool ParseExclude(FgdTokenizer tokens)
@@ -619,6 +690,105 @@ public sealed partial class FgdFile
         }
 
         MapSize = (LeadingNumber.ParseInteger(low.Span), LeadingNumber.ParseInteger(high.Span));
+        return true;
+    }
+
+    // ( "class", "help file" )
+    private bool ParseHelpInfo(FgdTokenizer tokens)
+    {
+        if (!tokens.Accept("(") || !tokens.TryReadString(out var className) || !tokens.Accept(",")
+            || !tokens.TryReadString(out var helpFile) || !tokens.Accept(")"))
+        {
+            Error(tokens, "Expecting '(' <class> ',' <help file> ')'");
+            return false;
+        }
+
+        HelpFiles[className.Unquote()] = helpFile.Unquote();
+        return true;
+    }
+
+    private bool ParseVersion(FgdTokenizer tokens)
+    {
+        if (!tokens.Accept("(") || !tokens.TryRead(out var version) || !version.IsInteger || !tokens.Accept(")"))
+        {
+            Error(tokens, "Expecting '(' <version> ')'");
+            return false;
+        }
+
+        Version = LeadingNumber.ParseInteger(version.Span);
+        return true;
+    }
+
+    // [ "string" "string" ... ]
+    private bool ParseStringList(FgdTokenizer tokens, out List<string> strings)
+    {
+        strings = [];
+
+        if (!tokens.Accept("["))
+        {
+            Error(tokens, "Expecting '['");
+            return false;
+        }
+
+        while (tokens.TryReadString(out var text))
+        {
+            strings.Add(text.Unquote());
+        }
+
+        if (!tokens.Accept("]"))
+        {
+            Error(tokens, "Expecting ']'");
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool ParseMaterialExclusion(FgdTokenizer tokens)
+    {
+        if (!ParseStringList(tokens, out var folders))
+        {
+            return false;
+        }
+
+        foreach (var folder in folders)
+        {
+            if (!MaterialExclusions.Contains(folder, StringComparer.OrdinalIgnoreCase))
+            {
+                MaterialExclusions.Add(folder);
+            }
+        }
+
+        return true;
+    }
+
+    // = "parent" [ "name" [ "class" "class" ... ] "name" [ ... ] ]
+    private bool ParseAutoVisGroup(FgdTokenizer tokens)
+    {
+        if (!tokens.Accept("=") || !tokens.TryReadString(out var parent) || !tokens.Accept("["))
+        {
+            Error(tokens, "Expecting '=' <parent> '['");
+            return false;
+        }
+
+        var parentName = parent.Unquote();
+
+        while (tokens.TryReadString(out var name))
+        {
+            if (!ParseStringList(tokens, out var classes))
+            {
+                return false;
+            }
+
+            AutoVisGroups.Add(new FgdAutoVisGroup(parentName, name.Unquote(), classes));
+        }
+
+        if (!tokens.Accept("]"))
+        {
+            Error(tokens, "Expecting ']'");
+            return false;
+        }
+
         return true;
     }
 

@@ -66,6 +66,12 @@ public enum FgdClassType
 
     /// <summary><c>@VDataDerived</c></summary>
     VDataDerived = 19,
+
+    /// <summary>
+    /// <c>@ExtendClass</c>, which adds its helpers and variables to a class of the same name once every file
+    /// is read, and is dropped where there is none.
+    /// </summary>
+    ExtendClass = 20,
 }
 
 /// <summary>
@@ -237,6 +243,9 @@ public sealed class FgdClass
     /// <summary>Gets the description.</summary>
     public string Description { get; internal set; } = string.Empty;
 
+    /// <summary>Gets the link to help on the class, which files written for other editors give after the description.</summary>
+    public string HelpLink { get; internal set; } = string.Empty;
+
     /// <summary>Gets the kind of class.</summary>
     public FgdClassType Type { get; internal set; }
 
@@ -285,7 +294,23 @@ public sealed class FgdClass
     /// <param name="name">Name of the key.</param>
     /// <returns>The variable, or <see langword="null"/> when the class has none of that name.</returns>
     public FgdVariable? FindVariable(string name)
-        => Variables.Find(variable => variable.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+    {
+        var index = IndexOfVariable(name);
+        return index < 0 ? null : Variables[index];
+    }
+
+    internal int IndexOfVariable(string name)
+    {
+        for (var i = 0; i < Variables.Count; i++)
+        {
+            if (Variables[i].Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
 
     internal void AddTag(string tag)
     {
@@ -300,7 +325,7 @@ public sealed class FgdClass
     /// </summary>
     internal void AddVariable(FgdVariable variable)
     {
-        var index = Variables.FindIndex(other => other.Name.Equals(variable.Name, StringComparison.OrdinalIgnoreCase));
+        var index = IndexOfVariable(variable.Name);
 
         if (index < 0)
         {
@@ -334,7 +359,8 @@ public sealed class FgdClass
         or FgdVariableType.TagList
         or FgdVariableType.TagListDynamic
         or FgdVariableType.Suggestions
-        or FgdVariableType.FlagChoices;
+        or FgdVariableType.FlagChoices
+        or FgdVariableType.ResourceChoices;
 
     // The values the variable does not have yet are taken from the other one
     private static void MergeChoices(FgdVariable variable, FgdVariable other)
@@ -364,6 +390,14 @@ public sealed class FgdClass
 /// <param name="Name">Name of the group.</param>
 /// <param name="StartExpanded">Whether the group is shown open.</param>
 public sealed record FgdEntityGroup(string Name, bool StartExpanded);
+
+/// <summary>
+/// A group of the editor that shows or hides the entities of the classes it lists, under a group of its own.
+/// </summary>
+/// <param name="Parent">Name of the group it is listed under.</param>
+/// <param name="Name">Name of the group.</param>
+/// <param name="Classes">The entity classes in the group.</param>
+public sealed record FgdAutoVisGroup(string Parent, string Name, List<string> Classes);
 
 /// <summary>
 /// Something an FGD file declares that could not be read.

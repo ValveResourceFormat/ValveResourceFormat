@@ -335,6 +335,84 @@ namespace Tests.IO
         }
 
         [Test]
+        public async Task TheSectionsAndTypesOfOlderGamesAndEditorsAreRead()
+        {
+            var fgd = Parse(""""
+                @version(9)
+                @helpinfo( "thing", "tools/help/thing.txt" )
+                @ExtendClass light(spot) light(sun) iconsprite("added.vmat") = thing : "Ignored"
+                [
+                    position(string) : "Replaced"
+                    extra(integer) : "Extra"
+                ]
+                @ExtendClass = missing []
+                @MaterialExclusion [ "debug" "DEBUG" "editor" ]
+                @AutoVisGroup = "Brushes"
+                [
+                    "Triggers" [ "trigger_once" "trigger_multiple" ]
+                    "Empty" [ ]
+                ]
+                /* A comment
+                   over two lines */
+                @PointClass light(spot) iconsprite("own.vmat") = thing : "Thing" : "https://example.com/thing"
+                [
+                    spawnflags(flags) = [ 1 : "First" : 1 : "Described" 2 : "No default" ]
+                    fraction(string) : "Fraction" : 0.5
+                    output OnCalled(cpp)
+                    angles(angle_negative_pitch) : "Pitch Yaw Roll"
+                    position(origin) : "Origin"
+                    tint(color1) : "Tint" : "1 1 1"
+                    scenefile(scene) : "Scene"
+                    model(resource_choices:model) : "Model" : "models/a.vmdl" = [ "models/a.vmdl" : "A" ]
+                    note(string) : "Note" : : "
+                    Over two lines"
+                    block(string) : "Block" : : """
+                Over
+                three lines
+                """
+                ]
+                stray
+                """");
+
+            await Assert.That(fgd.MaterialExclusions).IsEquivalentTo(["debug", "editor"], StringComparer.Ordinal);
+            await Assert.That(fgd.AutoVisGroups.Select(static group => $"{group.Parent}/{group.Name}:{string.Join(',', group.Classes)}"))
+                .IsEquivalentTo(["Brushes/Triggers:trigger_once,trigger_multiple", "Brushes/Empty:"], StringComparer.Ordinal);
+
+            var thing = fgd.FindClass("thing")!;
+
+            await Assert.That(fgd.Version).IsEqualTo(9);
+            await Assert.That(fgd.HelpFiles["THING"]).IsEqualTo("tools/help/thing.txt");
+            await Assert.That(fgd.FindClass("missing")).IsNull();
+            await Assert.That(thing.Description).IsEqualTo("Thing");
+            await Assert.That(thing.HelpLink).IsEqualTo("https://example.com/thing");
+            await Assert.That(string.Join(' ', thing.FindVariable("spawnflags")!.Choices.Select(static choice => $"{choice.Value}:{choice.Description}:{choice.IsDefault}")))
+                .IsEqualTo("1:Described:True 2::False");
+            await Assert.That(thing.FindVariable("fraction")!.DefaultString).IsEqualTo("0.5");
+            await Assert.That(thing.Outputs.Single().IsApi).IsTrue();
+
+            // An extension adds the helpers that differ in their arguments, after the ones of the class
+            await Assert.That(string.Join(' ', thing.Helpers.Select(static helper => $"{helper.Name}({string.Join(',', helper.Arguments)})")))
+                .IsEqualTo("light(spot) iconsprite(own.vmat) light(sun) iconsprite(added.vmat)");
+            await Assert.That(thing.FindVariable("position")!.Type).IsEqualTo(FgdVariableType.String);
+            await Assert.That(thing.FindVariable("extra")).IsNotNull();
+
+            await Assert.That(thing.FindVariable("angles")!.Type).IsEqualTo(FgdVariableType.AngleNegativePitch);
+            await Assert.That(thing.FindVariable("tint")!.Type).IsEqualTo(FgdVariableType.Color1);
+            await Assert.That(thing.FindVariable("scenefile")!.Type).IsEqualTo(FgdVariableType.Scene);
+            await Assert.That(thing.FindVariable("block")!.Description).IsEqualTo("Over\nthree lines");
+
+            var model = thing.FindVariable("model")!;
+
+            await Assert.That(model.Type).IsEqualTo(FgdVariableType.ResourceChoices);
+            await Assert.That(model.SubType).IsEqualTo("vmdl");
+            await Assert.That(model.Choices.Single().Caption).IsEqualTo("A");
+
+            // Lines are counted through comments and strings over several lines
+            await Assert.That(fgd.Errors.Single().Message).IsEqualTo("Expected '@'");
+            await Assert.That(fgd.Errors.Single().Line).IsEqualTo(34);
+        }
+
+        [Test]
         public async Task AGameNamesItsFilesInItsGameInfoAndFindsThemInWhatItMounts()
         {
             var root = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());

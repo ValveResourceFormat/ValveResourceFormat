@@ -280,6 +280,21 @@ public enum FgdVariableType
 
     /// <summary><c>choice_group</c></summary>
     ChoiceGroup = 90,
+
+    /// <summary><c>resource_choices</c></summary>
+    ResourceChoices = 91,
+
+    /// <summary><c>scene</c></summary>
+    Scene = 92,
+
+    /// <summary><c>origin</c></summary>
+    Origin = 93,
+
+    /// <summary><c>angle_negative_pitch</c></summary>
+    AngleNegativePitch = 94,
+
+    /// <summary><c>color1</c></summary>
+    Color1 = 95,
 }
 
 /// <summary>
@@ -403,5 +418,10 @@ public readonly record struct FgdTypeName(string Name, FgdVariableType Type, Fgd
         new("animgraph2_clip", FgdVariableType.AnimGraph2Clip, FgdStorage.String, false, false),
         new("animgraph2_graph", FgdVariableType.AnimGraph2Graph, FgdStorage.String, false, false),
         new("choice_group", FgdVariableType.ChoiceGroup, FgdStorage.String, false, false),
+        new("resource_choices", FgdVariableType.ResourceChoices, FgdStorage.String, true, false),
+        new("scene", FgdVariableType.Scene, FgdStorage.String, false, false),
+        new("origin", FgdVariableType.Origin, FgdStorage.String, false, false),
+        new("angle_negative_pitch", FgdVariableType.AngleNegativePitch, FgdStorage.String, false, false),
+        new("color1", FgdVariableType.Color1, FgdStorage.String, false, false),
     ];
 }
