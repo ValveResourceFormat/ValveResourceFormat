@@ -838,7 +838,7 @@ namespace ValveResourceFormat.Renderer
                     dynamicTransformStart = transformData.Count;
                 }
 
-                var neverChangesTransform = nodeIndex < staticNodes.Count && node is not ModelSceneNode { SkinningTransformCount: > 0 };
+                var neverChangesTransform = nodeIndex < staticNodes.Count && node is not ISkinnedSceneNode { BoneCount: > 0 };
 
                 uint transformIndex;
 
@@ -861,9 +861,9 @@ namespace ValveResourceFormat.Renderer
                     transformData.Add(node.Transform.To3x4());
                 }
 
-                if (node is ModelSceneNode skinnedModel)
+                if (node is ISkinnedSceneNode skinnedNode)
                 {
-                    AppendSkinningTransforms(skinnedModel, transformIndex, transformData);
+                    AppendSkinningTransforms(skinnedNode, transformIndex, transformData);
                 }
 
                 // Everything else keeps a zero mask, which the cull shader reads as always drawn
@@ -1125,42 +1125,50 @@ namespace ValveResourceFormat.Renderer
         // Content can author out-of-range tints; the packed byte color can only represent [0, 1]
         private static uint PackTint(Vector4 tint) => Color32.FromVector4Clamped(tint).PackedValue;
 
-        private static void AppendSkinningTransforms(ModelSceneNode model, uint transformIndex,
+        // Slots from a skinned node's transform to its first bone, as the vertex shader reads them; the one in between stays zero
+        private const int BoneTransformStart = 2;
+
+        private static void AppendSkinningTransforms(ISkinnedSceneNode node, uint transformIndex,
             List<OpenTK.Mathematics.Matrix3x4> transformData)
         {
-            model.TransformSlot = transformIndex;
+            node.TransformSlot = transformIndex;
 
-            var skinningSlots = model.SkinningTransformCount;
+            var boneCount = node.BoneCount;
 
-            if (skinningSlots == 0)
+            if (boneCount == 0)
             {
                 return;
             }
 
             var runStart = (int)transformIndex + 1;
-            CollectionsMarshal.SetCount(transformData, runStart + skinningSlots);
+            var boneStart = (int)transformIndex + BoneTransformStart;
+            CollectionsMarshal.SetCount(transformData, boneStart + boneCount);
 
-            var run = CollectionsMarshal.AsSpan(transformData).Slice(runStart, skinningSlots);
-            run.Clear();
+            var transforms = CollectionsMarshal.AsSpan(transformData);
+            transforms[runStart..].Clear();
 
-            model.WriteSkinningTransforms(run);
+            node.WriteBoneTransforms(transforms.Slice(boneStart, boneCount));
         }
 
-        internal void UpdateSkinningTransforms(ModelSceneNode model)
+        /// <summary>Rewrites the bone transforms of a node after its pose changed.</summary>
+        /// <param name="node">A node of this scene.</param>
+        public void UpdateSkinningTransforms(ISkinnedSceneNode node)
         {
-            var skinningSlots = model.SkinningTransformCount;
+            ArgumentNullException.ThrowIfNull(node);
 
-            if (transformDataCpu == null || skinningSlots == 0 || model.TransformSlot == 0)
+            var boneCount = node.BoneCount;
+
+            if (transformDataCpu == null || boneCount == 0 || node.TransformSlot == 0)
             {
-                return; // The table has not been laid out for this model yet
+                return; // The table has not been laid out for this node yet
             }
 
-            var boneStart = (int)model.TransformSlot + 1;
+            var boneStart = (int)node.TransformSlot + BoneTransformStart;
             var transforms = CollectionsMarshal.AsSpan(transformDataCpu);
 
-            Debug.Assert(boneStart + skinningSlots <= transforms.Length);
+            Debug.Assert(boneStart + boneCount <= transforms.Length);
 
-            model.WriteSkinningTransforms(transforms.Slice(boneStart, skinningSlots));
+            node.WriteBoneTransforms(transforms.Slice(boneStart, boneCount));
 
             transformUploadStart = Math.Min(transformUploadStart, boneStart);
         }
@@ -1655,11 +1663,12 @@ namespace ValveResourceFormat.Renderer
         /// <param name="viewConstants">The view constants to update.</param>
         /// <param name="fog">The fog the view draws with.</param>
         /// <param name="fogSpace">Converts authored fog distances and heights into the view's space.</param>
-        internal void SetFogConstants(ViewConstants viewConstants, WorldFogInfo fog, FogSpace fogSpace)
+        /// <param name="viewForward">The direction the view looks in.</param>
+        internal void SetFogConstants(ViewConstants viewConstants, WorldFogInfo fog, FogSpace fogSpace, Vector3 viewForward = default)
         {
             ArgumentNullException.ThrowIfNull(fog);
 
-            fog.SetFogUniforms(viewConstants, Settings.FogEnabled, fogSpace);
+            fog.SetFogUniforms(viewConstants, Settings.FogEnabled, fogSpace, viewForward);
 
             viewConstants.EnvWetness = EnvironmentWetness;
             viewConstants.EnvWetnessRipple = new Vector4(PuddleWindDirection, 0f, 0f, 0f);

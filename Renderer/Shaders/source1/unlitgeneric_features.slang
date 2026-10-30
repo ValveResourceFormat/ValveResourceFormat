@@ -1,0 +1,8 @@
+#version 460
+
+#define F_VERTEX_COLOR 0
+#define F_VERTEX_ALPHA 0
+// Diffuse light baked per vertex in the second color stream, instead of the ambient cube and the sun
+#define D_BAKED_LIGHTING 0
+
+#define SOURCE1_DETAIL_SRGB_ALL_MODES 1

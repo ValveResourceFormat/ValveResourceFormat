@@ -39,13 +39,16 @@ namespace ValveResourceFormat.Renderer.World
 
         /// <summary>
         /// Sets this to the fog a 3D sky view draws with: the sky map's own gradient fog when it has an
-        /// active one, otherwise the world's, and always the world's cubemap fog.
+        /// active one, otherwise the world's, and always the world's cubemap fog. The linear fog is the sky map's own.
         /// </summary>
         /// <param name="world">The fog of the map the sky belongs to.</param>
         /// <param name="sky">The fog of the sky map.</param>
         internal void SetToSkyView(WorldFogInfo world, WorldFogInfo sky)
         {
             var ownGradientFog = sky.GradientFogActive;
+
+            LinearFog = sky.LinearFog;
+            ObjectsUseLinearFog = sky.ObjectsUseLinearFog;
 
             GradientFogActive = ownGradientFog || world.GradientFogActive;
             GradientFog = ownGradientFog ? sky.GradientFog : world.GradientFog;
@@ -60,6 +63,8 @@ namespace ValveResourceFormat.Renderer.World
         /// <param name="world">The fog of the map the sky belongs to.</param>
         internal void SetToVolumeSkyView(WorldFogInfo world)
         {
+            LinearFog = null;
+            ObjectsUseLinearFog = false;
             GradientFogActive = false;
             GradientFog = null;
             CubeFogActive = world.CubeFogActive;
@@ -83,13 +88,14 @@ namespace ValveResourceFormat.Renderer.World
         /// <param name="viewConstants">The view constants buffer to update.</param>
         /// <param name="viewerFogEnabled">Whether fog rendering is enabled in the viewer settings.</param>
         /// <param name="fogSpace">Converts authored distances and heights into the view's space.</param>
-        public void SetFogUniforms(Buffers.ViewConstants viewConstants, bool viewerFogEnabled, FogSpace fogSpace)
+        /// <param name="viewForward">The direction the view looks in, which a <see cref="LinearFog"/> that blends two colors reads.</param>
+        public void SetFogUniforms(Buffers.ViewConstants viewConstants, bool viewerFogEnabled, FogSpace fogSpace, Vector3 viewForward = default)
         {
             viewConstants.VolumetricFogActive = viewerFogEnabled && Volumetric is { Volume: not null };
 
             if (ObjectsUseLinearFog && LinearFog is { MaxDensity: > 0f } linearFog)
             {
-                SetLinearFogUniforms(viewConstants, viewerFogEnabled, linearFog, fogSpace);
+                SetLinearFogUniforms(viewConstants, viewerFogEnabled, linearFog, fogSpace, viewForward);
                 return;
             }
 
@@ -121,7 +127,7 @@ namespace ValveResourceFormat.Renderer.World
         // The gradient fog of the shaders covers a pixel by pow(saturate(distance * scale + bias), exponent) times its
         // opacity. The height term is a constant 1 here, so the culling height is unused. Without a range after the
         // start every pixel is fully in the fog, which the culling distance must not skip.
-        private static void SetLinearFogUniforms(Buffers.ViewConstants viewConstants, bool viewerFogEnabled, LinearFog fog, FogSpace fogSpace)
+        private static void SetLinearFogUniforms(Buffers.ViewConstants viewConstants, bool viewerFogEnabled, LinearFog fog, FogSpace fogSpace, Vector3 viewForward)
         {
             var start = fogSpace.Distance(fog.Start);
             var end = fogSpace.Distance(fog.End);
@@ -131,9 +137,11 @@ namespace ValveResourceFormat.Renderer.World
             viewConstants.GradientFogActive = viewerFogEnabled;
             viewConstants.CubeFogActive = false;
             viewConstants.GradientFogBiasAndScale = new Vector4(bias, 1f, scale, 0f);
-            viewConstants.GradientFogColor_Opacity = new Vector4(fog.Color, fog.MaxDensity);
+            viewConstants.GradientFogColor_Opacity = new Vector4(fog.GetColor(viewForward), fog.MaxDensity);
             viewConstants.GradientFogExponents = new Vector2(fog.Exponent, 1f);
-            var cullingDistance = end > start ? start * start : float.MinValue;
+            // A start behind the camera fogs everything, so nothing is culled
+            var cullingStart = MathF.Max(start, 0f);
+            var cullingDistance = end > start ? cullingStart * cullingStart : float.MinValue;
             viewConstants.GradientFogCullingParams = new Vector2(cullingDistance, float.PositiveInfinity);
         }
     }

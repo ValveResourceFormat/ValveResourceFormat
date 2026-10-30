@@ -160,7 +160,7 @@ public class Renderer : ISceneHost
     public IReadOnlyList<Scene> Scenes => scenes;
 
     /// <summary>Gets whether a 3D sky can be drawn, from a <c>skybox_reference</c> or a <c>sky_camera_volume</c>.</summary>
-    public bool HasSky => EntitySystem.ActiveSkyboxReference != null || EntitySystem.SkyCameraVolumes.Count > 0;
+    public bool HasSky => EntitySystem.ActiveSkyboxReference != null || EntitySystem.SkyCameraVolumes.Count > 0 || fixedSkyScene != null;
 
     /// <summary>Gets the main scene state in the main view, or <see langword="null"/> until the first update.</summary>
     public SceneViewState? MainViewState => mainViewStates.GetValueOrDefault(Scene);
@@ -292,6 +292,8 @@ public class Renderer : ISceneHost
     private readonly DepthPyramid depthPyramid;
 
     private readonly List<Scene> scenes = [];
+    private Scene? fixedSkyScene;
+    private SkyTransform fixedSky;
     private readonly Dictionary<Scene, SceneViewState> mainViewStates = [];
     private readonly Dictionary<Scene, SceneViewState> skyViewStates = [];
     private readonly Dictionary<Scene, SceneViewState>[] sunCascadeViewStates = [[], [], []];
@@ -376,6 +378,33 @@ public class Renderer : ISceneHost
         scene.Settings = Settings;
         scene.PhysicsWorld ??= EntitySystem.GetPhysicsWorld(scene.WorldGroup);
         scenes.Add(scene);
+    }
+
+    /// <summary>
+    /// Draws <paramref name="skyScene"/> as the 3D sky of the main scene, without a <c>skybox_reference</c> entity.
+    /// The scene must have a world group, so the main view leaves it out.
+    /// </summary>
+    /// <param name="skyScene">The sky scene, added to the renderer if it is not already.</param>
+    /// <param name="sky">Where the sky is seen from, and at what scale.</param>
+    public void SetFixedSky(Scene skyScene, SkyTransform sky)
+    {
+        ArgumentNullException.ThrowIfNull(skyScene);
+
+        if (skyScene.WorldGroup == null)
+        {
+            throw new ArgumentException("The sky scene needs a world group.", nameof(skyScene));
+        }
+
+        if (!scenes.Contains(skyScene))
+        {
+            AddScene(skyScene);
+        }
+
+        skyScene.ToViewerWorld = sky.SkyToWorld;
+        skyScene.MarkerScale = 1f / sky.Scale;
+
+        fixedSkyScene = skyScene;
+        fixedSky = sky;
     }
 
     /// <inheritdoc/>
@@ -469,6 +498,26 @@ public class Renderer : ISceneHost
                 SkyOverride = target.SkyMaterialName is { } skyMaterial ? SkyOverrideFor(skyMaterial) : null,
                 SkyCastsSunShadows = volume.WorldReceivesSkyboxShadows,
                 SkyReceivesSunShadows = volume.SkyboxReceivesWorldShadows,
+            };
+
+            return frameViews.AsSpan(0, count);
+        }
+
+        if (fixedSkyScene is { } skyScene)
+        {
+            skyViewSceneStates.Clear();
+            skyViewSceneStates.Add(ViewStateFor(skyViewStates, skyScene));
+
+            ConfigureSkyCamera(fixedSky, camera);
+            skyFog.SetToSkyView(Scene.FogInfo, skyScene.FogInfo);
+
+            frameViews[count++] = new SceneView
+            {
+                States = skyViewSceneStates,
+                Camera = SkyCamera,
+                Sky = fixedSky,
+                Fog = skyFog,
+                LockedCullFrustum = lockedSkyCullFrustum,
             };
 
             return frameViews.AsSpan(0, count);
@@ -1012,7 +1061,7 @@ public class Renderer : ISceneHost
         ViewBuffer.Data.WorldToProjectionPrev = state.DepthPyramidViewProjection;
 
         // The fog toggle and the weather of the main scene apply to every view
-        Scene.SetFogConstants(ViewBuffer.Data, view.Fog, view.FogSpace);
+        Scene.SetFogConstants(ViewBuffer.Data, view.Fog, view.FogSpace, view.Camera.Forward);
 
         ViewBuffer.Data.IsSkybox = view.Sky != null;
         ViewBuffer.Data.RenderMode = Settings.RenderMode;
@@ -1275,6 +1324,7 @@ public class Renderer : ISceneHost
         DeleteViewStates();
         DeleteSkyOverrides();
 
+        fixedSkyScene = null;
         scenes.Clear();
         scenes.Add(Scene);
     }

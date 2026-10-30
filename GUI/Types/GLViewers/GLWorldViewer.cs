@@ -32,7 +32,7 @@ namespace GUI.Types.GLViewers
     /// <summary>
     /// GL Render control with world controls (render mode, camera selection).
     /// </summary>
-    class GLWorldViewer : GLSceneViewer
+    class GLWorldViewer : GLSceneViewer, IEntityMapViewer
     {
         private readonly World? world;
         private readonly WorldNode? worldNode;
@@ -58,6 +58,9 @@ namespace GUI.Types.GLViewers
         private List<Matrix4x4> CameraMatrices = [];
         private WorldNodeLoader? LoadedWorldNode;
         public WorldLoader? LoadedWorld;
+
+        string? IEntityMapViewer.MapName => LoadedWorld?.MapName;
+        List<EntityLump.Entity>? IEntityMapViewer.MapEntities => LoadedWorld?.Entities;
         private EntityLump.Entity? entityInfoEntity;
 
         internal enum SimulationState
@@ -670,7 +673,7 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        internal void SelectAndFocusNode(SceneNode node)
+        public void SelectAndFocusNode(SceneNode node)
         {
             ArgumentNullException.ThrowIfNull(node);
 
@@ -680,7 +683,7 @@ namespace GUI.Types.GLViewers
         }
 
         /// <summary>Bounds to focus on for an entity that has no scene node, at its origin.</summary>
-        internal AABB EntityOriginBounds(EntityLump.Entity entity)
+        public AABB EntityOriginBounds(EntityLump.Entity entity)
         {
             // Try to find the entity in the system and fall back to its lump location otherwise
             var spawned = Renderer.EntitySystem.Entities.FirstOrDefault(candidate => !candidate.IsRemoved && candidate.Data == entity);
@@ -863,7 +866,7 @@ namespace GUI.Types.GLViewers
         }
 
         // Drawn as scenes of their own, such as the 3D sky, with entities the map does not list
-        internal IEnumerable<SpawnGroup> OwnSceneSpawnGroups
+        public IEnumerable<SpawnGroup> OwnSceneSpawnGroups
             => Renderer.EntitySystem.SpawnGroupManager.Groups.Where(static group => group.HasOwnScene);
 
         private static string SpawnGroupSuffix(SpawnGroup spawnGroup)

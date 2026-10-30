@@ -6,7 +6,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
     /// <summary>
     /// Carries the posed skeleton to the GPU, and the bounding box that follows the pose.
     /// </summary>
-    public partial class ModelSceneNode
+    public partial class ModelSceneNode : ISkinnedSceneNode
     {
         private bool IsAnimated { get; set; }
 
@@ -21,15 +21,15 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private int GetMeshBoneIndex(int modelBoneIndex, RenderableMesh mesh)
             => remappingTable.Span.Slice(mesh.MeshBoneOffset, mesh.MeshBoneCount).IndexOf(modelBoneIndex);
 
-        // Slots from a model's transform to its first bone, with one transform in between
-        internal const int BoneTransformStart = 2;
+        // Counted whether or not the model animates, so its bone run is reserved before skinning turns on
+        /// <inheritdoc/>
+        public int BoneCount => remappingTable.Length;
 
-        internal int SkinningTransformCount
-            => remappingTable.Length == 0 ? 0 : BoneTransformStart - 1 + remappingTable.Length;
+        /// <inheritdoc/>
+        public uint TransformSlot { get; set; }
 
-        internal uint TransformSlot { get; set; }
-
-        internal void WriteSkinningTransforms(Span<OpenTK.Mathematics.Matrix3x4> destination)
+        /// <inheritdoc/>
+        public void WriteBoneTransforms(Span<OpenTK.Mathematics.Matrix3x4> boneTransforms)
         {
             if (!IsAnimated)
             {
@@ -38,9 +38,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             var meshBoneCount = remappingTable.Length;
 
-            Debug.Assert(destination.Length == BoneTransformStart - 1 + meshBoneCount);
-
-            var boneTransforms = destination[(BoneTransformStart - 1)..];
+            Debug.Assert(boneTransforms.Length == meshBoneCount);
 
             using var floatBuffer = new RentedBuffer<float>(boneCount * 16);
             var modelBones = MemoryMarshal.Cast<float, Matrix4x4>(floatBuffer.Span);

@@ -143,6 +143,7 @@ namespace GUI.Controls
             var mapImage = AppIcons.Icons["FolderMap"];
             var pluginImage = AppIcons.Icons["FolderPlugin"];
             var folderImage = AppIcons.Icons["Folder"];
+            var bspImage = AppIcons.GetImageIndexForExtension("bsp");
 
             int GetSortPriorityForImage(int image)
             {
@@ -201,11 +202,17 @@ namespace GUI.Controls
                 BufferSize = 65536,
             };
 
-            static bool VpkPredicate(ref FileSystemEntry entry)
+            static bool GameFilePredicate(ref FileSystemEntry entry)
             {
                 if (entry.IsDirectory)
                 {
                     return false;
+                }
+
+                // Source 1 games ship their maps as loose files
+                if (entry.FileName.EndsWith(".bsp", StringComparison.Ordinal))
+                {
+                    return true;
                 }
 
                 if (!entry.FileName.EndsWith(".vpk", StringComparison.Ordinal))
@@ -228,38 +235,42 @@ namespace GUI.Controls
                 var (appID, appName, steamPath, gamePath) = game;
                 var foundFiles = new List<TreeNode>();
 
-                // Find all the vpks in game folder
-                var vpks = new FileSystemEnumerable<string>(
+                // Find all the vpks and maps in game folder
+                var gameFiles = new FileSystemEnumerable<string>(
                     gamePath,
                     (ref entry) => entry.ToSpecifiedFullPath(),
                     enumerationOptions)
                 {
-                    ShouldIncludePredicate = VpkPredicate
+                    ShouldIncludePredicate = GameFilePredicate
                 };
 
-                foreach (var vpk in vpks)
+                foreach (var gameFile in gameFiles)
                 {
                     var image = vpkImage;
-                    var vpkName = vpk[gamePath.Length..].Replace(Path.DirectorySeparatorChar, '/');
-                    var fileName = Path.GetFileName(vpkName);
+                    var relativePath = gameFile[gamePath.Length..].Replace(Path.DirectorySeparatorChar, '/');
+                    var fileName = Path.GetFileName(relativePath);
 
                     if (fileName.EndsWith("_bakeresourcecache.vpk", StringComparison.Ordinal))
                     {
                         continue;
                     }
 
-                    if (fileName.StartsWith("shaders_", StringComparison.Ordinal))
+                    if (fileName.EndsWith(".bsp", StringComparison.Ordinal))
+                    {
+                        image = bspImage;
+                    }
+                    else if (fileName.StartsWith("shaders_", StringComparison.Ordinal))
                     {
                         image = vcsImage;
                     }
-                    else if (vpkName.Contains("/maps/", StringComparison.Ordinal))
+                    else if (relativePath.Contains("/maps/", StringComparison.Ordinal))
                     {
                         image = mapImage;
                     }
 
-                    foundFiles.Add(new TreeNode(vpkName)
+                    foundFiles.Add(new TreeNode(relativePath)
                     {
-                        Tag = vpk,
+                        Tag = gameFile,
                         ImageIndex = image,
                         SelectedImageIndex = image,
                     });

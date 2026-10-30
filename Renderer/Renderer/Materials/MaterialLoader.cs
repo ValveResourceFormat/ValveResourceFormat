@@ -33,6 +33,7 @@ namespace ValveResourceFormat.Renderer.Materials
         private RenderTexture? DefaultVolume;
         private RenderTexture? DefaultBlackVolume;
         private RenderTexture? DefaultCubeArray;
+        private RenderTexture? DefaultCube;
         private RenderTexture? DefaultTextureArray;
         /// <summary>Gets or sets the maximum anisotropy level applied to newly loaded textures when anisotropic filtering is enabled.</summary>
         public static float MaxTextureMaxAnisotropy { get; set; }
@@ -122,8 +123,15 @@ namespace ValveResourceFormat.Renderer.Materials
                 return mat;
             }
 
-            var resource = RendererContext.FileLoader.LoadFileCompiled(name);
-            mat = LoadMaterial(resource, shaderArguments);
+            if (IsSource1Material(name))
+            {
+                mat = LoadSource1Material(name, shaderArguments);
+            }
+            else
+            {
+                var resource = RendererContext.FileLoader.LoadFileCompiled(name);
+                mat = LoadMaterial(resource, shaderArguments);
+            }
 
             Materials.Add(cacheKey, mat);
 
@@ -142,6 +150,12 @@ namespace ValveResourceFormat.Renderer.Materials
 
             var vrfMaterial = (VrfMaterial?)resource.DataBlock;
             Debug.Assert(vrfMaterial != null);
+
+            return CreateMaterial(vrfMaterial, shaderArguments);
+        }
+
+        private RenderMaterial CreateMaterial(VrfMaterial vrfMaterial, Dictionary<string, byte>? shaderArguments)
+        {
             var mat = new RenderMaterial(
                 vrfMaterial,
                 RendererContext,
@@ -261,6 +275,11 @@ namespace ValveResourceFormat.Renderer.Materials
 
         private RenderTexture LoadTexture(string name, bool srgbRead = false, bool async = false)
         {
+            if (IsSource1Texture(name))
+            {
+                return LoadSource1Texture(name, srgbRead);
+            }
+
             var textureResource = RendererContext.FileLoader.LoadFileCompiled(name);
 
             if (textureResource == null)
@@ -695,6 +714,23 @@ namespace ValveResourceFormat.Renderer.Materials
             }
 
             return DefaultCubeArray;
+        }
+
+        /// <summary>
+        /// Returns a lazily created 1x1 black cube map.
+        /// </summary>
+        public RenderTexture GetDefaultCube()
+        {
+            if (DefaultCube == null)
+            {
+                DefaultCube = new RenderTexture(TextureTarget.TextureCubeMap, 1, 1, 1, 1, "DefaultCube");
+                GL.TextureStorage2D(DefaultCube.Handle, 1, SizedInternalFormat.Rgba8, 1, 1);
+                DefaultCube.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
+                DefaultCube.SetWrapMode(RsTextureAddressMode.Clamp, RsTextureAddressMode.Clamp, RsTextureAddressMode.Clamp);
+                GL.ClearTexImage(DefaultCube.Handle, 0, PixelFormat.Rgba, PixelType.UnsignedByte, IntPtr.Zero);
+            }
+
+            return DefaultCube;
         }
 
         private static RenderTexture CreateSolidVolume(string label, byte[] texel)

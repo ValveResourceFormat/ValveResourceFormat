@@ -44,7 +44,7 @@ internal sealed partial class McpTools
                 SpawnGroup = SpawnGroupOf(scene, s)?.MapName,
                 Sky = Flag(s.WorldGroup != null),
             }).ToList(),
-            Map = (scene as GLWorldViewer)?.LoadedWorld?.MapName,
+            Map = (scene as IEntityMapViewer)?.MapName,
             Entities = MapEntities(scene)?.Entities.Count,
         }, cancellationToken).ConfigureAwait(false);
     }
@@ -651,7 +651,7 @@ internal sealed partial class McpTools
             if (entityData != null)
             {
                 framed = viewer.Renderer.FindNode(entityData);
-                box = framed == null ? ((GLWorldViewer)viewer).EntityOriginBounds(entityData) : GLSceneViewer.SelectionBounds(framed);
+                box = framed == null ? ((IEntityMapViewer)viewer).EntityOriginBounds(entityData) : GLSceneViewer.SelectionBounds(framed);
             }
             else if (node != null)
             {
@@ -674,7 +674,7 @@ internal sealed partial class McpTools
         var selectsInMap = false;
 
         // Select as the entity list of the map does, which enables the layer and physics group through their sidebar lists
-        if (selected != null && viewer is GLWorldViewer world)
+        if (selected != null && viewer is IEntityMapViewer world)
         {
             selectsInMap = true;
 
@@ -690,7 +690,7 @@ internal sealed partial class McpTools
                 }
 
                 // Lands the camera at once instead of flying it in
-                world.Input.SaveCameraForTransition(transitionDuration: 0f);
+                viewer.Input.SaveCameraForTransition(transitionDuration: 0f);
             }, cancellationToken).ConfigureAwait(false);
         }
 

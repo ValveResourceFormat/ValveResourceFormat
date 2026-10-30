@@ -25,6 +25,16 @@ namespace ValveResourceFormat.ResourceTypes
         private KV3ID? SourceFormat => createdFormat ?? Format;
 
         /// <summary>
+        /// The name of a system that is built in memory and has no resource to take it from.
+        /// </summary>
+        internal string? Name { get; set; }
+
+        /// <summary>
+        /// Finds the system a child entry names, for systems that are not loaded from a file of their own.
+        /// </summary>
+        internal Func<string, ParticleSystem?>? ChildResolver { get; set; }
+
+        /// <summary>
         /// Gets the particle system data upgraded through the vpcf format-conversion chain to the
         /// newest implemented format. Computed once and cached; the result is always a copy, so
         /// <see cref="KeyValuesOrNTRO.Data"/> is neither returned nor mutated.

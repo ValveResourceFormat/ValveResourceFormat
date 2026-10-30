@@ -57,14 +57,24 @@ public sealed class EnvFogController : BaseEntity
         hdrColorScale = KeyValues.GetFloatProperty("hdrcolorscale", 1f);
         transitionDuration = KeyValues.GetFloatProperty("foglerptime");
 
-        if (KeyValues.GetBooleanProperty("fogblend"))
-        {
-            blendDirection = KeyValues.GetBooleanProperty("use_angles")
-                ? EntityTransformHelper.EulerAnglesToForwardDirection(WorldAngles)
-                : Vector3.Normalize(KeyValues.GetVector3Property("fogdir", Vector3.UnitX));
-        }
+        blendDirection = GetBlendDirection(KeyValues, WorldAngles);
 
         UpdateFog();
+    }
+
+    /// <summary>Gets the direction the fog color blends along, or null for a fog that does not blend.</summary>
+    /// <param name="keyValues">The keyvalues of a fog controller or a <c>sky_camera</c>.</param>
+    /// <param name="angles">The angles of the entity, for a fog that blends along them.</param>
+    internal static Vector3? GetBlendDirection(EntityLump.Entity keyValues, Vector3 angles)
+    {
+        if (!keyValues.GetBooleanProperty("fogblend"))
+        {
+            return null;
+        }
+
+        return keyValues.GetBooleanProperty("use_angles")
+            ? EntityTransformHelper.EulerAnglesToForwardDirection(angles)
+            : MathUtils.SafeNormalize(keyValues.GetVector3Property("fogdir", Vector3.UnitX));
     }
 
     /// <inheritdoc/>

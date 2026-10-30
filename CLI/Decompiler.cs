@@ -143,6 +143,7 @@ namespace CLI
         /// <param name="shader_list_combos">List every compiled variant of a shader with its combo values and bytecode hash. For a material, only the variants of its shader that the material selects.</param>
         /// <param name="shader_combo">Decompile the shader variant matching these combo values, example: "S_ALPHA_TEST=1,D_BLEND_WEIGHT_COUNT=4". A bare name means "=1", omitted combos stay at their minimum. For a material, the static combos it selects are used.</param>
         /// <param name="tools_asset_info_short">Print only file paths for tools_asset_info files.</param>
+        /// <param name="bsp_entities">Print the entity lump of a Source 1 BSP map as text instead of its summary.</param>
         /// <param name="threads">If higher than 1, files are processed concurrently. Only used with --output or --test.</param>
         /// <param name="quiet">-q, When writing to --output or --vpk_create, only print errors and a summary. With the shader options, only print their output.</param>
         /// <param name="game">Path to a gameinfo.gi file, or the folder containing it, to load game search paths from, such as "steam:730/game/csgo". Useful when the input file is not located inside a game folder.</param>
@@ -190,6 +191,7 @@ namespace CLI
             bool shader_list_combos = false,
             [HideDefaultValue] string? shader_combo = default,
             bool tools_asset_info_short = false,
+            bool bsp_entities = false,
 
             int threads = 1,
             bool quiet = false,
@@ -308,6 +310,7 @@ namespace CLI
             GltfComposeAdditive = gltf_compose_additive;
             GltfKeepAllKeyframes = gltf_keep_all_keyframes;
             ToolsAssetInfoShort = tools_asset_info_short;
+            PrintBspEntities = bsp_entities;
             ShaderListCombos = shader_list_combos;
             ShaderCombo = shader_combo;
 
@@ -1037,6 +1040,11 @@ namespace CLI
                     ReportError($"\"{path}\" is not a shader or a material, the shader options only apply to those.");
                     return;
                 }
+            }
+
+            if (TryParseSource1File(path, stream, originalPath))
+            {
+                return;
             }
 
             switch (magic)

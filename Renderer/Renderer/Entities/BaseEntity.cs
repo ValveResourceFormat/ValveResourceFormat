@@ -501,8 +501,9 @@ public abstract class BaseEntity
         }
 
         var rendererContext = scene.RendererContext;
+        var particleSystem = rendererContext.LoadParticleSystem(effectName);
 
-        if (rendererContext.FileLoader.LoadFileCompiled(effectName)?.DataBlock is not ParticleSystem particleSystem)
+        if (particleSystem == null)
         {
             rendererContext.Logger.LogWarning("{Classname} '{TargetName}' failed to load effect \"{Effect}\"", classname, targetName, effectName);
             return null;

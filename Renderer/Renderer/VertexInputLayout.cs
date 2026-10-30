@@ -153,6 +153,38 @@ namespace ValveResourceFormat.Renderer
         /// <summary>This format as <see cref="VBIB"/> input layout fields, for the upload path.</summary>
         public VBIB.RenderInputLayoutField[] Fields() => fields;
 
+        /// <summary>Copies vertices of this format and their indices into one vertex and one index buffer for the upload path.</summary>
+        /// <param name="vertices">Vertices laid out as this format describes.</param>
+        /// <param name="indices">Indices of 16 or 32 bits.</param>
+        /// <typeparam name="TVertex">The vertex struct.</typeparam>
+        /// <typeparam name="TIndex">The index type, <see cref="ushort"/>, <see cref="uint"/> or <see cref="int"/>.</typeparam>
+        public VBIB CreateBuffers<TVertex, TIndex>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<TIndex> indices)
+            where TVertex : unmanaged
+            where TIndex : unmanaged
+        {
+            Debug.Assert(Unsafe.SizeOf<TVertex>() == Stride, $"{typeof(TVertex).Name} is not the size of this format's vertex.");
+
+            var buffers = new VBIB { Resource = null! };
+
+            buffers.VertexBuffers.Add(new VBIB.OnDiskBufferData
+            {
+                ElementCount = (uint)vertices.Length,
+                ElementSizeInBytes = (uint)Stride,
+                Data = MemoryMarshal.AsBytes(vertices).ToArray(),
+                InputLayoutFields = fields,
+            });
+
+            buffers.IndexBuffers.Add(new VBIB.OnDiskBufferData
+            {
+                ElementCount = (uint)indices.Length,
+                ElementSizeInBytes = (uint)Unsafe.SizeOf<TIndex>(),
+                Data = MemoryMarshal.AsBytes(indices).ToArray(),
+                InputLayoutFields = [],
+            });
+
+            return buffers;
+        }
+
         /// <summary>Creates a VAO binding one vertex buffer. An index buffer of 0 means non-indexed.</summary>
         /// <param name="debugLabel">Name the VAO is labelled with.</param>
         /// <param name="vertexBuffer">Buffer every attribute reads from.</param>

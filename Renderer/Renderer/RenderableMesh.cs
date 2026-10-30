@@ -123,6 +123,17 @@ namespace ValveResourceFormat.Renderer
         }
 #endif
 
+        /// <summary>Describes the blend attributes of a mesh made from raw buffers, which <see cref="SetSkinningActive"/> then turns on.</summary>
+        /// <param name="skinning">How many bones a vertex blends.</param>
+        /// <param name="boneCount">The number of bones the vertices index.</param>
+        public void ConfigureSkinning(MeshSkinning skinning, int boneCount)
+        {
+            Skinning = skinning;
+            BoneWeightCount = skinning == MeshSkinning.None ? 0 : 4;
+            MeshBoneOffset = 0;
+            MeshBoneCount = boneCount;
+        }
+
         /// <summary>Turns skinning on or off for this mesh and resets flex controllers.</summary>
         public void SetSkinningActive(bool active)
         {
@@ -403,6 +414,24 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>Moves a draw call of this mesh into the opaque, overlay or blended list its material belongs in.</summary>
+        /// <param name="drawCall">One of <see cref="DrawCalls"/>.</param>
+        /// <param name="forceOverlay">Whether to draw it as an overlay whatever its material says.</param>
+        internal void PlaceDrawCall(DrawCall drawCall, bool forceOverlay = false)
+        {
+            DrawCallsOpaque.Remove(drawCall);
+            DrawCallsOverlay.Remove(drawCall);
+            DrawCallsBlended.Remove(drawCall);
+
+            if (forceOverlay)
+            {
+                DrawCallsOverlay.Add(drawCall);
+                return;
+            }
+
+            AddDrawCall(drawCall, isAggregate);
+        }
+
         private void AddDrawCall(DrawCall drawCall, bool isAggregate)
         {
             if (isAggregate)
@@ -601,6 +630,13 @@ namespace ValveResourceFormat.Renderer
             var vb = vertexIndexBuffers.VertexBuffers[0];
             var ib = vertexIndexBuffers.IndexBuffers[0];
 
+            var indexType = ib.ElementSizeInBytes switch
+            {
+                2 => DrawElementsType.UnsignedShort,
+                4 => DrawElementsType.UnsignedInt,
+                _ => throw new UnexpectedMagicException("Unsupported index type", ib.ElementSizeInBytes, nameof(ib.ElementSizeInBytes)),
+            };
+
             var drawCall = new DrawCall
             {
                 Material = material,
@@ -610,7 +646,7 @@ namespace ValveResourceFormat.Renderer
                 VertexCount = vb.ElementCount,
                 StartIndex = 0,
                 IndexCount = (int)ib.ElementCount,
-                IndexType = DrawElementsType.UnsignedInt,
+                IndexType = indexType,
 
                 VertexBuffers =
                 [

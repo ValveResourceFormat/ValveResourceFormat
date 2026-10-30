@@ -141,6 +141,11 @@ SkiaSharp
   Copyright (c) 2017-2018 Microsoft Corporation
   https://github.com/mono/SkiaSharp
 
+SourceUtils
+  License: MIT
+  Copyright (c) 2016 James King
+  https://github.com/Metapyziks/SourceUtils
+
 SPIRV-Cross
   License: Apache-2.0 OR MIT
   Copyright 2015-2021 Arm Limited

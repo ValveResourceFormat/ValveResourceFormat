@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
@@ -163,30 +162,13 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private static MeshSceneNode CreateMesh(Scene scene, string name, RenderMaterial material, ReadOnlySpan<Vertex> vertices, ReadOnlySpan<uint> indices)
         {
-            var vbib = new VBIB() { Resource = null! };
-
             var bounds = new AABB();
             foreach (var vertex in vertices)
             {
                 bounds = bounds.Encapsulate(vertex.Position);
             }
 
-            // Vertex buffer with interleaved data
-            vbib.VertexBuffers.Add(new VBIB.OnDiskBufferData
-            {
-                ElementCount = (uint)vertices.Length,
-                ElementSizeInBytes = (uint)Vertex.InputLayout.Stride,
-                Data = MemoryMarshal.Cast<Vertex, byte>(vertices).ToArray(),
-                InputLayoutFields = Vertex.InputLayout.Fields(),
-            });
-
-            vbib.IndexBuffers.Add(new VBIB.OnDiskBufferData
-            {
-                ElementCount = (uint)indices.Length,
-                ElementSizeInBytes = sizeof(uint),
-                Data = MemoryMarshal.Cast<uint, byte>(indices).ToArray(),
-                InputLayoutFields = []
-            });
+            var vbib = Vertex.InputLayout.CreateBuffers(vertices, indices);
 
             var renderableMesh = RenderableMesh.CreateMesh(name, material, vbib, bounds, scene.RendererContext);
             return new MeshSceneNode(scene, renderableMesh);

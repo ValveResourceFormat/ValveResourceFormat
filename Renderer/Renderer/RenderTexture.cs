@@ -18,7 +18,7 @@ namespace ValveResourceFormat.Renderer
         public int Handle { get; private set; }
 
         /// <summary>Gets optional spritesheet layout data when the texture is a sprite atlas.</summary>
-        public Texture.SpritesheetData? SpriteSheetData { get; }
+        public Texture.SpritesheetData? SpriteSheetData { get; init; }
 
         /// <summary>Gets the width of the texture in texels.</summary>
         public int Width { get; }

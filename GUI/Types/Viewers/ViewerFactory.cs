@@ -55,6 +55,30 @@ static class ViewerFactory
             viewer.Load(entry);
             return viewer;
         }
+        else if (Source1Texture.IsAccepted(magic))
+        {
+            var viewer = new Source1Texture(vrfGuiContext);
+            await viewer.LoadAsync(stream).ConfigureAwait(false);
+            return viewer;
+        }
+        else if (Source1ModelViewer.IsAccepted(magic))
+        {
+            var viewer = new Source1ModelViewer(vrfGuiContext);
+            await viewer.LoadAsync(stream).ConfigureAwait(false);
+            return viewer;
+        }
+        else if (Source1MapViewer.IsAccepted(magic))
+        {
+            var viewer = new Source1MapViewer(vrfGuiContext);
+            await viewer.LoadAsync(stream).ConfigureAwait(false);
+            return viewer;
+        }
+        else if (Source1Material.IsAccepted(vrfGuiContext.FileName))
+        {
+            var viewer = new Source1Material(vrfGuiContext);
+            await viewer.LoadAsync(stream).ConfigureAwait(false);
+            return viewer;
+        }
         else if (CompiledShader.IsAccepted(magic))
         {
             var viewer = new CompiledShader(vrfGuiContext);

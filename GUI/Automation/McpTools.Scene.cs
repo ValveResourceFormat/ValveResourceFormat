@@ -31,6 +31,7 @@ internal sealed partial class McpTools
         Select,
         Add,
         Open,
+        Details,
         Clear,
     }
 
@@ -53,7 +54,7 @@ internal sealed partial class McpTools
         }
     }
 
-    private readonly ConditionalWeakTable<GLWorldViewer, EntityTable> EntityTables = [];
+    private readonly ConditionalWeakTable<GLSceneViewer, EntityTable> EntityTables = [];
 
     // A scene numbers its nodes by their place in its lists, which shifts as nodes come and go
     private readonly IdRegistry<SceneNode> NodeIds = new();
@@ -66,21 +67,27 @@ internal sealed partial class McpTools
     /// Every entity of the map and of the spawn groups it loaded, such as its 3D sky, indexed by id.
     /// The map's come first, so their ids are their index in it. Call between frames.
     /// </summary>
-    private EntityTable Entities(GLWorldViewer viewer)
+    private EntityTable Entities(GLSceneViewer viewer)
     {
-        var world = viewer.LoadedWorld ?? throw new ToolException("This tab shows world geometry without a map, so it has no entities.");
+        var mapEntities = (viewer as IEntityMapViewer)?.MapEntities;
+
+        if (mapEntities == null)
+        {
+            throw new ToolException("This tab shows geometry without a map, so it has no entities.");
+        }
+
         var table = EntityTables.GetOrCreateValue(viewer);
 
         // Playing or stopping the world parses its lumps again. The new entities come in the same order, so they take the old ids.
-        if (world.Entities.Count > 0 && !table.Ids.ContainsKey(world.Entities[0]))
+        if (mapEntities.Count > 0 && !table.Ids.ContainsKey(mapEntities[0]))
         {
             table.Entities.Clear();
             table.Ids.Clear();
         }
 
-        table.Add(world.Entities, null);
+        table.Add(mapEntities, null);
 
-        foreach (var group in viewer.OwnSceneSpawnGroups.ToArray())
+        foreach (var group in ((IEntityMapViewer)viewer).OwnSceneSpawnGroups.ToArray())
         {
             table.Add(group.Entities, group);
         }
@@ -91,9 +98,9 @@ internal sealed partial class McpTools
     /// <summary>The entities of a map tab, or null for a tab without a map. Call between frames.</summary>
     private EntityTable? MapEntities(GLSceneViewer viewer)
     {
-        if (viewer is GLWorldViewer { LoadedWorld: not null } world)
+        if (viewer is IEntityMapViewer { MapEntities: not null })
         {
-            return Entities(world);
+            return Entities(viewer);
         }
 
         return null;
@@ -189,7 +196,7 @@ internal sealed partial class McpTools
 
     [Tool("Search the entities of a map, its 3D sky and the other spawn groups it loaded. There is no free text search or 'query': 'classname', 'targetname', 'key' and 'value' are separate filters, and an entity must match all that are given. Text filters are case insensitive regular expressions, not wildcards, so use 'decal' or '.*decal.*' rather than '*decal*'. They match anywhere unless anchored with ^ and $. Positions are where each entity renders. Returns 'next_offset' when more entities match.")]
     private async Task<object> FindEntities(
-        GLWorldViewer viewer,
+        GLSceneViewer viewer,
         [Description("Classname to match.")] string? classname = null,
         [Description("Targetname to match.")] string? targetname = null,
         [Description("Only entities with this exact key.")] string? key = null,
@@ -257,7 +264,7 @@ internal sealed partial class McpTools
     }
 
     /// <summary>Every entity of a map with where it renders, and the entity it spawned as. Call between frames.</summary>
-    private List<EntityRow> EntityRows(GLWorldViewer viewer)
+    private List<EntityRow> EntityRows(GLSceneViewer viewer)
     {
         var spawned = new Dictionary<EntityLump.Entity, BaseEntity>(ReferenceEqualityComparer.Instance);
 
@@ -306,7 +313,7 @@ internal sealed partial class McpTools
         => instance?.IsTrigger == true || data.GetStringProperty("classname")?.StartsWith("trigger_", StringComparison.OrdinalIgnoreCase) == true;
 
     [Tool("Describe one entity: its keyvalues and outputs, where it renders, spawn group, the class it spawned as with its live transform, and its scene nodes.")]
-    private object GetEntity(GLWorldViewer viewer, [Description("Entity id from find_entities or pick.")] int id)
+    private object GetEntity(GLSceneViewer viewer, [Description("Entity id from find_entities or pick.")] int id)
     {
         var entities = Entities(viewer);
         var data = EntityById(entities, id).Data;
@@ -419,7 +426,7 @@ internal sealed partial class McpTools
         GLSceneViewer viewer,
         [Description("Pixel X in the render area. Defaults to the centre.")] int? x = null,
         [Description("Pixel Y in the render area. Defaults to the centre.")] int? y = null,
-        [Description("select replaces the selection, as a click does. add toggles it in the selection, as Ctrl+click does. open opens it in its own tab, as Ctrl+double click does in a map, and returns that tab. clear removes the selection and reads no pixel. Until then, screenshots show the outline of a selected node, and the debug geometry of a selected light probe or envmap.")] PickAction action = PickAction.None,
+        [Description("select replaces the selection, as a click does. add toggles it in the selection, as Ctrl+click does. open opens it in its own tab, as Ctrl+double click does in a map, and returns that tab. details opens its info window, as a double click does. clear removes the selection and reads no pixel. Until then, screenshots show the outline of a selected node, and the debug geometry of a selected light probe or envmap.")] PickAction action = PickAction.None,
         CancellationToken cancellationToken = default)
     {
         if (action == PickAction.Clear)
@@ -449,6 +456,7 @@ internal sealed partial class McpTools
         {
             PickAction.Select => new PickRequest(pixelX, pixelY, PickIntent.Select),
             PickAction.Add => new PickRequest(pixelX, pixelY, PickIntent.Select, PickModifiers.Control),
+            PickAction.Details => new PickRequest(pixelX, pixelY, PickIntent.Details),
             _ => new PickRequest(pixelX, pixelY, PickIntent.Query),
         };
 
