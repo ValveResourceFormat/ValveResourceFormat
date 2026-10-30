@@ -19,6 +19,9 @@ uniform bool g_bEffectsBloomEncoded;
 
 #if D_THRESHOLD_MODE == 1
     uniform float g_flExposureBiasScaleFactor = 1.0;
+
+    // Whether the scene is exposed and Karis encoded before it is thresholded, or thresholded as it is
+    uniform bool g_bExposeScene = true;
 #endif
 
 layout(binding = 0) uniform sampler2D inputTexture;
@@ -49,12 +52,18 @@ vec3 FetchExposedEncoded(ivec2 coord, float exposure)
 {
     ivec2 clampedCoord = clamp(coord, ivec2(0), textureSize(inputTexture, 0) - 1);
     vec3 color = clamp(texelFetch(inputTexture, clampedCoord, 0).rgb, 0.0, 65504.0) * exposure;
+
+    if (!g_bExposeScene)
+    {
+        return color;
+    }
+
     return color / (1.0 + Max3(color));
 }
 
 vec3 DownsampleThresholdJimenez()
 {
-    float exposure = g_flToneMapScalarLinear * g_flExposureBiasScaleFactor;
+    float exposure = g_bExposeScene ? g_flToneMapScalarLinear * g_flExposureBiasScaleFactor : 1.0;
 
     // The taps sit on texel corners, at -2 to +2 texels from the quarter resolution texel centre,
     // so they cover a 6x6 block of texels
@@ -76,7 +85,7 @@ vec3 DownsampleThresholdJimenez()
         for (int x = 0; x < 5; x++)
         {
             vec3 average = (encoded[y][x] + encoded[y][x + 1] + encoded[y + 1][x] + encoded[y + 1][x + 1]) * 0.25;
-            vec3 decoded = average / (1.0 - Max3(average));
+            vec3 decoded = g_bExposeScene ? average / (1.0 - Max3(average)) : average;
             taps[y][x] = ApplyThreshold(decoded);
         }
     }

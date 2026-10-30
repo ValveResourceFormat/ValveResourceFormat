@@ -3,7 +3,16 @@
 #include "common/utils.slang"
 
 uniform bool g_bPostProcessEnabled = true;
-uniform bool g_bGameTonemap = false;
+
+const int TONEMAP_ENGINE_CURVE = 0;
+const int TONEMAP_NONE = 1;
+const int TONEMAP_GAME_CURVE = 2;
+
+// The games that skip post processing tonemap in their materials, with no exposure bias
+uniform int g_nTonemapMode = 0;
+
+// Whether the exposed color is limited to the white point before the curve
+uniform bool g_bClampToWhitePoint = true;
 
 // Only the exposure scalar and the sRGB encode: no exposure bias, bloom, tonemap, color correction, gamma or dither
 uniform bool g_bRawOutput = false;
@@ -45,7 +54,12 @@ layout (location = 0) out vec4 outputColor;
 
 vec3 TonemapColor(vec3 vColor)
 {
-    vColor = min(vColor * 2.8, vec3(g_flWhitePoint));
+    vColor *= 2.8;
+
+    if (g_bClampToWhitePoint)
+    {
+        vColor = min(vColor, vec3(g_flWhitePoint));
+    }
 
     // Uncharted tonemapper
     vec3 tonemapNumerator = vColor * (g_flShoulderStrength * vColor + g_flLinearStrength * g_flLinearAngle) + g_flToeNum * g_flToeStrength;
@@ -101,7 +115,7 @@ void main()
         // The bloom terms are weighted by the exposure on its own, not by the exposed color, so keep it
         // around after the scene has been multiplied through.
         float flExposure = g_flToneMapScalarLinear;
-        if (!g_bGameTonemap)
+        if (g_nTonemapMode == TONEMAP_ENGINE_CURVE)
         {
             flExposure *= g_flExposureBiasScaleFactor;
         }
@@ -120,7 +134,15 @@ void main()
             vColor.rgb += (bloomSample * g_vNormalizedBloomStrengths.x);
         #endif
 
-        vColor.rgb = g_bGameTonemap ? GameTonemapColor(vColor.rgb) : TonemapColor(vColor.rgb);
+        if (g_nTonemapMode == TONEMAP_ENGINE_CURVE)
+        {
+            vColor.rgb = TonemapColor(vColor.rgb);
+        }
+        else if (g_nTonemapMode == TONEMAP_GAME_CURVE)
+        {
+            vColor.rgb = GameTonemapColor(vColor.rgb);
+        }
+
         vColor.rgb = SrgbLinearToGamma(vColor.rgb);
         
         #if (D_BLOOM == 1)

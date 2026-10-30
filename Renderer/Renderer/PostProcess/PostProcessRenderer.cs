@@ -54,10 +54,25 @@ namespace ValveResourceFormat.Renderer.PostProcess
         public float CustomExposure { get; set; } = -1;
 
         /// <summary>
-        /// Gets whether the game tonemaps with its own fixed curve and applies no exposure, so the scene
-        /// is only exposed when <see cref="CustomExposure"/> is set.
+        /// Gets whether the game skips the engine's post processing and tonemaps in its materials, so the
+        /// scene gets no exposure bias and is only exposed when <see cref="CustomExposure"/> is set.
         /// </summary>
-        private bool UsesGameTonemap => RendererContext.FileLoader.GameInfo.Game == Game.Dota;
+        private bool UsesGameTonemap => RendererContext.FileLoader.GameInfo.SkipPostProcessing;
+
+        /// <summary>Gets whether the game tonemaps with its own fixed curve; other games that skip post processing output the scene as it is.</summary>
+        private bool UsesGameTonemapCurve => RendererContext.FileLoader.GameInfo.Game == Game.Dota;
+
+        // The values of the tonemap modes of post_processing.frag.slang: 0 is the engine curve, 1 leaves the scene as it is
+        // and 2 is the fixed curve of the game
+        private int GetTonemapMode()
+        {
+            if (!UsesGameTonemap)
+            {
+                return 0;
+            }
+
+            return UsesGameTonemapCurve ? 2 : 1;
+        }
 
         /// <summary>Gets or sets the display gamma, the game's brightness setting. 2.2 is identity; lower is brighter.</summary>
         public float FullScreenGamma { get; set; } = 2.2f;
@@ -339,7 +354,8 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
                 postProcessShader.SetUniform("g_bPostProcessEnabled", Enabled);
                 postProcessShader.SetUniform("g_bRawOutput", RawOutput);
-                postProcessShader.SetUniform("g_bGameTonemap", UsesGameTonemap);
+                postProcessShader.SetUniform("g_nTonemapMode", GetTonemapMode());
+                postProcessShader.SetUniform("g_bClampToWhitePoint", !RendererContext.FileLoader.GameInfo.TonemappingVrForward);
 
                 postProcessShader.SetUniform("g_flToneMapScalarLinear", TonemapScalar);
                 SetPostProcessUniforms(postProcessShader, State.TonemapSettings);

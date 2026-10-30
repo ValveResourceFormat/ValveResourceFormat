@@ -23,8 +23,8 @@ void main()
         return;
     }
 
-    // What an identity LUT stores at this voxel
-    vec3 vIdentity = (vec3(vCoord) + vec3(0.5)) / vec3(vDim);
+    // What an identity LUT stores at this voxel: the first voxel is 0 and the last is 1
+    vec3 vIdentity = vec3(vCoord) / vec3(vDim - 1);
 
     vec3 vColor = vIdentity * g_flIdentityWeight
         + texelFetch(g_tColorCorrection0, vCoord, 0).xyz * g_vColorCorrectionWeights0.x

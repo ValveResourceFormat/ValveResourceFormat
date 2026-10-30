@@ -57,7 +57,11 @@ public class BloomRenderer
     /// <summary>
     /// Gets whether the scene is exposed before it is thresholded, which leaves the bloom in exposed space.
     /// </summary>
-    public bool ThresholdsExposedScene => Game is Game.Csgo or Game.Steampal;
+    public bool ThresholdsExposedScene => Game is Game.Csgo;
+
+    // Deadlock and Half-Life: Alyx upsample with a 2x2 box
+    /// <summary>Gets whether the mips are upsampled with a tent filter rather than a 2x2 box.</summary>
+    public bool UsesTentUpsample => Game is Game.Csgo or Game.Steampal;
 
     // Deadlock keeps the effects target in floating point, and Dota 2 decodes its sRGB writes when it reads them back.
     // TODO: The effects bloom comes out uniformly about 8% darker than in Counter-Strike 2, for a reason not yet found
@@ -176,6 +180,7 @@ public class BloomRenderer
         shader.SetUniform("g_flToneMapScalarLinear", PostProcessRenderer.TonemapScalar);
         shader.SetUniform("g_flExposureBiasScaleFactor", MathF.Pow(2f, PostProcessRenderer.State.TonemapSettings.ExposureBias));
         shader.SetUniform("g_flThresholdParams", thresholdParams);
+        shader.SetUniform("g_bExposeScene", ThresholdsExposedScene);
         shader.SetUniform("g_flSceneBloomWeight", sceneWeight);
         shader.SetUniform("g_bEffectsBloom", effectsBloom != null);
         // The effects bloom layer is clamped to [0, 1] where it is stored in an 8-bit target rather than in floating point.
@@ -246,8 +251,7 @@ public class BloomRenderer
     {
         Debug.Assert(upsample != null && upsampleTent != null && finalUpsample != null);
 
-        // Deadlock and Half-Life: Alyx upsample with a 2x2 box
-        var upsampleShader = ThresholdsExposedScene && TentFilterRadius > 0f ? upsampleTent : upsample;
+        var upsampleShader = UsesTentUpsample && TentFilterRadius > 0f ? upsampleTent : upsample;
 
         using (GraphicsContext.RenderState.Scope(blend: true, srcBlend: RsBlendMode.One, dstBlend: RsBlendMode.Src1Color))
         {
