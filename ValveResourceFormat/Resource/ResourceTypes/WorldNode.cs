@@ -138,14 +138,15 @@ namespace ValveResourceFormat.ResourceTypes
 
         /// <summary>
         /// A vertex buffer bound in addition to the geometry of one draw call of one of <see cref="SceneObjects"/>,
-        /// such as vertex paint on a placed prop.
+        /// such as vertex paint or baked vertex lighting on a placed prop.
         /// </summary>
         /// <param name="SceneObjectIndex">Index into <see cref="SceneObjects"/>.</param>
         /// <param name="SubSceneObject">Index of the mesh within the scene object's model.</param>
         /// <param name="DrawCallIndex">Index of the draw call within the mesh; an index the mesh does not have binds nothing.</param>
         /// <param name="BufferIndex">Index into <see cref="GetExtraVertexStreams"/>.</param>
+        /// <param name="IsVertexLighting">Whether the buffer holds the baked lighting of the draw call, instead of vertex paint.</param>
         /// <seealso href="https://s2v.app/SchemaExplorer/cs2/worldrenderer/ExtraVertexStreamOverride_t">ExtraVertexStreamOverride_t</seealso>
-        public readonly record struct ExtraVertexStreamOverride(uint SceneObjectIndex, uint SubSceneObject, uint DrawCallIndex, int BufferIndex);
+        public readonly record struct ExtraVertexStreamOverride(uint SceneObjectIndex, uint SubSceneObject, uint DrawCallIndex, int BufferIndex, bool IsVertexLighting);
 
         /// <summary>
         /// Gets the extra vertex streams bound to single draw calls of <see cref="SceneObjects"/>.
@@ -155,7 +156,8 @@ namespace ValveResourceFormat.ResourceTypes
                 streamOverride.GetUInt32Property("m_nSceneObjectIndex"),
                 streamOverride.GetUInt32Property("m_nSubSceneObject"),
                 streamOverride.GetUInt32Property("m_nDrawCallIndex"),
-                streamOverride.GetSubCollection("m_extraBufferBinding").GetInt32Property("m_hBuffer")));
+                streamOverride.GetSubCollection("m_extraBufferBinding").GetInt32Property("m_hBuffer"),
+                Mesh.HasVertexLightingFlag(streamOverride, "m_nAdditionalMeshDrawPrimitiveFlags")));
 
         /// <summary>
         /// Reads the vertex buffers that <see cref="ExtraVertexStreamOverrides"/> bind.

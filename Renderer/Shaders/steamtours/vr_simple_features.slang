@@ -1,10 +1,13 @@
 #version 460
 
+#define FOG_GRADIENT_TEXTURE 1
+
 // MODES
 #define F_UNLIT 0
 // BLENDING
 #define F_ALPHA_TEST 0
 #define F_TRANSLUCENT 0
 // TEXTURING
+#define F_SELF_ILLUM 0
 #define F_TINT_MASK 0
 #define F_VERTEX_COLOR 0

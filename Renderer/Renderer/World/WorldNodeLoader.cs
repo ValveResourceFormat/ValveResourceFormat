@@ -332,10 +332,10 @@ namespace ValveResourceFormat.Renderer.World
                 foreach (var streamOverride in OverridesBySceneObject[sceneObjectIndex])
                 {
                     var stream = Streams.VertexBuffers[streamOverride.BufferIndex];
-                    var (_, drawCall) = FindDrawCall(modelNode, streamOverride.SubSceneObject, streamOverride.DrawCallIndex);
+                    var (mesh, drawCall) = FindDrawCall(modelNode, streamOverride.SubSceneObject, streamOverride.DrawCallIndex);
 
                     // Streams painted on an older version of the model no longer match its vertex count
-                    if (drawCall?.VertexCount != stream.ElementCount)
+                    if (mesh is null || drawCall?.VertexCount != stream.ElementCount)
                     {
                         continue;
                     }
@@ -347,6 +347,11 @@ namespace ValveResourceFormat.Renderer.World
                         ElementSizeInBytes = stream.ElementSizeInBytes,
                         InputLayoutFields = stream.InputLayoutFields,
                     });
+
+                    if (streamOverride.IsVertexLighting)
+                    {
+                        mesh.UseBakedLightingFromVertexStream(drawCall);
+                    }
                 }
             }
         }

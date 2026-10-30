@@ -8,13 +8,17 @@
 
 #define D_SKINNING 0
 
+// The values of D_SKINNING, as MeshSkinning has them
+#define SKINNING_EIGHT_BONES 3
+#define SKINNING_TWO_BONES 4
+
 #if (D_SKINNING > 0)
     in uvec4 vBLENDINDICES;
 #endif
 #if (D_SKINNING > 1)
     in vec4 vBLENDWEIGHT;
 #endif
-#if (D_SKINNING > 2)
+#if (D_SKINNING == SKINNING_EIGHT_BONES)
     in uvec4 vBLENDINDICES2;
     in vec4 vBLENDWEIGHT2;
 #endif
@@ -56,10 +60,14 @@ mat3x4 GetSkinMatrix()
 
         skinMatrix += vBLENDWEIGHT.x * GetMatrix(vBLENDINDICES.x, objectBoneOffset);
         skinMatrix += vBLENDWEIGHT.y * GetMatrix(vBLENDINDICES.y, objectBoneOffset);
-        skinMatrix += vBLENDWEIGHT.z * GetMatrix(vBLENDINDICES.z, objectBoneOffset);
-        skinMatrix += vBLENDWEIGHT.w * GetMatrix(vBLENDINDICES.w, objectBoneOffset);
 
-        #if (D_SKINNING == 3)
+        // A two component weight stream leaves z and w to the input defaults of zero and one
+        #if (D_SKINNING != SKINNING_TWO_BONES)
+            skinMatrix += vBLENDWEIGHT.z * GetMatrix(vBLENDINDICES.z, objectBoneOffset);
+            skinMatrix += vBLENDWEIGHT.w * GetMatrix(vBLENDINDICES.w, objectBoneOffset);
+        #endif
+
+        #if (D_SKINNING == SKINNING_EIGHT_BONES)
             skinMatrix += vBLENDWEIGHT2.x * GetMatrix(vBLENDINDICES2.x, objectBoneOffset);
             skinMatrix += vBLENDWEIGHT2.y * GetMatrix(vBLENDINDICES2.y, objectBoneOffset);
             skinMatrix += vBLENDWEIGHT2.z * GetMatrix(vBLENDINDICES2.z, objectBoneOffset);

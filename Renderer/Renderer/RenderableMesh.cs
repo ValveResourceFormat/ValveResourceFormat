@@ -189,13 +189,33 @@ namespace ValveResourceFormat.Renderer
         {
             ArgumentNullException.ThrowIfNull(drawCall);
 
-            var material = drawCall.Material;
-
-            // Recycle non-material-derived shader arguments
-            var staticParams = material.Material.GetShaderArguments();
-            var dynamicParams = new Dictionary<string, byte>(material.Shader.Parameters.Except(staticParams));
+            var dynamicParams = GetDynamicShaderParams(drawCall);
 
             drawCall.SetNewMaterial(renderContext.MaterialLoader.GetMaterial(replacementName, dynamicParams));
+        }
+
+        // The shader arguments of a draw call that its material does not derive
+        private static Dictionary<string, byte> GetDynamicShaderParams(DrawCall drawCall)
+        {
+            var material = drawCall.Material;
+            var staticParams = material.Material.GetShaderArguments();
+
+            return new Dictionary<string, byte>(material.Shader.Parameters.Except(staticParams));
+        }
+
+        /// <summary>Makes a draw call take its indirect lighting from the baked vertex lighting stream bound to it.</summary>
+        /// <param name="drawCall">One of <see cref="DrawCalls"/>.</param>
+        public void UseBakedLightingFromVertexStream(DrawCall drawCall)
+        {
+            ArgumentNullException.ThrowIfNull(drawCall);
+
+            var dynamicParams = GetDynamicShaderParams(drawCall);
+
+            dynamicParams.Remove("D_BAKED_LIGHTING_FROM_LIGHTMAP");
+            dynamicParams.Remove("D_BAKED_LIGHTING_FROM_PROBE");
+            dynamicParams["D_BAKED_LIGHTING_FROM_VERTEX_STREAM"] = 1;
+
+            drawCall.SetNewMaterial(renderContext.MaterialLoader.GetMaterial(drawCall.Material.Material.Name, dynamicParams));
         }
 
         /// <summary>
@@ -237,12 +257,7 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var drawCall in oldDrawCalls)
             {
-                var material = drawCall.Material;
-                var materialData = material.Material;
-
-                // Recycle non-material-derived shader arguments
-                var staticParams = materialData.GetShaderArguments();
-                var dynamicParams = new Dictionary<string, byte>(material.Shader.Parameters.Except(staticParams));
+                var dynamicParams = GetDynamicShaderParams(drawCall);
 
                 drawCall.SetNewMaterial(renderContext.MaterialLoader.LoadMaterial(resourceMaterial, dynamicParams));
 
@@ -266,13 +281,19 @@ namespace ValveResourceFormat.Renderer
         {
             var hasIndices = false;
             var hasWeights = false;
+            var allWeightsAreTwoComponent = true;
 
             foreach (var buffer in vbib.VertexBuffers)
             {
                 foreach (var field in buffer.InputLayoutFields)
                 {
                     hasIndices |= field.SemanticName == "BLENDINDICES";
-                    hasWeights |= field.SemanticName is "BLENDWEIGHT" or "BLENDWEIGHTS";
+
+                    if (field.SemanticName is "BLENDWEIGHT" or "BLENDWEIGHTS")
+                    {
+                        hasWeights = true;
+                        allWeightsAreTwoComponent &= field.Format == DXGI_FORMAT.R16G16_UNORM;
+                    }
                 }
             }
 
@@ -284,6 +305,11 @@ namespace ValveResourceFormat.Renderer
             if (!hasWeights)
             {
                 return MeshSkinning.OneBone;
+            }
+
+            if (allWeightsAreTwoComponent)
+            {
+                return MeshSkinning.TwoBones;
             }
 
             // The second set of four is split out of the first at draw time, see CreateDrawCall

@@ -556,7 +556,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// </summary>
         public static readonly IReadOnlyList<Game> GameFallbackOrder =
         [
-            Game.Dota, Game.Csgo, Game.Citadel, Game.Hlx, Game.Steampal, Game.Steamtours, Game.Hlvr,
+            Game.Dota, Game.Csgo, Game.Citadel, Game.Hlx, Game.Steampal, Game.Vr, Game.Steamtours, Game.Hlvr,
         ];
 
         // The shaders of a game are in the folder named after its Game member in lowercase, which is its mod folder

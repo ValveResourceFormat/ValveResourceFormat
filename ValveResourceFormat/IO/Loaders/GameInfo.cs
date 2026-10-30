@@ -24,6 +24,7 @@ namespace ValveResourceFormat.IO
             [205790] = Game.Dota,
             [247040] = Game.Dota,
             [250820] = Game.Steamtours,
+            [450390] = Game.Vr,
             [453170] = Game.Steamtours,
             [546560] = Game.Hlvr,
             [1422450] = Game.Citadel,
@@ -52,6 +53,30 @@ namespace ValveResourceFormat.IO
 
         /// <summary><c>Engine2/RenderingPipeline/Tonemapping_DefaultAutoExposureMax</c>.</summary>
         public float? DefaultAutoExposureMax { get; }
+
+        /// <summary>
+        /// <c>Engine2/RenderingPipeline/SkipPostProcessing</c>: whether the engine skips its tonemap, bloom and color
+        /// correction pass, leaving the final color to the materials.
+        /// </summary>
+        public bool SkipPostProcessing { get; }
+
+        /// <summary>
+        /// <c>Engine2/RenderingPipeline/TonemappingVRForward</c>: whether the engine tonemaps in its VR forward pipeline,
+        /// which does not clamp the exposed color to the white point and fogs by the stronger of the distance and height terms.
+        /// </summary>
+        public bool TonemappingVrForward { get; }
+
+        /// <summary>
+        /// <c>SceneSystem/VrLightBinnerSingleLightFastPath</c>: whether the VR light binner shades one shadowed light and
+        /// a few unshadowed point lights per pixel, and lights what nothing baked with the sky's spherical harmonics.
+        /// </summary>
+        public bool VrLightBinnerSingleLightFastPath { get; }
+
+        /// <summary>
+        /// <c>WorldRenderer/EnvironmentMapMipProcessor</c> names RGBM: whether the environment maps store their
+        /// brightness in the alpha channel.
+        /// </summary>
+        public bool EnvironmentMapsAreRgbm { get; }
 
         /// <summary><c>Particles/ParticlesFoggedByDefault</c>: whether particles that leave fog to the game are fogged.</summary>
         public bool ParticlesFoggedByDefault { get; }
@@ -123,9 +148,16 @@ namespace ValveResourceFormat.IO
 
                 if (engine.TryGetValue("RenderingPipeline", out var pipeline))
                 {
+                    SkipPostProcessing = pipeline.GetBooleanProperty("SkipPostProcessing");
+                    TonemappingVrForward = pipeline.GetBooleanProperty("TonemappingVRForward");
                     DefaultAutoExposureMin = ReadSingle(pipeline, "Tonemapping_DefaultAutoExposureMin");
                     DefaultAutoExposureMax = ReadSingle(pipeline, "Tonemapping_DefaultAutoExposureMax");
                 }
+            }
+
+            if (root.TryGetValue("SceneSystem", out var sceneSystem))
+            {
+                VrLightBinnerSingleLightFastPath = sceneSystem.GetBooleanProperty("VrLightBinnerSingleLightFastPath");
             }
 
             if (root.TryGetValue("Particles", out var particles))
@@ -139,6 +171,9 @@ namespace ValveResourceFormat.IO
             {
                 DirectLightBaking = worldRenderer.GetBooleanProperty("DirectLightBaking", defaultValue: true);
                 LpvEdgeBlending = worldRenderer.GetBooleanProperty("LPVEdgeBlending", defaultValue: true);
+
+                var mipProcessor = GetString(worldRenderer, "EnvironmentMapMipProcessor");
+                EnvironmentMapsAreRgbm = mipProcessor != null && mipProcessor.Contains("RGBM", StringComparison.Ordinal);
             }
         }
 

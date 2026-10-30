@@ -1,5 +1,7 @@
 #version 460
 
+#define FOG_GRADIENT_TEXTURE 1
+
 // BLENDING
 #define F_ALPHA_TEST 0
 #define F_TRANSLUCENT 0

@@ -261,7 +261,7 @@ public sealed partial class MapExtract
 
         foreach (var streamOverride in streamOverrides)
         {
-            if (streamOverride.DrawCallIndex > int.MaxValue)
+            if (streamOverride.DrawCallIndex > int.MaxValue || streamOverride.IsVertexLighting)
             {
                 continue;
             }
