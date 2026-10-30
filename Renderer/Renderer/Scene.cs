@@ -1088,12 +1088,12 @@ namespace ValveResourceFormat.Renderer
 
             node.LightingBindPosition = lightingPosition;
 
-            if (rebindProbes && node.LightProbeVolumePrecomputedHandshake == 0)
+            if (rebindProbes && node.LightProbeVolumePrecomputedHandshake == 0 && !BindsByHandshake(node))
             {
-                node.LightProbeBinding = ChooseLightProbeVolume(lightingPosition)!;
+                node.LightProbeBinding = ChooseLightProbeVolume(lightingPosition, node.BoundingBox)!;
             }
 
-            if (rebindEnvMaps && node.CubeMapPrecomputedHandshake == 0)
+            if (rebindEnvMaps && node.CubeMapPrecomputedHandshake == 0 && !BindsByHandshake(node))
             {
                 node.EnvMapBinding = ChooseEnvironmentMap(lightingPosition);
             }
@@ -1111,9 +1111,16 @@ namespace ValveResourceFormat.Renderer
         {
             var envMapIndex = node.EnvMapBinding is { } envMap ? (uint)envMap.ShaderIndex : node.ShaderEnvMapVisibility.GetFirstShaderIndex();
 
+            if (node.HasNoEnvMap)
+            {
+                envMapIndex = SceneEnvMap.NoEnvMapIndex;
+            }
+
+            var lightProbeIndex = node.LightProbeBinding is { } probe ? (uint)probe.ShaderIndex : SceneLightProbe.NoLightProbeIndex;
+
             return new()
             {
-                VisibleLPV = (uint)(node.LightProbeBinding?.ShaderIndex ?? 0) | (envMapIndex << 16),
+                VisibleLPV = lightProbeIndex | (envMapIndex << 16),
                 EnvMapVisibility = node.ShaderEnvMapVisibility,
             };
         }
@@ -1710,16 +1717,26 @@ namespace ValveResourceFormat.Renderer
             {
                 node.LightingBindPosition = new Vector3(float.NaN);
 
-                if (FindPrecomputedLightProbe(node) is { } probe && boundSet.Contains(probe))
+                var precomputedProbe = FindPrecomputedLightProbe(node);
+
+                if (precomputedProbe != null && boundSet.Contains(precomputedProbe))
                 {
-                    node.LightProbeBinding = probe;
+                    node.LightProbeBinding = precomputedProbe;
+                }
+                else if (precomputedProbe == null && BindsByHandshake(node))
+                {
+                    node.LightProbeBinding = null;
                 }
                 else if (node.LightProbeBinding == null || !boundSet.Contains(node.LightProbeBinding))
                 {
-                    node.LightProbeBinding = ChooseLightProbeVolume(LightingPosition(node));
+                    node.LightProbeBinding = ChooseLightProbeVolume(LightingPosition(node), node.BoundingBox);
                 }
             }
         }
+
+        private bool BindsByHandshake(SceneNode node)
+            => LightingInfo.LightmapGameVersionNumber == 0
+                && (node.LightProbeVolumePrecomputedHandshake != 0 || node.CubeMapPrecomputedHandshake != 0);
 
         private SceneLightProbe? FindPrecomputedLightProbe(SceneNode node)
         {
@@ -1733,12 +1750,6 @@ namespace ValveResourceFormat.Renderer
             if (precomputedHandshake == 0)
             {
                 return null;
-            }
-
-            if (LightingInfo.LightmapGameVersionNumber == 0 && precomputedHandshake <= LightingInfo.LightProbes.Count)
-            {
-                // SteamVR Home node handshake as probe index
-                return LightingInfo.LightProbes[precomputedHandshake - 1];
             }
 
             return LightingInfo.ProbeHandshakes.GetValueOrDefault(precomputedHandshake);
@@ -1836,10 +1847,16 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Returns the best probe volume containing the given position, or <see langword="null"/> when
-        /// none does.
+        /// Returns the probe volume that best covers a position: one that contains it, the highest priority among
+        /// those and then the nearest to its origin, otherwise the nearest one that reaches the object.
         /// </summary>
-        public SceneLightProbe? ChooseLightProbeVolume(Vector3 position)
+        /// <param name="position">A position in this scene.</param>
+        /// <param name="objectBounds">
+        /// The bounds of the object lit at the position. A volume that does not contain the position is only chosen
+        /// when it is within half the diagonal of the bounds from their center, or always when this is <see langword="null"/>.
+        /// </param>
+        /// <returns>The probe volume, or <see langword="null"/> when the scene has none.</returns>
+        public SceneLightProbe? ChooseLightProbeVolume(Vector3 position, AABB? objectBounds = null)
         {
             if (boundLightProbes == null)
             {
@@ -1847,54 +1864,62 @@ namespace ValveResourceFormat.Renderer
             }
 
             SceneLightProbe? best = null;
+            var bestInside = false;
             var bestPriority = int.MinValue;
             var bestScore = float.MaxValue;
 
+            var boundsCenter = objectBounds?.Center ?? position;
+            var maxReachSquared = objectBounds is { } bounds ? (boundsCenter - bounds.Min).LengthSquared() : float.MaxValue;
+
             foreach (var probe in CollectionsMarshal.AsSpan(boundLightProbes))
             {
-                if (!probe.BoundingBox.Contains(position))
+                // The world box contains the oriented one, so a probe it neither contains nor reaches is out of reach
+                if (!probe.BoundingBox.Contains(position) && probe.BoundingBox.DistanceSquared(boundsCenter) > maxReachSquared)
                 {
                     continue;
                 }
 
                 var local = Vector3.Transform(position, probe.WorldToLocal);
-                var bounds = probe.LocalBoundingBox;
+                var outsideDistance = probe.LocalBoundingBox.DistanceSquared(local);
+                var inside = outsideDistance == 0f;
 
-                if (!bounds.Contains(local))
+                if (!inside && objectBounds != null)
                 {
-                    continue;
+                    var centerLocal = Vector3.Transform(boundsCenter, probe.WorldToLocal);
+
+                    if (probe.LocalBoundingBox.DistanceSquared(centerLocal) > maxReachSquared)
+                    {
+                        continue;
+                    }
                 }
 
-                var score = (local - bounds.Center).LengthSquared();
+                var score = inside ? local.LengthSquared() : outsideDistance;
 
-                if (probe.IndoorOutdoorLevel < bestPriority
-                    || (probe.IndoorOutdoorLevel == bestPriority && score >= bestScore))
+                if (inside)
                 {
-                    continue;
+                    if (bestInside)
+                    {
+                        if (probe.IndoorOutdoorLevel < bestPriority)
+                        {
+                            continue;
+                        }
+
+                        if (probe.IndoorOutdoorLevel == bestPriority && score > bestScore)
+                        {
+                            continue;
+                        }
+                    }
+                }
+                else
+                {
+                    if (bestInside || score > bestScore)
+                    {
+                        continue;
+                    }
                 }
 
                 best = probe;
-                bestPriority = probe.IndoorOutdoorLevel;
-                bestScore = score;
-            }
-
-            if (best != null)
-            {
-                return best;
-            }
-
-            // Choose a nearby volume
-            foreach (var probe in CollectionsMarshal.AsSpan(boundLightProbes))
-            {
-                var score = probe.BoundingBox.DistanceSquared(position);
-
-                if (probe.IndoorOutdoorLevel < bestPriority
-                    || (probe.IndoorOutdoorLevel == bestPriority && score >= bestScore))
-                {
-                    continue;
-                }
-
-                best = probe;
+                bestInside = inside;
                 bestPriority = probe.IndoorOutdoorLevel;
                 bestScore = score;
             }
@@ -1936,7 +1961,8 @@ namespace ValveResourceFormat.Renderer
 
             var firstTexture = LightingInfo.EnvMaps.First().EnvMapTexture;
 
-            var isRgbm = LightingInfo.LightmapVersionNumber > 0 && LightingInfo.LightmapGameVersionNumber == 0;
+            var isRgbm = RendererContext.FileLoader.GameInfo.EnvironmentMapsAreRgbm
+                || (LightingInfo.LightmapVersionNumber > 0 && LightingInfo.LightmapGameVersionNumber == 0);
 
             LightingInfo.LightingData.EnvMapSizeConstants = new Vector4(firstTexture.NumMipLevels - 1, firstTexture.Depth, isRgbm ? 1 : 0, 0);
 
@@ -2019,6 +2045,7 @@ namespace ValveResourceFormat.Renderer
         {
             var precomputedHandshake = node.CubeMapPrecomputedHandshake;
             SceneEnvMap? preComputed = default;
+            node.HasNoEnvMap = false;
 
             if (node.EntityData is { } entityData
                 && LightingInfo.EnvMaps.Find(e => ReferenceEquals(e.EntityData, entityData)) is { } selfEnvMap)
@@ -2028,11 +2055,11 @@ namespace ValveResourceFormat.Renderer
             }
             else if (precomputedHandshake > 0)
             {
-                if (LightingInfo.LightmapGameVersionNumber == 0 && precomputedHandshake <= LightingInfo.EnvMaps.Count)
+                if (LightingInfo.LightmapGameVersionNumber == 0 && !LightingInfo.EnvMapHandshakes.ContainsKey(precomputedHandshake))
                 {
-                    // SteamVR Home node handshake as envmap index
+                    // The engine only binds an environment map whose handshake the node names, and has none otherwise
                     envMaps.Clear();
-                    envMaps.Add(LightingInfo.EnvMaps[precomputedHandshake - 1]);
+                    node.HasNoEnvMap = true;
                 }
                 else if (LightingInfo.EnvMapHandshakes.TryGetValue(precomputedHandshake, out preComputed))
                 {
@@ -2045,6 +2072,11 @@ namespace ValveResourceFormat.Renderer
                     RendererContext.Logger.LogDebug("An envmap with handshake [{Handshake}] does not exist for node at {Center}", precomputedHandshake, node.BoundingBox.Center);
 #endif
                 }
+            }
+            else if (BindsByHandshake(node))
+            {
+                envMaps.Clear();
+                node.HasNoEnvMap = true;
             }
 
             var lightingOrigin = node.LightingOrigin ?? Vector3.Zero;
@@ -2133,6 +2165,8 @@ namespace ValveResourceFormat.Renderer
             envMap.WorldToLocal = worldToLocal;
 
             var boundsExtend = new Vector3(SceneEnvMap.BoundsExtend);
+            var projectionBounds = envMap.ProjectionBounds ?? envMap.LocalBoundingBox;
+            var radius = envMap.LocalBoundingBox.Max.X;
 
             envMapBuffer.Data.EnvMaps[index] = new EnvMapData
             {
@@ -2140,6 +2174,9 @@ namespace ValveResourceFormat.Renderer
                 BoxMins = envMap.LocalBoundingBox.Min - boundsExtend,
                 ArrayIndex = (uint)envMap.ArrayIndex,
                 BoxMaxs = envMap.LocalBoundingBox.Max + boundsExtend,
+                ProjectionMins = projectionBounds.Min,
+                InvRadius = radius > 0f ? 1f / radius : 0f,
+                ProjectionMaxs = projectionBounds.Max,
                 InvEdgeWidth = new Vector4(SceneEnvMap.GetInverseEdgeFade(envMap.EdgeFadeDists), 0),
                 Origin = envMap.Transform.Translation,
                 ProjectionType = (uint)envMap.ProjectionMode,

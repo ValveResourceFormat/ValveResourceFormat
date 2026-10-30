@@ -58,9 +58,17 @@ vec3 CalculateProbeShadowCoords(LightProbeVolume lpv, vec3 vLightProbeLocalPos)
     return fma(vLightProbeLocalPos, lpv.AtlasScale.xyz, lpv.AtlasOffset.xyz);
 }
 
+#define NO_LIGHT_PROBE_VOLUME 0xFFFFu
+
 vec3 CalculateProbeShadowCoords(vec3 fragPosition)
 {
     uint nVolume = GetObjectLightingData().VisibleLPV & 0xFFFFu;
+
+    if (nVolume == NO_LIGHT_PROBE_VOLUME)
+    {
+        return vec3(0.0);
+    }
+
     return CalculateProbeShadowCoords(g_LPV[nVolume], CalculateProbeSampleCoords(nVolume, fragPosition));
 }
 
@@ -234,7 +242,11 @@ LightProbeSample_t SampleLightProbeVolumes(vec3 positionWs, vec3 normal)
         BlendLightProbeVolumes(probe, positionWs, normal);
     #else
         uint nVolume = GetObjectLightingData().VisibleLPV & 0xFFFFu;
-        AddLightProbeVolume(probe, g_LPV[nVolume], CalculateProbeSampleCoords(nVolume, positionWs), normal, 1.0);
+
+        if (nVolume != NO_LIGHT_PROBE_VOLUME)
+        {
+            AddLightProbeVolume(probe, g_LPV[nVolume], CalculateProbeSampleCoords(nVolume, positionWs), normal, 1.0);
+        }
     #endif
 
     return probe;

@@ -284,6 +284,11 @@ namespace ValveResourceFormat.Renderer
         public SceneEnvMap.EnvMapVisibility128 ShaderEnvMapVisibility { get; set; } = SceneEnvMap.EnvMapVisibility128.Full;
 
         /// <summary>
+        /// Gets or sets whether the node names an environment map that does not exist, so it reflects none.
+        /// </summary>
+        public bool HasNoEnvMap { get; set; }
+
+        /// <summary>
         /// Gets or sets a custom lighting origin override for environment map and light probe sampling.
         /// </summary>
         public Vector3? LightingOrigin { get; set; }

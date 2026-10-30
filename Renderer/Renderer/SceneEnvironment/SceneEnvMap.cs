@@ -70,6 +70,12 @@ public class SceneEnvMap : SceneNode
     public int ProjectionMode { get; init; }
 
     /// <summary>
+    /// Gets the box in local space that materials with box projection project the reflection onto, or
+    /// <see langword="null"/> when the entity names none and the bounds of the influence volume are used.
+    /// </summary>
+    public AABB? ProjectionBounds { get; init; }
+
+    /// <summary>
     /// Luminance of this probe's own baked radiance, as an L1 spherical harmonic packed for
     /// a dot with (normal, 1). It covers the whole probe volume unoccluded, so dividing the
     /// per fragment irradiance by it gives specular occlusion.
@@ -142,6 +148,9 @@ public class SceneEnvMap : SceneNode
 
         return new Vector4(linear * scale, constant);
     }
+
+    /// <summary>Shader index of a node that has no environment map.</summary>
+    public const uint NoEnvMapIndex = 0xFFFF;
 
     /// <summary>
     /// 128-bit bitmask tracking which environment maps are visible to a node.

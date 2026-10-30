@@ -64,8 +64,16 @@ public static class SceneLightingVolume
         var envMapTexture = scene.RendererContext.MaterialLoader.GetTexture(cubemapTextureName, true);
         var arrayIndex = entity.GetInt32Property("array_index");
 
+        AABB? projectionBounds = null;
+
+        if (entity.ContainsKey("boxproject_mins") && entity.ContainsKey("boxproject_maxs"))
+        {
+            projectionBounds = new AABB(entity.GetVector3Property("boxproject_mins"), entity.GetVector3Property("boxproject_maxs"));
+        }
+
         var envMap = new SceneEnvMap(scene, volume.Bounds)
         {
+            ProjectionBounds = projectionBounds,
             LayerName = layerName,
             Transform = transform,
             HandShake = volume.HandShake,
