@@ -234,8 +234,8 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Poses procedural cloth roots rigidly from the cloth simulation root, matching the pin
-        /// <see cref="GetSkinningMatrices"/> applies to their skinning matrices.
+        /// Poses procedural cloth roots rigidly from the cloth simulation root, so their skinning
+        /// matrices equal the simulation root's.
         /// </summary>
         private void ApplyClothRootPose()
         {
@@ -482,32 +482,6 @@ namespace ValveResourceFormat.Renderer
             foreach (var child in bone.Children)
             {
                 GetInverseBindPoseRecursive(child, boneMatrices[bone.Index], boneMatrices);
-            }
-        }
-
-        /// <summary>
-        /// Get bone matrices in bindpose space.
-        /// Bones that do not move from the original location will have an identity matrix.
-        /// Thus there will be no transformation in the vertex shader.
-        /// </summary>
-        public void GetSkinningMatrices(Span<Matrix4x4> modelBones)
-        {
-            for (var i = 0; i < Pose.Length; i++)
-            {
-                modelBones[i] = InverseBindPose[i] * Pose[i];
-            }
-
-            // Copy procedural cloth node transforms from an animated root bone
-            var clothSimRoot = Skeleton.ClothSimulationRoot;
-            if (clothSimRoot is not null)
-            {
-                foreach (var clothNode in Skeleton.Roots)
-                {
-                    if (clothNode.IsProceduralCloth)
-                    {
-                        modelBones[clothNode.Index] = modelBones[clothSimRoot.Index];
-                    }
-                }
             }
         }
     }

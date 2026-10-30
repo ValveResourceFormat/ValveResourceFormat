@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using System.Runtime.InteropServices;
+using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
 {
@@ -13,6 +13,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private readonly int boneCount;
 
         private readonly ReadOnlyMemory<int> remappingTable;
+
+        /// <summary>
+        /// The inverse bind pose of every slot of <see cref="remappingTable"/>, as the slot's mesh is skinned with it.
+        /// </summary>
+        private readonly Matrix4x4[] slotInverseBindPose;
 
         /// <summary>
         /// The mesh-local bone index for the given model-level bone index, within that mesh's slice of
@@ -41,25 +46,30 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             Debug.Assert(destination.Length == BoneTransformStart - 1 + meshBoneCount);
 
             var boneTransforms = destination[(BoneTransformStart - 1)..];
-
-            using var floatBuffer = new RentedBuffer<float>(boneCount * 16);
-            var modelBones = MemoryMarshal.Cast<float, Matrix4x4>(floatBuffer.Span);
-
-            AnimationController.GetSkinningMatrices(modelBones);
-
+            var pose = AnimationController.Pose;
             var meshBoneRemap = remappingTable.Span;
 
             var identity = Matrix4x4.Identity.To3x4();
 
-            for (var i = 0; i < meshBoneCount; i++)
+            for (var slot = 0; slot < meshBoneCount; slot++)
             {
-                var modelBoneIndex = meshBoneRemap[i];
+                var modelBoneIndex = meshBoneRemap[slot];
                 var modelBoneExists = modelBoneIndex < boneCount && modelBoneIndex != -1;
 
-                boneTransforms[i] = modelBoneExists
-                    ? modelBones[modelBoneIndex].To3x4()
+                boneTransforms[slot] = modelBoneExists
+                    ? (slotInverseBindPose[slot] * pose[modelBoneIndex]).To3x4()
                     : identity;
             }
+        }
+
+        /// <summary>
+        /// Stores the inverse bind pose a mesh is skinned with in the slots of its bones.
+        /// </summary>
+        private void SetSlotInverseBindPose(Model model, Mesh mesh, int meshIndex, Matrix4x4[] modelInverseBindPose)
+        {
+            var meshStart = model.BoneRemapTable.GetMeshStart(meshIndex);
+
+            model.GetSkinningInverseBindPose(mesh, meshIndex, modelInverseBindPose).CopyTo(slotInverseBindPose, meshStart);
         }
 
         /// <summary>

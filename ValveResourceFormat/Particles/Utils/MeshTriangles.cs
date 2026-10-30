@@ -12,12 +12,12 @@ namespace ValveResourceFormat.Particles.Utils
     /// </summary>
     internal sealed class MeshTriangles
     {
-        /// <summary>A vertex and the model bones that move it.</summary>
+        /// <summary>A vertex and the bone slots that move it.</summary>
         /// <param name="Position">The position in model space.</param>
-        /// <param name="Bones">Four model bone indices, 16 bits each from the low bits up.</param>
+        /// <param name="Slots">Four bone slots, 16 bits each from the low bits up. A slot indexes the model's whole bone remap table.</param>
         /// <param name="Weights">The weights of the four bones. All zero for a rigid vertex.</param>
-        /// <param name="Remapped">Whether the bones were mapped from the mesh's own bone list to the model's.</param>
-        public readonly record struct Vertex(Vector3 Position, ulong Bones, Vector4 Weights, bool Remapped);
+        /// <param name="Remapped">Whether the vertex's mesh has a slice of the bone remap table, which its slots index.</param>
+        public readonly record struct Vertex(Vector3 Position, ulong Slots, Vector4 Weights, bool Remapped);
 
         private static readonly ModelCache<MeshTriangles> Cache = new(static (model, fileLoader) => new MeshTriangles(model, fileLoader));
 
@@ -25,7 +25,13 @@ namespace ValveResourceFormat.Particles.Utils
         private readonly List<int> indices = [];
         private readonly List<float> areas = [];
 
-        /// <summary>The inverse of every bone's bind pose in model space.</summary>
+        /// <summary>How many bones the model's skeleton has.</summary>
+        public int BoneCount { get; }
+
+        /// <summary>The model bone every bone slot is posed by, all meshes concatenated.</summary>
+        public ReadOnlyMemory<int> RemapTable { get; }
+
+        /// <summary>The inverse bind pose of every bone slot, as its mesh is skinned with it.</summary>
         public Matrix4x4[] InverseBindPose { get; }
 
         /// <summary>How many triangles the meshes have.</summary>
@@ -33,11 +39,19 @@ namespace ValveResourceFormat.Particles.Utils
 
         private MeshTriangles(Model model, IFileLoader? fileLoader)
         {
-            InverseBindPose = BindPoseModelObject.GetInverseBindPose(model);
+            BoneCount = model.Skeleton.Bones.Length;
+            RemapTable = model.BoneRemapTable.Table;
+            InverseBindPose = new Matrix4x4[RemapTable.Length];
+
+            var modelInverseBindPose = BindPoseModelObject.GetInverseBindPose(model);
 
             foreach (var (mesh, meshIndex) in ModelElements.RenderMeshes(model, fileLoader))
             {
-                AddMesh(mesh, model.GetRemapTable(meshIndex));
+                var slotStart = model.BoneRemapTable.GetMeshStart(meshIndex);
+                var slotCount = model.BoneRemapTable.GetMeshBoneCount(meshIndex);
+
+                model.GetSkinningInverseBindPose(mesh, meshIndex, modelInverseBindPose).CopyTo(InverseBindPose, slotStart);
+                AddMesh(mesh, meshIndex < model.BoneRemapTable.MeshCount, slotStart, slotCount);
             }
         }
 
@@ -51,7 +65,24 @@ namespace ValveResourceFormat.Particles.Utils
         /// <summary>Corner <paramref name="corner"/> of triangle <paramref name="triangle"/>.</summary>
         public Vertex Corner(int triangle, int corner) => vertices[indices[(triangle * 3) + corner]];
 
-        private void AddMesh(Mesh mesh, int[]? remapTable)
+        /// <summary>The model bones of a vertex's slots, packed like the slots.</summary>
+        public ulong GetModelBones(Vertex vertex)
+        {
+            var remapTable = RemapTable.Span;
+            var bones = 0UL;
+
+            for (var k = 0; k < PackedBones.Count; k++)
+            {
+                var slot = PackedBones.Get(vertex.Slots, k);
+                var bone = slot < remapTable.Length ? remapTable[slot] : PackedBones.None;
+
+                bones |= PackedBones.Pack(bone, k);
+            }
+
+            return bones;
+        }
+
+        private void AddMesh(Mesh mesh, bool remapped, int slotStart, int slotCount)
         {
             var vbib = mesh.VBIB;
             var bufferStarts = new Dictionary<int, int>();
@@ -71,7 +102,7 @@ namespace ValveResourceFormat.Particles.Utils
                     {
                         start = vertices.Count;
                         bufferStarts.Add(vertexBuffer, start);
-                        AddVertices(vbib.VertexBuffers[vertexBuffer], remapTable);
+                        AddVertices(vbib.VertexBuffers[vertexBuffer], remapped, slotStart, slotCount);
                     }
 
                     var indexBuffer = vbib.IndexBuffers[drawCall.GetSubCollection("m_indexBuffer").GetInt32Property("m_hBuffer")];
@@ -81,7 +112,7 @@ namespace ValveResourceFormat.Particles.Utils
             }
         }
 
-        private void AddVertices(VBIB.OnDiskBufferData buffer, int[]? remapTable)
+        private void AddVertices(VBIB.OnDiskBufferData buffer, bool remapped, int slotStart, int slotCount)
         {
             var count = (int)buffer.ElementCount;
             Vector3[]? positions = null;
@@ -96,7 +127,7 @@ namespace ValveResourceFormat.Particles.Utils
                         positions = VBIB.GetVector3AttributeArray(buffer, attribute);
                         break;
                     case "BLENDINDICES" when blendIndices == null:
-                        blendIndices = VBIB.GetBlendIndicesArray(buffer, attribute, remapTable);
+                        blendIndices = VBIB.GetBlendIndicesArray(buffer, attribute);
                         break;
                     case "BLENDWEIGHT" or "BLENDWEIGHTS" when blendWeights == null:
                         blendWeights = VBIB.GetBlendWeightsArray(buffer, attribute);
@@ -113,15 +144,26 @@ namespace ValveResourceFormat.Particles.Utils
                 var weights = jointStride == 0 ? Vector4.Zero
                     : weightStride == 0 ? Vector4.UnitX
                     : blendWeights![i * weightStride];
-                var bones = 0UL;
+                var slots = 0UL;
 
                 for (var k = 0; k < PackedBones.Count; k++)
                 {
-                    var bone = k < jointStride && weights[k] > 0f ? blendIndices![(i * jointStride) + k] : PackedBones.None;
-                    bones |= PackedBones.Pack(bone, k);
+                    var slot = PackedBones.None;
+
+                    if (remapped && k < jointStride && weights[k] > 0f)
+                    {
+                        var meshBone = blendIndices![(i * jointStride) + k];
+
+                        if (meshBone < slotCount)
+                        {
+                            slot = slotStart + meshBone;
+                        }
+                    }
+
+                    slots |= PackedBones.Pack(slot, k);
                 }
 
-                vertices.Add(new Vertex(position, bones, weights, remapTable != null));
+                vertices.Add(new Vertex(position, slots, weights, remapped));
             }
         }
 

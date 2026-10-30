@@ -87,6 +87,28 @@ namespace ValveResourceFormat.ResourceTypes
             return 0;
         }
 
+        /// <summary>
+        /// Reads the inverse bind pose of every bone of the mesh's own render skeleton.
+        /// </summary>
+        /// <returns>One matrix per mesh bone, or <see langword="null"/> when the mesh has no skeleton.</returns>
+        public Matrix4x4[]? ReadInverseBindPose()
+        {
+            var bones = Data.GetSubCollection("m_skeleton")?.GetArray("m_bones");
+            if (bones is null)
+            {
+                return null;
+            }
+
+            var inverseBindPose = new Matrix4x4[bones.Count];
+
+            for (var i = 0; i < inverseBindPose.Length; i++)
+            {
+                inverseBindPose[i] = bones[i].GetSubCollection("m_invBindPose").ToMatrix4x4();
+            }
+
+            return inverseBindPose;
+        }
+
         private VBIB? cachedVBIB { get; set; }
 
         /// <summary>Drops the decoded vertex and index buffer data.</summary>

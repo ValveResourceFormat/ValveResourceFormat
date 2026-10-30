@@ -11,6 +11,7 @@ using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
 using ValveKeyValue;
 using ValveResourceFormat.NavMesh;
+using ValveResourceFormat.Particles;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -103,7 +104,7 @@ namespace ValveResourceFormat.IO
         private bool SkipToolsMaterials;
         private readonly Dictionary<string, bool> ToolsMaterialCache = [];
         private readonly Dictionary<(string Name, Vector4 TintColor), Mesh> ExportedMeshes = [];
-        private readonly Dictionary<Node[], Skin> ExportedSkins = [];
+        private readonly Dictionary<(Node[] Joints, Matrix4x4[] InverseBindPose), Skin> ExportedSkins = new(SkinKeyComparer.Instance);
         private readonly List<(PhysAggregateData Phys, string? Classname, Matrix4x4 Transform)> PhysicsToExport = [];
         private bool IsExporting;
 
@@ -561,6 +562,8 @@ namespace ValveResourceFormat.IO
                 }
             }
 
+            var modelInverseBindPose = BindPoseModelObject.GetInverseBindPose(model);
+
             foreach (var m in meshes)
             {
                 var meshName = m.Name;
@@ -582,7 +585,10 @@ namespace ValveResourceFormat.IO
 
                 var drawCallMaterials = GetDrawCallMaterials(m.Mesh, m.MeshIndex, skinMaterialTable, materialOverrides ?? []);
                 var boneRemapTable = model.GetRemapTable(m.MeshIndex);
-                var node = AddMeshNode(exportedModel, scene, meshName, tintColor, m.Mesh, m.Mesh.VBIB, joints, out var meshNode, boneRemapTable, drawCallMaterials);
+                var skinInverseBindPose = joints != null
+                    ? GetSkinInverseBindPose(model, m.Mesh, m.MeshIndex, modelInverseBindPose)
+                    : null;
+                var node = AddMeshNode(exportedModel, scene, meshName, tintColor, m.Mesh, m.Mesh.VBIB, joints, out var meshNode, boneRemapTable, drawCallMaterials, skinInverseBindPose);
                 if (node != null)
                 {
                     node.WorldMatrix = nodeTransform;
@@ -670,14 +676,14 @@ namespace ValveResourceFormat.IO
             // The mesh's own blend indices already address its render skeleton directly.
             var identityRemapTable = joints != null ? Enumerable.Range(0, skeleton!.Bones.Length).ToArray() : null;
 
-            AddMeshNode(exportedModel, scene, name, Vector4.One, mesh, mesh.VBIB, joints, meshNode: out _, identityRemapTable);
+            AddMeshNode(exportedModel, scene, name, Vector4.One, mesh, mesh.VBIB, joints, meshNode: out _, identityRemapTable, inverseBindPose: mesh.ReadInverseBindPose());
 
             WriteModelFile(exportedModel, fileName);
         }
 
         private Node? AddMeshNode(ModelRoot exportedModel, Scene scene, string name, Vector4 tintColor,
             VMesh mesh, Blocks.VBIB vbib, Node[]? joints, out Node? meshNode, int[]? boneRemapTable = null,
-            Dictionary<KVObject, string>? drawCallMaterials = null)
+            Dictionary<KVObject, string>? drawCallMaterials = null, Matrix4x4[]? inverseBindPose = null)
         {
             meshNode = null;
 
@@ -699,19 +705,17 @@ namespace ValveResourceFormat.IO
 
             var hasVertexJoints = exportedMesh.Primitives.All(primitive => primitive.GetVertexAccessor("JOINTS_0") != null);
 
-            if (joints == null || !hasVertexJoints)
+            if (joints == null || inverseBindPose == null || !hasVertexJoints)
             {
                 newNode.Mesh = exportedMesh;
                 return newNode;
             }
 
-            // Inverse bind matrices are taken from the joints' current world matrices, so the skin
-            // must be bound before the skeleton node is placed.
-            if (!ExportedSkins.TryGetValue(joints, out var skin))
+            if (!ExportedSkins.TryGetValue((joints, inverseBindPose), out var skin))
             {
                 skin = exportedModel.CreateSkin();
-                skin.BindJoints(Matrix4x4.Identity, joints);
-                ExportedSkins.Add(joints, skin);
+                skin.BindJoints(ToGltfInverseBindMatrices(joints, inverseBindPose));
+                ExportedSkins.Add((joints, inverseBindPose), skin);
             }
 
             newNode.Mesh = exportedMesh;

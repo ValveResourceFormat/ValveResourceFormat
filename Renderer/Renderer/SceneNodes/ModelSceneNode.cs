@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
+using ValveResourceFormat.Particles;
 using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -65,6 +66,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             boneCount = model.Skeleton.Bones.Length;
             remappingTable = model.BoneRemapTable.Table;
+            slotInverseBindPose = new Matrix4x4[remappingTable.Length];
 
             if (skin != null)
             {
@@ -407,6 +409,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private void LoadMeshes(Model model)
         {
+            var modelInverseBindPose = BindPoseModelObject.GetInverseBindPose(model);
+
             // All LoD levels are loaded; the active one is picked at render time.
             foreach (var embeddedMesh in model.GetEmbeddedMeshes())
             {
@@ -414,6 +418,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 model.SetExternalMorphData(embeddedMesh.Mesh.MorphData);
 
                 meshRenderers.Add(new RenderableMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, Scene, model, materialTable, embeddedMesh.Mesh.MorphData));
+                SetSlotInverseBindPose(model, embeddedMesh.Mesh, embeddedMesh.MeshIndex, modelInverseBindPose);
             }
 
             foreach (var refMesh in referenceMeshes)
@@ -428,6 +433,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 model.SetExternalMeshData(mesh);
 
                 meshRenderers.Add(new RenderableMesh(mesh, refMesh.MeshIndex, Scene, model, materialTable));
+                SetSlotInverseBindPose(model, mesh, refMesh.MeshIndex, modelInverseBindPose);
             }
 
             SetActiveMeshGroups(model.MeshGroups.Defaults);

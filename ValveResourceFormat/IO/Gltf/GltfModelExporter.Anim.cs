@@ -136,7 +136,7 @@ public partial class GltfModelExporter
             // apply a vertical movement track to the body.
             var applyRootMotion = animation.HasMovementData() && !writeDeltas;
 
-            // No cloth solver here, so mirror the renderer (AnimationController.GetSkinningMatrices):
+            // No cloth solver here, so mirror the renderer (AnimationController.ApplyClothRootPose):
             // pin each cloth root to the cloth anchor bone instead of writing its raw, solver-less clip data.
             var clothAnchor = writeDeltas ? null : Skeleton.ClothSimulationRoot;
             var anchorInverseBindPose = Matrix4x4.Identity;
@@ -185,7 +185,7 @@ public partial class GltfModelExporter
                         * Matrix4x4.CreateTranslation(movementPosition);
                 }
 
-                // Anchor skinning matrix this frame (renderer's modelBones[clothSimRoot]).
+                // Anchor skinning matrix this frame (renderer's pose delta of clothSimRoot).
                 var clothSkinning = Matrix4x4.Identity;
                 if (clothAnchor != null)
                 {

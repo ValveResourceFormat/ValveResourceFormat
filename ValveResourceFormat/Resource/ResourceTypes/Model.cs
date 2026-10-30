@@ -209,6 +209,43 @@ namespace ValveResourceFormat.ResourceTypes
         public int[]? GetRemapTable(int meshIndex) => BoneRemapTable.GetMeshTable(meshIndex);
 
         /// <summary>
+        /// Gets the inverse bind pose a mesh is skinned with, one matrix per bone of the mesh's slice of the
+        /// remap table. A bone is skinned by its pose times the mesh's own inverse bind pose, not the model skeleton's.
+        /// </summary>
+        /// <param name="mesh">The mesh to get the inverse bind pose of.</param>
+        /// <param name="meshIndex">The index of the mesh in the model.</param>
+        /// <param name="modelInverseBindPose">
+        /// The inverse bind pose of every model bone, used for a mesh that does not carry one for every bone it addresses.
+        /// </param>
+        /// <returns>One matrix per mesh bone, indexed like the mesh's remap table slice.</returns>
+        public Matrix4x4[] GetSkinningInverseBindPose(Mesh mesh, int meshIndex, ReadOnlySpan<Matrix4x4> modelInverseBindPose)
+        {
+            var remapTable = GetRemapTable(meshIndex);
+            if (remapTable == null)
+            {
+                return [];
+            }
+
+            var meshInverseBindPose = mesh.ReadInverseBindPose();
+            if (meshInverseBindPose != null && meshInverseBindPose.Length == remapTable.Length)
+            {
+                return meshInverseBindPose;
+            }
+
+            var inverseBindPose = new Matrix4x4[remapTable.Length];
+
+            for (var i = 0; i < remapTable.Length; i++)
+            {
+                var modelBone = remapTable[i];
+                var modelBoneExists = modelBone >= 0 && modelBone < modelInverseBindPose.Length;
+
+                inverseBindPose[i] = modelBoneExists ? modelInverseBindPose[modelBone] : Matrix4x4.Identity;
+            }
+
+            return inverseBindPose;
+        }
+
+        /// <summary>
         /// Gets the model's bone remap table, which maps the bone indices a mesh's <c>BLENDINDICES</c>
         /// carry to bone indices of the model skeleton.
         /// </summary>
