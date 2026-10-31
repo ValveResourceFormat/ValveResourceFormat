@@ -544,6 +544,28 @@ public sealed partial class MapExtract
             FileName = GetMapOutputName(),
         };
 
+        AddAdditionalMapSubFiles(vmap);
+        AddSceneObjectFiles(vmap);
+        // Export all gathered vsnap files
+        AddSnapshotFiles(vmap);
+
+        foreach (var generatedMaterial in ProceduralPhysMaterialsToExtract)
+        {
+            var vmat = GeneratePhysicsTagMaterial(generatedMaterial.Name, generatedMaterial.SurfaceProperty);
+            vmap.AdditionalFiles.Add(vmat);
+        }
+
+        vmap.AdditionalFiles.AddRange(PreExportedFragments);
+        vmap.AdditionalFiles.AddRange(EntityModels);
+
+        // Add these files so they can be filtered out in folder extract
+        vmap.AdditionalFiles.AddRange(FolderExtractFilter.Select(r => new ContentFile { FileName = r }));
+
+        return vmap;
+    }
+
+    private void AddAdditionalMapSubFiles(ContentFile vmap)
+    {
         var part = 2;
         foreach (var additionalMap in AdditionalMapDocuments)
         {
@@ -561,7 +583,10 @@ public sealed partial class MapExtract
                 FileName = GetMapOutputName(part++),
             });
         }
+    }
 
+    private void AddSceneObjectFiles(ContentFile vmap)
+    {
         foreach (var sceneObjectResourceName in SceneObjectsToExtract)
         {
             var sceneObjectNameCompiled = sceneObjectResourceName + GameFileLoader.CompiledFileSuffix;
@@ -583,8 +608,10 @@ public sealed partial class MapExtract
             vmap.AdditionalFiles.Add(vmdl);
             FolderExtractFilter.Add(sceneObjectNameCompiled);
         }
+    }
 
-        // Export all gathered vsnap files
+    private void AddSnapshotFiles(ContentFile vmap)
+    {
         foreach (var snapshotName in SnapshotsToExtract)
         {
             using var snapshot = FileLoader.LoadFileCompiled(snapshotName);
@@ -596,20 +623,6 @@ public sealed partial class MapExtract
                 vmap.AdditionalFiles.Add(vsnap);
             }
         }
-
-        foreach (var generatedMaterial in ProceduralPhysMaterialsToExtract)
-        {
-            var vmat = GeneratePhysicsTagMaterial(generatedMaterial.Name, generatedMaterial.SurfaceProperty);
-            vmap.AdditionalFiles.Add(vmat);
-        }
-
-        vmap.AdditionalFiles.AddRange(PreExportedFragments);
-        vmap.AdditionalFiles.AddRange(EntityModels);
-
-        // Add these files so they can be filtered out in folder extract
-        vmap.AdditionalFiles.AddRange(FolderExtractFilter.Select(r => new ContentFile { FileName = r }));
-
-        return vmap;
     }
 
     private string GetMapOutputName(int part = 1)
@@ -892,18 +905,7 @@ public sealed partial class MapExtract
                 var material = Mesh.GetMaterialName(drawCall) ?? string.Empty;
                 var group = new HammerMeshGroup(material, tint, drawCallShadows?.Invoke(drawCallIndex) ?? 0);
 
-                if (!builders.TryGetValue(group, out var builder))
-                {
-                    builder = new HammerMeshBuilder()
-                    {
-                        PhysicsTriangleMatcher = PhysTriangleMatcher,
-                        ProgressReporter = ProgressReporter,
-                        Untriangulate = true,
-                        TextureSizeProvider = GetMaterialTextureSize,
-                        DefaultTextureScale = TextureScale,
-                    };
-                    builders.Add(group, builder);
-                }
+                var builder = GetOrCreateHammerMeshBuilder(builders, group);
 
                 if (dag.Shape is DmeMesh meshShape)
                 {
@@ -913,6 +915,24 @@ public sealed partial class MapExtract
         }
 
         return drawCallCount;
+    }
+
+    private HammerMeshBuilder GetOrCreateHammerMeshBuilder(Dictionary<HammerMeshGroup, HammerMeshBuilder> builders, HammerMeshGroup group)
+    {
+        if (!builders.TryGetValue(group, out var builder))
+        {
+            builder = new HammerMeshBuilder()
+            {
+                PhysicsTriangleMatcher = PhysTriangleMatcher,
+                ProgressReporter = ProgressReporter,
+                Untriangulate = true,
+                TextureSizeProvider = GetMaterialTextureSize,
+                DefaultTextureScale = TextureScale,
+            };
+            builders.Add(group, builder);
+        }
+
+        return builder;
     }
 
     /// <summary>
@@ -1204,28 +1224,7 @@ public sealed partial class MapExtract
         var props = new List<CMapEntity>();
         var maxNodeId = 0;
 
-        void Collect(MapNode node)
-        {
-            maxNodeId = Math.Max(maxNodeId, node.NodeID);
-
-            if (node is CMapMesh mesh && node is not CMapStaticOverlay && !IsPhysicsMesh(mesh))
-            {
-                candidates.Add(mesh);
-            }
-            else if (node is CMapEntity entity
-                && entity.EntityProperties.ContainsKey("classname") && entity.EntityProperties["classname"] as string == "prop_static"
-                && entity.EntityProperties.ContainsKey("model"))
-            {
-                props.Add(entity);
-            }
-
-            foreach (var child in node.Children.OfType<MapNode>())
-            {
-                Collect(child);
-            }
-        }
-
-        Collect(MapDocument.World);
+        CollectOverlayCandidates(MapDocument.World, candidates, props, ref maxNodeId);
 
         foreach (var mesh in candidates)
         {
@@ -1243,26 +1242,76 @@ public sealed partial class MapExtract
             }
         }
 
-        // every candidate face in world space, in a grid for lookup by position
-        const float PlaneDistance = 0.25f;
-        const float CellSize = 64f;
+        var faceGrid = new OverlayFaceGrid();
+        AddMeshFaces(faceGrid, candidates);
+        AddPropFaces(faceGrid, props);
 
-        // what a matched face targets: a mesh targets itself, a face of an aggregate targets every fragment prop of
-        // the aggregate instance, a face cannot tell which fragment it belongs to
-        var targetSets = new List<int[]>();
+        foreach (var (overlay, geometry) in OverlayReceivers)
+        {
+            var targets = FindOverlayTargets(faceGrid, geometry);
 
-        var faces = new List<(int TargetSet, Vector3[] Corners, Vector3 Normal, float Offset)>();
-        var grid = new Dictionary<(int X, int Y, int Z), List<int>>();
+            // the targets only count in the target objects projection mode, everything else stays at project on all
+            if (targets.Count > 0)
+            {
+                overlay.ProjectionTargets.AddRange(targets);
+                overlay.ProjectionMode = 3;
+            }
+        }
+    }
+
+    private static void CollectOverlayCandidates(MapNode node, List<CMapMesh> candidates, List<CMapEntity> props, ref int maxNodeId)
+    {
+        maxNodeId = Math.Max(maxNodeId, node.NodeID);
+
+        if (node is CMapMesh mesh && node is not CMapStaticOverlay && !IsPhysicsMesh(mesh))
+        {
+            candidates.Add(mesh);
+        }
+        else if (node is CMapEntity entity
+            && entity.EntityProperties.ContainsKey("classname") && entity.EntityProperties["classname"] as string == "prop_static"
+            && entity.EntityProperties.ContainsKey("model"))
+        {
+            props.Add(entity);
+        }
+
+        foreach (var child in node.Children.OfType<MapNode>())
+        {
+            CollectOverlayCandidates(child, candidates, props, ref maxNodeId);
+        }
+    }
+
+    private static bool IsPhysicsMesh(CMapMesh mesh)
+        => mesh.MeshData.Materials.Count > 0 && mesh.MeshData.Materials.All(m =>
+            m.Contains("/_vrf/physics_surfaces/", StringComparison.Ordinal) || m.StartsWith("materials/tools/", StringComparison.Ordinal));
+
+    /// <summary>
+    /// Every candidate face in world space, in a grid for lookup by position.
+    /// </summary>
+    private sealed class OverlayFaceGrid
+    {
+        private const float PlaneDistance = 0.25f;
+        private const float CellSize = 64f;
 
         // A face spanning many cells, such as a skybox backdrop, would need a list in each of them and can run out of
         // memory, so those few faces are checked against every overlay triangle instead
-        const long MaxCellsPerFace = 4096;
-        var largeFaces = new List<int>();
+        private const long MaxCellsPerFace = 4096;
 
-        static (int X, int Y, int Z) Cell(Vector3 position)
-            => ((int)MathF.Floor(position.X / CellSize), (int)MathF.Floor(position.Y / CellSize), (int)MathF.Floor(position.Z / CellSize));
+        // what a matched face targets: a mesh targets itself, a face of an aggregate targets every fragment prop of
+        // the aggregate instance, a face cannot tell which fragment it belongs to
+        private readonly List<int[]> TargetSets = [];
 
-        void InsertFace(int targetSet, Vector3[] corners)
+        private readonly List<(int TargetSet, Vector3[] Corners, Vector3 Normal, float Offset)> Faces = [];
+        private readonly Dictionary<(int X, int Y, int Z), List<int>> Grid = [];
+        private readonly List<int> LargeFaces = [];
+
+        public int AddTargetSet(int nodeId)
+        {
+            var targetSet = TargetSets.Count;
+            TargetSets.Add([nodeId]);
+            return targetSet;
+        }
+
+        public void InsertFace(int targetSet, Vector3[] corners)
         {
             // Newell normal and bounds
             var normal = Vector3.Zero;
@@ -1284,8 +1333,8 @@ public sealed partial class MapExtract
             }
 
             normal = Vector3.Normalize(normal);
-            var faceIndex = faces.Count;
-            faces.Add((targetSet, corners, normal, Vector3.Dot(normal, corners[0])));
+            var faceIndex = Faces.Count;
+            Faces.Add((targetSet, corners, normal, Vector3.Dot(normal, corners[0])));
 
             var (minX, minY, minZ) = Cell(min - new Vector3(PlaneDistance));
             var (maxX, maxY, maxZ) = Cell(max + new Vector3(PlaneDistance));
@@ -1294,7 +1343,7 @@ public sealed partial class MapExtract
 
             if (cellCount > MaxCellsPerFace)
             {
-                largeFaces.Add(faceIndex);
+                LargeFaces.Add(faceIndex);
                 return;
             }
 
@@ -1304,10 +1353,10 @@ public sealed partial class MapExtract
                 {
                     for (var z = minZ; z <= maxZ; z++)
                     {
-                        if (!grid.TryGetValue((x, y, z), out var cellFaces))
+                        if (!Grid.TryGetValue((x, y, z), out var cellFaces))
                         {
                             cellFaces = [];
-                            grid.Add((x, y, z), cellFaces);
+                            Grid.Add((x, y, z), cellFaces);
                         }
 
                         cellFaces.Add(faceIndex);
@@ -1316,6 +1365,79 @@ public sealed partial class MapExtract
             }
         }
 
+        public void MatchTriangle(Vector3 centre, Vector3 triangleNormal, SortedSet<int> targets)
+        {
+            if (Grid.TryGetValue(Cell(centre), out var cellFaces))
+            {
+                foreach (var faceIndex in cellFaces)
+                {
+                    MatchFace(faceIndex, centre, triangleNormal, targets);
+                }
+            }
+
+            foreach (var faceIndex in LargeFaces)
+            {
+                MatchFace(faceIndex, centre, triangleNormal, targets);
+            }
+        }
+
+        private void MatchFace(int faceIndex, Vector3 centre, Vector3 triangleNormal, SortedSet<int> targets)
+        {
+            var (targetSet, corners, normal, offset) = Faces[faceIndex];
+
+            if (targets.Contains(TargetSets[targetSet][0])
+             || Vector3.Dot(normal, triangleNormal) < 0.9f
+             || MathF.Abs(Vector3.Dot(normal, centre) - offset) > PlaneDistance
+             || !PointInFace(centre, corners, normal, PlaneDistance))
+            {
+                return;
+            }
+
+            foreach (var nodeId in TargetSets[targetSet])
+            {
+                targets.Add(nodeId);
+            }
+        }
+
+        private static (int X, int Y, int Z) Cell(Vector3 position)
+            => ((int)MathF.Floor(position.X / CellSize), (int)MathF.Floor(position.Y / CellSize), (int)MathF.Floor(position.Z / CellSize));
+
+        // inside the polygon in the plane, or within the tolerance of one of its edges
+        private static bool PointInFace(Vector3 point, Vector3[] corners, Vector3 normal, float tolerance)
+        {
+            var absNormal = Vector3.Abs(normal);
+            var (u, v) = absNormal.X >= absNormal.Y && absNormal.X >= absNormal.Z ? (1, 2) : absNormal.Y >= absNormal.Z ? (0, 2) : (0, 1);
+
+            var inside = false;
+            var pu = point[u];
+            var pv = point[v];
+
+            for (int i = 0, j = corners.Length - 1; i < corners.Length; j = i++)
+            {
+                var ci = corners[i];
+                var cj = corners[j];
+
+                if ((ci[v] > pv) != (cj[v] > pv) && pu < (cj[u] - ci[u]) * (pv - ci[v]) / (cj[v] - ci[v]) + ci[u])
+                {
+                    inside = !inside;
+                }
+
+                // distance to the edge
+                var edge = cj - ci;
+                var along = MathUtils.Saturate(Vector3.Dot(point - ci, edge) / MathF.Max(edge.LengthSquared(), 1e-12f));
+
+                if (Vector3.Distance(point, ci + edge * along) <= tolerance)
+                {
+                    return true;
+                }
+            }
+
+            return inside;
+        }
+    }
+
+    private static void AddMeshFaces(OverlayFaceGrid faceGrid, List<CMapMesh> candidates)
+    {
         foreach (var mesh in candidates)
         {
             var positions = mesh.MeshData.VertexData.Streams.OfType<CDmePolygonMeshDataStream>().FirstOrDefault(s => s.Name == "position:0")?.Data as Datamodel.Array<Vector3>;
@@ -1324,8 +1446,7 @@ public sealed partial class MapExtract
                 continue;
             }
 
-            var meshTargetSet = targetSets.Count;
-            targetSets.Add([mesh.NodeID]);
+            var meshTargetSet = faceGrid.AddTargetSet(mesh.NodeID);
 
             var angles = mesh.Angles;
             var transform = Matrix4x4.CreateScale(mesh.Scales)
@@ -1353,78 +1474,88 @@ public sealed partial class MapExtract
                     continue;
                 }
 
-                InsertFace(meshTargetSet, [.. corners]);
+                faceGrid.InsertFace(meshTargetSet, [.. corners]);
             }
         }
+    }
 
-        // only the props near some overlay's receivers are worth loading and matching
-        const float CoarseCellSize = 1024f;
+    // only the props near some overlay's receivers are worth loading and matching
+    private const float OverlayCoarseCellSize = 1024f;
 
-        static (int X, int Y, int Z) CoarseCell(Vector3 position)
-            => ((int)MathF.Floor(position.X / CoarseCellSize), (int)MathF.Floor(position.Y / CoarseCellSize), (int)MathF.Floor(position.Z / CoarseCellSize));
+    private static (int X, int Y, int Z) OverlayCoarseCell(Vector3 position)
+        => ((int)MathF.Floor(position.X / OverlayCoarseCellSize), (int)MathF.Floor(position.Y / OverlayCoarseCellSize), (int)MathF.Floor(position.Z / OverlayCoarseCellSize));
 
+    private HashSet<(int X, int Y, int Z)> GetOverlayCoarseCells()
+    {
         var coarse = new HashSet<(int X, int Y, int Z)>();
 
         foreach (var (_, geometry) in OverlayReceivers)
         {
             foreach (var hVertex in geometry.VertexHandles)
             {
-                coarse.Add(CoarseCell(geometry.Positions[hVertex]));
+                coarse.Add(OverlayCoarseCell(geometry.Positions[hVertex]));
             }
         }
 
-        bool NearOverlays(Vector3 position)
-        {
-            var (cx, cy, cz) = CoarseCell(position);
+        return coarse;
+    }
 
-            for (var x = cx - 1; x <= cx + 1; x++)
+    private static bool IsNearOverlays(HashSet<(int X, int Y, int Z)> coarse, Vector3 position)
+    {
+        var (cx, cy, cz) = OverlayCoarseCell(position);
+
+        for (var x = cx - 1; x <= cx + 1; x++)
+        {
+            for (var y = cy - 1; y <= cy + 1; y++)
             {
-                for (var y = cy - 1; y <= cy + 1; y++)
+                for (var z = cz - 1; z <= cz + 1; z++)
                 {
-                    for (var z = cz - 1; z <= cz + 1; z++)
+                    if (coarse.Contains((x, y, z)))
                     {
-                        if (coarse.Contains((x, y, z)))
-                        {
-                            return true;
-                        }
+                        return true;
                     }
                 }
             }
-
-            return false;
         }
 
-        // the fragment props of one aggregate reference the per draw call models this extract generates, which don't
-        // exist in the compiled map: their geometry is one draw call of the aggregate's own model, its name is theirs
-        // without the draw suffix and the suffix is the draw call's index. Every fragment carries a transform of its
-        // own, so each prop places just its draw call's triangles; an ordinary prop places its whole model
-        static string StripDrawSuffix(string modelName, out int drawCall)
+        return false;
+    }
+
+    // the fragment props of one aggregate reference the per draw call models this extract generates, which don't
+    // exist in the compiled map: their geometry is one draw call of the aggregate's own model, its name is theirs
+    // without the draw suffix and the suffix is the draw call's index. Every fragment carries a transform of its
+    // own, so each prop places just its draw call's triangles; an ordinary prop places its whole model
+    private static string StripDrawSuffix(string modelName, out int drawCall)
+    {
+        drawCall = -1;
+
+        if (!modelName.Contains("_agg_", StringComparison.Ordinal))
+        {
+            return modelName;
+        }
+
+        var suffix = modelName.LastIndexOf("_draw", StringComparison.Ordinal);
+
+        if (suffix < 0 || !modelName.EndsWith(".vmdl", StringComparison.Ordinal)
+            || !int.TryParse(modelName.AsSpan(suffix + "_draw".Length, modelName.Length - suffix - "_draw".Length - ".vmdl".Length), out drawCall))
         {
             drawCall = -1;
-
-            if (!modelName.Contains("_agg_", StringComparison.Ordinal))
-            {
-                return modelName;
-            }
-
-            var suffix = modelName.LastIndexOf("_draw", StringComparison.Ordinal);
-
-            if (suffix < 0 || !modelName.EndsWith(".vmdl", StringComparison.Ordinal)
-                || !int.TryParse(modelName.AsSpan(suffix + "_draw".Length, modelName.Length - suffix - "_draw".Length - ".vmdl".Length), out drawCall))
-            {
-                drawCall = -1;
-                return modelName;
-            }
-
-            return string.Concat(modelName.AsSpan(0, suffix), ".vmdl");
+            return modelName;
         }
 
+        return string.Concat(modelName.AsSpan(0, suffix), ".vmdl");
+    }
+
+    private void AddPropFaces(OverlayFaceGrid faceGrid, List<CMapEntity> props)
+    {
+        var coarse = GetOverlayCoarseCells();
+
         // the render triangles of each prop model, in model space with the range of each draw call, loaded once per model
-        var modelTriangles = new Dictionary<string, (Vector3[] Positions, int[] Triangles, List<(int Start, int Length)> DrawCalls)?>();
+        var modelTriangles = new Dictionary<string, PropModelTriangles?>();
 
         foreach (var prop in props)
         {
-            if (!NearOverlays(prop.Origin))
+            if (!IsNearOverlays(coarse, prop.Origin))
             {
                 continue;
             }
@@ -1458,214 +1589,143 @@ public sealed partial class MapExtract
                 propTransform = Matrix4x4.Identity;
             }
 
-            var propTargetSet = targetSets.Count;
-            targetSets.Add([prop.NodeID]);
+            var propTargetSet = faceGrid.AddTargetSet(prop.NodeID);
 
             for (var t = start; t + 2 < start + length; t += 3)
             {
                 var a = Vector3.Transform(propModel.Positions[propModel.Triangles[t]], propTransform);
 
-                if (!NearOverlays(a))
+                if (!IsNearOverlays(coarse, a))
                 {
                     continue;
                 }
 
                 var b = Vector3.Transform(propModel.Positions[propModel.Triangles[t + 1]], propTransform);
                 var c = Vector3.Transform(propModel.Positions[propModel.Triangles[t + 2]], propTransform);
-                InsertFace(propTargetSet, [a, b, c]);
+                faceGrid.InsertFace(propTargetSet, [a, b, c]);
+            }
+        }
+    }
+
+    private static SortedSet<int> FindOverlayTargets(OverlayFaceGrid faceGrid, PolygonMesh geometry)
+    {
+        var targets = new SortedSet<int>();
+
+        foreach (var hFace in geometry.FaceHandles)
+        {
+            // the projected faces are triangles
+            var hEdge = hFace.Edge;
+            var a = geometry.Positions[hEdge.Vertex];
+            hEdge = hEdge.NextEdge;
+            var b = geometry.Positions[hEdge.Vertex];
+            hEdge = hEdge.NextEdge;
+            var c = geometry.Positions[hEdge.Vertex];
+            var centre = (a + b + c) / 3f;
+            var triangleNormal = MathUtils.TriangleCross(a, b, c);
+
+            if (triangleNormal.LengthSquared() < 1e-10f)
+            {
+                continue;
+            }
+
+            triangleNormal = Vector3.Normalize(triangleNormal);
+            faceGrid.MatchTriangle(centre, triangleNormal, targets);
+        }
+
+        return targets;
+    }
+
+    private readonly record struct PropModelTriangles(Vector3[] Positions, int[] Triangles, List<(int Start, int Length)> DrawCalls);
+
+    // the render triangles of a prop model at its first lod, in model space
+    private PropModelTriangles? LoadModelTriangles(string modelName)
+    {
+        using var modelResource = FileLoader.LoadFileCompiled(modelName);
+        if (modelResource?.DataBlock is not Model propModel)
+        {
+            return null;
+        }
+
+        var positions = new List<Vector3>();
+        var triangles = new List<int>();
+        var drawCalls = new List<(int Start, int Length)>();
+
+        foreach (var embedded in propModel.GetEmbeddedMeshes())
+        {
+            if ((embedded.LodMask & 1) != 0)
+            {
+                AddMeshTriangles(embedded.Mesh, positions, triangles, drawCalls);
             }
         }
 
-        void MatchFace(int faceIndex, Vector3 centre, Vector3 triangleNormal, SortedSet<int> targets)
+        foreach (var reference in propModel.GetReferenceMeshNamesAndLoD())
         {
-            var (targetSet, corners, normal, offset) = faces[faceIndex];
-
-            if (targets.Contains(targetSets[targetSet][0])
-             || Vector3.Dot(normal, triangleNormal) < 0.9f
-             || MathF.Abs(Vector3.Dot(normal, centre) - offset) > PlaneDistance
-             || !PointInFace(centre, corners, normal, PlaneDistance))
+            if ((reference.LodMask & 1) == 0)
             {
-                return;
+                continue;
             }
 
-            foreach (var nodeId in targetSets[targetSet])
+            using var meshResource = FileLoader.LoadFileCompiled(reference.MeshName);
+            if (meshResource?.DataBlock is not Mesh referenceMesh)
             {
-                targets.Add(nodeId);
+                continue;
             }
+
+            propModel.SetExternalMeshData(referenceMesh);
+            AddMeshTriangles(referenceMesh, positions, triangles, drawCalls);
         }
 
-        foreach (var (overlay, geometry) in OverlayReceivers)
+        return positions.Count > 0 ? new PropModelTriangles(positions.ToArray(), triangles.ToArray(), drawCalls) : null;
+    }
+
+    // straight out of the vertex and index buffers, converting these models properly is far too slow for
+    // what is only a triangle lookup
+    private static void AddMeshTriangles(Mesh propMesh, List<Vector3> positions, List<int> triangles, List<(int Start, int Length)> drawCalls)
+    {
+        var vbib = propMesh.VBIB;
+        var bufferStarts = new Dictionary<int, int>();
+
+        foreach (var sceneObject in propMesh.Data.GetArray("m_sceneObjects"))
         {
-            var targets = new SortedSet<int>();
-
-            foreach (var hFace in geometry.FaceHandles)
+            foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
             {
-                // the projected faces are triangles
-                var hEdge = hFace.Edge;
-                var a = geometry.Positions[hEdge.Vertex];
-                hEdge = hEdge.NextEdge;
-                var b = geometry.Positions[hEdge.Vertex];
-                hEdge = hEdge.NextEdge;
-                var c = geometry.Positions[hEdge.Vertex];
-                var centre = (a + b + c) / 3f;
-                var triangleNormal = MathUtils.TriangleCross(a, b, c);
+                // every draw call gets a range, even an empty one, its index is how fragment props find theirs
+                var rangeStart = triangles.Count;
+                drawCalls.Add((rangeStart, 0));
 
-                if (triangleNormal.LengthSquared() < 1e-10f)
+                var vertexBufferIndex = drawCall.GetArray("m_vertexBuffers")[0].GetInt32Property("m_hBuffer");
+
+                if (!bufferStarts.TryGetValue(vertexBufferIndex, out var bufferStart))
                 {
-                    continue;
-                }
+                    var vertexBuffer = vbib.VertexBuffers[vertexBufferIndex];
+                    var positionAttribute = vertexBuffer.InputLayoutFields.FirstOrDefault(a => a.SemanticName == "POSITION");
 
-                triangleNormal = Vector3.Normalize(triangleNormal);
-
-                if (grid.TryGetValue(Cell(centre), out var cellFaces))
-                {
-                    foreach (var faceIndex in cellFaces)
+                    if (positionAttribute.SemanticName != "POSITION")
                     {
-                        MatchFace(faceIndex, centre, triangleNormal, targets);
+                        bufferStarts[vertexBufferIndex] = -1;
+                        continue;
                     }
+
+                    bufferStart = positions.Count;
+                    bufferStarts[vertexBufferIndex] = bufferStart;
+                    positions.AddRange(VBIB.GetVector3AttributeArray(vertexBuffer, positionAttribute));
                 }
 
-                foreach (var faceIndex in largeFaces)
-                {
-                    MatchFace(faceIndex, centre, triangleNormal, targets);
-                }
-            }
-
-            // the targets only count in the target objects projection mode, everything else stays at project on all
-            if (targets.Count > 0)
-            {
-                overlay.ProjectionTargets.AddRange(targets);
-                overlay.ProjectionMode = 3;
-            }
-        }
-
-        // the render triangles of a prop model at its first lod, in model space
-        (Vector3[] Positions, int[] Triangles, List<(int Start, int Length)> DrawCalls)? LoadModelTriangles(string modelName)
-        {
-            using var modelResource = FileLoader.LoadFileCompiled(modelName);
-            if (modelResource?.DataBlock is not Model propModel)
-            {
-                return null;
-            }
-
-            var positions = new List<Vector3>();
-            var triangles = new List<int>();
-            var drawCalls = new List<(int Start, int Length)>();
-
-            // straight out of the vertex and index buffers, converting these models properly is far too slow for
-            // what is only a triangle lookup
-            void AddMesh(Mesh propMesh)
-            {
-                var vbib = propMesh.VBIB;
-                var bufferStarts = new Dictionary<int, int>();
-
-                foreach (var sceneObject in propMesh.Data.GetArray("m_sceneObjects"))
-                {
-                    foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
-                    {
-                        // every draw call gets a range, even an empty one, its index is how fragment props find theirs
-                        var rangeStart = triangles.Count;
-                        drawCalls.Add((rangeStart, 0));
-
-                        var vertexBufferIndex = drawCall.GetArray("m_vertexBuffers")[0].GetInt32Property("m_hBuffer");
-
-                        if (!bufferStarts.TryGetValue(vertexBufferIndex, out var bufferStart))
-                        {
-                            var vertexBuffer = vbib.VertexBuffers[vertexBufferIndex];
-                            var positionAttribute = vertexBuffer.InputLayoutFields.FirstOrDefault(a => a.SemanticName == "POSITION");
-
-                            if (positionAttribute.SemanticName != "POSITION")
-                            {
-                                bufferStarts[vertexBufferIndex] = -1;
-                                continue;
-                            }
-
-                            bufferStart = positions.Count;
-                            bufferStarts[vertexBufferIndex] = bufferStart;
-                            positions.AddRange(VBIB.GetVector3AttributeArray(vertexBuffer, positionAttribute));
-                        }
-
-                        if (bufferStart < 0)
-                        {
-                            continue;
-                        }
-
-                        var indexBuffer = vbib.IndexBuffers[drawCall.GetSubCollection("m_indexBuffer").GetInt32Property("m_hBuffer")];
-                        var indices = GltfModelExporter.ReadIndices(indexBuffer, drawCall.GetInt32Property("m_nStartIndex"), drawCall.GetInt32Property("m_nIndexCount"), drawCall.GetInt32Property("m_nBaseVertex"));
-
-                        foreach (var index in indices)
-                        {
-                            triangles.Add(bufferStart + index);
-                        }
-
-                        drawCalls[^1] = (rangeStart, triangles.Count - rangeStart);
-                    }
-                }
-            }
-
-            foreach (var embedded in propModel.GetEmbeddedMeshes())
-            {
-                if ((embedded.LodMask & 1) != 0)
-                {
-                    AddMesh(embedded.Mesh);
-                }
-            }
-
-            foreach (var reference in propModel.GetReferenceMeshNamesAndLoD())
-            {
-                if ((reference.LodMask & 1) == 0)
+                if (bufferStart < 0)
                 {
                     continue;
                 }
 
-                using var meshResource = FileLoader.LoadFileCompiled(reference.MeshName);
-                if (meshResource?.DataBlock is not Mesh referenceMesh)
+                var indexBuffer = vbib.IndexBuffers[drawCall.GetSubCollection("m_indexBuffer").GetInt32Property("m_hBuffer")];
+                var indices = GltfModelExporter.ReadIndices(indexBuffer, drawCall.GetInt32Property("m_nStartIndex"), drawCall.GetInt32Property("m_nIndexCount"), drawCall.GetInt32Property("m_nBaseVertex"));
+
+                foreach (var index in indices)
                 {
-                    continue;
+                    triangles.Add(bufferStart + index);
                 }
 
-                propModel.SetExternalMeshData(referenceMesh);
-                AddMesh(referenceMesh);
+                drawCalls[^1] = (rangeStart, triangles.Count - rangeStart);
             }
-
-            return positions.Count > 0 ? (positions.ToArray(), triangles.ToArray(), drawCalls) : null;
-        }
-
-        static bool IsPhysicsMesh(CMapMesh mesh)
-            => mesh.MeshData.Materials.Count > 0 && mesh.MeshData.Materials.All(m =>
-                m.Contains("/_vrf/physics_surfaces/", StringComparison.Ordinal) || m.StartsWith("materials/tools/", StringComparison.Ordinal));
-
-        // inside the polygon in the plane, or within the tolerance of one of its edges
-        static bool PointInFace(Vector3 point, Vector3[] corners, Vector3 normal, float tolerance)
-        {
-            var absNormal = Vector3.Abs(normal);
-            var (u, v) = absNormal.X >= absNormal.Y && absNormal.X >= absNormal.Z ? (1, 2) : absNormal.Y >= absNormal.Z ? (0, 2) : (0, 1);
-
-            var inside = false;
-            var pu = point[u];
-            var pv = point[v];
-
-            for (int i = 0, j = corners.Length - 1; i < corners.Length; j = i++)
-            {
-                var ci = corners[i];
-                var cj = corners[j];
-
-                if ((ci[v] > pv) != (cj[v] > pv) && pu < (cj[u] - ci[u]) * (pv - ci[v]) / (cj[v] - ci[v]) + ci[u])
-                {
-                    inside = !inside;
-                }
-
-                // distance to the edge
-                var edge = cj - ci;
-                var along = MathUtils.Saturate(Vector3.Dot(point - ci, edge) / MathF.Max(edge.LengthSquared(), 1e-12f));
-
-                if (Vector3.Distance(point, ci + edge * along) <= tolerance)
-                {
-                    return true;
-                }
-            }
-
-            return inside;
         }
     }
 
@@ -1849,7 +1909,41 @@ public sealed partial class MapExtract
 
     private void HandleWorldNode(WorldNode node)
     {
-        var layerNames = node.LayerNames;
+        var layerNodes = CreateWorldLayerNodes(node.LayerNames);
+
+        var extraVertexStreamOverrides = node.ExtraVertexStreamOverrides.ToLookup(static streamOverride => streamOverride.SceneObjectIndex);
+        var extraVertexStreams = node.GetExtraVertexStreams();
+        var materialOverrides = node.MaterialOverrides.ToLookup(static materialOverride => materialOverride.SceneObjectIndex);
+        var overrides = new SceneObjectOverrides(extraVertexStreamOverrides, extraVertexStreams, materialOverrides);
+
+        var sceneObjects = node.SceneObjects;
+        var sceneObjectLayerIndices = node.SceneObjectLayerIndices;
+        for (var i = 0; i < sceneObjects.Count; i++)
+        {
+            var sceneObject = sceneObjects[i];
+            var layerIndex = (int)(sceneObjectLayerIndices?[i] ?? -1);
+            ProcessSceneObject(sceneObject, i, layerIndex, layerNodes, overrides);
+        }
+
+        foreach (var aggregateSceneObject in node.AggregateSceneObjects)
+        {
+            var layerIndex = aggregateSceneObject.GetInt32Property("m_nLayer");
+            ProcessAggregate(aggregateSceneObject, layerIndex, layerNodes);
+        }
+
+        foreach (var clutterSceneObject in node.ClutterSceneObjects)
+        {
+            // TODO: Clutter
+        }
+    }
+
+    private readonly record struct SceneObjectOverrides(
+        ILookup<uint, WorldNode.ExtraVertexStreamOverride> ExtraVertexStreamOverrides,
+        VBIB ExtraVertexStreams,
+        ILookup<uint, WorldNode.MaterialOverride> MaterialOverrides);
+
+    private List<MapNode> CreateWorldLayerNodes(IReadOnlyList<string> layerNames)
+    {
         var layerNodes = new List<MapNode>(layerNames.Count);
         foreach (var layerName in layerNames)
         {
@@ -1865,408 +1959,419 @@ public sealed partial class MapExtract
             MapDocument.World.Children.Add(layer);
         }
 
-        MapNode GetWorldLayerNode(int layerIndex, List<MapNode> layerNodes)
-        {
-            if (layerIndex > -1)
-            {
-                return layerNodes[layerIndex];
-            }
+        return layerNodes;
+    }
 
-            return MapDocument.World;
+    private MapNode GetWorldLayerNode(int layerIndex, List<MapNode> layerNodes)
+    {
+        if (layerIndex > -1)
+        {
+            return layerNodes[layerIndex];
         }
 
-        void AddChildMaybeGrouped(MapNode node, MapNode child, string? selectionSetName)
-        {
-            node.Children.Add(child);
+        return MapDocument.World;
+    }
 
-            if (!string.IsNullOrEmpty(selectionSetName))
+    private void AddChildMaybeGrouped(MapNode node, MapNode child, string? selectionSetName)
+    {
+        node.Children.Add(child);
+
+        if (!string.IsNullOrEmpty(selectionSetName))
+        {
+            if (S2VSelectionSet is not null)
             {
-                if (S2VSelectionSet is not null)
+                var selectionSet = (CMapSelectionSet?)S2VSelectionSet.Children
+                .FirstOrDefault(set => ((CMapSelectionSet)set).SelectionSetName == selectionSetName);
+
+                if (selectionSet is null)
                 {
-                    var selectionSet = (CMapSelectionSet?)S2VSelectionSet.Children
-                    .FirstOrDefault(set => ((CMapSelectionSet)set).SelectionSetName == selectionSetName);
-
-                    if (selectionSet is null)
-                    {
-                        selectionSet = new CMapSelectionSet { SelectionSetName = selectionSetName };
-                        S2VSelectionSet.Children.Add(selectionSet);
-                    }
-
-                    selectionSet.ObjectSelection.SelectedObjects.Add(child);
+                    selectionSet = new CMapSelectionSet { SelectionSetName = selectionSetName };
+                    S2VSelectionSet.Children.Add(selectionSet);
                 }
+
+                selectionSet.ObjectSelection.SelectedObjects.Add(child);
             }
         }
+    }
 
-        void StaticPropFinalize(MapNode node, int layerIndex, List<MapNode> layerNodes, bool isBakedToWorld)
+    private void StaticPropFinalize(MapNode node, int layerIndex, List<MapNode> layerNodes, bool isBakedToWorld)
+    {
+        var destNode = GetWorldLayerNode(layerIndex, layerNodes);
+
+        // Only use this group in the base world layer
+        var bakedGroup = isBakedToWorld && destNode == MapDocument.World
+            ? "Baked World Models"
+            : null;
+
+        AddChildMaybeGrouped(destNode, node, bakedGroup);
+    }
+
+    private static void SetTintAlpha(BaseEntity entity, Vector4 tint)
+    {
+        var color32 = ConvertToColor32(tint);
+        if (entity is CMapInstance instance)
         {
-            var destNode = GetWorldLayerNode(layerIndex, layerNodes);
-
-            // Only use this group in the base world layer
-            var bakedGroup = isBakedToWorld && destNode == MapDocument.World
-                ? "Baked World Models"
-                : null;
-
-            AddChildMaybeGrouped(destNode, node, bakedGroup);
+            instance.TintColor = color32;
+            return;
         }
 
-        void SetTintAlpha(BaseEntity entity, Vector4 tint)
+        entity.EntityProperties["rendercolor"] = $"{color32.R} {color32.G} {color32.B}";
+        entity.EntityProperties["renderamt"] = color32.A.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static void SetPropertiesFromFlags(BaseEntity prop, ObjectTypeFlags objectFlags)
+    {
+        var properties = prop.EntityProperties;
+        properties["renderwithdynamic"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.RenderWithDynamic));
+        properties["rendertocubemaps"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.RenderToCubemaps));
+        properties["disableinlowquality"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.DisabledInLowQuality));
+    }
+
+    private void ProcessSceneObject(KVObject sceneObject, int sceneObjectIndex, int layerIndex, List<MapNode> layerNodes, SceneObjectOverrides overrides)
+    {
+        var modelName = sceneObject.GetStringProperty("m_renderableModel");
+        var meshName = sceneObject.GetStringProperty("m_renderable");
+
+        if (string.IsNullOrEmpty(modelName))
         {
-            var color32 = ConvertToColor32(tint);
-            if (entity is CMapInstance instance)
+            if (string.IsNullOrEmpty(meshName))
             {
-                instance.TintColor = color32;
                 return;
             }
 
-            entity.EntityProperties["rendercolor"] = $"{color32.R} {color32.G} {color32.B}";
-            entity.EntityProperties["renderamt"] = color32.A.ToString(CultureInfo.InvariantCulture);
+            SceneObjectsToExtract.Add(meshName);
+
+            return;
         }
 
-        void SetPropertiesFromFlags(BaseEntity prop, ObjectTypeFlags objectFlags)
+        var objectFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_nObjectTypeFlags", normalize: true);
+
+        FolderExtractFilter.Add(modelName ?? meshName);
+
+        var objectTransform = sceneObject.GetArray("m_vTransform").ToMatrix4x4();
+        Vector4? drawCallTint = null;
+
+        if (SceneObjectShouldConvertToHammerMesh(modelName))
         {
-            var properties = prop.EntityProperties;
-            properties["renderwithdynamic"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.RenderWithDynamic));
-            properties["rendertocubemaps"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.RenderToCubemaps));
-            properties["disableinlowquality"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.DisabledInLowQuality));
-        }
-
-        var extraVertexStreamOverrides = node.ExtraVertexStreamOverrides.ToLookup(static streamOverride => streamOverride.SceneObjectIndex);
-        var extraVertexStreams = node.GetExtraVertexStreams();
-        var materialOverrides = node.MaterialOverrides.ToLookup(static materialOverride => materialOverride.SceneObjectIndex);
-
-        void ProcessSceneObject(KVObject sceneObject, int sceneObjectIndex, int layerIndex, List<MapNode> layerNodes)
-        {
-            var modelName = sceneObject.GetStringProperty("m_renderableModel");
-            var meshName = sceneObject.GetStringProperty("m_renderable");
-
-            if (string.IsNullOrEmpty(modelName))
+            var isConverted = TryConvertSceneObjectToHammerMesh(sceneObject, modelName!, objectTransform, objectFlags, out drawCallTint);
+            if (isConverted)
             {
-                if (string.IsNullOrEmpty(meshName))
-                {
-                    return;
-                }
-
-                SceneObjectsToExtract.Add(meshName);
-
                 return;
             }
+        }
 
-            var objectFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_nObjectTypeFlags", normalize: true);
+        SceneObjectsToExtract.Add(modelName!);
+        AssetReferences.Add(modelName!);
 
-            FolderExtractFilter.Add(modelName ?? meshName);
+        var propStatic = CreateStaticPropFromSceneObject(sceneObject, sceneObjectIndex, modelName!, objectFlags, objectTransform, drawCallTint, overrides);
+        var isEmbeddedModel = !objectFlags.HasFlag(ObjectTypeFlags.Model);
 
-            var objectTransform = sceneObject.GetArray("m_vTransform").ToMatrix4x4();
-            Vector4? drawCallTint = null;
+        StaticPropFinalize(propStatic, layerIndex, layerNodes, isEmbeddedModel);
+    }
 
-            if (SceneObjectShouldConvertToHammerMesh(modelName))
+    /// <summary>
+    /// Converts a scene object to hammer meshes. Returns false when the object is a prop that stays a model, with the
+    /// tint the compiler baked into the draw calls of that model.
+    /// </summary>
+    private bool TryConvertSceneObjectToHammerMesh(KVObject sceneObject, string modelName, Matrix4x4 objectTransform, ObjectTypeFlags objectFlags, out Vector4? drawCallTint)
+    {
+        drawCallTint = null;
+
+        var meshNameCompiled = modelName + GameFileLoader.CompiledFileSuffix;
+        using var mesh = FileLoader.LoadFile(meshNameCompiled);
+
+        if (mesh is null || mesh.DataBlock is null)
+        {
+            return true;
+        }
+
+        var model = (Model)mesh.DataBlock;
+
+        // overlays are not normal hammer geo, their projected geometry is collected and reconstructed at the end
+        if (modelName.Contains("_mesh_overlay", StringComparison.Ordinal))
+        {
+            AddOverlayGeometry(model, mesh, objectTransform, sceneObject, objectFlags);
+            return true;
+        }
+
+        // Source 2 bakes a mesh's scale into its vertices, so bake it here and keep only origin/angles on the node.
+        var meshOrigin = Vector3.Zero;
+        var meshAngles = new Datamodel.QAngle();
+        var scaleTransform = Matrix4x4.Identity;
+        if (!objectTransform.IsIdentity)
+        {
+            if (!Matrix4x4.Decompose(objectTransform, out var scales, out var rotation, out var translation))
             {
-                var meshNameCompiled = modelName + GameFileLoader.CompiledFileSuffix;
-                using var mesh = FileLoader.LoadFile(meshNameCompiled);
-
-                if (mesh is null || mesh.DataBlock is null)
-                {
-                    return;
-                }
-
-                var model = (Model)mesh.DataBlock;
-
-                // overlays are not normal hammer geo, their projected geometry is collected and reconstructed at the end
-                if (modelName!.Contains("_mesh_overlay", StringComparison.Ordinal))
-                {
-                    AddOverlayGeometry(model, mesh, objectTransform, sceneObject, objectFlags);
-                    return;
-                }
-
-                // Source 2 bakes a mesh's scale into its vertices, so bake it here and keep only origin/angles on the node.
-                var meshOrigin = Vector3.Zero;
-                var meshAngles = new Datamodel.QAngle();
-                var scaleTransform = Matrix4x4.Identity;
-                if (!objectTransform.IsIdentity)
-                {
-                    if (!Matrix4x4.Decompose(objectTransform, out var scales, out var rotation, out var translation))
-                    {
-                        throw new InvalidOperationException("Matrix decompose failed");
-                    }
-
-                    meshOrigin = translation;
-                    meshAngles = EntityTransformHelper.ToEulerAngles(rotation);
-                    scaleTransform = Matrix4x4.CreateScale(scales);
-                }
-
-                if (!HasFoliageAnimationStreams(model))
-                {
-                    foreach (var hammermesh in RenderMeshToHammerMesh(model, mesh, transform: scaleTransform))
-                    {
-                        hammermesh.Origin = meshOrigin;
-                        hammermesh.Angles = meshAngles;
-                        MapDocument.World.Children.Add(hammermesh);
-                    }
-                    return;
-                }
-
-                // the compiler bakes the tint of the prop into the draw calls of its model
-                drawCallTint = GetUniformDrawCallTint(model);
+                throw new InvalidOperationException("Matrix decompose failed");
             }
 
-            SceneObjectsToExtract.Add(modelName!);
-            AssetReferences.Add(modelName!);
+            meshOrigin = translation;
+            meshAngles = EntityTransformHelper.ToEulerAngles(rotation);
+            scaleTransform = Matrix4x4.CreateScale(scales);
+        }
 
-            var propStatic = new CMapEntity()
-                .WithClassName("prop_static")
-                .WithProperty("model", modelName!);
-
-            if (!objectTransform.IsIdentity)
+        if (!HasFoliageAnimationStreams(model))
+        {
+            foreach (var hammermesh in RenderMeshToHammerMesh(model, mesh, transform: scaleTransform))
             {
-                if (!Matrix4x4.Decompose(objectTransform, out var scales, out var rotation, out var translation))
+                hammermesh.Origin = meshOrigin;
+                hammermesh.Angles = meshAngles;
+                MapDocument.World.Children.Add(hammermesh);
+            }
+
+            return true;
+        }
+
+        // the compiler bakes the tint of the prop into the draw calls of its model
+        drawCallTint = GetUniformDrawCallTint(model);
+
+        return false;
+    }
+
+    private BaseEntity CreateStaticPropFromSceneObject(KVObject sceneObject, int sceneObjectIndex, string modelName, ObjectTypeFlags objectFlags, Matrix4x4 objectTransform, Vector4? drawCallTint, SceneObjectOverrides overrides)
+    {
+        var propStatic = new CMapEntity()
+            .WithClassName("prop_static")
+            .WithProperty("model", modelName);
+
+        if (!objectTransform.IsIdentity)
+        {
+            if (!Matrix4x4.Decompose(objectTransform, out var scales, out var rotation, out var translation))
+            {
+                throw new InvalidOperationException("Matrix decompose failed");
+            }
+
+            propStatic.Origin = translation;
+            propStatic.Angles = EntityTransformHelper.ToEulerAngles(rotation);
+            propStatic.Scales = scales;
+        }
+
+        var fadeStartDistance = sceneObject.GetDoubleProperty("m_flFadeStartDistance");
+        var fadeEndDistance = sceneObject.GetDoubleProperty("m_flFadeEndDistance");
+        if (fadeStartDistance > 0)
+        {
+            propStatic.EntityProperties["fademindist"] = fadeStartDistance.ToString(CultureInfo.InvariantCulture);
+            propStatic.EntityProperties["fademaxdist"] = fadeEndDistance.ToString(CultureInfo.InvariantCulture);
+        }
+
+        var tintColor = sceneObject.GetSubCollection("m_vTintColor").ToVector4();
+        if (tintColor != Vector4.Zero)
+        {
+            SetTintAlpha(propStatic, tintColor * 255f);
+        }
+        else if (drawCallTint is { } bakedTint && bakedTint != new Vector4(255f))
+        {
+            SetTintAlpha(propStatic, bakedTint);
+        }
+
+        /* // TODO: check for values being 0
+        if (!sceneObject.ContainsKey("m_nLightProbeVolumePrecomputedHandshake") || !sceneObject.ContainsKey("m_nCubeMapPrecomputedHandshake"))
+        {
+            propStatic.EntityProperties["precomputelightprobes"] = StringBool(false);
+        }*/
+
+        var skin = sceneObject.GetStringProperty("m_skin");
+        if (!string.IsNullOrEmpty(skin))
+        {
+            propStatic.EntityProperties["skin"] = skin;
+        }
+
+        SetPropertiesFromFlags(propStatic, objectFlags);
+
+        if (!objectFlags.HasFlag(ObjectTypeFlags.Model))
+        {
+            propStatic.EntityProperties["baketoworld"] = StringBool(true);
+            ModelsToExtract.Add(modelName);
+        }
+
+        if (Path.GetFileName(modelName).Contains("nomerge", StringComparison.Ordinal))
+        {
+            propStatic.EntityProperties["disablemerging"] = StringBool(true);
+        }
+
+        if (GetWholeModelMaterialOverride(modelName, [.. overrides.MaterialOverrides[(uint)sceneObjectIndex]]) is { } materialOverride)
+        {
+            propStatic.EntityProperties["materialoverride"] = materialOverride;
+        }
+
+        if (GetExtraVertexData(modelName, [.. overrides.ExtraVertexStreamOverrides[(uint)sceneObjectIndex]], overrides.ExtraVertexStreams) is { } extraVertexData)
+        {
+            propStatic["extra_vertex_data"] = extraVertexData;
+        }
+
+        return propStatic;
+    }
+
+    private void ProcessAggregate(KVObject agg, int layerIndex, List<MapNode> layerNodes)
+    {
+        var modelName = agg.GetStringProperty("m_renderableModel");
+        var allFlags = agg.GetEnumValue<ObjectTypeFlags>("m_allFlags", normalize: true);
+
+        var hasModelFlag = allFlags.HasFlag(ObjectTypeFlags.Model);
+        var convertToHalfEdge = !hasModelFlag;
+
+        var aggregateMeshes = agg.GetArray("m_aggregateMeshes");
+
+        IReadOnlyList<KVObject> drawCalls = [];
+        var drawCenters = Array.Empty<Vector3>();
+
+        var fragmentTransforms = agg.GetArray("m_fragmentTransforms") ?? [];
+
+        var aggregateHasTransforms = fragmentTransforms.Count > 0;
+
+        if (aggregateHasTransforms)
+        {
+            InstancedAggregateModels.Add(modelName);
+        }
+
+        FolderExtractFilter.Add(modelName);
+        using var modelRes = FileLoader.LoadFileCompiled(modelName);
+
+        if (modelRes is null || modelRes.DataBlock is null)
+        {
+            return;
+        }
+
+        var model = (Model)modelRes.DataBlock;
+
+        // TODO: reference meshes
+        var mesh = ((Model)modelRes.DataBlock).GetEmbeddedMeshes().First();
+        var sceneObject = mesh.Mesh.Data.GetArray("m_sceneObjects")[0];
+        drawCalls = sceneObject.GetArray("m_drawCalls");
+
+        if (convertToHalfEdge)
+        {
+            if (aggregateHasTransforms)
+            {
+                throw new InvalidOperationException("Unhandled aggregate with instanced transforms exported as hammer mesh!");
+            }
+
+            AddAggregateHammerMesh(model, modelRes, aggregateMeshes, drawCalls, allFlags);
+            return;
+        }
+
+        if (!aggregateHasTransforms)
+        {
+            drawCenters = (sceneObject.GetArray("m_drawBounds") ?? [])
+                .Select(aabb => (aabb.GetSubCollection("m_vMinBounds").ToVector3() + aabb.GetSubCollection("m_vMaxBounds").ToVector3()) / 2f)
+                .ToArray();
+        }
+
+        var modelFiles = ModelExtract.GetContentFiles_DrawCallSplit(modelRes, FileLoader, drawCenters, drawCalls.Count);
+        PreExportedFragments.AddRange(modelFiles);
+
+        AddAggregateFragmentProps(modelName, aggregateMeshes, drawCalls, drawCenters, fragmentTransforms, layerIndex, layerNodes);
+    }
+
+    private void AddAggregateHammerMesh(Model model, Resource modelRes, IReadOnlyList<KVObject> aggregateMeshes, IReadOnlyList<KVObject> drawCalls, ObjectTypeFlags allFlags)
+    {
+        // the fragment tint multiplies the draw call tint, one fragment per draw call is expected here
+        var fragmentTints = new Dictionary<int, Vector4>();
+        var fragmentFlags = new Dictionary<int, ObjectTypeFlags>();
+        foreach (var fragment in aggregateMeshes)
+        {
+            var drawCallIndex = fragment.GetInt32Property("m_nDrawCallIndex");
+            if (fragment.ContainsKey("m_vTintColor"))
+            {
+                fragmentTints.TryAdd(drawCallIndex, GetFragmentTint(fragment));
+            }
+
+            if (fragment.ContainsKey("m_objectFlags"))
+            {
+                fragmentFlags.TryAdd(drawCallIndex, fragment.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true));
+            }
+        }
+
+        Vector4 HammerMeshTint(int drawCallIndex)
+        {
+            Vector4 tint = GetDrawCallTint(drawCalls[drawCallIndex]);
+
+            if (fragmentTints.TryGetValue(drawCallIndex, out var fragmentTint))
+            {
+                tint = fragmentTint * tint / 255f;
+            }
+
+            return tint;
+        }
+
+        int HammerMeshShadows(int drawCallIndex)
+            => DisableShadowsFromFlags(fragmentFlags.GetValueOrDefault(drawCallIndex, allFlags));
+
+        // world geometry is welded across all aggregates, the meshes are made once every world node is in
+        WorldHammerMeshDrawCalls += AddRenderMeshToBuilders(model, modelRes, Matrix4x4.Identity, HammerMeshTint, HammerMeshShadows, WorldHammerMeshBuilders);
+    }
+
+    private void AddAggregateFragmentProps(string modelName, IReadOnlyList<KVObject> aggregateMeshes, IReadOnlyList<KVObject> drawCalls, Vector3[] drawCenters, IReadOnlyList<KVObject> fragmentTransforms, int layerIndex, List<MapNode> layerNodes)
+    {
+        var aggregateHasTransforms = fragmentTransforms.Count > 0;
+        var transformIndex = 0;
+
+        var drawSelectionSet = new CMapSelectionSet
+        {
+            SelectionSetName = "prop_static render mesh " + (aggregateHasTransforms ? "(instanced) " : "(" + drawCalls.Count + " split draw meshes) ") + Path.GetFileNameWithoutExtension(modelName),
+        };
+        StaticPropsSelectionSet?.Children.Add(drawSelectionSet);
+
+        foreach (var fragment in aggregateMeshes)
+        {
+            var i = fragment.GetInt32Property("m_nDrawCallIndex");
+            var fragmentFlags = fragment.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true);
+
+            Vector4 fragmentTint = GetFragmentTint(fragment);
+            Vector4 drawCallTint = GetDrawCallTint(drawCalls[i]) / 255f;
+
+            Vector3 tint = fragmentTint.AsVector3() * drawCallTint.AsVector3();
+            float alpha = fragmentTint.W * drawCallTint.W;
+
+            var fragmentModelName = ModelExtract.GetFragmentModelName(modelName, i);
+            AssetReferences.Add(fragmentModelName);
+
+            var instance = NewAggregateFragmentProp(fragmentModelName);
+
+            // Only the fragments that have a transform take one, the others are placed as authored
+            if (aggregateHasTransforms && fragment.GetBooleanProperty("m_bHasTransform"))
+            {
+                var transform = fragmentTransforms[transformIndex++].ToMatrix4x4();
+                if (!Matrix4x4.Decompose(transform, out var scales, out var rotation, out var translation))
                 {
                     throw new InvalidOperationException("Matrix decompose failed");
                 }
 
-                propStatic.Origin = translation;
-                propStatic.Angles = EntityTransformHelper.ToEulerAngles(rotation);
-                propStatic.Scales = scales;
-            }
-
-            var fadeStartDistance = sceneObject.GetDoubleProperty("m_flFadeStartDistance");
-            var fadeEndDistance = sceneObject.GetDoubleProperty("m_flFadeEndDistance");
-            if (fadeStartDistance > 0)
-            {
-                propStatic.EntityProperties["fademindist"] = fadeStartDistance.ToString(CultureInfo.InvariantCulture);
-                propStatic.EntityProperties["fademaxdist"] = fadeEndDistance.ToString(CultureInfo.InvariantCulture);
-            }
-
-            var tintColor = sceneObject.GetSubCollection("m_vTintColor").ToVector4();
-            if (tintColor != Vector4.Zero)
-            {
-                SetTintAlpha(propStatic, tintColor * 255f);
-            }
-            else if (drawCallTint is { } bakedTint && bakedTint != new Vector4(255f))
-            {
-                SetTintAlpha(propStatic, bakedTint);
-            }
-
-            /* // TODO: check for values being 0
-            if (!sceneObject.ContainsKey("m_nLightProbeVolumePrecomputedHandshake") || !sceneObject.ContainsKey("m_nCubeMapPrecomputedHandshake"))
-            {
-                propStatic.EntityProperties["precomputelightprobes"] = StringBool(false);
-            }*/
-
-            var skin = sceneObject.GetStringProperty("m_skin");
-            if (!string.IsNullOrEmpty(skin))
-            {
-                propStatic.EntityProperties["skin"] = skin;
-            }
-
-            SetPropertiesFromFlags(propStatic, objectFlags);
-
-            var isEmbeddedModel = false;
-            if (!objectFlags.HasFlag(ObjectTypeFlags.Model))
-            {
-                isEmbeddedModel = true;
-                propStatic.EntityProperties["baketoworld"] = StringBool(true);
-                ModelsToExtract.Add(modelName!);
-            }
-
-            if (Path.GetFileName(modelName!).Contains("nomerge", StringComparison.Ordinal))
-            {
-                propStatic.EntityProperties["disablemerging"] = StringBool(true);
-            }
-
-            if (GetWholeModelMaterialOverride(modelName!, [.. materialOverrides[(uint)sceneObjectIndex]]) is { } materialOverride)
-            {
-                propStatic.EntityProperties["materialoverride"] = materialOverride;
-            }
-
-            if (GetExtraVertexData(modelName!, [.. extraVertexStreamOverrides[(uint)sceneObjectIndex]], extraVertexStreams) is { } extraVertexData)
-            {
-                propStatic["extra_vertex_data"] = extraVertexData;
-            }
-
-            StaticPropFinalize(propStatic, layerIndex, layerNodes, isEmbeddedModel);
-        }
-
-        void ProcessAggregate(KVObject agg, int layerIndex, List<MapNode> layerNodes)
-        {
-            var modelName = agg.GetStringProperty("m_renderableModel");
-            var anyFlags = agg.GetEnumValue<ObjectTypeFlags>("m_anyFlags", normalize: true);
-            var allFlags = agg.GetEnumValue<ObjectTypeFlags>("m_allFlags", normalize: true);
-
-            var hasModelFlag = allFlags.HasFlag(ObjectTypeFlags.Model);
-            var convertToHalfEdge = !hasModelFlag;
-
-            var aggregateMeshes = agg.GetArray("m_aggregateMeshes");
-
-            IReadOnlyList<KVObject> drawCalls = [];
-            var drawCenters = Array.Empty<Vector3>();
-
-            var transformIndex = 0;
-            var fragmentTransforms = agg.GetArray("m_fragmentTransforms") ?? [];
-
-            var aggregateHasTransforms = fragmentTransforms.Count > 0;
-
-            if (aggregateHasTransforms)
-            {
-                InstancedAggregateModels.Add(modelName);
-            }
-
-            FolderExtractFilter.Add(modelName);
-            using var modelRes = FileLoader.LoadFileCompiled(modelName);
-
-            if (modelRes is null || modelRes.DataBlock is null)
-            {
-                return;
-            }
-
-            var model = (Model)modelRes.DataBlock;
-
-            // TODO: reference meshes
-            var mesh = ((Model)modelRes.DataBlock).GetEmbeddedMeshes().First();
-            var sceneObject = mesh.Mesh.Data.GetArray("m_sceneObjects")[0];
-            drawCalls = sceneObject.GetArray("m_drawCalls");
-
-            if (!convertToHalfEdge)
-            {
-                if (!aggregateHasTransforms)
-                {
-                    drawCenters = (sceneObject.GetArray("m_drawBounds") ?? [])
-                        .Select(aabb => (aabb.GetSubCollection("m_vMinBounds").ToVector3() + aabb.GetSubCollection("m_vMaxBounds").ToVector3()) / 2f)
-                        .ToArray();
-                }
-
-                var modelFiles = ModelExtract.GetContentFiles_DrawCallSplit(modelRes, FileLoader, drawCenters, drawCalls.Count);
-                PreExportedFragments.AddRange(modelFiles);
-            }
-
-            BaseEntity NewPropStatic(string modelName) => new CMapEntity()
-                .WithClassName("prop_static")
-                .WithProperty("model", modelName)
-                .WithProperty("baketoworld", StringBool(true))
-                .WithProperty("disablemerging", StringBool(true))
-                .WithProperty("visoccluder", StringBool(true));
-
-            var drawSelectionSet = new CMapSelectionSet();
-            if (convertToHalfEdge)
-            {
-                if (aggregateHasTransforms)
-                {
-                    throw new InvalidOperationException("Unhandled aggregate with instanced transforms exported as hammer mesh!");
-                }
-
-                // the fragment tint multiplies the draw call tint, one fragment per draw call is expected here
-                var fragmentTints = new Dictionary<int, Vector4>();
-                var fragmentFlags = new Dictionary<int, ObjectTypeFlags>();
-                foreach (var fragment in aggregateMeshes)
-                {
-                    var drawCallIndex = fragment.GetInt32Property("m_nDrawCallIndex");
-                    if (fragment.ContainsKey("m_vTintColor"))
-                    {
-                        fragmentTints.TryAdd(drawCallIndex, GetFragmentTint(fragment));
-                    }
-
-                    if (fragment.ContainsKey("m_objectFlags"))
-                    {
-                        fragmentFlags.TryAdd(drawCallIndex, fragment.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true));
-                    }
-                }
-
-                Vector4 HammerMeshTint(int drawCallIndex)
-                {
-                    Vector4 tint = GetDrawCallTint(drawCalls[drawCallIndex]);
-
-                    if (fragmentTints.TryGetValue(drawCallIndex, out var fragmentTint))
-                    {
-                        tint = fragmentTint * tint / 255f;
-                    }
-
-                    return tint;
-                }
-
-                int HammerMeshShadows(int drawCallIndex)
-                    => DisableShadowsFromFlags(fragmentFlags.GetValueOrDefault(drawCallIndex, allFlags));
-
-                // world geometry is welded across all aggregates, the meshes are made once every world node is in
-                WorldHammerMeshDrawCalls += AddRenderMeshToBuilders(model, modelRes, Matrix4x4.Identity, HammerMeshTint, HammerMeshShadows, WorldHammerMeshBuilders);
-
-                return;
-            }
-
-            drawSelectionSet.SelectionSetName = "prop_static render mesh " + (aggregateHasTransforms ? "(instanced) " : "(" + drawCalls.Count + " split draw meshes) ") + Path.GetFileNameWithoutExtension(modelName);
-            StaticPropsSelectionSet?.Children.Add(drawSelectionSet);
-
-            foreach (var fragment in aggregateMeshes)
-            {
-                var i = fragment.GetInt32Property("m_nDrawCallIndex");
-                var fragmentFlags = fragment.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true);
-
-                Vector4 fragmentTint = GetFragmentTint(fragment);
-                Vector4 drawCallTint = GetDrawCallTint(drawCalls[i]) / 255f;
-
-                Vector3 tint = fragmentTint.AsVector3() * drawCallTint.AsVector3();
-                float alpha = fragmentTint.W * drawCallTint.W;
-
-                var fragmentModelName = ModelExtract.GetFragmentModelName(modelName, i);
-                AssetReferences.Add(fragmentModelName);
-
-                var instance = NewPropStatic(fragmentModelName);
-
-                // Only the fragments that have a transform take one, the others are placed as authored
-                if (aggregateHasTransforms && fragment.GetBooleanProperty("m_bHasTransform"))
-                {
-                    var transform = fragmentTransforms[transformIndex++].ToMatrix4x4();
-                    if (!Matrix4x4.Decompose(transform, out var scales, out var rotation, out var translation))
-                    {
-                        throw new InvalidOperationException("Matrix decompose failed");
-                    }
-
-                    instance.Origin = translation;
-                    var angles = EntityTransformHelper.ToEulerAngles(rotation);
-                    instance.Angles = angles;
-                    instance.Scales = scales;
-
-                    SetPropertiesFromFlags(instance, fragmentFlags);
-                    SetTintAlpha(instance, new Vector4(tint, alpha));
-
-                    // Keep adding the same prop
-                    GetWorldLayerNode(layerIndex, layerNodes).Children.Add(instance);
-                    drawSelectionSet.ObjectSelection.SelectedObjects.Add(instance);
-                    continue;
-                }
-
-                if (drawCenters.Length > 0)
-                {
-                    // fragment recentering based on bounding box
-                    // apply positive vector in the vmap, and negative vector in the vmdl
-                    instance.Origin = drawCenters[i];
-                }
+                instance.Origin = translation;
+                var angles = EntityTransformHelper.ToEulerAngles(rotation);
+                instance.Angles = angles;
+                instance.Scales = scales;
 
                 SetPropertiesFromFlags(instance, fragmentFlags);
                 SetTintAlpha(instance, new Vector4(tint, alpha));
 
+                // Keep adding the same prop
                 GetWorldLayerNode(layerIndex, layerNodes).Children.Add(instance);
                 drawSelectionSet.ObjectSelection.SelectedObjects.Add(instance);
+                continue;
             }
-        }
 
-        var sceneObjects = node.SceneObjects;
-        var sceneObjectLayerIndices = node.SceneObjectLayerIndices;
-        for (var i = 0; i < sceneObjects.Count; i++)
-        {
-            var sceneObject = sceneObjects[i];
-            var layerIndex = (int)(sceneObjectLayerIndices?[i] ?? -1);
-            ProcessSceneObject(sceneObject, i, layerIndex, layerNodes);
-        }
+            if (drawCenters.Length > 0)
+            {
+                // fragment recentering based on bounding box
+                // apply positive vector in the vmap, and negative vector in the vmdl
+                instance.Origin = drawCenters[i];
+            }
 
-        foreach (var aggregateSceneObject in node.AggregateSceneObjects)
-        {
-            var layerIndex = aggregateSceneObject.GetInt32Property("m_nLayer");
-            ProcessAggregate(aggregateSceneObject, layerIndex, layerNodes);
-        }
+            SetPropertiesFromFlags(instance, fragmentFlags);
+            SetTintAlpha(instance, new Vector4(tint, alpha));
 
-        foreach (var clutterSceneObject in node.ClutterSceneObjects)
-        {
-            // TODO: Clutter
+            GetWorldLayerNode(layerIndex, layerNodes).Children.Add(instance);
+            drawSelectionSet.ObjectSelection.SelectedObjects.Add(instance);
         }
     }
+
+    private static BaseEntity NewAggregateFragmentProp(string modelName) => new CMapEntity()
+        .WithClassName("prop_static")
+        .WithProperty("model", modelName)
+        .WithProperty("baketoworld", StringBool(true))
+        .WithProperty("disablemerging", StringBool(true))
+        .WithProperty("visoccluder", StringBool(true));
 
     internal static string GetAutoPhysicsMaterialName(string rootFolder, string surfaceProperty)
         => NormalizePath(Path.Combine(rootFolder, "_vrf", "physics_surfaces", surfaceProperty.ToLowerInvariant() + ".vmat"))!;
@@ -2586,25 +2691,7 @@ public sealed partial class MapExtract
 
         if (EntitiesToHammerMesh)
         {
-            if (isJustPhysics)
-            {
-                var phys = data.GetEmbeddedPhys();
-                if (phys != null)
-                {
-                    foreach (var hammermesh in PhysToHammerMeshes(phys, worldTransform, associatedEntityClass))
-                    {
-                        mapEntity.Children.Add(hammermesh);
-                    }
-                }
-            }
-            else
-            {
-                foreach (var hammermesh in RenderMeshToHammerMesh(data, model, associatedEntityClass, worldTransform))
-                {
-                    mapEntity.Children.Add(hammermesh);
-                }
-            }
-
+            AddEntityModelHammerMeshes(mapEntity, data, model, isJustPhysics, associatedEntityClass, worldTransform);
             return;
         }
 
@@ -2621,6 +2708,28 @@ public sealed partial class MapExtract
 
         var vmdl = modelExtract.ToContentFile();
         EntityModels.Add(vmdl);
+    }
+
+    private void AddEntityModelHammerMeshes(CMapEntity mapEntity, Model data, Resource model, bool isJustPhysics, string? associatedEntityClass, Matrix4x4 worldTransform)
+    {
+        if (isJustPhysics)
+        {
+            var phys = data.GetEmbeddedPhys();
+            if (phys != null)
+            {
+                foreach (var hammermesh in PhysToHammerMeshes(phys, worldTransform, associatedEntityClass))
+                {
+                    mapEntity.Children.Add(hammermesh);
+                }
+            }
+
+            return;
+        }
+
+        foreach (var hammermesh in RenderMeshToHammerMesh(data, model, associatedEntityClass, worldTransform))
+        {
+            mapEntity.Children.Add(hammermesh);
+        }
     }
 
     private static int[] AddProperties(string className, Entity compiledEntity, BaseEntity mapEntity)

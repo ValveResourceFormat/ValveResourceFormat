@@ -724,28 +724,28 @@ namespace ValveResourceFormat.Renderer.World
 
                 HashSet<string> visited = new(StringComparer.OrdinalIgnoreCase);
 
-                void Add(string lumpName)
-                {
-                    if (!visited.Add(lumpName) || RendererContext.FileLoader.LoadFileCompiled(lumpName)?.DataBlock is not EntityLump lump)
-                    {
-                        return;
-                    }
-
-                    worldEntityLumps.Add(lump);
-
-                    foreach (var childName in lump.GetChildEntityNames())
-                    {
-                        Add(childName);
-                    }
-                }
-
                 foreach (var lumpName in World.GetEntityLumpNames().OfType<string>())
                 {
-                    Add(lumpName);
+                    AddEntityLump(lumpName, worldEntityLumps, visited);
                 }
             }
 
             return worldEntityLumps.Find(lump => lump.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private void AddEntityLump(string lumpName, List<EntityLump> lumps, HashSet<string> visited)
+        {
+            if (!visited.Add(lumpName) || RendererContext.FileLoader.LoadFileCompiled(lumpName)?.DataBlock is not EntityLump lump)
+            {
+                return;
+            }
+
+            lumps.Add(lump);
+
+            foreach (var childName in lump.GetChildEntityNames())
+            {
+                AddEntityLump(childName, lumps, visited);
+            }
         }
 
         /// <summary>

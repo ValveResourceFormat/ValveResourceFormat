@@ -208,152 +208,155 @@ namespace ValveResourceFormat.IO
         {
             ArgumentNullException.ThrowIfNull(options);
 
-            var contentFile = new ContentFile();
-
             switch (resource.ResourceType)
             {
                 case ResourceType.Map:
                 case ResourceType.World:
-                    contentFile = new MapExtract(resource, fileLoader) { ProgressReporter = progress, ReconstructSoftbody = options.ReconstructSoftbody }.ToContentFile();
-                    break;
+                    return new MapExtract(resource, fileLoader) { ProgressReporter = progress, ReconstructSoftbody = options.ReconstructSoftbody }.ToContentFile();
 
                 case ResourceType.Model:
-                    contentFile = new ModelExtract(resource, fileLoader) { ProgressReporter = progress, ReconstructSoftbody = options.ReconstructSoftbody }.ToContentFile();
-                    break;
+                    return new ModelExtract(resource, fileLoader) { ProgressReporter = progress, ReconstructSoftbody = options.ReconstructSoftbody }.ToContentFile();
 
                 case ResourceType.AnimationGraph:
                 {
                     using var animGraphExtract = new AnimationGraphExtract(resource, fileLoader);
-                    contentFile = animGraphExtract.ToContentFile();
+                    return animGraphExtract.ToContentFile();
                 }
-                break;
 
                 case ResourceType.Panorama:
                 case ResourceType.PanoramaScript:
                 case ResourceType.PanoramaTypescript:
                 case ResourceType.PanoramaVectorGraphic:
-                    if (resource.DataBlock == null)
-                    {
-                        contentFile.Data = [];
-                        break;
-                    }
-
-                    contentFile.Data = ((Panorama)resource.DataBlock).Data;
-                    break;
+                    return ExtractPanorama(resource);
 
                 case ResourceType.Sound:
-                    if (resource.DataBlock is Sound { StreamingDataSize: > 0 } soundData)
-                    {
-                        contentFile.Data = soundData.GetSound();
-
-                        // Lip-sync phoneme data; the compiler bakes this back in when the txt sits next to the source sound.
-                        if (soundData.Sentence != null)
-                        {
-                            contentFile.AdditionalFiles.Add(new ContentFile
-                            {
-                                FileName = Path.ChangeExtension(resource.FileName, "txt") ?? "exported.txt",
-                                Data = Encoding.UTF8.GetBytes(soundData.Sentence.ToValveSentence())
-                            });
-                        }
-
-                        // TODO: Refactor this into a SoundExtract?
-                        if (resource.GetBlockByType(BlockType.CTRL) is BinaryKV3 ctrlData)
-                        {
-                            var wrappedData = KVObject.Collection();
-                            wrappedData.Add("VrfExportedSound", ctrlData.Data);
-                            contentFile.AdditionalFiles.Add(new ContentFile
-                            {
-                                FileName = Path.ChangeExtension(resource.FileName, "vsnd") ?? "exported.vsnd",
-                                Data = Encoding.UTF8.GetBytes(wrappedData.ToKV3String())
-                            });
-                        }
-                    }
-                    else if (resource.GetBlockByType(BlockType.CTRL) is BinaryKV3 ctrlData)
-                    {
-                        // TODO: We may want to cleanup m_vSound (recursively) since it contains random garbage if not actually used
-                        var wrappedData = KVObject.Collection();
-                        wrappedData.Add("VrfExportedSound", ctrlData.Data);
-                        contentFile.Data = Encoding.UTF8.GetBytes(wrappedData.ToKV3String());
-                    }
-
-                    break;
+                    return ExtractSound(resource);
 
                 case ResourceType.Texture:
-                    contentFile = new TextureExtract(resource).ToContentFile();
-                    break;
+                    return new TextureExtract(resource).ToContentFile();
 
                 case ResourceType.Particle:
-                    contentFile.Data = Encoding.UTF8.GetBytes(((ParticleSystem)resource.DataBlock!).ToString()!);
-                    break;
+                    return CreateTextFile(((ParticleSystem)resource.DataBlock!).ToString()!);
 
                 case ResourceType.ParticleSnapshot:
-                    contentFile = new SnapshotExtract(resource).ToContentFile();
-                    break;
+                    return new SnapshotExtract(resource).ToContentFile();
 
                 case ResourceType.Material:
-                    contentFile = new MaterialExtract(resource, fileLoader).ToContentFile();
-                    break;
+                    return new MaterialExtract(resource, fileLoader).ToContentFile();
 
                 case ResourceType.EntityLump:
-                    contentFile.Data = Encoding.UTF8.GetBytes(((EntityLump)resource.DataBlock!).ToEntityDumpString());
-                    break;
+                    return CreateTextFile(((EntityLump)resource.DataBlock!).ToEntityDumpString());
 
                 case ResourceType.PostProcessing:
-                {
-                    var lutFileName = Path.ChangeExtension(resource.FileName, "raw")!;
-                    contentFile.Data = Encoding.UTF8.GetBytes(
-                        ((PostProcessing)resource.DataBlock!).ToValvePostProcessing(preloadLookupTable: true, lutFileName: lutFileName.Replace(Path.DirectorySeparatorChar, '/'))
-                    );
-
-                    contentFile.AddSubFile(
-                        fileName: Path.GetFileName(lutFileName)!,
-                        extractMethod: () => ((PostProcessing)resource.DataBlock!).GetRAWData()
-                    );
-
-                    break;
-                }
+                    return ExtractPostProcessing(resource);
 
                 case ResourceType.NmSkeleton:
-                    contentFile = new NmSkeletonExtract(resource).ToContentFile();
-                    break;
+                    return new NmSkeletonExtract(resource).ToContentFile();
 
                 case ResourceType.NmClip:
-                    contentFile = new NmClipExtract(resource, fileLoader).ToContentFile();
-                    break;
+                    return new NmClipExtract(resource, fileLoader).ToContentFile();
 
                 // A graph variation holds no nodes, only the graph it binds and the skeleton and
                 // clips bound to it; the base graph's document already carries every variation.
                 case ResourceType.NmGraph:
-                    using (var nmGraphExtract = new NmGraphExtract(resource, fileLoader))
-                    {
-                        contentFile = nmGraphExtract.ToContentFile();
-                    }
-                    break;
+                {
+                    using var nmGraphExtract = new NmGraphExtract(resource, fileLoader);
+                    return nmGraphExtract.ToContentFile();
+                }
 
                 // These all just use ToString() and WriteText() to do the job
                 case ResourceType.PanoramaStyle:
                 case ResourceType.PanoramaLayout:
                 case ResourceType.SoundEventScript:
                 case ResourceType.SoundStackScript:
-                    contentFile.Data = Encoding.UTF8.GetBytes(resource.DataBlock!.ToString()!);
-                    break;
+                    return CreateTextFile(resource.DataBlock!.ToString()!);
 
                 case ResourceType.ChoreoSceneFileData:
-                    contentFile = new ChoreoExtract(resource).ToContentFile();
-                    break;
+                    return new ChoreoExtract(resource).ToContentFile();
 
                 default:
-                {
-                    var dataBlock = resource.DataBlock;
-
-                    if (dataBlock != null)
+                    if (resource.DataBlock is { } dataBlock)
                     {
-                        contentFile.Data = Encoding.UTF8.GetBytes(dataBlock.ToString()!);
+                        return CreateTextFile(dataBlock.ToString()!);
                     }
 
-                    break;
+                    return new ContentFile();
+            }
+        }
+
+        private static ContentFile CreateTextFile(string text)
+        {
+            return new ContentFile
+            {
+                Data = Encoding.UTF8.GetBytes(text),
+            };
+        }
+
+        private static ContentFile ExtractPanorama(Resource resource)
+        {
+            var data = resource.DataBlock == null ? Array.Empty<byte>() : ((Panorama)resource.DataBlock).Data;
+
+            return new ContentFile
+            {
+                Data = data,
+            };
+        }
+
+        private static ContentFile ExtractSound(Resource resource)
+        {
+            var contentFile = new ContentFile();
+
+            if (resource.DataBlock is Sound { StreamingDataSize: > 0 } soundData)
+            {
+                contentFile.Data = soundData.GetSound();
+
+                // Lip-sync phoneme data; the compiler bakes this back in when the txt sits next to the source sound.
+                if (soundData.Sentence != null)
+                {
+                    contentFile.AdditionalFiles.Add(new ContentFile
+                    {
+                        FileName = Path.ChangeExtension(resource.FileName, "txt") ?? "exported.txt",
+                        Data = Encoding.UTF8.GetBytes(soundData.Sentence.ToValveSentence())
+                    });
+                }
+
+                // TODO: Refactor this into a SoundExtract?
+                if (resource.GetBlockByType(BlockType.CTRL) is BinaryKV3 ctrlData)
+                {
+                    var wrappedData = KVObject.Collection();
+                    wrappedData.Add("VrfExportedSound", ctrlData.Data);
+                    contentFile.AdditionalFiles.Add(new ContentFile
+                    {
+                        FileName = Path.ChangeExtension(resource.FileName, "vsnd") ?? "exported.vsnd",
+                        Data = Encoding.UTF8.GetBytes(wrappedData.ToKV3String())
+                    });
                 }
             }
+            else if (resource.GetBlockByType(BlockType.CTRL) is BinaryKV3 ctrlData)
+            {
+                // TODO: We may want to cleanup m_vSound (recursively) since it contains random garbage if not actually used
+                var wrappedData = KVObject.Collection();
+                wrappedData.Add("VrfExportedSound", ctrlData.Data);
+                contentFile.Data = Encoding.UTF8.GetBytes(wrappedData.ToKV3String());
+            }
+
+            return contentFile;
+        }
+
+        private static ContentFile ExtractPostProcessing(Resource resource)
+        {
+            var lutFileName = Path.ChangeExtension(resource.FileName, "raw")!;
+            var contentFile = new ContentFile
+            {
+                Data = Encoding.UTF8.GetBytes(
+                    ((PostProcessing)resource.DataBlock!).ToValvePostProcessing(preloadLookupTable: true, lutFileName: lutFileName.Replace(Path.DirectorySeparatorChar, '/'))
+                ),
+            };
+
+            contentFile.AddSubFile(
+                fileName: Path.GetFileName(lutFileName)!,
+                extractMethod: () => ((PostProcessing)resource.DataBlock!).GetRAWData()
+            );
 
             return contentFile;
         }

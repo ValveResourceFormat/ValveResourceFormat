@@ -93,14 +93,41 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <returns>The preprocessed GLSL source text ready for driver compilation.</returns>
         public string PreprocessShader(string shaderFile, ParsedShaderData parsedData)
         {
-            var sourceFileNumber = parsedData.SourceFiles.Count;
-            var resolvedIncludes = new HashSet<string>(4);
             var isVertexStage = GetTypeFromFileName(shaderFile) == ShaderProgramType.Vertex;
-            var declaredAttributes = new HashSet<string>(StringComparer.Ordinal);
+            var preprocessor = new ShaderPreprocessor(builder, parsedData, isVertexStage);
 
-            var uniformAliases = new Dictionary<string, string>(0);
+            // simulate first time compile
+            // builder.Append($"// {Guid.CreateVersion7()}");
 
-            void AppendLineNumber(int a, int b)
+            preprocessor.LoadShaderString(shaderFile, null);
+
+            return preprocessor.DeclaredAttributes.Count > 0 ? StampAttributeLocations(builder.ToString(), preprocessor.DeclaredAttributes) : builder.ToString();
+        }
+
+        /// <summary>
+        /// Appends a shader file and the files it includes to the builder, collecting what they declare.
+        /// </summary>
+        private sealed class ShaderPreprocessor(StringBuilder builder, ParsedShaderData parsedData, bool isVertexStage)
+        {
+            // The line state of one source file, which an include interrupts
+            private sealed class SourceFile(string name, int number)
+            {
+                public string Name { get; } = name;
+                public int Number { get; } = number;
+                public int LineNumber { get; set; } = 1;
+                public Match? GenericHeader { get; set; }
+                public List<string> GenericLines { get; } = [];
+#if DEBUG
+                public List<string> Lines { get; } = [];
+#endif
+            }
+
+            private readonly HashSet<string> resolvedIncludes = new(4);
+            private readonly Dictionary<string, string> uniformAliases = new(0);
+
+            public HashSet<string> DeclaredAttributes { get; } = new(StringComparer.Ordinal);
+
+            private void AppendLineNumber(int a, int b)
             {
                 builder.Append("#line ");
                 builder.Append(a.ToString(CultureInfo.InvariantCulture));
@@ -109,10 +136,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                 builder.Append('\n');
             }
 
-            // simulate first time compile
-            // builder.Append($"// {Guid.CreateVersion7()}");
-
-            void LoadShaderString(string shaderFileToLoad, string? parentFile, bool isInclude)
+            public void LoadShaderString(string shaderFileToLoad, string? parentFile)
             {
                 if (parentFile != null)
                 {
@@ -136,254 +160,298 @@ namespace ValveResourceFormat.Renderer.Shaders
 
                 using var stream = GetShaderStream(shaderFileToLoad);
                 using var reader = new StreamReader(stream);
-                string? line;
-                var lineNum = 1;
-                var currentSourceFileNumber = sourceFileNumber++;
+                var file = new SourceFile(shaderFileToLoad, parsedData.SourceFiles.Count);
                 parsedData.SourceFiles.Add(shaderFileToLoad);
 
 #if DEBUG
-                var currentSourceLines = new List<string>();
-                parsedData.SourceFileLines.Add(currentSourceLines);
+                parsedData.SourceFileLines.Add(file.Lines);
 #endif
 
                 builder.EnsureCapacity(builder.Length + (int)stream.Length);
 
-                Match? genericHeader = null;
-                List<string> genericLines = [];
+                string? line;
 
                 while ((line = reader.ReadLine()) != null)
                 {
-                    lineNum++;
-
-#if DEBUG
-                    if (!line.All(static c => char.IsAscii(c)))
-                    {
-                        // At least on nvidia, trying to compile GLSL with non ascii characters will throw bizarre errors like
-                        // wrong #line source-line error, or EOF.
-                        throw new ShaderCompilerException($"Line {lineNum} in '{shaderFileToLoad}' contains non-ASCII characters.");
-                    }
-#endif
-
-                    if (lineNum == 2)
-                    {
-                        if (line != ExpectedShaderVersion)
-                        {
-                            throw new ShaderCompilerException($"First line must be '{ExpectedShaderVersion}' in '{shaderFileToLoad}'");
-                        }
-
-#if DEBUG
-                        currentSourceLines.Add($"// :VrfPreprocessed {line}");
-#endif
-
-                        builder.Append('\n');
-
-                        AppendLineNumber(lineNum, currentSourceFileNumber);
-
-                        // We add #version even in includes so that they can be compiled individually for better editing experience
-                        // Skip #version for main shader - will be prepended in header
-                        continue;
-                    }
-
-#if DEBUG
-                    currentSourceLines.Add(line);
-#endif
-
-                    {
-                        // Generic functions are held back until their closing brace, then written out per type
-                        var genericMatch = RegexGenericFunction().Match(line);
-
-                        if (genericMatch.Success || genericHeader != null)
-                        {
-                            genericHeader ??= genericMatch;
-                            genericLines.Add(line.Trim());
-
-                            if (line.StartsWith('}'))
-                            {
-                                genericLines[0] = string.Concat(genericHeader.Groups["Head"].Value, genericHeader.Groups["Tail"].Value);
-
-                                var function = string.Join('\n', genericLines);
-                                var parameter = $@"\b{genericHeader.Groups["Parameter"].Value}\b";
-
-                                foreach (var type in GenericFloatTypes)
-                                {
-                                    AppendLineNumber(lineNum - genericLines.Count, currentSourceFileNumber);
-                                    builder.Append(Regex.Replace(function, parameter, type)).Append('\n');
-                                }
-
-                                AppendLineNumber(lineNum, currentSourceFileNumber);
-                                genericHeader = null;
-                                genericLines.Clear();
-                            }
-
-                            continue;
-                        }
-
-                        line = line.Trim(); // we will be outputting trimmed lines to compile too
-
-                        if (line == IgnoreMaterialDataPragma)
-                        {
-                            parsedData.IgnoreMaterialData = true;
-                            continue;
-                        }
-
-                        // Includes
-                        var match = RegexInclude().Match(line);
-
-                        if (match.Success)
-                        {
-                            // Recursively append included shaders
-
-                            var includeName = match.Groups["IncludeName"].Value;
-
-                            AppendLineNumber(1, sourceFileNumber);
-                            LoadShaderString(includeName, shaderFileToLoad, isInclude: true);
-                            AppendLineNumber(lineNum, currentSourceFileNumber);
-
-                            continue;
-                        }
-
-                        // Defines
-                        match = RegexDefine().Match(line);
-
-                        if (match.Success)
-                        {
-                            var defineName = match.Groups["ParamName"].Value;
-                            var defaultValueStr = match.Groups["DefaultValue"].Value;
-                            var value = byte.Parse(defaultValueStr, CultureInfo.InvariantCulture);
-
-                            if (defineName.StartsWith(RenderModeDefinePrefix, StringComparison.Ordinal))
-                            {
-                                var renderMode = defineName[RenderModeDefinePrefix.Length..];
-
-                                parsedData.RenderModes.Add(renderMode);
-
-                                value = RenderModes.GetOrAddShaderId(renderMode);
-
-                                builder.Append("#define ");
-                                builder.Append(defineName);
-                                builder.Append(' ');
-                                builder.Append(value.ToString(CultureInfo.InvariantCulture));
-                                builder.Append(" // :VrfPreprocessed\n");
-
-                                continue;
-                            }
-
-                            // Defines are removed from source code and will be prepended later
-                            if (!parsedData.Defines.TryAdd(defineName, value))
-                            {
-                                // Defines can be shared between vert and frag
-                                if (parsedData.Defines[defineName] != value)
-                                {
-                                    throw new ShaderCompilerException($"Line {lineNum} in '{shaderFileToLoad}' contains a duplicate define '{defineName}' with different default value");
-                                }
-                            }
-
-                            continue;
-                        }
-
-                        match = RegexExtension().Match(line);
-
-                        if (match.Success)
-                        {
-                            parsedData.Extensions.Add(line);
-
-                            builder.Append("// :VrfHoisted ");
-                            builder.Append(line);
-                            builder.Append('\n');
-                            continue;
-                        }
-
-                        match = RegexUniformAlias().Match(line);
-
-                        if (match.Success)
-                        {
-                            uniformAliases[match.Groups["From"].Value] = match.Groups["To"].Value;
-                        }
-
-                        // sRGB uniforms or samplers
-                        match = RegexUniform().Match(line);
-                        if (match.Success)
-                        {
-                            var uniformType = match.Groups["Type"].Value;
-                            var uniformName = match.Groups["Name"].Value;
-
-                            if (uniformAliases.TryGetValue(uniformName, out var aliasedName))
-                            {
-                                uniformName = aliasedName;
-                            }
-
-                            parsedData.Uniforms.Add(uniformName);
-
-                            if (uniformType.StartsWith("sampler", StringComparison.Ordinal) && MaterialLoader.IsReservedTexture(uniformName))
-                            {
-                                parsedData.ReservedTextures.Add(uniformName);
-                            }
-
-                            if (match.Groups["SrgbRead"].Success)
-                            {
-                                parsedData.SrgbUniforms.Add(uniformName);
-                            }
-                            if (match.Groups["SamplerUserConfig"].Success)
-                            {
-                                parsedData.SamplerUserConfigUniforms.Add(uniformName);
-                            }
-                            if (match.Groups["RepresentativeTexture"].Success)
-                            {
-                                if (parsedData.RepresentativeTexture != null && parsedData.RepresentativeTexture != uniformName)
-                                {
-                                    throw new ShaderCompilerException($"Line {lineNum} in '{shaderFileToLoad}' marks '{uniformName}' as the representative texture, but '{parsedData.RepresentativeTexture}' already is");
-                                }
-
-                                parsedData.RepresentativeTexture = uniformName;
-                            }
-
-                            if (!match.Groups["Array"].Success
-                            && IsPackableUniformName(uniformName)
-                            && GlobalsLayout.TryGetType(uniformType, out var constantType))
-                            {
-                                var defaultGroup = match.Groups["Default"];
-
-                                parsedData.GlobalsDeclarations.Add(new GlobalsDeclaration(uniformName, constantType,
-                                    defaultGroup.Success ? defaultGroup.Value : null, match.Groups["SrgbRead"].Success));
-
-                                builder.Append("// :VrfPacked ");
-                                builder.Append(line);
-                                builder.Append('\n');
-                                continue;
-                            }
-                        }
-
-                        // Collected now, located once the whole declaring set is known
-                        if (isVertexStage)
-                        {
-                            match = RegexVertexAttribute().Match(line);
-
-                            if (match.Success)
-                            {
-                                declaredAttributes.Add(match.Groups["Name"].Value);
-                            }
-                        }
-                    }
-
-                    builder.Append(line);
-                    builder.Append('\n');
-
-                    if (line.Contains("#endif", StringComparison.Ordinal))
-                    {
-                        // Fix an issue where #include is inside of an #if, which messes up line numbers
-                        AppendLineNumber(lineNum, currentSourceFileNumber);
-                    }
+                    ProcessLine(file, line);
                 }
 
-                if (genericHeader != null)
+                if (file.GenericHeader != null)
                 {
-                    throw new ShaderCompilerException($"Generic function '{genericHeader.Groups["Head"].Value}' in '{shaderFileToLoad}' has no closing brace at the start of a line");
+                    throw new ShaderCompilerException($"Generic function '{file.GenericHeader.Groups["Head"].Value}' in '{shaderFileToLoad}' has no closing brace at the start of a line");
                 }
             }
 
-            LoadShaderString(shaderFile, null, isInclude: false);
+            private void ProcessLine(SourceFile file, string line)
+            {
+                file.LineNumber++;
 
-            return declaredAttributes.Count > 0 ? StampAttributeLocations(builder.ToString(), declaredAttributes) : builder.ToString();
+#if DEBUG
+                if (!line.All(static c => char.IsAscii(c)))
+                {
+                    // At least on nvidia, trying to compile GLSL with non ascii characters will throw bizarre errors like
+                    // wrong #line source-line error, or EOF.
+                    throw new ShaderCompilerException($"Line {file.LineNumber} in '{file.Name}' contains non-ASCII characters.");
+                }
+#endif
+
+                if (file.LineNumber == 2)
+                {
+                    if (line != ExpectedShaderVersion)
+                    {
+                        throw new ShaderCompilerException($"First line must be '{ExpectedShaderVersion}' in '{file.Name}'");
+                    }
+
+#if DEBUG
+                    file.Lines.Add($"// :VrfPreprocessed {line}");
+#endif
+
+                    builder.Append('\n');
+
+                    AppendLineNumber(file.LineNumber, file.Number);
+
+                    // We add #version even in includes so that they can be compiled individually for better editing experience
+                    // Skip #version for main shader - will be prepended in header
+                    return;
+                }
+
+#if DEBUG
+                file.Lines.Add(line);
+#endif
+
+                // Generic functions are held back until their closing brace, then written out per type
+                var genericMatch = RegexGenericFunction().Match(line);
+
+                if (genericMatch.Success || file.GenericHeader != null)
+                {
+                    AppendGenericFunctionLine(file, genericMatch, line);
+                    return;
+                }
+
+                line = line.Trim(); // we will be outputting trimmed lines to compile too
+
+                if (line == IgnoreMaterialDataPragma)
+                {
+                    parsedData.IgnoreMaterialData = true;
+                    return;
+                }
+
+                if (TryLoadInclude(file, line))
+                {
+                    return;
+                }
+
+                if (TryAddDefine(file, line))
+                {
+                    return;
+                }
+
+                if (TryHoistExtension(line))
+                {
+                    return;
+                }
+
+                var aliasMatch = RegexUniformAlias().Match(line);
+
+                if (aliasMatch.Success)
+                {
+                    uniformAliases[aliasMatch.Groups["From"].Value] = aliasMatch.Groups["To"].Value;
+                }
+
+                if (TryPackUniform(file, line))
+                {
+                    return;
+                }
+
+                // Collected now, located once the whole declaring set is known
+                if (isVertexStage)
+                {
+                    var attributeMatch = RegexVertexAttribute().Match(line);
+
+                    if (attributeMatch.Success)
+                    {
+                        DeclaredAttributes.Add(attributeMatch.Groups["Name"].Value);
+                    }
+                }
+
+                builder.Append(line);
+                builder.Append('\n');
+
+                if (line.Contains("#endif", StringComparison.Ordinal))
+                {
+                    // Fix an issue where #include is inside of an #if, which messes up line numbers
+                    AppendLineNumber(file.LineNumber, file.Number);
+                }
+            }
+
+            private void AppendGenericFunctionLine(SourceFile file, Match genericMatch, string line)
+            {
+                var header = file.GenericHeader ?? genericMatch;
+                file.GenericHeader = header;
+                file.GenericLines.Add(line.Trim());
+
+                if (!line.StartsWith('}'))
+                {
+                    return;
+                }
+
+                var genericLines = file.GenericLines;
+                genericLines[0] = string.Concat(header.Groups["Head"].Value, header.Groups["Tail"].Value);
+
+                var function = string.Join('\n', genericLines);
+                var parameter = $@"\b{header.Groups["Parameter"].Value}\b";
+
+                foreach (var type in GenericFloatTypes)
+                {
+                    AppendLineNumber(file.LineNumber - genericLines.Count, file.Number);
+                    builder.Append(Regex.Replace(function, parameter, type)).Append('\n');
+                }
+
+                AppendLineNumber(file.LineNumber, file.Number);
+                file.GenericHeader = null;
+                genericLines.Clear();
+            }
+
+            private bool TryLoadInclude(SourceFile file, string line)
+            {
+                var match = RegexInclude().Match(line);
+
+                if (!match.Success)
+                {
+                    return false;
+                }
+
+                // Recursively append included shaders
+                var includeName = match.Groups["IncludeName"].Value;
+
+                AppendLineNumber(1, parsedData.SourceFiles.Count);
+                LoadShaderString(includeName, file.Name);
+                AppendLineNumber(file.LineNumber, file.Number);
+
+                return true;
+            }
+
+            private bool TryAddDefine(SourceFile file, string line)
+            {
+                var match = RegexDefine().Match(line);
+
+                if (!match.Success)
+                {
+                    return false;
+                }
+
+                var defineName = match.Groups["ParamName"].Value;
+                var defaultValueStr = match.Groups["DefaultValue"].Value;
+                var value = byte.Parse(defaultValueStr, CultureInfo.InvariantCulture);
+
+                if (defineName.StartsWith(RenderModeDefinePrefix, StringComparison.Ordinal))
+                {
+                    var renderMode = defineName[RenderModeDefinePrefix.Length..];
+
+                    parsedData.RenderModes.Add(renderMode);
+
+                    value = RenderModes.GetOrAddShaderId(renderMode);
+
+                    builder.Append("#define ");
+                    builder.Append(defineName);
+                    builder.Append(' ');
+                    builder.Append(value.ToString(CultureInfo.InvariantCulture));
+                    builder.Append(" // :VrfPreprocessed\n");
+
+                    return true;
+                }
+
+                // Defines are removed from source code and will be prepended later
+                if (!parsedData.Defines.TryAdd(defineName, value))
+                {
+                    // Defines can be shared between vert and frag
+                    if (parsedData.Defines[defineName] != value)
+                    {
+                        throw new ShaderCompilerException($"Line {file.LineNumber} in '{file.Name}' contains a duplicate define '{defineName}' with different default value");
+                    }
+                }
+
+                return true;
+            }
+
+            private bool TryHoistExtension(string line)
+            {
+                if (!RegexExtension().IsMatch(line))
+                {
+                    return false;
+                }
+
+                parsedData.Extensions.Add(line);
+
+                builder.Append("// :VrfHoisted ");
+                builder.Append(line);
+                builder.Append('\n');
+
+                return true;
+            }
+
+            /// <summary>Records a uniform declaration, and returns whether it was packed into the globals block.</summary>
+            private bool TryPackUniform(SourceFile file, string line)
+            {
+                // sRGB uniforms or samplers
+                var match = RegexUniform().Match(line);
+
+                if (!match.Success)
+                {
+                    return false;
+                }
+
+                var uniformType = match.Groups["Type"].Value;
+                var uniformName = match.Groups["Name"].Value;
+
+                if (uniformAliases.TryGetValue(uniformName, out var aliasedName))
+                {
+                    uniformName = aliasedName;
+                }
+
+                parsedData.Uniforms.Add(uniformName);
+
+                if (uniformType.StartsWith("sampler", StringComparison.Ordinal) && MaterialLoader.IsReservedTexture(uniformName))
+                {
+                    parsedData.ReservedTextures.Add(uniformName);
+                }
+
+                if (match.Groups["SrgbRead"].Success)
+                {
+                    parsedData.SrgbUniforms.Add(uniformName);
+                }
+                if (match.Groups["SamplerUserConfig"].Success)
+                {
+                    parsedData.SamplerUserConfigUniforms.Add(uniformName);
+                }
+                if (match.Groups["RepresentativeTexture"].Success)
+                {
+                    if (parsedData.RepresentativeTexture != null && parsedData.RepresentativeTexture != uniformName)
+                    {
+                        throw new ShaderCompilerException($"Line {file.LineNumber} in '{file.Name}' marks '{uniformName}' as the representative texture, but '{parsedData.RepresentativeTexture}' already is");
+                    }
+
+                    parsedData.RepresentativeTexture = uniformName;
+                }
+
+                if (match.Groups["Array"].Success
+                || !IsPackableUniformName(uniformName)
+                || !GlobalsLayout.TryGetType(uniformType, out var constantType))
+                {
+                    return false;
+                }
+
+                var defaultGroup = match.Groups["Default"];
+
+                parsedData.GlobalsDeclarations.Add(new GlobalsDeclaration(uniformName, constantType,
+                    defaultGroup.Success ? defaultGroup.Value : null, match.Groups["SrgbRead"].Success));
+
+                builder.Append("// :VrfPacked ");
+                builder.Append(line);
+                builder.Append('\n');
+
+                return true;
+            }
         }
 
         internal static readonly Dictionary<ShaderProgramType, string> ProgramTypeToExtension = new()
