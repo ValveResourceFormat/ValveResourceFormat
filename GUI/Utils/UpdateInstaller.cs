@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -121,7 +122,32 @@ static class UpdateInstaller
 
                 try
                 {
-                    var (size, hash) = await DownloadAsync(httpClient, url, downloadPath, dialog, cancellationToken).ConfigureAwait(false);
+                    long size;
+                    string hash;
+
+                    try
+                    {
+                        (size, hash) = await DownloadAsync(httpClient, url, downloadPath, dialog, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (HttpRequestException e) when (e.StatusCode == HttpStatusCode.NotFound)
+                    {
+                        // Older dev builds are removed once newer ones are published, the manifest names the one to get instead
+                        dialog.SetProgress("Checking for a newer build…");
+                        await UpdateChecker.RecheckForUpdates().ConfigureAwait(false);
+
+                        var newerUrl = UpdateChecker.DownloadUrl;
+                        var newerHash = UpdateChecker.DownloadSha256;
+
+                        if (newerUrl == null || newerHash == null || newerUrl == url)
+                        {
+                            throw;
+                        }
+
+                        url = newerUrl;
+                        expectedHash = newerHash;
+
+                        (size, hash) = await DownloadAsync(httpClient, url, downloadPath, dialog, cancellationToken).ConfigureAwait(false);
+                    }
 
                     dialog.SetProgress("Verifying…");
                     Verify(downloadPath, size, hash, expectedHash);
@@ -321,7 +347,7 @@ static class UpdateInstaller
         var url = $"https://api.github.com/repositories/{RepositoryId}/attestations/sha256:{hash}?per_page=100&predicate_type={Uri.EscapeDataString(ProvenancePredicateType)}";
         using var response = await httpClient.GetAsync(new Uri(url), cancellationToken).ConfigureAwait(false);
 
-        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        if (response.StatusCode == HttpStatusCode.NotFound)
         {
             throw new InvalidDataException("No build provenance was found for the downloaded file.");
         }

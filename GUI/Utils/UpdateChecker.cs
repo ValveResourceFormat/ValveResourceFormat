@@ -228,6 +228,19 @@ static partial class UpdateChecker
     }
 
     /// <summary>
+    /// Fetches the manifest again instead of reusing the one fetched earlier this session.
+    /// </summary>
+    public static async Task RecheckForUpdates()
+    {
+        using (CheckLock.EnterScope())
+        {
+            ManifestTask = null;
+        }
+
+        await CheckForUpdates().ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Performs the automatic update check if it is enabled and due. The outcome is persisted in the settings.
     /// </summary>
     public static async Task CheckForUpdatesIfNecessary()
