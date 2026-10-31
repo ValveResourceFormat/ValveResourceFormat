@@ -49,6 +49,8 @@
     <NoWarn>$(NoWarn);CA2000</NoWarn>
     <!-- Analyzers still run in the IDE, and Release builds enforce them -->
     <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
+    <!-- Skips the git queries for source link and the commit suffix of the version -->
+    <EnableSourceControlManagerQueries>false</EnableSourceControlManagerQueries>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(CI)' != 'true' And '$(CheckAot)' != 'true'">

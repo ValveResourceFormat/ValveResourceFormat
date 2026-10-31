@@ -10,7 +10,7 @@
     <PublishAot Condition="'$(Configuration)' != 'Debug'">true</PublishAot>
     <IsAotCompatible Condition="'$(Configuration)' != 'Debug'">true</IsAotCompatible>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <GenerateDocumentationFile Condition="'$(Configuration)' != 'Debug'">true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -31,8 +31,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Shaders\**" />
     <EmbeddedResource Include="Resources\**" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)' != 'Debug'">
+    <EmbeddedResource Include="Shaders\**" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)' == 'Debug'">
