@@ -18,6 +18,13 @@ out vec3 vNormalOut;
 out vec4 vTangentOut;
 out vec2 vTexCoordOut;
 
+// Read by the shared material and lighting functions the pixel shader includes but never calls, which some drivers still link
+centroid out vec4 vVertexColorOut;
+
+#if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
+    centroid out vec4 vLightmapUVScaled;
+#endif
+
 void main()
 {
     mat3x4 skinTransform = CalculateSkinTransform();
@@ -44,4 +51,9 @@ void main()
 
     gl_Position = g_matWorldToProjection * vec4(vFragPosition, 1.0);
     vTexCoordOut = vTEXCOORD.xy;
+    vVertexColorOut = vec4(1.0);
+
+#if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
+    vLightmapUVScaled = vec4(0.0);
+#endif
 }
