@@ -89,6 +89,9 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>Gets the size of the barn light shadow atlas texture, as recorded by the last <see cref="BinBarnLights"/> call.</summary>
         public int BarnLightShadowAtlasSize { get; private set; } = 4096;
 
+        /// <summary>Gets whether any light may render shadows into the barn light shadow atlas.</summary>
+        public bool HasShadowedLights => ShadowedDynamicLights.Count > 0 || BarnLights.Exists(static light => light.CastShadows == 1);
+
         /// <summary>Gets the shadow mapper that culls and packs light shadow faces each frame.</summary>
         public ShadowMapper ShadowMapper { get; } = new();
 

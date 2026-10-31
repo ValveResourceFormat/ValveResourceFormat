@@ -708,20 +708,7 @@ public class Renderer : ISceneHost
                 continue;
             }
 
-            if (barnLightFaceViewCount == barnLightFaceViews.Count)
-            {
-                var states = new List<SceneViewState>(1);
-                states.Add(new SceneViewState(Scene, shadowCasters: true));
-
-                barnLightFaceViews.Add(new SceneView
-                {
-                    States = states,
-                    Camera = new Camera(),
-                    Fog = Scene.FogInfo,
-                });
-            }
-
-            var view = barnLightFaceViews[barnLightFaceViewCount];
+            var view = NextBarnLightFaceView();
 
             // A face keeps only its combined matrix
             view.Camera.SetViewProjection(Matrix4x4.Identity, caster.WorldToFrustum);
@@ -733,6 +720,34 @@ public class Renderer : ISceneHost
 
             barnLightFaceRegions[barnLightFaceViewCount++] = caster.Region;
         }
+
+        // Lights out of view at load get no faces, so prewarm draws every caster into the atlas once
+        if (Prewarming && Settings.EnableBarnLights && Scene.LightingInfo.HasShadowedLights
+            && barnLightFaceViewCount < barnLightFaceRegions.Length)
+        {
+            var view = NextBarnLightFaceView();
+            view.Camera.SetViewProjection(Matrix4x4.Identity, Camera.ViewProjectionMatrix);
+            view.States[0].CollectShadowCasters(noCullFrustum, includeStatic: true,
+                Scene.VisibilityBoxes.PrepareSecondaryView(Camera.Location), Vector3.Zero, cullAggregatesOnGpu: false);
+
+            var atlasSize = Scene.LightingInfo.BarnLightShadowAtlasSize;
+            barnLightFaceRegions[barnLightFaceViewCount++] = new ShadowAtlasRegion(0, 0, atlasSize, atlasSize);
+        }
+    }
+
+    private SceneView NextBarnLightFaceView()
+    {
+        if (barnLightFaceViewCount == barnLightFaceViews.Count)
+        {
+            barnLightFaceViews.Add(new SceneView
+            {
+                States = [new SceneViewState(Scene, shadowCasters: true)],
+                Camera = new Camera(),
+                Fog = Scene.FogInfo,
+            });
+        }
+
+        return barnLightFaceViews[barnLightFaceViewCount];
     }
 
     /// <summary>The frustum a view's CPU cull runs against, or <see langword="null"/> for the camera's own.</summary>
@@ -1776,7 +1791,7 @@ public class Renderer : ISceneHost
     {
         Debug.Assert(ViewBuffer != null);
 
-        if (Scene.LightingInfo.ShadowMapper.ShadowCasters.Count == 0)
+        if (barnLightFaceViewCount == 0)
         {
             return;
         }
@@ -1849,7 +1864,7 @@ public class Renderer : ISceneHost
 
         var faces = volumetricFog.ShadowFaces;
 
-        if (faces.IsEmpty || FogShadowBuffer == null)
+        if ((faces.IsEmpty && !Prewarming) || FogShadowBuffer == null)
         {
             return;
         }
@@ -1884,6 +1899,25 @@ public class Renderer : ISceneHost
             ViewBuffer.Update();
 
             fogShadowState.RenderShadowCasters(renderContext, depthOnlyShader, shadowCasterDraws);
+        }
+
+        // Lights out of view at load get no maps, so prewarm draws every caster into the atlas once
+        if (Prewarming)
+        {
+            GL.Viewport(0, 0, FogShadowBuffer.Width, FogShadowBuffer.Height);
+            GL.Scissor(0, 0, FogShadowBuffer.Width, FogShadowBuffer.Height);
+            GL.Clear(ClearBufferMask.DepthBufferBit);
+
+            fogShadowState.CollectShadowCasters(noCullFrustum, includeStatic: true,
+                Scene.VisibilityBoxes.PrepareSecondaryView(renderContext.Camera.Location), Vector3.Zero, cullAggregatesOnGpu: false);
+
+            ViewBuffer.Data.WorldToProjection = renderContext.Camera.ViewProjectionMatrix;
+            ViewBuffer.Update();
+
+            fogShadowState.RenderShadowCasters(renderContext, depthOnlyShader, shadowCasterDraws);
+
+            // The draw overwrote the maps kept in the atlas
+            volumetricFog.InvalidateShadows();
         }
     }
 
