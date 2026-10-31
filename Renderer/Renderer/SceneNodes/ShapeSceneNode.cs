@@ -501,10 +501,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 }
 
                 // Triangles
-                var fillState = WithFillDepthBias(state);
-                fillState.BlendEnable = true;
-                fillState.SetBlend(RsBlendMode.SrcAlpha, RsBlendMode.InvSrcAlpha);
-                renderState.Apply(in fillState);
+                state.BlendEnable = true;
+                state.SetBlend(RsBlendMode.SrcAlpha, RsBlendMode.InvSrcAlpha);
+                renderState.Apply(in state);
                 renderShader.SetUniform("g_bNormalShaded", Shaded);
                 GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
             }
