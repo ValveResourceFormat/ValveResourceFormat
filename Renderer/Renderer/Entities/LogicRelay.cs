@@ -49,12 +49,6 @@ public sealed class LogicRelay : BaseEntity
             ? KeyValues.GetBooleanProperty("fastretrigger")
             : HasSpawnFlags(SpawnFlag.AllowFastRetrigger);
         passthroughCaller = KeyValues.GetBooleanProperty("passthroughcaller");
-
-        // No think without a listener, so a trigger-once relay is not removed before it was ever triggered
-        if (HasConnections("OnSpawn"))
-        {
-            SetNextThink(EntitySystem.CurrentTime + EntitySystem.TickInterval);
-        }
     }
 
     /// <inheritdoc/>
@@ -71,8 +65,11 @@ public sealed class LogicRelay : BaseEntity
     /// <inheritdoc/>
     public override void Activate()
     {
-        // Queued, so it also reaches entities of the same spawn group that activate after this one
-        EntitySystem.TriggerOutput(this, "OnSpawn");
+        // No think without a listener, so a trigger-once relay is not removed before it was ever triggered
+        if (HasConnections("OnSpawn"))
+        {
+            SetNextThink(EntitySystem.CurrentTime + EntitySystem.TickInterval);
+        }
     }
 
     [EntityInput("Trigger")]
