@@ -18,6 +18,7 @@ using ValveResourceFormat.IO;
 using ValveResourceFormat.TextureDecoders;
 using Windows.Win32;
 using Windows.Win32.UI.WindowsAndMessaging;
+using IViewer = GUI.Types.Viewers.IViewer;
 using ResourceViewMode = GUI.Types.Viewers.ResourceViewMode;
 
 namespace GUI
@@ -755,6 +756,154 @@ namespace GUI
                 VrfGuiContext = vrfGuiContext,
             };
 
+            var tab = CreateFileTab(vrfGuiContext, tabExportData, isPreview);
+
+            if (isPreview)
+            {
+                // The preview tab is not in mainTabs, so update the window title to the previewed file ourselves.
+                UpdateWindowTitle(tab.ToolTipText);
+            }
+
+            // For a preview of the same type as the one already shown, keep that view frozen while the new file loads
+            // and show no loading panel; the new viewer is swapped in once ready. Otherwise show the loading panel.
+            var keepFrozen = isPreview && packageTreeView!.IsSamePreviewType(file?.TypeName);
+
+            LoadingFile? loadingFile = null;
+
+            if (!keepFrozen)
+            {
+#pragma warning disable CA2000 // Ownership is transferred to the tab, which disposes it
+                loadingFile = new LoadingFile(vrfGuiContext.FileName);
+#pragma warning restore CA2000
+                tab.Controls.Add(loadingFile);
+
+                vrfGuiContext.LoadingProgress = new Progress<string>(loadingFile.SetStatus);
+
+                if (isPreview)
+                {
+                    // Show the loading panel in the preview area right away (replacing the blank page).
+                    Debug.Assert(packageTreeView != null);
+
+                    if (!packageTreeView.ReplaceListViewWithControl(tab, file?.TypeName))
+                    {
+                        tabExportData.SetLoaded(null);
+                        return tab;
+                    }
+                }
+            }
+
+            IViewer? createdViewer = null;
+            Exception? createError = null;
+
+            var taskLoad = Task.Run(() =>
+            {
+                if (loadSearchPaths)
+                {
+                    vrfGuiContext.LoadSearchPaths();
+                }
+
+                return Types.Viewers.ViewerFactory.CreateAndLoadAsync(vrfGuiContext, file, viewMode);
+            });
+
+            vrfGuiContext.DisposeAfter(taskLoad.ContinueWith(static _ => { }, TaskScheduler.Default));
+
+            taskLoad.ContinueWith(t =>
+            {
+                vrfGuiContext.GLPostLoadAction = null;
+
+                t.Exception?.Flatten().Handle(ex =>
+                {
+                    ShowLoadException(tab, vrfGuiContext.DisplayPath, ex);
+
+                    return false;
+                });
+            },
+            TaskContinuationOptions.OnlyOnFaulted);
+
+            var task = taskLoad.ContinueWith(t =>
+            {
+                BeginInvoke(() =>
+                {
+                    Cursor.Current = Cursors.WaitCursor;
+
+                    try
+                    {
+                        createdViewer = CreateViewerInTab(tab, vrfGuiContext.DisplayPath, t.Result, out createError);
+                    }
+                    finally
+                    {
+                        Cursor.Current = Cursors.Default;
+                    }
+                });
+            },
+            TaskContinuationOptions.OnlyOnRanToCompletion);
+
+            task.ContinueWith(t =>
+            {
+                vrfGuiContext.GLPostLoadAction = null;
+
+                t.Exception?.Flatten().Handle(ex =>
+                {
+                    try
+                    {
+                        ShowLoadException(tab, vrfGuiContext.DisplayPath, ex);
+
+                        return false;
+                    }
+                    catch (Exception e)
+                    {
+                        ErrorReport.ShowError(e);
+
+                        return true;
+                    }
+                });
+            },
+            TaskContinuationOptions.OnlyOnFaulted);
+
+            task.ContinueWith(t =>
+            {
+                BeginInvoke(() =>
+                {
+                    vrfGuiContext.LoadingProgress = null;
+
+                    // A faulted load cancels this continuation's antecedent, so the reason is on
+                    // the load task itself.
+                    var loadError = taskLoad.Exception?.Flatten().InnerException ?? createError;
+
+                    if (tab.IsDisposed)
+                    {
+                        loadingFile?.Dispose();
+                    }
+                    else if (keepFrozen)
+                    {
+                        // Same-type preview: swap the frozen previous view for the newly loaded viewer.
+                        Debug.Assert(packageTreeView != null);
+
+                        if (!packageTreeView.ReplaceListViewWithControl(tab, file?.TypeName))
+                        {
+                            tabExportData.SetLoaded(loadError);
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        // The tab is already shown; disposing the loading panel reveals the viewer behind it.
+                        loadingFile?.Dispose();
+                    }
+
+                    // Revealing the viewer does not reliably deliver a paint to the underlying GL control, so tell
+                    // the viewer to redraw now that it is visible.
+                    createdViewer?.NotifyVisible();
+
+                    tabExportData.SetLoaded(loadError);
+                });
+            });
+
+            return tab;
+        }
+
+        private ThemedTabPage CreateFileTab(VrfGuiContext vrfGuiContext, ExportData tabExportData, bool isPreview)
+        {
             var tabTemp = new ThemedTabPage(Path.GetFileName(vrfGuiContext.FileName))
             {
                 ToolTipText = vrfGuiContext.FileName,
@@ -817,216 +966,76 @@ namespace GUI
                 tabTemp?.Dispose();
             }
 
-            if (isPreview)
-            {
-                // The preview tab is not in mainTabs, so update the window title to the previewed file ourselves.
-                UpdateWindowTitle(tab.ToolTipText);
-            }
-
-            // For a preview of the same type as the one already shown, keep that view frozen while the new file loads
-            // and show no loading panel; the new viewer is swapped in once ready. Otherwise show the loading panel.
-            var keepFrozen = isPreview && packageTreeView!.IsSamePreviewType(file?.TypeName);
-
-            LoadingFile? loadingFile = null;
-
-            if (!keepFrozen)
-            {
-#pragma warning disable CA2000 // Ownership is transferred to the tab, which disposes it
-                loadingFile = new LoadingFile(vrfGuiContext.FileName);
-#pragma warning restore CA2000
-                tab.Controls.Add(loadingFile);
-
-                vrfGuiContext.LoadingProgress = new Progress<string>(loadingFile.SetStatus);
-
-                if (isPreview)
-                {
-                    // Show the loading panel in the preview area right away (replacing the blank page).
-                    Debug.Assert(packageTreeView != null);
-
-                    if (!packageTreeView.ReplaceListViewWithControl(tab, file?.TypeName))
-                    {
-                        tabExportData.SetLoaded(null);
-                        return tab;
-                    }
-                }
-            }
-
-            Types.Viewers.IViewer? createdViewer = null;
-            Exception? createError = null;
-
-            var taskLoad = Task.Run(() =>
-            {
-                if (loadSearchPaths)
-                {
-                    vrfGuiContext.LoadSearchPaths();
-                }
-
-                return Types.Viewers.ViewerFactory.CreateAndLoadAsync(vrfGuiContext, file, viewMode);
-            });
-
-            vrfGuiContext.DisposeAfter(taskLoad.ContinueWith(static _ => { }, TaskScheduler.Default));
-
-            taskLoad.ContinueWith(t =>
-            {
-                vrfGuiContext.GLPostLoadAction = null;
-
-                t.Exception?.Flatten().Handle(ex =>
-                {
-                    BeginInvoke(() =>
-                    {
-                        if (tab.IsDisposed)
-                        {
-                            return;
-                        }
-
-                        var control = CodeTextBox.CreateFromException(ex, vrfGuiContext.DisplayPath);
-
-                        tab.Controls.Add(control);
-                    });
-
-                    return false;
-                });
-            },
-            TaskContinuationOptions.OnlyOnFaulted);
-
-            var task = taskLoad.ContinueWith(t =>
-            {
-                BeginInvoke(() =>
-                {
-                    Cursor.Current = Cursors.WaitCursor;
-
-                    try
-                    {
-                        var viewer = t.Result;
-
-                        if (tab.IsDisposed)
-                        {
-                            viewer.Dispose();
-                            return; // closed tab before it loaded
-                        }
-
-                        if (tab.Tag is ExportData exportData)
-                        {
-                            exportData.DisposableContents = viewer;
-                        }
-                        else
-                        {
-                            Debug.Assert(false);
-                        }
-
-                        try
-                        {
-                            viewer.Create(tab);
-                        }
-                        catch (Exception) when (tab.IsDisposed)
-                        {
-                            return;
-                        }
-                        catch (Exception ex)
-                        {
-                            createError = ex;
-
-                            var control = CodeTextBox.CreateFromException(ex, vrfGuiContext.DisplayPath);
-
-                            tab.Controls.Add(control);
-
-                            // Controls the viewer added before throwing would otherwise cover the error
-                            control.BringToFront();
-                            return;
-                        }
-
-                        if (tab.IsDisposed)
-                        {
-                            return;
-                        }
-
-                        createdViewer = viewer;
-
-                        if (mainTabs.SelectedTab == tab)
-                        {
-                            UpdateBottomPanelKeybindings();
-                        }
-                    }
-                    finally
-                    {
-                        Cursor.Current = Cursors.Default;
-                    }
-                });
-            },
-            TaskContinuationOptions.OnlyOnRanToCompletion);
-
-            task.ContinueWith(t =>
-            {
-                vrfGuiContext.GLPostLoadAction = null;
-
-                t.Exception?.Flatten().Handle(ex =>
-                {
-                    try
-                    {
-                        BeginInvoke(() =>
-                        {
-                            if (tab.IsDisposed)
-                            {
-                                return;
-                            }
-
-                            var control = CodeTextBox.CreateFromException(ex, vrfGuiContext.DisplayPath);
-
-                            tab.Controls.Add(control);
-                        });
-
-                        return false;
-                    }
-                    catch (Exception e)
-                    {
-                        ErrorReport.ShowError(e);
-
-                        return true;
-                    }
-                });
-            },
-            TaskContinuationOptions.OnlyOnFaulted);
-
-            task.ContinueWith(t =>
-            {
-                BeginInvoke(() =>
-                {
-                    vrfGuiContext.LoadingProgress = null;
-
-                    // A faulted load cancels this continuation's antecedent, so the reason is on
-                    // the load task itself.
-                    var loadError = taskLoad.Exception?.Flatten().InnerException ?? createError;
-
-                    if (tab.IsDisposed)
-                    {
-                        loadingFile?.Dispose();
-                    }
-                    else if (keepFrozen)
-                    {
-                        // Same-type preview: swap the frozen previous view for the newly loaded viewer.
-                        Debug.Assert(packageTreeView != null);
-
-                        if (!packageTreeView.ReplaceListViewWithControl(tab, file?.TypeName))
-                        {
-                            tabExportData.SetLoaded(loadError);
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        // The tab is already shown; disposing the loading panel reveals the viewer behind it.
-                        loadingFile?.Dispose();
-                    }
-
-                    // Revealing the viewer does not reliably deliver a paint to the underlying GL control, so tell
-                    // the viewer to redraw now that it is visible.
-                    createdViewer?.NotifyVisible();
-
-                    tabExportData.SetLoaded(loadError);
-                });
-            });
-
             return tab;
+        }
+
+        private void ShowLoadException(TabPage tab, string displayPath, Exception exception)
+        {
+            BeginInvoke(() =>
+            {
+                if (tab.IsDisposed)
+                {
+                    return;
+                }
+
+                var control = CodeTextBox.CreateFromException(exception, displayPath);
+
+                tab.Controls.Add(control);
+            });
+        }
+
+        /// <summary>Hands the loaded viewer to the tab and creates its controls, returning the viewer when it is ready to show.</summary>
+        private IViewer? CreateViewerInTab(TabPage tab, string displayPath, IViewer viewer, out Exception? createError)
+        {
+            createError = null;
+
+            if (tab.IsDisposed)
+            {
+                viewer.Dispose();
+                return null; // closed tab before it loaded
+            }
+
+            if (tab.Tag is ExportData exportData)
+            {
+                exportData.DisposableContents = viewer;
+            }
+            else
+            {
+                Debug.Assert(false);
+            }
+
+            try
+            {
+                viewer.Create(tab);
+            }
+            catch (Exception) when (tab.IsDisposed)
+            {
+                return null;
+            }
+            catch (Exception ex)
+            {
+                createError = ex;
+
+                var control = CodeTextBox.CreateFromException(ex, displayPath);
+
+                tab.Controls.Add(control);
+
+                // Controls the viewer added before throwing would otherwise cover the error
+                control.BringToFront();
+                return null;
+            }
+
+            if (tab.IsDisposed)
+            {
+                return null;
+            }
+
+            if (mainTabs.SelectedTab == tab)
+            {
+                UpdateBottomPanelKeybindings();
+            }
+
+            return viewer;
         }
 
         private void MainForm_DragDrop(object sender, DragEventArgs e)

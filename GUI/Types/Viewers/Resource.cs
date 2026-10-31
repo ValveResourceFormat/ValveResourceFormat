@@ -353,7 +353,24 @@ namespace GUI.Types.Viewers
                 resTabs.SelectedIndexChanged += (_, _) => RefreshKeybindingsIfVisible(resTabs);
             }
 
-            var loadedResource = resource;
+            AddBlockTabs(resource, resTabs, selectData);
+
+            try
+            {
+                AddReconstructedContentTab(vrfGuiContext, resource, resTabs);
+            }
+            catch (Exception ex)
+            {
+                var control = CodeTextBox.CreateFromException(ex, vrfGuiContext.DisplayPath);
+
+                var tabEx = new ThemedTabPage("Decompile Error");
+                tabEx.Controls.Add(control);
+                resTabs.TabPages.Add(tabEx);
+            }
+        }
+
+        private void AddBlockTabs(ValveResourceFormat.Resource resource, TabControl resTabs, bool selectData)
+        {
             var blocksByType = new Dictionary<BlockType, List<(int Index, Block Block)>>();
 
             for (var blockIndex = 0; blockIndex < resource.Blocks.Count; blockIndex++)
@@ -384,7 +401,7 @@ namespace GUI.Types.Viewers
 
                         PopulateWhenShown(listTab, () =>
                         {
-                            listTab.Controls.Add(new RepeatedBlocksViewer(blocksOfType, GetBlockNames(loadedResource), (selectedBlock, container) => PopulateBlockView(loadedResource, selectedBlock, container)));
+                            listTab.Controls.Add(new RepeatedBlocksViewer(blocksOfType, GetBlockNames(resource), (selectedBlock, container) => PopulateBlockView(resource, selectedBlock, container)));
                         });
                     }
 
@@ -404,73 +421,52 @@ namespace GUI.Types.Viewers
 
                 if (block.Type == BlockType.NTRO)
                 {
-                    if (((ResourceIntrospectionManifest)block).ReferencedStructs.Count > 0)
-                    {
-                        var externalRefs = new DataGridView
-                        {
-                            Dock = DockStyle.Fill,
-                            AutoGenerateColumns = true,
-                            AutoSize = true,
-                            ReadOnly = true,
-                            AllowUserToAddRows = false,
-                            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                            DataSource =
-                                new BindingSource(
-                                    new BindingList<ResourceIntrospectionManifest.ResourceDiskStruct>(
-                                        ((ResourceIntrospectionManifest)block).ReferencedStructs), string.Empty),
-                        };
-
-                        var externalRefsTab = new ThemedTabPage("Introspection Manifest: Structs");
-                        externalRefsTab.Controls.Add(externalRefs);
-                        resTabs.TabPages.Add(externalRefsTab);
-                    }
-
-                    if (((ResourceIntrospectionManifest)block).ReferencedEnums.Count > 0)
-                    {
-                        var externalRefs2 = new DataGridView
-                        {
-                            Dock = DockStyle.Fill,
-                            AutoGenerateColumns = true,
-                            AutoSize = true,
-                            ReadOnly = true,
-                            AllowUserToAddRows = false,
-                            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                            DataSource =
-                                new BindingSource(
-                                    new BindingList<ResourceIntrospectionManifest.ResourceDiskEnum>(
-                                        ((ResourceIntrospectionManifest)block).ReferencedEnums), string.Empty),
-                        };
-
-                        var externalRefsTab = new ThemedTabPage("Introspection Manifest: Enums");
-                        externalRefsTab.Controls.Add(externalRefs2);
-                        resTabs.TabPages.Add(externalRefsTab);
-                    }
+                    AddIntrospectionManifestTabs((ResourceIntrospectionManifest)block, resTabs);
                 }
 
                 var blockTab = new ThemedTabPage(block.Type.ToString());
                 resTabs.TabPages.Add(blockTab);
 
-                PopulateWhenShown(blockTab, () => PopulateBlockView(loadedResource, block, blockTab));
+                PopulateWhenShown(blockTab, () => PopulateBlockView(resource, block, blockTab));
 
                 if (block.Type == BlockType.DATA && selectData)
                 {
                     resTabs.SelectTab(blockTab);
                 }
             }
+        }
 
-            try
+        private static void AddIntrospectionManifestTabs(ResourceIntrospectionManifest manifest, TabControl resTabs)
+        {
+            if (manifest.ReferencedStructs.Count > 0)
             {
-                AddReconstructedContentTab(vrfGuiContext, resource, resTabs);
+                var structsGrid = CreateReadOnlyGrid(new BindingList<ResourceIntrospectionManifest.ResourceDiskStruct>(manifest.ReferencedStructs));
+
+                var structsTab = new ThemedTabPage("Introspection Manifest: Structs");
+                structsTab.Controls.Add(structsGrid);
+                resTabs.TabPages.Add(structsTab);
             }
-            catch (Exception ex)
-            {
-                var control = CodeTextBox.CreateFromException(ex, vrfGuiContext.DisplayPath);
 
-                var tabEx = new ThemedTabPage("Decompile Error");
-                tabEx.Controls.Add(control);
-                resTabs.TabPages.Add(tabEx);
+            if (manifest.ReferencedEnums.Count > 0)
+            {
+                var enumsGrid = CreateReadOnlyGrid(new BindingList<ResourceIntrospectionManifest.ResourceDiskEnum>(manifest.ReferencedEnums));
+
+                var enumsTab = new ThemedTabPage("Introspection Manifest: Enums");
+                enumsTab.Controls.Add(enumsGrid);
+                resTabs.TabPages.Add(enumsTab);
             }
         }
+
+        private static DataGridView CreateReadOnlyGrid(IBindingList rows) => new()
+        {
+            Dock = DockStyle.Fill,
+            AutoGenerateColumns = true,
+            AutoSize = true,
+            ReadOnly = true,
+            AllowUserToAddRows = false,
+            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+            DataSource = new BindingSource(rows, string.Empty),
+        };
 
         private bool AddSpecialViewer(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource, bool isPreview, TabControl resTabs)
         {
@@ -503,43 +499,53 @@ namespace GUI.Types.Viewers
 
                 if (!isPreview && GLViewer is GLWorldViewer glWorldViewer && glWorldViewer.LoadedWorld is { } loadedWorld)
                 {
-                    if (resource.ResourceType == ResourceType.Map)
-                    {
-                        var worldTabPage = new ThemedTabPage("World Data");
-                        resTabs.TabPages.Add(worldTabPage);
-                        PopulateWhenShown(worldTabPage, () => AddTextViewControl(ResourceType.WorldNode, loadedWorld.World, worldTabPage));
-                    }
-
-                    if (loadedWorld.MainWorldNode != null)
-                    {
-                        var worldNodeTabPage = new ThemedTabPage("Node Data");
-                        resTabs.TabPages.Add(worldNodeTabPage);
-                        PopulateWhenShown(worldNodeTabPage, () => AddTextViewControl(ResourceType.WorldNode, loadedWorld.MainWorldNode, worldNodeTabPage));
-                    }
-
-                    var entitiesTabPage = new ThemedTabPage("Entity List");
-                    entitiesTabPage.Controls.Add(new EntityViewer(vrfGuiContext, loadedWorld.Entities, glWorldViewer.SelectAndFocusEntity));
-                    resTabs.TabPages.Add(entitiesTabPage);
+                    AddWorldDataTabs(glWorldViewer, loadedWorld, resource.ResourceType, resTabs);
                 }
 
                 if (!isPreview)
                 {
-                    foreach (var (create, tabName) in preparedGraphViewers)
-                    {
-                        var (tabPage, graph) = AddGraphViewerTab(create, tabName, resTabs);
-
-                        if (GLViewer is GLWorldViewer worldViewerWithGraph && tabName == EntityIOGraphTabName)
-                        {
-                            worldViewerWithGraph.ShowEntityInGraph = entity => ShowEntityInGraph(entity, graph, tabPage);
-                            worldViewerWithGraph.EntityHasGraphNode = entity => !graph.IsCompleted || (graph.Result as EntityIOGraphViewer)?.HasEntity(entity) == true;
-                        }
-                    }
+                    AddPreparedGraphViewerTabs(resTabs);
                 }
 
                 return true;
             }
 
             return AddSpecialViewerData(resource, isPreview, resTabs);
+        }
+
+        private void AddWorldDataTabs(GLWorldViewer glWorldViewer, WorldLoader loadedWorld, ResourceType resourceType, TabControl resTabs)
+        {
+            if (resourceType == ResourceType.Map)
+            {
+                var worldTabPage = new ThemedTabPage("World Data");
+                resTabs.TabPages.Add(worldTabPage);
+                PopulateWhenShown(worldTabPage, () => AddTextViewControl(ResourceType.WorldNode, loadedWorld.World, worldTabPage));
+            }
+
+            if (loadedWorld.MainWorldNode != null)
+            {
+                var worldNodeTabPage = new ThemedTabPage("Node Data");
+                resTabs.TabPages.Add(worldNodeTabPage);
+                PopulateWhenShown(worldNodeTabPage, () => AddTextViewControl(ResourceType.WorldNode, loadedWorld.MainWorldNode, worldNodeTabPage));
+            }
+
+            var entitiesTabPage = new ThemedTabPage("Entity List");
+            entitiesTabPage.Controls.Add(new EntityViewer(vrfGuiContext, loadedWorld.Entities, glWorldViewer.SelectAndFocusEntity));
+            resTabs.TabPages.Add(entitiesTabPage);
+        }
+
+        private void AddPreparedGraphViewerTabs(TabControl resTabs)
+        {
+            foreach (var (create, tabName) in preparedGraphViewers)
+            {
+                var (tabPage, graph) = AddGraphViewerTab(create, tabName, resTabs);
+
+                if (GLViewer is GLWorldViewer worldViewerWithGraph && tabName == EntityIOGraphTabName)
+                {
+                    worldViewerWithGraph.ShowEntityInGraph = entity => ShowEntityInGraph(entity, graph, tabPage);
+                    worldViewerWithGraph.EntityHasGraphNode = entity => !graph.IsCompleted || (graph.Result as EntityIOGraphViewer)?.HasEntity(entity) == true;
+                }
+            }
         }
 
         private (TabPage TabPage, Task<GLGraphViewer?> Graph) AddGraphViewerTab(Func<GLGraphViewer> create, string tabName, TabControl resTabs)
@@ -757,17 +763,7 @@ namespace GUI.Types.Viewers
                 case ResourceType.Panorama:
                     if (resource.DataBlock is Panorama { Images.Count: > 0 })
                     {
-                        var nameControl = new DataGridView
-                        {
-                            Dock = DockStyle.Fill,
-                            AutoSize = true,
-                            ReadOnly = true,
-                            AllowUserToAddRows = false,
-                            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                            DataSource =
-                                new BindingSource(
-                                    new BindingList<Panorama.ImageEntry>(((Panorama)resource.DataBlock).Images), string.Empty),
-                        };
+                        var nameControl = CreateReadOnlyGrid(new BindingList<Panorama.ImageEntry>(((Panorama)resource.DataBlock).Images));
                         var specialTabPage = new ThemedTabPage("PANORAMA IMAGES");
                         specialTabPage.Controls.Add(nameControl);
                         resTabs.TabPages.Add(specialTabPage);
@@ -778,34 +774,9 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is Sound { StreamingDataSize: > 0 } soundData)
                     {
                         var specialTabPage = new ThemedTabPage("SOUND");
-                        var autoPlay = ((Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview & Settings.QuickPreviewFlags.AutoPlaySounds) != 0;
 
                         specialTabPage.Controls.Add(CreateSoundInfoLabel(soundData));
-
-                        try
-                        {
-                            if (AudioPlayer.CreateWaveStream(resource) is var (waveStream, loopMarkers))
-                            {
-                                var ownedStream = waveStream;
-
-                                try
-                                {
-                                    var audio = new AudioPlaybackPanel(ownedStream, vrfGuiContext.DisplayPath, isPreview && autoPlay, loopMarkers);
-                                    specialTabPage.Controls.Add(audio);
-                                    ownedStream = null;
-                                }
-                                finally
-                                {
-                                    ownedStream?.Dispose();
-                                }
-                            }
-                        }
-                        catch (Exception e)
-                        {
-                            var errorControl = CodeTextBox.CreateFromException(e, vrfGuiContext.DisplayPath);
-                            specialTabPage.Controls.Add(errorControl);
-                            errorControl.BringToFront(); // Fill below the docked info label instead of under it
-                        }
+                        AddAudioPlayback(specialTabPage, resource, isPreview);
 
                         resTabs.TabPages.Add(specialTabPage);
                         return true;
@@ -855,6 +826,36 @@ namespace GUI.Types.Viewers
             }
 
             return false;
+        }
+
+        private void AddAudioPlayback(TabPage specialTabPage, ValveResourceFormat.Resource resource, bool isPreview)
+        {
+            var autoPlay = ((Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview & Settings.QuickPreviewFlags.AutoPlaySounds) != 0;
+
+            try
+            {
+                if (AudioPlayer.CreateWaveStream(resource) is var (waveStream, loopMarkers))
+                {
+                    var ownedStream = waveStream;
+
+                    try
+                    {
+                        var audio = new AudioPlaybackPanel(ownedStream, vrfGuiContext.DisplayPath, isPreview && autoPlay, loopMarkers);
+                        specialTabPage.Controls.Add(audio);
+                        ownedStream = null;
+                    }
+                    finally
+                    {
+                        ownedStream?.Dispose();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                var errorControl = CodeTextBox.CreateFromException(e, vrfGuiContext.DisplayPath);
+                specialTabPage.Controls.Add(errorControl);
+                errorControl.BringToFront(); // Fill below the docked info label instead of under it
+            }
         }
 
         private static Label CreateSoundInfoLabel(Sound sound)
