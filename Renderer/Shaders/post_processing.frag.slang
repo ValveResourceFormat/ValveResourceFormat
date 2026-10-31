@@ -29,6 +29,15 @@ uniform float g_flWhitePoint;
 uniform float g_flWhitePointScale;
 uniform float g_flFullScreenGamma = 2.2;
 
+// A darkening vignette of the post process, a superellipse around the center that fades out over the feather
+uniform bool g_bVignette = false;
+uniform vec2 g_vVignetteCenter;
+uniform vec3 g_vVignetteTint = vec3(1.0);
+uniform float g_flVignetteScale = 1.0;
+uniform float g_flVignetteRadius;
+uniform float g_flVignetteFeather;
+uniform float g_flVignetteExponent = 2.0;
+
 uniform float g_flColorCorrectionDefaultWeight = 1.0;
 uniform vec2 g_vColorCorrectionColorRange = vec2(0.96875, 0.015625);
 uniform vec4 g_vBlueNoiseDitherParams;
@@ -78,6 +87,25 @@ vec3 GameTonemapColor(vec3 vColor)
 {
     vec3 x = vColor * 0.6;
     return x * (15.8 * x + 2.12) / (x * (1.2 * x + 5.92) + 1.9);
+}
+
+vec3 ApplyVignette(vec3 vColor, vec2 vUv)
+{
+    float flOuterRadius = g_flVignetteRadius + g_flVignetteFeather;
+    vec2 vDistance = max(abs(vUv * 2.0 - 1.0 - g_vVignetteCenter), vec2(1e-6));
+
+    vec2 vInner = pow(vec2(g_flVignetteRadius) * vDistance, vec2(g_flVignetteExponent));
+    vec2 vOuter = pow(vec2(flOuterRadius) * vDistance, vec2(g_flVignetteExponent));
+
+    // Each edge is the radius over the distance in the superellipse norm, so the smoothstep runs
+    // from the radius to the radius plus the feather
+    float flFalloffExponent = -1.0 / g_flVignetteExponent;
+    float flInnerEdge = g_flVignetteRadius * g_flVignetteRadius * pow(vInner.x + vInner.y, flFalloffExponent);
+    float flOuterEdge = flOuterRadius * flOuterRadius * pow(vOuter.x + vOuter.y, flFalloffExponent);
+
+    float flClear = 1.0 - smoothstep(flInnerEdge, flOuterEdge, 1.0);
+
+    return mix(g_vVignetteTint * vColor, vColor, flClear) * mix(g_flVignetteScale, 1.0, flClear);
 }
 
 vec3 ApplyColorCorrection(vec3 vColor)
@@ -133,6 +161,11 @@ void main()
             // ADD bloom, not weighted by exposure
             vColor.rgb += (bloomSample * g_vNormalizedBloomStrengths.x);
         #endif
+
+        if (g_bVignette)
+        {
+            vColor.rgb = ApplyVignette(vColor.rgb, fragCoord);
+        }
 
         if (g_nTonemapMode == TONEMAP_ENGINE_CURVE)
         {

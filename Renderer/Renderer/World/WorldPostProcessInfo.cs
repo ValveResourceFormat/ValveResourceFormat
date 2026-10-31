@@ -180,6 +180,17 @@ namespace ValveResourceFormat.Renderer.World
                 state.HasBloom = true;
             }
 
+            if (volume.HasVignette)
+            {
+                // With no vignette under this volume, fade in from the volume's own settings at zero strength
+                var baseVignette = state.HasVignette
+                    ? state.VignetteSettings
+                    : volume.VignetteSettings with { Strength = 0f };
+
+                state.VignetteSettings = VignetteSettings.Blend(weight, baseVignette, volume.VignetteSettings);
+                state.HasVignette = true;
+            }
+
             if (volume.ColorCorrectionLUT != null)
             {
                 ActiveLuts.Add(new WeightedLut(volume.ColorCorrectionLUT, weight, volume.ColorCorrectionLutDimensions));

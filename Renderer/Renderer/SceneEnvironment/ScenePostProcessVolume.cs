@@ -379,6 +379,65 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
     }
 
     /// <summary>
+    /// Vignette that darkens the screen outside of a rounded shape around its center.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/materialsystem2/PostProcessingVignetteParameters_t">PostProcessingVignetteParameters_t</seealso>
+    public readonly struct VignetteSettings
+    {
+        /// <summary>Gets the darkening strength. Only negative values, which darken, are applied.</summary>
+        public float Strength { get; init; }
+
+        /// <summary>Gets the center of the vignette in screen space, from -1 to 1.</summary>
+        public Vector2 Center { get; init; }
+
+        /// <summary>Gets the distance from the center at which the darkening starts.</summary>
+        public float Radius { get; init; }
+
+        /// <summary>Gets how round the shape is: 0 is closest to a rectangle, 1 is an ellipse.</summary>
+        public float Roundness { get; init; }
+
+        /// <summary>Gets the distance over which the darkening fades in.</summary>
+        public float Feather { get; init; }
+
+        /// <summary>Gets the color the darkened area is tinted with.</summary>
+        public Vector3 Tint { get; init; }
+
+        /// <summary>Gets the multiplier of the fully vignetted area. Meaningful only for a negative <see cref="Strength"/>.</summary>
+        public float Scale => 1f + Strength;
+
+        /// <summary>Gets the exponent of the norm the distance from the center is measured in.</summary>
+        public float Exponent => 1f / float.Lerp(0.125f, 0.5f, Roundness);
+
+        /// <summary>Linearly interpolates between two vignette settings.</summary>
+        /// <param name="weight">Blend factor in the range [0, 1]; 0 returns <paramref name="a"/>, 1 returns <paramref name="b"/>.</param>
+        /// <param name="a">The first (start) vignette settings.</param>
+        /// <param name="b">The second (end) vignette settings.</param>
+        public static VignetteSettings Blend(float weight, in VignetteSettings a, in VignetteSettings b) => new()
+        {
+            Strength = float.Lerp(a.Strength, b.Strength, weight),
+            Center = Vector2.Lerp(a.Center, b.Center, weight),
+            Radius = float.Lerp(a.Radius, b.Radius, weight),
+            Roundness = float.Lerp(a.Roundness, b.Roundness, weight),
+            Feather = float.Lerp(a.Feather, b.Feather, weight),
+            Tint = Vector3.Lerp(a.Tint, b.Tint, weight),
+        };
+
+        /// <summary>Parses a <see cref="VignetteSettings"/> from a KV object.</summary>
+        public static VignetteSettings ParseFromKVObject(KVObject data)
+        {
+            return new VignetteSettings
+            {
+                Strength = data.GetFloatProperty("m_flVignetteStrength"),
+                Center = data.GetSubCollection("m_vCenter").ToVector2(),
+                Radius = data.GetFloatProperty("m_flRadius"),
+                Roundness = data.GetFloatProperty("m_flRoundness"),
+                Feather = data.GetFloatProperty("m_flFeather"),
+                Tint = data.GetSubCollection("m_vColorTint").ToVector3(),
+            };
+        }
+    }
+
+    /// <summary>
     /// Combined post-processing state including tonemapping, bloom, and color grading.
     /// </summary>
     public struct PostProcessState()
@@ -394,6 +453,12 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
 
         /// <summary>Gets or sets whether bloom is active in this state.</summary>
         public bool HasBloom { get; set; } = false;
+
+        /// <summary>Gets or sets the active vignette settings.</summary>
+        public VignetteSettings VignetteSettings { get; set; }
+
+        /// <summary>Gets or sets whether a vignette is active in this state.</summary>
+        public bool HasVignette { get; set; } = false;
 
         // for blending colorcorrectionluts this would be a List with weights, right?
         /// <summary>Gets or sets the color correction 3D LUT texture, or <see langword="null"/> if none.</summary>
@@ -485,9 +550,13 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// <summary>Gets or sets the resolution of the color correction LUT cube.</summary>
         public int ColorCorrectionLutDimensions { get; set; }
 
-        // Local Contrast requires a scene blur, so that's off the table for the time being.
+        /// <summary>Gets or sets whether this volume has vignette data.</summary>
+        public bool HasVignette { get; set; }
 
-        // Vignette could easily be added but I haven't actually found any vpost file that uses it yet.
+        /// <summary>Gets or sets the vignette settings applied by this volume.</summary>
+        public VignetteSettings VignetteSettings { get; set; }
+
+        // Local Contrast requires a scene blur, so that's off the table for the time being.
 
         /// <summary>
         /// Reads tonemapping, bloom, and color correction data from the given post-processing resource.
@@ -511,6 +580,14 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             {
                 HasBloom = true;
                 BloomSettings = BloomSettings.ParseFromKVObject(bloomParams);
+            }
+
+            var vignetteParams = PostProcessingResource.GetVignetteParams();
+
+            if (vignetteParams != null)
+            {
+                HasVignette = true;
+                VignetteSettings = VignetteSettings.ParseFromKVObject(vignetteParams);
             }
 
             // HLA has slightly different behavior. TODO

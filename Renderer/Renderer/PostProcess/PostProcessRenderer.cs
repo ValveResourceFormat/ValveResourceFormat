@@ -352,6 +352,20 @@ namespace ValveResourceFormat.Renderer.PostProcess
                     postProcessShader.SetUniform("g_bBloomExposed", Bloom.ThresholdsExposedScene);
                 }
 
+                var vignette = State.VignetteSettings;
+                var hasVignette = State.HasVignette && vignette.Strength < 0f;
+                postProcessShader.SetUniform("g_bVignette", hasVignette);
+
+                if (hasVignette)
+                {
+                    postProcessShader.SetUniform("g_vVignetteCenter", vignette.Center);
+                    postProcessShader.SetUniform("g_vVignetteTint", vignette.Tint);
+                    postProcessShader.SetUniform("g_flVignetteScale", vignette.Scale);
+                    postProcessShader.SetUniform("g_flVignetteRadius", vignette.Radius);
+                    postProcessShader.SetUniform("g_flVignetteFeather", vignette.Feather * 2f);
+                    postProcessShader.SetUniform("g_flVignetteExponent", vignette.Exponent);
+                }
+
                 postProcessShader.SetUniform("g_bPostProcessEnabled", Enabled);
                 postProcessShader.SetUniform("g_bRawOutput", RawOutput);
                 postProcessShader.SetUniform("g_nTonemapMode", GetTonemapMode());
