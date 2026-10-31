@@ -79,11 +79,13 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal, vec3 Pos
     mat.AnisotropicBitangent = vec3(0.0);
 #endif
 
+#if (F_USE_FRONT_FACE_NORMALS_FOR_BACK_FACES == 0)
     if (F_RENDER_BACKFACES == 1 && F_DONT_FLIP_BACKFACE_NORMALS == 0)
     {
         // when rendering backfaces, they invert normal so it appears front-facing
         mat.GeometricNormal *= gl_FrontFacing ? 1.0 : -1.0;
     }
+#endif
 }
 
 void AdjustRoughnessByGeometricNormal(inout MaterialProperties_t mat)

@@ -6,6 +6,9 @@
 #define F_ADVANCED_TRANSLUCENCY 0 // second translucency texture combined into the opacity
 #define F_ADDITIVE_BLEND 0
 
+// Keeps the vertex normal as it is on back faces, so both sides of a card shade like the front
+#define F_USE_FRONT_FACE_NORMALS_FOR_BACK_FACES 0
+
 // Vertex animation
 #define F_JITTER_VERTICES 0 // 0="No", 1="World Space", 2="Object Space"
 
