@@ -110,7 +110,8 @@ namespace ValveResourceFormat.Renderer
         {
             if (vao == 0)
             {
-                vao = MeshBuffers.GetVertexArrayObject(VertexBuffers, Material.Material.InputSignature, IndexBuffer.Handle, MeshName);
+                Material.Shader.EnsureLoaded();
+                vao = MeshBuffers.GetVertexArrayObject(VertexBuffers, Material.Material.InputSignature, IndexBuffer.Handle, Material.Shader.RequiredAttributes, MeshName);
             }
 
             return vao;

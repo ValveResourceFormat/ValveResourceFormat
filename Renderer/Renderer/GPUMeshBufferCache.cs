@@ -29,11 +29,13 @@ namespace ValveResourceFormat.Renderer
         private readonly struct VAOKey : IEquatable<VAOKey>
         {
             public required int InputSignature { get; init; }
+            public required int RequiredAttributes { get; init; }
             public required int IndexBuffer { get; init; }
             public required int[] VertexBuffers { get; init; }
 
             public bool Equals(VAOKey other)
                 => InputSignature == other.InputSignature
+                && RequiredAttributes == other.RequiredAttributes
                 && IndexBuffer == other.IndexBuffer
                 && VertexBuffers.AsSpan().SequenceEqual(other.VertexBuffers);
 
@@ -43,6 +45,7 @@ namespace ValveResourceFormat.Renderer
             {
                 var hash = new HashCode();
                 hash.Add(InputSignature);
+                hash.Add(RequiredAttributes);
                 hash.Add(IndexBuffer);
 
                 foreach (var handle in VertexBuffers)
@@ -197,9 +200,16 @@ namespace ValveResourceFormat.Renderer
         /// <returns>The OpenGL VAO handle.</returns>
         public int GetVertexArrayObject(VertexDrawBuffer[] vertexBuffers, Material.VsInputSignature inputSignature, int idxIndex, string? debugLabel = null)
         {
+            return GetVertexArrayObject(vertexBuffers, inputSignature, idxIndex, 0, debugLabel);
+        }
+
+        internal int GetVertexArrayObject(VertexDrawBuffer[] vertexBuffers, Material.VsInputSignature inputSignature, int idxIndex, int requiredAttributes, string? debugLabel = null)
+        {
+            requiredAttributes &= 1 << (int)VertexSlot.LightmapUV;
             var vaoKey = new VAOKey
             {
                 InputSignature = inputSignature.Hash,
+                RequiredAttributes = requiredAttributes,
                 IndexBuffer = idxIndex,
                 VertexBuffers = Array.ConvertAll(vertexBuffers, vb => vb.Handle),
             };
@@ -209,7 +219,7 @@ namespace ValveResourceFormat.Renderer
                 return vaoHandle;
             }
 
-            var newVaoHandle = CreateVertexArrayObject(vertexBuffers, inputSignature, idxIndex, debugLabel);
+            var newVaoHandle = CreateVertexArrayObject(vertexBuffers, inputSignature, idxIndex, requiredAttributes, debugLabel);
             vertexArrayObjects.Add(vaoKey, newVaoHandle);
             return newVaoHandle;
         }
@@ -220,9 +230,10 @@ namespace ValveResourceFormat.Renderer
         /// <param name="vertexBuffers">Vertex buffer bindings for the draw call.</param>
         /// <param name="inputSignature">Material input signature mapping buffer semantics to shader attribute names.</param>
         /// <param name="idxIndex">OpenGL handle of the index buffer.</param>
+        /// <param name="requiredAttributes">Shader input locations required by the selected variant</param>
         /// <param name="debugLabel">Optional label applied to the VAO in debug builds.</param>
         /// <returns>The OpenGL VAO handle.</returns>
-        private int CreateVertexArrayObject(VertexDrawBuffer[] vertexBuffers, Material.VsInputSignature inputSignature, int idxIndex, string? debugLabel = null)
+        private int CreateVertexArrayObject(VertexDrawBuffer[] vertexBuffers, Material.VsInputSignature inputSignature, int idxIndex, int requiredAttributes, string? debugLabel = null)
         {
             Debug.Assert(vertexBuffers != null && vertexBuffers.Length > 0);
 
@@ -278,6 +289,22 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 bindingIndex++;
+            }
+
+            if ((requiredAttributes & ~boundLocations) != 0)
+            {
+                for (var bufferIndex = 0; bufferIndex < vertexBuffers.Length; bufferIndex++)
+                {
+                    foreach (var attribute in vertexBuffers[bufferIndex].InputLayoutFields)
+                    {
+                        if (attribute.SemanticName == "TEXCOORD" && attribute.SemanticIndex == 3
+                            && VertexAttributeLocations.Resolve(inputSignature, attribute, out _) == (int)VertexSlot.TexCoord3)
+                        {
+                            BindAttribute((int)VertexSlot.LightmapUV, attribute, bufferIndex);
+                            return newVaoHandle;
+                        }
+                    }
+                }
             }
 
             return newVaoHandle;
