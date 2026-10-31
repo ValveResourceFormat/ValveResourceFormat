@@ -2,6 +2,7 @@ using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Utils;
 using Microsoft.Win32;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -280,6 +281,17 @@ partial class MainForm
         {
             PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING, SC_ABOUT, p);
         }
+    }
+
+    /// <summary>Colors the window border so a viewer driven by an agent stands out. Only Windows 11 draws it.</summary>
+    private unsafe void SetAutomationBorderColor()
+    {
+        var color = ColorTranslator.ToWin32(Themer.CurrentThemeColors.Accent);
+
+        PInvoke.DwmSetWindowAttribute((HWND)Handle,
+            Windows.Win32.Graphics.Dwm.DWMWINDOWATTRIBUTE.DWMWA_BORDER_COLOR,
+            &color,
+            sizeof(int));
     }
 
     private static readonly Lazy<bool> IsRunningOnWine = new(GetIsRunningOnWine);

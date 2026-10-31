@@ -359,6 +359,9 @@ namespace GUI
             // another instance.
             if (Automation.Automation.IsEnabled)
             {
+                UpdateWindowTitle(null);
+                SetAutomationBorderColor();
+
                 if (Args.Length > 0)
                 {
                     OpenCommandLineArgFiles(Args);
@@ -478,9 +481,11 @@ namespace GUI
 
         private void UpdateWindowTitle(string? toolTipText)
         {
-            Text = string.IsNullOrEmpty(toolTipText)
+            var title = string.IsNullOrEmpty(toolTipText)
                 ? "Source 2 Viewer"
                 : $"Source 2 Viewer - {toolTipText}";
+
+            Text = Automation.Automation.WindowTitlePrefix + title;
         }
 
         /// <summary>
