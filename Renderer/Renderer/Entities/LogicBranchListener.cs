@@ -45,7 +45,10 @@ public sealed class LogicBranchListener : BaseEntity
                 continue;
             }
 
-            foreach (var entity in EntitySystem.FindAllByTargetName(name))
+            // A name that matches no targetname falls back to matching classnames
+            var target = new EntityIOTarget(name, EntityIOTargetType.EntityNameOrClassName);
+
+            foreach (var entity in EntitySystem.FindTargets(target))
             {
                 if (entity is not LogicBranch branch)
                 {
