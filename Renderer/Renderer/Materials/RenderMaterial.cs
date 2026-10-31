@@ -887,7 +887,11 @@ namespace ValveResourceFormat.Renderer.Materials
             {
                 // Coverage is a single bit without multisampling, which turns this into a second,
                 // harder alpha cutout on top of the one the shader already does.
-                state.Blend.AlphaToCoverageEnable = state.Rasterizer.MultisampleEnable;
+                // A pass that tests for the depth of a prepass takes its coverage from that depth. Cutting the
+                // samples again with a second coverage mask leaves the ones the masks disagree on with a depth
+                // and no color.
+                var coverageFromPrepass = state.DepthStencil.DepthFunc == RsComparison.Equal;
+                state.Blend.AlphaToCoverageEnable = state.Rasterizer.MultisampleEnable && !coverageFromPrepass;
             }
             else if (IsTranslucent)
             {
