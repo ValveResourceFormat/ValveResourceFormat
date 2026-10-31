@@ -145,7 +145,9 @@ namespace ValveResourceFormat.Renderer.World
             viewConstants.GradientFogBiasAndScale = new Vector4(bias, 1f, scale, 0f);
             viewConstants.GradientFogColor_Opacity = new Vector4(fog.Color, fog.MaxDensity);
             viewConstants.GradientFogExponents = new Vector2(fog.Exponent, 1f);
-            var cullingDistance = end > start ? start * start : float.MinValue;
+            // A negative start fogs everything, which squaring would turn into a positive culling distance
+            var nearestFogged = MathF.Max(start, 0f);
+            var cullingDistance = end > start ? nearestFogged * nearestFogged : float.MinValue;
             viewConstants.GradientFogCullingParams = new Vector2(cullingDistance, float.PositiveInfinity);
         }
     }
