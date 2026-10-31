@@ -58,7 +58,7 @@ namespace ValveResourceFormat.Particles.Operators
                     var interp = MathUtils.Saturate(vectorInterpolations[i] * strength);
                     var from = fromIsVector ? fromVectors[i] : new Vector3(fromScalars[i]);
                     var to = toIsVector ? toVectors[i] : new Vector3(toScalars[i]);
-                    vectorOutput[i] = Vector3.Lerp(from, to, interp);
+                    vectorOutput[i] = MathUtils.Lerp(from, to, interp);
                 }
 
                 return;
@@ -76,7 +76,21 @@ namespace ValveResourceFormat.Particles.Operators
             {
                 TensorPrimitives.Multiply(interpolations, strength, interpolations);
                 TensorPrimitives.Clamp(interpolations, 0f, 1f, interpolations);
-                TensorPrimitives.Lerp(fromScalars, toScalars, interpolations, scalarOutput);
+                var i = 0;
+                for (; i <= scalarOutput.Length - Vector<float>.Count; i += Vector<float>.Count)
+                {
+                    var from = new Vector<float>(fromScalars[i..]);
+                    var to = new Vector<float>(toScalars[i..]);
+                    var interp = new Vector<float>(interpolations[i..]);
+                    var result = ((to - from) * interp) + from;
+                    result.CopyTo(scalarOutput[i..]);
+                }
+
+                for (; i < scalarOutput.Length; i++)
+                {
+                    scalarOutput[i] = MathUtils.Lerp(fromScalars[i], toScalars[i], interpolations[i]);
+                }
+
                 return;
             }
 
