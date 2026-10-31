@@ -62,7 +62,7 @@ in the Dump column.
 | vmat     | Material                   | 3D                            | yes     | `.vmat` + unpacked texture inputs                                                                            |
 | vmdl     | Model                      | 3D                            | yes     | `.vmdl` + DMX; glTF/GLB                                                                                      |
 | vmesh    | Mesh                       | 3D                            | yes     | glTF/GLB; also handled via vmdl                                                                              |
-| vmix     | VMix (DSP graph)           | text                          | generic | KV3 text (graph is not interpreted)                                                                          |
+| vmix     | VMix (Mix Graph)           | text                          | yes     | `.vmix` mix graph (see [Audio](#audio-vsnd))                                                                 |
 | vmks     | Sheet                      | text                          | generic | -                                                                                                            |
 | vmorf    | Morph Set                  | via model                     | yes     | used by vmdl/glTF export                                                                                     |
 | vnmclip  | NmClip (Animgraph 2 clip)  | 3D playback                   | yes     | clip document + DMX; glTF/GLB                                                                                |
@@ -358,8 +358,22 @@ gets its RIFF header synthesized from stored data, MP3 bytes are copied raw. New
 also get their voice-container definition written alongside as a `.vsnd` KV3 file. Lip-sync
 phoneme data extracts to a companion `.txt` that the compiler picks back up. Sound event
 scripts dump losslessly as KV3 text; stack scripts dump each stack's stored text, though
-duplicate stack names collapse to the last one. VMix DSP graphs are dumped but not
-interpreted.
+duplicate stack names collapse to the last one.
+
+Mix graphs (`vmix`) decompile to a `.vmix` that vmixtool opens and resourcecompiler
+recompiles to the same commands, for every layout from Half-Life: Alyx to the current one,
+where each graph is its own file and CS2 compiles graphs into `.vsnd` sounds
+(`CVoiceContainerVMixSnd`, which extract as `.vmix` too). Nodes are rebuilt from each
+graph's compiled commands and named from the debug names and meters the compiler keeps.
+Subgraphs that the compiler inlined are folded back into subgraph nodes, found among the
+other graphs of the file or, for one graph per file, the graphs of the folder.
+
+| Data                                     | Status                | Notes                                                                    |
+| ---------------------------------------- | --------------------- | ------------------------------------------------------------------------ |
+| Node positions, comments, editor state   | Not in compiled files | nodes are laid out in columns by their distance from a source            |
+| Names of nodes without a debug name      | Not in compiled files | named by their type, as vmixtool names new nodes                         |
+| Node generation counters                 | Not in compiled files | recovered from the debug ids of current graphs when they can be          |
+| Inlined subgraphs of graphs in no folder | Not implemented       | without the other graphs, inlined nodes stay as they compiled            |
 
 ## Choreo, Captions, and UI
 
