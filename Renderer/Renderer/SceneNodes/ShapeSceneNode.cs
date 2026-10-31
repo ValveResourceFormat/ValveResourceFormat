@@ -581,9 +581,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         // Pulls the fill in front of the scene surfaces it lies on, such as the walls that world collision follows
         private static RenderState WithFillDepthBias(RenderState state)
         {
-            state.Rasterizer.SlopeScaledDepthBias = 2f;
-            state.Rasterizer.DepthBias = 100;
-            state.Rasterizer.DepthBiasClamp = 0.05f;
+            state.Rasterizer.SlopeScaledDepthBias = 0.5f;
+            state.Rasterizer.DepthBias = 1;
+            state.Rasterizer.DepthBiasClamp = 0.0005f;
             return state;
         }
 
