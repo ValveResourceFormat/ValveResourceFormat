@@ -65,6 +65,7 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal, vec3 Pos
     mat.TransmissiveColor = vec3(0.0);
     mat.DirectDiffuseScale = 1.0;
     mat.IllumColor = vec3(0.0);
+    mat.BloomAmount = 0.0;
 
     mat.LightmapUv = vec3(0.0);
 

@@ -156,6 +156,11 @@ namespace ValveResourceFormat.Renderer
                 return replacement.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest).WithMorph(material.Shader);
             }
 
+            if (context.Layer == RenderLayer.BloomAmount)
+            {
+                return material.Shader.BloomAmountMode ?? material.Shader;
+            }
+
             if (context.DepthOnlyShader is { } depthOnly)
             {
                 return material.Shader.DepthMode

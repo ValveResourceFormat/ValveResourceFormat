@@ -44,6 +44,9 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Effects drawn over the finished scene through the fixed screen-space view.</summary>
         ScreenSpace,
+
+        /// <summary>The per-pixel bloom amount map, written by the opaque materials that override their bloom amount.</summary>
+        BloomAmount,
     }
 
     /// <summary>

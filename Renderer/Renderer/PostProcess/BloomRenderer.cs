@@ -107,9 +107,10 @@ public class BloomRenderer
     /// </summary>
     /// <param name="input">The resolved scene color, thresholded before it blooms.</param>
     /// <param name="effectsBloom">Geometry drawn only to glow, bloomed whole without a threshold, or null.</param>
+    /// <param name="bloomAmount">The per-pixel bloom amount of the scene, 0 where the scene is thresholded as usual, or null.</param>
     /// <param name="settings">The bloom settings to apply.</param>
     /// <param name="sceneWeight">How much of the thresholded scene blooms: 0 blooms only <paramref name="effectsBloom"/>.</param>
-    public void Render(RenderTexture input, RenderTexture? effectsBloom, BloomSettings settings, float sceneWeight)
+    public void Render(RenderTexture input, RenderTexture? effectsBloom, RenderTexture? bloomAmount, BloomSettings settings, float sceneWeight)
     {
         Debug.Assert(MipChain != null && MipChain.Color != null);
         Debug.Assert(Output != null && Output.Color != null);
@@ -128,7 +129,7 @@ public class BloomRenderer
 
         GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
 
-        RenderThreshold(input, effectsBloom, settings, sceneWeight);
+        RenderThreshold(input, effectsBloom, bloomAmount, settings, sceneWeight);
 
         for (var level = 0; level < BloomMipCount; level++)
         {
@@ -140,7 +141,7 @@ public class BloomRenderer
         MipChain.AttachColorMipLevel(0);
     }
 
-    private void RenderThreshold(RenderTexture input, RenderTexture? effectsBloom, BloomSettings settings, float sceneWeight)
+    private void RenderThreshold(RenderTexture input, RenderTexture? effectsBloom, RenderTexture? bloomAmount, BloomSettings settings, float sceneWeight)
     {
         using var _ = new GLDebugGroup("Bloom Downsample Threshold Pass");
 
@@ -148,10 +149,8 @@ public class BloomRenderer
         Debug.Assert(downsampleBloomThreshold != null && downsampleBloomThresholdExposed != null);
         Debug.Assert(downsampleBloomThresholdPointTaps != null && downsampleBloomThresholdBilinear != null);
 
-        // TODO: Deadlock scales the threshold luminance and colour of a texel by 20 times the per-pixel bloom
-        // amount, where that is above zero. Only materials that override the bloom amount write it, as the amount
-        // times their self illum mask over 20 (the amount itself for environment layers). The scene renders to a
-        // single target here, so that per-pixel value does not exist.
+        // Deadlock scales the colour and threshold luminance of a texel by 20 times the per-pixel bloom amount that
+        // materials overriding it write, where that is above zero.
         // TODO: Dota 2 has no threshold and never blooms the scene colour. It blooms a per-pixel glow amount (alpha of a
         // target sized like the deferred lighting terms, times 20, saturated) tinted by a global bloom colour, through
         // a 13 tap diamond kernel (centre 1, nearest four 0.75, rest 0.5) normalised by the weight sum.
@@ -192,6 +191,13 @@ public class BloomRenderer
         if (effectsBloom != null)
         {
             shader.SetTexture(1, "g_tEffectsBloom", effectsBloom);
+        }
+
+        shader.SetUniform("g_bBloomAmount", bloomAmount != null);
+
+        if (bloomAmount != null)
+        {
+            shader.SetTexture(2, "g_tBloomAmount", bloomAmount);
         }
 
         BindTarget(MipChain!, 0);

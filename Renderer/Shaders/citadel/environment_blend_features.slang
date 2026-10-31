@@ -9,3 +9,6 @@
 #define F_UV_OVERLAY 0
 #define F_WORLD_OVERLAY 0 // 0="Off", 1="1 World Overlay", 2="2 World Overlays"
 #define F_WORLD_OVERLAY_USE_OBJECT_SPACE 0
+
+// Writes the bloom amount of the pixel for the bloom threshold
+#define F_OVERRIDE_BLOOM_AMOUNT 0

@@ -17,6 +17,13 @@ uniform bool g_bEffectsBloom;
 uniform bool g_bEffectsBloomClamped;
 uniform bool g_bEffectsBloomEncoded;
 
+#if D_THRESHOLD_MODE == 3
+    uniform bool g_bBloomAmount;
+
+    // The amount is stored in an 8-bit target, in twentieths
+    const float BLOOM_AMOUNT_SCALE = 20.0;
+#endif
+
 #if D_THRESHOLD_MODE == 1
     uniform float g_flExposureBiasScaleFactor = 1.0;
 
@@ -28,6 +35,11 @@ layout(binding = 0) uniform sampler2D inputTexture;
 
 // Geometry drawn only to glow, at a lower resolution than the scene, bloomed without the threshold
 layout(binding = 1) uniform sampler2D g_tEffectsBloom;
+
+#if D_THRESHOLD_MODE == 3
+    // Per-pixel bloom amount at the resolution of the scene, read without filtering
+    layout(binding = 2) uniform sampler2D g_tBloomAmount;
+#endif
 layout(location = 0) out vec4 outputColor;
 
 const vec3 LUMINANCE_WEIGHTS = vec3(0.3, 0.59, 0.11);
@@ -36,11 +48,13 @@ float CalculateLuminance(vec3 color) {
     return dot(color, LUMINANCE_WEIGHTS);
 }
 
-vec3 ApplyThreshold(vec3 color) {
-    float luminance = CalculateLuminance(color);
+float ThresholdWeight(float luminance) {
     float thresholdFactor = g_flToneMapScalarLinear * luminance * g_flThresholdParams.y + g_flThresholdParams.x;
-    float thresholdWeight = clamp(thresholdFactor, 0.0, 1.0);
-    return color * thresholdWeight;
+    return clamp(thresholdFactor, 0.0, 1.0);
+}
+
+vec3 ApplyThreshold(vec3 color) {
+    return color * ThresholdWeight(CalculateLuminance(color));
 }
 
 #if D_THRESHOLD_MODE == 1
@@ -136,10 +150,26 @@ vec3 DownsampleThresholdPointTaps()
 
 #elif D_THRESHOLD_MODE == 3
 
+// Pixels of materials that override their bloom amount take it, in twentieths, in place of their luminance
 vec3 ThresholdBilinearTap(vec2 texelCoord)
 {
-    vec3 color = textureLod(inputTexture, texelCoord / vec2(textureSize(inputTexture, 0)), 0.0).rgb;
-    return ApplyThreshold(color);
+    vec2 uv = texelCoord / vec2(textureSize(inputTexture, 0));
+    vec3 color = textureLod(inputTexture, uv, 0.0).rgb;
+
+    float luminance = CalculateLuminance(color);
+
+    if (g_bBloomAmount)
+    {
+        float amount = textureLod(g_tBloomAmount, uv, 0.0).r;
+
+        if (amount > 0.0)
+        {
+            color *= amount * BLOOM_AMOUNT_SCALE;
+            luminance = amount * BLOOM_AMOUNT_SCALE;
+        }
+    }
+
+    return color * ThresholdWeight(luminance);
 }
 
 // The taps sit on texel corners, one texel either side of the quarter resolution texel centre,
