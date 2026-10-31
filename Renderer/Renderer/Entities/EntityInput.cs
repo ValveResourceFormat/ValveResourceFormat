@@ -39,6 +39,18 @@ public readonly struct EntityInputData
     /// <summary>Gets the entity that fired the output.</summary>
     public BaseEntity? Caller { get; init; }
 
+    /// <summary>
+    /// Formats a float the way the game turns one into a string parameter: six decimals, with the trailing
+    /// zeros stripped down to one, so 1 becomes <c>1.0</c> and 0.25 becomes <c>0.25</c>.
+    /// </summary>
+    public static string FormatFloat(float value)
+    {
+        // Not "0.0#####": custom formats round a float to 7 significant digits, and ties away from zero
+        var text = value.ToString("F6", CultureInfo.InvariantCulture).TrimEnd('0');
+
+        return text.EndsWith('.') ? text + "0" : text;
+    }
+
     /// <summary>Reads the parameter as a float.</summary>
     public float Float(float defaultValue = 0f)
         => float.TryParse(Parameter, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)

@@ -1,4 +1,3 @@
-using System.Globalization;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
 
@@ -192,5 +191,5 @@ public sealed class MathCounter : BaseEntity
 
     private float ClampToRange(float value) => HasRange ? MathUtils.Clamp(value, Min, Max) : value;
 
-    private string FormatValue() => Value.ToString(CultureInfo.InvariantCulture);
+    private string FormatValue() => EntityInputData.FormatFloat(Value);
 }

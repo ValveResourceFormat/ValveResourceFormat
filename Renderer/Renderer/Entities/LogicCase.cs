@@ -1,20 +1,18 @@
 using System.Globalization;
+using System.Linq;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// <c>logic_case</c>. Picks one of up to sixteen outputs, either by matching a value against the authored
+/// <c>logic_case</c>. Picks one of up to thirty-two outputs, either by matching a value against the authored
 /// cases or at random.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CLogicCase">CLogicCase</seealso>
 public sealed class LogicCase : BaseEntity
 {
-    // The FGD's Case01 to Case16
-    private const int CaseCount = 16;
-
+    private const int CaseCount = 32;
     private readonly string?[] cases = new string?[CaseCount];
-    private readonly List<int> available = [];
     private readonly List<int> shuffle = [];
     private int lastShuffleCase = -1;
 
@@ -30,113 +28,98 @@ public sealed class LogicCase : BaseEntity
 
         for (var i = 0; i < CaseCount; i++)
         {
-            // Compiled keyvalues are lowercased, and the case number is one-based and zero-padded
-            var value = KeyValues.GetStringProperty($"case{i + 1:00}");
+            var value = KeyValues.GetStringProperty(string.Create(CultureInfo.InvariantCulture, $"case{i + 1:00}"));
 
             cases[i] = string.IsNullOrEmpty(value) ? null : value;
-
-            // A case is available when its output is wired. The authored value only matters for InValue,
-            // and maps that only pick randomly author none.
-            if (HasOutput($"OnCase{i + 1:00}"))
-            {
-                available.Add(i);
-            }
         }
-    }
-
-    private bool HasOutput(string outputName)
-    {
-        if (Data?.Connections == null)
-        {
-            return false;
-        }
-
-        foreach (var connection in Data.Connections)
-        {
-            if (connection.OutputName.Equals(outputName, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     [EntityInput("InValue")]
     private void InputInValue(EntityInputData data)
     {
-        var value = data.Parameter;
+        var value = data.Parameter ?? string.Empty;
 
         for (var i = 0; i < CaseCount; i++)
         {
-            if (cases[i] is not { } authored || !Matches(authored, value))
+            if (cases[i] is { } authored && Matches(authored, value))
             {
-                continue;
+                FireCase(i, data.Activator, this);
+                return;
             }
-
-            FireCase(i, data.Activator);
-            return;
         }
 
-        EntitySystem.TriggerOutput(this, "OnDefault", data.Activator);
+        EntitySystem.TriggerOutput(this, "OnDefault", data.Activator, value);
     }
 
     [EntityInput("PickRandom")]
     private void InputPickRandom(EntityInputData data)
     {
+        var available = GetAvailableCases().ToList();
+
         if (available.Count == 0)
         {
             return;
         }
 
-        FireCase(available[Random.Shared.Next(available.Count)], data.Activator);
+        FireCase(available[Random.Shared.Next(available.Count)], data.Activator, this);
     }
 
     [EntityInput("PickRandomShuffle")]
     private void InputPickRandomShuffle(EntityInputData data)
     {
-        if (shuffle.Count == 0)
+        var drawCount = shuffle.Count;
+
+        if (drawCount == 0)
         {
-            if (available.Count == 0)
+            RefillShuffle();
+            drawCount = shuffle.Count;
+
+            // A refilled shuffle may not open with the case the last one ended on, so a repeat cannot
+            // straddle two shuffles. That case is swapped to the end and left out of this draw.
+            var last = shuffle.IndexOf(lastShuffleCase);
+
+            if (drawCount > 1 && last >= 0)
             {
-                return;
-            }
-
-            shuffle.AddRange(available);
-
-            // A new batch may not open with the case the last one ended on, so a repeat cannot straddle
-            // batches. That case is moved to the end and left out of the first draw.
-            if (shuffle.Count > 1 && lastShuffleCase != -1)
-            {
-                shuffle.Remove(lastShuffleCase);
-
-                var reopened = Random.Shared.Next(shuffle.Count);
-                var first = shuffle[reopened];
-
-                shuffle.RemoveAt(reopened);
-                shuffle.Add(lastShuffleCase);
-
-                Fire(first);
-                return;
+                (shuffle[last], shuffle[^1]) = (shuffle[^1], shuffle[last]);
+                drawCount--;
             }
         }
 
-        Fire(shuffle[Random.Shared.Next(shuffle.Count)]);
-
-        void Fire(int picked)
+        if (drawCount == 0)
         {
-            shuffle.Remove(picked);
-            lastShuffleCase = picked;
-
-            FireCase(picked, data.Activator);
+            return;
         }
+
+        var drawn = Random.Shared.Next(drawCount);
+        var picked = shuffle[drawn];
+
+        shuffle[drawn] = shuffle[^1];
+        shuffle.RemoveAt(shuffle.Count - 1);
+        lastShuffleCase = picked;
+
+        FireCase(picked, data.Activator, data.Caller ?? this);
     }
 
-    private void FireCase(int index, BaseEntity? activator)
-        => EntitySystem.TriggerOutput(this, $"OnCase{index + 1:00}", activator);
+    // Unlike a refill on draw, this one may open with the case the last shuffle ended on
+    [EntityInput("ResetShuffle")] private void InputResetShuffle(EntityInputData data) => RefillShuffle();
 
-    // As text first, then as a number so that "1" and "1.0" are the same case
-    private static bool Matches(string authored, string? value)
+    private void RefillShuffle()
+    {
+        shuffle.Clear();
+        shuffle.AddRange(GetAvailableCases());
+    }
+
+    // A case can be picked while its output has connections left to fire. The authored value only matters
+    // for InValue, and maps that only pick randomly author none.
+    private IEnumerable<int> GetAvailableCases()
+        => Enumerable.Range(0, CaseCount).Where(i => EntitySystem.GetLiveConnections(this, CaseOutput(i)).Any());
+
+    private void FireCase(int index, BaseEntity? activator, BaseEntity caller)
+        => EntitySystem.TriggerOutput(this, CaseOutput(index), activator, caller: caller);
+
+    // As text first, then as a number. math_counter used to send whole numbers as "1" and now sends a float
+    // as "1.0", and maps authored against either must still match.
+    private static bool Matches(string authored, string value)
     {
         if (string.Equals(authored, value, StringComparison.OrdinalIgnoreCase))
         {
@@ -147,4 +130,6 @@ public sealed class LogicCase : BaseEntity
             && float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var valueNumber)
             && authoredNumber == valueNumber;
     }
+
+    private static string CaseOutput(int index) => string.Create(CultureInfo.InvariantCulture, $"OnCase{index + 1:00}");
 }

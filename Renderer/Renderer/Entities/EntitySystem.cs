@@ -790,7 +790,7 @@ public sealed class EntitySystem
     {
         var fireTime = CurrentTime + MathF.Max(delay, 0f);
 
-        Enqueue(new QueuedInput(target, null, inputName, parameter, activator, caller, fireTime, sequence++, null));
+        Enqueue(new QueuedInput(target, null, inputName, parameter, activator, caller, fireTime, sequence++));
     }
 
     /// <summary>
@@ -803,16 +803,15 @@ public sealed class EntitySystem
         var target = new EntityIOTarget(targetName, EntityIOTargetType.EntityNameOrClassName);
         var fireTime = CurrentTime + MathF.Max(delay, 0f);
 
-        Enqueue(new QueuedInput(null, target, inputName, parameter, activator, caller, fireTime, sequence++, null));
+        Enqueue(new QueuedInput(null, target, inputName, parameter, activator, caller, fireTime, sequence++));
     }
 
-    // The connection is passed when it limits how often it may fire
     private void QueueInputByTarget(EntityIOTarget target, string inputName, string? parameter,
-        BaseEntity? activator, BaseEntity? caller, float delay, EntityLump.Connection? connection)
+        BaseEntity? activator, BaseEntity? caller, float delay)
     {
         var fireTime = CurrentTime + MathF.Max(delay, 0f);
 
-        Enqueue(new QueuedInput(null, target, inputName, parameter, activator, caller, fireTime, sequence++, connection));
+        Enqueue(new QueuedInput(null, target, inputName, parameter, activator, caller, fireTime, sequence++));
     }
 
     /// <summary>
@@ -852,26 +851,37 @@ public sealed class EntitySystem
     public void TriggerOutput(BaseEntity source, string outputName, BaseEntity? activator = null, string? value = null,
         BaseEntity? caller = null)
     {
+        foreach (var connection in GetLiveConnections(source, outputName))
+        {
+            QueueInputByTarget(ConnectionTarget(connection, source.NameFixup),
+                connection.InputName, ConnectionParameter(connection, source.NameFixup, value), activator, caller ?? source, connection.Delay);
+
+            // Used up when queued, so an input that is cancelled or still waiting on its delay counts too
+            if (connection.TimesToFire >= 0)
+            {
+                firedCounts[connection] = FiredCount(connection) + 1;
+            }
+        }
+    }
+
+    /// <summary>
+    /// The connections of an output that can still fire, leaving out the ones whose limited count
+    /// (Hammer's "fire once only") is used up.
+    /// </summary>
+    internal IEnumerable<EntityLump.Connection> GetLiveConnections(BaseEntity source, string outputName)
+    {
         if (source.Data?.Connections == null)
         {
-            return;
+            yield break;
         }
 
         foreach (var connection in source.Data.Connections)
         {
-            if (!connection.OutputName.Equals(outputName, StringComparison.OrdinalIgnoreCase))
+            if (connection.OutputName.Equals(outputName, StringComparison.OrdinalIgnoreCase)
+                && (connection.TimesToFire < 0 || FiredCount(connection) < connection.TimesToFire))
             {
-                continue;
+                yield return connection;
             }
-
-            // Hammer's "fire once only" and other limited counts
-            if (connection.TimesToFire >= 0 && FiredCount(connection) >= connection.TimesToFire)
-            {
-                continue;
-            }
-
-            QueueInputByTarget(ConnectionTarget(connection, source.NameFixup),
-                connection.InputName, ConnectionParameter(connection, source.NameFixup, value), activator, caller ?? source, connection.Delay, connection);
         }
     }
 
@@ -886,7 +896,7 @@ public sealed class EntitySystem
         var nameFixup = source?.NameFixup ?? EntityNameFixup.None;
 
         QueueInputByTarget(ConnectionTarget(connection, nameFixup),
-            connection.InputName, ConnectionParameter(connection, nameFixup, null), activator, source, 0f, null);
+            connection.InputName, ConnectionParameter(connection, nameFixup, null), activator, source, 0f);
     }
 
     // The connection's target name with the source entity's name fixup applied
@@ -1009,11 +1019,6 @@ public sealed class EntitySystem
             Caller = input.Caller,
         };
 
-        if (input.Connection is { } connection)
-        {
-            firedCounts[connection] = FiredCount(connection) + 1;
-        }
-
         if (input.Target is { } bound)
         {
             if (!bound.IsRemoved)
@@ -1133,6 +1138,5 @@ public sealed class EntitySystem
         BaseEntity? Activator,
         BaseEntity? Caller,
         float FireTime,
-        long Sequence,
-        EntityLump.Connection? Connection);
+        long Sequence);
 }
