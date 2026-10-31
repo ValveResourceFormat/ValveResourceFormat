@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -187,6 +188,10 @@ static class UpdateInstaller
         {
             if (IsDirectoryWritable(Path.GetDirectoryName(exePath)!))
             {
+                // A single file bundle loads assemblies from the executable's path on first use,
+                // which is the new build after the swap, so Restart needs this one loaded before it
+                RuntimeHelpers.RunClassConstructor(typeof(Process).TypeHandle);
+
                 Swap(exePath, downloadPath, expectedHash);
             }
             else
