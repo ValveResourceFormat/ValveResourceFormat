@@ -61,7 +61,7 @@ namespace ValveResourceFormat.Particles.Operators
                     target = Vector3.Clamp(target, Vector3.Zero, Vector3.One);
                 }
 
-                var result = Vector3.Lerp(currentValue, target, lerpAmount);
+                var result = MathUtils.Lerp(currentValue, target, lerpAmount);
 
                 if (normalizedOutput && result != Vector3.Zero)
                 {
