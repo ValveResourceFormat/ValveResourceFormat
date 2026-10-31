@@ -53,7 +53,7 @@ namespace ValveResourceFormat.Utils
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float RemapRange(float x, float inputMin, float inputMax, float outputMin, float outputMax)
         {
-            return float.Lerp(outputMin, outputMax, Remap(x, inputMin, inputMax));
+            return Lerp(outputMin, outputMax, Remap(x, inputMin, inputMax));
         }
 
         /// <summary>
@@ -75,7 +75,7 @@ namespace ValveResourceFormat.Utils
                 return x >= inputMax ? outputMax : outputMin;
             }
 
-            return float.Lerp(outputMin, outputMax, Saturate(Remap(x, inputMin, inputMax)));
+            return Lerp(outputMin, outputMax, Saturate(Remap(x, inputMin, inputMax)));
         }
 
         /// <summary>
