@@ -126,7 +126,7 @@ public sealed class EnvSky : BaseEntity
             SpecularColor = KeyValues.GetColor32Property("specularcolor"),
             SpecularPower = KeyValues.GetFloatProperty("specularpower", 16f),
             SpecularIndependence = KeyValues.GetFloatProperty("specularindependence"),
-            LayerName = "world_layer_base",
+            Layers = [WorldLayer.Get("world_layer_base")],
             Name = "Source 2 Viewer dynamic sunlight for Dota",
         };
 

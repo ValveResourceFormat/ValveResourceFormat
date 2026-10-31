@@ -275,13 +275,13 @@ internal sealed partial class McpTools
             var spawned = new ParticleSceneNode(scene, system, preview: preview)
             {
                 Name = path,
-                LayerName = Scene.ParticlesLayerName,
+                Layers = [WorldLayer.Particles],
                 Loop = loop,
                 Transform = EntityTransformHelper.ToRigidTransformationMatrix(angles ?? Vector3.Zero, position ?? Vector3.Zero),
             };
 
             // The scene holds the preview model beside the system, so the model goes on the system's layer
-            spawned.PreviewModel?.LayerName = spawned.LayerName;
+            spawned.PreviewModel?.Layers = spawned.Layers;
 
             SetUpParticles(spawned, seed, controlPoints, restart: seed != null);
             scene.Add(spawned, true);

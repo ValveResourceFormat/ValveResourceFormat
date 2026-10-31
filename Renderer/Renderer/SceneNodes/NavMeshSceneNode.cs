@@ -12,6 +12,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private static readonly Color32 NavMeshLadderColor = new(16, 255, 32, 100);
         private static readonly Color32 FlowMapConnectionColor = new(255, 255, 255);
 
+        private static readonly WorldLayer LaddersLayer = new("Navigation mesh (ladders)");
+
         private readonly int triangleIndexCount;
 
         /// <summary>
@@ -149,7 +151,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             foreach (var hull in navFlowMapFile.Hulls)
             {
-                var layerName = $"Navigation flow map ({NavHullNames.GetName(hullNames, hull.HullIndex)})";
+                var layer = WorldLayer.Get($"Navigation flow map ({NavHullNames.GetName(hullNames, hull.HullIndex)})");
                 var minBounds = new Vector3(float.MaxValue);
                 var maxBounds = new Vector3(float.MinValue);
                 var connectionLines = new List<SimpleVertex>();
@@ -182,7 +184,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 {
                     scene.Add(new NavMeshSceneNode(scene, verts, triangleInds, lineInds)
                     {
-                        LayerName = layerName,
+                        Layers = [layer],
                         LocalBoundingBox = new AABB(minBounds, maxBounds),
                     }, false);
                 }
@@ -191,7 +193,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 {
                     scene.Add(new LineSceneNode(scene, [.. connectionLines])
                     {
-                        LayerName = layerName,
+                        Layers = [layer],
                     }, false);
                 }
 
@@ -237,7 +239,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                     var sceneNode = new NavMeshSceneNode(scene, verts, triangleInds, lineInds)
                     {
-                        LayerName = $"Navigation mesh ({NavHullNames.GetName(hullNames, i)})",
+                        Layers = [WorldLayer.Get($"Navigation mesh ({NavHullNames.GetName(hullNames, i)})")],
                         LocalBoundingBox = new AABB(minBounds, maxBounds),
                     };
                     scene.Add(sceneNode, false);
@@ -260,7 +262,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                 var laddersSceneNode = new NavMeshSceneNode(scene, verts, triangleInds, lineInds)
                 {
-                    LayerName = "Navigation mesh (ladders)",
+                    Layers = [LaddersLayer],
                     LocalBoundingBox = new AABB(minBounds, maxBounds),
                 };
                 scene.Add(laddersSceneNode, false);

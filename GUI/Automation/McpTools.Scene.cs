@@ -398,7 +398,7 @@ internal sealed partial class McpTools
             Type = node.GetType().Name.Replace("SceneNode", string.Empty, StringComparison.Ordinal),
             node.Name,
             Entity = EntityId(entities, node.EntityData),
-            Layer = node.LayerName,
+            Layers = node.Layers.Select(static layer => layer.Name).ToArray(),
             Collision = (node as PhysSceneNode)?.CollisionLabels,
             SpawnGroup = group?.MapName,
             Sky = Flag(group?.WorldGroup != null),

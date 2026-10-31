@@ -83,14 +83,14 @@ public abstract class EntityHelper
     public virtual AABB? GetObjectBounds(in Matrix4x4 worldToSpace) => ObjectBounds?.Transform(worldToSpace);
 
     /// <summary>
-    /// Gets the visibility layer of what the helper adds to the scene, which stands in for the options of the
-    /// editor: the helpers layer for a helper only drawn while helpers are shown, the editor-only entities layer
-    /// for one hidden while only what the game shows is, and <see langword="null"/>, the layer of the entity,
-    /// for one neither option hides.
+    /// Gets the visibility layers of what the helper adds to the scene, besides those of its entity, which stand in
+    /// for the options of the editor: the helpers layer for a helper only drawn while helpers are shown, the
+    /// editor-only entities layer for one hidden while only what the game shows is, and none for one neither option
+    /// hides.
     /// </summary>
-    protected string? VisibilityLayerName => NeedsShowHelpers
-        ? HammerEntityVisuals.HelpersLayerName
-        : HiddenInGameObjectsOnly ? HammerEntityVisuals.MarkerLayerName : null;
+    protected IReadOnlyList<WorldLayer> VisibilityLayers => NeedsShowHelpers
+        ? [HammerEntityVisuals.HelpersLayer]
+        : HiddenInGameObjectsOnly ? [HammerEntityVisuals.MarkerLayer] : [];
 
     /// <summary>Initializes a helper of an entity.</summary>
     /// <param name="owner">The entity the helper belongs to.</param>
@@ -127,11 +127,11 @@ public abstract class EntityHelper
     /// Where the shapes are placed, for shapes that keep their size as markers do, or <see langword="null"/> to
     /// draw them in the world.
     /// </param>
-    /// <param name="layerName">
-    /// The visibility layer of the shapes, or <see langword="null"/> for the one the options that hide the
-    /// helper give.
+    /// <param name="layer">
+    /// The visibility layer of the shapes, besides those of the entity, or <see langword="null"/> for the ones the
+    /// options that hide the helper give.
     /// </param>
-    private protected void AddShapes(Matrix4x4? placement = null, string? layerName = null)
+    private protected void AddShapes(Matrix4x4? placement = null, WorldLayer? layer = null)
     {
         if (RequiresSelection)
         {
@@ -143,7 +143,7 @@ public abstract class EntityHelper
 
         var node = new ToolSceneNode(Owner.Scene)
         {
-            LayerName = layerName ?? VisibilityLayerName,
+            Layers = layer != null ? [layer] : VisibilityLayers,
             KeepsMarkerSize = placement != null,
         };
 

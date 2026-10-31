@@ -28,7 +28,7 @@ public sealed class PathParticleRopeEntity : BaseEntity
                 return null;
             }
 
-            cable.LayerName = Scene.ParticlesLayerName;
+            cable.Layers = [WorldLayer.Particles];
 
             return cable;
         }

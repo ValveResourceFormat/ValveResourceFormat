@@ -47,10 +47,10 @@ public static class SceneLightingVolume
     /// <param name="scene">The scene.</param>
     /// <param name="entity">The keyvalues of the entity.</param>
     /// <param name="transform">Where the entity is placed, without its scale.</param>
-    /// <param name="layerName">Visibility layer of the entity.</param>
+    /// <param name="layers">Visibility layers of the entity.</param>
     /// <param name="isSphere">Whether the volume is a sphere of <c>influenceradius</c> rather than a box.</param>
     /// <returns>The environment map, or <see langword="null"/> when the entity names no texture.</returns>
-    public static SceneEnvMap? AddEnvironmentMap(Scene scene, EntityLump.Entity entity, in Matrix4x4 transform, string? layerName, bool isSphere)
+    public static SceneEnvMap? AddEnvironmentMap(Scene scene, EntityLump.Entity entity, in Matrix4x4 transform, IReadOnlyList<WorldLayer> layers, bool isSphere)
     {
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(entity);
@@ -74,7 +74,7 @@ public static class SceneLightingVolume
         var envMap = new SceneEnvMap(scene, volume.Bounds)
         {
             ProjectionBounds = projectionBounds,
-            LayerName = layerName,
+            Layers = layers,
             Transform = transform,
             HandShake = volume.HandShake,
             ArrayIndex = arrayIndex,
@@ -97,11 +97,11 @@ public static class SceneLightingVolume
     /// <param name="scene">The scene.</param>
     /// <param name="entity">The keyvalues of the entity.</param>
     /// <param name="transform">Where the entity is placed, without its scale.</param>
-    /// <param name="layerName">Visibility layer of the entity.</param>
+    /// <param name="layers">Visibility layers of the entity.</param>
     /// <param name="isSphere">Whether the volume is a sphere of <c>influenceradius</c> rather than a box.</param>
     /// <param name="fadesAtEdges">Whether the probe fades out over the edge fade distances, otherwise it ends at its box.</param>
     /// <returns>The light probe.</returns>
-    public static SceneLightProbe AddLightProbe(Scene scene, EntityLump.Entity entity, in Matrix4x4 transform, string? layerName, bool isSphere, bool fadesAtEdges)
+    public static SceneLightProbe AddLightProbe(Scene scene, EntityLump.Entity entity, in Matrix4x4 transform, IReadOnlyList<WorldLayer> layers, bool isSphere, bool fadesAtEdges)
     {
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(entity);
@@ -114,7 +114,7 @@ public static class SceneLightingVolume
 
         var lightProbe = new SceneLightProbe(scene, volume.Bounds)
         {
-            LayerName = layerName,
+            Layers = layers,
             Transform = transform,
             HandShake = volume.HandShake,
             Irradiance = LoadTexture("lightprobetexture", srgbRead: true),

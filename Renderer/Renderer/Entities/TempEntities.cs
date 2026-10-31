@@ -158,7 +158,7 @@ public sealed class TempEntities
             {
                 Name = particleName,
                 Transform = ControlPoint(origin, forward),
-                LayerName = Scene.ParticlesLayerName,
+                Layers = [WorldLayer.Particles],
             };
 
             scene.Add(particle, true);

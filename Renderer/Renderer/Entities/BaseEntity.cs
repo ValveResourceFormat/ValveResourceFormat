@@ -11,13 +11,11 @@ using Entity = ValveResourceFormat.ResourceTypes.EntityLump.Entity;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// Everything <see cref="EntityFactory"/> needs to spawn an entity: its keyvalues, its visibility layer, and
-/// the spawn group spawning it.
+/// Everything <see cref="EntityFactory"/> needs to spawn an entity: its keyvalues and the spawn group spawning it.
 /// </summary>
 /// <param name="Data">The entity's keyvalues, as authored in the map.</param>
-/// <param name="LayerName">Visibility layer for this entity and every node it creates.</param>
-/// <param name="SpawnGroup">The spawn group spawning the entity, whose scene its nodes render into and whose placement moves its authored origin and angles.</param>
-public readonly record struct EntitySpawnInfo(Entity Data, string? LayerName, SpawnGroup SpawnGroup);
+/// <param name="SpawnGroup">The spawn group spawning the entity, whose scene its nodes render into, whose placement moves its authored origin and angles, and whose layers its nodes are on.</param>
+public readonly record struct EntitySpawnInfo(Entity Data, SpawnGroup SpawnGroup);
 
 /// <summary>
 /// The base of the simulated entities. Ticks inside <see cref="EntitySystem"/> and owns the scene nodes
@@ -46,9 +44,6 @@ public abstract class BaseEntity
     /// </summary>
     public Matrix4x4 RigidTransform => EntityTransformHelper.ToRigidTransformationMatrix(angles, origin) * GetParentFrame();
 
-    /// <summary>Gets the visibility layer this entity's nodes belong to.</summary>
-    public string? LayerName { get; }
-
     /// <summary>Gets the world this entity lives in.</summary>
     public EntitySystem EntitySystem { get; }
 
@@ -72,6 +67,12 @@ public abstract class BaseEntity
     /// an entity created at runtime.
     /// </summary>
     public SpawnGroup? SpawnGroup { get; }
+
+    /// <summary>
+    /// Gets the layers every node of the entity is on: those of the group that spawned it, rather than of the
+    /// <see cref="SpawnGroup"/> it may have joined, and the disabled entities layer for one that starts disabled.
+    /// </summary>
+    internal IReadOnlyList<WorldLayer> Layers { get; }
 
     /// <summary>
     /// Gets <see cref="SpawnData"/>, throwing for an entity created at runtime. A class that can be
@@ -423,7 +424,9 @@ public abstract class BaseEntity
         previousOrigin = origin;
         previousAngles = angles;
 
-        LayerName = spawnInfo.LayerName;
+        Layers = data.GetBooleanProperty("startdisabled") || !data.GetBooleanProperty("enabled", true)
+            ? [.. spawnGroup.Layers, WorldLayer.DisabledEntities]
+            : spawnGroup.Layers;
 
         UpdateTransform();
     }
@@ -440,6 +443,7 @@ public abstract class BaseEntity
         Scene = scene;
         EntityScale = Vector3.One;
         SpawnTransform = Matrix4x4.Identity;
+        Layers = [WorldLayer.Entities];
 
         Classname = classname;
 
@@ -514,7 +518,7 @@ public abstract class BaseEntity
             {
                 Name = effectName,
                 Transform = transform,
-                LayerName = Scene.ParticlesLayerName,
+                Layers = [WorldLayer.Particles],
             };
         }
         catch (Exception e) when (e is not OperationCanceledException)
@@ -1393,9 +1397,8 @@ public abstract class BaseEntity
         node.EntityData = Data;
         node.EntityInstance = this;
 
-        // A node that came with a layer keeps it: the editor box is built on the editor-only layer so it
-        // hides with the other markers, while geometry an entity really has belongs on the entity's own
-        node.LayerName ??= LayerName;
+        // A node that came with layers of its own, such as an effect or an editor marker, is on them too
+        node.AddLayers(Layers);
 
         if (followsEntity)
         {

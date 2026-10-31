@@ -113,8 +113,8 @@ internal sealed class LineHelper : EntityHelper
         context.PopRenderMode();
     }
 
-    // An entity is hidden with its layer, and one in no layer is never hidden
-    private static bool IsShown(IHelperOwner entity) => entity.LayerName.Length == 0 || entity.Scene.IsLayerEnabled(entity.LayerName);
+    // An entity is hidden with any of its layers
+    private static bool IsShown(IHelperOwner entity) => entity.Scene.AreLayersEnabled(entity.Layers);
 
     // Entities are found by name, or by any other key, where the first that has the value is taken
     private IReadOnlyList<IHelperOwner> Find(string key, string valueKey)

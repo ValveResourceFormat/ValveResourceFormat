@@ -425,7 +425,7 @@ namespace GUI.Types.GLViewers
                 decodeFlags = textureData.RetrieveCodecFromResourceEditInfo();
             }
 
-            decodeFlagsListBox = UiControl.AddMultiSelection("Texture Conversion",
+            decodeFlagsListBox = UiControl.AddMultiSelection<string>("Texture Conversion",
                 SetInitialDecodeFlagsState,
                 checkedItemNames =>
                 {

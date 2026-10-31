@@ -247,10 +247,8 @@ namespace ValveResourceFormat.Renderer
         private readonly Dictionary<SceneNode, bool> pendingRemovals = [];
         private bool updating;
 
-        /// <summary>The layer the map's own particle systems are put on.</summary>
-        public const string ParticlesLayerName = "Particles";
-
-        private HashSet<string>? enabledLayers;
+        // Every node on one of these is hidden, and any other layer is enabled
+        private readonly HashSet<WorldLayer> disabledLayers = [];
         private InstanceDataStandard[]? instanceDataCpu;
         private ObjectLodInfo[]? lodDataCpu;
         private readonly List<SceneNode> nodeScratch = [];
@@ -345,7 +343,11 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            ApplyLayerVisibility(node);
+            // A node on no layer keeps the state it was given
+            if (node.Layers.Count > 0)
+            {
+                node.LayerEnabled = AreLayersEnabled(node.Layers);
+            }
 
             if (dynamic)
             {
@@ -1467,83 +1469,73 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        internal void ActivateLayer(string layerName)
+        /// <summary>Enables or disables a layer.</summary>
+        /// <param name="layer">The layer.</param>
+        /// <param name="enabled">Whether the nodes on it may be shown.</param>
+        public void SetLayerEnabled(WorldLayer layer, bool enabled)
         {
-            foreach (var node in AllNodes)
-            {
-                if (node.LayerName == layerName)
-                {
-                    node.LayerEnabled = true;
-                }
-            }
+            ArgumentNullException.ThrowIfNull(layer);
+
+            SetLayersEnabled([layer], enabled);
         }
 
-        internal void DeactivateLayer(string layerName)
-        {
-            foreach (var node in AllNodes)
-            {
-                if (node.LayerName == layerName)
-                {
-                    node.LayerEnabled = false;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Enables or disables scene nodes based on whether their layer name is present in the given set.
-        /// </summary>
-        /// <param name="layers">The set of layer names that should be visible.</param>
-        public void SetEnabledLayers(HashSet<string> layers)
+        /// <summary>Enables or disables some layers, leaving the others as they are.</summary>
+        /// <param name="layers">The layers.</param>
+        /// <param name="enabled">Whether the nodes on them may be shown.</param>
+        public void SetLayersEnabled(IEnumerable<WorldLayer> layers, bool enabled)
         {
             ArgumentNullException.ThrowIfNull(layers);
 
-            enabledLayers = [.. layers];
+            HashSet<WorldLayer> changed = [];
 
-            foreach (var renderer in AllNodes)
+            foreach (var layer in layers)
             {
-                ApplyLayerVisibility(renderer);
+                if (enabled ? disabledLayers.Remove(layer) : disabledLayers.Add(layer))
+                {
+                    changed.Add(layer);
+                }
+            }
+
+            if (changed.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var node in AllNodes)
+            {
+                if (node.Layers.Any(changed.Contains))
+                {
+                    node.LayerEnabled = AreLayersEnabled(node.Layers);
+                }
             }
         }
 
-        /// <summary>
-        /// Gets whether a layer is internal to the renderer. Internal layers are switched one at a time rather
-        /// than by <see cref="SetEnabledLayers"/>, and are not offered to the user.
-        /// </summary>
-        /// <param name="layerName">The layer name of a node.</param>
-        internal static bool IsInternalLayer(string layerName) => layerName.StartsWith("Internal -", StringComparison.Ordinal);
-
-        /// <summary>
-        /// Gets whether the nodes of a layer are shown by the layers last given to <see cref="SetEnabledLayers"/>,
-        /// which shows every layer until it is first called.
-        /// </summary>
-        /// <param name="layerName">The name of the layer.</param>
-        /// <returns>Whether the layer is shown.</returns>
-        public bool IsLayerEnabled(string layerName)
+        /// <summary>Gets whether a layer is enabled, as every layer is until <see cref="SetLayerEnabled"/> disables it.</summary>
+        /// <param name="layer">The layer.</param>
+        /// <returns>Whether the nodes on the layer may be shown.</returns>
+        public bool IsLayerEnabled(WorldLayer layer)
         {
-            ArgumentNullException.ThrowIfNull(layerName);
+            ArgumentNullException.ThrowIfNull(layer);
 
-            return enabledLayers == null || IsInternalLayer(layerName) || enabledLayers.Contains(layerName);
+            return !disabledLayers.Contains(layer);
         }
 
-        private void ApplyLayerVisibility(SceneNode node)
+        /// <summary>Gets whether every one of some layers is enabled, as a node on them needs to be shown.</summary>
+        /// <param name="layers">The layers, of which none means always shown.</param>
+        /// <returns>Whether all of them are enabled.</returns>
+        public bool AreLayersEnabled(IReadOnlyList<WorldLayer> layers)
         {
-            if (enabledLayers == null)
+            ArgumentNullException.ThrowIfNull(layers);
+
+            for (var i = 0; i < layers.Count; i++)
             {
-                return;
+                if (disabledLayers.Contains(layers[i]))
+                {
+                    return false;
+                }
             }
 
-            if (node.LayerName == null)
-            {
-                node.LayerEnabled = false;
-                return;
-            }
-
-            if (IsInternalLayer(node.LayerName))
-            {
-                return;
-            }
-
-            node.LayerEnabled = enabledLayers.Contains(node.LayerName);
+            return true;
         }
 
         /// <summary>

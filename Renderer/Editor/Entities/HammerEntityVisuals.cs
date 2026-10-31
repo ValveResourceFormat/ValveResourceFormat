@@ -27,17 +27,17 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
     /// Visibility layer of what the editor draws entities with that is hidden while it shows only what the game
     /// does, such as the boxes, icons and models entities stand in as. Turning it off is that option.
     /// </summary>
-    public const string MarkerLayerName = "Entities (editor only)";
+    public static readonly WorldLayer MarkerLayer = new("Entities (editor only)") { IsToolsOnly = true };
 
     /// <summary>Visibility layer of the lines along entity I/O connections.</summary>
-    public const string ConnectionsLayerName = "Entity Connections";
+    public static readonly WorldLayer ConnectionsLayer = new("Entity Connections") { IsToolsOnly = true };
 
     /// <summary>
     /// Visibility layer of the helpers the editor only draws while it shows helpers, such as lines to the
     /// entities an entity names, spheres of its radii and the edges of its volumes. Turning it off is that
     /// option, which also hides those helpers of a selected entity.
     /// </summary>
-    public const string HelpersLayerName = "Entity Helpers (editor only)";
+    public static readonly WorldLayer HelpersLayer = new("Entity Helpers (editor only)") { IsToolsOnly = true };
 
     private static readonly Color32 ConnectionStartColor = new(0, 255, 0);
     private static readonly Color32 ConnectionEndColor = new(255, 0, 0);
@@ -268,7 +268,7 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
         var node = new ToolSceneNode(scene)
         {
             Name = name,
-            LayerName = ConnectionsLayerName,
+            Layers = [ConnectionsLayer],
         };
 
         node.Draw(context =>

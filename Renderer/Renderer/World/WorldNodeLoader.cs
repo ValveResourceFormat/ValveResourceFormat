@@ -17,8 +17,8 @@ namespace ValveResourceFormat.Renderer.World
         private readonly WorldNode node;
         private readonly ResourceExtRefList? externalReferences;
         private readonly RendererContext RendererContext;
-        /// <summary>Gets the layer names defined in this world node.</summary>
-        public IReadOnlyList<string> LayerNames { get; }
+        /// <summary>Gets the layers defined in this world node, in the order its objects index them.</summary>
+        public IReadOnlyList<WorldLayer> Layers { get; }
 
         /// <summary>
         /// Initializes a new <see cref="WorldNodeLoader"/> for the given world node.
@@ -31,7 +31,7 @@ namespace ValveResourceFormat.Renderer.World
             this.node = node;
             this.externalReferences = externalReferences;
             RendererContext = rendererContext;
-            LayerNames = node.LayerNames;
+            Layers = [.. node.LayerNames.Select(WorldLayer.Get)];
         }
 
         /// <summary>
@@ -110,7 +110,7 @@ namespace ValveResourceFormat.Renderer.World
                     {
                         Transform = matrix,
                         TintAlpha = tintColor,
-                        LayerName = layerIndex > -1 ? LayerNames[layerIndex] : "No layer",
+                        Layers = [layerIndex > -1 ? Layers[layerIndex] : WorldLayer.NoLayer],
                         Name = renderableModel,
                         LightingOrigin = lightingOrigin == defaultLightingOrigin ? null : Vector3.Transform(lightingOrigin, root),
                         OverlayRenderOrder = overlayRenderOrder,
@@ -146,7 +146,7 @@ namespace ValveResourceFormat.Renderer.World
                     {
                         Transform = matrix,
                         TintAlpha = tintColor,
-                        LayerName = layerIndex > -1 ? LayerNames[layerIndex] : "No layer",
+                        Layers = [layerIndex > -1 ? Layers[layerIndex] : WorldLayer.NoLayer],
                         Name = renderable,
                         LightingCache = SceneNodeLightingCache.FromHandshakes(handshakes),
                         Flags = flags,
@@ -175,7 +175,7 @@ namespace ValveResourceFormat.Renderer.World
                     var layerIndex = sceneObject.GetIntegerProperty("m_nLayer");
                     var aggregate = new SceneAggregate(scene, model)
                     {
-                        LayerName = LayerNames[(int)layerIndex],
+                        Layers = [Layers[(int)layerIndex]],
                         Name = renderableModel,
                         AllFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_allFlags", normalize: true),
                         AnyFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_anyFlags", normalize: true),
@@ -264,7 +264,7 @@ namespace ValveResourceFormat.Renderer.World
 
                 scene.Add(new SceneClutter(scene, model, clutter.MaterialGroup, clutter.BeginCullSize, clutter.EndCullSize, sceneInstances)
                 {
-                    LayerName = LayerNames[clutter.Layer],
+                    Layers = [Layers[clutter.Layer]],
                     Name = clutter.RenderableModel,
                     Flags = clutter.Flags,
                     AllFlags = clutter.Flags,

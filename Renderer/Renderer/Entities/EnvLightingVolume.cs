@@ -29,7 +29,7 @@ public abstract class EnvLightingVolume : BaseEntity
     /// <summary>Registers the cubemap the volume baked, if it has one and it is not a custom texture.</summary>
     protected void AddEnvironmentMap()
     {
-        if (SceneLightingVolume.AddEnvironmentMap(Scene, KeyValues, RigidTransform, LayerName, isSphere) is { } envMap)
+        if (SceneLightingVolume.AddEnvironmentMap(Scene, KeyValues, RigidTransform, Layers, isSphere) is { } envMap)
         {
             envMap.EntityData = Data;
         }
@@ -39,6 +39,6 @@ public abstract class EnvLightingVolume : BaseEntity
     /// <param name="fadesAtEdges">Whether the probe fades out over the edge fade distances, otherwise it ends at its box.</param>
     protected void AddLightProbe(bool fadesAtEdges)
     {
-        SceneLightingVolume.AddLightProbe(Scene, KeyValues, RigidTransform, LayerName, isSphere, fadesAtEdges).EntityData = Data;
+        SceneLightingVolume.AddLightProbe(Scene, KeyValues, RigidTransform, Layers, isSphere, fadesAtEdges).EntityData = Data;
     }
 }

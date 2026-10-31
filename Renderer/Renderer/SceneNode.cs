@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.ResourceTypes;
@@ -70,12 +71,13 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Gets or sets the visibility layer name.
+        /// Gets or sets the visibility layers of the node, set before it is added to the scene. The node is shown
+        /// only while every one of them is enabled, and one on no layer is never hidden by one.
         /// </summary>
-        public string? LayerName { get; set; }
+        public IReadOnlyList<WorldLayer> Layers { get; set; } = [];
 
         /// <summary>
-        /// Gets or sets whether this node's layer is enabled. Queues a rebuild on the parent spatial structure.
+        /// Gets or sets whether this node's layers are enabled. Queues a rebuild on the parent spatial structure.
         /// </summary>
         public virtual bool LayerEnabled
         {
@@ -181,6 +183,18 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Shrinks a transform this node is placed at by <see cref="PlacementScale"/>.</summary>
         internal Matrix4x4 ApplyPlacementScale(in Matrix4x4 transform)
             => PlacementScale == 1f ? transform : Matrix4x4.CreateScale(PlacementScale) * transform;
+
+        /// <summary>Puts the node on more layers, besides those it is on already, before it is added to the scene.</summary>
+        /// <param name="layers">The layers to add.</param>
+        public void AddLayers(IReadOnlyList<WorldLayer> layers)
+        {
+            ArgumentNullException.ThrowIfNull(layers);
+
+            if (!layers.All(Layers.Contains))
+            {
+                Layers = [.. Layers.Union(layers)];
+            }
+        }
 
         /// <summary>
         /// Gets or sets the node that updates this one, so the scene does not update it on its own. Set by
