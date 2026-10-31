@@ -20,7 +20,7 @@ namespace Tests.Renderer
             resource.Read(TestFixtures.Path("box_creature_ik_model.vmdl_c"));
             var model = (Model)resource.DataBlock!;
 
-            var controller = new AnimationController(model.Skeleton, model.FlexControllers)
+            var controller = new AnimationController(model.Skeleton, model.FlexControllers, model.ClothRootPins)
             {
                 Looping = false,
             };
@@ -56,7 +56,7 @@ namespace Tests.Renderer
             clipResource.Read(TestFixtures.Path("idle_ak.vnmclip_c"));
             var clip = FindClipForSkeleton((AnimationClip)clipResource.DataBlock!, "ak47.vnmskel");
 
-            var controller = new AnimationController(model.Skeleton, model.FlexControllers);
+            var controller = new AnimationController(model.Skeleton, model.FlexControllers, model.ClothRootPins);
             controller.RegisterExternalSkeleton(clip.SkeletonName, externalSkeleton);
 
             var idle = model.GetEmbeddedAnimations().First(a => a.Name == "box_creature_leggy_idle");

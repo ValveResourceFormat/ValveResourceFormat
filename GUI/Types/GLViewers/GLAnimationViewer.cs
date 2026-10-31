@@ -40,7 +40,7 @@ namespace GUI.Types.GLViewers
         private void LoadSkeleton(bool firstTime)
         {
             var skeleton = Skeleton.FromSkeletonData(SkeletonData);
-            animationController = new AnimationController(skeleton, []);
+            animationController = new AnimationController(skeleton, [], []);
 
             if (!firstTime && skeletonSceneNode != null)
             {

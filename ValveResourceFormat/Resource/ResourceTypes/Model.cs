@@ -6,10 +6,12 @@ using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.Particles;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.ResourceTypes.ModelData.Attachments;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
+using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -114,10 +116,18 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        /// <summary>
+        /// Gets the pins that hold each procedural cloth root of the skeleton to the first animated bone up its cloth
+        /// control node's parent chain, or else to <see cref="Skeleton.ClothSimulationRoot"/>.
+        /// Cloth roots without an anchor have no pin.
+        /// </summary>
+        public ClothRootPin[] ClothRootPins => cachedClothRootPins ??= GetClothRootPins();
+
         private List<AnimationBase>? CachedAnimations;
         private KVObject? cachedKeyValues;
         private Skeleton? cachedSkeleton;
         private FlexController[]? cachedFlexControllers;
+        private ClothRootPin[]? cachedClothRootPins;
         private EmbeddedSequenceGroup? cachedSequenceGroup;
         private SequenceAnimation[]? cachedEmbeddedAnimations;
         private List<ModelMesh>? cachedEmbeddedMeshes;
@@ -136,6 +146,105 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets the attachments for this model.
         /// </summary>
         public Dictionary<string, Attachment> Attachments { get; private set; } = [];
+
+        private ClothRootPin[] GetClothRootPins()
+        {
+            var skeleton = Skeleton;
+            var clothRoots = skeleton.Roots.Where(static root => root.IsProceduralCloth).ToArray();
+            if (clothRoots.Length == 0)
+            {
+                return [];
+            }
+
+            var fallbackAnchor = skeleton.ClothSimulationRoot?.Index ?? -1;
+
+            var nodeNames = Array.Empty<string>();
+            var nodeAnchors = Array.Empty<int>();
+            var feModel = GetEmbeddedPhys()?.FeModel;
+            if (feModel != null)
+            {
+                nodeNames = feModel.CtrlName;
+                nodeAnchors = GetClothNodeAnchors(skeleton, feModel);
+            }
+
+            var inverseBindPose = BindPoseModelObject.GetInverseBindPose(this);
+            var pins = new List<ClothRootPin>(clothRoots.Length);
+
+            foreach (var root in clothRoots)
+            {
+                var anchor = fallbackAnchor;
+                var node = Array.IndexOf(nodeNames, root.Name);
+                if (node >= 0 && nodeAnchors[node] >= 0)
+                {
+                    anchor = nodeAnchors[node];
+                }
+
+                if (anchor < 0)
+                {
+                    continue;
+                }
+
+                pins.Add(new ClothRootPin(root.Index, anchor, root.BindPose * inverseBindPose[anchor]));
+            }
+
+            return [.. pins];
+        }
+
+        private static int[] GetClothNodeAnchors(Skeleton skeleton, FeModel feModel)
+        {
+            var nodeNames = feModel.CtrlName;
+            var nodeCount = nodeNames.Length;
+
+            var parents = new int[nodeCount];
+            Array.Fill(parents, -1);
+
+            foreach (var offset in feModel.CtrlOffsets)
+            {
+                if (offset.CtrlChild >= 0 && offset.CtrlChild < nodeCount)
+                {
+                    parents[offset.CtrlChild] = offset.CtrlParent;
+                }
+            }
+
+            var skelParents = feModel.SkelParents;
+            for (var node = 0; node < skelParents.Length && node < nodeCount; node++)
+            {
+                if (skelParents[node] >= 0)
+                {
+                    parents[node] = skelParents[node];
+                }
+            }
+
+            var animatedBones = new int[nodeCount];
+            for (var node = 0; node < nodeCount; node++)
+            {
+                var boneIndex = skeleton.GetBoneIndex(nodeNames[node]);
+                var isAnimated = boneIndex >= 0 && !skeleton.Bones[boneIndex].IsProceduralCloth;
+                animatedBones[node] = isAnimated ? boneIndex : -1;
+            }
+
+            var anchors = new int[nodeCount];
+            Array.Fill(anchors, -1);
+
+            for (var node = 0; node < nodeCount; node++)
+            {
+                var parent = parents[node];
+
+                // Bounded by the node count, so a cyclic parent chain cannot loop forever
+                for (var depth = 0; depth < nodeCount && parent >= 0 && parent < nodeCount; depth++)
+                {
+                    if (animatedBones[parent] >= 0)
+                    {
+                        anchors[node] = animatedBones[parent];
+                        break;
+                    }
+
+                    parent = parents[parent];
+                }
+            }
+
+            return anchors;
+        }
 
         private FlexController[] GetFlexControllers()
         {

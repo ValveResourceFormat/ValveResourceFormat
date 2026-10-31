@@ -42,14 +42,49 @@ public partial class GltfModelExporter
         /// </summary>
         public bool ReduceKeyframes { get; init; } = true;
 
+        readonly ClothRootPin[] clothRootPins;
+        // Per bone, the index into clothRootPins of its pin, or -1
+        readonly int[] clothPinByBone;
+        // Per pin, the index into clothAnchorBones of its anchor
+        readonly int[] clothPinAnchorSlots;
+        readonly int[] clothAnchorBones;
+        readonly Matrix4x4[] clothAnchorPoses;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="AnimationWriter"/> class.
         /// </summary>
-        public AnimationWriter(Skeleton skeleton, FlexController[] flexControllers)
+        /// <param name="skeleton">The skeleton the animations are written for.</param>
+        /// <param name="flexControllers">The flex controllers of the model.</param>
+        /// <param name="clothRootPins">The pins that hold procedural cloth roots to their animated anchor bones.</param>
+        public AnimationWriter(Skeleton skeleton, FlexController[] flexControllers, ClothRootPin[] clothRootPins)
         {
             Skeleton = skeleton;
             Frame = new(skeleton, flexControllers);
             FlexControllers = flexControllers;
+            this.clothRootPins = clothRootPins;
+
+            clothPinByBone = new int[BoneCount];
+            Array.Fill(clothPinByBone, -1);
+            clothPinAnchorSlots = new int[clothRootPins.Length];
+
+            var anchorBones = new List<int>();
+            for (var pinIndex = 0; pinIndex < clothRootPins.Length; pinIndex++)
+            {
+                var pin = clothRootPins[pinIndex];
+                clothPinByBone[pin.Bone] = pinIndex;
+
+                var slot = anchorBones.IndexOf(pin.Anchor);
+                if (slot < 0)
+                {
+                    slot = anchorBones.Count;
+                    anchorBones.Add(pin.Anchor);
+                }
+
+                clothPinAnchorSlots[pinIndex] = slot;
+            }
+
+            clothAnchorBones = [.. anchorBones];
+            clothAnchorPoses = new Matrix4x4[clothAnchorBones.Length];
 
             RotationWriter = AnimationChannelWriter<Quaternion>.Create(BoneCount, RotationTolerance, RotationError);
             PositionWriter = AnimationChannelWriter<Vector3>.Create(BoneCount, TranslationTolerance, VectorError);
@@ -58,6 +93,19 @@ public partial class GltfModelExporter
             localPositions = new Vector3[BoneCount];
             localRotations = new Quaternion[BoneCount];
             localScales = new Vector3[BoneCount];
+        }
+
+        private Matrix4x4 AccumulateLocalPose(int boneIndex)
+        {
+            var pose = Matrix4x4.Identity;
+            for (var bone = Skeleton.Bones[boneIndex]; bone != null; bone = bone.Parent)
+            {
+                pose *= Matrix4x4.CreateScale(localScales[bone.Index])
+                    * Matrix4x4.CreateFromQuaternion(localRotations[bone.Index])
+                    * Matrix4x4.CreateTranslation(localPositions[bone.Index]);
+            }
+
+            return pose;
         }
 
         /// <summary>
@@ -137,22 +185,8 @@ public partial class GltfModelExporter
             var applyRootMotion = animation.HasMovementData() && !writeDeltas;
 
             // No cloth solver here, so mirror the renderer (AnimationController.ApplyClothRootPose):
-            // pin each cloth root to the cloth anchor bone instead of writing its raw, solver-less clip data.
-            var clothAnchor = writeDeltas ? null : Skeleton.ClothSimulationRoot;
-            var anchorInverseBindPose = Matrix4x4.Identity;
-            if (clothAnchor != null)
-            {
-                var anchorBindPose = Matrix4x4.Identity;
-                for (var b = clothAnchor; b != null; b = b.Parent)
-                {
-                    anchorBindPose *= b.BindPose;
-                }
-
-                if (!Matrix4x4.Invert(anchorBindPose, out anchorInverseBindPose))
-                {
-                    anchorInverseBindPose = Matrix4x4.Identity;
-                }
-            }
+            // pin each cloth root to its anchor bone instead of writing its raw, solver-less clip data.
+            var pinClothRoots = !writeDeltas;
 
             for (var f = 0; f < animation.FrameCount; f++)
             {
@@ -185,19 +219,12 @@ public partial class GltfModelExporter
                         * Matrix4x4.CreateTranslation(movementPosition);
                 }
 
-                // Anchor skinning matrix this frame (renderer's pose delta of clothSimRoot).
-                var clothSkinning = Matrix4x4.Identity;
-                if (clothAnchor != null)
+                if (pinClothRoots)
                 {
-                    var anchorPose = Matrix4x4.Identity;
-                    for (var b = clothAnchor; b != null; b = b.Parent)
+                    for (var slot = 0; slot < clothAnchorBones.Length; slot++)
                     {
-                        anchorPose *= Matrix4x4.CreateScale(localScales[b.Index])
-                            * Matrix4x4.CreateFromQuaternion(localRotations[b.Index])
-                            * Matrix4x4.CreateTranslation(localPositions[b.Index]);
+                        clothAnchorPoses[slot] = AccumulateLocalPose(clothAnchorBones[slot]);
                     }
-
-                    clothSkinning = anchorInverseBindPose * anchorPose;
                 }
 
                 for (var boneID = 0; boneID < BoneCount; boneID++)
@@ -207,11 +234,13 @@ public partial class GltfModelExporter
                     var scale = localScales[boneID];
 
                     var bone = Skeleton.Bones[boneID];
+                    var clothPinIndex = clothPinByBone[boneID];
 
-                    if (clothAnchor != null && bone.Parent == null && bone.IsProceduralCloth)
+                    if (pinClothRoots && clothPinIndex >= 0)
                     {
                         // Pin to the anchor; cloth bones are roots, so apply root motion too.
-                        var local = bone.BindPose * clothSkinning;
+                        var anchorPose = clothAnchorPoses[clothPinAnchorSlots[clothPinIndex]];
+                        var local = clothRootPins[clothPinIndex].Offset * anchorPose;
                         if (applyRootMotion)
                         {
                             local *= rootMotion;
@@ -423,7 +452,7 @@ public partial class GltfModelExporter
                 if (skeletonNode != null && secondaryJoints != null)
                 {
                     CreateSkeletonVisualizationMesh(exportedModel, scene, skeleton, secondaryJoints, skeletonNodeName);
-                    var writer = new AnimationWriter(skeleton, []) { ComposeAdditive = ComposeAdditiveAnimations, ReduceKeyframes = ReduceAnimationKeyframes };
+                    var writer = new AnimationWriter(skeleton, [], []) { ComposeAdditive = ComposeAdditiveAnimations, ReduceKeyframes = ReduceAnimationKeyframes };
                     created = (writer, secondaryJoints);
                 }
             }
@@ -436,7 +465,7 @@ public partial class GltfModelExporter
         // animation (embedded, or an earlier clip) would merge its channels onto it. Keep the first, skip the rest.
         var writtenNames = exportedModel.LogicalAnimations.Select(a => a.Name).ToHashSet();
 
-        var retargetWriter = new AnimationWriter(model.Skeleton, model.FlexControllers) { ComposeAdditive = ComposeAdditiveAnimations, ReduceKeyframes = ReduceAnimationKeyframes };
+        var retargetWriter = new AnimationWriter(model.Skeleton, model.FlexControllers, model.ClothRootPins) { ComposeAdditive = ComposeAdditiveAnimations, ReduceKeyframes = ReduceAnimationKeyframes };
 
         foreach (var animation in model.GetAllAnimations(FileLoader))
         {

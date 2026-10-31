@@ -77,7 +77,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             LoadMeshes(model);
 
-            AnimationController = new(model.Skeleton, model.FlexControllers);
+            AnimationController = new(model.Skeleton, model.FlexControllers, model.ClothRootPins);
 
             foreach (var skeletonName in model.NmSkeletonRefs)
             {

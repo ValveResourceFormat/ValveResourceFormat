@@ -38,6 +38,8 @@ namespace ValveResourceFormat.Renderer
         private readonly FlexController[] flexControllers;
         private readonly Dictionary<string, ExternalSkeleton> externalSkeletons = [];
 
+        private readonly ClothRootPin[] clothRootPins;
+
         // The player producing the current pose; playback members forward to it.
         private AnimationPlayer player;
 
@@ -154,10 +156,12 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         /// <param name="skeleton">The skeleton whose bones define the rig.</param>
         /// <param name="flexControllers">The flex controllers used for facial/morph animation.</param>
-        public AnimationController(Skeleton skeleton, FlexController[] flexControllers)
+        /// <param name="clothRootPins">The pins that hold procedural cloth roots to their animated anchor bones.</param>
+        public AnimationController(Skeleton skeleton, FlexController[] flexControllers, ClothRootPin[] clothRootPins)
         {
             Skeleton = skeleton;
             this.flexControllers = flexControllers;
+            this.clothRootPins = clothRootPins;
             BindPose = ComputeBindPose(skeleton);
             InverseBindPose = new Matrix4x4[skeleton.Bones.Length];
             Pose = BindPose.AsSpan().ToArray();
@@ -234,25 +238,14 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Poses procedural cloth roots rigidly from the cloth simulation root, so their skinning
-        /// matrices equal the simulation root's.
+        /// Poses procedural cloth roots rigidly from the animated bone each one hangs from, so their
+        /// skinning matrices equal that bone's.
         /// </summary>
         private void ApplyClothRootPose()
         {
-            var clothSimRoot = Skeleton.ClothSimulationRoot;
-            if (clothSimRoot == null)
+            foreach (var pin in clothRootPins)
             {
-                return;
-            }
-
-            var delta = InverseBindPose[clothSimRoot.Index] * Pose[clothSimRoot.Index];
-
-            foreach (var root in Skeleton.Roots)
-            {
-                if (root.IsProceduralCloth)
-                {
-                    Pose[root.Index] = root.BindPose * delta;
-                }
+                Pose[pin.Bone] = pin.Offset * Pose[pin.Anchor];
             }
         }
 
