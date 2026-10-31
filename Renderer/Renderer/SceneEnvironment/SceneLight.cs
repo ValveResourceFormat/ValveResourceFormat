@@ -340,6 +340,30 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     public float FogContributionStrength { get; set; } = 1f;
 
     /// <summary>
+    /// Gets or sets whether a barn, rect or omni2 light lights volumetric fog, as set by the <c>fog</c> key.
+    /// These lights do not use <see cref="FogLighting"/>.
+    /// </summary>
+    public bool BarnFog { get; set; }
+
+    /// <summary>
+    /// Gets or sets how the fog is shadowed from a light that has <see cref="BarnFog"/>, as set by the <c>fogshadows</c> key:
+    /// negative follows <see cref="CastShadows"/>, 0 is unshadowed.
+    /// </summary>
+    public int BarnFogShadowMode { get; set; } = -1;
+
+    /// <summary>Gets or sets the base 2 logarithm of how much brighter the fog sees a barn, rect or omni2 light, as set by the <c>fogstrength</c> key.</summary>
+    public float BarnFogStrength { get; set; }
+
+    /// <summary>Gets or sets how much brighter the fog sees a barn, rect or omni2 light, as set by the <c>fogscale</c> key.</summary>
+    public float BarnFogScale { get; set; } = 1f;
+
+    /// <summary>Gets the factor the fog multiplies the color of a barn, rect or omni2 light by.</summary>
+    public float BarnFogIntensity => float.Exp2(BarnFogStrength) * BarnFogScale;
+
+    /// <summary>Gets whether the fog is shadowed from a light that has <see cref="BarnFog"/>.</summary>
+    public bool BarnFogHasShadows => BarnFogShadowMode < 0 ? CastShadows != 0 : BarnFogShadowMode != 0;
+
+    /// <summary>
     /// Gets or sets the range the light was precomputed to, as set by the <c>precomputedmaxrange</c> key,
     /// or zero if the key is not set.
     /// </summary>
@@ -382,24 +406,41 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <param name="viewPosition">The position of the viewer.</param>
     internal float GetDistanceFade(Vector3 viewPosition)
     {
-        if (DirectLight == DirectLightType.Static || FadeMaxDist <= 0f)
+        if (!FadesWithDistance)
         {
             return 1f;
         }
 
-        const float MaxFadeDistance = 1e10f;
+        var bounds = new AABB(Position - new Vector3(Range), Position + new Vector3(Range));
 
-        var fadeStart = FadeMinDist;
+        return GetFadeToBounds(bounds, viewPosition);
+    }
 
-        if (fadeStart < 0f)
+    // Lights baked into the lightmaps never fade, nor do the ones without a fade distance
+    private bool FadesWithDistance => DirectLight != DirectLightType.Static && FadeMaxDist > 0f;
+
+    /// <summary>
+    /// Gets how visible this light is to the fog from a position. Like <see cref="GetDistanceFade(Vector3)"/> it never
+    /// fades lights baked into the lightmaps, but it measures the distance to a given box.
+    /// </summary>
+    /// <param name="bounds">The box around the volume the light reaches.</param>
+    /// <param name="viewPosition">The position of the viewer.</param>
+    internal float GetFogDistanceFade(in AABB bounds, Vector3 viewPosition)
+    {
+        if (!FadesWithDistance)
         {
-            fadeStart = MathF.Max(fadeStart + FadeMaxDist, 0f);
+            return 1f;
         }
 
+        return GetFadeToBounds(bounds, viewPosition);
+    }
+
+    private float GetFadeToBounds(in AABB bounds, Vector3 viewPosition)
+    {
+        var fadeStart = GetFadeStart();
         var fadeStartSquared = fadeStart >= MaxFadeDistance ? float.MaxValue : fadeStart * fadeStart;
         var fadeEndSquared = FadeMaxDist >= MaxFadeDistance ? float.MaxValue : FadeMaxDist * FadeMaxDist;
 
-        var bounds = new AABB(Position - new Vector3(Range), Position + new Vector3(Range));
         var distanceSquared = bounds.DistanceSquared(viewPosition);
 
         if (distanceSquared > fadeEndSquared)
@@ -415,6 +456,19 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         var fade = (distanceSquared - fadeEndSquared) / (fadeStartSquared - fadeEndSquared);
 
         return Math.Clamp(fade, 0f, 1f);
+    }
+
+    // Fade distances this large mean the light does not fade
+    private const float MaxFadeDistance = 1e10f;
+
+    private float GetFadeStart()
+    {
+        if (FadeMinDist >= 0f)
+        {
+            return FadeMinDist;
+        }
+
+        return MathF.Max(FadeMinDist + FadeMaxDist, 0f);
     }
 
     /// <summary>
@@ -612,12 +666,15 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         // The sun and ortho lights light the fog unless told not to, the other lights only when told to
         var defaultFogLighting = type is EntityType.Environment or EntityType.Ortho ? 1 : 0;
 
-        // TODO: barn lights use the fog key instead and weight the fog by exp2(fogstrength) * fogscale, but lighting the fog
-        // with them is far brighter than the games show, which skip most fog lights
         light.FogLighting = entity.GetInt32Property("fog_lighting", defaultFogLighting);
 
         if (light.IsLight2)
         {
+            light.BarnFog = entity.GetInt32Property("fog") != 0;
+            light.BarnFogShadowMode = entity.GetInt32Property("fogshadows", -1);
+            light.BarnFogStrength = entity.GetFloatProperty("fogstrength");
+            light.BarnFogScale = entity.GetFloatProperty("fogscale", 1f);
+
             // The engine only reads the exposure value, the other brightness units are converted from it by the tools
             light.LinearBrightness = float.Exp2(entity.GetFloatProperty("brightness"));
 
@@ -920,23 +977,32 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         }
     }
 
+    // TODO: the engine's near plane for these shadows is not known
+    internal const float SpotShadowNearPlane = 1f;
+
+    /// <summary>
+    /// The transform that maps the world to the square frustum a spot light renders its shadow from. Its field of view
+    /// is twice the outer cone angle.
+    /// </summary>
+    internal static Matrix4x4 CreateSpotShadowMatrix(Vector3 position, Vector3 forward, Vector3 up, float outerAngle, float far)
+    {
+        var fieldOfView = float.DegreesToRadians(Math.Clamp(outerAngle, 1f, 89f) * 2f);
+        var view = Matrix4x4.CreateLookAtLeftHanded(position, position + forward, up);
+        var projection = Matrix4x4.CreatePerspectiveFieldOfViewLeftHanded(fieldOfView, 1f, SpotShadowNearPlane, far);
+
+        return view * projection;
+    }
+
     /// <summary>
     /// The one face a shadowed spot light renders its shadow from: a square frustum from the light position
     /// whose field of view is twice the outer cone angle, out to the light's range.
     /// </summary>
     private static BarnFaceData ComputeSpotLightShadowFace(SceneLight light)
     {
-        // TODO: the engine's near plane for these shadows is not known
-        const float NearPlane = 1f;
-
         var forward = GetAxisDirection(light.Transform, Vector3.UnitX);
         var up = GetAxisDirection(light.Transform, Vector3.UnitZ);
-        var origin = light.Transform.Translation;
-
-        var fieldOfView = float.DegreesToRadians(Math.Clamp(light.SpotOuterAngle, 1f, 89f) * 2f);
-        var lightView = Matrix4x4.CreateLookAtLeftHanded(origin, origin + forward, up);
-        var lightProj = Matrix4x4.CreatePerspectiveFieldOfViewLeftHanded(fieldOfView, 1f, NearPlane, MathF.Max(light.Range, NearPlane + 1f));
-        var worldToFrustum = lightView * lightProj;
+        var far = MathF.Max(light.Range, SpotShadowNearPlane + 1f);
+        var worldToFrustum = CreateSpotShadowMatrix(light.Transform.Translation, forward, up, light.SpotOuterAngle, far);
 
         return new BarnFaceData
         {

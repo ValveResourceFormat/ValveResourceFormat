@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <summary>
 /// The light entities. Owns the <see cref="SceneLight"/>. Real-time lights (barn, rect, omni2) are
 /// re-binned every frame; slot-stored lights (omni, spot, ortho, environment) re-store the lighting
-/// uniforms on change. Volumetric fog is not simulated.
+/// uniforms on change.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CLightEntity">CLightEntity</seealso>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CBarnLight">CBarnLight</seealso>
@@ -333,6 +333,24 @@ public sealed class LightEntity : BaseEntity
         }
 
         Changed();
+    }
+
+    [EntityInput("SetFogStrength")]
+    private void InputSetFogStrength(EntityInputData data)
+    {
+        if (light != null)
+        {
+            light.BarnFogStrength = data.Float(light.BarnFogStrength);
+        }
+    }
+
+    [EntityInput("SetFogScale")]
+    private void InputSetFogScale(EntityInputData data)
+    {
+        if (light != null)
+        {
+            light.BarnFogScale = data.Float(light.BarnFogScale);
+        }
     }
 
     [EntityInput("SetBrightnessScale")]

@@ -111,6 +111,7 @@ namespace ValveResourceFormat.Renderer.World
             if (Volumetric != null)
             {
                 viewConstants.VolumetricFogNearRange = Volumetric.NearRange;
+                viewConstants.VolumetricFogDepthWarp = Volumetric.DepthWarp;
             }
 
             if (GradientFogActive && GradientFog != null)

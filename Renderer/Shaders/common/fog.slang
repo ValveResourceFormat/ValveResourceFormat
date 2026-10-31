@@ -93,10 +93,13 @@ bool IsGradientFogHeightInRange(float height)
     return IsFogHeightInRange(height, g_vGradientFogBiasAndScale.w, g_vGradientFogCullingParams.y);
 }
 
+// How much of the gradient, cubemap and volumetric fog a material takes, set by the materials that scale them
+vec3 g_vMaterialFogAmounts = vec3(1.0);
+
 void ApplyGradientFog(inout vec3 pixelColor, vec3 positionWS, vec3 cameraCenteredPixelPos)
 {
     vec4 fog = GetGradientFog(positionWS, cameraCenteredPixelPos);
-    pixelColor = mix(pixelColor, fog.rgb, fog.a);
+    pixelColor = mix(pixelColor, fog.rgb, fog.a * g_vMaterialFogAmounts.x);
 }
 
 uniform samplerCube g_tFogCubeTexture; // reserved
@@ -149,7 +152,7 @@ vec4 GetCubemapFog(vec3 positionWS, vec3 posRelativeToCamera)
 void ApplyCubemapFog(inout vec3 pixelColor, vec3 positionWS, vec3 posRelativeToCamera)
 {
     vec4 fog = GetCubemapFog(positionWS, posRelativeToCamera);
-    pixelColor = mix(pixelColor, fog.rgb, fog.a);
+    pixelColor = mix(pixelColor, fog.rgb, fog.a * g_vMaterialFogAmounts.y);
 }
 
 uniform sampler3D g_tFogVolume; // reserved
@@ -163,7 +166,16 @@ vec4 GetVolumetricFog(vec3 positionWS)
 
     vec3 volumeCoords;
     volumeCoords.xy = clipPos.xy / clipPos.w * 0.5 + 0.5;
-    volumeCoords.z = sqrt(saturate((viewDepth - g_vVolumetricFogNearRange.x) / g_vVolumetricFogNearRange.y));
+    float sliceDepth = saturate((viewDepth - g_vVolumetricFogNearRange.x) / g_vVolumetricFogNearRange.y);
+
+    if (g_vVolumetricFogDepthWarp.x > 0.0)
+    {
+        volumeCoords.z = log2(sliceDepth * g_vVolumetricFogDepthWarp.x + 1.0) * g_vVolumetricFogDepthWarp.y;
+    }
+    else
+    {
+        volumeCoords.z = sqrt(sliceDepth);
+    }
 
     return textureLod(g_tFogVolume, volumeCoords, 0.0);
 }
@@ -171,7 +183,8 @@ vec4 GetVolumetricFog(vec3 positionWS)
 void ApplyVolumetricFog(inout vec3 pixelColor, vec3 positionWS)
 {
     vec4 fog = GetVolumetricFog(positionWS);
-    pixelColor = fog.rgb + pixelColor * fog.a;
+    float amount = g_vMaterialFogAmounts.z;
+    pixelColor = fog.rgb * amount + pixelColor * mix(1.0, fog.a, amount);
 }
 
 void ApplyFog(inout vec3 pixelColor, vec3 positionWS)

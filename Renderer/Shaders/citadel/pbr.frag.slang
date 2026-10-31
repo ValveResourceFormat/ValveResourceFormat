@@ -147,6 +147,11 @@ uniform float g_flNormalAndRoughnessScrollQuantize1 = 0.0;
     uniform float g_flUnlitAdditiveScale1 = 1.0;
 #endif
 
+// How much of each fog the material takes
+uniform float g_flGradientFogAmount = 1.0;
+uniform float g_flCubmapFogAmount = 1.0;
+uniform float g_flVolumeFogAmount = 1.0;
+
 vec2 GetAlbedoTexCoord(vec2 texCoord)
 {
     vec2 albedoTexCoord = ScrollTexCoord(texCoord, g_vAlbedoScrollSpeed1, g_flAlbedoScrollQuantize1);
@@ -493,6 +498,18 @@ void main()
     MaterialProperties_t mat = GetShadedMaterial();
     LightingTerms_t lighting;
     outputColor = ShadeCitadelSurface(mat, lighting);
+
+#if (F_TRANSLUCENT == 0 && F_ADDITIVE_BLEND == 0)
+    // Opaque surfaces end up fogged at full strength whatever amounts the material sets.
+    // Unlit ones are fogged by the material amounts first.
+    #if (F_UNLIT == 1)
+        g_vMaterialFogAmounts = vec3(g_flGradientFogAmount, g_flCubmapFogAmount, g_flVolumeFogAmount);
+        ApplyFog(outputColor.rgb, mat.PositionWS);
+        g_vMaterialFogAmounts = vec3(1.0);
+    #endif
+#else
+    g_vMaterialFogAmounts = vec3(g_flGradientFogAmount, g_flCubmapFogAmount, g_flVolumeFogAmount);
+#endif
 
     ApplyFogAndToneMapping(outputColor, mat.PositionWS);
 

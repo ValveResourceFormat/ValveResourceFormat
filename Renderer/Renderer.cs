@@ -198,6 +198,11 @@ public class Renderer : ISceneHost
     public Framebuffer? BarnLightShadowBuffer { get; private set; }
 
     /// <summary>
+    /// Depth-only framebuffer atlas used for the shadows of the lights of the volumetric fog. Maps stay in it between frames.
+    /// </summary>
+    public Framebuffer? FogShadowBuffer { get; private set; }
+
+    /// <summary>
     /// Resolved (non-MSAA) scene color in rgba16f format, used for refraction, bloom input, and luminance computation.
     /// Filled by <see cref="GrabFramebufferCopy"/>.
     /// </summary>
@@ -317,6 +322,9 @@ public class Renderer : ISceneHost
     private readonly List<SceneView> barnLightFaceViews = [];
     private readonly ShadowAtlasRegion[] barnLightFaceRegions = new ShadowAtlasRegion[BarnLightConstants.MAX_BARN_LIGHT_FACES];
     private int barnLightFaceViewCount;
+
+    private SceneViewState? fogShadowState;
+    private readonly Frustum fogShadowFrustum = new();
 
     private readonly Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> shadowCasterDraws = SceneViewState.CreateDepthOnlyBuckets();
 
@@ -1153,7 +1161,7 @@ public class Renderer : ISceneHost
             if (Settings.FogEnabled && Settings.VolumetricFogEnabled)
             {
                 using var _ = new GLDebugGroup("Volumetric Fog");
-                volumetricFog.Render(Scene, mainCamera.Location, BarnLightShadowBuffer?.Depth);
+                volumetricFog.Render(Scene, mainCamera, BarnLightShadowBuffer?.Depth, FogShadowBuffer?.Depth);
             }
             else
             {
@@ -1325,6 +1333,9 @@ public class Renderer : ISceneHost
         barnLightFaceViews.Clear();
         barnLightFaceViewCount = 0;
 
+        fogShadowState?.Delete();
+        fogShadowState = null;
+
         foreach (var states in allViewStates)
         {
             foreach (var state in states.Values)
@@ -1401,6 +1412,7 @@ public class Renderer : ISceneHost
 
         RenderSceneShadows(renderContext);
         RenderBarnLightShadows(renderContext);
+        RenderFogLightShadows(renderContext);
 
         RenderScenesWithView(renderContext);
     }
@@ -1798,6 +1810,68 @@ public class Renderer : ISceneHost
             ViewBuffer.Update();
 
             view.States[0].RenderShadowCasters(renderContext, depthOnlyShader, shadowCasterDraws);
+        }
+    }
+
+    /// <summary>Renders the shadow maps of the lights the volumetric fog shadows into <see cref="FogShadowBuffer"/>.</summary>
+    private void RenderFogLightShadows(Scene.RenderContext renderContext)
+    {
+        Debug.Assert(ViewBuffer != null);
+
+        if (!Settings.FogEnabled || !Settings.VolumetricFogEnabled || Scene.FogInfo.Volumetric is not { } volumetricFog)
+        {
+            return;
+        }
+
+        // The maps stay in the atlas between frames, so a new atlas has none of them
+        if (FogShadowBuffer == null && volumetricFog.UsesShadowAtlas)
+        {
+            FogShadowBuffer = Framebuffer.Prepare(nameof(FogShadowBuffer), VolumetricFog.ShadowAtlasSize, VolumetricFog.ShadowAtlasSize, 0, null, ImageFormat.D16);
+            FogShadowBuffer.Initialize();
+            FogShadowBuffer.ClearMask = ClearBufferMask.DepthBufferBit;
+            FogShadowBuffer.SetShadowDepthSamplerState(true);
+            volumetricFog.InvalidateShadows();
+        }
+
+        volumetricFog.PrepareShadows(Scene, renderContext.Camera);
+
+        var faces = volumetricFog.ShadowFaces;
+
+        if (faces.IsEmpty || FogShadowBuffer == null)
+        {
+            return;
+        }
+
+        using var _ = new GLDebugGroup("Fog Light Shadows");
+
+        fogShadowState ??= new SceneViewState(Scene, shadowCasters: true);
+
+        using var forwardDepth = GraphicsContext.RenderState.Scope(depthFunc: RsComparison.FartherEqual,
+            slopeScaledDepthBias: 2f, multisampleEnable: false, cullMode: BarnLightShadowCullMode(Scene));
+
+        using var atlasDepth = GraphicsContext.RenderState.ScopeDynamic(DepthRange.Full, clearDepth: 1f, scissorTest: true);
+
+        FogShadowBuffer.Bind(FramebufferTarget.Framebuffer);
+
+        renderContext.Scene = Scene;
+        Scene.BindDrawBuffers();
+
+        foreach (var face in faces)
+        {
+            var region = face.Region;
+
+            GL.Viewport(region.X, region.Y, region.Width, region.Height);
+            GL.Scissor(region.X, region.Y, region.Width, region.Height);
+            GL.Clear(ClearBufferMask.DepthBufferBit);
+
+            fogShadowFrustum.Update(face.WorldToProjection);
+            fogShadowState.CollectShadowCasters(fogShadowFrustum, includeStatic: true,
+                Scene.VisibilityBoxes.PrepareSecondaryView(face.Eye), Vector3.Zero, cullAggregatesOnGpu: false);
+
+            ViewBuffer.Data.WorldToProjection = face.WorldToProjection;
+            ViewBuffer.Update();
+
+            fogShadowState.RenderShadowCasters(renderContext, depthOnlyShader, shadowCasterDraws);
         }
     }
 
@@ -2303,6 +2377,7 @@ public class Renderer : ISceneHost
         orderIndependentLayers?.Delete();
         ShadowDepthBuffer?.Delete();
         BarnLightShadowBuffer?.Delete();
+        FogShadowBuffer?.Delete();
         histogramBuffers[0]?.Delete();
         histogramBuffers[1]?.Delete();
         WaterEffectsBuffer?.Delete();

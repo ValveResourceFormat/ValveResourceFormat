@@ -42,6 +42,8 @@ layout(std140, binding = 0) uniform ViewConstants
 
     vec2 g_vSceneDepthFetchScale; // scene depth texels per pixel of the target being drawn
     vec2 g_vVolumetricFogNearRange;
+    vec2 g_vVolumetricFogDepthWarp; // warp of the slices and one over its log2, zero for slices along a square
+    vec2 _volumetricFogPadding;
 
     // metadata for the tile light culling system
     uint g_nLightTileBase;
