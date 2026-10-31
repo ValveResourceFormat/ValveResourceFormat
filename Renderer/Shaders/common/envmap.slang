@@ -442,7 +442,7 @@ vec3 GetProbeReflection(MaterialProperties_t mat)
 {
     if (g_vEnvMapSizeConstants.y == 0.0)
     {
-        return vec3(0.3);
+        return ObjectHasEnvMap() ? vec3(0.3) : vec3(0.0);
     }
 
     if (!ObjectHasEnvMap())
@@ -563,7 +563,7 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
     // A scene without environment maps
     if (g_vEnvMapSizeConstants.y == 0.0)
     {
-        return vec3(0.3);
+        return ObjectHasEnvMap() ? vec3(0.3) : vec3(0.0);
     }
 
     #if (ENVMAP_PER_OBJECT)

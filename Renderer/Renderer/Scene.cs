@@ -1956,6 +1956,13 @@ namespace ValveResourceFormat.Renderer
             {
                 // Zero environment maps tells the shaders to use a flat reflection
                 LightingInfo.LightingData.EnvMapSizeConstants = Vector4.Zero;
+
+                // A node that names an environment map the world does not contain reflects nothing, unlike a node that names none
+                foreach (var node in AllNodes)
+                {
+                    node.HasNoEnvMap = node.CubeMapPrecomputedHandshake > 0;
+                }
+
                 return;
             }
 
