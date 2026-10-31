@@ -61,7 +61,7 @@
 #define ENVMAP_OBJECT_VISIBILITY ((S_LIGHTMAP_VERSION_MINOR < 2) || ((S_LIGHTMAP_VERSION_MINOR == 2) && (D_BAKED_LIGHTING_FROM_LIGHTMAP == 0) && (D_BAKED_LIGHTING_FROM_PROBE == 0)))
 #define ENVMAP_COVERAGE_NORMALIZED (S_LIGHTMAP_VERSION_MINOR == 2) // The maps found share all of the weight
 #define SKY_FILLS_UNCOVERED (S_LIGHTMAP_VERSION_MINOR >= 3) // In both environment maps and light probes
-#define ENVMAP_LOD_SKIPS_SMALLEST_MIP ((S_LIGHTMAP_VERSION_MINOR == 2) && !VR_SHADING) // Full roughness stops at the second smallest mip
+#define ENVMAP_LOD_SKIPS_SMALLEST_MIP ((S_LIGHTMAP_VERSION_MINOR >= 2) && !VR_SHADING) // Full roughness stops at the second smallest mip
 
 // Ceiling on cubemap normalization brightening: 1 up to the starting roughness, rising to the maximum at 1
 #if (VR_SHADING)
