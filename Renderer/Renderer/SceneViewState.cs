@@ -36,6 +36,9 @@ public sealed class SceneViewState
     /// <summary>Gets whether anything is queued to draw into the effects bloom map this frame.</summary>
     public bool HasEffectsBloom => effectsBloomRenderList.Count > 0;
 
+    /// <summary>Gets whether any opaque draw that overrides its bloom amount is queued this frame.</summary>
+    public bool HasBloomAmount => bloomAmountRenderList.Count > 0;
+
     /// <summary>Gets whether anything is queued to draw in the screen-space layer this frame.</summary>
     public bool HasScreenSpaceEffects => screenSpaceRenderList.Count > 0;
 
@@ -97,6 +100,9 @@ public sealed class SceneViewState
     /// <summary>Translucent draws that go to the water effects map instead of the scene.</summary>
     private readonly List<MeshBatchRenderer.Request> waterEffectsRenderList = [];
     private readonly List<MeshBatchRenderer.Request> effectsBloomRenderList = [];
+
+    /// <summary>Opaque draws of materials that override their bloom amount, which draw again into the bloom amount map.</summary>
+    private readonly List<MeshBatchRenderer.Request> bloomAmountRenderList = [];
     private readonly List<MeshBatchRenderer.Request> toolsRenderList = [];
 
     /// <summary>
@@ -360,6 +366,15 @@ public sealed class SceneViewState
             }
         }
 
+        // A fragment of an aggregate drawn by indirect draws is queued here too, as those cannot draw into this map
+        var isOpaqueDraw = renderPass is RenderPass.Opaque or RenderPass.OpaqueFragments;
+        var isViewmodel = (request.Node.RenderPasses & CustomRenderPasses.Viewmodel) != 0;
+
+        if (isOpaqueDraw && !isViewmodel && request.Call.Material.Shader.OverridesBloomAmount)
+        {
+            bloomAmountRenderList.Add(request);
+        }
+
         if (renderPass == RenderPass.OpaqueFragments)
         {
             // Skip individual fragment draws if aggregate can be drawn with indirect draw
@@ -453,6 +468,7 @@ public sealed class SceneViewState
 
         waterEffectsRenderList.Clear();
         effectsBloomRenderList.Clear();
+        bloomAmountRenderList.Clear();
         screenSpaceRenderList.Clear();
         orderIndependentFills.Clear();
         toolsRenderList.Clear();
@@ -1365,6 +1381,15 @@ public sealed class SceneViewState
         renderContext.RenderPass = RenderPass.Translucent;
         renderContext.Layer = RenderLayer.Bloom;
         MeshBatchRenderer.Render(effectsBloomRenderList, renderContext);
+    }
+
+    /// <summary>Renders the draw calls that fill the bloom amount map; the caller owns the render target.</summary>
+    /// <param name="renderContext">The render context for this pass.</param>
+    public void RenderBloomAmountLayer(Scene.RenderContext renderContext)
+    {
+        renderContext.RenderPass = RenderPass.Opaque;
+        renderContext.Layer = RenderLayer.BloomAmount;
+        MeshBatchRenderer.Render(bloomAmountRenderList, renderContext);
     }
 
     /// <summary>Renders the draw calls of the screen-space layer; the caller binds the screen-space view.</summary>

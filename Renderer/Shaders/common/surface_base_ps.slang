@@ -16,7 +16,8 @@
 #include "view_constants.slang"
 #include "lighting_constants.slang"
 
-// 1 is the depth only pass, 2 the depth pass that also counts the quad overdraw
+// 1 is the depth only pass, 2 the depth pass that also counts the quad overdraw,
+// 3 the pass that writes the bloom amount of the surface into the red channel
 #define S_MODE_DEPTH 0
 
 uniform int F_DISABLE_TONE_MAPPING;

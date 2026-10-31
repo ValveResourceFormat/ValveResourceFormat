@@ -1,5 +1,8 @@
 #version 460
 
+// Writes the bloom amount of the pixel for the bloom threshold
+#define F_OVERRIDE_BLOOM_AMOUNT 0
+
 // Rect lights shade as area lights, the way Deadlock does it
 #define BARN_LIGHT_AREA_LIGHTS 2
 #define IBL 1
@@ -38,6 +41,11 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     vec3 illumColor = layer.Albedo * layer.SelfIllum * g_vLayerSelfIllumTint1;
 
     ResolveLayerMaterial(mat, layer, illumColor);
+
+#if (F_OVERRIDE_BLOOM_AMOUNT == 1)
+    // Stored as it is, without the scale or a mask
+    mat.BloomAmount = saturate(g_flOverrideBloomAmount1);
+#endif
 
     return mat;
 }

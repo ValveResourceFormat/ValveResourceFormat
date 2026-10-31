@@ -180,10 +180,12 @@ bool HandleSurfaceRenderModes(inout vec4 color, MaterialProperties_t mat, Lighti
 MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals);
 
 #if (S_MODE_DEPTH != 0)
-// The depth and overdraw passes, which only an alpha tested material writes a color in
+// The depth and overdraw passes, which only an alpha tested material writes a color in, and the bloom amount pass
 void RenderDepthPass()
 {
-    #if (F_ALPHA_TEST == 1) || (ALPHA_TEST_BY_BLEND_MODE == 1)
+    #if (S_MODE_DEPTH == 3)
+        outputColor = vec4(GetMaterial(vTexCoordOut, vNormalOut).BloomAmount, 0.0, 0.0, 1.0);
+    #elif (F_ALPHA_TEST == 1) || (ALPHA_TEST_BY_BLEND_MODE == 1)
         outputColor = vec4(0.0, 0.0, 0.0, GetMaterial(vTexCoordOut, vNormalOut).Opacity);
     #elif (S_MODE_DEPTH == 2)
         outputColor = vec4(0.0, 0.0, 0.0, 1.0);

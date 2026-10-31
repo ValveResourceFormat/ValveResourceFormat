@@ -5,6 +5,9 @@
 
 // Struct full of everything needed for lighting, for easy access around the shader.
 
+// The bloom threshold reads the stored bloom amount back at 20 times its value
+#define BLOOM_AMOUNT_TO_STORED 0.05
+
 struct MaterialProperties_t
 {
     vec3 PositionWS;
@@ -47,6 +50,7 @@ struct MaterialProperties_t
     vec3 TransmissiveColor;
     float DirectDiffuseScale;
     vec3 IllumColor;
+    float BloomAmount; // Written where F_OVERRIDE_BLOOM_AMOUNT is set: what the bloom amount pass stores for the pixel
 
     vec3 LightmapUv;
 

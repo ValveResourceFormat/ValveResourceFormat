@@ -54,6 +54,10 @@ uniform vec2 g_vLayerRoughnessContrastBrightness2 = vec2(1.0, 0.0);
 uniform vec2 g_vLayerTintMaskContrastBrightness2 = vec2(1.0, 0.0);
 uniform vec2 g_vLayerMetalnessContrastBrightness2 = vec2(1.0, 0.0);
 
+#if (F_OVERRIDE_BLOOM_AMOUNT == 1)
+    uniform float g_flOverrideBloomAmount2 = 1.0;
+#endif
+
 uniform float g_flRevealOffset2 = 0.0;
 uniform float g_flRevealSoftness2 = 0.125;
 uniform bool g_bRevealInvert2 = false;
@@ -471,10 +475,16 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     Layer_t result = layer1;
     vec3 illumColor = illumColor1;
-    CompositeLayer(result, illumColor, layer2, illumColor2, GetLayerWeight(blend2, threshold2, g_flRevealSoftness2));
+    float layer2Weight = GetLayerWeight(blend2, threshold2, g_flRevealSoftness2);
+    CompositeLayer(result, illumColor, layer2, illumColor2, layer2Weight);
     CompositeLayer(result, illumColor, layer3, illumColor3, GetLayerWeight3(blend3, threshold3));
 
     ResolveLayerMaterial(mat, result, illumColor);
+
+#if (F_OVERRIDE_BLOOM_AMOUNT == 1)
+    // Stored as it is, without the scale or a mask
+    mat.BloomAmount = saturate(mix(g_flOverrideBloomAmount1, g_flOverrideBloomAmount2, layer2Weight));
+#endif
 
     return mat;
 }

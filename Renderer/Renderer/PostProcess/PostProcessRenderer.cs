@@ -102,6 +102,12 @@ namespace ValveResourceFormat.Renderer.PostProcess
         /// </summary>
         public RenderTexture? EffectsBloom { get; internal set; }
 
+        /// <summary>
+        /// Gets this frame's bloom amount map at the scene resolution, the amount each pixel of an overriding
+        /// material blooms by and 0 elsewhere, or null when no such material drew.
+        /// </summary>
+        public RenderTexture? BloomAmount { get; internal set; }
+
         /// <summary>Gets the bloom renderer used for the multi-pass Gaussian bloom effect.</summary>
         public BloomRenderer Bloom { get; private set; }
         /// <summary>Gets the depth-of-field renderer.</summary>
@@ -318,7 +324,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
                 if (runBloom)
                 {
-                    Bloom.Render(resolvedScene, EffectsBloom, bloomSettings, sceneWeight: State.HasBloom ? 1f : 0f);
+                    Bloom.Render(resolvedScene, EffectsBloom, BloomAmount, bloomSettings, sceneWeight: State.HasBloom ? 1f : 0f);
                 }
 
                 colorBufferDraw.Bind(FramebufferTarget.DrawFramebuffer);

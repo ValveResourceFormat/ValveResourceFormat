@@ -144,8 +144,19 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets this shader's quad overdraw counting mode, a depth only mode that also counts the overdraw, or <see langword="null"/> when it has none.</summary>
         public Shader? OverdrawMode => DeclaresCombo(DepthModeCombo) ? WithCombo(DepthModeCombo, 2) : null;
 
-        /// <summary>The static combo that selects a material shader's depth only mode (1) or its quad overdraw counting mode (2).</summary>
+        /// <summary>Gets whether this variant is for a material that writes its own bloom amount, which the bloom threshold reads per pixel.</summary>
+        public bool OverridesBloomAmount => overridesBloomAmount ??= DeclaresCombo(OverrideBloomAmountCombo) && Parameters.GetValueOrDefault(OverrideBloomAmountCombo) == 1;
+
+        /// <summary>Gets this shader's mode that writes the bloom amount of a surface instead of shading it, or <see langword="null"/> when it has none.</summary>
+        public Shader? BloomAmountMode => OverridesBloomAmount && DeclaresCombo(DepthModeCombo) ? WithCombo(DepthModeCombo, 3) : null;
+
+        private bool? overridesBloomAmount;
+
+        /// <summary>The static combo that selects a material shader's depth only mode (1), its quad overdraw counting mode (2) or its bloom amount mode (3).</summary>
         public const string DepthModeCombo = "S_MODE_DEPTH";
+
+        /// <summary>The static combo of a material that sets the bloom amount of its pixels.</summary>
+        public const string OverrideBloomAmountCombo = "F_OVERRIDE_BLOOM_AMOUNT";
 
         /// <summary>The static combo that turns on alpha testing.</summary>
         public const string AlphaTestCombo = "F_ALPHA_TEST";

@@ -147,6 +147,10 @@ uniform float g_flNormalAndRoughnessScrollQuantize1 = 0.0;
     uniform float g_flUnlitAdditiveScale1 = 1.0;
 #endif
 
+#if (F_OVERRIDE_BLOOM_AMOUNT == 1)
+    uniform float g_flOverrideBloomAmount1 = 1.0;
+#endif
+
 // How much of each fog the material takes
 uniform float g_flGradientFogAmount = 1.0;
 uniform float g_flCubmapFogAmount = 1.0;
@@ -411,6 +415,12 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     float illumMask;
     float illumScale;
     SampleSelfIllum(texCoord, albedo, illumTint, illumMask, illumScale);
+
+#if (F_OVERRIDE_BLOOM_AMOUNT == 1)
+    // The raw mask, without the self illumination scale or tint
+    mat.BloomAmount = saturate(g_flOverrideBloomAmount1 * illumMask * BLOOM_AMOUNT_TO_STORED);
+#endif
+
     ApplyDetailBlend(texCoord, albedoTexCoord, albedo, illumTint);
 
     vec3 normalTs = DecodeHemiOctahedronNormal(normalRoughness.rg);

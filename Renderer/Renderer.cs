@@ -248,6 +248,12 @@ public class Renderer : ISceneHost
     private const int EffectsBloomDownsample = 2;
 
     /// <summary>
+    /// 8-bit target at the scene resolution holding the bloom amount that materials write per pixel, and 0 elsewhere,
+    /// which the bloom threshold reads.
+    /// </summary>
+    public Framebuffer? BloomAmountBuffer { get; private set; }
+
+    /// <summary>
     /// When set, forces <see cref="ResolvedSceneDepth"/> to be refreshed this frame even if no material
     /// or occlusion pass requests it. Used by overlays (e.g. world-space text) that need the scene depth
     /// to occlude themselves against geometry. Must be set before <see cref="Render(Scene.RenderContext)"/>.
@@ -902,6 +908,11 @@ public class Renderer : ISceneHost
         EffectsBloomBuffer.ClearColor = new Color4(0f, 0f, 0f, 0f);
         EffectsBloomBuffer.SetColorSamplerState(TextureMinFilter.Linear, TextureMagFilter.Linear, RsTextureAddressMode.Clamp);
 
+        BloomAmountBuffer = Framebuffer.Prepare(nameof(BloomAmountBuffer), 4, 4, 0, ImageFormat.R8_UNORM, ImageFormat.D32);
+        BloomAmountBuffer.Initialize();
+        BloomAmountBuffer.ClearColor = new Color4(0f, 0f, 0f, 0f);
+        BloomAmountBuffer.SetColorSamplerState(TextureMinFilter.Nearest, TextureMagFilter.Nearest, RsTextureAddressMode.Clamp);
+
         depthPyramid.LoadShaders();
         depthPyramid.EnsureSize(256, 256);
     }
@@ -1551,7 +1562,7 @@ public class Renderer : ISceneHost
                     && !Settings.DisableAllCulling
                     && Uptime >= OcclusionCullWarmupSeconds;
 
-                copyDepth |= generateDepthPyramid || NeedsWaterEffectsMap(mainView) || NeedsEffectsBloomMap(mainView);
+                copyDepth |= generateDepthPyramid || NeedsWaterEffectsMap(mainView) || NeedsLayerMap(mainView, RenderLayer.Bloom) || NeedsLayerMap(mainView, RenderLayer.BloomAmount);
 
                 var depthPyramidValid = !Settings.DisableAllCulling && (generateDepthPyramid || LockedCullFrustum != null);
 
@@ -1644,6 +1655,7 @@ public class Renderer : ISceneHost
         if (isStandardPass)
         {
             RenderEffectsBloomMap(mainView, renderContext);
+            RenderBloomAmountMap(mainView, renderContext);
         }
 
         if (isStandardPass && computeFramebufferLuminance)
@@ -1960,11 +1972,11 @@ public class Renderer : ISceneHost
         return hasWater && hasWaterEffects;
     }
 
-    private static bool NeedsEffectsBloomMap(in SceneView view)
+    private static bool NeedsLayerMap(in SceneView view, RenderLayer layer)
     {
         foreach (var state in view.States)
         {
-            if (state.HasEffectsBloom)
+            if (HasLayerDraws(state, layer))
             {
                 return true;
             }
@@ -1981,7 +1993,7 @@ public class Renderer : ISceneHost
     {
         Debug.Assert(EffectsBloomBuffer != null);
 
-        if (!NeedsEffectsBloomMap(view))
+        if (!NeedsLayerMap(view, RenderLayer.Bloom))
         {
             Postprocess.EffectsBloom = null;
             return;
@@ -1996,6 +2008,29 @@ public class Renderer : ISceneHost
         RenderReducedResolutionLayer(view, renderContext, EffectsBloomBuffer, new Vector2(EffectsBloomDownsample), RenderLayer.Bloom);
 
         Postprocess.EffectsBloom = EffectsBloomBuffer.Color;
+    }
+
+    /// <summary>
+    /// Draws the bloom amounts of the materials that override them into <see cref="BloomAmountBuffer"/> and hands it
+    /// to the post process. A frame with no such material hands over nothing.
+    /// </summary>
+    private void RenderBloomAmountMap(in SceneView view, Scene.RenderContext renderContext)
+    {
+        Debug.Assert(BloomAmountBuffer != null);
+
+        if (!NeedsLayerMap(view, RenderLayer.BloomAmount))
+        {
+            Postprocess.BloomAmount = null;
+            return;
+        }
+
+        using var _ = new GLDebugGroup("Bloom Amount");
+
+        BloomAmountBuffer.Resize(renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
+
+        RenderReducedResolutionLayer(view, renderContext, BloomAmountBuffer, Vector2.One, RenderLayer.BloomAmount);
+
+        Postprocess.BloomAmount = BloomAmountBuffer.Color;
     }
 
     /// <summary>
@@ -2119,11 +2154,20 @@ public class Renderer : ISceneHost
 
         SeedDepthFromScene(downsample);
 
-        using (GraphicsContext.RenderState.Scope(depthTest: true, depthWrite: false, depthFunc: RsComparison.CloserEqual))
+        // The amount map is single sampled, so its alpha tested surfaces discard rather than lean on coverage, and
+        // the amounts replace each other
+        var isBloomAmount = layer == RenderLayer.BloomAmount;
+
+        using (GraphicsContext.RenderState.Scope(
+            multisampleEnable: isBloomAmount ? false : null,
+            depthTest: true,
+            depthWrite: false,
+            depthFunc: RsComparison.CloserEqual,
+            blend: isBloomAmount ? false : null))
         {
             foreach (var state in view.States)
             {
-                if (layer == RenderLayer.Bloom ? !state.HasEffectsBloom : !state.HasWaterEffects)
+                if (!HasLayerDraws(state, layer))
                 {
                     continue;
                 }
@@ -2137,13 +2181,19 @@ public class Renderer : ISceneHost
                 renderContext.Scene = state.Scene;
                 renderContext.View = state;
 
-                if (layer == RenderLayer.Bloom)
+                switch (layer)
                 {
-                    state.RenderEffectsBloomLayer(renderContext);
-                }
-                else
-                {
-                    state.RenderWaterEffectsLayer(renderContext);
+                    case RenderLayer.Bloom:
+                        state.RenderEffectsBloomLayer(renderContext);
+                        break;
+
+                    case RenderLayer.BloomAmount:
+                        state.RenderBloomAmountLayer(renderContext);
+                        break;
+
+                    default:
+                        state.RenderWaterEffectsLayer(renderContext);
+                        break;
                 }
             }
         }
@@ -2158,6 +2208,13 @@ public class Renderer : ISceneHost
         firstState.Scene.SetSceneBuffers();
         firstState.LightBinner.Bind();
     }
+
+    private static bool HasLayerDraws(SceneViewState state, RenderLayer layer) => layer switch
+    {
+        RenderLayer.Bloom => state.HasEffectsBloom,
+        RenderLayer.BloomAmount => state.HasBloomAmount,
+        _ => state.HasWaterEffects,
+    };
 
     // Returns whether there was any translucent surface to draw
     private bool RenderTranslucentSceneDepth(in SceneView view, ref Scene.RenderContext renderContext)
@@ -2382,6 +2439,7 @@ public class Renderer : ISceneHost
         histogramBuffers[1]?.Delete();
         WaterEffectsBuffer?.Delete();
         EffectsBloomBuffer?.Delete();
+        BloomAmountBuffer?.Delete();
         Skybox2D?.Delete();
 
         if (BaseBackground != Skybox2D && BaseBackground != null)

@@ -77,6 +77,10 @@ vec3 GetLayerAlbedo(vec3 color, mat4 albedoColorCorrect, float vertexColorStreng
 
 uniform float g_flAlphaTestReference = 0.5;
 
+#if (F_OVERRIDE_BLOOM_AMOUNT == 1)
+    uniform float g_flOverrideBloomAmount1 = 1.0;
+#endif
+
 MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 {
     MaterialProperties_t mat;
@@ -161,6 +165,10 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     albedo = mix(albedo, emissiveTint2 * albedo, (1.0 - layer3Visibility) * saturate(emissive2));
     albedo = mix(albedo, emissiveTint3 * albedo, layer3Visibility * saturate(emissive3));
     float selfIllum = mix(behindLayer1 * emissive2, emissive3, layer3Visibility);
+
+#if (F_OVERRIDE_BLOOM_AMOUNT == 1)
+    mat.BloomAmount = saturate(g_flOverrideBloomAmount1 * selfIllum * BLOOM_AMOUNT_TO_STORED);
+#endif
 
     mat.Albedo = albedo;
     mat.IllumColor = albedo * selfIllum;
