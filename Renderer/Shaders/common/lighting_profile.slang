@@ -58,8 +58,7 @@
 #define ENVMAP_SPHERES (S_LIGHTMAP_VERSION_MINOR >= 3) // Spheres fade radially and parallax correct in world space
 #define ENVMAP_PARALLAX_ROUGHNESS_MIX (S_LIGHTMAP_VERSION_MINOR >= 2) // Giving way to the plain reflection
 #define ENVMAP_PARALLAX_NORMALIZED ((S_LIGHTMAP_VERSION_MINOR >= 3) || VR_SHADING)
-#define ENVMAP_OBJECT_VISIBILITY ((S_LIGHTMAP_VERSION_MINOR < 2) || ((S_LIGHTMAP_VERSION_MINOR == 2) && (D_BAKED_LIGHTING_FROM_LIGHTMAP == 0) && (D_BAKED_LIGHTING_FROM_PROBE == 0)))
-#define ENVMAP_COVERAGE_NORMALIZED (S_LIGHTMAP_VERSION_MINOR == 2) // The maps found share all of the weight
+#define ENVMAP_ONE_PER_OBJECT (S_LIGHTMAP_VERSION_MINOR < 2) // Only the object's map is reflected, with no per pixel choice
 #define SKY_FILLS_UNCOVERED (S_LIGHTMAP_VERSION_MINOR >= 3) // In both environment maps and light probes
 #define ENVMAP_LOD_SKIPS_SMALLEST_MIP ((S_LIGHTMAP_VERSION_MINOR >= 2) && !VR_SHADING) // Full roughness stops at the second smallest mip
 

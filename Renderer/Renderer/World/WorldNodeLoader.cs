@@ -73,8 +73,9 @@ namespace ValveResourceFormat.Renderer.World
                 // m_vCubeMapOrigin in older files
                 var lightingOrigin = sceneObject.ContainsKey("m_vLightingOrigin") ? sceneObject.GetSubCollection("m_vLightingOrigin").ToVector3() : defaultLightingOrigin;
                 var overlayRenderOrder = sceneObject.GetInt32Property("m_nOverlayRenderOrder");
-                var cubeMapPrecomputedHandshake = sceneObject.GetInt32Property("m_nCubeMapPrecomputedHandshake");
-                var lightProbeVolumePrecomputedHandshake = sceneObject.GetInt32Property("m_nLightProbeVolumePrecomputedHandshake");
+                var handshakes = new PrecomputedLightingHandshakes(
+                    sceneObject.GetInt32Property("m_nCubeMapPrecomputedHandshake"),
+                    sceneObject.GetInt32Property("m_nLightProbeVolumePrecomputedHandshake"));
 
                 // sceneObject is SceneObject_t
                 var renderableModel = sceneObject.GetStringProperty("m_renderableModel");
@@ -113,8 +114,7 @@ namespace ValveResourceFormat.Renderer.World
                         Name = renderableModel,
                         LightingOrigin = lightingOrigin == defaultLightingOrigin ? null : Vector3.Transform(lightingOrigin, root),
                         OverlayRenderOrder = overlayRenderOrder,
-                        CubeMapPrecomputedHandshake = cubeMapPrecomputedHandshake,
-                        LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
+                        LightingCache = SceneNodeLightingCache.FromHandshakes(handshakes),
                         Flags = flags,
                         PrecomputedVisClusters = visClusters,
                     };
@@ -148,8 +148,7 @@ namespace ValveResourceFormat.Renderer.World
                         TintAlpha = tintColor,
                         LayerName = layerIndex > -1 ? LayerNames[layerIndex] : "No layer",
                         Name = renderable,
-                        CubeMapPrecomputedHandshake = cubeMapPrecomputedHandshake,
-                        LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
+                        LightingCache = SceneNodeLightingCache.FromHandshakes(handshakes),
                         Flags = flags,
                         PrecomputedVisClusters = visClusters,
                     };

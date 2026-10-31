@@ -279,16 +279,6 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Gets or sets the environment map visibility bitfield for shaders.
-        /// </summary>
-        public SceneEnvMap.EnvMapVisibility128 ShaderEnvMapVisibility { get; set; } = SceneEnvMap.EnvMapVisibility128.Full;
-
-        /// <summary>
-        /// Gets or sets whether the node names an environment map that does not exist, so it reflects none.
-        /// </summary>
-        public bool HasNoEnvMap { get; set; }
-
-        /// <summary>
         /// Gets or sets a custom lighting origin override for environment map and light probe sampling.
         /// </summary>
         public Vector3? LightingOrigin { get; set; }
@@ -299,28 +289,10 @@ namespace ValveResourceFormat.Renderer
         public int OverlayRenderOrder { get; set; }
 
         /// <summary>
-        /// Gets or sets the precomputed handshake value for cubemap assignment.
+        /// Gets the environment map and light probe volume this node is lit with, or <see langword="null"/>
+        /// for a node without cached lighting.
         /// </summary>
-        public int CubeMapPrecomputedHandshake { get; set; }
-
-        /// <summary>
-        /// Gets or sets the precomputed handshake value for light probe volume assignment.
-        /// </summary>
-        public int LightProbeVolumePrecomputedHandshake { get; set; }
-
-        /// <summary>
-        /// Gets or sets the bound light probe for this node.
-        /// </summary>
-        public SceneLightProbe? LightProbeBinding { get; set; }
-
-        /// <summary>
-        /// Gets or sets the environment map picked for a moving node, which shades what no environment map box covers.
-        /// Static nodes use the highest priority one they overlap.
-        /// </summary>
-        public SceneEnvMap? EnvMapBinding { get; set; }
-
-        /// <summary>Where a moving node's lighting bindings were last picked from, NaN when they have to be picked again.</summary>
-        internal Vector3 LightingBindPosition { get; set; } = new(float.NaN);
+        public SceneNodeLightingCache? LightingCache { get; internal set; }
 
         /// <summary>
         /// Gets or sets the associated entity data from the map.

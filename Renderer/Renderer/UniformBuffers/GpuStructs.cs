@@ -78,7 +78,7 @@ public struct InstanceDataStandard
     public uint TintAlpha;
     /// <summary>Index into the transform buffer.</summary>
     public uint TransformIndex;
-    /// <summary>The scene node drawn, which replacement shaders can tell draws apart by, and the index of its <see cref="ObjectDataStandard"/>.</summary>
+    /// <summary>The scene node drawn, which replacement shaders can tell draws apart by, and the index of its lighting in the object buffer.</summary>
     public uint Identification;
     /// <summary>Skinning of the mesh drawn: bit 31: enabled, bits 16-30: bone count, bits 0-15: mesh bone offset.</summary>
     public uint MeshBoneData;
@@ -95,22 +95,6 @@ public struct InstanceDataStandard
     public static uint PackMeshBoneData(RenderableMesh mesh) => mesh.IsSkinningActive
         ? 0x80000000u | ((uint)mesh.MeshBoneCount << 16) | (uint)mesh.MeshBoneOffset
         : 0u;
-};
-
-/// <summary>Scene node uniforms.</summary>
-[StructLayout(LayoutKind.Sequential)]
-public struct ObjectDataStandard
-{
-    /// <summary>
-    /// Light probe volume index in the low 16 bits, env map index in the high 16. Both arrays cap far
-    /// below 65535, so they share a word.
-    /// </summary>
-    public uint VisibleLPV;
-    private readonly uint padding0;
-    private readonly uint padding1;
-    private readonly uint padding2;
-    /// <summary>Bitmask of which environment maps are visible to this object.</summary>
-    public SceneEnvMap.EnvMapVisibility128 EnvMapVisibility;
 };
 
 /// <summary>Arguments for a <c>glDrawElementsIndirect</c> GPU draw call.</summary>

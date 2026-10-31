@@ -12,7 +12,7 @@ public enum LightingBindingDisplay
     /// <summary>None.</summary>
     None,
 
-    /// <summary>The environment maps the node is shaded with.</summary>
+    /// <summary>The environment map the node reflects.</summary>
     EnvMaps,
 
     /// <summary>The light probe volume the node is bound to.</summary>
@@ -277,7 +277,7 @@ public sealed class SelectionVisuals
 
                 break;
 
-            case LightingBindingDisplay.LightProbe when node.LightProbeBinding is { } probe:
+            case LightingBindingDisplay.LightProbe when node.LightingCache?.LightProbe is { } probe:
                 DrawLink(context, probe, toWorld, nodeCenter);
                 break;
         }

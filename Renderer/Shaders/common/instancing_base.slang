@@ -15,15 +15,6 @@ struct InstanceDataStandard
     uint Padding0;
 };
 
-struct ObjectDataStandard
-{
-    uint VisibleLPV; // light probe volume in the low 16 bits, first env map in the high 16
-    uint Padding0;
-    uint Padding1;
-    uint Padding2;
-    uvec4 EnvMapVisibility;
-};
-
 layout(std430, binding = 0) readonly buffer InstanceBuffer
 {
     InstanceDataStandard g_instanceBuffer[];
@@ -36,7 +27,7 @@ layout(std430, binding = 1) readonly buffer TransformBuffer
 
 layout(std430, binding = 2) readonly buffer ObjectBuffer
 {
-    ObjectDataStandard g_objectBuffer[];
+    uint g_objectBuffer[]; // light probe volume in the low 16 bits, env map in the high 16
 };
 
 #endif

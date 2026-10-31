@@ -13,7 +13,7 @@ flat out uint g_nObjectIndex;
 flat in uint g_nObjectIndex;
 #endif
 
-ObjectDataStandard GetObjectLightingData()
+uint GetObjectLightingData()
 {
     return g_objectBuffer[g_nObjectIndex];
 }

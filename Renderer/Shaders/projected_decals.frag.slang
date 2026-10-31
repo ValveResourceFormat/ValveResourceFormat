@@ -152,9 +152,9 @@ uniform sampler2DArray g_tDecalSelfIllum; // g = self-illum mask
 
 uniform uint g_nLightProbeIndex;
 
-ObjectDataStandard GetObjectLightingData()
+uint GetObjectLightingData()
 {
-    return ObjectDataStandard(g_nLightProbeIndex, 0u, 0u, 0u, uvec4(0xFFFFFFFFu));
+    return g_nLightProbeIndex;
 }
 
 // Must be last

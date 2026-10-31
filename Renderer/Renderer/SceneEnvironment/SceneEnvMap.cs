@@ -1,5 +1,3 @@
-using System.Runtime.CompilerServices;
-
 namespace ValveResourceFormat.Renderer.SceneEnvironment;
 
 /// <summary>
@@ -151,88 +149,6 @@ public class SceneEnvMap : SceneNode
 
     /// <summary>Shader index of a node that has no environment map.</summary>
     public const uint NoEnvMapIndex = 0xFFFF;
-
-    /// <summary>
-    /// 128-bit bitmask tracking which environment maps are visible to a node.
-    /// </summary>
-    [InlineArray(4)]
-    public struct EnvMapVisibility128
-    {
-        private uint _bucket0;
-
-        /// <summary>Every item visible.</summary>
-        public static EnvMapVisibility128 Full => Unsafe.BitCast<UInt128, EnvMapVisibility128>(UInt128.MaxValue);
-
-#pragma warning disable CA1024 // Use properties where appropriate
-        /// <summary>Shader indices of every env map marked visible in this bitmask.</summary>
-        public readonly IEnumerable<int> GetVisibleShaderIndices()
-        {
-            for (var bucket = 0; bucket < 4; bucket++)
-            {
-                for (var bitIndex = 0; bitIndex < 32; bitIndex++)
-                {
-                    if ((this[bucket] & (1u << bitIndex)) != 0)
-                    {
-                        yield return bucket * 32 + bitIndex;
-                    }
-                }
-            }
-        }
-#pragma warning restore CA1024
-
-        /// <summary>
-        /// Sets the bits for each env map's <see cref="SceneEnvMap.ShaderIndex"/> in this bitmask and returns the result.
-        /// </summary>
-        public EnvMapVisibility128 Store(List<SceneEnvMap> envMaps)
-        {
-            foreach (var envMap in envMaps)
-            {
-                var index = envMap.ShaderIndex;
-
-                if (index < 0)
-                {
-                    continue;
-                }
-
-                var bucketIndex = index / 32;
-
-                // Only the first 128 probes get a bit here. The shader reads a probe past that as visible
-                // to every object, leaving the tile and bin masks and the volume test to cull it, so the
-                // gap costs a little iteration rather than a wrong result.
-                if (bucketIndex >= 4)
-                {
-                    continue;
-                }
-
-                var bitIndex = index % 32;
-
-                this[bucketIndex] |= 1u << bitIndex;
-            }
-
-            return this;
-        }
-
-        /// <summary>
-        /// Returns the array index of the lowest env map set here, or zero when empty. Since
-        /// <see cref="SceneEnvMap.ShaderIndex"/> is assigned in indoor priority order, that is the highest
-        /// priority probe the node sees. Ties resolve arbitrarily.
-        /// </summary>
-        public readonly uint GetFirstShaderIndex()
-        {
-            for (var bucket = 0; bucket < 4; bucket++)
-            {
-                if (this[bucket] != 0u)
-                {
-                    return (uint)((bucket * 32) + BitOperations.TrailingZeroCount(this[bucket]));
-                }
-            }
-
-            return 0u;
-        }
-
-        /// <summary>Returns the four 32-bit buckets of this bitmask as a value tuple.</summary>
-        public readonly (uint, uint, uint, uint) ToTuple() => (this[0], this[1], this[2], this[3]);
-    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SceneEnvMap"/> class with the given local-space bounds.

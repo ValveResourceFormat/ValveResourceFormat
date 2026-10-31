@@ -49,8 +49,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public LightProbeSampleGridSceneNode(Scene scene, SceneLightProbe probe, ReadOnlySpan<Vector3> localSamples)
             : base(scene)
         {
-            LightProbeBinding = probe;
-            LightProbeVolumePrecomputedHandshake = probe.LightProbeVolumePrecomputedHandshake;
+            LightingCache = new SceneNodeLightingCache { LightProbe = probe };
 
             sampleBounds = probe.LocalBoundingBox;
             Transform = probe.Transform;
