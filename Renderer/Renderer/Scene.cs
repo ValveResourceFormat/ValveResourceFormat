@@ -2045,6 +2045,7 @@ namespace ValveResourceFormat.Renderer
         {
             var precomputedHandshake = node.CubeMapPrecomputedHandshake;
             SceneEnvMap? preComputed = default;
+            var handshakeDecided = false;
             node.HasNoEnvMap = false;
 
             if (node.EntityData is { } entityData
@@ -2060,11 +2061,13 @@ namespace ValveResourceFormat.Renderer
                     // The engine only binds an environment map whose handshake the node names, and has none otherwise
                     envMaps.Clear();
                     node.HasNoEnvMap = true;
+                    handshakeDecided = true;
                 }
                 else if (LightingInfo.EnvMapHandshakes.TryGetValue(precomputedHandshake, out preComputed))
                 {
                     envMaps.Clear();
                     envMaps.Add(preComputed);
+                    handshakeDecided = true;
                 }
                 else
                 {
@@ -2084,12 +2087,16 @@ namespace ValveResourceFormat.Renderer
             {
                 if (LightingInfo.LightmapGameVersionNumber <= 1)
                 {
-                    envMaps.Clear();
-                    foreach (var envMap in LightingInfo.EnvMaps)
+                    // A handshake match takes precedence over the lighting origin
+                    if (!handshakeDecided)
                     {
-                        if (envMap.BoundingBox.Contains(lightingOrigin))
+                        envMaps.Clear();
+                        foreach (var envMap in LightingInfo.EnvMaps)
                         {
-                            envMaps.Add(envMap);
+                            if (envMap.BoundingBox.Contains(lightingOrigin))
+                            {
+                                envMaps.Add(envMap);
+                            }
                         }
                     }
                 }
