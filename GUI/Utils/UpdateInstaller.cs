@@ -30,6 +30,8 @@ static class UpdateInstaller
     private const string RepositoryId = "42366054";
     private const string Workflow = ".github/workflows/build.yml";
     private const string ProvenancePredicateType = "https://slsa.dev/provenance/v1";
+    private const int SwapAttempts = 5;
+    private static readonly TimeSpan SwapRetryDelay = TimeSpan.FromMilliseconds(500);
 
     /// <summary>Starts the viewer as an elevated installer, followed by the download path and its SHA-256.</summary>
     public const string ElevatedInstallArgument = "--install-update";
@@ -97,6 +99,9 @@ static class UpdateInstaller
     {
         var url = UpdateChecker.DownloadUrl;
         var expectedHash = UpdateChecker.DownloadSha256;
+
+        // Another check can change the offered update while this one installs, such as the channel being switched
+        var versionText = UpdateChecker.NewVersionText;
         var exePath = Environment.ProcessPath ?? throw new InvalidOperationException("Could not determine the path of the running executable.");
 
         // Only a download that can be verified is ever offered, there is no unverified fallback
@@ -109,7 +114,7 @@ static class UpdateInstaller
         var downloadPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
         var downloaded = false;
 
-        using (var dialog = new GenericProgressForm { Text = $"Downloading {UpdateChecker.NewVersionText}" })
+        using (var dialog = new GenericProgressForm { Text = $"Downloading {versionText}" })
         {
             dialog.OnProcess = async cancellationToken =>
             {
@@ -122,18 +127,16 @@ static class UpdateInstaller
 
                 try
                 {
-                    long size;
-                    string hash;
-
                     try
                     {
-                        (size, hash) = await DownloadAsync(httpClient, url, downloadPath, dialog, cancellationToken).ConfigureAwait(false);
+                        await DownloadVerifiedAsync(httpClient, url, expectedHash, downloadPath, dialog, cancellationToken).ConfigureAwait(false);
                     }
                     catch (HttpRequestException e) when (e.StatusCode == HttpStatusCode.NotFound)
                     {
                         // Older dev builds are removed once newer ones are published, the manifest names the one to get instead
                         dialog.SetProgress("Checking for a newer build…");
-                        await UpdateChecker.RecheckForUpdates().ConfigureAwait(false);
+                        // The manifest request is shared with other checks, so cancelling only stops waiting for it
+                        await UpdateChecker.RecheckForUpdates().WaitAsync(cancellationToken).ConfigureAwait(false);
 
                         var newerUrl = UpdateChecker.DownloadUrl;
                         var newerHash = UpdateChecker.DownloadSha256;
@@ -145,15 +148,10 @@ static class UpdateInstaller
 
                         url = newerUrl;
                         expectedHash = newerHash;
+                        versionText = UpdateChecker.NewVersionText;
 
-                        (size, hash) = await DownloadAsync(httpClient, url, downloadPath, dialog, cancellationToken).ConfigureAwait(false);
+                        await DownloadVerifiedAsync(httpClient, url, expectedHash, downloadPath, dialog, cancellationToken).ConfigureAwait(false);
                     }
-
-                    dialog.SetProgress("Verifying…");
-                    Verify(downloadPath, size, hash, expectedHash);
-
-                    dialog.SetProgress("Verifying build provenance…");
-                    await VerifyProvenanceAsync(httpClient, hash, cancellationToken).ConfigureAwait(false);
 
                     downloaded = true;
                 }
@@ -210,7 +208,7 @@ static class UpdateInstaller
             return;
         }
 
-        InstalledVersionText = UpdateChecker.NewVersionText;
+        InstalledVersionText = versionText;
 
         var restartButton = new TaskDialogButton("Restart now");
         var page = new TaskDialogPage
@@ -305,6 +303,32 @@ static class UpdateInstaller
         }
     }
 
+    // The provenance is looked up by the hash the manifest promises while the file downloads,
+    // and covers the file once it is verified to have that hash
+    private static async Task DownloadVerifiedAsync(HttpClient httpClient, string url, string expectedHash, string downloadPath, GenericProgressForm dialog, CancellationToken cancellationToken)
+    {
+        using var provenanceCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var provenance = VerifyProvenanceAsync(httpClient, expectedHash, provenanceCancellation.Token);
+
+        try
+        {
+            var (size, hash) = await DownloadAsync(httpClient, url, downloadPath, dialog, cancellationToken).ConfigureAwait(false);
+
+            dialog.SetProgress("Verifying…");
+            Verify(downloadPath, size, hash, expectedHash);
+        }
+        catch
+        {
+            // The download failure is the one to report, the provenance check only has to stop
+            await provenanceCancellation.CancelAsync().ConfigureAwait(false);
+            await provenance.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+            throw;
+        }
+
+        dialog.SetProgress("Verifying build provenance…");
+        await provenance.ConfigureAwait(false);
+    }
+
     private static async Task<(long Size, string Hash)> DownloadAsync(HttpClient httpClient, string url, string downloadPath, GenericProgressForm dialog, CancellationToken cancellationToken)
     {
         using var response = await httpClient.GetAsync(new Uri(url), HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
@@ -350,6 +374,11 @@ static class UpdateInstaller
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
             throw new InvalidDataException("No build provenance was found for the downloaded file.");
+        }
+
+        if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests)
+        {
+            throw new HttpRequestException("GitHub is limiting requests from this network, try the update again later.", null, response.StatusCode);
         }
 
         response.EnsureSuccessStatusCode();
@@ -567,22 +596,53 @@ static class UpdateInstaller
                 VerifyHash(destination.GetHash(), expectedHash);
             }
 
-            File.Move(exePath, replacedPath);
+            // Antivirus software often holds a freshly written executable open for a moment while it scans it,
+            // so the swap is retried, with the running executable put back in between
+            for (var attempt = 1; ; attempt++)
+            {
+                File.Move(exePath, replacedPath);
 
-            try
-            {
-                File.Move(pendingPath, exePath);
-            }
-            catch
-            {
-                File.Move(replacedPath, exePath);
-                throw;
+                try
+                {
+                    File.Move(pendingPath, exePath);
+                    break;
+                }
+                catch (Exception e)
+                {
+                    RestoreReplaced(exePath, replacedPath, pendingPath, e);
+
+                    var mayBeInUse = e is IOException or UnauthorizedAccessException;
+
+                    if (!mayBeInUse || attempt == SwapAttempts)
+                    {
+                        throw;
+                    }
+                }
+
+                Thread.Sleep(SwapRetryDelay);
             }
         }
         catch
         {
-            TryDelete(pendingPath);
+            // Without an executable in place, the pending copy is what the user can rename to recover
+            if (File.Exists(exePath))
+            {
+                TryDelete(pendingPath);
+            }
+
             throw;
+        }
+    }
+
+    private static void RestoreReplaced(string exePath, string replacedPath, string pendingPath, Exception moveError)
+    {
+        try
+        {
+            File.Move(replacedPath, exePath);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            throw new IOException($"{moveError.Message} The previous version could not be put back either, rename {pendingPath} to {Path.GetFileName(exePath)} to finish the update.", e);
         }
     }
 }
