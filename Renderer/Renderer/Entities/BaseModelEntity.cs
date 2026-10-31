@@ -105,6 +105,8 @@ public abstract class BaseModelEntity : BaseEntity
             modelNode.Flags |= ObjectTypeFlags.NoShadows;
         }
 
+        modelNode.FixupLightingOriginToViewer = Data?.GetBooleanProperty("fixup_lighting_origin_to_player_side") == true;
+
         // Model-referenced particles spawn regardless of meshes
         var particleNodes = ParticleSceneNode.CreateModelParticles(Scene, model, modelNode);
 
