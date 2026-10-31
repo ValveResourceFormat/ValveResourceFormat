@@ -123,12 +123,7 @@ vec3 NprControlExposure(vec3 light, vec3 averageXyY, float targetLuminance)
 // Multi bounce fit of the occlusion on an albedo
 vec3 NprMultiBounceOcclusion(vec3 albedo, float occlusion)
 {
-    float occlusionSquared = occlusion * occlusion;
-    vec3 cubic = (albedo * 2.0404 - 0.3324) * (occlusionSquared * occlusion);
-    vec3 quadratic = (albedo * 4.7951 - 0.6417) * occlusionSquared;
-    vec3 linear = (albedo * 2.7552 + 0.6903) * occlusion;
-
-    return mix(vec3(1.0), cubic - quadratic + linear, g_flNPRDiffusePbrBlend);
+    return mix(vec3(1.0), GetMultiBounceOcclusion(albedo, occlusion), g_flNPRDiffusePbrBlend);
 }
 
 // Fades the rim by where the surface faces: an empty range is a step at its start

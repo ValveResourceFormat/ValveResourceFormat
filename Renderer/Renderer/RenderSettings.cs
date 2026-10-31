@@ -35,6 +35,9 @@ public record struct RenderSettings
     /// <summary>Gets or sets whether a depth prepass is drawn before opaques.</summary>
     public bool EnableDepthPrepass { get; set; } = true;
 
+    /// <summary>Gets or sets whether the surfaces that accept screen space ambient occlusion are darkened by it. Needs the depth prepass.</summary>
+    public bool EnableScreenSpaceAo { get; set; } = true;
+
     /// <summary>Gets or sets whether aggregates are culled on the GPU and drawn indirectly.</summary>
     public bool EnableIndirectDraws { get; set; } = true;
 

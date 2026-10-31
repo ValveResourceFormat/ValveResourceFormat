@@ -47,6 +47,33 @@
 #include "utils.slang"
 #include "texturing.slang"
 
+// Accounts for the light that bounces between the surfaces of the occluder and the surface, which lightens
+// the occlusion of a bright surface
+vec3 GetMultiBounceOcclusion(vec3 albedo, float occlusion)
+{
+    vec3 a = albedo * 2.0404 - 0.3324;
+    vec3 b = albedo * -4.7951 + 0.6417;
+    vec3 c = albedo * 2.7552 + 0.6903;
+
+    return ((a * occlusion + b) * occlusion + c) * occlusion;
+}
+
+// Surfaces that accept the screen space ambient occlusion darken their indirect light and their light without shadows by it
+#ifndef SCREEN_SPACE_AO
+    #define SCREEN_SPACE_AO 0
+#endif
+
+#if (SCREEN_SPACE_AO == 1)
+    uniform sampler2D g_tSsao; // reserved
+
+    float GetScreenSpaceOcclusion()
+    {
+        ivec2 pixel = min(ivec2(gl_FragCoord.xy), textureSize(g_tSsao, 0) - 1);
+
+        return texelFetch(g_tSsao, pixel, 0).x;
+    }
+#endif
+
 #include "lighting_common.slang"
 #include "shadowmapping.slang"
 
@@ -925,6 +952,16 @@ void ApplyAmbientOcclusion(inout LightingTerms_t o, MaterialProperties_t mat, fl
     o.DiffuseIndirect *= mat.DiffuseAO;
     o.SpecularDirect *= DirectAOSpecular;
     o.SpecularIndirect *= mat.SpecularAO;
+
+#if (SCREEN_SPACE_AO == 1)
+    float screenSpaceOcclusion = GetScreenSpaceOcclusion();
+    float roughness = max(mat.IsometricRoughness, 0.05);
+    float specularExponent = roughness * roughness;
+    float specularOcclusion = pow(saturate(dot(mat.Normal, mat.ViewDir)) + screenSpaceOcclusion, specularExponent) - 1.0 + screenSpaceOcclusion;
+
+    o.DiffuseIndirect *= GetMultiBounceOcclusion(mat.Albedo, screenSpaceOcclusion);
+    o.SpecularIndirect *= saturate(specularOcclusion);
+#endif
 }
 
 LightingTerms_t CalculateLighting(inout MaterialProperties_t mat)

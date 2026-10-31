@@ -10,6 +10,8 @@
 // Deadlock blends the light probe volumes in every lightmap version
 #define ENABLE_LPV_BLENDING 1
 
+#define SCREEN_SPACE_AO 1
+
 #include "../common/surface_base_ps.slang"
 #include "../common/citadel.slang"
 #include "../common/surface_shading.slang"

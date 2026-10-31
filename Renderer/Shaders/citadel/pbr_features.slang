@@ -26,6 +26,6 @@
 #define F_SHEEN 0
 #define F_GLASS 0 // transmission through the albedo, not the edge fresnel glass elsewhere
 
-// Not implemented: the NPR outline, stepped direct specular and screen space occlusion,
+// Not implemented: the NPR outline and stepped direct specular,
 // F_CLOAK, F_COSMIC_VEIL, F_USE_STATUS_EFFECTS_PROXY, F_MATERIAL_VARIANT,
 // F_OVERRIDE_BLOOM_AMOUNT.

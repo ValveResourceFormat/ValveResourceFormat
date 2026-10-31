@@ -291,6 +291,10 @@ public class Renderer : ISceneHost
 
     private readonly DepthPyramid depthPyramid;
 
+    private readonly ScreenSpaceAo screenSpaceAo;
+    private readonly Action<Framebuffer> computeScreenSpaceAo;
+    private bool screenSpaceAoComputed;
+
     private readonly List<Scene> scenes = [];
     private readonly Dictionary<Scene, SceneViewState> mainViewStates = [];
     private readonly Dictionary<Scene, SceneViewState> skyViewStates = [];
@@ -363,6 +367,8 @@ public class Renderer : ISceneHost
         EntitySystem = new EntitySystem(rendererContext);
         EntitySystem.SpawnGroupManager.Host = this;
         depthPyramid = new DepthPyramid(rendererContext);
+        screenSpaceAo = new ScreenSpaceAo(rendererContext);
+        computeScreenSpaceAo = ComputeScreenSpaceAo;
 
         Scene.PhysicsWorld = EntitySystem.PhysicsWorld;
         scenes.Add(Scene);
@@ -866,6 +872,8 @@ public class Renderer : ISceneHost
         Textures.Add(new(ReservedTextureSlots.SceneColor, "g_tSceneColor", ResolvedSceneColor));
         Textures.Add(new(ReservedTextureSlots.SceneDepth, "g_tSceneDepth", ResolvedSceneDepth));
 
+        SetScreenSpaceAoTexture(null);
+
         TranslucentDepthBuffer = Framebuffer.Prepare(nameof(TranslucentDepthBuffer), 4, 4, 0, null, ImageFormat.D32);
         TranslucentDepthBuffer.Initialize();
         TranslucentDepthBuffer.ClearMask = ClearBufferMask.DepthBufferBit;
@@ -1161,13 +1169,40 @@ public class Renderer : ISceneHost
         }
     }
 
-    private void RenderOpaqueLayer(in SceneView view, ref Scene.RenderContext renderContext, Shader? depthOnlyShader = null)
+    private void RenderOpaqueLayer(in SceneView view, ref Scene.RenderContext renderContext, Shader? depthOnlyShader = null, bool withScreenSpaceAo = false)
     {
         foreach (var state in view.States)
         {
             DrawThrough(view, state, ref renderContext);
-            state.RenderOpaqueLayer(renderContext, depthOnlyShader);
+
+            Action<Framebuffer>? afterDepthPrepass = null;
+
+            if (withScreenSpaceAo && state.WantsSsao && !screenSpaceAoComputed)
+            {
+                afterDepthPrepass = computeScreenSpaceAo;
+            }
+
+            state.RenderOpaqueLayer(renderContext, depthOnlyShader, afterDepthPrepass);
         }
+    }
+
+    /// <summary>Resolves the depth of the prepass that just drew and computes the occlusion of it, which the opaque draws that follow sample.</summary>
+    private void ComputeScreenSpaceAo(Framebuffer framebuffer)
+    {
+        Debug.Assert(ResolvedSceneDepth != null);
+
+        screenSpaceAoComputed = true;
+
+        GrabFramebufferCopy(framebuffer, copyColor: false, copyDepth: true);
+        screenSpaceAo.Run(ResolvedSceneDepth);
+
+        SetScreenSpaceAoTexture(screenSpaceAo.Result);
+    }
+
+    private void SetScreenSpaceAoTexture(RenderTexture? texture)
+    {
+        Textures.RemoveAll(static t => t.Slot == ReservedTextureSlots.Ssao);
+        Textures.Add(new(ReservedTextureSlots.Ssao, "g_tSsao", texture ?? RendererContext.MaterialLoader.GetDefaultMask()));
     }
 
     // Translucents sort per scene, so a later scene draws over an earlier one
@@ -1451,7 +1486,11 @@ public class Renderer : ISceneHost
 
         using (new GLDebugGroup("Main Scene Opaque Render"))
         {
-            RenderOpaqueLayer(mainView, ref renderContext, isMaterialPass ? depthOnlyShader : null);
+            screenSpaceAoComputed = false;
+            SetScreenSpaceAoTexture(null);
+
+            var withScreenSpaceAo = isMaterialPass && Settings.EnableScreenSpaceAo;
+            RenderOpaqueLayer(mainView, ref renderContext, isMaterialPass ? depthOnlyShader : null, withScreenSpaceAo);
         }
 
         //using (new GLDebugGroup("Sky Render"))
@@ -2250,6 +2289,7 @@ public class Renderer : ISceneHost
         DeleteViewStates();
         DeleteSkyOverrides();
         depthPyramid.Delete();
+        screenSpaceAo.Delete();
 
         EntitySystem.SpawnGroupManager.Clear();
 

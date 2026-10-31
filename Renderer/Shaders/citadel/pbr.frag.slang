@@ -12,6 +12,11 @@
 // Deadlock blends the light probe volumes in every lightmap version
 #define ENABLE_LPV_BLENDING 1
 
+// Unlit, glass and translucent surfaces do not write the G-buffer flag that accepts it
+#if (F_UNLIT == 0) && (F_GLASS == 0) && (F_TRANSLUCENT == 0)
+    #define SCREEN_SPACE_AO 1
+#endif
+
 #include "../common/surface_base_ps.slang"
 #include "../common/citadel.slang"
 #include "../common/surface_material.slang"

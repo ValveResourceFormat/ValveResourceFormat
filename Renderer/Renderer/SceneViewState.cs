@@ -27,6 +27,9 @@ public sealed class SceneViewState
     /// <summary>Gets whether anything drawn after the framebuffer grab samples the scene depth.</summary>
     public bool WantsSceneDepth { get; private set; }
 
+    /// <summary>Gets whether anything queued to draw samples the screen space ambient occlusion.</summary>
+    public bool WantsSsao { get; private set; }
+
     /// <summary>Gets whether anything is queued to draw into the water effects map this frame.</summary>
     public bool HasWaterEffects => waterEffectsRenderList.Count > 0;
 
@@ -424,6 +427,7 @@ public sealed class SceneViewState
 
         // A draw before the grab reads the depth copy of the previous frame
         WantsSceneDepth |= request.Call.Material.Shader.ReservedTexturesUsed.Contains("g_tSceneDepth");
+        WantsSsao |= request.Call.Material.Shader.ReservedTexturesUsed.Contains("g_tSsao");
 
         queueList.Add(request);
     }
@@ -471,6 +475,7 @@ public sealed class SceneViewState
 
         WantsSceneColor = false;
         WantsSceneDepth = Scene.ProjectedDecals.Count > 0;
+        WantsSsao = false;
 
         ResetCpuVisibleBits((!Pvs.IsEmpty && Scene.VoxelVisibility != null) || VisibilityBoxes.IsActive);
 
@@ -1038,7 +1043,8 @@ public sealed class SceneViewState
     /// </summary>
     /// <param name="renderContext">The render context for this pass.</param>
     /// <param name="depthOnlyShader">Optional depth-only shader; <see langword="null"/> for a pass that replaces material shaders.</param>
-    public void RenderOpaqueLayer(Scene.RenderContext renderContext, Shader? depthOnlyShader = null)
+    /// <param name="afterDepthPrepass">Called with the framebuffer of the pass once the depth prepass has drawn, before the layer is shaded.</param>
+    public void RenderOpaqueLayer(Scene.RenderContext renderContext, Shader? depthOnlyShader = null, Action<Framebuffer>? afterDepthPrepass = null)
     {
         using var passScope = GraphicsContext.RenderState.Scope();
 
@@ -1061,6 +1067,8 @@ public sealed class SceneViewState
         {
             RenderDepthPrepass(renderContext, depthOnlyDraws, depthOnlyShader!);
             RenderAlphaTestDepthPrepass(renderContext, depthOnlyShader!);
+
+            afterDepthPrepass?.Invoke(renderContext.Framebuffer);
         }
 
         if (drawIndirect)

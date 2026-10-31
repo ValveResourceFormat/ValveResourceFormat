@@ -8,6 +8,8 @@
 #define DIFFUSE_WRAP 0
 #define ANISO_CUBEMAP_WARP_OPTIONAL 0
 
+#define SCREEN_SPACE_AO 1
+
 #include "../common/surface_base_ps.slang"
 #include "../common/surface_material.slang"
 #include "../common/surface_shading.slang"

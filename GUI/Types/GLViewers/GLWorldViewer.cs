@@ -475,6 +475,7 @@ namespace GUI.Types.GLViewers
                     occlusionCullingCheckBox.Enabled = Renderer.Settings.EnableIndirectDraws;
 
                     UiControl.AddCheckBox("Depth Prepass", Renderer.Settings.EnableDepthPrepass, (v) => Renderer.Settings.EnableDepthPrepass = v);
+                    UiControl.AddCheckBox("Ambient Occlusion", Renderer.Settings.EnableScreenSpaceAo, (v) => Renderer.Settings.EnableScreenSpaceAo = v);
 
                     UiControl.AddCheckBox("Barn Lights", Renderer.Settings.EnableBarnLights, v => Renderer.Settings.EnableBarnLights = v);
                     UiControl.AddCheckBox("Tiled Light Culling", Renderer.Settings.EnableTiledLightCulling, v => Renderer.Settings.EnableTiledLightCulling = v);

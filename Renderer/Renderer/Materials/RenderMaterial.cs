@@ -93,8 +93,11 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>The volume texture whose slices are the cookies of per-pixel spot lights.</summary>
         [SamplerName("g_tLightCookieVolume")]
         LightCookieVolume,
+        /// <summary>Screen space ambient occlusion of the opaque scene, 1 where nothing occludes.</summary>
+        [SamplerName("g_tSsao")]
+        Ssao,
         /// <summary>Last reserved slot.</summary>
-        Last = LightCookieVolume,
+        Last = Ssao,
     }
 
     /// <summary>
