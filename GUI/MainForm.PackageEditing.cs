@@ -227,11 +227,11 @@ namespace GUI
         {
             var folderName = inputFolder != null ? Path.GetFileName(Path.TrimEndingDirectorySeparator(inputFolder)) : string.Empty;
             var fileName = folderName.Length > 0 ? $"{folderName}.vpk" : "new.vpk";
+#pragma warning disable CA2000 // The editor tab owns the viewer and its tree view disposes the context
             var context = await CreatePackageEditorContextAsync(fileName).ConfigureAwait(true);
 
             try
             {
-#pragma warning disable CA2000 // The editor tab owns the viewer and its tree view disposes the context
                 var viewer = new PackageViewer(context);
 #pragma warning restore CA2000
                 var contents = viewer.CreateEmpty();
