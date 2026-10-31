@@ -53,6 +53,7 @@ public static class EntityFactory
         Register<TriggerLook>("trigger_look", static (system, spawnInfo) => new TriggerLook(system, spawnInfo));
         Register<TriggerTeleport>("trigger_teleport", static (system, spawnInfo) => new TriggerTeleport(system, spawnInfo));
         Register<PointTeleport>("point_teleport", static (system, spawnInfo) => new PointTeleport(system, spawnInfo));
+        Register<PointEntityFader>("point_entity_fader", static (system, spawnInfo) => new PointEntityFader(system, spawnInfo));
 
         // lights
         Register<LightEntity>("light_barn", static (system, spawnInfo) => new LightEntity(system, spawnInfo));

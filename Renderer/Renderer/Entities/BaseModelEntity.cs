@@ -94,10 +94,18 @@ public abstract class BaseModelEntity : BaseEntity
 
         LoadedModel = model;
 
+        var tint = Data?.GetRenderTint() ?? Vector4.One;
+
+        // A model that spawns fully transparent is faded in by the map later, so an editor shows it opaque
+        if (tint.W == 0f && !EntitySystem.Enabled)
+        {
+            tint.W = 1f;
+        }
+
         var modelNode = new ModelSceneNode(Scene, model, Data?.GetStringProperty("skin"))
         {
             Name = modelName,
-            TintAlpha = Data?.GetRenderTint() ?? Vector4.One,
+            TintAlpha = tint,
         };
 
         if (Data != null && DisablesShadows(Data))
