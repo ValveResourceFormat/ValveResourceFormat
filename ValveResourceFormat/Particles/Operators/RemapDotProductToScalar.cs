@@ -89,7 +89,9 @@ namespace ValveResourceFormat.Particles.Operators
                     continue;
                 }
 
-                var remapped = MathUtils.RemapValClamped(dot, inputMin, inputMax, rangeMin, rangeMax);
+                var remapped = inputMin == inputMax
+                    ? (dot >= inputMax ? rangeMax : rangeMin)
+                    : MathUtils.Lerp(rangeMin, rangeMax, MathUtils.Saturate(MathUtils.Remap(dot, inputMin, inputMax)));
                 var value = ParticleFieldExtensions.ApplySetMethod(remapped, initial[i], output[i], particleSystemState.CurrentStep, setMethod);
                 output[i] = isInteger ? BitConverter.Int32BitsToSingle((int)value) : value;
             }
