@@ -815,14 +815,16 @@ namespace GUI.Types.GLViewers
                 PhysicsDetails.AddNodeDetails(info, collision);
             }
 
-            if (sceneNode.CubeMapPrecomputedHandshake > 0)
+            var handshakes = sceneNode.LightingCache?.Handshakes ?? default;
+
+            if (handshakes.HasCubeMap)
             {
-                info.AddProperty("Cubemap Handshake", $"{sceneNode.CubeMapPrecomputedHandshake}");
+                info.AddProperty("Cubemap Handshake", $"{handshakes.CubeMap}");
             }
 
-            if (sceneNode.LightProbeVolumePrecomputedHandshake > 0)
+            if (handshakes.HasLightProbeVolume)
             {
-                info.AddProperty("Light Probe Handshake", $"{sceneNode.LightProbeVolumePrecomputedHandshake}");
+                info.AddProperty("Light Probe Handshake", $"{handshakes.LightProbeVolume}");
             }
 
             info.AddProperty("Flags", sceneNode.Flags.ToString());

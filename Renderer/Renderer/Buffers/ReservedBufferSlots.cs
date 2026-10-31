@@ -31,8 +31,6 @@ public enum ReservedBufferSlots
     Instances = 0,
     /// <summary>Transform matrices SSBO slot.</summary>
     Transforms = 1,
-    /// <summary>Per scene node lighting data SSBO slot, read by the fragment stage.</summary>
-    Objects = 2,
     /// <summary>Barn light constants SSBO slot.</summary>
     BarnLights = 3,
     /// <summary>Tile and depth slice bit masks the cull passes produce.</summary>

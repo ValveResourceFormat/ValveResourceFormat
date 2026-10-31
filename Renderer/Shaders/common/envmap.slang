@@ -276,13 +276,13 @@ void AddEnvMapSample(inout vec3 envMap, inout vec4 normalizationSH, EnvMapData e
 
 bool ObjectHasEnvMap()
 {
-    return (GetObjectLightingData().VisibleLPV >> 16u) != NO_ENV_MAP;
+    return (GetObjectLightingData() >> 16u) != NO_ENV_MAP;
 }
 
 // The environment map picked for the whole object
 EnvMapData GetObjectEnvMap()
 {
-    return envMaps[GetObjectLightingData().VisibleLPV >> 16u];
+    return envMaps[GetObjectLightingData() >> 16u];
 }
 
 // The object's environment map alone, with no blending between environment maps
@@ -325,7 +325,7 @@ vec3 BlendEnvMaps(vec3 R, vec3 reflectionNormal, float perceptualRoughness, floa
         return envMap;
     }
 
-    #if (ENV_SPECULAR_SIMPLE)
+    #if (ENV_SPECULAR_SIMPLE || ENVMAP_ONE_PER_OBJECT)
         // The environment map picked for the object is the only one it reflects
         EnvMapData objectEnvData = GetObjectEnvMap();
         vec3 objectLocalPos = mat4x3(objectEnvData.WorldToLocal) * vec4(vFragPosition, 1.0);
@@ -343,16 +343,10 @@ vec3 BlendEnvMaps(vec3 R, vec3 reflectionNormal, float perceptualRoughness, floa
         vec4 normalizationSH = vec4(0.0);
 
         CullMasks_t masks = GetEnvMapCullMasks(vFragPosition);
-        uvec4 objectEnvMaps = GetObjectLightingData().EnvMapVisibility;
-
-        // Otherwise every environment map the tile reaches is taken
-        bool bUseObjectEnvMaps = ENVMAP_OBJECT_VISIBILITY;
 
         for (uint word = 0u; word < masks.m_nWords && AnyLaneWantsMore(bContinueLoop); word++)
         {
-            uint objectMask = (word < 4u && bUseObjectEnvMaps) ? objectEnvMaps[word] : 0xFFFFFFFFu;
-
-            uint mask = GetCullMaskWord(masks, word, objectMask & GetEnvMapLiveMask(word));
+            uint mask = GetCullMaskWord(masks, word, GetEnvMapLiveMask(word));
 
             int baseIndex = int(word * 32u);
 
@@ -403,24 +397,9 @@ vec3 BlendEnvMaps(vec3 R, vec3 reflectionNormal, float perceptualRoughness, floa
             float skyWeight = 1.0 - flTotalWeight;
             envMap += GetSkyAmbientLighting(R) * skyWeight;
             normalizationSH += GetSkyAmbientLuminanceSH() * skyWeight;
-        #elif (ENVMAP_COVERAGE_NORMALIZED)
+        #else
             envMap /= flTotalWeight;
             normalizationSH /= flTotalWeight;
-        #else
-            // What no box covers takes the environment map picked for the object, even outside of its box
-            float remainingWeight = 1.0 - flTotalWeight;
-
-            if (remainingWeight > 0.0)
-            {
-                EnvMapData envData = GetObjectEnvMap();
-                vec3 envMapLocalPos = mat4x3(envData.WorldToLocal) * vec4(vFragPosition, 1.0);
-
-                g_nEnvMapsIterated++;
-                flTotalWeight += remainingWeight;
-                AddEnvMapSample(envMap, normalizationSH, envData, envMapLocalPos, R, reflectionNormal, perceptualRoughness, lod, remainingWeight);
-            }
-
-            normalizationSH /= max(flTotalWeight, 1e-4);
         #endif
 
         g_vEnvMapNormalizationSH = normalizationSH;

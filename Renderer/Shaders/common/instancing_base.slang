@@ -7,21 +7,12 @@ struct InstanceDataStandard
 {
     uint TintAlpha;
     uint TransformIndex;
-    uint Identification; // the scene node, which also indexes g_objectBuffer[]
+    uint Identification; // the scene node, which also indexes its own entry
     uint MeshBoneData; // skinned flag in bit 31, bone count in bits 16-30, the mesh's first bone in 0-15
-    int MorphVertexIdOffset; 
+    int MorphVertexIdOffset;
     uint MorphAtlasOrigin;
     uint MorphAtlasStride;
-    uint Padding0;
-};
-
-struct ObjectDataStandard
-{
-    uint VisibleLPV; // light probe volume in the low 16 bits, first env map in the high 16
-    uint Padding0;
-    uint Padding1;
-    uint Padding2;
-    uvec4 EnvMapVisibility;
+    uint LightingData; // light probe volume in the low 16 bits, env map in the high 16
 };
 
 layout(std430, binding = 0) readonly buffer InstanceBuffer
@@ -32,11 +23,6 @@ layout(std430, binding = 0) readonly buffer InstanceBuffer
 layout(std430, binding = 1) readonly buffer TransformBuffer
 {
     mat3x4 g_transformBuffer[];
-};
-
-layout(std430, binding = 2) readonly buffer ObjectBuffer
-{
-    ObjectDataStandard g_objectBuffer[];
 };
 
 #endif

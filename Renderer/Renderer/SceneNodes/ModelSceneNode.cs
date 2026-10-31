@@ -203,9 +203,78 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             base.Delete();
         }
 
+        /// <summary>
+        /// Gets or sets whether a thin model, such as a pane or a door, is lit from the side that faces the camera.
+        /// Its lighting origin moves off the center of the model toward that side.
+        /// </summary>
+        public bool FixupLightingOriginToViewer { get; set; }
+
+        // How far the lighting origin may leave the center of the model
+        private const float MaxViewerLightingOriginOffset = 18f;
+
+        // Where a thin model is lit from. The origin sits in front of the center, along the thinnest axis, on the
+        // viewer's side. Close to the plane, within half its thickness, the side stays as it was so it does not flicker.
+        private void UpdateLightingOriginToViewer(Vector3 viewer)
+        {
+            var localBounds = LocalBoundingBox;
+            var size = localBounds.Max - localBounds.Min;
+            var extents = new Vector3(
+                size.X * Transform.AxisScale(0),
+                size.Y * Transform.AxisScale(1),
+                size.Z * Transform.AxisScale(2));
+
+            var axis = 2;
+
+            if (extents.X < extents.Y)
+            {
+                if (extents.Z > extents.X)
+                {
+                    axis = 0;
+                }
+            }
+            else if (extents.Z > extents.Y)
+            {
+                axis = 1;
+            }
+
+            var localNormal = Vector3.Zero;
+            localNormal[axis] = 1f;
+
+            var normal = Vector3.Normalize(Vector3.TransformNormal(localNormal, Transform));
+            var center = Vector3.Transform(localBounds.Center, Transform);
+            var side = Vector3.Dot(viewer - center, normal);
+            var deadZone = LightingOrigin.HasValue ? extents[axis] * 0.5f : -1f;
+
+            float direction;
+
+            if (side > deadZone)
+            {
+                direction = 1f;
+            }
+            else if (side < -deadZone)
+            {
+                direction = -1f;
+            }
+            else
+            {
+                return;
+            }
+
+            var otherExtent = MathF.Min(extents[(axis + 1) % 3], extents[(axis + 2) % 3]);
+            var offset = MathF.Min(otherExtent * 0.5f, MaxViewerLightingOriginOffset);
+            var origin = center + normal * (direction * offset);
+
+            LightingOrigin = new Vector3(MathF.Floor(origin.X + 0.5f), MathF.Floor(origin.Y + 0.5f), MathF.Floor(origin.Z + 0.5f));
+        }
+
         /// <inheritdoc/>
         public override void Update(Scene.UpdateContext context)
         {
+            if (FixupLightingOriginToViewer)
+            {
+                UpdateLightingOriginToViewer(context.Camera.Location);
+            }
+
             UpdateAutoLod(context.Camera);
             var animationUpdated = AnimationController.Update(context.Timestep);
 

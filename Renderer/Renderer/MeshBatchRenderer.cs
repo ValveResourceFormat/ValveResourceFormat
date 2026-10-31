@@ -247,7 +247,6 @@ namespace ValveResourceFormat.Renderer
                         Debug.Assert(context.Scene.InstanceBufferGpu != null && context.Scene.TransformBufferGpu != null);
                         context.Scene.TransformBufferGpu.BindBufferBase();
                         context.Scene.InstanceBufferGpu.BindBufferBase();
-                        context.Scene.ObjectBufferGpu?.BindBufferBase();
                     }
 
                     material = requestMaterial;

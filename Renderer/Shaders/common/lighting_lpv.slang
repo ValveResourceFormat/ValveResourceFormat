@@ -62,7 +62,7 @@ vec3 CalculateProbeShadowCoords(LightProbeVolume lpv, vec3 vLightProbeLocalPos)
 
 vec3 CalculateProbeShadowCoords(vec3 fragPosition)
 {
-    uint nVolume = GetObjectLightingData().VisibleLPV & 0xFFFFu;
+    uint nVolume = GetObjectLightingData() & 0xFFFFu;
 
     if (nVolume == NO_LIGHT_PROBE_VOLUME)
     {
@@ -241,7 +241,7 @@ LightProbeSample_t SampleLightProbeVolumes(vec3 positionWs, vec3 normal)
     #if (ENABLE_LPV_BLENDING == 1) || (D_LPV_BLENDING == 1) || (PROBE_BLENDING)
         BlendLightProbeVolumes(probe, positionWs, normal);
     #else
-        uint nVolume = GetObjectLightingData().VisibleLPV & 0xFFFFu;
+        uint nVolume = GetObjectLightingData() & 0xFFFFu;
 
         if (nVolume != NO_LIGHT_PROBE_VOLUME)
         {
