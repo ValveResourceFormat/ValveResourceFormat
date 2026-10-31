@@ -235,6 +235,10 @@ namespace ValveResourceFormat.Renderer
         private readonly List<SceneNode> staticNodes = [];
         private readonly List<SceneNode> dynamicNodes = [];
 
+        internal IReadOnlyList<SceneNode> StaticNodes => staticNodes;
+
+        internal IReadOnlyList<SceneNode> DynamicNodes => dynamicNodes;
+
         internal int NodeCount => staticNodes.Count + dynamicNodes.Count;
 
         internal int ObjectEntryCount => objectEntryCount;

@@ -110,6 +110,12 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// <summary>Distance of the volumetric fog volume's first slice and the distance from it to the last slice.</summary>
         public Vector2 VolumetricFogNearRange;
 
+        /// <summary>Warp of the volumetric fog slices and one over its log2, or zero for slices along a square.</summary>
+        public Vector2 VolumetricFogDepthWarp;
+
+        /// <summary>Keeps the view constants a multiple of 16 bytes.</summary>
+        public Vector2 VolumetricFogPadding;
+
         /// <summary>Cull mask layout of the scene being drawn, from its <see cref="LightBinner"/>.</summary>
         public LightCullConstants LightCull;
 

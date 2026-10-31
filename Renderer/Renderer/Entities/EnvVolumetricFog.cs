@@ -1,5 +1,6 @@
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
@@ -19,7 +20,7 @@ public sealed class EnvVolumetricFogController : BaseEntity
 
         var fogInfo = Scene.FogInfo;
         fogInfo.Volumetric ??= new VolumetricFog(Scene.RendererContext);
-        fogInfo.Volumetric.SetController(KeyValues);
+        fogInfo.Volumetric.SetController(KeyValues, WorldOrigin);
     }
 }
 
@@ -49,14 +50,36 @@ public sealed class EnvVolumetricFogVolume : BaseEntity
             return;
         }
 
-        var origin = WorldOrigin;
+        var indirectStrength = entity.GetBooleanProperty("overridefogindirectstrength")
+            ? entity.GetFloatProperty("fogindirectstrength", 1f)
+            : -1f;
+        var tint = entity.GetBooleanProperty("overridetintcolor")
+            ? ColorSpace.SrgbGammaToLinear(entity.GetColor32Property("tintcolor"))
+            : (Vector3?)null;
+
+        var shape = entity.GetInt32Property("shape");
+
+        // Volumes without a height fade only have the box and radial shapes
+        if (shape >= VolumetricFog.ShapeHeight && !entity.TryGetValue("heightfogdepth", out _))
+        {
+            shape = 0;
+        }
+
+        // The volumes that read their noise strength are the ones whose box turns with the entity
+        var followsRotation = entity.TryGetValue("fognoisestrength", out _);
 
         var newVolume = new VolumetricFog.FogVolume(
-            origin + entity.GetVector3Property("box_mins"),
-            origin + entity.GetVector3Property("box_maxs"),
+            RigidTransform,
+            entity.GetVector3Property("box_mins"),
+            entity.GetVector3Property("box_maxs"),
             entity.GetFloatProperty("fogstrength", 1f),
             entity.GetFloatProperty("falloffexponent", 1f),
-            entity.GetInt32Property("shape") == 1);
+            shape,
+            entity.GetFloatProperty("heightfogdepth"),
+            entity.GetFloatProperty("heightfogedgewidth"),
+            indirectStrength,
+            tint,
+            followsRotation);
 
         fogVolume = newVolume;
         fogInfo.Volumetric.Volumes.Add(newVolume);

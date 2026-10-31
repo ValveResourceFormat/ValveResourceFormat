@@ -111,6 +111,7 @@ namespace ValveResourceFormat.Renderer.World
             if (Volumetric != null)
             {
                 viewConstants.VolumetricFogNearRange = Volumetric.NearRange;
+                viewConstants.VolumetricFogDepthWarp = Volumetric.DepthWarp;
             }
 
             if (GradientFogActive && GradientFog != null)
@@ -131,8 +132,8 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         // The gradient fog of the shaders covers a pixel by pow(saturate(distance * scale + bias), exponent) times its
-        // opacity. The height term is a constant 1 here, so the culling height is unused. Without a range after the
-        // start every pixel is fully in the fog, which the culling distance must not skip.
+        // opacity, with a height term of a constant 1. Linear fog culls nothing: the older culling tests the horizontal
+        // distance to the start, which would leave the ground below a high camera unfogged.
         private static void SetLinearFogUniforms(ViewConstants viewConstants, bool viewerFogEnabled, LinearFog fog, FogSpace fogSpace)
         {
             var start = fogSpace.Distance(fog.Start);
@@ -145,10 +146,7 @@ namespace ValveResourceFormat.Renderer.World
             viewConstants.GradientFogBiasAndScale = new Vector4(bias, 1f, scale, 0f);
             viewConstants.GradientFogColor_Opacity = new Vector4(fog.Color, fog.MaxDensity);
             viewConstants.GradientFogExponents = new Vector2(fog.Exponent, 1f);
-            // A negative start fogs everything, which squaring would turn into a positive culling distance
-            var nearestFogged = MathF.Max(start, 0f);
-            var cullingDistance = end > start ? nearestFogged * nearestFogged : float.MinValue;
-            viewConstants.GradientFogCullingParams = new Vector2(cullingDistance, float.PositiveInfinity);
+            viewConstants.GradientFogCullingParams = new Vector2(float.MinValue, float.PositiveInfinity);
         }
     }
 }

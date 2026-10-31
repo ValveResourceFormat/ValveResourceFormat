@@ -128,6 +128,22 @@ namespace ValveResourceFormat.Utils
             return value - (unitNormal * Vector3.Dot(value, unitNormal));
         }
 
+        /// <summary>Returns the squared distance from <paramref name="point"/> to the segment from <paramref name="start"/> to <paramref name="end"/>.</summary>
+        public static float DistanceSquaredToSegment(Vector3 point, Vector3 start, Vector3 end)
+        {
+            var segment = end - start;
+            var lengthSquared = segment.LengthSquared();
+
+            if (lengthSquared <= 0f)
+            {
+                return Vector3.DistanceSquared(point, start);
+            }
+
+            var t = Math.Clamp(Vector3.Dot(point - start, segment) / lengthSquared, 0f, 1f);
+
+            return Vector3.DistanceSquared(point, start + (segment * t));
+        }
+
         /// <summary>
         /// A unit vector perpendicular to the unit vector <paramref name="direction"/>, picked by a fixed rule,
         /// so the same direction always gives the same perpendicular: +X for +Z and +Y, -Z for +X.
