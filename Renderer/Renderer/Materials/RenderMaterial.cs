@@ -330,7 +330,8 @@ namespace ValveResourceFormat.Renderer.Materials
             BlocksLight = attributes.GetValueOrDefault("mapbuilder.blocklight") != 0;
             DoNotCastShadows = attributes.GetValueOrDefault("DoNotCastShadows") == 1;
             IsCs2Water = attributes.GetValueOrDefault("bCsgoWater") == 1;
-            isRenderBackfaces = IntParams.GetValueOrDefault("F_RENDER_BACKFACES") == 1;
+            isRenderBackfaces = IntParams.GetValueOrDefault("F_RENDER_BACKFACES") == 1
+                || (ShaderName == "cosmic_veil.vfx" && IntParams.GetValueOrDefault("g_bDoubleSidedVeil") == 1);
             disableDepthTest = IntParams.GetValueOrDefault("F_DISABLE_Z_BUFFERING") == 1;
 
             // Glass writes depth while it blends and tests it strictly, so of coplanar panes only the first one drawn shows
