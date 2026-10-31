@@ -12,6 +12,7 @@ ValveResourceFormat (VRF) is a C# library and toolset for parsing Valve's Source
     - `Renderer/Editor/` is the editor like layer on top of the renderer: selection, picking, tools visibility, and the Hammer stand-ins and lines drawn for entities. The rest of the renderer only draws what the game shows and leaves tool visuals to the `IEntityToolVisuals` hook.
 - **Tests/**: TUnit suite for the library, plus headless Renderer logic tests in `Tests/Renderer/`. GUI and CLI are not covered.
     - Run the full suite with `dotnet test` when changing `ValveResourceFormat/` or `Renderer/`. On `Zero tests ran` (exit code 5), do a full `dotnet build` and retry.
+    - Don't write tests to prove a change works. Add one only for a new format or version (see Adding Formats), or for self-contained logic with edge cases a later change could silently break (binary readers, decoders, math, packing). A test that hand-builds internal state to hit the branch it just added, or checks that a flag or parameter is passed through, only restates the code.
     - When a parsing change legitimately alters text output, `VRF_REGEN_FIXTURES=1` rewrites the mismatching `Tests/Files/ValidOutput` dumps.
     - Download workshop items and game files to test with, including old builds and single VPK entries, with [SteamFileDownloader](https://github.com/SteamTracking/SteamFileDownloader).
 - **Misc/**: Auxiliary tools (ShaderValidator, RenderTest, etc.) in their own solution `Misc/MiscVrfProjects.slnx`.
