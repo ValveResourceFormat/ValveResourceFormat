@@ -344,7 +344,11 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            node.LayersEnabled = AreLayersEnabled(node.Layers);
+            // A node on no layer keeps the state it was given
+            if (node.Layers.Length > 0)
+            {
+                node.LayerEnabled = AreLayersEnabled(node.Layers);
+            }
 
             if (dynamic)
             {
@@ -1502,7 +1506,7 @@ namespace ValveResourceFormat.Renderer
             {
                 if (node.Layers.Any(changed.Contains))
                 {
-                    node.LayersEnabled = AreLayersEnabled(node.Layers);
+                    node.LayerEnabled = AreLayersEnabled(node.Layers);
                 }
             }
         }

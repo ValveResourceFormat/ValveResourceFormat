@@ -615,13 +615,13 @@ namespace GUI.Types.GLViewers
 
             foreach (var node in previewObjects.Values)
             {
-                node.NodeEnabled = false;
+                node.LayerEnabled = false;
             }
 
             if (Scene != null && previewObjectComboBox.SelectedIndex >= 0)
             {
                 currentPreviewObject = Enum.Parse<PreviewObjectType>(previewObjectComboBox.SelectedItem?.ToString() ?? string.Empty);
-                previewNode.NodeEnabled = true;
+                previewNode.LayerEnabled = true;
                 OnFirstPaint();
             }
         }

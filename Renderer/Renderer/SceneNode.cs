@@ -78,9 +78,9 @@ namespace ValveResourceFormat.Renderer
         public ImmutableArray<WorldLayer> Layers { get; set => field = value.IsDefault ? [] : value; } = [];
 
         /// <summary>
-        /// Gets or sets whether this node may be shown, whatever its layers are. Queues a rebuild on the parent spatial structure.
+        /// Gets or sets whether this node's layers are enabled. Queues a rebuild on the parent spatial structure.
         /// </summary>
-        public bool NodeEnabled
+        public virtual bool LayerEnabled
         {
             get;
             set
@@ -93,24 +93,6 @@ namespace ValveResourceFormat.Renderer
                 }
             }
         } = true;
-
-        // Kept by the scene as its layers are switched
-        internal bool LayersEnabled
-        {
-            get;
-            set
-            {
-                var valueChanged = value != field;
-                field = value;
-                if (valueChanged)
-                {
-                    Scene.MarkParentOctreeDirty(this);
-                }
-            }
-        } = true;
-
-        /// <summary>Gets whether this node is enabled and all of its layers are.</summary>
-        public virtual bool LayerEnabled => NodeEnabled && LayersEnabled;
 
         /// <summary>
         /// Gets or sets whether the node itself wants to be drawn, independently of its layer.
