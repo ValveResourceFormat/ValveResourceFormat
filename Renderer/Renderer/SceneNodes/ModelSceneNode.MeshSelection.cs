@@ -80,7 +80,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private void UpdateAutoLod(Camera camera)
         {
-            if (lod.Update(ComputeLodMetric(camera)))
+            if (lod.SelectsByMetric && lod.Update(ComputeLodMetric(camera)))
             {
                 RebuildRenderableMeshes();
             }

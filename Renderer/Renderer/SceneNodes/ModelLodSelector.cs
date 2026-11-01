@@ -9,6 +9,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
     internal sealed class ModelLodSelector
     {
         private readonly ModelLodInfo lodInfo;
+        private readonly bool hasSwitchableLevels;
         private int? overrideLevel;
 
         /// <summary>The LoD level currently being rendered, auto-selected or forced.</summary>
@@ -20,6 +21,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Whether switching level changes what is drawn at all.</summary>
         public bool HasDistinctLevels => lodInfo.HasDistinctLevels;
 
+        /// <summary>Whether <see cref="Update"/> picks the level, so the metric is worth computing.</summary>
+        public bool SelectsByMetric => overrideLevel == null && hasSwitchableLevels;
+
         /// <summary>The levels the model populates.</summary>
         public IReadOnlyList<int> AvailableLevels => lodInfo.AvailableLevels;
 
@@ -29,6 +33,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public ModelLodSelector(ModelLodInfo lodInfo)
         {
             this.lodInfo = lodInfo;
+            hasSwitchableLevels = lodInfo.AvailableLevels.Count > 1 && lodInfo.SwitchDistances.Count > 1;
             ActiveLevel = lodInfo.LowestLevel;
         }
 
@@ -59,7 +64,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <returns>Whether the active level changed.</returns>
         public bool Update(float metric)
         {
-            if (overrideLevel != null || lodInfo.AvailableLevels.Count <= 1 || lodInfo.SwitchDistances.Count <= 1)
+            if (!SelectsByMetric)
             {
                 return false;
             }
