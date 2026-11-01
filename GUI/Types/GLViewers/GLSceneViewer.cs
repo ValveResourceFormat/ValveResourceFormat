@@ -1333,6 +1333,19 @@ namespace GUI.Types.GLViewers
 
         protected override void OnKeyDown(Keys keyData)
         {
+            if (keyData == Keys.U || (keyData == Keys.Delete && Selection.Nodes.Count == 0))
+            {
+                // Shows everything hidden with Delete, which can no longer be picked to show it again
+                foreach (var (node, _) in nodesHiddenByKey)
+                {
+                    node.Visible = true;
+                }
+
+                nodesHiddenByKey.Clear();
+
+                return;
+            }
+
             if (keyData == Keys.Delete)
             {
                 // Hides the selection, or shows it again
@@ -1349,19 +1362,6 @@ namespace GUI.Types.GLViewers
                         nodesHiddenByKey.AddOrUpdate(node, null);
                     }
                 }
-
-                return;
-            }
-
-            if (keyData == Keys.U)
-            {
-                // Shows everything hidden with Delete, which can no longer be picked to show it again
-                foreach (var (node, _) in nodesHiddenByKey)
-                {
-                    node.Visible = true;
-                }
-
-                nodesHiddenByKey.Clear();
 
                 return;
             }
