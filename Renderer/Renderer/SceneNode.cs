@@ -78,12 +78,13 @@ namespace ValveResourceFormat.Renderer
         public ImmutableArray<WorldLayer> Layers { get; set => field = value.IsDefault ? [] : value; } = [];
 
         /// <summary>
-        /// Gets or sets whether this node's layers are enabled. Queues a rebuild on the parent spatial structure.
+        /// Gets whether this node's layers are enabled, as kept by the scene. Queues a rebuild on the parent spatial
+        /// structure when it changes. To hide a single node, use <see cref="Visible"/>.
         /// </summary>
         public virtual bool LayerEnabled
         {
             get;
-            set
+            internal set
             {
                 var valueChanged = value != field;
                 field = value;

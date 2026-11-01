@@ -507,7 +507,7 @@ namespace GUI.Types.GLViewers
 
                         foreach (var particleNode in modelParticleNodes)
                         {
-                            particleNode.LayerEnabled = isChecked;
+                            particleNode.Visible = isChecked;
                         }
                     });
                 }
