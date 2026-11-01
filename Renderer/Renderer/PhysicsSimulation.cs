@@ -734,6 +734,11 @@ public sealed class PhysicsSimulation : IDisposable
     {
         foreach (var sphere in shape.GetAllSpheres())
         {
+            if (categories == MoverCategory && SkipsPropCollision(phys, sphere.CollisionAttributeIndex))
+            {
+                continue;
+            }
+
             var center = Vector3.Transform(sphere.Shape.Center, pose);
             var radius = new Vector3(sphere.Shape.Radius);
 
@@ -745,6 +750,11 @@ public sealed class PhysicsSimulation : IDisposable
 
         foreach (var capsule in shape.GetAllCapsules())
         {
+            if (categories == MoverCategory && SkipsPropCollision(phys, capsule.CollisionAttributeIndex))
+            {
+                continue;
+            }
+
             var center0 = Vector3.Transform(capsule.Shape.Center[0], pose);
             var center1 = Vector3.Transform(capsule.Shape.Center[1], pose);
             var radius = new Vector3(capsule.Shape.Radius);
@@ -757,6 +767,11 @@ public sealed class PhysicsSimulation : IDisposable
 
         foreach (var hullDesc in shape.GetAllHulls())
         {
+            if (categories == MoverCategory && SkipsPropCollision(phys, hullDesc.CollisionAttributeIndex))
+            {
+                continue;
+            }
+
             var points = hullDesc.Shape.GetVertexPositions();
 
             if (BuildHull(points, pose) is { } hull)
@@ -882,6 +897,7 @@ public sealed class PhysicsSimulation : IDisposable
         return CollisionMesh.FromTriangles(positions, indices, null, default);
     }
 
+    // Clips stop only what they name, and sound, sight and light blockers stop nothing unless also tagged solid
     private static bool SkipsPropCollision(PhysAggregateData phys, int collisionAttributeIndex)
     {
         var attributes = phys.CollisionAttributes[collisionAttributeIndex];
@@ -890,15 +906,19 @@ public sealed class PhysicsSimulation : IDisposable
             ?? attributes.GetArray<string>("m_PhysicsTagStrings")
             ?? [];
 
+        var onlyBlocksSenses = interactAs.Length > 0;
+
         foreach (var tag in interactAs)
         {
-            if (tag is "playerclip" or "npcclip" or "csgo_grenadeclip" or "ladder")
+            if (tag is "playerclip" or "npcclip" or "teleportclip" or "navclip" or "csgo_grenadeclip" or "ladder")
             {
                 return true;
             }
+
+            onlyBlocksSenses &= tag is "blocksound" or "blocklos" or "blocklight";
         }
 
-        return false;
+        return onlyBlocksSenses;
     }
 
     /// <inheritdoc/>
