@@ -1,5 +1,6 @@
 using System.Linq;
 using ValveKeyValue;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.Audio;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -173,6 +174,11 @@ public class PropDoorRotating : BaseToggle
         TeleportToSpawnPosition();
         CalculateDoorVolumes(angleClosed);
         CalcDoorSounds();
+
+        if (ModelNode != null && EntitySystem.FileLoader.GameInfo.Game == Game.Hlvr && KeyValues.GetBooleanProperty("door_fixup_lighting_origin", true))
+        {
+            ModelNode.DoorLightingPose = (WorldOrigin, EntityTransformHelper.EulerAnglesToForwardDirection(angleClosed));
+        }
     }
 
     /// <summary>

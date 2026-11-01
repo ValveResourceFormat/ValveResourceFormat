@@ -363,6 +363,7 @@ public class ModelHelper : EntityHelper
             return;
         }
 
+        node.LightingOriginAttachment = null;
         node.LightingOrigin = target.Transform.Translation;
         Owner.Scene.UpdateNodeEnvironmentMaps(node);
     }

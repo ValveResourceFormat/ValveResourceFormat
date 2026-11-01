@@ -432,6 +432,7 @@ public abstract class BaseModelEntity : BaseEntity
             return;
         }
 
+        node.LightingOriginAttachment = null;
         node.LightingOrigin = origin.WorldOrigin;
         Scene.UpdateNodeEnvironmentMaps(node);
     }

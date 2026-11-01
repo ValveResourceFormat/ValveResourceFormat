@@ -14,6 +14,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         public Dictionary<string, Attachment> Attachments { get; }
 
+        /// <summary>Gets or sets the attachment the model is lit from, until an explicit lighting origin clears it.</summary>
+        public Attachment? LightingOriginAttachment { get; set; }
+
         /// <summary>
         /// The frame a child follows: the attachment point's world transform, a bone's when no attachment
         /// matches, or the model's own transform. Rigid, with no scale.

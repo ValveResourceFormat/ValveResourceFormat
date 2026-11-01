@@ -94,6 +94,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             // Read after LoadMeshes, which fills them in from external meshes.
             Attachments = model.Attachments;
+            LightingOriginAttachment = Attachments.GetValueOrDefault("lighting_origin");
             AnimationController.BoneConstraints = new BoneConstraintSolver(model);
 
             // GetChildFrame already falls back to this node's own world Transform for an empty/
@@ -212,6 +213,43 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         // How far the lighting origin may leave the center of the model
         private const float MaxViewerLightingOriginOffset = 18f;
 
+        /// <summary>Gets or sets the closed pose of a door, which it is lit from on the camera side.</summary>
+        public (Vector3 Position, Vector3 Normal)? DoorLightingPose { get; set; }
+
+        // The side only changes once the camera is past both the closed plane and a margin around the door as it stands
+        private const float DoorLightingSideMargin = 16f;
+
+        private void UpdateLightingOrigin(Vector3 viewer)
+        {
+            if (FixupLightingOriginToViewer)
+            {
+                UpdateLightingOriginToViewer(viewer);
+            }
+            else if (DoorLightingPose is { } doorPose)
+            {
+                UpdateDoorLightingOrigin(doorPose, viewer);
+            }
+
+            if (LightingOriginAttachment is { } attachment)
+            {
+                LightingOrigin = GetAttachmentTransform(attachment).Translation;
+            }
+        }
+
+        private void UpdateDoorLightingOrigin((Vector3 Position, Vector3 Normal) pose, Vector3 viewer)
+        {
+            var closedSide = Vector3.Dot(viewer - pose.Position, pose.Normal);
+            var doorSide = Vector3.Dot(viewer - BoundingBox.Center, pose.Normal);
+
+            var inFront = LightingOrigin is not { } current
+                ? closedSide > 0f
+                : Vector3.Dot(current - pose.Position, pose.Normal) > 0f
+                    ? closedSide >= 0f || doorSide >= -DoorLightingSideMargin
+                    : closedSide > 0f && doorSide > DoorLightingSideMargin;
+
+            LightingOrigin = pose.Position + pose.Normal * (inFront ? MaxViewerLightingOriginOffset : -MaxViewerLightingOriginOffset);
+        }
+
         // Where a thin model is lit from. The origin sits in front of the center, along the thinnest axis, on the
         // viewer's side. Close to the plane, within half its thickness, the side stays as it was so it does not flicker.
         private void UpdateLightingOriginToViewer(Vector3 viewer)
@@ -270,11 +308,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <inheritdoc/>
         public override void Update(Scene.UpdateContext context)
         {
-            if (FixupLightingOriginToViewer)
-            {
-                UpdateLightingOriginToViewer(context.Camera.Location);
-            }
-
+            UpdateLightingOrigin(context.Camera.Location);
             UpdateAutoLod(context.Camera);
             var animationUpdated = AnimationController.Update(context.Timestep);
 
