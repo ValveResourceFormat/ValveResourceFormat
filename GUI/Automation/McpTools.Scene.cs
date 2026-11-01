@@ -71,6 +71,13 @@ internal sealed partial class McpTools
         var world = viewer.LoadedWorld ?? throw new ToolException("This tab shows world geometry without a map, so it has no entities.");
         var table = EntityTables.GetOrCreateValue(viewer);
 
+        // Playing or stopping the world parses its lumps again. The new entities come in the same order, so they take the old ids.
+        if (world.Entities.Count > 0 && !table.Ids.ContainsKey(world.Entities[0]))
+        {
+            table.Entities.Clear();
+            table.Ids.Clear();
+        }
+
         table.Add(world.Entities, null);
 
         foreach (var group in viewer.OwnSceneSpawnGroups.ToArray())
@@ -180,7 +187,7 @@ internal sealed partial class McpTools
     /// <summary>A keyvalue as the entity properties show it.</summary>
     private static string KeyValueText(KVObject value) => EntityInfoControl.BareText(value) ?? EntityLump.StringifyValue(value);
 
-    [Tool("Search the entities of a map, its 3D sky and the other spawn groups it loaded. Text filters are case insensitive regular expressions. They match anywhere unless anchored with ^ and $. Positions are where each entity renders. Returns 'next_offset' when more entities match.")]
+    [Tool("Search the entities of a map, its 3D sky and the other spawn groups it loaded. There is no free text search or 'query': 'classname', 'targetname', 'key' and 'value' are separate filters, and an entity must match all that are given. Text filters are case insensitive regular expressions, not wildcards, so use 'decal' or '.*decal.*' rather than '*decal*'. They match anywhere unless anchored with ^ and $. Positions are where each entity renders. Returns 'next_offset' when more entities match.")]
     private async Task<object> FindEntities(
         GLWorldViewer viewer,
         [Description("Classname to match.")] string? classname = null,
@@ -196,9 +203,9 @@ internal sealed partial class McpTools
         [Description("Maximum matches to return.")][Range(1, int.MaxValue)] int limit = 50,
         CancellationToken cancellationToken = default)
     {
-        var classnamePattern = Pattern(classname);
-        var targetnamePattern = Pattern(targetname);
-        var valuePattern = Pattern(value);
+        var classnamePattern = Pattern(classname, nameof(classname));
+        var targetnamePattern = Pattern(targetname, nameof(targetname));
+        var valuePattern = Pattern(value, nameof(value));
 
         // Only the live state is read between frames. The keyvalues from the map load are matched afterwards, so rendering does not wait
         var entities = await WithGl(viewer, () => EntityRows(viewer), cancellationToken).ConfigureAwait(false);
@@ -391,7 +398,7 @@ internal sealed partial class McpTools
             Type = node.GetType().Name.Replace("SceneNode", string.Empty, StringComparison.Ordinal),
             node.Name,
             Entity = EntityId(entities, node.EntityData),
-            Layer = node.LayerName,
+            Layers = node.Layers.Select(static layer => layer.Name).ToArray(),
             Collision = (node as PhysSceneNode)?.CollisionLabels,
             SpawnGroup = group?.MapName,
             Sky = Flag(group?.WorldGroup != null),
@@ -653,7 +660,7 @@ internal sealed partial class McpTools
             return false;
         }
 
-        if (node.LayerEnabled)
+        if (node.Visible)
         {
             NodesHiddenByTool.Remove(node);
             return false;
@@ -662,7 +669,7 @@ internal sealed partial class McpTools
         return true;
     }
 
-    [Tool("List the scene nodes of a 3D tab that this tool hid and that are still hidden. With 'hidden', hide or show nodes instead. This works as select and Delete do, but it sets the state instead of toggling it. Like Delete, it disables the layer for that node only. The node then reports layer_off, and a sidebar layer switch can show it again. This tool does not list or show nodes hidden with Delete in the viewer. It does not change nodes that a layer, a physics group or their entity hides, and reports them.", Redraws = true)]
+    [Tool("List the scene nodes of a 3D tab that this tool hid and that are still hidden. With 'hidden', hide or show nodes instead. This works as select and Delete do, but it sets the state instead of toggling it. Like Delete, it hides that node only. The node then reports not_drawn, and only this tool shows it again, unless starting or stopping the simulation respawns its entity. This tool does not list or show nodes hidden with Delete in the viewer. It does not change nodes that a layer, a physics group or their entity hides, and reports them.", Redraws = true)]
     private object HiddenNodes(
         GLSceneViewer viewer,
         [Description("True to hide, false to show again. Omit to list the hidden nodes.")] bool? hidden = null,
@@ -718,7 +725,7 @@ internal sealed partial class McpTools
 
             if (changes)
             {
-                node.LayerEnabled = !hide;
+                node.Visible = !hide;
 
                 if (hide)
                 {

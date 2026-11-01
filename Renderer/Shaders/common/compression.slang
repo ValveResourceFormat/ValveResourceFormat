@@ -21,8 +21,7 @@
 //Decompress a byte4 normal in the 0..255 range to a float4 tangent
 vec4 DecompressTangent( vec4 inputNormal )
 {
-    float fOne   = 1.0f;
-    vec4 ztztSignBits	= vec4(lessThan(inputNormal, vec4(128.0f)));        // sign bits for zs and bitangent (1 or 0)  set-less-than (slt) asm instruction
+    vec4 ztztSignBits	= vec4(lessThan(inputNormal, vec4(128.0f)));        // sign bits for zs and bitangent (1 or 0)
     vec4 xyxyAbs		= abs( inputNormal - 128.0f ) - ztztSignBits;		// 0..127
     vec4 xyxySignBits	= vec4(lessThan(xyxyAbs, vec4(64.0f)));							// sign bits for xs and ys (1 or 0)
     vec4 normTan		= (abs( xyxyAbs - 64.0f ) - xyxySignBits) / 63.0f;	// abs({nX, nY, tX, tY})
@@ -45,10 +44,9 @@ vec4 DecompressTangent( vec4 inputNormal )
 //Decompress a byte4 normal in the 0..255 range to a float3 normal
 vec3 DecompressNormal( vec4 inputNormal )
 {
-    float fOne   = 1.0f;
     vec3 outputNormal = vec3(0);
 
-    vec2 ztSigns      = vec2(lessThan(inputNormal.xy, vec2(128.0f))); // sign bits for zs and bitangent (1 or 0)  set-less-than (slt) asm instruction
+    vec2 ztSigns      = vec2(lessThan(inputNormal.xy, vec2(128.0f))); // sign bits for zs and bitangent (1 or 0)
     vec2 xyAbs        = abs( inputNormal.xy - 128.0f ) - ztSigns;     // 0..127
     vec2 xySigns      = vec2(lessThan(xyAbs, vec2(64.0f)));             // sign bits for xs and ys (1 or 0)
     outputNormal.xy     = ( abs( xyAbs - 64.0f ) - xySigns ) / 63.0f;   // abs({nX, nY})
@@ -56,13 +54,13 @@ vec3 DecompressNormal( vec4 inputNormal )
     outputNormal.z      = 1.0f - outputNormal.x - outputNormal.y;       // Project onto x+y+z=1
     outputNormal.xyz    = normalize( outputNormal.xyz );                // Normalize onto unit sphere
 
-    outputNormal.xy    *= mix( vec2(fOne,fOne), vec2(-fOne, -fOne), xySigns   );                // Restore x and y signs
-    outputNormal.z     *= mix( fOne, -fOne, ztSigns.x );                // Restore z sign
+    outputNormal.xy    *= mix( vec2(1.0), vec2(-1.0), xySigns   );                // Restore x and y signs
+    outputNormal.z     *= mix( 1.0, -1.0, ztSigns.x );                // Restore z sign
 
     return normalize(outputNormal);
 }
 
-// Decompress a uint into a float3 normal and float4 tangent. Added in CS2
+// Decompress a uint into a float3 normal and float4 tangent.
 void DecompressNormalTangent2(uint nPackedFrame, out vec3 normal, out vec4 tangent)
 {
     uint SignBit = nPackedFrame & 1u;            // LSB bit
@@ -97,7 +95,7 @@ void DecompressNormalTangent2(uint nPackedFrame, out vec3 normal, out vec4 tange
     // tangent.X = -(normal.x * normal.x) / (tangentSign + normal.z) + 1.0
     // tangent.Y = -(normal.x * normal.y) / (tangentSign + normal.z)
     // tangent.Z = -(normal.x)
-    unalignedTangent.x = -tangentSign * (normal.x * normal.x) * rcpTangentZ + 1.0; // ???
+    unalignedTangent.x = -tangentSign * (normal.x * normal.x) * rcpTangentZ + 1.0;
     unalignedTangent.y = -tangentSign * ((normal.x * normal.y) * rcpTangentZ);
     unalignedTangent.z = -tangentSign * normal.x;
 

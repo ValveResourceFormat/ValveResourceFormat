@@ -58,6 +58,9 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets the set of sampler uniform names that use material address modes via <c>// Sampler(UserConfig)</c>.</summary>
         public required HashSet<string> SamplerUserConfigUniforms { get; init; }
 
+        /// <summary>Gets the sampler uniform that holds the color of a material, annotated with <c>// RepresentativeTexture</c>, or <see langword="null"/> when the shader has none.</summary>
+        public string? RepresentativeTexture { get; init; }
+
         private GlobalsLayout globalsLayout = GlobalsLayout.Empty;
 
         /// <summary>Gets the packed layout of this shader's loose global uniforms, derived from the source and shared by every variant.</summary>
@@ -138,14 +141,22 @@ namespace ValveResourceFormat.Renderer.Shaders
         public Shader WithMorph(Shader materialShader)
             => materialShader.Parameters.GetValueOrDefault(MorphCombo) == 1 && DeclaresCombo(MorphCombo) ? WithCombo(MorphCombo, 1) : this;
 
-        /// <summary>Gets this shader's quad overdraw counting mode, or <see langword="null"/> when it has none.</summary>
-        public Shader? OverdrawMode => DeclaresCombo(OverdrawModeCombo) ? WithCombo(OverdrawModeCombo, 1) : null;
+        /// <summary>Gets this shader's quad overdraw counting mode, a depth only mode that also counts the overdraw, or <see langword="null"/> when it has none.</summary>
+        public Shader? OverdrawMode => DeclaresCombo(DepthModeCombo) ? WithCombo(DepthModeCombo, 2) : null;
 
-        /// <summary>The static combo that selects a material shader's depth only mode.</summary>
+        /// <summary>Gets whether this variant is for a material that writes its own bloom amount, which the bloom threshold reads per pixel.</summary>
+        public bool OverridesBloomAmount => overridesBloomAmount ??= DeclaresCombo(OverrideBloomAmountCombo) && Parameters.GetValueOrDefault(OverrideBloomAmountCombo) == 1;
+
+        /// <summary>Gets this shader's mode that writes the bloom amount of a surface instead of shading it, or <see langword="null"/> when it has none.</summary>
+        public Shader? BloomAmountMode => OverridesBloomAmount && DeclaresCombo(DepthModeCombo) ? WithCombo(DepthModeCombo, 3) : null;
+
+        private bool? overridesBloomAmount;
+
+        /// <summary>The static combo that selects a material shader's depth only mode (1), its quad overdraw counting mode (2) or its bloom amount mode (3).</summary>
         public const string DepthModeCombo = "S_MODE_DEPTH";
 
-        /// <summary>The static combo that selects the quad overdraw counting mode.</summary>
-        public const string OverdrawModeCombo = "S_MODE_OVERDRAW";
+        /// <summary>The static combo of a material that sets the bloom amount of its pixels.</summary>
+        public const string OverrideBloomAmountCombo = "F_OVERRIDE_BLOOM_AMOUNT";
 
         /// <summary>The static combo that turns on alpha testing.</summary>
         public const string AlphaTestCombo = "F_ALPHA_TEST";
@@ -202,6 +213,9 @@ namespace ValveResourceFormat.Renderer.Shaders
 
         /// <summary>Gets those locations declared as an integer type, which need an integer format.</summary>
         public int IntegerAttributes { get; private set; }
+
+        /// <summary>Gets the renderer shader file this shader was compiled from, without stage or extension (e.g. <c>hlvr/vr_simple</c>).</summary>
+        internal string SourceFile { get; init; } = string.Empty;
 
 #if DEBUG
         /// <summary>Gets the shader file name on disk (debug builds only).</summary>

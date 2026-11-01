@@ -3,7 +3,7 @@
 #ifndef VRF_LIGHT_CULL_INCLUDE
 #define VRF_LIGHT_CULL_INCLUDE
 
-#include "ViewConstants.slang"
+#include "view_constants.slang"
 
 layout(std430, binding = 4) readonly buffer LightCullBitsBuffer
 {

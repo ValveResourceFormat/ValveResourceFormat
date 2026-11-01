@@ -53,7 +53,7 @@ namespace ValveResourceFormat.Utils
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float RemapRange(float x, float inputMin, float inputMax, float outputMin, float outputMax)
         {
-            return float.Lerp(outputMin, outputMax, Remap(x, inputMin, inputMax));
+            return Lerp(outputMin, outputMax, Remap(x, inputMin, inputMax));
         }
 
         /// <summary>
@@ -75,7 +75,7 @@ namespace ValveResourceFormat.Utils
                 return x >= inputMax ? outputMax : outputMin;
             }
 
-            return float.Lerp(outputMin, outputMax, Saturate(Remap(x, inputMin, inputMax)));
+            return Lerp(outputMin, outputMax, Saturate(Remap(x, inputMin, inputMax)));
         }
 
         /// <summary>
@@ -126,6 +126,22 @@ namespace ValveResourceFormat.Utils
         public static Vector3 ProjectOntoPlane(Vector3 value, Vector3 unitNormal)
         {
             return value - (unitNormal * Vector3.Dot(value, unitNormal));
+        }
+
+        /// <summary>Returns the squared distance from <paramref name="point"/> to the segment from <paramref name="start"/> to <paramref name="end"/>.</summary>
+        public static float DistanceSquaredToSegment(Vector3 point, Vector3 start, Vector3 end)
+        {
+            var segment = end - start;
+            var lengthSquared = segment.LengthSquared();
+
+            if (lengthSquared <= 0f)
+            {
+                return Vector3.DistanceSquared(point, start);
+            }
+
+            var t = Math.Clamp(Vector3.Dot(point - start, segment) / lengthSquared, 0f, 1f);
+
+            return Vector3.DistanceSquared(point, start + (segment * t));
         }
 
         /// <summary>
@@ -306,11 +322,14 @@ namespace ValveResourceFormat.Utils
             return Math.Clamp(x, 0.0f, 1.0f);
         }
 
-        /// <summary>The Rec. 709 weights of the red, green and blue channels in a color's luminance.</summary>
-        public static readonly Vector3 LuminanceWeights = new(0.2126f, 0.7152f, 0.0722f);
+        /// <summary>The BT.709-1 weights of the red, green and blue channels in a color's luminance, as the game shaders use them.</summary>
+        public static readonly Vector3 LuminanceWeights = new(0.2125f, 0.7154f, 0.0721f);
+
+        /// <summary>The Rec. 709 weights of the red, green and blue channels in a color's luminance, as the engine uses them for cubemap normalization.</summary>
+        public static readonly Vector3 Rec709LuminanceWeights = new(0.2126f, 0.7152f, 0.0722f);
 
         /// <summary>
-        /// Rec. 709 luminance of a linear RGB color.
+        /// BT.709-1 luminance of a linear RGB color.
         /// </summary>
         public static float Luminance(Vector3 color) => Vector3.Dot(color, LuminanceWeights);
 

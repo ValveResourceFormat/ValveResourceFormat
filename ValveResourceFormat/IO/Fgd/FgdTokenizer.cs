@@ -9,9 +9,10 @@ namespace ValveResourceFormat.IO.Fgd;
 internal sealed class FgdTokenizer
 {
     /// <summary>
-    /// A token, as a span of the text it was read from. A string keeps its quotes until it is unquoted.
+    /// A token, as a span of the text it was read from, and the line it starts on, counted from one. A string
+    /// keeps its quotes until it is unquoted.
     /// </summary>
-    public readonly record struct Token(string Source, int Start, int End)
+    public readonly record struct Token(string Source, int Start, int End, int Line)
     {
         public ReadOnlySpan<char> Span => Source.AsSpan(Start, End - Start);
 
@@ -126,6 +127,19 @@ internal sealed class FgdTokenizer
                 return block.Replace("\\\"\"\"", "\"\"\"").ToString();
             }
 
+            if (!span.Contains('\\'))
+            {
+                var start = span[0] is '"' or '\'' ? 1 : 0;
+                var end = span.Length;
+
+                if (end - 1 >= start && span[end - 1] is '"' or '\'')
+                {
+                    end--;
+                }
+
+                return span[start..end].ToString();
+            }
+
             var text = new StringBuilder(span.Length);
             var escaped = false;
 
@@ -169,6 +183,8 @@ internal sealed class FgdTokenizer
     private readonly List<Token> queue = [];
     private string breakCharacters;
     private int position;
+    private int line = 1;
+    private int lineCountedTo;
 
     /// <summary>Gets the name of the file the text is from.</summary>
     public string FileName { get; }
@@ -184,24 +200,7 @@ internal sealed class FgdTokenizer
     public bool HasMore => Fill(1);
 
     /// <summary>Gets the line the next token is on, counted from one.</summary>
-    public int Line
-    {
-        get
-        {
-            var end = Fill(1) ? queue[0].Start : position;
-            var line = 1;
-
-            for (var i = 0; i < end && i < text.Length; i++)
-            {
-                if (text[i] == '\n')
-                {
-                    line++;
-                }
-            }
-
-            return line;
-        }
-    }
+    public int Line => Fill(1) ? queue[0].Line : CountLinesTo(position);
 
     /// <summary>Looks at a token ahead without reading it.</summary>
     public bool TryPeek(int index, out Token token)
@@ -236,6 +235,19 @@ internal sealed class FgdTokenizer
     public bool TryReadIdentifier(out Token token)
     {
         if (TryPeek(0, out token) && token.IsIdentifier)
+        {
+            queue.RemoveAt(0);
+            return true;
+        }
+
+        token = default;
+        return false;
+    }
+
+    /// <summary>Reads the next token if it is a string in double quotes, and leaves it where it is otherwise.</summary>
+    public bool TryReadString(out Token token)
+    {
+        if (TryPeek(0, out token) && token.IsString)
         {
             queue.RemoveAt(0);
             return true;
@@ -367,6 +379,7 @@ internal sealed class FgdTokenizer
         while (SkipBlockComment() || SkipLineComment());
 
         var start = position;
+        var startLine = CountLinesTo(start);
         var first = text[position++];
 
         if (first == '\0')
@@ -376,7 +389,7 @@ internal sealed class FgdTokenizer
 
         if (first == '"' && TryLexBlockString())
         {
-            token = new Token(text, start, position);
+            token = new Token(text, start, position, startLine);
             return true;
         }
 
@@ -402,8 +415,17 @@ internal sealed class FgdTokenizer
             }
         }
 
-        token = new Token(text, start, position);
+        token = new Token(text, start, position, startLine);
         return true;
+    }
+
+    // Lexing only moves forward, so the lines are counted on from the last place they were counted to
+    private int CountLinesTo(int end)
+    {
+        end = Math.Min(end, text.Length);
+        line += text.AsSpan(lineCountedTo, end - lineCountedTo).Count('\n');
+        lineCountedTo = end;
+        return line;
     }
 
     // A string over several lines: three quotes and a line break, up to a line break and three quotes

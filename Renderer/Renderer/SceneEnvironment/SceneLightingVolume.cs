@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -47,10 +48,10 @@ public static class SceneLightingVolume
     /// <param name="scene">The scene.</param>
     /// <param name="entity">The keyvalues of the entity.</param>
     /// <param name="transform">Where the entity is placed, without its scale.</param>
-    /// <param name="layerName">Visibility layer of the entity.</param>
+    /// <param name="layers">Visibility layers of the entity.</param>
     /// <param name="isSphere">Whether the volume is a sphere of <c>influenceradius</c> rather than a box.</param>
     /// <returns>The environment map, or <see langword="null"/> when the entity names no texture.</returns>
-    public static SceneEnvMap? AddEnvironmentMap(Scene scene, EntityLump.Entity entity, in Matrix4x4 transform, string? layerName, bool isSphere)
+    public static SceneEnvMap? AddEnvironmentMap(Scene scene, EntityLump.Entity entity, in Matrix4x4 transform, ImmutableArray<WorldLayer> layers, bool isSphere)
     {
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(entity);
@@ -64,9 +65,17 @@ public static class SceneLightingVolume
         var envMapTexture = scene.RendererContext.MaterialLoader.GetTexture(cubemapTextureName, true);
         var arrayIndex = entity.GetInt32Property("array_index");
 
+        AABB? projectionBounds = null;
+
+        if (entity.ContainsKey("boxproject_mins") && entity.ContainsKey("boxproject_maxs"))
+        {
+            projectionBounds = new AABB(entity.GetVector3Property("boxproject_mins"), entity.GetVector3Property("boxproject_maxs"));
+        }
+
         var envMap = new SceneEnvMap(scene, volume.Bounds)
         {
-            LayerName = layerName,
+            ProjectionBounds = projectionBounds,
+            Layers = layers,
             Transform = transform,
             HandShake = volume.HandShake,
             ArrayIndex = arrayIndex,
@@ -74,7 +83,7 @@ public static class SceneLightingVolume
             EdgeFadeDists = volume.EdgeFadeDists,
             ProjectionMode = isSphere ? 0 : 1,
             EnvMapTexture = envMapTexture,
-            NormalizationSH = SceneEnvMap.CalculateNormalizationSH(envMapTexture.RadianceCoefficients, arrayIndex),
+            NormalizationSH = SceneEnvMap.CalculateNormalizationSH(envMapTexture.RadianceCoefficients, arrayIndex, transform),
         };
 
         if (entity.GetStringProperty("customcubemaptexture") == null)
@@ -89,11 +98,11 @@ public static class SceneLightingVolume
     /// <param name="scene">The scene.</param>
     /// <param name="entity">The keyvalues of the entity.</param>
     /// <param name="transform">Where the entity is placed, without its scale.</param>
-    /// <param name="layerName">Visibility layer of the entity.</param>
+    /// <param name="layers">Visibility layers of the entity.</param>
     /// <param name="isSphere">Whether the volume is a sphere of <c>influenceradius</c> rather than a box.</param>
     /// <param name="fadesAtEdges">Whether the probe fades out over the edge fade distances, otherwise it ends at its box.</param>
     /// <returns>The light probe.</returns>
-    public static SceneLightProbe AddLightProbe(Scene scene, EntityLump.Entity entity, in Matrix4x4 transform, string? layerName, bool isSphere, bool fadesAtEdges)
+    public static SceneLightProbe AddLightProbe(Scene scene, EntityLump.Entity entity, in Matrix4x4 transform, ImmutableArray<WorldLayer> layers, bool isSphere, bool fadesAtEdges)
     {
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(entity);
@@ -106,7 +115,7 @@ public static class SceneLightingVolume
 
         var lightProbe = new SceneLightProbe(scene, volume.Bounds)
         {
-            LayerName = layerName,
+            Layers = layers,
             Transform = transform,
             HandShake = volume.HandShake,
             Irradiance = LoadTexture("lightprobetexture", srgbRead: true),

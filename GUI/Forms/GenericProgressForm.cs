@@ -198,31 +198,40 @@ namespace GUI.Forms
                         return;
                     }
 
-                    if (t.Exception != null)
-                    {
-                        foreach (var exception in t.Exception.Flatten().InnerExceptions)
-                        {
-                            if (exception is not OperationCanceledException)
-                            {
-                                ErrorReport.ShowError(exception);
-                            }
-                        }
-                    }
-
                     try
                     {
-                        Invoke(OnWorkFinished);
+                        Invoke(() => OnWorkFinished(t.Exception));
                     }
                     catch (InvalidOperationException)
                     {
-                        // The dialog was destroyed before the worker stopped, nothing left to update
+                        // The dialog was destroyed before the worker stopped, there is nothing to show the errors over
+                        ShowErrors(t.Exception, owner: null);
                     }
                 });
         }
 
-        private void OnWorkFinished()
+        private static void ShowErrors(AggregateException? exception, IWin32Window? owner)
+        {
+            if (exception == null)
+            {
+                return;
+            }
+
+            foreach (var innerException in exception.Flatten().InnerExceptions)
+            {
+                if (innerException is not OperationCanceledException)
+                {
+                    ErrorReport.ShowError(innerException, owner: owner);
+                }
+            }
+        }
+
+        private void OnWorkFinished(AggregateException? exception)
         {
             workFinished = true;
+
+            // Owned by this dialog so it can not open behind it, and shown before closing so the owner still exists
+            ShowErrors(exception, Visible ? this : null);
 
             // Cancelling already closed the dialog, there is no completed state to show for work that did not finish
             if (cancellationTokenSource.IsCancellationRequested || !StayOpenOnCompletion)

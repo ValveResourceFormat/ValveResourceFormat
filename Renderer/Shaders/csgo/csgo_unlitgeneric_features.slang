@@ -1,0 +1,8 @@
+#version 460
+
+// BLENDING
+#define F_TRANSLUCENT 0
+#define F_BLEND_MODE 0
+// TEXTURING
+#define F_TWOTEXTURE 0
+#define F_VERTEX_COLOR 0

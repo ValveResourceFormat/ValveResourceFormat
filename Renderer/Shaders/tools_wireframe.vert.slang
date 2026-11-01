@@ -14,7 +14,7 @@ in vec3 vLineEnd;
 in float vLineCorner;
 
 #include "common/utils.slang"
-#include "common/ViewConstants.slang"
+#include "common/view_constants.slang"
 #include "common/instancing.slang"
 
 // Width of thick lines, in pixels

@@ -3,7 +3,7 @@
 in vec3 vPOSITION;
 out vec3 vtxPosWs;
 
-#include "common/ViewConstants.slang"
+#include "common/view_constants.slang"
 #include "common/instancing.slang"
 
 void main(void)

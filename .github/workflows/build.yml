@@ -181,6 +181,9 @@ jobs:
       id-token: write
       attestations: write
 
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+
     steps:
     - uses: actions/checkout@v7
     - uses: ./.github/actions/setup-dotnet-cache
@@ -195,12 +198,44 @@ jobs:
         subject-path: GUI/bin/Release/win-x64/publish/Source2Viewer.exe
 
     - name: Upload
+      id: upload
       uses: actions/upload-artifact@v7
       with:
         # Uploaded as a bare file so that the artifact can be served as a direct download,
         # the artifact is named after the file
         archive: false
         path: 'GUI/bin/Release/win-x64/publish/Source2Viewer.exe'
+
+  publish-dev:
+    name: Publish dev build
+    if: github.repository == 'ValveResourceFormat/ValveResourceFormat' && github.ref == 'refs/heads/master' && github.event_name == 'push'
+    needs: [build, analyze, source2viewer-rel]
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write # oidc token that update.s2v.app verifies to know which run is publishing
+
+    # One at a time, so the published build only ever moves forward
+    concurrency:
+      group: publish-dev
+      cancel-in-progress: false
+
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        sparse-checkout: .github/scripts
+
+    - name: Publish to update.s2v.app
+      uses: actions/github-script@v9
+      env:
+        # Picked by id rather than name, since any job of the run can upload an artifact with the same name
+        ARTIFACT_ID: ${{ needs.source2viewer-rel.outputs.artifact-id }}
+      with:
+        script: |
+          await require('./.github/scripts/update-s2v-app.js')({ core }, '/v1/publish', {
+            artifactIds: [Number(process.env.ARTIFACT_ID)],
+          })
 
   analyze:
     name: Run all analyzers

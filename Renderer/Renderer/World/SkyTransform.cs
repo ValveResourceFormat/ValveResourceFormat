@@ -57,14 +57,22 @@ public readonly record struct SkyTransform
     /// </remarks>
     public void ConfigureCamera(Camera camera, Camera from)
     {
+        ArgumentNullException.ThrowIfNull(from);
+
+        ConfigureCamera(camera, from, from.NearPlane / Scale, from.FarPlane / Scale);
+    }
+
+    /// <summary>Sets <paramref name="camera"/> up to view the sky from the sky space position matching <paramref name="from"/>, with clip planes given in sky units.</summary>
+    public void ConfigureCamera(Camera camera, Camera from, float nearPlane, float farPlane)
+    {
         ArgumentNullException.ThrowIfNull(camera);
         ArgumentNullException.ThrowIfNull(from);
 
         camera.CopyFrom(from);
         camera.FieldOfView = from.FieldOfView;
         camera.Location = ToSky(from.Location);
-        camera.NearPlane = from.NearPlane / Scale;
-        camera.FarPlane = from.FarPlane / Scale;
+        camera.NearPlane = nearPlane;
+        camera.FarPlane = farPlane;
 
         camera.CreateProjectionMatrix();
         camera.RecalculateMatrices();

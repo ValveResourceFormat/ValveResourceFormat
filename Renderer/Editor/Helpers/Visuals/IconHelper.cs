@@ -141,7 +141,7 @@ public class IconHelper : EntityHelper
         return new SpriteSceneNode(scene, scene.RendererContext, resource, Owner.Transform.Translation, border)
         {
             // An icon over the scene shows whatever is shown of the entity
-            LayerName = isDrawnOverScene ? null : HammerEntityVisuals.MarkerLayerName,
+            Layers = isDrawnOverScene ? [] : [HammerEntityVisuals.MarkerLayer],
             Name = name,
             Flags = ObjectTypeFlags.NoShadows,
             KeepsMarkerSize = true,

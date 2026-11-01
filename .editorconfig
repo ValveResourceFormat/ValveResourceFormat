@@ -45,6 +45,10 @@ dotnet_diagnostic.CA1303.severity = none
 # KVObject conversions are always invariant, the analyzer only sees that a provider overload exists
 dotnet_code_quality.CA1305.excluded_symbol_names = T:ValveKeyValue.KVObject
 
+# CA2000: Dispose objects before losing scope
+# Following disposables through deeper call chains costs most of the analyzer time for almost no extra findings
+dotnet_code_quality.CA2000.max_interprocedural_method_call_chain = 1
+
 # CA1307: Specify StringComparison (not part of the Recommended set used by Debug builds)
 dotnet_diagnostic.CA1307.severity = warning
 

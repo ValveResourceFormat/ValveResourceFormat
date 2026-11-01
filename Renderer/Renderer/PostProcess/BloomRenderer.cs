@@ -13,6 +13,8 @@ public class BloomRenderer
 {
     private Shader? downsampleBloomThreshold;
     private Shader? downsampleBloomThresholdExposed;
+    private Shader? downsampleBloomThresholdPointTaps;
+    private Shader? downsampleBloomThresholdBilinear;
     private Shader? downsample;
     private Shader? horizontalBlur;
     private Shader? verticalBlur;
@@ -55,7 +57,11 @@ public class BloomRenderer
     /// <summary>
     /// Gets whether the scene is exposed before it is thresholded, which leaves the bloom in exposed space.
     /// </summary>
-    public bool ThresholdsExposedScene => Game is Game.Csgo or Game.Steampal;
+    public bool ThresholdsExposedScene => Game is Game.Csgo;
+
+    // Deadlock and Half-Life: Alyx upsample with a 2x2 box
+    /// <summary>Gets whether the mips are upsampled with a tent filter rather than a 2x2 box.</summary>
+    public bool UsesTentUpsample => Game is Game.Csgo or Game.Steampal;
 
     // Deadlock keeps the effects target in floating point, and Dota 2 decodes its sRGB writes when it reads them back.
     // TODO: The effects bloom comes out uniformly about 8% darker than in Counter-Strike 2, for a reason not yet found
@@ -69,7 +75,9 @@ public class BloomRenderer
     public void Load()
     {
         downsampleBloomThreshold = RendererContext.ShaderLoader.LoadShader("downsample_bloomthreshold");
-        downsampleBloomThresholdExposed = RendererContext.ShaderLoader.LoadShader("downsample_bloomthreshold", ("D_EXPOSED_THRESHOLD", 1));
+        downsampleBloomThresholdExposed = RendererContext.ShaderLoader.LoadShader("downsample_bloomthreshold", ("D_THRESHOLD_MODE", 1));
+        downsampleBloomThresholdPointTaps = RendererContext.ShaderLoader.LoadShader("downsample_bloomthreshold", ("D_THRESHOLD_MODE", 2));
+        downsampleBloomThresholdBilinear = RendererContext.ShaderLoader.LoadShader("downsample_bloomthreshold", ("D_THRESHOLD_MODE", 3));
         downsample = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur");
         horizontalBlur = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur", ("D_BLUR_PASS", 1));
         verticalBlur = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur", ("D_BLUR_PASS", 2));
@@ -99,9 +107,10 @@ public class BloomRenderer
     /// </summary>
     /// <param name="input">The resolved scene color, thresholded before it blooms.</param>
     /// <param name="effectsBloom">Geometry drawn only to glow, bloomed whole without a threshold, or null.</param>
+    /// <param name="bloomAmount">The per-pixel bloom amount of the scene, 0 where the scene is thresholded as usual, or null.</param>
     /// <param name="settings">The bloom settings to apply.</param>
     /// <param name="sceneWeight">How much of the thresholded scene blooms: 0 blooms only <paramref name="effectsBloom"/>.</param>
-    public void Render(RenderTexture input, RenderTexture? effectsBloom, BloomSettings settings, float sceneWeight)
+    public void Render(RenderTexture input, RenderTexture? effectsBloom, RenderTexture? bloomAmount, BloomSettings settings, float sceneWeight)
     {
         Debug.Assert(MipChain != null && MipChain.Color != null);
         Debug.Assert(Output != null && Output.Color != null);
@@ -120,7 +129,7 @@ public class BloomRenderer
 
         GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
 
-        RenderThreshold(input, effectsBloom, settings, sceneWeight);
+        RenderThreshold(input, effectsBloom, bloomAmount, settings, sceneWeight);
 
         for (var level = 0; level < BloomMipCount; level++)
         {
@@ -132,16 +141,28 @@ public class BloomRenderer
         MipChain.AttachColorMipLevel(0);
     }
 
-    private void RenderThreshold(RenderTexture input, RenderTexture? effectsBloom, BloomSettings settings, float sceneWeight)
+    private void RenderThreshold(RenderTexture input, RenderTexture? effectsBloom, RenderTexture? bloomAmount, BloomSettings settings, float sceneWeight)
     {
         using var _ = new GLDebugGroup("Bloom Downsample Threshold Pass");
 
         Debug.Assert(input.Target == TextureTarget.Texture2D);
         Debug.Assert(downsampleBloomThreshold != null && downsampleBloomThresholdExposed != null);
+        Debug.Assert(downsampleBloomThresholdPointTaps != null && downsampleBloomThresholdBilinear != null);
 
-        // TODO: Half-Life: Alyx downsamples with 16 point taps weighted by 1 / (max(rgb) + 1) and thresholds after
-        // decoding the sum, and Deadlock scales the threshold luminance and colour by 20 times the self-illum mask
-        var shader = ThresholdsExposedScene ? downsampleBloomThresholdExposed : downsampleBloomThreshold;
+        // Deadlock scales the colour and threshold luminance of a texel by 20 times the per-pixel bloom amount that
+        // materials overriding it write, where that is above zero.
+        // TODO: Dota 2 has no threshold and never blooms the scene colour. It blooms a per-pixel glow amount (alpha of a
+        // target sized like the deferred lighting terms, times 20, saturated) tinted by a global bloom colour, through
+        // a 13 tap diamond kernel (centre 1, nearest four 0.75, rest 0.5) normalised by the weight sum.
+        // TODO: SteamVR Home has no threshold either: four bilinear taps, the colour times its luminance to an
+        // exponent (default 2), then a tint and a brightness, from parameters whose source is not known.
+        var shader = Game switch
+        {
+            Game.Csgo or Game.Steampal => downsampleBloomThresholdExposed,
+            Game.Hlvr => downsampleBloomThresholdPointTaps,
+            Game.Citadel => downsampleBloomThresholdBilinear,
+            _ => downsampleBloomThreshold,
+        };
 
         // The scene blooms by the strongest of the three modes, the composite weighs the modes against each other
         var scalesSceneByStrongestMode = Game is Game.Csgo or Game.Steampal or Game.Citadel;
@@ -158,10 +179,10 @@ public class BloomRenderer
         shader.SetUniform("g_flToneMapScalarLinear", PostProcessRenderer.TonemapScalar);
         shader.SetUniform("g_flExposureBiasScaleFactor", MathF.Pow(2f, PostProcessRenderer.State.TonemapSettings.ExposureBias));
         shader.SetUniform("g_flThresholdParams", thresholdParams);
+        shader.SetUniform("g_bExposeScene", ThresholdsExposedScene);
         shader.SetUniform("g_flSceneBloomWeight", sceneWeight);
         shader.SetUniform("g_bEffectsBloom", effectsBloom != null);
         // The effects bloom layer is clamped to [0, 1] where it is stored in an 8-bit target rather than in floating point.
-        // TODO: Dota 2 blooms the scene without a threshold, which is not modelled
         var clampsEffectsBloom = Game is Game.Csgo or Game.Steampal or Game.Dota;
 
         shader.SetUniform("g_bEffectsBloomClamped", clampsEffectsBloom);
@@ -170,6 +191,13 @@ public class BloomRenderer
         if (effectsBloom != null)
         {
             shader.SetTexture(1, "g_tEffectsBloom", effectsBloom);
+        }
+
+        shader.SetUniform("g_bBloomAmount", bloomAmount != null);
+
+        if (bloomAmount != null)
+        {
+            shader.SetTexture(2, "g_tBloomAmount", bloomAmount);
         }
 
         BindTarget(MipChain!, 0);
@@ -229,8 +257,7 @@ public class BloomRenderer
     {
         Debug.Assert(upsample != null && upsampleTent != null && finalUpsample != null);
 
-        // Deadlock and Half-Life: Alyx upsample with a 2x2 box
-        var upsampleShader = ThresholdsExposedScene && TentFilterRadius > 0f ? upsampleTent : upsample;
+        var upsampleShader = UsesTentUpsample && TentFilterRadius > 0f ? upsampleTent : upsample;
 
         using (GraphicsContext.RenderState.Scope(blend: true, srcBlend: RsBlendMode.One, dstBlend: RsBlendMode.Src1Color))
         {

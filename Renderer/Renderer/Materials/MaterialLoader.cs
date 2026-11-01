@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using VrfMaterial = ValveResourceFormat.ResourceTypes.Material;
 
@@ -39,27 +40,6 @@ namespace ValveResourceFormat.Renderer.Materials
 
         /// <summary>Gets the number of materials currently held in the cache.</summary>
         public int MaterialCount => Materials.Count;
-
-        /// <summary>
-        /// Maps a material texture parameter name to the shader uniforms it can feed, in preference order.
-        /// The first candidate the shader declares and that is not already bound wins.
-        /// </summary>
-        private static readonly Dictionary<string, string[]> TextureAliases = new(StringComparer.Ordinal)
-        {
-            ["g_tColor1"] = ["g_tColor"],
-            ["g_tColor2"] = ["g_tColor", "g_tLayer2Color"],
-            ["g_tColorA"] = ["g_tColor"],
-            ["g_tColorB"] = ["g_tLayer2Color", "g_tColor"],
-            ["g_tColorC"] = ["g_tColor"],
-            ["g_tGlassDust"] = ["g_tColor"],
-            ["g_tNormalA"] = ["g_tNormal"],
-            ["g_tNormalB"] = ["g_tLayer2NormalRoughness"],
-            ["g_tNormalRoughness"] = ["g_tNormal"],
-            ["g_tNormalRoughness1"] = ["g_tNormal"],
-            ["g_tNormalRoughness2"] = ["g_tLayer2NormalRoughness"],
-            ["g_tLayer1NormalRoughness"] = ["g_tNormal"],
-            ["g_tLayer1AmbientOcclusion"] = ["g_tAmbientOcclusion"],
-        };
 
         /// <summary>Initializes a new instance of the <see cref="MaterialLoader"/> class.</summary>
         /// <param name="rendererContext">The renderer context used for file loading and shader access.</param>
@@ -151,7 +131,7 @@ namespace ValveResourceFormat.Renderer.Materials
             return mat;
         }
 
-        /// <summary>Creates a <see cref="RenderMaterial"/> from an already-loaded resource, binding textures and resolving aliases.</summary>
+        /// <summary>Creates a <see cref="RenderMaterial"/> from an already-loaded resource, binding each texture its shader declares under the same name.</summary>
         /// <param name="resource">The material resource, or <see langword="null"/> to return the error material.</param>
         /// <param name="shaderArguments">Optional static combo overrides to pass to the shader.</param>
         public RenderMaterial LoadMaterial(Resource? resource, Dictionary<string, byte>? shaderArguments = null)
@@ -173,41 +153,13 @@ namespace ValveResourceFormat.Renderer.Materials
 
             foreach (var (textureName, texturePath) in mat.Material.TextureParams)
             {
-                TryBindTexture(mat, textureName, texturePath);
-            }
-
-            foreach (var (textureName, texturePath) in mat.Material.TextureParams)
-            {
-                if (mat.Textures.ContainsKey(textureName)
-                || !TextureAliases.TryGetValue(textureName, out var aliases))
+                if (!mat.Shader.UniformNames.Contains(textureName))
                 {
                     continue;
                 }
 
-                foreach (var alias in aliases)
-                {
-                    if (mat.Textures.ContainsKey(alias))
-                    {
-                        continue;
-                    }
-
-                    if (TryBindTexture(mat, alias, texturePath))
-                    {
-                        break;
-                    }
-                }
-            }
-
-            bool TryBindTexture(RenderMaterial mat, string name, string path)
-            {
-                if (mat.Shader.UniformNames.Contains(name))
-                {
-                    var srgbRead = mat.Shader.SrgbUniforms.Contains(name);
-                    mat.Textures[name] = GetTexture(path, srgbRead, anisotropicFiltering: true, streaming: true);
-                    return true;
-                }
-
-                return false;
+                var srgbRead = mat.Shader.SrgbUniforms.Contains(textureName);
+                mat.Textures[textureName] = GetTexture(texturePath, srgbRead, anisotropicFiltering: true, streaming: true);
             }
 
             return mat;
@@ -696,14 +648,55 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         private static RenderTexture CreateSolidTexture(byte r, byte g, byte b) => GenerateColorTexture(1, 1, [r, g, b]);
-        /// <summary>Returns a lazily created 1x1 flat normal map texture (127, 127, 255).</summary>
-        public RenderTexture GetDefaultNormal() => DefaultNormal ??= CreateSolidTexture(127, 127, 255);
+        /// <summary>Returns a lazily created 1x1 flat normal map texture (127, 127, 255, 127), flat in both the RG and the AG layouts.</summary>
+        public RenderTexture GetDefaultNormal() => DefaultNormal ??= GenerateColorTexture(1, 1, [127, 127, 255, 127]);
 
         /// <summary>Returns a lazily created 1x1 solid white mask texture.</summary>
         public RenderTexture GetDefaultMask() => DefaultMask ??= CreateSolidTexture(255, 255, 255);
 
         /// <summary>Returns a lazily created 1x1 solid white colour texture, a neutral fallback albedo.</summary>
         public RenderTexture GetDefaultColor() => DefaultColor ??= CreateSolidTexture(255, 255, 255);
+
+        /// <summary>
+        /// Returns the texture the volumes of entities of a class built from <see cref="ToolsMaterials.Trigger"/> are
+        /// shown with, which names the class in its color, see <see cref="ToolsMaterials.GetTriggerColors"/>.
+        /// </summary>
+        /// <param name="entityClassName">The class of the entity.</param>
+        public RenderTexture GetTriggerTexture(string entityClassName)
+        {
+            // The cache key is not a resource path, so it cannot collide with a loaded texture
+            var cacheKey = $"trigger:{entityClassName}";
+
+            if (TexturesSrgb.TryGetValue(cacheKey, out var cached))
+            {
+                return cached;
+            }
+
+            using var bitmap = MapAutoPhysTextureGenerator.GenerateTriggerTexture(entityClassName);
+
+            var texture = CreateTriggerTexture(bitmap, ToolsMaterials.GetTriggerColors(entityClassName).Background);
+            TexturesSrgb[cacheKey] = texture;
+            return texture;
+        }
+
+        // Generated textures are not resources, so they are uploaded here with a full mip chain to tile across shapes.
+        // Edge lines take the class color, which the shader reads from the reflectivity.
+        private static RenderTexture CreateTriggerTexture(SKBitmap bitmap, Color32 lineColor)
+        {
+            var levels = 1 + BitOperations.Log2((uint)Math.Max(bitmap.Width, bitmap.Height));
+            var texture = new RenderTexture(TextureTarget.Texture2D, bitmap.Width, bitmap.Height, 1, levels, "TriggerTexture");
+            texture.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Linear);
+            texture.SetWrapMode(RsTextureAddressMode.Wrap);
+            texture.Reflectivity = lineColor.ToLinearColor();
+
+            var pixelFormat = bitmap.ColorType == SKColorType.Rgba8888 ? PixelFormat.Rgba : PixelFormat.Bgra;
+
+            GL.TextureStorage2D(texture.Handle, levels, SizedInternalFormat.Srgb8Alpha8, bitmap.Width, bitmap.Height);
+            GL.TextureSubImage2D(texture.Handle, 0, 0, 0, bitmap.Width, bitmap.Height, pixelFormat, PixelType.UnsignedByte, bitmap.GetPixels());
+            GL.GenerateTextureMipmap(texture.Handle);
+
+            return texture;
+        }
 
         /// <summary>
         /// Returns a lazily created 1x1 single layer white array texture.
@@ -953,8 +946,11 @@ namespace ValveResourceFormat.Renderer.Materials
             var color32 = new Color32(color[0], color[1], color[2]);
             texture.Reflectivity = color32.ToLinearColor();
 
+            // Three bytes per pixel leave alpha at 1
+            var pixelFormat = color.Length == width * height * 4 ? PixelFormat.Rgba : PixelFormat.Rgb;
+
             GL.TextureStorage2D(texture.Handle, levels, SizedInternalFormat.Rgba8, width, height);
-            GL.TextureSubImage2D(texture.Handle, 0, 0, 0, width, height, PixelFormat.Rgb, PixelType.UnsignedByte, color);
+            GL.TextureSubImage2D(texture.Handle, 0, 0, 0, width, height, pixelFormat, PixelType.UnsignedByte, color);
 
             if (levels > 1)
             {

@@ -1,6 +1,9 @@
 using System.Linq;
+using System.Runtime.CompilerServices;
 using SharpGLTF.Schema2;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
+using VModel = ValveResourceFormat.ResourceTypes.Model;
 
 namespace ValveResourceFormat.IO;
 
@@ -38,6 +41,69 @@ public partial class GltfModelExporter
         {
             CreateBonesRecursive(child, node, ref joints, isRoot: false);
         }
+    }
+
+    /// <summary>
+    /// The inverse bind pose of every model bone as a mesh is skinned with it: the model skeleton's, with the
+    /// bones the mesh addresses replaced by the mesh's own.
+    /// </summary>
+    private static Matrix4x4[] GetSkinInverseBindPose(VModel model, VMesh mesh, int meshIndex, Matrix4x4[] modelInverseBindPose)
+    {
+        var inverseBindPose = (Matrix4x4[])modelInverseBindPose.Clone();
+        var remapTable = model.GetRemapTable(meshIndex);
+
+        if (remapTable == null)
+        {
+            return inverseBindPose;
+        }
+
+        var meshInverseBindPose = model.GetSkinningInverseBindPose(mesh, meshIndex, modelInverseBindPose);
+
+        for (var i = 0; i < remapTable.Length; i++)
+        {
+            var modelBone = remapTable[i];
+
+            if (modelBone >= 0 && modelBone < inverseBindPose.Length)
+            {
+                inverseBindPose[modelBone] = meshInverseBindPose[i];
+            }
+        }
+
+        return inverseBindPose;
+    }
+
+    private sealed class SkinKeyComparer : IEqualityComparer<(Node[] Joints, Matrix4x4[] InverseBindPose)>
+    {
+        public static readonly SkinKeyComparer Instance = new();
+
+        public bool Equals((Node[] Joints, Matrix4x4[] InverseBindPose) x, (Node[] Joints, Matrix4x4[] InverseBindPose) y)
+            => x.Joints == y.Joints && x.InverseBindPose.AsSpan().SequenceEqual(y.InverseBindPose);
+
+        public int GetHashCode((Node[] Joints, Matrix4x4[] InverseBindPose) key)
+        {
+            var hash = new HashCode();
+            hash.Add(RuntimeHelpers.GetHashCode(key.Joints));
+
+            foreach (var matrix in key.InverseBindPose)
+            {
+                hash.Add(matrix);
+            }
+
+            return hash.ToHashCode();
+        }
+    }
+
+    private static (Node Joint, Matrix4x4 InverseBindMatrix)[] ToGltfInverseBindMatrices(Node[] joints, Matrix4x4[] inverseBindPose)
+    {
+        var scale = Matrix4x4.CreateScale(SourceToGltfScale);
+        var inverseBindMatrices = new (Node, Matrix4x4)[joints.Length];
+
+        for (var i = 0; i < joints.Length; i++)
+        {
+            inverseBindMatrices[i] = (joints[i], TransformGltfToSource * inverseBindPose[i] * scale);
+        }
+
+        return inverseBindMatrices;
     }
 
     private static void CreateSkeletonVisualizationMesh(ModelRoot exportedModel, Scene scene, Skeleton skeleton, Node[] joints, string skeletonName)

@@ -28,7 +28,7 @@ namespace ValveResourceFormat.Renderer.Buffers
 
         /// <summary>Combined world-to-clip transform (view * projection).</summary>
         public Matrix4x4 WorldToProjection = Matrix4x4.Identity;
-        /// <summary>Inverse of <see cref="WorldToProjection"/>, mapping clip space back to world space.</summary>
+        /// <summary>Inverse of the projection matrix alone, mapping clip space back to view space.</summary>
         public Matrix4x4 ProjectionToWorld = Matrix4x4.Identity;
         /// <summary>View matrix transforming world-space positions into camera space.</summary>
         public Matrix4x4 WorldToView = Matrix4x4.Identity;
@@ -56,6 +56,8 @@ namespace ValveResourceFormat.Renderer.Buffers
         public Matrix4x4 WorldToShadow = Matrix4x4.Identity;
         /// <summary>Transform into the second, wider sun shadow cascade. Forms <c>g_matWorldToShadow[1]</c>.</summary>
         public Matrix4x4 WorldToShadowCascade1 = Matrix4x4.Identity;
+        /// <summary>Transform into the third, widest sun shadow cascade. Forms <c>g_matWorldToShadow[2]</c>.</summary>
+        public Matrix4x4 WorldToShadowCascade2 = Matrix4x4.Identity;
         /// <summary>Index of the drawn scene in <see cref="Renderer.Scenes"/>, which replacement shaders can write out.</summary>
         public uint SceneIndex;
         /// <summary>Whether this view draws the 3D skybox rather than the world.</summary>
@@ -105,8 +107,14 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// </summary>
         public Vector2 SceneDepthFetchScale = Vector2.One;
 
-        /// <summary>Padding to satisfy alignment requirements.</summary>
-        public Vector2 Padding1;
+        /// <summary>Distance of the volumetric fog volume's first slice and the distance from it to the last slice.</summary>
+        public Vector2 VolumetricFogNearRange;
+
+        /// <summary>Warp of the volumetric fog slices and one over its log2, or zero for slices along a square.</summary>
+        public Vector2 VolumetricFogDepthWarp;
+
+        /// <summary>Keeps the view constants a multiple of 16 bytes.</summary>
+        public Vector2 VolumetricFogPadding;
 
         /// <summary>Cull mask layout of the scene being drawn, from its <see cref="LightBinner"/>.</summary>
         public LightCullConstants LightCull;

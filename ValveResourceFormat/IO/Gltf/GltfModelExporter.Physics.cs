@@ -2,6 +2,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using SharpGLTF.Schema2;
+using SkiaSharp;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -427,7 +428,25 @@ public partial class GltfModelExporter
                 : ToolsMaterials.GetForCollision(collisionAttributes);
             var usedToolMaterial = false;
 
-            if (toolMaterialPath != null && FileLoader.LoadFileCompiled(toolMaterialPath)?.DataBlock is VMaterial toolMaterial)
+            // Volumes built from the trigger material show their class instead, as every class shares that material
+            if (classname != null && ToolsMaterials.Trigger.Equals(toolMaterialPath, StringComparison.OrdinalIgnoreCase))
+            {
+                material.InitializePBRMetallicRoughness();
+                SetMetallicRoughness(material, Vector4.One, metallicFactor: 0.0f);
+                material.Alpha = AlphaMode.OPAQUE;
+
+                var textureName = $"trigger_{classname}";
+
+                if (!ExportedTextures.TryGetValue(textureName, out var texture))
+                {
+                    using var bitmap = MapAutoPhysTextureGenerator.GenerateTriggerTexture(classname);
+                    texture = AddGeneratedTexture(exportedModel, textureName, bitmap);
+                }
+
+                material.FindChannel("BaseColor")?.SetTexture(0, texture);
+                usedToolMaterial = true;
+            }
+            else if (toolMaterialPath != null && FileLoader.LoadFileCompiled(toolMaterialPath)?.DataBlock is VMaterial toolMaterial)
             {
                 GenerateGLTFMaterialFromRenderMaterial(material, toolMaterial, exportedModel, Vector4.One, baseColorOnly: true);
                 usedToolMaterial = true;
@@ -442,24 +461,18 @@ public partial class GltfModelExporter
                 material.Alpha = AlphaMode.OPAQUE;
 
                 // Generate texture based on tool texture name or surface property
-                string textureName;
                 SharpGLTF.Schema2.Texture? texture = null;
 
                 if (toolMaterialPath != null)
                 {
                     // Use tool material name for fallback auto-generated texture
                     var toolMaterialName = Path.GetFileNameWithoutExtension(toolMaterialPath);
-                    textureName = $"tool_{toolMaterialName}";
+                    var textureName = $"tool_{toolMaterialName}";
 
                     if (!ExportedTextures.TryGetValue(textureName, out texture))
                     {
-                        var newImage = CreateNewGLTFImage(exportedModel, textureName);
-                        texture = exportedModel.UseTexture(newImage, TextureSampler);
-                        texture.Name = newImage.Name;
-                        ExportedTextures[textureName] = texture;
-
-                        var toolTexTask = AddPhysicsTexture(newImage, $"TOOL_{toolMaterialName.ToUpperInvariant()}");
-                        TextureExportingTasks.Add(toolTexTask);
+                        using var bitmap = MapAutoPhysTextureGenerator.GenerateTexture($"TOOL_{toolMaterialName.ToUpperInvariant()}");
+                        texture = AddGeneratedTexture(exportedModel, textureName, bitmap);
                     }
                 }
                 else
@@ -468,18 +481,12 @@ public partial class GltfModelExporter
                     var surfaceProperty = physicsSurfaceNames[surfacePropertyIndex];
                     if (!string.IsNullOrEmpty(surfaceProperty))
                     {
-                        textureName = $"physics_{surfaceProperty}";
+                        var textureName = $"physics_{surfaceProperty}";
 
                         if (!ExportedTextures.TryGetValue(textureName, out texture))
                         {
-                            var newImage = CreateNewGLTFImage(exportedModel, textureName);
-                            texture = exportedModel.UseTexture(newImage, TextureSampler);
-                            texture.Name = newImage.Name;
-                            ExportedTextures[textureName] = texture;
-
-                            // Generate physics texture using MapAutoPhysTextureGenerator
-                            var physTexTask = AddPhysicsTexture(newImage, surfaceProperty);
-                            TextureExportingTasks.Add(physTexTask);
+                            using var bitmap = MapAutoPhysTextureGenerator.GenerateTexture(surfaceProperty);
+                            texture = AddGeneratedTexture(exportedModel, textureName, bitmap);
                         }
                     }
                 }
@@ -498,15 +505,18 @@ public partial class GltfModelExporter
     }
 
     /// <summary>
-    /// Generates and links a physics texture for the given surface property using <see cref="MapAutoPhysTextureGenerator"/>.
+    /// Adds a texture with a generated image under this name.
     /// </summary>
-    private async Task AddPhysicsTexture(Image image, string surfaceProperty)
+    private SharpGLTF.Schema2.Texture AddGeneratedTexture(ModelRoot exportedModel, string textureName, SKBitmap bitmap)
     {
-        await Task.Yield();
+        var image = CreateNewGLTFImage(exportedModel, textureName);
+        var texture = exportedModel.UseTexture(image, TextureSampler);
+        texture.Name = image.Name;
+        ExportedTextures[textureName] = texture;
 
-        using var bitmap = MapAutoPhysTextureGenerator.GenerateTexture(surfaceProperty);
         var pngBytes = TextureExtract.ToPngImage(bitmap);
+        TextureExportingTasks.Add(LinkAndSaveImage(image, pngBytes));
 
-        await LinkAndSaveImage(image, pngBytes).ConfigureAwait(false);
+        return texture;
     }
 }

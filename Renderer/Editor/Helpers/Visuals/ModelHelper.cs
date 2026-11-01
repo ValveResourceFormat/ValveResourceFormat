@@ -334,7 +334,7 @@ public class ModelHelper : EntityHelper
 
         if (HiddenInGameObjectsOnly)
         {
-            node.LayerName = HammerEntityVisuals.MarkerLayerName;
+            node.Layers = [HammerEntityVisuals.MarkerLayer];
 
             // A stand in is as large in a 3D sky as in the map of the sky
             node.KeepsMarkerSize = true;

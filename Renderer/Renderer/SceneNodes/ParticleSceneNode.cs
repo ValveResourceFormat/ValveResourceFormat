@@ -840,7 +840,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <inheritdoc/>
         public override void UpdateBuffers(Camera camera)
         {
-            if (IsDrawable && LayerEnabled)
+            if (IsDrawable && LayerEnabled && Visible)
             {
                 drawnSinceSimulate = true;
                 particleRenderer.UpdateBuffers(camera);

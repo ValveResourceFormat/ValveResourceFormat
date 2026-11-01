@@ -1,0 +1,4 @@
+#version 460
+
+// TEXTURING
+#define F_METALNESS_TEXTURE 0

@@ -156,6 +156,11 @@ namespace ValveResourceFormat.Renderer
                 return replacement.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest).WithMorph(material.Shader);
             }
 
+            if (context.Layer == RenderLayer.BloomAmount)
+            {
+                return material.Shader.BloomAmountMode ?? material.Shader;
+            }
+
             if (context.DepthOnlyShader is { } depthOnly)
             {
                 return material.Shader.DepthMode
@@ -242,7 +247,6 @@ namespace ValveResourceFormat.Renderer
                         Debug.Assert(context.Scene.InstanceBufferGpu != null && context.Scene.TransformBufferGpu != null);
                         context.Scene.TransformBufferGpu.BindBufferBase();
                         context.Scene.InstanceBufferGpu.BindBufferBase();
-                        context.Scene.ObjectBufferGpu?.BindBufferBase();
                     }
 
                     material = requestMaterial;

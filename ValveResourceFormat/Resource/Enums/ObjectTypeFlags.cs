@@ -25,7 +25,7 @@ namespace ValveResourceFormat
         /// <summary>Object blocks light.</summary>
         BlockLight = 0x10,
 
-        /// <summary>Object casts no dynamic shadows.</summary>
+        /// <summary>Object casts no shadows.</summary>
         NoShadows = 0x20,
 
         /// <summary>Object uses worldspace texture blending. Member name keeps the "Texure" typo.</summary>

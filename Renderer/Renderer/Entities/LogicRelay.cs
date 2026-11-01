@@ -1,3 +1,4 @@
+using System.Linq;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Entities;
@@ -9,19 +10,6 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CLogicRelay">CLogicRelay</seealso>
 public sealed class LogicRelay : BaseEntity
 {
-    /// <summary>
-    /// Spawn flags, used by maps that predate the <c>TriggerOnce</c> and <c>FastRetrigger</c> keyvalues.
-    /// </summary>
-    [Flags]
-    public enum SpawnFlag : uint
-    {
-        /// <summary>Fires once and then removes itself.</summary>
-        OnlyOnce = 1,
-
-        /// <summary>May be triggered again while a previous trigger is still waiting on its delay.</summary>
-        AllowFastRetrigger = 2,
-    }
-
     /// <summary>Gets whether the relay passes triggers on.</summary>
     public bool IsEnabled { get; private set; } = true;
 
@@ -42,19 +30,9 @@ public sealed class LogicRelay : BaseEntity
 
         IsEnabled = !KeyValues.GetBooleanProperty("startdisabled");
 
-        triggerOnce = KeyValues.ContainsKey("triggeronce")
-            ? KeyValues.GetBooleanProperty("triggeronce")
-            : HasSpawnFlags(SpawnFlag.OnlyOnce);
-        fastRetrigger = KeyValues.ContainsKey("fastretrigger")
-            ? KeyValues.GetBooleanProperty("fastretrigger")
-            : HasSpawnFlags(SpawnFlag.AllowFastRetrigger);
+        triggerOnce = KeyValues.GetBooleanProperty("triggeronce");
+        fastRetrigger = KeyValues.GetBooleanProperty("fastretrigger");
         passthroughCaller = KeyValues.GetBooleanProperty("passthroughcaller");
-
-        // No think without a listener, so a trigger-once relay is not removed before it was ever triggered
-        if (HasConnections("OnSpawn"))
-        {
-            SetNextThink(EntitySystem.CurrentTime + EntitySystem.TickInterval);
-        }
     }
 
     /// <inheritdoc/>
@@ -71,8 +49,11 @@ public sealed class LogicRelay : BaseEntity
     /// <inheritdoc/>
     public override void Activate()
     {
-        // Queued, so it also reaches entities of the same spawn group that activate after this one
-        EntitySystem.TriggerOutput(this, "OnSpawn");
+        // No think without a listener, so a trigger-once relay is not removed before it was ever triggered
+        if (EntitySystem.GetLiveConnections(this, "OnSpawn").Any())
+        {
+            SetNextThink(EntitySystem.CurrentTime + EntitySystem.TickInterval);
+        }
     }
 
     [EntityInput("Trigger")]
@@ -98,7 +79,8 @@ public sealed class LogicRelay : BaseEntity
             return;
         }
 
-        // Deaf until the slowest OnTrigger connection has been delivered, so a retrigger cannot overlap it
+        // Deaf until the slowest OnTrigger connection has been delivered, so a retrigger cannot overlap it.
+        // A connection whose count this trigger used up is no longer counted.
         isWaitingForRefire = true;
         EntitySystem.QueueInput(this, "EnableRefire", activator: this, caller: caller,
             delay: GetLongestDelay("OnTrigger") + 0.001f);
@@ -121,24 +103,13 @@ public sealed class LogicRelay : BaseEntity
         isWaitingForRefire = false;
     }
 
-    private bool HasConnections(string outputName)
-        => Data?.Connections?.Exists(connection => connection.OutputName.Equals(outputName, StringComparison.OrdinalIgnoreCase)) == true;
-
     private float GetLongestDelay(string outputName)
     {
         var longest = 0f;
 
-        if (Data?.Connections == null)
+        foreach (var connection in EntitySystem.GetLiveConnections(this, outputName))
         {
-            return longest;
-        }
-
-        foreach (var connection in Data.Connections)
-        {
-            if (connection.OutputName.Equals(outputName, StringComparison.OrdinalIgnoreCase))
-            {
-                longest = MathF.Max(longest, connection.Delay);
-            }
+            longest = MathF.Max(longest, connection.Delay);
         }
 
         return longest;

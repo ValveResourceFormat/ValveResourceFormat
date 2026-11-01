@@ -61,7 +61,7 @@ public sealed class EnvFogController : BaseEntity
         {
             blendDirection = KeyValues.GetBooleanProperty("use_angles")
                 ? EntityTransformHelper.EulerAnglesToForwardDirection(WorldAngles)
-                : Vector3.Normalize(KeyValues.GetVector3Property("fogdir", Vector3.UnitX));
+                : MathUtils.SafeNormalize(KeyValues.GetVector3Property("fogdir", Vector3.UnitX), Vector3.UnitX);
         }
 
         UpdateFog();

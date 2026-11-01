@@ -16,6 +16,12 @@ public static class ToolBrushGroups
     /// <summary>The group every other group is below, which holds the tools materials no group names.</summary>
     public const string RootGroup = "Tool Brushes";
 
+    /// <summary>The groups that start hidden.</summary>
+    public static IReadOnlyList<string> HiddenByDefault { get; } =
+    [
+        $"{RootGroup}/Place",
+    ];
+
     private const string ToolsFolder = "materials/tools/";
 
     private static readonly FrozenDictionary<string, string> GroupByMaterial = new (string Group, string Material)[]

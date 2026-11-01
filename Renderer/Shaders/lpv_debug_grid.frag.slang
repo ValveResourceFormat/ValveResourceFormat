@@ -1,7 +1,7 @@
 #version 460
 
 #include "common/utils.slang"
-#include "common/features.slang"
+#include "common/shared_combos.slang"
 
 #define IBL 1
 
@@ -19,8 +19,8 @@ uniform float g_flRoughness = 1.0;
 uniform float g_flMetalness = 0.0;
 uniform float g_flNearPlane = 1.0;
 
-#include "common/ViewConstants.slang"
-#include "common/LightingConstants.slang"
+#include "common/view_constants.slang"
+#include "common/lighting_constants.slang"
 
 #include "common/texturing.slang"
 #include "common/fog.slang"

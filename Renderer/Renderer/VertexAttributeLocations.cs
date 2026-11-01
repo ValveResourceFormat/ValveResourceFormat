@@ -69,8 +69,8 @@ namespace ValveResourceFormat.Renderer
         [VertexAttributeName("vTEXCOORD1", Semantic = "TEXCOORD", SemanticIndex = 1)]
         TexCoord1,
 
-        /// <summary>Layer blend weights, or per vertex subsurface curvature on skin.</summary>
-        [VertexAttributeName("vTEXCOORD2", "flSSSCurvature", Semantic = "TEXCOORD", SemanticIndex = 2)]
+        /// <summary>Layer blend weights, subsurface curvature on skin, or the prop origin of baked world meshes.</summary>
+        [VertexAttributeName("vTEXCOORD2", "flSSSCurvature", "vPropWorldOrigin", Semantic = "TEXCOORD", SemanticIndex = 2)]
         TexCoord2,
 
         /// <summary>Layer parameters, or foliage sway parameters.</summary>
@@ -231,6 +231,36 @@ namespace ValveResourceFormat.Renderer
 
             // Handbuilt geometry names its shader input directly, and a custom attribute has no semantic
             return location == -1 && attribute.ShaderSemantic is { Length: > 0 } shaderInput ? Get(shaderInput) : location;
+        }
+
+        /// <summary>Resolves the other signature names that read the same buffer attribute, such as the
+        /// foliage parameters and the lightmap coordinates that share a texcoord index. The shader decides
+        /// by its combos which of them it reads.</summary>
+        public static List<int> ResolveAliases(Material.VsInputSignature inputSignature, VBIB.RenderInputLayoutField attribute, int primaryLocation)
+        {
+            var aliases = new List<int>();
+
+            if (inputSignature.Elements is not { Length: > 0 })
+            {
+                return aliases;
+            }
+
+            foreach (var element in inputSignature.Elements)
+            {
+                if (element.D3DSemanticName != attribute.SemanticName || element.D3DSemanticIndex != attribute.SemanticIndex)
+                {
+                    continue;
+                }
+
+                var location = Get(element.Name);
+
+                if (location != -1 && location != primaryLocation)
+                {
+                    aliases.Add(location);
+                }
+            }
+
+            return aliases;
         }
 
         /// <summary>The buffer semantic a slot is filled from, for describing handbuilt geometry as a layout.</summary>

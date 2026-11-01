@@ -39,8 +39,6 @@ public enum EnvMapDebugColorsMode
 /// </summary>
 public sealed class SceneLightingDebug
 {
-    private const string LayerName = "Internal - Lighting Debug";
-
     // Larger grids are not drawn at all rather than truncated
     private const int MaxGridAxisSamples = 128;
     private const int MaxGridSamples = 0x200000;
@@ -210,10 +208,7 @@ public sealed class SceneLightingDebug
             }
         }
 
-        var samples = new LightProbeSampleGridSceneNode(scene, probe, localSamples)
-        {
-            LayerName = LayerName,
-        };
+        var samples = new LightProbeSampleGridSceneNode(scene, probe, localSamples);
 
         scene.Add(samples, true);
 
@@ -268,10 +263,7 @@ public sealed class SceneLightingDebug
                 continue;
             }
 
-            var marker = new MarkerSphere(scene, envMap.Transform.Translation, EnvMapMarkerRadius, LightingDebugColor.FromOrigin(envMap.Transform.Translation))
-            {
-                LayerName = LayerName,
-            };
+            var marker = new MarkerSphere(scene, envMap.Transform.Translation, EnvMapMarkerRadius, LightingDebugColor.FromOrigin(envMap.Transform.Translation));
 
             scene.Add(marker, true);
             envMapMarkers[envMap] = marker;
@@ -322,7 +314,6 @@ public sealed class SceneLightingDebug
 
         var outline = new LineSceneNode(scene, [.. vertices])
         {
-            LayerName = LayerName,
             Transform = transform,
         };
 

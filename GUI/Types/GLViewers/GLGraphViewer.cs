@@ -95,7 +95,7 @@ namespace GUI.Types.GLViewers
 
             if (subtitles.Count > 1)
             {
-                var filterList = UiControl.AddMultiSelection("Filter", listBox =>
+                var filterList = UiControl.AddMultiSelection<string>("Filter", listBox =>
                 {
                     foreach (var subtitle in subtitles)
                     {

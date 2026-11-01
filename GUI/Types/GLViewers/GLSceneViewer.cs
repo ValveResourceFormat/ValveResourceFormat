@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -84,7 +85,8 @@ namespace GUI.Types.GLViewers
         private PerfDisplay perfDisplay;
         private ComboBox? perfDisplayComboBox;
 
-        private volatile HashSet<string>? chosenLayers;
+        private volatile LayerChoice? layerChoice;
+        private readonly ConditionalWeakTable<SceneNode, object?> nodesHiddenByKey = [];
         private volatile bool visibilityDirty;
         private string? currentRenderMode;
 
@@ -529,7 +531,10 @@ namespace GUI.Types.GLViewers
             QuadOverdrawRenderer = new(Scene.RendererContext);
             QuadOverdrawRenderer.Load();
 
-            Renderer.ShadowTextureSize = Settings.Config.ShadowResolution;
+            var shadowQuality = Settings.Config.ShadowResolution;
+            Renderer.ShadowTextureSize = Math.Min(shadowQuality, 2048);
+            Renderer.SunCascadeCount = shadowQuality >= 4096 ? 3 : 2;
+            Renderer.Settings.StaticSunShadows = shadowQuality >= 1024; // All but Low
             Renderer.Initialize();
 
             Renderer.MainFramebuffer = MainFramebuffer;
@@ -926,10 +931,17 @@ namespace GUI.Types.GLViewers
                 {
                     baseGrid.Render();
 
-                    DrawWorldSpaceText("+X", 10f, Vector3.UnitX * 120f, Color32.Red, renderContext);
-                    DrawWorldSpaceText("-X", 10f, -Vector3.UnitX * 120f, Color32.Red, renderContext);
-                    DrawWorldSpaceText("+Y", 10f, Vector3.UnitY * 120f, Color32.Green, renderContext);
-                    DrawWorldSpaceText("-Y", 10f, -Vector3.UnitY * 120f, Color32.Green, renderContext);
+                    // Match the grid shader's axis colors
+                    var xAxisColor = new Color32(0.9f, 0.2f, 0.2f, 1f);
+                    var yAxisColor = new Color32(0.2f, 0.8f, 0.2f, 1f);
+
+                    // Just past the grid's origin square
+                    const float labelDistance = 128f + 16f;
+
+                    DrawWorldSpaceText("+X", 10f, Vector3.UnitX * labelDistance, xAxisColor, renderContext);
+                    DrawWorldSpaceText("-X", 10f, -Vector3.UnitX * labelDistance, xAxisColor, renderContext);
+                    DrawWorldSpaceText("+Y", 10f, Vector3.UnitY * labelDistance, yAxisColor, renderContext);
+                    DrawWorldSpaceText("-Y", 10f, -Vector3.UnitY * labelDistance, yAxisColor, renderContext);
                 }
             }
 
@@ -1219,10 +1231,16 @@ namespace GUI.Types.GLViewers
         {
         }
 
-        /// <summary>Shows the chosen layers from the next frame.</summary>
-        protected void SetEnabledLayers(HashSet<string> layers)
+        // The layers the sidebar lists, and which of them are checked
+        private sealed record LayerChoice(IReadOnlyCollection<WorldLayer> Listed, HashSet<WorldLayer> Chosen);
+
+        /// <summary>
+        /// Shows the chosen layers out of those listed and hides the rest of them, from the next frame. Layers that
+        /// are not listed are left as they are.
+        /// </summary>
+        protected void SetEnabledLayers(IReadOnlyCollection<WorldLayer> listedLayers, HashSet<WorldLayer> chosenLayers)
         {
-            chosenLayers = layers;
+            layerChoice = new LayerChoice(listedLayers, chosenLayers);
             RequestVisibilityUpdate();
         }
 
@@ -1244,19 +1262,22 @@ namespace GUI.Types.GLViewers
         /// <summary>Applies the chosen layers. Runs on the render thread.</summary>
         protected virtual void ApplyVisibility()
         {
-            if (chosenLayers is not { } layers)
+            if (layerChoice is not { } choice)
             {
                 return;
             }
 
+            var shown = FilterLayers(choice.Chosen);
+
             foreach (var scene in Renderer.Scenes)
             {
-                scene.SetEnabledLayers(FilterLayers(layers));
+                scene.SetLayersEnabled(choice.Listed.Where(shown.Contains), true);
+                scene.SetLayersEnabled(choice.Listed.Where(layer => !shown.Contains(layer)), false);
             }
         }
 
         /// <summary>Narrows the chosen layers to the ones that end up shown.</summary>
-        protected virtual HashSet<string> FilterLayers(HashSet<string> layers) => layers;
+        protected virtual HashSet<WorldLayer> FilterLayers(HashSet<WorldLayer> layers) => layers;
 
         // Only shown in the Cubemaps render mode; the choice is kept for when that mode is selected again
         private void ApplyCubemapColors()
@@ -1276,9 +1297,9 @@ namespace GUI.Types.GLViewers
             Debug.Assert(Picker != null);
             Debug.Assert(selectionVisuals != null);
 
-            Renderer.ViewBuffer!.Data!.RenderMode = RenderModes.GetShaderId(renderMode);
+            Renderer.Settings.RenderMode = RenderModes.GetShaderId(renderMode);
 
-            Renderer.Postprocess.Enabled = Renderer.ViewBuffer.Data.RenderMode == 0;
+            Renderer.Postprocess.Enabled = Renderer.Settings.RenderMode == 0;
 
             Renderer.Settings.EnableCompaction = renderMode != "Meshlets";
 
@@ -1319,12 +1340,34 @@ namespace GUI.Types.GLViewers
 
         protected override void OnKeyDown(Keys keyData)
         {
+            if (keyData == Keys.U || (keyData == Keys.Delete && Selection.Nodes.Count == 0))
+            {
+                // Shows everything hidden with Delete, which can no longer be picked to show it again
+                foreach (var (node, _) in nodesHiddenByKey)
+                {
+                    node.Visible = true;
+                }
+
+                nodesHiddenByKey.Clear();
+
+                return;
+            }
+
             if (keyData == Keys.Delete)
             {
                 // Hides the selection, or shows it again
                 foreach (var node in Selection.Nodes)
                 {
-                    node.LayerEnabled = !node.LayerEnabled;
+                    node.Visible = !node.Visible;
+
+                    if (node.Visible)
+                    {
+                        nodesHiddenByKey.Remove(node);
+                    }
+                    else
+                    {
+                        nodesHiddenByKey.AddOrUpdate(node, null);
+                    }
                 }
 
                 return;

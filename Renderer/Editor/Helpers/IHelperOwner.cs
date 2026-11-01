@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.ResourceTypes;
@@ -28,8 +29,8 @@ public interface IHelperOwner
     /// <summary>Gets where the entity was placed, without its scale.</summary>
     Matrix4x4 RigidTransform { get; }
 
-    /// <summary>Gets the visibility layer of what the entity draws.</summary>
-    string LayerName { get; }
+    /// <summary>Gets the visibility layers of everything the entity draws.</summary>
+    ImmutableArray<WorldLayer> Layers { get; }
 
     /// <summary>
     /// Gets the bounds of what the entity is made of besides its helpers, such as the meshes of a solid entity

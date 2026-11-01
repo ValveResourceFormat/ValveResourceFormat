@@ -29,7 +29,7 @@ internal sealed partial class McpTools
     /// <summary>What failed while each tab opened, kept by <see cref="KeepLoadErrors"/>.</summary>
     private readonly ConditionalWeakTable<TabPage, List<string>> TabLoadErrors = [];
 
-    [Tool("Return the viewer status: version, uptime in seconds, vsync, requested msaa samples, and whether the simulation is paused or stepping. It also gives the last error that would have shown a dialog, and the open tabs with id, path, viewer and load errors. Vsync is the swap interval (0 is off) and the only frame cap. It answers while another call runs. If the UI thread is busy, 'ui_busy' replaces the tabs.", Concurrent = true)]
+    [Tool("Return the viewer status: version, uptime in seconds, vsync, requested msaa samples, and whether the simulation is paused or stepping. It also gives the last error that would have shown a dialog, and the open tabs with id, path, viewer and load errors, and for a map, its world simulation state from the simulation tool. Vsync is the swap interval (0 is off) and the only frame cap. It answers while another call runs. If the UI thread is busy, 'ui_busy' replaces the tabs.", Concurrent = true)]
     private async Task<object> GetStatus(
         [Description("Add memory use in MB after a full compacting GC, so a leak shows apart from garbage. This gives private bytes, working set, managed heap and GC counts. The pools release a buffer only after up to a minute without use.")] bool memory = false,
         CancellationToken cancellationToken = default)
@@ -103,8 +103,8 @@ internal sealed partial class McpTools
         [Description("Case insensitive regular expression for lines to omit.")] string? exclude = null,
         [Description("Maximum number of lines to return. The tool keeps the newest.")][Range(1, int.MaxValue)] int limit = 200)
     {
-        var includePattern = Pattern(include);
-        var excludePattern = Pattern(exclude);
+        var includePattern = Pattern(include, nameof(include));
+        var excludePattern = Pattern(exclude, nameof(exclude));
         var (entries, cursor, dropped) = AutomationLog.Since(since);
         var matching = new List<AutomationLog.Entry>();
 
@@ -341,15 +341,17 @@ internal sealed partial class McpTools
     private object DescribeTab(TabPage page)
     {
         var data = page.Tag as ExportData;
+        var viewer = GLBaseControl.FindHostedIn(page);
 
         return new
         {
             Tab = TabIds.IdOf(page),
             Title = page.Text,
             Path = data?.VrfGuiContext.DisplayPath,
-            Viewer = GLBaseControl.FindHostedIn(page)?.GetType().Name ?? data?.DisposableContents?.GetType().Name,
+            Viewer = viewer?.GetType().Name ?? data?.DisposableContents?.GetType().Name,
             Active = Flag(page == Program.MainForm.Tabs.SelectedTab),
             Loading = Flag(data is { Loaded.IsCompleted: false }),
+            Simulation = (viewer as GLWorldViewer)?.Simulation,
             Errors = LoadErrors(page),
         };
     }

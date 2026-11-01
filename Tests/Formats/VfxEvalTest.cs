@@ -643,9 +643,9 @@ namespace Tests.Formats
         {
             var result = VfxEvalFunctions.MatrixColorTint2(new Vector3(0.8f, 0.2f, 0.1f), 0.5f);
             var expected = new Matrix4x4(
-                0.16458952f, 0.44803202f, 0.0045659216f, 0.57826537f,
-                0.039589547f, 0.57303196f, 0.0045659216f, 0.053265363f,
-                0.039589554f, 0.44803208f, 0.12956592f, -0.034234628f,
+                0.1645362f, 0.44809985f, 0.004551423f, 0.5782959f,
+                0.039536193f, 0.57309985f, 0.004551423f, 0.053295918f,
+                0.039536167f, 0.44809955f, 0.12955141f, -0.034203995f,
                 0f, 0f, 0f, 1f
             );
             await AssertMatrixEqual(expected, result, 1e-5f);
@@ -656,9 +656,9 @@ namespace Tests.Formats
         {
             var result = VfxEvalFunctions.MatrixColorTint2(new Vector3(0.3f, 0.6f, 0.9f), 1.0f);
             var expected = new Matrix4x4(
-                0.351208f, 0.20228605f, 0.0020615086f, 0.07141057f,
-                0.017874645f, 0.5356194f, 0.00206151f, 0.27141058f,
-                0.01787465f, 0.20228608f, 0.3353949f, 0.47141054f,
+                0.35118392f, 0.20231664f, 0.0020549623f, 0.071405314f,
+                0.017850554f, 0.5356501f, 0.002054963f, 0.2714053f,
+                0.01785054f, 0.20231657f, 0.3353883f, 0.47140527f,
                 0f, 0f, 0f, 1f
             );
             await AssertMatrixEqual(expected, result, 1e-5f);
@@ -677,9 +677,9 @@ namespace Tests.Formats
         {
             var result = VfxEvalFunctions.MatrixColorCorrect2(new Vector3(1.2f, 0.8f, 1.5f), new Vector3(0.3f, 0.4f, 0.5f));
             var expected = new Matrix4x4(
-                1.468957f, 0.32770345f, 0.003339633f, -0.095573045f,
-                0.028956933f, 1.7677034f, 0.0033396427f, -0.11957306f,
-                0.02895683f, 0.32770318f, 1.4433398f, -0.14357306f,
+                1.468918f, 0.32775292f, 0.003329038f, -0.095573515f,
+                0.028917892f, 1.767753f, 0.0033290382f, -0.11957352f,
+                0.028917892f, 0.32775256f, 1.4433291f, -0.14357352f,
                 0f, 0f, 0f, 1f
             );
             await AssertMatrixEqual(expected, result, 1e-5f);

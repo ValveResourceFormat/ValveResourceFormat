@@ -1,0 +1,5 @@
+#version 460
+
+// TEXTURING
+#define F_METALNESS_TEXTURE 0
+#define F_PAINT_VERTEX_COLORS 0

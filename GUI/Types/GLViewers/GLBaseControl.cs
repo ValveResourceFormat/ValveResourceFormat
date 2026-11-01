@@ -330,6 +330,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
                 WindowState = FormWindowState.Maximized
             };
             FullScreenForm.Controls.Add(GLControl);
+            FullScreenForm.Activated += RenderLoopThread.OnAppActivated;
             FullScreenForm.Show();
             FullScreenForm.Focus();
             GLControl?.Invalidate();
@@ -408,6 +409,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         var form = (Form?)sender;
         form?.FormClosed -= OnFullScreenFormClosed;
+        form?.Activated -= RenderLoopThread.OnAppActivated;
 
         FullScreenForm = null;
     }

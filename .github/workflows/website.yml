@@ -27,3 +27,25 @@ jobs:
       run: gh api repos/ValveResourceFormat/valveresourceformat.github.io/dispatches -f event_type=release
       env:
         GH_TOKEN: ${{ steps.token.outputs.token }}
+
+  update-manifest:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write # oidc token that update.s2v.app verifies to know the request comes from this workflow
+
+    # One at a time, so an older read of the latest release cannot land after a newer one
+    concurrency:
+      group: publish-stable
+      cancel-in-progress: false
+
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        sparse-checkout: .github/scripts
+
+    - name: Refresh the stable release on update.s2v.app
+      uses: actions/github-script@v9
+      with:
+        script: await require('./.github/scripts/update-s2v-app.js')({ core }, '/v1/publish-stable')

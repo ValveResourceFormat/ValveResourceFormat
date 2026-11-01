@@ -1,8 +1,10 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
+using ValveKeyValue;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.Renderer.SceneEnvironment;
@@ -87,6 +89,9 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>Gets the size of the barn light shadow atlas texture, as recorded by the last <see cref="BinBarnLights"/> call.</summary>
         public int BarnLightShadowAtlasSize { get; private set; } = 4096;
 
+        /// <summary>Gets whether any light may render shadows into the barn light shadow atlas.</summary>
+        public bool HasShadowedLights => ShadowedDynamicLights.Count > 0 || BarnLights.Exists(static light => light.CastShadows == 1);
+
         /// <summary>Gets the shadow mapper that culls and packs light shadow faces each frame.</summary>
         public ShadowMapper ShadowMapper { get; } = new();
 
@@ -137,6 +142,9 @@ namespace ValveResourceFormat.Renderer.World
         private StorageBuffer? BarnLightStorageBuffer;
         private RenderTexture? BarnLightCookieAtlas { get; set; }
         private RenderTexture? DefaultCookieAtlas;
+        private Dictionary<string, int> LightCookieSlices { get; } = new(StringComparer.OrdinalIgnoreCase);
+        private RenderTexture? LightCookieVolume;
+        private bool LightCookiesLoaded;
         private int CookieSamplerClampBorder;
         private int CookieSamplerWrap;
         private bool WarnedAboutTooManyLights;
@@ -174,16 +182,35 @@ namespace ValveResourceFormat.Renderer.World
             // and leaving their reserved units empty makes shaders sample an incomplete texture.
             var cookieAtlas = BarnLightCookieAtlas ?? (DefaultCookieAtlas ??= CreateDefaultCookieAtlas());
 
-            if (CookieSamplerClampBorder == 0)
-            {
-                CreateCookieSamplers();
-            }
+            EnsureCookieSamplers();
 
             GL.BindTextureUnit((int)ReservedTextureSlots.LightCookieTexture, cookieAtlas.Handle);
             GL.BindSampler((int)ReservedTextureSlots.LightCookieTexture, CookieSamplerClampBorder);
 
             GL.BindTextureUnit((int)ReservedTextureSlots.LightCookieTextureWrap, cookieAtlas.Handle);
             GL.BindSampler((int)ReservedTextureSlots.LightCookieTextureWrap, CookieSamplerWrap);
+
+            BindLightCookieVolume();
+        }
+
+        /// <summary>Binds the light cookie volume of spot lights, or a black one when the scene has none.</summary>
+        public void BindLightCookieVolume()
+        {
+            EnsureCookieSamplers();
+
+            // The light cookie volume is a 3D sampler, so it needs a texture of its own kind bound as well
+            var cookieVolume = LightCookieVolume ?? scene.RendererContext.MaterialLoader.GetDefaultBlackVolume();
+
+            GL.BindTextureUnit((int)ReservedTextureSlots.LightCookieVolume, cookieVolume.Handle);
+            GL.BindSampler((int)ReservedTextureSlots.LightCookieVolume, CookieSamplerClampBorder);
+        }
+
+        private void EnsureCookieSamplers()
+        {
+            if (CookieSamplerClampBorder == 0)
+            {
+                CreateCookieSamplers();
+            }
         }
 
         /// <summary>
@@ -365,6 +392,7 @@ namespace ValveResourceFormat.Renderer.World
 
             if (usesUniformLightStore)
             {
+                LoadLightCookies();
                 StoreLightMappedLights_V1(lights);
 
                 // Not in the store itself, which light styles run every tick
@@ -396,6 +424,26 @@ namespace ValveResourceFormat.Renderer.World
             UpdateGpuLightBuffers();
         }
 
+        /// <summary>Gets the index of a light in the lighting constants, or -1 for a light that is not stored there.</summary>
+        internal int GetStoredLightIndex(SceneLight light)
+        {
+            if (!usesUniformLightStore)
+            {
+                return -1;
+            }
+
+            if (DynamicLightIndices.TryGetValue(light, out var dynamicIndex))
+            {
+                return (int)dynamicIndex;
+            }
+
+            var isStored = light.Cost == SceneLight.LightCost.Stationary
+                && light.Enabled
+                && light.StationaryLightIndex is >= 0 and < LightingConstants.MAX_LIGHTS;
+
+            return isStored ? light.StationaryLightIndex : -1;
+        }
+
         /// <summary>Re-stores the GPU light properties.</summary>
         public void UpdateGpuLightBuffers()
         {
@@ -425,17 +473,19 @@ namespace ValveResourceFormat.Renderer.World
         /// <param name="lights">The list of scene lights to store.</param>
         public void StoreLightMappedLights_V1(List<SceneLight> lights)
         {
-            void AddLight(SceneLight light, uint index)
+            void AddLight(SceneLight light, uint index, float colorScale)
             {
+                var range = light.GetAttenuatedRange();
+
                 LightingData.LightPosition_Type[index] = new Vector4(light.Position, (int)light.Type);
-                LightingData.LightDirection_InvRange[index] = new Vector4(light.Direction, 1.0f / light.Range);
+                LightingData.LightDirection_InvRange[index] = new Vector4(light.Direction, range > 0f ? 1f / range : 0f);
                 LightingData.LightToWorld[index] = light.Transform;
 
                 // g_vBakedLightColor: linear color premultiplied by brightness, render-specular flag in w.
-                // The strength texels hold plain sqrt(saturate(attenuation) * visibility); lights that
-                // look far dimmer than their surroundings in baked cubemaps (like the "light_disabled"
-                // prefabs) are scripted to raise their brightness at runtime, not scaled at load.
-                var premultipliedColor = ColorSpace.SrgbGammaToLinear(light.Color) * light.Brightness * light.BrightnessScale * light.StyleBrightness;
+                // Stationary lights also carry the scale of their baked strengths; lights that look far
+                // dimmer than their surroundings in baked cubemaps (like the "light_disabled" prefabs)
+                // are scripted to raise their brightness at runtime, not scaled at load.
+                var premultipliedColor = ColorSpace.SrgbGammaToLinear(light.Color) * light.Brightness * light.BrightnessScale * light.StyleBrightness * colorScale;
                 LightingData.LightColor_Brightness[index] = new Vector4(premultipliedColor, light.RenderSpecular ? 1f : 0f);
 
                 // zw carry the remaining render gates (diffuse, transmissive); specular sits in the color
@@ -443,27 +493,47 @@ namespace ValveResourceFormat.Renderer.World
                 var diffuseGate = light.RenderDiffuse ? 1f : 0f;
                 var transmissiveGate = light.RenderTransmissive ? 1f : 0f;
 
+                var innerCosine = Math.Clamp(MathF.Cos(float.DegreesToRadians(light.SpotInnerAngle)), 0f, 1f);
+                var outerCosine = Math.Clamp(MathF.Cos(float.DegreesToRadians(light.SpotOuterAngle)), 0f, 1f);
+
                 LightingData.LightSpotInnerOuterCosines[index] = light.Entity == SceneLight.EntityType.Ortho
                     ? new Vector4(light.SizeParams.X, light.SizeParams.Y, diffuseGate, transmissiveGate)
-                    : new Vector4(
-                        MathF.Cos(float.DegreesToRadians(light.SpotInnerAngle)),
-                        MathF.Cos(float.DegreesToRadians(light.SpotOuterAngle)),
-                        diffuseGate, transmissiveGate);
+                    : new Vector4(innerCosine, outerCosine, diffuseGate, transmissiveGate);
 
-                // g_vSingleLightFalloffParams. The shader evaluates 1 / (x * d + y * d^2) in world units,
-                // so the coefficients carry the range normalization: the entity's attenuation is stated
-                // over the light's range, not per unit. Without it a quadratic light is 1/d^2 with no
-                // scale, which is black everywhere past a couple of units. The bias then makes the curve
-                // reach zero exactly at the range, where the normalized distance is 1.
-                var invRange = light.Range > 0f ? 1f / light.Range : 0f;
-                var falloffAtRange = light.AttenuationLinear + light.AttenuationQuadratic;
+                // g_vSingleLightFalloffParams: the raw linear and quadratic terms, as the shader evaluates
+                // saturate(1 / (x * d + y * d^2) - w) in world units before the color, which carries the
+                // q*10000 + l*100 + c scale. The bias w brings the curve to zero at the range; a light with a
+                // constant term gets none.
+                // TODO: light_ortho packs other values here, with no distance limit in z
+                var linear = light.AttenuationLinear;
+                var quadratic = light.AttenuationQuadratic;
+                var hasBias = light.AttenuationConstant == 0f && range > 0f;
+                var falloffAtRange = (quadratic * range * range) + (linear * range) + 1.1920929e-7f;
 
-                LightingData.LightFallOff[index] = new Vector4(
-                    light.AttenuationLinear * invRange,
-                    light.AttenuationQuadratic * invRange * invRange,
-                    light.Range * light.Range,
-                    falloffAtRange > 0f ? 1f / falloffAtRange : 0f);
+                LightingData.LightFallOff[index] = new Vector4(linear, quadratic, range * range, hasBias ? 1f / falloffAtRange : 0f);
+
+                var cookieSlice = -1;
+
+                if (light.CookieName != null && LightCookieSlices.TryGetValue(light.CookieName, out var slice))
+                {
+                    cookieSlice = slice;
+                }
+
+                var outerHalfAngle = float.DegreesToRadians(Math.Clamp(light.SpotOuterAngle, 1f, 89f));
+
+                ref var shadowParams = ref LightingData.LightShadowParams[index];
+                shadowParams.Y = cookieSlice;
+                shadowParams.Z = 1f / MathF.Tan(outerHalfAngle);
             }
+
+            var usesFastPath = scene.RendererContext.FileLoader.GameInfo.VrLightBinnerSingleLightFastPath;
+
+            // The light indices may change, so the shadow slots are assigned again when the shadows are binned
+            ClearDynamicLightShadows();
+            ShadowedDynamicLights.Clear();
+            ShadowedDynamicLightIndices.Clear();
+            DynamicLightIndices.Clear();
+            MixedShadowedLights.Clear();
 
             foreach (var light in lights)
             {
@@ -475,7 +545,13 @@ namespace ValveResourceFormat.Renderer.World
                 }
 
                 var index = (uint)light.StationaryLightIndex;
-                AddLight(light, index);
+                AddLight(light, index, light.BakedStrengthScale);
+
+                if (usesFastPath && light.HasVrMixedLocalShadow)
+                {
+                    MixedShadowedLights.Add(light);
+                    ShadowedDynamicLightIndices[light] = index;
+                }
 
                 LightingData.StaticLightCount = Math.Max(LightingData.StaticLightCount, index + 1);
             }
@@ -509,7 +585,25 @@ namespace ValveResourceFormat.Renderer.World
                     break;
                 }
 
-                AddLight(light, currentLightIndex++);
+                if (light.Entity == SceneLight.EntityType.Spot && light.CastShadows == 1)
+                {
+                    ShadowedDynamicLights.Add(light);
+                    ShadowedDynamicLightIndices[light] = currentLightIndex;
+                }
+
+                if (usesFastPath && light.IsFastPathFxLight && light.Range > 0f)
+                {
+                    // Brightened by its color alone and falling off as 1 / distance - 1 / range
+                    AddLight(light, currentLightIndex, 1f);
+                    LightingData.LightFallOff[currentLightIndex] = new Vector4(1f, 0f, light.Range * light.Range, 1f / light.Range);
+                }
+                else
+                {
+                    AddLight(light, currentLightIndex, light.AttenuationColorScale);
+                }
+
+                DynamicLightIndices[light] = currentLightIndex;
+                currentLightIndex++;
             }
 
             LightingData.DynamicLightCount = currentLightIndex;
@@ -518,7 +612,19 @@ namespace ValveResourceFormat.Renderer.World
             if (envLight != null)
             {
                 var bakedLightIndex = envLight.Cost == SceneLight.LightCost.Stationary ? envLight.StationaryLightIndex : -1;
+
+                // The VR light binner only gives the sun a real-time shadow when the light asks for mixed shadows
+                if (usesFastPath && !(envLight.MixedShadows && envLight.CastShadows == 1))
+                {
+                    bakedLightIndex = -1;
+                }
+
                 StoreSunLight(envLight, new Vector4(bakedLightIndex, 0f, 0f, 0f));
+
+                if (LightmapGameVersionNumber == 0 && envLight.Cost == SceneLight.LightCost.Static)
+                {
+                    LightingData.SunColor = Vector4.Zero;
+                }
             }
         }
 
@@ -529,8 +635,24 @@ namespace ValveResourceFormat.Renderer.World
             UpdateAmbientLighting();
         }
 
+        /// <summary>
+        /// Fills the ambient lighting with a sky color that fades into a ground color over the hemisphere, for
+        /// scenes without an environment light of their own.
+        /// </summary>
+        /// <param name="sky">Linear color of the ambient lighting facing up.</param>
+        /// <param name="ground">Linear color of the ambient lighting facing down.</param>
+        public void SetHemisphereAmbientLighting(Vector3 sky, Vector3 ground)
+        {
+            skyLight = sky;
+            groundLight = ground;
+            UpdateAmbientLighting();
+        }
+
         private Vector3 skyLight;
+        private Vector3? groundLight;
         private Vector3 skyAmbientBounce;
+        private float skyAmbientBounceAlpha = 1f;
+        private bool? lowerHemisphereIsBlack;
 
         /// <summary>
         /// Rebuilds the ambient lighting that fills in where no light probe volume reaches: the sky from
@@ -538,12 +660,48 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         private void UpdateAmbientLighting()
         {
+            if (groundLight is { } ground)
+            {
+                var skyVertical = (skyLight - ground) * 0.5f;
+                var skyConstant = (skyLight + ground) * 0.5f;
+
+                LightingData.AmbientLightingSHR = new Vector4(0f, 0f, skyVertical.X, skyConstant.X);
+                LightingData.AmbientLightingSHG = new Vector4(0f, 0f, skyVertical.Y, skyConstant.Y);
+                LightingData.AmbientLightingSHB = new Vector4(0f, 0f, skyVertical.Z, skyConstant.Z);
+                return;
+            }
+
             var sunDown = -LightingData.SunDirection.Z;
             var sunBounce = LightingData.SunColor.AsVector3() * skyAmbientBounce * 0.5f;
-            var skyBounce = skyLight * skyAmbientBounce * 0.5f;
 
-            var vertical = (skyLight * 0.5f) - skyBounce + (sunBounce * sunDown);
-            var constant = (skyLight * 0.5f) + skyBounce + (sunBounce * MathF.Abs(sunDown));
+            Vector3 vertical;
+            Vector3 constant;
+
+            // Games whose sun has a lower hemisphere setting ignore the bounce alpha, the others blend the sky by it
+            var hasLowerHemisphereSetting = lowerHemisphereIsBlack.HasValue
+                || scene.RendererContext.FileLoader.GameInfo.VrLightBinnerSingleLightFastPath;
+
+            if (hasLowerHemisphereSetting)
+            {
+                var isLowerHemisphereBlack = lowerHemisphereIsBlack ?? true;
+
+                // A black lower hemisphere halves the sky and moves it all into the upper half, otherwise it lights every direction alike
+                var sky = isLowerHemisphereBlack ? skyLight * 0.5f : skyLight;
+                var upperSky = isLowerHemisphereBlack ? sky : Vector3.Zero;
+                var skyBounce = sky * skyAmbientBounce * 0.5f;
+
+                vertical = upperSky - skyBounce + (sunBounce * sunDown);
+                constant = sky + skyBounce + (sunBounce * MathF.Abs(sunDown));
+            }
+            else
+            {
+                var halfBounce = 0.5f * skyAmbientBounceAlpha;
+                var skyBounce = skyLight * skyAmbientBounce * halfBounce;
+                var bouncedSun = sunBounce * skyAmbientBounceAlpha;
+
+                vertical = (skyLight * halfBounce) - skyBounce + (bouncedSun * sunDown);
+                constant = (skyLight * (1f - halfBounce)) + skyBounce + (bouncedSun * MathF.Abs(sunDown));
+            }
 
             LightingData.AmbientLightingSHR = new Vector4(0f, 0f, vertical.X, constant.X);
             LightingData.AmbientLightingSHG = new Vector4(0f, 0f, vertical.Y, constant.Y);
@@ -568,29 +726,67 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         private void StoreSunLight(SceneLight envLight, Vector4 bakedShadowData)
         {
-            var premultipliedColor = ColorSpace.SrgbGammaToLinear(envLight.Color) * envLight.Brightness * envLight.BrightnessScale * envLight.StyleBrightness;
+            var brightness = envLight.Brightness * envLight.BrightnessScale * envLight.StyleBrightness;
+            var premultipliedColor = ColorSpace.SrgbGammaToLinear(envLight.Color) * brightness;
 
             LightingData.SunDirection = new Vector4(-envLight.Direction, GetSunMinRoughness(envLight.MinRoughness));
             LightingData.SunColor = new Vector4(premultipliedColor, envLight.RenderSpecular ? 1f : 0f);
             LightingData.SunLightBakedShadowMask = bakedShadowData;
 
             skyLight = ColorSpace.SrgbGammaToLinear(envLight.SkyColor) * envLight.SkyIntensity;
+            groundLight = envLight.GroundColor is { } groundColor
+                ? ColorSpace.SrgbGammaToLinear(groundColor) * envLight.SkyIntensity
+                : null;
             skyAmbientBounce = ColorSpace.SrgbGammaToLinear(envLight.SkyAmbientBounce);
+            skyAmbientBounceAlpha = envLight.SkyAmbientBounceAlpha;
+            lowerHemisphereIsBlack = envLight.LowerHemisphereIsBlack;
             UpdateAmbientLighting();
 
+            var ambientDirectionColor = ColorSpace.SrgbGammaToLinear(envLight.AmbientDirectionColor) * envLight.AmbientDirectionIntensity;
+            LightingData.AmbientDirection_ShadowAmount = new Vector4(envLight.AmbientDirection, envLight.AmbientShadowAmount);
+            LightingData.AmbientDirectionColor = new Vector4(ambientDirectionColor, 0f);
+
+            // The independent part of the highlight is scaled like the sun, the rest only by the light falling on the albedo
+            var specularColor = ColorSpace.SrgbGammaToLinear(envLight.SpecularColor);
+            var specularIndependence = MathUtils.Saturate(envLight.SpecularIndependence);
+            LightingData.SpecularDirection_Power = new Vector4(envLight.SpecularDirection, envLight.SpecularPower);
+            LightingData.SpecularAlbedoColor = new Vector4(specularColor * (1f - specularIndependence), 0f);
+            LightingData.SpecularLitColor = new Vector4(specularColor * specularIndependence * brightness, 0f);
+
+            LastStaticSunCascade = GetLastStaticSunCascade(envLight);
+            IsSunShadowBaked = envLight.HasMixedShadows;
+
             HasOwnSun = true;
-            IsSunShadowBaked = envLight.StationaryLightIndex >= 0 && envLight.CastShadows == 1;
             isSunBorrowed = false;
         }
 
-        /// <summary>Gets whether the source map has an environment light.</summary>
-        public bool HasOwnSun { get; private set; }
+        private int GetLastStaticSunCascade(SceneLight envLight)
+        {
+            if (!envLight.HasMixedShadows)
+            {
+                return int.MaxValue;
+            }
+
+            // CS2 ignores the light's key and renders static objects into every cascade at its high shadow quality settings
+            if (scene.RendererContext.FileLoader.GameInfo.Game == Game.Csgo)
+            {
+                return int.MaxValue;
+            }
+
+            return envLight.CascadeRenderStaticObjects;
+        }
 
         /// <summary>
-        /// Gets whether the map's own sun is a mixed light. Static geometry's shadows from it are baked,
-        /// so static geometry stays out of its shadow cascades.
+        /// Gets the last sun shadow cascade that static objects cast into, -1 for none. With mixed shadows the
+        /// lightmap holds their sun shadows, so only the nearest cascades redraw them.
         /// </summary>
+        public int LastStaticSunCascade { get; private set; } = int.MaxValue;
+
+        /// <summary>Gets whether the map's own sun is a mixed light, so the lightmap holds the sun shadows of static geometry.</summary>
         public bool IsSunShadowBaked { get; private set; }
+
+        /// <summary>Gets whether the source map has an environment light.</summary>
+        public bool HasOwnSun { get; private set; }
 
         private bool isSunBorrowed;
 
@@ -611,6 +807,12 @@ namespace ValveResourceFormat.Renderer.World
                     LightingData.AmbientLightingSHR = Vector4.Zero;
                     LightingData.AmbientLightingSHG = Vector4.Zero;
                     LightingData.AmbientLightingSHB = Vector4.Zero;
+                    LightingData.AmbientDirection_ShadowAmount = Vector4.Zero;
+                    LightingData.AmbientDirectionColor = Vector4.Zero;
+                    LightingData.SpecularDirection_Power = Vector4.Zero;
+                    LightingData.SpecularAlbedoColor = Vector4.Zero;
+                    LightingData.SpecularLitColor = Vector4.Zero;
+                    LastStaticSunCascade = int.MaxValue;
                     isSunBorrowed = false;
                 }
 
@@ -622,6 +824,14 @@ namespace ValveResourceFormat.Renderer.World
             LightingData.AmbientLightingSHR = donor.LightingData.AmbientLightingSHR;
             LightingData.AmbientLightingSHG = donor.LightingData.AmbientLightingSHG;
             LightingData.AmbientLightingSHB = donor.LightingData.AmbientLightingSHB;
+            LightingData.AmbientDirection_ShadowAmount = donor.LightingData.AmbientDirection_ShadowAmount;
+            LightingData.AmbientDirectionColor = donor.LightingData.AmbientDirectionColor;
+            LightingData.SpecularDirection_Power = donor.LightingData.SpecularDirection_Power;
+            LightingData.SpecularAlbedoColor = donor.LightingData.SpecularAlbedoColor;
+            LightingData.SpecularLitColor = donor.LightingData.SpecularLitColor;
+
+            // The borrowed sun is the same light, so the same cascades take static objects
+            LastStaticSunCascade = donor.LastStaticSunCascade;
 
             // These lightmaps have no sun baked in, so nothing is in baked shadow
             LightingData.SunLightBakedShadowMask = new Vector4(-1f, 0f, 0f, 0f);
@@ -660,6 +870,167 @@ namespace ValveResourceFormat.Renderer.World
         {
             LightingData.NumBarnLights = 0;
             ShadowMapper.ShadowCasters.Clear();
+            ClearDynamicLightShadows();
+        }
+
+        private readonly List<SceneLight> ShadowedDynamicLights = [];
+        private readonly Dictionary<SceneLight, uint> ShadowedDynamicLightIndices = [];
+        private readonly Dictionary<SceneLight, uint> DynamicLightIndices = [];
+        private readonly List<SceneLight> MixedShadowedLights = [];
+        private readonly List<SceneLight> FastPathShadowedLights = [];
+        private readonly List<(int Priority, float Importance, uint Index)> FastPathFxLights = [];
+
+        private const int FastPathMaxFxLights = 8;
+
+        /// <summary>
+        /// Picks which dynamic lights the VR light binner shades from a viewpoint: the most important shadowed spot
+        /// or ortho light in full, up to eight diffuse-only point lights, and none of the rest.
+        /// </summary>
+        private void SelectFastPathLights(Vector3 viewPosition)
+        {
+            FastPathShadowedLights.Clear();
+            FastPathFxLights.Clear();
+
+            SceneLight? singleLight = null;
+            var singleImportance = float.MinValue;
+
+            foreach (var (light, index) in DynamicLightIndices)
+            {
+                LightingData.LightShadowParams[index].W = -1f;
+
+                var distanceFade = light.GetDistanceFade(viewPosition);
+
+                if (distanceFade <= 0f)
+                {
+                    continue;
+                }
+
+                var importance = light.GetFastPathImportance(viewPosition, distanceFade);
+
+                if (light.IsFastPathFxLight)
+                {
+                    FastPathFxLights.Add((light.Priority, importance, index));
+                }
+                else if (light.IsFastPathSingleLightCandidate)
+                {
+                    KeepMoreImportant(light, importance, ref singleLight, ref singleImportance);
+                }
+            }
+
+            if (singleLight != null)
+            {
+                LightingData.LightShadowParams[DynamicLightIndices[singleLight]].W = 0f;
+
+                if (ShadowedDynamicLightIndices.ContainsKey(singleLight))
+                {
+                    FastPathShadowedLights.Add(singleLight);
+                }
+            }
+
+            // One mixed local light gets a shadow map per view, the nearest
+            SceneLight? mixedLight = null;
+            var mixedImportance = float.MinValue;
+
+            foreach (var light in MixedShadowedLights)
+            {
+                var distanceFade = light.GetDistanceFade(viewPosition);
+
+                if (distanceFade <= 0f)
+                {
+                    continue;
+                }
+
+                var importance = light.GetFastPathImportance(viewPosition, distanceFade);
+
+                KeepMoreImportant(light, importance, ref mixedLight, ref mixedImportance);
+            }
+
+            if (mixedLight != null)
+            {
+                FastPathShadowedLights.Add(mixedLight);
+            }
+
+            FastPathFxLights.Sort(static (a, b) =>
+            {
+                var byPriority = b.Priority.CompareTo(a.Priority);
+                return byPriority != 0 ? byPriority : b.Importance.CompareTo(a.Importance);
+            });
+
+            var fxCount = Math.Min(FastPathFxLights.Count, FastPathMaxFxLights);
+
+            for (var i = 0; i < fxCount; i++)
+            {
+                LightingData.LightShadowParams[FastPathFxLights[i].Index].W = 1f;
+            }
+        }
+
+        // Highest priority wins, then the highest importance, and the earlier light keeps a tie
+        private static void KeepMoreImportant(SceneLight light, float importance, ref SceneLight? best, ref float bestImportance)
+        {
+            if (best != null)
+            {
+                var isMoreImportant = light.Priority != best.Priority
+                    ? light.Priority > best.Priority
+                    : importance > bestImportance;
+
+                if (!isMoreImportant)
+                {
+                    return;
+                }
+            }
+
+            best = light;
+            bestImportance = importance;
+        }
+
+        private void ClearDynamicLightShadows()
+        {
+            foreach (var index in ShadowedDynamicLightIndices.Values)
+            {
+                LightingData.LightShadowParams[index].X = -1f;
+            }
+        }
+
+        /// <summary>
+        /// Packs the shadow faces of the shadowed per-pixel spot lights of the V1 light store into the barn light
+        /// shadow atlas, and points their lights at them.
+        /// </summary>
+        private void BinDynamicLightShadows(Camera camera, int atlasSize)
+        {
+            ClearDynamicLightShadows();
+
+            var shadowedLights = ShadowedDynamicLights;
+
+            if (scene.RendererContext.FileLoader.GameInfo.VrLightBinnerSingleLightFastPath)
+            {
+                SelectFastPathLights(camera.Location);
+                shadowedLights = FastPathShadowedLights;
+            }
+
+            ShadowMapper.Bin(shadowedLights, camera, atlasSize, BarnLightCookiePaths, visibilitySequence: 0);
+
+            var slot = 0;
+
+            foreach (ref readonly var binned in ShadowMapper.BinnedLights)
+            {
+                if (!binned.HasShadows || slot >= LightingConstants.MAX_SHADOWED_DYNAMIC_LIGHTS)
+                {
+                    continue;
+                }
+
+                var placement = ShadowMapper.GetFacePlacement(binned.FirstFaceIndex);
+
+                if (!placement.Region.IsValid)
+                {
+                    continue;
+                }
+
+                var light = binned.Light;
+                LightingData.LightWorldToShadow[slot] = light.BarnFaces[0].WorldToFrustum;
+                LightingData.LightShadowOffsetScale[slot] = placement.OffsetScale;
+                LightingData.LightShadowParams[ShadowedDynamicLightIndices[light]].X = slot;
+                slot++;
+            }
         }
 
         /// <summary>
@@ -671,6 +1042,12 @@ namespace ValveResourceFormat.Renderer.World
         {
             BarnLightShadowAtlasSize = atlasSize;
             LightingData.NumBarnLights = 0;
+
+            if (usesUniformLightStore)
+            {
+                BinDynamicLightShadows(camera, atlasSize);
+                return;
+            }
 
             var binner = scene.ShadingLightBinner;
             binner?.PollBarnLightVisibility();
@@ -795,6 +1172,70 @@ namespace ValveResourceFormat.Renderer.World
             BarnLightStorageBuffer?.Update(BinnedBarnLightGpuData, 0, binnedCount * Unsafe.SizeOf<BarnLightConstants>());
         }
 
+        private const string LightCookieTablePath = "materials/effects/lightcookies.txt";
+        private const string LightCookieTexturePath = "materials/effects/lightcookies.vtex";
+
+        /// <summary>
+        /// Reads the table that maps the cookie names of spot lights to slices of the light cookie volume, and loads
+        /// that texture. Games without the table have no light cookies.
+        /// </summary>
+        private void LoadLightCookies()
+        {
+            if (LightCookiesLoaded)
+            {
+                return;
+            }
+
+            LightCookiesLoaded = true;
+
+            var fileLoader = scene.RendererContext.FileLoader;
+            var (pathOnDisk, _, packageEntry) = fileLoader.FindFile(LightCookieTablePath, logNotFound: false);
+
+            if (pathOnDisk == null && packageEntry == null)
+            {
+                return;
+            }
+
+            using var stream = fileLoader.GetFileStream(LightCookieTablePath);
+
+            if (stream == null)
+            {
+                return;
+            }
+
+            KVObject table;
+
+            try
+            {
+                table = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(stream);
+            }
+            catch (KeyValueException)
+            {
+                return;
+            }
+
+            var cookieVolume = scene.RendererContext.MaterialLoader.GetTexture(LightCookieTexturePath, srgbRead: true);
+
+            if (cookieVolume.Target != TextureTarget.Texture3D)
+            {
+                scene.RendererContext.Logger.LogWarning("{Texture} is not a volume texture, light cookies are disabled", LightCookieTexturePath);
+                return;
+            }
+
+            foreach (var (name, value) in table)
+            {
+                if (value.ValueType == KVValueType.Collection
+                    || !int.TryParse((string)value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var slice))
+                {
+                    continue;
+                }
+
+                LightCookieSlices[name] = Math.Clamp(slice, 0, cookieVolume.Depth - 1);
+            }
+
+            LightCookieVolume = cookieVolume;
+        }
+
         private void RebuildCookieAtlas()
         {
             BarnLightCookieAtlas?.Delete();
@@ -916,6 +1357,11 @@ namespace ValveResourceFormat.Renderer.World
 
             DefaultCookieAtlas?.Delete();
             DefaultCookieAtlas = null;
+
+            // The material loader owns the light cookie volume
+            LightCookieVolume = null;
+            LightCookieSlices.Clear();
+            LightCookiesLoaded = false;
 
             if (CookieSamplerClampBorder != 0)
             {

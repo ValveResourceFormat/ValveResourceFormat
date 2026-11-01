@@ -494,8 +494,8 @@ public class ViewmodelSceneNode : ModelSceneNode
         SelectedItem?.SetAnimationByName(TargetAnimation, fadeIn, warp);
     }
 
-    internal const string WorldLayerName = "Internal - First Person Model";
-    internal const string ViewmodelLayerName = "Internal - First Person Viewmodel";
+    private static readonly WorldLayer FirstPersonModelLayer = new("Internal - First Person Model") { IsInternal = true };
+    private static readonly WorldLayer ViewmodelLayer = new("Internal - First Person Viewmodel") { IsInternal = true };
     private const string ViewmodelAnimPath = "animation/anims/viewmodel/";
     private const string MuzzleFlashAttachment = "muzzle_flash2";
 
@@ -515,7 +515,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         var ag2Player = AnimationController.CurrentPlayer!;
         PrimarySkeletonDebug = new SkeletonSceneNode(Scene, ag2Player.Pose, ag2Player.Skeleton)
         {
-            LayerName = WorldLayerName,
+            Layers = [FirstPersonModelLayer],
             Flags = ObjectTypeFlags.DisableVisCulling,
         };
 
@@ -523,7 +523,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         Legs = new ModelSceneNode(Scene, model, isWorldPreview: true)
         {
-            LayerName = WorldLayerName,
+            Layers = [FirstPersonModelLayer],
             Flags = ObjectTypeFlags.DisableVisCulling | ObjectTypeFlags.NoShadows,
             Parent = this,
         };
@@ -531,7 +531,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         thirdpersonBody = new ModelSceneNode(Scene, model, isWorldPreview: true)
         {
-            LayerName = WorldLayerName,
+            Layers = [FirstPersonModelLayer],
             Flags = ObjectTypeFlags.DisableVisCulling,
             RenderPasses = CustomRenderPasses.DepthOnly,
             Parent = this,
@@ -623,7 +623,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     {
         var model = new ModelSceneNode(Scene, item)
         {
-            LayerName = ViewmodelLayerName,
+            Layers = [ViewmodelLayer],
             Flags = ObjectTypeFlags.DisableVisCulling | ObjectTypeFlags.NoShadows,
             RenderPasses = CustomRenderPasses.Default | CustomRenderPasses.Viewmodel,
         };
@@ -634,7 +634,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         var shadowItem = new ModelSceneNode(Scene, item)
         {
-            LayerName = WorldLayerName,
+            Layers = [FirstPersonModelLayer],
             Flags = ObjectTypeFlags.DisableVisCulling,
             RenderPasses = CustomRenderPasses.DepthOnly,
             Parent = this,
@@ -690,7 +690,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         var primary = viewmodel.Items[0]!;
         var stattrakModule = new ModelSceneNode(scene, models[1])
         {
-            LayerName = ViewmodelLayerName,
+            Layers = [ViewmodelLayer],
             Flags = ObjectTypeFlags.DisableVisCulling | ObjectTypeFlags.NoShadows,
             RenderPasses = CustomRenderPasses.Default | CustomRenderPasses.Viewmodel,
         };
@@ -703,7 +703,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         CacheSounds();
 
-        viewmodel.LayerName = ViewmodelLayerName;
+        viewmodel.Layers = [ViewmodelLayer];
         viewmodel.Flags |= ObjectTypeFlags.DisableVisCulling | ObjectTypeFlags.NoShadows;
         viewmodel.RenderPasses |= CustomRenderPasses.Viewmodel;
 
@@ -713,7 +713,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             viewmodel.muzzleFlashParticle = new ParticleSceneNode(scene, particleSystem)
             {
-                LayerName = ViewmodelLayerName,
+                Layers = [ViewmodelLayer],
                 Flags = ObjectTypeFlags.DisableVisCulling,
                 Parent = viewmodel,
             };
@@ -729,8 +729,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         scene.Add(viewmodel, true);
 
         // don't render player model in noclip mode
-        scene.DeactivateLayer(WorldLayerName);
-        scene.DeactivateLayer(ViewmodelLayerName);
+        scene.SetLayersEnabled([FirstPersonModelLayer, ViewmodelLayer], false);
 
         return viewmodel;
     }
@@ -760,8 +759,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             // don't render player model in noclip mode
             if (LayerEnabled)
             {
-                Scene.DeactivateLayer(WorldLayerName);
-                Scene.DeactivateLayer(ViewmodelLayerName);
+                Scene.SetLayersEnabled([FirstPersonModelLayer, ViewmodelLayer], false);
             }
 
             return;
@@ -786,8 +784,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         if (!LayerEnabled)
         {
-            Scene.ActivateLayer(WorldLayerName);
-            Scene.ActivateLayer(ViewmodelLayerName);
+            Scene.SetLayersEnabled([FirstPersonModelLayer, ViewmodelLayer], true);
         }
 
         UpdateBodyAnimator(input, uptime, dt);
@@ -1061,6 +1058,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             foreach (var material in legsMaterials)
             {
                 material.IntParams["g_bFirstpersonLegsDistortion"] = distortionValue;
+                material.IntParams["F_NO_Z_PREPASS"] = distortionValue;
             }
 
             Legs.UpdateHierarchy(context);

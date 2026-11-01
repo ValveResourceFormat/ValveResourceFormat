@@ -1,5 +1,3 @@
-using System.Runtime.CompilerServices;
-
 namespace ValveResourceFormat.Renderer.SceneEnvironment;
 
 /// <summary>
@@ -70,6 +68,12 @@ public class SceneEnvMap : SceneNode
     public int ProjectionMode { get; init; }
 
     /// <summary>
+    /// Gets the box in local space that materials with box projection project the reflection onto, or
+    /// <see langword="null"/> when the entity names none and the bounds of the influence volume are used.
+    /// </summary>
+    public AABB? ProjectionBounds { get; init; }
+
+    /// <summary>
     /// Luminance of this probe's own baked radiance, as an L1 spherical harmonic packed for
     /// a dot with (normal, 1). It covers the whole probe volume unoccluded, so dividing the
     /// per fragment irradiance by it gives specular occlusion.
@@ -96,13 +100,15 @@ public class SceneEnvMap : SceneNode
     /// </summary>
     /// <param name="radianceCoefficients">Coefficients for every probe in the array, or null.</param>
     /// <param name="arrayIndex">Index of this probe within the array.</param>
-    public static Vector4 CalculateNormalizationSH(float[]? radianceCoefficients, int arrayIndex)
+    /// <param name="transform">Placement of the env map; its rotation turns the linear band into world space.</param>
+    public static Vector4 CalculateNormalizationSH(float[]? radianceCoefficients, int arrayIndex, in Matrix4x4 transform)
     {
         const int CoefficientsPerChannel = 9;
         const int CoefficientsPerProbe = CoefficientsPerChannel * 3;
 
         const float ConstantBand = 0.282095f;   // Y00
         const float LinearBand = 0.325735f;     // Y1x * 2/3
+        const float MaxLinearToConstant = 0.99f;
 
         var offset = arrayIndex * CoefficientsPerProbe;
 
@@ -111,8 +117,6 @@ public class SceneEnvMap : SceneNode
             return NoNormalization;
         }
 
-        // The same weights the shaders use for luma.
-        var luminanceWeights = new Vector3(0.2125f, 0.7154f, 0.0721f);
         Span<float> luma = stackalloc float[4];
 
         for (var band = 0; band < luma.Length; band++)
@@ -122,100 +126,29 @@ public class SceneEnvMap : SceneNode
                 radianceCoefficients[offset + CoefficientsPerChannel + band],
                 radianceCoefficients[offset + (CoefficientsPerChannel * 2) + band]);
 
-            luma[band] = Vector3.Dot(rgb, luminanceWeights);
+            luma[band] = Vector3.Dot(rgb, MathUtils.Rec709LuminanceWeights);
         }
 
-        // Source 2 orders the linear band y, z, x, while the shader dots against (normal, 1).
-        // Fitting a free 3x3 between a hand projection and the stored coefficients comes back
-        // diagonal, so there is no permutation hiding in here beyond this reorder.
-        return new Vector4(
-            luma[3] * LinearBand,
-            luma[1] * LinearBand,
-            luma[2] * LinearBand,
-            luma[0] * ConstantBand);
+        var constant = luma[0] * ConstantBand;
+
+        if (constant <= 0f)
+        {
+            return new Vector4(0f, 0f, 0f, 0.01f);
+        }
+
+        // The linear band is stored y, z, x, with y and x of opposite sign to the normal's axes
+        var localLinear = new Vector3(-luma[3], -luma[1], luma[2]) * LinearBand;
+        var linear = Vector3.TransformNormal(localLinear, transform);
+
+        // Keeps dot((normal, 1), sh) positive for every normal; the length includes the constant term
+        var length = new Vector4(linear, constant).Length();
+        var scale = MathF.Min(constant * MaxLinearToConstant / length, 1f);
+
+        return new Vector4(linear * scale, constant);
     }
 
-    /// <summary>
-    /// 128-bit bitmask tracking which environment maps are visible to a node.
-    /// </summary>
-    [InlineArray(4)]
-    public struct EnvMapVisibility128
-    {
-        private uint _bucket0;
-
-        /// <summary>Every item visible.</summary>
-        public static EnvMapVisibility128 Full => Unsafe.BitCast<UInt128, EnvMapVisibility128>(UInt128.MaxValue);
-
-#pragma warning disable CA1024 // Use properties where appropriate
-        /// <summary>Shader indices of every env map marked visible in this bitmask.</summary>
-        public readonly IEnumerable<int> GetVisibleShaderIndices()
-        {
-            for (var bucket = 0; bucket < 4; bucket++)
-            {
-                for (var bitIndex = 0; bitIndex < 32; bitIndex++)
-                {
-                    if ((this[bucket] & (1u << bitIndex)) != 0)
-                    {
-                        yield return bucket * 32 + bitIndex;
-                    }
-                }
-            }
-        }
-#pragma warning restore CA1024
-
-        /// <summary>
-        /// Sets the bits for each env map's <see cref="SceneEnvMap.ShaderIndex"/> in this bitmask and returns the result.
-        /// </summary>
-        public EnvMapVisibility128 Store(List<SceneEnvMap> envMaps)
-        {
-            foreach (var envMap in envMaps)
-            {
-                var index = envMap.ShaderIndex;
-
-                if (index < 0)
-                {
-                    continue;
-                }
-
-                var bucketIndex = index / 32;
-
-                // Only the first 128 probes get a bit here. The shader reads a probe past that as visible
-                // to every object, leaving the tile and bin masks and the volume test to cull it, so the
-                // gap costs a little iteration rather than a wrong result.
-                if (bucketIndex >= 4)
-                {
-                    continue;
-                }
-
-                var bitIndex = index % 32;
-
-                this[bucketIndex] |= 1u << bitIndex;
-            }
-
-            return this;
-        }
-
-        /// <summary>
-        /// Returns the array index of the lowest env map set here, or zero when empty. Since
-        /// <see cref="SceneEnvMap.ShaderIndex"/> is assigned in indoor priority order, that is the highest
-        /// priority probe the node sees. Ties resolve arbitrarily.
-        /// </summary>
-        public readonly uint GetFirstShaderIndex()
-        {
-            for (var bucket = 0; bucket < 4; bucket++)
-            {
-                if (this[bucket] != 0u)
-                {
-                    return (uint)((bucket * 32) + BitOperations.TrailingZeroCount(this[bucket]));
-                }
-            }
-
-            return 0u;
-        }
-
-        /// <summary>Returns the four 32-bit buckets of this bitmask as a value tuple.</summary>
-        public readonly (uint, uint, uint, uint) ToTuple() => (this[0], this[1], this[2], this[3]);
-    }
+    /// <summary>Shader index of a node that has no environment map.</summary>
+    public const uint NoEnvMapIndex = 0xFFFF;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SceneEnvMap"/> class with the given local-space bounds.

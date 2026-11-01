@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer.Shaders
     /// <para>
     /// Mounted directories take priority over the shaders shipped with the renderer, like search paths in
     /// <see cref="ValveResourceFormat.IO.GameFileLoader"/>. A file in a mounted directory overrides the built-in file with
-    /// the same relative path, for entry points (<c>complex.vert.slang</c>) and includes (<c>common/lighting.slang</c>) alike.
+    /// the same relative path, for entry points (<c>fallback.vert.slang</c>) and includes (<c>common/lighting.slang</c>) alike.
     /// </para>
     ///
     /// <para>
@@ -128,20 +128,42 @@ namespace ValveResourceFormat.Renderer.Shaders
             return null;
         }
 
-        /// <summary>Enumerates the shader entry point files in the mounted directories.</summary>
+        /// <summary>Enumerates the shader entry point files in the mounted directories, as root relative names using forward slashes.</summary>
         /// <param name="searchPattern">The file search pattern to match against file names.</param>
         internal static IEnumerable<string> EnumerateShaderFiles(string searchPattern)
         {
             foreach (var directory in directories)
             {
-                if (!Directory.Exists(directory))
-                {
-                    continue;
-                }
-
-                foreach (var file in Directory.EnumerateFiles(directory, searchPattern, SearchOption.TopDirectoryOnly))
+                foreach (var file in EnumerateEntryFiles(directory, searchPattern))
                 {
                     yield return file;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Enumerates the files of a shader directory and of its game folders, one level down, as root relative
+        /// names using forward slashes.
+        /// </summary>
+        internal static IEnumerable<string> EnumerateEntryFiles(string directory, string searchPattern)
+        {
+            if (!Directory.Exists(directory))
+            {
+                yield break;
+            }
+
+            foreach (var file in Directory.EnumerateFiles(directory, searchPattern, SearchOption.TopDirectoryOnly))
+            {
+                yield return Path.GetFileName(file);
+            }
+
+            foreach (var subdirectory in Directory.EnumerateDirectories(directory))
+            {
+                var folderName = Path.GetFileName(subdirectory);
+
+                foreach (var file in Directory.EnumerateFiles(subdirectory, searchPattern, SearchOption.TopDirectoryOnly))
+                {
+                    yield return $"{folderName}/{Path.GetFileName(file)}";
                 }
             }
         }

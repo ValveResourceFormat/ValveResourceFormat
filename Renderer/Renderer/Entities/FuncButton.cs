@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// effect, of which only the sound plays.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CBaseButton">CBaseButton</seealso>
-public sealed class FuncButton : BaseToggle
+public class FuncButton : BaseToggle
 {
     /// <summary>What a <c>func_button</c>'s <c>spawnflags</c> mean.</summary>
     [Flags]
@@ -97,7 +97,10 @@ public sealed class FuncButton : BaseToggle
 
     /// <summary>Gets whether the player can press this button with use.</summary>
     public override EntityCapability ObjectCaps
-        => !IsDisabled && HasSpawnFlags(SpawnFlag.UseActivates) ? EntityCapability.ImpulseUse : EntityCapability.None;
+        => !IsDisabled && IsUseActivated ? EntityCapability.ImpulseUse : EntityCapability.None;
+
+    /// <summary>Gets whether use presses the button, which <see cref="SpawnFlag.UseActivates"/> asks for.</summary>
+    protected virtual bool IsUseActivated => HasSpawnFlags(SpawnFlag.UseActivates);
 
     private ToggleState state;
     private ThinkFunction thinkFunction;
@@ -176,7 +179,7 @@ public sealed class FuncButton : BaseToggle
         StaysPushed = Wait == -1f;
         IsDisabled = HasSpawnFlags(SpawnFlag.StartsDisabled);
         IsLocked = HasSpawnFlags(SpawnFlag.StartsLocked);
-        IsUsable = HasSpawnFlags(SpawnFlag.UseActivates);
+        IsUsable = IsUseActivated;
         isTouchArmed = HasSpawnFlags(SpawnFlag.TouchActivates);
 
         if (HasSpawnFlags(SpawnFlag.NonSolid))
@@ -203,10 +206,10 @@ public sealed class FuncButton : BaseToggle
         GlowEntity = EntitySystem.FindByTargetName(glowEntityName);
     }
 
-    /// <summary>Presses the button on use, if it has <see cref="SpawnFlag.UseActivates"/>.</summary>
+    /// <summary>Presses the button on use, if <see cref="IsUseActivated"/>.</summary>
     public override void Use(BaseEntity? activator)
     {
-        if (!HasSpawnFlags(SpawnFlag.UseActivates) || state is ToggleState.GoingUp or ToggleState.GoingDown)
+        if (!IsUseActivated || state is ToggleState.GoingUp or ToggleState.GoingDown)
         {
             return;
         }

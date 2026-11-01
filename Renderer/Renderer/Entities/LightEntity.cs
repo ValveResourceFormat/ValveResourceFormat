@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <summary>
 /// The light entities. Owns the <see cref="SceneLight"/>. Real-time lights (barn, rect, omni2) are
 /// re-binned every frame; slot-stored lights (omni, spot, ortho, environment) re-store the lighting
-/// uniforms on change. Volumetric fog is not simulated.
+/// uniforms on change.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CLightEntity">CLightEntity</seealso>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CBarnLight">CBarnLight</seealso>
@@ -297,6 +297,12 @@ public sealed class LightEntity : BaseEntity
 
     [EntityInput("Toggle")] private void InputToggle(EntityInputData data) => SetEnabled(!IsEnabled);
 
+    [EntityInput("TurnOn")] private void InputTurnOn(EntityInputData data) => SetEnabled(true);
+
+    [EntityInput("TurnOff")] private void InputTurnOff(EntityInputData data) => SetEnabled(false);
+
+    [EntityInput("SetLightEnabled")] private void InputSetLightEnabled(EntityInputData data) => SetEnabled(data.Bool());
+
     [EntityInput("SetStyle")] private void InputSetStyle(EntityInputData data) => PlayStyles(data.Parameter ?? string.Empty, randomStart: false);
 
     [EntityInput("SetAppearance")] private void InputSetAppearance(EntityInputData data) => PlayStyle(PatternLightStyle.FromAppearance(data.Int()));
@@ -327,6 +333,24 @@ public sealed class LightEntity : BaseEntity
         }
 
         Changed();
+    }
+
+    [EntityInput("SetFogStrength")]
+    private void InputSetFogStrength(EntityInputData data)
+    {
+        if (light != null)
+        {
+            light.BarnFogStrength = data.Float(light.BarnFogStrength);
+        }
+    }
+
+    [EntityInput("SetFogScale")]
+    private void InputSetFogScale(EntityInputData data)
+    {
+        if (light != null)
+        {
+            light.BarnFogScale = data.Float(light.BarnFogScale);
+        }
     }
 
     [EntityInput("SetBrightnessScale")]

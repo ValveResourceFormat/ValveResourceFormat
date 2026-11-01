@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
+using ValveResourceFormat.Particles;
 using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -65,6 +66,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             boneCount = model.Skeleton.Bones.Length;
             remappingTable = model.BoneRemapTable.Table;
+            slotInverseBindPose = new Matrix4x4[remappingTable.Length];
 
             if (skin != null)
             {
@@ -75,7 +77,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             LoadMeshes(model);
 
-            AnimationController = new(model.Skeleton, model.FlexControllers);
+            AnimationController = new(model.Skeleton, model.FlexControllers, model.ClothRootPins);
 
             foreach (var skeletonName in model.NmSkeletonRefs)
             {
@@ -201,9 +203,78 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             base.Delete();
         }
 
+        /// <summary>
+        /// Gets or sets whether a thin model, such as a pane or a door, is lit from the side that faces the camera.
+        /// Its lighting origin moves off the center of the model toward that side.
+        /// </summary>
+        public bool FixupLightingOriginToViewer { get; set; }
+
+        // How far the lighting origin may leave the center of the model
+        private const float MaxViewerLightingOriginOffset = 18f;
+
+        // Where a thin model is lit from. The origin sits in front of the center, along the thinnest axis, on the
+        // viewer's side. Close to the plane, within half its thickness, the side stays as it was so it does not flicker.
+        private void UpdateLightingOriginToViewer(Vector3 viewer)
+        {
+            var localBounds = LocalBoundingBox;
+            var size = localBounds.Max - localBounds.Min;
+            var extents = new Vector3(
+                size.X * Transform.AxisScale(0),
+                size.Y * Transform.AxisScale(1),
+                size.Z * Transform.AxisScale(2));
+
+            var axis = 2;
+
+            if (extents.X < extents.Y)
+            {
+                if (extents.Z > extents.X)
+                {
+                    axis = 0;
+                }
+            }
+            else if (extents.Z > extents.Y)
+            {
+                axis = 1;
+            }
+
+            var localNormal = Vector3.Zero;
+            localNormal[axis] = 1f;
+
+            var normal = Vector3.Normalize(Vector3.TransformNormal(localNormal, Transform));
+            var center = Vector3.Transform(localBounds.Center, Transform);
+            var side = Vector3.Dot(viewer - center, normal);
+            var deadZone = LightingOrigin.HasValue ? extents[axis] * 0.5f : -1f;
+
+            float direction;
+
+            if (side > deadZone)
+            {
+                direction = 1f;
+            }
+            else if (side < -deadZone)
+            {
+                direction = -1f;
+            }
+            else
+            {
+                return;
+            }
+
+            var otherExtent = MathF.Min(extents[(axis + 1) % 3], extents[(axis + 2) % 3]);
+            var offset = MathF.Min(otherExtent * 0.5f, MaxViewerLightingOriginOffset);
+            var origin = center + normal * (direction * offset);
+
+            LightingOrigin = new Vector3(MathF.Floor(origin.X + 0.5f), MathF.Floor(origin.Y + 0.5f), MathF.Floor(origin.Z + 0.5f));
+        }
+
         /// <inheritdoc/>
         public override void Update(Scene.UpdateContext context)
         {
+            if (FixupLightingOriginToViewer)
+            {
+                UpdateLightingOriginToViewer(context.Camera.Location);
+            }
+
             UpdateAutoLod(context.Camera);
             var animationUpdated = AnimationController.Update(context.Timestep);
 
@@ -407,6 +478,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private void LoadMeshes(Model model)
         {
+            var modelInverseBindPose = BindPoseModelObject.GetInverseBindPose(model);
+
             // All LoD levels are loaded; the active one is picked at render time.
             foreach (var embeddedMesh in model.GetEmbeddedMeshes())
             {
@@ -414,6 +487,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 model.SetExternalMorphData(embeddedMesh.Mesh.MorphData);
 
                 meshRenderers.Add(new RenderableMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, Scene, model, materialTable, embeddedMesh.Mesh.MorphData));
+                SetSlotInverseBindPose(model, embeddedMesh.Mesh, embeddedMesh.MeshIndex, modelInverseBindPose);
             }
 
             foreach (var refMesh in referenceMeshes)
@@ -428,6 +502,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 model.SetExternalMeshData(mesh);
 
                 meshRenderers.Add(new RenderableMesh(mesh, refMesh.MeshIndex, Scene, model, materialTable));
+                SetSlotInverseBindPose(model, mesh, refMesh.MeshIndex, modelInverseBindPose);
             }
 
             SetActiveMeshGroups(model.MeshGroups.Defaults);
@@ -463,6 +538,27 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
 
             return false;
+        }
+
+        /// <summary>Finds the first sequence that is not hidden and plays the named activity.</summary>
+        /// <param name="activityName">The activity name, such as <c>ACT_IDLE</c>.</param>
+        /// <returns>The sequence, or <see langword="null"/> when no sequence plays the activity.</returns>
+        public SequenceAnimation? FindSequenceByActivity(string activityName)
+        {
+            foreach (var animation in Animations.Values)
+            {
+                if (animation is not SequenceAnimation { Hidden: false } sequence)
+                {
+                    continue;
+                }
+
+                if (Array.Exists(sequence.Activities, activity => activity.Name.Equals(activityName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return sequence;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>Activates the given animation instance with a blend-in time, or clears the active animation when <see langword="null"/>.</summary>

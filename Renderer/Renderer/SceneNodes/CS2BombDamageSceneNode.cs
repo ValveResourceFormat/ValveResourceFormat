@@ -63,7 +63,7 @@ public class CS2BombDamageSceneNode : SceneNode
     /// <param name="bombsiteLabel">Display label for the bombsite ("A", "B", or a per-site index when unresolved).</param>
     public CS2BombDamageSceneNode(Scene scene, BombDamage bombDamageData, int bombsiteIndex, RenderTexture renderTexture, string bombsiteLabel) : base(scene)
     {
-        var shader = Scene.RendererContext.ShaderLoader.LoadShader("cs2_baked_bomb_damage");
+        var shader = Scene.RendererContext.ShaderLoader.LoadShader("cs2_baked_bomb_damage.vfx");
         meshName = $"{bombDamageData.Resource.FileName}:site{bombsiteIndex}";
 
         material = new RenderMaterial(shader);
@@ -73,7 +73,7 @@ public class CS2BombDamageSceneNode : SceneNode
         material.LoadRenderState();
         material.Textures["g_tColor"] = renderTexture;
 
-        LayerName = $"Bombsite {bombsiteLabel} blast flow map";
+        Layers = [WorldLayer.Get($"Bombsite {bombsiteLabel} blast flow map")];
 
         Initialize(bombDamageData, bombsiteIndex);
     }
@@ -250,7 +250,7 @@ public class CS2BombDamageSceneNode : SceneNode
 
             var boundsNode = new LineSceneNode(scene, [.. boundsVertices])
             {
-                LayerName = sceneNode.LayerName,
+                Layers = sceneNode.Layers,
             };
             scene.Add(boundsNode, false);
         }

@@ -1,0 +1,7 @@
+#version 460
+
+// TEXTURING
+#define F_TINT_MASK 0
+// BLENDING
+#define F_ADDITIVE_BLEND 0
+#define F_DEPTH_FEATHER 0

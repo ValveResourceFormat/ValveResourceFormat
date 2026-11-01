@@ -15,7 +15,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <para>
 /// The game spawns nothing of a template when the map loads. A world spawned while stopped, as an editor shows
 /// it, spawns each template's entities once where they were authored instead, on
-/// <see cref="WorldLoader.TemplateLayerName"/>.
+/// <see cref="WorldLayer.Templates"/>.
 /// </para>
 /// <para>
 /// The template only describes an instance's spawn group: the world and entity lump to spawn, the placement, the
@@ -148,6 +148,7 @@ public sealed class PointTemplate : BaseEntity
 
         // The fixups of the spawn group the template is in, rather than of the one that spawned it
         var nameFixup = SpawnGroup?.NameFixup ?? NameFixup;
+        var templateLayers = Layers;
 
         var group = new SpawnGroup(WorldName, Scene, placement)
         {
@@ -166,9 +167,9 @@ public sealed class PointTemplate : BaseEntity
                 _ => null,
             },
 
-            // In game the instance spawns on the layer its lump would, as play hides the template layer with the
-            // other tool layers
-            LayerName = isPreview ? WorldLoader.TemplateLayerName : null,
+            // A preview is shown with the template and on the template layer. In game the instance is only on the
+            // entities layer, as play hides the template layer with the other tool layers.
+            Layers = isPreview ? [.. templateLayers, WorldLayer.Templates] : [WorldLayer.Entities],
         };
 
         spawnGroupManager.LoadSpawnGroup(group);

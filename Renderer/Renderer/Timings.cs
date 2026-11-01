@@ -31,6 +31,10 @@ public class Timings
         public double? PreviousMax;
         public double? CurrentMax;
 
+        // The same over the last whole fold window, which decides what is folded
+        public double? PreviousFoldMax;
+        public double? CurrentFoldMax;
+
         public bool Averaged;
         public double AveragedCpuMs;
         public int AveragedCpuSamples;
@@ -66,6 +70,7 @@ public class Timings
     private readonly List<Region> frameRegions = [];
     private long frame;
     private long lastRollingUpdate;
+    private long lastFoldUpdate;
     private double swapMs;
     private double frameCpuMs;
     private double swapMaxCurrent;
@@ -81,13 +86,16 @@ public class Timings
     // A collapsed region still lists what is nested in it once it peaks above this
     private const double ExpandCollapsedMs = 1.0;
 
+    // Seconds between changes to what is folded, so that rows do not jump around while reading
+    private const double FoldWindowSeconds = 4.0;
+
     private static readonly string ColumnHeader = $"  {"",-NameColumnWidth} {"GPU",6} {"CPU",6} {"P100",6}";
 
     // Rows are formatted into the arena each frame, which stays untouched until the text renders
     private readonly TextRenderer.TextArena displayText = new(16 * 1024);
     private readonly char[] nameColumn = new char[NameColumnWidth];
 
-    private record struct DisplayRow(TimingResult Result, double PeakMs, bool Collapsed);
+    private record struct DisplayRow(TimingResult Result, double PeakMs, double FoldPeakMs, bool Collapsed);
     private readonly List<DisplayRow> displayRows = [];
 
     private static Color32 ColorForPeak(double peakMs) => peakMs switch
@@ -307,6 +315,17 @@ public class Timings
             lastRollingUpdate = Stopwatch.GetTimestamp();
         }
 
+        if (Stopwatch.GetElapsedTime(lastFoldUpdate).TotalSeconds > FoldWindowSeconds)
+        {
+            foreach (var region in regions.Values)
+            {
+                region.PreviousFoldMax = region.CurrentFoldMax;
+                region.CurrentFoldMax = null;
+            }
+
+            lastFoldUpdate = Stopwatch.GetTimestamp();
+        }
+
         displayRows.Clear();
 
         foreach (var result in results.Values)
@@ -315,6 +334,8 @@ public class Timings
             var region = result.Region;
             region.CurrentMax = Math.Max(region.CurrentMax ?? 0, maxTimeCurrent);
             var maxTime = region.PreviousMax ?? maxTimeCurrent;
+            region.CurrentFoldMax = Math.Max(region.CurrentFoldMax ?? 0, maxTimeCurrent);
+            var foldPeak = region.PreviousFoldMax ?? maxTimeCurrent;
 
             if (result.Depth == 0)
             {
@@ -323,7 +344,7 @@ public class Timings
                 total += maxTime;
             }
 
-            displayRows.Add(new DisplayRow(result, maxTime, result.Collapsed && maxTime < ExpandCollapsedMs));
+            displayRows.Add(new DisplayRow(result, maxTime, foldPeak, result.Collapsed && foldPeak < ExpandCollapsedMs));
         }
 
         // Title, column names, swapchain, total, unaccounted, and the async header with its rows
@@ -334,7 +355,7 @@ public class Timings
 
         for (var i = 0; i < displayRows.Count; i++)
         {
-            var (result, maxTime, collapsed) = displayRows[i];
+            var (result, maxTime, _, collapsed) = displayRows[i];
 
             if (result.Depth > hideBelowDepth)
             {
@@ -399,7 +420,7 @@ public class Timings
 
                 hideBelowDepth = row.Collapsed ? row.Result.Depth : int.MaxValue;
 
-                if (!row.Collapsed && CountNested(i) > 0 && (cheapest < 0 || row.PeakMs < displayRows[cheapest].PeakMs))
+                if (!row.Collapsed && CountNested(i) > 0 && (cheapest < 0 || row.FoldPeakMs < displayRows[cheapest].FoldPeakMs))
                 {
                     cheapest = i;
                 }

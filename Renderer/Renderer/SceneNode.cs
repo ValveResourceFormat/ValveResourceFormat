@@ -1,4 +1,6 @@
+using System.Collections.Immutable;
 using System.Globalization;
+using System.Linq;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.ResourceTypes;
@@ -70,17 +72,19 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Gets or sets the visibility layer name.
+        /// Gets or sets the visibility layers of the node, set before it is added to the scene. The node is shown
+        /// only while every one of them is enabled, and one on no layer is never hidden by one.
         /// </summary>
-        public string? LayerName { get; set; }
+        public ImmutableArray<WorldLayer> Layers { get; set => field = value.IsDefault ? [] : value; } = [];
 
         /// <summary>
-        /// Gets or sets whether this node's layer is enabled. Queues a rebuild on the parent spatial structure.
+        /// Gets whether this node's layers are enabled, as kept by the scene. Queues a rebuild on the parent spatial
+        /// structure when it changes. To hide a single node, use <see cref="Visible"/>.
         /// </summary>
         public virtual bool LayerEnabled
         {
             get;
-            set
+            internal set
             {
                 var valueChanged = value != field;
                 field = value;
@@ -95,7 +99,21 @@ namespace ValveResourceFormat.Renderer
         /// Gets or sets whether the node itself wants to be drawn, independently of its layer.
         /// The node remains in the scene graph and is checked each frame.
         /// </summary>
-        public bool Visible { get; set; } = true;
+        public bool Visible
+        {
+            get;
+            set
+            {
+                var valueChanged = value != field;
+                field = value;
+
+                // Indirect draw commands bake whether a fragment is drawn, and are rebuilt with the octree
+                if (valueChanged && this is SceneAggregate.Fragment)
+                {
+                    Scene.MarkParentOctreeDirty(this);
+                }
+            }
+        } = true;
 
         /// <summary>
         /// Gets the world-space axis-aligned bounding box. Recomputed from <see cref="LocalBoundingBox"/> and
@@ -181,6 +199,20 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Shrinks a transform this node is placed at by <see cref="PlacementScale"/>.</summary>
         internal Matrix4x4 ApplyPlacementScale(in Matrix4x4 transform)
             => PlacementScale == 1f ? transform : Matrix4x4.CreateScale(PlacementScale) * transform;
+
+        /// <summary>Puts the node on more layers, besides those it is on already, before it is added to the scene.</summary>
+        /// <param name="layers">The layers to add.</param>
+        public void AddLayers(ImmutableArray<WorldLayer> layers)
+        {
+            if (Layers.Length == 0)
+            {
+                Layers = layers;
+            }
+            else if (!layers.All(Layers.Contains))
+            {
+                Layers = [.. Layers.Union(layers)];
+            }
+        }
 
         /// <summary>
         /// Gets or sets the node that updates this one, so the scene does not update it on its own. Set by
@@ -279,11 +311,6 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Gets or sets the environment map visibility bitfield for shaders.
-        /// </summary>
-        public SceneEnvMap.EnvMapVisibility128 ShaderEnvMapVisibility { get; set; } = SceneEnvMap.EnvMapVisibility128.Full;
-
-        /// <summary>
         /// Gets or sets a custom lighting origin override for environment map and light probe sampling.
         /// </summary>
         public Vector3? LightingOrigin { get; set; }
@@ -294,28 +321,10 @@ namespace ValveResourceFormat.Renderer
         public int OverlayRenderOrder { get; set; }
 
         /// <summary>
-        /// Gets or sets the precomputed handshake value for cubemap assignment.
+        /// Gets the environment map and light probe volume this node is lit with, or <see langword="null"/>
+        /// for a node without cached lighting.
         /// </summary>
-        public int CubeMapPrecomputedHandshake { get; set; }
-
-        /// <summary>
-        /// Gets or sets the precomputed handshake value for light probe volume assignment.
-        /// </summary>
-        public int LightProbeVolumePrecomputedHandshake { get; set; }
-
-        /// <summary>
-        /// Gets or sets the bound light probe for this node.
-        /// </summary>
-        public SceneLightProbe? LightProbeBinding { get; set; }
-
-        /// <summary>
-        /// Gets or sets the environment map picked for a moving node, which shades what no environment map box covers.
-        /// Static nodes use the highest priority one they overlap.
-        /// </summary>
-        public SceneEnvMap? EnvMapBinding { get; set; }
-
-        /// <summary>Where a moving node's lighting bindings were last picked from, NaN when they have to be picked again.</summary>
-        internal Vector3 LightingBindPosition { get; set; } = new(float.NaN);
+        public SceneNodeLightingCache? LightingCache { get; internal set; }
 
         /// <summary>
         /// Gets or sets the associated entity data from the map.

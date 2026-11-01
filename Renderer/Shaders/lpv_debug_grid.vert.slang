@@ -2,7 +2,7 @@
 
 // One quad per light probe sample, turned to the view and wide enough to hold the sphere traced in it
 #include "common/instancing_base.slang"
-#include "common/ViewConstants.slang"
+#include "common/view_constants.slang"
 
 // The sample's center in the volume's local space, one per instance
 in vec3 vPOSITION;

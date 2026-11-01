@@ -6,7 +6,7 @@ in vec2 vHandleCorner;
 in float vHandleSize;
 
 #include "common/utils.slang"
-#include "common/ViewConstants.slang"
+#include "common/view_constants.slang"
 #include "common/instancing.slang"
 
 out vec4 vColorOut;

@@ -1,6 +1,6 @@
 #version 460
 
-#include "common/ViewConstants.slang"
+#include "common/view_constants.slang"
 
 #define F_ALPHA_TEST 0 // most shaders
 
@@ -16,7 +16,7 @@ in vec3 vPOSITION;
 
 void main()
 {
-    vec3 vertexPosition = vPOSITION + getMorphOffset();
+    vec3 vertexPosition = vPOSITION + GetMorphOffset();
 
     #if (F_ALPHA_TEST == 1)
         texCoord = vTEXCOORD;

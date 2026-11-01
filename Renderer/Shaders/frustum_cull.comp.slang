@@ -1,6 +1,6 @@
 #version 460
 
-#include "common/ViewConstants.slang"
+#include "common/view_constants.slang"
 #include "common/instancing_base.slang"
 #include "common/structs.slang"
 
@@ -47,7 +47,6 @@ layout(binding = 10, std430) readonly buffer CpuVisibleBuffer
     uint cpuVisibleBits[]; // one bit per object id, marking the objects the CPU found past PVS and the visibility boxes
 };
 
-
 layout(binding = 7, std430) buffer OccludedBoundsDebugBuffer
 {
     uint occludedCount;
@@ -61,6 +60,7 @@ layout(binding = 7, std430) buffer OccludedBoundsDebugBuffer
 
 uniform bool g_bOcclusionDebugEnabled;
 uniform bool g_bCpuVisibleEnabled;
+uniform bool g_bBackfaceCulling; // off for the orthographic sun cascades, which the cone test from g_vCameraPositionWs does not fit
 
 // Depth pyramid (hierarchical depth buffer)
 uniform sampler2D g_tDepthPyramid; // bound above the reserved slots by SceneViewState.SetOcclusionUniforms
@@ -259,7 +259,6 @@ vec4 unpackSByteVector(uint packedData)
     return vec4(s0, s1, s2, s3) / 127.0;
 }
 
-
 void main()
 {
     uint drawId = gl_GlobalInvocationID.x;
@@ -338,7 +337,6 @@ void main()
     }
 
     const bool FrustumCull = true;
-    const bool BackfaceCull = true;
 
     bool visible = true;
 
@@ -347,7 +345,7 @@ void main()
         visible = testAABBFrustum(meshletMin, meshletMax);
     }
 
-    if (visible && BackfaceCull)
+    if (visible && g_bBackfaceCulling)
     {
         vec3 meshletCenter = (meshletMin + meshletMax) * 0.5;
         vec3 meshletSize = meshletMax - meshletMin;

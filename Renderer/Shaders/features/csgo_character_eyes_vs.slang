@@ -6,7 +6,7 @@
 #include "../common/animation.slang"
 #include "csgo_character_eyes_common.slang"
 
-#if (GameVfx_csgo_character != 0) && (F_EYEBALLS == 1)
+#if (F_EYEBALLS == 1)
 // Left eye
 uniform vec3 g_vEyeLBindFwd;
 uniform vec3 g_vEyeLBindUp;
@@ -35,15 +35,8 @@ uniform int g_nEyeTargetBindIdx;
 
 out EyePixelInput eyeInterpolator;
 
-mat3 rotationMatrix(vec3 axis, float angle)
+mat3 RotationMatrix(vec3 axis, float angle)
 {
-    // original
-    // return mat3(
-    //     vec3(fma(axis.x, axis.x, fma(-axis.x, axis.x, 1.0) * c), fma(axis.x * axis.y, oc, axis.z * (-s)), fma(axis.z * axis.x, oc, axis.y * s)),
-    //     vec3(fma(axis.x * axis.y, oc, axis.z * s), fma(axis.y, axis.y, fma(-axis.y, axis.y, 1.0) * c), fma(axis.y * axis.z, oc, axis.x * (-s))),
-    //     vec3(fma(axis.z * axis.x, oc, axis.y * (-s)), fma(axis.y * axis.z, oc, axis.x * s), fma(axis.z, axis.z, fma(-axis.z, axis.z, 1.0) * c))
-    // );
-
     float s = sin(angle);
     float c = cos(angle);
     float oc = 1.0 - c;
@@ -53,18 +46,33 @@ mat3 rotationMatrix(vec3 axis, float angle)
                 oc * axis.z * axis.x - axis.y * s,  oc * axis.y * axis.z + axis.x * s,  oc * axis.z * axis.z + c);
 }
 
+// Turns the view direction back to the edge of a 40 degree cone around coneAxis when it leaves it.
+void ConstrainEyeDirection(vec3 coneAxis, vec3 eyePosition, inout vec3 targetPosition, inout vec3 viewDir)
+{
+    const float maxAngle = radians(40.0);
+
+    if (acos(dot(viewDir, coneAxis)) > maxAngle)
+    {
+        vec3 axis = normalize(cross(coneAxis, viewDir));
+        mat3 rotation = RotationMatrix(axis, maxAngle);
+
+        targetPosition = ((coneAxis * rotation) * distance(targetPosition, eyePosition)) + eyePosition;
+        viewDir = normalize(targetPosition - eyePosition);
+    }
+}
+
 EyePixelInput GetCharacterEyeInterpolator(vec3 vPositionOs)
 {
     EyeData leftEyeOs;
-    leftEyeOs.Forward = g_vEyeLBindFwd.xyz;
-    leftEyeOs.Up = g_vEyeLBindUp.xyz;
-    leftEyeOs.Position = g_vEyeLBindPos.xyz;
+    leftEyeOs.Forward = g_vEyeLBindFwd;
+    leftEyeOs.Up = g_vEyeLBindUp;
+    leftEyeOs.Position = g_vEyeLBindPos;
     leftEyeOs.BoneIndex = g_nEyeLBindIdx;
 
     EyeData rightEyeOs;
-    rightEyeOs.Forward = g_vEyeRBindFwd.xyz;
-    rightEyeOs.Up = g_vEyeRBindUp.xyz;
-    rightEyeOs.Position = g_vEyeRBindPos.xyz;
+    rightEyeOs.Forward = g_vEyeRBindFwd;
+    rightEyeOs.Up = g_vEyeRBindUp;
+    rightEyeOs.Position = g_vEyeRBindPos;
     rightEyeOs.BoneIndex = g_nEyeRBindIdx;
 
     bool bIsRightEye = distance(vPositionOs, rightEyeOs.Position) < distance(vPositionOs, leftEyeOs.Position);
@@ -73,45 +81,29 @@ EyePixelInput GetCharacterEyeInterpolator(vec3 vPositionOs)
     float flExotropia = bIsRightEye ? (g_flEyeBallWalleyeR1 * -1.0) : g_flEyeBallWalleyeL1;
 
     uint objectBoneOffset = GetObjectBoneOffset();
-    mat3x4 eyeAnimationMatrix = getMatrix(currentEye.BoneIndex, objectBoneOffset);
+    mat3x4 eyeAnimationMatrix = GetMatrix(currentEye.BoneIndex, objectBoneOffset);
 
     currentEye.Forward =    vec4(currentEye.Forward, 0.0) * eyeAnimationMatrix;
     currentEye.Up =         vec4(currentEye.Up, 0.0) * eyeAnimationMatrix;
     currentEye.Position =   vec4(currentEye.Position, 1.0) * eyeAnimationMatrix;
 
-    vec3 targetPosition = vec4(g_vEyeTargetBindPos.xyz, 1.0) * getMatrix(g_nEyeTargetBindIdx, objectBoneOffset);
+    vec3 targetPosition = vec4(g_vEyeTargetBindPos, 1.0) * GetMatrix(g_nEyeTargetBindIdx, objectBoneOffset);
     vec3 viewDir = normalize(targetPosition - currentEye.Position);
 
     if (flExotropia != 0.0)
     {
         flExotropia = radians(flExotropia);
 
-        mat3 wallEyeInfluence = rotationMatrix(currentEye.Up, flExotropia);
+        mat3 wallEyeInfluence = RotationMatrix(currentEye.Up, flExotropia);
         targetPosition = ((viewDir * wallEyeInfluence) * distance(targetPosition, currentEye.Position)) + currentEye.Position;
         viewDir = normalize(targetPosition - currentEye.Position);
     }
 
-    const float radians40 = radians(40.0);
+    vec3 upperConeAxis = normalize(currentEye.Forward + (currentEye.Up * 0.5));
+    ConstrainEyeDirection(upperConeAxis, currentEye.Position, targetPosition, viewDir);
 
-    vec3 testVector = normalize(currentEye.Forward + (currentEye.Up * 0.5));
-    if (acos(dot(viewDir, testVector)) > radians40)
-    {
-        vec3 axis = normalize(cross(testVector, viewDir));
-        mat3 rotation = rotationMatrix(axis, radians40);
-
-        targetPosition = ((testVector * rotation) * distance(targetPosition, currentEye.Position)) + currentEye.Position;
-        viewDir = normalize(targetPosition - currentEye.Position);
-    }
-
-    vec3 testVector2 = normalize(currentEye.Forward + (currentEye.Up * (-0.5)));
-    if (acos(dot(viewDir, testVector2)) > radians40)
-    {
-        vec3 axis = normalize(cross(testVector2, viewDir));
-        mat3 rotation = rotationMatrix(axis, radians40);
-
-        vec3 targetPosition2 = ((testVector2 * rotation) * distance(targetPosition, currentEye.Position)) + currentEye.Position;
-        viewDir = normalize(targetPosition2 - currentEye.Position);
-    }
+    vec3 lowerConeAxis = normalize(currentEye.Forward + (currentEye.Up * (-0.5)));
+    ConstrainEyeDirection(lowerConeAxis, currentEye.Position, targetPosition, viewDir);
 
     EyePixelInput o;
     o.vEyeViewDir_PosX =  vec4(viewDir,                                 currentEye.Position.x);
@@ -119,6 +111,6 @@ EyePixelInput GetCharacterEyeInterpolator(vec3 vPositionOs)
     o.vEyeUpDir_PosZ =    vec4(cross(viewDir, o.vEyeRightDir_PosY.xyz), currentEye.Position.z);
     return o;
 }
-#endif // (GameVfx_csgo_character != 0) && (F_EYEBALLS == 1)
+#endif // (F_EYEBALLS == 1)
 
 #endif

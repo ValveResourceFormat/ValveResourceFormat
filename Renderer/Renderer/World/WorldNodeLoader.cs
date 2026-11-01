@@ -1,7 +1,7 @@
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
-using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.Decals;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -18,8 +18,10 @@ namespace ValveResourceFormat.Renderer.World
         private readonly WorldNode node;
         private readonly ResourceExtRefList? externalReferences;
         private readonly RendererContext RendererContext;
-        /// <summary>Gets the layer names defined in this world node.</summary>
-        public IReadOnlyList<string> LayerNames { get; }
+        private static readonly ImmutableArray<WorldLayer> NoLayerList = [WorldLayer.NoLayer];
+        private readonly ImmutableArray<WorldLayer>[] SingleLayerLists;
+        /// <summary>Gets the layers defined in this world node, in the order its objects index them.</summary>
+        public ImmutableArray<WorldLayer> Layers { get; }
 
         /// <summary>
         /// Initializes a new <see cref="WorldNodeLoader"/> for the given world node.
@@ -32,20 +34,8 @@ namespace ValveResourceFormat.Renderer.World
             this.node = node;
             this.externalReferences = externalReferences;
             RendererContext = rendererContext;
-            LayerNames = node.LayerNames;
-        }
-
-        // World NoShadows means a baked shadow, dynamic lights still need these casters
-        internal static ObjectTypeFlags ReadObjectFlags(KVObject data, string key)
-        {
-            var flags = data.GetEnumValue<ObjectTypeFlags>(key, normalize: true);
-
-            if ((flags & ObjectTypeFlags.NoShadows) != 0)
-            {
-                flags = (flags & ~ObjectTypeFlags.NoShadows) | ObjectTypeFlags.NoSunShadows;
-            }
-
-            return flags;
+            Layers = [.. node.LayerNames.Select(WorldLayer.Get)];
+            SingleLayerLists = [.. Layers.Select(static ImmutableArray<WorldLayer> (layer) => [layer])];
         }
 
         /// <summary>
@@ -87,13 +77,14 @@ namespace ValveResourceFormat.Renderer.World
                 // m_vCubeMapOrigin in older files
                 var lightingOrigin = sceneObject.ContainsKey("m_vLightingOrigin") ? sceneObject.GetSubCollection("m_vLightingOrigin").ToVector3() : defaultLightingOrigin;
                 var overlayRenderOrder = sceneObject.GetInt32Property("m_nOverlayRenderOrder");
-                var cubeMapPrecomputedHandshake = sceneObject.GetInt32Property("m_nCubeMapPrecomputedHandshake");
-                var lightProbeVolumePrecomputedHandshake = sceneObject.GetInt32Property("m_nLightProbeVolumePrecomputedHandshake");
+                var handshakes = new PrecomputedLightingHandshakes(
+                    sceneObject.GetInt32Property("m_nCubeMapPrecomputedHandshake"),
+                    sceneObject.GetInt32Property("m_nLightProbeVolumePrecomputedHandshake"));
 
                 // sceneObject is SceneObject_t
                 var renderableModel = sceneObject.GetStringProperty("m_renderableModel");
                 var matrix = sceneObject.GetArray("m_vTransform").ToMatrix4x4() * root;
-                var flags = ReadObjectFlags(sceneObject, "m_nObjectTypeFlags");
+                var flags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_nObjectTypeFlags", normalize: true);
                 var visClusters = node.GetSceneObjectVisClusters(sceneObject);
 
                 // Per-placement forced LoD baked by the compiler (-1 = automatic).
@@ -123,12 +114,11 @@ namespace ValveResourceFormat.Renderer.World
                     {
                         Transform = matrix,
                         TintAlpha = tintColor,
-                        LayerName = layerIndex > -1 ? LayerNames[layerIndex] : "No layer",
+                        Layers = layerIndex > -1 ? SingleLayerLists[layerIndex] : NoLayerList,
                         Name = renderableModel,
                         LightingOrigin = lightingOrigin == defaultLightingOrigin ? null : Vector3.Transform(lightingOrigin, root),
                         OverlayRenderOrder = overlayRenderOrder,
-                        CubeMapPrecomputedHandshake = cubeMapPrecomputedHandshake,
-                        LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
+                        LightingCache = SceneNodeLightingCache.FromHandshakes(handshakes),
                         Flags = flags,
                         PrecomputedVisClusters = visClusters,
                     };
@@ -160,10 +150,9 @@ namespace ValveResourceFormat.Renderer.World
                     {
                         Transform = matrix,
                         TintAlpha = tintColor,
-                        LayerName = layerIndex > -1 ? LayerNames[layerIndex] : "No layer",
+                        Layers = layerIndex > -1 ? SingleLayerLists[layerIndex] : NoLayerList,
                         Name = renderable,
-                        CubeMapPrecomputedHandshake = cubeMapPrecomputedHandshake,
-                        LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
+                        LightingCache = SceneNodeLightingCache.FromHandshakes(handshakes),
                         Flags = flags,
                         PrecomputedVisClusters = visClusters,
                     };
@@ -190,10 +179,10 @@ namespace ValveResourceFormat.Renderer.World
                     var layerIndex = sceneObject.GetIntegerProperty("m_nLayer");
                     var aggregate = new SceneAggregate(scene, model)
                     {
-                        LayerName = LayerNames[(int)layerIndex],
+                        Layers = SingleLayerLists[(int)layerIndex],
                         Name = renderableModel,
-                        AllFlags = ReadObjectFlags(sceneObject, "m_allFlags"),
-                        AnyFlags = ReadObjectFlags(sceneObject, "m_anyFlags"),
+                        AllFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_allFlags", normalize: true),
+                        AnyFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_anyFlags", normalize: true),
                     };
 
                     scene.Add(aggregate, false);
@@ -279,7 +268,7 @@ namespace ValveResourceFormat.Renderer.World
 
                 scene.Add(new SceneClutter(scene, model, clutter.MaterialGroup, clutter.BeginCullSize, clutter.EndCullSize, sceneInstances)
                 {
-                    LayerName = LayerNames[clutter.Layer],
+                    Layers = SingleLayerLists[clutter.Layer],
                     Name = clutter.RenderableModel,
                     Flags = clutter.Flags,
                     AllFlags = clutter.Flags,
@@ -346,10 +335,10 @@ namespace ValveResourceFormat.Renderer.World
                 foreach (var streamOverride in OverridesBySceneObject[sceneObjectIndex])
                 {
                     var stream = Streams.VertexBuffers[streamOverride.BufferIndex];
-                    var (_, drawCall) = FindDrawCall(modelNode, streamOverride.SubSceneObject, streamOverride.DrawCallIndex);
+                    var (mesh, drawCall) = FindDrawCall(modelNode, streamOverride.SubSceneObject, streamOverride.DrawCallIndex);
 
                     // Streams painted on an older version of the model no longer match its vertex count
-                    if (drawCall?.VertexCount != stream.ElementCount)
+                    if (mesh is null || drawCall?.VertexCount != stream.ElementCount)
                     {
                         continue;
                     }
@@ -361,6 +350,11 @@ namespace ValveResourceFormat.Renderer.World
                         ElementSizeInBytes = stream.ElementSizeInBytes,
                         InputLayoutFields = stream.InputLayoutFields,
                     });
+
+                    if (streamOverride.IsVertexLighting)
+                    {
+                        mesh.UseBakedLightingFromVertexStream(drawCall);
+                    }
                 }
             }
         }

@@ -3,7 +3,7 @@
 #ifndef VRF_QUAD_OVERDRAW_INCLUDE
 #define VRF_QUAD_OVERDRAW_INCLUDE
 
-#include "ViewConstants.slang"
+#include "view_constants.slang"
 
 layout(std430, binding = 5) buffer QuadOverdrawBuffer
 {
@@ -33,13 +33,9 @@ void CountQuadOverdraw()
     // Zero means unlocked (so the buffer clears to all zeroes), quads are claimed with the primitive id offset by one.
     uint claimValue = uint(gl_PrimitiveID) + 1u;
 
-    // A primitive that touches a 2x2 quad shades it once per covered pixel, but must count only once.
-
-    // Scoreboard lock: fragments claim the quad with their primitive id; only a claim that saw it unlocked counts.
-
-    // Fragments that see their primitive id lost the race to a sibling fragment and bail.
-
-    // Fragments seeing another primitive spin until it releases the lock, bounded to stay finite under load.
+    // A primitive shades a 2x2 quad once per covered pixel but must count once. Fragments claim the quad's lock with
+    // their primitive id and only a claim that saw it unlocked counts. Fragments that see their own id lost the race to a
+    // sibling and bail; fragments seeing another primitive spin until it releases the lock, bounded to stay finite under load.
     uint lockValue = 0u;
     bool done = false;
     int claimed = 0;

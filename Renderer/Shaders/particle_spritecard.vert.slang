@@ -67,9 +67,9 @@ in vec4 vTEXCOORD3;
 #define VRF_VERTEX_STAGE
 
 #include "common/utils.slang"
-#include "common/ViewConstants.slang"
-#include "common/features.slang"
-#include "common/lighting.particle.slang"
+#include "common/view_constants.slang"
+#include "common/shared_combos.slang"
+#include "common/lighting_particle.slang"
 
 #if (D_BAKED_LIGHTING_FROM_PROBE == 1)
 uniform uint uObjectIndex = 0u;
@@ -500,43 +500,54 @@ float ClampSize(float radius, float distance)
     return min(max(radius, uSizeBounds.x * distance), uSizeBounds.w * distance);
 }
 
-void main(void) {
+vec2 CardCorner()
+{
 #if S_PARTICLE_INSTANCED
     // 0 -> (-1,+1), 1 -> (-1,-1), 2 -> (+1,+1), 3 -> (+1,-1). The strip's shared edge, and so the
     // diagonal it splits on, is the one the index buffer used. A sprite card is a parallelogram and does
     // not care, but a trail is a trapezoid wherever its ends taper differently, and there the diagonal
     // decides how the sheet interpolates across it.
-    vec2 corner = vec2(
+    return vec2(
         (float(gl_VertexID / 2) * 2.0) - 1.0,
         1.0 - (float(gl_VertexID % 2) * 2.0));
 #else
-    vec2 corner = vTEXCOORD1.xy;
+    return vTEXCOORD1.xy;
 #endif
+}
 
+vec2 CardUvOfCorner(vec2 corner)
+{
 #if S_PARTICLE_INSTANCED == 2
     // Flipping and cropping scale the card coordinate about its centre and leave the geometry alone
-    vec2 cardUv = (corner * vTrailUvCrop * 0.5) + vec2(0.5);
+    return (corner * vTrailUvCrop * 0.5) + vec2(0.5);
 #elif S_PARTICLE_INSTANCED == 1
     // u runs with the corner, v against it
-    vec2 cardUv = vec2((corner.x + 1.0) * 0.5, (1.0 - corner.y) * 0.5);
+    return vec2((corner.x + 1.0) * 0.5, (1.0 - corner.y) * 0.5);
 #else
     // A rope's card is mirrored across its width, so u runs against the corner as v does
-    vec2 cardUv = (vec2(1.0) - corner) * 0.5;
+    return (vec2(1.0) - corner) * 0.5;
 #endif
+}
 
+// The sequence the first layer and the motion vectors play in x, the one later layers play in y.
+vec2 PlayedSequences()
+{
 #if S_PARTICLE_INSTANCED
-    float sequence = vTEXCOORD1.x;
-    float laterSequence = vTEXCOORD1.y;
+    return vTEXCOORD1;
 #else
     // A rope plays the first sequence of every layer's sheet
-    float sequence = 0.0;
-    float laterSequence = 0.0;
+    return vec2(0.0);
 #endif
+}
 
+// The coordinate the layers without a sheet are placed from.
+vec2 SheetlessCardUv(vec2 cardUv)
+{
+    vec2 layerUv = cardUv;
+
+#if S_PARTICLE_INSTANCED == 0
     // A rope with no sheet on any layer takes V from its length instead of the card coordinate. Once
     // any layer has a sheet, the layers without one keep the card coordinate too.
-    vec2 layerUv = cardUv;
-#if S_PARTICLE_INSTANCED == 0
     if (!uAnyLayerHasSheet && uRopeVMapping.y > 0.0)
     {
         float ropeV = (vTEXCOORD1.z + uRopeVMapping.x) * uRopeVMapping.y;
@@ -544,10 +555,16 @@ void main(void) {
     }
 #endif
 
-    // The per particle modes read the alpha before the fades and the radius before the size clamp. A
-    // trail hands over the tail's and no rotation; a rope hands over those of the particle its segment
-    // starts at.
+    return layerUv;
+}
+
+// The per particle modes read the alpha before the fades and the radius before the size clamp. A
+// trail hands over the tail's and no rotation; a rope hands over those of the particle its segment
+// starts at.
+ParticleInputs GetParticleInputs()
+{
     ParticleInputs inputs;
+
 #if S_PARTICLE_INSTANCED == 1
     inputs.Alpha = vCOLOR.a;
     inputs.Radius = vTEXCOORD3.w;
@@ -562,55 +579,65 @@ void main(void) {
     inputs.Rotation = vTEXCOORD3.xyz;
 #endif
 
-    for (int layer = 0; layer <= S_TEXTURE_LAYERS; ++layer)
+    return inputs;
+}
+
+// The first layer, which alone decides how far the card shrinks to its art.
+struct FirstLayer
+{
+    // The coordinates in the current frame in xy and the next frame in zw
+    vec4 Uvs;
+    vec2 CropPull;
+    float Blend;
+};
+
+FirstLayer PlaceFirstLayer(vec2 layerUv, vec2 cardUv, float sequence, float sheetRate, ParticleInputs inputs)
+{
+    FirstLayer first;
+    first.Uvs = PlaceOffSheet(layerUv, 0, inputs).xyxy;
+    first.CropPull = vec2(0.0);
+    first.Blend = NO_FRAME_BLEND;
+
+    if (!LayerHasSheet(0))
     {
-        vLayerControlsOut[layer] = LayerControls(layer, inputs);
+        return first;
     }
 
-    // The motion vectors play at the first layer's rate
-    float firstSheetRate = LayerSheetRate(0, inputs);
+    SheetFrame frame = FetchSheetFrame(uLayerSheet[0], sequence, sheetRate);
+    vec4 placed = PlaceInSheet(cardUv, frame.Blend, LayerFrameZoom(0), uLayerUvScaleOffset[0]);
 
-    // The first layer, which alone decides how far the card shrinks to its art
-    vec2 cropPull = vec2(0.0);
-    vec4 firstUvs = PlaceOffSheet(layerUv, 0, inputs).xyxy;
-    float firstBlend = NO_FRAME_BLEND;
-
-    if (LayerHasSheet(0))
+    if (uCropFrames)
     {
-        SheetFrame frame = FetchSheetFrame(uLayerSheet[0], sequence, firstSheetRate);
-        vec4 placed = PlaceInSheet(cardUv, frame.Blend, LayerFrameZoom(0), uLayerUvScaleOffset[0]);
-
-        if (uCropFrames)
-        {
-            // Each corner is pulled towards the card centre until its coordinate reaches the edge of
-            // the art. The corner and its coordinate move by the same pull, so with a scale other
-            // than 1 the art lands at a different size and place than the scale alone would put it.
-            vec4 direction = CropPullDirection(placed);
+        // Each corner is pulled towards the card centre until its coordinate reaches the edge of
+        // the art. The corner and its coordinate move by the same pull, so with a scale other
+        // than 1 the art lands at a different size and place than the scale alone would put it.
+        vec4 direction = CropPullDirection(placed);
 #if S_PARTICLE_INSTANCED == 1
-            vec2 edge = mix(frame.Window.zw, frame.Window.xy, step(0.0, direction.xy));
+        vec2 edge = mix(frame.Window.zw, frame.Window.xy, step(0.0, direction.xy));
 #else
-            // A trail or a rope is only cropped to the art across its width. Along it the pull stops
-            // at the edge of the tile, so a coordinate inside the tile is not pulled, and the
-            // geometry is only narrowed.
-            vec2 edge = mix(vec2(frame.Window.z, 1.0), vec2(frame.Window.x, 0.0), step(0.0, direction.xy));
+        // A trail or a rope is only cropped to the art across its width. Along it the pull stops
+        // at the edge of the tile, so a coordinate inside the tile is not pulled, and the
+        // geometry is only narrowed.
+        vec2 edge = mix(vec2(frame.Window.z, 1.0), vec2(frame.Window.x, 0.0), step(0.0, direction.xy));
 #endif
 
-            cropPull = clamp((edge - placed.xy) / direction.xy, 0.0, 1.0);
-            placed += direction * cropPull.xyxy;
-        }
-
-        firstUvs = ResolveInTiles(frame, placed);
-        firstBlend = frame.Blend;
+        first.CropPull = clamp((edge - placed.xy) / direction.xy, 0.0, 1.0);
+        placed += direction * first.CropPull.xyxy;
     }
 
-    vTexCoordOut = firstUvs.xy;
-    vTexCoordNextFrameOut = firstUvs.zw;
+    first.Uvs = ResolveInTiles(frame, placed);
+    first.Blend = frame.Blend;
 
+    return first;
+}
+
+// Writes the coordinates of the later layers, which play the second sequence. Those with a sheet follow the
+// first layer's crop; those without keep the uncropped card coordinate. Returns the second layer's frame blend.
+float WriteLaterLayerUvs(vec2 layerUv, vec2 cardUv, float laterSequence, vec2 cropPull, ParticleInputs inputs)
+{
     float secondBlend = NO_FRAME_BLEND;
 
 #if S_TEXTURE_LAYERS > 0
-    // Later layers play the second sequence. Those with a sheet follow the first layer's crop; those
-    // without keep the uncropped card coordinate.
     for (int layer = 1; layer <= S_TEXTURE_LAYERS; ++layer)
     {
         vec4 uvs = PlaceOffSheet(layerUv, layer, inputs).xyxy;
@@ -633,8 +660,13 @@ void main(void) {
     }
 #endif
 
+    return secondBlend;
+}
+
+// The motion vectors play the first layer's sequence, rate, zoom and placement in their own sheet
+void WriteMotionVectorUvs(vec4 firstUvs, vec2 cardUv, float sequence, float firstSheetRate, vec2 cropPull)
+{
 #if S_MOTION_VECTORS
-    // The motion vectors play the first layer's sequence, rate, zoom and placement in their own sheet
     vMotionVectorUvOut = firstUvs;
 
     // TODO: Which coordinates the motion vectors take when they have no sheet is not known; they follow the first layer
@@ -647,94 +679,190 @@ void main(void) {
         vMotionVectorUvOut = ResolveInTiles(frame, placed);
     }
 #endif
+}
 
-    vFrameBlendOut = vec2(firstBlend, secondBlend);
-
+// The vertex colour, gamma corrected unless it is already linear.
+vec4 CardColor(vec2 corner)
+{
 #if S_PARTICLE_INSTANCED == 2
     // The head is the end the ribbon runs towards, which the along axis points away from
     bool isHead = corner.y < 0.0;
 
     vec3 colorScale = isHead ? uTrailHeadColorScale : uTrailTailColorScale;
     float alpha = isHead ? vCOLOR.a : vPOSITION.w;
-    vColor = vec4(saturate(vCOLOR.rgb * colorScale), alpha);
+    vec4 color = vec4(saturate(vCOLOR.rgb * colorScale), alpha);
 #else
-    vColor = vCOLOR;
+    vec4 color = vCOLOR;
 #endif
 
     if (uGammaCorrectVertexColors)
     {
-        vColor.rgb = SrgbGammaToLinear(vColor.rgb);
+        color.rgb = SrgbGammaToLinear(color.rgb);
     }
 
+    return color;
+}
+
+void CardCenterAndRadius(vec2 corner, out vec3 center, out float radius)
+{
 #if S_PARTICLE_INSTANCED == 1
-    vec3 center = vPOSITION;
-    float radius = vTEXCOORD3.w;
+    center = vPOSITION;
+    radius = vTEXCOORD3.w;
 #elif S_PARTICLE_INSTANCED == 2
     // Each end is faded and clamped by its own half width and its own distance from the camera
-    vec3 center = vPOSITION.xyz + (vAxisV.xyz * corner.y);
-    float radius = isHead ? vAxisU.w : vAxisV.w;
-#else
-    vec3 center = vPOSITION - (vAxisU * vTEXCOORD3.w);
-    float radius = vTEXCOORD3.w;
-#endif
+    bool isHead = corner.y < 0.0;
 
+    center = vPOSITION.xyz + (vAxisV.xyz * corner.y);
+    radius = isHead ? vAxisU.w : vAxisV.w;
+#else
+    center = vPOSITION - (vAxisU * vTEXCOORD3.w);
+    radius = vTEXCOORD3.w;
+#endif
+}
+
+// Returns the weight of U, which the fragment shader divides back out.
+float WeightRibbonUvs(float radius)
+{
 #if S_PARTICLE_INSTANCED == 1
-    vUvWeightOut = 1.0;
+    return 1.0;
 #else
     // A ribbon's ends can differ in width, down to a point where it tapers to nothing. Weighting U by
     // the half width at each end, before the size clamp, keeps every slice across the ribbon spanning
     // the whole of U rather than squeezing the texture towards the narrow end.
-    vUvWeightOut = uAlphaReference ? 1.0 : radius;
-    vTexCoordOut.x *= vUvWeightOut;
-    vTexCoordNextFrameOut.x *= vUvWeightOut;
+    float weight = uAlphaReference ? 1.0 : radius;
+    vTexCoordOut.x *= weight;
+    vTexCoordNextFrameOut.x *= weight;
 
 #if S_TEXTURE_LAYERS > 0
     for (int layer = 0; layer < S_TEXTURE_LAYERS; ++layer)
     {
-        vLayerUvOut[layer].xz *= vUvWeightOut;
+        vLayerUvOut[layer].xz *= weight;
     }
 #endif
-#endif
 
+    return weight;
+#endif
+}
+
+// Applies the view angle fade, then the distance fade and size clamp, which resizes the radius.
+vec4 FadeCard(vec4 color, vec3 center, inout float radius)
+{
     if (uViewAngleFade)
     {
-        vColor.a *= ViewAngleFade(vNORMAL, center);
+        color.a *= ViewAngleFade(vNORMAL, center);
     }
 
     if (uSizeClampAndFade)
     {
         float cameraDistance = length(g_vCameraPositionWs - center);
 
-        vColor = DistanceFade(vColor, radius, cameraDistance);
+        color = DistanceFade(color, radius, cameraDistance);
         radius = ClampSize(radius, cameraDistance);
     }
 
+    return color;
+}
+
+vec3 CardWorldPosition(vec2 corner, vec3 center, float radius, float alpha, vec2 cropPull)
+{
 #if S_PARTICLE_INSTANCED == 1
     // A card with next to no alpha left is collapsed to nothing
-    if (vColor.a < (1.0 / 255.0))
+    if (alpha < (1.0 / 255.0))
     {
         radius = 0.0;
     }
 
     // The crop shrinks the card before the centre offset moves it
     vec2 croppedCorner = corner * (vec2(1.0) - (cropPull * 2.0));
-    vec3 positionWs = center
-        + (((vAxisU * (croppedCorner.x + uCenterOffset.x)) + (vAxisV * (croppedCorner.y + uCenterOffset.y))) * radius);
 
-    cardUv = vec2((croppedCorner.x + 1.0) * 0.5, (1.0 - croppedCorner.y) * 0.5);
+    return center
+        + (((vAxisU * (croppedCorner.x + uCenterOffset.x)) + (vAxisV * (croppedCorner.y + uCenterOffset.y))) * radius);
 #elif S_PARTICLE_INSTANCED == 2
     // The crop narrows the ribbon but keeps its length
     float across = corner.x * (1.0 - (cropPull.x * 2.0));
-    vec3 positionWs = center + (vAxisU.xyz * (across * radius));
+
+    return center + (vAxisU.xyz * (across * radius));
 #else
     // The crop narrows the strip but keeps its length
-    vec3 positionWs = center + (vAxisU * (radius * (1.0 - (cropPull.x * 2.0))));
+    return center + (vAxisU * (radius * (1.0 - (cropPull.x * 2.0))));
 #endif
+}
+
+// The card coordinate of the vertex, which a cropped sprite card takes from its shrunk corner.
+vec2 CroppedCardUv(vec2 corner, vec2 cardUv, vec2 cropPull)
+{
+#if S_PARTICLE_INSTANCED == 1
+    vec2 croppedCorner = corner * (vec2(1.0) - (cropPull * 2.0));
+
+    return vec2((croppedCorner.x + 1.0) * 0.5, (1.0 - croppedCorner.y) * 0.5);
+#else
+    return cardUv;
+#endif
+}
+
+// The clip position, with the depth taken from a point moved along the view direction by the depth bias.
+vec4 ProjectCard(vec3 positionWs)
+{
+    vec4 position = g_matWorldToProjection * vec4(positionWs, 1.0);
+
+    if (uDepthBias != 0.0)
+    {
+        vec4 biased = g_matWorldToProjection * vec4(positionWs + (g_vCameraDirWs * uDepthBias), 1.0);
+
+        // Rehomogenised against the unbiased w so only depth moves, then floored off the near plane
+        position.z = max(position.w * (biased.z / biased.w), min(0.001, position.z));
+    }
+
+    return position;
+}
+
+void main(void) {
+    vec2 corner = CardCorner();
+    vec2 cardUv = CardUvOfCorner(corner);
+
+    vec2 sequences = PlayedSequences();
+    float sequence = sequences.x;
+    float laterSequence = sequences.y;
+
+    vec2 layerUv = SheetlessCardUv(cardUv);
+
+    ParticleInputs inputs = GetParticleInputs();
+
+    for (int layer = 0; layer <= S_TEXTURE_LAYERS; ++layer)
+    {
+        vLayerControlsOut[layer] = LayerControls(layer, inputs);
+    }
+
+    // The motion vectors play at the first layer's rate
+    float firstSheetRate = LayerSheetRate(0, inputs);
+
+    FirstLayer first = PlaceFirstLayer(layerUv, cardUv, sequence, firstSheetRate, inputs);
+
+    vTexCoordOut = first.Uvs.xy;
+    vTexCoordNextFrameOut = first.Uvs.zw;
+
+    float secondBlend = WriteLaterLayerUvs(layerUv, cardUv, laterSequence, first.CropPull, inputs);
+
+    WriteMotionVectorUvs(first.Uvs, cardUv, sequence, firstSheetRate, first.CropPull);
+
+    vFrameBlendOut = vec2(first.Blend, secondBlend);
+
+    vColor = CardColor(corner);
+
+    vec3 center;
+    float radius;
+    CardCenterAndRadius(corner, center, radius);
+
+    vUvWeightOut = WeightRibbonUvs(radius);
+
+    vColor = FadeCard(vColor, center, radius);
+
+    vec3 positionWs = CardWorldPosition(corner, center, radius, vColor.a, first.CropPull);
 
     vAlphaReferenceOut = vec2(
         1.0 - PerParticleValue(uAlphaReferenceMode, ALPHA_REFERENCE_KEY, inputs),
         PerParticleValue(uAlphaRefWindowMode, ALPHA_REF_WINDOW_KEY, inputs));
-    vCardUvOut = cardUv;
+    vCardUvOut = CroppedCardUv(corner, cardUv, first.CropPull);
     vFragPosition = positionWs;
 
 #if (D_BAKED_LIGHTING_FROM_PROBE == 1)
@@ -746,13 +874,5 @@ void main(void) {
     ParticleLight_t light = CalculateParticleLighting(positionWs, -g_vCameraDirWs, 0.0, false);
     vLightOut = light.Ambient + light.Direct;
 
-    gl_Position = g_matWorldToProjection * vec4(positionWs, 1.0);
-
-    if (uDepthBias != 0.0)
-    {
-        vec4 biased = g_matWorldToProjection * vec4(positionWs + (g_vCameraDirWs * uDepthBias), 1.0);
-
-        // Rehomogenised against the unbiased w so only depth moves, then floored off the near plane
-        gl_Position.z = max(gl_Position.w * (biased.z / biased.w), min(0.001, gl_Position.z));
-    }
+    gl_Position = ProjectCard(positionWs);
 }

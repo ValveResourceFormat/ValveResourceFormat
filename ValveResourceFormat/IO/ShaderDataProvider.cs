@@ -813,9 +813,11 @@ namespace ValveResourceFormat.IO
                 5 => CreateBlendState(RsBlendMode.Zero, RsBlendMode.SrcColor),
                 6 => CreateBlendState(RsBlendMode.DestColor, RsBlendMode.InvSrcAlpha),
                 > 0 => GetPassBlendState(combos),
+                _ when shaderName == "vr_energy_field" && combos.GetValueOrDefault("F_TRANSLUCENT") == 3
+                    => CreateBlendState(RsBlendMode.SrcAlpha, RsBlendMode.One),
                 _ when combos.GetValueOrDefault("F_TRANSLUCENT") == 1
                     || combos.GetValueOrDefault("F_ADDITIVE_BLEND") == 1
-                    || TranslucentShaders.AsSpan().Contains(shaderName)
+                    || (TranslucentShaders.AsSpan().Contains(shaderName) && combos.GetValueOrDefault("F_OPAQUE_CUBEMAP_REFRACTION") != 1)
                     || material.IntAttributes.ContainsKey("mapbuilder.water") => GetPassBlendState(combos),
                 _ => new RsBlendStateDesc { AlphaToCoverageEnable = combos.GetValueOrDefault("F_ALPHA_TEST") > 0 },
             };

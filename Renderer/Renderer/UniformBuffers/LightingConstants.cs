@@ -11,6 +11,9 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// <summary>Maximum number of lights (static plus dynamic) supported per scene.</summary>
         public const int MAX_LIGHTS = 256;
 
+        /// <summary>Maximum number of per-pixel lights with a shadow map, as many as the games light per view.</summary>
+        public const int MAX_SHADOWED_DYNAMIC_LIGHTS = 16;
+
         /// <summary>UV scale applied when sampling the lightmap atlas.</summary>
         public Vector2 LightmapUvScale;
         /// <summary>Non-zero to shade reflections with each environment map's debug colour instead of its texture.</summary>
@@ -43,6 +46,15 @@ namespace ValveResourceFormat.Renderer.Buffers
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_LIGHTS)] public Vector4[] LightSpotInnerOuterCosines;
         /// <summary>Per-light falloff shaped like <c>g_vSingleLightFalloffParams</c>: linear (X) and quadratic (Y) attenuation, squared range cutoff (Z), zero-at-range bias (W).</summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_LIGHTS)] public Vector4[] LightFallOff;
+        /// <summary>
+        /// Per-light shadow and cookie data: the slot in <see cref="LightWorldToShadow"/> and <see cref="LightShadowOffsetScale"/> (X), -1 for none,
+        /// the slice of the light cookie volume (Y), -1 for none, and the reciprocal tangent of the outer cone angle (Z).
+        /// </summary>
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_LIGHTS)] public Vector4[] LightShadowParams;
+        /// <summary>Transform from world space to the shadow frustum of each shadowed dynamic light.</summary>
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_SHADOWED_DYNAMIC_LIGHTS)] public Matrix4x4[] LightWorldToShadow;
+        /// <summary>Shadow atlas offset (XY) and scale (ZW) of each shadowed dynamic light.</summary>
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_SHADOWED_DYNAMIC_LIGHTS)] public Vector4[] LightShadowOffsetScale;
 
         /// <summary>Environment map constants: highest mip level (X), number of cubes (Y), RGBM encoding bool (Z).</summary>
         public Vector4 EnvMapSizeConstants;
@@ -53,6 +65,18 @@ namespace ValveResourceFormat.Renderer.Buffers
         public Vector4 AmbientLightingSHG;
         /// <summary>Blue channel of the ambient lighting.</summary>
         public Vector4 AmbientLightingSHB;
+
+        /// <summary>Direction the directional ambient lighting is facing (XYZ), and how much the sun shadow darkens it (W).</summary>
+        public Vector4 AmbientDirection_ShadowAmount;
+        /// <summary>Linear color of the directional ambient lighting multiplied by its intensity, zero when there is none.</summary>
+        public Vector4 AmbientDirectionColor;
+
+        /// <summary>Direction the specular light travels (XYZ), and the exponent of its highlight (W).</summary>
+        public Vector4 SpecularDirection_Power;
+        /// <summary>Linear specular color whose highlight is added to the albedo before it is lit, zero when there is none.</summary>
+        public Vector4 SpecularAlbedoColor;
+        /// <summary>Linear specular color whose highlight is added after lighting where the sun reaches, zero when there is none.</summary>
+        public Vector4 SpecularLitColor;
 
         /// <summary>Gets or sets the number of lightmapped lights in the scene.</summary>
         public uint StaticLightCount { get => NumLights[0]; set => NumLights[0] = value; }
@@ -71,6 +95,10 @@ namespace ValveResourceFormat.Renderer.Buffers
             LightColor_Brightness = new Vector4[MAX_LIGHTS];
             LightSpotInnerOuterCosines = new Vector4[MAX_LIGHTS];
             LightFallOff = new Vector4[MAX_LIGHTS];
+            LightShadowParams = new Vector4[MAX_LIGHTS];
+            Array.Fill(LightShadowParams, new Vector4(-1f, -1f, 0f, 0f));
+            LightWorldToShadow = new Matrix4x4[MAX_SHADOWED_DYNAMIC_LIGHTS];
+            LightShadowOffsetScale = new Vector4[MAX_SHADOWED_DYNAMIC_LIGHTS];
         }
     }
 }

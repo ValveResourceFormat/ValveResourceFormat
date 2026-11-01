@@ -5,7 +5,7 @@
 
 in vec3 vPOSITION;
 
-#include "common/ViewConstants.slang"
+#include "common/view_constants.slang"
 
 flat out uint sceneObjectId;
 flat out uint meshletId;

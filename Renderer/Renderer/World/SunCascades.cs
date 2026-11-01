@@ -3,8 +3,8 @@ namespace ValveResourceFormat.Renderer.World;
 /// <summary>Sun shadow cascades fitted to a camera.</summary>
 public sealed class SunCascades
 {
-    /// <summary>Number of sun shadow cascades, the tightest first.</summary>
-    public const int Count = 2;
+    /// <summary>The most sun shadow cascades, the tightest first.</summary>
+    public const int Count = 3;
 
     /// <summary>Gets the orthographic camera of each cascade.</summary>
     public Camera[] Cameras { get; } = CreateCameras();
@@ -32,6 +32,10 @@ public sealed class SunCascades
     // inner cascade spends its equal resolution on close-up density instead of area.
     private static readonly float[] ExtentFractions = [1f / 8f, 1f / 1.2f];
 
+    // Three cascades double the base coverage, so the inner one stays as sharp as with two, a middle one
+    // covers what lies between, and the outer one reaches twice as far
+    private static readonly float[] ThreeCascadeExtentFractions = [1f / 16f, 1f / 4f, 1f / 1.2f];
+
     // Keeps the innermost cascade usable at low resolution settings, where the base
     // coverage is small enough that an eighth of it would hug the camera.
     private const float MinHalfExtent = 128f;
@@ -39,6 +43,15 @@ public sealed class SunCascades
     // The most the shadow bias may cover in world units. It is normalized depth, so a deep cascade, such as
     // one holding a 3D sky, would otherwise hide the shadows of anything close to what it falls on.
     private const float MaxWorldBias = 4f;
+
+    // The shadow bias of a scene fitted to its bounds, in shadow map texels
+    private const float SceneBoundsBiasTexels = 3f;
+
+    // The depth kept around the sphere a scene fitted to its bounds, as a fraction of its radius
+    private const float SceneBoundsDepthMargin = 0.1f;
+
+    // Radius steps a scene fitted to its bounds snaps to, in world units
+    private const float SceneBoundsQuantize = 8f;
 
     private readonly Vector3[] eyes = new Vector3[Count];
     private readonly float[] halfExtents = new float[Count];
@@ -63,7 +76,8 @@ public sealed class SunCascades
     /// <param name="camera">The camera to fit to.</param>
     /// <param name="shadowMapSize">The shadow map resolution.</param>
     /// <param name="skyScale">The scale of a 3D sky that casts, which widens the cascades, or 1 for none.</param>
-    public void Fit(Scene scene, Camera camera, float shadowMapSize, float skyScale)
+    /// <param name="cascadeCount">How many cascades to fit, 2 or 3.</param>
+    public void Fit(Scene scene, Camera camera, float shadowMapSize, float skyScale, int cascadeCount)
     {
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(camera);
@@ -74,7 +88,10 @@ public sealed class SunCascades
         var toSun = new Vector3(sun.LightingData.SunDirection.X, sun.LightingData.SunDirection.Y, sun.LightingData.SunDirection.Z);
         var sunDir = MathUtils.SafeNormalize(-toSun, Vector3.UnitX, 0.0001f);
 
-        var baseHalfExtent = Math.Max(shadowMapSize / 2.5f, 512f) * sun.SunLightShadowCoverageScale;
+        cascadeCount = Math.Clamp(cascadeCount, 2, Count);
+        var extentFractions = cascadeCount == 3 ? ThreeCascadeExtentFractions : ExtentFractions;
+
+        var baseHalfExtent = Math.Max(shadowMapSize / 2.5f, 512f) * sun.SunLightShadowCoverageScale * (cascadeCount == 3 ? 2f : 1f);
         var bias = 0.001f;
 
         // Shift each coverage square toward the view. A caster shares its light-space footprint
@@ -88,6 +105,7 @@ public sealed class SunCascades
         var sceneBoundsMode = false;
         var sceneEye = Vector3.Zero;
         var sceneHalfExtent = 0f;
+        var sceneFarPlane = 0f;
         var sceneNearPlaneExtend = 0f;
 
         if (sun.UseSceneBoundsForSunLightFrustum)
@@ -99,10 +117,18 @@ public sealed class SunCascades
 
             if (max > 0 && max < shadowMapSize)
             {
-                sceneNearPlaneExtend = max / 2f;
-                sceneEye = staticBounds.Center - sunDir * sceneNearPlaneExtend;
-                sceneHalfExtent = max * 1.6f;
-                bias = 0.01f;
+                // The bounding sphere fits the scene whichever way the sun points, and rounding its radius up
+                // keeps the fit from drifting with the bounds
+                var radius = MathF.Ceiling(sceneBounds.Size.Length() / 2f / SceneBoundsQuantize) * SceneBoundsQuantize;
+
+                // The eye sits at the sphere's edge toward the sun, with a margin of depth around it
+                sceneNearPlaneExtend = radius * SceneBoundsDepthMargin;
+                sceneEye = sceneBounds.Center - sunDir * radius;
+                sceneHalfExtent = radius;
+                sceneFarPlane = radius * (2f + SceneBoundsDepthMargin);
+
+                // A fixed number of texels, normalized by the depth range, keeps the bias small on a small scene
+                bias = SceneBoundsBiasTexels * 2f * radius / shadowMapSize / (sceneFarPlane + sceneNearPlaneExtend);
                 sceneBoundsMode = true;
                 fitsDepthToCasters = false;
             }
@@ -117,16 +143,16 @@ public sealed class SunCascades
         // When the whole scene already fits into the first cascade, the wider ones add nothing
         var singleCascade = sceneBoundsMode;
 
-        ActiveCount = singleCascade ? 1 : Count;
+        ActiveCount = singleCascade ? 1 : cascadeCount;
 
         for (var cascade = 0; cascade < Count; cascade++)
         {
-            if (singleCascade && cascade > 0)
+            if (cascade >= ActiveCount)
             {
                 // The shader falls through identical coordinates into the cleared outer layer,
                 // which reads fully lit, matching the single-frustum edge fade.
-                Cameras[cascade].CopyFrom(Cameras[0]);
-                biasOffsets[cascade] = biasOffsets[0];
+                Cameras[cascade].CopyFrom(Cameras[cascade - 1]);
+                biasOffsets[cascade] = biasOffsets[cascade - 1];
                 continue;
             }
 
@@ -138,7 +164,7 @@ public sealed class SunCascades
             if (sceneBoundsMode)
             {
                 bbox = sceneHalfExtent;
-                farPlane = bbox;
+                farPlane = sceneFarPlane;
                 nearPlaneExtend = sceneNearPlaneExtend;
                 eye = sceneEye;
             }
@@ -146,9 +172,9 @@ public sealed class SunCascades
             {
                 // A 3D sky is seen magnified, so both cascades widen with its scale. The outer one by half of it
                 // and the inner one by most of its square root, which keeps their sharpness from drifting too far apart.
-                var scale = MathF.Max(cascade == Count - 1 ? skyScale * 0.5f : MathF.Sqrt(skyScale) * 0.75f, 1f);
+                var scale = MathF.Max(cascade == ActiveCount - 1 ? skyScale * 0.5f : MathF.Sqrt(skyScale) * 0.75f, 1f);
 
-                bbox = MathF.Max(baseHalfExtent * ExtentFractions[cascade], MinHalfExtent) * scale;
+                bbox = MathF.Max(baseHalfExtent * extentFractions[cascade], MinHalfExtent) * scale;
                 farPlane = CullDepthRange * scale;
                 nearPlaneExtend = CullDepthRange * scale;
                 eye = camera.Location + forwardOnLightPlane * (bbox * ForwardShiftFraction);

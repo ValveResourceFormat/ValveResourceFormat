@@ -163,7 +163,7 @@ public class ShadowMapper
         => candidate.Light.BarnFaces.Length
             - BitOperations.PopCount(candidate.MaskCulledFaces & ((1u << candidate.Light.BarnFaces.Length) - 1u));
 
-    private static Vector4 ComputeShadowOffsetScale(ShadowAtlasRegion region, int atlasSize, ref Matrix4x4 shadowMatrix)
+    internal static Vector4 ComputeShadowOffsetScale(ShadowAtlasRegion region, int atlasSize, ref Matrix4x4 shadowMatrix)
     {
         var scale = new Vector2(region.Width, region.Height) / atlasSize * 0.5f;
         var offset = new Vector2(region.X + region.Width / 2f, region.Y + region.Height / 2f) / atlasSize;

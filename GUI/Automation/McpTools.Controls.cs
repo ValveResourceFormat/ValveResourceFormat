@@ -22,14 +22,16 @@ internal sealed partial class McpTools
     /// <summary>One change of <see cref="SetControls"/>.</summary>
     private sealed record ControlChange(string Name, string? Group = null, string? Item = null, JsonNode? Value = null);
 
-    [Tool("List the controls in a tab's sidebar and toolbar, top to bottom, each with its kind, group and state. Kinds are checkbox, toggle, dropdown, list (a checked list such as world layers or mesh groups), slider (0 to 1), and number (with its range). The others are vector (such as a material or animation graph parameter), button and text. The render mode dropdown is in the Toolbar group.")]
+    [Tool("List the controls in a tab's sidebar and toolbar, top to bottom, each with its kind, group and state. Kinds are checkbox, toggle, dropdown, list (a checked list such as world layers or mesh groups), tree (checked items by path, such as collision or auto vis groups, where an item checks the items below it), slider (0 to 1), and number (with its range). The others are vector (such as a material or animation graph parameter), button and text. The render mode dropdown is in the Toolbar group.")]
     private static List<object> ListControls(GLBaseControl viewer, [Description("Include the items of dropdowns and lists. An animation list can have hundreds.")] bool items = false)
         => SidebarControls(viewer).Select(control => DescribeControl(control, items)).ToList();
 
-    [Tool("Change sidebar or toolbar controls in order, as a user would. Stops at the first change that fails and keeps the changes before it. A choice that moves the camera, such as a map camera, moves it at once. Returns each changed control once.", Redraws = true)]
-    private static List<object> SetControls(
+    [Tool("Change sidebar or toolbar controls in order, as a user would. Stops at the first change that fails and keeps the changes before it. A choice that moves the camera, such as a map camera, moves it at once. Returns each changed control once in 'controls'. "
+        + "On a map, the Exposure slider sets a manual exposure of 10 times its value, even when the value is the current one, until the tab is reloaded. "
+        + "After a change to it, 'exposure' gives the mode, auto or manual, and the exposure value.", Redraws = true)]
+    private static object SetControls(
         GLBaseControl viewer,
-        [Description("'name' is the label from list_controls. Give 'group' only when two controls have the same label. 'item' is the list item to check. 'value' is true or false for a checkbox, toggle or list item, and the item text or index for a dropdown. It is a number for a slider or number, and a number array for a vector. Omit 'value' to press a button.")] List<ControlChange> changes)
+        [Description("'name' is the label from list_controls. Give 'group' only when two controls have the same label. 'item' is the list item, or the path of the tree item, such as 'Clip/Player Clip', to check. 'value' is true or false for a checkbox, toggle, list item or tree item, and the item text or index for a dropdown. It is a number for a slider or number, and a number array for a vector. Omit 'value' to press a button.")] List<ControlChange> changes)
     {
         var changed = new List<SidebarControl>();
 
@@ -52,8 +54,19 @@ internal sealed partial class McpTools
             }
         }
 
-        // A checked list item is reported through the list, so the list comes back with its items
-        return changed.Select(static control => DescribeControl(control, items: control.Control is CheckedListBox)).ToList();
+        object? exposure = null;
+
+        if (viewer is GLSceneViewer scene && changed.Exists(static control => control.Label == "Exposure"))
+        {
+            exposure = DescribeExposure(scene);
+        }
+
+        return new
+        {
+            // A checked item is reported through its list or tree, so that comes back with its items
+            Controls = changed.Select(static control => DescribeControl(control, items: control.Control is CheckedListBox or GLViewerTreeSelectionControl)).ToList(),
+            Exposure = exposure,
+        };
     }
 
     private static SidebarControl ApplyControl(GLBaseControl viewer, ControlChange change)
@@ -136,6 +149,20 @@ internal sealed partial class McpTools
                 }
 
                 list.SetItemChecked(index, Value<bool>("true or false"));
+                break;
+
+            case GLViewerTreeSelectionControl tree:
+                if (item == null)
+                {
+                    throw new ArgumentException($"Pass the path of the 'item' of '{name}' to change.");
+                }
+
+                if (!tree.SetChecked(item, Value<bool>("true or false")))
+                {
+                    var paths = string.Join(", ", tree.Items.Select(static treeItem => treeItem.Path));
+                    throw new ToolException($"'{name}' has no item '{item}'. Its items are: {paths}.");
+                }
+
                 break;
 
             case ComboBox comboBox when value?.GetValueKind() == JsonValueKind.Number:
@@ -235,6 +262,7 @@ internal sealed partial class McpTools
     {
         CheckBox => "checkbox",
         CheckedListBox => "list",
+        GLViewerTreeSelectionControl => "tree",
         ComboBox => "dropdown",
         Slider => "slider",
         ThemedFloatNumeric or ThemedIntNumeric => "number",
@@ -256,10 +284,11 @@ internal sealed partial class McpTools
         _ => null,
     };
 
-    /// <summary>The items of a dropdown or checked list, or null for any other control.</summary>
+    /// <summary>The items of a dropdown, checked list or tree, or null for any other control.</summary>
     private static object? ListItems(Control input) => input switch
     {
         CheckedListBox list => ListItems(list),
+        GLViewerTreeSelectionControl tree => tree.Items.ToDictionary(static item => item.Path, static item => item.IsChecked),
         ComboBox comboBox => ListItems(comboBox),
         _ => null,
     };

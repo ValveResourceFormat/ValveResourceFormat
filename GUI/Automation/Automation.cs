@@ -23,6 +23,9 @@ internal static class Automation
     public static bool IsEnabled => false;
 #endif
 
+    /// <summary>Prepended to the window title, so a viewer driven by an agent stands out from the others.</summary>
+    public static string WindowTitlePrefix => Port == null ? string.Empty : string.Create(CultureInfo.InvariantCulture, $"[MCP:{Port}] ");
+
     /// <summary>
     /// Removes <c>--mcp</c> or <c>--mcp=port</c> from <paramref name="args"/> before anything else
     /// reads them. The switch is then never forwarded to another instance or opened as a file.

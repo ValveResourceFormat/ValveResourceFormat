@@ -3,7 +3,7 @@
 #ifndef VRF_ENVMAP_DATA_INCLUDE
 #define VRF_ENVMAP_DATA_INCLUDE
 
-#include "features.slang"
+#include "shared_combos.slang"
 #include "utils.slang"
 
 struct EnvMapData
@@ -19,6 +19,10 @@ struct EnvMapData
     vec3 Color;
     int AssociatedLPV; // The light probe volume sharing its handshake, -1 when none
     vec4 NormalizationSH;
+    vec3 ProjectionMins; // The box a box projected reflection hits, in local space
+    float InvRadius; // Of the influence sphere
+    vec3 ProjectionMaxs;
+    uint _padding2;
 };
 
 // Maximum number of environment maps supported
@@ -44,7 +48,7 @@ float GetEnvMapEdgeFade(EnvMapData envData, vec3 positionWs, vec3 envMapLocalPos
     vec3 fadeFromMin = saturate((envMapLocalPos - envData.BoxMins) * envData.InvEdgeWidth.xyz);
     vec3 fadeFromMax = saturate((envData.BoxMaxs - envMapLocalPos) * envData.InvEdgeWidth.xyz);
 
-    return min(min3(fadeFromMin), min3(fadeFromMax));
+    return min(Min3(fadeFromMin), Min3(fadeFromMax));
 }
 
 #endif

@@ -24,7 +24,8 @@ static class ErrorReport
     /// </summary>
     /// <param name="exception">The exception to report.</param>
     /// <param name="context">What was being done when the exception happened, such as a file path.</param>
-    public static void ShowError(Exception exception, string? context = null)
+    /// <param name="owner">The window to show the dialog over, only when called on that window's thread.</param>
+    public static void ShowError(Exception exception, string? context = null, IWin32Window? owner = null)
     {
         Log.Error(nameof(ErrorReport), context == null ? exception.ToString() : $"Failed on \"{context}\": {exception}");
 
@@ -33,7 +34,7 @@ static class ErrorReport
 
         var text = context == null ? exception.Message : $"{exception.Message}{Environment.NewLine}{context}";
 
-        ShowDialog(GetHeading(exception), text, report.ToString());
+        ShowDialog(GetHeading(exception), text, report.ToString(), owner);
     }
 
     /// <summary>
@@ -108,7 +109,8 @@ static class ErrorReport
     /// <param name="heading">The bold line above the text.</param>
     /// <param name="text">The body text, which is followed by advice based on the update state.</param>
     /// <param name="report">The text in the expander, which the copy and report buttons place on the clipboard.</param>
-    public static void ShowDialog(string heading, string text, string report)
+    /// <param name="owner">The window to show the dialog over, only when called on that window's thread.</param>
+    public static void ShowDialog(string heading, string text, string report, IWin32Window? owner = null)
     {
         if (Automation.Automation.TryReportError($"{heading}: {text}{Environment.NewLine}{report}"))
         {
@@ -172,7 +174,11 @@ static class ErrorReport
         TaskDialogButton result;
 
         // Owning it from another thread would tie that thread's input to the UI thread, which may be the one that is stuck
-        if (hasMainForm && !mainForm.InvokeRequired)
+        if (owner != null)
+        {
+            result = TaskDialog.ShowDialog(owner, page);
+        }
+        else if (hasMainForm && !mainForm.InvokeRequired)
         {
             result = TaskDialog.ShowDialog(Form.ActiveForm ?? mainForm, page);
         }

@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Linq;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Helpers;
@@ -41,7 +42,7 @@ internal sealed class EntityHelperOwner : IHelperOwner
 
     public Matrix4x4 RigidTransform => entity.RigidTransform;
 
-    public string LayerName => entity.LayerName ?? string.Empty;
+    public ImmutableArray<WorldLayer> Layers => entity.Layers;
 
     /// <summary>Gets or sets the node the helpers stand in for the entity with, which the entity took as its own.</summary>
     public SceneNode? StandIn { get; set; }
@@ -70,16 +71,15 @@ internal sealed class EntityHelperOwner : IHelperOwner
 
     public void AddNode(SceneNode node, bool followsEntity = false)
     {
-        // The game draws a compiled map, so the shapes only the editor draws are never on the layer of the entity
-        if (node is ToolSceneNode && node.LayerName == null)
+        // The game draws a compiled map, so the shapes only the editor draws are never shown with the entity alone
+        if (node is ToolSceneNode && node.Layers.Length == 0)
         {
-            node.LayerName = HammerEntityVisuals.MarkerLayerName;
+            node.Layers = [HammerEntityVisuals.MarkerLayer];
         }
 
-        // What a template spawns stays grouped with it, at the size it has in the map
-        if (entity.LayerName == WorldLoader.TemplateLayerName && node.LayerName is HammerEntityVisuals.MarkerLayerName)
+        // What a template spawns is shown at the size it has in the map
+        if (entity.Layers.Contains(WorldLayer.Templates) && node.Layers.Contains(HammerEntityVisuals.MarkerLayer))
         {
-            node.LayerName = WorldLoader.TemplateLayerName;
             node.KeepsMarkerSize = false;
         }
 

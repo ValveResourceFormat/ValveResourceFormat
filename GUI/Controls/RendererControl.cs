@@ -433,10 +433,11 @@ partial class RendererControl : UserControl
         return selectionControl.ComboBox;
     }
 
-    public CheckedListBox AddMultiSelection(string name, Action<CheckedListBox>? initializeCallback, Action<IEnumerable<string>> changeCallback, int? height = null)
+    public CheckedListBox AddMultiSelection<T>(string name, Action<CheckedListBox>? initializeCallback, Action<IEnumerable<T>> changeCallback, int? height = null)
         => AddMultiSelectionControl(name, initializeCallback, changeCallback, height).CheckedListBox;
 
-    public GLViewerMultiSelectionControl AddMultiSelectionControl(string name, Action<CheckedListBox>? initializeCallback, Action<IEnumerable<string>> changeCallback, int? height = null)
+    // The items of the list are of one type, which the callback is given the checked ones as
+    public GLViewerMultiSelectionControl AddMultiSelectionControl<T>(string name, Action<CheckedListBox>? initializeCallback, Action<IEnumerable<T>> changeCallback, int? height = null)
     {
         var selectionControl = new GLViewerMultiSelectionControl(name);
 
@@ -454,9 +455,9 @@ partial class RendererControl : UserControl
         selectionControl.CheckedListBox.ItemCheck += (_, e) =>
         {
             // Manually calculate the new checked items since ItemCheck is called before CheckedItems is updated
-            if (selectionControl.CheckedListBox.Items[e.Index] is string changedItem)
+            if (selectionControl.CheckedListBox.Items[e.Index] is T changedItem)
             {
-                var checkedItems = selectionControl.CheckedListBox.CheckedItems.OfType<string>().ToHashSet();
+                var checkedItems = selectionControl.CheckedListBox.CheckedItems.OfType<T>().ToHashSet();
 
                 if (e.NewValue == CheckState.Checked)
                 {

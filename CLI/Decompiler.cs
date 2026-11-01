@@ -1068,6 +1068,11 @@ namespace CLI
                 return;
             }
 
+            ProcessResource(path, stream, originalPath, fileLoader, package);
+        }
+
+        private void ProcessResource(string path, Stream stream, string? originalPath, IFileLoader? fileLoader, Package? package)
+        {
             using var resource = new Resource
             {
                 FileName = path,
@@ -1106,34 +1111,7 @@ namespace CLI
                     outputFileLoader.FindGameFromResource(resource);
 
                     path = Path.ChangeExtension(path, extension);
-                    var outFilePath = GetOutputPath(path);
-
-                    if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
-                    {
-                        outFilePath = Path.ChangeExtension(outFilePath, GltfExportFormat);
-                        Directory.CreateDirectory(Path.GetDirectoryName(outFilePath)!);
-
-                        CreateGltfExporter(outputFileLoader).Export(resource, outFilePath);
-                        Interlocked.Increment(ref WrittenFiles);
-
-                        Console.WriteLine("--- Dump written to \"{0}\"", outFilePath);
-                        return;
-                    }
-
-                    using var contentFile = DecompileResource(resource, outputFileLoader);
-
-                    var extensionNew = Path.GetExtension(outFilePath);
-                    if (extensionNew.Length == 0 || extensionNew[1..] != extension)
-                    {
-                        lock (ConsoleWriterLock)
-                        {
-                            Console.ForegroundColor = ConsoleColor.Yellow;
-                            Console.WriteLine($"Extension '.{extension}' might be more suitable than the one provided '{extensionNew}'");
-                            Console.ResetColor();
-                        }
-                    }
-
-                    DumpContentFile(outFilePath, contentFile, singleFileOutput: !OutputIsDirectory);
+                    ExtractResource(resource, outputFileLoader, path, extension);
                     return;
                 }
             }
@@ -1147,6 +1125,43 @@ namespace CLI
                 return;
             }
 
+            PrintResourceInfo(resource, path, originalPath);
+        }
+
+        private void ExtractResource(Resource resource, GameFileLoader outputFileLoader, string path, string extension)
+        {
+            var outFilePath = GetOutputPath(path);
+
+            if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
+            {
+                outFilePath = Path.ChangeExtension(outFilePath, GltfExportFormat);
+                Directory.CreateDirectory(Path.GetDirectoryName(outFilePath)!);
+
+                CreateGltfExporter(outputFileLoader).Export(resource, outFilePath);
+                Interlocked.Increment(ref WrittenFiles);
+
+                Console.WriteLine("--- Dump written to \"{0}\"", outFilePath);
+                return;
+            }
+
+            using var contentFile = DecompileResource(resource, outputFileLoader);
+
+            var extensionNew = Path.GetExtension(outFilePath);
+            if (extensionNew.Length == 0 || extensionNew[1..] != extension)
+            {
+                lock (ConsoleWriterLock)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine($"Extension '.{extension}' might be more suitable than the one provided '{extensionNew}'");
+                    Console.ResetColor();
+                }
+            }
+
+            DumpContentFile(outFilePath, contentFile, singleFileOutput: !OutputIsDirectory);
+        }
+
+        private void PrintResourceInfo(Resource resource, string path, string? originalPath)
+        {
             lock (ConsoleWriterLock)
             {
                 // Highlight resource type line if undetermined
@@ -1502,241 +1517,285 @@ namespace CLI
 
             if (VerifyVPKChecksums)
             {
-                try
-                {
-                    package.Verify(new VerifyProgressPrinter());
-                }
-                catch (Exception e)
-                {
-                    LogException(e, path, originalPath);
-                }
-
+                VerifyPackage(package, path, originalPath);
                 return;
             }
 
             Debug.Assert(package.Entries != null);
 
-            if (OutputFile == null)
+            if (OutputFile != null)
             {
-                var orderedEntries = package.Entries.OrderByDescending(x => x.Value.Count).ThenBy(x => x.Key).ToList();
+                ExtractPackage(path, package);
+                return;
+            }
 
-                if (ExtFilterList != null)
+            var orderedEntries = GetOrderedEntries(package.Entries);
+
+            if (SearchQuery is { } query)
+            {
+                SearchPackage(package, orderedEntries.SelectMany(x => x.Value), packagePath, query);
+                return;
+            }
+
+            if (ListResources)
+            {
+                ListPackage(orderedEntries, packagePath);
+                return;
+            }
+
+            if (processVpkFiles)
+            {
+                ProcessPackageFiles(package, packagePath, orderedEntries, parentFileLoader);
+                return;
+            }
+
+            PrintPackageSummary(orderedEntries);
+        }
+
+        private void VerifyPackage(Package package, string path, string? originalPath)
+        {
+            try
+            {
+                package.Verify(new VerifyProgressPrinter());
+            }
+            catch (Exception e)
+            {
+                LogException(e, path, originalPath);
+            }
+        }
+
+        private List<KeyValuePair<string, List<PackageEntry>>> GetOrderedEntries(Dictionary<string, List<PackageEntry>> packageEntries)
+        {
+            var orderedEntries = packageEntries.OrderByDescending(x => x.Value.Count).ThenBy(x => x.Key).ToList();
+
+            if (ExtFilterList != null)
+            {
+                orderedEntries = orderedEntries.Where(x => MatchesExtensionFilter(x.Key)).ToList();
+            }
+            else if (CollectStats)
+            {
+                // Most supported files are matched by their extension, the others by their full name
+                orderedEntries = orderedEntries
+                    .Select(x => Package.PathComparer.Equals(x.Key, "vpk")
+                        ? KeyValuePair.Create(x.Key, RecursiveSearchArchives ? x.Value : [])
+                        : SupportedFileNamesRegex().IsMatch($".{x.Key}")
+                            ? x
+                            : KeyValuePair.Create(x.Key, x.Value.Where(entry => SupportedFileNamesRegex().IsMatch(entry.GetFileName())).ToList()))
+                    .Where(x => x.Value.Count > 0)
+                    .ToList();
+            }
+
+            return orderedEntries;
+        }
+
+        private void ListPackage(List<KeyValuePair<string, List<PackageEntry>>> orderedEntries, string packagePath)
+        {
+            var listEntries = orderedEntries.SelectMany(x => x.Value).OrderBy(entry => entry.GetFullPath(), StringComparer.Ordinal);
+
+            // When listing multiple packages, prefix each entry with the package it came from
+            var packagePrefix = IsInputFolder ? $"{GetDisplayPath(packagePath)}:" : string.Empty;
+
+            foreach (var (entry, _) in FilteredEntries(listEntries))
+            {
+                Console.WriteLine(OutputVPKDir
+                    ? $"{packagePrefix}{entry}"
+                    : $"{packagePrefix}{entry.GetFullPath()} CRC:{entry.CRC32:x10} size:{entry.TotalLength}");
+            }
+        }
+
+        private void PrintPackageSummary(List<KeyValuePair<string, List<PackageEntry>>> orderedEntries)
+        {
+            Console.WriteLine("--- Files in package:");
+
+            foreach (var entry in orderedEntries)
+            {
+                var count = HasPathFilter ? FilteredEntries(entry.Value).Count() : entry.Value.Count;
+
+                if (count > 0)
                 {
-                    orderedEntries = orderedEntries.Where(x => MatchesExtensionFilter(x.Key)).ToList();
+                    AnyFileMatched = true;
+                    Console.WriteLine($"\t{entry.Key}: {count} files");
                 }
-                else if (CollectStats)
+            }
+        }
+
+        private void ProcessPackageFiles(Package package, string packagePath, List<KeyValuePair<string, List<PackageEntry>>> orderedEntries, IFileLoader? parentFileLoader)
+        {
+            var queue = new ConcurrentQueue<PackageEntry>();
+
+            foreach (var entryGroup in orderedEntries)
+            {
+                foreach (var (entry, _) in FilteredEntries(entryGroup.Value))
                 {
-                    // Most supported files are matched by their extension, the others by their full name
-                    orderedEntries = orderedEntries
-                        .Select(x => Package.PathComparer.Equals(x.Key, "vpk")
-                            ? KeyValuePair.Create(x.Key, RecursiveSearchArchives ? x.Value : [])
-                            : SupportedFileNamesRegex().IsMatch($".{x.Key}")
-                                ? x
-                                : KeyValuePair.Create(x.Key, x.Value.Where(entry => SupportedFileNamesRegex().IsMatch(entry.GetFileName())).ToList()))
-                        .Where(x => x.Value.Count > 0)
-                        .ToList();
+                    queue.Enqueue(entry);
                 }
+            }
 
-                if (SearchQuery is { } query)
+            // The package itself was counted as one of the files to process
+            Interlocked.Add(ref TotalFiles, queue.Count - 1);
+
+            // Files in the package take priority over the game files, including for packages inside of this one
+            var fileLoader = parentFileLoader != null ? new PackageFirstFileLoader(package, parentFileLoader) : null;
+
+            if (MaxParallelismThreads > 1)
+            {
+                var tasks = new List<Task>();
+
+                for (var n = 0; n < MaxParallelismThreads; n++)
                 {
-                    SearchPackage(package, orderedEntries.SelectMany(x => x.Value), packagePath, query);
-                    return;
+                    tasks.Add(Task.Run(() => ProcessPackageEntryQueue(queue, package, packagePath, fileLoader)));
                 }
 
-                if (ListResources)
-                {
-                    var listEntries = orderedEntries.SelectMany(x => x.Value).OrderBy(entry => entry.GetFullPath(), StringComparer.Ordinal);
-
-                    // When listing multiple packages, prefix each entry with the package it came from
-                    var packagePrefix = IsInputFolder ? $"{GetDisplayPath(packagePath)}:" : string.Empty;
-
-                    foreach (var (entry, _) in FilteredEntries(listEntries))
-                    {
-                        Console.WriteLine(OutputVPKDir
-                            ? $"{packagePrefix}{entry}"
-                            : $"{packagePrefix}{entry.GetFullPath()} CRC:{entry.CRC32:x10} size:{entry.TotalLength}");
-                    }
-
-                    return;
-                }
-
-                if (processVpkFiles)
-                {
-                    var queue = new ConcurrentQueue<PackageEntry>();
-
-                    foreach (var entryGroup in orderedEntries)
-                    {
-                        foreach (var (entry, _) in FilteredEntries(entryGroup.Value))
-                        {
-                            queue.Enqueue(entry);
-                        }
-                    }
-
-                    // The package itself was counted as one of the files to process
-                    Interlocked.Add(ref TotalFiles, queue.Count - 1);
-
-                    // Files in the package take priority over the game files, including for packages inside of this one
-                    var fileLoader = parentFileLoader != null ? new PackageFirstFileLoader(package, parentFileLoader) : null;
-
-                    Stream OpenEntry(PackageEntry entry)
-                    {
-                        if (Package.PathComparer.Equals(entry.TypeName, "vpk"))
-                        {
-                            return package.OpenEntryStream(entry);
-                        }
-
-                        if (MaxParallelismThreads > 1)
-                        {
-                            return package.GetMemoryMappedStreamIfPossible(entry);
-                        }
-
-                        package.ReadEntry(entry, out var output);
-                        return new MemoryStream(output);
-                    }
-
-                    void ProcessPackageEntry(PackageEntry file)
-                    {
-                        Stream entryStream;
-
-                        // A damaged package can fail to read a single entry, which should not stop the others
-                        try
-                        {
-                            entryStream = OpenEntry(file);
-                        }
-                        catch (Exception e)
-                        {
-                            LogException(e, file.GetFullPath(), packagePath);
-                            return;
-                        }
-
-                        using (entryStream)
-                        {
-                            ProcessFile(file.GetFullPath(), entryStream, packagePath, fileLoader, package, file);
-                        }
-                    }
-
-                    if (MaxParallelismThreads > 1)
-                    {
-                        var tasks = new List<Task>();
-
-                        for (var n = 0; n < MaxParallelismThreads; n++)
-                        {
-                            tasks.Add(Task.Run(() =>
-                            {
-                                while (queue.TryDequeue(out var file))
-                                {
-                                    ProcessPackageEntry(file);
-                                }
-                            }));
-                        }
-
-                        Task.WhenAll(tasks).GetAwaiter().GetResult();
-                    }
-                    else
-                    {
-                        while (queue.TryDequeue(out var file))
-                        {
-                            ProcessPackageEntry(file);
-                        }
-                    }
-                }
-                else
-                {
-                    Console.WriteLine("--- Files in package:");
-
-                    foreach (var entry in orderedEntries)
-                    {
-                        var count = HasPathFilter ? FilteredEntries(entry.Value).Count() : entry.Value.Count;
-
-                        if (count > 0)
-                        {
-                            AnyFileMatched = true;
-                            Console.WriteLine($"\t{entry.Key}: {count} files");
-                        }
-                    }
-                }
+                Task.WhenAll(tasks).GetAwaiter().GetResult();
             }
             else
             {
-                if (!OutputIsDirectory && MatchesMultipleFiles(package))
+                ProcessPackageEntryQueue(queue, package, packagePath, fileLoader);
+            }
+        }
+
+        private void ProcessPackageEntryQueue(ConcurrentQueue<PackageEntry> queue, Package package, string packagePath, IFileLoader? fileLoader)
+        {
+            while (queue.TryDequeue(out var file))
+            {
+                ProcessPackageEntry(file, package, packagePath, fileLoader);
+            }
+        }
+
+        private void ProcessPackageEntry(PackageEntry file, Package package, string packagePath, IFileLoader? fileLoader)
+        {
+            Stream entryStream;
+
+            // A damaged package can fail to read a single entry, which should not stop the others
+            try
+            {
+                entryStream = OpenPackageEntry(package, file);
+            }
+            catch (Exception e)
+            {
+                LogException(e, file.GetFullPath(), packagePath);
+                return;
+            }
+
+            using (entryStream)
+            {
+                ProcessFile(file.GetFullPath(), entryStream, packagePath, fileLoader, package, file);
+            }
+        }
+
+        private Stream OpenPackageEntry(Package package, PackageEntry entry)
+        {
+            if (Package.PathComparer.Equals(entry.TypeName, "vpk"))
+            {
+                return package.OpenEntryStream(entry);
+            }
+
+            if (MaxParallelismThreads > 1)
+            {
+                return package.GetMemoryMappedStreamIfPossible(entry);
+            }
+
+            package.ReadEntry(entry, out var output);
+            return new MemoryStream(output);
+        }
+
+        private void ExtractPackage(string path, Package package)
+        {
+            Debug.Assert(package.Entries != null);
+
+            if (!OutputIsDirectory && MatchesMultipleFiles(package))
+            {
+                ReportError("Output path has a file extension, but more than one file matched. Use --vpk_filepath to match exactly one file, or end the output path with a path separator to write into a folder with that name.");
+                return;
+            }
+
+            Console.WriteLine("--- Dumping decompiled files...");
+
+            var manifestPath = string.Concat(path, ".manifest.txt");
+            var manifestData = ReadCachedManifest(manifestPath);
+
+            using var fileLoader = CreateGameFileLoader(package, package.FileName);
+
+            foreach (var type in package.Entries)
+            {
+                ProcessVPKEntries(path, package, fileLoader, type.Key, manifestData);
+            }
+
+            if (CachedManifest)
+            {
+                WriteCachedManifest(manifestPath, package, manifestData);
+            }
+        }
+
+        private const string CachedManifestVersionPrefix = "// s2v_version=";
+
+        private Dictionary<string, uint> ReadCachedManifest(string manifestPath)
+        {
+            var manifestData = new Dictionary<string, uint>();
+
+            if (!CachedManifest || !File.Exists(manifestPath))
+            {
+                return manifestData;
+            }
+
+            using var file = new StreamReader(manifestPath);
+            string? line;
+            var firstLine = true;
+            var goodCachedVersion = false;
+
+            while ((line = file.ReadLine()) != null)
+            {
+                var lineSpan = line.AsSpan();
+
+                if (firstLine)
                 {
-                    ReportError("Output path has a file extension, but more than one file matched. Use --vpk_filepath to match exactly one file, or end the output path with a path separator to write into a folder with that name.");
-                    return;
-                }
+                    firstLine = false;
 
-                Console.WriteLine("--- Dumping decompiled files...");
-
-                const string CachedManifestVersionPrefix = "// s2v_version=";
-                var manifestPath = string.Concat(path, ".manifest.txt");
-                var manifestData = new Dictionary<string, uint>();
-
-                if (CachedManifest && File.Exists(manifestPath))
-                {
-                    using var file = new StreamReader(manifestPath);
-                    string? line;
-                    var firstLine = true;
-                    var goodCachedVersion = false;
-
-                    while ((line = file.ReadLine()) != null)
+                    if (lineSpan.StartsWith(CachedManifestVersionPrefix))
                     {
-                        var lineSpan = line.AsSpan();
+                        var oldVersion = lineSpan[CachedManifestVersionPrefix.Length..];
+                        var newVersion = typeof(Decompiler).Assembly.GetName().Version!.ToString();
 
-                        if (firstLine)
+                        goodCachedVersion = oldVersion.SequenceEqual(newVersion);
+
+                        if (!goodCachedVersion)
                         {
-                            firstLine = false;
-
-                            if (lineSpan.StartsWith(CachedManifestVersionPrefix))
-                            {
-                                var oldVersion = lineSpan[CachedManifestVersionPrefix.Length..];
-                                var newVersion = typeof(Decompiler).Assembly.GetName().Version!.ToString();
-
-                                goodCachedVersion = oldVersion.SequenceEqual(newVersion);
-
-                                if (!goodCachedVersion)
-                                {
-                                    break;
-                                }
-                            }
-                        }
-
-                        var space = lineSpan.IndexOf(' ');
-
-                        if (space > 0 && uint.TryParse(lineSpan[..space], CultureInfo.InvariantCulture, out var hash))
-                        {
-                            manifestData.Add(lineSpan[(space + 1)..].ToString(), hash);
+                            break;
                         }
                     }
-
-                    if (!goodCachedVersion)
-                    {
-                        Console.Error.WriteLine("Decompiler version changed, cached manifest will be ignored.");
-                        manifestData.Clear();
-                    }
                 }
 
-                using var fileLoader = CreateGameFileLoader(package, package.FileName);
+                var space = lineSpan.IndexOf(' ');
 
-                foreach (var type in package.Entries)
+                if (space > 0 && uint.TryParse(lineSpan[..space], CultureInfo.InvariantCulture, out var hash))
                 {
-                    ProcessVPKEntries(path, package, fileLoader, type.Key, manifestData);
+                    manifestData.Add(lineSpan[(space + 1)..].ToString(), hash);
                 }
+            }
 
-                if (CachedManifest)
+            if (!goodCachedVersion)
+            {
+                Console.Error.WriteLine("Decompiler version changed, cached manifest will be ignored.");
+                manifestData.Clear();
+            }
+
+            return manifestData;
+        }
+
+        private static void WriteCachedManifest(string manifestPath, Package package, Dictionary<string, uint> manifestData)
+        {
+            using var file = new StreamWriter(manifestPath);
+
+            file.WriteLine($"{CachedManifestVersionPrefix}{typeof(Decompiler).Assembly.GetName().Version}");
+
+            foreach (var hash in manifestData)
+            {
+                if (package.FindEntry(hash.Key) == null)
                 {
-                    using var file = new StreamWriter(manifestPath);
-
-                    file.WriteLine($"{CachedManifestVersionPrefix}{typeof(Decompiler).Assembly.GetName().Version}");
-
-                    foreach (var hash in manifestData)
-                    {
-                        if (package.FindEntry(hash.Key) == null)
-                        {
-                            Console.WriteLine("\t{0} no longer exists in VPK", hash.Key);
-                        }
-
-                        file.WriteLine($"{hash.Value} {hash.Key}");
-                    }
+                    Console.WriteLine("\t{0} no longer exists in VPK", hash.Key);
                 }
+
+                file.WriteLine($"{hash.Value} {hash.Key}");
             }
         }
 

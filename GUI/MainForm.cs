@@ -1,6 +1,7 @@
 //#define SCREENSHOT_MODE // Uncomment to hide version, keep title bar static, set an exact window size
 
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -17,7 +18,11 @@ using ValvePak;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.TextureDecoders;
 using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.UI.Controls;
+using Windows.Win32.UI.Shell;
 using Windows.Win32.UI.WindowsAndMessaging;
+using IViewer = GUI.Types.Viewers.IViewer;
 using ResourceViewMode = GUI.Types.Viewers.ResourceViewMode;
 
 namespace GUI
@@ -35,6 +40,8 @@ namespace GUI
         private Ipc.IpcWindow? ipcWindow;
         private IDisposable? automationServer;
 #pragma warning restore CA2213
+        private uint TaskbarButtonCreatedMessage;
+        private ITaskbarList3? Taskbar;
 
         static MainForm()
         {
@@ -306,9 +313,82 @@ namespace GUI
         /// <summary>Automation renders and captures without focus, so it does not take the foreground.</summary>
         protected override bool ShowWithoutActivation => Automation.Automation.IsEnabled;
 
+        private void OnTaskbarButtonCreated()
+        {
+            if (Taskbar == null)
+            {
+                Taskbar = (ITaskbarList3)new TaskbarList();
+                Taskbar.HrInit();
+            }
+
+            if (Automation.Automation.IsEnabled)
+            {
+                SetTaskbarOverlay(AppIcons.Icons["McpBadge"], "MCP");
+                return;
+            }
+
+            UpdateTaskbarOverlay();
+        }
+
+        /// <summary>Badges the taskbar button with the game the selected tab was loaded from.</summary>
+        private void UpdateTaskbarOverlay()
+        {
+            if (Taskbar == null || Automation.Automation.IsEnabled)
+            {
+                return;
+            }
+
+            // The loader also finds the game of workshop items, and files opened from a package use the game of the package
+            if (mainTabs.SelectedTab?.Tag is ExportData { VrfGuiContext.GameInfo: { SteamAppId: not 0 } gameInfo }
+                && AppIcons.GameIcons.TryGetValue(gameInfo.SteamAppId, out var imageIndex))
+            {
+                SetTaskbarOverlay(imageIndex, gameInfo.Name);
+            }
+            else
+            {
+                SetTaskbarOverlay(default(HICON), null);
+            }
+        }
+
+        /// <summary>Badges the taskbar button with an icon from <see cref="AppIcons.ImageList"/>.</summary>
+        private void SetTaskbarOverlay(int imageIndex, string? description)
+        {
+            var icon = PInvoke.ImageList_GetIcon(new HIMAGELIST(AppIcons.ImageList.Handle), imageIndex, IMAGE_LIST_DRAW_STYLE.ILD_TRANSPARENT);
+
+            try
+            {
+                SetTaskbarOverlay(icon, description);
+            }
+            finally
+            {
+                PInvoke.DestroyIcon(icon);
+            }
+        }
+
+        /// <summary>The taskbar keeps its own copy of the icon, so the caller can free it right after.</summary>
+        private unsafe void SetTaskbarOverlay(HICON icon, string? description)
+        {
+            fixed (char* descriptionPtr = description)
+            {
+                Taskbar!.SetOverlayIcon((HWND)Handle, icon, descriptionPtr);
+            }
+        }
+
+        /// <summary>Finds the icon in <see cref="AppIcons.ImageList"/> of the Steam game that ships a VPK.</summary>
+        private static bool TryGetVpkGameIcon(string fileName, out int imageIndex)
+        {
+            imageIndex = -1;
+
+            return Path.GetExtension(fileName.AsSpan()).Equals(".vpk", StringComparison.OrdinalIgnoreCase)
+                && GameFolderLocator.FindSteamGameContainingPath(fileName, InstalledSteamGames.Games) is { } game
+                && AppIcons.GameIcons.TryGetValue(game.AppID, out imageIndex);
+        }
+
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
+
+            TaskbarButtonCreatedMessage = PInvoke.RegisterWindowMessage("TaskbarButtonCreated");
 
             var consoleTab = new ConsoleTab();
             Log.SetConsoleTab(consoleTab);
@@ -358,6 +438,9 @@ namespace GUI
             // another instance.
             if (Automation.Automation.IsEnabled)
             {
+                UpdateWindowTitle(null);
+                SetAutomationBorderColor();
+
                 if (Args.Length > 0)
                 {
                     OpenCommandLineArgFiles(Args);
@@ -473,13 +556,16 @@ namespace GUI
         {
             UpdateWindowTitle(mainTabs.SelectedTab?.ToolTipText);
             UpdateBottomPanelKeybindings();
+            UpdateTaskbarOverlay();
         }
 
         private void UpdateWindowTitle(string? toolTipText)
         {
-            Text = string.IsNullOrEmpty(toolTipText)
+            var title = string.IsNullOrEmpty(toolTipText)
                 ? "Source 2 Viewer"
                 : $"Source 2 Viewer - {toolTipText}";
+
+            Text = Automation.Automation.WindowTitlePrefix + title;
         }
 
         /// <summary>
@@ -636,6 +722,7 @@ namespace GUI
 
                 var canExport = thisTab.Tag is ExportData exportData;
                 toolStripSeparator5.Visible = canExport || tabIndex == 0;
+                copyTabUrlToolStripMenuItem.Visible = canExport;
                 exportAsIsToolStripMenuItem.Visible = canExport;
                 decompileExportToolStripMenuItem.Visible = canExport;
 
@@ -755,67 +842,7 @@ namespace GUI
                 VrfGuiContext = vrfGuiContext,
             };
 
-            var tabTemp = new ThemedTabPage(Path.GetFileName(vrfGuiContext.FileName))
-            {
-                ToolTipText = vrfGuiContext.FileName,
-                Tag = tabExportData,
-            };
-            var tab = tabTemp;
-            tab.Disposed += OnTabDisposed;
-
-            void OnTabDisposed(object? sender, EventArgs e)
-            {
-                tab.Disposed -= OnTabDisposed;
-
-                var oldTag = tab.Tag;
-                tab.Tag = null;
-
-                if (oldTag is ExportData exportData)
-                {
-                    // Contents first: disposing them cancels loading and waits for it, and the context
-                    // disposes the resources that loading is still reading until it does
-                    exportData.DisposableContents?.Dispose();
-                    exportData.VrfGuiContext.Dispose();
-                }
-            }
-
-            try
-            {
-                tab.ToolTipText = vrfGuiContext.OpenedFromPath;
-
-                var extension = Path.GetExtension(vrfGuiContext.FileName.AsSpan());
-
-                if (MemoryExtensions.Equals(extension, ".vpk", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (GameFolderLocator.FindSteamGameContainingPath(vrfGuiContext.FileName, InstalledSteamGames.Games) is { } game
-                        && AppIcons.GameIcons.TryGetValue(game.AppID, out var imageIndexGame))
-                    {
-                        tab.ImageIndex = imageIndexGame;
-                    }
-                }
-
-                if (tab.ImageIndex < 0)
-                {
-                    if (extension.Length > 0)
-                    {
-                        extension = extension[1..];
-                    }
-
-                    tab.ImageIndex = AppIcons.GetImageIndexForExtension(extension);
-                }
-
-                if (!isPreview)
-                {
-                    mainTabs.TabPages.Insert(mainTabs.SelectedIndex + 1, tab);
-                    mainTabs.SelectTab(tab);
-                }
-
-                tabTemp = null;
-            }
-            finally
-            {
-                tabTemp?.Dispose();
-            }
+            var tab = CreateFileTab(vrfGuiContext, tabExportData, isPreview);
 
             if (isPreview)
             {
@@ -851,7 +878,7 @@ namespace GUI
                 }
             }
 
-            Types.Viewers.IViewer? createdViewer = null;
+            IViewer? createdViewer = null;
             Exception? createError = null;
 
             var taskLoad = Task.Run(() =>
@@ -872,17 +899,7 @@ namespace GUI
 
                 t.Exception?.Flatten().Handle(ex =>
                 {
-                    BeginInvoke(() =>
-                    {
-                        if (tab.IsDisposed)
-                        {
-                            return;
-                        }
-
-                        var control = CodeTextBox.CreateFromException(ex, vrfGuiContext.DisplayPath);
-
-                        tab.Controls.Add(control);
-                    });
+                    ShowLoadException(tab, vrfGuiContext.DisplayPath, ex);
 
                     return false;
                 });
@@ -897,55 +914,7 @@ namespace GUI
 
                     try
                     {
-                        var viewer = t.Result;
-
-                        if (tab.IsDisposed)
-                        {
-                            viewer.Dispose();
-                            return; // closed tab before it loaded
-                        }
-
-                        if (tab.Tag is ExportData exportData)
-                        {
-                            exportData.DisposableContents = viewer;
-                        }
-                        else
-                        {
-                            Debug.Assert(false);
-                        }
-
-                        try
-                        {
-                            viewer.Create(tab);
-                        }
-                        catch (Exception) when (tab.IsDisposed)
-                        {
-                            return;
-                        }
-                        catch (Exception ex)
-                        {
-                            createError = ex;
-
-                            var control = CodeTextBox.CreateFromException(ex, vrfGuiContext.DisplayPath);
-
-                            tab.Controls.Add(control);
-
-                            // Controls the viewer added before throwing would otherwise cover the error
-                            control.BringToFront();
-                            return;
-                        }
-
-                        if (tab.IsDisposed)
-                        {
-                            return;
-                        }
-
-                        createdViewer = viewer;
-
-                        if (mainTabs.SelectedTab == tab)
-                        {
-                            UpdateBottomPanelKeybindings();
-                        }
+                        createdViewer = CreateViewerInTab(tab, vrfGuiContext.DisplayPath, t.Result, out createError);
                     }
                     finally
                     {
@@ -963,17 +932,7 @@ namespace GUI
                 {
                     try
                     {
-                        BeginInvoke(() =>
-                        {
-                            if (tab.IsDisposed)
-                            {
-                                return;
-                            }
-
-                            var control = CodeTextBox.CreateFromException(ex, vrfGuiContext.DisplayPath);
-
-                            tab.Controls.Add(control);
-                        });
+                        ShowLoadException(tab, vrfGuiContext.DisplayPath, ex);
 
                         return false;
                     }
@@ -1022,11 +981,146 @@ namespace GUI
                     // the viewer to redraw now that it is visible.
                     createdViewer?.NotifyVisible();
 
+                    // The game is only known once the search paths are loaded
+                    UpdateTaskbarOverlay();
+
                     tabExportData.SetLoaded(loadError);
                 });
             });
 
             return tab;
+        }
+
+        private ThemedTabPage CreateFileTab(VrfGuiContext vrfGuiContext, ExportData tabExportData, bool isPreview)
+        {
+            var tabTemp = new ThemedTabPage(Path.GetFileName(vrfGuiContext.FileName))
+            {
+                ToolTipText = vrfGuiContext.FileName,
+                Tag = tabExportData,
+            };
+            var tab = tabTemp;
+            tab.Disposed += OnTabDisposed;
+
+            void OnTabDisposed(object? sender, EventArgs e)
+            {
+                tab.Disposed -= OnTabDisposed;
+
+                var oldTag = tab.Tag;
+                tab.Tag = null;
+
+                if (oldTag is ExportData exportData)
+                {
+                    // Contents first: disposing them cancels loading and waits for it, and the context
+                    // disposes the resources that loading is still reading until it does
+                    exportData.DisposableContents?.Dispose();
+                    exportData.VrfGuiContext.Dispose();
+                }
+            }
+
+            try
+            {
+                tab.ToolTipText = vrfGuiContext.OpenedFromPath;
+
+                var extension = Path.GetExtension(vrfGuiContext.FileName.AsSpan());
+
+                if (TryGetVpkGameIcon(vrfGuiContext.FileName, out var imageIndexGame))
+                {
+                    tab.ImageIndex = imageIndexGame;
+                }
+
+                if (tab.ImageIndex < 0)
+                {
+                    if (extension.Length > 0)
+                    {
+                        extension = extension[1..];
+                    }
+
+                    tab.ImageIndex = AppIcons.GetImageIndexForExtension(extension);
+                }
+
+                if (!isPreview)
+                {
+                    mainTabs.TabPages.Insert(mainTabs.SelectedIndex + 1, tab);
+                    mainTabs.SelectTab(tab);
+                }
+
+                tabTemp = null;
+            }
+            finally
+            {
+                tabTemp?.Dispose();
+            }
+
+            return tab;
+        }
+
+        private void ShowLoadException(TabPage tab, string displayPath, Exception exception)
+        {
+            BeginInvoke(() =>
+            {
+                if (tab.IsDisposed)
+                {
+                    return;
+                }
+
+                var control = CodeTextBox.CreateFromException(exception, displayPath);
+
+                tab.Controls.Add(control);
+            });
+        }
+
+        /// <summary>Hands the loaded viewer to the tab and creates its controls, returning the viewer when it is ready to show.</summary>
+        private IViewer? CreateViewerInTab(TabPage tab, string displayPath, IViewer viewer, out Exception? createError)
+        {
+            createError = null;
+
+            if (tab.IsDisposed)
+            {
+                viewer.Dispose();
+                return null; // closed tab before it loaded
+            }
+
+            if (tab.Tag is ExportData exportData)
+            {
+                exportData.DisposableContents = viewer;
+            }
+            else
+            {
+                Debug.Assert(false);
+            }
+
+            try
+            {
+                viewer.Create(tab);
+            }
+            catch (Exception) when (tab.IsDisposed)
+            {
+                return null;
+            }
+            catch (Exception ex)
+            {
+                createError = ex;
+
+                var control = CodeTextBox.CreateFromException(ex, displayPath);
+
+                tab.Controls.Add(control);
+
+                // Controls the viewer added before throwing would otherwise cover the error
+                control.BringToFront();
+                return null;
+            }
+
+            if (tab.IsDisposed)
+            {
+                return null;
+            }
+
+            if (mainTabs.SelectedTab == tab)
+            {
+                UpdateBottomPanelKeybindings();
+            }
+
+            return viewer;
         }
 
         private void MainForm_DragDrop(object sender, DragEventArgs e)

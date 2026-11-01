@@ -264,17 +264,32 @@ namespace ValveResourceFormat.Renderer
                         continue;
                     }
 
-                    boundLocations |= 1 << attributeLocation;
+                    BindAttribute(attributeLocation, attribute, bindingIndex);
 
-                    GL.EnableVertexArrayAttrib(newVaoHandle, attributeLocation);
-                    GL.VertexArrayAttribBinding(newVaoHandle, attributeLocation, bindingIndex);
-                    VertexArray.SetAttribFormat(newVaoHandle, attributeLocation, attribute.Format, (int)attribute.Offset);
+                    foreach (var aliasLocation in VertexAttributeLocations.ResolveAliases(inputSignature, attribute, attributeLocation))
+                    {
+                        if ((boundLocations & (1 << aliasLocation)) != 0)
+                        {
+                            continue;
+                        }
+
+                        BindAttribute(aliasLocation, attribute, bindingIndex);
+                    }
                 }
 
                 bindingIndex++;
             }
 
             return newVaoHandle;
+
+            void BindAttribute(int location, VBIB.RenderInputLayoutField attribute, int binding)
+            {
+                boundLocations |= 1 << location;
+
+                GL.EnableVertexArrayAttrib(newVaoHandle, location);
+                GL.VertexArrayAttribBinding(newVaoHandle, location, binding);
+                VertexArray.SetAttribFormat(newVaoHandle, location, attribute.Format, (int)attribute.Offset);
+            }
         }
 
         private VertexDrawBuffer[] AddMissingAttributes(VertexDrawBuffer[] vertexBuffers)

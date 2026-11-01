@@ -2,11 +2,11 @@
 
 #include "common/utils.slang"
 #include "common/fullbright.slang"
-#include "common/ViewConstants.slang"
+#include "common/view_constants.slang"
 #include "common/fog.slang"
 
 #include "common/texturing.slang"
-#include "common/lighting.particle.slang"
+#include "common/lighting_particle.slang"
 
 #define renderMode_Color 0
 #define renderMode_Normals 0
@@ -52,7 +52,7 @@ const float toolTextureScale = 0.0625;
 
 uniform bool g_bNormalShaded;
 uniform bool g_bHasToolTexture;
-uniform sampler2D g_tColor; // SrgbRead(true)
+uniform sampler2D g_tColor; // SrgbRead(true) RepresentativeTexture
 
 #if (D_LINES == 1)
     // The average linear color of g_tColor, which lines take in place of its pattern

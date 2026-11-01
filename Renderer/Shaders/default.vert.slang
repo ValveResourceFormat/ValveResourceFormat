@@ -4,7 +4,7 @@ in vec3 vPOSITION;
 in vec4 vCOLOR;
 out vec4 vtxColor;
 
-#include "common/ViewConstants.slang"
+#include "common/view_constants.slang"
 #include "common/instancing.slang"
 
 void main(void) {

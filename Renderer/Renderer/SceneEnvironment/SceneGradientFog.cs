@@ -1,3 +1,4 @@
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -38,6 +39,12 @@ public class SceneGradientFog(Scene scene) : SceneNode(scene)
     public float MaxOpacity { get; set; }
 
     /// <summary>
+    /// Gets or sets the texture of the fog color and opacity over the distance and the height, or <see langword="null"/>
+    /// when the entity has none. The shaders that fog with a texture ignore the color, exponents and opacity above.
+    /// </summary>
+    public RenderTexture? Texture { get; set; }
+
+    /// <summary>
     /// Returns a <see cref="Vector4"/> encoding the distance bias, height bias, distance scale, and height scale for shader use.
     /// </summary>
     /// <param name="fogSpace">Converts authored distances and heights into the view's space.</param>
@@ -73,13 +80,16 @@ public class SceneGradientFog(Scene scene) : SceneNode(scene)
     /// <summary>Gets the color scaled by strength and the max opacity packed as a <see cref="Vector4"/>.</summary>
     public Vector4 Color_Opacity => new(Color * Strength, MaxOpacity);
 
-    /// <summary>Gets the squared start distance and height start packed as a <see cref="Vector2"/> for GPU culling.</summary>
+    /// <summary>
+    /// Gets the squared start distance and the culling height packed as a <see cref="Vector2"/> for GPU culling.
+    /// The culling height is where the height term reaches zero.
+    /// </summary>
     /// <param name="fogSpace">Converts authored distances and heights into the view's space.</param>
     public Vector2 CullingParams(FogSpace fogSpace)
     {
         var startDist = fogSpace.Distance(StartDist);
 
-        return new Vector2(startDist * startDist, fogSpace.Height(HeightStart));
+        return new Vector2(startDist * startDist, fogSpace.Height(HeightEnd));
     }
 
     /// <summary>Creates the fog an <c>env_gradient_fog</c> entity describes.</summary>
@@ -106,7 +116,14 @@ public class SceneGradientFog(Scene scene) : SceneNode(scene)
         var color = entity.GetColor32Property("fogcolor");
         var maxOpacity = entity.GetFloatProperty("fogmaxopacity");
 
-        if (!useHeightFog && !useHeightFog2)
+        if (!useHeightFog && entity.ContainsKey("heightfog"))
+        {
+            // Height fog turned off leaves the height term at 1 and the rest of the fog as authored
+            startHeight = 0f;
+            endHeight = 0f;
+            heightExponent = 0f;
+        }
+        else if (!useHeightFog && !useHeightFog2)
         {
             heightExponent = 1.0f; // Need the value for Robot Repair
             startHeight = startDist; // Assuming it's similar to the horizontal distances
@@ -125,8 +142,18 @@ public class SceneGradientFog(Scene scene) : SceneNode(scene)
             distExponent = 2.0f; // Need the value for SteamVR
         }
 
+        RenderTexture? texture = null;
+        var textureName = entity.GetStringProperty("gradientfogtexture");
+
+        if (!string.IsNullOrEmpty(textureName))
+        {
+            texture = scene.RendererContext.MaterialLoader.GetTexture(textureName, srgbRead: true);
+            texture.SetWrapMode(RsTextureAddressMode.Clamp);
+        }
+
         return new SceneGradientFog(scene)
         {
+            Texture = texture,
             StartDist = startDist,
             EndDist = endDist,
             FalloffExponent = distExponent,

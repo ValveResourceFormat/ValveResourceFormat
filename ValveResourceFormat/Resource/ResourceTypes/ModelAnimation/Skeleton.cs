@@ -26,7 +26,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public Bone[] Bones { get; private set; } = [];
 
         /// <summary>
-        /// Gets the root bone for cloth simulation, if present.
+        /// Gets the root bone for cloth simulation, if present. Cloth roots follow it when their control node
+        /// reaches no animated bone of its own.
         /// </summary>
         public Bone? ClothSimulationRoot { get; private set; }
 

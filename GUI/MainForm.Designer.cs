@@ -72,6 +72,7 @@ namespace GUI
             closeToolStripMenuItemsToLeft = new ThemedToolStripMenuItem();
             muteTabToolStripMenuItem = new ThemedToolStripMenuItem();
             toolStripSeparator5 = new ToolStripSeparator();
+            copyTabUrlToolStripMenuItem = new ThemedToolStripMenuItem();
             exportAsIsToolStripMenuItem = new ThemedToolStripMenuItem();
             decompileExportToolStripMenuItem = new ThemedToolStripMenuItem();
             clearConsoleToolStripMenuItem = new ThemedToolStripMenuItem();
@@ -282,7 +283,7 @@ namespace GUI
             // 
             tabContextMenuStrip.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
             tabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(24, 24);
-            tabContextMenuStrip.Items.AddRange(new ToolStripItem[] { closeToolStripMenuItem, closeOtherTabsToolStripMenuItem, closeToolStripMenuItems, closeToolStripMenuItemsToRight, closeToolStripMenuItemsToLeft, muteTabToolStripMenuItem, toolStripSeparator5, exportAsIsToolStripMenuItem, decompileExportToolStripMenuItem, clearConsoleToolStripMenuItem });
+            tabContextMenuStrip.Items.AddRange(new ToolStripItem[] { closeToolStripMenuItem, closeOtherTabsToolStripMenuItem, closeToolStripMenuItems, closeToolStripMenuItemsToRight, closeToolStripMenuItemsToLeft, muteTabToolStripMenuItem, toolStripSeparator5, copyTabUrlToolStripMenuItem, exportAsIsToolStripMenuItem, decompileExportToolStripMenuItem, clearConsoleToolStripMenuItem });
             tabContextMenuStrip.LayoutStyle = ToolStripLayoutStyle.Table;
             tabContextMenuStrip.Name = "contextMenuStrip1";
             tabContextMenuStrip.Size = new System.Drawing.Size(226, 208);
@@ -342,7 +343,15 @@ namespace GUI
             // 
             toolStripSeparator5.Name = "toolStripSeparator5";
             toolStripSeparator5.Size = new System.Drawing.Size(222, 6);
-            // 
+            //
+            // copyTabUrlToolStripMenuItem
+            //
+            copyTabUrlToolStripMenuItem.Name = "copyTabUrlToolStripMenuItem";
+            copyTabUrlToolStripMenuItem.Size = new System.Drawing.Size(225, 22);
+            copyTabUrlToolStripMenuItem.SVGImageResourceName = "GUI.Icons.CopyURL.svg";
+            copyTabUrlToolStripMenuItem.Text = "Copy URL";
+            copyTabUrlToolStripMenuItem.Click += CopyTabUrlToolStripMenuItem_Click;
+            //
             // exportAsIsToolStripMenuItem
             // 
             exportAsIsToolStripMenuItem.Name = "exportAsIsToolStripMenuItem";
@@ -705,6 +714,7 @@ namespace GUI
         private MainFormBottomPanel mainFormBottomPanel;
         private ThemedToolStripMenuItem validateShadersToolStripMenuItem;
         private ToolStripSeparator toolStripSeparator5;
+        private ThemedToolStripMenuItem copyTabUrlToolStripMenuItem;
     }
 }
 

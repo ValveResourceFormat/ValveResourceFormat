@@ -1,0 +1,10 @@
+#version 460
+
+// BLENDING
+#define F_ALPHA_TEST 0
+#define F_TRANSLUCENT 0
+// TEXTURING
+#define F_TINT_MASK 0
+#define F_SELF_ILLUM 0
+uniform int F_DETAIL_TEXTURE;
+#define F_ENABLE_ADJUSTMENTS 0

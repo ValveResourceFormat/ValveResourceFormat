@@ -1,7 +1,7 @@
 #version 460
 
 #include "common/utils.slang"
-#include "common/ViewConstants.slang"
+#include "common/view_constants.slang"
 
 layout (local_size_x = 8, local_size_y = 8) in;
 
@@ -52,7 +52,7 @@ void main()
         bvec3 valid = lessThanEqual(texel.rgb, vec3(65504.0));
         vec3 s = mix(vec3(0.0), clamp(texel.rgb, vec3(0.0), vec3(65504.0)), valid);
         // Karis average: weight by inverse luminance to reduce fireflies
-        resolved += s * (invNumSamples / (max3(s) + 1.0));
+        resolved += s * (invNumSamples / (Max3(s) + 1.0));
 
 #if D_DOF == 1
         lowestDepth = min(texelFetch(g_tSceneDepthMsaa, sampleCoord, i).x, lowestDepth);
@@ -62,7 +62,7 @@ void main()
     }
 
     // Inverse Karis tonemap
-    resolved *= 1.0 / (1.0 - max3(resolved));
+    resolved *= 1.0 / (1.0 - Max3(resolved));
 
 #if D_DOF == 1
     vec2 sampleUV = (vec2(coord) + 0.5) * g_vInvViewportSize.xy;

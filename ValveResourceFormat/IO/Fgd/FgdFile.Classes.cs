@@ -41,13 +41,12 @@ public sealed partial class FgdFile
 
         if (tokens.Accept(":"))
         {
-            if (!ParseText(tokens, out var description))
-            {
-                Error(tokens, "Bad class description");
-                return false;
-            }
+            gameClass.Description = ParseText(tokens);
 
-            gameClass.Description = description;
+            if (tokens.Accept(":"))
+            {
+                gameClass.HelpLink = ParseText(tokens);
+            }
         }
 
         if (!tokens.Accept("["))
@@ -317,20 +316,24 @@ public sealed partial class FgdFile
     }
 
     // Strings joined by '+'. It ends without complaint where the next token is not a string.
-    private bool ParseText(FgdTokenizer tokens, out string text)
+    private static string ParseText(FgdTokenizer tokens)
     {
-        var builder = new StringBuilder();
-
-        text = string.Empty;
-
-        while (tokens.TryPeek(0, out var next) && next.IsString)
+        if (!tokens.TryReadString(out var first))
         {
-            if (!tokens.TryRead(out var part) || !part.IsString)
-            {
-                Error(tokens, "Expected a string literal for description");
-                return false;
-            }
+            return string.Empty;
+        }
 
+        var text = first.Unquote();
+
+        if (!tokens.Accept("+"))
+        {
+            return text;
+        }
+
+        var builder = new StringBuilder(text);
+
+        while (tokens.TryReadString(out var part))
+        {
             builder.Append(part.Unquote());
 
             if (!tokens.Accept("+"))
@@ -339,8 +342,7 @@ public sealed partial class FgdFile
             }
         }
 
-        text = builder.ToString();
-        return true;
+        return builder.ToString();
     }
 
     private bool ParseClassBody(FgdTokenizer tokens, FgdClass gameClass)
@@ -419,8 +421,8 @@ public sealed partial class FgdFile
             return false;
         }
 
-        // The game says what an api input or output takes
-        if (type.Is("api"))
+        // The game says what an api input or output takes. Some builds name it cpp
+        if (type.Is("api") || type.Is("cpp"))
         {
             if (tokens.PeekIs(0, "{") && !ParseInputOutputKeys(tokens, inputOutput))
             {
@@ -450,8 +452,7 @@ public sealed partial class FgdFile
 
         if (tokens.Accept(":"))
         {
-            ParseText(tokens, out var description);
-            inputOutput.Description = description;
+            inputOutput.Description = ParseText(tokens);
         }
 
         return true;
@@ -550,13 +551,7 @@ public sealed partial class FgdFile
                 return VariableResult.Failed;
             }
 
-            if (!ParseText(tokens, out var longName))
-            {
-                Error(tokens, "Bad variable long name");
-                return VariableResult.Failed;
-            }
-
-            variable.LongName = longName;
+            variable.LongName = ParseText(tokens);
 
             // Two colons in a row leave the default out
             if (tokens.Accept(":") && !tokens.PeekIs(0, ":") && !ParseDefault(tokens, variable))
@@ -566,13 +561,7 @@ public sealed partial class FgdFile
 
             if (tokens.Accept(":"))
             {
-                if (!ParseText(tokens, out var description))
-                {
-                    Error(tokens, "Bad variable description");
-                    return VariableResult.Failed;
-                }
-
-                variable.Description = description;
+                variable.Description = ParseText(tokens);
             }
         }
 
@@ -638,7 +627,8 @@ public sealed partial class FgdFile
             return false;
         }
 
-        if (!token.IsString && !token.IsInteger)
+        // Files written for other editors can give a number with a fraction without quotes
+        if (!token.IsString && !token.IsFloat)
         {
             Error(tokens, "Expected a string or integer as default value");
             return false;
@@ -758,7 +748,7 @@ public sealed partial class FgdFile
             return Invalid();
         }
 
-        if (variable.Type is FgdVariableType.Resource or FgdVariableType.ResourceName)
+        if (variable.Type is FgdVariableType.Resource or FgdVariableType.ResourceName or FgdVariableType.ResourceChoices)
         {
             foreach (var (name, extension) in ResourceSubTypes)
             {
@@ -790,10 +780,9 @@ public sealed partial class FgdFile
 
             var value = string.Empty;
 
-            if (tokens.Accept("=") && !ParseText(tokens, out value))
+            if (tokens.Accept("="))
             {
-                Error(tokens, "Expecting '=' after meta key");
-                return false;
+                value = ParseText(tokens);
             }
 
             if (key.Is("group") || key.Is("min") || key.Is("max") || key.Is("associated_key"))
@@ -855,36 +844,52 @@ public sealed partial class FgdFile
                 return false;
             }
 
-            ParseText(tokens, out var caption);
+            var caption = ParseText(tokens);
 
             if (!hasDefaults)
             {
-                var description = string.Empty;
+                var choiceDescription = string.Empty;
 
                 if (tokens.Accept(":"))
                 {
-                    ParseText(tokens, out description);
+                    choiceDescription = ParseText(tokens);
                 }
 
-                variable.Choices.Add(new FgdChoice { ValueText = valueText, Caption = caption, Description = description });
+                variable.Choices.Add(new FgdChoice { ValueText = valueText, Caption = caption, Description = choiceDescription });
                 continue;
             }
 
-            if (!tokens.Accept(":"))
+            var isFlags = type == FgdVariableType.Flags;
+
+            // Files written for other editors can leave out whether a flag is on
+            var isDefault = false;
+
+            if (tokens.Accept(":"))
+            {
+                if (!tokens.TryRead(out var defaultToken) || !defaultToken.IsInteger)
+                {
+                    Error(tokens, isFlags
+                        ? "Expected an integer default value after <description> ':'"
+                        : "Expected an integer default value after <friendlyName> ':'");
+                    return false;
+                }
+
+                isDefault = LeadingNumber.ParseInteger(defaultToken.Span) != 0;
+            }
+            else if (!isFlags)
             {
                 Error(tokens, "Expecting ':'");
                 return false;
             }
 
-            if (!tokens.TryRead(out var isDefault) || !isDefault.IsInteger)
+            var description = string.Empty;
+
+            if (tokens.Accept(":"))
             {
-                Error(tokens, type == FgdVariableType.Flags
-                    ? "Expected an integer default value after <description> ':'"
-                    : "Expected an integer default value after <friendlyName> ':'");
-                return false;
+                description = ParseText(tokens);
             }
 
-            if (type == FgdVariableType.Flags)
+            if (isFlags)
             {
                 var value = LeadingNumber.ParseInteger(valueText);
 
@@ -893,18 +898,12 @@ public sealed partial class FgdFile
                     Value = value,
                     ValueText = value.ToString(CultureInfo.InvariantCulture),
                     Caption = caption,
-                    IsDefault = LeadingNumber.ParseInteger(isDefault.Span) != 0,
+                    Description = description,
+                    IsDefault = isDefault,
                 });
             }
             else
             {
-                var description = string.Empty;
-
-                if (tokens.Accept(":"))
-                {
-                    ParseText(tokens, out description);
-                }
-
                 // A tag is listed once, and an empty one not at all
                 if (valueText.Length == 0 || variable.Choices.Exists(choice => choice.ValueText.Equals(valueText, StringComparison.OrdinalIgnoreCase)))
                 {
@@ -916,7 +915,7 @@ public sealed partial class FgdFile
                     ValueText = valueText,
                     Caption = caption,
                     Description = description,
-                    IsDefault = LeadingNumber.ParseInteger(isDefault.Span) != 0,
+                    IsDefault = isDefault,
                 });
             }
         }

@@ -27,17 +27,17 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
     /// Visibility layer of what the editor draws entities with that is hidden while it shows only what the game
     /// does, such as the boxes, icons and models entities stand in as. Turning it off is that option.
     /// </summary>
-    public const string MarkerLayerName = "Entities (editor only)";
+    public static readonly WorldLayer MarkerLayer = new("Entities (editor only)") { IsToolsOnly = true };
 
     /// <summary>Visibility layer of the lines along entity I/O connections.</summary>
-    public const string ConnectionsLayerName = "Entity Connections";
+    public static readonly WorldLayer ConnectionsLayer = new("Entity Connections") { IsToolsOnly = true };
 
     /// <summary>
     /// Visibility layer of the helpers the editor only draws while it shows helpers, such as lines to the
     /// entities an entity names, spheres of its radii and the edges of its volumes. Turning it off is that
     /// option, which also hides those helpers of a selected entity.
     /// </summary>
-    public const string HelpersLayerName = "Entity Helpers (editor only)";
+    public static readonly WorldLayer HelpersLayer = new("Entity Helpers (editor only)") { IsToolsOnly = true };
 
     private static readonly Color32 ConnectionStartColor = new(0, 255, 0);
     private static readonly Color32 ConnectionEndColor = new(255, 0, 0);
@@ -154,9 +154,42 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
         var fallbackMaterial = entity is BaseModelEntity { ModelNode: null } ? ToolsMaterials.Trigger : null;
 
         // A group built from a tools material is all the compiled map keeps of the faces Hammer drew with it
-        return PhysSceneNode.Create(scene, physics, name, group => autoApplyMaterial
-            ?? ToolsMaterials.GetForCollision(physics.CollisionAttributes[group])
-            ?? fallbackMaterial);
+        var drawsMeshes = entity is BaseModelEntity { ModelNode: not null };
+
+        var nodes = PhysSceneNode.Create(scene, physics, name, group =>
+        {
+            if (autoApplyMaterial != null)
+            {
+                return autoApplyMaterial;
+            }
+
+            var attributes = physics.CollisionAttributes[group];
+
+            // The collision of a prop compiles to the same attributes as a tools material of the default group
+            // that excludes a layer, so a model that draws meshes only traces back groups in a layer of their own
+            if (drawsMeshes && PhysAggregateData.GetInteractAsTags(attributes).Length == 0)
+            {
+                return null;
+            }
+
+            return ToolsMaterials.GetForCollision(attributes) ?? fallbackMaterial;
+        });
+
+        if (entity == null)
+        {
+            return nodes;
+        }
+
+        // Every class shares the trigger material, so its volumes show their class instead
+        foreach (var node in nodes)
+        {
+            if (node.ToolsMaterial?.Material.Name.Equals(ToolsMaterials.Trigger, StringComparison.OrdinalIgnoreCase) == true)
+            {
+                node.SetToolTexture(scene.RendererContext.MaterialLoader.GetTriggerTexture(entity.Classname));
+            }
+        }
+
+        return nodes;
     }
 
     /// <inheritdoc/>
@@ -251,7 +284,7 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
         var node = new ToolSceneNode(scene)
         {
             Name = name,
-            LayerName = ConnectionsLayerName,
+            Layers = [ConnectionsLayer],
         };
 
         node.Draw(context =>

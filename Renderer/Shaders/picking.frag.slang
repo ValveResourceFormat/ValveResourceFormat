@@ -2,7 +2,7 @@
 
 #pragma IgnoreMaterialData
 
-#include "common/ViewConstants.slang"
+#include "common/view_constants.slang"
 
 #define F_DEBUG_PICKER 0 // VRF: visualize picking IDs with colors
 

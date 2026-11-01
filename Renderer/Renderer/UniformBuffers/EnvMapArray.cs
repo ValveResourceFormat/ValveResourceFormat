@@ -30,6 +30,14 @@ namespace ValveResourceFormat.Renderer.Buffers
         public int AssociatedLPV;
         /// <summary>Spherical harmonics normalization coefficients.</summary>
         public Vector4 NormalizationSH;
+        /// <summary>Minimum corner of the box that a box projected reflection hits, in local space.</summary>
+        public Vector3 ProjectionMins;
+        /// <summary>Reciprocal of the radius of the influence sphere, which a sphere projected reflection is bent by.</summary>
+        public float InvRadius;
+        /// <summary>Maximum corner of the box that a box projected reflection hits, in local space.</summary>
+        public Vector3 ProjectionMaxs;
+        /// <summary>Padding to satisfy alignment requirements.</summary>
+        public uint Padding2;
     }
 
     /// <summary>

@@ -46,17 +46,34 @@ namespace GUI.Forms
             updateChannelComboBox.Items.AddRange(Enum.GetNames<Settings.UpdateChannel>());
             updateChannelComboBox.SelectedIndex = (int)Settings.Config.Update.Channel;
 
-            CheckForUpdates();
+            if (UpdateInstaller.InstalledVersionText != null)
+            {
+                OnUpdateChecked();
+                return;
+            }
+
+            CheckForUpdates(fetchAgain: true);
         }
 
-        private async void CheckForUpdates()
+        private async void CheckForUpdates(bool fetchAgain)
         {
-            newVersionLabel.Text = "Checking for updates…";
+            // The previous result stays visible until the check completes
+            if (UpdateChecker.NewVersionText != null)
+            {
+                OnUpdateChecked();
+            }
+            else
+            {
+                newVersionLabel.Text = "Checking for updates…";
+            }
+
+            downloadButton.Text = "Checking for updates…";
             downloadButton.Enabled = false;
 
             try
             {
-                await UpdateChecker.CheckForUpdates().ConfigureAwait(true);
+                var check = fetchAgain ? UpdateChecker.RecheckForUpdates() : UpdateChecker.CheckForUpdates();
+                await check.ConfigureAwait(true);
             }
             catch (Exception ex)
             {
@@ -66,6 +83,7 @@ namespace GUI.Forms
                 if (!IsDisposed)
                 {
                     newVersionLabel.Text = message;
+                    downloadButton.Text = "Not available";
                 }
 
                 return;
@@ -199,7 +217,7 @@ namespace GUI.Forms
 
             Settings.Config.Update.Channel = (Settings.UpdateChannel)updateChannelComboBox.SelectedIndex;
 
-            CheckForUpdates();
+            CheckForUpdates(fetchAgain: false);
         }
 
         /// <summary>

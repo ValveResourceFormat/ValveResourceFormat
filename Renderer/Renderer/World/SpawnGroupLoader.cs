@@ -45,14 +45,12 @@ internal sealed class SpawnGroupLoader
         // Created with the first map, before any of its entities so it owns them all
         entitySystem.SpawnWorld(group.Scene);
 
-        var layerName = group.LayerName ?? "Entities";
-
         if (group.EntityLumpName == null)
         {
             var mapEntities = world.ListMapEntities();
             group.Entities = world.Entities;
 
-            var spawned = SpawnEntities(mapEntities, layerName);
+            var spawned = SpawnEntities(mapEntities);
 
             // The placing map stores prefab lights once its lump is done
             if (world.OwnsScene)
@@ -89,7 +87,7 @@ internal sealed class SpawnGroupLoader
             var lumpEntities = world.ListLumpEntities(lump);
             group.Entities = lumpEntities;
 
-            return SpawnEntities(lumpEntities, layerName);
+            return SpawnEntities(lumpEntities);
         }
         finally
         {
@@ -101,7 +99,7 @@ internal sealed class SpawnGroupLoader
     /// Spawns the entities as the engine does: every entity is created, then the groups they place finish, then
     /// the group spawns and activates its own entities as one batch.
     /// </summary>
-    private List<BaseEntity> SpawnEntities(List<Entity> groupEntities, string layerName)
+    private List<BaseEntity> SpawnEntities(List<Entity> groupEntities)
     {
         static bool IsCubemapOrProbe(string cls)
             => cls == "env_combined_light_probe_volume"
@@ -129,7 +127,7 @@ internal sealed class SpawnGroupLoader
                 // The game creates no entity for one that places a map, other than the reference of a 3D sky. A
                 // stopped world still shows it, as the editor does.
                 if ((!placesMap || classname == "skybox_reference" || !entitySystem.Enabled)
-                    && CreateEntity(entity, layerName) is { } created)
+                    && entitySystem.CreateEntity(entity, group) is { } created)
                 {
                     batch.Add(created);
                 }
@@ -170,24 +168,6 @@ internal sealed class SpawnGroupLoader
         return batch;
     }
 
-    private BaseEntity? CreateEntity(Entity entity, string layerName)
-    {
-        var disabled = entity.GetBooleanProperty("startdisabled");
-
-        if (!disabled)
-        {
-            disabled = !entity.GetBooleanProperty("enabled", true);
-        }
-
-        if (disabled && layerName == "Entities")
-        {
-            layerName = WorldLoader.DisabledEntitiesLayerName;
-        }
-
-        // Every entity joins the entity system, so it can be named and targeted, and draws itself
-        return entitySystem.CreateEntity(entity, layerName, group);
-    }
-
     // Any class flagged ispointprefab places a map too, such as the CS2 team select and team intro stages.
     // A point_prefab with prefab_load_dynamic switched off places nothing.
     private static bool IsSpawnGroupPlacement(string classname, Entity entity)
@@ -224,6 +204,7 @@ internal sealed class SpawnGroupLoader
             DescriptiveName = "point_prefab",
             NameFixup = ChildNameFixup(placement),
             HasOwnScene = hasOwnScene,
+            Layers = group.Layers,
         };
 
         var isSky = hasOwnScene && classname == "skybox_reference";

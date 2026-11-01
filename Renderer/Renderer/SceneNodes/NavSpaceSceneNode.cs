@@ -11,6 +11,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private static readonly Color32 TransitionColor = new(255, 255, 0);
         private static readonly Color32 CellColor = new(240, 230, 140);
 
+        private static readonly WorldLayer BlocksLayer = new("Navigation space (blocks)");
+        private static readonly WorldLayer TransitionsLayer = new("Navigation space (transitions)");
+        private static readonly WorldLayer GridCellsLayer = new("Navigation space (grid cells)");
+
         private readonly Func<List<SimpleVertex>> buildLines;
 
         private NavSpaceSceneNode(Scene scene, AABB bounds, Func<List<SimpleVertex>> buildLines)
@@ -37,14 +41,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             var (sizeX, sizeY, sizeZ) = navSpaceFile.GridSize;
             var bounds = new AABB(navSpaceFile.Bounds.Min, navSpaceFile.Bounds.Min + new Vector3(sizeX, sizeY, sizeZ) * navSpaceFile.CellSize);
 
-            AddLayer(scene, "Navigation space (blocks)", bounds, () => BuildBlockLines(navSpaceFile));
+            AddLayer(scene, BlocksLayer, bounds, () => BuildBlockLines(navSpaceFile));
 
             if (navSpaceFile.Transitions.Length > 0)
             {
-                AddLayer(scene, "Navigation space (transitions)", bounds, () => BuildTransitionLines(navSpaceFile));
+                AddLayer(scene, TransitionsLayer, bounds, () => BuildTransitionLines(navSpaceFile));
             }
 
-            AddLayer(scene, "Navigation space (grid cells)", bounds, () => BuildCellLines(navSpaceFile));
+            AddLayer(scene, GridCellsLayer, bounds, () => BuildCellLines(navSpaceFile));
         }
 
         private static List<SimpleVertex> BuildBlockLines(NavSpaceFile navSpaceFile)
@@ -131,11 +135,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
-        private static void AddLayer(Scene scene, string layerName, AABB bounds, Func<List<SimpleVertex>> buildLines)
+        private static void AddLayer(Scene scene, WorldLayer layer, AABB bounds, Func<List<SimpleVertex>> buildLines)
         {
             scene.Add(new NavSpaceSceneNode(scene, bounds, buildLines)
             {
-                LayerName = layerName,
+                Layers = [layer],
             }, false);
         }
     }

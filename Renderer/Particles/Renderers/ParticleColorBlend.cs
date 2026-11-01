@@ -9,7 +9,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     /// </summary>
     internal static class ParticleColorBlend
     {
-        private static readonly Vector3 LuminanceWeights = new(0.2125f, 0.7154f, 0.0721f);
         private static readonly Vector3 White = new(255f);
 
         /// <summary>
@@ -49,7 +48,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 ParticleColorBlendType.PARTICLE_COLOR_BLEND_REPLACE => s,
                 ParticleColorBlendType.PARTICLE_COLOR_BLEND_AVERAGE => (c + s) * 0.5f,
                 ParticleColorBlendType.PARTICLE_COLOR_BLEND_NEGATE => White - (c * s),
-                ParticleColorBlendType.PARTICLE_COLOR_BLEND_LUMINANCE => Vector3.Dot(s, LuminanceWeights) * c,
+                ParticleColorBlendType.PARTICLE_COLOR_BLEND_LUMINANCE => MathUtils.Luminance(s) * c,
                 _ => c * s,
             };
 

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -70,15 +71,25 @@ public class SceneCubemapFog(Scene scene) : SceneNode(scene)
         Debug.Assert(CubemapFogTexture != null);
 
         var offset = 1f;
-        var scale = 0.000001f;
+        var scale = 0f;
         var exponent = 0f;
 
-        if (HeightEnd - HeightStart > 0) // width = 0 is a substitution for UseHeightFog
+        if (HasHeightRange)
         {
             var heightStart = fogSpace.Height(HeightStart);
+            var heightEnd = fogSpace.Height(HeightEnd);
 
-            scale = 1f / (heightStart - fogSpace.Height(HeightEnd));
-            offset = 1f - (heightStart * scale);
+            if (BlendsByMax)
+            {
+                scale = 1f / (heightEnd - heightStart);
+                offset = -(heightStart * scale);
+            }
+            else
+            {
+                scale = 1f / (heightStart - heightEnd);
+                offset = 1f - (heightStart * scale);
+            }
+
             exponent = HeightExponent;
         }
 
@@ -94,10 +105,29 @@ public class SceneCubemapFog(Scene scene) : SceneNode(scene)
     {
         var startDist = fogSpace.Distance(StartDist);
         var distCull = startDist * startDist;
-        var heightCull = (UseHeightFog || ((HeightEnd - HeightStart) > 0)) ? fogSpace.Height(HeightStart) : float.PositiveInfinity;
+        var heightCull = float.PositiveInfinity;
+
+        if (BlendsByMax)
+        {
+            if (HasHeightRange)
+            {
+                heightCull = fogSpace.Height(HeightStart);
+            }
+        }
+        else if (HasHeightRange)
+        {
+            heightCull = fogSpace.Height(HeightEnd);
+        }
 
         return new Vector4(distCull, heightCull, MathF.Pow(2f, ExposureBias), Opacity);
     }
+
+    // The VR shaders take the stronger of the distance and height terms. Those are the lightmap versions below 2
+    // and the games with a VR forward pipeline. The shaders read the same attribute.
+    private bool BlendsByMax => Scene.RenderAttributes.GetValueOrDefault("S_FOG_CUBE_BLEND_MAX", (byte)1) == 1;
+
+    // Without height fog both heights are infinite, so they compare equal. The VR shaders take only upward ranges.
+    private bool HasHeightRange => BlendsByMax ? HeightEnd - HeightStart > 0 : HeightEnd != HeightStart;
 
     /// <summary>The <c>cubemapfogsource</c> values.</summary>
     public enum FogSource : uint
@@ -255,10 +285,14 @@ public class SceneCubemapFog(Scene scene) : SceneNode(scene)
             return;
         }
 
-        // Both biases are powers of two, which the brightness of the sky entity scales
-        // todo: make sure this matches with scene post process
-        var exposureBias = material.FloatParams.GetValueOrDefault("g_flBrightnessExposureBias")
-            + material.FloatParams.GetValueOrDefault("g_flRenderOnlyExposureBias");
+        // The bias is a power of two, which the brightness of the sky entity scales. The render only bias
+        // is for drawing the sky itself, except in CS2, where the fog is as bright as the sky is drawn.
+        var exposureBias = material.FloatParams.GetValueOrDefault("g_flBrightnessExposureBias");
+
+        if (rendererContext.FileLoader.GameInfo.Game == Game.Csgo)
+        {
+            exposureBias += material.FloatParams.GetValueOrDefault("g_flRenderOnlyExposureBias");
+        }
 
         CubemapFogTexture = texture;
         ExposureBias = exposureBias + MathF.Log2(brightnessScale);

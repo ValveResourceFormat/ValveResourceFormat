@@ -36,6 +36,7 @@ namespace ValveResourceFormat.Particles.Initializers
         private const int MeshCandidates = 16;
 
         private int meshRandomCounter;
+        private Matrix4x4[] meshPose = [];
         private Matrix4x4[] meshSkin = [];
         private Matrix4x4 meshRigid;
         private float meshSkinTime = float.NaN;
@@ -239,7 +240,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             normal = MathUtils.SafeNormalize(MathUtils.TriangleCross(v0, v1, v2));
             point = (v1 * u) + (v0 * (1f - u - v)) + (v2 * v) + ((shell - 1f) * normal);
-            bones = mesh.Corner(triangle, 0).Bones;
+            bones = mesh.GetModelBones(mesh.Corner(triangle, 0));
 
             return true;
         }
@@ -250,31 +251,37 @@ namespace ValveResourceFormat.Particles.Initializers
             => ParticleRandom.ForSample(particleSystemState.Random.Seed + meshRandomCounter++);
 
         /// <summary>
-        /// Works out, once per step, every bone's skinning transform into the world and the transform
+        /// Works out, once per step, every bone slot's skinning transform into the world and the transform
         /// a rigid vertex follows: the first bone's pose, or the model's placement when it has no bones.
         /// </summary>
         private void PoseSkin(ParticleSystemState particleSystemState, IParticleModelObject modelObject, MeshTriangles mesh)
         {
-            var boneCount = mesh.InverseBindPose.Length;
+            var boneCount = mesh.BoneCount;
+            var remapTable = mesh.RemapTable.Span;
 
-            if (meshSkinTime == particleSystemState.Age && meshSkin.Length == boneCount)
+            if (meshSkinTime == particleSystemState.Age && meshPose.Length == boneCount && meshSkin.Length == remapTable.Length)
             {
                 return;
             }
 
             meshSkinTime = particleSystemState.Age;
 
-            if (meshSkin.Length != boneCount)
+            if (meshPose.Length != boneCount || meshSkin.Length != remapTable.Length)
             {
-                meshSkin = new Matrix4x4[boneCount];
+                meshPose = new Matrix4x4[boneCount];
+                meshSkin = new Matrix4x4[remapTable.Length];
             }
 
-            modelObject.GetBonePose(meshSkin);
-            meshRigid = boneCount > 0 ? meshSkin[0] * modelObject.Transform : modelObject.Transform;
+            modelObject.GetBonePose(meshPose);
+            meshRigid = boneCount > 0 ? meshPose[0] * modelObject.Transform : modelObject.Transform;
 
-            for (var i = 0; i < boneCount; i++)
+            for (var slot = 0; slot < remapTable.Length; slot++)
             {
-                meshSkin[i] = mesh.InverseBindPose[i] * meshSkin[i] * modelObject.Transform;
+                var modelBone = remapTable[slot];
+                var modelBoneExists = modelBone >= 0 && modelBone < boneCount;
+                var pose = modelBoneExists ? meshPose[modelBone] : Matrix4x4.Identity;
+
+                meshSkin[slot] = mesh.InverseBindPose[slot] * pose * modelObject.Transform;
             }
         }
 
@@ -299,12 +306,12 @@ namespace ValveResourceFormat.Particles.Initializers
 
             for (var k = 0; k < PackedBones.Count; k++)
             {
-                var bone = PackedBones.Get(vertex.Bones, k);
+                var slot = PackedBones.Get(vertex.Slots, k);
                 var weight = vertex.Weights[k];
 
-                if (weight > 0f && bone < meshSkin.Length)
+                if (weight > 0f && slot < meshSkin.Length)
                 {
-                    world += Vector3.Transform(vertex.Position, meshSkin[bone]) * weight;
+                    world += Vector3.Transform(vertex.Position, meshSkin[slot]) * weight;
                 }
             }
 

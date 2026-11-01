@@ -54,13 +54,13 @@ namespace GUI.Types.GLViewers
         private bool showToolsBeforePlay;
         private int simulationRequest;
         private bool ignoreLayersChangeEvents = true;
-        private string[] unlistedEnabledLayers = [];
+        private WorldLayer[] listedLayers = [];
         private List<Matrix4x4> CameraMatrices = [];
         private WorldNodeLoader? LoadedWorldNode;
         public WorldLoader? LoadedWorld;
         private EntityLump.Entity? entityInfoEntity;
 
-        private enum SimulationState
+        internal enum SimulationState
         {
             /// <summary>The world rests as it loaded.</summary>
             Stopped,
@@ -72,7 +72,7 @@ namespace GUI.Types.GLViewers
             Paused,
         }
 
-        private enum SimulationRequest
+        internal enum SimulationRequest
         {
             None,
             Play,
@@ -260,7 +260,7 @@ namespace GUI.Types.GLViewers
                 LoadedWorld = new WorldLoader(world, Scene, Renderer.EntitySystem)
                 {
                     LoadingProgress = GuiContext.LoadingProgress,
-                    DefaultEnabledLayers = { HammerEntityVisuals.MarkerLayerName },
+                    DefaultEnabledLayers = { HammerEntityVisuals.MarkerLayer },
                 };
 
                 LoadedWorld.Load(mapExternalReferences);
@@ -271,7 +271,7 @@ namespace GUI.Types.GLViewers
                 CS2BombDamageSceneNode.AddBakedBombDamageToScene(LoadedWorld.BombDamage, Scene);
 
                 // Prewarm draws before the sidebar picks the layers, so it starts from the same defaults
-                SetEnabledLayers(LoadedWorld.DefaultEnabledLayers);
+                SetEnabledLayers(GetListedLayers(), LoadedWorld.DefaultEnabledLayers);
 
                 if (LoadedWorld.CameraMatrices.Count > 0)
                 {
@@ -294,6 +294,9 @@ namespace GUI.Types.GLViewers
 
                 ShowSpeed = isKzMap;
                 Input.PlayerMovement.AutoBunnyHop = isKzMap;
+
+                var gameInfo = Renderer.RendererContext.FileLoader.GameInfo;
+                Input.PlayerMovement.CompactHull = gameInfo.Game is Game.Hlvr or Game.Steamtours or Game.Vr;
                 Input.PlayerMovement.AirAccelerate = isKzMap
                     ? PlayerMovement.AirAccelerateMovementMaps
                     : PlayerMovement.AirAccelerateCompetitive;
@@ -338,14 +341,14 @@ namespace GUI.Types.GLViewers
                 AddWireframeToggleControl();
             }
 
-            worldLayersComboBox = UiControl.AddMultiSelection("World Layers", null, (worldLayers) =>
+            worldLayersComboBox = UiControl.AddMultiSelection<WorldLayer>("World Layers", null, (worldLayers) =>
             {
                 if (ignoreLayersChangeEvents)
                 {
                     return;
                 }
 
-                SetEnabledLayers([.. worldLayers, .. unlistedEnabledLayers]);
+                SetEnabledLayers(listedLayers, [.. worldLayers]);
             });
             AddToolBrushGroupsControl();
             AddCollisionControl();
@@ -385,20 +388,7 @@ namespace GUI.Types.GLViewers
             {
                 AddSimulationToolbar();
 
-                var uniqueWorldLayers = new HashSet<string>(4);
-
-                foreach (var node in Scene.AllNodes)
-                {
-                    if (node.LayerName != null && Scene.IsInternalLayer(node.LayerName))
-                    {
-                        continue;
-                    }
-
-                    if (node.LayerName != null)
-                    {
-                        uniqueWorldLayers.Add(node.LayerName);
-                    }
-                }
+                var uniqueWorldLayers = GetListedLayers();
 
                 if (uniqueWorldLayers.Count > 0 && LoadedWorld != null)
                 {
@@ -408,15 +398,11 @@ namespace GUI.Types.GLViewers
 
                     // Showing helpers also decides what a selected entity shows, so it can be chosen even while nothing
                     // unselected needs it
-                    var listedLayers = uniqueWorldLayers.Append(HammerEntityVisuals.HelpersLayerName).Distinct().ToArray();
-                    SetAvailableLayers(listedLayers);
-
-                    // Layers that have no nodes yet, such as particles spawned later, are not listed and stay enabled
-                    unlistedEnabledLayers = [.. LoadedWorld.DefaultEnabledLayers.Where(layer => !listedLayers.Contains(layer))];
+                    SetAvailableLayers(uniqueWorldLayers.Append(HammerEntityVisuals.HelpersLayer).Distinct());
 
                     foreach (var worldLayer in LoadedWorld.DefaultEnabledLayers)
                     {
-                        var checkboxIndex = worldLayersComboBox.FindStringExact(worldLayer);
+                        var checkboxIndex = worldLayersComboBox.Items.IndexOf(worldLayer);
 
                         if (checkboxIndex > -1)
                         {
@@ -426,7 +412,7 @@ namespace GUI.Types.GLViewers
 
                     worldLayersComboBox.EndUpdate();
 
-                    SetEnabledLayers(LoadedWorld.DefaultEnabledLayers);
+                    SetEnabledLayers(listedLayers, LoadedWorld.DefaultEnabledLayers);
                 }
 
                 using (UiControl.BeginGroup("World"))
@@ -437,6 +423,7 @@ namespace GUI.Types.GLViewers
                     }
 
                     UiControl.AddCheckBox("Show Fog", Renderer.Settings.FogEnabled, v => Renderer.Settings.FogEnabled = v);
+                    UiControl.AddCheckBox("Show Volumetric Fog", Renderer.Settings.VolumetricFogEnabled, v => Renderer.Settings.VolumetricFogEnabled = v);
 
                     UiControl.AddCheckBox("Color Correction", Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
 
@@ -471,6 +458,7 @@ namespace GUI.Types.GLViewers
                     occlusionCullingCheckBox.Enabled = Renderer.Settings.EnableIndirectDraws;
 
                     UiControl.AddCheckBox("Depth Prepass", Renderer.Settings.EnableDepthPrepass, (v) => Renderer.Settings.EnableDepthPrepass = v);
+                    UiControl.AddCheckBox("Ambient Occlusion", Renderer.Settings.EnableScreenSpaceAo, (v) => Renderer.Settings.EnableScreenSpaceAo = v);
 
                     UiControl.AddCheckBox("Barn Lights", Renderer.Settings.EnableBarnLights, v => Renderer.Settings.EnableBarnLights = v);
                     UiControl.AddCheckBox("Tiled Light Culling", Renderer.Settings.EnableTiledLightCulling, v => Renderer.Settings.EnableTiledLightCulling = v);
@@ -481,12 +469,7 @@ namespace GUI.Types.GLViewers
 
             if (worldNode != null && worldLayersComboBox != null)
             {
-                var worldLayers = Scene.AllNodes
-                    .Select(static r => r.LayerName)
-                    .OfType<string>()
-                    .Distinct()
-                    .ToList();
-                SetAvailableLayers(worldLayers);
+                SetAvailableLayers(GetListedLayers());
 
                 for (var i = 0; i < worldLayersComboBox.Items.Count; i++)
                 {
@@ -698,26 +681,29 @@ namespace GUI.Types.GLViewers
 
         private void EnsureNodeVisible(SceneNode node)
         {
-            if (node.LayerName != null && ToolsVisibility.IsToolEntityLayer(node.LayerName) && !Tools.ShowTools)
+            if (!Tools.ShowTools && node.Layers.Any(static layer => layer.IsToolsOnly))
             {
                 Tools.ShowTools = true;
                 toolsButton?.Checked = true;
                 RequestVisibilityUpdate();
             }
 
-            if (!node.LayerEnabled && worldLayersComboBox != null && node.LayerName != null)
+            if (!node.LayerEnabled && worldLayersComboBox != null)
             {
-                var layerId = worldLayersComboBox.Items.IndexOf(node.LayerName);
-
-                if (layerId >= 0)
+                foreach (var layer in node.Layers)
                 {
-                    worldLayersComboBox.SetItemChecked(layerId, true);
+                    var layerId = worldLayersComboBox.Items.IndexOf(layer);
+
+                    if (layerId >= 0)
+                    {
+                        worldLayersComboBox.SetItemChecked(layerId, true);
+                    }
                 }
             }
 
             if (node is PhysSceneNode { Enabled: false } collision)
             {
-                collisionTree?.Check(collision.CollisionLabels[0]);
+                collisionTree?.SetChecked(collision.CollisionLabels[0], true);
             }
         }
 
@@ -810,18 +796,20 @@ namespace GUI.Types.GLViewers
                 PhysicsDetails.AddNodeDetails(info, collision);
             }
 
-            if (sceneNode.CubeMapPrecomputedHandshake > 0)
+            var handshakes = sceneNode.LightingCache?.Handshakes ?? default;
+
+            if (handshakes.HasCubeMap)
             {
-                info.AddProperty("Cubemap Handshake", $"{sceneNode.CubeMapPrecomputedHandshake}");
+                info.AddProperty("Cubemap Handshake", $"{handshakes.CubeMap}");
             }
 
-            if (sceneNode.LightProbeVolumePrecomputedHandshake > 0)
+            if (handshakes.HasLightProbeVolume)
             {
-                info.AddProperty("Light Probe Handshake", $"{sceneNode.LightProbeVolumePrecomputedHandshake}");
+                info.AddProperty("Light Probe Handshake", $"{handshakes.LightProbeVolume}");
             }
 
             info.AddProperty("Flags", sceneNode.Flags.ToString());
-            info.AddProperty("Layer", sceneNode.LayerName ?? string.Empty);
+            info.AddProperty("Layers", string.Join(", ", sceneNode.Layers.Select(static layer => layer.Name)));
 
             if (OwnSceneSpawnGroups.FirstOrDefault(group => group.Scene == sceneNode.Scene) is { } spawnGroup)
             {
@@ -884,6 +872,7 @@ namespace GUI.Types.GLViewers
                 }
 
                 entityInfoForm.FormClosed += OnEntityInfoFormClosed;
+                entityInfoForm.Activated += RenderLoopThread.OnAppActivated;
                 entityInfoForm.Show();
             }
 
@@ -996,7 +985,18 @@ namespace GUI.Types.GLViewers
                 Program.MainForm.Invoke(() =>
                 {
                     ShowSceneNodeDetails(sceneNode);
-                    entityInfoForm?.EntityInfoControl.Focus();
+
+                    if (entityInfoForm == null)
+                    {
+                        return;
+                    }
+
+                    if (entityInfoForm.WindowState == FormWindowState.Minimized)
+                    {
+                        entityInfoForm.WindowState = FormWindowState.Normal;
+                    }
+
+                    entityInfoForm.EntityInfoControl.Focus();
                 });
                 return;
             }
@@ -1095,18 +1095,23 @@ namespace GUI.Types.GLViewers
             });
         }
 
-        private void SetAvailableLayers(IEnumerable<string> worldLayers)
+        // The layers of the nodes of the map, in the order they are first found, which the user can choose
+        private List<WorldLayer> GetListedLayers()
+            => [.. Scene.AllNodes.SelectMany(static node => node.Layers).Where(static layer => !layer.IsInternal).Distinct()];
+
+        private void SetAvailableLayers(IEnumerable<WorldLayer> worldLayers)
         {
             Debug.Assert(worldLayersComboBox != null);
 
             worldLayersComboBox.Items.Clear();
 
-            var worldLayersArray = worldLayers.ToArray();
+            // Layers that have no nodes yet, such as particles spawned later, are not listed and stay enabled
+            listedLayers = [.. worldLayers];
 
-            if (worldLayersArray.Length > 0)
+            if (listedLayers.Length > 0)
             {
                 worldLayersComboBox.Enabled = true;
-                worldLayersComboBox.Items.AddRange(worldLayersArray);
+                worldLayersComboBox.Items.AddRange(listedLayers);
             }
             else
             {
@@ -1172,10 +1177,15 @@ namespace GUI.Types.GLViewers
 
             paths.Sort(StringComparer.Ordinal);
 
-            UiControl.AddTreeSelection("Auto Vis Groups", paths, shown => Tools.HiddenToolBrushGroups = items
+            var tree = UiControl.AddTreeSelection("Auto Vis Groups", paths, shown => Tools.HiddenToolBrushGroups = items
                 .ExceptBy(shown, static item => item.Key)
                 .Select(static item => item.Value)
                 .ToFrozenSet(), foldGroups: true);
+
+            foreach (var group in ToolBrushGroups.HiddenByDefault)
+            {
+                tree.SetChecked(group, false);
+            }
         }
 
         // What the loaded map collides as, hidden until checked and folded until opened, and whether it and tools materials are drawn opaque
@@ -1207,7 +1217,7 @@ namespace GUI.Types.GLViewers
 
         protected override bool HasToolsVisibilityControls => world != null;
 
-        protected override HashSet<string> FilterLayers(HashSet<string> layers)
+        protected override HashSet<WorldLayer> FilterLayers(HashSet<WorldLayer> layers)
         {
             if (!HasToolsVisibilityControls)
             {
@@ -1217,9 +1227,9 @@ namespace GUI.Types.GLViewers
             var filtered = Tools.FilterLayers(layers);
 
             // While playing the game hides disabled entities itself, so they come and go with the other entities
-            if (simulationState != SimulationState.Stopped && filtered.Contains("Entities"))
+            if (simulationState != SimulationState.Stopped && filtered.Contains(WorldLayer.Entities))
             {
-                filtered.Add(WorldLoader.DisabledEntitiesLayerName);
+                filtered.Add(WorldLayer.DisabledEntities);
             }
 
             return filtered;
@@ -1268,6 +1278,19 @@ namespace GUI.Types.GLViewers
 
             // Hands the keyboard back to the viewport, which the click took, so the player can be walked
             GLControl?.Focus();
+        }
+
+        /// <summary>Gets whether the world is stopped, playing or paused, as the next frame left it.</summary>
+        internal SimulationState Simulation => simulationState;
+
+        /// <summary>
+        /// Queues a simulation change for the next frame without taking the keyboard, and leaves the cursor
+        /// free in walk mode, as after escape, until the viewport is clicked.
+        /// </summary>
+        internal void QueueSimulation(SimulationRequest request)
+        {
+            MouseReleased = true;
+            Interlocked.Exchange(ref simulationRequest, (int)request);
         }
 
         private void UpdateSimulationButtons(SimulationState state)

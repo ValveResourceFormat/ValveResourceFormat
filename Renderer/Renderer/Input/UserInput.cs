@@ -100,9 +100,9 @@ public class UserInput
 
     /// <summary>
     /// Gets whether to draw the walk mode crosshair. The viewmodel hides itself outside walk mode and while
-    /// the camera is detached, so it decides. With no viewmodel there is nothing to aim at.
+    /// the camera is detached, so it decides. With no viewmodel it shows the entire time.
     /// </summary>
-    public bool ShowCrosshair => Viewmodel is { ShowCrosshair: true };
+    public bool ShowCrosshair => Viewmodel?.ShowCrosshair ?? WalkMode;
 
     /// <summary>The buttons down as of this frame's sample, which movement folds into its own tick state.</summary>
     internal TrackedKeys Keys { get; private set; }

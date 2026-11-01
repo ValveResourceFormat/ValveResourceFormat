@@ -47,19 +47,10 @@ namespace ValveResourceFormat.Renderer.World
 
         // Kept apart from world_layer_base so the world geometry can be hidden while collision stays visible.
         // Always enabled, the physics group filter decides what actually draws.
-        private const string PhysicsDebugLayerName = "Physics Visualization Layer";
+        private static readonly WorldLayer PhysicsDebugLayer = new("Physics Visualization Layer");
 
-        /// <summary>
-        /// Visibility layer of the entities a <c>point_template</c> shows while the world is stopped. The template
-        /// itself stays on its own layer, and what it spawns in game goes on the layer its lump would spawn on.
-        /// </summary>
-        public const string TemplateLayerName = "Template Entities";
-
-        /// <summary>Visibility layer of the entities that start disabled, which the game keeps hidden until enabled.</summary>
-        public const string DisabledEntitiesLayerName = "Entities (disabled)";
-
-        /// <summary>Layer names that should be visible by default, populated during loading.</summary>
-        public HashSet<string> DefaultEnabledLayers { get; } = ["No layer", "Entities", Scene.ParticlesLayerName, PhysicsDebugLayerName];
+        /// <summary>Layers that should be visible by default, populated during loading.</summary>
+        public HashSet<WorldLayer> DefaultEnabledLayers { get; } = [WorldLayer.NoLayer, WorldLayer.Entities, WorldLayer.Particles, PhysicsDebugLayer];
 
         /// <summary>Names of info_camera_link entities found in the world.</summary>
         public List<string> CameraNames { get; } = [];
@@ -418,10 +409,7 @@ namespace ValveResourceFormat.Renderer.World
                     var subloader = new WorldNodeLoader(RendererContext, worldNodeData);
                     subloader.Load(scene, rootTransform);
 
-                    foreach (var layer in subloader.LayerNames)
-                    {
-                        DefaultEnabledLayers.Add(layer);
-                    }
+                    DefaultEnabledLayers.UnionWith(subloader.Layers);
                 }
             }
         }
@@ -457,7 +445,7 @@ namespace ValveResourceFormat.Renderer.World
                 foreach (var node in entitySystem.ToolVisuals?.CreateCollisionVisuals(scene, phys, physResource.FileName[..^2], null) ?? [])
                 {
                     node.Transform = rootTransform;
-                    node.LayerName = PhysicsDebugLayerName;
+                    node.Layers = [PhysicsDebugLayer];
                     scene.Add(node, false);
                 }
 
@@ -499,7 +487,7 @@ namespace ValveResourceFormat.Renderer.World
 
             var visNode = new VisibilitySceneNode(scene, voxelVisibility)
             {
-                LayerName = "Visibility clusters",
+                Layers = [WorldLayer.VisibilityClusters],
                 Transform = rootTransform,
             };
             scene.Add(visNode, false);
@@ -591,7 +579,17 @@ namespace ValveResourceFormat.Renderer.World
                 }
             }
 
-            scene.RenderAttributes.TryAdd("S_LIGHTMAP_VERSION_MINOR", (byte)scene.LightingInfo.LightmapGameVersionNumber);
+            var attributes = scene.RenderAttributes;
+            attributes.TryAdd("S_LIGHTMAP_VERSION_MINOR", (byte)scene.LightingInfo.LightmapGameVersionNumber);
+
+            var blendsFogByMax = attributes["S_LIGHTMAP_VERSION_MINOR"] < 2
+                || scene.RendererContext.FileLoader.GameInfo.TonemappingVrForward;
+            attributes.TryAdd("S_FOG_CUBE_BLEND_MAX", (byte)(blendsFogByMax ? 1 : 0));
+
+            if (scene.RendererContext.FileLoader.GameInfo.VrLightBinnerSingleLightFastPath)
+            {
+                scene.RenderAttributes.TryAdd("S_VR_FAST_PATH_LIGHTING", 1);
+            }
         }
 
         // Lumps of entities parsed for Entities that have not spawned yet, by lump name. The first spawn takes
@@ -693,8 +691,8 @@ namespace ValveResourceFormat.Renderer.World
                         OfferSpawnCamera(spawnPoint, spawnPoint.IsMasterPlayerStart);
                         break;
 
-                    case InfoWorldLayer { IsVisibleOnSpawn: true, WorldLayerName: { } worldLayerName }:
-                        DefaultEnabledLayers.Add(worldLayerName);
+                    case InfoWorldLayer { IsVisibleOnSpawn: true, Layer: { } worldLayer }:
+                        DefaultEnabledLayers.Add(worldLayer);
                         break;
                 }
             }
@@ -714,28 +712,28 @@ namespace ValveResourceFormat.Renderer.World
 
                 HashSet<string> visited = new(StringComparer.OrdinalIgnoreCase);
 
-                void Add(string lumpName)
-                {
-                    if (!visited.Add(lumpName) || RendererContext.FileLoader.LoadFileCompiled(lumpName)?.DataBlock is not EntityLump lump)
-                    {
-                        return;
-                    }
-
-                    worldEntityLumps.Add(lump);
-
-                    foreach (var childName in lump.GetChildEntityNames())
-                    {
-                        Add(childName);
-                    }
-                }
-
                 foreach (var lumpName in World.GetEntityLumpNames().OfType<string>())
                 {
-                    Add(lumpName);
+                    AddEntityLump(lumpName, worldEntityLumps, visited);
                 }
             }
 
             return worldEntityLumps.Find(lump => lump.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private void AddEntityLump(string lumpName, List<EntityLump> lumps, HashSet<string> visited)
+        {
+            if (!visited.Add(lumpName) || RendererContext.FileLoader.LoadFileCompiled(lumpName)?.DataBlock is not EntityLump lump)
+            {
+                return;
+            }
+
+            lumps.Add(lump);
+
+            foreach (var childName in lump.GetChildEntityNames())
+            {
+                AddEntityLump(childName, lumps, visited);
+            }
         }
 
         /// <summary>

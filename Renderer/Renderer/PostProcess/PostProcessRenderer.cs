@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.World;
 
@@ -32,6 +33,12 @@ namespace ValveResourceFormat.Renderer.PostProcess
         /// </summary>
         internal bool AnimateDither { get; set; } = true;
 
+        /// <summary>
+        /// Gets or sets whether the frame is only multiplied by <see cref="TonemapScalar"/> and encoded to
+        /// sRGB, without exposure bias, bloom, tonemapping, color correction, gamma or dither.
+        /// </summary>
+        internal bool RawOutput { get; set; }
+
         /// <summary>Gets or sets the scene average luminance used for auto-exposure calculations.</summary>
         public float AverageLuminance { get; set; }
         /// <summary>Gets or sets the current post-processing state (tonemap, bloom, exposure settings).</summary>
@@ -45,6 +52,27 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
         /// <summary>Gets or sets a manually overridden exposure value; set to -1 to use auto-exposure.</summary>
         public float CustomExposure { get; set; } = -1;
+
+        /// <summary>
+        /// Gets whether the game skips the engine's post processing and tonemaps in its materials, so the
+        /// scene gets no exposure bias and is only exposed when <see cref="CustomExposure"/> is set.
+        /// </summary>
+        private bool UsesGameTonemap => RendererContext.FileLoader.GameInfo.SkipPostProcessing;
+
+        /// <summary>Gets whether the game tonemaps with its own fixed curve; other games that skip post processing output the scene as it is.</summary>
+        private bool UsesGameTonemapCurve => RendererContext.FileLoader.GameInfo.Game == Game.Dota;
+
+        // The values of the tonemap modes of post_processing.frag.slang: 0 is the engine curve, 1 leaves the scene as it is
+        // and 2 is the fixed curve of the game
+        private int GetTonemapMode()
+        {
+            if (!UsesGameTonemap)
+            {
+                return 0;
+            }
+
+            return UsesGameTonemapCurve ? 2 : 1;
+        }
 
         /// <summary>Gets or sets the display gamma, the game's brightness setting. 2.2 is identity; lower is brighter.</summary>
         public float FullScreenGamma { get; set; } = 2.2f;
@@ -73,6 +101,12 @@ namespace ValveResourceFormat.Renderer.PostProcess
         /// default settings and without blooming the scene itself.
         /// </summary>
         public RenderTexture? EffectsBloom { get; internal set; }
+
+        /// <summary>
+        /// Gets this frame's bloom amount map at the scene resolution, the amount each pixel of an overriding
+        /// material blooms by and 0 elsewhere, or null when no such material drew.
+        /// </summary>
+        public RenderTexture? BloomAmount { get; internal set; }
 
         /// <summary>Gets the bloom renderer used for the multi-pass Gaussian bloom effect.</summary>
         public BloomRenderer Bloom { get; private set; }
@@ -284,13 +318,13 @@ namespace ValveResourceFormat.Renderer.PostProcess
             {
                 colorBufferDraw.Bind(FramebufferTarget.DrawFramebuffer);
 
-                var runBloom = State.HasBloom || EffectsBloom != null;
+                var runBloom = !RawOutput && (State.HasBloom || EffectsBloom != null);
                 var bloomSettings = State.HasBloom ? State.BloomSettings : DefaultBloomSettings;
                 var postProcessShader = runBloom ? shaderPostProcessBloom : shaderPostProcess;
 
                 if (runBloom)
                 {
-                    Bloom.Render(resolvedScene, EffectsBloom, bloomSettings, sceneWeight: State.HasBloom ? 1f : 0f);
+                    Bloom.Render(resolvedScene, EffectsBloom, BloomAmount, bloomSettings, sceneWeight: State.HasBloom ? 1f : 0f);
                 }
 
                 colorBufferDraw.Bind(FramebufferTarget.DrawFramebuffer);
@@ -323,9 +357,25 @@ namespace ValveResourceFormat.Renderer.PostProcess
                     postProcessShader.SetUniform("g_vUnNormalizedBloomStrengths", unnormalizedStrengths);
                     postProcessShader.SetUniform("g_bBloomExposed", Bloom.ThresholdsExposedScene);
                 }
-                postProcessShader.SetUniform("g_bFlipY", flipY);
+
+                var vignette = State.VignetteSettings;
+                var hasVignette = State.HasVignette && vignette.Strength < 0f;
+                postProcessShader.SetUniform("g_bVignette", hasVignette);
+
+                if (hasVignette)
+                {
+                    postProcessShader.SetUniform("g_vVignetteCenter", vignette.Center);
+                    postProcessShader.SetUniform("g_vVignetteTint", vignette.Tint);
+                    postProcessShader.SetUniform("g_flVignetteScale", vignette.Scale);
+                    postProcessShader.SetUniform("g_flVignetteRadius", vignette.Radius);
+                    postProcessShader.SetUniform("g_flVignetteFeather", vignette.Feather * 2f);
+                    postProcessShader.SetUniform("g_flVignetteExponent", vignette.Exponent);
+                }
 
                 postProcessShader.SetUniform("g_bPostProcessEnabled", Enabled);
+                postProcessShader.SetUniform("g_bRawOutput", RawOutput);
+                postProcessShader.SetUniform("g_nTonemapMode", GetTonemapMode());
+                postProcessShader.SetUniform("g_bClampToWhitePoint", !RendererContext.FileLoader.GameInfo.TonemappingVrForward);
 
                 postProcessShader.SetUniform("g_flToneMapScalarLinear", TonemapScalar);
                 SetPostProcessUniforms(postProcessShader, State.TonemapSettings);
@@ -352,6 +402,13 @@ namespace ValveResourceFormat.Renderer.PostProcess
             {
                 TonemapScalar = CustomExposure;
                 State = State with { ExposureSettings = State.ExposureSettings with { AutoExposureEnabled = false } };
+                ReportTonemapStats();
+                return;
+            }
+
+            if (UsesGameTonemap)
+            {
+                TonemapScalar = exposure;
                 ReportTonemapStats();
                 return;
             }

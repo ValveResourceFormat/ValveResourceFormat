@@ -13,4 +13,6 @@ public enum MeshSkinning : byte
     FourBones,
     /// <summary>Up to eight weighted bones.</summary>
     EightBones,
+    /// <summary>Two weighted bones, stored as two weight components.</summary>
+    TwoBones,
 }

@@ -34,6 +34,7 @@ public static class EntityFactory
         Register<FuncWater>("func_water", static (system, spawnInfo) => new FuncWater(system, spawnInfo));
         Register<FuncCombineBarrier>("func_combine_barrier", static (system, spawnInfo) => new FuncCombineBarrier(system, spawnInfo));
         Register<FuncButton>("func_button", static (system, spawnInfo) => new FuncButton(system, spawnInfo));
+        Register<FuncPhysicalButton>("func_physical_button", static (system, spawnInfo) => new FuncPhysicalButton(system, spawnInfo));
         Register<FuncDoor>("func_door", static (system, spawnInfo) => new FuncDoor(system, spawnInfo));
         Register<FuncDoorRotating>("func_door_rotating", static (system, spawnInfo) => new FuncDoorRotating(system, spawnInfo));
         Register<FuncMoveLinear>("func_movelinear", static (system, spawnInfo) => new FuncMoveLinear(system, spawnInfo));
@@ -45,12 +46,14 @@ public static class EntityFactory
         Register<PropDynamic>("prop_dynamic", static (system, spawnInfo) => new PropDynamic(system, spawnInfo));
         Register<PropDynamic>("prop_dynamic_override", static (system, spawnInfo) => new PropDynamic(system, spawnInfo));
         Register<FuncBreakable>("func_breakable", static (system, spawnInfo) => new FuncBreakable(system, spawnInfo));
+        Register<FuncShatterglass>("func_shatterglass", static (system, spawnInfo) => new FuncShatterglass(system, spawnInfo));
         Register<XenFloraAnimatedMover>("xen_flora_animatedmover", static (system, spawnInfo) => new XenFloraAnimatedMover(system, spawnInfo));
         Register<TriggerMultiple>("trigger_multiple", static (system, spawnInfo) => new TriggerMultiple(system, spawnInfo));
         Register<TriggerOnce>("trigger_once", static (system, spawnInfo) => new TriggerOnce(system, spawnInfo));
         Register<TriggerLook>("trigger_look", static (system, spawnInfo) => new TriggerLook(system, spawnInfo));
         Register<TriggerTeleport>("trigger_teleport", static (system, spawnInfo) => new TriggerTeleport(system, spawnInfo));
         Register<PointTeleport>("point_teleport", static (system, spawnInfo) => new PointTeleport(system, spawnInfo));
+        Register<PointEntityFader>("point_entity_fader", static (system, spawnInfo) => new PointEntityFader(system, spawnInfo));
 
         // lights
         Register<LightEntity>("light_barn", static (system, spawnInfo) => new LightEntity(system, spawnInfo));
@@ -69,6 +72,8 @@ public static class EntityFactory
         Register<EnvLightProbeVolume>("env_combined_light_probe_volume", static (system, spawnInfo) => new EnvLightProbeVolume(system, spawnInfo, bakesCubemap: true));
         Register<EnvLightProbeVolume>("env_light_probe_volume", static (system, spawnInfo) => new EnvLightProbeVolume(system, spawnInfo, bakesCubemap: false));
         Register<EnvGradientFog>("env_gradient_fog", static (system, spawnInfo) => new EnvGradientFog(system, spawnInfo));
+        Register<EnvVolumetricFogController>("env_volumetric_fog_controller", static (system, spawnInfo) => new EnvVolumetricFogController(system, spawnInfo));
+        Register<EnvVolumetricFogVolume>("env_volumetric_fog_volume", static (system, spawnInfo) => new EnvVolumetricFogVolume(system, spawnInfo));
         Register<EnvSky>("env_global_light", static (system, spawnInfo) => new EnvSky(system, spawnInfo, isGlobalLight: true));
         Register<EnvSky>("env_sky", static (system, spawnInfo) => new EnvSky(system, spawnInfo, isGlobalLight: false));
         Register<EnvTonemapController>("env_tonemap_controller", static (system, spawnInfo) => new EnvTonemapController(system, spawnInfo));

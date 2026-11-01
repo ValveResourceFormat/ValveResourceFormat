@@ -8,6 +8,9 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment;
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CEnvLightProbeVolume">CEnvLightProbeVolume</seealso>
 public class SceneLightProbe : SceneNode
 {
+    /// <summary>Shader index of a node that has no light probe volume.</summary>
+    public const uint NoLightProbeIndex = 0xFFFF;
+
     /// <summary>Gets or sets the handshake value used to match this probe to scene nodes during precomputation.</summary>
     public int HandShake { get; set; }
 

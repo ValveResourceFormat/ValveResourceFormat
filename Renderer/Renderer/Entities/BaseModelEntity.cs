@@ -94,18 +94,33 @@ public abstract class BaseModelEntity : BaseEntity
 
         LoadedModel = model;
 
+        var tint = Data?.GetRenderTint() ?? Vector4.One;
+
+        // A model that spawns fully transparent is faded in by the map later, so an editor shows it opaque
+        if (tint.W == 0f && !EntitySystem.Enabled)
+        {
+            tint.W = 1f;
+        }
+
         var modelNode = new ModelSceneNode(Scene, model, Data?.GetStringProperty("skin"))
         {
             Name = modelName,
-            TintAlpha = Data?.GetRenderTint() ?? Vector4.One,
+            TintAlpha = tint,
         };
+
+        if (Data != null && DisablesShadows(Data))
+        {
+            modelNode.Flags |= ObjectTypeFlags.NoShadows;
+        }
+
+        modelNode.FixupLightingOriginToViewer = Data?.GetBooleanProperty("fixup_lighting_origin_to_player_side") == true;
 
         // Model-referenced particles spawn regardless of meshes
         var particleNodes = ParticleSceneNode.CreateModelParticles(Scene, model, modelNode);
 
         foreach (var particleNode in particleNodes)
         {
-            particleNode.LayerName = Scene.ParticlesLayerName;
+            particleNode.Layers = [WorldLayer.Particles];
 
             // Owned, so they leave the scene with the entity
             AddNode(particleNode, followsEntity: false);
@@ -170,6 +185,33 @@ public abstract class BaseModelEntity : BaseEntity
         }
 
         return ModelNode ?? base.CreateRootNode();
+    }
+
+    // Older games store a boolean, newer ones a cast shadows mode where 1 is no shadows. The modes that keep
+    // only realtime (2) or only baked (3) shadows are not modelled.
+    private static bool DisablesShadows(EntityLump.Entity data)
+    {
+        if (!data.TryGetValue("disableshadows", out var value))
+        {
+            return false;
+        }
+
+        return value.ValueType switch
+        {
+            KVValueType.Boolean => (bool)value,
+            KVValueType.String => ParseDisable((string)value),
+            _ => (int)value == 1,
+        };
+    }
+
+    private static bool ParseDisable(string text)
+    {
+        if (bool.TryParse(text, out var disabled))
+        {
+            return disabled;
+        }
+
+        return text == "1";
     }
 
     /// <summary>

@@ -87,6 +87,28 @@ namespace ValveResourceFormat.ResourceTypes
             return 0;
         }
 
+        /// <summary>
+        /// Reads the inverse bind pose of every bone of the mesh's own render skeleton.
+        /// </summary>
+        /// <returns>One matrix per mesh bone, or <see langword="null"/> when the mesh has no skeleton.</returns>
+        public Matrix4x4[]? ReadInverseBindPose()
+        {
+            var bones = Data.GetSubCollection("m_skeleton")?.GetArray("m_bones");
+            if (bones is null)
+            {
+                return null;
+            }
+
+            var inverseBindPose = new Matrix4x4[bones.Count];
+
+            for (var i = 0; i < inverseBindPose.Length; i++)
+            {
+                inverseBindPose[i] = bones[i].GetSubCollection("m_invBindPose").ToMatrix4x4();
+            }
+
+            return inverseBindPose;
+        }
+
         private VBIB? cachedVBIB { get; set; }
 
         /// <summary>Drops the decoded vertex and index buffer data.</summary>
@@ -183,17 +205,31 @@ namespace ValveResourceFormat.ResourceTypes
                 return drawCall.GetBooleanProperty("m_bUseCompressedNormalTangent");
             }
 
-            if (!drawCall.TryGetValue("m_nFlags", out var flags))
+            return HasDrawFlag(drawCall, "m_nFlags", RenderMeshDrawPrimitiveFlags.UseCompressedNormalTangent, "MESH_DRAW_FLAGS_USE_COMPRESSED_NORMAL_TANGENT");
+        }
+
+        /// <summary>
+        /// Determines if a flags value of a draw call has a flag set. A value that holds a single flag is stored
+        /// as the name of the flag, any other as a number.
+        /// </summary>
+        /// <param name="data">The draw call data, or another object that holds draw flags.</param>
+        /// <param name="key">The key of the flags value.</param>
+        /// <param name="flag">The flag to look for.</param>
+        /// <param name="flagName">The name <paramref name="flag"/> has when it is stored as a name.</param>
+        /// <returns>True if the flag is set.</returns>
+        private static bool HasDrawFlag(KVObject data, string key, RenderMeshDrawPrimitiveFlags flag, string flagName)
+        {
+            if (!data.TryGetValue(key, out var flags))
             {
                 return false;
             }
 
             if (flags.ValueType == KVValueType.String)
             {
-                return ((string)flags).Contains("MESH_DRAW_FLAGS_USE_COMPRESSED_NORMAL_TANGENT", StringComparison.Ordinal);
+                return ((string)flags).Contains(flagName, StringComparison.Ordinal);
             }
 
-            return ((RenderMeshDrawPrimitiveFlags)(int)flags & RenderMeshDrawPrimitiveFlags.UseCompressedNormalTangent) != 0;
+            return ((RenderMeshDrawPrimitiveFlags)(int)flags & flag) != 0;
         }
 
         /// <summary>
@@ -210,7 +246,23 @@ namespace ValveResourceFormat.ResourceTypes
         /// <param name="drawCall">The draw call data.</param>
         /// <returns>True if baked lighting from vertex stream is present.</returns>
         public static bool HasBakedLightingFromVertexStream(KVObject drawCall)
-            => drawCall.GetBooleanProperty("m_bHasBakedLightingFromVertexStream");
+        {
+            if (drawCall.ContainsKey("m_bHasBakedLightingFromVertexStream"))
+            {
+                return drawCall.GetBooleanProperty("m_bHasBakedLightingFromVertexStream");
+            }
+
+            return HasVertexLightingFlag(drawCall, "m_nFlags");
+        }
+
+        /// <summary>
+        /// Determines if a flags value, such as the one of a draw call, has the compressed per vertex lighting flag set.
+        /// </summary>
+        /// <param name="data">The object that holds the flags.</param>
+        /// <param name="key">The key of the flags value.</param>
+        /// <returns>True if the flag is set.</returns>
+        internal static bool HasVertexLightingFlag(KVObject data, string key)
+            => HasDrawFlag(data, key, RenderMeshDrawPrimitiveFlags.HasBakedLightingFromVertexStream, "MESH_DRAW_FLAGS_USE_COMPRESSED_PER_VERTEX_LIGHTING");
 
         /// <summary>
         /// Determines if the draw call is an occluder.

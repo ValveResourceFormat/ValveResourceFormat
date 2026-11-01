@@ -84,8 +84,20 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>The scene's morph composite atlas, see <see cref="MorphCompositeAtlas"/>.</summary>
         [SamplerName("g_tCompositeMorphTextureAtlas")]
         MorphCompositeTexture,
-        /// <summary>Last reserved slot; equal to <see cref="MorphCompositeTexture"/>.</summary>
-        Last = MorphCompositeTexture,
+        /// <summary>The volumetric fog volume of the view being drawn.</summary>
+        [SamplerName("g_tFogVolume")]
+        FogVolume,
+        /// <summary>The gradient fog texture of the view being drawn.</summary>
+        [SamplerName("g_tGradientFogTexture")]
+        GradientFogTexture,
+        /// <summary>The volume texture whose slices are the cookies of per-pixel spot lights.</summary>
+        [SamplerName("g_tLightCookieVolume")]
+        LightCookieVolume,
+        /// <summary>Screen space ambient occlusion of the opaque scene, 1 where nothing occludes.</summary>
+        [SamplerName("g_tSsao")]
+        Ssao,
+        /// <summary>Last reserved slot.</summary>
+        Last = Ssao,
     }
 
     /// <summary>
@@ -163,7 +175,8 @@ namespace ValveResourceFormat.Renderer.Materials
         public bool IsAlphaTest { get; private set; }
 
         /// <summary>Gets whether this material can perform early depth priming and then shade with Equal comparison.</summary>
-        public bool CanPrimeDepth => !hasDepthBias && !IsOverlay && !disableDepthTest;
+        public bool CanPrimeDepth => !hasDepthBias && !IsOverlay && !disableDepthTest && IntParams.GetValueOrDefault("F_NO_Z_PREPASS") == 0
+            && IntParams.GetValueOrDefault("F_DISABLE_Z_PREPASS") == 0;
 
         private readonly MaterialLoader? Loader;
 
@@ -180,6 +193,7 @@ namespace ValveResourceFormat.Renderer.Materials
         private bool isRenderBackfaces;
         private bool hasDepthBias;
         private bool disableDepthTest;
+        private bool translucentDepthWrite;
         private int textureUnit;
         private readonly List<int> boundSamplerUnits = [];
 
@@ -316,8 +330,12 @@ namespace ValveResourceFormat.Renderer.Materials
             BlocksLight = attributes.GetValueOrDefault("mapbuilder.blocklight") != 0;
             DoNotCastShadows = attributes.GetValueOrDefault("DoNotCastShadows") == 1;
             IsCs2Water = attributes.GetValueOrDefault("bCsgoWater") == 1;
-            isRenderBackfaces = IntParams.GetValueOrDefault("F_RENDER_BACKFACES") == 1;
+            isRenderBackfaces = IntParams.GetValueOrDefault("F_RENDER_BACKFACES") == 1
+                || (ShaderName == "cosmic_veil.vfx" && IntParams.GetValueOrDefault("g_bDoubleSidedVeil") == 1);
             disableDepthTest = IntParams.GetValueOrDefault("F_DISABLE_Z_BUFFERING") == 1;
+
+            // Glass writes depth while it blends and tests it strictly, so of coplanar panes only the first one drawn shows
+            translucentDepthWrite = ShaderName == "csgo_glass.vfx" && !disableDepthTest;
 
             var blendState = shaderDataProvider.GetBlendState(material, IntParams);
             IsTranslucent = attributes.GetValueOrDefault("translucent") == 1;
@@ -338,7 +356,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 return;
             }
 
-            VertexAnimation = ShaderName == "csgo_foliage.vfx"
+            VertexAnimation = ShaderName is "csgo_foliage.vfx" or "vr_xen_foliage.vfx"
                 || IntParams.GetValueOrDefault("F_VERTEX_ANIMATION") > 0
                 || IntParams.GetValueOrDefault("F_FOLIAGE_ANIMATION") > 0
                 || IntParams.GetValueOrDefault("F_JITTER_VERTICES") > 0;
@@ -429,11 +447,11 @@ namespace ValveResourceFormat.Renderer.Materials
             {
                 EvalCsgoEnvironmentColorMatrices(shader, buffer);
             }
-            else if (shader.Name is "environment_blend.vfx" or "environment_layer.vfx" or "pbr.vfx")
+            else if (shader.Name is "environment_blend.vfx" or "environment_layer.vfx" or "environment_parallax_layered.vfx" or "pbr.vfx")
             {
                 EvalDeadlockColorMatrices(shader, buffer);
             }
-            else if (ShaderName.EndsWith("static_overlay.vfx", StringComparison.Ordinal))
+            else if (ShaderName.EndsWith("static_overlay.vfx", StringComparison.Ordinal) || ShaderName == "csgo_foliage.vfx")
             {
                 EvalStaticOverlayColorAdjust(shader, buffer);
             }
@@ -517,21 +535,40 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         private RenderMaterial? depthMaterial;
+        private RenderTexture? depthColorTexture;
+        private uint depthMaterialVersion;
+
+        /// <summary>Gets the texture holding this material's color and opacity, under whichever name its shader gives it.</summary>
+        /// <returns>The bound color texture, or <see langword="null"/> when the material binds none.</returns>
+        internal RenderTexture? GetColorTexture()
+        {
+            var name = Shader.RepresentativeTexture;
+
+            if (name == null)
+            {
+                return null;
+            }
+
+            return Textures.GetValueOrDefault(name);
+        }
 
         /// <summary>This material as a shared depth-only shader sees it: the color texture and the alpha reference.</summary>
         private RenderMaterial GetDepthMaterial(Shader depthShader)
         {
-            depthMaterial ??= new RenderMaterial(depthShader);
-
-            depthMaterial.FloatParams["g_flAlphaTestReference"] =
-                FloatParams.GetValueOrDefault("g_flAlphaTestReference", 0.5f);
-
-            if (Textures.TryGetValue("g_tColor", out var colorTexture))
+            if (depthMaterial != null && depthMaterialVersion == InputsVersion)
             {
-                depthMaterial.Textures["g_tColor"] = colorTexture;
+                return depthMaterial;
             }
 
-            return depthMaterial;
+            var depth = depthMaterial ??= new RenderMaterial(depthShader);
+            depthMaterialVersion = InputsVersion;
+
+            depth.FloatParams["g_flAlphaTestReference"] = FloatParams.GetValueOrDefault("g_flAlphaTestReference", 0.5f);
+
+            // Without a color texture the alpha test would sample whatever the unit was left holding
+            depthColorTexture = GetColorTexture() ?? Loader?.GetDefaultColor();
+
+            return depth;
         }
 
         /// <summary>Binds textures, sets material uniforms, and applies blend/depth render state for this material.</summary>
@@ -547,13 +584,11 @@ namespace ValveResourceFormat.Renderer.Materials
             {
                 if (shader.IsAlphaTestVariant)
                 {
-                    var depthMaterial = GetDepthMaterial(shader);
-                    depthMaterial.BindGlobals(shader);
+                    GetDepthMaterial(shader).BindGlobals(shader);
 
-                    var colorTexture = depthMaterial.Textures.GetValueOrDefault("g_tColor");
-                    if (colorTexture != null)
+                    if (depthColorTexture != null)
                     {
-                        shader.SetTexture(textureUnit, "g_tColor", colorTexture);
+                        shader.SetTexture(textureUnit, "g_tColor", depthColorTexture);
                     }
                 }
 
@@ -649,6 +684,9 @@ namespace ValveResourceFormat.Renderer.Materials
                 }
             }
 
+            // csgo_environment only applies its color adjust to material reference combos, and keeps it neutral otherwise
+            var hasNeutralColorAdjust = ShaderName == "csgo_environment.vfx" && IntParams.GetValueOrDefault("F_MATERIAL_REFERENCE") != 1;
+
             foreach (var param in shader.Default.Matrices)
             {
                 if (!param.Key.StartsWith("g_mTexture", StringComparison.Ordinal))
@@ -661,6 +699,12 @@ namespace ValveResourceFormat.Renderer.Materials
 
                 if (layerIndex < 1 || layerIndex > 3)
                 {
+                    continue;
+                }
+
+                if (hasNeutralColorAdjust && param.Key.StartsWith("g_mTextureColorAdjust", StringComparison.Ordinal))
+                {
+                    SetMatrix(shader, buffer, param.Key, Matrix4x4.Identity);
                     continue;
                 }
 
@@ -699,7 +743,7 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         // environment_blend and environment_layer suffix both the matrices and their inputs by layer;
-        // pbr has one unsuffixed pair fed by layer 1's params.
+        // pbr and environment_parallax_layered have an unsuffixed pair fed by layer 1's params.
         private void EvalDeadlockColorMatrices(Shader shader, Globals buffer)
         {
             const float TintStrength = 0.85f;
@@ -806,6 +850,20 @@ namespace ValveResourceFormat.Renderer.Materials
             var tintMatrix = VfxEvalFunctions.MatrixColorTint2(tint.AsVector3(), 1f);
 
             SetMatrix(shader, buffer, "g_mTextureColorAdjust", Matrix4x4.Multiply(tintMatrix, ccMatrix));
+
+            if (!shader.Default.Matrices.ContainsKey("g_mTransmissiveTextureColorAdjust"))
+            {
+                return;
+            }
+
+            var transmissiveAverageColor = Vector3.One;
+            if (Textures.TryGetValue("g_tTransmissiveColor", out var transmissiveTexture))
+            {
+                transmissiveAverageColor = transmissiveTexture.Reflectivity.AsVector3();
+            }
+
+            var transmissiveCcMatrix = VfxEvalFunctions.MatrixColorCorrect2(csb, transmissiveAverageColor);
+            SetMatrix(shader, buffer, "g_mTransmissiveTextureColorAdjust", Matrix4x4.Multiply(tintMatrix, transmissiveCcMatrix));
         }
 
         /// <summary>Unbinds the samplers that were bound for this material's draw call.</summary>
@@ -833,7 +891,11 @@ namespace ValveResourceFormat.Renderer.Materials
             {
                 // Coverage is a single bit without multisampling, which turns this into a second,
                 // harder alpha cutout on top of the one the shader already does.
-                state.Blend.AlphaToCoverageEnable = state.Rasterizer.MultisampleEnable;
+                // A pass that tests for the depth of a prepass takes its coverage from that depth. Cutting the
+                // samples again with a second coverage mask leaves the ones the masks disagree on with a depth
+                // and no color.
+                var coverageFromPrepass = state.DepthStencil.DepthFunc == RsComparison.Equal;
+                state.Blend.AlphaToCoverageEnable = state.Rasterizer.MultisampleEnable && !coverageFromPrepass;
             }
             else if (IsTranslucent)
             {
@@ -843,6 +905,12 @@ namespace ValveResourceFormat.Renderer.Materials
                 }
 
                 state.SetBlend(srcBlend, destBlend);
+
+                if (translucentDepthWrite)
+                {
+                    state.DepthStencil.DepthWriteEnable = true;
+                    state.DepthStencil.DepthFunc = RsComparison.Closer;
+                }
             }
 
             if (hasDepthBias || IsOverlay)

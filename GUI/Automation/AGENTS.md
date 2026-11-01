@@ -15,12 +15,13 @@ The goal is a powerful server that barely touches the rest of the viewer.
   - `Settings.Save` is skipped.
   - frame requests: the `RenderLoopThread` partial methods, implemented in `RenderLoopThread.Frames.cs`.
   - the simulation clock in `GLSceneViewer.OnPaint`.
+  - the world simulation state, `GLWorldViewer.QueueSimulation`, which queues Play, Pause or Stop without the button's focus change.
   - sidebar names: `AccessibleName` set where controls are created.
 - Get information from what the viewer already does before you add state to it. For example, the tools read viewer load failures from the `CodeTextBox` "Failed to open" log line.
 
 ### Protocol
 
-- `McpServer` speaks only the MCP revision in `ProtocolVersion`. That revision is stateless: there is no handshake, and every request has the version in its `_meta` and in headers. A request with a different version gets an error that names the supported one.
+- `McpServer` speaks only the MCP revision in `ProtocolVersion`. That revision is stateless: there is no handshake, and every request has the version in its `_meta` and in headers. A request with a different version gets an error that names the supported one. A request without the version, the client capabilities or the headers is taken to speak `ProtocolVersion`, so a plain HTTP script can call a second viewer, but a header that is sent must match the body.
 - It listens only on loopback, and rejects non-loopback hosts and origins to stop DNS rebinding.
 - `notifications/cancelled` cancels a running call through its token.
 

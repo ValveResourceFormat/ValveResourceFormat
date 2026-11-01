@@ -475,7 +475,7 @@ namespace GUI.Types.GLViewers
                         skeletonSceneNode?.ShowAttachments = isChecked;
                     });
 
-                    attachmentList = UiControl.AddMultiSelectionControl("Attachments", listBox =>
+                    attachmentList = UiControl.AddMultiSelectionControl<string>("Attachments", listBox =>
                     {
                         listBox.Items.AddRange([.. model.Attachments.Keys]);
                         for (var i = 0; i < listBox.Items.Count; i++)
@@ -507,7 +507,7 @@ namespace GUI.Types.GLViewers
 
                         foreach (var particleNode in modelParticleNodes)
                         {
-                            particleNode.LayerEnabled = isChecked;
+                            particleNode.Visible = isChecked;
                         }
                     });
                 }
@@ -571,7 +571,7 @@ namespace GUI.Types.GLViewers
                 {
                     using var _ = UiControl.BeginGroup("Model");
 
-                    meshGroupListBox = UiControl.AddMultiSelection("Mesh Group", listBox =>
+                    meshGroupListBox = UiControl.AddMultiSelection<string>("Mesh Group", listBox =>
                     {
                         listBox.Items.AddRange(meshGroups);
 

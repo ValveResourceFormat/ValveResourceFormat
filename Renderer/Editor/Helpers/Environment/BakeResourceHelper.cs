@@ -38,14 +38,14 @@ public sealed class BakeResourceHelper(IHelperOwner owner, HelperDeclaration dec
             // Only a combined volume, which bakes a cubemap too, fades out over its edges
             var fadesAtEdges = Owner.Classname.Equals("env_combined_light_probe_volume", StringComparison.OrdinalIgnoreCase);
 
-            node = SceneLightingVolume.AddLightProbe(scene, keyValues, Owner.RigidTransform, Owner.LayerName, isSphere: false, fadesAtEdges);
+            node = SceneLightingVolume.AddLightProbe(scene, keyValues, Owner.RigidTransform, Owner.Layers, isSphere: false, fadesAtEdges);
         }
         else
         {
             // Only env_cubemap has a sphere of influence, the other classes have a box
             var isSphere = Owner.Classname.Equals("env_cubemap", StringComparison.OrdinalIgnoreCase);
 
-            node = SceneLightingVolume.AddEnvironmentMap(scene, keyValues, Owner.RigidTransform, Owner.LayerName, isSphere);
+            node = SceneLightingVolume.AddEnvironmentMap(scene, keyValues, Owner.RigidTransform, Owner.Layers, isSphere);
         }
 
         // The nodes are part of the entity

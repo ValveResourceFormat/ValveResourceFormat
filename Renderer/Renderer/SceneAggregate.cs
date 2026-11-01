@@ -1,7 +1,6 @@
 using System.IO;
 using System.Linq;
 using ValveKeyValue;
-using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -87,7 +86,7 @@ namespace ValveResourceFormat.Renderer
                 Parent = parent;
                 LocalBoundingBox = bounds;
                 Name = parent.Name;
-                LayerName = parent.LayerName;
+                Layers = parent.Layers;
             }
         }
 
@@ -294,9 +293,9 @@ namespace ValveResourceFormat.Renderer
                 foreach (var drawCall in RenderMesh.DrawCallsOpaque)
                 {
                     var fragmentData = aggregateMeshes[drawCall.MeshId];
-                    var lightProbeVolumePrecomputedHandshake = fragmentData.GetInt32Property("m_nLightProbeVolumePrecomputedHandshake");
+                    var lightProbeVolumeHandshake = fragmentData.GetInt32Property("m_nLightProbeVolumePrecomputedHandshake");
                     var worldBounds = fragmentData.GetArray("m_vWorldBounds");
-                    var flags = WorldNodeLoader.ReadObjectFlags(fragmentData, "m_objectFlags");
+                    var flags = fragmentData.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true);
 
                     drawCall.DrawBounds = new AABB(worldBounds[0].ToVector3(), worldBounds[1].ToVector3());
 
@@ -310,7 +309,7 @@ namespace ValveResourceFormat.Renderer
                         DrawCall = drawCall,
                         RenderMesh = RenderMesh,
                         Parent = this,
-                        LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
+                        LightingCache = SceneNodeLightingCache.FromHandshakes(new PrecomputedLightingHandshakes(0, lightProbeVolumeHandshake)),
                         Flags = flags,
                         Transform = rootTransform,
                         PrecomputedVisClusters = worldNode?.GetAggregateMeshVisClusters(fragmentData),
@@ -330,12 +329,12 @@ namespace ValveResourceFormat.Renderer
             // CS2 goes from aggregate mesh -> draw call (many meshes can share one draw call)
             foreach (var fragmentData in aggregateMeshes)
             {
-                var lightProbeVolumePrecomputedHandshake = fragmentData.GetInt32Property("m_nLightProbeVolumePrecomputedHandshake");
+                var lightProbeVolumeHandshake = fragmentData.GetInt32Property("m_nLightProbeVolumePrecomputedHandshake");
                 var drawCallIndex = fragmentData.GetInt32Property("m_nDrawCallIndex");
                 var drawCall = RenderMesh.DrawCallsOpaque[drawCallIndex];
                 var drawBounds = drawCall.DrawBounds ?? throw new InvalidDataException("Draw call bounds must exist for all new format fragments");
                 var tintColor = fragmentData.GetSubCollection("m_vTintColor").ToVector3();
-                var flags = WorldNodeLoader.ReadObjectFlags(fragmentData, "m_objectFlags");
+                var flags = fragmentData.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true);
                 var lodGroupMask = fragmentData.GetUInt32Property("m_nLODGroupMask");
                 var fragmentTransform = fragmentData.GetBooleanProperty("m_bHasTransform") ? fragmentTransforms[transformIndex++]
                     : null;
@@ -348,7 +347,7 @@ namespace ValveResourceFormat.Renderer
                     RenderMesh = RenderMesh,
                     Tint = tintColor / 255f,
                     Parent = this,
-                    LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
+                    LightingCache = SceneNodeLightingCache.FromHandshakes(new PrecomputedLightingHandshakes(0, lightProbeVolumeHandshake)),
                     Flags = flags,
                     LodGroupMask = lodGroupMask,
                     LodSetupIndex = lodSetupIndex,

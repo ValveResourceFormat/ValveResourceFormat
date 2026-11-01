@@ -139,10 +139,28 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         /// <summary>Makes the shape stand for a tools material, see <see cref="ToolsMaterial"/>.</summary>
         /// <param name="materialName">The path of the material.</param>
-        protected void SetToolsMaterial(string materialName)
+        protected bool SetToolsMaterial(string materialName)
         {
-            ToolsMaterial = Scene.RendererContext.MaterialLoader.GetMaterial(materialName, null);
-            toolTexture = ToolsMaterial.Textures.GetValueOrDefault("g_tColor");
+            var material = Scene.RendererContext.MaterialLoader.GetMaterial(materialName, null);
+
+            // A game that does not ship the material loads the error material, which hiding tools would not hide
+            if (!material.IsToolsMaterial)
+            {
+                return false;
+            }
+
+            ToolsMaterial = material;
+            toolTexture = material.GetColorTexture();
+            return true;
+        }
+
+        /// <summary>
+        /// Shows another texture than that of <see cref="ToolsMaterial"/>, which still decides whether the shape is drawn.
+        /// </summary>
+        /// <param name="texture">The texture projected onto the faces.</param>
+        internal void SetToolTexture(RenderTexture texture)
+        {
+            toolTexture = texture;
         }
 
         private void Init(List<SimpleVertexNormal> verts, List<int> inds)
@@ -492,10 +510,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 }
 
                 // Triangles
-                var fillState = WithFillDepthBias(state);
-                fillState.BlendEnable = true;
-                fillState.SetBlend(RsBlendMode.SrcAlpha, RsBlendMode.InvSrcAlpha);
-                renderState.Apply(in fillState);
+                state.BlendEnable = true;
+                state.SetBlend(RsBlendMode.SrcAlpha, RsBlendMode.InvSrcAlpha);
+                renderState.Apply(in state);
                 renderShader.SetUniform("g_bNormalShaded", Shaded);
                 GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
             }
@@ -573,9 +590,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         // Pulls the fill in front of the scene surfaces it lies on, such as the walls that world collision follows
         private static RenderState WithFillDepthBias(RenderState state)
         {
-            state.Rasterizer.SlopeScaledDepthBias = 2f;
-            state.Rasterizer.DepthBias = 100;
-            state.Rasterizer.DepthBiasClamp = 0.05f;
+            state.Rasterizer.SlopeScaledDepthBias = 0.5f;
+            state.Rasterizer.DepthBias = 1;
+            state.Rasterizer.DepthBiasClamp = 0.0005f;
             return state;
         }
 

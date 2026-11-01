@@ -32,7 +32,10 @@ namespace ValveResourceFormat.IO
         /// <summary>Aperture Desk Job, mod folder <c>steampal</c>.</summary>
         Steampal,
 
-        /// <summary>SteamVR Home, mod folder <c>steamtours</c>.</summary>
+        /// <summary>SteamVR Home and Destinations, mod folder <c>steamtours</c>.</summary>
         Steamtours,
+
+        /// <summary>Aperture Robot Repair and The Lab, mod folder <c>vr</c>.</summary>
+        Vr,
     }
 }
