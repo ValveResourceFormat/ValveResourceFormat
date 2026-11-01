@@ -1191,10 +1191,15 @@ namespace GUI.Types.GLViewers
 
             paths.Sort(StringComparer.Ordinal);
 
-            UiControl.AddTreeSelection("Auto Vis Groups", paths, shown => Tools.HiddenToolBrushGroups = items
+            var tree = UiControl.AddTreeSelection("Auto Vis Groups", paths, shown => Tools.HiddenToolBrushGroups = items
                 .ExceptBy(shown, static item => item.Key)
                 .Select(static item => item.Value)
                 .ToFrozenSet(), foldGroups: true);
+
+            foreach (var group in ToolBrushGroups.HiddenByDefault)
+            {
+                tree.SetChecked(group, false);
+            }
         }
 
         // What the loaded map collides as, hidden until checked and folded until opened, and whether it and tools materials are drawn opaque
