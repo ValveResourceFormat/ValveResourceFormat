@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Globalization;
 using System.Reflection;
 using SkiaSharp;
@@ -6,108 +5,94 @@ using SkiaSharp;
 namespace ValveResourceFormat.IO;
 
 /// <summary>
-/// Generates placeholder textures for auto-generated physics surfaces and entity volumes.
+/// Generates placeholder textures for auto-generated physics surfaces, tools materials and entity volumes.
 /// </summary>
 internal static class MapAutoPhysTextureGenerator
 {
-    private const int TextureSize = 64;
-    private const float MinimumFontSize = 6f;
+    private const int TextureSize = 256;
+    private const float FontSize = 40f;
+    private const float MinimumFontSize = 24f;
+    private const float LineMargin = 16f;
+    private const float LineSpacing = 1.5f;
 
     private static readonly SKTypeface Typeface = LoadTypeface();
-    private static readonly SearchValues<char> WordBreaks = SearchValues.Create([' ', '_']);
 
     /// <summary>
     /// Generates a texture with the surface name for auto physics.
     /// </summary>
     public static SKBitmap GenerateTexture(string surfaceName)
-        => GenerateTexture("S2V\nAUTOPHYS", surfaceName, new SKColor(52, 58, 90), new SKColor(69, 143, 255), SKColors.White);
+        => GenerateTexture(surfaceName, new SKColor(52, 58, 90), SKColors.White);
 
     /// <summary>
-    /// Generates a texture for the volumes of entities of a class, with the class name in the color of the class
-    /// and each word on its own line.
+    /// Generates the texture of a label, such as that of a tools material, an entity volume or a set of collision layers.
     /// </summary>
-    /// <param name="entityClassName">The class of the entity.</param>
-    public static SKBitmap GenerateTriggerTexture(string entityClassName)
+    /// <param name="label">The label.</param>
+    public static SKBitmap GenerateTexture(ToolsMaterials.TextureLabel label)
     {
-        var colors = ToolsMaterials.GetTriggerColors(entityClassName);
-        var backgroundColor = new SKColor(colors.Background.R, colors.Background.G, colors.Background.B);
-        var textColor = new SKColor(colors.Text.R, colors.Text.G, colors.Text.B);
+        var background = label.Background;
+        var text = label.Text;
 
-        return GenerateTexture(null, entityClassName.Replace('_', '\n'), backgroundColor, textColor, textColor);
+        return GenerateTexture(label.Name, new SKColor(background.R, background.G, background.B), new SKColor(text.R, text.G, text.B));
     }
 
     private static SKTypeface LoadTypeface()
     {
-        using var fontStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ValveResourceFormat.Utils.RobotoAscii.ttf");
+        using var fontStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ValveResourceFormat.Utils.ManropeAscii.ttf");
         using var fontData = SKData.Create(fontStream);
         return SKTypeface.FromData(fontData);
     }
 
-    private static SKBitmap GenerateTexture(string? header, string name, SKColor backgroundColor, SKColor headerColor, SKColor nameColor)
+    // Underscores separate the words of the name
+    private static SKBitmap GenerateTexture(string name, SKColor backgroundColor, SKColor textColor)
     {
-        var bitmap = new SKBitmap(TextureSize, TextureSize);
-        using var canvas = new SKCanvas(bitmap);
-        canvas.Clear(backgroundColor);
-
-        using var font = new SKFont(Typeface, size: 10)
-        {
-            Embolden = true,
-        };
+        using var font = new SKFont(Typeface, FontSize);
         using var textPaint = new SKPaint
         {
-            Color = headerColor,
+            Color = textColor,
             IsAntialias = true,
         };
 
-        var upperName = name.ToUpper(CultureInfo.InvariantCulture);
-        var headerLineCount = 0;
-        var text = upperName;
-
-        if (header != null)
-        {
-            headerLineCount = header.Count('\n') + 1;
-            text = $"{header}\n{upperName}";
-        }
+        var text = name.Replace('_', '\n').ToUpper(CultureInfo.InvariantCulture);
 
         // A word wider than a line would be split, so the font shrinks until the widest one fits, down to a legible size
-        var lineWidth = bitmap.Width - 4f;
+        var lineWidth = TextureSize - LineMargin;
         var widestWord = 0f;
 
-        foreach (var word in text.Split(['\n', ' ', '_']))
+        foreach (var word in text.Split('\n'))
         {
             widestWord = MathF.Max(widestWord, font.MeasureText(word, textPaint));
         }
 
         if (widestWord > lineWidth)
         {
-            font.Size = MathF.Max(MinimumFontSize, font.Size * lineWidth / widestWord);
+            // Text width does not scale exactly with the font size, so a pixel of slack keeps the word on one line
+            font.Size = MathF.Max(MinimumFontSize, font.Size * (lineWidth - 1f) / widestWord);
         }
 
         var lines = BreakLines(text, font, textPaint, lineWidth);
         var textHeight = GetTextHeight(font, lines.Count);
+        var maxTextHeight = TextureSize - LineMargin;
 
-        // Too many lines to fit shrink the font further, which may also fit more words on a line
-        if (textHeight > bitmap.Height)
+        // Too many lines to fit shrink the font further
+        if (textHeight > maxTextHeight)
         {
-            font.Size = MathF.Max(MinimumFontSize, font.Size * bitmap.Height / textHeight);
+            font.Size = MathF.Max(MinimumFontSize, font.Size * maxTextHeight / textHeight);
             lines = BreakLines(text, font, textPaint, lineWidth);
             textHeight = GetTextHeight(font, lines.Count);
         }
 
-        var metrics = font.Metrics;
-        var lineHeight = metrics.Bottom - metrics.Top;
+        var lineHeight = GetLineHeight(font);
 
-        var textX = bitmap.Width / 2;
-        var textY = -metrics.Top + (bitmap.Height - textHeight) / 2;
+        // The text is uppercase only, so lines are centered on their cap height
+        var textX = TextureSize / 2;
+        var textY = font.Metrics.CapHeight + (TextureSize - textHeight) / 2;
 
-        for (var i = 0; i < lines.Count; i++)
+        var bitmap = new SKBitmap(TextureSize, TextureSize);
+        using var canvas = new SKCanvas(bitmap);
+        canvas.Clear(backgroundColor);
+
+        foreach (var line in lines)
         {
-            if (i == headerLineCount)
-            {
-                textPaint.Color = nameColor;
-            }
-
-            var line = lines[i];
             canvas.DrawText(line, textX, textY, SKTextAlign.Center, font, textPaint);
             textY += lineHeight;
         }
@@ -115,54 +100,27 @@ internal static class MapAutoPhysTextureGenerator
         return bitmap;
     }
 
-    private static float GetTextHeight(SKFont font, int lineCount)
-    {
-        var metrics = font.Metrics;
-        return lineCount * (metrics.Bottom - metrics.Top) - metrics.Leading;
-    }
+    private static float GetLineHeight(SKFont font) => font.Metrics.CapHeight * LineSpacing;
 
-    private static List<string> BreakLines(ReadOnlySpan<char> text, SKFont font, SKPaint paint, float width)
+    private static float GetTextHeight(SKFont font, int lineCount)
+        => (lineCount - 1) * GetLineHeight(font) + font.Metrics.CapHeight;
+
+    // Each word goes on its own line, and a word too wide even at the smallest font size wraps where the line runs out
+    private static List<string> BreakLines(string text, SKFont font, SKPaint paint, float width)
     {
         var lines = new List<string>(6);
 
-        do
+        foreach (var word in text.Split('\n'))
         {
-            // Explicit line breaks end a line, and the text up to one wraps on its own when it is too wide
-            var lineEnd = text.IndexOf('\n');
-            var segment = lineEnd > -1 ? text[..lineEnd] : text;
-            var lengthBreak = font.BreakText(segment, width, paint);
+            var rest = word.AsSpan();
 
-            if (lengthBreak < segment.Length)
+            while (!rest.IsEmpty)
             {
-                // Prefer splitting on underscores
-                var newLine = segment[..lengthBreak].LastIndexOfAny(WordBreaks);
-
-                if (newLine > 0)
-                {
-                    lengthBreak = newLine;
-
-                    if (segment.Length - lengthBreak > lengthBreak)
-                    {
-                        // If remaining text is longer than the current break, include underline on it
-                        lengthBreak = newLine + 1;
-                    }
-                }
-            }
-
-            if (lengthBreak == 0 && !segment.IsEmpty)
-            {
-                break;
-            }
-
-            lines.Add(segment[..lengthBreak].ToString());
-            text = text[lengthBreak..];
-
-            if (lineEnd > -1 && lengthBreak == segment.Length)
-            {
-                text = text[1..];
+                var length = Math.Max(1, font.BreakText(rest, width, paint));
+                lines.Add(rest[..length].ToString());
+                rest = rest[length..];
             }
         }
-        while (text.Length > 0);
 
         return lines;
     }

@@ -1,3 +1,4 @@
+using System.IO;
 using ValveKeyValue;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.ResourceTypes;
@@ -20,8 +21,153 @@ public static class ToolsMaterials
     /// <summary>The material volumes of entities are built from, unless their class applies another.</summary>
     public const string Trigger = "materials/tools/toolstrigger.vmat";
 
-    // The orange of the trigger material's texture
-    private static readonly TriggerColors DefaultTriggerColors = new(new Color32(255, 157, 0), new Color32(90, 50, 0));
+    private readonly record struct ToolsLabel(string Name, Color32 Background);
+
+    // Most classes keep the orange of the trigger material, and only a few that matter when looking around a map stand out
+    private static readonly Color32 DefaultTriggerBackground = new(255, 156, 0);
+
+    // Layers that no tools material compiles to are rare, so they share one color apart from every tools material
+    private static readonly Color32 CollisionBackground = new(140, 150, 170);
+
+    // Classes that do the same kind of thing share a color, such as red for damage, purple for teleports and blue for movement
+    private static readonly Dictionary<string, Color32> TriggerBackgrounds = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["ambient_creatures_zone"] = new(110, 190, 60),
+        ["citadel_capture_point"] = new(255, 90, 130),
+        ["citadel_invis_volume"] = new(150, 150, 170),
+        ["citadel_obscured_volume"] = new(150, 150, 170),
+        ["citadel_passthrough_fake_wall"] = new(255, 120, 200),
+        ["citadel_trigger_climb_rope"] = new(240, 220, 60),
+        ["citadel_trigger_corrupted_item_shop"] = new(150, 230, 70),
+        ["citadel_trigger_hideout_teleport"] = new(190, 120, 255),
+        ["citadel_trigger_hotel_exit"] = new(120, 170, 200),
+        ["citadel_trigger_idol_return"] = new(255, 90, 130),
+        ["citadel_trigger_in_map_district"] = new(120, 170, 200),
+        ["citadel_trigger_interior"] = new(120, 170, 200),
+        ["citadel_trigger_no_portals"] = new(190, 120, 255),
+        ["citadel_trigger_shop_tunnel"] = new(150, 230, 70),
+        ["citadel_trigger_teleport"] = new(190, 120, 255),
+        ["citadel_tunnel_trigger"] = new(70, 200, 255),
+        ["cs_minimap_volume"] = new(120, 170, 200),
+        ["func_bomb_target"] = new(255, 90, 130),
+        ["func_buyzone"] = new(150, 230, 70),
+        ["func_clip_vphysics"] = new(211, 58, 33),
+        ["func_conveyor"] = new(70, 200, 255),
+        ["func_hostage_rescue"] = new(90, 230, 220),
+        ["func_regenerate"] = new(100, 220, 110),
+        ["func_water"] = new(40, 120, 255),
+        ["trigger_autosave"] = new(100, 220, 110),
+        ["trigger_blind_zombie_sound_area"] = new(255, 230, 140),
+        ["trigger_blind_zombie_wander_area"] = new(255, 230, 140),
+        ["trigger_bomb_reset"] = new(255, 90, 130),
+        ["trigger_boss_attackable"] = new(255, 90, 130),
+        ["trigger_catapult"] = new(70, 200, 255),
+        ["trigger_changelevel"] = new(100, 220, 110),
+        ["trigger_detect_bullet_fire"] = new(255, 230, 140),
+        ["trigger_detect_explosion"] = new(255, 230, 140),
+        ["trigger_foliage_interaction"] = new(110, 190, 60),
+        ["trigger_gravity"] = new(70, 200, 255),
+        ["trigger_hero"] = new(255, 230, 140),
+        ["trigger_hostage_reset"] = new(90, 230, 220),
+        ["trigger_hurt"] = new(255, 80, 70),
+        ["trigger_hurt_citadel"] = new(255, 80, 70),
+        ["trigger_item_shop"] = new(150, 230, 70),
+        ["trigger_item_shop_safe_zone"] = new(150, 230, 70),
+        ["trigger_look"] = new(255, 230, 140),
+        ["trigger_midboss_shield"] = new(90, 230, 220),
+        ["trigger_push"] = new(70, 200, 255),
+        ["trigger_shop"] = new(150, 230, 70),
+        ["trigger_soundscape"] = new(0, 232, 203),
+        ["trigger_team_base"] = new(120, 170, 200),
+        ["trigger_teleport"] = new(190, 120, 255),
+        ["trigger_tier3phase2_shield"] = new(90, 230, 220),
+        ["trigger_transition"] = new(100, 220, 110),
+        ["trigger_traversal_invalid_spot"] = new(240, 220, 60),
+        ["trigger_traversal_modifier"] = new(240, 220, 60),
+        ["trigger_traversal_no_teleport"] = new(240, 220, 60),
+        ["trigger_traversal_tp_interrupt"] = new(240, 220, 60),
+        ["trigger_xen_foliage_interaction"] = new(110, 190, 60),
+    };
+
+    // Game and brush entity prefixes say nothing about the volume, and are stripped in order so that
+    // "citadel_trigger_teleport" reads "trigger_teleport"
+    private static readonly string[] TriggerNamePrefixes = ["citadel_", "dota_", "cs_", "hl_vr_", "func_"];
+
+    // The name written on the generated texture of each tools material, with underscores between its words, and the
+    // most common color of its texture, which the generated texture is filled with. Where the texture writes dark text
+    // on a dark color or light text on a light one, the color is made lighter or darker so that the text follows it.
+    private static readonly Dictionary<string, ToolsLabel> Labels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["materials/tools_postprocess_volume.vmat"] = new("post_process_volume", new(0, 254, 186)),
+        ["materials/tools/audioblocker.vmat"] = new("audio_blocker", new(0, 232, 203)),
+        ["materials/tools/audioblocker_inner.vmat"] = new("audio_blocker_inner", new(0, 232, 203)),
+        ["materials/tools/audioblocker_mid.vmat"] = new("audio_blocker_mid", new(0, 232, 203)),
+        ["materials/tools/audioblocker_outer.vmat"] = new("audio_blocker_outer", new(0, 232, 203)),
+        ["materials/tools/audiomodifier.vmat"] = new("audio_modifier", new(37, 189, 252)),
+        ["materials/tools/cameraclip.vmat"] = new("camera_clip", new(40, 152, 153)),
+        ["materials/tools/climb.vmat"] = new("climb", new(0, 0, 0)),
+        ["materials/tools/climb_versus.vmat"] = new("climb_versus", new(0, 0, 0)),
+        ["materials/tools/dota_nav_walkable.vmat"] = new("nav_walkable", new(25, 120, 0)),
+        ["materials/tools/fogvolume.vmat"] = new("fog_volume", new(197, 0, 255)),
+        ["materials/tools/mapedgeclip.vmat"] = new("map_edge_clip", new(145, 146, 145)),
+        ["materials/tools/nonavclip.vmat"] = new("no_nav_clip", new(211, 59, 33)),
+        ["materials/tools/skyvisblocker.vmat"] = new("sky_vis_blocker", new(93, 195, 255)),
+        ["materials/tools/tools_conveyor.vmat"] = new("conveyor", new(0, 254, 58)),
+        ["materials/tools/tools_cs_place.vmat"] = new("place", new(162, 255, 0)),
+        ["materials/tools/tools_func_occluder.vmat"] = new("func_occluder", new(161, 178, 255)),
+        ["materials/tools/tools_no_wards.vmat"] = new("no_wards", new(255, 254, 255)),
+        ["materials/tools/tools_spawn_volume.vmat"] = new("spawn_volume", new(255, 128, 0)),
+        ["materials/tools/toolsblock_los.vmat"] = new("block_los", new(0, 0, 255)),
+        ["materials/tools/toolsblockbomb.vmat"] = new("block_bomb", new(50, 212, 177)),
+        ["materials/tools/toolsblockbullets.vmat"] = new("block_bullets", new(255, 130, 5)),
+        ["materials/tools/toolsblockbullets_cs.vmat"] = new("block_bullets", new(255, 129, 5)),
+        ["materials/tools/toolsblocklight.vmat"] = new("block_light", new(110, 150, 12)),
+        ["materials/tools/toolsblocksound.vmat"] = new("block_sound", new(116, 148, 2)),
+        ["materials/tools/toolsclip.vmat"] = new("clip", new(211, 58, 33)),
+        ["materials/tools/toolscontrolclip.vmat"] = new("control_clip", new(210, 32, 173)),
+        ["materials/tools/toolscreatureclip.vmat"] = new("creature_clip", new(219, 93, 8)),
+        ["materials/tools/toolsfog.vmat"] = new("fog", new(150, 146, 145)),
+        ["materials/tools/toolsforceunseenclip.vmat"] = new("force_unseen_clip", new(140, 33, 211)),
+        ["materials/tools/toolsgrenadeclip.vmat"] = new("grenade_clip", new(185, 255, 18)),
+        ["materials/tools/toolsheroclip.vmat"] = new("hero_clip", new(140, 33, 211)),
+        ["materials/tools/toolsignorecharacter.vmat"] = new("ignore_character", new(88, 23, 200)),
+        ["materials/tools/toolsignorenpc.vmat"] = new("ignore_npc", new(186, 109, 156)),
+        ["materials/tools/toolsinvisible.vmat"] = new("invisible", new(254, 141, 193)),
+        ["materials/tools/toolsinvisibleladder.vmat"] = new("ladder", new(254, 152, 123)),
+        ["materials/tools/toolsinvisibleladder_wood.vmat"] = new("ladder_wood", new(254, 152, 123)),
+        ["materials/tools/toolslightmapres.vmat"] = new("lightmap_res", new(164, 129, 4)),
+        ["materials/tools/toolslightprobevolume.vmat"] = new("light_probe_volume", new(255, 200, 16)),
+        ["materials/tools/toolslightvolumeboundary.vmat"] = new("light_volume_boundary", new(115, 191, 255)),
+        ["materials/tools/toolsmarkupvolumeai.vmat"] = new("markup_volume_ai", new(63, 204, 222)),
+        ["materials/tools/toolsnavattribute.vmat"] = new("nav_attribute", new(171, 174, 255)),
+        ["materials/tools/toolsnavclip.vmat"] = new("nav_clip", new(197, 8, 166)),
+        ["materials/tools/toolsnavspaceclip.vmat"] = new("nav_space_clip", new(154, 186, 228)),
+        ["materials/tools/toolsnodraw.vmat"] = new("nodraw", new(252, 217, 35)),
+        ["materials/tools/toolsnodraw_bounce.vmat"] = new("nodraw_bounce", new(252, 217, 35)),
+        ["materials/tools/toolsnodraw_grate.vmat"] = new("nodraw_grate", new(178, 251, 35)),
+        ["materials/tools/toolsnodraw_metal.vmat"] = new("nodraw_metal", new(252, 217, 35)),
+        ["materials/tools/toolsnodraw_plastic.vmat"] = new("nodraw_plastic", new(252, 217, 35)),
+        ["materials/tools/toolsnodraw_wood.vmat"] = new("nodraw_wood", new(252, 217, 35)),
+        ["materials/tools/toolsnpcclip.vmat"] = new("npc_clip", new(140, 32, 210)),
+        ["materials/tools/toolsoccluder.vmat"] = new("occluder", new(112, 228, 37)),
+        ["materials/tools/toolsotherclip.vmat"] = new("other_clip", new(121, 32, 208)),
+        ["materials/tools/toolsplayerclip.vmat"] = new("player_clip", new(197, 0, 123)),
+        ["materials/tools/toolsplayerskyclip.vmat"] = new("player_sky_clip", new(197, 0, 122)),
+        ["materials/tools/toolsprecipitation.vmat"] = new("precipitation", new(141, 191, 224)),
+        ["materials/tools/toolsrenderportal.vmat"] = new("render_portal", new(0, 254, 254)),
+        ["materials/tools/toolsskip.vmat"] = new("skip", new(37, 189, 252)),
+        ["materials/tools/toolsskybox.vmat"] = new("skybox", new(178, 224, 252)),
+        ["materials/tools/toolsskybox_occluder.vmat"] = new("skybox_occluder", new(203, 177, 252)),
+        ["materials/tools/toolsslide.vmat"] = new("slide", new(210, 142, 32)),
+        ["materials/tools/toolssolidblocklight.vmat"] = new("solid_block_light", new(152, 194, 74)),
+        ["materials/tools/toolssteamaudiofullabsorption.vmat"] = new("steam_audio_full_absorption", new(255, 154, 104)),
+        ["materials/tools/toolssteamaudiofulldiffuse.vmat"] = new("steam_audio_full_diffuse", new(255, 154, 104)),
+        ["materials/tools/toolsteleportclip.vmat"] = new("teleport_clip", new(1, 152, 164)),
+        ["materials/tools/toolstrigger.vmat"] = new("trigger", DefaultTriggerBackground),
+        ["materials/tools/toolswardonly.vmat"] = new("ward_only", new(38, 189, 252)),
+        ["materials/tools/toolswardsonly.vmat"] = new("wards_only", new(37, 251, 129)),
+        ["materials/tools/visblocker.vmat"] = new("vis_blocker", new(93, 195, 255)),
+    };
 
     private sealed record ToolsMaterial(string Path, string[] Attributes, string? CollisionProperty = null, string? SurfaceProperty = null);
 
@@ -171,6 +317,24 @@ public static class ToolsMaterials
     }
 
     /// <summary>
+    /// Gets the tools material whose faces compile to the collision of a model, see <see cref="GetForCollision"/>.
+    /// The collision of a prop compiles to the same attributes as a tools material of the default group that excludes
+    /// a layer, so a model that draws meshes only traces back collision in a layer of its own.
+    /// </summary>
+    /// <param name="collisionAttributes">Collision attributes of compiled physics, see <see cref="PhysAggregateData.CollisionAttributes"/>.</param>
+    /// <param name="drawsMeshes">Whether the model draws meshes, rather than being only collision.</param>
+    /// <returns>The path of the material, or <see langword="null"/> when no tools material compiles to that collision.</returns>
+    public static string? GetForModelCollision(KVObject collisionAttributes, bool drawsMeshes)
+    {
+        if (drawsMeshes && PhysAggregateData.GetInteractAsTags(collisionAttributes).Length == 0)
+        {
+            return null;
+        }
+
+        return GetForCollision(collisionAttributes);
+    }
+
+    /// <summary>
     /// Gets the tools material the volume of an entity is built from: the one its class applies, or
     /// <see cref="Trigger"/> where it applies none.
     /// </summary>
@@ -188,34 +352,95 @@ public static class ToolsMaterials
     }
 
     /// <summary>
-    /// The colors the volumes of entities of a class built from <see cref="Trigger"/> are shown in.
+    /// Describes a generated texture that names what faces were built from: a tools material, the class of an entity volume, or
+    /// the layers of collision.
     /// </summary>
-    /// <param name="Background">The color of the volume.</param>
-    /// <param name="Text">The color of the class name written on it.</param>
-    public readonly record struct TriggerColors(Color32 Background, Color32 Text);
+    /// <param name="Key">A name for the texture, unique to what it names, which it is cached and exported under.</param>
+    /// <param name="Name">The name written on the texture, with underscores between its words.</param>
+    /// <param name="Background">The color the texture is filled with.</param>
+    public readonly record struct TextureLabel(string Key, string Name, Color32 Background)
+    {
+        /// <summary>
+        /// Gets the color of the name: black on light backgrounds, and white on dark ones.
+        /// </summary>
+        public Color32 Text => GetTextColor(Background);
+    }
 
     /// <summary>
-    /// Gets the colors the volumes of entities of a class built from <see cref="Trigger"/> are shown in, so that
-    /// volumes of different classes can be told apart.
+    /// Gets the generated texture that names a tools material, filled with the color of its texture.
+    /// </summary>
+    /// <param name="material">The path of the material.</param>
+    /// <returns>The label, or <see langword="null"/> when the material is not known.</returns>
+    public static TextureLabel? GetToolsLabel(string material)
+    {
+        ArgumentNullException.ThrowIfNull(material);
+
+        if (!Labels.TryGetValue(material, out var label))
+        {
+            return null;
+        }
+
+        return new TextureLabel($"tool_{Path.GetFileNameWithoutExtension(material)}", label.Name, label.Background);
+    }
+
+    /// <summary>
+    /// Gets the generated texture the volumes of entities of a class built from <see cref="Trigger"/> are shown with,
+    /// so that volumes of different classes can be told apart.
     /// </summary>
     /// <param name="entityClassName">The class of the entity.</param>
-    /// <returns>The colors, the same for a class wherever it is shown.</returns>
-    public static TriggerColors GetTriggerColors(string entityClassName)
+    /// <returns>The label, the same for a class wherever it is shown.</returns>
+    public static TextureLabel GetTriggerLabel(string entityClassName)
     {
         ArgumentNullException.ThrowIfNull(entityClassName);
 
-        // Most classes keep the orange of the material, and only a few that matter when looking around a map stand out.
-        // The text is a dark shade of the volume, as translucent black text would only show what is behind it.
-        return entityClassName switch
+        if (!TriggerBackgrounds.TryGetValue(entityClassName, out var background))
         {
-            "trigger_hurt" or "trigger_hurt_citadel" => new(new Color32(255, 80, 70), new Color32(100, 15, 10)),
-            "trigger_teleport" or "citadel_trigger_teleport" or "citadel_trigger_hideout_teleport" => new(new Color32(190, 120, 255), new Color32(55, 20, 100)),
-            "trigger_push" or "trigger_catapult" => new(new Color32(70, 200, 255), new Color32(0, 60, 95)),
-            "trigger_changelevel" or "trigger_transition" => new(new Color32(100, 220, 110), new Color32(15, 75, 20)),
-            "func_buyzone" or "trigger_shop" or "trigger_item_shop" => new(new Color32(150, 230, 70), new Color32(45, 80, 0)),
-            "func_bomb_target" or "trigger_boss_attackable" => new(new Color32(255, 90, 130), new Color32(100, 15, 40)),
-            "func_hostage_rescue" => new(new Color32(90, 230, 220), new Color32(0, 75, 70)),
-            _ => DefaultTriggerColors,
-        };
+            background = DefaultTriggerBackground;
+        }
+
+        return new TextureLabel($"trigger_{entityClassName}", StripTriggerNamePrefixes(entityClassName), background);
+    }
+
+    private static string StripTriggerNamePrefixes(string entityClassName)
+    {
+        var name = entityClassName;
+
+        foreach (var prefix in TriggerNamePrefixes)
+        {
+            if (name.Length > prefix.Length && name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                name = name[prefix.Length..];
+            }
+        }
+
+        return name;
+    }
+
+    // Oklab lightness is perceived the same for every hue, so one threshold suits every background
+    private static Color32 GetTextColor(Color32 background)
+    {
+        var lightness = ColorSpace.LinearToOklab(background.ToLinearColor().AsVector3()).X;
+
+        return lightness > 0.67f ? new Color32(0, 0, 0) : new Color32(255, 255, 255);
+    }
+
+    /// <summary>
+    /// Gets the generated texture of collision that no tools material compiles to, see <see cref="GetForCollision"/>,
+    /// which names the layers it interacts as.
+    /// </summary>
+    /// <param name="collisionAttributes">Collision attributes of compiled physics, see <see cref="PhysAggregateData.CollisionAttributes"/>.</param>
+    /// <returns>The label, or <see langword="null"/> when the collision interacts as no layer.</returns>
+    public static TextureLabel? GetCollisionLabel(KVObject collisionAttributes)
+    {
+        var tags = PhysAggregateData.GetInteractAsTags(collisionAttributes);
+
+        if (tags.Length == 0)
+        {
+            return null;
+        }
+
+        var name = string.Join('_', tags).ToLowerInvariant();
+
+        return new TextureLabel($"collision_{name}", name, CollisionBackground);
     }
 }

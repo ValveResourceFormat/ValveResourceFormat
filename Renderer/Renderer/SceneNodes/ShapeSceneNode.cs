@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.Materials;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
@@ -150,7 +151,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
 
             ToolsMaterial = material;
-            toolTexture = material.GetColorTexture();
+            toolTexture = ToolsMaterials.GetToolsLabel(materialName) is { } label
+                ? Scene.RendererContext.MaterialLoader.GetLabelTexture(label)
+                : material.GetColorTexture();
             return true;
         }
 

@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Runtime.InteropServices;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -237,6 +238,14 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
             {
                 var toolsMaterial = groupToolsMaterial?.Invoke(collisionAttributeIndex);
 
+                // Only collision compiled from map faces can be shown as what Hammer built it from
+                ToolsMaterials.TextureLabel? collisionLabel = null;
+
+                if (toolsMaterial == null && groupToolsMaterial != null)
+                {
+                    collisionLabel = ToolsMaterials.GetCollisionLabel(phys.CollisionAttributes[collisionAttributeIndex]);
+                }
+
                 for (var p = 0; p < phys.Parts.Length; p++)
                 {
                     var shape = phys.Parts[p].Shape;
@@ -429,7 +438,7 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
                         {
                             AddMeshTriangles(chunkVerts, chunkInds, chunkLines, mesh, triangles, meshEdges, lineCorners, chunk);
 
-                            physSceneNodes.Add(CreateNode(scene, phys, chunkVerts, chunkInds, chunkLines, labels, name, collisionAttributeIndex, toolsMaterial));
+                            physSceneNodes.Add(CreateNode(scene, phys, chunkVerts, chunkInds, chunkLines, labels, name, collisionAttributeIndex, toolsMaterial, collisionLabel));
 
                             chunkVerts.Clear();
                             chunkInds.Clear();
@@ -445,7 +454,7 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
 
                 if (inds.Count > 0 || !groupHasNode)
                 {
-                    physSceneNodes.Add(CreateNode(scene, phys, verts, inds, lines, labels, name, collisionAttributeIndex, toolsMaterial));
+                    physSceneNodes.Add(CreateNode(scene, phys, verts, inds, lines, labels, name, collisionAttributeIndex, toolsMaterial, collisionLabel));
                 }
 
                 // The node uploads the vertices and does not keep them
@@ -461,7 +470,7 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
         }
 
         // The line indices are appended after the triangle indices
-        private static PhysSceneNode CreateNode(Scene scene, PhysAggregateData phys, List<SimpleVertexNormal> verts, List<int> inds, List<int> lines, string[] labels, string? name, int collisionAttributeIndex, string? toolsMaterial)
+        private static PhysSceneNode CreateNode(Scene scene, PhysAggregateData phys, List<SimpleVertexNormal> verts, List<int> inds, List<int> lines, string[] labels, string? name, int collisionAttributeIndex, string? toolsMaterial, ToolsMaterials.TextureLabel? collisionLabel)
         {
             inds.AddRange(lines);
 
@@ -491,6 +500,11 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
             if (toolsMaterial != null && node.SetToolsMaterial(toolsMaterial))
             {
                 node.Enabled = true;
+            }
+            else if (collisionLabel is { } label)
+            {
+                // Collision in layers that no tools material compiles to names them instead
+                node.SetToolTexture(scene.RendererContext.MaterialLoader.GetLabelTexture(label));
             }
 
             return node;

@@ -151,7 +151,11 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
         var autoApplyMaterial = entity == null ? null : Classes.FindClass(entity.Classname)?.AutoApplyMaterial;
 
         // An entity whose model draws nothing is a volume, built from a tools material the compiled map no longer names
-        var fallbackMaterial = entity is BaseModelEntity { ModelNode: null } ? ToolsMaterials.Trigger : null;
+        var isVolume = entity is BaseModelEntity { ModelNode: null };
+        var fallbackMaterial = isVolume ? ToolsMaterials.Trigger : null;
+
+        // A class that applies no material of its own can be built from any, so its volumes are told apart by class
+        var showsClass = isVolume && autoApplyMaterial == null;
 
         // A group built from a tools material is all the compiled map keeps of the faces Hammer drew with it
         var drawsMeshes = entity is BaseModelEntity { ModelNode: not null };
@@ -163,16 +167,7 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
                 return autoApplyMaterial;
             }
 
-            var attributes = physics.CollisionAttributes[group];
-
-            // The collision of a prop compiles to the same attributes as a tools material of the default group
-            // that excludes a layer, so a model that draws meshes only traces back groups in a layer of their own
-            if (drawsMeshes && PhysAggregateData.GetInteractAsTags(attributes).Length == 0)
-            {
-                return null;
-            }
-
-            return ToolsMaterials.GetForCollision(attributes) ?? fallbackMaterial;
+            return ToolsMaterials.GetForModelCollision(physics.CollisionAttributes[group], drawsMeshes) ?? fallbackMaterial;
         });
 
         if (entity == null)
@@ -180,12 +175,18 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
             return nodes;
         }
 
-        // Every class shares the trigger material, so its volumes show their class instead
+        // Every class shares the trigger material, so volumes built from it, or from any material their class does
+        // not apply, show their class instead
         foreach (var node in nodes)
         {
-            if (node.ToolsMaterial?.Material.Name.Equals(ToolsMaterials.Trigger, StringComparison.OrdinalIgnoreCase) == true)
+            if (node.ToolsMaterial == null)
             {
-                node.SetToolTexture(scene.RendererContext.MaterialLoader.GetTriggerTexture(entity.Classname));
+                continue;
+            }
+
+            if (showsClass || node.ToolsMaterial.Material.Name.Equals(ToolsMaterials.Trigger, StringComparison.OrdinalIgnoreCase))
+            {
+                node.SetToolTexture(scene.RendererContext.MaterialLoader.GetLabelTexture(ToolsMaterials.GetTriggerLabel(entity.Classname)));
             }
         }
 

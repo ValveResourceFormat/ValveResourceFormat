@@ -70,6 +70,22 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
+        /// Converts a linear RGB color to Oklab, where X is the lightness and Y and Z are the green-red and blue-yellow axes.
+        /// </summary>
+        public static Vector3 LinearToOklab(Vector3 linearColor)
+        {
+            var l = MathF.Cbrt(0.4122214708f * linearColor.X + 0.5363325363f * linearColor.Y + 0.0514459929f * linearColor.Z);
+            var m = MathF.Cbrt(0.2119034982f * linearColor.X + 0.6806995451f * linearColor.Y + 0.1073969566f * linearColor.Z);
+            var s = MathF.Cbrt(0.0883024619f * linearColor.X + 0.2817188376f * linearColor.Y + 0.6299787005f * linearColor.Z);
+
+            return new Vector3(
+                0.2104542553f * l + 0.7936177850f * m - 0.0040720468f * s,
+                1.9779984951f * l - 2.4285922050f * m + 0.4505937099f * s,
+                0.0259040371f * l + 0.7827717662f * m - 0.8086757660f * s
+            );
+        }
+
+        /// <summary>
         /// Converts a color temperature to an sRGB gamma space color, the way light entities with a color temperature do.
         /// </summary>
         /// <param name="kelvin">Color temperature in Kelvin.</param>

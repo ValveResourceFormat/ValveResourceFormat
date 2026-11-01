@@ -12,7 +12,7 @@
     <GenerateDocumentationFile Condition="'$(Configuration)' != 'Debug'">true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-      <EmbeddedResource Include="Utils\RobotoAscii.ttf" />
+      <EmbeddedResource Include="Utils\ManropeAscii.ttf" />
       <EmbeddedResource Include="Utils\vfx_zstd_2bc2fa87.bin" />
       <EmbeddedResource Include="Utils\vfx_zstd_255df362.bin" />
       <EmbeddedResource Include="IO\Fgd\entity_classes.kv3" />

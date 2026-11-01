@@ -1,0 +1,7 @@
+This file only contains uppercase letters, numbers, space, underscore and dash.
+
+It was generated from Manrope-ExtraBold.ttf by using this:
+pyftsubset Manrope-ExtraBold.ttf --text="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_- " --layout-features='' --no-hinting --desubroutinize --name-IDs='0,1,2,3,4,5,6,13,14' --output-file=ManropeAscii.ttf
+
+Manrope font is licensed under the SIL Open Font License, Version 1.1.
+https://fonts.google.com/specimen/Manrope

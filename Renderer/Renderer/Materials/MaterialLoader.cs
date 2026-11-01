@@ -658,36 +658,29 @@ namespace ValveResourceFormat.Renderer.Materials
         public RenderTexture GetDefaultColor() => DefaultColor ??= CreateSolidTexture(255, 255, 255);
 
         /// <summary>
-        /// Returns the texture the volumes of entities of a class built from <see cref="ToolsMaterials.Trigger"/> are
-        /// shown with, which names the class in its color, see <see cref="ToolsMaterials.GetTriggerColors"/>.
+        /// Returns the texture that names a label in its color, such as that of a tools material, an entity volume or
+        /// a set of collision layers.
         /// </summary>
-        /// <param name="entityClassName">The class of the entity.</param>
-        public RenderTexture GetTriggerTexture(string entityClassName)
+        /// <param name="label">The label, see <see cref="ToolsMaterials.GetToolsLabel"/>,
+        /// <see cref="ToolsMaterials.GetTriggerLabel"/> and <see cref="ToolsMaterials.GetCollisionLabel"/>.</param>
+        public RenderTexture GetLabelTexture(ToolsMaterials.TextureLabel label)
         {
-            // The cache key is not a resource path, so it cannot collide with a loaded texture
-            var cacheKey = $"trigger:{entityClassName}";
-
-            if (TexturesSrgb.TryGetValue(cacheKey, out var cached))
+            // The key is not a resource path, so it cannot collide with a loaded texture
+            if (TexturesSrgb.TryGetValue(label.Key, out var cached))
             {
                 return cached;
             }
 
-            using var bitmap = MapAutoPhysTextureGenerator.GenerateTriggerTexture(entityClassName);
+            using var bitmap = MapAutoPhysTextureGenerator.GenerateTexture(label);
 
-            var texture = CreateTriggerTexture(bitmap, ToolsMaterials.GetTriggerColors(entityClassName).Background);
-            TexturesSrgb[cacheKey] = texture;
-            return texture;
-        }
-
-        // Generated textures are not resources, so they are uploaded here with a full mip chain to tile across shapes.
-        // Edge lines take the class color, which the shader reads from the reflectivity.
-        private static RenderTexture CreateTriggerTexture(SKBitmap bitmap, Color32 lineColor)
-        {
+            // Generated textures are not resources, so they are uploaded here with a full mip chain to tile across shapes
             var levels = 1 + BitOperations.Log2((uint)Math.Max(bitmap.Width, bitmap.Height));
-            var texture = new RenderTexture(TextureTarget.Texture2D, bitmap.Width, bitmap.Height, 1, levels, "TriggerTexture");
+            var texture = new RenderTexture(TextureTarget.Texture2D, bitmap.Width, bitmap.Height, 1, levels, label.Key);
             texture.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Linear);
             texture.SetWrapMode(RsTextureAddressMode.Wrap);
-            texture.Reflectivity = lineColor.ToLinearColor();
+
+            // Edge lines take the background color, which the shader reads from the reflectivity
+            texture.Reflectivity = label.Background.ToLinearColor();
 
             var pixelFormat = bitmap.ColorType == SKColorType.Rgba8888 ? PixelFormat.Rgba : PixelFormat.Bgra;
 
@@ -695,6 +688,7 @@ namespace ValveResourceFormat.Renderer.Materials
             GL.TextureSubImage2D(texture.Handle, 0, 0, 0, bitmap.Width, bitmap.Height, pixelFormat, PixelType.UnsignedByte, bitmap.GetPixels());
             GL.GenerateTextureMipmap(texture.Handle);
 
+            TexturesSrgb[label.Key] = texture;
             return texture;
         }
 

@@ -161,7 +161,8 @@ public partial class GltfModelExporter
             var phys = GetModelPhysics(model);
             if (phys != null)
             {
-                PhysicsToExport.Add((phys, className, transform));
+                var drawsMeshes = model.GetEmbeddedMeshes().Any() || model.GetReferenceMeshNamesAndLoD().Any();
+                PhysicsToExport.Add((phys, className, drawsMeshes, transform));
             }
         }
     }

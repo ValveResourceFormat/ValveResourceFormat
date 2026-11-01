@@ -20,7 +20,7 @@ namespace ValveResourceFormat.IO;
 /// </summary>
 public partial class GltfModelExporter
 {
-    private void LoadPhysicsMeshes(ModelRoot exportedModel, Scene scene, PhysAggregateData phys, Matrix4x4 transform, string? classname = null)
+    private void LoadPhysicsMeshes(ModelRoot exportedModel, Scene scene, PhysAggregateData phys, Matrix4x4 transform, string? classname = null, bool drawsMeshes = false)
     {
         var bindPose = phys.BindPose;
         var collisionAttributes = phys.CollisionAttributes;
@@ -97,7 +97,7 @@ public partial class GltfModelExporter
                     }
 
                     var gltfMesh = CreatePhysicsMesh(exportedModel, meshName, combinedVerts, combinedNormals, combinedUvs, combinedIndices,
-                        collisionAttributes[collisionAttrIndex], physicsSurfaceNames, surfacePropIndex, classname);
+                        collisionAttributes[collisionAttrIndex], physicsSurfaceNames, surfacePropIndex, classname, drawsMeshes);
                     var node = scene.CreateNode(meshName);
                     node.Mesh = gltfMesh;
                     node.WorldMatrix = transform * TransformSourceToGltf;
@@ -400,7 +400,7 @@ public partial class GltfModelExporter
     /// Uses tool textures for collision attributes when available, otherwise falls back to surface property textures.
     /// </summary>
     private Mesh CreatePhysicsMesh(ModelRoot exportedModel, string meshName, List<Vector3> vertices, List<Vector3> normals, List<Vector2> uvs, List<int> indices,
-        KVObject collisionAttributes, string[] physicsSurfaceNames, int surfacePropertyIndex, string? classname)
+        KVObject collisionAttributes, string[] physicsSurfaceNames, int surfacePropertyIndex, string? classname, bool drawsMeshes)
     {
         var mesh = exportedModel.CreateMesh(meshName);
         var primitive = mesh.CreatePrimitive();
@@ -422,25 +422,42 @@ public partial class GltfModelExporter
         {
             var material = exportedModel.CreateMaterial($"{meshName}_material");
 
-            // Try to load and use tool material first. Physics meshes have no tangents or detail worth shading, so only its base color is bound
-            var toolMaterialPath = classname != null
-                ? ToolsMaterials.GetForEntity(classname, FileLoader)
-                : ToolsMaterials.GetForCollision(collisionAttributes);
+            // An entity whose model draws nothing is a volume, built from the material its class applies
+            var volumeClassname = drawsMeshes ? null : classname;
+            var toolMaterialPath = volumeClassname != null
+                ? ToolsMaterials.GetForEntity(volumeClassname, FileLoader)
+                : ToolsMaterials.GetForModelCollision(collisionAttributes, drawsMeshes);
+
             var usedToolMaterial = false;
 
-            // Volumes built from the trigger material show their class instead, as every class shares that material
-            if (classname != null && ToolsMaterials.Trigger.Equals(toolMaterialPath, StringComparison.OrdinalIgnoreCase))
+            // A generated texture names what the faces were built from: the class of a volume built from the trigger
+            // material, as every class shares that material, the tools material, or the layers of collision no tools
+            // material compiles to
+            ToolsMaterials.TextureLabel? label;
+
+            if (volumeClassname != null && ToolsMaterials.Trigger.Equals(toolMaterialPath, StringComparison.OrdinalIgnoreCase))
+            {
+                label = ToolsMaterials.GetTriggerLabel(volumeClassname);
+            }
+            else if (toolMaterialPath != null)
+            {
+                label = ToolsMaterials.GetToolsLabel(toolMaterialPath);
+            }
+            else
+            {
+                label = ToolsMaterials.GetCollisionLabel(collisionAttributes);
+            }
+
+            if (label is { } textureLabel)
             {
                 material.InitializePBRMetallicRoughness();
                 SetMetallicRoughness(material, Vector4.One, metallicFactor: 0.0f);
                 material.Alpha = AlphaMode.OPAQUE;
 
-                var textureName = $"trigger_{classname}";
-
-                if (!ExportedTextures.TryGetValue(textureName, out var texture))
+                if (!ExportedTextures.TryGetValue(textureLabel.Key, out var texture))
                 {
-                    using var bitmap = MapAutoPhysTextureGenerator.GenerateTriggerTexture(classname);
-                    texture = AddGeneratedTexture(exportedModel, textureName, bitmap);
+                    using var bitmap = MapAutoPhysTextureGenerator.GenerateTexture(textureLabel);
+                    texture = AddGeneratedTexture(exportedModel, textureLabel.Key, bitmap);
                 }
 
                 material.FindChannel("BaseColor")?.SetTexture(0, texture);
@@ -448,6 +465,7 @@ public partial class GltfModelExporter
             }
             else if (toolMaterialPath != null && FileLoader.LoadFileCompiled(toolMaterialPath)?.DataBlock is VMaterial toolMaterial)
             {
+                // Physics meshes have no tangents or detail worth shading, so only its base color is bound
                 GenerateGLTFMaterialFromRenderMaterial(material, toolMaterial, exportedModel, Vector4.One, baseColorOnly: true);
                 usedToolMaterial = true;
             }
@@ -471,7 +489,7 @@ public partial class GltfModelExporter
 
                     if (!ExportedTextures.TryGetValue(textureName, out texture))
                     {
-                        using var bitmap = MapAutoPhysTextureGenerator.GenerateTexture($"TOOL_{toolMaterialName.ToUpperInvariant()}");
+                        using var bitmap = MapAutoPhysTextureGenerator.GenerateTexture(toolMaterialName);
                         texture = AddGeneratedTexture(exportedModel, textureName, bitmap);
                     }
                 }

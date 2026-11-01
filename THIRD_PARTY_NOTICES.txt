@@ -70,6 +70,11 @@ KeyValues2
   Copyright (c) 2018-2026 ValveResourceFormat contributors
   https://github.com/ValveResourceFormat/Datamodel.NET
 
+Manrope
+  License: OFL-1.1
+  Copyright 2026 Mikhail Sharanda
+  https://fonts.google.com/specimen/Manrope
+
 meshoptimizer
   License: MIT
   Copyright (c) 2016-2026 Arseny Kapoulkine
@@ -114,11 +119,6 @@ Poly Haven "Industrial Sunset (Pure Sky)" HDRI (GUI only)
   License: CC0-1.0
   Sergej Majboroda, Jarod Guest
   https://polyhaven.com/a/industrial_sunset_puresky
-
-Roboto
-  License: OFL-1.1
-  Copyright 2011 The Roboto Project Authors
-  https://github.com/googlefonts/roboto-classic
 
 s&box
   License: MIT

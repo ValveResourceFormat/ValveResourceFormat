@@ -105,7 +105,7 @@ namespace ValveResourceFormat.IO
         private readonly Dictionary<string, bool> ToolsMaterialCache = [];
         private readonly Dictionary<(string Name, Vector4 TintColor), Mesh> ExportedMeshes = [];
         private readonly Dictionary<(Node[] Joints, Matrix4x4[] InverseBindPose), Skin> ExportedSkins = new(SkinKeyComparer.Instance);
-        private readonly List<(PhysAggregateData Phys, string? Classname, Matrix4x4 Transform)> PhysicsToExport = [];
+        private readonly List<(PhysAggregateData Phys, string? Classname, bool DrawsMeshes, Matrix4x4 Transform)> PhysicsToExport = [];
         private bool IsExporting;
 
         /// <summary>
@@ -332,9 +332,9 @@ namespace ValveResourceFormat.IO
 
             var exportedPhysics = CreateModelRoot(resourceName, out var scenePhysics);
 
-            foreach (var (phys, className, transform) in PhysicsToExport)
+            foreach (var (phys, className, drawsMeshes, transform) in PhysicsToExport)
             {
-                LoadPhysicsMeshes(exportedPhysics, scenePhysics, phys, transform, className);
+                LoadPhysicsMeshes(exportedPhysics, scenePhysics, phys, transform, className, drawsMeshes);
             }
 
             string? physFileName = null;
