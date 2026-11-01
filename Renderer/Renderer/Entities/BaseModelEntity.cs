@@ -311,7 +311,7 @@ public abstract class BaseModelEntity : BaseEntity
 
             switch (element.AttachmentType)
             {
-                case ModelConfigAttachmentType.BoneMerge:
+                case ModelConfigAttachmentType.Bonemerge:
                     node.SetParent(parent, localTransform: scale);
                     node.BoneMerge(parent);
                     break;

@@ -16,5 +16,5 @@ public enum ModelConfigAttachmentType
     RootRelative = 1,
 
     /// <summary>Posed by the bones of the parent that share its bone names.</summary>
-    BoneMerge = 2,
+    Bonemerge = 2,
 }

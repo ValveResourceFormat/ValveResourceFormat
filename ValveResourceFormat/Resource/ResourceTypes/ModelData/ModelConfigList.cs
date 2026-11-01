@@ -89,7 +89,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
                         case ModelConfigUserPick { Choices.Count: > 0 } pick:
                         {
                             // A choice the state does not name, or names wrongly, falls back to the first
-                            var picked = GetString(pick.StateKey) is { } name && pick.Choices.Contains(name) ? name : pick.Choices[0];
+                            var picked = state?.GetStringProperty(pick.StateKey) is { } name && pick.Choices.Contains(name) ? name : pick.Choices[0];
 
                             EvaluatePicked(picked, target, parentIndex, depth);
                             break;
@@ -97,7 +97,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
 
                         case ModelConfigRandomPick { Choices.Count: > 0 } pick:
                         {
-                            var index = GetInteger(pick.StateKey);
+                            var index = state?.GetInt32Property(pick.StateKey, -1) ?? -1;
 
                             if (index < 0 || index >= pick.Choices.Count)
                             {
@@ -114,10 +114,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
 
                             if (attached.UserSpecifiedColor)
                             {
-                                model.RenderColor = GetColor($"{attached.Name}_color") ?? Color32.White;
+                                model.RenderColor = state?.GetArray<byte>($"{attached.Name}_color") is { } color
+                                    ? new Color32(color[0], color[1], color[2])
+                                    : Color32.White;
                             }
 
-                            if (attached.UserSpecifiedMaterialGroup && GetString($"{attached.Name}_matgrp") is { Length: > 0 } materialGroup)
+                            if (attached.UserSpecifiedMaterialGroup && state?.GetStringProperty($"{attached.Name}_matgrp") is { Length: > 0 } materialGroup)
                             {
                                 model.MaterialGroup = materialGroup;
                             }
@@ -191,39 +193,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
                 return weights.Count - 1;
             }
 
-            private string? GetString(string key)
-                => state != null && state.TryGetValue(key, out var value) && value.ValueType == KVValueType.String ? (string)value : null;
-
-            private int GetInteger(string key)
-            {
-                if (state == null || !state.TryGetValue(key, out var value))
-                {
-                    return -1;
-                }
-
-                return value.ValueType switch
-                {
-                    KVValueType.String => int.TryParse((string)value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : -1,
-                    KVValueType.Collection or KVValueType.Array or KVValueType.Null or KVValueType.BinaryBlob => -1,
-                    _ => value.ToInt32(CultureInfo.InvariantCulture),
-                };
-            }
-
-            // Three channels, or four with alpha
-            private Color32? GetColor(string key)
-            {
-                if (state == null || !state.TryGetValue(key, out var value) || !value.IsArray || value.Count is < 3 or > 4)
-                {
-                    return null;
-                }
-
-                var elements = value.Elements;
-
-                byte GetChannel(int index)
-                    => index < elements.Count ? (byte)Math.Clamp(elements[index].ToInt32(CultureInfo.InvariantCulture), 0, byte.MaxValue) : byte.MaxValue;
-
-                return new Color32(GetChannel(0), GetChannel(1), GetChannel(2), GetChannel(3));
-            }
         }
     }
 
@@ -235,10 +204,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
     public sealed record ModelConfig(string Name, IReadOnlyList<ModelConfigElement> Elements, bool IsTopLevel)
     {
         internal static ModelConfig Read(KVObject data)
-            => new(
-                data.GetStringProperty("m_ConfigName", string.Empty),
-                ModelConfigElement.ReadList(data.GetArray("m_Elements"), string.Empty),
-                data.GetBooleanProperty("m_bTopLevel"));
+        {
+            var name = data.GetStringProperty("m_ConfigName", string.Empty);
+            var elements = ModelConfigElement.ReadList(data.GetArray("m_Elements"), string.Empty);
+
+            return new ModelConfig(name, elements, data.GetBooleanProperty("m_bTopLevel"));
+        }
     }
 
     /// <summary>
@@ -343,34 +314,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
             InstanceName = data.GetStringProperty("m_InstanceName", string.Empty);
             EntityClass = data.GetStringProperty("m_EntityClass", string.Empty);
             ModelName = data.GetStringProperty("m_hModel", string.Empty);
-            Offset = data.TryGetValue("m_vOffset", out var offset) && offset.IsArray ? offset.ToVector3() : Vector3.Zero;
-            AngleOffset = data.TryGetValue("m_aAngOffset", out var angles) && angles.IsArray ? angles.ToVector3() : Vector3.Zero;
+            Offset = data.GetSubCollection("m_vOffset").ToVector3();
+            AngleOffset = data.GetSubCollection("m_aAngOffset").ToVector3();
             AttachmentName = data.GetStringProperty("m_AttachmentName", string.Empty);
             LocalAttachmentOffsetName = data.GetStringProperty("m_LocalAttachmentOffsetName", string.Empty);
-            AttachmentType = ReadAttachmentType(data);
+            AttachmentType = data.GetEnumValue<ModelConfigAttachmentType>("m_AttachmentType", normalize: true, stripExtension: "Type");
             UserSpecifiedColor = data.GetBooleanProperty("m_bUserSpecifiedColor");
             UserSpecifiedMaterialGroup = data.GetBooleanProperty("m_bUserSpecifiedMaterialGroup");
-        }
-
-        private static ModelConfigAttachmentType ReadAttachmentType(KVObject data)
-        {
-            if (!data.TryGetValue("m_AttachmentType", out var value))
-            {
-                return ModelConfigAttachmentType.Invalid;
-            }
-
-            if (value.ValueType != KVValueType.String)
-            {
-                return (ModelConfigAttachmentType)value.ToInt32(CultureInfo.InvariantCulture);
-            }
-
-            return (string)value switch
-            {
-                "MODEL_CONFIG_ATTACHMENT_BONE_OR_ATTACHMENT" => ModelConfigAttachmentType.BoneOrAttachment,
-                "MODEL_CONFIG_ATTACHMENT_ROOT_RELATIVE" => ModelConfigAttachmentType.RootRelative,
-                "MODEL_CONFIG_ATTACHMENT_BONEMERGE" => ModelConfigAttachmentType.BoneMerge,
-                _ => ModelConfigAttachmentType.Invalid,
-            };
         }
     }
 
@@ -406,7 +356,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         internal ModelConfigRandomPick(KVObject data, string stateKey) : base(data, stateKey)
         {
             Choices = data.GetArray<string>("m_Choices") ?? [];
-            ChoiceWeights = data.ContainsKey("m_ChoiceWeights") ? data.GetFloatArray("m_ChoiceWeights") : [];
+            ChoiceWeights = data.GetFloatArray("m_ChoiceWeights");
         }
     }
 
@@ -432,11 +382,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
 
         internal ModelConfigSetRenderColor(KVObject data, string stateKey) : base(data, stateKey)
         {
-            var channels = data.ContainsKey("m_Color") ? data.GetIntegerArray("m_Color") : [];
+            var color = data.GetArray<byte>("m_Color");
 
-            byte GetChannel(int index) => index < channels.Length ? (byte)Math.Clamp(channels[index], 0, byte.MaxValue) : byte.MaxValue;
-
-            Color = new Color32(GetChannel(0), GetChannel(1), GetChannel(2), GetChannel(3));
+            Color = new Color32(color[0], color[1], color[2], color[3]);
         }
     }
 
