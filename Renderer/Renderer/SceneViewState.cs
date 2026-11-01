@@ -176,6 +176,9 @@ public sealed class SceneViewState
     /// <inheritdoc cref="unprimedOpaqueDraws"/>
     private readonly List<MeshBatchRenderer.Request> viewmodelUnprimedOpaqueDraws = [];
 
+    /// <inheritdoc cref="unprimedOpaqueDraws"/>
+    private readonly List<MeshBatchRenderer.Request> unprimedAggregateDraws = [];
+
     /// <summary>The viewmodel draws of the depth prepass.</summary>
     private readonly Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> viewmodelDepthOnlyDraws = CreateDepthOnlyBuckets();
 
@@ -354,12 +357,17 @@ public sealed class SceneViewState
                 {
                     renderPass = RenderPass.StaticOverlay;
                 }
-                else if (material is { IsAlphaTest: true, CanPrimeDepth: true })
+                else if (!material.CanPrimeDepth)
+                {
+                    unprimedAggregateDraws.Add(request);
+                    return;
+                }
+                else if (material.IsAlphaTest)
                 {
                     alphaTestAggregateDraws.Add(request);
                     return;
                 }
-                else if (Scene.Settings.EnableDepthPrepass && material.CanPrimeDepth)
+                else if (Scene.Settings.EnableDepthPrepass)
                 {
                     depthOnlyDraws[GetDepthOnlyBucket(request.Call)].Add(request);
                 }
@@ -477,6 +485,7 @@ public sealed class SceneViewState
         alphaTestOpaqueDraws.Clear();
         unprimedOpaqueDraws.Clear();
         viewmodelUnprimedOpaqueDraws.Clear();
+        unprimedAggregateDraws.Clear();
         translucentDepthDraws.Clear();
 
         foreach (var bucket in depthOnlyDraws.Values)
@@ -686,6 +695,7 @@ public sealed class SceneViewState
 
         renderLists[RenderPass.OpaqueAggregate].RemoveAll(hasNoVisibleFragments);
         alphaTestAggregateDraws.RemoveAll(hasNoVisibleFragments);
+        unprimedAggregateDraws.RemoveAll(hasNoVisibleFragments);
 
         // avoid buffer updates mid rendering
         foreach (var node in customBufferNodes)
@@ -1098,6 +1108,14 @@ public sealed class SceneViewState
             MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
         }
 
+        if (unprimedAggregateDraws.Count > 0)
+        {
+            using var unprimedGroup = new GLDebugGroup("Unprimed Aggregate Render");
+
+            renderContext.RenderPass = RenderPass.OpaqueAggregate;
+            MeshBatchRenderer.Render(unprimedAggregateDraws, renderContext);
+        }
+
         if (renderLists[RenderPass.Opaque].Count > 0 || unprimedOpaqueDraws.Count > 0)
         {
             using var opaqueGroup = new GLDebugGroup("Opaque Render");
@@ -1447,6 +1465,7 @@ public sealed class SceneViewState
         AddNodeDraws(alphaTestAggregateDraws, nodes);
         AddNodeDraws(alphaTestOpaqueDraws, nodes);
         AddNodeDraws(unprimedOpaqueDraws, nodes);
+        AddNodeDraws(unprimedAggregateDraws, nodes);
         AddNodeDraws(viewmodelUnprimedOpaqueDraws, nodes);
 
         // Listed once each, unlike their requests, which are queued in every pass they draw in
