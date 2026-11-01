@@ -929,10 +929,17 @@ namespace GUI.Types.GLViewers
                 {
                     baseGrid.Render();
 
-                    DrawWorldSpaceText("+X", 10f, Vector3.UnitX * 120f, Color32.Red, renderContext);
-                    DrawWorldSpaceText("-X", 10f, -Vector3.UnitX * 120f, Color32.Red, renderContext);
-                    DrawWorldSpaceText("+Y", 10f, Vector3.UnitY * 120f, Color32.Green, renderContext);
-                    DrawWorldSpaceText("-Y", 10f, -Vector3.UnitY * 120f, Color32.Green, renderContext);
+                    // Match the grid shader's axis colors
+                    var xAxisColor = new Color32(0.9f, 0.2f, 0.2f, 1f);
+                    var yAxisColor = new Color32(0.2f, 0.8f, 0.2f, 1f);
+
+                    // Just past the grid's origin square
+                    const float labelDistance = 128f + 16f;
+
+                    DrawWorldSpaceText("+X", 10f, Vector3.UnitX * labelDistance, xAxisColor, renderContext);
+                    DrawWorldSpaceText("-X", 10f, -Vector3.UnitX * labelDistance, xAxisColor, renderContext);
+                    DrawWorldSpaceText("+Y", 10f, Vector3.UnitY * labelDistance, yAxisColor, renderContext);
+                    DrawWorldSpaceText("-Y", 10f, -Vector3.UnitY * labelDistance, yAxisColor, renderContext);
                 }
             }
 
