@@ -135,6 +135,7 @@ namespace ValveResourceFormat.ResourceTypes
         private BoneConstraint[]? cachedBoneConstraints;
         private BoneRemapTable? cachedBoneRemapTable;
         private ModelMeshGroups? cachedMeshGroups;
+        private ModelConfigList? cachedConfigs;
         private (string Identifier, string GraphPath)[]? cachedAnimGraph2References;
 
         /// <summary>
@@ -364,6 +365,11 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets the model's mesh groups, and the body groups their names encode.
         /// </summary>
         public ModelMeshGroups MeshGroups => cachedMeshGroups ??= new ModelMeshGroups(Data);
+
+        /// <summary>
+        /// Gets the model's configs, which assemble it from attached models, material groups and colors.
+        /// </summary>
+        public ModelConfigList Configs => cachedConfigs ??= new ModelConfigList(Data.GetSubCollection("m_pModelConfigList"));
 
         /// <summary>
         /// Gets the model's references to meshes that live in their own vmesh. Slots filled by an

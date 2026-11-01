@@ -1,8 +1,12 @@
+using System.Globalization;
 using System.Linq;
 using Microsoft.Extensions.Logging;
+using ValveKeyValue;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
@@ -161,6 +165,8 @@ public abstract class BaseModelEntity : BaseEntity
             {
                 modelNode.SetActiveMeshGroups(modelNode.GetMeshGroups().Skip((int)body).Take(1));
             }
+
+            ApplyModelState(model, modelNode);
         }
 
         if (EntityCollider.LoadPhysics(model, fileLoader) is { } physics)
@@ -212,6 +218,143 @@ public abstract class BaseModelEntity : BaseEntity
         }
 
         return text == "1";
+    }
+
+    // The model state sets the material group and the body groups, then picks between the configs of the
+    // model, which a model with a spawn config is built from even when the entity has no model state
+    private void ApplyModelState(Model model, ModelSceneNode node)
+    {
+        var modelState = Data?.GetStringProperty("model_state") is { Length: > 0 } text
+            && KVDocumentExtensions.TryParseKV3WithoutHeader(text, out var block, out _) && block.ValueType == KVValueType.Collection
+                ? block
+                : null;
+
+        if (modelState?.GetStringProperty("material_group") is { Length: > 0 } materialGroup)
+        {
+            node.SetMaterialGroup(materialGroup);
+        }
+
+        if (modelState?.GetSubCollection("body_groups") is { ValueType: KVValueType.Collection } bodyGroups)
+        {
+            foreach (var (name, value) in bodyGroups)
+            {
+                SetBodyGroup(node, name, ReadBodyGroupChoice(value));
+            }
+        }
+
+        var configState = modelState?.GetSubCollection("config_state") is { ValueType: KVValueType.Collection } state ? state : null;
+
+        if (model.Configs.Evaluate(ModelConfigList.SpawnConfigName, configState, CreateConfigRandom()) is { } result)
+        {
+            AddConfigModels(node, result);
+        }
+    }
+
+    // The game picks at random on every spawn, while a viewer that picks the same for an entity on every load
+    // shows a map the same way each time it is opened
+    private Random CreateConfigRandom()
+    {
+        var seed = Data?.GetStringProperty("hammeruniqueid") is { Length: > 0 } id
+            ? id
+            : string.Create(CultureInfo.InvariantCulture, $"{Classname} {WorldOrigin}");
+
+        return new Random(unchecked((int)StringToken.Get(seed)));
+    }
+
+    private void AddConfigModels(ModelSceneNode root, ModelConfigResult result)
+    {
+        ApplyConfigAppearance(root, result);
+
+        var nodes = new ModelSceneNode?[result.AttachedModels.Count];
+        var scale = Matrix4x4.CreateScale(EntityScale);
+
+        for (var i = 0; i < nodes.Length; i++)
+        {
+            var attached = result.AttachedModels[i];
+            var element = attached.Element;
+            var parent = attached.ParentIndex >= 0 ? nodes[attached.ParentIndex] : root;
+
+            if (parent == null || element.AttachmentType == ModelConfigAttachmentType.Invalid || element.ModelName.Length == 0)
+            {
+                continue;
+            }
+
+            if (EntitySystem.FileLoader.LoadFileCompiled(element.ModelName)?.DataBlock is not Model model)
+            {
+                EntitySystem.Logger.LogWarning("{Classname} '{TargetName}' failed to load attached model \"{Model}\"", Classname, TargetName, element.ModelName);
+                continue;
+            }
+
+            var node = new ModelSceneNode(Scene, model)
+            {
+                Name = element.ModelName,
+                Alpha = root.Alpha,
+            };
+
+            node.Flags |= root.Flags & ObjectTypeFlags.NoShadows;
+
+            // Frames of a parent model drop its scale, so the scale of the entity is applied again here
+            var offset = scale * EntityTransformHelper.ToRigidTransformationMatrix(element.AngleOffset, element.Offset * EntityScale);
+
+            switch (element.AttachmentType)
+            {
+                case ModelConfigAttachmentType.BoneMerge:
+                    node.SetParent(parent, localTransform: scale);
+                    node.BoneMerge(parent);
+                    break;
+
+                case ModelConfigAttachmentType.BoneOrAttachment when element.AttachmentName.Length > 0:
+                    node.SetParent(parent, element.AttachmentName, offset);
+                    break;
+
+                default:
+                    node.SetParent(parent, localTransform: offset);
+                    break;
+            }
+
+            ApplyConfigAppearance(node, attached);
+
+            // Placed by the model it is attached to
+            AddNode(node, followsEntity: false);
+            nodes[i] = node;
+        }
+    }
+
+    private static void ApplyConfigAppearance(ModelSceneNode node, ModelConfigAppearance appearance)
+    {
+        if (appearance.MaterialGroup is { } materialGroup)
+        {
+            node.SetMaterialGroup(materialGroup);
+        }
+
+        if (appearance.RenderColor is { } color)
+        {
+            node.Tint = new Vector3(color.R, color.G, color.B) / byte.MaxValue;
+        }
+
+        foreach (var (name, choice) in appearance.BodyGroups)
+        {
+            SetBodyGroup(node, name, choice);
+        }
+    }
+
+    private static int ReadBodyGroupChoice(KVObject value) => value.ValueType switch
+    {
+        KVValueType.String => int.TryParse((string)value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : 0,
+        KVValueType.Collection or KVValueType.Array or KVValueType.Null => 0,
+        _ => value.ToInt32(CultureInfo.InvariantCulture),
+    };
+
+    private static void SetBodyGroup(ModelSceneNode node, string bodyGroup, int index)
+    {
+        foreach (var choice in node.GetBodyGroupChoices())
+        {
+            if (choice.Index == index && choice.BodyGroup.Equals(bodyGroup, StringComparison.OrdinalIgnoreCase))
+            {
+                node.SetBodyGroupChoice(choice);
+                return;
+            }
+        }
     }
 
     /// <summary>

@@ -10,10 +10,64 @@ namespace ValveResourceFormat.Renderer
         internal bool EnableFirstPersonLegs { get; set; }
 
         /// <summary>
-        /// Gets or sets the controller this one is bone merged onto. While set, <see cref="Update"/> copies
-        /// that controller's <see cref="FullPose"/> instead of animating, so both must be of the same skeleton.
+        /// Gets the controller this one is bone merged onto. While set, <see cref="Update"/> poses each bone
+        /// from the bone of the same name in that controller's <see cref="FullPose"/> instead of animating.
         /// </summary>
-        internal AnimationController? BoneMergeParent { get; set; }
+        internal AnimationController? BoneMergeParent { get; private set; }
+
+        // The bone of the parent each bone takes its pose from, or -1 for one that keeps its bind offset from its
+        // own parent bone. Null when the skeletons match bone for bone, so the pose is copied whole.
+        private int[]? boneMergeMap;
+
+        /// <summary>
+        /// Bone merges this controller onto <paramref name="parent"/>, matching bones by name.
+        /// </summary>
+        /// <param name="parent">The controller to take the pose from.</param>
+        internal void SetBoneMergeParent(AnimationController parent)
+        {
+            BoneMergeParent = parent;
+
+            var bones = Skeleton.Bones;
+            var parentBones = parent.Skeleton.Bones;
+            var map = new int[bones.Length];
+            var matchesWhole = bones.Length == parentBones.Length;
+
+            for (var i = 0; i < bones.Length; i++)
+            {
+                map[i] = parent.Skeleton.GetBoneIndex(bones[i].Name);
+                matchesWhole &= map[i] == i;
+            }
+
+            boneMergeMap = matchesWhole ? null : map;
+        }
+
+        private void UpdateBoneMerge(AnimationController parent)
+        {
+            var parentPose = parent.FullPose;
+
+            if (boneMergeMap == null)
+            {
+                parentPose.CopyTo(Pose, 0);
+                return;
+            }
+
+            foreach (var root in Skeleton.Roots)
+            {
+                MergeSubtree(root, Matrix4x4.Identity, parentPose);
+            }
+        }
+
+        private void MergeSubtree(Bone bone, Matrix4x4 parentTransform, Matrix4x4[] parentPose)
+        {
+            var transform = boneMergeMap![bone.Index] is >= 0 and var source ? parentPose[source] : bone.BindPose * parentTransform;
+
+            Pose[bone.Index] = transform;
+
+            foreach (var child in bone.Children)
+            {
+                MergeSubtree(child, transform, parentPose);
+            }
+        }
 
         private Matrix4x4[]? fullPose;
         private int? spine0BoneIndex;
