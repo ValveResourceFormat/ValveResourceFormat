@@ -287,20 +287,19 @@ void main()
         GetColorIndex(g_nSelectedChannels, 3)
     );
 
-    uvec4 vReadIndices = min(vRemapIndices, uvec4(3));
+    vColorOutput = vec4(0, 0, 0, 1);
+    for (uint i = 0u; i < 4u; i++)
+    {
+        if (vRemapIndices[i] != 0xFF)
+        {
+            vColorOutput[i] = vColor[vRemapIndices[i]];
+        }
+    }
 
     // Single channel texture write to RGB
-    bool bSingleChannel = (vRemapIndices.yzw == uvec3(0xFF));
-    if (bSingleChannel)
+    if (vRemapIndices.yzw == uvec3(0xFF))
     {
-        vColorOutput = vec4(vec3(vColor[vReadIndices.x]), 1.0);
-    }
-    else
-    {
-        bvec4 bWriteMask = bvec4(vRemapIndices.x != 0xFF, vRemapIndices.y != 0xFF, vRemapIndices.z != 0xFF, vRemapIndices.w != 0xFF);
-        vec4 vRemappedColor = vec4(vColor[vReadIndices.x], vColor[vReadIndices.y], vColor[vReadIndices.z], vColor[vReadIndices.w]);
-
-        vColorOutput = mix(vec4(0, 0, 0, 1), vRemappedColor, bWriteMask);
+        vColorOutput = vec4(vColorOutput.rrr, 1.0);
     }
 
     if (g_bTextureViewer)
