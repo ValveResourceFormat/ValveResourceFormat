@@ -1402,18 +1402,6 @@ namespace GUI.Types.GLViewers
 
             Renderer.RemoveEntities();
 
-            // Respawned entities start out shown, and so does what they leave behind that was hidden by hand
-            foreach (var scene in Renderer.Scenes)
-            {
-                foreach (var node in scene.AllNodes)
-                {
-                    if (node.Parent == null)
-                    {
-                        node.Visible = true;
-                    }
-                }
-            }
-
             LoadedWorld.LoadingProgress = null;
             LoadedWorld.LoadEntities();
 

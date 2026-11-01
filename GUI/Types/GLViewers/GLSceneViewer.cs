@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -85,6 +86,7 @@ namespace GUI.Types.GLViewers
         private ComboBox? perfDisplayComboBox;
 
         private volatile LayerChoice? layerChoice;
+        private readonly ConditionalWeakTable<SceneNode, object?> nodesHiddenByKey = [];
         private volatile bool visibilityDirty;
         private string? currentRenderMode;
 
@@ -1337,7 +1339,29 @@ namespace GUI.Types.GLViewers
                 foreach (var node in Selection.Nodes)
                 {
                     node.Visible = !node.Visible;
+
+                    if (node.Visible)
+                    {
+                        nodesHiddenByKey.Remove(node);
+                    }
+                    else
+                    {
+                        nodesHiddenByKey.AddOrUpdate(node, null);
+                    }
                 }
+
+                return;
+            }
+
+            if (keyData == Keys.U)
+            {
+                // Shows everything hidden with Delete, which can no longer be picked to show it again
+                foreach (var (node, _) in nodesHiddenByKey)
+                {
+                    node.Visible = true;
+                }
+
+                nodesHiddenByKey.Clear();
 
                 return;
             }
