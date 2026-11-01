@@ -182,6 +182,16 @@ vec2 GetSpatioTemporalNoise(uvec2 pixel)
     return fract(vec2(0.5) + vec2(0.75487766624669276, 0.569840290998) * float(index));
 }
 
+// The depth of the mip texel that covers a pixel. Mip sizes are rounded down, so scaling a texture coordinate
+// by them would drift away from the 2^n pixel blocks pass 0 filtered when the size is not a multiple of them.
+float GetMipDepth(ivec2 pixel, int mipLevel)
+{
+    ivec2 maxMipPixel = textureSize(g_tWorkingDepth, mipLevel) - 1;
+    ivec2 mipPixel = clamp(pixel >> mipLevel, ivec2(0), maxMipPixel);
+
+    return texelFetch(g_tWorkingDepth, mipPixel, mipLevel).x;
+}
+
 // The depths left, right, up and down of a pixel
 vec4 GetNeighborDepths(ivec2 pixel)
 {
@@ -195,7 +205,7 @@ vec4 GetNeighborDepths(ivec2 pixel)
 }
 
 // The surface normal from the depths around a pixel, taking the side of each axis closer in depth
-vec3 GetViewNormal(ivec2 pixel, vec4 neighborDepths, vec3 center, float centerDepth)
+vec3 GetViewNormal(ivec2 pixel, vec4 neighborDepths, float centerDepth)
 {
     float depthLeft = neighborDepths.x;
     float depthRight = neighborDepths.y;
@@ -203,6 +213,9 @@ vec3 GetViewNormal(ivec2 pixel, vec4 neighborDepths, vec3 center, float centerDe
     float depthDown = neighborDepths.w;
 
     vec2 uv = (vec2(pixel) + 0.5) * g_vPixelSize;
+
+    // Not scaled like the center of the horizon search, which would add an offset to one side of each difference
+    vec3 center = GetViewPosition(uv, centerDepth);
 
     vec3 horizontal = abs(depthLeft - centerDepth) < abs(depthRight - centerDepth)
         ? center - GetViewPosition(uv - vec2(g_vPixelSize.x, 0.0), depthLeft)
@@ -255,7 +268,7 @@ void main()
     vec3 pixelPosition = GetViewPosition(screenUv, pixelDepth);
     vec3 viewVec = normalize(-pixelPosition);
 
-    vec3 viewNormal = GetViewNormal(pixel, neighborDepths, pixelPosition, centerDepth);
+    vec3 viewNormal = GetViewNormal(pixel, neighborDepths, centerDepth);
 
     if (dot(viewNormal, viewVec) < 0.0)
     {
@@ -305,15 +318,19 @@ void main()
 
             vec2 sampleOffset = s * omega;
             float sampleOffsetLength = length(sampleOffset);
-            float mipLevel = clamp(log2(sampleOffsetLength) - DEPTH_MIP_SAMPLING_OFFSET, 0.0, float(DEPTH_MIP_COUNT));
+            float mipLevel = clamp(log2(sampleOffsetLength) - DEPTH_MIP_SAMPLING_OFFSET, 0.0, float(DEPTH_MIP_COUNT - 1));
+            int mipIndex = int(round(mipLevel));
 
-            sampleOffset = round(sampleOffset) * g_vPixelSize;
+            ivec2 sampleOffsetPixels = ivec2(round(sampleOffset));
 
-            vec2 sampleUv0 = screenUv + sampleOffset;
-            vec2 sampleUv1 = screenUv - sampleOffset;
+            ivec2 samplePixel0 = pixel + sampleOffsetPixels;
+            ivec2 samplePixel1 = pixel - sampleOffsetPixels;
 
-            vec3 sampleDelta0 = GetViewPosition(sampleUv0, textureLod(g_tWorkingDepth, sampleUv0, mipLevel).x) - pixelPosition;
-            vec3 sampleDelta1 = GetViewPosition(sampleUv1, textureLod(g_tWorkingDepth, sampleUv1, mipLevel).x) - pixelPosition;
+            vec2 sampleUv0 = (vec2(samplePixel0) + 0.5) * g_vPixelSize;
+            vec2 sampleUv1 = (vec2(samplePixel1) + 0.5) * g_vPixelSize;
+
+            vec3 sampleDelta0 = GetViewPosition(sampleUv0, GetMipDepth(samplePixel0, mipIndex)) - pixelPosition;
+            vec3 sampleDelta1 = GetViewPosition(sampleUv1, GetMipDepth(samplePixel1, mipIndex)) - pixelPosition;
 
             float sampleDist0 = length(vec3(sampleDelta0.xy, sampleDelta0.z * thinFactor));
             float sampleDist1 = length(vec3(sampleDelta1.xy, sampleDelta1.z * thinFactor));
