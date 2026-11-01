@@ -383,7 +383,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         {
             var color = data.GetArray<byte>("m_Color");
 
-            Color = new Color32(color[0], color[1], color[2], color[3]);
+            if (color is not { Length: >= 3 })
+            {
+                Color = Color32.White;
+                return;
+            }
+
+            var alpha = color.Length > 3 ? color[3] : (byte)255;
+
+            Color = new Color32(color[0], color[1], color[2], alpha);
         }
     }
 
