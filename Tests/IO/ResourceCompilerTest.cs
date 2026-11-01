@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using ValveKeyValue;
 using ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
@@ -13,8 +14,8 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace Tests.IO;
 
 /// <summary>
-/// Decompiles models from Source 2 games and validates that the decompiled source recompiles
-/// successfully with the game's own resourcecompiler.
+/// Decompiles models and mix graphs from Source 2 games and validates that the decompiled source
+/// recompiles successfully with resourcecompiler.
 ///
 /// Each game is found through its Steam installation, and its tests are skipped when it is not
 /// installed or has no Workshop Tools. The tests stage and compile a temporary addon
@@ -54,6 +55,15 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
         (CounterStrike2, "agents/models/ctm_sas/ctm_sas.vmdl_c"),
         (CounterStrike2, "weapons/models/knife/knife_bayonet/weapon_knife_bayonet.vmdl_c"),
         (CounterStrike2, "weapons/keychains/missinglink/vmdl/kc_missinglink_bigfoot.vmdl_c"),
+    ];
+
+    // All of these compile with the Counter-Strike 2 tools
+    private static readonly WorkshopToolsGame[] GraphCases = [
+        CounterStrike2,
+        Dota2,
+        new(1422450, "Deadlock", "citadel"),
+        new(546560, "Half-Life: Alyx", "hlvr"),
+        new(1902490, "Aperture Desk Job", "steampal"),
     ];
 
     public sealed class GameInstallation : IDisposable
@@ -185,6 +195,105 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
         }
     }
 
+    // Every graph gets its own file as the compiler rejects several in one, and all compile in one run as graphs
+    // inline the other graphs of their folder. Only sounds from the same compiler can be compared exactly.
+    [Test, MethodDataSource(nameof(GraphCases))]
+    public async Task RecompileDecompiledGraphs(WorkshopToolsGame game)
+    {
+        const string GraphsFolder = "sounds/graphs";
+
+        var installation = installations.Get(CounterStrike2);
+        var exact = game == CounterStrike2;
+
+        var steamGame = GameFolderLocator.FindSteamGameByAppId(game.AppId);
+        if (!steamGame.HasValue)
+        {
+            Skip.Test($"Steam game with AppId {game.AppId} not present.");
+        }
+
+        var pakPath = Path.Combine(steamGame.Value.GamePath, "game", game.ModFolder, "pak01_dir.vpk");
+        using var package = Package.Open(pakPath);
+        using var fileLoader = new GameFileLoader(package, pakPath);
+
+        // The vmix_c files next to the sounds of this compiler come from older compiles
+        var entries = exact
+            ? package.Entries!["vsnd_c"].Where(static entry => string.Equals(entry.DirectoryName, GraphsFolder, StringComparison.OrdinalIgnoreCase))
+            : package.Entries!["vmix_c"];
+
+        try
+        {
+            var contentFolder = Path.Combine(installation.ContentAddonPath, GraphsFolder);
+            Directory.CreateDirectory(contentFolder);
+
+            var expected = new Dictionary<string, string>();
+
+            foreach (var entry in entries)
+            {
+                package.ReadEntry(entry, out var rawFileData);
+
+                using var resource = new Resource { FileName = entry.GetFullPath() };
+                resource.Read(new MemoryStream(rawFileData));
+
+                foreach (var graph in TestFixtures.ParseKV3(new VMixGraphExtract(resource, fileLoader).ToEditorDocument()).GetArray("Graphs"))
+                {
+                    var name = graph.GetStringProperty("Name");
+                    expected[name] = exact ? ContentBlocks(resource) : NodeTypes(graph);
+
+                    var graphs = KVObject.Array();
+                    graphs.Add(graph);
+
+                    var document = KVObject.Collection();
+                    document.Add("Graphs", graphs);
+                    await File.WriteAllTextAsync(Path.Combine(contentFolder, $"{name}.vmix"), document.ToKV3String());
+                }
+            }
+
+            await Assert.That(expected).IsNotEmpty();
+
+            var (_, compilerOutput) = RunResourceCompiler(installation.ResourceCompilerPath, Path.Combine(contentFolder, "*.vmix"));
+            var differences = new List<string>();
+
+            foreach (var (name, original) in expected)
+            {
+                var compiledPath = Path.Combine(installation.GameAddonPath, GraphsFolder, $"{name}.vsnd_c");
+
+                if (!File.Exists(compiledPath))
+                {
+                    differences.Add($"{name}: did not compile");
+                    continue;
+                }
+
+                using var recompiled = new Resource { FileName = compiledPath };
+                recompiled.Read(compiledPath);
+
+                var actual = exact
+                    ? ContentBlocks(recompiled)
+                    : NodeTypes(TestFixtures.ParseKV3(new VMixGraphExtract(recompiled).ToEditorDocument()).GetArray("Graphs").Single());
+
+                if (actual != original)
+                {
+                    var (before, after) = original.Split('\n').Zip(actual.Split('\n')).FirstOrDefault(static lines => lines.First != lines.Second);
+                    differences.Add($"{name}: \"{before?.Trim()}\" became \"{after?.Trim()}\"");
+                }
+            }
+
+            await Assert.That(differences).IsEmpty().Because($"{string.Join('\n', differences)}\n{Tail(compilerOutput)}");
+        }
+        finally
+        {
+            installation.DeleteTestAddon();
+        }
+    }
+
+    private static string NodeTypes(KVObject graph)
+        => string.Join('\n', graph.GetArray("m_EditorNodes").Select(static node => node.GetStringProperty("type")).Order(StringComparer.Ordinal));
+
+    // Leaves out the blocks recording how the file was compiled and what it depends on
+    private static string ContentBlocks(Resource resource)
+        => string.Join('\n', resource.Blocks
+            .Where(static block => block.Type is not (BlockType.RED2 or BlockType.REDI or BlockType.RERL or BlockType.NTRO))
+            .Select(static block => $"{block.Type}\n{block}"));
+
     private static async Task RecompileAndCompare(GameInstallation installation, Resource resource, string assetPath)
     {
         using var contentFile = FileExtract.Extract(resource, installation.FileLoader);
@@ -305,7 +414,7 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
         }
     }
 
-    private static (int ExitCode, string Output) RunResourceCompiler(string resourceCompilerPath, string vmdlPath)
+    private static (int ExitCode, string Output) RunResourceCompiler(string resourceCompilerPath, string inputPath)
     {
         var startInfo = new ProcessStartInfo(resourceCompilerPath)
         {
@@ -317,7 +426,7 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
         startInfo.ArgumentList.Add("-nop4");
         startInfo.ArgumentList.Add("-f");
         startInfo.ArgumentList.Add("-i");
-        startInfo.ArgumentList.Add(vmdlPath);
+        startInfo.ArgumentList.Add(inputPath);
 
         using var process = new Process { StartInfo = startInfo };
         var output = new StringBuilder();
@@ -345,7 +454,7 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
         {
             process.Kill(entireProcessTree: true);
             process.WaitForExit();
-            Assert.Fail($"resourcecompiler timed out after {CompileTimeoutMs / 1000}s compiling {vmdlPath}.\n{Tail(output.ToString())}");
+            Assert.Fail($"resourcecompiler timed out after {CompileTimeoutMs / 1000}s compiling {inputPath}.\n{Tail(output.ToString())}");
         }
 
         // Flush the remaining async output after the process has exited.

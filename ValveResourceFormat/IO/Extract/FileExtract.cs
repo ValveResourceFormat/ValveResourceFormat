@@ -229,6 +229,12 @@ namespace ValveResourceFormat.IO
                 case ResourceType.PanoramaVectorGraphic:
                     return ExtractPanorama(resource);
 
+                case ResourceType.VMix:
+                    return new VMixGraphExtract(resource, fileLoader).ToContentFile();
+
+                case ResourceType.Sound when VMixGraphExtract.GetGraphSound(resource) != null:
+                    return new VMixGraphExtract(resource, fileLoader).ToContentFile();
+
                 case ResourceType.Sound:
                     return ExtractSound(resource);
 
@@ -501,6 +507,11 @@ namespace ValveResourceFormat.IO
                 }
 
                 case ResourceType.Sound:
+                    if (VMixGraphExtract.GetGraphSound(resource) != null)
+                    {
+                        return "vmix";
+                    }
+
                     if (resource.DataBlock is Sound { StreamingDataSize: > 0 } soundData)
                     {
                         switch (soundData.SoundType)
