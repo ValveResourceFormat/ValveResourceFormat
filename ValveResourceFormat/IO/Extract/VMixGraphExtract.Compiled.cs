@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -157,8 +158,7 @@ public sealed partial class VMixGraphExtract
     /// </summary>
     private static uint RawOperand(KVObject obj, params string[] keys)
     {
-        var value = keys.Select(key => obj.TryGetValue(key, out var found) ? found : null).FirstOrDefault(static found => found != null);
-        if (value == null)
+        if (!TryGet(obj, out var value, keys))
         {
             return 0;
         }
@@ -253,20 +253,10 @@ public sealed partial class VMixGraphExtract
         public float Value(int index) => index >= 0 && index < Values.Length ? Values[index] : 0f;
     }
 
-    private static readonly string[] SubmixNameKeys = ["m_name", "name"];
-
     private static string GetString(KVObject obj, params string[] keys)
-    {
-        foreach (var key in keys)
-        {
-            if (obj.TryGetValue(key, out var value) && value.ValueType == KVValueType.String)
-            {
-                return (string)value;
-            }
-        }
+        => keys.Select(key => obj.GetStringProperty(key)).FirstOrDefault(static value => value != null) ?? string.Empty;
 
-        return string.Empty;
-    }
+    private static string GetName(KVObject obj) => GetString(obj, "m_name", "name");
 
     private static bool TryGet(KVObject obj, out KVObject value, params string[] keys)
     {
@@ -282,31 +272,13 @@ public sealed partial class VMixGraphExtract
         return false;
     }
 
-    private static long GetInteger(KVObject obj, long defaultValue, params string[] keys)
-    {
-        foreach (var key in keys)
-        {
-            if (obj.ContainsKey(key))
-            {
-                return obj.GetIntegerProperty(key, defaultValue);
-            }
-        }
-
-        return defaultValue;
-    }
+    private static int GetInt32(KVObject obj, int defaultValue, params string[] keys)
+        => obj.GetInt32Property(keys.FirstOrDefault(obj.ContainsKey) ?? keys[0], defaultValue);
 
     private static float GetFloat(KVObject obj, float defaultValue, params string[] keys)
-    {
-        foreach (var key in keys)
-        {
-            if (obj.ContainsKey(key))
-            {
-                return obj.GetFloatProperty(key, defaultValue);
-            }
-        }
+        => obj.GetFloatProperty(keys.FirstOrDefault(obj.ContainsKey) ?? keys[0], defaultValue);
 
-        return defaultValue;
-    }
+    private static float[] ToFloats(IEnumerable<KVObject> values) => [.. values.Select(static value => (float)(double)value)];
 
     private static IReadOnlyList<KVObject> GetList(KVObject obj, string key)
         => obj.TryGetValue(key, out var value) && value.IsArray ? value.Elements : [];
@@ -323,14 +295,21 @@ public sealed partial class VMixGraphExtract
 
         if (value.ValueType == KVValueType.Collection)
         {
-            return GetString(value, "category") == "NULL_POINTER" ? -1 : (int)value.GetIntegerProperty("index");
+            return GetString(value, "category") == "NULL_POINTER" ? -1 : value.GetInt32Property("index");
         }
 
         return (int)(long)value;
     }
 
-    private static uint UnsignedProperty(KVObject obj, string key)
-        => obj.TryGetValue(key, out var value) && !value.IsNull ? unchecked((uint)(long)value) : 0;
+    private static uint UnsignedProperty(KVObject obj, params string[] keys)
+        => TryGet(obj, out var value, keys) ? unchecked((uint)(long)value) : 0;
+
+    private static MixNamedValue ReadMeter(KVObject meter) => new(GetName(meter), Operand(meter, "m_nValueIndex", "value"));
+
+    private static MixControlInput ReadControlInput(KVObject input) => new(GetName(input), GetFloat(input, 0f, "m_flDefaultValue", "value"), -1);
+
+    private static MixStringInput ReadStringInput(KVObject input)
+        => new(GetName(input), GetString(input, "m_defaultValue", "value"), GetInt32(input, -1, "m_nProcessor", "processor"));
 
     internal static MixGraphFormat DetectFormat(KVObject root)
     {
@@ -370,7 +349,7 @@ public sealed partial class VMixGraphExtract
             Source = graph,
             Format = format,
             Name = GetString(graph, "Name", "m_name"),
-            OutputChannels = (int)GetInteger(graph, -1, "m_nGraphOutputChannels"),
+            OutputChannels = graph.GetInt32Property("m_nGraphOutputChannels", -1),
             IsMainGraph = graph.GetBooleanProperty("m_bIsMainGraph"),
         };
 
@@ -384,7 +363,7 @@ public sealed partial class VMixGraphExtract
                 Operand(command, "outputSubmix"),
                 Operand(command, "inputSubmix0"),
                 Operand(command, "inputSubmix1"),
-                (int)command.GetIntegerProperty("processor", -1),
+                command.GetInt32Property("processor", -1),
                 Operand(command, "inputValue0", "m_nInputValue0"),
                 Operand(command, "inputValue1", "m_nInputValue1"))
             {
@@ -396,11 +375,11 @@ public sealed partial class VMixGraphExtract
         {
             var storage = graph.GetSubCollection("m_heap") is { } heap ? GetList(heap, "m_storage") : [];
             result.RawValues = [.. storage.Select(static value => unchecked((uint)(long)value))];
-            result.Values = [.. result.RawValues.Select(static value => BitConverter.UInt32BitsToSingle(value))];
+            result.Values = [.. result.RawValues.Select(BitConverter.UInt32BitsToSingle)];
         }
         else
         {
-            result.Values = [.. GetList(graph, "m_values").Select(static value => (float)(double)value)];
+            result.Values = ToFloats(GetList(graph, "m_values"));
         }
 
         foreach (var processor in GetList(graph, "m_Processors"))
@@ -414,14 +393,14 @@ public sealed partial class VMixGraphExtract
                 ? [.. sendNames.Elements.Select(static send => (string)send)]
                 : [.. Enumerable.Range(0, 4).Select(k => GetString(submix, $"send{k}"))];
 
-            var mixDown = submix.TryGetValue("m_nMixDownRule", out var rule) || submix.TryGetValue("mixDownRule", out rule)
-                ? rule.ValueType == KVValueType.String ? (string)rule : ((long)rule).ToString(System.Globalization.CultureInfo.InvariantCulture)
+            var mixDown = TryGet(submix, out var rule, "m_nMixDownRule", "mixDownRule")
+                ? rule.ValueType == KVValueType.String ? (string)rule : ((long)rule).ToString(CultureInfo.InvariantCulture)
                 : string.Empty;
 
             result.Submixes.Add(new MixSubmix(
-                GetString(submix, SubmixNameKeys),
-                UnsignedProperty(submix, submix.ContainsKey("m_nSoloNameHash") ? "m_nSoloNameHash" : "soloname"),
-                (int)GetInteger(submix, -1, "m_nChannels", "channels"),
+                GetName(submix),
+                UnsignedProperty(submix, "m_nSoloNameHash", "soloname"),
+                GetInt32(submix, -1, "m_nChannels", "channels"),
                 GetString(submix, "m_nSendOperator", "sendOperator"),
                 mixDown,
                 sends)
@@ -432,73 +411,30 @@ public sealed partial class VMixGraphExtract
 
         foreach (var meter in GetList(graph, "m_audioMeters"))
         {
-            result.AudioMeters.Add(GetString(meter, "m_name", "name"));
+            result.AudioMeters.Add(GetName(meter));
             result.AudioMeterDebugIds.Add(UnsignedProperty(meter, "m_nDebugId"));
         }
 
-        foreach (var meter in GetList(graph, "m_controlMeters"))
-        {
-            result.ControlMeters.Add(new MixNamedValue(GetString(meter, "m_name", "name"), Operand(meter, "m_nValueIndex", "value")));
-        }
-
-        foreach (var meter in GetList(graph, "m_nameInputMeters"))
-        {
-            result.NameInputMeters.Add(new MixNamedValue(GetString(meter, "m_name", "name"), Operand(meter, "m_nValueIndex", "value")));
-        }
-
-        foreach (var input in GetList(graph, "m_controlInputs"))
-        {
-            result.ControlInputs.Add(new MixControlInput(GetString(input, "m_name", "name"), GetFloat(input, 0f, "m_flDefaultValue", "value"), -1));
-        }
-
-        foreach (var input in GetList(graph, "m_nameInputs"))
-        {
-            result.NameInputs.Add(new MixStringInput(GetString(input, "m_name", "name"), GetString(input, "m_defaultValue", "value"), (int)GetInteger(input, -1, "m_nProcessor", "processor")));
-        }
-
-        foreach (var input in GetList(graph, "m_vsndInputs"))
-        {
-            result.VsndInputs.Add(new MixStringInput(GetString(input, "m_name", "name"), GetString(input, "m_defaultValue", "value"), (int)GetInteger(input, -1, "m_nProcessor", "processor")));
-        }
-
-        foreach (var array in GetList(graph, "m_controlInputArrays"))
-        {
-            result.ControlInputArrays.Add(new MixNamedValue(GetString(array, "m_name", "name"), (int)GetInteger(array, 0, "m_nArrayIndex", "index")));
-        }
-
-        foreach (var array in GetList(graph, "m_valueArrays"))
-        {
-            result.ValueArrays.Add([.. array.Elements.Select(static value => (float)(double)value)]);
-        }
-
-        result.ControlPoints = [.. GetList(graph, "m_controlPoints").Select(static value => (float)(double)value)];
+        result.ControlMeters.AddRange(GetList(graph, "m_controlMeters").Select(ReadMeter));
+        result.NameInputMeters.AddRange(GetList(graph, "m_nameInputMeters").Select(ReadMeter));
+        result.ControlInputs.AddRange(GetList(graph, "m_controlInputs").Select(ReadControlInput));
+        result.NameInputs.AddRange(GetList(graph, "m_nameInputs").Select(ReadStringInput));
+        result.VsndInputs.AddRange(GetList(graph, "m_vsndInputs").Select(ReadStringInput));
+        result.ControlInputArrays.AddRange(GetList(graph, "m_controlInputArrays").Select(static array => new MixNamedValue(GetName(array), GetInt32(array, 0, "m_nArrayIndex", "index"))));
+        result.ValueArrays.AddRange(GetList(graph, "m_valueArrays").Select(static array => ToFloats(array.Elements)));
+        result.ControlPoints = ToFloats(GetList(graph, "m_controlPoints"));
 
         foreach (var curve in GetList(graph, "m_curves"))
         {
             // Newer graphs count the start in points of four floats, older ones in floats
-            var start = curve.ContainsKey("m_nControlPointStart") ? 4 * (int)curve.GetIntegerProperty("m_nControlPointStart") : (int)GetInteger(curve, 0, "start");
-            result.Curves.Add((start, (int)GetInteger(curve, 0, "m_nControlPointCount", "count")));
+            var start = curve.ContainsKey("m_nControlPointStart") ? 4 * curve.GetInt32Property("m_nControlPointStart") : curve.GetInt32Property("start");
+            result.Curves.Add((start, GetInt32(curve, 0, "m_nControlPointCount", "count")));
         }
 
-        foreach (var input in GetList(graph, "m_automaticControlInputs"))
-        {
-            result.AutomaticControlInputs.Add(new MixNamedValue(GetString(input, "m_name", "name"), (int)GetInteger(input, -1, "m_nGraphInputIndex", "m_nControlInputIndex")));
-        }
-
-        foreach (var output in GetList(graph, "m_controlOutputs"))
-        {
-            result.ControlOutputs.Add(new MixControlInput(GetString(output, "m_name", "name"), GetFloat(output, 0f, "m_flDefaultValue", "value"), -1));
-        }
-
-        foreach (var input in GetList(graph, "m_controlTransientInputs"))
-        {
-            result.TransientInputs.Add(new MixControlInput(GetString(input, "m_name", "name"), GetFloat(input, 0f, "m_flDefaultValue", "value"), -1));
-        }
-
-        foreach (var output in GetList(graph, "m_additionalOutputs"))
-        {
-            result.AdditionalOutputs.Add(GetString(output, "m_name", "name"));
-        }
+        result.AutomaticControlInputs.AddRange(GetList(graph, "m_automaticControlInputs").Select(static input => new MixNamedValue(GetName(input), GetInt32(input, -1, "m_nGraphInputIndex", "m_nControlInputIndex"))));
+        result.ControlOutputs.AddRange(GetList(graph, "m_controlOutputs").Select(ReadControlInput));
+        result.TransientInputs.AddRange(GetList(graph, "m_controlTransientInputs").Select(ReadControlInput));
+        result.AdditionalOutputs.AddRange(GetList(graph, "m_additionalOutputs").Select(GetName));
 
         if (format == MixGraphFormat.Heap)
         {
@@ -530,7 +466,7 @@ public sealed partial class VMixGraphExtract
                 // Arrays keep their default values beside them as well
                 if (GetString(offset, "type") == "VO_FLOAT_UTLVECTOR")
                 {
-                    var values = i < defaults.Count && defaults[i].IsArray ? defaults[i].Elements.Select(static value => (float)(double)value).ToArray() : [];
+                    var values = i < defaults.Count && defaults[i].IsArray ? ToFloats(defaults[i].Elements) : [];
                     result.ControlInputArrays.Add(new MixNamedValue(name, result.ValueArrays.Count));
                     result.ArrayInputs.Add(i);
                     result.ValueArrays.Add(values);
@@ -541,7 +477,7 @@ public sealed partial class VMixGraphExtract
                 continue;
             }
 
-            var index = (int)offset.GetIntegerProperty("index");
+            var index = offset.GetInt32Property("index");
             switch (GetString(offset, "type"))
             {
                 case "VO_FLOAT":
@@ -577,8 +513,8 @@ public sealed partial class VMixGraphExtract
         {
             Name = GetString(processor, "m_name"),
             NodeType = ProcessorNodeType(key),
-            Channels = (int)GetInteger(processor, -1, "m_nChannels"),
-            CrossFade = GetFloat(processor, 0.1f, "m_flxfade"),
+            Channels = processor.GetInt32Property("m_nChannels", -1),
+            CrossFade = processor.GetFloatProperty("m_flxfade", 0.1f),
             Desc = desc,
             EffectName = GetString(processor, "m_effectName") is { Length: > 0 } effect ? effect : GetString(desc, "m_effectName"),
             Subgraphs = [.. (TryGet(processor, out var subgraphs, "m_subgraphs") || TryGet(desc, out subgraphs, "m_subgraphs")
@@ -610,7 +546,7 @@ public sealed partial class VMixGraphExtract
             }
 
             var category = GetString(offset, "category");
-            var index = (int)offset.GetIntegerProperty("index");
+            var index = offset.GetInt32Property("index");
 
             if (category == "HEAP_OFFSET")
             {
