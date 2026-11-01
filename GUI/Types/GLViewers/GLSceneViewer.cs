@@ -1251,7 +1251,7 @@ namespace GUI.Types.GLViewers
         /// <param name="name">The title of the box.</param>
         /// <param name="layers">The layers to list, in order.</param>
         /// <param name="isEnabled">Whether a layer starts shown.</param>
-        /// <param name="foldGroups">Whether the groups start folded away.</param>
+        /// <param name="foldGroups">Whether the groups start folded away, except those of layers that start expanded.</param>
         protected GLViewerTreeSelectionControl AddLayersTree(string name, IReadOnlyCollection<WorldLayer> layers, Func<WorldLayer, bool> isEnabled, bool foldGroups = false)
         {
             Debug.Assert(UiControl != null);
@@ -1265,6 +1265,11 @@ namespace GUI.Types.GLViewers
                 shown => SetEnabledLayers(layers, [.. shown.SelectMany(path => layersByName[path])]),
                 path => layersByName[path].Any(isEnabled),
                 foldGroups);
+
+            foreach (var layer in layers.Where(static layer => layer.StartsExpanded))
+            {
+                tree.Expand(layer.Name);
+            }
 
             SetEnabledLayers(layers, [.. layers.Where(isEnabled)]);
 

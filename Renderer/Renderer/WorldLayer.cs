@@ -20,7 +20,7 @@ public sealed class WorldLayer
     public static readonly WorldLayer NoLayer = new("No layer");
 
     /// <summary>Layer of every entity, and of everything entities draw.</summary>
-    public static readonly WorldLayer Entities = new("Entities");
+    public static readonly WorldLayer Entities = new("Entities") { StartsExpanded = true };
 
     /// <summary>Layer of the entities that start disabled, which the game keeps hidden until enabled.</summary>
     public static readonly WorldLayer DisabledEntities = new("Entities/Disabled");
@@ -45,6 +45,9 @@ public sealed class WorldLayer
 
     /// <summary>Gets whether the layer only holds what the editor draws, hidden while only what the game shows is.</summary>
     public bool IsToolsOnly { get; internal init; }
+
+    /// <summary>Gets whether the layers nested under this one are listed unfolded while the other groups start folded.</summary>
+    public bool StartsExpanded { get; internal init; }
 
     internal WorldLayer(string name)
     {

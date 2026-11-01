@@ -106,6 +106,16 @@ namespace GUI.Controls
             return true;
         }
 
+        /// <summary>Unfolds an item to show the items nested in it.</summary>
+        /// <param name="path">The path of the item.</param>
+        public void Expand(string path)
+        {
+            if (treeView.Nodes.Find(path, searchAllChildren: true) is [var node, ..])
+            {
+                node.Expand();
+            }
+        }
+
         /// <summary>Gets the path of every item, top to bottom, and whether it is checked.</summary>
         public IEnumerable<(string Path, bool IsChecked)> Items => AllBelow(treeView.Nodes).Select(static node => (node.Name, node.Checked));
 
