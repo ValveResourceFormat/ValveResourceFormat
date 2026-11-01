@@ -263,6 +263,11 @@ public abstract class BaseModelEntity : BaseEntity
 
     private void AddConfigModels(ModelSceneNode root, ModelConfigResult result)
     {
+        foreach (var className in result.UnsupportedElements)
+        {
+            EntitySystem.Logger.LogDebug("{Classname} '{TargetName}' skipped model config element {Element}", Classname, TargetName, className);
+        }
+
         ApplyConfigAppearance(root, result);
 
         var nodes = new ModelSceneNode?[result.AttachedModels.Count];
@@ -295,6 +300,14 @@ public abstract class BaseModelEntity : BaseEntity
 
             // Frames of a parent model drop its scale, so the scale of the entity is applied again here
             var offset = scale * EntityTransformHelper.ToRigidTransformationMatrix(element.AngleOffset, element.Offset * EntityScale);
+
+            // The node is still at the origin, so this is the attachment in the space of its own model
+            if (element.LocalAttachmentOffsetName.Length > 0
+                && node.Attachments.ContainsKey(element.LocalAttachmentOffsetName)
+                && Matrix4x4.Invert(node.GetAttachmentTransform(element.LocalAttachmentOffsetName), out var toLocalAttachment))
+            {
+                offset = toLocalAttachment * offset;
+            }
 
             switch (element.AttachmentType)
             {
@@ -329,7 +342,9 @@ public abstract class BaseModelEntity : BaseEntity
 
         if (appearance.RenderColor is { } color)
         {
-            node.Tint = new Vector3(color.R, color.G, color.B) / byte.MaxValue;
+            // Multiplies the color of the entity as Half-Life: Alyx does. Unproven: that rendercolor is applied
+            // before this there, and that other games multiply too
+            node.Tint *= new Vector3(color.R, color.G, color.B) / byte.MaxValue;
         }
 
         foreach (var (name, choice) in appearance.BodyGroups)

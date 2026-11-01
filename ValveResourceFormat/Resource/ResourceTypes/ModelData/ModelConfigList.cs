@@ -69,6 +69,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
 
             evaluation.EvaluateElements(config.Elements, result, parentIndex: -1, depth: 1);
 
+            // Only known once every element ran, as a model can be attached before what applies to it
+            foreach (var model in result.AttachedModels)
+            {
+                model.InheritFrom(model.ParentIndex >= 0 ? result.AttachedModels[model.ParentIndex] : result);
+            }
+
             return result;
         }
 
@@ -133,6 +139,18 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
 
                         case ModelConfigSetBodyGroup setBodyGroup:
                             target.SetBodyGroup(setBodyGroup.GroupName, setBodyGroup.Choice);
+                            break;
+
+                        case ModelConfigSetMaterialGroupOnAttachedModels setMaterialGroup:
+                            target.AttachedModelsMaterialGroup = setMaterialGroup.MaterialGroup;
+                            break;
+
+                        case ModelConfigSetBodyGroupOnAttachedModels setBodyGroup:
+                            target.SetAttachedModelsBodyGroup(setBodyGroup.GroupName, setBodyGroup.Choice);
+                            break;
+
+                        case ModelConfigUnsupportedElement unsupported:
+                            result.AddUnsupportedElement(unsupported.ClassName);
                             break;
                     }
                 }
@@ -276,6 +294,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
                     "CModelConfigElement_SetMaterialGroup" => new ModelConfigSetMaterialGroup(data, key),
                     "CModelConfigElement_SetRenderColor" => new ModelConfigSetRenderColor(data, key),
                     "CModelConfigElement_SetBodygroup" => new ModelConfigSetBodyGroup(data, key),
+                    "CModelConfigElement_SetMaterialGroupOnAttachedModels" => new ModelConfigSetMaterialGroupOnAttachedModels(data, key),
+                    "CModelConfigElement_SetBodygroupOnAttachedModels" => new ModelConfigSetBodyGroupOnAttachedModels(data, key),
                     var className => new ModelConfigUnsupportedElement(data, key, className ?? string.Empty),
                 };
             }
@@ -306,6 +326,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         /// <summary>Gets the attachment point or bone the model is attached at, for <see cref="ModelConfigAttachmentType.BoneOrAttachment"/>.</summary>
         public string AttachmentName { get; }
 
+        /// <summary>Gets the attachment point of the attached model that is placed at the frame, or an empty string for its origin.</summary>
+        public string LocalAttachmentOffsetName { get; }
+
         /// <summary>Gets how the model is placed on the one it is attached to.</summary>
         public ModelConfigAttachmentType AttachmentType { get; }
 
@@ -323,6 +346,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
             Offset = data.TryGetValue("m_vOffset", out var offset) && offset.IsArray ? offset.ToVector3() : Vector3.Zero;
             AngleOffset = data.TryGetValue("m_aAngOffset", out var angles) && angles.IsArray ? angles.ToVector3() : Vector3.Zero;
             AttachmentName = data.GetStringProperty("m_AttachmentName", string.Empty);
+            LocalAttachmentOffsetName = data.GetStringProperty("m_LocalAttachmentOffsetName", string.Empty);
             AttachmentType = ReadAttachmentType(data);
             UserSpecifiedColor = data.GetBooleanProperty("m_bUserSpecifiedColor");
             UserSpecifiedMaterialGroup = data.GetBooleanProperty("m_bUserSpecifiedMaterialGroup");
@@ -433,6 +457,36 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         }
     }
 
+    /// <summary>Sets the material group of the models attached to the model it applies to.</summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/CModelConfigElement_SetMaterialGroupOnAttachedModels">CModelConfigElement_SetMaterialGroupOnAttachedModels</seealso>
+    public sealed class ModelConfigSetMaterialGroupOnAttachedModels : ModelConfigElement
+    {
+        /// <summary>Gets the name of the material group.</summary>
+        public string MaterialGroup { get; }
+
+        internal ModelConfigSetMaterialGroupOnAttachedModels(KVObject data, string stateKey) : base(data, stateKey)
+        {
+            MaterialGroup = data.GetStringProperty("m_MaterialGroupName", string.Empty);
+        }
+    }
+
+    /// <summary>Sets the choice of a body group of the models attached to the model it applies to.</summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/CModelConfigElement_SetBodygroupOnAttachedModels">CModelConfigElement_SetBodygroupOnAttachedModels</seealso>
+    public sealed class ModelConfigSetBodyGroupOnAttachedModels : ModelConfigElement
+    {
+        /// <summary>Gets the name of the body group.</summary>
+        public string GroupName { get; }
+
+        /// <summary>Gets the number of the choice.</summary>
+        public int Choice { get; }
+
+        internal ModelConfigSetBodyGroupOnAttachedModels(KVObject data, string stateKey) : base(data, stateKey)
+        {
+            GroupName = data.GetStringProperty("m_GroupName", string.Empty);
+            Choice = data.GetInt32Property("m_nChoice");
+        }
+    }
+
     /// <summary>An element <see cref="ModelConfigList.Evaluate"/> does not apply, such as a random color or a command.</summary>
     public sealed class ModelConfigUnsupportedElement : ModelConfigElement
     {
@@ -449,6 +503,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
     public abstract class ModelConfigAppearance
     {
         private readonly Dictionary<string, int> bodyGroups = [];
+        private readonly Dictionary<string, int> attachedModelsBodyGroups = [];
 
         /// <summary>Gets the material group, or <see langword="null"/> when the config leaves it.</summary>
         public string? MaterialGroup { get; internal set; }
@@ -463,22 +518,43 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         {
         }
 
+        internal string? AttachedModelsMaterialGroup { get; set; }
+
         internal void SetBodyGroup(string name, int choice) => bodyGroups[name] = choice;
+
+        internal void SetAttachedModelsBodyGroup(string name, int choice) => attachedModelsBodyGroups[name] = choice;
+
+        // What the config sets on the model itself wins over what its parent sets on all it attaches
+        internal void InheritFrom(ModelConfigAppearance parent)
+        {
+            MaterialGroup ??= parent.AttachedModelsMaterialGroup;
+
+            foreach (var (name, choice) in parent.attachedModelsBodyGroups)
+            {
+                bodyGroups.TryAdd(name, choice);
+            }
+        }
     }
 
     /// <summary>What a model config makes of the model it is evaluated for.</summary>
     public sealed class ModelConfigResult : ModelConfigAppearance
     {
         private readonly List<ModelConfigAttachedModelResult> attachedModels = [];
+        private readonly HashSet<string> unsupportedElements = [];
 
         /// <summary>Gets the models attached to it, a model always after the one it is attached to.</summary>
         public IReadOnlyList<ModelConfigAttachedModelResult> AttachedModels => attachedModels;
+
+        /// <summary>Gets the compiled classes of the elements the evaluation reached but did not apply.</summary>
+        public IReadOnlyCollection<string> UnsupportedElements => unsupportedElements;
 
         internal ModelConfigResult()
         {
         }
 
         internal void AddAttachedModel(ModelConfigAttachedModelResult model) => attachedModels.Add(model);
+
+        internal void AddUnsupportedElement(string className) => unsupportedElements.Add(className);
     }
 
     /// <summary>A model a config attaches, and what the config sets on it.</summary>
