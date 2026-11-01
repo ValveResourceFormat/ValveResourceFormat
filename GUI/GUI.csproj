@@ -41,7 +41,7 @@
     <EmbeddedResource Include="Icons\**" />
     <EmbeddedResource Include="..\Misc\Icons\vpk.ico" Link="Utils\vpk.ico" />
     <EmbeddedResource Include="Utils\industrial_sunset_puresky.vtex_c" />
-    <EmbeddedResource Include="..\Misc\Icons\source2viewer_mcp.ico" Link="Automation\source2viewer_mcp.ico" Condition="'$(Configuration)' == 'Debug'" />
+    <EmbeddedResource Include="..\Misc\Icons\mcp_badge.ico" Link="Automation\mcp_badge.ico" Condition="'$(Configuration)' == 'Debug'" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Renderer\Renderer.csproj" />

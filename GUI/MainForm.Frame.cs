@@ -39,6 +39,11 @@ partial class MainForm
 
     protected override void WndProc(ref Message m)
     {
+        if (TaskbarButtonCreatedMessage != 0 && m.Msg == TaskbarButtonCreatedMessage)
+        {
+            OnTaskbarButtonCreated();
+        }
+
         if (m.Msg == PInvoke.WM_NCCALCSIZE && (int)m.WParam == 1)
         {
             if (IsRunningOnWine.Value)

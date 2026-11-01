@@ -72,3 +72,8 @@ WM_LBUTTONDOWN
 WM_LBUTTONDBLCLK
 COPYDATASTRUCT
 HWND_MESSAGE
+ITaskbarList3
+RegisterWindowMessage
+TaskbarList
+ImageList_GetIcon
+DestroyIcon
