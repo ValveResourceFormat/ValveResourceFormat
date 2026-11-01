@@ -192,7 +192,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
 
                 return weights.Count - 1;
             }
-
         }
     }
 
