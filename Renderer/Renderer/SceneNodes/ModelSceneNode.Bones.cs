@@ -79,8 +79,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         /// <remarks>
         /// <para>
-        /// Unlike the engine's bone merge, which matches bones by name, the pose is copied whole, so
-        /// <paramref name="parent"/> must be a node of the same model.
+        /// Bones are matched by name. A bone the parent lacks keeps its bind offset from its own parent bone.
         /// </para>
         /// <para>
         /// The pose is taken as it stood before <paramref name="parent"/> hid any bones for the first
@@ -93,7 +92,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <param name="parent">The node whose pose this one takes.</param>
         internal void BoneMerge(ModelSceneNode parent)
         {
-            AnimationController.BoneMergeParent = parent.AnimationController;
+            AnimationController.SetBoneMergeParent(parent.AnimationController);
+
+            // A model with no animations of its own, such as clothing, is only skinned once it is merged
+            SetupSkinning();
 
             foreach (var renderer in meshRenderers)
             {

@@ -197,7 +197,7 @@ namespace ValveResourceFormat.Renderer
         {
             if (BoneMergeParent is { } parent)
             {
-                parent.FullPose.CopyTo(Pose, 0);
+                UpdateBoneMerge(parent);
                 return true;
             }
 
