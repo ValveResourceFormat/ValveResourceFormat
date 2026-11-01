@@ -97,9 +97,11 @@ namespace ValveResourceFormat.IO
 
         internal string GameRoot { get; }
 
-        internal string? Name { get; }
+        /// <summary>Gets the name of the game, the <c>game</c> key.</summary>
+        public string? Name { get; }
 
-        internal int SteamAppId { get; }
+        /// <summary>Gets the Steam app id of the game, or 0 when it does not list one.</summary>
+        public int SteamAppId { get; }
 
         internal bool AllowAddonDependencies { get; }
 

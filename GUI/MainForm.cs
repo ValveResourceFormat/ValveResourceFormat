@@ -330,7 +330,7 @@ namespace GUI
             UpdateTaskbarOverlay();
         }
 
-        /// <summary>Badges the taskbar button with the game of the selected VPK, or of the VPK the selected file is in.</summary>
+        /// <summary>Badges the taskbar button with the game the selected tab was loaded from.</summary>
         private void UpdateTaskbarOverlay()
         {
             if (Taskbar == null || Automation.Automation.IsEnabled)
@@ -338,10 +338,11 @@ namespace GUI
                 return;
             }
 
-            if (mainTabs.SelectedTab?.Tag is ExportData { VrfGuiContext.RootContext.FileName: var fileName }
-                && TryGetVpkGameIcon(fileName, out var game, out var imageIndex))
+            // The loader also finds the game of workshop items, and files opened from a package use the game of the package
+            if (mainTabs.SelectedTab?.Tag is ExportData { VrfGuiContext.GameInfo: { SteamAppId: not 0 } gameInfo }
+                && AppIcons.GameIcons.TryGetValue(gameInfo.SteamAppId, out var imageIndex))
             {
-                SetTaskbarOverlay(imageIndex, game.AppName);
+                SetTaskbarOverlay(imageIndex, gameInfo.Name);
             }
             else
             {
@@ -350,7 +351,7 @@ namespace GUI
         }
 
         /// <summary>Badges the taskbar button with an icon from <see cref="AppIcons.ImageList"/>.</summary>
-        private void SetTaskbarOverlay(int imageIndex, string description)
+        private void SetTaskbarOverlay(int imageIndex, string? description)
         {
             var icon = PInvoke.ImageList_GetIcon(new HIMAGELIST(AppIcons.ImageList.Handle), imageIndex, IMAGE_LIST_DRAW_STYLE.ILD_TRANSPARENT);
 
@@ -373,20 +374,14 @@ namespace GUI
             }
         }
 
-        /// <summary>Finds the Steam game that ships a VPK, and its icon in <see cref="AppIcons.ImageList"/>.</summary>
-        private static bool TryGetVpkGameIcon(string fileName, out GameFolderLocator.SteamLibraryGameInfo game, out int imageIndex)
+        /// <summary>Finds the icon in <see cref="AppIcons.ImageList"/> of the Steam game that ships a VPK.</summary>
+        private static bool TryGetVpkGameIcon(string fileName, out int imageIndex)
         {
-            game = default;
             imageIndex = -1;
 
-            if (!Path.GetExtension(fileName.AsSpan()).Equals(".vpk", StringComparison.OrdinalIgnoreCase)
-                || GameFolderLocator.FindSteamGameContainingPath(fileName, InstalledSteamGames.Games) is not { } found)
-            {
-                return false;
-            }
-
-            game = found;
-            return AppIcons.GameIcons.TryGetValue(game.AppID, out imageIndex);
+            return Path.GetExtension(fileName.AsSpan()).Equals(".vpk", StringComparison.OrdinalIgnoreCase)
+                && GameFolderLocator.FindSteamGameContainingPath(fileName, InstalledSteamGames.Games) is { } game
+                && AppIcons.GameIcons.TryGetValue(game.AppID, out imageIndex);
         }
 
         protected override void OnLoad(EventArgs e)
@@ -986,6 +981,9 @@ namespace GUI
                     // the viewer to redraw now that it is visible.
                     createdViewer?.NotifyVisible();
 
+                    // The game is only known once the search paths are loaded
+                    UpdateTaskbarOverlay();
+
                     tabExportData.SetLoaded(loadError);
                 });
             });
@@ -1025,7 +1023,7 @@ namespace GUI
 
                 var extension = Path.GetExtension(vrfGuiContext.FileName.AsSpan());
 
-                if (TryGetVpkGameIcon(vrfGuiContext.FileName, out _, out var imageIndexGame))
+                if (TryGetVpkGameIcon(vrfGuiContext.FileName, out var imageIndexGame))
                 {
                     tab.ImageIndex = imageIndexGame;
                 }
