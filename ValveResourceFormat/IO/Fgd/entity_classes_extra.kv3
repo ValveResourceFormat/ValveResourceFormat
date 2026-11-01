@@ -1001,14 +1001,10 @@
 		},
 		{
 			name = "npc_boss_tier3"
-			helpers = 
+			helpers =
 			[
 				{
-					name = "editormodel"
-					arguments = 
-					[
-						"models/npc/titan_v2/titan.vmdl",
-					]
+					name = "model"
 				},
 			]
 		},
