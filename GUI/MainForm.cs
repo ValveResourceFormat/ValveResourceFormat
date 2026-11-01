@@ -1,6 +1,7 @@
 //#define SCREENSHOT_MODE // Uncomment to hide version, keep title bar static, set an exact window size
 
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -17,6 +18,9 @@ using ValvePak;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.TextureDecoders;
 using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.UI.Controls;
+using Windows.Win32.UI.Shell;
 using Windows.Win32.UI.WindowsAndMessaging;
 using IViewer = GUI.Types.Viewers.IViewer;
 using ResourceViewMode = GUI.Types.Viewers.ResourceViewMode;
@@ -36,6 +40,8 @@ namespace GUI
         private Ipc.IpcWindow? ipcWindow;
         private IDisposable? automationServer;
 #pragma warning restore CA2213
+        private uint TaskbarButtonCreatedMessage;
+        private ITaskbarList3? Taskbar;
 
         static MainForm()
         {
@@ -307,9 +313,87 @@ namespace GUI
         /// <summary>Automation renders and captures without focus, so it does not take the foreground.</summary>
         protected override bool ShowWithoutActivation => Automation.Automation.IsEnabled;
 
+        private void OnTaskbarButtonCreated()
+        {
+            if (Taskbar == null)
+            {
+                Taskbar = (ITaskbarList3)new TaskbarList();
+                Taskbar.HrInit();
+            }
+
+            if (Automation.Automation.IsEnabled)
+            {
+                SetTaskbarOverlay(AppIcons.Icons["McpBadge"], "MCP");
+                return;
+            }
+
+            UpdateTaskbarOverlay();
+        }
+
+        /// <summary>Badges the taskbar button with the game of the selected VPK, or of the VPK the selected file is in.</summary>
+        private void UpdateTaskbarOverlay()
+        {
+            if (Taskbar == null || Automation.Automation.IsEnabled)
+            {
+                return;
+            }
+
+            if (mainTabs.SelectedTab?.Tag is ExportData { VrfGuiContext.RootContext.FileName: var fileName }
+                && TryGetVpkGameIcon(fileName, out var game, out var imageIndex))
+            {
+                SetTaskbarOverlay(imageIndex, game.AppName);
+            }
+            else
+            {
+                SetTaskbarOverlay(default(HICON), null);
+            }
+        }
+
+        /// <summary>Badges the taskbar button with an icon from <see cref="AppIcons.ImageList"/>.</summary>
+        private void SetTaskbarOverlay(int imageIndex, string description)
+        {
+            var icon = PInvoke.ImageList_GetIcon(new HIMAGELIST(AppIcons.ImageList.Handle), imageIndex, IMAGE_LIST_DRAW_STYLE.ILD_TRANSPARENT);
+
+            try
+            {
+                SetTaskbarOverlay(icon, description);
+            }
+            finally
+            {
+                PInvoke.DestroyIcon(icon);
+            }
+        }
+
+        /// <summary>The taskbar keeps its own copy of the icon, so the caller can free it right after.</summary>
+        private unsafe void SetTaskbarOverlay(HICON icon, string? description)
+        {
+            fixed (char* descriptionPtr = description)
+            {
+                Taskbar!.SetOverlayIcon((HWND)Handle, icon, descriptionPtr);
+            }
+        }
+
+        /// <summary>Finds the Steam game that ships a VPK, and its icon in <see cref="AppIcons.ImageList"/>.</summary>
+        private static bool TryGetVpkGameIcon(string fileName, out GameFolderLocator.SteamLibraryGameInfo game, out int imageIndex)
+        {
+            game = default;
+            imageIndex = -1;
+
+            if (!Path.GetExtension(fileName.AsSpan()).Equals(".vpk", StringComparison.OrdinalIgnoreCase)
+                || GameFolderLocator.FindSteamGameContainingPath(fileName, InstalledSteamGames.Games) is not { } found)
+            {
+                return false;
+            }
+
+            game = found;
+            return AppIcons.GameIcons.TryGetValue(game.AppID, out imageIndex);
+        }
+
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
+
+            TaskbarButtonCreatedMessage = PInvoke.RegisterWindowMessage("TaskbarButtonCreated");
 
             var consoleTab = new ConsoleTab();
             Log.SetConsoleTab(consoleTab);
@@ -477,6 +561,7 @@ namespace GUI
         {
             UpdateWindowTitle(mainTabs.SelectedTab?.ToolTipText);
             UpdateBottomPanelKeybindings();
+            UpdateTaskbarOverlay();
         }
 
         private void UpdateWindowTitle(string? toolTipText)
@@ -939,13 +1024,9 @@ namespace GUI
 
                 var extension = Path.GetExtension(vrfGuiContext.FileName.AsSpan());
 
-                if (MemoryExtensions.Equals(extension, ".vpk", StringComparison.OrdinalIgnoreCase))
+                if (TryGetVpkGameIcon(vrfGuiContext.FileName, out _, out var imageIndexGame))
                 {
-                    if (GameFolderLocator.FindSteamGameContainingPath(vrfGuiContext.FileName, InstalledSteamGames.Games) is { } game
-                        && AppIcons.GameIcons.TryGetValue(game.AppID, out var imageIndexGame))
-                    {
-                        tab.ImageIndex = imageIndexGame;
-                    }
+                    tab.ImageIndex = imageIndexGame;
                 }
 
                 if (tab.ImageIndex < 0)
