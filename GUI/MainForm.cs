@@ -323,7 +323,7 @@ namespace GUI
 
             if (Automation.Automation.IsEnabled)
             {
-                SetAutomationTaskbarOverlay();
+                SetTaskbarOverlay(AppIcons.Icons["McpBadge"], "MCP");
                 return;
             }
 
@@ -338,37 +338,30 @@ namespace GUI
                 return;
             }
 
-            if (mainTabs.SelectedTab?.Tag is not ExportData { VrfGuiContext.RootContext.FileName: var fileName }
-                || !TryGetVpkGameIcon(fileName, out var game, out var imageIndex))
+            if (mainTabs.SelectedTab?.Tag is ExportData { VrfGuiContext.RootContext.FileName: var fileName }
+                && TryGetVpkGameIcon(fileName, out var game, out var imageIndex))
             {
-                SetTaskbarOverlay(default, null);
-                return;
+                SetTaskbarOverlay(imageIndex, game.AppName);
             }
+            else
+            {
+                SetTaskbarOverlay(default(HICON), null);
+            }
+        }
 
+        /// <summary>Badges the taskbar button with an icon from <see cref="AppIcons.ImageList"/>.</summary>
+        private void SetTaskbarOverlay(int imageIndex, string description)
+        {
             var icon = PInvoke.ImageList_GetIcon(new HIMAGELIST(AppIcons.ImageList.Handle), imageIndex, IMAGE_LIST_DRAW_STYLE.ILD_TRANSPARENT);
 
             try
             {
-                SetTaskbarOverlay(icon, game.AppName);
+                SetTaskbarOverlay(icon, description);
             }
             finally
             {
                 PInvoke.DestroyIcon(icon);
             }
-        }
-
-        /// <summary>Badges the taskbar button, so a viewer driven by an agent stands out from the others.</summary>
-        private void SetAutomationTaskbarOverlay()
-        {
-            using var iconStream = Program.Assembly.GetManifestResourceStream("GUI.Automation.mcp_badge.ico");
-
-            if (iconStream == null)
-            {
-                return;
-            }
-
-            using var icon = new Icon(iconStream, SystemInformation.SmallIconSize);
-            SetTaskbarOverlay((HICON)icon.Handle, "MCP");
         }
 
         /// <summary>The taskbar keeps its own copy of the icon, so the caller can free it right after.</summary>
