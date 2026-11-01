@@ -1,6 +1,7 @@
 //#define SCREENSHOT_MODE // Uncomment to hide version, keep title bar static, set an exact window size
 
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -361,6 +362,13 @@ namespace GUI
             {
                 UpdateWindowTitle(null);
                 SetAutomationBorderColor();
+
+                using var iconStream = Program.Assembly.GetManifestResourceStream("GUI.Automation.source2viewer_mcp.ico");
+
+                if (iconStream != null)
+                {
+                    Icon = new Icon(iconStream);
+                }
 
                 if (Args.Length > 0)
                 {
