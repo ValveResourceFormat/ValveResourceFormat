@@ -23,6 +23,8 @@ centroid out vec4 vVertexColorOut;
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     centroid out vec4 vLightmapUVScaled;
+#elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
+    out vec3 vPerVertexLightingOut;
 #endif
 
 void main()
@@ -55,5 +57,7 @@ void main()
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     vLightmapUVScaled = vec4(0.0);
+#elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
+    vPerVertexLightingOut = vec3(0.0);
 #endif
 }
