@@ -72,10 +72,24 @@ vec4 SampleToolTexture(vec3 position, vec3 normal)
     return texture(g_tColor, vec2(dot(position, u), dot(position, v)) * toolTextureScale);
 }
 
+// Keeps the edge of label text about a pixel wide where the texture is magnified
+float SharpenToolTextureOpacity(float alpha, float fillAlpha)
+{
+    if (alpha <= fillAlpha)
+    {
+        return alpha;
+    }
+
+    float coverage = (alpha - fillAlpha) / (1.0 - fillAlpha);
+    float sharpness = max(1.0, 0.5 / max(fwidth(coverage), 0.0001));
+    coverage = clamp((coverage - 0.5) * sharpness + 0.5, 0.0, 1.0);
+
+    return mix(fillAlpha, 1.0, coverage);
+}
+
 #if (D_LINES == 1 && D_OIT == 1)
-// How many fills of the order independent layers lie in front of a line at this distance. Past the nearest
-// two only the total is known, so all of them count.
-float CountFillsInFront(float distance)
+// What the fills in front of a line let through. Past the nearest two only their count is known.
+float TransmittanceOfFillsInFront(float distance)
 {
     ivec2 pixel = ivec2(gl_FragCoord.xy);
     uint lineNearness = PackOrderIndependentNearness(distance * (1.0 - lineOwnFaceTolerance));
@@ -84,17 +98,20 @@ float CountFillsInFront(float distance)
 
     if ((nearest >> 16) <= lineNearness)
     {
-        return 0.0;
+        return 1.0;
     }
 
+    float nearestTransmittance = 1.0 - UnpackOrderIndependentAlpha(nearest);
     uint second = imageLoad(g_tOrderIndependentLayers, ivec3(pixel, 1)).r;
 
     if ((second >> 16) <= lineNearness)
     {
-        return 1.0;
+        return nearestTransmittance;
     }
 
-    return float(imageLoad(g_tOrderIndependentLayers, ivec3(pixel, 2)).r);
+    uint count = imageLoad(g_tOrderIndependentLayers, ivec3(pixel, 2)).r;
+
+    return nearestTransmittance * OrderIndependentBehindNearest(second, count);
 }
 #endif
 
@@ -119,8 +136,7 @@ vec4 ShadeLine()
     ApplyFog(color, vtxPosWs);
 
 #if (D_OIT == 1)
-    // Each fill in front lets through what sorted layers of the fill's opacity would
-    alpha *= pow(1.0 - vtxColor.a, CountFillsInFront(distance));
+    alpha *= TransmittanceOfFillsInFront(distance);
 #endif
 
     return vec4(color, alpha);
@@ -152,6 +168,7 @@ void main(void)
         if (g_bHasToolTexture)
         {
             outputColor = SampleToolTexture(vtxPos, vtxNormal);
+            outputColor.a = SharpenToolTextureOpacity(outputColor.a, vtxColor.a);
             toolTexture = outputColor.rgb;
         }
 
@@ -168,7 +185,7 @@ void main(void)
             }
         #endif
 
-        outputColor = vec4(lighting, vtxColor.a);
+        outputColor.rgb = lighting;
     }
     else if (!gl_FrontFacing)
     {
@@ -192,7 +209,7 @@ void main(void)
 
 #if (D_OIT == 1)
     ivec2 pixel = ivec2(gl_FragCoord.xy);
-    uint fragment = PackOrderIndependentFragment(outputColor.rgb, length(camPos - vtxPosWs));
+    uint fragment = PackOrderIndependentFragment(outputColor.rgb, outputColor.a, length(camPos - vtxPosWs));
 
     // The first layer keeps the nearer of it and this fragment, and passes the farther on to the second
     uint previous = imageAtomicMax(g_tOrderIndependentLayers, ivec3(pixel, 0), fragment);

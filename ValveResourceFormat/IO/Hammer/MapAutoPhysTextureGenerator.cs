@@ -27,12 +27,14 @@ internal static class MapAutoPhysTextureGenerator
     /// Generates the texture of a label, such as that of a tools material, an entity volume or a set of collision layers.
     /// </summary>
     /// <param name="label">The label.</param>
-    public static SKBitmap GenerateTexture(ToolsMaterials.TextureLabel label)
+    /// <param name="backgroundOpacity">The alpha of the background. The text is always opaque.</param>
+    public static SKBitmap GenerateTexture(ToolsMaterials.TextureLabel label, float backgroundOpacity = 1f)
     {
         var background = label.Background;
         var text = label.Text;
+        var backgroundAlpha = (byte)MathF.Round(backgroundOpacity * 255f);
 
-        return GenerateTexture(label.Name, new SKColor(background.R, background.G, background.B), new SKColor(text.R, text.G, text.B));
+        return GenerateTexture(label.Name, new SKColor(background.R, background.G, background.B, backgroundAlpha), new SKColor(text.R, text.G, text.B));
     }
 
     private static SKTypeface LoadTypeface()
@@ -87,7 +89,8 @@ internal static class MapAutoPhysTextureGenerator
         var textX = TextureSize / 2;
         var textY = font.Metrics.CapHeight + (TextureSize - textHeight) / 2;
 
-        var bitmap = new SKBitmap(TextureSize, TextureSize);
+        // Unpremultiplied keeps the color of a translucent background
+        var bitmap = new SKBitmap(new SKImageInfo(TextureSize, TextureSize, SKColorType.Rgba8888, SKAlphaType.Unpremul));
         using var canvas = new SKCanvas(bitmap);
         canvas.Clear(backgroundColor);
 

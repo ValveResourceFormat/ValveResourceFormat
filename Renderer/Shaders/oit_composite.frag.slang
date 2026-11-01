@@ -2,13 +2,12 @@
 
 #include "common/order_independent.slang"
 
-// Blends the order independent layers over the scene as sorted layers of equal opacity would. Front to back,
-// each layer takes that opacity of what the layers in front of it let through, so all but the nearest two
-// take little, and they take the color of the second.
+// Blends the layers over the scene front to back. Layers past the second take the fill's opacity and the second's color.
 
 layout(binding = 0, r32ui) uniform readonly uimage2DArray g_tOrderIndependentLayers;
 
-uniform float g_flLayerAlpha;
+// Coplanar faces swap order from pixel to pixel, so layers this close share their color
+const uint sameDistanceNearness = uint(log2(1.01) / orderIndependentMaxDistanceLog2 * 65535.0);
 
 out vec4 outputColor;
 
@@ -25,12 +24,21 @@ void main()
     uint second = imageLoad(g_tOrderIndependentLayers, ivec3(pixel, 1)).r;
     uint count = imageLoad(g_tOrderIndependentLayers, ivec3(pixel, 2)).r;
 
-    // What all the layers let through, and what the layers behind the nearest take, zero when it is alone
-    float transmittance = pow(1.0 - g_flLayerAlpha, float(count));
-    float behindNearest = (1.0 - g_flLayerAlpha) - transmittance;
+    vec3 nearestColor = UnpackOrderIndependentColor(nearest);
+    vec3 secondColor = UnpackOrderIndependentColor(second);
 
-    vec3 color = UnpackOrderIndependentColor(nearest) * g_flLayerAlpha;
-    color += UnpackOrderIndependentColor(second) * behindNearest;
+    if (count >= 2u && (nearest >> 16) - (second >> 16) <= sameDistanceNearness)
+    {
+        nearestColor = (nearestColor + secondColor) * 0.5;
+        secondColor = nearestColor;
+    }
 
-    outputColor = vec4(color, transmittance);
+    float nearestAlpha = UnpackOrderIndependentAlpha(nearest);
+    float nearestTransmittance = 1.0 - nearestAlpha;
+    float behindNearest = OrderIndependentBehindNearest(second, count);
+
+    vec3 color = nearestColor * nearestAlpha;
+    color += secondColor * nearestTransmittance * (1.0 - behindNearest);
+
+    outputColor = vec4(color, nearestTransmittance * behindNearest);
 }

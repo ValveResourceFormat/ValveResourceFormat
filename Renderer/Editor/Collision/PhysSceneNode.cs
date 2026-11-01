@@ -504,7 +504,7 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
             else if (collisionLabel is { } label)
             {
                 // Collision in layers that no tools material compiles to names them instead
-                node.SetToolTexture(scene.RendererContext.MaterialLoader.GetLabelTexture(label));
+                node.SetToolLabel(label);
             }
 
             return node;

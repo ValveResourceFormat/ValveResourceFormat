@@ -1290,7 +1290,6 @@ public class Renderer : ISceneHost
         using (GraphicsContext.RenderState.Scope(fillMode: RsFillMode.Solid, cullMode: RsCullMode.None, depthTest: false, srcBlend: RsBlendMode.One, dstBlend: RsBlendMode.SrcAlpha))
         {
             orderIndependentCompositeShader.Use();
-            orderIndependentCompositeShader.SetUniform("g_flLayerAlpha", ShapeSceneNode.OrderIndependentFillAlpha);
 
             GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);

@@ -663,7 +663,8 @@ namespace ValveResourceFormat.Renderer.Materials
         /// </summary>
         /// <param name="label">The label, see <see cref="ToolsMaterials.GetToolsLabel"/>,
         /// <see cref="ToolsMaterials.GetTriggerLabel"/> and <see cref="ToolsMaterials.GetCollisionLabel"/>.</param>
-        public RenderTexture GetLabelTexture(ToolsMaterials.TextureLabel label)
+        /// <param name="backgroundOpacity">The alpha of the background. The texture is cached by the label alone.</param>
+        public RenderTexture GetLabelTexture(ToolsMaterials.TextureLabel label, float backgroundOpacity)
         {
             // The key is not a resource path, so it cannot collide with a loaded texture
             if (TexturesSrgb.TryGetValue(label.Key, out var cached))
@@ -671,7 +672,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 return cached;
             }
 
-            using var bitmap = MapAutoPhysTextureGenerator.GenerateTexture(label);
+            using var bitmap = MapAutoPhysTextureGenerator.GenerateTexture(label, backgroundOpacity);
 
             // Generated textures are not resources, so they are uploaded here with a full mip chain to tile across shapes
             var levels = 1 + BitOperations.Log2((uint)Math.Max(bitmap.Width, bitmap.Height));

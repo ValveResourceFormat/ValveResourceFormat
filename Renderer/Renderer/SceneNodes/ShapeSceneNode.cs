@@ -151,19 +151,26 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
 
             ToolsMaterial = material;
-            toolTexture = ToolsMaterials.GetToolsLabel(materialName) is { } label
-                ? Scene.RendererContext.MaterialLoader.GetLabelTexture(label)
-                : material.GetColorTexture();
+
+            if (ToolsMaterials.GetToolsLabel(materialName) is { } label)
+            {
+                SetToolLabel(label);
+            }
+            else
+            {
+                toolTexture = material.GetColorTexture();
+            }
+
             return true;
         }
 
         /// <summary>
-        /// Shows another texture than that of <see cref="ToolsMaterial"/>, which still decides whether the shape is drawn.
+        /// Shows a label in place of the texture of <see cref="ToolsMaterial"/>.
         /// </summary>
-        /// <param name="texture">The texture projected onto the faces.</param>
-        internal void SetToolTexture(RenderTexture texture)
+        /// <param name="label">The label.</param>
+        internal void SetToolLabel(ToolsMaterials.TextureLabel label)
         {
-            toolTexture = texture;
+            toolTexture = Scene.RendererContext.MaterialLoader.GetLabelTexture(label, OrderIndependentFillAlpha);
         }
 
         private void Init(List<SimpleVertexNormal> verts, List<int> inds)
@@ -470,7 +477,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             renderShader.Use();
 
             renderShader.SetUniform("g_bNormalShaded", Shaded);
-            renderShader.SetUniform("g_bHasToolTexture", toolTexture != null);
+            SetToolTextureUniforms(renderShader);
 
             renderShader.SetTexture(RenderMaterial.TextureUnitStart, "g_tColor", toolTexture ?? Scene.RendererContext.MaterialLoader.GetDefaultColor());
 
@@ -537,7 +544,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             fillShader.Use();
 
             fillShader.SetUniform("g_bNormalShaded", Shaded);
-            fillShader.SetUniform("g_bHasToolTexture", toolTexture != null);
+            SetToolTextureUniforms(fillShader);
 
             // Drawn outside the batch renderer, which rebinds the reserved units after each node it draws
             fillShader.SetTexture(RenderMaterial.TextureUnitStart, "g_tColor", toolTexture ?? Scene.RendererContext.MaterialLoader.GetDefaultColor());
@@ -578,16 +585,21 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private void DrawLines(Shader lineShader)
         {
             lineShader.Use();
-            lineShader.SetUniform("g_bHasToolTexture", toolTexture != null);
-
-            if (toolTexture != null)
-            {
-                lineShader.SetUniform("g_vToolTextureAverage", toolTexture.Reflectivity.AsVector3());
-            }
+            SetToolTextureUniforms(lineShader);
 
             VertexArray.Bind(vao, lineShader);
 
             GL.DrawElementsInstancedBaseInstance(PrimitiveType.Lines, lineIndexCount, DrawElementsType.UnsignedInt, indexCount * sizeof(int), 1, Id);
+        }
+
+        private void SetToolTextureUniforms(Shader target)
+        {
+            target.SetUniform("g_bHasToolTexture", toolTexture != null);
+
+            if (toolTexture != null)
+            {
+                target.SetUniform("g_vToolTextureAverage", toolTexture.Reflectivity.AsVector3());
+            }
         }
 
         // Pulls the fill in front of the scene surfaces it lies on, such as the walls that world collision follows

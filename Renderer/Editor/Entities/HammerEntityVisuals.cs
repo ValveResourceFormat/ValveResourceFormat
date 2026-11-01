@@ -186,7 +186,7 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
 
             if (showsClass || node.ToolsMaterial.Material.Name.Equals(ToolsMaterials.Trigger, StringComparison.OrdinalIgnoreCase))
             {
-                node.SetToolTexture(scene.RendererContext.MaterialLoader.GetLabelTexture(ToolsMaterials.GetTriggerLabel(entity.Classname)));
+                node.SetToolLabel(ToolsMaterials.GetTriggerLabel(entity.Classname));
             }
         }
 
