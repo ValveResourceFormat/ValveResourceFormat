@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
 using ValveKeyValue;
@@ -88,7 +89,7 @@ public abstract class EntityHelper
     /// editor-only entities layer for one hidden while only what the game shows is, and none for one neither option
     /// hides.
     /// </summary>
-    protected IReadOnlyList<WorldLayer> VisibilityLayers => NeedsShowHelpers
+    protected ImmutableArray<WorldLayer> VisibilityLayers => NeedsShowHelpers
         ? [HammerEntityVisuals.HelpersLayer]
         : HiddenInGameObjectsOnly ? [HammerEntityVisuals.MarkerLayer] : [];
 

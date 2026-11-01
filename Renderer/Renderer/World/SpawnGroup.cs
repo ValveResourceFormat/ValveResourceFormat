@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.ResourceTypes;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
@@ -80,7 +81,7 @@ public sealed class SpawnGroup
     /// Gets the layers every node of the group's entities is on, such as a world layer for the entities of its
     /// entity lump.
     /// </summary>
-    public IReadOnlyList<WorldLayer> Layers { get; internal init; } = [WorldLayer.Entities];
+    public ImmutableArray<WorldLayer> Layers { get; internal init; } = [WorldLayer.Entities];
 
     // The world the group spawns from, given by the manager when it spawns, or by the WorldLoader of a map
     // spawning its own entities

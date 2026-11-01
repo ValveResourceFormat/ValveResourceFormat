@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
 using ValveResourceFormat.Blocks;
@@ -74,7 +75,7 @@ namespace ValveResourceFormat.Renderer
         /// Gets or sets the visibility layers of the node, set before it is added to the scene. The node is shown
         /// only while every one of them is enabled, and one on no layer is never hidden by one.
         /// </summary>
-        public IReadOnlyList<WorldLayer> Layers { get; set; } = [];
+        public ImmutableArray<WorldLayer> Layers { get; set => field = value.IsDefault ? [] : value; } = [];
 
         /// <summary>
         /// Gets or sets whether this node's layers are enabled. Queues a rebuild on the parent spatial structure.
@@ -186,11 +187,13 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Puts the node on more layers, besides those it is on already, before it is added to the scene.</summary>
         /// <param name="layers">The layers to add.</param>
-        public void AddLayers(IReadOnlyList<WorldLayer> layers)
+        public void AddLayers(ImmutableArray<WorldLayer> layers)
         {
-            ArgumentNullException.ThrowIfNull(layers);
-
-            if (!layers.All(Layers.Contains))
+            if (Layers.Length == 0)
+            {
+                Layers = layers;
+            }
+            else if (!layers.All(Layers.Contains))
             {
                 Layers = [.. Layers.Union(layers)];
             }

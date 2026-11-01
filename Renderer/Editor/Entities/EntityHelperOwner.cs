@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Linq;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Helpers;
@@ -41,7 +42,7 @@ internal sealed class EntityHelperOwner : IHelperOwner
 
     public Matrix4x4 RigidTransform => entity.RigidTransform;
 
-    public IReadOnlyList<WorldLayer> Layers => entity.Layers;
+    public ImmutableArray<WorldLayer> Layers => entity.Layers;
 
     /// <summary>Gets or sets the node the helpers stand in for the entity with, which the entity took as its own.</summary>
     public SceneNode? StandIn { get; set; }
@@ -71,7 +72,7 @@ internal sealed class EntityHelperOwner : IHelperOwner
     public void AddNode(SceneNode node, bool followsEntity = false)
     {
         // The game draws a compiled map, so the shapes only the editor draws are never shown with the entity alone
-        if (node is ToolSceneNode && node.Layers.Count == 0)
+        if (node is ToolSceneNode && node.Layers.Length == 0)
         {
             node.Layers = [HammerEntityVisuals.MarkerLayer];
         }

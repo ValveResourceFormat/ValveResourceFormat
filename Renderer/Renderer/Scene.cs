@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -344,7 +345,7 @@ namespace ValveResourceFormat.Renderer
             }
 
             // A node on no layer keeps the state it was given
-            if (node.Layers.Count > 0)
+            if (node.Layers.Length > 0)
             {
                 node.LayerEnabled = AreLayersEnabled(node.Layers);
             }
@@ -1523,11 +1524,9 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets whether every one of some layers is enabled, as a node on them needs to be shown.</summary>
         /// <param name="layers">The layers, of which none means always shown.</param>
         /// <returns>Whether all of them are enabled.</returns>
-        public bool AreLayersEnabled(IReadOnlyList<WorldLayer> layers)
+        public bool AreLayersEnabled(ImmutableArray<WorldLayer> layers)
         {
-            ArgumentNullException.ThrowIfNull(layers);
-
-            for (var i = 0; i < layers.Count; i++)
+            for (var i = 0; i < layers.Length; i++)
             {
                 if (disabledLayers.Contains(layers[i]))
                 {

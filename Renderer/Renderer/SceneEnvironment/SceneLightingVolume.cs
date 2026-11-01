@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -50,7 +51,7 @@ public static class SceneLightingVolume
     /// <param name="layers">Visibility layers of the entity.</param>
     /// <param name="isSphere">Whether the volume is a sphere of <c>influenceradius</c> rather than a box.</param>
     /// <returns>The environment map, or <see langword="null"/> when the entity names no texture.</returns>
-    public static SceneEnvMap? AddEnvironmentMap(Scene scene, EntityLump.Entity entity, in Matrix4x4 transform, IReadOnlyList<WorldLayer> layers, bool isSphere)
+    public static SceneEnvMap? AddEnvironmentMap(Scene scene, EntityLump.Entity entity, in Matrix4x4 transform, ImmutableArray<WorldLayer> layers, bool isSphere)
     {
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(entity);
@@ -101,7 +102,7 @@ public static class SceneLightingVolume
     /// <param name="isSphere">Whether the volume is a sphere of <c>influenceradius</c> rather than a box.</param>
     /// <param name="fadesAtEdges">Whether the probe fades out over the edge fade distances, otherwise it ends at its box.</param>
     /// <returns>The light probe.</returns>
-    public static SceneLightProbe AddLightProbe(Scene scene, EntityLump.Entity entity, in Matrix4x4 transform, IReadOnlyList<WorldLayer> layers, bool isSphere, bool fadesAtEdges)
+    public static SceneLightProbe AddLightProbe(Scene scene, EntityLump.Entity entity, in Matrix4x4 transform, ImmutableArray<WorldLayer> layers, bool isSphere, bool fadesAtEdges)
     {
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(entity);

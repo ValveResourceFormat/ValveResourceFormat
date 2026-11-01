@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Blocks;
@@ -72,7 +73,7 @@ public abstract class BaseEntity
     /// Gets the layers every node of the entity is on: those of the group that spawned it, rather than of the
     /// <see cref="SpawnGroup"/> it may have joined, and the disabled entities layer for one that starts disabled.
     /// </summary>
-    internal IReadOnlyList<WorldLayer> Layers { get; }
+    internal ImmutableArray<WorldLayer> Layers { get; }
 
     /// <summary>
     /// Gets <see cref="SpawnData"/>, throwing for an entity created at runtime. A class that can be

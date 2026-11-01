@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.ResourceTypes;
@@ -29,7 +30,7 @@ public interface IHelperOwner
     Matrix4x4 RigidTransform { get; }
 
     /// <summary>Gets the visibility layers of everything the entity draws.</summary>
-    IReadOnlyList<WorldLayer> Layers { get; }
+    ImmutableArray<WorldLayer> Layers { get; }
 
     /// <summary>
     /// Gets the bounds of what the entity is made of besides its helpers, such as the meshes of a solid entity
