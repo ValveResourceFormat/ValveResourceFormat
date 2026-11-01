@@ -79,20 +79,29 @@ namespace GUI.Controls
             groupBox.Controls.Add(treeView);
 
             Controls.Add(groupBox);
+            AccessibleName = name;
             Margin = new Padding(0);
             Padding = new Padding(3);
             Size = new Size(220, 154);
         }
 
-        /// <summary>Checks an item and every item below it.</summary>
+        /// <summary>Checks or unchecks an item and every item below it, as a click on it does.</summary>
         /// <param name="path">The path of the item.</param>
-        public void Check(string path)
+        /// <param name="isChecked">Whether the item is checked.</param>
+        /// <returns>Whether there is an item with that path.</returns>
+        public bool SetChecked(string path, bool isChecked)
         {
-            if (treeView.Nodes.Find(path, searchAllChildren: true) is [var node, ..])
+            if (treeView.Nodes.Find(path, searchAllChildren: true) is not [var node, ..])
             {
-                SetChecked(node, true);
+                return false;
             }
+
+            SetChecked(node, isChecked);
+            return true;
         }
+
+        /// <summary>Gets the path of every item, top to bottom, and whether it is checked.</summary>
+        public IEnumerable<(string Path, bool IsChecked)> Items => AllBelow(treeView.Nodes).Select(static node => (node.Name, node.Checked));
 
         protected override void Dispose(bool disposing)
         {

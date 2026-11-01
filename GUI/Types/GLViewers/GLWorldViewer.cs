@@ -722,7 +722,7 @@ namespace GUI.Types.GLViewers
 
             if (node is PhysSceneNode { Enabled: false } collision)
             {
-                collisionTree?.Check(collision.CollisionLabels[0]);
+                collisionTree?.SetChecked(collision.CollisionLabels[0], true);
             }
         }
 
