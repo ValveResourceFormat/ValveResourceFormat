@@ -47,10 +47,10 @@ namespace ValveResourceFormat.Renderer.World
 
         // Kept apart from world_layer_base so the world geometry can be hidden while collision stays visible.
         // Always enabled, the physics group filter decides what actually draws.
-        private static readonly WorldLayer PhysicsDebugLayer = new("Physics Visualization Layer");
+        private static readonly WorldLayer PhysicsDebugLayer = new("Physics Visualization Layer") { IsInternal = true };
 
         /// <summary>Layers that should be visible by default, populated during loading.</summary>
-        public HashSet<WorldLayer> DefaultEnabledLayers { get; } = [WorldLayer.NoLayer, WorldLayer.Entities, WorldLayer.Particles, PhysicsDebugLayer];
+        public HashSet<WorldLayer> DefaultEnabledLayers { get; } = [WorldLayer.NoLayer, WorldLayer.Entities, WorldLayer.Particles];
 
         /// <summary>Names of info_camera_link entities found in the world.</summary>
         public List<string> CameraNames { get; } = [];
