@@ -20,7 +20,7 @@ namespace GUI.Controls
         /// <summary>Raised with the paths of the checked items after one is checked or unchecked.</summary>
         public event Action<IEnumerable<string>>? CheckedPathsChanged;
 
-        public GLViewerTreeSelectionControl(string name, IEnumerable<string> paths, bool initiallyChecked, bool foldGroups)
+        public GLViewerTreeSelectionControl(string name, IEnumerable<string> paths, Func<string, bool> isChecked, bool foldGroups)
         {
             treeView = new CompactTreeView
             {
@@ -33,10 +33,16 @@ namespace GUI.Controls
 
             treeView.BeginUpdate();
 
+            // The tree finds items by their paths ignoring case
+            var items = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             foreach (var path in paths)
             {
-                AddPath(path, initiallyChecked);
+                items.Add(path);
+                AddPath(path)?.Checked = isChecked(path);
             }
+
+            CheckGroups(treeView.Nodes, items);
 
             if (!foldGroups)
             {
@@ -134,11 +140,12 @@ namespace GUI.Controls
         private static int CountShownRows(TreeNodeCollection nodes)
             => nodes.Cast<TreeNode>().Sum(static node => 1 + (node.IsExpanded ? CountShownRows(node.Nodes) : 0));
 
-        // Each group of the path gets the item the paths below it are nested in
-        private void AddPath(string path, bool isChecked)
+        // Each group of the path gets the item the paths below it are nested in. An empty path gets none.
+        private TreeNode? AddPath(string path)
         {
             var nodes = treeView.Nodes;
             var end = 0;
+            TreeNode? node = null;
 
             while (end < path.Length)
             {
@@ -146,9 +153,24 @@ namespace GUI.Controls
                 end = end < 0 ? path.Length : end;
 
                 var groupPath = path[..end];
-                var node = nodes[groupPath] ?? nodes.Add(groupPath, groupPath[(groupPath.LastIndexOf(PathSeparator) + 1)..]);
-                node.Checked = isChecked;
+                node = nodes[groupPath] ?? nodes.Add(groupPath, groupPath[(groupPath.LastIndexOf(PathSeparator) + 1)..]);
                 nodes = node.Nodes;
+            }
+
+            return node;
+        }
+
+        // A group that is not an item of its own is checked while every item below it is
+        private static void CheckGroups(TreeNodeCollection nodes, HashSet<string> items)
+        {
+            foreach (TreeNode node in nodes)
+            {
+                CheckGroups(node.Nodes, items);
+
+                if (!items.Contains(node.Name))
+                {
+                    node.Checked = node.Nodes.Cast<TreeNode>().All(static child => child.Checked);
+                }
             }
         }
 

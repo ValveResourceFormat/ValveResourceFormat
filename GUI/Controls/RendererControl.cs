@@ -484,8 +484,17 @@ partial class RendererControl : UserControl
     /// <param name="initiallyChecked">Whether the items start checked.</param>
     /// <param name="foldGroups">Whether the groups start folded away, but for a lone item at the top, which lists them.</param>
     public GLViewerTreeSelectionControl AddTreeSelection(string name, IEnumerable<string> paths, Action<IEnumerable<string>> changeCallback, bool initiallyChecked = true, bool foldGroups = false)
+        => AddTreeSelection(name, paths, changeCallback, _ => initiallyChecked, foldGroups);
+
+    /// <summary>
+    /// Adds checkable items nested by their paths, each checked as <paramref name="isChecked"/> says. A group that is
+    /// not one of the paths is checked while every item below it is.
+    /// </summary>
+    /// <param name="isChecked">Whether the item of a path starts checked.</param>
+    /// <inheritdoc cref="AddTreeSelection(string, IEnumerable{string}, Action{IEnumerable{string}}, bool, bool)"/>
+    public GLViewerTreeSelectionControl AddTreeSelection(string name, IEnumerable<string> paths, Action<IEnumerable<string>> changeCallback, Func<string, bool> isChecked, bool foldGroups = false)
     {
-        var selectionControl = new GLViewerTreeSelectionControl(name, paths, initiallyChecked, foldGroups);
+        var selectionControl = new GLViewerTreeSelectionControl(name, paths, isChecked, foldGroups);
         selectionControl.CheckedPathsChanged += changeCallback;
 
         ControlsPanel.Controls.Add(selectionControl);

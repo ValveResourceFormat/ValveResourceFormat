@@ -23,16 +23,16 @@ public sealed class WorldLayer
     public static readonly WorldLayer Entities = new("Entities");
 
     /// <summary>Layer of the entities that start disabled, which the game keeps hidden until enabled.</summary>
-    public static readonly WorldLayer DisabledEntities = new("Entities (disabled)");
+    public static readonly WorldLayer DisabledEntities = new("Entities/Disabled");
 
     /// <summary>
     /// Layer of the entities a <c>point_template</c> shows while the world is stopped. The template itself is not on
     /// it, and what it spawns in game is not either.
     /// </summary>
-    public static readonly WorldLayer Templates = new("Template Entities") { IsToolsOnly = true };
+    public static readonly WorldLayer Templates = new("Entities/Templates") { IsToolsOnly = true };
 
     /// <summary>Layer of particle systems.</summary>
-    public static readonly WorldLayer Particles = new("Particles");
+    public static readonly WorldLayer Particles = new("Entities/Particles");
 
     /// <summary>Layer of the visibility clusters a map was compiled with.</summary>
     public static readonly WorldLayer VisibilityClusters = new("Visibility clusters");

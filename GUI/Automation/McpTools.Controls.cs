@@ -22,7 +22,7 @@ internal sealed partial class McpTools
     /// <summary>One change of <see cref="SetControls"/>.</summary>
     private sealed record ControlChange(string Name, string? Group = null, string? Item = null, JsonNode? Value = null);
 
-    [Tool("List the controls in a tab's sidebar and toolbar, top to bottom, each with its kind, group and state. Kinds are checkbox, toggle, dropdown, list (a checked list such as world layers or mesh groups), tree (checked items by path, such as collision or auto vis groups, where an item checks the items below it), slider (0 to 1), and number (with its range). The others are vector (such as a material or animation graph parameter), button and text. The render mode dropdown is in the Toolbar group.")]
+    [Tool("List the controls in a tab's sidebar and toolbar, top to bottom, each with its kind, group and state. Kinds are checkbox, toggle, dropdown, list (a checked list such as mesh groups), tree (checked items by path, such as world layers, collision or auto vis groups, where an item checks the items below it), slider (0 to 1), and number (with its range). The others are vector (such as a material or animation graph parameter), button and text. The render mode dropdown is in the Toolbar group.")]
     private static List<object> ListControls(GLBaseControl viewer, [Description("Include the items of dropdowns and lists. An animation list can have hundreds.")] bool items = false)
         => SidebarControls(viewer).Select(control => DescribeControl(control, items)).ToList();
 
