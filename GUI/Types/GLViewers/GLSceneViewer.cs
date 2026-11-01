@@ -1262,8 +1262,22 @@ namespace GUI.Types.GLViewers
 
             foreach (var scene in Renderer.Scenes)
             {
-                scene.SetLayersEnabled(choice.Listed.Where(shown.Contains), true);
+                var turnedOn = choice.Listed.Where(layer => shown.Contains(layer) && !scene.IsLayerEnabled(layer)).ToHashSet();
+
+                scene.SetLayersEnabled(turnedOn, true);
                 scene.SetLayersEnabled(choice.Listed.Where(layer => !shown.Contains(layer)), false);
+
+                // Turning a layer back on also brings back the nodes on it hidden one at a time
+                if (turnedOn.Count > 0)
+                {
+                    foreach (var node in scene.AllNodes)
+                    {
+                        if (!node.NodeEnabled && node.Layers.Any(turnedOn.Contains))
+                        {
+                            node.NodeEnabled = true;
+                        }
+                    }
+                }
             }
         }
 
@@ -1336,7 +1350,7 @@ namespace GUI.Types.GLViewers
                 // Hides the selection, or shows it again
                 foreach (var node in Selection.Nodes)
                 {
-                    node.LayerEnabled = !node.LayerEnabled;
+                    node.NodeEnabled = !node.NodeEnabled;
                 }
 
                 return;

@@ -288,7 +288,7 @@ internal sealed partial class McpTools
             SpawnedParticles.Add(spawned, null);
 
             // The constructor added the preview model before it had a layer, so it copies the layer state of the system
-            spawned.PreviewModel?.LayerEnabled = spawned.LayerEnabled;
+            spawned.PreviewModel?.LayersEnabled = spawned.LayersEnabled;
 
             return spawned;
         }, cancellationToken).ConfigureAwait(false);

@@ -380,7 +380,7 @@ internal sealed partial class McpTools
             return null;
         }
 
-        return "layer_off";
+        return node.NodeEnabled ? "layer_off" : "node_off";
     }
 
     private static SpawnGroup? SpawnGroupOf(GLSceneViewer viewer, Scene scene)
@@ -660,7 +660,7 @@ internal sealed partial class McpTools
             return false;
         }
 
-        if (node.LayerEnabled)
+        if (node.NodeEnabled)
         {
             NodesHiddenByTool.Remove(node);
             return false;
@@ -669,7 +669,7 @@ internal sealed partial class McpTools
         return true;
     }
 
-    [Tool("List the scene nodes of a 3D tab that this tool hid and that are still hidden. With 'hidden', hide or show nodes instead. This works as select and Delete do, but it sets the state instead of toggling it. Like Delete, it disables the layer for that node only. The node then reports layer_off, and a sidebar layer switch can show it again. This tool does not list or show nodes hidden with Delete in the viewer. It does not change nodes that a layer, a physics group or their entity hides, and reports them.", Redraws = true)]
+    [Tool("List the scene nodes of a 3D tab that this tool hid and that are still hidden. With 'hidden', hide or show nodes instead. This works as select and Delete do, but it sets the state instead of toggling it. Like Delete, it disables that node only. The node then reports node_off, and turning one of its layers back on in the sidebar shows it again. This tool does not list or show nodes hidden with Delete in the viewer. It does not change nodes that a layer, a physics group or their entity hides, and reports them.", Redraws = true)]
     private object HiddenNodes(
         GLSceneViewer viewer,
         [Description("True to hide, false to show again. Omit to list the hidden nodes.")] bool? hidden = null,
@@ -725,7 +725,7 @@ internal sealed partial class McpTools
 
             if (changes)
             {
-                node.LayerEnabled = !hide;
+                node.NodeEnabled = !hide;
 
                 if (hide)
                 {
