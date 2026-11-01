@@ -37,6 +37,9 @@ public sealed class InfoWorldLayer : BaseEntity
     /// <summary>Gets the name of the world layer this entity controls, which also names its entity lump.</summary>
     public string? WorldLayerName => KeyValues.GetStringProperty("layername");
 
+    /// <summary>Gets the world layer this entity controls, or <see langword="null"/> when it names none.</summary>
+    public WorldLayer? Layer => WorldLayerName is { Length: > 0 } name ? WorldLayer.Get(name) : null;
+
     /// <summary>Gets whether the controlled layer is shown when the map loads.</summary>
     public bool IsVisibleOnSpawn => HasSpawnFlags(SpawnFlag.VisibleOnSpawn);
 
@@ -62,21 +65,12 @@ public sealed class InfoWorldLayer : BaseEntity
     /// <summary>Shows or hides the controlled layer.</summary>
     public void SetLayerVisible(bool visible)
     {
-        if (string.IsNullOrEmpty(WorldLayerName))
+        if (Layer is not { } layer)
         {
             return;
         }
 
-        var scene = FindWorld()?.Scene ?? Scene;
-
-        if (visible)
-        {
-            scene.ActivateLayer(WorldLayerName);
-        }
-        else
-        {
-            scene.DeactivateLayer(WorldLayerName);
-        }
+        (FindWorld()?.Scene ?? Scene).SetLayerEnabled(layer, visible);
     }
 
     private WorldLoader? FindWorld()
@@ -88,12 +82,12 @@ public sealed class InfoWorldLayer : BaseEntity
     /// </summary>
     private void SpawnLayerEntities()
     {
-        if (LayerSpawnGroup != null || string.IsNullOrEmpty(WorldName) || string.IsNullOrEmpty(WorldLayerName))
+        if (LayerSpawnGroup != null || string.IsNullOrEmpty(WorldName) || Layer is not { } layer)
         {
             return;
         }
 
-        if (FindWorld() is not { } world || world.FindEntityLump(WorldLayerName) is not { } lump)
+        if (FindWorld() is not { } world || world.FindEntityLump(layer.Name) is not { } lump)
         {
             EntitySystem.Logger.LogWarning("info_world_layer '{TargetName}' found no entity lump named '{LayerName}' in a loaded world named '{WorldName}'", TargetName, WorldLayerName, WorldName);
             return;
@@ -102,8 +96,11 @@ public sealed class InfoWorldLayer : BaseEntity
         var group = new SpawnGroup(world.MapName, world.Scene, Matrix4x4.Identity)
         {
             DescriptiveName = "world_layer",
-            EntityLumpName = WorldLayerName,
+            EntityLumpName = layer.Name,
             EntityLump = lump,
+
+            // Hidden along with the world layer's geometry
+            Layers = [WorldLayer.Entities, layer],
         };
 
         LayerSpawnGroup = group;

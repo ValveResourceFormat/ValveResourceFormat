@@ -19,7 +19,7 @@ namespace GUI.Types.GLViewers
         {
             var sceneNode = new VisibilitySceneNode(Scene, voxelVisibility)
             {
-                LayerName = "Visibility clusters",
+                Layers = [WorldLayer.VisibilityClusters],
             };
             Scene.Add(sceneNode, false);
         }

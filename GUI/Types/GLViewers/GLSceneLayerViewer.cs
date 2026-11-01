@@ -41,27 +41,27 @@ namespace GUI.Types.GLViewers
 
             AddRenderModeSelectionControl();
 
-            var layerNames = Scene.AllNodes.Select(static x => x.LayerName).OfType<string>().Distinct().ToList();
-            var enabledLayers = new HashSet<string>(layerNames.Count);
+            var listedLayers = Scene.AllNodes.SelectMany(static node => node.Layers).Where(static layer => !layer.IsInternal).Distinct().ToList();
+            var enabledLayers = new HashSet<WorldLayer>(listedLayers.Count);
 
-            layersListBox = UiControl.AddMultiSelection(LayersControlName, (listBox) =>
+            layersListBox = UiControl.AddMultiSelection<WorldLayer>(LayersControlName, (listBox) =>
             {
-                for (var i = 0; i < layerNames.Count; i++)
+                for (var i = 0; i < listedLayers.Count; i++)
                 {
                     var enabled = IsLayerEnabledByDefault(i);
-                    listBox.Items.Add(layerNames[i], enabled);
+                    listBox.Items.Add(listedLayers[i], enabled);
 
                     if (enabled)
                     {
-                        enabledLayers.Add(layerNames[i]);
+                        enabledLayers.Add(listedLayers[i]);
                     }
                 }
-            }, (layers) =>
+            }, (checkedLayers) =>
             {
-                SetEnabledLayers([.. layers]);
+                SetEnabledLayers(listedLayers, [.. checkedLayers]);
             });
 
-            SetEnabledLayers(enabledLayers);
+            SetEnabledLayers(listedLayers, enabledLayers);
 
             base.AddUiControls();
         }

@@ -120,7 +120,7 @@ public abstract class BaseModelEntity : BaseEntity
 
         foreach (var particleNode in particleNodes)
         {
-            particleNode.LayerName = Scene.ParticlesLayerName;
+            particleNode.Layers = [WorldLayer.Particles];
 
             // Owned, so they leave the scene with the entity
             AddNode(particleNode, followsEntity: false);

@@ -15,7 +15,7 @@ internal sealed class ParticleRopeHelper(IHelperOwner owner, HelperDeclaration d
         if (CableSceneNode.TryCreate(Owner.Scene, Owner.KeyValues, out var cable))
         {
             // The path nodes are in the space of the entity, which control point 0 follows
-            cable.LayerName = Scene.ParticlesLayerName;
+            cable.Layers = [WorldLayer.Particles];
             cable.Transform = Owner.Transform;
 
             // The rope settles for as long as its key says and then holds still

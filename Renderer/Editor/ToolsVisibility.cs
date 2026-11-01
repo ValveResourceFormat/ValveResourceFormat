@@ -15,11 +15,6 @@ namespace ValveResourceFormat.Renderer.Editor;
 /// </summary>
 public sealed class ToolsVisibility : IDrawFilter
 {
-    // What only the editor draws, and the entities a template spawns, which are not in the world until it does
-    private static readonly FrozenSet<string> ToolEntityLayerNames =
-        FrozenSet.Create(StringComparer.Ordinal, HammerEntityVisuals.MarkerLayerName, HammerEntityVisuals.ConnectionsLayerName,
-            HammerEntityVisuals.HelpersLayerName, WorldLoader.TemplateLayerName);
-
     private readonly HashSet<SceneNode> selectedNodes = [];
 
     /// <summary>
@@ -84,17 +79,16 @@ public sealed class ToolsVisibility : IDrawFilter
             .Order(StringComparer.OrdinalIgnoreCase)];
     }
 
-    /// <summary>Gets whether a layer only holds editor-only entities.</summary>
-    /// <param name="layerName">The layer.</param>
-    public static bool IsToolEntityLayer(string layerName) => ToolEntityLayerNames.Contains(layerName);
-
-    /// <summary>The layers to enable out of those chosen, without the editor-only ones while they are hidden.</summary>
+    /// <summary>
+    /// The layers to enable out of those chosen, without the ones only the tools draw while they are hidden, see
+    /// <see cref="WorldLayer.IsToolsOnly"/>.
+    /// </summary>
     /// <param name="chosenLayers">The layers chosen to be shown.</param>
-    public HashSet<string> FilterLayers(IEnumerable<string> chosenLayers)
+    public HashSet<WorldLayer> FilterLayers(IEnumerable<WorldLayer> chosenLayers)
     {
         return ShowTools
             ? [.. chosenLayers]
-            : [.. chosenLayers.Where(static layer => !IsToolEntityLayer(layer))];
+            : [.. chosenLayers.Where(static layer => !layer.IsToolsOnly)];
     }
 
     /// <summary>Sets the nodes that are selected, which draw their tools materials while those are hidden.</summary>

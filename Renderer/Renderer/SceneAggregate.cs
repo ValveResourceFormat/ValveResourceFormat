@@ -86,7 +86,7 @@ namespace ValveResourceFormat.Renderer
                 Parent = parent;
                 LocalBoundingBox = bounds;
                 Name = parent.Name;
-                LayerName = parent.LayerName;
+                Layers = parent.Layers;
             }
         }
 

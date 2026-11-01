@@ -179,14 +179,13 @@ public sealed class EntitySystem
     /// <see cref="GenericModelEntity"/> or <see cref="GenericEntity"/>, which only draw themselves.
     /// </summary>
     /// <param name="data">The entity's keyvalues.</param>
-    /// <param name="layerName">Visibility layer for its nodes.</param>
     /// <param name="spawnGroup">The spawn group spawning it.</param>
     /// <returns>
     /// The created entity, or <see langword="null"/> if the keyvalues name no classname or a <c>worldspawn</c>.
     /// </returns>
-    internal BaseEntity? CreateEntity(Entity data, string? layerName, SpawnGroup spawnGroup)
+    internal BaseEntity? CreateEntity(Entity data, SpawnGroup spawnGroup)
     {
-        var entity = EntityFactory.Create(this, new EntitySpawnInfo(data, layerName, spawnGroup));
+        var entity = EntityFactory.Create(this, new EntitySpawnInfo(data, spawnGroup));
 
         if (entity != null)
         {

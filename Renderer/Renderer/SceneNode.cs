@@ -1,4 +1,6 @@
+using System.Collections.Immutable;
 using System.Globalization;
+using System.Linq;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.ResourceTypes;
@@ -70,17 +72,19 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Gets or sets the visibility layer name.
+        /// Gets or sets the visibility layers of the node, set before it is added to the scene. The node is shown
+        /// only while every one of them is enabled, and one on no layer is never hidden by one.
         /// </summary>
-        public string? LayerName { get; set; }
+        public ImmutableArray<WorldLayer> Layers { get; set => field = value.IsDefault ? [] : value; } = [];
 
         /// <summary>
-        /// Gets or sets whether this node's layer is enabled. Queues a rebuild on the parent spatial structure.
+        /// Gets whether this node's layers are enabled, as kept by the scene. Queues a rebuild on the parent spatial
+        /// structure when it changes. To hide a single node, use <see cref="Visible"/>.
         /// </summary>
         public virtual bool LayerEnabled
         {
             get;
-            set
+            internal set
             {
                 var valueChanged = value != field;
                 field = value;
@@ -95,7 +99,21 @@ namespace ValveResourceFormat.Renderer
         /// Gets or sets whether the node itself wants to be drawn, independently of its layer.
         /// The node remains in the scene graph and is checked each frame.
         /// </summary>
-        public bool Visible { get; set; } = true;
+        public bool Visible
+        {
+            get;
+            set
+            {
+                var valueChanged = value != field;
+                field = value;
+
+                // Indirect draw commands bake whether a fragment is drawn, and are rebuilt with the octree
+                if (valueChanged && this is SceneAggregate.Fragment)
+                {
+                    Scene.MarkParentOctreeDirty(this);
+                }
+            }
+        } = true;
 
         /// <summary>
         /// Gets the world-space axis-aligned bounding box. Recomputed from <see cref="LocalBoundingBox"/> and
@@ -181,6 +199,20 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Shrinks a transform this node is placed at by <see cref="PlacementScale"/>.</summary>
         internal Matrix4x4 ApplyPlacementScale(in Matrix4x4 transform)
             => PlacementScale == 1f ? transform : Matrix4x4.CreateScale(PlacementScale) * transform;
+
+        /// <summary>Puts the node on more layers, besides those it is on already, before it is added to the scene.</summary>
+        /// <param name="layers">The layers to add.</param>
+        public void AddLayers(ImmutableArray<WorldLayer> layers)
+        {
+            if (Layers.Length == 0)
+            {
+                Layers = layers;
+            }
+            else if (!layers.All(Layers.Contains))
+            {
+                Layers = [.. Layers.Union(layers)];
+            }
+        }
 
         /// <summary>
         /// Gets or sets the node that updates this one, so the scene does not update it on its own. Set by

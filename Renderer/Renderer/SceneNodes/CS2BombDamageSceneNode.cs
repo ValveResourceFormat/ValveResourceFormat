@@ -73,7 +73,7 @@ public class CS2BombDamageSceneNode : SceneNode
         material.LoadRenderState();
         material.Textures["g_tColor"] = renderTexture;
 
-        LayerName = $"Bombsite {bombsiteLabel} blast flow map";
+        Layers = [WorldLayer.Get($"Bombsite {bombsiteLabel} blast flow map")];
 
         Initialize(bombDamageData, bombsiteIndex);
     }
@@ -250,7 +250,7 @@ public class CS2BombDamageSceneNode : SceneNode
 
             var boundsNode = new LineSceneNode(scene, [.. boundsVertices])
             {
-                LayerName = sceneNode.LayerName,
+                Layers = sceneNode.Layers,
             };
             scene.Add(boundsNode, false);
         }

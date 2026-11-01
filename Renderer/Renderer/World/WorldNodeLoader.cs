@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
@@ -17,8 +18,10 @@ namespace ValveResourceFormat.Renderer.World
         private readonly WorldNode node;
         private readonly ResourceExtRefList? externalReferences;
         private readonly RendererContext RendererContext;
-        /// <summary>Gets the layer names defined in this world node.</summary>
-        public IReadOnlyList<string> LayerNames { get; }
+        private static readonly ImmutableArray<WorldLayer> NoLayerList = [WorldLayer.NoLayer];
+        private readonly ImmutableArray<WorldLayer>[] SingleLayerLists;
+        /// <summary>Gets the layers defined in this world node, in the order its objects index them.</summary>
+        public ImmutableArray<WorldLayer> Layers { get; }
 
         /// <summary>
         /// Initializes a new <see cref="WorldNodeLoader"/> for the given world node.
@@ -31,7 +34,8 @@ namespace ValveResourceFormat.Renderer.World
             this.node = node;
             this.externalReferences = externalReferences;
             RendererContext = rendererContext;
-            LayerNames = node.LayerNames;
+            Layers = [.. node.LayerNames.Select(WorldLayer.Get)];
+            SingleLayerLists = [.. Layers.Select(static ImmutableArray<WorldLayer> (layer) => [layer])];
         }
 
         /// <summary>
@@ -110,7 +114,7 @@ namespace ValveResourceFormat.Renderer.World
                     {
                         Transform = matrix,
                         TintAlpha = tintColor,
-                        LayerName = layerIndex > -1 ? LayerNames[layerIndex] : "No layer",
+                        Layers = layerIndex > -1 ? SingleLayerLists[layerIndex] : NoLayerList,
                         Name = renderableModel,
                         LightingOrigin = lightingOrigin == defaultLightingOrigin ? null : Vector3.Transform(lightingOrigin, root),
                         OverlayRenderOrder = overlayRenderOrder,
@@ -146,7 +150,7 @@ namespace ValveResourceFormat.Renderer.World
                     {
                         Transform = matrix,
                         TintAlpha = tintColor,
-                        LayerName = layerIndex > -1 ? LayerNames[layerIndex] : "No layer",
+                        Layers = layerIndex > -1 ? SingleLayerLists[layerIndex] : NoLayerList,
                         Name = renderable,
                         LightingCache = SceneNodeLightingCache.FromHandshakes(handshakes),
                         Flags = flags,
@@ -175,7 +179,7 @@ namespace ValveResourceFormat.Renderer.World
                     var layerIndex = sceneObject.GetIntegerProperty("m_nLayer");
                     var aggregate = new SceneAggregate(scene, model)
                     {
-                        LayerName = LayerNames[(int)layerIndex],
+                        Layers = SingleLayerLists[(int)layerIndex],
                         Name = renderableModel,
                         AllFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_allFlags", normalize: true),
                         AnyFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_anyFlags", normalize: true),
@@ -264,7 +268,7 @@ namespace ValveResourceFormat.Renderer.World
 
                 scene.Add(new SceneClutter(scene, model, clutter.MaterialGroup, clutter.BeginCullSize, clutter.EndCullSize, sceneInstances)
                 {
-                    LayerName = LayerNames[clutter.Layer],
+                    Layers = SingleLayerLists[clutter.Layer],
                     Name = clutter.RenderableModel,
                     Flags = clutter.Flags,
                     AllFlags = clutter.Flags,
