@@ -258,9 +258,9 @@ public sealed class EntitySystem
     }
 
     /// <summary>Creates, spawns and activates an entity in an already spawned group, or returns null without a classname.</summary>
-    public BaseEntity? SpawnEntity(Entity data, string? layerName, SpawnGroup spawnGroup)
+    public BaseEntity? SpawnEntity(Entity data, SpawnGroup spawnGroup)
     {
-        var entity = CreateEntity(data, layerName, spawnGroup);
+        var entity = CreateEntity(data, spawnGroup);
 
         if (entity != null)
         {

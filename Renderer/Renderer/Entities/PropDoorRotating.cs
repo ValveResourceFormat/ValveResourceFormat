@@ -296,6 +296,7 @@ public class PropDoorRotating : BaseToggle, IDamageable
         var node = new SceneNodes.ModelSceneNode(Scene, model, Data?.GetStringProperty("skin"))
         {
             Name = damageModels[stage - 1],
+            DoorLightingPose = ModelNode?.DoorLightingPose,
         };
 
         // Some door meshes sit a quarter turn off until posed like the door model

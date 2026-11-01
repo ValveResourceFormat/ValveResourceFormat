@@ -455,7 +455,7 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
                 var body = bodies[i];
                 node.Transform = Matrix4x4.CreateFromQuaternion(body.Rotation)
                     * Matrix4x4.CreateTranslation(body.Position);
-                Scene.DynamicOctree.Update(node);
+                Scene.DynamicSet.Update(node);
             }
         }
     }

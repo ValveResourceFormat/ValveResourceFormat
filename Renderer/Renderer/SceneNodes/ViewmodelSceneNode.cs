@@ -753,7 +753,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         data.Add("angles", FormattableString.Invariant($"{angles.X} {angles.Y} {angles.Z}"));
         data.Add("defaultanim", "dropped");
 
-        var dropped = new PropPhysics(entitySystem, new EntitySpawnInfo(data, "Entities", spawnGroup));
+        var dropped = new PropPhysics(entitySystem, new EntitySpawnInfo(data, spawnGroup));
         dropped.Spawn();
         entitySystem.AddEntity(dropped);
 

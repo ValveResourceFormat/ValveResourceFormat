@@ -326,7 +326,7 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
 
             string[] labels = [.. phys.CollisionAttributes.SelectMany(GetCollisionLabels).Distinct(StringComparer.OrdinalIgnoreCase)];
 
-            return CreateNode(scene, phys, verts, inds, lines, labels, name, collisionAttributeIndex: 0, toolsMaterial: null);
+            return CreateNode(scene, phys, verts, inds, lines, labels, name, collisionAttributeIndex: 0, toolsMaterial: null, collisionLabel: null);
         }
 
         // A collisionAttributeIndex of -1 adds every group

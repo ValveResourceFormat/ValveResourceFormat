@@ -243,7 +243,7 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
         }
 
         if (owner.SpawnGroup is not { } spawnGroup
-            || owner.EntitySystem.SpawnEntity(data, owner.LayerName, spawnGroup) is not InfoParticleSystem { Effect: { } effect } system)
+            || owner.EntitySystem.SpawnEntity(data, spawnGroup) is not InfoParticleSystem { Effect: { } effect } system)
         {
             return;
         }
@@ -299,7 +299,7 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
                 data.Add("skin", skin);
             }
 
-            var created = owner.SpawnGroup is { } spawnGroup ? owner.EntitySystem.SpawnEntity(data, owner.LayerName, spawnGroup) : null;
+            var created = owner.SpawnGroup is { } spawnGroup ? owner.EntitySystem.SpawnEntity(data, spawnGroup) : null;
 
             // Placeholder pieces with a null model
             if (created is not PropPhysics { HasBody: true } spawned)
