@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -194,7 +195,7 @@ public sealed partial class VMixGraphExtract
     {
         var graphs = new List<MixGraph>();
         var file = SourceFileName();
-        var folder = file.LastIndexOf('/') is var slash and >= 0 ? file[..(slash + 1)] : string.Empty;
+        var folder = FolderOf(file);
         var loaded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         void Add(string compiledName, Func<Resource?> load)
@@ -278,15 +279,16 @@ public sealed partial class VMixGraphExtract
         }
 
         var file = SourceFileName();
-        var folder = file.LastIndexOf('/') is var slash and >= 0 ? file[..(slash + 1)] : string.Empty;
 
         if (compiledGraphs.Any(graph => GetString(graph, "Name") == name))
         {
             return file;
         }
 
-        return string.Concat(folder, name.ToLowerInvariant(), ".vmix");
+        return string.Concat(FolderOf(file), name.ToLowerInvariant(), ".vmix");
     }
+
+    private static string FolderOf(string file) => file.LastIndexOf('/') is var slash and >= 0 ? file[..(slash + 1)] : string.Empty;
 
     /// <summary>
     /// The content path of the vmix this resource was compiled from, as the editor references it.
@@ -421,7 +423,7 @@ public sealed partial class VMixGraphExtract
             }
 
             var created = node.Name.StartsWith(node.Type, StringComparison.Ordinal)
-                && int.TryParse(node.Name.AsSpan(node.Type.Length), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var number)
+                && int.TryParse(node.Name.AsSpan(node.Type.Length), NumberStyles.None, CultureInfo.InvariantCulture, out var number)
                 ? number
                 : 1;
             counters[index] = Math.Max(counters[index], created);

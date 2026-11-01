@@ -65,7 +65,7 @@ public sealed partial class VMixGraphExtract
         private readonly Dictionary<int, MixNode> processorNodes = [];
         private readonly List<(int Command, int Value, string Node)> controlStores = [];
         private readonly List<(int Start, List<string> Created)> blocks = [];
-        private readonly Dictionary<int, string> inputNodes = [];
+        private readonly Dictionary<(string Type, int Index), string> inputNodes = [];
 
         public List<string> Warnings { get; } = [];
 
@@ -166,7 +166,7 @@ public sealed partial class VMixGraphExtract
                 {
                     literals.Add(string.Join('/', segments[..k]));
 
-                    if (k < segments.Length && TypeOf(segments[k]) != null)
+                    if (TypeOf(segments[k]) != null)
                     {
                         prefixes.Add(string.Join('/', segments[..k]));
                     }
@@ -294,7 +294,7 @@ public sealed partial class VMixGraphExtract
 
         private string Fresh(string type)
         {
-            var used = reserved.TryGetValue(type, out var set) ? set : reserved[type] = [];
+            var used = GetOrNew(reserved, type);
 
             foreach (var name in nodes.Keys)
             {
@@ -324,7 +324,7 @@ public sealed partial class VMixGraphExtract
 
             if (int.TryParse(name.AsSpan(type.Length), NumberStyles.None, CultureInfo.InvariantCulture, out var index))
             {
-                (reserved.TryGetValue(type, out var set) ? set : reserved[type] = []).Add(index);
+                GetOrNew(reserved, type).Add(index);
             }
         }
 
@@ -345,6 +345,21 @@ public sealed partial class VMixGraphExtract
             => command.Value0 >= 0 && command.Value0 < graph.AudioMeters.Count ? graph.AudioMeters[command.Value0] : null;
 
         private PlugSource? Source(int value) => valueSources.TryGetValue(value, out var source) ? source : null;
+
+        private PlugSource? Holder(int submix) => submixHolders.TryGetValue(submix, out var holder) ? holder : null;
+
+        private static TValue GetOrNew<TKey, TValue>(Dictionary<TKey, TValue> dictionary, TKey key)
+            where TKey : notnull
+            where TValue : new()
+        {
+            if (!dictionary.TryGetValue(key, out var value))
+            {
+                value = new TValue();
+                dictionary[key] = value;
+            }
+
+            return value;
+        }
 
         public MixGraphDecompiler Run()
         {
@@ -370,7 +385,7 @@ public sealed partial class VMixGraphExtract
 
                 if (type != null && (IsOutputPlug(type, plug) || plug is "value" && type is "control.Input" or "control.InputArray" or "control.StackInput"))
                 {
-                    (meteredOutputs.TryGetValue(meter.Value, out var list) ? list : meteredOutputs[meter.Value] = []).Add((node, plug));
+                    GetOrNew(meteredOutputs, meter.Value).Add((node, plug));
                 }
                 else
                 {
@@ -612,7 +627,9 @@ public sealed partial class VMixGraphExtract
         /// </summary>
         private void AudioMeter(int i, string name, int submix)
         {
-            if (submixHolders.TryGetValue(submix, out var holder) && holder.Node == name)
+            var holder = Holder(submix);
+
+            if (holder?.Node == name)
             {
                 return;
             }
@@ -624,7 +641,7 @@ public sealed partial class VMixGraphExtract
                 node.FriendlyName = friendly;
             }
 
-            Edge(node, "audio:In", submixHolders.TryGetValue(submix, out var source) ? source : null);
+            Edge(node, "audio:In", holder);
             submixHolders[submix] = new(name, "audio:Out");
         }
 
@@ -658,13 +675,15 @@ public sealed partial class VMixGraphExtract
                 return false;
             }
 
-            if (submixHolders.TryGetValue(submix, out var holder) && holder.Node == nodeName)
+            var holder = Holder(submix);
+
+            if (holder?.Node == nodeName)
             {
                 return true;
             }
 
             var node = Node(nodeName, type);
-            Edge(node, type == "audio.Track" ? "audio:In" : "audio:In1", submixHolders.TryGetValue(submix, out var source) ? source : null);
+            Edge(node, type == "audio.Track" ? "audio:In" : "audio:In1", holder);
             submixHolders[submix] = new(nodeName, type == "audio.Track" ? "audio:Source" : "audio:Out");
             return true;
         }
@@ -843,7 +862,7 @@ public sealed partial class VMixGraphExtract
                     "sys.SubgraphSwitch" => SubgraphPlug(processor, SubgraphNode(processor, "audio.Track")),
                     _ => "audio:In",
                 };
-                Edge(node, input, submixHolders.TryGetValue(process.InputSubmix0, out var holder) ? holder : null);
+                Edge(node, input, Holder(process.InputSubmix0));
             }
 
             foreach (var command in pre)
@@ -936,7 +955,7 @@ public sealed partial class VMixGraphExtract
 
                 case MixOp.SubmixGenerateSidechain:
                     Edge(node, node.Type == "audio.AutoFilter" ? "audio:sidechain" : "audio.SideChain",
-                        submixHolders.TryGetValue(command.InputSubmix0, out var holder) ? holder : null);
+                        Holder(command.InputSubmix0));
                     break;
             }
         }
@@ -1043,7 +1062,7 @@ public sealed partial class VMixGraphExtract
                 return null;
             }
 
-            if (inputNodes.TryGetValue(-20000 - index, out var existing))
+            if (inputNodes.TryGetValue(("control.InputArray", index), out var existing))
             {
                 return nodes[existing];
             }
@@ -1055,13 +1074,13 @@ public sealed partial class VMixGraphExtract
             node.Properties = KVObject.Collection();
             var data = array.Value >= 0 && array.Value < graph.ValueArrays.Count ? graph.ValueArrays[array.Value] : [];
             node.Properties.Add("m_vflData", KVObject.Array(data.Select(static value => (KVObject)value)));
-            inputNodes[-20000 - index] = name;
+            inputNodes[("control.InputArray", index)] = name;
             return node;
         }
 
         private MixNode EffectInput(int index)
         {
-            if (inputNodes.TryGetValue(-1 - index, out var existing))
+            if (inputNodes.TryGetValue(("effect.Input", index), out var existing))
             {
                 return nodes[existing];
             }
@@ -1083,13 +1102,13 @@ public sealed partial class VMixGraphExtract
             node.FriendlyName = input.Name;
             node.Properties = KVObject.Collection();
             node.Properties.Add("m_defaultValue", input.DefaultValue.Length > 0 ? input.DefaultValue : "core.null");
-            inputNodes[-1 - index] = name;
+            inputNodes[("effect.Input", index)] = name;
             return node;
         }
 
         private MixNode VsndInput(int index)
         {
-            if (inputNodes.TryGetValue(-10000 - index, out var existing))
+            if (inputNodes.TryGetValue(("vsnd.Input", index), out var existing))
             {
                 return nodes[existing];
             }
@@ -1100,26 +1119,27 @@ public sealed partial class VMixGraphExtract
             node.FriendlyName = input.Name;
             node.Properties = KVObject.Collection();
             node.Properties.Add("m_defaultValue", input.DefaultValue);
-            inputNodes[-10000 - index] = name;
+            inputNodes[("vsnd.Input", index)] = name;
             return node;
         }
 
+        private string? MeteredAmp(int value)
+            => meteredInputs.FirstOrDefault(pair => pair.Value == value && pair.Key.Plug == "volume" && TypeOf(pair.Key.Node) == "audio.Amp").Key.Node;
+
         private int SubmixCopy(int i, MixCommand command)
         {
-            var next = i + 1 < commands.Count ? commands[i + 1] : (MixCommand?)null;
-
             if (command.Op == MixOp.SubmixAccumulate)
             {
                 return AccumulateBlock(i);
             }
 
+            var next = i + 1 < commands.Count ? commands[i + 1] : (MixCommand?)null;
+
             if (command.OutputSubmix != command.InputSubmix0 && next is { Op: MixOp.SubmixMeter } meter
-                && MeterName(meter) is { } meterName && !meterName.Contains('/', StringComparison.Ordinal) && meter.InputSubmix0 == command.OutputSubmix)
+                && MeterName(meter) is { } meterName && !meterName.Contains('/', StringComparison.Ordinal) && meter.InputSubmix0 == command.OutputSubmix
+                && TypeOf(meterName) != "audio.Splitter")
             {
-                if (TypeOf(meterName) != "audio.Splitter")
-                {
-                    return SendAmpBlock(i);
-                }
+                return SendAmpBlock(i);
             }
 
             if (next is { Op: MixOp.ControlCopy } controlCopy && controlCopy.Value0 == command.Value0 && controlCopy.Value1 == command.Value1 && command.Value1 >= 0)
@@ -1135,10 +1155,10 @@ public sealed partial class VMixGraphExtract
             // Older graphs compile an amp to a copy in place, its debug name and its meter; its volume meter names it
             if (command.OutputSubmix == command.InputSubmix0 && next is { Op: MixOp.SubmixDebug }
                 && Next(i + 2, MixOp.SubmixMeter) is { } ampMeter && ampMeter.InputSubmix0 == command.OutputSubmix
-                && meteredInputs.FirstOrDefault(pair => pair.Value == command.Value0 && pair.Key.Plug == "volume" && TypeOf(pair.Key.Node) == "audio.Amp").Key.Node is { } amp)
+                && MeteredAmp(command.Value0) is { } amp)
             {
                 var ampNode = Node(amp, "audio.Amp");
-                Edge(ampNode, "audio:In", submixHolders.TryGetValue(command.InputSubmix0, out var ampSource) ? ampSource : null);
+                Edge(ampNode, "audio:In", Holder(command.InputSubmix0));
                 SetVolume(ampNode, "volume", "m_flVolume", command.Value0);
                 ampNode.FriendlyName = MeterName(ampMeter);
                 submixHolders[command.OutputSubmix] = new(amp, "audio:Out");
@@ -1151,7 +1171,7 @@ public sealed partial class VMixGraphExtract
         private int AccumulateBlock(int i)
         {
             var command = commands[i];
-            var holder = submixHolders.TryGetValue(command.OutputSubmix, out var current) ? current : (PlugSource?)null;
+            var holder = Holder(command.OutputSubmix);
 
             // Older graphs meter the mix after its last input, under the mix's own name
             var j = i;
@@ -1190,7 +1210,7 @@ public sealed partial class VMixGraphExtract
                 k = 1 + node.Inputs.Count(static input => input.Key.StartsWith("audio:In", StringComparison.Ordinal));
             }
 
-            Edge(node, Indexed("audio:In", k), submixHolders.TryGetValue(command.InputSubmix0, out var input) ? input : null);
+            Edge(node, Indexed("audio:In", k), Holder(command.InputSubmix0));
             SetVolume(node, Indexed("volume", k), Indexed("m_flVolume", k), command.Value0);
             submixHolders[command.OutputSubmix] = new(node.Name, "audio:Out");
             return i + 1;
@@ -1217,7 +1237,7 @@ public sealed partial class VMixGraphExtract
             var meter = commands[i + 1];
             var node = Node(Fresh("audio.Amp"), "audio.Amp");
             node.FriendlyName = MeterName(meter);
-            Edge(node, "audio:In", submixHolders.TryGetValue(command.InputSubmix0, out var holder) ? holder : null);
+            Edge(node, "audio:In", Holder(command.InputSubmix0));
             SetVolume(node, "volume", "m_flVolume", command.Value0);
             submixHolders[command.OutputSubmix] = new(node.Name, "audio:Out");
             Warnings.Add($"{node.Name}: copy at {i} outside a splitter, modelled as an amp");
@@ -1228,7 +1248,7 @@ public sealed partial class VMixGraphExtract
         {
             var command = commands[i];
             var submix = command.OutputSubmix;
-            var source = submixHolders.TryGetValue(command.InputSubmix0, out var holder) ? holder : (PlugSource?)null;
+            var source = Holder(command.InputSubmix0);
             var j = i + 2;
             string? name = null;
 
@@ -1238,7 +1258,7 @@ public sealed partial class VMixGraphExtract
                 j++;
             }
 
-            name ??= meteredInputs.FirstOrDefault(pair => pair.Value == command.Value1 && pair.Key.Plug == "volume" && TypeOf(pair.Key.Node) == "audio.Amp").Key.Node;
+            name ??= MeteredAmp(command.Value1);
             name ??= Fresh("audio.Amp");
             var node = Node(name, "audio.Amp");
             Edge(node, "audio:In", source);
@@ -1258,7 +1278,7 @@ public sealed partial class VMixGraphExtract
         {
             var j = i;
             var submix = commands[i].Op == MixOp.ControlCondCopyIfNegative ? commands[i + 1].InputSubmix0 : commands[i].InputSubmix0;
-            var source = submixHolders.TryGetValue(submix, out var holder) ? holder : (PlugSource?)null;
+            var source = Holder(submix);
             var outputs = new List<(string Plug, int Submix, int Value)>();
             string? name = null;
 
@@ -1325,15 +1345,15 @@ public sealed partial class VMixGraphExtract
                     _ => partner,
                 };
 
+                splitter.Properties[Indexed("m_flVolume", k)] = 1.0f;
+
                 if (recovered.Node != null)
                 {
                     splitter.SetInput(Indexed("volume", k), recovered);
-                    splitter.Properties[Indexed("m_flVolume", k)] = 1.0f;
                     Warnings.Add($"{name}/volume{k} lost its source when compiled, connected to {recovered.Node}/{recovered.Plug}");
                 }
                 else
                 {
-                    splitter.Properties[Indexed("m_flVolume", k)] = 1.0f;
                     Warnings.Add($"{name}/volume{k} lost its source when compiled");
                 }
             }
@@ -1385,7 +1405,7 @@ public sealed partial class VMixGraphExtract
                 name = node;
                 blend = commands[j].Value1;
                 parameters = commands[j + 1].Value1;
-                source ??= submixHolders.TryGetValue(copy.InputSubmix0, out var holder) ? holder : null;
+                source ??= Holder(copy.InputSubmix0);
                 outputs.Add((plug, copy.OutputSubmix));
                 j = k + 1;
             }
@@ -1438,7 +1458,7 @@ public sealed partial class VMixGraphExtract
             {
                 var copy = parts[k].Copy;
                 var plug = meteredInputs.FirstOrDefault(pair => pair.Key.Node == name && pair.Value == copy.Value0).Key.Plug ?? Indexed("audio:In", k + 1);
-                Edge(node, plug, submixHolders.TryGetValue(parts[k].Mix.InputSubmix0, out var holder) ? holder : null);
+                Edge(node, plug, Holder(parts[k].Mix.InputSubmix0));
             }
 
             submixHolders[submix] = new(name, "audio:Out");
@@ -1492,7 +1512,7 @@ public sealed partial class VMixGraphExtract
                 if (meterNodeName == name && plug.StartsWith("volume", StringComparison.Ordinal)
                     && int.TryParse(plug.AsSpan(6), CultureInfo.InvariantCulture, out var k))
                 {
-                    (volumes.TryGetValue(value, out var list) ? list : volumes[value] = []).Add(k);
+                    GetOrNew(volumes, value).Add(k);
                 }
             }
 
@@ -1504,7 +1524,7 @@ public sealed partial class VMixGraphExtract
                 var k = candidates.Count > 0 ? candidates[0] : Enumerable.Range(1, 8).First(index => !used.Contains(index));
                 used.Add(k);
 
-                Edge(node, Indexed("audio:In", k), submixHolders.TryGetValue(part.InputSubmix0, out var holder) ? holder : null);
+                Edge(node, Indexed("audio:In", k), Holder(part.InputSubmix0));
                 SetVolume(node, Indexed("volume", k), Indexed("m_flVolume", k), part.Value0);
             }
 
@@ -1539,7 +1559,7 @@ public sealed partial class VMixGraphExtract
 
             for (var k = 0; k < submixes.Length; k++)
             {
-                Edge(node, Indexed("audio:In", k + 1), submixHolders.TryGetValue(submixes[k], out var holder) ? holder : null);
+                Edge(node, Indexed("audio:In", k + 1), Holder(submixes[k]));
                 SetVolume(node, Indexed("volume", k + 1), Indexed("m_flVolume", k + 1), values[k]);
             }
 
@@ -1689,7 +1709,7 @@ public sealed partial class VMixGraphExtract
                 _ => "control.Remap",
             };
 
-            if (owner != null && TypeOf(owner) is { } ownerType && ownerType != type)
+            if (owner != null && TypeOf(owner) is { } ownerType)
             {
                 type = ownerType;
             }
@@ -1998,12 +2018,7 @@ public sealed partial class VMixGraphExtract
                 return;
             }
 
-            var valueOf = new Dictionary<PlugSource, int>();
-
-            foreach (var (value, source) in valueSources)
-            {
-                valueOf.TryAdd(source, value);
-            }
+            var valueOf = ValuesBySource();
 
             foreach (var group in groups)
             {
@@ -2123,6 +2138,18 @@ public sealed partial class VMixGraphExtract
             }
         }
 
+        private Dictionary<PlugSource, int> ValuesBySource()
+        {
+            var valueOf = new Dictionary<PlugSource, int>();
+
+            foreach (var (value, source) in valueSources)
+            {
+                valueOf.TryAdd(source, value);
+            }
+
+            return valueOf;
+        }
+
         private void Finish()
         {
             CollapseSubgraphs();
@@ -2156,12 +2183,7 @@ public sealed partial class VMixGraphExtract
 
             // Readers of a metered value read it through the meter
             var meters = nodes.Values.Where(static node => node.Type == "control.Meter" && node.MeteredValue >= 0).ToDictionary(static node => node.MeteredValue);
-            var valueOf = new Dictionary<PlugSource, int>();
-
-            foreach (var (value, source) in valueSources)
-            {
-                valueOf.TryAdd(source, value);
-            }
+            var valueOf = ValuesBySource();
 
             foreach (var node in nodes.Values)
             {
@@ -2190,7 +2212,7 @@ public sealed partial class VMixGraphExtract
                 {
                     if ((plug.StartsWith("audio", StringComparison.Ordinal) && source.Plug.StartsWith("audio", StringComparison.Ordinal)) || plug == "vsnd:ImpulseResponse")
                     {
-                        (consumers.TryGetValue(source, out var list) ? list : consumers[source] = []).Add((node, plug));
+                        GetOrNew(consumers, source).Add((node, plug));
                     }
                 }
             }
@@ -2279,29 +2301,32 @@ public sealed partial class VMixGraphExtract
                 candidates.AddRange(meterIds.Where(meter => meter.Name.StartsWith(node.Name + "/", StringComparison.Ordinal))
                     .Select(meter => (meter.Id, meter.Name[node.Name.Length..])));
 
-                var found = false;
-
                 foreach (var (id, suffix) in candidates)
                 {
-                    for (var generation = 0; generation <= MaxGenerationId && !found; generation++)
+                    if (FindGeneration(node.FriendlyName, type.ClassName, suffix, id) is { } generation)
                     {
-                        if (StringToken.Get(string.Create(CultureInfo.InvariantCulture, $"{node.FriendlyName}{generation}{type.ClassName}{suffix}")) == id)
+                        if (generation != 0)
                         {
-                            found = true;
-
-                            if (generation != 0)
-                            {
-                                node.Properties["m_nGenerationId"] = generation;
-                            }
+                            node.Properties["m_nGenerationId"] = generation;
                         }
-                    }
 
-                    if (found)
-                    {
                         break;
                     }
                 }
             }
+        }
+
+        private static int? FindGeneration(string? name, string className, string suffix, uint id)
+        {
+            for (var generation = 0; generation <= MaxGenerationId; generation++)
+            {
+                if (StringToken.Get(string.Create(CultureInfo.InvariantCulture, $"{name}{generation}{className}{suffix}")) == id)
+                {
+                    return generation;
+                }
+            }
+
+            return null;
         }
 
         private float? ConstantControl(MixNode node, string plug)
