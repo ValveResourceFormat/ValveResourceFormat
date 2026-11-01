@@ -24,6 +24,8 @@ namespace GUI.Controls
             }
         }
 
+        protected virtual int LogicalItemHeight => 26;
+
         public TreeViewDoubleBuffered() : base()
         {
             DoubleBuffered = true;
@@ -33,7 +35,7 @@ namespace GUI.Controls
         {
             base.OnCreateControl();
 
-            ItemHeight = this.AdjustForDPI(26);
+            ItemHeight = this.AdjustForDPI(LogicalItemHeight);
         }
 
         protected override void OnHandleCreated(EventArgs e)

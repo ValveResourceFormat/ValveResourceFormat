@@ -226,12 +226,7 @@ namespace GUI.Controls
                 StateImageList = checkBoxImages;
             }
 
-            protected override void OnCreateControl()
-            {
-                base.OnCreateControl();
-
-                ItemHeight = this.AdjustForDPI(18);
-            }
+            protected override int LogicalItemHeight => 18;
 
             protected override void OnBeforeSelect(TreeViewCancelEventArgs e)
             {
