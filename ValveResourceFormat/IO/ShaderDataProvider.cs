@@ -36,6 +36,28 @@ namespace ValveResourceFormat.IO
         public RsBlendStateDesc GetBlendState(Material material, IReadOnlyDictionary<string, long>? combos = null);
 
         /// <summary>
+        /// Gets whether a blended material writes depth while it blends.
+        /// </summary>
+        /// <param name="material">The material.</param>
+        /// <param name="combos">Integer parameters overriding those of the material, as F_ features or S_ and D_ combos.</param>
+        /// <returns><see langword="false"/> for materials that do not blend, or when the provider cannot tell.</returns>
+        public bool GetTranslucentDepthWrite(Material material, IReadOnlyDictionary<string, long>? combos = null);
+
+        /// <summary>
+        /// Gets whether a material draws both faces of its geometry.
+        /// </summary>
+        /// <param name="material">The material.</param>
+        /// <param name="combos">Integer parameters overriding those of the material, as F_ features or S_ and D_ combos.</param>
+        public bool GetRenderBackfaces(Material material, IReadOnlyDictionary<string, long>? combos = null);
+
+        /// <summary>
+        /// Gets whether a material's vertex shader animates vertices, such as foliage swaying.
+        /// </summary>
+        /// <param name="material">The material.</param>
+        /// <param name="combos">Integer parameters overriding those of the material, as F_ features or S_ and D_ combos.</param>
+        public bool GetVertexAnimation(Material material, IReadOnlyDictionary<string, long>? combos = null);
+
+        /// <summary>
         /// Gets the integer attributes of a material combined with those of its shader, the material taking precedence.
         /// </summary>
         /// <param name="material">The material.</param>
@@ -547,6 +569,7 @@ namespace ValveResourceFormat.IO
             ArgumentNullException.ThrowIfNull(material);
 
             combos ??= material.IntParams;
+
             var shader = fileLoader.LoadShader(material.ShaderName);
             var program = shader?.PixelShaderRenderState ?? shader?.Pixel;
 
@@ -563,6 +586,18 @@ namespace ValveResourceFormat.IO
 
             return renderState?.BlendStateDesc;
         }
+
+        /// <inheritdoc/>
+        public bool GetTranslucentDepthWrite(Material material, IReadOnlyDictionary<string, long>? combos = null)
+            => basicProvider?.GetTranslucentDepthWrite(material, combos) ?? false;
+
+        /// <inheritdoc/>
+        public bool GetRenderBackfaces(Material material, IReadOnlyDictionary<string, long>? combos = null)
+            => basicProvider?.GetRenderBackfaces(material, combos) ?? false;
+
+        /// <inheritdoc/>
+        public bool GetVertexAnimation(Material material, IReadOnlyDictionary<string, long>? combos = null)
+            => basicProvider?.GetVertexAnimation(material, combos) ?? false;
 
         /// <summary>
         /// Gets the integer and boolean attributes compiled as constants into the pixel shader static combo.
@@ -821,6 +856,68 @@ namespace ValveResourceFormat.IO
                     || material.IntAttributes.ContainsKey("mapbuilder.water") => GetPassBlendState(combos),
                 _ => new RsBlendStateDesc { AlphaToCoverageEnable = combos.GetValueOrDefault("F_ALPHA_TEST") > 0 },
             };
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Guesses from a few known shaders. Translucent materials do not write depth unless their shader is known to.
+        /// </remarks>
+        public bool GetTranslucentDepthWrite(Material material, IReadOnlyDictionary<string, long>? combos = null)
+        {
+            ArgumentNullException.ThrowIfNull(material);
+
+            combos ??= material.IntParams;
+
+            if (!GetBlendState(material, combos).BlendEnable[0])
+            {
+                return false;
+            }
+
+            var shaderName = Path.GetFileNameWithoutExtension(material.ShaderName);
+
+            return shaderName switch
+            {
+                "pbr" => combos.GetValueOrDefault("F_DISABLE_DEPTH_WRITE") == 0,
+                "csgo_complex" => combos.GetValueOrDefault("F_DISABLE_Z_BUFFERING") == 0 && combos.GetValueOrDefault("F_DEPTH_BIAS") == 0,
+                "generic" or "zipline" or "black_unlit" or "environment_texture_set" or "water_dota" or "crystal" => true,
+                _ => false,
+            };
+        }
+
+        /// <inheritdoc/>
+        public bool GetRenderBackfaces(Material material, IReadOnlyDictionary<string, long>? combos = null)
+        {
+            ArgumentNullException.ThrowIfNull(material);
+
+            combos ??= material.IntParams;
+
+            if (combos.GetValueOrDefault("F_RENDER_BACKFACES") == 1)
+            {
+                return true;
+            }
+
+            var shaderName = Path.GetFileNameWithoutExtension(material.ShaderName);
+
+            return shaderName == "cosmic_veil" && combos.GetValueOrDefault("g_bDoubleSidedVeil") == 1;
+        }
+
+        /// <inheritdoc/>
+        public bool GetVertexAnimation(Material material, IReadOnlyDictionary<string, long>? combos = null)
+        {
+            ArgumentNullException.ThrowIfNull(material);
+
+            combos ??= material.IntParams;
+
+            var shaderName = Path.GetFileNameWithoutExtension(material.ShaderName);
+
+            if (shaderName is "csgo_foliage" or "vr_xen_foliage")
+            {
+                return true;
+            }
+
+            return combos.GetValueOrDefault("F_VERTEX_ANIMATION") > 0
+                || combos.GetValueOrDefault("F_FOLIAGE_ANIMATION") > 0
+                || combos.GetValueOrDefault("F_JITTER_VERTICES") > 0;
         }
 
         /// <inheritdoc/>

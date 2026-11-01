@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.World;
 
@@ -44,13 +45,25 @@ namespace ValveResourceFormat.Renderer
             return a.RenderOrder - b.RenderOrder;
         }
 
-        /// <summary>Compares two requests by distance from camera, furthest first (back-to-front), with ties in a stable order.</summary>
+        /// <summary>
+        /// Compares two requests by distance from camera in hundredths of a unit, furthest first (back-to-front).
+        /// Ties are ordered by material, then in a stable order.
+        /// </summary>
         public static int CompareCameraDistance(Request a, Request b)
         {
-            var byDistance = b.DistanceFromCamera.CompareTo(a.DistanceFromCamera);
+            var byDistance = DistanceSortKey(b).CompareTo(DistanceSortKey(a));
             if (byDistance != 0)
             {
                 return byDistance;
+            }
+
+            if (a.Call != null && b.Call != null)
+            {
+                var byMaterial = a.Call.Material.SortId.CompareTo(b.Call.Material.SortId);
+                if (byMaterial != 0)
+                {
+                    return byMaterial;
+                }
             }
 
             var byNode = a.Node.Id.CompareTo(b.Node.Id);
@@ -67,6 +80,8 @@ namespace ValveResourceFormat.Renderer
 
             return a.Call.Index.CompareTo(b.Call.Index);
         }
+
+        private static int DistanceSortKey(Request request) => (int)MathF.Min(request.DistanceFromCamera * 100f, int.MaxValue);
 
         /// <summary>Compares two requests by draw stage first, then by shader program sort ID.</summary>
         public static int CompareStageThenProgram(Request a, Request b)
@@ -93,7 +108,11 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Sorts requests according to the active render pass and issues all draw calls.</summary>
         /// <param name="requests">Draw call requests to process.</param>
         /// <param name="context">Render context describing the current pass and scene state.</param>
-        public static void Render(List<Request> requests, Scene.RenderContext context)
+        /// <param name="staticCount">
+        /// For the translucent pass, the number of leading requests that come from static nodes.
+        /// They are sorted and drawn before the rest, which are sorted on their own.
+        /// </param>
+        public static void Render(List<Request> requests, Scene.RenderContext context, int staticCount = 0)
         {
             // Material-ignoring replacement shaders draw without applying render state, so a scope
             // latches the pass baseline for them.
@@ -115,7 +134,9 @@ namespace ValveResourceFormat.Renderer
             }
             else if (context.RenderPass == RenderPass.Translucent)
             {
-                requests.Sort(CompareCameraDistance);
+                var span = CollectionsMarshal.AsSpan(requests);
+                span[..staticCount].Sort(CompareCameraDistance);
+                span[staticCount..].Sort(CompareCameraDistance);
             }
 
             BindReservedTextures(context);
@@ -264,7 +285,24 @@ namespace ValveResourceFormat.Renderer
                     counters.Count(Counter.VaoChange);
                 }
 
-                Draw(shader!, ref uniforms, ref config, new(request.Mesh, request.Call, request.Node));
+                var batchRequest = new BatchRequest(request.Mesh, request.Call, request.Node);
+
+                if (requestMaterial.WritesDepthBeforeBlending
+                    && context.RenderPass == RenderPass.Translucent
+                    && context.ReplacementShader == null
+                    && context.DepthOnlyShader == null)
+                {
+                    var renderState = GraphicsContext.RenderState;
+                    var materialState = requestMaterial.ComposeRenderState(renderState.CurrentPass);
+                    var depthOnlyState = materialState;
+                    depthOnlyState.ColorWriteMask = RsColorWriteEnableBits.None;
+
+                    renderState.Apply(in depthOnlyState);
+                    Draw(shader!, ref uniforms, ref config, batchRequest);
+                    renderState.Apply(in materialState);
+                }
+
+                Draw(shader!, ref uniforms, ref config, batchRequest);
             }
 
             if (vao > -1)

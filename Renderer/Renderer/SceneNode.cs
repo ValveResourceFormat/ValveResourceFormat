@@ -477,13 +477,13 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Gets the squared distance from this node's bounding box center to the camera.
+        /// Gets the distance from the camera to the closest point of this node's bounding box, zero when the camera is inside it.
         /// </summary>
         /// <param name="camera">The camera to measure distance from.</param>
-        /// <returns>The squared distance to the camera.</returns>
+        /// <returns>The distance to the camera.</returns>
         public virtual float GetCameraDistance(Camera camera)
         {
-            return Vector3.DistanceSquared(BoundingBox.Center, camera.Location);
+            return MathF.Sqrt(BoundingBox.DistanceSquared(camera.Location));
         }
     }
 }

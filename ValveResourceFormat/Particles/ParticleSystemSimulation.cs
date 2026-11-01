@@ -115,6 +115,12 @@ namespace ValveResourceFormat.Particles
         public float DepthSortBias { get; }
 
         /// <summary>
+        /// Control point whose position the system is sorted by among translucent objects
+        /// (<c>m_nSortOverridePositionCP</c>), or -1 to sort by the bounds of the system.
+        /// </summary>
+        public int SortOverridePositionControlPoint { get; }
+
+        /// <summary>
         /// Seconds the system keeps simulating after it was last drawn (<c>m_flNoDrawTimeToGoToSleep</c>).
         /// </summary>
         public float NoDrawTimeToGoToSleep { get; }
@@ -345,6 +351,7 @@ namespace ValveResourceFormat.Particles
 
             IsScreenSpaceEffect = parse.Boolean("m_bScreenSpaceEffect", false);
             DepthSortBias = parse.Float("m_flDepthSortBias", 0f);
+            SortOverridePositionControlPoint = parse.Int32("m_nSortOverridePositionCP", -1);
 
             // A negative time keeps the system awake for practically ever
             var noDrawTimeToGoToSleep = parse.Float("m_flNoDrawTimeToGoToSleep", 8f);

@@ -92,7 +92,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         private float ComputeLodMetric(Camera camera)
         {
-            var distance = MathF.Sqrt(GetCameraDistance(camera));
+            var distance = Vector3.Distance(BoundingBox.Center, camera.Location);
             var scale = Transform.MaxAxisScale();
 
             // M22 is the projection's 1/tan(vFov/2) y-scale.

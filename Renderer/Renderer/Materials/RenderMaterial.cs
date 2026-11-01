@@ -171,6 +171,12 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Gets a value indicating whether this material only adds light over the destination, hiding nothing behind it.</summary>
         public bool IsAdditive => IsTranslucent && destBlend == RsBlendMode.One;
 
+        /// <summary>
+        /// Gets a value indicating whether this translucent material first writes depth over its whole silhouette, so
+        /// that only the nearest surface of each mesh blends.
+        /// </summary>
+        public bool WritesDepthBeforeBlending { get; private set; }
+
         /// <summary>Gets a value indicating whether this material uses alpha-to-coverage alpha testing.</summary>
         public bool IsAlphaTest { get; private set; }
 
@@ -330,12 +336,8 @@ namespace ValveResourceFormat.Renderer.Materials
             BlocksLight = attributes.GetValueOrDefault("mapbuilder.blocklight") != 0;
             DoNotCastShadows = attributes.GetValueOrDefault("DoNotCastShadows") == 1;
             IsCs2Water = attributes.GetValueOrDefault("bCsgoWater") == 1;
-            isRenderBackfaces = IntParams.GetValueOrDefault("F_RENDER_BACKFACES") == 1
-                || (ShaderName == "cosmic_veil.vfx" && IntParams.GetValueOrDefault("g_bDoubleSidedVeil") == 1);
+            isRenderBackfaces = shaderDataProvider.GetRenderBackfaces(material, IntParams);
             disableDepthTest = IntParams.GetValueOrDefault("F_DISABLE_Z_BUFFERING") == 1;
-
-            // Glass writes depth while it blends and tests it strictly, so of coplanar panes only the first one drawn shows
-            translucentDepthWrite = ShaderName == "csgo_glass.vfx" && !disableDepthTest;
 
             var blendState = shaderDataProvider.GetBlendState(material, IntParams);
             IsTranslucent = attributes.GetValueOrDefault("translucent") == 1;
@@ -356,14 +358,19 @@ namespace ValveResourceFormat.Renderer.Materials
                 return;
             }
 
-            VertexAnimation = ShaderName is "csgo_foliage.vfx" or "vr_xen_foliage.vfx"
-                || IntParams.GetValueOrDefault("F_VERTEX_ANIMATION") > 0
-                || IntParams.GetValueOrDefault("F_FOLIAGE_ANIMATION") > 0
-                || IntParams.GetValueOrDefault("F_JITTER_VERTICES") > 0;
+            VertexAnimation = shaderDataProvider.GetVertexAnimation(material, IntParams);
 
             hasDepthBias = IntParams.GetValueOrDefault("F_DEPTHBIAS") == 1 || IntParams.GetValueOrDefault("F_DEPTH_BIAS") == 1;
             IsOverlay = attributes.GetValueOrDefault("overlay") == 1;
             DoNotCastShadows |= IsOverlay;
+
+            var canWriteTranslucentDepth = IsTranslucent && !IsOverlay && !disableDepthTest;
+
+            translucentDepthWrite = canWriteTranslucentDepth && shaderDataProvider.GetTranslucentDepthWrite(material, IntParams);
+
+            WritesDepthBeforeBlending = canWriteTranslucentDepth
+                && IntParams.GetValueOrDefault("F_WRITE_DEPTH_BEFORE_ALPHA_BLENDING") == 1
+                && IntParams.GetValueOrDefault("F_DISABLE_DEPTH_WRITE") == 0;
         }
 
         /// <summary>
@@ -906,10 +913,15 @@ namespace ValveResourceFormat.Renderer.Materials
 
                 state.SetBlend(srcBlend, destBlend);
 
-                if (translucentDepthWrite)
+                if (WritesDepthBeforeBlending)
+                {
+                    // The blended draw lands on the depth its own first draw wrote
+                    state.DepthStencil.DepthWriteEnable = true;
+                    state.DepthStencil.DepthFunc = RsComparison.CloserEqual;
+                }
+                else if (translucentDepthWrite)
                 {
                     state.DepthStencil.DepthWriteEnable = true;
-                    state.DepthStencil.DepthFunc = RsComparison.Closer;
                 }
             }
 

@@ -73,6 +73,9 @@ public sealed class SceneViewState
 
     private readonly List<SceneNode> cullResults = [];
     private int staticCullCount;
+
+    /// <summary>How many requests in the translucent list come from the static part of the cull results, which draw first.</summary>
+    private int staticTranslucentCount;
     private readonly Plane[] lastFrustumPlanes = new Plane[6];
     private bool hasLastFrustum;
     private bool lastIncludedStatic;
@@ -498,9 +501,19 @@ public sealed class SceneViewState
 
         aggregatesWithVisibleFragments.Clear();
 
+        var translucentList = renderLists[RenderPass.Translucent];
+        staticTranslucentCount = 0;
+
         // Collect mesh calls
-        foreach (var node in visibleNodes)
+        for (var nodeIndex = 0; nodeIndex < visibleNodes.Count; nodeIndex++)
         {
+            if (nodeIndex == staticCullCount)
+            {
+                staticTranslucentCount = translucentList.Count;
+            }
+
+            var node = visibleNodes[nodeIndex];
+
             // The viewmodel is drawn at the eye, not where it is placed
             var boxes = (node.RenderPasses & CustomRenderPasses.Viewmodel) != 0 ? null : VisibilityBoxes;
 
@@ -677,6 +690,11 @@ public sealed class SceneViewState
                     toolsRenderList.Add(customRender);
                 }
             }
+        }
+
+        if (staticCullCount >= visibleNodes.Count)
+        {
+            staticTranslucentCount = translucentList.Count;
         }
 
         renderLists[RenderPass.OpaqueAggregate].RemoveAll(hasNoVisibleFragments);
@@ -1212,7 +1230,7 @@ public sealed class SceneViewState
         using (GraphicsContext.RenderState.Scope(depthFunc: RsComparison.CloserEqual))
         {
             renderContext.RenderPass = RenderPass.Translucent;
-            MeshBatchRenderer.Render(renderLists[RenderPass.Translucent], renderContext);
+            MeshBatchRenderer.Render(renderLists[RenderPass.Translucent], renderContext, staticTranslucentCount);
         }
     }
 
