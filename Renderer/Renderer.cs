@@ -1055,7 +1055,7 @@ public class Renderer : ISceneHost
         ViewBuffer.Data.WorldToProjectionPrev = state.DepthPyramidViewProjection;
 
         // The fog toggle and the weather of the main scene apply to every view
-        Scene.SetFogConstants(ViewBuffer.Data, view.Fog, view.FogSpace);
+        Scene.SetFogConstants(ViewBuffer.Data, view.Fog, view.FogSpace, view.Camera.Forward);
 
         ViewBuffer.Data.IsSkybox = view.Sky != null;
         ViewBuffer.Data.RenderMode = Settings.RenderMode;

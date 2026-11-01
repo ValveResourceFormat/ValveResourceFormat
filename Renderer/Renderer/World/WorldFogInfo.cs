@@ -95,13 +95,14 @@ namespace ValveResourceFormat.Renderer.World
         /// <param name="viewConstants">The view constants buffer to update.</param>
         /// <param name="viewerFogEnabled">Whether fog rendering is enabled in the viewer settings.</param>
         /// <param name="fogSpace">Converts authored distances and heights into the view's space.</param>
-        public void SetFogUniforms(ViewConstants viewConstants, bool viewerFogEnabled, FogSpace fogSpace)
+        /// <param name="viewForward">The direction the view looks in, which a <see cref="LinearFog"/> that blends two colors reads.</param>
+        public void SetFogUniforms(ViewConstants viewConstants, bool viewerFogEnabled, FogSpace fogSpace, Vector3 viewForward = default)
         {
             viewConstants.VolumetricFogActive = viewerFogEnabled && Volumetric is { Volume: not null };
 
             if (ObjectsUseLinearFog && LinearFog is { MaxDensity: > 0f } linearFog)
             {
-                SetLinearFogUniforms(viewConstants, viewerFogEnabled, linearFog, fogSpace);
+                SetLinearFogUniforms(viewConstants, viewerFogEnabled, linearFog, fogSpace, viewForward);
                 return;
             }
 
@@ -134,7 +135,7 @@ namespace ValveResourceFormat.Renderer.World
         // The gradient fog of the shaders covers a pixel by pow(saturate(distance * scale + bias), exponent) times its
         // opacity, with a height term of a constant 1. Linear fog culls nothing: the older culling tests the horizontal
         // distance to the start, which would leave the ground below a high camera unfogged.
-        private static void SetLinearFogUniforms(ViewConstants viewConstants, bool viewerFogEnabled, LinearFog fog, FogSpace fogSpace)
+        private static void SetLinearFogUniforms(ViewConstants viewConstants, bool viewerFogEnabled, LinearFog fog, FogSpace fogSpace, Vector3 viewForward)
         {
             var start = fogSpace.Distance(fog.Start);
             var end = fogSpace.Distance(fog.End);
@@ -144,7 +145,7 @@ namespace ValveResourceFormat.Renderer.World
             viewConstants.GradientFogActive = viewerFogEnabled;
             viewConstants.CubeFogActive = false;
             viewConstants.GradientFogBiasAndScale = new Vector4(bias, 1f, scale, 0f);
-            viewConstants.GradientFogColor_Opacity = new Vector4(fog.Color, fog.MaxDensity);
+            viewConstants.GradientFogColor_Opacity = new Vector4(fog.GetColor(viewForward), fog.MaxDensity);
             viewConstants.GradientFogExponents = new Vector2(fog.Exponent, 1f);
             viewConstants.GradientFogCullingParams = new Vector2(float.MinValue, float.PositiveInfinity);
         }

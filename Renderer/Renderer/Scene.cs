@@ -1661,11 +1661,12 @@ namespace ValveResourceFormat.Renderer
         /// <param name="viewConstants">The view constants to update.</param>
         /// <param name="fog">The fog the view draws with.</param>
         /// <param name="fogSpace">Converts authored fog distances and heights into the view's space.</param>
-        internal void SetFogConstants(ViewConstants viewConstants, WorldFogInfo fog, FogSpace fogSpace)
+        /// <param name="viewForward">The direction the view looks in.</param>
+        internal void SetFogConstants(ViewConstants viewConstants, WorldFogInfo fog, FogSpace fogSpace, Vector3 viewForward = default)
         {
             ArgumentNullException.ThrowIfNull(fog);
 
-            fog.SetFogUniforms(viewConstants, Settings.FogEnabled, fogSpace);
+            fog.SetFogUniforms(viewConstants, Settings.FogEnabled, fogSpace, viewForward);
 
             viewConstants.EnvWetness = EnvironmentWetness;
             viewConstants.EnvWetnessRipple = new Vector4(PuddleWindDirection, 0f, 0f, 0f);
