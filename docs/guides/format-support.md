@@ -373,6 +373,7 @@ other graphs of the file or, for one graph per file, the graphs of the folder.
 | Node positions, comments, editor state   | Not in compiled files | nodes are laid out in columns by their distance from a source            |
 | Names of nodes without a debug name      | Not in compiled files | named by their type, as vmixtool names new nodes                         |
 | Node generation counters                 | Not in compiled files | recovered from the debug ids of current graphs when they can be          |
+| Older graphs compiled with CS2 tools     | Not implemented       | one graph per file only; older track send settings are ignored           |
 | Inlined subgraphs of graphs in no folder | Not implemented       | without the other graphs, inlined nodes stay as they compiled            |
 
 ## Choreo, Captions, and UI

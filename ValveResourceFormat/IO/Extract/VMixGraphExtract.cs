@@ -125,7 +125,7 @@ public sealed partial class VMixGraphExtract
                 return shared == 0 ? 0 : shared - names.Count / 10000.0;
             }
 
-            var best = graphNodeNames.Where(graph => graph.Key != inliningGraph).MaxBy(graph => Score(graph.Value, innerNames));
+            var best = graphNodeNames.Where(graph => graph.Key != inliningGraph).OrderByDescending(graph => Score(graph.Value, innerNames)).FirstOrDefault();
             return best.Value != null && Score(best.Value, innerNames) > 0 ? best.Key : null;
         };
 

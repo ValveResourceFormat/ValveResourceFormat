@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using ValveKeyValue;
 using ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
@@ -14,7 +15,7 @@ namespace Tests.IO;
 
 /// <summary>
 /// Decompiles models and mix graphs from Source 2 games and validates that the decompiled source
-/// recompiles successfully with the game's own resourcecompiler.
+/// recompiles successfully with resourcecompiler.
 ///
 /// Each game is found through its Steam installation, and its tests are skipped when it is not
 /// installed or has no Workshop Tools. The tests stage and compile a temporary addon
@@ -54,6 +55,15 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
         (CounterStrike2, "agents/models/ctm_sas/ctm_sas.vmdl_c"),
         (CounterStrike2, "weapons/models/knife/knife_bayonet/weapon_knife_bayonet.vmdl_c"),
         (CounterStrike2, "weapons/keychains/missinglink/vmdl/kc_missinglink_bigfoot.vmdl_c"),
+    ];
+
+    // All of these compile with the Counter-Strike 2 tools
+    private static readonly WorkshopToolsGame[] GraphCases = [
+        CounterStrike2,
+        Dota2,
+        new(1422450, "Deadlock", "citadel"),
+        new(546560, "Half-Life: Alyx", "hlvr"),
+        new(1902490, "Aperture Desk Job", "steampal"),
     ];
 
     public sealed class GameInstallation : IDisposable
@@ -185,62 +195,85 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
         }
     }
 
-    // Every graph is compiled in one run, since graphs inline the other graphs of their folder as subgraphs.
-    [Test]
-    public async Task RecompileDecompiledGraphs()
+    // Every graph gets its own file as the compiler rejects several in one, and all compile in one run as graphs
+    // inline the other graphs of their folder. Only sounds from the same compiler can be compared exactly.
+    [Test, MethodDataSource(nameof(GraphCases))]
+    public async Task RecompileDecompiledGraphs(WorkshopToolsGame game)
     {
         const string GraphsFolder = "sounds/graphs";
 
         var installation = installations.Get(CounterStrike2);
+        var exact = game == CounterStrike2;
 
-        // The compiler writes every graph as a sound, vmix_c files next to them come from older compiles
-        var entries = installation.Package.Entries!["vsnd_c"]
-            .Where(static entry => string.Equals(entry.DirectoryName, GraphsFolder, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        await Assert.That(entries).IsNotEmpty();
-
-        Resource ReadEntry(PackageEntry entry)
+        var steamGame = GameFolderLocator.FindSteamGameByAppId(game.AppId);
+        if (!steamGame.HasValue)
         {
-            installation.Package.ReadEntry(entry, out var rawFileData);
-
-            var resource = new Resource { FileName = entry.GetFullPath() };
-            resource.Read(new MemoryStream(rawFileData));
-            return resource;
+            Skip.Test($"Steam game with AppId {game.AppId} not present.");
         }
+
+        var pakPath = Path.Combine(steamGame.Value.GamePath, "game", game.ModFolder, "pak01_dir.vpk");
+        using var package = Package.Open(pakPath);
+        using var fileLoader = new GameFileLoader(package, pakPath);
+
+        // The vmix_c files next to the sounds of this compiler come from older compiles
+        var entries = exact
+            ? package.Entries!["vsnd_c"].Where(static entry => string.Equals(entry.DirectoryName, GraphsFolder, StringComparison.OrdinalIgnoreCase))
+            : package.Entries!["vmix_c"];
 
         try
         {
             var contentFolder = Path.Combine(installation.ContentAddonPath, GraphsFolder);
+            Directory.CreateDirectory(contentFolder);
+
+            var expected = new Dictionary<string, string>();
 
             foreach (var entry in entries)
             {
-                using var resource = ReadEntry(entry);
-                using var contentFile = FileExtract.Extract(resource, installation.FileLoader);
+                package.ReadEntry(entry, out var rawFileData);
 
-                WriteContentFile(contentFile, Path.Combine(contentFolder, $"{entry.FileName}.vmix"));
+                using var resource = new Resource { FileName = entry.GetFullPath() };
+                resource.Read(new MemoryStream(rawFileData));
+
+                foreach (var graph in TestFixtures.ParseKV3(new VMixGraphExtract(resource, fileLoader).ToEditorDocument()).GetArray("Graphs"))
+                {
+                    var name = graph.GetStringProperty("Name");
+                    expected[name] = exact ? ContentBlocks(resource) : NodeTypes(graph);
+
+                    var graphs = KVObject.Array();
+                    graphs.Add(graph);
+
+                    var document = KVObject.Collection();
+                    document.Add("Graphs", graphs);
+                    await File.WriteAllTextAsync(Path.Combine(contentFolder, $"{name}.vmix"), document.ToKV3String());
+                }
             }
+
+            await Assert.That(expected).IsNotEmpty();
 
             var (_, compilerOutput) = RunResourceCompiler(installation.ResourceCompilerPath, Path.Combine(contentFolder, "*.vmix"));
             var differences = new List<string>();
 
-            foreach (var entry in entries)
+            foreach (var (name, original) in expected)
             {
-                using var resource = ReadEntry(entry);
-                var compiledPath = Path.Combine(installation.GameAddonPath, resource.FileName!);
+                var compiledPath = Path.Combine(installation.GameAddonPath, GraphsFolder, $"{name}.vsnd_c");
 
                 if (!File.Exists(compiledPath))
                 {
-                    differences.Add($"{resource.FileName}: did not compile");
+                    differences.Add($"{name}: did not compile");
                     continue;
                 }
 
                 using var recompiled = new Resource { FileName = compiledPath };
                 recompiled.Read(compiledPath);
 
-                if (FindBlockDifference(resource, recompiled) is { } difference)
+                var actual = exact
+                    ? ContentBlocks(recompiled)
+                    : NodeTypes(TestFixtures.ParseKV3(new VMixGraphExtract(recompiled).ToEditorDocument()).GetArray("Graphs").Single());
+
+                if (actual != original)
                 {
-                    differences.Add($"{resource.FileName}: {difference}");
+                    var (before, after) = original.Split('\n').Zip(actual.Split('\n')).FirstOrDefault(static lines => lines.First != lines.Second);
+                    differences.Add($"{name}: \"{before?.Trim()}\" became \"{after?.Trim()}\"");
                 }
             }
 
@@ -252,42 +285,14 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
         }
     }
 
-    /// <summary>
-    /// Finds the first difference between the compiled blocks of two resources, leaving out the blocks
-    /// that record how the file was compiled and what it depends on.
-    /// </summary>
-    private static string? FindBlockDifference(Resource original, Resource recompiled)
-    {
-        static List<Block> ContentBlocks(Resource resource)
-            => [.. resource.Blocks.Where(static block => block.Type is not (BlockType.RED2 or BlockType.REDI or BlockType.RERL or BlockType.NTRO))];
+    private static string NodeTypes(KVObject graph)
+        => string.Join('\n', graph.GetArray("m_EditorNodes").Select(static node => node.GetStringProperty("type")).Order(StringComparer.Ordinal));
 
-        var originalBlocks = ContentBlocks(original);
-        var recompiledBlocks = ContentBlocks(recompiled);
-
-        if (!originalBlocks.Select(static block => block.Type).SequenceEqual(recompiledBlocks.Select(static block => block.Type)))
-        {
-            return $"blocks {string.Join(' ', originalBlocks.Select(static block => block.Type))} became {string.Join(' ', recompiledBlocks.Select(static block => block.Type))}";
-        }
-
-        foreach (var (originalBlock, recompiledBlock) in originalBlocks.Zip(recompiledBlocks))
-        {
-            var originalLines = originalBlock.ToString().Split('\n');
-            var recompiledLines = recompiledBlock.ToString().Split('\n');
-
-            for (var i = 0; i < Math.Max(originalLines.Length, recompiledLines.Length); i++)
-            {
-                var originalLine = i < originalLines.Length ? originalLines[i].Trim() : "<end>";
-                var recompiledLine = i < recompiledLines.Length ? recompiledLines[i].Trim() : "<end>";
-
-                if (originalLine != recompiledLine)
-                {
-                    return $"{originalBlock.Type} line {i + 1}: \"{originalLine}\" became \"{recompiledLine}\"";
-                }
-            }
-        }
-
-        return null;
-    }
+    // Leaves out the blocks recording how the file was compiled and what it depends on
+    private static string ContentBlocks(Resource resource)
+        => string.Join('\n', resource.Blocks
+            .Where(static block => block.Type is not (BlockType.RED2 or BlockType.REDI or BlockType.RERL or BlockType.NTRO))
+            .Select(static block => $"{block.Type}\n{block}"));
 
     private static async Task RecompileAndCompare(GameInstallation installation, Resource resource, string assetPath)
     {
