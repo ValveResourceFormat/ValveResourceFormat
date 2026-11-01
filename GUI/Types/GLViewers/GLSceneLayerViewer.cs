@@ -1,17 +1,17 @@
 using System.Diagnostics;
 using System.Linq;
-using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.Renderer;
 
 namespace GUI.Types.GLViewers
 {
     /// <summary>
-    /// Base for scene viewers that expose the scene's layers as a multi-selection list.
+    /// Base for scene viewers that expose the scene's layers as checkable items, nested by the slashes in their names.
     /// </summary>
     abstract class GLSceneLayerViewer : GLSceneViewer
     {
-        private CheckedListBox? layersListBox;
+        private GLViewerTreeSelectionControl? layersTree;
 
         protected GLSceneLayerViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext)
             : base(vrfGuiContext, rendererContext)
@@ -32,7 +32,7 @@ namespace GUI.Types.GLViewers
         {
             base.Dispose();
 
-            layersListBox?.Dispose();
+            layersTree?.Dispose();
         }
 
         protected override void AddUiControls()
@@ -42,26 +42,8 @@ namespace GUI.Types.GLViewers
             AddRenderModeSelectionControl();
 
             var listedLayers = Scene.AllNodes.SelectMany(static node => node.Layers).Where(static layer => !layer.IsInternal).Distinct().ToList();
-            var enabledLayers = new HashSet<WorldLayer>(listedLayers.Count);
 
-            layersListBox = UiControl.AddMultiSelection<WorldLayer>(LayersControlName, (listBox) =>
-            {
-                for (var i = 0; i < listedLayers.Count; i++)
-                {
-                    var enabled = IsLayerEnabledByDefault(i);
-                    listBox.Items.Add(listedLayers[i], enabled);
-
-                    if (enabled)
-                    {
-                        enabledLayers.Add(listedLayers[i]);
-                    }
-                }
-            }, (checkedLayers) =>
-            {
-                SetEnabledLayers(listedLayers, [.. checkedLayers]);
-            });
-
-            SetEnabledLayers(listedLayers, enabledLayers);
+            layersTree = AddLayersTree(LayersControlName, listedLayers, layer => IsLayerEnabledByDefault(listedLayers.IndexOf(layer)));
 
             base.AddUiControls();
         }

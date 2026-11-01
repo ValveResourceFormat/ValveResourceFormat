@@ -11,9 +11,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private static readonly Color32 TransitionColor = new(255, 255, 0);
         private static readonly Color32 CellColor = new(240, 230, 140);
 
-        private static readonly WorldLayer BlocksLayer = new("Navigation space (blocks)");
-        private static readonly WorldLayer TransitionsLayer = new("Navigation space (transitions)");
-        private static readonly WorldLayer GridCellsLayer = new("Navigation space (grid cells)");
+        private static readonly WorldLayer BlocksLayer = new("Navigation/Space (blocks)");
+        private static readonly WorldLayer TransitionsLayer = new("Navigation/Space (transitions)");
+        private static readonly WorldLayer GridCellsLayer = new("Navigation/Space (grid cells)");
 
         private readonly Func<List<SimpleVertex>> buildLines;
 

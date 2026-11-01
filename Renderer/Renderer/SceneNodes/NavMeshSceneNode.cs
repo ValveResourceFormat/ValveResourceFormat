@@ -12,7 +12,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private static readonly Color32 NavMeshLadderColor = new(16, 255, 32, 100);
         private static readonly Color32 FlowMapConnectionColor = new(255, 255, 255);
 
-        private static readonly WorldLayer LaddersLayer = new("Navigation mesh (ladders)");
+        private static readonly WorldLayer LaddersLayer = new("Navigation/Mesh (ladders)");
 
         private readonly int triangleIndexCount;
 
@@ -151,7 +151,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             foreach (var hull in navFlowMapFile.Hulls)
             {
-                var layer = WorldLayer.Get($"Navigation flow map ({NavHullNames.GetName(hullNames, hull.HullIndex)})");
+                var layer = WorldLayer.Get($"Navigation/Flow map ({NavHullNames.GetName(hullNames, hull.HullIndex)})");
                 var minBounds = new Vector3(float.MaxValue);
                 var maxBounds = new Vector3(float.MinValue);
                 var connectionLines = new List<SimpleVertex>();
@@ -239,7 +239,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                     var sceneNode = new NavMeshSceneNode(scene, verts, triangleInds, lineInds)
                     {
-                        Layers = [WorldLayer.Get($"Navigation mesh ({NavHullNames.GetName(hullNames, i)})")],
+                        Layers = [WorldLayer.Get($"Navigation/Mesh ({NavHullNames.GetName(hullNames, i)})")],
                         LocalBoundingBox = new AABB(minBounds, maxBounds),
                     };
                     scene.Add(sceneNode, false);

@@ -37,7 +37,7 @@ namespace GUI.Types.GLViewers
         private readonly World? world;
         private readonly WorldNode? worldNode;
         private readonly ResourceExtRefList? mapExternalReferences;
-        private CheckedListBox? worldLayersComboBox;
+        private GLViewerTreeSelectionControl? worldLayersTree;
         private GLViewerTreeSelectionControl? collisionTree;
         private ComboBox? cameraComboBox;
         private SavedCameraPositionsControl? savedCameraPositionsControl;
@@ -53,7 +53,6 @@ namespace GUI.Types.GLViewers
         // Whether tools were shown before playing hid them, which stopping shows again
         private bool showToolsBeforePlay;
         private int simulationRequest;
-        private bool ignoreLayersChangeEvents = true;
         private WorldLayer[] listedLayers = [];
         private List<Matrix4x4> CameraMatrices = [];
         private WorldNodeLoader? LoadedWorldNode;
@@ -107,7 +106,7 @@ namespace GUI.Types.GLViewers
         {
             base.Dispose();
 
-            worldLayersComboBox?.Dispose();
+            worldLayersTree?.Dispose();
             collisionTree?.Dispose();
             cameraComboBox?.Dispose();
             savedCameraPositionsControl?.Dispose();
@@ -341,15 +340,7 @@ namespace GUI.Types.GLViewers
                 AddWireframeToggleControl();
             }
 
-            worldLayersComboBox = UiControl.AddMultiSelection<WorldLayer>("World Layers", null, (worldLayers) =>
-            {
-                if (ignoreLayersChangeEvents)
-                {
-                    return;
-                }
-
-                SetEnabledLayers(listedLayers, [.. worldLayers]);
-            });
+            AddWorldLayersControl();
             AddToolBrushGroupsControl();
             AddCollisionControl();
 
@@ -387,33 +378,6 @@ namespace GUI.Types.GLViewers
             if (world != null)
             {
                 AddSimulationToolbar();
-
-                var uniqueWorldLayers = GetListedLayers();
-
-                if (uniqueWorldLayers.Count > 0 && LoadedWorld != null)
-                {
-                    Debug.Assert(worldLayersComboBox != null);
-
-                    worldLayersComboBox.BeginUpdate();
-
-                    // Showing helpers also decides what a selected entity shows, so it can be chosen even while nothing
-                    // unselected needs it
-                    SetAvailableLayers(uniqueWorldLayers.Append(HammerEntityVisuals.HelpersLayer).Distinct());
-
-                    foreach (var worldLayer in LoadedWorld.DefaultEnabledLayers)
-                    {
-                        var checkboxIndex = worldLayersComboBox.Items.IndexOf(worldLayer);
-
-                        if (checkboxIndex > -1)
-                        {
-                            worldLayersComboBox.SetItemCheckState(checkboxIndex, CheckState.Checked);
-                        }
-                    }
-
-                    worldLayersComboBox.EndUpdate();
-
-                    SetEnabledLayers(listedLayers, LoadedWorld.DefaultEnabledLayers);
-                }
 
                 using (UiControl.BeginGroup("World"))
                 {
@@ -467,19 +431,7 @@ namespace GUI.Types.GLViewers
                 }
             }
 
-            if (worldNode != null && worldLayersComboBox != null)
-            {
-                SetAvailableLayers(GetListedLayers());
-
-                for (var i = 0; i < worldLayersComboBox.Items.Count; i++)
-                {
-                    worldLayersComboBox.SetItemChecked(i, true);
-                }
-            }
-
             savedCameraPositionsControl.RefreshSavedPositions();
-
-            ignoreLayersChangeEvents = false;
 
             base.AddUiControls();
 
@@ -688,16 +640,11 @@ namespace GUI.Types.GLViewers
                 RequestVisibilityUpdate();
             }
 
-            if (!node.LayerEnabled && worldLayersComboBox != null)
+            if (!node.LayerEnabled && worldLayersTree != null)
             {
-                foreach (var layer in node.Layers)
+                foreach (var layer in node.Layers.Where(listedLayers.Contains))
                 {
-                    var layerId = worldLayersComboBox.Items.IndexOf(layer);
-
-                    if (layerId >= 0)
-                    {
-                        worldLayersComboBox.SetItemChecked(layerId, true);
-                    }
+                    worldLayersTree.SetChecked(layer.Name, true);
                 }
             }
 
@@ -1099,24 +1046,32 @@ namespace GUI.Types.GLViewers
         private List<WorldLayer> GetListedLayers()
             => [.. Scene.AllNodes.SelectMany(static node => node.Layers).Where(static layer => !layer.IsInternal).Distinct()];
 
-        private void SetAvailableLayers(IEnumerable<WorldLayer> worldLayers)
+        // The layers nested by the slashes in their names, as the Auto Vis Groups are, and folded until opened
+        private void AddWorldLayersControl()
         {
-            Debug.Assert(worldLayersComboBox != null);
-
-            worldLayersComboBox.Items.Clear();
+            Debug.Assert(UiControl != null);
 
             // Layers that have no nodes yet, such as particles spawned later, are not listed and stay enabled
-            listedLayers = [.. worldLayers];
+            var layers = GetListedLayers();
 
-            if (listedLayers.Length > 0)
+            if (layers.Count == 0)
             {
-                worldLayersComboBox.Enabled = true;
-                worldLayersComboBox.Items.AddRange(listedLayers);
+                return;
             }
-            else
+
+            if (LoadedWorld != null)
             {
-                worldLayersComboBox.Enabled = false;
+                // Showing helpers also decides what a selected entity shows, so it can be chosen even while nothing
+                // unselected needs it
+                layers.Add(HammerEntityVisuals.HelpersLayer);
             }
+
+            listedLayers = [.. layers.Distinct()];
+
+            // A world node shows every layer, as it has no default ones
+            var enabledLayers = LoadedWorld?.DefaultEnabledLayers;
+
+            worldLayersTree = AddLayersTree("World Layers", listedLayers, layer => enabledLayers?.Contains(layer) ?? true, foldGroups: true);
         }
 
         // Hammer's Auto Vis Groups of tools materials, those the loaded map uses nested under the groups above them,

@@ -1245,6 +1245,33 @@ namespace GUI.Types.GLViewers
         }
 
         /// <summary>
+        /// Adds the layers to the sidebar as checkable items nested by the slashes in their names, and shows the
+        /// checked ones out of them.
+        /// </summary>
+        /// <param name="name">The title of the box.</param>
+        /// <param name="layers">The layers to list, in order.</param>
+        /// <param name="isEnabled">Whether a layer starts shown.</param>
+        /// <param name="foldGroups">Whether the groups start folded away.</param>
+        protected GLViewerTreeSelectionControl AddLayersTree(string name, IReadOnlyCollection<WorldLayer> layers, Func<WorldLayer, bool> isEnabled, bool foldGroups = false)
+        {
+            Debug.Assert(UiControl != null);
+
+            // The tree finds items by their paths ignoring case, so layers named apart only by case share one
+            var layersByName = layers.ToLookup(static layer => layer.Name, StringComparer.OrdinalIgnoreCase);
+
+            var tree = UiControl.AddTreeSelection(
+                name,
+                layersByName.Select(static group => group.Key),
+                shown => SetEnabledLayers(layers, [.. shown.SelectMany(path => layersByName[path])]),
+                path => layersByName[path].Any(isEnabled),
+                foldGroups);
+
+            SetEnabledLayers(layers, [.. layers.Where(isEnabled)]);
+
+            return tree;
+        }
+
+        /// <summary>
         /// Reapplies what is shown at the start of the next frame. Nodes are added and removed on the render
         /// thread, so they are only walked there.
         /// </summary>
