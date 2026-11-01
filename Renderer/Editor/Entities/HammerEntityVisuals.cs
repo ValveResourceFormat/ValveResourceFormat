@@ -156,7 +156,7 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
         // A group built from a tools material is all the compiled map keeps of the faces Hammer drew with it
         var drawsMeshes = entity is BaseModelEntity { ModelNode: not null };
 
-        return PhysSceneNode.Create(scene, physics, name, group =>
+        var nodes = PhysSceneNode.Create(scene, physics, name, group =>
         {
             if (autoApplyMaterial != null)
             {
@@ -174,6 +174,22 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
 
             return ToolsMaterials.GetForCollision(attributes) ?? fallbackMaterial;
         });
+
+        if (entity == null)
+        {
+            return nodes;
+        }
+
+        // Every class shares the trigger material, so its volumes show their class instead
+        foreach (var node in nodes)
+        {
+            if (node.ToolsMaterial?.Material.Name.Equals(ToolsMaterials.Trigger, StringComparison.OrdinalIgnoreCase) == true)
+            {
+                node.SetToolTexture(scene.RendererContext.MaterialLoader.GetTriggerTexture(entity.Classname));
+            }
+        }
+
+        return nodes;
     }
 
     /// <inheritdoc/>

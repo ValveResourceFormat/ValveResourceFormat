@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using VrfMaterial = ValveResourceFormat.ResourceTypes.Material;
 
@@ -655,6 +656,47 @@ namespace ValveResourceFormat.Renderer.Materials
 
         /// <summary>Returns a lazily created 1x1 solid white colour texture, a neutral fallback albedo.</summary>
         public RenderTexture GetDefaultColor() => DefaultColor ??= CreateSolidTexture(255, 255, 255);
+
+        /// <summary>
+        /// Returns the texture the volumes of entities of a class built from <see cref="ToolsMaterials.Trigger"/> are
+        /// shown with, which names the class in its color, see <see cref="ToolsMaterials.GetTriggerColors"/>.
+        /// </summary>
+        /// <param name="entityClassName">The class of the entity.</param>
+        public RenderTexture GetTriggerTexture(string entityClassName)
+        {
+            // The cache key is not a resource path, so it cannot collide with a loaded texture
+            var cacheKey = $"trigger:{entityClassName}";
+
+            if (TexturesSrgb.TryGetValue(cacheKey, out var cached))
+            {
+                return cached;
+            }
+
+            using var bitmap = MapAutoPhysTextureGenerator.GenerateTriggerTexture(entityClassName);
+
+            var texture = CreateTriggerTexture(bitmap, ToolsMaterials.GetTriggerColors(entityClassName).Background);
+            TexturesSrgb[cacheKey] = texture;
+            return texture;
+        }
+
+        // Generated textures are not resources, so they are uploaded here with a full mip chain to tile across shapes.
+        // Edge lines take the class color, which the shader reads from the reflectivity.
+        private static RenderTexture CreateTriggerTexture(SKBitmap bitmap, Color32 lineColor)
+        {
+            var levels = 1 + BitOperations.Log2((uint)Math.Max(bitmap.Width, bitmap.Height));
+            var texture = new RenderTexture(TextureTarget.Texture2D, bitmap.Width, bitmap.Height, 1, levels, "TriggerTexture");
+            texture.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Linear);
+            texture.SetWrapMode(RsTextureAddressMode.Wrap);
+            texture.Reflectivity = lineColor.ToLinearColor();
+
+            var pixelFormat = bitmap.ColorType == SKColorType.Rgba8888 ? PixelFormat.Rgba : PixelFormat.Bgra;
+
+            GL.TextureStorage2D(texture.Handle, levels, SizedInternalFormat.Srgb8Alpha8, bitmap.Width, bitmap.Height);
+            GL.TextureSubImage2D(texture.Handle, 0, 0, 0, bitmap.Width, bitmap.Height, pixelFormat, PixelType.UnsignedByte, bitmap.GetPixels());
+            GL.GenerateTextureMipmap(texture.Handle);
+
+            return texture;
+        }
 
         /// <summary>
         /// Returns a lazily created 1x1 single layer white array texture.

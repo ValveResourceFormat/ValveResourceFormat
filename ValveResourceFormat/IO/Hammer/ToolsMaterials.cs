@@ -1,6 +1,7 @@
 using ValveKeyValue;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.IO;
 
@@ -18,6 +19,9 @@ public static class ToolsMaterials
 
     /// <summary>The material volumes of entities are built from, unless their class applies another.</summary>
     public const string Trigger = "materials/tools/toolstrigger.vmat";
+
+    // The orange of the trigger material's texture
+    private static readonly TriggerColors DefaultTriggerColors = new(new Color32(255, 157, 0), new Color32(90, 50, 0));
 
     private sealed record ToolsMaterial(string Path, string[] Attributes, string? CollisionProperty = null, string? SurfaceProperty = null);
 
@@ -181,5 +185,37 @@ public static class ToolsMaterials
         }
 
         return EntityClassCatalog.GetTable(fileLoader).FindClass(entityClassName)?.AutoApplyMaterial ?? Trigger;
+    }
+
+    /// <summary>
+    /// The colors the volumes of entities of a class built from <see cref="Trigger"/> are shown in.
+    /// </summary>
+    /// <param name="Background">The color of the volume.</param>
+    /// <param name="Text">The color of the class name written on it.</param>
+    public readonly record struct TriggerColors(Color32 Background, Color32 Text);
+
+    /// <summary>
+    /// Gets the colors the volumes of entities of a class built from <see cref="Trigger"/> are shown in, so that
+    /// volumes of different classes can be told apart.
+    /// </summary>
+    /// <param name="entityClassName">The class of the entity.</param>
+    /// <returns>The colors, the same for a class wherever it is shown.</returns>
+    public static TriggerColors GetTriggerColors(string entityClassName)
+    {
+        ArgumentNullException.ThrowIfNull(entityClassName);
+
+        // Most classes keep the orange of the material, and only a few that matter when looking around a map stand out.
+        // The text is a dark shade of the volume, as translucent black text would only show what is behind it.
+        return entityClassName switch
+        {
+            "trigger_hurt" or "trigger_hurt_citadel" => new(new Color32(255, 80, 70), new Color32(100, 15, 10)),
+            "trigger_teleport" or "citadel_trigger_teleport" or "citadel_trigger_hideout_teleport" => new(new Color32(190, 120, 255), new Color32(55, 20, 100)),
+            "trigger_push" or "trigger_catapult" => new(new Color32(70, 200, 255), new Color32(0, 60, 95)),
+            "trigger_changelevel" or "trigger_transition" => new(new Color32(100, 220, 110), new Color32(15, 75, 20)),
+            "func_buyzone" or "trigger_shop" or "trigger_item_shop" => new(new Color32(150, 230, 70), new Color32(45, 80, 0)),
+            "func_bomb_target" or "trigger_boss_attackable" => new(new Color32(255, 90, 130), new Color32(100, 15, 40)),
+            "func_hostage_rescue" => new(new Color32(90, 230, 220), new Color32(0, 75, 70)),
+            _ => DefaultTriggerColors,
+        };
     }
 }

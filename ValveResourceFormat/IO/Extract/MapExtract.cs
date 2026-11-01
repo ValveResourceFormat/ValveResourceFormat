@@ -61,7 +61,7 @@ public sealed partial class MapExtract
     private readonly HashSet<string> InstancedAggregateModels = [];
 
     // units the generated physics surface materials span, declared in their vmat so Hammer projects them the same:
-    // their 128 texel texture at the density of the tool textures (64 texels over 8 units)
+    // their 64 texel texture at the density of the tool textures (64 texels over 16 units)
     private const int AutoPhysicsMaterialWorldMapping = 16;
 
     /// <summary>

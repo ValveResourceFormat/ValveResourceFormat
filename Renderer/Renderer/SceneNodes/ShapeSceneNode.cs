@@ -154,6 +154,15 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             return true;
         }
 
+        /// <summary>
+        /// Shows another texture than that of <see cref="ToolsMaterial"/>, which still decides whether the shape is drawn.
+        /// </summary>
+        /// <param name="texture">The texture projected onto the faces.</param>
+        internal void SetToolTexture(RenderTexture texture)
+        {
+            toolTexture = texture;
+        }
+
         private void Init(List<SimpleVertexNormal> verts, List<int> inds)
         {
             indexCount = inds.Count;
