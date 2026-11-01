@@ -99,7 +99,21 @@ namespace ValveResourceFormat.Renderer
         /// Gets or sets whether the node itself wants to be drawn, independently of its layer.
         /// The node remains in the scene graph and is checked each frame.
         /// </summary>
-        public bool Visible { get; set; } = true;
+        public bool Visible
+        {
+            get;
+            set
+            {
+                var valueChanged = value != field;
+                field = value;
+
+                // Indirect draw commands bake whether a fragment is drawn, and are rebuilt with the octree
+                if (valueChanged && this is SceneAggregate.Fragment)
+                {
+                    Scene.MarkParentOctreeDirty(this);
+                }
+            }
+        } = true;
 
         /// <summary>
         /// Gets the world-space axis-aligned bounding box. Recomputed from <see cref="LocalBoundingBox"/> and

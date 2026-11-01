@@ -1312,7 +1312,7 @@ namespace ValveResourceFormat.Renderer
                                 firstIndex = (uint)(drawMeshletIndex * count);
                             }
 
-                            if (!fragment.LayerEnabled)
+                            if (!fragment.LayerEnabled || !fragment.Visible)
                             {
                                 count = 0;
                             }
