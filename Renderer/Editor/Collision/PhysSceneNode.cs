@@ -164,7 +164,7 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
                 }
 
                 field = value;
-                Scene.MarkParentOctreeDirty(this);
+                Scene.MarkParentSetDirty(this);
             }
         }
 

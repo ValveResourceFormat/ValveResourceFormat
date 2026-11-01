@@ -76,9 +76,7 @@ public sealed class SceneViewState
     private readonly Plane[] lastFrustumPlanes = new Plane[6];
     private bool hasLastFrustum;
     private bool lastIncludedStatic;
-    private int lastOctreeVersion = -1;
-    private readonly List<(VisibilityBox Box, int Placement, bool Inside)> lastBoxSplit = [];
-    private ReadOnlyMemory<byte> lastPvs;
+    private int lastSpatialSetVersion = -1;
 
     private readonly Dictionary<RenderPass, List<MeshBatchRenderer.Request>> renderLists = new()
     {
@@ -225,29 +223,17 @@ public sealed class SceneViewState
     /// </summary>
     /// <param name="frustum">The view frustum to test against.</param>
     /// <param name="includeStatic">Whether to include static nodes.</param>
-    /// <param name="boxes">Visibility boxes that leave out whole cells of static nodes, or <see langword="null"/>. <see cref="Pvs"/> leaves out cells too.</param>
-    /// <returns>A list of visible scene nodes (valid until the next call to this method).</returns>
-    public List<SceneNode> GetFrustumCullResults(Frustum frustum, bool includeStatic = true, VisibilityBoxCuller? boxes = null)
+    /// <returns>A list of scene nodes in the frustum, before the PVS and visibility box tests (valid until the next call to this method).</returns>
+    public List<SceneNode> GetFrustumCullResults(Frustum frustum, bool includeStatic = true)
     {
         // Optimization: Do not clear static culled results from last frame if the frustum did not change
         if (!hasLastFrustum || lastIncludedStatic != includeStatic || !frustum.Planes.AsSpan().SequenceEqual(lastFrustumPlanes)
-            || lastOctreeVersion != Scene.OctreeVersion || !(boxes?.MatchesSplit(lastBoxSplit) ?? lastBoxSplit.Count == 0)
-            || !lastPvs.Equals(Pvs))
+            || lastSpatialSetVersion != Scene.SpatialSetVersion)
         {
             frustum.Planes.CopyTo(lastFrustumPlanes, 0);
             hasLastFrustum = true;
             lastIncludedStatic = includeStatic;
-            lastOctreeVersion = Scene.OctreeVersion;
-            lastPvs = Pvs;
-
-            if (boxes != null)
-            {
-                boxes.CopySplitTo(lastBoxSplit);
-            }
-            else
-            {
-                lastBoxSplit.Clear();
-            }
+            lastSpatialSetVersion = Scene.SpatialSetVersion;
 
             cullResults.Clear();
 
@@ -259,7 +245,7 @@ public sealed class SceneViewState
 
             if (includeStatic)
             {
-                Scene.StaticOctree.Query(frustum, boxes, Pvs.Span, cullResults);
+                Scene.StaticSet.Query(frustum, cullResults);
             }
 
             staticCullCount = cullResults.Count;
@@ -269,7 +255,7 @@ public sealed class SceneViewState
             cullResults.RemoveRange(staticCullCount, cullResults.Count - staticCullCount);
         }
 
-        Scene.DynamicOctree.Query(frustum, cullResults);
+        Scene.DynamicSet.Query(frustum, cullResults);
         return cullResults;
     }
 
@@ -302,8 +288,8 @@ public sealed class SceneViewState
         return NodeCull.None;
     }
 
-    // While active, the GPU only draws the fragments marked here. The query leaves out whole cells that PVS
-    // or visibility boxes hide, so a fragment it never reaches has to stay hidden rather than be drawn.
+    // While active, the GPU only draws the fragments marked here, so a fragment that fails the PVS or
+    // visibility box test stays hidden rather than being drawn.
     private void ResetCpuVisibleBits(bool active)
     {
         var objectEntryCount = Scene.ObjectEntryCount;
@@ -505,7 +491,7 @@ public sealed class SceneViewState
         ResetCpuVisibleBits((!Pvs.IsEmpty && Scene.VoxelVisibility != null) || VisibilityBoxes.IsActive);
 
         var frustum = cullFrustum ?? camera.ViewFrustum;
-        var visibleNodes = GetFrustumCullResults(frustum, boxes: VisibilityBoxes);
+        var visibleNodes = GetFrustumCullResults(frustum);
         var pvs = Pvs.Span;
 
         PerfStats.Active.Count(Counter.SceneObjectInView, visibleNodes.Count);
@@ -784,7 +770,7 @@ public sealed class SceneViewState
 
         var pvs = Pvs.Span;
 
-        foreach (var node in GetFrustumCullResults(frustum, includeStatic, boxes))
+        foreach (var node in GetFrustumCullResults(frustum, includeStatic))
         {
             switch (TestNodeCull(node, pvs, boxes))
             {

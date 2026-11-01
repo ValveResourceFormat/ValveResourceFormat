@@ -296,7 +296,7 @@ internal class RenderTestWindow : GameWindow
         var mapPath = vmaps[0].GetFullPath();
         WorldLoader.LoadMap(mapPath, scene, SceneRenderer.EntitySystem);
 
-        // Initialize scene (creates lighting buffers, octrees, etc.)
+        // Initialize scene (creates lighting buffers, spatial sets, etc.)
         foreach (var initializing in SceneRenderer.Scenes)
         {
             initializing.Initialize();

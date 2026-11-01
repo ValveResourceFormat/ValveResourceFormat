@@ -872,7 +872,7 @@ namespace GUI.Types.GLViewers
 
             foreach (var scene in Renderer.Scenes)
             {
-                scene.UpdateOctrees();
+                scene.UpdateSpatialSets();
             }
         }
 
@@ -966,7 +966,7 @@ namespace GUI.Types.GLViewers
         }
 
         /// <summary>
-        /// Places the animated nodes at <paramref name="transform"/>, keeping the dynamic octree in step.
+        /// Places the animated nodes at <paramref name="transform"/>, keeping the dynamic set in step.
         /// </summary>
         private void SetRootMotionTransform(Matrix4x4 transform)
         {
@@ -978,7 +978,7 @@ namespace GUI.Types.GLViewers
                 }
 
                 node.Transform = transform;
-                node.Scene.DynamicOctree.Update(node);
+                node.Scene.DynamicSet.Update(node);
             }
 
             Move(modelSceneNode, transform);

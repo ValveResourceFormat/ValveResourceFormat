@@ -90,7 +90,7 @@ namespace ValveResourceFormat.Renderer
                 field = value;
                 if (valueChanged)
                 {
-                    Scene.MarkParentOctreeDirty(this);
+                    Scene.MarkParentSetDirty(this);
                 }
             }
         } = true;
@@ -107,10 +107,10 @@ namespace ValveResourceFormat.Renderer
                 var valueChanged = value != field;
                 field = value;
 
-                // Indirect draw commands bake whether a fragment is drawn, and are rebuilt with the octree
+                // Indirect draw commands bake whether a fragment is drawn, and are rebuilt with the spatial sets
                 if (valueChanged && this is SceneAggregate.Fragment)
                 {
-                    Scene.MarkParentOctreeDirty(this);
+                    Scene.MarkParentSetDirty(this);
                 }
             }
         } = true;
@@ -346,9 +346,9 @@ namespace ValveResourceFormat.Renderer
         private AABB visClusterBounds;
 
         /// <summary>
-        /// This node's slot in the scene's <see cref="Scene.DynamicOctree"/>, or -1 when it is not in one.
+        /// This node's slot in the scene's <see cref="Scene.StaticSet"/> or <see cref="Scene.DynamicSet"/>, or -1 when it is not in one.
         /// </summary>
-        internal int DynamicSetIndex { get; set; } = -1;
+        internal int SpatialSetIndex { get; set; } = -1;
 
         /// <summary>
         /// Gets or sets the visibility clusters the map compiler assigned to this node, which replace the

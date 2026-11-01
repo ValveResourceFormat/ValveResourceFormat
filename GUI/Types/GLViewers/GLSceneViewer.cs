@@ -67,8 +67,6 @@ namespace GUI.Types.GLViewers
         private bool ShowLightBackground;
         private bool ShowSolidBackground;
 
-        private bool showStaticOctree;
-        private bool showDynamicOctree;
         private bool showVisDebug;
         protected bool ShowSpeed { get; set; }
         private bool showPhysicsTraces;
@@ -196,8 +194,6 @@ namespace GUI.Types.GLViewers
                     Renderer.LockedCullPosition = v ? Renderer.Camera.Location : null;
                 });
 
-                UiControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) => showStaticOctree = v);
-                UiControl.AddCheckBox("Show Dynamic Octree", showDynamicOctree, (v) => showDynamicOctree = v);
                 if (!HasToolsVisibilityControls)
                 {
                     UiControl.AddCheckBox("Show Tools", Tools.ShowTools, (v) => Tools.ShowTools = v);
@@ -350,9 +346,6 @@ namespace GUI.Types.GLViewers
                 Input.Camera.SetLocation(location);
                 Input.Camera.LookAt(bbox.Center);
             }
-
-            Scene.StaticOctree.DebugRenderer = new(Scene.StaticOctree, Scene.RendererContext, false);
-            Scene.DynamicOctree.DebugRenderer = new(Scene.DynamicOctree, Scene.RendererContext);
         }
 
         protected abstract void LoadScene();
@@ -905,16 +898,6 @@ namespace GUI.Types.GLViewers
             using (new GLDebugGroup("Lines Render"))
             {
                 RenderOverlayLines(renderContext);
-
-                if (showStaticOctree && Scene.StaticOctree.DebugRenderer != null)
-                {
-                    Scene.StaticOctree.DebugRenderer.Render();
-                }
-
-                if (showDynamicOctree && Scene.DynamicOctree.DebugRenderer != null)
-                {
-                    Scene.DynamicOctree.DebugRenderer.Render();
-                }
 
                 if (Renderer.Settings.OcclusionDebugEnabled && Scene.OcclusionDebug != null)
                 {

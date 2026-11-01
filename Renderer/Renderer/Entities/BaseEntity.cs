@@ -1352,7 +1352,7 @@ public abstract class BaseEntity
     /// Interpolates between the last two ticks and places the entity's nodes where that lands.
     /// </summary>
     /// <remarks>
-    /// The octree entry is moved here rather than in <see cref="Scene.Update"/>, which measures a node's
+    /// The spatial set entry is moved here rather than in <see cref="Scene.Update"/>, which measures a node's
     /// bounds around the node's own update. This write happens before that loop runs, so it would measure
     /// no change and leave the entry stale.
     /// </remarks>
@@ -1380,7 +1380,7 @@ public abstract class BaseEntity
         foreach (var node in placedNodes)
         {
             node.Transform = node.ApplyPlacementScale(Transform);
-            Scene.DynamicOctree.Update(node);
+            Scene.DynamicSet.Update(node);
         }
     }
 

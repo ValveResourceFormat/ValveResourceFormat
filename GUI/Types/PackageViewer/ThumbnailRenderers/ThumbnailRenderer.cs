@@ -180,7 +180,7 @@ internal abstract class ThumbnailRenderer : IDisposable
 
         SetResource(resource);
 
-        // Initialize scene (creates lighting buffers, octrees, etc.)
+        // Initialize scene (creates lighting buffers, spatial sets, etc.)
         SceneRenderer.Scene.Initialize();
 
         RendererContext.MaxTextureSize = size;

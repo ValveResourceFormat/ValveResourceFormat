@@ -1,10 +1,10 @@
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
-    /// Spatial set for the scene nodes that move. Flat rather than hierarchical: relocating a node is
-    /// six float stores and culling is a linear pass over bounds laid out for SIMD.
+    /// Spatial set for scene nodes. Flat rather than hierarchical: relocating a node is six float
+    /// stores and culling is a linear pass over bounds laid out for SIMD.
     /// </summary>
-    public class SpatialNodeSet : ISpatialSet
+    public class SpatialNodeSet
     {
         private SceneNode[] nodes = [];
         private float[] centerX = [];
@@ -20,15 +20,12 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets whether the set needs rebuilding from the scene's node list.</summary>
         public bool Dirty { get; set; } = true;
 
-        /// <summary>Gets or sets the debug visualization renderer for this set.</summary>
-        public SpatialNodeSetDebugRenderer? DebugRenderer { get; set; }
-
         /// <summary>Removes every node from the set.</summary>
         public void Clear()
         {
             for (var i = 0; i < Count; i++)
             {
-                nodes[i].DynamicSetIndex = -1;
+                nodes[i].SpatialSetIndex = -1;
                 nodes[i] = null!;
             }
 
@@ -43,7 +40,7 @@ namespace ValveResourceFormat.Renderer
             EnsureCapacity(Count + 1);
 
             nodes[Count] = node;
-            node.DynamicSetIndex = Count;
+            node.SpatialSetIndex = Count;
             WriteBounds(Count, node.BoundingBox);
 
             Count++;
@@ -57,7 +54,7 @@ namespace ValveResourceFormat.Renderer
         {
             ArgumentNullException.ThrowIfNull(node);
 
-            var index = node.DynamicSetIndex;
+            var index = node.SpatialSetIndex;
 
             if ((uint)index >= (uint)Count || !ReferenceEquals(nodes[index], node))
             {
@@ -254,8 +251,5 @@ namespace ValveResourceFormat.Renderer
 
             return new AABB(center - extent, center + extent);
         }
-
-        /// <summary>Returns the nodes currently in the set, for debug visualization.</summary>
-        public ReadOnlySpan<SceneNode> GetNodes() => nodes.AsSpan(0, Count);
     }
 }

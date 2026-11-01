@@ -110,8 +110,8 @@ public sealed class SunCascades
 
         if (sun.UseSceneBoundsForSunLightFrustum)
         {
-            var staticBounds = scene.StaticOctree.GetBounds();
-            var dynamicBounds = scene.DynamicOctree.GetBounds();
+            var staticBounds = scene.StaticSet.GetBounds();
+            var dynamicBounds = scene.DynamicSet.GetBounds();
             var sceneBounds = staticBounds.Union(dynamicBounds);
             var max = sceneBounds.Size.MaxComponent();
 

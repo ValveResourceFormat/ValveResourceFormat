@@ -133,26 +133,10 @@ namespace ValveResourceFormat.Renderer
         public Matrix4x4 ToViewerWorld { get; internal set; } = Matrix4x4.Identity;
 
         /// <summary>Gets or sets the voxel visibility data.</summary>
-        public IWorldVisibility? VoxelVisibility
-        {
-            get;
-            set
-            {
-                field = value;
-                StaticOctree.Dirty = true;
-            }
-        }
+        public IWorldVisibility? VoxelVisibility { get; set; }
 
         /// <summary>Gets or sets the transform from scene space into the space <see cref="VoxelVisibility"/> was compiled in.</summary>
-        public Matrix4x4 WorldToVisibility
-        {
-            get;
-            set
-            {
-                field = value;
-                StaticOctree.Dirty = true;
-            }
-        } = Matrix4x4.Identity;
+        public Matrix4x4 WorldToVisibility { get; set; } = Matrix4x4.Identity;
 
         /// <summary>Gets the <c>info_visibility_box</c> volumes spawned in this scene.</summary>
         public VisibilityBoxSet VisibilityBoxes { get; } = new();
@@ -199,7 +183,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the debug views of this scene's baked lighting.</summary>
         public SceneLightingDebug LightingDebug { get; }
 
-        internal int OctreeVersion { get; private set; }
+        internal int SpatialSetVersion { get; private set; }
 
         internal Shader? FrustumCullShader { get; private set; }
         internal Shader? CompactionShader { get; private set; }
@@ -212,11 +196,11 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the renderer context providing shared GPU resources and shader loading.</summary>
         public RendererContext RendererContext { get; }
 
-        /// <summary>Gets the octree used to spatially partition static scene nodes.</summary>
-        public Octree StaticOctree { get; }
+        /// <summary>Gets the flat spatial set holding static scene nodes.</summary>
+        public SpatialNodeSet StaticSet { get; } = new();
 
         /// <summary>Gets the flat spatial set holding dynamic scene nodes.</summary>
-        public SpatialNodeSet DynamicOctree { get; } = new();
+        public SpatialNodeSet DynamicSet { get; } = new();
 
         /// <summary>Gets the rendering toggles.</summary>
         public RenderSettings Settings { get; internal set; } = new();
@@ -269,7 +253,7 @@ namespace ValveResourceFormat.Renderer
         private List<SceneLightProbe>? boundLightProbes;
 
         /// <summary>
-        /// Initializes a new scene with the given renderer context, its static octree sized to the game's whole map extent.
+        /// Initializes a new scene with the given renderer context, with empty spatial sets.
         /// </summary>
         /// <param name="context">The renderer context providing shared GPU resources.</param>
         public Scene(RendererContext context)
@@ -277,7 +261,6 @@ namespace ValveResourceFormat.Renderer
             RendererContext = context;
 
             var gameInfo = context.FileLoader.GameInfo;
-            StaticOctree = new(gameInfo.MapMaxCoord * 2f);
 
             var defaultExposure = new ExposureSettings();
             PostProcessInfo.DefaultExposureSettings = defaultExposure with
@@ -309,7 +292,7 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public void Initialize()
         {
-            UpdateOctrees();
+            UpdateSpatialSets();
             UpdateNodeIndices();
             CreateBuffers();
             CalculateLightProbeBindings();
@@ -331,7 +314,7 @@ namespace ValveResourceFormat.Renderer
         /// update keeps it in the scene instead.
         /// </remarks>
         /// <param name="node">The node to add.</param>
-        /// <param name="dynamic">When <see langword="true"/>, the node is placed in <see cref="DynamicOctree"/>; otherwise in <see cref="StaticOctree"/>.</param>
+        /// <param name="dynamic">When <see langword="true"/>, the node is placed in <see cref="DynamicSet"/>; otherwise in <see cref="StaticSet"/>.</param>
         public void Add(SceneNode node, bool dynamic)
         {
             if (updating)
@@ -353,12 +336,12 @@ namespace ValveResourceFormat.Renderer
             if (dynamic)
             {
                 dynamicNodes.Add(node);
-                DynamicOctree.Dirty = true;
+                DynamicSet.Dirty = true;
             }
             else
             {
                 staticNodes.Add(node);
-                StaticOctree.Dirty = true;
+                StaticSet.Dirty = true;
             }
         }
 
@@ -394,11 +377,11 @@ namespace ValveResourceFormat.Renderer
 
             if (dynamic)
             {
-                DynamicOctree.Dirty = true;
+                DynamicSet.Dirty = true;
                 return dynamicNodes.Remove(node);
             }
 
-            StaticOctree.Dirty = true;
+            StaticSet.Dirty = true;
             return staticNodes.Remove(node);
         }
 
@@ -480,8 +463,8 @@ namespace ValveResourceFormat.Renderer
                 node.Delete();
             }
 
-            StaticOctree.Clear();
-            DynamicOctree.Clear();
+            StaticSet.Clear();
+            DynamicSet.Clear();
 
             Skybox2D?.Delete();
             Skybox2D = null;
@@ -515,13 +498,13 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
-            UpdateOctrees();
+            UpdateSpatialSets();
             CalculateLightProbeBindings();
             CalculateEnvironmentMaps();
             UpdateBuffers();
 
             // The bindings reach the shaders through each node's entry, written when the nodes are laid out
-            DynamicOctree.Dirty = true;
+            DynamicSet.Dirty = true;
         }
 
         /// <summary>
@@ -693,15 +676,15 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var node in dynamicNodes)
             {
-                DynamicOctree.Update(node);
+                DynamicSet.Update(node);
             }
 
-            if (StaticOctree.Dirty || DynamicOctree.Dirty)
+            if (StaticSet.Dirty || DynamicSet.Dirty)
             {
                 // Indirect draw commands bake node ids, so recreate them only after reindexing
-                var staticDirty = StaticOctree.Dirty;
+                var staticDirty = StaticSet.Dirty;
 
-                UpdateOctrees();
+                UpdateSpatialSets();
                 UpdateNodeIndices();
                 CreateInstanceTransformBuffers();
 
@@ -1541,8 +1524,8 @@ namespace ValveResourceFormat.Renderer
         /// Marks the spatial set that owns the given node as dirty so it will be rebuilt on the next update.
         /// </summary>
         /// <param name="node">The node whose owning set should be dirtied.</param>
-        /// <returns><see langword="true"/> if the node was found and its octree was dirtied; <see langword="false"/> if the node is not part of this scene.</returns>
-        public bool MarkParentOctreeDirty(SceneNode node)
+        /// <returns><see langword="true"/> if the node was found and its set was dirtied; <see langword="false"/> if the node is not part of this scene.</returns>
+        public bool MarkParentSetDirty(SceneNode node)
         {
             var nodeType = GetNodeTypeById(node.Id).Type;
             if (nodeType == NodeType.Unknown)
@@ -1552,64 +1535,49 @@ namespace ValveResourceFormat.Renderer
 
             if (nodeType == NodeType.Static)
             {
-                StaticOctree.Dirty = true;
+                StaticSet.Dirty = true;
             }
             else
             {
-                DynamicOctree.Dirty = true;
+                DynamicSet.Dirty = true;
             }
 
             return true;
         }
 
-        /// <summary>Rebuilds the static octree and the dynamic node set from their current node lists, if dirty.</summary>
-        public void UpdateOctrees()
+        /// <summary>Rebuilds the static and dynamic node sets from their current node lists, if dirty.</summary>
+        public void UpdateSpatialSets()
         {
-            OctreeVersion++;
+            SpatialSetVersion++;
 
-            if (StaticOctree.Dirty)
+            if (StaticSet.Dirty)
             {
-                // static octree is tightly wrapped around the scene
-                var maxBounds = new AABB();
-                var hasBounds = false;
+                StaticSet.Clear();
 
                 foreach (var node in staticNodes)
                 {
                     if (node.LayerEnabled)
                     {
-                        maxBounds = hasBounds ? maxBounds.Union(node.BoundingBox) : node.BoundingBox;
-                        hasBounds = true;
+                        StaticSet.Insert(node);
                     }
                 }
 
-                StaticOctree.Clear(maxBounds, RendererContext.FileLoader.GameInfo.MapMaxCoord);
-
-                foreach (var node in staticNodes)
-                {
-                    if (node.LayerEnabled)
-                    {
-                        StaticOctree.Insert(node);
-                    }
-                }
-
-                StaticOctree.BuildVisClusters(VoxelVisibility, WorldToVisibility);
-                StaticOctree.DebugRenderer?.StaticBuild();
-                StaticOctree.Dirty = false;
+                StaticSet.Dirty = false;
             }
 
-            if (DynamicOctree.Dirty)
+            if (DynamicSet.Dirty)
             {
-                DynamicOctree.Clear();
+                DynamicSet.Clear();
 
                 foreach (var node in dynamicNodes)
                 {
                     if (node.LayerEnabled)
                     {
-                        DynamicOctree.Insert(node);
+                        DynamicSet.Insert(node);
                     }
                 }
 
-                DynamicOctree.Dirty = false;
+                DynamicSet.Dirty = false;
             }
         }
 
@@ -1994,7 +1962,8 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                StaticOctree.Query(envMap.BoundingBox, nodes);
+                StaticSet.Query(envMap.BoundingBox, nodes);
+                DynamicSet.Query(envMap.BoundingBox, nodes);
 
                 foreach (var node in nodes)
                 {
