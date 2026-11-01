@@ -935,6 +935,7 @@ public class Renderer : ISceneHost
     /// <summary>Slots out of <see cref="MaterialLoader.ShaderTextures"/> that have been resolved.</summary>
     private readonly HashSet<ReservedTextureSlots> loadedShaderTextures = [];
     private RenderTexture? morphAtlasTexture;
+    private RenderTexture? fogVolumeTexture;
 
     /// <summary>
     /// Loads any used texture from the <see cref="MaterialLoader.ShaderTextures"/> list.
@@ -1029,6 +1030,7 @@ public class Renderer : ISceneHost
     private void DrawThrough(in SceneView view, SceneViewState state, ref Scene.RenderContext renderContext)
     {
         BindView(view, state);
+        SetFogVolumeTexture(view.Fog.Volumetric?.Volume);
         view.Fog.BindVolumetricFog();
         view.Fog.BindGradientFogTexture();
         state.Scene.SetSceneBuffers();
@@ -1037,6 +1039,20 @@ public class Renderer : ISceneHost
         renderContext.Camera = view.Camera;
         renderContext.Scene = state.Scene;
         renderContext.View = state;
+    }
+
+    private void SetFogVolumeTexture(RenderTexture? volume)
+    {
+        var texture = volume ?? RendererContext.MaterialLoader.GetDefaultBlackVolume();
+
+        if (texture == fogVolumeTexture)
+        {
+            return;
+        }
+
+        fogVolumeTexture = texture;
+        Textures.RemoveAll(static t => t.Slot == ReservedTextureSlots.FogVolume);
+        Textures.Add(new(ReservedTextureSlots.FogVolume, "g_tFogVolume", texture));
     }
 
     private void BindView(in SceneView view, SceneViewState state)
