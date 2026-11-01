@@ -1782,21 +1782,32 @@ public sealed partial class VMixGraphExtract
                 : curveIndex >= 0 && curveIndex < graph.Curves.Count ? graph.Curves[curveIndex] : (0, 0);
             var points = graph.Format == MixGraphFormat.Heap ? graph.Values : graph.ControlPoints;
 
-            for (var k = start; k + 3 < points.Length && k < start + 4 * count; k += 4)
+            var pointCount = Math.Max(0, Math.Min(count, (points.Length - start) / 4));
+            var sign = inverted ? -1f : 1f;
+
+            float X(int point) => points[start + 4 * point];
+            float Y(int point) => inverted ? 1f - points[start + 4 * point + 1] : points[start + 4 * point + 1];
+            float Secant(int from, int to) => (Y(to) - Y(from)) / (X(to) - X(from));
+
+            // A spline tangent is the slope between the neighbours of a point, or to the one neighbour at the ends
+            float SplineSlope(int point) => pointCount < 2 ? 0f : Secant(Math.Max(point - 1, 0), Math.Min(point + 1, pointCount - 1));
+
+            for (var i = 0; i < pointCount; i++)
             {
+                var k = start + 4 * i;
+                var incoming = sign * points[k + 2];
+                var outgoing = sign * points[k + 3];
+
                 var point = KVObject.Collection();
-                var sign = inverted ? -1f : 1f;
-                point.Add("x", points[k]);
-                point.Add("y", inverted ? 1f - points[k + 1] : points[k + 1]);
-                point.Add("m_flSlopeIncoming", sign * points[k + 2]);
-                point.Add("m_flSlopeOutgoing", sign * points[k + 3]);
+                point.Add("x", X(i));
+                point.Add("y", Y(i));
+                point.Add("m_flSlopeIncoming", incoming);
+                point.Add("m_flSlopeOutgoing", outgoing);
                 spline.Add(point);
 
                 var tangent = KVObject.Collection();
-                // A point whose slopes differ was edited by hand, which only free tangents keep
-                var tangentType = points[k + 2] == points[k + 3] ? "CURVE_TANGENT_SPLINE" : "CURVE_TANGENT_FREE";
-                tangent.Add("m_nIncomingTangent", tangentType);
-                tangent.Add("m_nOutgoingTangent", tangentType);
+                tangent.Add("m_nIncomingTangent", TangentType(incoming, i == 0 ? 0f : Secant(i - 1, i), SplineSlope(i)));
+                tangent.Add("m_nOutgoingTangent", TangentType(outgoing, i == pointCount - 1 ? 0f : Secant(i, i + 1), SplineSlope(i)));
                 tangents.Add(tangent);
             }
 
@@ -1813,6 +1824,19 @@ public sealed partial class VMixGraphExtract
             properties.Add("m_flOutputMax", 1.0f);
             properties.Add("m_curve", curve);
             return properties;
+        }
+
+        // Only free tangents compile from the written slope, the others are computed again from the points
+        private static string TangentType(float slope, float linearSlope, float splineSlope)
+        {
+            const float Tolerance = 1e-5f;
+
+            if (MathF.Abs(slope - linearSlope) <= Tolerance)
+            {
+                return "CURVE_TANGENT_LINEAR";
+            }
+
+            return MathF.Abs(slope - splineSlope) <= Tolerance ? "CURVE_TANGENT_SPLINE" : "CURVE_TANGENT_FREE";
         }
 
         private int ControlMax(int i, MixCommand command)

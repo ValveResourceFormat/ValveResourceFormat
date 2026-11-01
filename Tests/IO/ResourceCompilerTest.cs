@@ -13,8 +13,8 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace Tests.IO;
 
 /// <summary>
-/// Decompiles models from Source 2 games and validates that the decompiled source recompiles
-/// successfully with the game's own resourcecompiler.
+/// Decompiles models and mix graphs from Source 2 games and validates that the decompiled source
+/// recompiles successfully with the game's own resourcecompiler.
 ///
 /// Each game is found through its Steam installation, and its tests are skipped when it is not
 /// installed or has no Workshop Tools. The tests stage and compile a temporary addon
@@ -185,6 +185,110 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
         }
     }
 
+    // Every graph is compiled in one run, since graphs inline the other graphs of their folder as subgraphs.
+    [Test]
+    public async Task RecompileDecompiledGraphs()
+    {
+        const string GraphsFolder = "sounds/graphs";
+
+        var installation = installations.Get(CounterStrike2);
+
+        // The compiler writes every graph as a sound, vmix_c files next to them come from older compiles
+        var entries = installation.Package.Entries!["vsnd_c"]
+            .Where(static entry => string.Equals(entry.DirectoryName, GraphsFolder, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        await Assert.That(entries).IsNotEmpty();
+
+        Resource ReadEntry(PackageEntry entry)
+        {
+            installation.Package.ReadEntry(entry, out var rawFileData);
+
+            var resource = new Resource { FileName = entry.GetFullPath() };
+            resource.Read(new MemoryStream(rawFileData));
+            return resource;
+        }
+
+        try
+        {
+            var contentFolder = Path.Combine(installation.ContentAddonPath, GraphsFolder);
+
+            foreach (var entry in entries)
+            {
+                using var resource = ReadEntry(entry);
+                using var contentFile = FileExtract.Extract(resource, installation.FileLoader);
+
+                WriteContentFile(contentFile, Path.Combine(contentFolder, $"{entry.FileName}.vmix"));
+            }
+
+            var (_, compilerOutput) = RunResourceCompiler(installation.ResourceCompilerPath, Path.Combine(contentFolder, "*.vmix"));
+            var differences = new List<string>();
+
+            foreach (var entry in entries)
+            {
+                using var resource = ReadEntry(entry);
+                var compiledPath = Path.Combine(installation.GameAddonPath, resource.FileName!);
+
+                if (!File.Exists(compiledPath))
+                {
+                    differences.Add($"{resource.FileName}: did not compile");
+                    continue;
+                }
+
+                using var recompiled = new Resource { FileName = compiledPath };
+                recompiled.Read(compiledPath);
+
+                if (FindBlockDifference(resource, recompiled) is { } difference)
+                {
+                    differences.Add($"{resource.FileName}: {difference}");
+                }
+            }
+
+            await Assert.That(differences).IsEmpty().Because($"{string.Join('\n', differences)}\n{Tail(compilerOutput)}");
+        }
+        finally
+        {
+            installation.DeleteTestAddon();
+        }
+    }
+
+    /// <summary>
+    /// Finds the first difference between the compiled blocks of two resources, leaving out the blocks
+    /// that record how the file was compiled and what it depends on.
+    /// </summary>
+    private static string? FindBlockDifference(Resource original, Resource recompiled)
+    {
+        static List<Block> ContentBlocks(Resource resource)
+            => [.. resource.Blocks.Where(static block => block.Type is not (BlockType.RED2 or BlockType.REDI or BlockType.RERL or BlockType.NTRO))];
+
+        var originalBlocks = ContentBlocks(original);
+        var recompiledBlocks = ContentBlocks(recompiled);
+
+        if (!originalBlocks.Select(static block => block.Type).SequenceEqual(recompiledBlocks.Select(static block => block.Type)))
+        {
+            return $"blocks {string.Join(' ', originalBlocks.Select(static block => block.Type))} became {string.Join(' ', recompiledBlocks.Select(static block => block.Type))}";
+        }
+
+        foreach (var (originalBlock, recompiledBlock) in originalBlocks.Zip(recompiledBlocks))
+        {
+            var originalLines = originalBlock.ToString().Split('\n');
+            var recompiledLines = recompiledBlock.ToString().Split('\n');
+
+            for (var i = 0; i < Math.Max(originalLines.Length, recompiledLines.Length); i++)
+            {
+                var originalLine = i < originalLines.Length ? originalLines[i].Trim() : "<end>";
+                var recompiledLine = i < recompiledLines.Length ? recompiledLines[i].Trim() : "<end>";
+
+                if (originalLine != recompiledLine)
+                {
+                    return $"{originalBlock.Type} line {i + 1}: \"{originalLine}\" became \"{recompiledLine}\"";
+                }
+            }
+        }
+
+        return null;
+    }
+
     private static async Task RecompileAndCompare(GameInstallation installation, Resource resource, string assetPath)
     {
         using var contentFile = FileExtract.Extract(resource, installation.FileLoader);
@@ -305,7 +409,7 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
         }
     }
 
-    private static (int ExitCode, string Output) RunResourceCompiler(string resourceCompilerPath, string vmdlPath)
+    private static (int ExitCode, string Output) RunResourceCompiler(string resourceCompilerPath, string inputPath)
     {
         var startInfo = new ProcessStartInfo(resourceCompilerPath)
         {
@@ -317,7 +421,7 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
         startInfo.ArgumentList.Add("-nop4");
         startInfo.ArgumentList.Add("-f");
         startInfo.ArgumentList.Add("-i");
-        startInfo.ArgumentList.Add(vmdlPath);
+        startInfo.ArgumentList.Add(inputPath);
 
         using var process = new Process { StartInfo = startInfo };
         var output = new StringBuilder();
@@ -345,7 +449,7 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
         {
             process.Kill(entireProcessTree: true);
             process.WaitForExit();
-            Assert.Fail($"resourcecompiler timed out after {CompileTimeoutMs / 1000}s compiling {vmdlPath}.\n{Tail(output.ToString())}");
+            Assert.Fail($"resourcecompiler timed out after {CompileTimeoutMs / 1000}s compiling {inputPath}.\n{Tail(output.ToString())}");
         }
 
         // Flush the remaining async output after the process has exited.

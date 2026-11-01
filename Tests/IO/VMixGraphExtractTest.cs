@@ -65,6 +65,22 @@ namespace Tests.IO
         }
 
         [Test]
+        public async Task DecompilesComputedCurveTangents()
+        {
+            var (document, _) = Decompile("bighead_pitch.vsnd_c");
+            var curve = document.GetArray("Graphs").Single().GetArray("m_EditorNodes")
+                .Single(static node => node.GetStringProperty("type") == "control.Curve")
+                .GetSubCollection("properties").GetSubCollection("m_curve");
+            var tangents = curve.GetArray("m_tangents").SelectMany(static tangent => new[]
+            {
+                tangent.GetStringProperty("m_nIncomingTangent"),
+                tangent.GetStringProperty("m_nOutgoingTangent"),
+            });
+
+            await Assert.That(tangents.Distinct()).IsEquivalentTo(["CURVE_TANGENT_LINEAR"]);
+        }
+
+        [Test]
         public async Task ExtractsGraphSoundAsVMix()
         {
             using var resource = TestFixtures.Load("csgo_dsp_bypass.vsnd_c");
