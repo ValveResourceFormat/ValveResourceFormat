@@ -1522,20 +1522,10 @@ public class Renderer : ISceneHost
 
         UpdatePerViewGpuBuffers(views, DeltaTime);
 
-        using (new GLDebugGroup("Viewmodel Opaque"))
-        {
-            ViewmodelCamera.CopyFrom(mainView.Camera);
-            ViewmodelCamera.FieldOfView = ComputeViewmodelFov();
-            ViewmodelCamera.CreateProjectionMatrix();
-            ViewmodelCamera.RecalculateMatrices();
-
-            GraphicsContext.RenderState.SetDepthRange(DepthRange.Viewmodel);
-
-            DrawThrough(ViewmodelView(mainView), mainState, ref renderContext);
-            mainState.RenderViewmodelOpaqueLayer(renderContext, isMaterialPass ? depthOnlyShader : null);
-
-            GraphicsContext.RenderState.SetDepthRange(DepthRange.Scene);
-        }
+        ViewmodelCamera.CopyFrom(mainView.Camera);
+        ViewmodelCamera.FieldOfView = ComputeViewmodelFov();
+        ViewmodelCamera.CreateProjectionMatrix();
+        ViewmodelCamera.RecalculateMatrices();
 
         using (new GLDebugGroup("Main Scene Opaque Render"))
         {
@@ -1579,6 +1569,27 @@ public class Renderer : ISceneHost
                 using (new GLDebugGroup("2D Sky Render"))
                 {
                     BackgroundFor(views)?.Render(Settings.FogEnabled ? Scene.FogInfo.LinearFog : null, mainView.Camera);
+                }
+            }
+
+            // The 2D sky only fills pixels no depth was written to, so it goes before the translucents that do not write any
+            if (skyView is { } skyTranslucent)
+            {
+                var skyWantsSceneTextures = false;
+
+                foreach (var state in skyTranslucent.States)
+                {
+                    skyWantsSceneTextures |= state.WantsSceneColor || state.WantsSceneDepth;
+                }
+
+                if (isMainFramebuffer && skyWantsSceneTextures)
+                {
+                    GrabFramebufferCopy(renderContext.Framebuffer, copyColor, copyDepth);
+                }
+
+                using (new GLDebugGroup("3D Sky Scene Translucent Render"))
+                {
+                    RenderTranslucentLayer(skyTranslucent, ref renderContext);
                 }
             }
 
@@ -1628,15 +1639,6 @@ public class Renderer : ISceneHost
                 // its own. The particles are scene geometry, not sky.
                 GraphicsContext.RenderState.SetDepthRange(DepthRange.Scene);
                 RenderWaterEffectsMap(mainView, renderContext);
-                GraphicsContext.RenderState.SetDepthRange(DepthRange.Sky);
-            }
-
-            if (skyView is { } skyTranslucent)
-            {
-                using (new GLDebugGroup("3D Sky Scene Translucent Render"))
-                {
-                    RenderTranslucentLayer(skyTranslucent, ref renderContext);
-                }
             }
 
             GraphicsContext.RenderState.SetDepthRange(DepthRange.Scene);
@@ -1663,11 +1665,12 @@ public class Renderer : ISceneHost
             }
         }
 
-        using (new GLDebugGroup("Viewmodel Translucent"))
+        using (new GLDebugGroup("Viewmodel"))
         {
             GraphicsContext.RenderState.SetDepthRange(DepthRange.Viewmodel);
 
             DrawThrough(ViewmodelView(mainView), mainState, ref renderContext);
+            mainState.RenderViewmodelOpaqueLayer(renderContext, isMaterialPass ? depthOnlyShader : null);
             mainState.RenderViewmodelTranslucentLayer(renderContext);
 
             GraphicsContext.RenderState.SetDepthRange(DepthRange.Scene);

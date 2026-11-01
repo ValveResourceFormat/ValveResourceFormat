@@ -180,9 +180,12 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Gets a value indicating whether this material uses alpha-to-coverage alpha testing.</summary>
         public bool IsAlphaTest { get; private set; }
 
-        /// <summary>Gets whether this material can perform early depth priming and then shade with Equal comparison.</summary>
-        public bool CanPrimeDepth => !IsOverlay && !disableDepthTest && IntParams.GetValueOrDefault("F_NO_Z_PREPASS") == 0
-            && IntParams.GetValueOrDefault("F_DISABLE_Z_PREPASS") == 0;
+        /// <summary>
+        /// Gets whether this material can perform early depth priming and then shade with Equal comparison.
+        /// An alpha-tested material is primed even when it opts out of the depth prepass.
+        /// </summary>
+        public bool CanPrimeDepth => !IsOverlay && !disableDepthTest
+            && (IsAlphaTest || (IntParams.GetValueOrDefault("F_NO_Z_PREPASS") == 0 && IntParams.GetValueOrDefault("F_DISABLE_Z_PREPASS") == 0));
 
         private readonly MaterialLoader? Loader;
 

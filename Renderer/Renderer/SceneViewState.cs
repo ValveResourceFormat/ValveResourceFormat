@@ -171,7 +171,7 @@ public sealed class SceneViewState
     /// <inheritdoc cref="alphaTestAggregateDraws"/>
     private readonly List<MeshBatchRenderer.Request> alphaTestOpaqueDraws = [];
 
-    /// <summary>Opaque draws that cannot be primed, drawn after the primed ones while the depth prepass is on.</summary>
+    /// <summary>Opaque draws that cannot be primed, drawn before the primed ones while the depth prepass is on.</summary>
     private readonly List<MeshBatchRenderer.Request> unprimedOpaqueDraws = [];
 
     /// <inheritdoc cref="unprimedOpaqueDraws"/>
@@ -1126,14 +1126,14 @@ public sealed class SceneViewState
 
             renderContext.RenderPass = RenderPass.Opaque;
 
+            MeshBatchRenderer.Render(unprimedOpaqueDraws, renderContext);
+
             using (depthPrepass
                 ? GraphicsContext.RenderState.Scope(depthWrite: false, depthFunc: RsComparison.Equal)
                 : default)
             {
                 MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
             }
-
-            MeshBatchRenderer.Render(unprimedOpaqueDraws, renderContext);
         }
 
         RenderAlphaTestGeometry(renderContext, depthPrepass);
@@ -1325,7 +1325,7 @@ public sealed class SceneViewState
 
     /// <summary>
     /// Renders the opaque first-person viewmodel layer collected during <see cref="CollectSceneDrawCalls"/>.
-    /// Rendered before the main scene so its reserved near depth range can never be overtaken by world geometry.
+    /// Rendered after the main scene and its translucents, and its reserved near depth range keeps it in front of world geometry.
     /// </summary>
     /// <param name="renderContext">The render context for this pass, expected to use the dedicated viewmodel camera and depth range.</param>
     /// <param name="depthOnlyShader">Optional depth-only shader; <see langword="null"/> for a pass that replaces material shaders.</param>
