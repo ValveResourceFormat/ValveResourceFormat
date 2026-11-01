@@ -83,6 +83,14 @@ namespace GUI
             }
         }
 
+        private void CopyTabUrlToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (FetchToolstripTabContext(sender).Tag is ExportData exportData)
+            {
+                AppClipboard.SetText(exportData.VrfGuiContext.DisplayPath);
+            }
+        }
+
         private void SearchInFolderToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (GetSelectedItems(sender).Items is [{ PkgNode: { } folder }]

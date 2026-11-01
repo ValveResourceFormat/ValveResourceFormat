@@ -727,6 +727,7 @@ namespace GUI
 
                 var canExport = thisTab.Tag is ExportData exportData;
                 toolStripSeparator5.Visible = canExport || tabIndex == 0;
+                copyTabUrlToolStripMenuItem.Visible = canExport;
                 exportAsIsToolStripMenuItem.Visible = canExport;
                 decompileExportToolStripMenuItem.Visible = canExport;
 
