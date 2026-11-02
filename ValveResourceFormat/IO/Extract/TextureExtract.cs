@@ -404,10 +404,11 @@ public sealed class TextureExtract
 
             var newPixels = newPixelmap.GetPixelSpan<byte>();
             var pixels = pixelmap.GetPixelSpan<SKColor>();
+            var sourceChannel = channel.Channels[0];
 
             for (var i = 0; i < pixels.Length; i++)
             {
-                newPixels[i] = channel.Channels[0] switch
+                newPixels[i] = sourceChannel switch
                 {
                     ChannelMapping.Channel.R => pixels[i].Red,
                     ChannelMapping.Channel.G => pixels[i].Green,
@@ -484,34 +485,36 @@ public sealed class TextureExtract
 
         var srcPixelSpan = srcPixels.GetPixelSpan<SKColor>();
         var pixelSpan = dstPixels.GetPixelSpan<SKColor>();
+        var source = srcChannel.Channels[0];
+        var destination = dstChannel.Channels[0];
 
 #pragma warning disable CS8509 // non exhaustive switch
         for (var i = 0; i < srcPixelSpan.Length; i++)
         {
-            pixelSpan[i] = dstChannel.Channels[0] switch
+            pixelSpan[i] = destination switch
             {
-                ChannelMapping.Channel.R => srcChannel.Channels[0] switch
+                ChannelMapping.Channel.R => source switch
                 {
                     ChannelMapping.Channel.R => pixelSpan[i].WithRed(srcPixelSpan[i].Red),
                     ChannelMapping.Channel.G => pixelSpan[i].WithRed(srcPixelSpan[i].Green),
                     ChannelMapping.Channel.B => pixelSpan[i].WithRed(srcPixelSpan[i].Blue),
                     ChannelMapping.Channel.A => pixelSpan[i].WithRed(srcPixelSpan[i].Alpha),
                 },
-                ChannelMapping.Channel.G => srcChannel.Channels[0] switch
+                ChannelMapping.Channel.G => source switch
                 {
                     ChannelMapping.Channel.R => pixelSpan[i].WithGreen(srcPixelSpan[i].Red),
                     ChannelMapping.Channel.G => pixelSpan[i].WithGreen(srcPixelSpan[i].Green),
                     ChannelMapping.Channel.B => pixelSpan[i].WithGreen(srcPixelSpan[i].Blue),
                     ChannelMapping.Channel.A => pixelSpan[i].WithGreen(srcPixelSpan[i].Alpha),
                 },
-                ChannelMapping.Channel.B => srcChannel.Channels[0] switch
+                ChannelMapping.Channel.B => source switch
                 {
                     ChannelMapping.Channel.R => pixelSpan[i].WithBlue(srcPixelSpan[i].Red),
                     ChannelMapping.Channel.G => pixelSpan[i].WithBlue(srcPixelSpan[i].Green),
                     ChannelMapping.Channel.B => pixelSpan[i].WithBlue(srcPixelSpan[i].Blue),
                     ChannelMapping.Channel.A => pixelSpan[i].WithBlue(srcPixelSpan[i].Alpha),
                 },
-                ChannelMapping.Channel.A => srcChannel.Channels[0] switch
+                ChannelMapping.Channel.A => source switch
                 {
                     ChannelMapping.Channel.R => pixelSpan[i].WithAlpha(srcPixelSpan[i].Red),
                     ChannelMapping.Channel.G => pixelSpan[i].WithAlpha(srcPixelSpan[i].Green),

@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
@@ -1242,7 +1243,7 @@ public sealed partial class MapExtract
             }
         }
 
-        var faceGrid = new OverlayFaceGrid();
+        var faceGrid = new OverlayFaceGrid(OverlayReceivers.Select(receiver => receiver.Geometry));
         AddMeshFaces(faceGrid, candidates);
         AddPropFaces(faceGrid, props);
 
@@ -1304,6 +1305,45 @@ public sealed partial class MapExtract
         private readonly Dictionary<(int X, int Y, int Z), List<int>> Grid = [];
         private readonly List<int> LargeFaces = [];
 
+        // the cells holding the centre of some overlay triangle, the only cells a match looks up
+        private readonly HashSet<(int X, int Y, int Z)> QueryCells = [];
+
+        public OverlayFaceGrid(IEnumerable<PolygonMesh> overlayGeometries)
+        {
+            foreach (var geometry in overlayGeometries)
+            {
+                foreach (var (centre, _) in EnumerateTriangles(geometry))
+                {
+                    QueryCells.Add(Cell(centre));
+                }
+            }
+        }
+
+        /// <summary>
+        /// The centre and unit normal of every non degenerate triangle of projected overlay geometry.
+        /// </summary>
+        public static IEnumerable<(Vector3 Centre, Vector3 Normal)> EnumerateTriangles(PolygonMesh geometry)
+        {
+            foreach (var hFace in geometry.FaceHandles)
+            {
+                // the projected faces are triangles
+                var hEdge = hFace.Edge;
+                var a = geometry.Positions[hEdge.Vertex];
+                hEdge = hEdge.NextEdge;
+                var b = geometry.Positions[hEdge.Vertex];
+                hEdge = hEdge.NextEdge;
+                var c = geometry.Positions[hEdge.Vertex];
+                var triangleNormal = MathUtils.TriangleCross(a, b, c);
+
+                if (triangleNormal.LengthSquared() < 1e-10f)
+                {
+                    continue;
+                }
+
+                yield return ((a + b + c) / 3f, Vector3.Normalize(triangleNormal));
+            }
+        }
+
         public int AddTargetSet(int nodeId)
         {
             var targetSet = TargetSets.Count;
@@ -1311,7 +1351,7 @@ public sealed partial class MapExtract
             return targetSet;
         }
 
-        public void InsertFace(int targetSet, Vector3[] corners)
+        public void InsertFace(int targetSet, ReadOnlySpan<Vector3> corners)
         {
             // Newell normal and bounds
             var normal = Vector3.Zero;
@@ -1333,8 +1373,7 @@ public sealed partial class MapExtract
             }
 
             normal = Vector3.Normalize(normal);
-            var faceIndex = Faces.Count;
-            Faces.Add((targetSet, corners, normal, Vector3.Dot(normal, corners[0])));
+            var offset = Vector3.Dot(normal, corners[0]);
 
             var (minX, minY, minZ) = Cell(min - new Vector3(PlaneDistance));
             var (maxX, maxY, maxZ) = Cell(max + new Vector3(PlaneDistance));
@@ -1343,9 +1382,12 @@ public sealed partial class MapExtract
 
             if (cellCount > MaxCellsPerFace)
             {
-                LargeFaces.Add(faceIndex);
+                LargeFaces.Add(AddFace(targetSet, corners, normal, offset));
                 return;
             }
+
+            // most faces are nowhere near an overlay, those are never stored
+            var faceIndex = -1;
 
             for (var x = minX; x <= maxX; x++)
             {
@@ -1353,6 +1395,16 @@ public sealed partial class MapExtract
                 {
                     for (var z = minZ; z <= maxZ; z++)
                     {
+                        if (!QueryCells.Contains((x, y, z)))
+                        {
+                            continue;
+                        }
+
+                        if (faceIndex < 0)
+                        {
+                            faceIndex = AddFace(targetSet, corners, normal, offset);
+                        }
+
                         if (!Grid.TryGetValue((x, y, z), out var cellFaces))
                         {
                             cellFaces = [];
@@ -1363,6 +1415,12 @@ public sealed partial class MapExtract
                     }
                 }
             }
+        }
+
+        private int AddFace(int targetSet, ReadOnlySpan<Vector3> corners, Vector3 normal, float offset)
+        {
+            Faces.Add((targetSet, corners.ToArray(), normal, offset));
+            return Faces.Count - 1;
         }
 
         public void MatchTriangle(Vector3 centre, Vector3 triangleNormal, SortedSet<int> targets)
@@ -1474,7 +1532,7 @@ public sealed partial class MapExtract
                     continue;
                 }
 
-                faceGrid.InsertFace(meshTargetSet, [.. corners]);
+                faceGrid.InsertFace(meshTargetSet, CollectionsMarshal.AsSpan(corners));
             }
         }
     }
@@ -1611,24 +1669,8 @@ public sealed partial class MapExtract
     {
         var targets = new SortedSet<int>();
 
-        foreach (var hFace in geometry.FaceHandles)
+        foreach (var (centre, triangleNormal) in OverlayFaceGrid.EnumerateTriangles(geometry))
         {
-            // the projected faces are triangles
-            var hEdge = hFace.Edge;
-            var a = geometry.Positions[hEdge.Vertex];
-            hEdge = hEdge.NextEdge;
-            var b = geometry.Positions[hEdge.Vertex];
-            hEdge = hEdge.NextEdge;
-            var c = geometry.Positions[hEdge.Vertex];
-            var centre = (a + b + c) / 3f;
-            var triangleNormal = MathUtils.TriangleCross(a, b, c);
-
-            if (triangleNormal.LengthSquared() < 1e-10f)
-            {
-                continue;
-            }
-
-            triangleNormal = Vector3.Normalize(triangleNormal);
             faceGrid.MatchTriangle(centre, triangleNormal, targets);
         }
 

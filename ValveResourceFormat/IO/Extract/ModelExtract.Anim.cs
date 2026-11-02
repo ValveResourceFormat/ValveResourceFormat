@@ -333,6 +333,9 @@ partial class ModelExtract
         return new DecodedTracks(positions, orientations, flexValues);
     }
 
+    /// <summary>
+    /// Key times for every frame of an animation.
+    /// </summary>
     private static TimeSpan[] GetFrameTimes(AnimationBase anim)
     {
         var times = new TimeSpan[anim.FrameCount];
@@ -360,29 +363,31 @@ partial class ModelExtract
             return;
         }
 
-        var rootPositionLayer = new DmeVector3LogLayer { LayerValues = new Vector3[anim.FrameCount] };
-        var rootPositionChannel = BuildDmeChannel("_p", skeleton.Transform, "position", new DmeVector3Log(), rootPositionLayer);
-
-        var rootOrientationLayer = new DmeQuaternionLogLayer { LayerValues = new Quaternion[anim.FrameCount] };
-        var rootOrientationChannel = BuildDmeChannel("_o", skeleton.Transform, "orientation", new DmeQuaternionLog(), rootOrientationLayer);
+        var positions = new Vector3[anim.FrameCount];
+        var orientations = new Quaternion[anim.FrameCount];
+        var times = new TimeSpan[anim.FrameCount];
 
         for (var i = 0; i < anim.FrameCount; i++)
         {
             var time = i / EffectiveFps(anim.Fps);
-            var timespan = TimeSpan.FromSeconds(time);
+            times[i] = TimeSpan.FromSeconds(time);
 
             var movement = anim.GetMovementOffsetData(time);
 
             // vertical root motion is not applied to the visible body, so don't bake it.
-            rootPositionLayer.LayerValues[i] = new Vector3(movement.Position.X, movement.Position.Y, 0f);
-            rootPositionLayer.Times.Add(timespan);
+            positions[i] = new Vector3(movement.Position.X, movement.Position.Y, 0f);
 
             var radians = float.DegreesToRadians(movement.Angle);
-            rootOrientationLayer.LayerValues[i] = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, radians);
-            rootOrientationLayer.Times.Add(timespan);
+            orientations[i] = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, radians);
         }
 
-        ApplyModelDocHack(rootPositionLayer);
+        var rootPositionLayer = new DmeVector3LogLayer();
+        FillPositionLayer(rootPositionLayer, positions, times);
+        var rootPositionChannel = BuildDmeChannel("_p", skeleton.Transform, "position", new DmeVector3Log(), rootPositionLayer);
+
+        var rootOrientationLayer = new DmeQuaternionLogLayer { LayerValues = orientations };
+        rootOrientationLayer.Times.AddRange(times);
+        var rootOrientationChannel = BuildDmeChannel("_o", skeleton.Transform, "orientation", new DmeQuaternionLog(), rootOrientationLayer);
 
         clip.Channels.Add(rootPositionChannel);
         clip.Channels.Add(rootOrientationChannel);
@@ -423,15 +428,14 @@ partial class ModelExtract
             var transform = transforms[bone.Index];
             var boneName = GetExportBoneName(bone);
 
-            var positionLogLayer = new DmeVector3LogLayer { LayerValues = positions };
+            var positionLogLayer = new DmeVector3LogLayer();
+            FillPositionLayer(positionLogLayer, positions, times);
+
             var orientationLogLayer = new DmeQuaternionLogLayer { LayerValues = orientations };
-            positionLogLayer.Times.AddRange(times);
             orientationLogLayer.Times.AddRange(times);
 
             var positionChannel = BuildDmeChannel($"{boneName}_p", transform, "position", new DmeVector3Log(), positionLogLayer);
             var orientationChannel = BuildDmeChannel($"{boneName}_o", transform, "orientation", new DmeQuaternionLog(), orientationLogLayer);
-
-            ApplyModelDocHack(positionLogLayer);
 
             clip.Channels.Add(positionChannel);
             clip.Channels.Add(orientationChannel);
@@ -439,52 +443,41 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// Workaround for ModelDoc ignoring animation data on bone when bone doesn't have any motion
+    /// Fills a position layer with one key per frame. ModelDoc ignores the animation of a bone whose
+    /// position does not move, so a still layer gets two keys before the first frame: a nudge up and
+    /// back, which makes it count as moving without changing any frame.
     /// </summary>
-    private static void ApplyModelDocHack(DmeVector3LogLayer logLayer)
+    private static void FillPositionLayer(DmeVector3LogLayer logLayer, Vector3[] values, TimeSpan[] frameTimes)
     {
-        // I guess this means there is actually no animation data?
-        if (logLayer.LayerValues.Length == 0)
+        if (values.Length == 0 || DoesLayerHaveMotion(values))
         {
+            logLayer.LayerValues = values;
+            logLayer.Times.AddRange(frameTimes);
             return;
         }
 
-        if (DoesLayerHaveMotion(logLayer))
-        {
-            return;
-        }
+        var layerValues = new Vector3[2 + values.Length];
+        layerValues[0] = values[0] + new Vector3(0, 0, 0.0001f);
+        layerValues[1] = values[0];
+        values.CopyTo(layerValues, 2);
 
-        var newLayerValues = new Vector3[logLayer.LayerValues.Length + 2];
-        var newTimes = new TimeSpanArray(newLayerValues.Length);
-
-        var baseValue = logLayer.LayerValues[0];
-
-        newLayerValues[0] = baseValue + new Vector3(0, 0, 0.0001f);
-        newLayerValues[1] = baseValue;
-        newTimes.Add(TimeSpan.FromSeconds(-0.1f));
-        newTimes.Add(TimeSpan.FromSeconds(-0.05f));
-        for (var i = 0; i < logLayer.LayerValues.Length; i++)
-        {
-            newLayerValues[i + 2] = logLayer.LayerValues[i];
-            newTimes.Add(logLayer.Times[i]);
-        }
-
-        logLayer.LayerValues = newLayerValues;
-        logLayer.Times.Clear();
-        logLayer.Times.AddRange(newTimes);
+        logLayer.LayerValues = layerValues;
+        logLayer.Times.Add(TimeSpan.FromSeconds(-0.1f));
+        logLayer.Times.Add(TimeSpan.FromSeconds(-0.05f));
+        logLayer.Times.AddRange(frameTimes);
     }
 
-    private static bool DoesLayerHaveMotion(DmeVector3LogLayer logLayer)
+    private static bool DoesLayerHaveMotion(Vector3[] values)
     {
-        if (logLayer.LayerValues.Length == 1)
+        if (values.Length == 1)
         {
             return false;
         }
 
-        var lastVal = logLayer.LayerValues[0];
-        for (var i = 1; i < logLayer.LayerValues.Length; i++)
+        var lastVal = values[0];
+        for (var i = 1; i < values.Length; i++)
         {
-            var currentVal = logLayer.LayerValues[i];
+            var currentVal = values[i];
 
             if (Vector3.Distance(lastVal, currentVal) >= 0.01f)
             {

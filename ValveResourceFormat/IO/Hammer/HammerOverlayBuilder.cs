@@ -603,6 +603,8 @@ namespace ValveResourceFormat.IO
 
             // cluster the triangles into flat sheets, duplicated copies live on parallel sheets a small gap apart
             var sheets = new List<(Vector3 Normal, float Offset, List<int> Triangles, float Area)>();
+            var sheetGrid = new SheetGrid(SheetThickness);
+            var candidates = new List<int>();
 
             for (var t = 0; t < triangleCount; t++)
             {
@@ -620,23 +622,29 @@ namespace ValveResourceFormat.IO
 
                 var normal = cross / doubleArea;
                 var offset = Vector3.Dot(normal, a);
-                var found = false;
 
-                for (var i = 0; i < sheets.Count; i++)
+                // the triangle joins the earliest sheet it fits, which decides between sheets that overlap
+                var match = -1;
+                sheetGrid.Gather(normal, offset, candidates);
+
+                foreach (var i in candidates)
                 {
                     if (Vector3.Dot(sheets[i].Normal, normal) > SameSheetCos && MathF.Abs(sheets[i].Offset - offset) < SheetThickness)
                     {
-                        sheets[i].Triangles.Add(t);
-                        sheets[i] = (sheets[i].Normal, sheets[i].Offset, sheets[i].Triangles, sheets[i].Area + doubleArea / 2);
-                        found = true;
+                        match = i;
                         break;
                     }
                 }
 
-                if (!found)
+                if (match >= 0)
                 {
-                    sheets.Add((normal, offset, [t], doubleArea / 2));
+                    sheets[match].Triangles.Add(t);
+                    sheets[match] = (sheets[match].Normal, sheets[match].Offset, sheets[match].Triangles, sheets[match].Area + doubleArea / 2);
+                    continue;
                 }
+
+                sheetGrid.Add(normal, offset);
+                sheets.Add((normal, offset, [t], doubleArea / 2));
             }
 
             var dropped = new bool[triangleCount];
@@ -680,6 +688,13 @@ namespace ValveResourceFormat.IO
             // larger sheets win, a smaller sheet loses the triangles the larger one already covers
             sheets.Sort((x, y) => y.Area.CompareTo(x.Area));
 
+            var stackGrid = new SheetGrid(MaxStackGap);
+
+            foreach (var sheet in sheets)
+            {
+                stackGrid.Add(sheet.Normal, sheet.Offset);
+            }
+
             Span<Vector2> samples = stackalloc Vector2[10];
 
             // partly covered copies of the covering decal, they poke past an edge of the surface in front
@@ -696,8 +711,16 @@ namespace ValveResourceFormat.IO
                 var xAxis = Vector3.Normalize(AnyPerpendicular(cover.Normal));
                 var yAxis = Vector3.Cross(cover.Normal, xAxis);
 
-                for (var s = k + 1; s < sheets.Count; s++)
+                // only nearby sheets can be parallel and close enough, visited in order as they mark triangles dropped
+                stackGrid.Gather(cover.Normal, cover.Offset, candidates);
+
+                foreach (var s in candidates)
                 {
+                    if (s <= k)
+                    {
+                        continue;
+                    }
+
                     var behind = sheets[s];
                     var gap = MathF.Abs(cover.Offset - behind.Offset);
 
@@ -1131,6 +1154,76 @@ namespace ValveResourceFormat.IO
             var v = ((corners[2].X - point.X) * (corners[0].Y - point.Y) - (corners[0].X - point.X) * (corners[2].Y - point.Y)) / doubleArea;
 
             return new Vector3(u, v, 1f - u - v);
+        }
+
+        /// <summary>
+        /// Sheets bucketed by normal and plane offset, to find the sheets near one without a scan over all of them.
+        /// </summary>
+        private sealed class SheetGrid(float offsetTolerance)
+        {
+            private const float NormalCellSize = 1f / 8f;
+
+            // larger than any normal component can differ between two normals within SameSheetCos
+            // it must stay above sqrt(2 - 2 * SameSheetCos)
+            private const float NormalTolerance = 1f / 24f;
+
+            private readonly Dictionary<(int X, int Y, int Z, int Offset), List<int>> Cells = [];
+            private int Count;
+
+            /// <summary>
+            /// Adds the next sheet, numbered in the order they are added.
+            /// </summary>
+            public void Add(Vector3 normal, float offset)
+            {
+                var cell = Cell(normal, offset);
+
+                if (!Cells.TryGetValue(cell, out var sheets))
+                {
+                    sheets = [];
+                    Cells.Add(cell, sheets);
+                }
+
+                sheets.Add(Count++);
+            }
+
+            /// <summary>
+            /// Collects in ascending order every sheet parallel to the given one with an offset within the tolerance,
+            /// along with some further away that the caller filters out.
+            /// </summary>
+            public void Gather(Vector3 normal, float offset, List<int> candidates)
+            {
+                candidates.Clear();
+
+                // rounding is monotonic, so a sheet within the tolerances never falls outside these bounds
+                var min = Cell(normal - new Vector3(NormalTolerance), offset - offsetTolerance);
+                var max = Cell(normal + new Vector3(NormalTolerance), offset + offsetTolerance);
+
+                for (var x = min.X; x <= max.X; x++)
+                {
+                    for (var y = min.Y; y <= max.Y; y++)
+                    {
+                        for (var z = min.Z; z <= max.Z; z++)
+                        {
+                            // long, as the offset cell saturates at int.MaxValue for far away planes
+                            for (var o = (long)min.Offset; o <= max.Offset; o++)
+                            {
+                                if (Cells.TryGetValue((x, y, z, (int)o), out var sheets))
+                                {
+                                    candidates.AddRange(sheets);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                candidates.Sort();
+            }
+
+            private (int X, int Y, int Z, int Offset) Cell(Vector3 normal, float offset) => (
+                (int)MathF.Floor(normal.X / NormalCellSize),
+                (int)MathF.Floor(normal.Y / NormalCellSize),
+                (int)MathF.Floor(normal.Z / NormalCellSize),
+                (int)MathF.Floor(offset / offsetTolerance));
         }
 
         private static (long, long, long) CornerKey(Vector3 position)

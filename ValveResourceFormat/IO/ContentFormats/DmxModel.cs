@@ -239,7 +239,7 @@ public class DmeVertexData : DMElement
     public void AddStream<T>(string name, T[] data)
     {
         VertexFormat.Add(name);
-        this[name] = data;
+        this[name] = ToDatamodelArray(data);
     }
 
     /// <summary>
@@ -248,9 +248,20 @@ public class DmeVertexData : DMElement
     public void AddIndexedStream<T>(string name, T[] data, int[] indices)
     {
         VertexFormat.Add(name);
-        this[name] = data;
-        this[name + "Indices"] = indices;
+        this[name] = ToDatamodelArray(data);
+        this[name + "Indices"] = new Datamodel.IntArray(indices);
     }
+
+    // The binary codec writes datamodel arrays as one block of memory, but boxes every item of a plain array
+    private static object ToDatamodelArray<T>(T[] data) => data switch
+    {
+        int[] ints => new Datamodel.IntArray(ints),
+        float[] floats => new Datamodel.FloatArray(floats),
+        Vector2[] vectors => new Datamodel.Vector2Array(vectors),
+        Vector3[] vectors => new Datamodel.Vector3Array(vectors),
+        Vector4[] vectors => new Datamodel.Vector4Array(vectors),
+        _ => data,
+    };
 }
 
 /// <summary>

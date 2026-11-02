@@ -811,7 +811,7 @@ public partial class GltfModelExporter
         if (moved.Count * 4 > deltas.Length * 3)
         {
             var bufferView = model.CreateBufferView(3 * sizeof(float) * deltas.Length, 0, BufferMode.ARRAY_BUFFER);
-            new Vector3Array(bufferView.Content).Fill(deltas);
+            deltas.CopyTo(GetContent<Vector3>(bufferView));
             accessor.SetData(bufferView, 0, deltas.Length, AttributeFormat.Float3);
 
             return accessor;
@@ -872,12 +872,15 @@ public partial class GltfModelExporter
         return attribute.ScaledLightmapUvAccessor;
     }
 
+    private static Span<T> GetContent<T>(BufferView bufferView) where T : struct
+        => MemoryMarshal.Cast<byte, T>(bufferView.Content.AsSpan());
+
     private static Accessor CreateAccessor(ModelRoot exportedModel, float[] values)
     {
         SanitizeNonFinite(values);
 
         var bufferView = exportedModel.CreateBufferView(sizeof(float) * values.Length, 0, BufferMode.ARRAY_BUFFER);
-        new ScalarArray(bufferView.Content).Fill(values);
+        values.CopyTo(GetContent<float>(bufferView));
 
         var accessor = exportedModel.CreateAccessor();
         accessor.SetVertexData(bufferView, 0, values.Length, AttributeFormat.Float1);
@@ -890,7 +893,7 @@ public partial class GltfModelExporter
         SanitizeNonFinite(MemoryMarshal.Cast<Vector2, float>(vectors.AsSpan()));
 
         var bufferView = exportedModel.CreateBufferView(2 * sizeof(float) * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
-        new Vector2Array(bufferView.Content).Fill(vectors);
+        vectors.CopyTo(GetContent<Vector2>(bufferView));
 
         var accessor = exportedModel.CreateAccessor();
         accessor.SetVertexData(bufferView, 0, vectors.Length, AttributeFormat.Float2);
@@ -903,7 +906,7 @@ public partial class GltfModelExporter
         SanitizeNonFinite(MemoryMarshal.Cast<Vector3, float>(vectors.AsSpan()));
 
         var bufferView = exportedModel.CreateBufferView(3 * sizeof(float) * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
-        new Vector3Array(bufferView.Content).Fill(vectors);
+        vectors.CopyTo(GetContent<Vector3>(bufferView));
 
         var accessor = exportedModel.CreateAccessor();
         accessor.SetVertexData(bufferView, 0, vectors.Length, AttributeFormat.Float3);
@@ -916,7 +919,7 @@ public partial class GltfModelExporter
         SanitizeNonFinite(MemoryMarshal.Cast<Vector4, float>(vectors.AsSpan()));
 
         var bufferView = exportedModel.CreateBufferView(4 * sizeof(float) * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
-        new Vector4Array(bufferView.Content).Fill(vectors);
+        vectors.CopyTo(GetContent<Vector4>(bufferView));
 
         var accessor = exportedModel.CreateAccessor();
         accessor.SetVertexData(bufferView, 0, vectors.Length, AttributeFormat.Float4);
@@ -965,7 +968,7 @@ public partial class GltfModelExporter
         }
 
         var bufferView = exportedModel.CreateBufferView(sizeof(ushort) * joints.Length, 4 * sizeof(ushort), BufferMode.ARRAY_BUFFER);
-        joints.CopyTo(MemoryMarshal.Cast<byte, ushort>(((Memory<byte>)bufferView.Content).Span));
+        joints.CopyTo(GetContent<ushort>(bufferView));
 
         accessor.SetVertexData(bufferView, 0, count, new AttributeFormat(DimensionType.VEC4, EncodingType.UNSIGNED_SHORT));
 
@@ -986,13 +989,13 @@ public partial class GltfModelExporter
         if (maxIndex > ushort.MaxValue - 1)
         {
             var intView = model.CreateBufferView(sizeof(int) * indices.Length, 0, BufferMode.ELEMENT_ARRAY_BUFFER);
-            indices.CopyTo(MemoryMarshal.Cast<byte, int>(((Memory<byte>)intView.Content).Span));
+            indices.CopyTo(GetContent<int>(intView));
             accessor.SetIndexData(intView, 0, indices.Length, IndexEncodingType.UNSIGNED_INT);
         }
         else
         {
             var shortView = model.CreateBufferView(sizeof(ushort) * indices.Length, 0, BufferMode.ELEMENT_ARRAY_BUFFER);
-            var shorts = MemoryMarshal.Cast<byte, ushort>(((Memory<byte>)shortView.Content).Span);
+            var shorts = GetContent<ushort>(shortView);
 
             TensorPrimitives.ConvertToUInt16(indices, shorts);
 

@@ -29,6 +29,8 @@ internal static class ExrWriter
     private static readonly int[] ChannelSourceIndices = [3, 2, 1, 0];
     private static readonly string[] ChannelNames = ["A", "B", "G", "R"];
 
+    private readonly record struct EncodedBlock(byte[] Buffer, int Length);
+
     /// <summary>
     /// Encodes tightly packed RGBA float pixels, top row first, as an EXR file.
     /// </summary>
@@ -47,35 +49,54 @@ internal static class ExrWriter
 
         var header = WriteHeader(width, height);
         var blockCount = (height + LinesPerBlock - 1) / LinesPerBlock;
-        var blocks = new byte[blockCount][];
+        var blocks = new EncodedBlock[blockCount];
 
-        // Blocks are independent and each is stored by its index, so the output does not depend on timing
-        Parallel.For(0, blockCount, blockIndex => blocks[blockIndex] = EncodeBlock(pixels, blockIndex * LinesPerBlock));
-
-        var offsetTableSize = blockCount * sizeof(long);
-        var totalSize = header.Length + offsetTableSize;
-
-        foreach (var block in blocks)
+        try
         {
-            totalSize += block.Length;
+            // Blocks are independent and each is stored by its index, so the output does not depend on timing.
+            // Each worker compresses its blocks into one stream that it keeps for all of them.
+            Parallel.For(0, blockCount, () => new MemoryStream(), (blockIndex, _, stream) =>
+            {
+                blocks[blockIndex] = EncodeBlock(pixels, blockIndex * LinesPerBlock, stream);
+                return stream;
+            }, stream => stream.Dispose());
+
+            var offsetTableSize = blockCount * sizeof(long);
+            var totalSize = header.Length + offsetTableSize;
+
+            foreach (var block in blocks)
+            {
+                totalSize += block.Length;
+            }
+
+            var result = new byte[totalSize];
+            header.CopyTo(result, 0);
+
+            var offsetTablePosition = header.Length;
+            var dataPosition = header.Length + offsetTableSize;
+
+            for (var blockIndex = 0; blockIndex < blockCount; blockIndex++)
+            {
+                BinaryPrimitives.WriteInt64LittleEndian(result.AsSpan(offsetTablePosition), dataPosition);
+                offsetTablePosition += sizeof(long);
+
+                var block = blocks[blockIndex];
+                block.Buffer.AsSpan(0, block.Length).CopyTo(result.AsSpan(dataPosition));
+                dataPosition += block.Length;
+            }
+
+            return result;
         }
-
-        var result = new byte[totalSize];
-        header.CopyTo(result, 0);
-
-        var offsetTablePosition = header.Length;
-        var dataPosition = header.Length + offsetTableSize;
-
-        foreach (var block in blocks)
+        finally
         {
-            BinaryPrimitives.WriteInt64LittleEndian(result.AsSpan(offsetTablePosition), dataPosition);
-            offsetTablePosition += sizeof(long);
-
-            block.CopyTo(result, dataPosition);
-            dataPosition += block.Length;
+            foreach (var block in blocks)
+            {
+                if (block.Buffer != null)
+                {
+                    ArrayPool<byte>.Shared.Return(block.Buffer);
+                }
+            }
         }
-
-        return result;
     }
 
     private static byte[] WriteHeader(int width, int height)
@@ -160,9 +181,9 @@ internal static class ExrWriter
     }
 
     /// <summary>
-    /// Builds one block: the first scanline number, the data size, and the data.
+    /// Builds one block in an array rented from the shared pool: the first scanline number, the data size, and the data.
     /// </summary>
-    private static byte[] EncodeBlock(SKPixmap pixels, int firstLine)
+    private static EncodedBlock EncodeBlock(SKPixmap pixels, int firstLine, MemoryStream stream)
     {
         var width = pixels.Width;
         var lineCount = Math.Min(LinesPerBlock, pixels.Height - firstLine);
@@ -178,15 +199,16 @@ internal static class ExrWriter
 
             DeinterleaveChannels(rgba, width, firstLine, lineCount, rawSpan);
 
-            using var stream = new MemoryStream();
+            stream.SetLength(0);
             var data = CompressZip(rawSpan, scratch.AsSpan(0, rawSize), stream);
 
-            var block = new byte[BlockHeaderSize + data.Length];
+            var blockSize = BlockHeaderSize + data.Length;
+            var block = ArrayPool<byte>.Shared.Rent(blockSize);
             BinaryPrimitives.WriteInt32LittleEndian(block, firstLine);
             BinaryPrimitives.WriteInt32LittleEndian(block.AsSpan(sizeof(int)), data.Length);
             data.CopyTo(block.AsSpan(BlockHeaderSize));
 
-            return block;
+            return new EncodedBlock(block, blockSize);
         }
         finally
         {
