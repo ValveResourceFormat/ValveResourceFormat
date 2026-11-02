@@ -76,15 +76,15 @@ uniform float g_flNormalAndRoughnessScrollQuantize1 = 0.0;
     uniform sampler2D g_tMetalness;
 #endif
 
-// Translucency runs the alpha through the view angle fade, and unlit alpha test tests against that faded value
+// Translucency runs the alpha through the view angle fade, and alpha test tests against that faded value
 // rather than the raw texture alpha.
-#if (F_TRANSLUCENT == 1) || ((F_UNLIT == 1) && (F_ALPHA_TEST == 1))
+#if (F_TRANSLUCENT == 1) || (F_ALPHA_TEST == 1)
     uniform float g_flAlphaAnglePower1 = 0.0;
 
     #if (F_TRANSLUCENT == 1)
         uniform float g_flOpacityScale1 = 1.0;
     #else
-        // Unlit fades in rather than out with distance, to keep thin sprites readable far away.
+        // Alpha test fades in rather than out with distance.
         uniform float g_flAlphaBoostStrength = 3.0;
         uniform float g_flAlphaBoostDistance = 20000.0;
     #endif
@@ -99,6 +99,15 @@ uniform float g_flNormalAndRoughnessScrollQuantize1 = 0.0;
         uniform float g_flTranslucentScrollQuantize0_1 = 0.0;
         uniform vec2 g_vTranslucentScrollSpeed1_1 = vec2(0.0);
         uniform float g_flTranslucentScrollQuantize1_1 = 0.0;
+
+        #if (F_ENABLE_TEXTURE_TRANSFORMS == 1)
+            uniform vec2 g_vTranslucentTexcoordScale0_1 = vec2(1.0);
+            uniform float g_flTranslucentTexcoordRotation0_1 = 0.0;
+            uniform vec2 g_vTranslucentTexcoordOffset0_1 = vec2(0.0);
+            uniform vec2 g_vTranslucentTexcoordScale1_1 = vec2(1.0);
+            uniform float g_flTranslucentTexcoordRotation1_1 = 0.0;
+            uniform vec2 g_vTranslucentTexcoordOffset1_1 = vec2(0.0);
+        #endif
     #endif
 #endif
 
@@ -288,12 +297,17 @@ float GetMetalness(vec2 albedoTexCoord, float colorAlpha)
 #endif
 }
 
-#if (F_TRANSLUCENT == 1) || ((F_UNLIT == 1) && (F_ALPHA_TEST == 1))
+#if (F_TRANSLUCENT == 1) || (F_ALPHA_TEST == 1)
 float GetTranslucencyAlpha(vec2 texCoord, float colorAlpha)
 {
 #if (F_ADVANCED_TRANSLUCENCY == 1)
     vec2 translucencyTexCoord = ScrollTexCoord(GetUvSet(texCoord, g_bUseSecondaryUvForTranslucency), g_vTranslucentScrollSpeed0_1, g_flTranslucentScrollQuantize0_1);
     vec2 altTranslucencyTexCoord = ScrollTexCoord(GetUvSet(texCoord, g_bUseSecondaryUvForAltTranslucency), g_vTranslucentScrollSpeed1_1, g_flTranslucentScrollQuantize1_1);
+
+    #if (F_ENABLE_TEXTURE_TRANSFORMS == 1)
+        translucencyTexCoord = RotateVector2D(translucencyTexCoord, g_flTranslucentTexcoordRotation0_1, g_vTranslucentTexcoordScale0_1, g_vTranslucentTexcoordOffset0_1);
+        altTranslucencyTexCoord = RotateVector2D(altTranslucencyTexCoord, g_flTranslucentTexcoordRotation1_1, g_vTranslucentTexcoordScale1_1, g_vTranslucentTexcoordOffset1_1);
+    #endif
 
     float translucency = texture(g_tColor, translucencyTexCoord).a;
     float altTranslucency = texture(g_tAltTranslucency, altTranslucencyTexCoord).x;
@@ -337,10 +351,8 @@ float GetCitadelOpacity(MaterialProperties_t mat, vec2 texCoord, vec2 albedoTexC
 {
     float opacity = mat.Opacity;
 
-#if (F_TRANSLUCENT == 1) || ((F_UNLIT == 1) && (F_ALPHA_TEST == 1))
+#if (F_TRANSLUCENT == 1) || (F_ALPHA_TEST == 1)
     opacity = GetViewFadedOpacity(mat, GetTranslucencyAlpha(texCoord, color.a));
-#elif (F_ALPHA_TEST == 1)
-    opacity = color.a;
 #endif
 
 #if (F_ALPHA_TEST == 1)
