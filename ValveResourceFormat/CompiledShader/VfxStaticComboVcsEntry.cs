@@ -31,7 +31,13 @@ public class VfxStaticComboVcsEntry
     /// <summary>
     /// Unserializes the static combo data.
     /// </summary>
-    public VfxStaticComboData Unserialize()
+    public VfxStaticComboData Unserialize() => Unserialize(readBytecode: true);
+
+    /// <summary>
+    /// Unserializes the static combo data. Without <paramref name="readBytecode"/>, the shader files are left
+    /// with empty bytecode, for callers that only need the rest of the combo.
+    /// </summary>
+    internal VfxStaticComboData Unserialize(bool readBytecode)
     {
         if (ResourceData is not null)
         {
@@ -40,19 +46,44 @@ public class VfxStaticComboVcsEntry
                 StaticComboId,
                 ResourceData.AllAttributes,
                 ResourceData.ByteCodeDescArray,
-                ParentProgramData
+                ParentProgramData,
+                readBytecode
             );
         }
 
         // CVfxStaticComboData::Unserialize
+        using var pooledStream = OpenUncompressedData();
+        return new VfxStaticComboData(pooledStream, StaticComboId, ParentProgramData, readBytecode);
+    }
+
+    private PooledMemoryStream OpenUncompressedData()
+    {
         var dataReader = ParentProgramData.DataReader;
         Debug.Assert(dataReader != null);
 
         dataReader.BaseStream.Position = FileOffset;
 
-        using var pooledStream = GetUncompressedStaticComboDataStream(dataReader);
+        var pooledStream = GetUncompressedStaticComboDataStream(dataReader);
         pooledStream.Position = 0;
-        return new VfxStaticComboData(pooledStream, StaticComboId, ParentProgramData);
+        return pooledStream;
+    }
+
+    /// <summary>
+    /// Unserializes only the attributes of the static combo, without reading its shader files or dynamic combo data.
+    /// </summary>
+    internal VfxShaderAttribute[] UnserializeAttributes()
+    {
+        if (ResourceData is not null)
+        {
+            return VfxStaticComboData.GetAttributes(ResourceData.ComboData, ResourceData.AllAttributes);
+        }
+
+        // Same reading lock as the static combo cache
+        lock (ParentProgramData)
+        {
+            using var pooledStream = OpenUncompressedData();
+            return VfxStaticComboData.ReadAttributes(pooledStream, ParentProgramData);
+        }
     }
 
     /// <summary>

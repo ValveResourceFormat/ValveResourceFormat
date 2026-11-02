@@ -49,6 +49,21 @@ public abstract class VfxShaderFile : ShaderDataBlock
     }
 
     /// <summary>
+    /// Reads bytecode of the given size, or skips past it and returns an empty array when <paramref name="readBytecode"/> is false.
+    /// </summary>
+    private protected static byte[] ReadBytecode(BinaryReader datareader, int size, bool readBytecode)
+    {
+        if (!readBytecode)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(size);
+            datareader.BaseStream.Position += size;
+            return [];
+        }
+
+        return datareader.ReadBytes(size);
+    }
+
+    /// <summary>
     /// Decompiles the shader to source code.
     /// </summary>
     public abstract string GetDecompiledFile();

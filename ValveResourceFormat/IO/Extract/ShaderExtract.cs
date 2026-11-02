@@ -369,7 +369,7 @@ public sealed class ShaderExtract
                 break;
             }
 
-            var staticCombo = staticComboEntry.Value.Unserialize();
+            var staticCombo = staticComboEntry.Value.Unserialize(readBytecode: false);
             var staticConfigState = staticConfig.GetConfigState(staticCombo.StaticComboId);
 
             for (var i = 0; i < staticCombo.DynamicComboRenderStates.Length; i++)
@@ -672,7 +672,8 @@ public sealed class ShaderExtract
                 break;
             }
 
-            var staticCombo = staticComboEntry.Value.Unserialize();
+            // Only the first decompiled variant needs bytecode
+            var staticCombo = staticComboEntry.Value.Unserialize(readBytecode: variant0Source.Length == 0);
             var staticComboAttributes = GetStaticComboAttributes(staticCombo, program.VariableDescriptions);
 
             var staticConfigState = staticConfig.GetConfigState(staticCombo.StaticComboId);

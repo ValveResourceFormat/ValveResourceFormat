@@ -607,14 +607,14 @@ namespace ValveResourceFormat.IO
         {
             var shader = fileLoader.LoadShader(material.ShaderName);
 
-            if (shader?.Pixel == null || GetStaticCombo(shader, shader.Pixel, combos) is not { } staticCombo)
+            if (shader?.Pixel == null || GetStaticComboEntry(shader, shader.Pixel, combos) is not { } staticComboEntry)
             {
                 return null;
             }
 
             var attributes = new Dictionary<string, long>();
 
-            foreach (var attribute in staticCombo.Attributes)
+            foreach (var attribute in staticComboEntry.UnserializeAttributes())
             {
                 long? value = attribute.ConstValue switch
                 {
@@ -634,6 +634,18 @@ namespace ValveResourceFormat.IO
 
         private static VfxStaticComboData? GetStaticCombo(ShaderCollection shader, VfxProgramData program, IReadOnlyDictionary<string, long> combos)
         {
+            var entry = GetStaticComboEntry(shader, program, combos);
+
+            if (entry == null)
+            {
+                return null;
+            }
+
+            return program.StaticComboCache.Get(entry.StaticComboId);
+        }
+
+        private static VfxStaticComboVcsEntry? GetStaticComboEntry(ShaderCollection shader, VfxProgramData program, IReadOnlyDictionary<string, long> combos)
+        {
             if (shader.Features == null)
             {
                 return null;
@@ -641,9 +653,7 @@ namespace ValveResourceFormat.IO
 
             var (_, staticComboId) = ResolveStaticConfiguration(shader.Features, program, GetComboState(combos, "F_"), GetComboState(combos, "S_"));
 
-            return program.StaticComboEntries.ContainsKey(staticComboId)
-                ? program.StaticComboCache.Get(staticComboId)
-                : null;
+            return program.StaticComboEntries.GetValueOrDefault(staticComboId);
         }
     }
 

@@ -20,7 +20,13 @@ public class VfxShaderFileDXIL : VfxShaderFile
     /// <summary>
     /// Initializes a new instance from a binary reader.
     /// </summary>
-    public VfxShaderFileDXIL(BinaryReader datareader, int shaderFileId, VfxStaticComboData parent) : base(datareader, shaderFileId, parent)
+    public VfxShaderFileDXIL(BinaryReader datareader, int shaderFileId, VfxStaticComboData parent)
+        : this(datareader, shaderFileId, parent, readBytecode: true)
+    {
+    }
+
+    internal VfxShaderFileDXIL(BinaryReader datareader, int shaderFileId, VfxStaticComboData parent, bool readBytecode)
+        : base(datareader, shaderFileId, parent)
     {
         if (Size > 0)
         {
@@ -33,7 +39,7 @@ public class VfxShaderFileDXIL : VfxShaderFile
             }
 
             HeaderBytes = (int)datareader.ReadUInt16() * 4; // size is given as a 4-byte count
-            Bytecode = datareader.ReadBytes(Size - 8);
+            Bytecode = ReadBytecode(datareader, Size - 8, readBytecode);
         }
 
         HashMD5 = datareader.ReadGuid();

@@ -16,11 +16,16 @@ public class VfxShaderFileDXBC : VfxShaderFile
     /// Initializes a new instance from a binary reader.
     /// </summary>
     public VfxShaderFileDXBC(BinaryReader datareader, int shaderFileId, VfxStaticComboData parent)
+        : this(datareader, shaderFileId, parent, readBytecode: true)
+    {
+    }
+
+    internal VfxShaderFileDXBC(BinaryReader datareader, int shaderFileId, VfxStaticComboData parent, bool readBytecode)
         : base(datareader, shaderFileId, parent)
     {
         if (Size > 0)
         {
-            Bytecode = datareader.ReadBytes(Size);
+            Bytecode = ReadBytecode(datareader, Size, readBytecode);
         }
 
         HashMD5 = datareader.ReadGuid();
@@ -30,10 +35,15 @@ public class VfxShaderFileDXBC : VfxShaderFile
     /// Initializes a new instance with explicit size and hash.
     /// </summary>
     public VfxShaderFileDXBC(BinaryReader datareader, int shaderFileId, int size, Guid hash, VfxStaticComboData parent)
+        : this(datareader, shaderFileId, size, hash, parent, readBytecode: true)
+    {
+    }
+
+    internal VfxShaderFileDXBC(BinaryReader datareader, int shaderFileId, int size, Guid hash, VfxStaticComboData parent, bool readBytecode)
         : base(shaderFileId, parent)
     {
         Size = size;
-        Bytecode = datareader.ReadBytes(size);
+        Bytecode = ReadBytecode(datareader, size, readBytecode);
         HashMD5 = hash;
     }
 

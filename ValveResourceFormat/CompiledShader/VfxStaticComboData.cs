@@ -100,6 +100,11 @@ namespace ValveResourceFormat.CompiledShader
         /// Initializes a new instance of the <see cref="VfxStaticComboData"/> class from a KV object.
         /// </summary>
         public VfxStaticComboData(KVObject data, long staticComboId, VfxShaderAttribute[] attributes, IReadOnlyList<KVObject> byteCodeDataArray, VfxProgramData programData)
+            : this(data, staticComboId, attributes, byteCodeDataArray, programData, readBytecode: true)
+        {
+        }
+
+        internal VfxStaticComboData(KVObject data, long staticComboId, VfxShaderAttribute[] attributes, IReadOnlyList<KVObject> byteCodeDataArray, VfxProgramData programData, bool readBytecode)
         {
             ParentProgramData = programData;
             StaticComboId = staticComboId;
@@ -162,8 +167,8 @@ namespace ValveResourceFormat.CompiledShader
                     byteCodeReader.BaseStream.Position = byteCodeOffset;
                     ShaderFiles[i] = ParentProgramData.VcsPlatformType switch
                     {
-                        VcsPlatformType.VULKAN => new VfxShaderFileVulkan(byteCodeReader, i, (int)byteCodeSize, hash, this),
-                        VcsPlatformType.PC => new VfxShaderFileDXBC(byteCodeReader, i, (int)byteCodeSize, hash, this),
+                        VcsPlatformType.VULKAN => new VfxShaderFileVulkan(byteCodeReader, i, (int)byteCodeSize, hash, this, readBytecode),
+                        VcsPlatformType.PC => new VfxShaderFileDXBC(byteCodeReader, i, (int)byteCodeSize, hash, this, readBytecode),
                         _ => throw new NotImplementedException($"Unhandled bytecode reader for resource-encoded shader of platform {ParentProgramData.VcsPlatformType}")
                     };
 
@@ -218,39 +223,41 @@ namespace ValveResourceFormat.CompiledShader
             );
 
             VsInputSignatureIndices = data.GetArray<int>("m_vsInputSignatureIndexArray") ?? [];
+            Attributes = GetAttributes(data, attributes);
+        }
 
+        /// <summary>
+        /// Gets the attributes of a static combo of a resource based shader, as indices into the attributes shared by the program.
+        /// </summary>
+        internal static VfxShaderAttribute[] GetAttributes(KVObject data, VfxShaderAttribute[] programAttributes)
+        {
             var attributeIndices = data.GetIntegerArray("m_attribIdx");
-            Attributes = new VfxShaderAttribute[attributeIndices.Length];
+            var attributes = new VfxShaderAttribute[attributeIndices.Length];
 
             for (var i = 0; i < attributeIndices.Length; i++)
             {
-                Attributes[i] = attributes[attributeIndices[i]];
+                attributes[i] = programAttributes[attributeIndices[i]];
             }
+
+            return attributes;
         }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="VfxStaticComboData"/> class from a stream.
         /// </summary>
         public VfxStaticComboData(Stream stream, long staticComboId, VfxProgramData programData)
+            : this(stream, staticComboId, programData, readBytecode: true)
+        {
+        }
+
+        internal VfxStaticComboData(Stream stream, long staticComboId, VfxProgramData programData, bool readBytecode)
         {
             ParentProgramData = programData;
             StaticComboId = staticComboId;
             using var dataReader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: true);
 
-            if (programData.VcsVersion < 61)
-            {
-                _ = dataReader.ReadUInt64(); // probably StaticComboId
-            }
-
-            AllVariables = new VfxVariableIndexArray(dataReader, -1, readRegisterOffset: ParentProgramData.VcsProgramType != VcsProgramType.Features);
-
-            int attributeCount = dataReader.ReadInt16();
-            Attributes = new VfxShaderAttribute[attributeCount];
-            for (var i = 0; i < attributeCount; i++)
-            {
-                VfxShaderAttribute attribute = new(dataReader);
-                Attributes[i] = attribute;
-            }
+            AllVariables = ReadAllVariables(dataReader, programData);
+            Attributes = ReadAttributes(dataReader);
 
             if (ParentProgramData.VcsProgramType is VcsProgramType.Features or VcsProgramType.VertexShader)
             {
@@ -312,13 +319,13 @@ namespace ValveResourceFormat.CompiledShader
                     case VcsShaderModelType._2b:
                     case VcsShaderModelType._30:
                     case VcsShaderModelType._31:
-                        ReadDxilSources(dataReader);
+                        ReadDxilSources(dataReader, readBytecode);
                         break;
                     case VcsShaderModelType._40:
                     case VcsShaderModelType._41:
                     case VcsShaderModelType._50:
                     case VcsShaderModelType._60:
-                        ReadDxbcSources(dataReader);
+                        ReadDxbcSources(dataReader, readBytecode);
                         break;
                     default:
                         throw new ShaderParserException($"Unknown or unsupported model type {ParentProgramData.VcsPlatformType} {ParentProgramData.VcsShaderModelType}");
@@ -330,12 +337,12 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     case VcsPlatformType.PCGL:
                     case VcsPlatformType.MOBILE_GLES:
-                        ReadGlslSources(dataReader);
+                        ReadGlslSources(dataReader, readBytecode);
                         break;
                     case VcsPlatformType.VULKAN:
                     case VcsPlatformType.ANDROID_VULKAN:
                     case VcsPlatformType.IOS_VULKAN:
-                        ReadVulkanSources(dataReader);
+                        ReadVulkanSources(dataReader, readBytecode);
                         break;
                     default:
                         throw new ShaderParserException($"Unknown or unsupported source type {ParentProgramData.VcsPlatformType}");
@@ -362,6 +369,41 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
+        /// <summary>
+        /// Reads the attributes of a static combo from its uncompressed stream, stopping before the dynamic combo data and shader files.
+        /// </summary>
+        internal static VfxShaderAttribute[] ReadAttributes(Stream stream, VfxProgramData programData)
+        {
+            using var dataReader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: true);
+
+            ReadAllVariables(dataReader, programData);
+
+            return ReadAttributes(dataReader);
+        }
+
+        private static VfxVariableIndexArray ReadAllVariables(BinaryReader dataReader, VfxProgramData programData)
+        {
+            if (programData.VcsVersion < 61)
+            {
+                _ = dataReader.ReadUInt64(); // probably StaticComboId
+            }
+
+            return new VfxVariableIndexArray(dataReader, -1, readRegisterOffset: programData.VcsProgramType != VcsProgramType.Features);
+        }
+
+        private static VfxShaderAttribute[] ReadAttributes(BinaryReader dataReader)
+        {
+            int attributeCount = dataReader.ReadInt16();
+            var attributes = new VfxShaderAttribute[attributeCount];
+
+            for (var i = 0; i < attributeCount; i++)
+            {
+                attributes[i] = new VfxShaderAttribute(dataReader);
+            }
+
+            return attributes;
+        }
+
         private static PooledMemoryStream ReadByteCodeStream(VfxProgramData programData, long offset, int size)
         {
             lock (programData.Resource!.ReaderLock)
@@ -380,36 +422,36 @@ namespace ValveResourceFormat.CompiledShader
             return count == ushort.MaxValue ? dataReader.ReadInt32() : count;
         }
 
-        private void ReadGlslSources(BinaryReader dataReader)
+        private void ReadGlslSources(BinaryReader dataReader, bool readBytecode)
         {
             for (var shaderFileId = 0; shaderFileId < ShaderFiles.Length; shaderFileId++)
             {
-                VfxShaderFileGL glslSource = new(dataReader, shaderFileId, this);
+                VfxShaderFileGL glslSource = new(dataReader, shaderFileId, this, readBytecode);
                 ShaderFiles[shaderFileId] = glslSource;
             }
         }
-        private void ReadDxilSources(BinaryReader dataReader)
+        private void ReadDxilSources(BinaryReader dataReader, bool readBytecode)
         {
             for (var shaderFileId = 0; shaderFileId < ShaderFiles.Length; shaderFileId++)
             {
-                VfxShaderFileDXIL dxilSource = new(dataReader, shaderFileId, this);
+                VfxShaderFileDXIL dxilSource = new(dataReader, shaderFileId, this, readBytecode);
                 ShaderFiles[shaderFileId] = dxilSource;
             }
         }
-        private void ReadDxbcSources(BinaryReader dataReader)
+        private void ReadDxbcSources(BinaryReader dataReader, bool readBytecode)
         {
             for (var shaderFileId = 0; shaderFileId < ShaderFiles.Length; shaderFileId++)
             {
-                VfxShaderFileDXBC dxbcSource = new(dataReader, shaderFileId, this);
+                VfxShaderFileDXBC dxbcSource = new(dataReader, shaderFileId, this, readBytecode);
                 ShaderFiles[shaderFileId] = dxbcSource;
             }
         }
 
-        private void ReadVulkanSources(BinaryReader dataReader)
+        private void ReadVulkanSources(BinaryReader dataReader, bool readBytecode)
         {
             for (var shaderFileId = 0; shaderFileId < ShaderFiles.Length; shaderFileId++)
             {
-                VfxShaderFileVulkan vulkanSource = new(dataReader, shaderFileId, this);
+                VfxShaderFileVulkan vulkanSource = new(dataReader, shaderFileId, this, readBytecode);
                 ShaderFiles[shaderFileId] = vulkanSource;
             }
         }

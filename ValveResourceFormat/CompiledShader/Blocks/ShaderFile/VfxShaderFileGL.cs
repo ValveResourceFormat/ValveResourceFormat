@@ -21,13 +21,19 @@ public class VfxShaderFileGL : VfxShaderFile
     /// <summary>
     /// Initializes a new instance from a binary reader.
     /// </summary>
-    public VfxShaderFileGL(BinaryReader datareader, int shaderFileId, VfxStaticComboData parent) : base(datareader, shaderFileId, parent)
+    public VfxShaderFileGL(BinaryReader datareader, int shaderFileId, VfxStaticComboData parent)
+        : this(datareader, shaderFileId, parent, readBytecode: true)
+    {
+    }
+
+    internal VfxShaderFileGL(BinaryReader datareader, int shaderFileId, VfxStaticComboData parent, bool readBytecode)
+        : base(datareader, shaderFileId, parent)
     {
         if (Size > 0)
         {
             Version = datareader.ReadInt32();
             BytecodeSize = datareader.ReadInt32();
-            Bytecode = datareader.ReadBytes(BytecodeSize - 1); // -1 because the sourcebytes are null-term
+            Bytecode = ReadBytecode(datareader, BytecodeSize - 1, readBytecode); // -1 because the sourcebytes are null-term
             datareader.BaseStream.Position += 1;
         }
 

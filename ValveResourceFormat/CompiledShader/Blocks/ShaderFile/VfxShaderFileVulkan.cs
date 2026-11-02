@@ -80,13 +80,18 @@ public class VfxShaderFileVulkan : VfxShaderFile
     /// Initializes a new instance with explicit size and hash.
     /// </summary>
     public VfxShaderFileVulkan(BinaryReader datareader, int shaderFileId, int size, Guid hash, VfxStaticComboData parent)
+        : this(datareader, shaderFileId, size, hash, parent, readBytecode: true)
+    {
+    }
+
+    internal VfxShaderFileVulkan(BinaryReader datareader, int shaderFileId, int size, Guid hash, VfxStaticComboData parent, bool readBytecode)
         : base(shaderFileId, parent)
     {
         HashMD5 = hash;
         Size = size;
 
         var end = datareader.BaseStream.Position + size;
-        Unserialize(datareader);
+        Unserialize(datareader, readBytecode);
 
         // The bytecode is followed by the same metadata block the binary format has
         if (datareader.BaseStream.Position < end)
@@ -117,6 +122,11 @@ public class VfxShaderFileVulkan : VfxShaderFile
     /// Initializes a new instance from a binary reader.
     /// </summary>
     public VfxShaderFileVulkan(BinaryReader datareader, int shaderFileId, VfxStaticComboData parent)
+        : this(datareader, shaderFileId, parent, readBytecode: true)
+    {
+    }
+
+    internal VfxShaderFileVulkan(BinaryReader datareader, int shaderFileId, VfxStaticComboData parent, bool readBytecode)
         : base(datareader, shaderFileId, parent)
     {
         var end = Start + 4 + Size;
@@ -124,7 +134,7 @@ public class VfxShaderFileVulkan : VfxShaderFile
         // CVfxShaderFile::Unserialize
         if (Size > 0)
         {
-            Unserialize(datareader);
+            Unserialize(datareader, readBytecode);
             AttribMap = ReadAttribMap(datareader);
         }
 
@@ -282,7 +292,7 @@ public class VfxShaderFileVulkan : VfxShaderFile
         }
     }
 
-    private void Unserialize(BinaryReader datareader)
+    private void Unserialize(BinaryReader datareader, bool readBytecode)
     {
         Version = datareader.ReadInt32();
 
@@ -291,7 +301,7 @@ public class VfxShaderFileVulkan : VfxShaderFile
         BytecodeSize = datareader.ReadInt32();
         if (BytecodeSize > 0)
         {
-            Bytecode = datareader.ReadBytes(BytecodeSize);
+            Bytecode = ReadBytecode(datareader, BytecodeSize, readBytecode);
         }
     }
 
