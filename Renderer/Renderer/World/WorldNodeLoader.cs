@@ -254,28 +254,41 @@ namespace ValveResourceFormat.Renderer.World
                 return;
             }
 
-            var instancesByTint = clutter.Tiles
-                .SelectMany(tile => Enumerable.Range(tile.FirstInstance, tile.EndInstance - tile.FirstInstance).Select(instance => (Index: instance, Tile: tile)))
-                .GroupBy(instance => clutter.InstanceTints[instance.Index]);
+            // One node per tint, in the order the tints first appear
+            var instancesByTint = new Dictionary<Vector3, List<SceneClutter.Instance>>();
 
-            foreach (var instances in instancesByTint)
+            foreach (var tile in clutter.Tiles)
             {
-                var sceneInstances = instances
-                    .Select(instance => new SceneClutter.Instance(
-                        clutter.GetInstanceTransform(instance.Index) * root,
-                        clutter.InstanceScales[instance.Index],
-                        instance.Index - instance.Tile.FirstInstance,
-                        instance.Tile.EndInstance - instance.Tile.FirstInstance))
-                    .ToArray();
+                var tileInstanceCount = tile.EndInstance - tile.FirstInstance;
 
-                scene.Add(new SceneClutter(scene, model, clutter.MaterialGroup, clutter.BeginCullSize, clutter.EndCullSize, sceneInstances)
+                for (var i = tile.FirstInstance; i < tile.EndInstance; i++)
+                {
+                    var tint = clutter.InstanceTints[i];
+
+                    if (!instancesByTint.TryGetValue(tint, out var instances))
+                    {
+                        instances = [];
+                        instancesByTint.Add(tint, instances);
+                    }
+
+                    instances.Add(new SceneClutter.Instance(
+                        clutter.GetInstanceTransform(i) * root,
+                        clutter.InstanceScales[i],
+                        i - tile.FirstInstance,
+                        tileInstanceCount));
+                }
+            }
+
+            foreach (var (tint, instances) in instancesByTint)
+            {
+                scene.Add(new SceneClutter(scene, model, clutter.MaterialGroup, clutter.BeginCullSize, clutter.EndCullSize, [.. instances])
                 {
                     Layers = SingleLayerLists[clutter.Layer],
                     Name = clutter.RenderableModel,
                     Flags = clutter.Flags,
                     AllFlags = clutter.Flags,
                     AnyFlags = clutter.Flags,
-                    Tint = instances.Key / 255f,
+                    Tint = tint / 255f,
                 }, false);
             }
         }

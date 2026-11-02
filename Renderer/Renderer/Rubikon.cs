@@ -117,16 +117,23 @@ public class Rubikon
         }
 
         var part = physicsData.Parts[partIndex].Shape;
-        var worldMeshes = part.Meshes
-            .ToArray();
-
-        Meshes = new PhysicsMeshData[worldMeshes.Length];
-        var meshIndex = 0;
         var surfacePropertyHashes = physicsData.SurfacePropertyHashes;
 
-        foreach (var mesh in worldMeshes)
+        // Interact tags per collision attribute, read once and shared by the shapes using it
+        var collisionAttributes = physicsData.CollisionAttributes;
+        var interactStrings = new InteractStrings[collisionAttributes.Count];
+
+        for (var i = 0; i < interactStrings.Length; i++)
         {
-            Meshes[meshIndex++] = CreateMeshData(mesh.Shape, physicsData.CollisionAttributes[mesh.CollisionAttributeIndex],
+            interactStrings[i] = GetInteractStrings(collisionAttributes[i]);
+        }
+
+        Meshes = new PhysicsMeshData[part.Meshes.Length];
+        var meshIndex = 0;
+
+        foreach (var mesh in part.Meshes)
+        {
+            Meshes[meshIndex++] = CreateMeshData(mesh.Shape, interactStrings[mesh.CollisionAttributeIndex],
                 surfacePropertyHashes, mesh.SurfacePropertyIndex);
         }
 
@@ -137,7 +144,7 @@ public class Rubikon
         var hullIndex = 0;
         foreach (var hullDesc in part.Hulls)
         {
-            Hulls[hullIndex++] = CreateHullData(hullDesc.Shape, physicsData.CollisionAttributes[hullDesc.CollisionAttributeIndex],
+            Hulls[hullIndex++] = CreateHullData(hullDesc.Shape, interactStrings[hullDesc.CollisionAttributeIndex],
                 GetSurfacePropertyHash(surfacePropertyHashes, hullDesc.SurfacePropertyIndex));
         }
 
@@ -145,14 +152,12 @@ public class Rubikon
         HullIndices = [.. Enumerable.Range(0, Hulls.Length)];
         HullTree = BuildHullBVH();
 
-        Compounds = [.. part.Compounds.Select(compound => CreateCompoundData(compound, physicsData.CollisionAttributes[compound.CollisionAttributeIndex], surfacePropertyHashes))];
+        Compounds = [.. part.Compounds.Select(compound => CreateCompoundData(compound, interactStrings[compound.CollisionAttributeIndex], surfacePropertyHashes))];
     }
 
-    private static PhysicsMeshData CreateMeshData(ResourceTypes.RubikonPhysics.Shapes.Mesh mesh, KVObject collisionAttributes, uint[] surfacePropertyHashes, int surfacePropertyIndex)
+    private static PhysicsMeshData CreateMeshData(ResourceTypes.RubikonPhysics.Shapes.Mesh mesh, InteractStrings interactStrings, uint[] surfacePropertyHashes, int surfacePropertyIndex)
     {
-        var (interactAs, interactExclude) = GetInteractStrings(collisionAttributes);
-
-        return new PhysicsMeshData(interactAs, interactExclude, [.. mesh.GetVertices()], [.. mesh.GetTriangles()], [.. mesh.ParseNodes()])
+        return new PhysicsMeshData(interactStrings.InteractAs, interactStrings.InteractExclude, [.. mesh.GetVertices()], [.. mesh.GetTriangles()], [.. mesh.ParseNodes()])
         {
             SurfacePropertyHash = GetSurfacePropertyHash(surfacePropertyHashes, surfacePropertyIndex),
             SurfacePropertyHashes = surfacePropertyHashes,
@@ -160,12 +165,10 @@ public class Rubikon
         };
     }
 
-    private static PhysicsHullData CreateHullData(Hull hull, KVObject collisionAttributes, uint surfacePropertyHash)
+    private static PhysicsHullData CreateHullData(Hull hull, InteractStrings interactStrings, uint surfacePropertyHash)
     {
-        var (interactAs, interactExclude) = GetInteractStrings(collisionAttributes);
-
         return new PhysicsHullData(
-            interactAs, interactExclude,
+            interactStrings.InteractAs, interactStrings.InteractExclude,
             hull.Min, hull.Max,
             [.. hull.GetVertexPositions()],
             [.. hull.GetEdges()],
@@ -177,19 +180,18 @@ public class Rubikon
         };
     }
 
-    private static PhysicsCompoundData CreateCompoundData(CompoundDescriptor descriptor, KVObject collisionAttributes, uint[] surfacePropertyHashes)
+    private static PhysicsCompoundData CreateCompoundData(CompoundDescriptor descriptor, InteractStrings interactStrings, uint[] surfacePropertyHashes)
     {
         var surfacePropertyHash = GetSurfacePropertyHash(surfacePropertyHashes, descriptor.SurfacePropertyIndex);
         var compound = descriptor.Shape;
-        var (interactAs, interactExclude) = GetInteractStrings(collisionAttributes);
 
         return new PhysicsCompoundData(
-            interactAs, interactExclude,
+            interactStrings.InteractAs, interactStrings.InteractExclude,
             compound.GetTreeNodes(),
             compound.HullBaseIndex,
             compound.MeshBaseIndex,
-            [.. compound.Hulls.Select(hull => CreateHullData(hull, collisionAttributes, surfacePropertyHash))],
-            [.. compound.Meshes.Select(mesh => CreateMeshData(mesh, collisionAttributes, surfacePropertyHashes, descriptor.SurfacePropertyIndex))]
+            [.. compound.Hulls.Select(hull => CreateHullData(hull, interactStrings, surfacePropertyHash))],
+            [.. compound.Meshes.Select(mesh => CreateMeshData(mesh, interactStrings, surfacePropertyHashes, descriptor.SurfacePropertyIndex))]
         );
     }
 
@@ -200,13 +202,15 @@ public class Rubikon
     /// Older assets carry their tags in m_PhysicsTagStrings instead of m_InteractAsStrings,
     /// and GetArray returns null for absent keys, so both interact arrays need a fallback.
     /// </summary>
-    private static (string[] InteractAs, string[] InteractExclude) GetInteractStrings(KVObject collisionAttributes)
+    private static InteractStrings GetInteractStrings(KVObject collisionAttributes)
     {
         var interactAs = PhysAggregateData.GetInteractAsTags(collisionAttributes);
         var interactExclude = collisionAttributes.GetArray<string>("m_InteractExcludeStrings") ?? [];
 
-        return (interactAs, interactExclude);
+        return new InteractStrings(interactAs, interactExclude);
     }
+
+    private readonly record struct InteractStrings(string[] InteractAs, string[] InteractExclude);
 
     /// <summary>
     /// Ray trace hit result with position, normal, and distance.
