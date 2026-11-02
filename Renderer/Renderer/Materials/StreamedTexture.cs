@@ -54,9 +54,6 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>The mip's level in the source texture data, past the user's size cap.</summary>
         public uint DataMipLevel(in PlannedMip mip) => (uint)(mip.ChainLevel + MinMipLevelAllowed);
 
-        /// <summary>Buffer size for reading the mip in place.</summary>
-        public int InPlaceSize(in PlannedMip mip) => Data.CalculateInPlaceDecompressionBufferSize(DataMipLevel(mip));
-
         public void Execute() => Streaming.LoadStreamingData(this);
     }
 
@@ -69,6 +66,6 @@ namespace ValveResourceFormat.Renderer.Materials
     /// <param name="Mip">The first (smallest) mip in the buffer.</param>
     /// <param name="MipCount">Number of consecutive planned mips the buffer holds, starting at <paramref name="Mip"/>.</param>
     /// <param name="ByteSize">The amount this item holds of the in-flight throttle, unwound when it is consumed.</param>
-    /// <param name="Buffer">Pooled buffer with each mip at its in-place read offset, in plan order.</param>
+    /// <param name="Buffer">Pooled buffer with its mips back to back, in plan order.</param>
     readonly record struct LoadedMipBits(StreamedTexture Stream, PlannedMip Mip, int MipCount, int ByteSize, byte[] Buffer);
 }

@@ -23,7 +23,8 @@ namespace ValveResourceFormat.Renderer
         /// <param name="name">Mesh name used to label the buffers.</param>
         public GPUMeshBuffers(VBIB vbib, string name)
         {
-            Layout = new VBIB { Resource = vbib.Resource };
+            // Holds only the buffer layouts, so the source resource can be freed once uploaded
+            Layout = new VBIB { Resource = null! };
             VertexBuffers = new int[vbib.VertexBuffers.Count];
 
             for (var i = 0; i < vbib.VertexBuffers.Count; i++)

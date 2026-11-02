@@ -148,7 +148,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 var mip = i == 0 ? bits.Mip : stream.Mips[stream.NextMip + i];
 
                 SubImageMip(stream, mip.ChainLevel - stream.ResidentChainLevel, mip, bits.Buffer, offset);
-                offset += stream.InPlaceSize(mip);
+                offset += mip.BufferSize;
             }
         }
 
@@ -403,13 +403,13 @@ namespace ValveResourceFormat.Renderer.Materials
 
         internal static void LoadAndHookUpMip(StreamedTexture stream, in PlannedMip mip)
         {
-            var buffer = ArrayPool<byte>.Shared.Rent(stream.InPlaceSize(mip));
+            var buffer = ArrayPool<byte>.Shared.Rent(mip.BufferSize);
 
             try
             {
                 lock (stream.Data)
                 {
-                    stream.Data.ReadTextureMipLevelInPlace(buffer, stream.DataMipLevel(mip));
+                    stream.Data.ReadTextureMipLevel(buffer.AsSpan(0, mip.BufferSize), stream.DataMipLevel(mip));
                 }
 
                 HookUpMipBits(new LoadedMipBits(stream, mip, MipCount: 1, mip.BufferSize, buffer));
@@ -421,7 +421,9 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         // Serves one load request, on a thread pool thread: reads the mips it was asked for into a single
-        // pooled buffer, each decoded in place at its own offset, and queues them to be hooked up.
+        // pooled buffer, back to back, and queues them to be hooked up. The buffer holds exactly the mips: an
+        // in-place decode would need a margin past each one, pushing power of two mips into the pool bucket
+        // twice their size.
         internal void LoadStreamingData(StreamedTexture stream)
         {
             var first = stream.NextMip;
@@ -441,14 +443,8 @@ namespace ValveResourceFormat.Renderer.Materials
 
             try
             {
-                var total = 0;
-
-                for (var i = 0; i < count; i++)
-                {
-                    total += stream.InPlaceSize(stream.Mips[first + i]);
-                }
-
-                buffer = ArrayPool<byte>.Shared.Rent(total);
+                // The throttle counts the mips' exact sizes, which is all the buffer has to hold
+                buffer = ArrayPool<byte>.Shared.Rent(gateBytes);
 
                 var offset = 0;
 
@@ -458,10 +454,9 @@ namespace ValveResourceFormat.Renderer.Materials
                     for (var i = 0; i < count; i++)
                     {
                         var mip = stream.Mips[first + i];
-                        var size = stream.InPlaceSize(mip);
 
-                        stream.Data.ReadTextureMipLevelInPlace(buffer.AsSpan(offset, size), stream.DataMipLevel(mip));
-                        offset += size;
+                        stream.Data.ReadTextureMipLevel(buffer.AsSpan(offset, mip.BufferSize), stream.DataMipLevel(mip));
+                        offset += mip.BufferSize;
                     }
                 }
 
