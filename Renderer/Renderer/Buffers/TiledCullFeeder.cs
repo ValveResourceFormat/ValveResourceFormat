@@ -627,17 +627,19 @@ public sealed class TiledCullFeeder
 
         for (var i = 0; i < 8; i++)
         {
-            var viewDepth = Vector3.Dot(corners[i] - cameraPosition, cameraDirection);
+            var corner = corners[i];
+            var viewDepth = Vector3.Dot(corner - cameraPosition, cameraDirection);
             depthMin = MathF.Min(depthMin, viewDepth);
             depthMax = MathF.Max(depthMax, viewDepth);
 
-            clip[i] = Vector4.Transform(new Vector4(corners[i], 1f), worldToProjection);
+            var clipCorner = Vector4.Transform(new Vector4(corner, 1f), worldToProjection);
+            clip[i] = clipCorner;
 
-            if (clip[i].W >= cameraNearPlane)
+            if (clipCorner.W >= cameraNearPlane)
             {
-                projected[pointCount++] = NdcToPixel(new Vector2(clip[i].X, clip[i].Y) / clip[i].W);
+                projected[pointCount++] = NdcToPixel(new Vector2(clipCorner.X, clipCorner.Y) / clipCorner.W);
 
-                ndcDepthNear = MathF.Max(ndcDepthNear, clip[i].Z / clip[i].W);
+                ndcDepthNear = MathF.Max(ndcDepthNear, clipCorner.Z / clipCorner.W);
             }
             else
             {
@@ -669,20 +671,17 @@ public sealed class TiledCullFeeder
                     continue;
                 }
 
-                var wNear = clip[i].W;
-                var wFar = clip[i | bit].W;
+                var near = clip[i];
+                var far = clip[i | bit];
 
-                if ((wNear >= cameraNearPlane) == (wFar >= cameraNearPlane))
+                if ((near.W >= cameraNearPlane) == (far.W >= cameraNearPlane))
                 {
                     continue;
                 }
 
-                var t = MathUtils.Remap(cameraNearPlane, wNear, wFar);
+                var t = MathUtils.Remap(cameraNearPlane, near.W, far.W);
 
-                var crossing = Vector2.Lerp(
-                    new Vector2(clip[i].X, clip[i].Y),
-                    new Vector2(clip[i | bit].X, clip[i | bit].Y),
-                    t) / cameraNearPlane;
+                var crossing = Vector2.Lerp(new Vector2(near.X, near.Y), new Vector2(far.X, far.Y), t) / cameraNearPlane;
 
                 projected[pointCount++] = NdcToPixel(crossing);
             }
@@ -838,10 +837,11 @@ public sealed class TiledCullFeeder
 
         for (var i = 0; i < pointCount; i++)
         {
-            minkowski[count++] = projected[i] + new Vector2(-tileHalfSize, -tileHalfSize);
-            minkowski[count++] = projected[i] + new Vector2(tileHalfSize, -tileHalfSize);
-            minkowski[count++] = projected[i] + new Vector2(tileHalfSize, tileHalfSize);
-            minkowski[count++] = projected[i] + new Vector2(-tileHalfSize, tileHalfSize);
+            var point = projected[i];
+            minkowski[count++] = point + new Vector2(-tileHalfSize, -tileHalfSize);
+            minkowski[count++] = point + new Vector2(tileHalfSize, -tileHalfSize);
+            minkowski[count++] = point + new Vector2(tileHalfSize, tileHalfSize);
+            minkowski[count++] = point + new Vector2(-tileHalfSize, tileHalfSize);
         }
 
         for (var i = 1; i < count; i++)
@@ -862,24 +862,28 @@ public sealed class TiledCullFeeder
 
         for (var i = 0; i < count; i++)
         {
-            while (k >= 2 && Cross(hull[k - 2], hull[k - 1], minkowski[i]) <= 0f)
+            var point = minkowski[i];
+
+            while (k >= 2 && Cross(hull[k - 2], hull[k - 1], point) <= 0f)
             {
                 k--;
             }
 
-            hull[k++] = minkowski[i];
+            hull[k++] = point;
         }
 
         var lower = k + 1;
 
         for (var i = count - 2; i >= 0; i--)
         {
-            while (k >= lower && Cross(hull[k - 2], hull[k - 1], minkowski[i]) <= 0f)
+            var point = minkowski[i];
+
+            while (k >= lower && Cross(hull[k - 2], hull[k - 1], point) <= 0f)
             {
                 k--;
             }
 
-            hull[k++] = minkowski[i];
+            hull[k++] = point;
         }
 
         var hullCount = k - 1;

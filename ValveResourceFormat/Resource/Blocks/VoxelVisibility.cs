@@ -493,7 +493,8 @@ namespace ValveResourceFormat.Blocks
                 + (size.Y >= LargeBoxExtent ? 1 : 0)
                 + (size.Z >= LargeBoxExtent ? 1 : 0);
 
-            QueryOctreeBox(0, MinBounds, MaxBounds, queryMin, queryMax, clusterBits, !exact && largeAxes > 1);
+            var query = new BoxQuery(this, queryMin, queryMax, clusterBits, !exact && largeAxes > 1);
+            query.Visit(0, MinBounds, MaxBounds);
         }
 
         /// <summary>
@@ -589,101 +590,126 @@ namespace ValveResourceFormat.Blocks
             return found ? pvsBuffer : null;
         }
 
-        private void QueryOctreeBox(uint nodeIndex, Vector3 nodeMin, Vector3 nodeMax,
-            Vector3 boxMin, Vector3 boxMax, Span<uint> bitfield, bool useEnclosedShortcut)
+        private readonly ref struct BoxQuery
         {
-            if (nodeIndex >= Nodes.Length)
+            private readonly Node[] nodes;
+            private readonly Region[] regions;
+            private readonly ulong[] masks;
+            private readonly (int Offset, int Count)[] enclosedClusterList;
+            private readonly ushort[] enclosedClusters;
+            private readonly Vector3 boxMin;
+            private readonly Vector3 boxMax;
+            private readonly Span<uint> bitfield;
+            private readonly int capacity;
+            private readonly bool useEnclosedShortcut;
+
+            public BoxQuery(VoxelVisibility visibility, Vector3 boxMin, Vector3 boxMax, Span<uint> bitfield, bool useEnclosedShortcut)
             {
-                return;
+                nodes = visibility.Nodes;
+                regions = visibility.Regions;
+                masks = visibility.Masks;
+                enclosedClusterList = visibility.EnclosedClusterList;
+                enclosedClusters = visibility.EnclosedClusters;
+                this.boxMin = boxMin;
+                this.boxMax = boxMax;
+                this.bitfield = bitfield;
+                this.useEnclosedShortcut = useEnclosedShortcut;
+                capacity = bitfield.Length * MathUtils.BitsPerWord;
             }
 
-            var node = Nodes[nodeIndex];
-            var capacity = bitfield.Length * MathUtils.BitsPerWord;
-
-            if (useEnclosedShortcut && node.IsEnclosedCluster)
+            public void Visit(uint nodeIndex, Vector3 nodeMin, Vector3 nodeMax)
             {
-                var (offset, count) = EnclosedClusterList[node.EnclosedListIndex];
-                for (var i = 0; i < count; i++)
+                if (nodeIndex >= nodes.Length)
                 {
-                    var clusterId = (int)EnclosedClusters[offset + i];
-
-                    if (clusterId < capacity)
-                    {
-                        MathUtils.SetBit(bitfield, clusterId);
-                    }
+                    return;
                 }
 
-                return;
+                ref readonly var node = ref nodes[nodeIndex];
+
+                if (useEnclosedShortcut && node.IsEnclosedCluster)
+                {
+                    var (offset, count) = enclosedClusterList[node.EnclosedListIndex];
+                    for (var i = 0; i < count; i++)
+                    {
+                        var clusterId = (int)enclosedClusters[offset + i];
+
+                        if (clusterId < capacity)
+                        {
+                            MathUtils.SetBit(bitfield, clusterId);
+                        }
+                    }
+
+                    return;
+                }
+
+                if (node.IsLeaf)
+                {
+                    VisitLeaf(in node, nodeMin, nodeMax);
+                    return;
+                }
+
+                var childBase = node.Offset;
+                var midX = (nodeMin.X + nodeMax.X) * 0.5f;
+                var midY = (nodeMin.Y + nodeMax.Y) * 0.5f;
+                var midZ = (nodeMin.Z + nodeMax.Z) * 0.5f;
+
+                var xLow = nodeMin.X <= boxMax.X && boxMin.X <= midX;
+                var xHigh = boxMin.X <= nodeMax.X && midX <= boxMax.X;
+                var yLow = nodeMin.Y <= boxMax.Y && boxMin.Y <= midY;
+                var yHigh = boxMin.Y <= nodeMax.Y && midY <= boxMax.Y;
+                var zLow = nodeMin.Z <= boxMax.Z && boxMin.Z <= midZ;
+                var zHigh = boxMin.Z <= nodeMax.Z && midZ <= boxMax.Z;
+
+                for (uint octant = 0; octant < 8; octant++)
+                {
+                    if (!((octant & 1) != 0 ? xHigh : xLow))
+                    {
+                        continue;
+                    }
+
+                    if (!((octant & 2) != 0 ? yHigh : yLow))
+                    {
+                        continue;
+                    }
+
+                    if (!((octant & 4) != 0 ? zHigh : zLow))
+                    {
+                        continue;
+                    }
+
+                    var childMin = nodeMin;
+                    var childMax = nodeMax;
+                    if ((octant & 1) != 0) { childMin.X = midX; } else { childMax.X = midX; }
+                    if ((octant & 2) != 0) { childMin.Y = midY; } else { childMax.Y = midY; }
+                    if ((octant & 4) != 0) { childMin.Z = midZ; } else { childMax.Z = midZ; }
+
+                    Visit(childBase + octant, childMin, childMax);
+                }
             }
 
-            if (node.IsLeaf)
+            private void VisitLeaf(ref readonly Node node, Vector3 leafMin, Vector3 leafMax)
             {
-                var boxSpatialMask = ComputeBoxSpatialMask(boxMin, boxMax, nodeMin, nodeMax);
+                var boxSpatialMask = ComputeBoxSpatialMask(boxMin, boxMax, leafMin, leafMax);
                 if (boxSpatialMask == 0)
                 {
                     return;
                 }
 
-                var regionStart = node.Offset;
-                for (uint r = 0; r < node.RegionCount; r++)
+                var regionEnd = Math.Min(node.Offset + node.RegionCount, (uint)regions.Length);
+                for (var regionIndex = node.Offset; regionIndex < regionEnd; regionIndex++)
                 {
-                    var regionIndex = regionStart + r;
-                    if (regionIndex >= Regions.Length)
-                    {
-                        break;
-                    }
-
-                    var region = Regions[regionIndex];
-                    if ((boxSpatialMask & Masks[region.MaskIndex]) == 0)
+                    ref readonly var region = ref regions[regionIndex];
+                    if ((boxSpatialMask & masks[region.MaskIndex]) == 0)
                     {
                         continue;
                     }
 
-                    if (region.ClusterId < capacity)
+                    var clusterId = region.ClusterId;
+                    if (clusterId < capacity)
                     {
-                        MathUtils.SetBit(bitfield, region.ClusterId);
+                        MathUtils.SetBit(bitfield, clusterId);
                     }
                 }
-
-                return;
-            }
-
-            var childBase = node.Offset;
-            var midX = (nodeMin.X + nodeMax.X) * 0.5f;
-            var midY = (nodeMin.Y + nodeMax.Y) * 0.5f;
-            var midZ = (nodeMin.Z + nodeMax.Z) * 0.5f;
-
-            var xLow = nodeMin.X <= boxMax.X && boxMin.X <= midX;
-            var xHigh = boxMin.X <= nodeMax.X && midX <= boxMax.X;
-            var yLow = nodeMin.Y <= boxMax.Y && boxMin.Y <= midY;
-            var yHigh = boxMin.Y <= nodeMax.Y && midY <= boxMax.Y;
-            var zLow = nodeMin.Z <= boxMax.Z && boxMin.Z <= midZ;
-            var zHigh = boxMin.Z <= nodeMax.Z && midZ <= boxMax.Z;
-
-            for (uint octant = 0; octant < 8; octant++)
-            {
-                if (!((octant & 1) != 0 ? xHigh : xLow))
-                {
-                    continue;
-                }
-
-                if (!((octant & 2) != 0 ? yHigh : yLow))
-                {
-                    continue;
-                }
-
-                if (!((octant & 4) != 0 ? zHigh : zLow))
-                {
-                    continue;
-                }
-
-                var childMin = nodeMin;
-                var childMax = nodeMax;
-                if ((octant & 1) != 0) { childMin.X = midX; } else { childMax.X = midX; }
-                if ((octant & 2) != 0) { childMin.Y = midY; } else { childMax.Y = midY; }
-                if ((octant & 4) != 0) { childMin.Z = midZ; } else { childMax.Z = midZ; }
-
-                QueryOctreeBox(childBase + octant, childMin, childMax, boxMin, boxMax, bitfield, useEnclosedShortcut);
             }
         }
 

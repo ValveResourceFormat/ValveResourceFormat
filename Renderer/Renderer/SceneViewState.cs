@@ -81,22 +81,33 @@ public sealed class SceneViewState
     private bool lastIncludedStatic;
     private int lastSpatialSetVersion = -1;
 
-    private readonly Dictionary<RenderPass, List<MeshBatchRenderer.Request>> renderLists = new()
+    /// <summary>One request list per <see cref="RenderPass"/>, looked up by array index as it is read for every draw.</summary>
+    private sealed class RenderPassLists
     {
-        [RenderPass.OpaqueAggregate] = [],
-        [RenderPass.OpaqueFragments] = [],
-        [RenderPass.Opaque] = [],
-        [RenderPass.StaticOverlay] = [],
-        [RenderPass.OpaqueRefract] = [],
-        [RenderPass.Water] = [],
-        [RenderPass.Translucent] = [],
-    };
+        private readonly List<MeshBatchRenderer.Request>[] byPass = new List<MeshBatchRenderer.Request>[Enum.GetValues<RenderPass>().Length];
 
-    private readonly Dictionary<RenderPass, List<MeshBatchRenderer.Request>> viewmodelRenderLists = new()
-    {
-        [RenderPass.Opaque] = [],
-        [RenderPass.Translucent] = [],
-    };
+        /// <summary>The lists of the passes given to the constructor.</summary>
+        public List<MeshBatchRenderer.Request>[] All { get; }
+
+        public RenderPassLists(params ReadOnlySpan<RenderPass> passes)
+        {
+            All = new List<MeshBatchRenderer.Request>[passes.Length];
+
+            for (var i = 0; i < passes.Length; i++)
+            {
+                List<MeshBatchRenderer.Request> list = [];
+                byPass[(int)passes[i]] = list;
+                All[i] = list;
+            }
+        }
+
+        public List<MeshBatchRenderer.Request> this[RenderPass pass] => byPass[(int)pass];
+    }
+
+    private readonly RenderPassLists renderLists = new(Enum.GetValues<RenderPass>());
+
+    /// <summary>Only the opaque and translucent passes have a viewmodel layer.</summary>
+    private readonly RenderPassLists viewmodelRenderLists = new(RenderPass.Opaque, RenderPass.Translucent);
 
     /// <summary>Translucent draws that go to the water effects map instead of the scene.</summary>
     private readonly List<MeshBatchRenderer.Request> waterEffectsRenderList = [];
@@ -383,8 +394,7 @@ public sealed class SceneViewState
             renderPass = RenderPass.Opaque;
         }
 
-        var isViewmodelLayer = (request.Node.RenderPasses & CustomRenderPasses.Viewmodel) != 0
-            && viewmodelRenderLists.ContainsKey(renderPass);
+        var isViewmodelLayer = isViewmodel && (renderPass is RenderPass.Opaque or RenderPass.Translucent);
 
         var queueList = isViewmodelLayer
             ? viewmodelRenderLists[renderPass]
@@ -453,12 +463,12 @@ public sealed class SceneViewState
     {
         ArgumentNullException.ThrowIfNull(camera);
 
-        foreach (var bucket in renderLists.Values)
+        foreach (var bucket in renderLists.All)
         {
             bucket.Clear();
         }
 
-        foreach (var bucket in viewmodelRenderLists.Values)
+        foreach (var bucket in viewmodelRenderLists.All)
         {
             bucket.Clear();
         }
@@ -1456,12 +1466,12 @@ public sealed class SceneViewState
 
         nodeDraws.Clear();
 
-        foreach (var requests in renderLists.Values)
+        foreach (var requests in renderLists.All)
         {
             AddNodeDraws(requests, nodes);
         }
 
-        foreach (var requests in viewmodelRenderLists.Values)
+        foreach (var requests in viewmodelRenderLists.All)
         {
             AddNodeDraws(requests, nodes);
         }
