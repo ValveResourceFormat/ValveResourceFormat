@@ -114,17 +114,19 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
         ndc[i] = corners[i].xyz / corners[i].w;
     }
 
-    // Find min/max bounds in NDC space, clamp to [-1, 1]
-    vec3 ndcMin = max(
-        min(min(min(ndc[0], ndc[1]), min(ndc[2], ndc[3])),
-            min(min(ndc[4], ndc[5]), min(ndc[6], ndc[7]))),
-        vec3(-1.0)
-    );
-    vec3 ndcMax = min(
-        max(max(max(ndc[0], ndc[1]), max(ndc[2], ndc[3])),
-            max(max(ndc[4], ndc[5]), max(ndc[6], ndc[7]))),
-        vec3(1.0)
-    );
+    vec3 ndcMin = min(min(min(ndc[0], ndc[1]), min(ndc[2], ndc[3])),
+                      min(min(ndc[4], ndc[5]), min(ndc[6], ndc[7])));
+    vec3 ndcMax = max(max(max(ndc[0], ndc[1]), max(ndc[2], ndc[3])),
+                      max(max(ndc[4], ndc[5]), max(ndc[6], ndc[7])));
+
+    // The pyramid holds no depth for the part of the box that was off screen last frame,
+    // and that part may be on screen now
+    bool pastScreenEdge = any(lessThan(ndcMin.xy, vec2(-1.0))) || any(greaterThan(ndcMax.xy, vec2(1.0)));
+
+    if (pastScreenEdge)
+    {
+        return false;
+    }
 
     // Convert to UV space [0, 1]
     vec2 uvMin = ndcMin.xy * 0.5 + 0.5;
@@ -144,9 +146,7 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
     // check if this AABB is too small to even draw anything
     if (SizeCull && any(lessThan(screenSpaceSize, vec2(minPixelSize))))
     {
-        // oob objects will have zero size, so ignore those
-        bool atScreenEdge = any(equal(uvMin.xy, vec2(0.0))) || any(equal(uvMax.xy, vec2(1.0)));
-        return atScreenEdge == false;
+        return true;
     }
 
     // Convert to pixel coordinates
@@ -173,8 +173,7 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
     ivec2 mipSize = ivec2(max(1, g_nDepthPyramidWidth >> mipLevel), max(1, g_nDepthPyramidHeight >> mipLevel));
     ivec2 maxTexel = mipSize - ivec2(1);
 
-    // Clamp texel coords so that AABBs straddling the screen edge still get tested
-    // against the nearest valid depth samples
+    // A box ending exactly on the right or top edge maps one texel past the mip
     texelMin = clamp(texelMin, ivec2(0), maxTexel);
     texelMax = clamp(texelMax, ivec2(0), maxTexel);
 
