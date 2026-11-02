@@ -7,17 +7,27 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
     /// </summary>
     internal class CCompressedStaticVector3 : AnimationSegmentDecoder
     {
+        private Vector3[] Values = [];
+
         /// <inheritdoc/>
-        /// <remarks>
-        /// Reads static half-precision Vector3 values that remain constant across all frames.
-        /// </remarks>
-        public override void Read(int frameIndex, Frame outFrame)
+        protected override void OnInitialized()
         {
             var halfVectorData = MemoryMarshal.Cast<byte, Half3>(Data);
 
+            Values = new Vector3[WantedElements.Length];
+
+            for (var i = 0; i < Values.Length; i++)
+            {
+                Values[i] = halfVectorData[WantedElements[i]];
+            }
+        }
+
+        /// <inheritdoc/>
+        public override void Read(int frameIndex, Frame outFrame)
+        {
             for (var i = 0; i < RemapTable.Length; i++)
             {
-                outFrame.SetAttribute(RemapTable[i], ChannelAttribute, halfVectorData[WantedElements[i]]);
+                outFrame.SetAttribute(RemapTable[i], ChannelAttribute, Values[i]);
             }
         }
     }

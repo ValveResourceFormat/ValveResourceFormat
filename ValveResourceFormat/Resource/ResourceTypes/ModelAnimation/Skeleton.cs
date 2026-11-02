@@ -237,6 +237,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             Roots = [.. roots];
+            BoneHierarchy.Attach(Bones, Roots);
 
             for (var i = 0; i < Bones.Length; i++)
             {
@@ -263,20 +264,50 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// Accumulates world-space transforms for one bone subtree under the given parent transform.
         /// A <see langword="null"/> <paramref name="frame"/> yields the bind pose.
         /// </summary>
-        public static void ComputeWorldSubtree(Bone bone, Matrix4x4 parentWorld, Frame? frame, Span<Matrix4x4> world)
+        public static void ComputeWorldSubtree(Bone bone, in Matrix4x4 parentWorld, Frame? frame, Span<Matrix4x4> world)
         {
-            var local = bone.BindPose;
-
             if (frame != null)
             {
-                local = frame.Bones[bone.Index].ToMatrix();
+                ComputeWorldSubtreeFromLocal(bone, parentWorld, frame.Bones, world);
+                return;
             }
 
-            world[bone.Index] = local * parentWorld;
+            var hierarchy = bone.Hierarchy!;
+            var bones = hierarchy.Bones;
+            var order = hierarchy.Order;
+            var parents = hierarchy.ParentOfOrder;
+            var end = bone.HierarchyEnd;
 
-            foreach (var child in bone.Children)
+            var start = bone.HierarchyStart;
+            var rootIndex = order[start];
+            world[rootIndex] = bones[rootIndex].BindPose * parentWorld;
+
+            for (var i = start + 1; i < end; i++)
             {
-                ComputeWorldSubtree(child, world[bone.Index], frame, world);
+                var boneIndex = order[i];
+                world[boneIndex] = bones[boneIndex].BindPose * world[parents[i]];
+            }
+        }
+
+        /// <summary>
+        /// Accumulates world-space transforms for one bone subtree under the given parent transform,
+        /// from bone transforms in parent space indexed by bone index.
+        /// </summary>
+        public static void ComputeWorldSubtreeFromLocal(Bone bone, in Matrix4x4 parentWorld, ReadOnlySpan<FrameBone> localPose, Span<Matrix4x4> world)
+        {
+            var hierarchy = bone.Hierarchy!;
+            var order = hierarchy.Order;
+            var parents = hierarchy.ParentOfOrder;
+            var end = bone.HierarchyEnd;
+
+            var start = bone.HierarchyStart;
+            var rootIndex = order[start];
+            world[rootIndex] = localPose[rootIndex].ToMatrix() * parentWorld;
+
+            for (var i = start + 1; i < end; i++)
+            {
+                var boneIndex = order[i];
+                world[boneIndex] = localPose[boneIndex].ToMatrix() * world[parents[i]];
             }
         }
     }

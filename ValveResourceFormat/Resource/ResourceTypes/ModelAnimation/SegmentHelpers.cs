@@ -24,6 +24,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     {
         public const int CompressedQuaternionSize = 6;
 
+        private const int ValueMask = 0x3FFF;
+        private const int OffsetFlag = 0x4000;
+        private const int SignFlag = 0x8000;
+
+        // Equals MathF.Sin(MathF.PI / 4.0f) / 16384.0f
+        private const float Scale = 0.70710677f / 16384.0f;
+
         /// <summary>
         /// Read and decode encoded quaternion.
         /// </summary>
@@ -31,37 +38,36 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <returns>The decoded rotation.</returns>
         public static Quaternion ReadQuaternion(ReadOnlySpan<byte> bytes)
         {
-            // Values
-            var i1 = bytes[0] + ((bytes[1] & 63) << 8);
-            var i2 = bytes[2] + ((bytes[3] & 63) << 8);
-            var i3 = bytes[4] + ((bytes[5] & 63) << 8);
+            // Each component is a little endian word: 14 bits of value, a flag in bit 14 and a sign in bit 15
+            var words = MemoryMarshal.Cast<byte, ushort>(bytes);
+            var word1 = words[0];
+            var word2 = words[1];
+            var word3 = words[2];
 
-            // Signs
-            var s1 = bytes[1] & 128;
-            var s2 = bytes[3] & 128;
-            var s3 = bytes[5] & 128;
+            var i1 = word1 & ValueMask;
+            var i2 = word2 & ValueMask;
+            var i3 = word3 & ValueMask;
 
-            var c = MathF.Sin(MathF.PI / 4.0f) / 16384.0f;
-            var x = (bytes[1] & 64) == 0 ? c * (i1 - 16384) : c * i1;
-            var y = (bytes[3] & 64) == 0 ? c * (i2 - 16384) : c * i2;
-            var z = (bytes[5] & 64) == 0 ? c * (i3 - 16384) : c * i3;
+            var x = (word1 & OffsetFlag) == 0 ? Scale * (i1 - 16384) : Scale * i1;
+            var y = (word2 & OffsetFlag) == 0 ? Scale * (i2 - 16384) : Scale * i2;
+            var z = (word3 & OffsetFlag) == 0 ? Scale * (i3 - 16384) : Scale * i3;
 
             // The omitted component is the largest, so valid data never goes negative here; truncated data can
             var w = MathF.Sqrt(MathF.Max(0f, 1 - (x * x) - (y * y) - (z * z)));
 
             // Apply sign 3
-            if (s3 == 128)
+            if ((word3 & SignFlag) != 0)
             {
                 w *= -1;
             }
 
             // Apply sign 1 and 2
-            if (s1 == 128)
+            if ((word1 & SignFlag) != 0)
             {
-                return s2 == 128 ? new Quaternion(y, z, w, x) : new Quaternion(z, w, x, y);
+                return (word2 & SignFlag) != 0 ? new Quaternion(y, z, w, x) : new Quaternion(z, w, x, y);
             }
 
-            return s2 == 128 ? new Quaternion(w, x, y, z) : new Quaternion(x, y, z, w);
+            return (word2 & SignFlag) != 0 ? new Quaternion(w, x, y, z) : new Quaternion(x, y, z, w);
         }
     }
 }

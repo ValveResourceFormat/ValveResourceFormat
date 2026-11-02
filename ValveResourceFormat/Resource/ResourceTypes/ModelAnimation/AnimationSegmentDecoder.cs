@@ -47,6 +47,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             {
                 throw new ArgumentException("RemapTable and WantedElements must be the same length");
             }
+
+            OnInitialized();
+        }
+
+        /// <summary>
+        /// Called once the data and mapping are set, for decoders that unpack values which do not change per frame.
+        /// </summary>
+        protected virtual void OnInitialized()
+        {
         }
 
         /// <summary>

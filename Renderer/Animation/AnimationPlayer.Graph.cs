@@ -58,7 +58,7 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var root in Skeleton.Roots)
             {
-                ComputeWorldSubtree(root, rootTransform, graphPose, Pose);
+                Skeleton.ComputeWorldSubtreeFromLocal(root, rootTransform, graphPose, Pose);
             }
 
             return true;
@@ -82,16 +82,6 @@ namespace ValveResourceFormat.Renderer
             var next = delta * graphRootTransform;
             RootMotionDelta *= (graphRootTransform.Inverse() * next).ToMatrix();
             graphRootTransform = next;
-        }
-
-        private static void ComputeWorldSubtree(Bone bone, Matrix4x4 parentWorld, ReadOnlySpan<FrameBone> parentSpacePose, Span<Matrix4x4> world)
-        {
-            world[bone.Index] = parentSpacePose[bone.Index].ToMatrix() * parentWorld;
-
-            foreach (var child in bone.Children)
-            {
-                ComputeWorldSubtree(child, world[bone.Index], parentSpacePose, world);
-            }
         }
     }
 }

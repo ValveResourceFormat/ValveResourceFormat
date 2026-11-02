@@ -51,13 +51,12 @@ partial class ModelExtract
             yield break;
         }
 
+        var frame = new Frame(skeleton, flexControllers);
+
         for (var frameIndex = 0; frameIndex < animation.FrameCount; frameIndex++)
         {
-            var frame = new Frame(skeleton, flexControllers)
-            {
-                FrameIndex = frameIndex
-            };
-
+            frame.Clear(skeleton);
+            frame.FrameIndex = frameIndex;
             animation.DecodeFrame(frame);
 
             foreach (var boneIndex in scaledBones)

@@ -28,6 +28,12 @@ namespace ValveResourceFormat.Renderer
         private BoneConstraintSolver(BoneConstraintBase[] definitions, Skeleton skeleton, FlexController[] flexControllers,
             IReadOnlyDictionary<string, Attachment> attachments)
         {
+            if (definitions.Length == 0)
+            {
+                constraints = [];
+                return;
+            }
+
             var context = new BuildContext(skeleton, flexControllers, attachments);
             var built = new List<Constraint>();
 

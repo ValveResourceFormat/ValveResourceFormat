@@ -65,6 +65,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         public bool IsClothControlNode => (Flags & ModelSkeletonBoneFlags.Cloth) == ModelSkeletonBoneFlags.Cloth;
 
+        internal BoneHierarchy? Hierarchy;
+
+        /// <summary>The range of this bone and its descendants in <see cref="BoneHierarchy.Order"/>.</summary>
+        internal int HierarchyStart;
+
+        internal int HierarchyEnd;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="Bone"/> class.
         /// </summary>

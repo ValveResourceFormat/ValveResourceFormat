@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
 using ValveKeyValue;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -392,18 +393,21 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             // The omitted component is the largest, so valid data never goes negative here; truncated data can
             vData.W = MathF.Sqrt(MathF.Max(0f, 1f - sum));
 
-            // Vector128.Shuffle(vData.AsVector128(), Vector128.Create([3, 0, 1, 2]));
+            // The reconstructed largest component moves to the index it was omitted from.
+            // That index is effectively random, so shuffle instead of branching on it.
+            var largestValueIndex = (data[0] >> 14 & 0x0002) | data[1] >> 15;
+            var indices = Vector128.Create(LargestValueShuffles.Slice(largestValueIndex * 4, 4));
 
-            var largestValueIndex = (ushort)((data[0] >> 14 & 0x0002) | data[1] >> 15);
-            return largestValueIndex switch
-            {
-                0 => new Quaternion(vData[3], vData[0], vData[1], vData[2]),
-                1 => new Quaternion(vData[0], vData[3], vData[1], vData[2]),
-                2 => new Quaternion(vData[0], vData[1], vData[3], vData[2]),
-                3 => new Quaternion(vData[0], vData[1], vData[2], vData[3]),
-                _ => throw new InvalidOperationException("Invalid largest value index")
-            };
+            return Vector128.ShuffleNative(vData.AsVector128(), indices).AsQuaternion();
         }
+
+        private static ReadOnlySpan<int> LargestValueShuffles =>
+        [
+            3, 0, 1, 2,
+            0, 3, 1, 2,
+            0, 1, 3, 2,
+            0, 1, 2, 3,
+        ];
 
         const int CompressedTranslationSize = 3;
         static Vector3 DecodeTranslation(ReadOnlySpan<ushort> data, Vector3 rangeStart, Vector3 rangeLength)
