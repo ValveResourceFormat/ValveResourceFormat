@@ -2186,7 +2186,7 @@ namespace CLI
 
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 
-            File.WriteAllBytes(path, data.ToArray());
+            File.WriteAllBytes(path, data);
             Interlocked.Increment(ref WrittenFiles);
 
             Console.WriteLine("--- Dump written to \"{0}\"", path);

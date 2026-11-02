@@ -182,8 +182,6 @@ partial class ModelExtract
     {
         using var dmx = new Datamodel.Datamodel("model", 22);
 
-        var rootMotionBone = skeleton["root_motion"];
-
         // The frames below get the axis fixup, so the bind pose it is written against has to have it too
         var dmeSkeleton = BuildDmeDagSkeleton(skeleton, out var transforms, nmSkelAxisFixup, keepClothProxyBones: keepClothProxyBones);
 
@@ -199,31 +197,12 @@ partial class ModelExtract
         {
             clip.TimeFrame.Duration = TimeSpan.FromSeconds((double)(anim.FrameCount - 1) / fps);
 
-            var frames = new Frame[anim.FrameCount];
-            for (var i = 0; i < anim.FrameCount; i++)
-            {
-                var frame = new Frame(skeleton, flexControllers)
-                {
-                    FrameIndex = i
-                };
-                anim.DecodeFrame(frame);
-                frames[i] = frame;
-
-                if (nmSkelAxisFixup && rootMotionBone != null)
-                {
-                    frame.Bones[rootMotionBone.Index].Angle = NmAxisFixupRootMotion(frame.Bones[rootMotionBone.Index].Angle);
-
-                    foreach (var root in rootMotionBone.Children)
-                    {
-                        (frame.Bones[root.Index].Position, frame.Bones[root.Index].Angle)
-                            = NmAxisFixupChild(frame.Bones[root.Index].Position, frame.Bones[root.Index].Angle);
-                    }
-                }
-            }
+            var tracks = DecodeTracks(skeleton, flexControllers, anim, nmSkelAxisFixup, keepClothProxyBones);
+            var times = GetFrameTimes(anim);
 
             ProcessRootMotionChannel(anim, dmeSkeleton, clip);
-            ProcessBoneChannels(skeleton, anim, transforms, clip, frames, keepClothProxyBones);
-            ProcessFlexChannels(flexControllers, anim, clip, frames);
+            ProcessBoneChannels(skeleton, transforms, clip, tracks, times);
+            ProcessFlexChannels(flexControllers, clip, tracks, times);
         }
 
         foreach (var (secondarySkeleton, secondaryAnimation) in secondaryAnimations)
@@ -234,19 +213,9 @@ partial class ModelExtract
             }
 
             var secondaryTransforms = AppendDmeSkeletonJoints(dmeSkeleton, secondarySkeleton, keepClothProxyBones: keepClothProxyBones);
+            var secondaryTracks = DecodeTracks(secondarySkeleton, [], secondaryAnimation, nmSkelAxisFixup: false, keepClothProxyBones);
 
-            var secondaryFrames = new Frame[secondaryAnimation.FrameCount];
-            for (var i = 0; i < secondaryAnimation.FrameCount; i++)
-            {
-                var frame = new Frame(secondarySkeleton, [])
-                {
-                    FrameIndex = i
-                };
-                secondaryAnimation.DecodeFrame(frame);
-                secondaryFrames[i] = frame;
-            }
-
-            ProcessBoneChannels(secondarySkeleton, secondaryAnimation, secondaryTransforms, clip, secondaryFrames, keepClothProxyBones);
+            ProcessBoneChannels(secondarySkeleton, secondaryTransforms, clip, secondaryTracks, GetFrameTimes(secondaryAnimation));
         }
 
         animationList.Animations.Add(clip);
@@ -283,30 +252,97 @@ partial class ModelExtract
         };
     }
 
-    private static void ProcessBoneFrameForDmeChannel(Bone bone, Frame frame, TimeSpan time, DmeVector3LogLayer positionLayer, DmeQuaternionLogLayer orientationLayer, bool dropVertical)
-    {
-        var frameBone = frame.Bones[bone.Index];
+    /// <summary>
+    /// Every frame of an animation, laid out as the log layer values of each bone and flex controller.
+    /// Bones that are not exported have no values.
+    /// </summary>
+    private readonly record struct DecodedTracks(Vector3[]?[] Positions, Quaternion[]?[] Orientations, float[][] FlexValues);
 
-        var position = frameBone.Position;
-        if (dropVertical)
+    private static DecodedTracks DecodeTracks(Skeleton skeleton, FlexController[] flexControllers, AnimationBase anim, bool nmSkelAxisFixup, bool keepClothProxyBones)
+    {
+        var frameCount = anim.FrameCount;
+        var bones = skeleton.Bones;
+        var rootMotionBone = skeleton["root_motion"];
+
+        var positions = new Vector3[]?[bones.Length];
+        var orientations = new Quaternion[]?[bones.Length];
+        var flexValues = new float[flexControllers.Length][];
+
+        foreach (var bone in bones)
         {
-            // vertical root motion is not applied to the visible body. baking it floats the model up.
-            position.Z = 0f;
+            if (keepClothProxyBones || !ClothBones.IsGeneratedProxyBone(bone))
+            {
+                positions[bone.Index] = new Vector3[frameCount];
+                orientations[bone.Index] = new Quaternion[frameCount];
+            }
         }
 
-        positionLayer.Times.Add(time);
-        positionLayer.LayerValues[frame.FrameIndex] = position;
+        for (var flexId = 0; flexId < flexValues.Length; flexId++)
+        {
+            flexValues[flexId] = new float[frameCount];
+        }
 
-        orientationLayer.Times.Add(time);
-        orientationLayer.LayerValues[frame.FrameIndex] = frameBone.Angle;
+        var frame = new Frame(skeleton, flexControllers);
+
+        for (var i = 0; i < frameCount; i++)
+        {
+            frame.Clear(skeleton);
+            frame.FrameIndex = i;
+            anim.DecodeFrame(frame);
+
+            if (nmSkelAxisFixup && rootMotionBone != null)
+            {
+                frame.Bones[rootMotionBone.Index].Angle = NmAxisFixupRootMotion(frame.Bones[rootMotionBone.Index].Angle);
+
+                foreach (var root in rootMotionBone.Children)
+                {
+                    (frame.Bones[root.Index].Position, frame.Bones[root.Index].Angle)
+                        = NmAxisFixupChild(frame.Bones[root.Index].Position, frame.Bones[root.Index].Angle);
+                }
+            }
+
+            foreach (var bone in bones)
+            {
+                var bonePositions = positions[bone.Index];
+                var boneOrientations = orientations[bone.Index];
+
+                if (bonePositions == null || boneOrientations == null)
+                {
+                    continue;
+                }
+
+                var frameBone = frame.Bones[bone.Index];
+
+                var position = frameBone.Position;
+                if (bone == rootMotionBone)
+                {
+                    // vertical root motion is not applied to the visible body. baking it floats the model up.
+                    position.Z = 0f;
+                }
+
+                bonePositions[i] = position;
+                boneOrientations[i] = frameBone.Angle;
+            }
+
+            for (var flexId = 0; flexId < flexValues.Length; flexId++)
+            {
+                flexValues[flexId][i] = frame.Datas[flexId];
+            }
+        }
+
+        return new DecodedTracks(positions, orientations, flexValues);
     }
 
-    private static void ProcessFlexFrameForDmeChannel(int flexId, Frame frame, TimeSpan time, DmeFloatLogLayer flexLayer)
+    private static TimeSpan[] GetFrameTimes(AnimationBase anim)
     {
-        var flexValue = frame.Datas[flexId];
+        var times = new TimeSpan[anim.FrameCount];
 
-        flexLayer.Times.Add(time);
-        flexLayer.LayerValues[frame.FrameIndex] = flexValue;
+        for (var i = 0; i < times.Length; i++)
+        {
+            times[i] = TimeSpan.FromSeconds((double)i / EffectiveFps(anim.Fps));
+        }
+
+        return times;
     }
 
     /// <summary>
@@ -352,7 +388,7 @@ partial class ModelExtract
         clip.Channels.Add(rootOrientationChannel);
     }
 
-    private static void ProcessFlexChannels(FlexController[] flexControllers, AnimationBase anim, DmeChannelsClip clip, Frame[] frames)
+    private static void ProcessFlexChannels(FlexController[] flexControllers, DmeChannelsClip clip, DecodedTracks tracks, TimeSpan[] times)
     {
         for (var flexId = 0; flexId < flexControllers.Length; flexId++)
         {
@@ -364,27 +400,22 @@ partial class ModelExtract
             };
             flexElement.Add("flexWeight", 0f);
 
-            var flexLogLayer = new DmeFloatLogLayer { LayerValues = new float[anim.FrameCount] };
-            var flexChannel = BuildDmeChannel($"{flexController.Name}_flex_channel", flexElement, "flexWeight", new DmeFloatLog(), flexLogLayer);
+            var flexLogLayer = new DmeFloatLogLayer { LayerValues = tracks.FlexValues[flexId] };
+            flexLogLayer.Times.AddRange(times);
 
-            for (var i = 0; i < anim.FrameCount; i++)
-            {
-                var frame = frames[i];
-                var time = TimeSpan.FromSeconds((double)i / EffectiveFps(anim.Fps));
-                ProcessFlexFrameForDmeChannel(flexId, frame, time, flexLogLayer);
-            }
+            var flexChannel = BuildDmeChannel($"{flexController.Name}_flex_channel", flexElement, "flexWeight", new DmeFloatLog(), flexLogLayer);
             clip.Channels.Add(flexChannel);
         }
     }
 
-    private static void ProcessBoneChannels(Skeleton skeleton, AnimationBase anim, DmeTransform[] transforms, DmeChannelsClip clip, Frame[] frames,
-        bool keepClothProxyBones)
+    private static void ProcessBoneChannels(Skeleton skeleton, DmeTransform[] transforms, DmeChannelsClip clip, DecodedTracks tracks, TimeSpan[] times)
     {
-        var rootMotionBone = skeleton["root_motion"];
-
         foreach (var bone in skeleton.Bones)
         {
-            if (!keepClothProxyBones && ClothBones.IsGeneratedProxyBone(bone))
+            var positions = tracks.Positions[bone.Index];
+            var orientations = tracks.Orientations[bone.Index];
+
+            if (positions == null || orientations == null)
             {
                 continue;
             }
@@ -392,20 +423,13 @@ partial class ModelExtract
             var transform = transforms[bone.Index];
             var boneName = GetExportBoneName(bone);
 
-            var positionLogLayer = new DmeVector3LogLayer { LayerValues = new Vector3[anim.FrameCount] };
-            var orientationLogLayer = new DmeQuaternionLogLayer { LayerValues = new Quaternion[anim.FrameCount] };
+            var positionLogLayer = new DmeVector3LogLayer { LayerValues = positions };
+            var orientationLogLayer = new DmeQuaternionLogLayer { LayerValues = orientations };
+            positionLogLayer.Times.AddRange(times);
+            orientationLogLayer.Times.AddRange(times);
 
             var positionChannel = BuildDmeChannel($"{boneName}_p", transform, "position", new DmeVector3Log(), positionLogLayer);
             var orientationChannel = BuildDmeChannel($"{boneName}_o", transform, "orientation", new DmeQuaternionLog(), orientationLogLayer);
-
-            for (var i = 0; i < anim.FrameCount; i++)
-            {
-                var frame = frames[i];
-
-                var time = TimeSpan.FromSeconds((double)i / EffectiveFps(anim.Fps));
-
-                ProcessBoneFrameForDmeChannel(bone, frame, time, positionLogLayer, orientationLogLayer, bone == rootMotionBone);
-            }
 
             ApplyModelDocHack(positionLogLayer);
 
