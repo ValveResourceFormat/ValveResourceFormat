@@ -89,16 +89,27 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Debug.Assert(IntrospectionManifest != null);
 
-            var structEntry = KVObject.Collection();
-
             // Polymorphic structs store the id of their concrete type at the start of the object
             var concreteStruct = refStruct;
+            var isPolymorphic = (refStruct.StructFlags & PolymorphicStructFlag) != 0;
 
-            if ((refStruct.StructFlags & PolymorphicStructFlag) != 0)
+            if (isPolymorphic)
             {
                 Reader.BaseStream.Position = startingOffset;
                 concreteStruct = IntrospectionManifest.GetStructById(Reader.ReadUInt32()) ?? refStruct;
+            }
 
+            var capacity = concreteStruct.FieldIntrospection.Count;
+
+            if (isPolymorphic)
+            {
+                capacity++;
+            }
+
+            var structEntry = KVObject.Collection(capacity);
+
+            if (isPolymorphic)
+            {
                 // Same key KV3 uses to name the type of polymorphic objects
                 structEntry.Add("_class", concreteStruct.Name);
             }
@@ -166,7 +177,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
             else if (special.Behavior == SpecialFieldBehavior.Rows && field.Indirections.Count == 0 && field.Count % special.Columns == 0)
             {
-                fieldValue = KVObject.Array();
+                fieldValue = KVObject.Array(field.Count / special.Columns);
 
                 for (var row = 0; row < field.Count / special.Columns; row++)
                 {
@@ -248,7 +259,9 @@ namespace ValveResourceFormat.ResourceTypes
                 return KVObject.Blob(Reader.ReadBytes(count * size));
             }
 
-            var values = KVObject.Array();
+            // The count comes from the file, so a corrupt one must not presize more elements than bytes remain
+            var remainingBytes = Reader.BaseStream.Length - Reader.BaseStream.Position;
+            var values = KVObject.Array((int)Math.Clamp(count, 0, remainingBytes));
 
             for (var i = 0; i < count; i++)
             {
@@ -345,7 +358,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case SchemaFieldType.DegreeEuler:
                 case SchemaFieldType.RotationVector:
                 {
-                    var arrayObject = KVObject.Array();
+                    var arrayObject = KVObject.Array(3);
                     arrayObject.Add(Reader.ReadSingle());
                     arrayObject.Add(Reader.ReadSingle());
                     arrayObject.Add(Reader.ReadSingle());
@@ -356,7 +369,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case SchemaFieldType.Fltx4:
                 case SchemaFieldType.Vector4D:
                 {
-                    var arrayObject = KVObject.Array();
+                    var arrayObject = KVObject.Array(4);
                     arrayObject.Add(Reader.ReadSingle());
                     arrayObject.Add(Reader.ReadSingle());
                     arrayObject.Add(Reader.ReadSingle());
@@ -366,7 +379,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 case SchemaFieldType.Color:
                 {
-                    var arrayObject = KVObject.Array();
+                    var arrayObject = KVObject.Array(4);
                     arrayObject.Add((int)Reader.ReadByte());
                     arrayObject.Add((int)Reader.ReadByte());
                     arrayObject.Add((int)Reader.ReadByte());
@@ -382,7 +395,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 case SchemaFieldType.Vector2D:
                 {
-                    var arrayObject = KVObject.Array();
+                    var arrayObject = KVObject.Array(2);
                     arrayObject.Add(Reader.ReadSingle());
                     arrayObject.Add(Reader.ReadSingle());
                     return arrayObject;
@@ -393,7 +406,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case SchemaFieldType.Matrix3x4a:
                 case SchemaFieldType.FourVectors:
                 {
-                    var arrayObject = KVObject.Array();
+                    var arrayObject = KVObject.Array(12);
                     arrayObject.Add(Reader.ReadSingle());
                     arrayObject.Add(Reader.ReadSingle());
                     arrayObject.Add(Reader.ReadSingle());
@@ -418,7 +431,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 case SchemaFieldType.Transform:
                 {
-                    var arrayObject = KVObject.Array();
+                    var arrayObject = KVObject.Array(8);
                     arrayObject.Add(Reader.ReadSingle());
                     arrayObject.Add(Reader.ReadSingle());
                     arrayObject.Add(Reader.ReadSingle());
@@ -437,7 +450,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         private KVObject ReadFloats(int count)
         {
-            var arrayObject = KVObject.Array();
+            var arrayObject = KVObject.Array(count);
 
             for (var i = 0; i < count; i++)
             {

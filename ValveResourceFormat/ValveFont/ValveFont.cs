@@ -61,10 +61,11 @@ namespace ValveResourceFormat.ValveFont
 
             // Decode the rest
             reader.BaseStream.Seek(0, SeekOrigin.Begin);
+            reader.BaseStream.ReadExactly(output);
 
             for (var i = 0; i < output.Length; i++)
             {
-                var currentByte = reader.ReadByte();
+                var currentByte = output[i];
 
                 output[i] = (byte)(currentByte ^ magic);
 

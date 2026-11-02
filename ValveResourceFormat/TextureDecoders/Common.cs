@@ -114,41 +114,25 @@ namespace ValveResourceFormat.TextureDecoders
 
             var pixels = MemoryMarshal.Cast<byte, Color>(data);
 
-            for (var i = 0; i < pixels.Length; i++)
+            // Conversions are independent per pixel, so they run as separate passes
+            if (decodeYCoCg)
             {
-                if (decodeYCoCg)
-                {
-                    ref var pixel = ref pixels[i];
+                Decode_YCoCg(pixels, linearizeYCoCg);
+            }
 
-                    var input = new Vector3(pixel.r, pixel.g, pixel.b) / 255f;
+            if (blueToAlpha)
+            {
+                CopyBlueToAlpha(MemoryMarshal.Cast<byte, uint>(data));
+            }
 
-                    if (linearizeYCoCg)
-                    {
-                        input = ColorSpace.SrgbGammaToLinear(input);
-                    }
+            if (decodeHemiOct)
+            {
+                Decode_HemiOct(pixels);
+            }
 
-                    var rgb = Decode_YCoCg(new Vector4(input, pixel.a / 255f));
-
-                    pixel.r = ToClampedLdrColor(rgb.X);
-                    pixel.g = ToClampedLdrColor(rgb.Y);
-                    pixel.b = ToClampedLdrColor(rgb.Z);
-                    pixel.a = 255;
-                }
-
-                if (blueToAlpha)
-                {
-                    pixels[i].a = pixels[i].b;
-                }
-
-                if (decodeHemiOct)
-                {
-                    Decode_HemiOct(ref pixels[i]);
-                }
-
-                if (reconstructZ)
-                {
-                    ReconstructNormals(ref pixels[i]);
-                }
+            if (reconstructZ)
+            {
+                ReconstructNormals(pixels);
             }
         }
 
@@ -167,26 +151,177 @@ namespace ValveResourceFormat.TextureDecoders
             return new Vector3(y + co - cg, y + cg, y - co - cg);
         }
 
-        public static void ReconstructNormals(ref Color color)
+        private static void Decode_YCoCg(Span<Color> pixels, bool linearize)
         {
-            var x = (color.r / 255f * 2) - 1;
-            var y = (color.g / 255f * 2) - 1;
+            for (var i = 0; i < pixels.Length; i++)
+            {
+                ref var pixel = ref pixels[i];
 
-            // Byte rounding can push X and Y just outside the unit circle
-            var z = MathF.Sqrt(MathF.Max(0, 1 - (x * x) - (y * y)));
-            color.b = ToClampedLdrColor((z * 0.5f) + 0.5f);
+                var input = new Vector3(pixel.r, pixel.g, pixel.b) / 255f;
+
+                if (linearize)
+                {
+                    input = ColorSpace.SrgbGammaToLinear(input);
+                }
+
+                var rgb = Decode_YCoCg(new Vector4(input, pixel.a / 255f));
+
+                pixel.r = ToClampedLdrColor(rgb.X);
+                pixel.g = ToClampedLdrColor(rgb.Y);
+                pixel.b = ToClampedLdrColor(rgb.Z);
+                pixel.a = 255;
+            }
         }
 
-        public static void Decode_HemiOct(ref Color color)
-        {
-            var nx = ((color.r + color.g) / 255.0f) - 1.003922f;
-            var ny = (color.r - color.g) / 255.0f;
-            var nz = 1 - MathF.Abs(nx) - MathF.Abs(ny);
+        private const int ConversionChunkSize = 512;
 
-            var l = MathF.Sqrt((nx * nx) + (ny * ny) + (nz * nz));
-            color.r = ToClampedLdrColor((nx / l * 0.5f) + 0.5f);
-            color.g = ToClampedLdrColor((ny / l * 0.5f) + 0.5f);
-            color.b = ToClampedLdrColor((nz / l * 0.5f) + 0.5f);
+        public static void ReconstructNormals(ref Color color)
+        {
+            ReconstructNormals(new Span<Color>(ref color));
+        }
+
+        private static void ReconstructNormals(Span<Color> pixels)
+        {
+            Span<float> xBuffer = stackalloc float[ConversionChunkSize];
+            Span<float> yBuffer = stackalloc float[ConversionChunkSize];
+            Span<byte> unormBuffer = stackalloc byte[ConversionChunkSize];
+
+            for (var offset = 0; offset < pixels.Length; offset += ConversionChunkSize)
+            {
+                var chunk = pixels.Slice(offset, Math.Min(ConversionChunkSize, pixels.Length - offset));
+                var x = xBuffer[..chunk.Length];
+                var y = yBuffer[..chunk.Length];
+                var unorm = unormBuffer[..chunk.Length];
+
+                for (var i = 0; i < chunk.Length; i++)
+                {
+                    x[i] = chunk[i].r;
+                    y[i] = chunk[i].g;
+                }
+
+                UnormToSigned(x);
+                UnormToSigned(y);
+
+                // Byte rounding can push X and Y just outside the unit circle
+                TensorPrimitives.Multiply(x, x, x);
+                TensorPrimitives.Multiply(y, y, y);
+                TensorPrimitives.Subtract(1f, x, x);
+                TensorPrimitives.Subtract(x, y, x);
+                TensorPrimitives.Max(x, 0f, x);
+                TensorPrimitives.Sqrt(x, x);
+
+                SignedToUnorm(x, unorm);
+
+                for (var i = 0; i < chunk.Length; i++)
+                {
+                    chunk[i].b = unorm[i];
+                }
+            }
+        }
+
+        private static void Decode_HemiOct(Span<Color> pixels)
+        {
+            Span<float> xBuffer = stackalloc float[ConversionChunkSize];
+            Span<float> yBuffer = stackalloc float[ConversionChunkSize];
+            Span<float> zBuffer = stackalloc float[ConversionChunkSize];
+            Span<float> lengthBuffer = stackalloc float[ConversionChunkSize];
+            Span<float> scratchBuffer = stackalloc float[ConversionChunkSize];
+            Span<byte> unormBuffer = stackalloc byte[ConversionChunkSize];
+
+            for (var offset = 0; offset < pixels.Length; offset += ConversionChunkSize)
+            {
+                var chunk = pixels.Slice(offset, Math.Min(ConversionChunkSize, pixels.Length - offset));
+                var x = xBuffer[..chunk.Length];
+                var y = yBuffer[..chunk.Length];
+                var z = zBuffer[..chunk.Length];
+                var length = lengthBuffer[..chunk.Length];
+                var scratch = scratchBuffer[..chunk.Length];
+                var unorm = unormBuffer[..chunk.Length];
+
+                for (var i = 0; i < chunk.Length; i++)
+                {
+                    x[i] = chunk[i].r + chunk[i].g;
+                    y[i] = chunk[i].r - chunk[i].g;
+                }
+
+                TensorPrimitives.Divide(x, 255f, x);
+                TensorPrimitives.Subtract(x, 1.003922f, x);
+                TensorPrimitives.Divide(y, 255f, y);
+
+                TensorPrimitives.Abs(x, scratch);
+                TensorPrimitives.Subtract(1f, scratch, z);
+                TensorPrimitives.Abs(y, scratch);
+                TensorPrimitives.Subtract(z, scratch, z);
+
+                TensorPrimitives.Multiply(x, x, length);
+                TensorPrimitives.Multiply(y, y, scratch);
+                TensorPrimitives.Add(length, scratch, length);
+                TensorPrimitives.Multiply(z, z, scratch);
+                TensorPrimitives.Add(length, scratch, length);
+                TensorPrimitives.Sqrt(length, length);
+
+                TensorPrimitives.Divide(x, length, x);
+                SignedToUnorm(x, unorm);
+
+                for (var i = 0; i < chunk.Length; i++)
+                {
+                    chunk[i].r = unorm[i];
+                }
+
+                TensorPrimitives.Divide(y, length, y);
+                SignedToUnorm(y, unorm);
+
+                for (var i = 0; i < chunk.Length; i++)
+                {
+                    chunk[i].g = unorm[i];
+                }
+
+                TensorPrimitives.Divide(z, length, z);
+                SignedToUnorm(z, unorm);
+
+                for (var i = 0; i < chunk.Length; i++)
+                {
+                    chunk[i].b = unorm[i];
+                }
+            }
+        }
+
+        /// <summary>
+        /// Maps [0, 255] to [-1, 1] in place.
+        /// </summary>
+        private static void UnormToSigned(Span<float> values)
+        {
+            TensorPrimitives.Divide(values, 255f, values);
+            TensorPrimitives.Multiply(values, 2f, values);
+            TensorPrimitives.Subtract(values, 1f, values);
+        }
+
+        /// <summary>
+        /// Maps [-1, 1] to a byte, overwriting <paramref name="values"/>.
+        /// </summary>
+        private static void SignedToUnorm(Span<float> values, Span<byte> destination)
+        {
+            TensorPrimitives.Multiply(values, 0.5f, values);
+            TensorPrimitives.Add(values, 0.5f, values);
+            TensorPrimitives.ConvertToClampedUnorm8(values, destination);
+        }
+
+        /// <remarks>
+        /// Components are expected in BGRA order.
+        /// </remarks>
+        private static void CopyBlueToAlpha(Span<uint> pixels)
+        {
+            Span<uint> alphaBuffer = stackalloc uint[ConversionChunkSize];
+
+            for (var offset = 0; offset < pixels.Length; offset += ConversionChunkSize)
+            {
+                var chunk = pixels.Slice(offset, Math.Min(ConversionChunkSize, pixels.Length - offset));
+                var alpha = alphaBuffer[..chunk.Length];
+
+                TensorPrimitives.ShiftLeft(chunk, 24, alpha);
+                TensorPrimitives.BitwiseAnd(chunk, 0x00FFFFFFu, chunk);
+                TensorPrimitives.BitwiseOr(chunk, alpha, chunk);
+            }
         }
 
         public static byte ClampColor(int a)

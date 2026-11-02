@@ -149,7 +149,8 @@ namespace ValveResourceFormat.CompiledShader
                 ShaderFiles = new VfxShaderFile[hashes.Count];
                 foreach (var i in byteCodeIndex)
                 {
-                    if (i == -1)
+                    // Dynamic combos can share the same bytecode
+                    if (i == -1 || ShaderFiles[i] != null)
                     {
                         continue;
                     }

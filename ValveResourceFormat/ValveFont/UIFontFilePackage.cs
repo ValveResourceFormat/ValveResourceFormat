@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.IO;
 using System.Security.Cryptography;
 
@@ -84,12 +85,7 @@ public class UIFontFilePackage
                     pos += bytesRead;
 
                     var encryptedFile = ParseEncryptedFontFile(data.Slice(pos, length));
-                    if (encryptedFile != null)
-                    {
-                        var decryptedData = DecryptFontFile(encryptedFile);
-                        var fontFile = ParseFontFile(decryptedData);
-                        FontFiles.Add(fontFile);
-                    }
+                    FontFiles.Add(DecryptFontFile(encryptedFile));
                     pos += length;
                     break;
 
@@ -146,10 +142,10 @@ public class UIFontFilePackage
         return result;
     }
 
-    private static byte[] ParseEncryptedFontFile(ReadOnlySpan<byte> data)
+    private static ReadOnlySpan<byte> ParseEncryptedFontFile(ReadOnlySpan<byte> data)
     {
         var pos = 0;
-        byte[]? encryptedContents = null;
+        Range? encryptedContents = null;
 
         while (pos < data.Length)
         {
@@ -164,7 +160,7 @@ public class UIFontFilePackage
                 var length = (int)ReadVarint(data[pos..], out bytesRead);
                 pos += bytesRead;
 
-                encryptedContents = data.Slice(pos, length).ToArray();
+                encryptedContents = new Range(pos, pos + length);
                 pos += length;
             }
             else
@@ -173,9 +169,12 @@ public class UIFontFilePackage
             }
         }
 
-        ArgumentNullException.ThrowIfNull(encryptedContents);
+        if (encryptedContents is not { } contents)
+        {
+            throw new InvalidDataException("Encrypted font file has no contents");
+        }
 
-        return encryptedContents;
+        return data[contents];
     }
 
     private static ulong ReadVarint(ReadOnlySpan<byte> data, out int bytesRead)
@@ -200,7 +199,7 @@ public class UIFontFilePackage
     }
 
     // https://github.com/SteamRE/SteamKit/blob/8ba50d18ba7cc9c47dc1138c0ef25f517bb153c4/SteamKit2/SteamKit2/Util/CryptoHelper.cs
-    private static byte[] DecryptFontFile(ReadOnlySpan<byte> input)
+    private static FontFile DecryptFontFile(ReadOnlySpan<byte> input)
     {
         using var aes = Aes.Create();
         aes.BlockSize = 128;
@@ -211,6 +210,17 @@ public class UIFontFilePackage
         Span<byte> iv = stackalloc byte[16];
         aes.DecryptEcb(input[..iv.Length], iv, PaddingMode.None);
 
-        return aes.DecryptCbc(input[iv.Length..], iv, PaddingMode.PKCS7);
+        var ciphertext = input[iv.Length..];
+        var decrypted = ArrayPool<byte>.Shared.Rent(ciphertext.Length);
+
+        try
+        {
+            var length = aes.DecryptCbc(ciphertext, iv, decrypted, PaddingMode.PKCS7);
+            return ParseFontFile(decrypted.AsSpan(0, length));
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(decrypted);
+        }
     }
 }

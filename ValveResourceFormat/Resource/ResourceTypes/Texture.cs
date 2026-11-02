@@ -862,15 +862,15 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 case VTexFormat.JPEG_DXT5:
                 case VTexFormat.JPEG_RGBA8888:
-                    return SKBitmap.Decode(ReadBytesAtData(CalculateJpegSize()));
+                    return DecodeRawImage(CalculateJpegSize());
 
                 case VTexFormat.PNG_DXT5:
                 case VTexFormat.PNG_RGBA8888:
-                    return SKBitmap.Decode(ReadBytesAtData(CalculatePngSize()));
+                    return DecodeRawImage(CalculatePngSize());
 
                 case VTexFormat.WEBP_DXT5:
                 case VTexFormat.WEBP_RGBA8888:
-                    return SKBitmap.Decode(ReadBytesAtData(CalculateWebpSize()));
+                    return DecodeRawImage(CalculateWebpSize());
             }
 
             var isHdrBitmap = IsHighDynamicRange && !decodeFlags.HasFlag(TextureCodec.ForceLDR);
@@ -1332,14 +1332,27 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private byte[] ReadBytesAtData(int size)
+        private SKBitmap DecodeRawImage(int size)
         {
             Debug.Assert(Reader is not null);
 
-            lock (Resource.ReaderLock)
+            var buffer = ArrayPool<byte>.Shared.Rent(size);
+
+            try
             {
-                Reader.BaseStream.Position = DataOffset;
-                return Reader.ReadBytes(size);
+                int read;
+
+                lock (Resource.ReaderLock)
+                {
+                    Reader.BaseStream.Position = DataOffset;
+                    read = Reader.BaseStream.ReadAtLeast(buffer.AsSpan(0, size), size, throwOnEndOfStream: false);
+                }
+
+                return SKBitmap.Decode(buffer.AsSpan(0, read));
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
             }
         }
 
