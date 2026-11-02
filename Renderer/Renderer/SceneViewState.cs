@@ -448,8 +448,9 @@ public sealed class SceneViewState
         }
 
         // A draw before the grab reads the depth copy of the previous frame
-        WantsSceneDepth |= request.Call.Material.Shader.ReservedTexturesUsed.Contains("g_tSceneDepth");
-        WantsSsao |= request.Call.Material.Shader.ReservedTexturesUsed.Contains("g_tSsao");
+        var reservedTextures = request.Call.Material.Shader.ReservedTexturesUsed;
+        WantsSceneDepth = WantsSceneDepth || reservedTextures.Contains("g_tSceneDepth");
+        WantsSsao = WantsSsao || reservedTextures.Contains("g_tSsao");
 
         queueList.Add(request);
     }
@@ -511,6 +512,9 @@ public sealed class SceneViewState
 
         aggregatesWithVisibleFragments.Clear();
 
+        // Fragments of one aggregate are mostly adjacent, so this skips the repeated set lookups
+        SceneAggregate? lastFragmentParent = null;
+
         var translucentList = renderLists[RenderPass.Translucent];
         staticTranslucentCount = 0;
 
@@ -543,7 +547,30 @@ public sealed class SceneViewState
 
             MarkFragmentVisibleGpu(node);
 
-            if (node is MeshCollectionNode meshCollection)
+            // Most visible nodes of a world are fragments, so test the sealed type first
+            if (node is SceneAggregate.Fragment fragment)
+            {
+                var parent = fragment.Parent;
+
+                if (!parent.IsFragmentInActiveLod(fragment))
+                {
+                    continue;
+                }
+
+                if (parent != lastFragmentParent)
+                {
+                    lastFragmentParent = parent;
+                    aggregatesWithVisibleFragments.Add(parent);
+                }
+
+                Add(new MeshBatchRenderer.Request
+                {
+                    Mesh = fragment.RenderMesh,
+                    Call = fragment.DrawCall,
+                    Node = node,
+                }, RenderPass.OpaqueFragments);
+            }
+            else if (node is MeshCollectionNode meshCollection)
             {
                 if ((node.RenderPasses & CustomRenderPasses.Default) == 0)
                 {
@@ -584,21 +611,6 @@ public sealed class SceneViewState
                         }, RenderPass.Translucent);
                     }
                 }
-            }
-            else if (node is SceneAggregate.Fragment fragment)
-            {
-                if (!fragment.Parent.IsFragmentInActiveLod(fragment))
-                {
-                    continue;
-                }
-
-                aggregatesWithVisibleFragments.Add(fragment.Parent);
-                Add(new MeshBatchRenderer.Request
-                {
-                    Mesh = fragment.RenderMesh,
-                    Call = fragment.DrawCall,
-                    Node = node,
-                }, RenderPass.OpaqueFragments);
             }
             else if (node is SceneAggregate aggregate)
             {
