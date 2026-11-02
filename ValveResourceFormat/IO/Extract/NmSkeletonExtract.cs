@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.IO;
-using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -71,7 +70,7 @@ public class NmSkeletonExtract
 
         var contentFile = new ContentFile
         {
-            Data = Encoding.UTF8.GetBytes(kv.ToKV3String())
+            Data = kv.ToKV3Bytes()
         };
         contentFile.AddSubFile(dmxSubFileName, () =>
         {

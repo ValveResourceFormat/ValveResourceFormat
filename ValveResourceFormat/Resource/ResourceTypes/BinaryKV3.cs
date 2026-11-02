@@ -1154,6 +1154,8 @@ namespace ValveResourceFormat.ResourceTypes
             Data.WriteKV3Text(writer);
         }
 
+        internal override byte[] ToUtf8Text() => Data.ToKV3Bytes();
+
         private static int ReadStrings(ref ArraySegment<byte> buffer, string[] strings)
         {
             if (strings.Length == 0)

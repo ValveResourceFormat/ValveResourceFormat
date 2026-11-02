@@ -118,5 +118,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             BackingData.WriteText(writer);
         }
+
+        internal override byte[] ToUtf8Text() => BackingData.ToUtf8Text();
     }
 }

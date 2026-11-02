@@ -112,6 +112,10 @@ public sealed partial class VMixGraphExtract
             "audio.Output1", "audio.Track1", "Selection Name", "Selection Index", "dBLevelOut", "LevelOut", "ReductionOut",
         ];
 
+        private static readonly string[] AllPlugs = NodeTypes.SelectMany(static type => type.Plugs).Concat(GenericPlugs).Distinct(StringComparer.Ordinal).ToArray();
+
+        private static readonly int LongestPlug = AllPlugs.Max(static plug => plug.Length);
+
         private void BuildNameTable()
         {
             var targets = new HashSet<uint>();
@@ -133,15 +137,13 @@ public sealed partial class VMixGraphExtract
             targets.UnionWith(graph.Submixes.Select(static submix => submix.SoloNameHash));
             targets.Remove(0);
 
-            var allPlugs = NodeTypes.SelectMany(static type => type.Plugs).Concat(GenericPlugs).Distinct(StringComparer.Ordinal).ToArray();
-
-            void Try(string name)
+            void Try(ReadOnlySpan<char> name)
             {
                 var hash = StringToken.Get(name);
 
                 if (targets.Contains(hash))
                 {
-                    names.TryAdd(hash, name);
+                    names.TryAdd(hash, name.ToString());
                 }
             }
 
@@ -173,13 +175,43 @@ public sealed partial class VMixGraphExtract
                 }
             }
 
+            // Plug names are hashed in place and only become strings when they name a target
+            var longestLiteral = literals.Count > 0 ? literals.Max(static literal => literal.Length) : 0;
+            var plugName = new char[longestLiteral + 1 + LongestPlug];
+
+            void TryPlug(string literal, string plug)
+            {
+                plug.CopyTo(plugName.AsSpan(literal.Length + 1));
+                Try(plugName.AsSpan(0, literal.Length + 1 + plug.Length));
+            }
+
             foreach (var literal in literals)
             {
                 Try(literal);
 
-                foreach (var plug in TypeOf(literal) is { } type ? PlugsOf(type).Concat(GenericPlugs) : allPlugs)
+                literal.CopyTo(plugName);
+                plugName[literal.Length] = '/';
+
+                var type = TypeOf(literal);
+
+                if (type == null)
                 {
-                    Try(string.Concat(literal, "/", plug));
+                    foreach (var plug in AllPlugs)
+                    {
+                        TryPlug(literal, plug);
+                    }
+
+                    continue;
+                }
+
+                foreach (var plug in PlugsOf(type))
+                {
+                    TryPlug(literal, plug);
+                }
+
+                foreach (var plug in GenericPlugs)
+                {
+                    TryPlug(literal, plug);
                 }
             }
 

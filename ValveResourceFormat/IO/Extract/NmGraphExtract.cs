@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.Animation;
 using ValveResourceFormat.ResourceTypes;
@@ -96,7 +95,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
         return new ContentFile
         {
-            Data = Encoding.UTF8.GetBytes(document.ToKV3String()),
+            Data = document.ToKV3Bytes(),
             FileName = _resource.FileName is not null && _resource.FileName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal)
                 ? _resource.FileName[..^2]
                 : _resource.FileName ?? "graph.vnmgraph",

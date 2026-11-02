@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
@@ -143,7 +142,7 @@ public class NmClipExtract
         }
 
         kv.Add("m_eventTracks", docEventTracks);
-        contentFile.Data = Encoding.UTF8.GetBytes(kv.ToKV3String());
+        contentFile.Data = kv.ToKV3Bytes();
         return contentFile;
     }
 

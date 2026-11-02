@@ -130,6 +130,11 @@ namespace ValveResourceFormat
         }
 
         /// <summary>
+        /// Returns the text <see cref="ToString"/> returns, encoded as UTF-8.
+        /// </summary>
+        internal virtual byte[] ToUtf8Text() => System.Text.Encoding.UTF8.GetBytes(ToString());
+
+        /// <summary>
         /// Writes a human readable text dump of the block contents.
         /// This is the output <see cref="ToString"/> returns.
         /// </summary>

@@ -1,3 +1,4 @@
+using System.Numerics.Tensors;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -119,6 +120,15 @@ namespace ValveResourceFormat.ResourceTypes
         /// Converts this post-processing resource to Valve post-processing format.
         /// </summary>
         public string ToValvePostProcessing(bool preloadLookupTable = false, string lutFileName = "")
+            => BuildValvePostProcessing(preloadLookupTable, lutFileName).ToKV3String();
+
+        /// <summary>
+        /// Converts this post-processing resource to Valve post-processing format, encoded as UTF-8.
+        /// </summary>
+        internal byte[] ToValvePostProcessingBytes(bool preloadLookupTable, string lutFileName)
+            => BuildValvePostProcessing(preloadLookupTable, lutFileName).ToKV3Bytes();
+
+        private KVObject BuildValvePostProcessing(bool preloadLookupTable, string lutFileName)
         {
             var outKV3 = new KVObject
             {
@@ -186,14 +196,21 @@ namespace ValveResourceFormat.ResourceTypes
                     ccLayer.Add("m_pLayerMask", KVObject.Null());
                     ccLayer.Add("m_fileName", lutFileName);
 
-                    var lut = KVObject.Array();
+                    KVObject lut;
 
                     if (preloadLookupTable)
                     {
-                        foreach (var b in GetRAWData())
-                        {
-                            lut.Add(b / 255d);
-                        }
+                        var raw = GetRAWData();
+                        var values = new double[raw.Length];
+
+                        TensorPrimitives.ConvertTruncating<byte, double>(raw, values);
+                        TensorPrimitives.Divide(values, 255d, values);
+
+                        lut = KVObject.PackedArray(values);
+                    }
+                    else
+                    {
+                        lut = KVObject.Array();
                     }
 
                     ccLayer.Add("m_lut", lut);
@@ -205,7 +222,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             outKV3.Add("m_layers", layers);
 
-            return outKV3.ToKV3String();
+            return outKV3;
         }
     }
 }

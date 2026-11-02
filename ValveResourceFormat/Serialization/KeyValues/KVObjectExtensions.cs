@@ -586,8 +586,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         public static string ToKV3String(this KVDocument doc)
         {
             using var ms = new MemoryStream();
-            var serializer = KVSerializer.Create(KVSerializationFormat.KeyValues3Text);
-            serializer.Serialize(ms, doc);
+            SerializeKV3(doc, ms);
             return System.Text.Encoding.UTF8.GetString(ms.GetBuffer(), 0, (int)ms.Length);
         }
 
@@ -596,6 +595,28 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static string ToKV3String(this KVObject root, KV3ID? format = null)
             => root.ToKV3Document(format).ToKV3String();
+
+        /// <summary>
+        /// Serializes a <see cref="KVDocument"/> to KV3 text encoded as UTF-8.
+        /// </summary>
+        internal static byte[] ToKV3Bytes(this KVDocument doc)
+        {
+            using var ms = new MemoryStream();
+            SerializeKV3(doc, ms);
+            return ms.ToArray();
+        }
+
+        private static void SerializeKV3(KVDocument doc, MemoryStream stream)
+        {
+            var serializer = KVSerializer.Create(KVSerializationFormat.KeyValues3Text);
+            serializer.Serialize(stream, doc);
+        }
+
+        /// <summary>
+        /// Serializes a <see cref="KVObject"/> to KV3 text encoded as UTF-8, with optional format.
+        /// </summary>
+        internal static byte[] ToKV3Bytes(this KVObject root, KV3ID? format = null)
+            => root.ToKV3Document(format).ToKV3Bytes();
 
         /// <summary>
         /// Writes the <see cref="KVDocument"/> as KV3 text to an <see cref="IndentedTextWriter"/>.

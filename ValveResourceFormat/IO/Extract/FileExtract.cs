@@ -242,7 +242,7 @@ namespace ValveResourceFormat.IO
                     return new TextureExtract(resource).ToContentFile();
 
                 case ResourceType.Particle:
-                    return CreateTextFile(((ParticleSystem)resource.DataBlock!).ToString()!);
+                    return CreateTextFile(resource.DataBlock!);
 
                 case ResourceType.ParticleSnapshot:
                     return new SnapshotExtract(resource).ToContentFile();
@@ -275,7 +275,7 @@ namespace ValveResourceFormat.IO
                 case ResourceType.PanoramaLayout:
                 case ResourceType.SoundEventScript:
                 case ResourceType.SoundStackScript:
-                    return CreateTextFile(resource.DataBlock!.ToString()!);
+                    return CreateTextFile(resource.DataBlock!);
 
                 case ResourceType.ChoreoSceneFileData:
                     return new ChoreoExtract(resource).ToContentFile();
@@ -283,7 +283,7 @@ namespace ValveResourceFormat.IO
                 default:
                     if (resource.DataBlock is { } dataBlock)
                     {
-                        return CreateTextFile(dataBlock.ToString()!);
+                        return CreateTextFile(dataBlock);
                     }
 
                     return new ContentFile();
@@ -295,6 +295,14 @@ namespace ValveResourceFormat.IO
             return new ContentFile
             {
                 Data = Encoding.UTF8.GetBytes(text),
+            };
+        }
+
+        private static ContentFile CreateTextFile(Block block)
+        {
+            return new ContentFile
+            {
+                Data = block.ToUtf8Text(),
             };
         }
 
@@ -334,7 +342,7 @@ namespace ValveResourceFormat.IO
                     contentFile.AdditionalFiles.Add(new ContentFile
                     {
                         FileName = Path.ChangeExtension(resource.FileName, "vsnd") ?? "exported.vsnd",
-                        Data = Encoding.UTF8.GetBytes(wrappedData.ToKV3String())
+                        Data = wrappedData.ToKV3Bytes()
                     });
                 }
             }
@@ -343,7 +351,7 @@ namespace ValveResourceFormat.IO
                 // TODO: We may want to cleanup m_vSound (recursively) since it contains random garbage if not actually used
                 var wrappedData = KVObject.Collection();
                 wrappedData.Add("VrfExportedSound", ctrlData.Data);
-                contentFile.Data = Encoding.UTF8.GetBytes(wrappedData.ToKV3String());
+                contentFile.Data = wrappedData.ToKV3Bytes();
             }
 
             return contentFile;
@@ -354,9 +362,7 @@ namespace ValveResourceFormat.IO
             var lutFileName = Path.ChangeExtension(resource.FileName, "raw")!;
             var contentFile = new ContentFile
             {
-                Data = Encoding.UTF8.GetBytes(
-                    ((PostProcessing)resource.DataBlock!).ToValvePostProcessing(preloadLookupTable: true, lutFileName: lutFileName.Replace(Path.DirectorySeparatorChar, '/'))
-                ),
+                Data = ((PostProcessing)resource.DataBlock!).ToValvePostProcessingBytes(preloadLookupTable: true, lutFileName: lutFileName.Replace(Path.DirectorySeparatorChar, '/')),
             };
 
             contentFile.AddSubFile(

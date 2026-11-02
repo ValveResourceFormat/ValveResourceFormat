@@ -156,7 +156,7 @@ public sealed partial class VMixGraphExtract
     /// <summary>
     /// The 32 bits an offset is packed into: the category in the top 3 bits, then 10 bits of type, then a 19 bit index.
     /// </summary>
-    private static uint RawOperand(KVObject obj, params string[] keys)
+    private static uint RawOperand(KVObject obj, params ReadOnlySpan<string> keys)
     {
         if (!TryGet(obj, out var value, keys))
         {
@@ -253,12 +253,22 @@ public sealed partial class VMixGraphExtract
         public float Value(int index) => index >= 0 && index < Values.Length ? Values[index] : 0f;
     }
 
-    private static string GetString(KVObject obj, params string[] keys)
-        => keys.Select(key => obj.GetStringProperty(key)).FirstOrDefault(static value => value != null) ?? string.Empty;
+    private static string GetString(KVObject obj, params ReadOnlySpan<string> keys)
+    {
+        foreach (var key in keys)
+        {
+            if (obj.GetStringProperty(key) is { } value)
+            {
+                return value;
+            }
+        }
+
+        return string.Empty;
+    }
 
     private static string GetName(KVObject obj) => GetString(obj, "m_name", "name");
 
-    private static bool TryGet(KVObject obj, out KVObject value, params string[] keys)
+    private static bool TryGet(KVObject obj, out KVObject value, params ReadOnlySpan<string> keys)
     {
         foreach (var key in keys)
         {
@@ -272,11 +282,24 @@ public sealed partial class VMixGraphExtract
         return false;
     }
 
-    private static int GetInt32(KVObject obj, int defaultValue, params string[] keys)
-        => obj.GetInt32Property(keys.FirstOrDefault(obj.ContainsKey) ?? keys[0], defaultValue);
+    private static int GetInt32(KVObject obj, int defaultValue, params ReadOnlySpan<string> keys)
+        => obj.GetInt32Property(FirstPresentKey(obj, keys), defaultValue);
 
-    private static float GetFloat(KVObject obj, float defaultValue, params string[] keys)
-        => obj.GetFloatProperty(keys.FirstOrDefault(obj.ContainsKey) ?? keys[0], defaultValue);
+    private static float GetFloat(KVObject obj, float defaultValue, params ReadOnlySpan<string> keys)
+        => obj.GetFloatProperty(FirstPresentKey(obj, keys), defaultValue);
+
+    private static string FirstPresentKey(KVObject obj, ReadOnlySpan<string> keys)
+    {
+        foreach (var key in keys)
+        {
+            if (obj.ContainsKey(key))
+            {
+                return key;
+            }
+        }
+
+        return keys[0];
+    }
 
     private static float[] ToFloats(IEnumerable<KVObject> values) => [.. values.Select(static value => (float)(double)value)];
 
@@ -286,7 +309,7 @@ public sealed partial class VMixGraphExtract
     /// <summary>
     /// An operand: a plain index in older graphs, or a {category, type, index} offset in heap graphs.
     /// </summary>
-    private static int Operand(KVObject obj, params string[] keys)
+    private static int Operand(KVObject obj, params ReadOnlySpan<string> keys)
     {
         if (!TryGet(obj, out var value, keys))
         {
@@ -301,7 +324,7 @@ public sealed partial class VMixGraphExtract
         return (int)(long)value;
     }
 
-    private static uint UnsignedProperty(KVObject obj, params string[] keys)
+    private static uint UnsignedProperty(KVObject obj, params ReadOnlySpan<string> keys)
         => TryGet(obj, out var value, keys) ? unchecked((uint)(long)value) : 0;
 
     private static MixNamedValue ReadMeter(KVObject meter) => new(GetName(meter), Operand(meter, "m_nValueIndex", "value"));
@@ -353,7 +376,10 @@ public sealed partial class VMixGraphExtract
             IsMainGraph = graph.GetBooleanProperty("m_bIsMainGraph"),
         };
 
-        foreach (var command in GetList(graph, "m_MixCommands"))
+        var commands = GetList(graph, "m_MixCommands");
+        result.Commands.EnsureCapacity(commands.Count);
+
+        foreach (var command in commands)
         {
             var name = GetString(command, "command");
             result.Commands.Add(new MixCommand(

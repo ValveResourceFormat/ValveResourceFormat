@@ -1,4 +1,3 @@
-using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -33,7 +32,7 @@ public sealed class SnapshotExtract
     {
         var vsnap = new ContentFile
         {
-            Data = Encoding.UTF8.GetBytes(ToValveSnap())
+            Data = BuildValveSnap().ToKV3Bytes()
         };
 
         return vsnap;
@@ -42,7 +41,9 @@ public sealed class SnapshotExtract
     /// <summary>
     /// Converts the snapshot to vsnap format string.
     /// </summary>
-    public string ToValveSnap()
+    public string ToValveSnap() => BuildValveSnap().ToKV3String();
+
+    private KVObject BuildValveSnap()
     {
         var outKV3 = KVObject.Collection();
         var data = KVObject.Collection();
@@ -113,6 +114,6 @@ public sealed class SnapshotExtract
         }
 
         outKV3.Add("stream_data", data);
-        return outKV3.ToKV3String();
+        return outKV3;
     }
 }
