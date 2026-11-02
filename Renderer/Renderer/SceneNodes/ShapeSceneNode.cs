@@ -535,51 +535,90 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>
-        /// Draws the translucent fill into the order independent layers the caller binds, which the fill shader
+        /// Draws the translucent fills into the order independent layers the caller binds, which the fill shader
         /// writes instead of its color.
         /// </summary>
-        internal void RenderOrderIndependentFill()
+        internal static void RenderOrderIndependentFills(List<ShapeSceneNode> shapes)
         {
-            var fillShader = shader.WithCombo("D_OIT", 1);
-            fillShader.Use();
-
-            fillShader.SetUniform("g_bNormalShaded", Shaded);
-            SetToolTextureUniforms(fillShader);
-
-            // Drawn outside the batch renderer, which rebinds the reserved units after each node it draws
-            fillShader.SetTexture(RenderMaterial.TextureUnitStart, "g_tColor", toolTexture ?? Scene.RendererContext.MaterialLoader.GetDefaultColor());
-
-            VertexArray.Bind(vao, fillShader);
-
             var renderState = GraphicsContext.RenderState;
-            var state = WithFillDepthBias(renderState.CurrentPass);
-            state.DepthStencil.DepthFunc = RsComparison.CloserEqual;
 
-            if (IsDoubleSided)
+            // Each shape applies its own state, which this restores
+            using var _ = renderState.Scope();
+
+            Shader? fillShader = null;
+            RenderTexture? boundTexture = null;
+
+            foreach (var shape in shapes)
             {
-                state.Rasterizer.CullMode = RsCullMode.None;
+                var shapeShader = shape.shader.WithCombo("D_OIT", 1);
+                var shapeTexture = shape.toolTexture ?? shape.Scene.RendererContext.MaterialLoader.GetDefaultColor();
+
+                if (!ReferenceEquals(shapeShader, fillShader))
+                {
+                    fillShader = shapeShader;
+                    boundTexture = null;
+                    fillShader.Use();
+                }
+
+                fillShader.SetUniform("g_bNormalShaded", shape.Shaded);
+                shape.SetToolTextureUniforms(fillShader);
+
+                // Drawn outside the batch renderer, which rebinds the reserved units after each node it draws
+                if (!ReferenceEquals(shapeTexture, boundTexture))
+                {
+                    boundTexture = shapeTexture;
+                    fillShader.SetTexture(RenderMaterial.TextureUnitStart, "g_tColor", shapeTexture);
+                }
+
+                VertexArray.Bind(shape.vao, fillShader);
+
+                var state = WithFillDepthBias(renderState.CurrentPass);
+                state.DepthStencil.DepthFunc = RsComparison.CloserEqual;
+
+                if (shape.IsDoubleSided)
+                {
+                    state.Rasterizer.CullMode = RsCullMode.None;
+                }
+
+                renderState.Apply(in state);
+
+                GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, shape.indexCount, DrawElementsType.UnsignedInt, 0, 1, shape.Id);
             }
-
-            using var _ = renderState.Scope(in state);
-
-            GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
         }
 
-        /// <summary>Draws the edge lines over the composited order independent fills, faded by the fills in front of them.</summary>
-        internal void RenderOrderIndependentLines()
+        /// <summary>
+        /// Draws the edge lines of the shapes over the composited order independent fills, faded by the fills in
+        /// front of them.
+        /// </summary>
+        internal static void RenderOrderIndependentLines(List<ShapeSceneNode> shapes)
         {
-            if (lineIndexCount == 0)
-            {
-                return;
-            }
-
             var renderState = GraphicsContext.RenderState;
             var state = renderState.CurrentPass;
             state.DepthStencil.DepthFunc = RsComparison.CloserEqual;
 
             using var _ = renderState.Scope(in state);
 
-            DrawLines(shader.WithCombo("D_LINES", 1).WithCombo("D_OIT", 1));
+            Shader? lineShader = null;
+
+            foreach (var shape in shapes)
+            {
+                if (shape.lineIndexCount == 0)
+                {
+                    continue;
+                }
+
+                var shapeShader = shape.shader.WithCombo("D_LINES", 1).WithCombo("D_OIT", 1);
+
+                if (!ReferenceEquals(shapeShader, lineShader))
+                {
+                    lineShader = shapeShader;
+                    lineShader.Use();
+                }
+
+                shape.SetToolTextureUniforms(lineShader);
+                VertexArray.Bind(shape.vao, lineShader);
+                shape.DrawLineIndices();
+            }
         }
 
         private void DrawLines(Shader lineShader)
@@ -589,6 +628,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             VertexArray.Bind(vao, lineShader);
 
+            DrawLineIndices();
+        }
+
+        private void DrawLineIndices()
+        {
             GL.DrawElementsInstancedBaseInstance(PrimitiveType.Lines, lineIndexCount, DrawElementsType.UnsignedInt, indexCount * sizeof(int), 1, Id);
         }
 

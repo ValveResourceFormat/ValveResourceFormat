@@ -1248,21 +1248,9 @@ public sealed class SceneViewState
     /// Draws the fills of the translucent layer's shapes with <see cref="ShapeSceneNode.HasOrderIndependentFill"/>
     /// into the order independent layers, in any order.
     /// </summary>
-    internal void RenderOrderIndependentFills()
-    {
-        foreach (var shape in orderIndependentFills)
-        {
-            shape.RenderOrderIndependentFill();
-        }
-    }
+    internal void RenderOrderIndependentFills() => ShapeSceneNode.RenderOrderIndependentFills(orderIndependentFills);
 
-    internal void RenderOrderIndependentLines()
-    {
-        foreach (var shape in orderIndependentFills)
-        {
-            shape.RenderOrderIndependentLines();
-        }
-    }
+    internal void RenderOrderIndependentLines() => ShapeSceneNode.RenderOrderIndependentLines(orderIndependentFills);
 
     /// <summary>
     /// Lays down the depth of the surfaces the refract, water and translucent layers draw over the opaque scene,
