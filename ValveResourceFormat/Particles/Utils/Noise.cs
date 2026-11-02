@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace ValveResourceFormat.Particles.Utils
 {
     /// <summary>
@@ -95,6 +97,7 @@ namespace ValveResourceFormat.Particles.Utils
         /// Hashes one lattice corner to [0, 1]. The corner is packed by plain addition rather than
         /// into disjoint bit fields, so the field aliases: Hash(x + 1024, y, z) == Hash(x, y + 1, z).
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static float Hash(int x, int y, int z)
         {
             unchecked
@@ -285,6 +288,7 @@ namespace ValveResourceFormat.Particles.Utils
             return MathUtils.Lerp(y0, y1, fz);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static Vector3 CurlVector(int cell)
         {
             var index = NoiseTables.PermZ[cell] * 3;

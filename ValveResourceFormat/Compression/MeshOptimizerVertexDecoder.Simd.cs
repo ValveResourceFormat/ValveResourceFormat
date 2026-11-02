@@ -139,6 +139,7 @@ namespace ValveResourceFormat.Compression
             return (v.AsUInt32() << r | v.AsUInt32() >>> (32 - r)).AsByte();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         private static ReadOnlySpan<byte> DecodeBytesSimd(ReadOnlySpan<byte> data, Span<byte> buffer, int hshift)
         {
             if (buffer.Length % ByteGroupSize != 0)
@@ -252,6 +253,7 @@ namespace ValveResourceFormat.Compression
             Save(ref savep, ref savepOffset, vertexSize, t3);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         private static void DecodeDeltas4Simd<TChannel>(ReadOnlySpan<byte> buffer, Span<byte> transposed, int vertexCountAligned, int vertexSize, ReadOnlySpan<byte> lastVertex, int rot) where TChannel : struct, IChannel
         {
             var pi = Vector128.Create(MemoryMarshal.Read<uint>(lastVertex), 0, 0, 0).AsByte();
@@ -289,6 +291,7 @@ namespace ValveResourceFormat.Compression
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         private static ReadOnlySpan<byte> DecodeVertexBlockSimd(ReadOnlySpan<byte> data, Span<byte> vertexData, int vertexCount, int vertexSize, Span<byte> lastVertex, ReadOnlySpan<byte> channels, int version)
         {
             if (vertexCount <= 0 || vertexCount > VertexBlockMaxSize)

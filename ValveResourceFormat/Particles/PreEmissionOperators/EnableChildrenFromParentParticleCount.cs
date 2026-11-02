@@ -82,8 +82,10 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             var budget = target;
             var groupIndex = 0;
 
-            foreach (var child in children)
+            for (var i = 0; i < children.Count; i++)
             {
+                var child = children[i];
+
                 if (child.GroupId != childGroupId)
                 {
                     continue;

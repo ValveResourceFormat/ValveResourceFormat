@@ -66,12 +66,20 @@ public sealed class SkeletonRetargeter
     /// </summary>
     public void RetargetSubtree(Bone bone, Matrix4x4 parentWorld, ReadOnlySpan<Matrix4x4> sourceWorld, Span<Matrix4x4> modelWorld)
     {
-        var sourceIndex = modelToSource[bone.Index];
-        modelWorld[bone.Index] = sourceIndex >= 0 ? sourceWorld[sourceIndex] : bone.BindPose * parentWorld;
+        var hierarchy = bone.Hierarchy!;
+        var bones = hierarchy.Bones;
+        var order = hierarchy.Order;
+        var parents = hierarchy.ParentOfOrder;
+        var end = bone.HierarchyEnd;
 
-        foreach (var child in bone.Children)
+        var rootSource = modelToSource[bone.Index];
+        modelWorld[bone.Index] = rootSource >= 0 ? sourceWorld[rootSource] : bone.BindPose * parentWorld;
+
+        for (var i = bone.HierarchyStart + 1; i < end; i++)
         {
-            RetargetSubtree(child, modelWorld[bone.Index], sourceWorld, modelWorld);
+            var boneIndex = order[i];
+            var sourceIndex = modelToSource[boneIndex];
+            modelWorld[boneIndex] = sourceIndex >= 0 ? sourceWorld[sourceIndex] : bones[boneIndex].BindPose * modelWorld[parents[i]];
         }
     }
 }
