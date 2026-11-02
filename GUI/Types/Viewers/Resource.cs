@@ -530,8 +530,14 @@ namespace GUI.Types.Viewers
             }
 
             var entitiesTabPage = new ThemedTabPage("Entity List");
-            entitiesTabPage.Controls.Add(new EntityViewer(vrfGuiContext, loadedWorld.Entities, glWorldViewer.SelectAndFocusEntity));
             resTabs.TabPages.Add(entitiesTabPage);
+            PopulateWhenShown(entitiesTabPage, () =>
+            {
+                var entityViewer = new EntityViewer(vrfGuiContext, loadedWorld.Entities, glWorldViewer.SelectAndFocusEntity);
+                entitiesTabPage.Controls.Add(entityViewer);
+
+                Themer.ThemeControl(entityViewer);
+            });
         }
 
         private void AddPreparedGraphViewerTabs(TabControl resTabs)
