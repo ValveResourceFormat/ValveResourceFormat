@@ -15,6 +15,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
     /// </summary>
     public class ParticleSceneNode : SceneNode
     {
+        /// <summary>
+        /// The smallest box extent at which an effect is too large to be culled by the visibility clusters
+        /// it touches.
+        /// </summary>
+        private const float MaxSizeForVisCulling = 1200f;
+
         private readonly ParticleRenderer particleRenderer;
 
         /// <summary>Gets whether this system samples the resolved opaque depth.</summary>
@@ -24,6 +30,18 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public bool WantsSceneColor { get; }
 
         internal IEnumerable<ParticleFunctionRenderer> Renderers => particleRenderer.EnumerateRenderers();
+
+        /// <summary>
+        /// Gets whether the effect is drawn wherever the camera looks, as its root is a screen-space system
+        /// or has infinite bounds. Its box covers everything and it is never culled.
+        /// </summary>
+        public bool HasInfiniteBounds { get; }
+
+        /// <summary>
+        /// Gets the alpha every particle of the effect is drawn with this frame: the node's alpha, faded
+        /// out by the camera distance between the root system's start fade and draw distances.
+        /// </summary>
+        public float DrawAlpha { get; private set; } = 1f;
 
         /// <summary>Gets the simulation this node draws, with its particles, control points and child systems.</summary>
         internal ParticleSystemSimulation ParticleSimulation => particleRenderer.Simulation;
@@ -100,15 +118,19 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             };
             RenderPasses = particleRenderer.Passes;
 
-            // Screen-space systems are drawn wherever the camera looks, so the node is never culled
-            if (particleRenderer.DrawsInScreenSpace)
+            // Only the root decides whether the effect is unbounded. A screen-space child adds its box to
+            // the root's like any other child, so a world effect carrying one is still culled.
+            var simulation = particleRenderer.Simulation;
+            HasInfiniteBounds = simulation.IsScreenSpaceEffect || simulation.HasInfiniteBounds;
+
+            if (HasInfiniteBounds)
             {
                 Flags |= ObjectTypeFlags.DisableVisCulling;
                 LocalBoundingBox = new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue));
             }
             else
             {
-                LocalBoundingBox = particleRenderer.LocalBoundingBox;
+                LocalBoundingBox = new AABB(Vector3.Zero, Vector3.Zero);
             }
 
             WantsSceneDepth = particleRenderer.WantsSceneDepth;
@@ -731,7 +753,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
-            if (frameTime > 0f && (Preview || particleRenderer.IsWithinDrawDistance(context.Camera)))
+            if (frameTime > 0f)
             {
                 particleRenderer.SetCameraPosition(context.Camera.Location);
                 particleRenderer.Update(frameTime, context.Uptime);
@@ -742,7 +764,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     ReflectControlPointTransform();
                 }
 
-                if (!particleRenderer.DrawsInScreenSpace)
+                if (!HasInfiniteBounds)
                 {
                     UpdateBounds();
                 }
@@ -807,8 +829,49 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         private void Act(Camera camera)
         {
-            particleRenderer.Act(camera, stepped);
+            particleRenderer.Act(IsWithinDrawDistance(camera), stepped);
             stepped = false;
+        }
+
+        /// <summary>
+        /// Whether the camera is near enough for the effect to draw, by the draw distance of its root
+        /// system. Measured to the nearest point of its bounds, so an effect wide enough to reach the
+        /// camera is kept wherever its centre happens to sit. A preview always draws.
+        /// </summary>
+        public bool IsWithinDrawDistance(Camera camera)
+        {
+            var maxDrawDistanceSquared = particleRenderer.Simulation.MaxDrawDistanceSquared;
+
+            if (Preview || HasInfiniteBounds || maxDrawDistanceSquared == float.MaxValue)
+            {
+                return true;
+            }
+
+            return BoundingBox.DistanceSquared(camera.Location) < maxDrawDistanceSquared;
+        }
+
+        /// <summary>
+        /// How faded in the effect is at the camera distance, linear in the squared distance from the root
+        /// system's start fade distance to its draw distance.
+        /// </summary>
+        private float GetDistanceFade(Camera camera)
+        {
+            var simulation = particleRenderer.Simulation;
+
+            if (Preview || HasInfiniteBounds || simulation.StartFadeDistanceSquared == float.MaxValue)
+            {
+                return 1f;
+            }
+
+            var distanceSquared = BoundingBox.DistanceSquared(camera.Location);
+
+            // A start fade past the draw distance never fades before the effect is culled
+            if (distanceSquared <= simulation.StartFadeDistanceSquared)
+            {
+                return 1f;
+            }
+
+            return MathUtils.RemapValClamped(distanceSquared, simulation.StartFadeDistanceSquared, simulation.MaxDrawDistanceSquared, 1f, 0f);
         }
 
         // The node transform mirrors control point 0 after simulation, so movement applied by particle
@@ -825,16 +888,32 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             seededTransform = reflected;
         }
 
-        // The simulation runs in world space with bounds relative to control point 0, so the world box is exact.
-        // The local box is derived so consumers composing it with Transform still get a box containing the particles.
+        // The simulation runs in world space, so the world box is exact. The local box is derived so consumers
+        // composing it with Transform still get a box containing the particles. An effect with nothing to
+        // bound keeps the box it last had.
         private void UpdateBounds()
         {
-            var worldBounds = particleRenderer.LocalBoundingBox.Translate(particleRenderer.MainControlPoint.Position);
+            if (particleRenderer.Simulation.WorldBoundingBox is not { } worldBounds)
+            {
+                return;
+            }
 
             LocalBoundingBox = Matrix4x4.Invert(Transform, out var inverseTransform)
                 ? worldBounds.Transform(inverseTransform)
-                : particleRenderer.LocalBoundingBox;
+                : worldBounds.Translate(-Transform.Translation);
             BoundingBox = worldBounds;
+
+            // The viewmodel is drawn at the eye, not where it is placed
+            var drawnAtEye = (RenderPasses & CustomRenderPasses.Viewmodel) != 0;
+
+            if (drawnAtEye || worldBounds.Size.MinComponent() >= MaxSizeForVisCulling)
+            {
+                Flags |= ObjectTypeFlags.DisableVisCulling;
+            }
+            else
+            {
+                Flags &= ~ObjectTypeFlags.DisableVisCulling;
+            }
         }
 
         /// <inheritdoc/>
@@ -843,6 +922,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             if (IsDrawable && LayerEnabled && Visible)
             {
                 drawnSinceSimulate = true;
+                DrawAlpha = Alpha * GetDistanceFade(camera);
                 particleRenderer.UpdateBuffers(camera);
             }
         }

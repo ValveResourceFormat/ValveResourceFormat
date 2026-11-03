@@ -95,11 +95,29 @@ namespace ValveResourceFormat.Particles
             : boundsComputed && boundsValid ? bounds : null;
 
         /// <summary>
-        /// The squared camera distance past which the system is not drawn (<c>m_flMaxDrawDistance</c>),
-        /// or <see cref="float.MaxValue"/> when it draws at any distance. Each system in a tree carries
-        /// its own, so a child can drop out while its parent still draws.
+        /// Whether the system is never culled and adds nothing to its parent's bounds (<c>m_bInfiniteBounds</c>).
+        /// </summary>
+        internal bool HasInfiniteBounds => infiniteBounds;
+
+        /// <summary>The draw distance of a system that asks for the default one.</summary>
+        private const float DefaultMaxDrawDistance = 1e6f;
+
+        /// <summary>
+        /// The squared camera distance from which the system is not drawn (<c>m_flMaxDrawDistance</c>),
+        /// or <see cref="float.MaxValue"/> when it draws at any distance. Only the root of a tree is
+        /// measured, and it culls the whole tree.
         /// </summary>
         public float MaxDrawDistanceSquared { get; }
+
+        /// <summary>
+        /// The squared camera distance from which the system fades out, reaching zero alpha at
+        /// <see cref="MaxDrawDistanceSquared"/> (<c>m_flStartFadeDistance</c>), or
+        /// <see cref="float.MaxValue"/> when it never fades. Only the root of a tree is measured.
+        /// </summary>
+        public float StartFadeDistanceSquared { get; }
+
+        // Distances large enough to overflow when squared count as no limit
+        private static float SquareDistance(float distance) => distance < 1e10f ? distance * distance : float.MaxValue;
 
         /// <summary>
         /// Whether the system is drawn over the screen rather than in the world (<c>m_bScreenSpaceEffect</c>).
@@ -124,25 +142,6 @@ namespace ValveResourceFormat.Particles
         /// Seconds the system keeps simulating after it was last drawn (<c>m_flNoDrawTimeToGoToSleep</c>).
         /// </summary>
         public float NoDrawTimeToGoToSleep { get; }
-
-        /// <summary>
-        /// Whether the camera is near enough for the system to draw. Measured to the nearest point of
-        /// its bounds rather than to their centre, so a system wide enough to reach the camera is kept
-        /// wherever its centre happens to sit.
-        /// </summary>
-        /// <param name="cameraPosition">The world position to measure from.</param>
-        public bool IsWithinDrawDistance(Vector3 cameraPosition)
-        {
-            if (MaxDrawDistanceSquared == float.MaxValue)
-            {
-                return true;
-            }
-
-            var box = LocalBoundingBox.Translate(MainControlPoint.Position);
-            var nearest = Vector3.Clamp(cameraPosition, box.Min, box.Max);
-
-            return Vector3.DistanceSquared(cameraPosition, nearest) <= MaxDrawDistanceSquared;
-        }
 
         /// <summary>
         /// Set by the drawing layer watching this system, or null when nothing draws it.
@@ -343,11 +342,31 @@ namespace ValveResourceFormat.Particles
             HitboxesFallBackToRenderBounds = parse.Boolean("m_bShouldHitboxesFallbackToRenderBounds", true);
             HitboxesFallBackToSnapshot = parse.Boolean("m_bShouldHitboxesFallbackToSnapshot", false);
 
-            // Non-positive distances, and ones large enough to overflow when squared, draw at any range.
             var maxDrawDistance = parse.Float("m_flMaxDrawDistance", -1f);
-            MaxDrawDistanceSquared = maxDrawDistance is <= 0f or >= 1e10f
-                ? float.MaxValue
-                : maxDrawDistance * maxDrawDistance;
+            var startFadeDistance = parse.Float("m_flStartFadeDistance", 200000f);
+
+            if (maxDrawDistance == -1f)
+            {
+                maxDrawDistance = DefaultMaxDrawDistance;
+            }
+
+            // Any other non-positive distance draws at any range and never fades
+            if (maxDrawDistance > 0f)
+            {
+                // A negative start fade counts back from the draw distance
+                if (startFadeDistance < 0f)
+                {
+                    startFadeDistance = MathF.Max(0f, maxDrawDistance + startFadeDistance);
+                }
+
+                MaxDrawDistanceSquared = SquareDistance(maxDrawDistance);
+                StartFadeDistanceSquared = SquareDistance(startFadeDistance);
+            }
+            else
+            {
+                MaxDrawDistanceSquared = float.MaxValue;
+                StartFadeDistanceSquared = float.MaxValue;
+            }
 
             IsScreenSpaceEffect = parse.Boolean("m_bScreenSpaceEffect", false);
             DepthSortBias = parse.Float("m_flDepthSortBias", 0f);

@@ -350,6 +350,13 @@ namespace GUI.Types.GLViewers
 
             foreach (var node in Scene.AllNodes)
             {
+                // Nodes drawn wherever the camera looks have a box covering everything
+                var size = node.BoundingBox.Size;
+                if (!float.IsFinite(size.X + size.Y + size.Z))
+                {
+                    continue;
+                }
+
                 if (first)
                 {
                     first = false;

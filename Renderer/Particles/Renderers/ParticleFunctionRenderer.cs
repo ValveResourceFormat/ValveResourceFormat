@@ -1,5 +1,6 @@
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Particles;
+using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -123,7 +124,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>Evaluates the renderer scales for one draw.</summary>
         protected RendererScales EvaluateScales(ParticleSystemState systemState)
         {
-            var alpha = AlphaScale.NextNumber(systemState);
+            var effectAlpha = OwnerNode is ParticleSceneNode effect ? effect.DrawAlpha : 1f;
+            var alpha = AlphaScale.NextNumber(systemState) * effectAlpha;
 
             return new RendererScales(
                 RadiusScale.NextNumber(systemState),

@@ -288,13 +288,12 @@ namespace ValveResourceFormat.Renderer.Particles
 
         /// <summary>
         /// Finishes the frame for this system's renderers and its children's, on one thread. Renderers
-        /// out of draw distance or faded out are hidden; the rest finish the step when there was one.
-        /// The lights the system places itself show while it is within draw distance and not finished.
+        /// of an effect out of draw distance, or faded out, are hidden; the rest finish the step when
+        /// there was one. The lights the system places itself show while the effect is within draw
+        /// distance and the system is not finished.
         /// </summary>
-        public void Act(Camera camera, bool stepped)
+        public void Act(bool withinDrawDistance, bool stepped)
         {
-            var withinDrawDistance = IsWithinDrawDistance(camera);
-
             foreach (var renderer in renderers)
             {
                 if (!withinDrawDistance || renderer.GetOperatorRunStrength(Simulation.RenderState) <= 0.0f)
@@ -312,7 +311,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             foreach (var childRenderer in childRenderers)
             {
-                childRenderer.Act(camera, stepped);
+                childRenderer.Act(withinDrawDistance, stepped);
             }
         }
 
@@ -384,7 +383,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
         private void RenderSelf(Camera camera, RenderPass pass, RenderLayer layer)
         {
-            if (!IsWithinDrawDistance(camera) || Simulation.Particles.Count == 0)
+            if (Simulation.Particles.Count == 0)
             {
                 return;
             }
@@ -465,7 +464,7 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         public void RenderReplacement(Shader replacement, uint objectId, RenderPass pass, Camera camera)
         {
-            if (IsWithinDrawDistance(camera) && Simulation.Particles.Count > 0)
+            if (Simulation.Particles.Count > 0)
             {
                 foreach (var renderer in renderers)
                 {
@@ -489,15 +488,6 @@ namespace ValveResourceFormat.Renderer.Particles
                 childRenderer.RenderReplacement(replacement, objectId, pass, camera);
             }
         }
-
-        /// <summary>
-        /// Whether the camera is near enough for this system to draw and simulate. A screen-space system
-        /// always is, since its bounds are not where it is placed.
-        /// </summary>
-        public bool IsWithinDrawDistance(Camera camera) => IsScreenSpace || Simulation.IsWithinDrawDistance(camera.Location);
-
-        /// <summary>Whether this system, or any system nested under it, draws in the screen-space layer.</summary>
-        public bool DrawsInScreenSpace => (Passes & CustomRenderPasses.ScreenSpace) != 0;
 
         /// <summary>Points the screen-space view at the viewport <paramref name="camera"/> draws into.</summary>
         private void UpdateScreenSpaceCamera(Camera camera)
@@ -626,7 +616,6 @@ namespace ValveResourceFormat.Renderer.Particles
             }
         }
 
-        public AABB LocalBoundingBox => Simulation.LocalBoundingBox;
         public bool IsFinished() => Simulation.IsFinished();
         public bool HasFinishedEmitting() => Simulation.HasFinishedEmitting(emissionEndIsEnough: true, includeChildren: true);
         public ControlPoint MainControlPoint => Simulation.MainControlPoint;

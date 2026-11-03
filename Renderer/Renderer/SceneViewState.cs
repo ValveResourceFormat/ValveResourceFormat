@@ -641,6 +641,10 @@ public sealed class SceneViewState
                 // A shape standing for a tools material is shown as the material would be
                 continue;
             }
+            else if (node is ParticleSceneNode particles && !particles.IsWithinDrawDistance(camera))
+            {
+                continue;
+            }
             else
             {
                 if (node is SceneLight light)
