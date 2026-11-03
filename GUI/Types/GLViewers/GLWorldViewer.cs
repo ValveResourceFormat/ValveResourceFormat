@@ -320,6 +320,9 @@ namespace GUI.Types.GLViewers
             }
         }
 
+        // The compiled map geometry, without entities, navigation or debug nodes
+        protected override AABB GetSceneBounds() => LoadedWorld?.WorldNodeBounds ?? LoadedWorldNode?.Bounds ?? default;
+
         protected override bool PrewarmsRenderer => true;
 
         protected override void OnFirstPaint()

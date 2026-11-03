@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Drawing;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -186,6 +187,8 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(UiControl != null);
 
+            UpdateMoveSpeedLabel();
+
             using (UiControl.BeginGroup("Debug"))
             {
                 UiControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
@@ -305,6 +308,8 @@ namespace GUI.Types.GLViewers
             }
 
             Input.PhysicsWorld = Renderer.EntitySystem.PhysicsWorld;
+            var sceneBounds = GetSceneBounds();
+            Input.SetMoveSpeedRange(sceneBounds.Size.MaxComponent());
 
             if (Scene.FogInfo.CubeFogActive)
             {
@@ -318,20 +323,7 @@ namespace GUI.Types.GLViewers
 
             if (Scene.AllNodes.Any() && this is not GLWorldViewer)
             {
-                var first = true;
-                var bbox = new AABB();
-
-                foreach (var node in Scene.AllNodes)
-                {
-                    if (first)
-                    {
-                        first = false;
-                        bbox = node.BoundingBox;
-                        continue;
-                    }
-
-                    bbox = bbox.Union(node.BoundingBox);
-                }
+                var bbox = sceneBounds;
 
                 // If there is no bbox, LookAt will break camera, so +1 to location
                 var offset = bbox.Max.MaxComponent() + 1f * 1.5f;
@@ -349,6 +341,30 @@ namespace GUI.Types.GLViewers
         }
 
         protected abstract void LoadScene();
+
+        /// <summary>Gets the bounds of the scene, which the free-flight speed is scaled to.</summary>
+        protected virtual AABB GetSceneBounds()
+        {
+            var first = true;
+            var bbox = new AABB();
+
+            foreach (var node in Scene.AllNodes)
+            {
+                if (first)
+                {
+                    first = false;
+                    bbox = node.BoundingBox;
+                    continue;
+                }
+
+                bbox = bbox.Union(node.BoundingBox);
+            }
+
+            return bbox;
+        }
+
+        private void UpdateMoveSpeedLabel()
+            => SetMoveSpeedOrZoomLabel(string.Create(CultureInfo.InvariantCulture, $"Move speed: {Input.MoveSpeed:0} u/s (scroll to change)"));
 
         /// <summary>Handles a resolved pick, with the GL context current. Viewers that do nothing with picks leave this empty.</summary>
         protected virtual void OnPicked(PickResult result)
@@ -425,15 +441,15 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            var modifier = Input.OnMouseWheel(delta);
+            Input.OnMouseWheel(delta);
 
             if (Input.OrbitMode)
             {
-                SetMoveSpeedOrZoomLabel($"Orbit distance: {modifier:0.0} (scroll to change)");
+                SetMoveSpeedOrZoomLabel($"Orbit distance: {Input.OrbitDistance:0.0} (scroll to change)");
             }
             else
             {
-                SetMoveSpeedOrZoomLabel($"Move speed: {modifier:0.0}x (scroll to change)");
+                UpdateMoveSpeedLabel();
             }
         }
 

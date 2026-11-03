@@ -89,7 +89,7 @@ partial class RendererControl
         moveSpeed.Name = "moveSpeed";
         moveSpeed.Size = new System.Drawing.Size(200, 15);
         moveSpeed.TabIndex = 5;
-        moveSpeed.Text = "Move speed: 1.0x (scroll to change)";
+        moveSpeed.Text = "";
         //
         // splitContainer
         //

@@ -23,6 +23,11 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>Gets the layers defined in this world node, in the order its objects index them.</summary>
         public ImmutableArray<WorldLayer> Layers { get; }
 
+        private AABB? bounds;
+
+        /// <summary>Gets the bounds of the objects loaded from the world node, or an empty box before any are loaded.</summary>
+        public AABB Bounds => bounds ?? default;
+
         /// <summary>
         /// Initializes a new <see cref="WorldNodeLoader"/> for the given world node.
         /// </summary>
@@ -133,6 +138,7 @@ namespace ValveResourceFormat.Renderer.World
                     ApplyMaterialOverrides(modelNode, [.. materialOverrides[(uint)sceneObjectIndex]]);
                     extraVertexStreams.Apply(modelNode, (uint)sceneObjectIndex);
                     scene.Add(modelNode, !isStatic);
+                    IncludeBounds(modelNode);
                 }
 
                 var renderable = sceneObject.GetStringProperty("m_renderable");
@@ -160,6 +166,7 @@ namespace ValveResourceFormat.Renderer.World
                     };
 
                     scene.Add(meshNode, !isStatic);
+                    IncludeBounds(meshNode);
                 }
             }
 
@@ -189,6 +196,7 @@ namespace ValveResourceFormat.Renderer.World
 
                     scene.Add(aggregate, false);
                     aggregate.LoadFragments(sceneObject, root, node);
+                    IncludeBounds(aggregate);
                 }
             }
 
@@ -281,7 +289,7 @@ namespace ValveResourceFormat.Renderer.World
 
             foreach (var (tint, instances) in instancesByTint)
             {
-                scene.Add(new SceneClutter(scene, model, clutter.MaterialGroup, clutter.BeginCullSize, clutter.EndCullSize, [.. instances])
+                var clutterNode = new SceneClutter(scene, model, clutter.MaterialGroup, clutter.BeginCullSize, clutter.EndCullSize, [.. instances])
                 {
                     Layers = SingleLayerLists[clutter.Layer],
                     Name = clutter.RenderableModel,
@@ -289,8 +297,16 @@ namespace ValveResourceFormat.Renderer.World
                     AllFlags = clutter.Flags,
                     AnyFlags = clutter.Flags,
                     Tint = tint / 255f,
-                }, false);
+                };
+
+                scene.Add(clutterNode, false);
+                IncludeBounds(clutterNode);
             }
+        }
+
+        private void IncludeBounds(SceneNode sceneNode)
+        {
+            bounds = bounds?.Union(sceneNode.BoundingBox) ?? sceneNode.BoundingBox;
         }
 
         private static void ApplyMaterialOverrides(ModelSceneNode modelNode, WorldNode.MaterialOverride[] materialOverrides)

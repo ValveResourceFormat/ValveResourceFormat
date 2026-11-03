@@ -52,6 +52,11 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>Layers that should be visible by default, populated during loading.</summary>
         public HashSet<WorldLayer> DefaultEnabledLayers { get; } = [WorldLayer.NoLayer, WorldLayer.Entities, WorldLayer.Particles];
 
+        private AABB? worldNodeBounds;
+
+        /// <summary>Gets the bounds of the objects loaded from the world nodes, or an empty box when there are none.</summary>
+        public AABB WorldNodeBounds => worldNodeBounds ?? default;
+
         /// <summary>Names of info_camera_link entities found in the world.</summary>
         public List<string> CameraNames { get; } = [];
         /// <summary>Transform matrices corresponding to each entry in <see cref="CameraNames"/>.</summary>
@@ -412,6 +417,7 @@ namespace ValveResourceFormat.Renderer.World
                     subloader.Load(scene, rootTransform);
 
                     DefaultEnabledLayers.UnionWith(subloader.Layers);
+                    worldNodeBounds = worldNodeBounds?.Union(subloader.Bounds) ?? subloader.Bounds;
                 }
             }
         }

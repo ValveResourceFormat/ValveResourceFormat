@@ -9,24 +9,24 @@ namespace ValveResourceFormat.Renderer.Input;
 /// </summary>
 public class UserInput
 {
-    private const float MovementSpeed = 250f; // WASD movement, per second
-    private const float AltMovementSpeed = 10f; // Holding shift or alt movement
+    private const float DefaultMoveSpeed = 250f; // WASD movement, per second
+    private const float SceneCrossingTime = 8f; // Seconds to fly across the scene at its crossing speed
+    private const float MinCrossingSpeed = 8f;
+    private const float MaxCrossingSpeed = 4000f;
+    private const float AltMovementSpeed = 10f; // Holding shift or alt movement, at the default move speed
     private const float Acceleration = 15f; // Acceleration multiplier
     private const float Deceleration = 20f; // Deceleration multiplier
 
-    private readonly float[] SpeedModifiers =
-    [
-        0.1f,
-        0.3f,
-        0.5f,
-        0.8f,
-        1.0f,
-        1.5f,
-        2.0f,
-        5.0f,
-        10.0f,
-    ];
-    private int CurrentSpeedModifier = 4;
+    private const float SpeedStepFactor = 1.5f; // Each scroll notch
+    private const float StartToSlowestRatio = 16f;
+    private const float FastestToCrossingRatio = 4f;
+    private float StartMoveSpeed;
+    private int SpeedSteps;
+    private int MinSpeedSteps;
+    private int MaxSpeedSteps;
+
+    /// <summary>Gets the free-flight speed, in world units per second.</summary>
+    public float MoveSpeed => StartMoveSpeed * MathF.Pow(SpeedStepFactor, SpeedSteps);
 
     /// <summary>
     /// Lightweight camera state snapshot for smooth interpolation.
@@ -135,6 +135,7 @@ public class UserInput
         Renderer = renderer;
         Camera = new Camera(renderer.RendererContext.FieldOfView);
         PlayerMovement = new PlayerMovement(this, renderer.RendererContext.FileLoader);
+        SetMoveSpeedRange(0f);
     }
 
     /// <summary>
@@ -382,7 +383,7 @@ public class UserInput
 
     /// <summary>
     /// Switches between walking as the player and flying the camera. Entering seeds the player from the
-    /// camera on the next tick; leaving lifts the camera a little and restores a flying speed.
+    /// camera on the next tick; leaving lifts the camera a little.
     /// </summary>
     /// <param name="walk">Whether to walk as the player.</param>
     public void SetWalkMode(bool walk)
@@ -405,7 +406,6 @@ public class UserInput
             // Straight up in the world, not along the view, which tilts with pitch
             SaveCameraForTransition();
             Camera.Location += Vector3.UnitZ * 32f;
-            CurrentSpeedModifier = 7;
         }
     }
 
@@ -611,7 +611,7 @@ public class UserInput
         if ((keyboardState & TrackedKeys.Shift) != 0)
         {
             // Camera truck and pedestal movement (blender calls this pan)
-            var speed = AltMovementSpeed * deltaTime * SpeedModifiers[CurrentSpeedModifier];
+            var speed = AltMovementSpeed * deltaTime * (MoveSpeed / DefaultMoveSpeed);
             // Cross(worldUp, forward) is the camera's left, and unlike that cross it stays defined when
             // the camera looks straight down
             var screenRight = -Camera.Right;
@@ -648,10 +648,10 @@ public class UserInput
     }
 
     /// <summary>
-    /// Handles a mouse wheel event, adjusting orbit zoom or free-flight speed modifier.
+    /// Handles a mouse wheel event, adjusting orbit zoom or free-flight move speed.
     /// </summary>
     /// <param name="delta">Positive for scroll-up, negative for scroll-down.</param>
-    /// <returns>The new orbit distance in orbit mode, or the new speed modifier in free-flight mode.</returns>
+    /// <returns>The new orbit distance in orbit mode, or the new <see cref="MoveSpeed"/> in free-flight mode.</returns>
     public float OnMouseWheel(float delta)
     {
         if (OrbitMode)
@@ -660,31 +660,40 @@ public class UserInput
             return OrbitDistance;
         }
 
-        if (delta > 0)
+        var step = delta > 0 ? 1 : -1;
+        SpeedSteps = Math.Clamp(SpeedSteps + step, MinSpeedSteps, MaxSpeedSteps);
+
+        return MoveSpeed;
+    }
+
+    /// <summary>
+    /// Fits the free-flight speed to a scene of the given size: it starts at the default speed, or slower
+    /// when the scene would be crossed in a few seconds, and scrolls from well below where it starts to well
+    /// above the speed that crosses it.
+    /// </summary>
+    /// <param name="sceneSize">The extent of the scene in world units; non-finite or below one unit uses the default speed.</param>
+    public void SetMoveSpeedRange(float sceneSize)
+    {
+        var crossingSpeed = DefaultMoveSpeed;
+
+        if (float.IsFinite(sceneSize) && sceneSize >= 1f)
         {
-            CurrentSpeedModifier += 1;
-
-            if (CurrentSpeedModifier >= SpeedModifiers.Length)
-            {
-                CurrentSpeedModifier = SpeedModifiers.Length - 1;
-            }
-        }
-        else
-        {
-            CurrentSpeedModifier -= 1;
-
-            if (CurrentSpeedModifier < 0)
-            {
-                CurrentSpeedModifier = 0;
-            }
+            crossingSpeed = Math.Clamp(sceneSize / SceneCrossingTime, MinCrossingSpeed, MaxCrossingSpeed);
         }
 
-        return SpeedModifiers[CurrentSpeedModifier];
+        StartMoveSpeed = MathF.Min(DefaultMoveSpeed, crossingSpeed);
+        SpeedSteps = 0;
+
+        var slowest = StartMoveSpeed / StartToSlowestRatio;
+        var fastest = MathF.Max(DefaultMoveSpeed, crossingSpeed) * FastestToCrossingRatio;
+
+        MinSpeedSteps = (int)MathF.Ceiling(MathF.Log(slowest / StartMoveSpeed, SpeedStepFactor));
+        MaxSpeedSteps = (int)MathF.Floor(MathF.Log(fastest / StartMoveSpeed, SpeedStepFactor));
     }
 
     private void HandleKeyboardInput(float deltaTime, TrackedKeys keyboardState)
     {
-        var maxSpeed = MovementSpeed * SpeedModifiers[CurrentSpeedModifier];
+        var maxSpeed = MoveSpeed;
         var targetVelocity = Vector3.Zero;
 
         if ((keyboardState & TrackedKeys.W) != 0)
@@ -719,6 +728,9 @@ public class UserInput
                 targetVelocity += new Vector3(0, 0, maxSpeed);
             }
         }
+
+        // Holding several directions does not fly faster than one
+        targetVelocity = MathUtils.ClampLength(targetVelocity, maxSpeed);
 
         // Apply acceleration or deceleration
         if (SmoothCameraEnabled)
