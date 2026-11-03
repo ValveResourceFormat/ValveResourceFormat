@@ -8,6 +8,7 @@ using SkiaSharp;
 using ValveKeyValue;
 using ValveResourceFormat.IO.ContentFormats.ValveTexture;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.TextureDecoders;
 using ChannelMapping = ValveResourceFormat.CompiledShader.ChannelMapping;
 
 namespace ValveResourceFormat.IO;
@@ -94,7 +95,7 @@ public sealed class TextureExtract
     /// <summary>
     /// Gets or sets the decode flags for texture extraction.
     /// </summary>
-    public TextureDecoders.TextureCodec DecodeFlags { get; set; } = TextureDecoders.TextureCodec.Auto;
+    public TextureCodec DecodeFlags { get; set; } = TextureCodec.Auto;
 
     /// <summary>
     /// Whether to combine cubemap faces into a single latlong image. Only applies to cubemaps exported as EXR.
@@ -109,9 +110,17 @@ public sealed class TextureExtract
     private bool writesMaterialMaps;
 
     /// <summary>
+    /// Gets the flags the images are decoded with. Next to a vtex config, normal maps keep their stored channels
+    /// instead of the swizzle and Z the decode reconstructs.
+    /// </summary>
+    private TextureCodec ImageDecodeFlags => IgnoreVtexFile || writesMaterialMaps
+        ? DecodeFlags
+        : texture.ResolveDecodeFlags(DecodeFlags, TextureCodec.Dxt5nm | TextureCodec.NormalizeNormals);
+
+    /// <summary>
     /// Gets whether the texture should be exported as EXR format.
     /// </summary>
-    public bool ExportExr => texture.IsHighDynamicRange && !DecodeFlags.HasFlag(TextureDecoders.TextureCodec.ForceLDR);
+    public bool ExportExr => texture.IsHighDynamicRange && !DecodeFlags.HasFlag(TextureCodec.ForceLDR);
 
     /// <summary>
     /// Gets the output file extension for the texture.
@@ -161,7 +170,7 @@ public sealed class TextureExtract
                 {
                     contentFile.AddSubFile(GetSliceImageFileName(depth), () =>
                     {
-                        using var bitmap = texture.GenerateBitmap(depth: currentDepth, decodeFlags: DecodeFlags);
+                        using var bitmap = texture.GenerateBitmap(depth: currentDepth, decodeFlags: ImageDecodeFlags);
                         return ImageEncode(bitmap);
                     });
 
@@ -187,7 +196,7 @@ public sealed class TextureExtract
 
                     contentFile.AddSubFile($"{cubeName}_{CubemapNames[face]}{ImageOutputExtension}", () =>
                     {
-                        using var bitmap = texture.GenerateBitmap(depth: currentDepth, face: (Texture.CubemapFace)currentFace, decodeFlags: DecodeFlags);
+                        using var bitmap = texture.GenerateBitmap(depth: currentDepth, face: (Texture.CubemapFace)currentFace, decodeFlags: ImageDecodeFlags);
                         return ImageEncode(bitmap);
                     });
                 }
@@ -205,7 +214,7 @@ public sealed class TextureExtract
             return contentFile;
         }
 
-        var bitmap = texture.GenerateBitmap(decodeFlags: DecodeFlags);
+        var bitmap = texture.GenerateBitmap(decodeFlags: ImageDecodeFlags);
 
         var vtex = new TextureContentFile()
         {
@@ -524,7 +533,7 @@ public sealed class TextureExtract
         {
             for (var face = 0; face < 6; face++)
             {
-                bitmaps[face] = texture.GenerateBitmap(depth: depth, face: (Texture.CubemapFace)face, decodeFlags: DecodeFlags);
+                bitmaps[face] = texture.GenerateBitmap(depth: depth, face: (Texture.CubemapFace)face, decodeFlags: ImageDecodeFlags);
                 faces[face] = bitmaps[face].PeekPixels();
             }
 
@@ -1124,24 +1133,192 @@ public sealed class TextureExtract
 
     private CDmeVtex CreateVtex()
     {
-        var outputFormat = texture.Format.ToString();
-        var colorSpace = ExportExr ? "linear" : "srgb";
-        var mipAlgorithm = texture.NumMipLevels > 1 ? "Box" : "None";
+        var volumeType = texture.Flags.HasFlag(VTexFlags.VOLUME_TEXTURE) ? "3D" : "2DARRAY";
+        var (inputType, outputType, fileNames) = isCubeMap
+            ? ("CUBE", texture.Depth == 1 && texture.Flags.HasFlag(VTexFlags.TEXTURE_ARRAY) ? "CUBEARRAY" : "CUBE",
+                Enumerable.Range(0, texture.Depth).Select(depth => GetContentPath(GetCubeImageName((uint)depth) + ImageOutputExtension)).ToArray())
+            : isSliced
+                ? (volumeType, volumeType, [GetContentPath(GetSliceImageFileName(0))])
+                : ("2D", "2D", [GetInputFileNameForVtex()]);
 
-        if (isCubeMap)
+        var (imageProcessors, colorMip, alphaMip) = GetRecordedProcessing();
+        var vtex = new CDmeVtex
         {
-            var outputType = texture.Depth == 1 && texture.Flags.HasFlag(VTexFlags.TEXTURE_ARRAY) ? "CUBEARRAY" : "CUBE";
-            var inputs = Enumerable.Range(0, texture.Depth).Select(depth => GetContentPath(GetCubeImageName((uint)depth) + ImageOutputExtension));
-            return CDmeVtex.CreateTexture(inputs, "CUBE", outputType, outputFormat, colorSpace, mipAlgorithm);
+            OutputTypeString = outputType,
+            OutputFormat = texture.Format.ToString(),
+        };
+
+        string colorSpace;
+        string channels;
+
+        if (ExportExr)
+        {
+            colorSpace = "linear";
+            channels = "rgb";
+
+            if (texture.Format == VTexFormat.RGBA16161616F)
+            {
+                vtex.OutputClearColor = new Vector4(0f, 0f, 0f, 1f);
+            }
+        }
+        else
+        {
+            (colorSpace, channels) = GetColorSpaceAndChannels();
         }
 
-        if (isSliced)
+        var inputNames = new string[fileNames.Length];
+
+        for (var i = 0; i < fileNames.Length; i++)
         {
-            var type = texture.Flags.HasFlag(VTexFlags.VOLUME_TEXTURE) ? "3D" : "2DARRAY";
-            return CDmeVtex.CreateTexture([GetContentPath(GetSliceImageFileName(0))], type, type, outputFormat, colorSpace, mipAlgorithm);
+            inputNames[i] = string.Create(CultureInfo.InvariantCulture, $"InputTexture{i}");
+            var input = new CDmeInputTexture { Name = inputNames[i], FileName = fileNames[i], TypeString = inputType, ColorSpace = colorSpace };
+
+            foreach (var processor in imageProcessors.DefaultIfEmpty("None"))
+            {
+                input.ImageProcessorArray.Add(new CDmeImageProcessor { Algorithm = processor });
+            }
+
+            vtex.InputTextureArray.Add(input);
         }
 
-        return CDmeVtex.CreateTexture([GetInputFileNameForVtex()], "2D", "2D", outputFormat, colorSpace, mipAlgorithm);
+        var colorInputNames = inputNames;
+
+        if (colorMip == "AlphaWeighted")
+        {
+            colorInputNames = new string[fileNames.Length * 2];
+
+            for (var i = 0; i < fileNames.Length; i++)
+            {
+                var alphaName = string.Create(CultureInfo.InvariantCulture, $"InputTextureAlpha{i}");
+                var input = new CDmeInputTexture { Name = alphaName, FileName = fileNames[i], TypeString = inputType, ColorSpace = "linear" };
+                input.ImageProcessorArray.Add(new CDmeImageProcessor());
+                vtex.InputTextureArray.Add(input);
+                colorInputNames[i * 2] = inputNames[i];
+                colorInputNames[i * 2 + 1] = alphaName;
+            }
+        }
+
+        var colorChannels = channels.Replace("a", string.Empty, StringComparison.Ordinal);
+
+        if (channels.Contains('a', StringComparison.Ordinal) && colorChannels.Length > 0 && (colorSpace == "srgb" || colorMip != alphaMip))
+        {
+            vtex.TextureOutputChannelArray.Add(CreateOutputChannel(colorInputNames, colorChannels, colorSpace, colorMip));
+            vtex.TextureOutputChannelArray.Add(CreateOutputChannel(inputNames, "a", "linear", alphaMip));
+        }
+        else
+        {
+            vtex.TextureOutputChannelArray.Add(CreateOutputChannel(colorInputNames, channels, colorSpace, colorMip));
+        }
+
+        return vtex;
+
+        static CDmeTextureOutputChannel CreateOutputChannel(string[] inputNames, string channels, string colorSpace, string mipAlgorithm)
+        {
+            var output = new CDmeTextureOutputChannel { SrcChannels = channels, DstChannels = channels, OutputColorSpace = colorSpace };
+            output.InputTextureArray.AddRange(inputNames);
+            output.MipAlgorithm.Algorithm = mipAlgorithm;
+            return output;
+        }
+    }
+
+    /// <summary>
+    /// Gets the image processors and the color and alpha mip algorithms the compiler recorded in the special dependencies.
+    /// </summary>
+    private (List<string> ImageProcessors, string ColorMip, string AlphaMip) GetRecordedProcessing()
+    {
+        const string Prefix = "Texture Compiler Version ";
+        var imageProcessors = new List<string>();
+        var mips = new List<string>();
+
+        foreach (var dependency in texture.Resource.EditInfo?.SpecialDependencies ?? [])
+        {
+            if (dependency.CompilerIdentifier != "CompileTexture" || !dependency.String.StartsWith(Prefix, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var name = dependency.String[Prefix.Length..];
+
+            if (name.StartsWith("Mip ", StringComparison.Ordinal))
+            {
+                name = name[4..];
+                mips.Add(name switch
+                {
+                    "Box Inverse" => "BoxInverse",
+                    "Normals" => "MipNormal",
+                    "AnisoNormals" => "AnisoNormal",
+                    _ when name.StartsWith("Artist ", StringComparison.Ordinal) => name["Artist ".Length..],
+                    _ => name,
+                });
+            }
+            else if (name.StartsWith("Image ", StringComparison.Ordinal))
+            {
+                imageProcessors.Add(name[6..] switch
+                {
+                    "YCoCg Conversion" => "ConvertToYCoCg",
+                    "Dilate Color" => "DilateColorInTransparentPixels",
+                    "Mod2X" => "Mod2XCenter",
+                    var processor => processor,
+                });
+            }
+        }
+
+        static bool IsAlphaMip(string mip) => mip is "Box" or "None" or "PreserveCoverage";
+
+        if (mips.Count(mip => !IsAlphaMip(mip)) > 1)
+        {
+            mips.Remove("HemiOctAnisoRoughness");
+        }
+
+        var alphaMip = mips.Find(IsAlphaMip);
+        var colorMip = mips.Find(mip => !IsAlphaMip(mip)) ?? alphaMip ?? (texture.NumMipLevels > 1 ? "Box" : "None");
+
+        return (imageProcessors, colorMip, alphaMip ?? colorMip);
+    }
+
+    /// <summary>
+    /// Gets whether the color channels were compiled from sRGB input, by which of the raw and the linearized mean of
+    /// the decoded first mip is closer to the recorded reflectivity, and the channels that hold data: a color channel
+    /// that is not all 0 and an alpha channel that is not all 1. Alpha and color channels that are constant 0 or 1
+    /// are linear.
+    /// </summary>
+    private (string ColorSpace, string Channels) GetColorSpaceAndChannels()
+    {
+        using var bitmap = texture.GenerateBitmap(face: isCubeMap ? Texture.CubemapFace.PositiveX : default, decodeFlags: ImageDecodeFlags);
+        using var pixmap = bitmap.PeekPixels();
+
+        var sum = Vector4.Zero;
+        var linearSum = Vector3.Zero;
+        var min = new Vector4(255f);
+        var max = Vector4.Zero;
+
+        foreach (var pixel in pixmap.GetPixelSpan<SKColor>())
+        {
+            var value = new Vector4(pixel.Red, pixel.Green, pixel.Blue, pixel.Alpha);
+            sum += value;
+            linearSum += ColorSpace.SrgbGammaToLinear(value.AsVector3() / 255f);
+            min = Vector4.Min(min, value);
+            max = Vector4.Max(max, value);
+        }
+
+        var count = Math.Max(pixmap.Width * pixmap.Height, 1);
+        var mean = sum / (255f * count);
+        var linearMean = linearSum / count;
+        var reflectivity = texture.Reflectivity;
+
+        var channels = string.Concat("rgba".Where((_, i) => reflectivity[i] != 0f || (i < 3 ? max[i] != 0f : min[i] != 255f)));
+
+        if (channels.Length == 0)
+        {
+            channels = "rgba";
+        }
+
+        var constant = Enumerable.Range(0, 3).All(i => min[i] == max[i] && min[i] is 0f or 255f);
+        var srgbError = Vector3.Abs(reflectivity.AsVector3() - linearMean);
+        var rawError = Vector3.Abs(reflectivity.AsVector3() - mean.AsVector3());
+        var srgb = !constant && srgbError.X + srgbError.Y + srgbError.Z < rawError.X + rawError.Y + rawError.Z;
+
+        return (srgb ? "srgb" : "linear", channels);
     }
 
     /// <summary>

@@ -874,13 +874,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             var isHdrBitmap = IsHighDynamicRange && !decodeFlags.HasFlag(TextureCodec.ForceLDR);
-            var removeDecodeFlags = IsHighDynamicRange
-                ? (TextureCodec.ColorSpaceLinear | TextureCodec.ColorSpaceSrgb)
-                : TextureCodec.None;
-
-            decodeFlags = decodeFlags.HasFlag(TextureCodec.Auto)
-                ? (RetrieveCodecFromResourceEditInfo() & ~removeDecodeFlags) | (decodeFlags & ~TextureCodec.Auto)
-                : decodeFlags;
+            decodeFlags = ResolveDecodeFlags(decodeFlags);
 
             var colorType = isHdrBitmap
                 ? HdrBitmapColorType
@@ -1444,6 +1438,25 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 Reader.BaseStream.Position = originalPosition;
             }
+        }
+
+        /// <summary>
+        /// Resolves <see cref="TextureCodec.Auto"/> in <paramref name="decodeFlags"/> to the codec the edit info records,
+        /// leaving out <paramref name="removeFlags"/>.
+        /// </summary>
+        internal TextureCodec ResolveDecodeFlags(TextureCodec decodeFlags, TextureCodec removeFlags = TextureCodec.None)
+        {
+            if (!decodeFlags.HasFlag(TextureCodec.Auto))
+            {
+                return decodeFlags;
+            }
+
+            if (IsHighDynamicRange)
+            {
+                removeFlags |= TextureCodec.ColorSpaceLinear | TextureCodec.ColorSpaceSrgb;
+            }
+
+            return (RetrieveCodecFromResourceEditInfo() & ~removeFlags) | (decodeFlags & ~TextureCodec.Auto);
         }
 
         /// <summary>
