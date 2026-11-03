@@ -2883,7 +2883,7 @@ public sealed partial class MapExtract
                 continue;
             }
 
-            if (RemoveOrMutateCompilerGeneratedProperty(className, ref propertyKey))
+            if (RemoveOrMutateCompilerGeneratedProperty(className, compiledEntity, ref propertyKey))
             {
                 continue;
             }
@@ -2967,14 +2967,14 @@ public sealed partial class MapExtract
         return false;
     }
 
-    // TODO: cubemaptexture may be set by artist, needs to be handled differently (reference: CS2 /ui/ maps)
-    private static bool RemoveOrMutateCompilerGeneratedProperty(string className, ref string propertyKey)
+    private static bool RemoveOrMutateCompilerGeneratedProperty(string className, Entity compiledEntity, ref string propertyKey)
     {
         const string prefix = "vrf_stripped_";
         if (className is "env_combined_light_probe_volume" or "env_light_probe_volume" or "env_cubemap_box" or "env_cubemap")
         {
             // in newer s2 engine branches having `array_index` present causes all sort of issues and crashes
-            if (propertyKey is "cubemaptexture" or "lightprobetexture" or "array_index")
+            if (propertyKey == "lightprobetexture"
+                || (propertyKey is "cubemaptexture" or "array_index" && !compiledEntity.GetBooleanProperty("customcubemaptexture")))
             {
                 propertyKey = prefix + propertyKey;
             }
