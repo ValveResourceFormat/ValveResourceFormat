@@ -141,6 +141,7 @@ public class RendererContext : IDisposable
 
     [SuppressMessage("Usage", "CA2213:Disposable fields should be disposed", Justification = "Outlives Dispose so WaitForLoadingToStop still works after it")]
     private readonly ManualResetEventSlim loadIdle = new(true);
+    private readonly Lock loadLock = new();
     private int loadsInFlight;
 
     private static readonly TimeSpan LoadStopTimeout = TimeSpan.FromSeconds(1);
@@ -151,9 +152,14 @@ public class RendererContext : IDisposable
     /// <summary>Marks loading in progress until the returned scope is disposed.</summary>
     public IDisposable BeginLoading()
     {
-        if (Interlocked.Increment(ref loadsInFlight) == 1)
+        lock (loadLock)
         {
-            loadIdle.Reset();
+            loadsInFlight++;
+
+            if (loadsInFlight == 1)
+            {
+                loadIdle.Reset();
+            }
         }
 
         return new LoadScope(this);
@@ -187,9 +193,14 @@ public class RendererContext : IDisposable
     {
         public void Dispose()
         {
-            if (Interlocked.Decrement(ref context.loadsInFlight) == 0)
+            lock (context.loadLock)
             {
-                context.loadIdle.Set();
+                context.loadsInFlight--;
+
+                if (context.loadsInFlight == 0)
+                {
+                    context.loadIdle.Set();
+                }
             }
         }
     }

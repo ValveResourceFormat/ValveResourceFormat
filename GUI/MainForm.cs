@@ -5,6 +5,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -854,6 +855,8 @@ namespace GUI
             // and show no loading panel; the new viewer is swapped in once ready. Otherwise show the loading panel.
             var keepFrozen = isPreview && packageTreeView!.IsSamePreviewType(file?.TypeName);
 
+            var previewToken = packageTreeView?.PreviewToken ?? CancellationToken.None;
+
             LoadingFile? loadingFile = null;
 
             if (!keepFrozen)
@@ -955,6 +958,12 @@ namespace GUI
                     // A faulted load cancels this continuation's antecedent, so the reason is on
                     // the load task itself.
                     var loadError = taskLoad.Exception?.Flatten().InnerException ?? createError;
+
+                    if (previewToken.IsCancellationRequested)
+                    {
+                        // A frozen preview tab was never parented, so it has to be disposed here.
+                        tab.Dispose();
+                    }
 
                     if (tab.IsDisposed)
                     {

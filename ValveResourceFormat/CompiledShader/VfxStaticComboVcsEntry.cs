@@ -58,14 +58,18 @@ public class VfxStaticComboVcsEntry
 
     private PooledMemoryStream OpenUncompressedData()
     {
-        var dataReader = ParentProgramData.DataReader;
-        Debug.Assert(dataReader != null);
+        // Same lock as the static combo cache, as the data reader is shared
+        lock (ParentProgramData)
+        {
+            var dataReader = ParentProgramData.DataReader;
+            Debug.Assert(dataReader != null);
 
-        dataReader.BaseStream.Position = FileOffset;
+            dataReader.BaseStream.Position = FileOffset;
 
-        var pooledStream = GetUncompressedStaticComboDataStream(dataReader);
-        pooledStream.Position = 0;
-        return pooledStream;
+            var pooledStream = GetUncompressedStaticComboDataStream(dataReader);
+            pooledStream.Position = 0;
+            return pooledStream;
+        }
     }
 
     /// <summary>
@@ -78,12 +82,8 @@ public class VfxStaticComboVcsEntry
             return VfxStaticComboData.GetAttributes(ResourceData.ComboData, ResourceData.AllAttributes);
         }
 
-        // Same reading lock as the static combo cache
-        lock (ParentProgramData)
-        {
-            using var pooledStream = OpenUncompressedData();
-            return VfxStaticComboData.ReadAttributes(pooledStream, ParentProgramData);
-        }
+        using var pooledStream = OpenUncompressedData();
+        return VfxStaticComboData.ReadAttributes(pooledStream, ParentProgramData);
     }
 
     /// <summary>

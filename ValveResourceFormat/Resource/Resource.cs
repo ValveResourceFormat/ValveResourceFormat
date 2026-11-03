@@ -193,6 +193,11 @@ namespace ValveResourceFormat
         /// <param name="mode">When the blocks are parsed.</param>
         public void Read(string filename, ReadMode mode = ReadMode.Runtime)
         {
+            if (Reader != null)
+            {
+                throw new InvalidOperationException("This resource has already been read.");
+            }
+
             FileName = filename;
             FileStream = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
 
@@ -211,6 +216,11 @@ namespace ValveResourceFormat
         /// </remarks>
         public void Read(Stream input, bool leaveOpen = false, ReadMode mode = ReadMode.Runtime)
         {
+            if (Reader != null)
+            {
+                throw new InvalidOperationException("This resource has already been read.");
+            }
+
             Reader = new BinaryReader(input, Encoding.UTF8, leaveOpen);
 
             FileSize = Reader.ReadUInt32();

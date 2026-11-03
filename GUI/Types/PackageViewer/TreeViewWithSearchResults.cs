@@ -81,7 +81,12 @@ namespace GUI.Types.PackageViewer
         public bool DeletedFilesRecovered { get; private set; }
         public PackageViewer Viewer { get; }
 
-        public CancellationTokenSource? PreviewTokenSource { get; private set; }
+        private CancellationTokenSource? PreviewTokenSource;
+
+        /// <summary>
+        /// Cancelled once another file, a folder or the list takes over the preview area.
+        /// </summary>
+        public CancellationToken PreviewToken => PreviewTokenSource?.Token ?? CancellationToken.None;
 
         private Dictionary<string, Dictionary<string, string>>? AssetSearchData;
         private Dictionary<string, SortedSet<string>>? SearchDataKeys;
@@ -288,7 +293,7 @@ namespace GUI.Types.PackageViewer
                 return;
             }
 
-            PreviewTokenSource?.Cancel();
+            ResetPreviewToken();
 
             if (node.PackageEntry != null)
             {
@@ -305,14 +310,7 @@ namespace GUI.Types.PackageViewer
                 return;
             }
 
-            if (PreviewTokenSource is not null)
-            {
-                PreviewTokenSource.Cancel();
-                PreviewTokenSource.Dispose();
-            }
-
-            PreviewTokenSource = new CancellationTokenSource();
-            var token = PreviewTokenSource.Token;
+            var token = ResetPreviewToken();
 
             var realNode = (BetterTreeNode)e.Node;
 
@@ -345,6 +343,15 @@ namespace GUI.Types.PackageViewer
                     await InvokeAsync(() => PreviewFile?.Invoke(sender, realNode.PackageEntry), token).ConfigureAwait(false);
                 }, token);
             }
+        }
+
+        private CancellationToken ResetPreviewToken()
+        {
+            PreviewTokenSource?.Cancel();
+            PreviewTokenSource?.Dispose();
+            PreviewTokenSource = new CancellationTokenSource();
+
+            return PreviewTokenSource.Token;
         }
 
         private void MainListView_DisplayNodes(VirtualPackageNode pkgNode, bool updatePath = true)
@@ -1897,6 +1904,8 @@ namespace GUI.Types.PackageViewer
             {
                 return;
             }
+
+            ResetPreviewToken();
 
             currentPreviewType = null;
 

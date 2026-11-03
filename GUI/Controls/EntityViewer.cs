@@ -23,9 +23,10 @@ namespace GUI.Types.Viewers
 
         private HashSet<string>? pendingIconClassnames;
 
-        public static ImageList? EntityIconImageList { get; private set; }
-        public static Dictionary<string, int> EntityIconCache { get; private set; } = [];
-        public static HashSet<string> EntityIconLoadAttempted { get; private set; } = [];
+        // Classes and their icons are looked up in the game of this viewer, so icons are only kept per viewer
+        private readonly ImageList EntityIconImageList;
+        private readonly Dictionary<string, int> IconIndexByClassname = [];
+        private readonly Dictionary<string, int> IconIndexByMaterial = new(StringComparer.OrdinalIgnoreCase);
 
         private static int GetDefaultIconIndexForEntity(Entity entity)
         {
@@ -43,14 +44,9 @@ namespace GUI.Types.Viewers
             return 0;
         }
 
-        public static void InitializeImageList()
+        private static ImageList CreateImageList()
         {
-            if (EntityIconImageList != null)
-            {
-                return;
-            }
-
-            EntityIconImageList = new ImageList
+            var imageList = new ImageList
             {
                 ColorDepth = ColorDepth.Depth32Bit,
                 ImageSize = AppIcons.ImageList.ImageSize,
@@ -59,20 +55,22 @@ namespace GUI.Types.Viewers
             if (AppIcons.ExtensionIcons.TryGetValue("ents", out var entsIconIndex) &&
                 AppIcons.ImageList.Images[entsIconIndex] is Bitmap entsIcon)
             {
-                EntityIconImageList.Images.Add(entsIcon);
+                imageList.Images.Add(entsIcon);
             }
 
             if (AppIcons.ExtensionIcons.TryGetValue("mdl", out var mdlIconIndex) &&
                 AppIcons.ImageList.Images[mdlIconIndex] is Bitmap mdlIcon)
             {
-                EntityIconImageList.Images.Add(mdlIcon);
+                imageList.Images.Add(mdlIcon);
             }
 
             if (AppIcons.ExtensionIcons.TryGetValue("pcf", out var pcfIconIndex) &&
                 AppIcons.ImageList.Images[pcfIconIndex] is Bitmap pcfIcon)
             {
-                EntityIconImageList.Images.Add(pcfIcon);
+                imageList.Images.Add(pcfIcon);
             }
+
+            return imageList;
         }
 
         public enum ObjectsToInclude
@@ -109,13 +107,12 @@ namespace GUI.Types.Viewers
             EntityInfo.LinkedResourceActivated += OnLinkedResourceActivated;
             EntityViewerGrid.OwnerDraw = true;
 
-            InitializeImageList();
+            EntityIconImageList = CreateImageList();
             EntityViewerGrid.SmallImageList = EntityIconImageList;
 
             var allClassnames = Entities
                 .Select(static e => e.GetStringProperty("classname", string.Empty))
                 .Where(static cn => !string.IsNullOrEmpty(cn))
-                .Where(static cn => !EntityIconLoadAttempted.Contains(cn))
                 .ToHashSet();
 
             // defer icon loading until the control is actually shown
@@ -222,14 +219,14 @@ namespace GUI.Types.Viewers
                 var items = filteredEntities
                     .OrderBy(static e => e.Classname, StringComparer.OrdinalIgnoreCase)
                     .ThenBy(static e => e.Targetname, StringComparer.OrdinalIgnoreCase)
-                    .Select(static e =>
+                    .Select(e =>
                     {
                         var (entity, classname, targetname) = e;
                         var item = new ListViewItem(classname);
                         item.SubItems.Add(targetname);
                         item.Tag = entity;
 
-                        if (EntityIconCache.TryGetValue(classname, out var iconIndex))
+                        if (IconIndexByClassname.TryGetValue(classname, out var iconIndex))
                         {
                             item.ImageIndex = iconIndex;
                         }
@@ -551,9 +548,8 @@ namespace GUI.Types.Viewers
                 return null;
             }
 
-            if (EntityIconImageList != null &&
-                (skBitmap.Width != EntityIconImageList.ImageSize.Width ||
-                 skBitmap.Height != EntityIconImageList.ImageSize.Height))
+            if (skBitmap.Width != EntityIconImageList.ImageSize.Width ||
+                skBitmap.Height != EntityIconImageList.ImageSize.Height)
             {
                 using var resized = skBitmap.Resize(
                     new SKImageInfo(EntityIconImageList.ImageSize.Width, EntityIconImageList.ImageSize.Height),
@@ -569,11 +565,6 @@ namespace GUI.Types.Viewers
         {
             var index = -1;
 
-            if (EntityIconImageList == null)
-            {
-                return index;
-            }
-
             InvokeWorkaround(() =>
             {
                 index = EntityIconImageList.Images.Count;
@@ -585,8 +576,6 @@ namespace GUI.Types.Viewers
 
         private int LoadEntityIcon(string classname)
         {
-            EntityIconLoadAttempted.Add(classname);
-
             if (EntityClassCatalog.Get(GuiContext, VrfGuiContext.Logger).FindClass(classname) is not { } entityClass)
             {
                 return -1;
@@ -599,11 +588,16 @@ namespace GUI.Types.Viewers
                     continue;
                 }
 
+                if (IconIndexByMaterial.TryGetValue(iconPath, out var cachedIndex))
+                {
+                    return cachedIndex;
+                }
+
                 using var bitmap = LoadIconBitmap(iconPath);
                 if (bitmap != null)
                 {
                     var index = AddBitmapToImageList(bitmap);
-                    EntityIconCache[classname] = index;
+                    IconIndexByMaterial[iconPath] = index;
                     return index;
                 }
             }
@@ -619,6 +613,11 @@ namespace GUI.Types.Viewers
 
                 InvokeWorkaround(() =>
                 {
+                    if (iconIndex >= 0)
+                    {
+                        IconIndexByClassname[classname] = iconIndex;
+                    }
+
                     foreach (ListViewItem item in EntityViewerGrid.Items)
                     {
                         if (item.Tag is Entity entity && entity.GetStringProperty("classname", string.Empty) == classname)

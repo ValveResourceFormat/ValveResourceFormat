@@ -23,6 +23,7 @@ partial class EntityViewer
         if (disposing)
         {
             VisibleChanged -= EntityViewer_VisibleChanged;
+            EntityIconImageList.Dispose();
         }
 
         base.Dispose(disposing);

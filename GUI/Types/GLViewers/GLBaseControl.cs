@@ -45,6 +45,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
     protected bool MouseReleased;
 
     private readonly Lock inputStateLock = new();
+    private bool registeredWithRenderLoop;
     private Point pendingMouseDelta;
     private int pendingMouseWheelDelta;
     private bool cursorHiddenForDrag;
@@ -366,7 +367,11 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
     public void OnLostFocus(object? sender, EventArgs e)
     {
-        CurrentlyPressedKeys = TrackedKeys.None;
+        using (inputStateLock.EnterScope())
+        {
+            CurrentlyPressedKeys = TrackedKeys.None;
+        }
+
         MouseDelta = Point.Empty;
         currentDragIsTouch = false;
         mouseLookNeedsRebase = true;
@@ -422,7 +427,11 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         RestoreCursorAfterDrag();
 
-        RenderLoopThread.UnregisterInstance();
+        if (registeredWithRenderLoop)
+        {
+            registeredWithRenderLoop = false;
+            RenderLoopThread.UnregisterInstance();
+        }
 
         if (GLControl is not null)
         {
@@ -487,6 +496,8 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
             GLControl.Focus();
             MousePreviousPosition = GLControl.PointToScreen(InitialMousePosition);
         }
+
+        using var _ = inputStateLock.EnterScope();
 
         if (e.Button == MouseButtons.Left)
         {
@@ -955,6 +966,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         Debug.Assert(GLNativeWindow is not null);
 
         RenderLoopThread.RegisterInstance();
+        registeredWithRenderLoop = true;
 
         GraphicsContext = RendererContext.Device.CreateContext(new GLFWSurface(GLNativeWindow.Context));
 

@@ -8,11 +8,15 @@ namespace GUI.Types.GLViewers
         //private const int TicksPerMillisecond = 10_000;
         //private const long TicksPerSecond = TicksPerMillisecond * 1_000;
 
-        private static int threadHash;
+        private static volatile int threadHash;
         private static int instances;
         private static Thread? loopThread;
-        private static GLBaseControl? currentGLControl;
+        private static volatile GLBaseControl? currentGLControl;
         private static readonly ManualResetEventSlim renderSignal = new(initialState: true);
+
+        // Guards changes to the state above. Never held while calling into a control, so that a
+        // caller holding a control's GL lock can take it.
+        private static readonly Lock stateLock = new();
 
         public static void Initialize(Form form)
         {
@@ -28,6 +32,13 @@ namespace GUI.Types.GLViewers
         /// </summary>
         public static void OnAppActivated(object? sender, EventArgs e)
         {
+            SignalIfAttached();
+        }
+
+        private static void SignalIfAttached()
+        {
+            using var _ = stateLock.EnterScope();
+
             if (currentGLControl != null)
             {
                 renderSignal.Set();
@@ -36,10 +47,15 @@ namespace GUI.Types.GLViewers
 
         public static void RegisterInstance()
         {
-            if (Interlocked.Increment(ref instances) == 1)
+            using (stateLock.EnterScope())
             {
-                renderSignal.Reset();
-                Start();
+                instances++;
+
+                if (instances == 1)
+                {
+                    renderSignal.Reset();
+                    Start();
+                }
             }
 
 #if DEBUG
@@ -49,15 +65,24 @@ namespace GUI.Types.GLViewers
 
         public static void UnregisterInstance()
         {
-            if (Interlocked.Decrement(ref instances) == 0)
-            {
-                Interlocked.Increment(ref threadHash);
-                renderSignal.Set();
-                loopThread = null; // The thread should quit on its own
+            GLBaseControl? detached = null;
 
-                var detached = Interlocked.Exchange(ref currentGLControl, null);
-                detached?.OnDetachedFromRenderLoop();
+            using (stateLock.EnterScope())
+            {
+                instances--;
+
+                if (instances == 0)
+                {
+                    threadHash++;
+                    renderSignal.Set();
+                    loopThread = null; // The thread should quit on its own
+
+                    detached = currentGLControl;
+                    currentGLControl = null;
+                }
             }
+
+            detached?.OnDetachedFromRenderLoop();
 
 #if DEBUG
             GUI.Utils.Log.Debug(nameof(RenderLoop), $"Unregistered GL instance, current count: {instances}");
@@ -68,11 +93,19 @@ namespace GUI.Types.GLViewers
 
         public static void SetCurrentGLControl(GLBaseControl glControl)
         {
-            var originalGlControl = Interlocked.Exchange(ref currentGLControl, glControl);
+            GLBaseControl? originalGlControl;
 
-            if (loopThread == null)
+            using (stateLock.EnterScope())
             {
-                Start();
+                originalGlControl = currentGLControl;
+                currentGLControl = glControl;
+
+                if (loopThread == null)
+                {
+                    Start();
+                }
+
+                renderSignal.Set();
             }
 
             if (originalGlControl != null && originalGlControl != glControl)
@@ -90,29 +123,33 @@ namespace GUI.Types.GLViewers
 #endif
             }
             */
-
-            renderSignal.Set();
         }
 
         public static void UnsetCurrentGLControl(GLBaseControl glControl)
         {
-            Interlocked.CompareExchange(ref currentGLControl, null, glControl);
-
-            glControl.OnDetachedFromRenderLoop();
-
-            // With no instances left the loop has been told to quit.
-            if (currentGLControl == null && Volatile.Read(ref instances) > 0)
+            using (stateLock.EnterScope())
             {
-                renderSignal.Reset();
+                if (currentGLControl == glControl)
+                {
+                    currentGLControl = null;
+                }
 
-                /*
-                _ = PInvoke.timeEndPeriod(1);
+                // With no instances left the loop has been told to quit.
+                if (currentGLControl == null && instances > 0)
+                {
+                    renderSignal.Reset();
+
+                    /*
+                    _ = PInvoke.timeEndPeriod(1);
 
 #if DEBUG
-                Log.Debug(nameof(RenderLoop), "Called TimeEndPeriod");
+                    Log.Debug(nameof(RenderLoop), "Called TimeEndPeriod");
 #endif
-                */
+                    */
+                }
             }
+
+            glControl.OnDetachedFromRenderLoop();
         }
 
         public static void UnsetIfClosingParentOfCurrentGLControl(Control parentControl)
@@ -127,7 +164,9 @@ namespace GUI.Types.GLViewers
 
         private static void Start()
         {
-            loopThread = new Thread(RenderLoop)
+            var hash = threadHash;
+
+            loopThread = new Thread(() => RenderLoop(hash))
             {
                 Name = nameof(RenderLoop),
                 IsBackground = true,
@@ -136,10 +175,8 @@ namespace GUI.Types.GLViewers
             loopThread.Start();
         }
 
-        private static void RenderLoop()
+        private static void RenderLoop(int localHash)
         {
-            var localHash = threadHash;
-
 #if DEBUG
             GUI.Utils.Log.Debug(nameof(RenderLoop), $"Thread started (#{localHash})");
 #endif

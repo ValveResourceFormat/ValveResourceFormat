@@ -292,10 +292,14 @@ namespace ValveResourceFormat.IO
         /// </summary>
         protected virtual ShaderCollection LoadShaderFromDisk(string shaderName)
         {
-            if (!ShaderPackagesScanned)
+            // Child contexts call this on their parent while holding only their own lock
+            lock (CachedShadersLock)
             {
-                ShaderPackagesScanned = true;
-                FindAndLoadShaderPackages();
+                if (!ShaderPackagesScanned)
+                {
+                    FindAndLoadShaderPackages();
+                    ShaderPackagesScanned = true;
+                }
             }
 
             var collection = new ShaderCollection();

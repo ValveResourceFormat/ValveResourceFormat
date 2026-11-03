@@ -354,8 +354,16 @@ namespace GUI
             Log.Info(nameof(MainForm), $"Packing to \"{target}\"...");
 
             IsSavingPackage = true;
-            var writeError = WritePackageInProgressForm(package, target, released, repack: requiresRepack || (splitIntoChunks && !package.HasChunkFiles));
-            IsSavingPackage = false;
+            Exception? writeError;
+
+            try
+            {
+                writeError = WritePackageInProgressForm(package, target, released, repack: requiresRepack || (splitIntoChunks && !package.HasChunkFiles));
+            }
+            finally
+            {
+                IsSavingPackage = false;
+            }
 
             if (writeError != null)
             {

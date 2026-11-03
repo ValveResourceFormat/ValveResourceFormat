@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using GUI.Types.GLViewers;
 using Microsoft.Extensions.Logging;
@@ -141,6 +142,7 @@ namespace GUI.Utils
         // Loading panel listening for the phase this file is being loaded through, if one is up
         internal IProgress<string>? LoadingProgress { get; set; }
 
+        private readonly Lock ChildrenLock = new();
         private int Children;
         private bool WantsToBeDisposed;
         private bool Disposed;
@@ -218,18 +220,29 @@ namespace GUI.Utils
 
         private void AddChild()
         {
-            Children++;
+            lock (ChildrenLock)
+            {
+                Children++;
 
 #if DEBUG
-            TotalChildren++;
+                TotalChildren++;
 #endif
+            }
         }
 
         private void RemoveChild(VrfGuiContext child)
         {
             DisposeAfter(child.DisposalCompleted);
 
-            if (--Children == 0 && WantsToBeDisposed)
+            bool disposeNow;
+
+            lock (ChildrenLock)
+            {
+                Children--;
+                disposeNow = Children == 0 && WantsToBeDisposed;
+            }
+
+            if (disposeNow)
             {
                 Dispose();
             }
@@ -285,25 +298,34 @@ namespace GUI.Utils
         protected override void Dispose(bool disposing)
         {
             // A package tab's context is disposed by both its tree view and its tab
-            if (!disposing || Disposed)
+            if (!disposing)
             {
                 return;
             }
 
-            if (Children != 0)
+            lock (ChildrenLock)
             {
+                if (Disposed)
+                {
+                    return;
+                }
+
+                if (Children != 0)
+                {
 #if DEBUG
-                Log.Debug(nameof(VrfGuiContext), $"#{ContextId} Dispose ignored (children: {Children}, has parent: {ParentGuiContext != null})");
+                    Log.Debug(nameof(VrfGuiContext), $"#{ContextId} Dispose ignored (children: {Children}, has parent: {ParentGuiContext != null})");
 #endif
 
-                WantsToBeDisposed = true;
-                return;
+                    WantsToBeDisposed = true;
+                    return;
+                }
+
+#if DEBUG
+                Log.Debug(nameof(VrfGuiContext), $"#{ContextId} Dispose (total children: {TotalChildren}, has parent: {ParentGuiContext != null}, prev: {WantsToBeDisposed})");
+#endif
+                Disposed = true;
             }
 
-#if DEBUG
-            Log.Debug(nameof(VrfGuiContext), $"#{ContextId} Dispose (total children: {TotalChildren}, has parent: {ParentGuiContext != null}, prev: {WantsToBeDisposed})");
-#endif
-            Disposed = true;
             ParentGuiContext?.RemoveChild(this);
 
             StopLoadingAndDispose(disposing);

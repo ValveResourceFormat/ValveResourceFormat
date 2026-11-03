@@ -195,6 +195,11 @@ namespace GUI.Forms
                 {
                     if (!IsHandleCreated)
                     {
+                        foreach (var error in GetErrors(t.Exception))
+                        {
+                            Log.Error(nameof(GenericProgressForm), error.ToString());
+                        }
+
                         return;
                     }
 
@@ -210,19 +215,31 @@ namespace GUI.Forms
                 });
         }
 
-        private static void ShowErrors(AggregateException? exception, IWin32Window? owner)
+        private static List<Exception> GetErrors(AggregateException? exception)
         {
+            var errors = new List<Exception>();
+
             if (exception == null)
             {
-                return;
+                return errors;
             }
 
             foreach (var innerException in exception.Flatten().InnerExceptions)
             {
                 if (innerException is not OperationCanceledException)
                 {
-                    ErrorReport.ShowError(innerException, owner: owner);
+                    errors.Add(innerException);
                 }
+            }
+
+            return errors;
+        }
+
+        private static void ShowErrors(AggregateException? exception, IWin32Window? owner)
+        {
+            foreach (var error in GetErrors(exception))
+            {
+                ErrorReport.ShowError(error, owner: owner);
             }
         }
 

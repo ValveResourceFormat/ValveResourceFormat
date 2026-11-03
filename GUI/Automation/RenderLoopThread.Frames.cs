@@ -103,10 +103,7 @@ partial class RenderLoopThread
         }
 
         // With no control the loop would spin on the signal. Attaching a control sets it anyway
-        if (currentGLControl != null)
-        {
-            renderSignal.Set();
-        }
+        SignalIfAttached();
 
         try
         {
