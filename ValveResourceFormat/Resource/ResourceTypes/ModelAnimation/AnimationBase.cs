@@ -144,7 +144,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 var bindPose = skeleton.Bones[i];
                 var delta = GetAdditiveDelta(i, bones[i]);
 
-                bones[i] = new FrameBone(bindPose.Position + delta.Position, 1f + delta.Scale, bindPose.Angle * delta.Angle);
+                bones[i] = new FrameBone(bindPose.Position + delta.Position, bindPose.Scale + delta.Scale, bindPose.Angle * delta.Angle);
             }
         }
 

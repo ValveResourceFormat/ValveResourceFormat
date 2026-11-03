@@ -45,6 +45,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public Quaternion Angle { get; }
 
         /// <summary>
+        /// Gets the bone's scale in parent space.
+        /// </summary>
+        public float Scale { get; }
+
+        /// <summary>
         /// Gets the bind pose transformation matrix.
         /// </summary>
         public Matrix4x4 BindPose { get; }
@@ -75,7 +80,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Initializes a new instance of the <see cref="Bone"/> class.
         /// </summary>
-        public Bone(int index, string name, Vector3 position, Quaternion rotation, ModelSkeletonBoneFlags flags)
+        public Bone(int index, string name, Vector3 position, Quaternion rotation, float scale, ModelSkeletonBoneFlags flags)
         {
             Index = index;
             Name = name;
@@ -83,6 +88,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             Position = position;
             Angle = rotation;
+            Scale = scale;
 
             BindPose = Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(position);
 

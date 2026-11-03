@@ -605,9 +605,9 @@ namespace Tests.IO
         public async Task AProxyControlBoneIsWrittenAtItsRecordedRestRotation()
         {
             var turn = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, 0.3f);
-            var root = new Bone(0, "root", Vector3.Zero, Quaternion.Identity, ModelSkeletonBoneFlags.NoBoneFlags);
-            var cape = new Bone(1, "cape", new Vector3(0f, 0f, -10f), Quaternion.Identity, ModelSkeletonBoneFlags.NoBoneFlags);
-            var tip = new Bone(2, "tip", new Vector3(0f, 0f, -10f), Quaternion.Identity, ModelSkeletonBoneFlags.NoBoneFlags);
+            var root = new Bone(0, "root", Vector3.Zero, Quaternion.Identity, 1f, ModelSkeletonBoneFlags.NoBoneFlags);
+            var cape = new Bone(1, "cape", new Vector3(0f, 0f, -10f), Quaternion.Identity, 1f, ModelSkeletonBoneFlags.NoBoneFlags);
+            var tip = new Bone(2, "tip", new Vector3(0f, 0f, -10f), Quaternion.Identity, 1f, ModelSkeletonBoneFlags.NoBoneFlags);
             cape.SetParent(root);
             tip.SetParent(cape);
 
@@ -633,10 +633,10 @@ namespace Tests.IO
         [Test]
         public async Task ALoneProxyControlBoneFarFromItsBindPoseIsWrittenAtItsRestPosition()
         {
-            var root = new Bone(0, "root", Vector3.Zero, Quaternion.Identity, ModelSkeletonBoneFlags.NoBoneFlags);
-            var cape = new Bone(1, "cape", new Vector3(0f, 0f, -10f), Quaternion.Identity, ModelSkeletonBoneFlags.NoBoneFlags);
-            var tip = new Bone(2, "tip", new Vector3(0f, 0f, -10f), Quaternion.Identity, ModelSkeletonBoneFlags.NoBoneFlags);
-            var tail = new Bone(3, "tail", new Vector3(5f, 0f, 0f), Quaternion.Identity, ModelSkeletonBoneFlags.NoBoneFlags);
+            var root = new Bone(0, "root", Vector3.Zero, Quaternion.Identity, 1f, ModelSkeletonBoneFlags.NoBoneFlags);
+            var cape = new Bone(1, "cape", new Vector3(0f, 0f, -10f), Quaternion.Identity, 1f, ModelSkeletonBoneFlags.NoBoneFlags);
+            var tip = new Bone(2, "tip", new Vector3(0f, 0f, -10f), Quaternion.Identity, 1f, ModelSkeletonBoneFlags.NoBoneFlags);
+            var tail = new Bone(3, "tail", new Vector3(5f, 0f, 0f), Quaternion.Identity, 1f, ModelSkeletonBoneFlags.NoBoneFlags);
             cape.SetParent(root);
             tip.SetParent(cape);
             tail.SetParent(root);
@@ -770,9 +770,9 @@ namespace Tests.IO
         [Test]
         public async Task AProxyControlBoneHalfADegreeOffItsBindRotationIsTurned()
         {
-            var root = new Bone(0, "root", Vector3.Zero, Quaternion.Identity, ModelSkeletonBoneFlags.NoBoneFlags);
-            var neck = new Bone(1, "neck", new Vector3(0f, 0f, 10f), Quaternion.Identity, ModelSkeletonBoneFlags.NoBoneFlags);
-            var fish = new Bone(2, "fish", new Vector3(5f, 0f, 0f), Quaternion.Identity, ModelSkeletonBoneFlags.NoBoneFlags);
+            var root = new Bone(0, "root", Vector3.Zero, Quaternion.Identity, 1f, ModelSkeletonBoneFlags.NoBoneFlags);
+            var neck = new Bone(1, "neck", new Vector3(0f, 0f, 10f), Quaternion.Identity, 1f, ModelSkeletonBoneFlags.NoBoneFlags);
+            var fish = new Bone(2, "fish", new Vector3(5f, 0f, 0f), Quaternion.Identity, 1f, ModelSkeletonBoneFlags.NoBoneFlags);
             neck.SetParent(root);
             fish.SetParent(root);
 

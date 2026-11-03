@@ -34,8 +34,7 @@ public class NmClipExtract
         ResourceTypes.ModelAnimation.Skeleton? Skeleton,
         List<(ResourceTypes.ModelAnimation.Skeleton Skeleton, ResourceTypes.ModelAnimation.AnimationBase Animation)> SecondaryAnimations,
         string? DocumentFileName,
-        string? SourceFileName,
-        string? AdditiveBaseFileName);
+        string? SourceFileName);
 
     private ClipSources Sources => sources ??= LoadSources();
 
@@ -59,7 +58,7 @@ public class NmClipExtract
 
         var kv = KVObject.Collection();
 
-        var (skeleton, secondaryAnimations, documentFileName, sourceFileName, additiveBaseFileName) = Sources;
+        var (skeleton, secondaryAnimations, documentFileName, sourceFileName) = Sources;
 
         var dmxFileName = Path.ChangeExtension(resource.FileName, ".dmx");
         Debug.Assert(dmxFileName != null);
@@ -85,10 +84,7 @@ public class NmClipExtract
             kv.Add("m_nEndFrame", (long)(startFrame + clip.NumFrames - 1));
         }
 
-        if (clip.IsAdditive)
-        {
-            AddAdditiveProperties(kv, additiveBaseFileName);
-        }
+        var composeAdditive = clip.IsAdditive && AddAdditiveProperties(kv);
 
         var animation = new ResourceTypes.ModelAnimation.ClipAnimation(clip);
         if (skeleton != null)
@@ -110,7 +106,7 @@ public class NmClipExtract
             {
                 contentFile.AddSubFile(
                     dmxSubFileName,
-                    () => ModelExtract.ToDmxAnim(skeleton, [], animation, secondaryAnimations, nmSkelAxisFixup: true)
+                    () => ModelExtract.ToDmxAnim(skeleton, [], animation, secondaryAnimations, nmSkelAxisFixup: true, keepClothProxyBones: true, composeAdditive)
                 );
             }
         }
@@ -349,8 +345,8 @@ public class NmClipExtract
             }
         }
 
-        var (documentFileName, sourceFileName, additiveBaseFileName) = FindAuthoredSourceFiles(skeletonSourceFiles, skeletonSourcesKnown);
-        return new ClipSources(skeleton, secondaryAnimations, documentFileName, sourceFileName, additiveBaseFileName);
+        var (documentFileName, sourceFileName) = FindAuthoredSourceFiles(skeletonSourceFiles, skeletonSourcesKnown);
+        return new ClipSources(skeleton, secondaryAnimations, documentFileName, sourceFileName);
     }
 
     /// <summary>
@@ -378,20 +374,20 @@ public class NmClipExtract
     }
 
     /// <summary>
-    /// Recovers the clip document, the animation the clip was authored from, and for an additive clip
-    /// generated against another animation, that animation. All are input dependencies of the compiled
-    /// clip, alongside the source files of every skeleton it references.
+    /// Recovers the clip document and the animation the clip was authored from. Both are input
+    /// dependencies of the compiled clip, alongside the source files of every skeleton it references
+    /// and, for an additive generated against another animation, that animation.
     /// </summary>
     /// <param name="skeletonSourceFiles">The content files every referenced skeleton was compiled from.</param>
     /// <param name="skeletonSourcesKnown">
     /// Whether every skeleton the clip references was loaded. A skeleton that was not leaves its own
     /// source files out of <paramref name="skeletonSourceFiles"/>.
     /// </param>
-    private (string? DocumentFileName, string? SourceFileName, string? AdditiveBaseFileName) FindAuthoredSourceFiles(HashSet<string> skeletonSourceFiles, bool skeletonSourcesKnown)
+    private (string? DocumentFileName, string? SourceFileName) FindAuthoredSourceFiles(HashSet<string> skeletonSourceFiles, bool skeletonSourcesKnown)
     {
         if (resource.EditInfo == null)
         {
-            return (null, null, null);
+            return (null, null);
         }
 
         string? documentFileName = null;
@@ -417,7 +413,7 @@ public class NmClipExtract
 
         if (candidates.Count == 1 && skeletonSourcesKnown)
         {
-            return (documentFileName, candidates[0], null);
+            return (documentFileName, candidates[0]);
         }
 
         // An additive lists its base animation too; the clip's own source is the one named after it.
@@ -433,43 +429,44 @@ public class NmClipExtract
 
             if (sourceFileName != null)
             {
-                return (documentFileName, null, null);
+                return (documentFileName, null);
             }
 
             sourceFileName = candidate;
         }
 
-        if (sourceFileName == null || candidates.Count != 2 || !skeletonSourcesKnown)
-        {
-            return (documentFileName, sourceFileName, null);
-        }
-
-        var additiveBaseFileName = candidates[0] == sourceFileName ? candidates[1] : candidates[0];
-        return (documentFileName, sourceFileName, additiveBaseFileName);
+        return (documentFileName, sourceFileName);
     }
 
-    private void AddAdditiveProperties(KVObject kv, string? additiveBaseFileName)
+    /// <summary>
+    /// Writes how the additive is generated. A clip that holds a frame left as the identity transform
+    /// was generated relative to that frame, and is written as is. Any other is written composed over
+    /// the reference pose of its skeleton and generated relative to it, which gives back the same
+    /// offsets whatever animation it was generated against.
+    /// </summary>
+    /// <returns>Whether the frames are to be composed over the reference pose.</returns>
+    private bool AddAdditiveProperties(KVObject kv)
     {
-        if (additiveBaseFileName != null)
+        var baseFrame = FindAdditiveBaseFrame();
+
+        if (baseFrame < 0)
         {
-            kv.Add("m_additiveType", "RelativeToAnimation");
-            kv.Add("m_additiveBaseFilename", additiveBaseFileName);
-            kv.Add("m_additiveBaseFrame", "FirstFrame");
-            // A negative index takes every frame relative to the matching frame of the base animation.
-            kv.Add("m_nAdditiveBaseFrameIdx", -1L);
-            return;
+            kv.Add("m_additiveType", "RelativeToSkeleton");
+            return true;
         }
 
         kv.Add("m_additiveType", "RelativeToFrame");
         kv.Add("m_additiveBaseFilename", "");
         kv.Add("m_additiveBaseFrame", "UserSpecifiedFrame");
-        kv.Add("m_nAdditiveBaseFrameIdx", (long)FindAdditiveBaseFrame());
+        kv.Add("m_nAdditiveBaseFrameIdx", (long)baseFrame);
+        return false;
     }
 
     /// <summary>
     /// Finds the frame the additive was generated relative to, the one left as the identity transform on
-    /// every bone. Falls back to the first frame for a clip that holds no such frame.
+    /// every bone.
     /// </summary>
+    /// <returns>The frame, or -1 for a clip that holds no such frame.</returns>
     private int FindAdditiveBaseFrame()
     {
         // Between the largest deviation measured on a base frame and the smallest on any other.
@@ -494,6 +491,7 @@ public class NmClipExtract
                 );
 
                 deviation = MathUtils.Max(deviation, bone.Position.Length(), rotationDeviation);
+                deviation = MathF.Max(deviation, MathF.Abs(bone.Scale));
             }
 
             if (deviation < smallestDeviation)
@@ -503,7 +501,7 @@ public class NmClipExtract
             }
         }
 
-        return smallestDeviation <= IdentityTolerance ? baseFrame : 0;
+        return smallestDeviation <= IdentityTolerance ? baseFrame : -1;
     }
 
     private static string NormalizeContentPath(string path) => path.Replace('\\', '/');

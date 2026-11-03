@@ -182,10 +182,12 @@ partial class ModelExtract
 
     /// <summary>
     /// Converts an animation to DMX format. Generated cloth proxy bones are written as ordinary joints only when
-    /// <paramref name="keepClothProxyBones"/> is set.
+    /// <paramref name="keepClothProxyBones"/> is set. With <paramref name="composeAdditive"/>, the frames of an
+    /// additive are composed over the bind pose of their skeleton, as written for one generated relative to it.
     /// </summary>
     internal static byte[] ToDmxAnim(Skeleton skeleton, FlexController[] flexControllers, AnimationBase anim,
-        IReadOnlyList<(Skeleton Skeleton, AnimationBase Animation)> secondaryAnimations, bool nmSkelAxisFixup, bool keepClothProxyBones)
+        IReadOnlyList<(Skeleton Skeleton, AnimationBase Animation)> secondaryAnimations, bool nmSkelAxisFixup, bool keepClothProxyBones,
+        bool composeAdditive = false)
     {
         using var dmx = new Datamodel.Datamodel("model", 22);
 
@@ -204,7 +206,7 @@ partial class ModelExtract
         {
             clip.TimeFrame.Duration = TimeSpan.FromSeconds((double)(anim.FrameCount - 1) / fps);
 
-            var tracks = DecodeTracks(skeleton, flexControllers, anim, nmSkelAxisFixup, keepClothProxyBones);
+            var tracks = DecodeTracks(skeleton, flexControllers, anim, nmSkelAxisFixup, keepClothProxyBones, composeAdditive);
             var times = GetFrameTimes(anim);
 
             ProcessRootMotionChannel(anim, dmeSkeleton, clip);
@@ -220,7 +222,7 @@ partial class ModelExtract
             }
 
             var secondaryTransforms = AppendDmeSkeletonJoints(dmeSkeleton, secondarySkeleton, keepClothProxyBones: keepClothProxyBones);
-            var secondaryTracks = DecodeTracks(secondarySkeleton, [], secondaryAnimation, nmSkelAxisFixup: false, keepClothProxyBones);
+            var secondaryTracks = DecodeTracks(secondarySkeleton, [], secondaryAnimation, nmSkelAxisFixup: false, keepClothProxyBones, composeAdditive);
 
             ProcessBoneChannels(secondarySkeleton, secondaryTransforms, clip, secondaryTracks, GetFrameTimes(secondaryAnimation));
         }
@@ -265,8 +267,11 @@ partial class ModelExtract
     /// </summary>
     private readonly record struct DecodedTracks(Vector3[]?[] Positions, Quaternion[]?[] Orientations, float[]?[] Scales, float[][] FlexValues);
 
-    private static DecodedTracks DecodeTracks(Skeleton skeleton, FlexController[] flexControllers, AnimationBase anim, bool nmSkelAxisFixup, bool keepClothProxyBones)
+    private static DecodedTracks DecodeTracks(Skeleton skeleton, FlexController[] flexControllers, AnimationBase anim, bool nmSkelAxisFixup, bool keepClothProxyBones,
+        bool composeAdditive)
     {
+        var composeOverBindPose = composeAdditive && anim.IsAdditive;
+        var scaleIsOffset = anim.IsAdditive && !composeAdditive;
         var writeBoneScale = WritesBoneScale(anim);
         var frameCount = anim.FrameCount;
         var bones = skeleton.Bones;
@@ -304,6 +309,11 @@ partial class ModelExtract
             frame.FrameIndex = i;
             anim.DecodeFrame(frame);
 
+            if (composeOverBindPose)
+            {
+                anim.ComposeAdditiveOverBindPose(frame.Bones, skeleton);
+            }
+
             if (nmSkelAxisFixup && rootMotionBone != null)
             {
                 frame.Bones[rootMotionBone.Index].Angle = NmAxisFixupRootMotion(frame.Bones[rootMotionBone.Index].Angle);
@@ -340,8 +350,8 @@ partial class ModelExtract
 
                 if (boneScales != null)
                 {
-                    // An additive is generated as the difference to its base frame, which holds scale one.
-                    boneScales[i] = anim.IsAdditive ? 1f + frameBone.Scale : frameBone.Scale;
+                    // An additive written as is gets generated as the difference to its base frame, which holds scale one.
+                    boneScales[i] = scaleIsOffset ? 1f + frameBone.Scale : frameBone.Scale;
                 }
             }
 

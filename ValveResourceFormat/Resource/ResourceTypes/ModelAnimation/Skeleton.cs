@@ -110,7 +110,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             {
                 var transform = boneTransforms[i].ToTransform();
 
-                var bone = new Bone(i, boneNames[i], transform.Position, transform.Rotation, ModelSkeletonBoneFlags.NoBoneFlags);
+                var bone = new Bone(i, boneNames[i], transform.Position, transform.Rotation, transform.Scale, ModelSkeletonBoneFlags.NoBoneFlags);
                 s.Bones[i] = bone;
             }
 
@@ -172,9 +172,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     ? modelSpaceBindPose[i] * parentInverse
                     : modelSpaceBindPose[i];
 
-                Matrix4x4.Decompose(localTransform, out _, out var rotation, out var translation);
+                Matrix4x4.Decompose(localTransform, out var scale, out var rotation, out var translation);
 
-                s.Bones[i] = new Bone(i, name, translation, rotation, ModelSkeletonBoneFlags.NoBoneFlags);
+                s.Bones[i] = new Bone(i, name, translation, rotation, scale.X, ModelSkeletonBoneFlags.NoBoneFlags);
             }
 
             s.SetBoneParents(boneParents);
@@ -201,6 +201,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var boneCount = boneNames.Length;
             Bones = new Bone[boneCount];
 
+            // Older models store no bone scale.
+            var boneScales = skeletonData.ContainsKey("m_boneScaleParent")
+                ? skeletonData.GetFloatArray("m_boneScaleParent")
+                : Enumerable.Repeat(1f, boneCount).ToArray();
+
             if (skeletonData.ContainsKey("m_boneSphere"))
             {
                 BoneSpheres = skeletonData.GetFloatArray("m_boneSphere");
@@ -208,7 +213,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             for (var i = 0; i < boneCount; i++)
             {
-                var bone = new Bone(i, boneNames[i], bonePositions[i], boneRotations[i], boneFlags[i]);
+                var bone = new Bone(i, boneNames[i], bonePositions[i], boneRotations[i], boneScales[i], boneFlags[i]);
                 Bones[i] = bone;
 
                 if ((bone.Flags & ModelSkeletonBoneFlags.ProceduralCloth) == ModelSkeletonBoneFlags.Cloth
