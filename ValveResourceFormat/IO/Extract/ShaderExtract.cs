@@ -36,8 +36,6 @@ public sealed class ShaderExtract
 
         /// <summary>Gets a value indicating whether to write uncertain enums as integers.</summary>
         public bool ForceWrite_UncertainEnumsAsInts { get; init; }
-        /// <summary>Gets a value indicating whether to disable Hungarian notation type guessing.</summary>
-        public bool NoHungarianTypeGuessing { get; init; }
         /// <summary>Gets a value indicating whether to write parameters in raw format.</summary>
         public bool WriteParametersRaw { get; init; }
         /// <summary>Gets a value indicating whether static combos can be read.</summary>
@@ -416,35 +414,11 @@ public sealed class ShaderExtract
 
             foreach (var (symbol, i) in symbols.Select((symbol, i) => (symbol, i)))
             {
-                var type = string.Empty;
-                if (!Options.NoHungarianTypeGuessing && symbol.Name.Length > 2)
-                {
-                    var typeChar = symbol.Name[1] == '_' ? symbol.Name[2] : symbol.Name[0];
-                    type = typeChar switch
-                    {
-                        'f' or 'v' => "float4",
-                        'n' => "uint4",
-                        'b' => "bool4",
-                        _ => string.Empty
-                    };
-
-                    if (symbol.Semantic.Contains("UV", StringComparison.OrdinalIgnoreCase))
-                    {
-                        type = "float2";
-                    }
-                    else if (symbol.Semantic == "PosXyz")
-                    {
-                        type = "float3";
-                    }
-
-                    type = $"{type,-7}";
-                }
-
                 var attributeVfx = symbol.Semantic.Length > 0 ? $" < Semantic( {symbol.Semantic} ); >" : string.Empty;
                 var nameAlignSpaces = new string(' ', maxNameLength - symbol.Name.Length);
                 var semanticAlignSpaces = new string(' ', maxSemanticLength - symbol.D3DSemanticName.Length);
 
-                var field = $"{type}{symbol.Name}{nameAlignSpaces} : {symbol.D3DSemanticName}{symbol.D3DSemanticIndex,-2}{semanticAlignSpaces}{attributeVfx};";
+                var field = $"{symbol.Name}{nameAlignSpaces} : {symbol.D3DSemanticName}{symbol.D3DSemanticIndex,-2}{semanticAlignSpaces}{attributeVfx};";
                 writer.Write($"{field,-94}");
 
                 if (masks[i].All(x => x) || !Options.CanReadStaticCombos)
@@ -515,7 +489,7 @@ public sealed class ShaderExtract
         }
     }
 
-    private void WriteCBuffer(IndentedTextWriter writer, ConstantBufferDescription buffer)
+    private static void WriteCBuffer(IndentedTextWriter writer, ConstantBufferDescription buffer)
     {
         writer.WriteLine("cbuffer " + buffer.Name);
         writer.WriteLine("{");
@@ -523,18 +497,6 @@ public sealed class ShaderExtract
 
         foreach (var member in buffer.Variables)
         {
-            var type = "DWORD";
-            if (!Options.NoHungarianTypeGuessing && member.Name.Length > 3)
-            {
-                type = member.Name[2] switch
-                {
-                    'f' or 'v' or 'm' => "float",
-                    'n' => "int",
-                    'b' => "bool",
-                    _ => type
-                };
-            }
-
             var dim1 = member.VectorSize > 1
                 ? member.VectorSize.ToString(CultureInfo.InvariantCulture)
                 : string.Empty;
@@ -547,7 +509,7 @@ public sealed class ShaderExtract
                 ? "[" + member.ElementCount.ToString(CultureInfo.InvariantCulture) + "]"
                 : string.Empty;
 
-            writer.WriteLine($"{type}{dim1}{dim2} {member.Name}{array};");
+            writer.WriteLine($"DWORD{dim1}{dim2} {member.Name}{array};");
         }
 
         writer.Indent--;
