@@ -364,7 +364,7 @@ namespace ValveResourceFormat.IO
         {
             try
             {
-                using var stream = File.OpenRead(path);
+                using var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
 
                 return KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(stream, new KVSerializerOptions
                 {

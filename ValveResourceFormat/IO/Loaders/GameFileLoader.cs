@@ -393,7 +393,7 @@ namespace ValveResourceFormat.IO
 
             if (foundFile.PathOnDisk != null)
             {
-                return File.OpenRead(foundFile.PathOnDisk);
+                return File.Open(foundFile.PathOnDisk, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             }
             else if (foundFile.PackageEntry != null)
             {
@@ -923,7 +923,9 @@ namespace ValveResourceFormat.IO
             }
             else if (PreferredAddonFolderOnDisk != null && FindFileInFolder(PreferredAddonFolderOnDisk, AddonInfoTxt) is { } addonInfoPath)
             {
-                addonInfo = File.ReadAllBytes(addonInfoPath);
+                using var fileStream = File.Open(addonInfoPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                addonInfo = new byte[fileStream.Length];
+                fileStream.ReadExactly(addonInfo);
             }
             else
             {

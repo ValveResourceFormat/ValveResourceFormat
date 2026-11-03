@@ -44,7 +44,9 @@ public class UIFontFilePackage
     /// <param name="filename">The file to open and read.</param>
     public void Read(string filename)
     {
-        var data = File.ReadAllBytes(filename);
+        using var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        var data = new byte[fs.Length];
+        fs.ReadExactly(data);
         Read(data);
     }
 

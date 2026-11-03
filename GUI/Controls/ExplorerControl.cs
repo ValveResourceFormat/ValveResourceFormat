@@ -179,7 +179,7 @@ namespace GUI.Controls
 
             try
             {
-                using var stream = File.OpenRead(Path.Join(libraryCachePath, "assetcache.vdf"));
+                using var stream = File.Open(Path.Join(libraryCachePath, "assetcache.vdf"), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                 libraryAssetsKv = KVSerializer.Create(KVSerializationFormat.KeyValues1Binary).Deserialize(stream);
             }
             catch (FileNotFoundException)
@@ -293,7 +293,7 @@ namespace GUI.Controls
 
                             try
                             {
-                                using var stream = File.OpenRead(publishDataPath);
+                                using var stream = File.Open(publishDataPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                                 var publishData = kvDeserializer.Deserialize(stream);
 
                                 if (publishData.Root.TryGetValue("title", out var addonTitle))
@@ -756,7 +756,8 @@ namespace GUI.Controls
 
         private static Bitmap GetAppResizedImage(string path)
         {
-            using var originalImage = Image.FromFile(path);
+            using var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var originalImage = Image.FromStream(stream);
 
             var destRect = new Rectangle(0, 0, AppIcons.ImageList.ImageSize.Width, AppIcons.ImageList.ImageSize.Height);
             var destImage = new Bitmap(destRect.Width, destRect.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);

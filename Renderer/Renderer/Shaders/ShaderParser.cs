@@ -605,7 +605,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         {
             try
             {
-                return File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                return File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             }
             catch (IOException e)
             {
@@ -615,7 +615,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                 // Just sleep for a second and try again
                 System.Threading.Thread.Sleep(TimeSpan.FromSeconds(1));
 
-                return File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                return File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             }
         }
     }

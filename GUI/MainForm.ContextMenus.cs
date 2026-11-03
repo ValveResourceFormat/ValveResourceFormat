@@ -444,7 +444,7 @@ namespace GUI
                 }
                 else
                 {
-                    var fileStream = File.OpenRead(exportData.VrfGuiContext.FileName);
+                    var fileStream = File.Open(exportData.VrfGuiContext.FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
 
                     try
                     {

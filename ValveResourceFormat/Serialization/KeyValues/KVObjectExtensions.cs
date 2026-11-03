@@ -666,7 +666,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static KVDocument ParseKV3(string filename)
         {
-            using var fileStream = new FileStream(filename, FileMode.Open, FileAccess.Read);
+            using var fileStream = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             return ParseKV3(fileStream);
         }
     }

@@ -21,7 +21,9 @@ namespace CLI
             }
             else if (File.Exists(path))
             {
-                data = File.ReadAllBytes(path);
+                using var file = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                data = new byte[file.Length];
+                file.ReadExactly(data);
             }
             else
             {

@@ -297,7 +297,7 @@ namespace GUI.Types.PackageViewer
                         try
                         {
                             var replacedEntry = package.FindEntry(entryPath);
-                            using var stream = File.OpenRead(pathOnDisk);
+                            using var stream = File.Open(pathOnDisk, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                             var entry = package.AddFile(entryPath, stream, multiChunk);
 
                             addedFiles.Add((entry, replacedEntry != null && package.RemoveFile(replacedEntry) ? replacedEntry : null));

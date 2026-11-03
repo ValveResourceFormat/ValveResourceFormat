@@ -124,7 +124,7 @@ namespace ValveResourceFormat.NavMesh
         /// </summary>
         public void Read(string filename)
         {
-            using var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             Read(fs);
         }
 

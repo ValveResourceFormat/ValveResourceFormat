@@ -85,7 +85,7 @@ namespace CLI
                         Console.WriteLine(entryPath);
                     }
 
-                    using var stream = File.OpenRead(path);
+                    using var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                     package.AddFile(entryPath, stream, multiChunk);
                 }
 

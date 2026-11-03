@@ -153,7 +153,9 @@ namespace GUI.Utils
             {
                 if (File.Exists(SettingsFilePath))
                 {
-                    settingsData = File.ReadAllBytes(SettingsFilePath);
+                    using var stream = File.Open(SettingsFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                    settingsData = new byte[stream.Length];
+                    stream.ReadExactly(settingsData);
                 }
                 else
                 {

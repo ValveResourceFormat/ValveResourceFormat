@@ -353,7 +353,7 @@ public sealed partial class FgdFile
             }
         }
 
-        return File.Exists(path) ? File.OpenRead(path) : null;
+        return File.Exists(path) ? File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete) : null;
     }
 
     private bool Exists(string fileName)

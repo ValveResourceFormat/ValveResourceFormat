@@ -44,7 +44,9 @@ class TextKeyValues3(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
         }
         else
         {
-            bytes = await File.ReadAllBytesAsync(vrfGuiContext.FileName!).ConfigureAwait(false);
+            using var fileStream = File.Open(vrfGuiContext.FileName!, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            bytes = new byte[fileStream.Length];
+            await fileStream.ReadExactlyAsync(bytes).ConfigureAwait(false);
         }
 
         text = Encoding.UTF8.GetString(bytes);

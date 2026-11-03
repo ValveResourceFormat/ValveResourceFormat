@@ -237,7 +237,7 @@ namespace ValveResourceFormat.IO
 
         private static KVObject ReadFile(string filePath)
         {
-            using var stream = File.OpenRead(filePath);
+            using var stream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             return KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(stream);
         }
 

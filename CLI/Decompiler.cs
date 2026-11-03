@@ -974,7 +974,7 @@ namespace CLI
                 return;
             }
 
-            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read);
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             ProcessFile(path, fs, null, fileLoader);
         }
 
@@ -1738,7 +1738,7 @@ namespace CLI
                 return manifestData;
             }
 
-            using var file = new StreamReader(manifestPath);
+            using var file = new StreamReader(File.Open(manifestPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete));
             string? line;
             var firstLine = true;
             var goodCachedVersion = false;

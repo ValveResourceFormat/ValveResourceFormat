@@ -33,7 +33,7 @@ static class ViewerFactory
         }
         else
         {
-            using var fs = new FileStream(vrfGuiContext.FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var fs = new FileStream(vrfGuiContext.FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
 
             if (fs.Length >= magicData.Length)
             {
