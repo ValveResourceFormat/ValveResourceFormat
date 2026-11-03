@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using SkiaSharp;
+using ValveKeyValue;
 using ValveResourceFormat.IO.ContentFormats.ValveTexture;
 using ValveResourceFormat.ResourceTypes;
 using ChannelMapping = ValveResourceFormat.CompiledShader.ChannelMapping;
@@ -101,9 +102,11 @@ public sealed class TextureExtract
     public bool LatLongCombineCubemap { get; set; } = true;
 
     /// <summary>
-    /// Should the vtex file be ignored. Defaults to true for files flagged as child resources.
+    /// Should the vtex file be ignored.
     /// </summary>
     public bool IgnoreVtexFile { get; set; }
+
+    private bool writesMaterialMaps;
 
     /// <summary>
     /// Gets whether the texture should be exported as EXR format.
@@ -122,7 +125,6 @@ public sealed class TextureExtract
     {
         texture = (Texture)resource.DataBlock!;
         fileName = resource.FileName!;
-        IgnoreVtexFile = FileExtract.IsChildResource(resource);
         isSpriteSheet = texture.ExtraData?.ContainsKey(VTexExtraData.SHEET) ?? false;
         isCubeMap = texture.Flags.HasFlag(VTexFlags.CUBE_TEXTURE);
         isArray = texture.Depth > 1;
@@ -132,10 +134,9 @@ public sealed class TextureExtract
     /// <summary>
     /// The vtex content file. Input image(s) come as subfiles.
     /// </summary>
-    public ContentFile ToContentFile() => ToContentFile(!IgnoreVtexFile);
-
-    private ContentFile ToContentFile(bool writeVtex)
+    public ContentFile ToContentFile()
     {
+        var writeVtex = !IgnoreVtexFile && !writesMaterialMaps;
         var rawImage = texture.ReadRawImageData();
         if (rawImage != null)
         {
@@ -232,13 +233,71 @@ public sealed class TextureExtract
     }
 
     /// <summary>
+    /// Gets the settings file the compiler reads next to a material's image, with the compile settings the texture
+    /// records, or <see langword="null"/> when it records none.
+    /// </summary>
+    internal string? GetImageSettings()
+    {
+        var settings = KVObject.ListCollection();
+
+        if (texture.Flags.HasFlag(VTexFlags.NO_LOD))
+        {
+            settings.Add("nolod", "1");
+        }
+
+        foreach (var (key, flag) in (ReadOnlySpan<(string, VTexFlags)>)[("clampu", VTexFlags.SUGGEST_CLAMPS), ("clampv", VTexFlags.SUGGEST_CLAMPT), ("clampw", VTexFlags.SUGGEST_CLAMPU)])
+        {
+            if (texture.Flags.HasFlag(flag))
+            {
+                settings.Add(key, "1");
+            }
+        }
+
+        if (texture.NumMipLevels == 1 && Math.Max(texture.Width, texture.Height) > 4)
+        {
+            settings.Add("nomip", "1");
+        }
+
+        if (texture.Format is VTexFormat.RGBA8888 or VTexFormat.BGRA8888)
+        {
+            settings.Add("nocompress", "1");
+        }
+
+        const string ArtistMip = "Texture Compiler Version Mip Artist ";
+
+        foreach (var dependency in texture.Resource.EditInfo?.SpecialDependencies ?? [])
+        {
+            if (dependency.String.StartsWith(ArtistMip, StringComparison.Ordinal))
+            {
+                settings.Add("mip_algorithm", dependency.String[ArtistMip.Length..]);
+            }
+        }
+
+        if (settings.Count == 0)
+        {
+            return null;
+        }
+
+        using var stream = new MemoryStream();
+        KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(stream, new KVDocument(new(), "settings", settings));
+        return Encoding.UTF8.GetString(stream.GetBuffer(), 0, (int)stream.Length);
+    }
+
+    /// <summary>
     /// Extracts texture to material map files by unpacking channels.
     /// </summary>
     public ContentFile ToMaterialMaps(IEnumerable<MaterialExtract.UnpackInfo> mapsToUnpack)
     {
+        writesMaterialMaps = true;
+
+        if (isSpriteSheet)
+        {
+            return ToContentFile();
+        }
+
         if (CombinesLatLong || (isCubeMap && isArray))
         {
-            var vtexContent = ToContentFile(writeVtex: false);
+            var vtexContent = ToContentFile();
 
             if (CombinesLatLong)
             {

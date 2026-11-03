@@ -525,7 +525,7 @@ namespace ValveResourceFormat.IO
                 {
                     var texture = (Texture)resource.DataBlock!;
 
-                    if (IsChildResource(resource) || texture.IsRawAnyImage)
+                    if (texture.IsRawAnyImage)
                     {
                         return TextureExtract.GetImageOutputExtension(texture);
                     }
