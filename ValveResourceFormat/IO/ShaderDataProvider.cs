@@ -8,7 +8,7 @@ using Channel = ValveResourceFormat.CompiledShader.ChannelMapping;
 namespace ValveResourceFormat.IO
 {
     /// <summary>
-    /// Provides shader data information for materials, including texture input mappings and suffixes.
+    /// Provides shader data information for materials, including texture input mappings.
     /// </summary>
     public interface IShaderDataProvider
     {
@@ -19,14 +19,6 @@ namespace ValveResourceFormat.IO
         /// <param name="material">The material containing the texture.</param>
         /// <returns>A collection of channel mappings and their corresponding input names.</returns>
         public IEnumerable<(Channel Channel, string Name)> GetInputsForTexture(string textureType, Material material);
-
-        /// <summary>
-        /// Gets the file suffix for a given input texture name.
-        /// </summary>
-        /// <param name="inputName">The name of the input texture.</param>
-        /// <param name="material">The material containing the texture.</param>
-        /// <returns>The suffix string for the input texture, or null if not found.</returns>
-        public string? GetSuffixForInputTexture(string inputName, Material material);
 
         /// <summary>
         /// Gets the blend state of a material for the default dynamic combo.
@@ -93,15 +85,6 @@ namespace ValveResourceFormat.IO
         public IEnumerable<(Channel Channel, string Name)> GetInputsForTexture(string textureType, Material material)
         {
             return GetInputsForTexture_Internal(textureType, material) ?? basicProvider?.GetInputsForTexture(textureType, material) ?? [];
-        }
-
-        /// <inheritdoc/>
-        /// <remarks>
-        /// Returns the filename suffix for the input texture, falling back to basic provider if available.
-        /// </remarks>
-        public string? GetSuffixForInputTexture(string inputName, Material material)
-        {
-            return GetSuffixForInputTexture_Internal(inputName, material) ?? basicProvider?.GetSuffixForInputTexture(inputName, material);
         }
 
         /// <inheritdoc/>
@@ -534,26 +517,6 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Gets the file suffix for an input texture by querying the shader file.
-        /// </summary>
-        private string? GetSuffixForInputTexture_Internal(string inputName, Material material)
-        {
-            var shader = fileLoader.LoadShader(material.ShaderName);
-            if (shader?.Features != null)
-            {
-                foreach (var param in shader.Features.VariableDescriptions)
-                {
-                    if (param.Name == inputName && !string.IsNullOrEmpty(param.TextureFileEnding))
-                    {
-                        return "_" + param.TextureFileEnding;
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        /// <summary>
         /// Gets the blend state compiled into the pixel shader render state for the default dynamic combo.
         /// </summary>
         /// <remarks>
@@ -796,31 +759,6 @@ namespace ValveResourceFormat.IO
             }
         };
 
-        /// <summary>
-        /// Common texture input names and their corresponding file suffixes.
-        /// </summary>
-        public static readonly Dictionary<string, string> CommonTextureSuffixes = new()
-        {
-            { "TextureDetailMask", "_detailmask" },
-            { "TextureDiffuseWarpMask", "_diffusemask" },
-            { "TextureMetalnessMask", "_metalnessmask" },
-            { "TextureSelfIllumMask", "_selfillummask" },
-
-            { "TextureSpecularMask", "_specmask" },
-            { "TextureRimMask", "_rimmask" },
-            { "TextureTintByBaseMask", "_basetintmask" },
-            { "TextureSpecularExponent", "_specexp" },
-            { "TextureRevealMask", "_blend" },
-
-            { "TextureColor", "_color" },
-            { "TextureNormal", "_normal" },
-            { "TextureRoughness", "_rough" },
-            { "TextureMetalness", "_metal" },
-            { "TextureAmbientOcclusion", "_ao" },
-            { "TextureReflectance", "_refl"},
-            { "TextureTranslucency", "_trans"},
-        };
-
         private static readonly string[] TranslucentShaders =
         [
             "vr_glass",
@@ -1032,24 +970,6 @@ namespace ValveResourceFormat.IO
         public static string ConvertTextureToInput(string textureType)
         {
             return textureType.Replace("g_t", "Texture", StringComparison.Ordinal);
-        }
-
-        /// <inheritdoc/>
-        /// <remarks>
-        /// Provides a filename suffix based on common texture type conventions.
-        /// </remarks>
-        public string? GetSuffixForInputTexture(string inputName, Material material)
-        {
-            foreach (var (commonType, commonSuffix) in CommonTextureSuffixes)
-            {
-                // Allow matching TextureColorB with TextureColor
-                if (inputName.StartsWith(commonType, StringComparison.OrdinalIgnoreCase))
-                {
-                    return commonSuffix;
-                }
-            }
-
-            return null;
         }
 
         /// <summary>

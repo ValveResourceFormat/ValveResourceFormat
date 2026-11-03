@@ -251,17 +251,19 @@ stages an `info_spawngroup_load_unload` loads and unloads when its entity I/O fi
 
 `.vmat` reconstruction recovers the shader name, all int/float/vector parameters (including
 `F_` feature choices), attributes, the `SubrectDefinition` tool attribute, and dynamic expressions decompiled from
-bytecode back to readable expression text.
+bytecode back to readable expression text. Float parameters are written with a decimal point.
 
 Compiled textures are unpacked back into the original input maps (color, normal, roughness,
 masks, ...) using the channel processor metadata in the compiled shader when it is
-available. Without the shader file, a built-in table covers the most common shaders; for
-anything else the textures are extracted as raw RGBA dumps under guessed names. HDR textures
-are not unpacked and are written whole under the first name the material uses. A cubemap is
-written as one six-face strip under each name the material references, or as an
-equirectangular map when HDR. Texture arrays and volume textures are written as numbered
-`_z000` slices, and the material references the first slice. Cubemap arrays are written per
-face under the texture's own name, not under the name the material references.
+available. Without the shader file, a built-in table covers the most common shaders. Each
+image is named after its compiled texture, such as `bar_color_psd_9e877263.png`. Every
+input after the first of a packed texture gets its input key appended, such as
+`bar_normal_psd_d730f98f_TextureRoughness.png`. Textures in `materials/default/` are written
+like any other. A texture the compiler generated from a constant is written as that
+constant. HDR textures are not unpacked and are written whole as EXR. A cubemap is written
+as one six-face strip, or as an equirectangular map when HDR. Texture arrays and volume
+textures are written as numbered `_z000` slices, and the material references the first
+slice. Cubemap arrays are written per face, not under the name the material references.
 
 ## Shaders (vcs)
 
@@ -291,7 +293,7 @@ reconstruct a compilable `.mks` plus per-frame images; LDR cubemaps export one i
 face, plus a six-face strip when a `.vtex` is written; HDR cubemaps combine into a single
 equirectangular map, or one image per face with `ForceLDR`; arrays and volumes export per
 slice. Every texture shape gets a reconstructed `.vtex` compile config, except stored
-JPEG/PNG/WebP files and child resources.
+JPEG/PNG/WebP files.
 
 | What                                  | Why                   | Details                                                                                                                                                                                                                                                                                                                                             |
 | ------------------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
