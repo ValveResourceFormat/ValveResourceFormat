@@ -496,7 +496,10 @@ namespace GUI
                 Settings.Config.WindowTop = placement.rcNormalPosition.top;
                 Settings.Config.WindowWidth = placement.rcNormalPosition.right - placement.rcNormalPosition.left;
                 Settings.Config.WindowHeight = placement.rcNormalPosition.bottom - placement.rcNormalPosition.top;
-                Settings.Config.WindowState = (int)(placement.showCmd == SHOW_WINDOW_CMD.SW_SHOWMAXIMIZED ? FormWindowState.Maximized : FormWindowState.Normal);
+
+                var minimizedFromMaximized = placement.showCmd == SHOW_WINDOW_CMD.SW_SHOWMINIMIZED && placement.flags.HasFlag(WINDOWPLACEMENT_FLAGS.WPF_RESTORETOMAXIMIZED);
+                var isMaximized = placement.showCmd == SHOW_WINDOW_CMD.SW_SHOWMAXIMIZED || minimizedFromMaximized;
+                Settings.Config.WindowState = (int)(isMaximized ? FormWindowState.Maximized : FormWindowState.Normal);
             }
 #endif
 
