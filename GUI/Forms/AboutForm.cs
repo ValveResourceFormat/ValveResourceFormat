@@ -58,7 +58,7 @@ namespace GUI.Forms
         private async void CheckForUpdates(bool fetchAgain)
         {
             // The previous result stays visible until the check completes
-            if (UpdateChecker.NewVersionText != null)
+            if (UpdateChecker.Offer != null)
             {
                 OnUpdateChecked();
             }
@@ -98,7 +98,8 @@ namespace GUI.Forms
         private void OnUpdateChecked()
         {
             var installed = UpdateInstaller.InstalledVersionText;
-            var newVersion = UpdateChecker.NewVersionText;
+            var offer = UpdateChecker.Offer;
+            var newVersion = offer?.NewVersionText;
 
             if (installed != null)
             {
@@ -106,27 +107,32 @@ namespace GUI.Forms
                 downloadButton.Text = "Restart to update";
                 downloadButton.Enabled = true;
             }
-            else if (UpdateChecker.IsNewVersionAvailable)
+            else if (offer != null && offer.IsNewVersionAvailable)
             {
                 newVersionLabel.Text = newVersion;
-                downloadButton.Text = UpdateChecker.IsNewer
+                downloadButton.Text = offer.IsNewer
                     ? $"Download {newVersion}"
-                    : $"Switch to {(UpdateChecker.IsNewVersionStableBuild ? "stable " : "")}{newVersion}";
+                    : $"Switch to {(offer.IsNewVersionStableBuild ? "stable " : "")}{newVersion}";
                 downloadButton.Enabled = true;
             }
             else
             {
                 newVersionLabel.Text = newVersion;
-                downloadButton.Text = UpdateChecker.NewVersion == null ? "Not available" : "Up to date";
+                downloadButton.Text = offer?.NewVersion == null ? "Not available" : "Up to date";
                 downloadButton.Enabled = false;
             }
 
-            // Switching channels would not change what the pending restart installs
-            updateChannelComboBox.Enabled = installed == null;
-
-            if (!string.IsNullOrEmpty(UpdateChecker.ReleaseNotesUrl))
+            if (UpdateInstaller.IsInstalling)
             {
-                viewReleaseNotesButton.Text = $"View release notes for {UpdateChecker.ReleaseNotesVersion}";
+                downloadButton.Enabled = false;
+            }
+
+            // Switching channels would not change what the pending restart installs, or the install in progress
+            updateChannelComboBox.Enabled = installed == null && !UpdateInstaller.IsInstalling;
+
+            if (offer != null && !string.IsNullOrEmpty(offer.ReleaseNotesUrl))
+            {
+                viewReleaseNotesButton.Text = $"View release notes for {offer.ReleaseNotesVersion}";
             }
         }
 
@@ -167,7 +173,7 @@ namespace GUI.Forms
 
         private void OnViewReleaseNotesButtonClick(object sender, EventArgs e)
         {
-            OpenUrl(UpdateChecker.ReleaseNotesUrl ?? "https://github.com/ValveResourceFormat/ValveResourceFormat/releases");
+            OpenUrl(UpdateChecker.Offer?.ReleaseNotesUrl ?? "https://github.com/ValveResourceFormat/ValveResourceFormat/releases");
         }
 
         private async void OnDownloadButtonClick(object sender, EventArgs e)
@@ -178,11 +184,13 @@ namespace GUI.Forms
                 return;
             }
 
-            downloadButton.Enabled = false;
-
             try
             {
-                await UpdateInstaller.InstallAsync(this).ConfigureAwait(true);
+                // Returns at its first await, by which time the install is marked as running
+                var install = UpdateInstaller.InstallAsync(this);
+                OnUpdateChecked();
+
+                await install.ConfigureAwait(true);
             }
             catch (Exception ex)
             {

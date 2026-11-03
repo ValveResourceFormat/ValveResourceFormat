@@ -82,21 +82,43 @@ static partial class UpdateChecker
     // The manifest describes both channels, so it is fetched once and re-evaluated when the channel changes
     private static Task<UpdateManifest?>? ManifestTask;
     private static readonly Lock CheckLock = new();
+    // Numbers each manifest fetch, so results are applied in the order the fetches started
+    private static int FetchCount;
+    private static int ManifestFetch;
+    private static int AppliedFetch;
     private static bool ErrorCheckStarted;
     private static bool CheckedThisSession;
-    /// <summary>Whether the selected channel offers a build to install, either newer or a switch to that channel.</summary>
-    public static bool IsNewVersionAvailable { get; private set; }
-    /// <summary>Whether the offered build is newer than the running one.</summary>
-    public static bool IsNewer { get; private set; }
-    public static bool IsNewVersionStableBuild { get; private set; }
-    public static string? NewVersion { get; private set; }
-    /// <summary>The offered version as shown to the user, e.g. "20.0" or "dev build 7125".</summary>
-    public static string? NewVersionText { get; private set; }
-    public static string? ReleaseNotesUrl { get; private set; }
-    public static string? ReleaseNotesVersion { get; private set; }
-    public static string? DownloadUrl { get; private set; }
-    public static long? DownloadSize { get; private set; }
-    public static string? DownloadSha256 { get; private set; }
+    private static volatile UpdateOffer? CurrentOffer;
+
+    /// <summary>
+    /// What the selected channel offers, as of the last evaluated manifest, or null before any check has completed.
+    /// Read it once and use that instance, as a later check replaces it.
+    /// </summary>
+    public static UpdateOffer? Offer => CurrentOffer;
+
+    /// <summary>
+    /// A consistent view of the build offered by one evaluation of the manifest.
+    /// </summary>
+    public sealed class UpdateOffer
+    {
+        /// <summary>Whether the selected channel offers a build to install, either newer or a switch to that channel.</summary>
+        public bool IsNewVersionAvailable { get; init; }
+        /// <summary>Whether the offered build is newer than the running one.</summary>
+        public bool IsNewer { get; init; }
+        public bool IsNewVersionStableBuild { get; init; }
+        public string? NewVersion { get; init; }
+        /// <summary>The offered version as shown to the user, e.g. "20.0" or "dev build 7125".</summary>
+        public string? NewVersionText { get; init; }
+        public string? ReleaseNotesUrl { get; init; }
+        public string? ReleaseNotesVersion { get; init; }
+        /// <summary>The file to install, or null when the manifest does not give a download that can be verified.</summary>
+        public UpdateDownload? Download { get; init; }
+    }
+
+    /// <summary>
+    /// A file offered for installation, with the hash it must match.
+    /// </summary>
+    public sealed record UpdateDownload(string Url, string Sha256, long? Size);
 
     /// <summary>How the running build compares to the releases recorded by the last successful update check.</summary>
     public enum UpdateStatus
@@ -197,11 +219,19 @@ static partial class UpdateChecker
     public static async Task CheckForUpdates()
     {
         Task<UpdateManifest?> manifestTask;
+        int fetch;
 
         using (CheckLock.EnterScope())
         {
-            // Offloaded so that the request setup does not run on the ui thread
-            manifestTask = ManifestTask ??= Task.Run(GetManifestAsync);
+            if (ManifestTask == null)
+            {
+                // Offloaded so that the request setup does not run on the ui thread
+                ManifestTask = Task.Run(GetManifestAsync);
+                ManifestFetch = ++FetchCount;
+            }
+
+            manifestTask = ManifestTask;
+            fetch = ManifestFetch;
         }
 
         UpdateManifest? manifest;
@@ -224,7 +254,7 @@ static partial class UpdateChecker
             throw;
         }
 
-        Evaluate(manifest);
+        Evaluate(manifest, fetch);
     }
 
     /// <summary>
@@ -301,22 +331,45 @@ static partial class UpdateChecker
         return devBuild > 0 && devBuild > currentVersion.Build;
     }
 
-    private static void Evaluate(UpdateManifest? manifest)
+    private static void Evaluate(UpdateManifest? manifest, int fetch)
+    {
+        using (CheckLock.EnterScope())
+        {
+            // Fetches can complete out of order, an older one must not overwrite a newer result
+            if (fetch < AppliedFetch)
+            {
+                return;
+            }
+
+            AppliedFetch = fetch;
+
+            var offer = CreateOffer(manifest);
+
+            if (offer != null)
+            {
+                CurrentOffer = offer;
+            }
+        }
+    }
+
+    private static UpdateOffer? CreateOffer(UpdateManifest? manifest)
     {
         var currentVersion = GetCurrentVersion();
 
         if (IsLocalBuild(currentVersion))
         {
-            IsNewVersionAvailable = false;
-            IsNewVersionStableBuild = true;
-            NewVersion = ":)";
-            NewVersionText = NewVersion;
-            return; // This was not built on the CI
+            // This was not built on the CI
+            return new UpdateOffer
+            {
+                IsNewVersionStableBuild = true,
+                NewVersion = ":)",
+                NewVersionText = ":)",
+            };
         }
 
         if (manifest == null)
         {
-            return;
+            return null;
         }
 
         var stable = manifest.Stable;
@@ -334,42 +387,66 @@ static partial class UpdateChecker
 
         CheckedThisSession = true;
 
-        // Release notes are always for the stable release, no matter which channel is selected
-        ReleaseNotesUrl = stable?.ReleaseNotesUrl;
-        ReleaseNotesVersion = stable?.Version;
-
         var channel = Settings.Config.Update.Channel;
-        IsNewVersionStableBuild = channel == Settings.UpdateChannel.Stable;
-        NewVersion = null;
-        IsNewer = false;
+        var isStableBuild = channel == Settings.UpdateChannel.Stable;
+        string? newVersion = null;
+        var isNewer = false;
         Dictionary<string, UpdateAsset>? assets = null;
 
-        if (IsNewVersionStableBuild)
+        if (isStableBuild)
         {
             if (stable is { Version.Length: > 0 })
             {
-                NewVersion = stable.Version;
-                IsNewer = IsStableNewer(stable.Version, currentVersion);
+                newVersion = stable.Version;
+                isNewer = IsStableNewer(stable.Version, currentVersion);
                 assets = stable.Assets;
             }
         }
         else if (dev is { BuildNumber: > 0 })
         {
-            NewVersion = dev.BuildNumber.ToString(CultureInfo.InvariantCulture);
-            IsNewer = IsDevNewer(dev.BuildNumber, currentVersion);
+            newVersion = dev.BuildNumber.ToString(CultureInfo.InvariantCulture);
+            isNewer = IsDevNewer(dev.BuildNumber, currentVersion);
             assets = dev.Assets;
         }
 
-        // An older or equal build on the other channel is offered from the About dialog, but never announced
-        IsNewVersionAvailable = IsNewer || (NewVersion != null && channel != Program.BuildChannel);
-        NewVersionText = NewVersion == null ? "Not available" : IsNewVersionStableBuild ? NewVersion : $"dev build {NewVersion}";
+        string newVersionText;
+
+        if (newVersion == null)
+        {
+            newVersionText = "Not available";
+        }
+        else if (isStableBuild)
+        {
+            newVersionText = newVersion;
+        }
+        else
+        {
+            newVersionText = $"dev build {newVersion}";
+        }
 
         var asset = assets?.GetValueOrDefault(RuntimeInformation.RuntimeIdentifier);
 
         // The file is verified after download, but the request itself should not go out in the clear either
-        DownloadUrl = asset?.Url?.StartsWith("https://", StringComparison.Ordinal) == true ? asset.Url : null;
-        DownloadSize = asset?.Size;
-        DownloadSha256 = asset?.Sha256;
+        UpdateDownload? download = null;
+
+        if (asset?.Url != null && asset.Sha256 != null && asset.Url.StartsWith("https://", StringComparison.Ordinal))
+        {
+            download = new UpdateDownload(asset.Url, asset.Sha256, asset.Size);
+        }
+
+        return new UpdateOffer
+        {
+            // An older or equal build on the other channel is offered from the About dialog, but never announced
+            IsNewVersionAvailable = isNewer || (newVersion != null && channel != Program.BuildChannel),
+            IsNewer = isNewer,
+            IsNewVersionStableBuild = isStableBuild,
+            NewVersion = newVersion,
+            NewVersionText = newVersionText,
+            // Release notes are always for the stable release, no matter which channel is selected
+            ReleaseNotesUrl = stable?.ReleaseNotesUrl,
+            ReleaseNotesVersion = stable?.Version,
+            Download = download,
+        };
     }
 
     private static async Task<UpdateManifest?> GetManifestAsync()

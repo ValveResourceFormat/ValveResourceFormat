@@ -43,6 +43,9 @@ static class UpdateInstaller
     /// <summary>The version that has been installed and takes effect on the next start, or null.</summary>
     public static string? InstalledVersionText { get; private set; }
 
+    /// <summary>Whether an update is being downloaded or installed.</summary>
+    public static bool IsInstalling { get; private set; }
+
     // A single file publish has nothing but the bundle on disk. A debug build has the managed
     // assembly next to its apphost, and cannot be replaced by a single downloaded file.
     private static bool IsSingleFileBundle(string exePath) => !File.Exists(Path.ChangeExtension(exePath, ".dll"));
@@ -98,15 +101,34 @@ static class UpdateInstaller
     /// </summary>
     public static async Task InstallAsync(IWin32Window owner)
     {
-        var url = UpdateChecker.DownloadUrl;
-        var expectedHash = UpdateChecker.DownloadSha256;
+        // Called from the UI thread only
+        if (IsInstalling)
+        {
+            throw new InvalidOperationException("An update is already being installed.");
+        }
 
-        // Another check can change the offered update while this one installs, such as the channel being switched
-        var versionText = UpdateChecker.NewVersionText;
+        IsInstalling = true;
+
+        try
+        {
+            await InstallCoreAsync(owner).ConfigureAwait(true);
+        }
+        finally
+        {
+            IsInstalling = false;
+        }
+    }
+
+    private static async Task InstallCoreAsync(IWin32Window owner)
+    {
+        // Another check can change the offered update while this one installs, so everything below uses this snapshot
+        var offer = UpdateChecker.Offer;
         var exePath = Environment.ProcessPath ?? throw new InvalidOperationException("Could not determine the path of the running executable.");
 
         // Only a download that can be verified is ever offered, there is no unverified fallback
-        if (url == null || expectedHash == null)
+        var download = offer?.Download;
+
+        if (offer == null || download == null)
         {
             throw new InvalidOperationException("The update does not provide a verifiable download.");
         }
@@ -115,7 +137,7 @@ static class UpdateInstaller
         var downloadPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
         var downloaded = false;
 
-        using (var dialog = new GenericProgressForm { Text = $"Downloading {versionText}" })
+        using (var dialog = new GenericProgressForm { Text = $"Downloading {offer.NewVersionText}" })
         {
             dialog.OnProcess = async cancellationToken =>
             {
@@ -130,7 +152,7 @@ static class UpdateInstaller
                 {
                     try
                     {
-                        await DownloadVerifiedAsync(httpClient, url, expectedHash, downloadPath, dialog, cancellationToken).ConfigureAwait(false);
+                        await DownloadVerifiedAsync(httpClient, offer, download, downloadPath, dialog, cancellationToken).ConfigureAwait(false);
                     }
                     catch (HttpRequestException e) when (e.StatusCode == HttpStatusCode.NotFound)
                     {
@@ -139,19 +161,18 @@ static class UpdateInstaller
                         // The manifest request is shared with other checks, so cancelling only stops waiting for it
                         await UpdateChecker.RecheckForUpdates().WaitAsync(cancellationToken).ConfigureAwait(false);
 
-                        var newerUrl = UpdateChecker.DownloadUrl;
-                        var newerHash = UpdateChecker.DownloadSha256;
+                        var newerOffer = UpdateChecker.Offer;
+                        var newerDownload = newerOffer?.Download;
 
-                        if (newerUrl == null || newerHash == null || newerUrl == url)
+                        if (newerOffer == null || newerDownload == null || newerDownload.Url == download.Url)
                         {
                             throw;
                         }
 
-                        url = newerUrl;
-                        expectedHash = newerHash;
-                        versionText = UpdateChecker.NewVersionText;
+                        offer = newerOffer;
+                        download = newerDownload;
 
-                        await DownloadVerifiedAsync(httpClient, url, expectedHash, downloadPath, dialog, cancellationToken).ConfigureAwait(false);
+                        await DownloadVerifiedAsync(httpClient, offer, download, downloadPath, dialog, cancellationToken).ConfigureAwait(false);
                     }
 
                     downloaded = true;
@@ -192,11 +213,11 @@ static class UpdateInstaller
                 // which is the new build after the swap, so Restart needs this one loaded before it
                 RuntimeHelpers.RunClassConstructor(typeof(Process).TypeHandle);
 
-                Swap(exePath, downloadPath, expectedHash);
+                Swap(exePath, downloadPath, download.Sha256);
             }
             else
             {
-                installed = await InstallElevatedAsync(exePath, downloadPath, expectedHash).ConfigureAwait(true);
+                installed = await InstallElevatedAsync(exePath, downloadPath, download.Sha256).ConfigureAwait(true);
             }
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
@@ -213,7 +234,7 @@ static class UpdateInstaller
             return;
         }
 
-        InstalledVersionText = versionText;
+        InstalledVersionText = offer.NewVersionText;
 
         var restartButton = new TaskDialogButton("Restart now");
         var page = new TaskDialogPage
@@ -310,17 +331,17 @@ static class UpdateInstaller
 
     // The provenance is looked up by the hash the manifest promises while the file downloads,
     // and covers the file once it is verified to have that hash
-    private static async Task DownloadVerifiedAsync(HttpClient httpClient, string url, string expectedHash, string downloadPath, GenericProgressForm dialog, CancellationToken cancellationToken)
+    private static async Task DownloadVerifiedAsync(HttpClient httpClient, UpdateChecker.UpdateOffer offer, UpdateChecker.UpdateDownload download, string downloadPath, GenericProgressForm dialog, CancellationToken cancellationToken)
     {
         using var provenanceCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var provenance = VerifyProvenanceAsync(httpClient, expectedHash, provenanceCancellation.Token);
+        var provenance = VerifyProvenanceAsync(httpClient, offer, download, provenanceCancellation.Token);
 
         try
         {
-            var (size, hash) = await DownloadAsync(httpClient, url, downloadPath, dialog, cancellationToken).ConfigureAwait(false);
+            var (size, hash) = await DownloadAsync(httpClient, download, downloadPath, dialog, cancellationToken).ConfigureAwait(false);
 
             dialog.SetProgress("Verifying…");
-            Verify(downloadPath, size, hash, expectedHash);
+            Verify(offer, download, downloadPath, size, hash);
         }
         catch
         {
@@ -334,12 +355,12 @@ static class UpdateInstaller
         await provenance.ConfigureAwait(false);
     }
 
-    private static async Task<(long Size, string Hash)> DownloadAsync(HttpClient httpClient, string url, string downloadPath, GenericProgressForm dialog, CancellationToken cancellationToken)
+    private static async Task<(long Size, string Hash)> DownloadAsync(HttpClient httpClient, UpdateChecker.UpdateDownload download, string downloadPath, GenericProgressForm dialog, CancellationToken cancellationToken)
     {
-        using var response = await httpClient.GetAsync(new Uri(url), HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        using var response = await httpClient.GetAsync(new Uri(download.Url), HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
-        var totalBytes = response.Content.Headers.ContentLength ?? UpdateChecker.DownloadSize ?? 0;
+        var totalBytes = response.Content.Headers.ContentLength ?? download.Size ?? 0;
         var totalMegabytes = totalBytes / 1024f / 1024f;
 
         if (totalBytes > 0)
@@ -371,8 +392,9 @@ static class UpdateInstaller
 
     // The manifest only names the file. Its CI origin is proven by the provenance attestation GitHub stores for
     // its hash, signed through Sigstore with the identity of the workflow run that produced it.
-    private static async Task VerifyProvenanceAsync(HttpClient httpClient, string hash, CancellationToken cancellationToken)
+    private static async Task VerifyProvenanceAsync(HttpClient httpClient, UpdateChecker.UpdateOffer offer, UpdateChecker.UpdateDownload download, CancellationToken cancellationToken)
     {
+        var hash = download.Sha256;
         var url = $"https://api.github.com/repositories/{RepositoryId}/attestations/sha256:{hash}?per_page=100&predicate_type={Uri.EscapeDataString(ProvenancePredicateType)}";
         using var response = await httpClient.GetAsync(new Uri(url), cancellationToken).ConfigureAwait(false);
 
@@ -391,7 +413,7 @@ static class UpdateInstaller
         using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false), cancellationToken: cancellationToken).ConfigureAwait(false);
 
         // Dev builds are attested on the branch, releases on their tag
-        var expectedRef = UpdateChecker.IsNewVersionStableBuild ? $"refs/tags/{UpdateChecker.NewVersion}" : "refs/heads/master";
+        var expectedRef = offer.IsNewVersionStableBuild ? $"refs/tags/{offer.NewVersion}" : "refs/heads/master";
         var policy = new VerificationPolicy
         {
             CertificateIdentity = new CertificateIdentity
@@ -467,26 +489,26 @@ static class UpdateInstaller
         return SigstoreBundle.Deserialize(json);
     }
 
-    private static void Verify(string downloadPath, long actualSize, string actualHash, string expectedHash)
+    private static void Verify(UpdateChecker.UpdateOffer offer, UpdateChecker.UpdateDownload download, string downloadPath, long actualSize, string actualHash)
     {
-        var expectedSize = UpdateChecker.DownloadSize;
+        var expectedSize = download.Size;
 
         if (expectedSize != null && actualSize != expectedSize)
         {
             throw new InvalidDataException($"Downloaded {actualSize} bytes but expected {expectedSize} bytes.");
         }
 
-        VerifyHash(actualHash, expectedHash);
+        VerifyHash(actualHash, download.Sha256);
 
         // The file is what the manifest promised, now make sure the manifest promised the right build
         var fileVersion = FileVersionInfo.GetVersionInfo(downloadPath).FileVersion;
 
-        if (!Version.TryParse(fileVersion, out var version) || !Version.TryParse(UpdateChecker.NewVersion, out var expectedVersion))
+        if (!Version.TryParse(fileVersion, out var version) || !Version.TryParse(offer.NewVersion, out var expectedVersion))
         {
             // Dev builds are identified by build number alone
-            if (!int.TryParse(UpdateChecker.NewVersion, out var expectedBuild) || version?.Build != expectedBuild)
+            if (!int.TryParse(offer.NewVersion, out var expectedBuild) || version?.Build != expectedBuild)
             {
-                throw new InvalidDataException($"The downloaded file reports version {fileVersion} instead of {UpdateChecker.NewVersion}.");
+                throw new InvalidDataException($"The downloaded file reports version {fileVersion} instead of {offer.NewVersion}.");
             }
 
             return;
@@ -494,7 +516,7 @@ static class UpdateInstaller
 
         if (version.Major != expectedVersion.Major || version.Minor != expectedVersion.Minor)
         {
-            throw new InvalidDataException($"The downloaded file reports version {fileVersion} instead of {UpdateChecker.NewVersion}.");
+            throw new InvalidDataException($"The downloaded file reports version {fileVersion} instead of {offer.NewVersion}.");
         }
     }
 
