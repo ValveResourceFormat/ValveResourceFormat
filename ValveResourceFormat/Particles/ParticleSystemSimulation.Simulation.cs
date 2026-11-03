@@ -1136,6 +1136,24 @@ namespace ValveResourceFormat.Particles
 
         private bool boundsComputed;
 
+        /// <summary>How far back from its particle a trail reaches at most, or 0 when the system draws no trails.</summary>
+        private float trailBoundsMaxLength;
+
+        /// <summary>Whether the trail length attribute scales the distance moved per second rather than per step.</summary>
+        private bool trailBoundsPerSecond;
+
+        /// <summary>
+        /// Grows the bounds over the trails a renderer draws back from each particle. The last trail
+        /// renderer of the system to call this decides.
+        /// </summary>
+        /// <param name="maxLength">The longest a trail gets.</param>
+        /// <param name="perSecond">Whether the trail length attribute scales the distance moved per second.</param>
+        internal void SetTrailBounds(float maxLength, bool perSecond)
+        {
+            trailBoundsMaxLength = maxLength;
+            trailBoundsPerSecond = perSecond;
+        }
+
         private void CalculateBounds()
         {
             boundsComputed = true;
@@ -1163,6 +1181,27 @@ namespace ValveResourceFormat.Particles
                     var radius = new Vector3(radii[i]);
                     min = Vector3.Min(min, positions[i] - radius);
                     max = Vector3.Max(max, positions[i] + radius);
+                }
+
+                if (trailBoundsMaxLength > 0f)
+                {
+                    var previousPositions = particles.ReadVectors(ParticleField.PositionPrevious);
+                    var trailLengths = particles.ReadFloats(ParticleField.TrailLength);
+                    var step = systemState.CurrentStep;
+                    var lengthScale = trailBoundsPerSecond && step != 0f ? 1f / step : 1f;
+
+                    // The tail of each trail, reaching back toward the previous position, grown by the radius too
+                    for (var i = 0; i < particles.Length; i++)
+                    {
+                        var delta = previousPositions[i] - positions[i];
+                        var distance = MathF.Max(delta.Length(), 0.001f);
+                        var length = MathF.Min(distance * trailLengths[i] * lengthScale, trailBoundsMaxLength);
+                        var tail = positions[i] + (delta * (length / distance));
+
+                        var radius = new Vector3(radii[i]);
+                        min = Vector3.Min(min, tail - radius);
+                        max = Vector3.Max(max, tail + radius);
+                    }
                 }
 
                 min += particleBoundingBox.Min;

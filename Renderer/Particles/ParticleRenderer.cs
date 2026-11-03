@@ -146,6 +146,11 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
 
                 renderers.Add(renderer);
+
+                if (renderer is RenderTrails trails)
+                {
+                    Simulation.SetTrailBounds(trails.MaxLength, trails.LengthIsPerSecond);
+                }
             }
 
             var writtenFields = 0UL;

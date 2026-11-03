@@ -61,6 +61,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private Vector3 headColor = Vector3.One;
         private Vector3 tailColor = Vector3.One;
 
+        /// <summary>The longest a trail gets.</summary>
+        internal float MaxLength => maxLength;
+
+        /// <summary>Whether the trail length attribute scales the distance moved per second rather than per step.</summary>
+        internal bool LengthIsPerSecond => usesVerletDelta && !ignoreDeltaTime;
+
         public RenderTrails(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene)
             : base(parse, rendererContext, scene, DefaultTextureName, instancing: 2)
         {
