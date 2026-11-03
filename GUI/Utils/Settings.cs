@@ -41,9 +41,9 @@ namespace GUI.Utils
         public class AppUpdateState
         {
             /// <summary>Gets or sets whether to automatically check for updates on startup.</summary>
-            public bool CheckAutomatically { get; set; }
+            public bool CheckAutomatically { get; set; } = true;
             /// <summary>Gets or sets the channel that updates are offered from.</summary>
-            public UpdateChannel Channel { get; set; }
+            public UpdateChannel Channel { get; set => field = Enum.IsDefined(value) ? value : UpdateChannel.Stable; }
             /// <summary>Gets or sets when the next automatic update check is due.</summary>
             public string NextCheck { get; set; } = string.Empty;
             /// <summary>Gets or sets the application version recorded the last time settings were loaded, used to detect version changes and reset update state.</summary>
@@ -74,19 +74,19 @@ namespace GUI.Utils
             /// <summary>Gets or sets the selected UI theme index.</summary>
             public int Theme { get; set; }
             /// <summary>Gets or sets the maximum texture resolution loaded by the renderer.</summary>
-            public int MaxTextureSize { get; set; }
+            public int MaxTextureSize { get; set => field = value <= 0 ? 1024 : Math.Min(value, 10240); } = 1024;
             /// <summary>Gets or sets the shadow map resolution.</summary>
-            public int ShadowResolution { get; set; }
+            public int ShadowResolution { get; set => field = value <= 0 ? 2048 : Math.Min(value, 4096); } = 2048;
             /// <summary>Gets or sets the camera field of view in degrees.</summary>
-            public float FieldOfView { get; set; }
+            public float FieldOfView { get; set => field = value <= 0 ? 90 : Math.Clamp(value, 1, 170); } = 90;
             /// <summary>Gets or sets the first-person viewmodel field of view in degrees.</summary>
-            public float ViewmodelFieldOfView { get; set; }
+            public float ViewmodelFieldOfView { get; set => field = Math.Clamp(value, 40, 80); } = 64;
             /// <summary>Gets or sets the mouse look sensitivity.</summary>
-            public float MouseSensitivity { get; set; }
+            public float MouseSensitivity { get; set => field = Math.Clamp(value, 0, 8); } = 4f;
             /// <summary>Gets or sets whether the viewport camera should have acceleration/deceleration when starting or stopping to move</summary>
-            public bool SmoothCameraEnabled { get; set; }
+            public bool SmoothCameraEnabled { get; set; } = true;
             /// <summary>Gets or sets the number of MSAA samples used for anti-aliasing.</summary>
-            public int AntiAliasingSamples { get; set; }
+            public int AntiAliasingSamples { get; set => field = Math.Clamp(value, 0, 64); } = 8;
             /// <summary>Gets or sets the top edge position of the main window.</summary>
             public int WindowTop { get; set; }
             /// <summary>Gets or sets the left edge position of the main window.</summary>
@@ -98,21 +98,21 @@ namespace GUI.Utils
             /// <summary>Gets or sets the window state (normal, minimized, maximized).</summary>
             public int WindowState { get; set; }
             /// <summary>Gets or sets the normalized audio playback volume.</summary>
-            public float Volume { get; set; }
+            public float Volume { get; set => field = MathUtils.Saturate(value); } = 0.5f;
             /// <summary>Gets or sets the swap interval (the number of screen updates to wait between swapping front and back buffers).</summary>
-            public int Vsync { get; set; }
+            public int Vsync { get; set; } = 1;
             /// <summary>Gets or sets whether the FPS counter is shown in the viewport.</summary>
-            public int DisplayFps { get; set; }
+            public int DisplayFps { get; set; } = 1;
             /// <summary>Gets or sets the <see cref="QuickPreviewFlags"/> bitmask for quick file preview behavior.</summary>
             public int QuickFilePreview { get; set; }
             /// <summary>Gets or sets whether the file explorer panel is opened automatically on start (suppressed on first startup or when command-line files are provided).</summary>
-            public int OpenExplorerOnStart { get; set; }
+            public int OpenExplorerOnStart { get; set; } = 1;
             /// <summary>Gets or sets the font size used in the text viewer.</summary>
-            public int TextViewerFontSize { get; set; }
+            public int TextViewerFontSize { get; set => field = Math.Clamp(value, 8, 24); } = 10;
             /// <summary>Gets or sets whether the package file list uses grid view (1) or list view (0).</summary>
-            public int PackageGridView { get; set; }
+            public int PackageGridView { get; set; } = 1;
             /// <summary>Gets or sets the grid thumbnail size index (0-4, mapping to <see cref="GUI.Types.PackageViewer.ThumbnailRenderers.ThumbnailSizes"/> enum).</summary>
-            public int PackageGridSize { get; set; }
+            public int PackageGridSize { get; set => field = Math.Clamp(value, 0, Enum.GetValues<Types.PackageViewer.ThumbnailRenderers.ThumbnailSizes>().Length - 1); } = 2;
             /// <summary>Internal settings file version used to apply migrations when upgrading from older versions. Do not modify manually.</summary>
             public int _VERSION_DO_NOT_MODIFY { get; set; }
             /// <summary>Gets or sets the application update check state.</summary>
@@ -124,6 +124,7 @@ namespace GUI.Utils
         /// <summary>Gets the folder path where the settings file and other persistent application data are stored.</summary>
         public static string SettingsFolder { get; private set; } = string.Empty;
         private static string SettingsFilePath = string.Empty;
+        private static bool SaveDisabled;
 
         /// <summary>Gets the active application configuration.</summary>
         public static AppConfig Config { get; private set; } = new AppConfig();
@@ -134,8 +135,8 @@ namespace GUI.Utils
         public static void InvokeRefreshCamerasOnSave() => RefreshCamerasOnSave?.Invoke(null, EventArgs.Empty);
 
         /// <summary>
-        /// Loads the application configuration from disk, applies defaults and migrations for older
-        /// settings file versions, and populates <see cref="Config"/>.
+        /// Loads the application configuration from disk, applies migrations for older
+        /// settings file versions, validates the values, and populates <see cref="Config"/>.
         /// </summary>
         public static void Load()
         {
@@ -144,20 +145,42 @@ namespace GUI.Utils
 
             Directory.CreateDirectory(SettingsFolder);
 
+            SaveDisabled = Automation.Automation.IsEnabled;
+
+            byte[]? settingsData = null;
+
             try
             {
                 if (File.Exists(SettingsFilePath))
                 {
-                    using var stream = new FileStream(SettingsFilePath, FileMode.Open, FileAccess.Read);
+                    settingsData = File.ReadAllBytes(SettingsFilePath);
+                }
+                else
+                {
+                    IsFirstStartup = true;
+                }
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                // The file may only be locked by another process, so it must not be overwritten with defaults
+                Log.Error(nameof(Settings), $"Failed to read '{SettingsFilePath}', settings will not be saved.{Environment.NewLine}{e}");
+                SaveDisabled = true;
+            }
+
+            try
+            {
+                if (settingsData != null)
+                {
+                    using var stream = new MemoryStream(settingsData);
                     Config = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize<AppConfig>(stream, KVSerializerOptions.DefaultOptions);
                 }
             }
             catch (Exception e)
             {
                 Log.Error(nameof(Settings), $"Failed to parse '{SettingsFilePath}', is it corrupted?{Environment.NewLine}{e}");
+                IsFirstStartup = true;
 
-                // A run driven by automation keeps settings in memory and leaves the file alone
-                if (!Automation.Automation.IsEnabled)
+                if (!SaveDisabled)
                 {
                     try
                     {
@@ -175,32 +198,7 @@ namespace GUI.Utils
                 }
             }
 
-            var currentVersion = Config._VERSION_DO_NOT_MODIFY;
-
-            if (currentVersion > SettingsFileCurrentVersion)
-            {
-                // Blocking on the task is only safe here because this runs at startup before
-                // the UI exists, when we switch to pangui, this will need to be correctly awaited
-                // to not block the UI thread
-                var continueAnyway = AppMessageDialogs.ConfirmAsync(
-                    $"Your current settings.vdf has a higher version ({currentVersion}) than currently supported ({SettingsFileCurrentVersion}). You likely ran an older version of Source 2 Viewer and your settings may get reset.\n\nDo you want to continue?",
-                    "Source 2 Viewer downgraded",
-                    buttons: ConfirmButtons.YesNo
-                ).GetAwaiter().GetResult();
-
-                if (!continueAnyway)
-                {
-                    Environment.Exit(1);
-                    return;
-                }
-            }
-
-            Config.GameSearchPaths ??= [];
-            Config.SavedCameras ??= [];
-            Config.BookmarkedFiles ??= [];
-            Config.RecentFiles ??= new(RecentFilesLimit);
-            Config.Update ??= new();
-            Config.Update.LatestStableVersion ??= string.Empty;
+            Migrate(Config._VERSION_DO_NOT_MODIFY);
 
             if (string.IsNullOrEmpty(Config.OpenDirectory))
             {
@@ -210,116 +208,6 @@ namespace GUI.Utils
                 {
                     Config.OpenDirectory = steamPath;
                 }
-            }
-
-            if (Config.MaxTextureSize <= 0)
-            {
-                Config.MaxTextureSize = 1024;
-            }
-            else if (Config.MaxTextureSize > 10240)
-            {
-                Config.MaxTextureSize = 10240;
-            }
-
-            if (Config.ShadowResolution <= 0)
-            {
-                Config.ShadowResolution = 2048;
-            }
-            else if (Config.ShadowResolution > 4096)
-            {
-                Config.ShadowResolution = 4096;
-            }
-
-            // upgrade fov
-            if (currentVersion > 0 && currentVersion < 16)
-            {
-                var oldVerticalRadians = float.DegreesToRadians(Config.FieldOfView);
-                var horizontalAt4By3Radians = 2f * MathF.Atan(MathF.Tan(oldVerticalRadians * 0.5f) * (4f / 3f));
-                Config.FieldOfView = float.RadiansToDegrees(horizontalAt4By3Radians);
-            }
-
-            if (Config.FieldOfView <= 0)
-            {
-                Config.FieldOfView = 90;
-            }
-
-            Config.FieldOfView = Math.Clamp(Config.FieldOfView, 1, 170);
-            Config.ViewmodelFieldOfView = Math.Clamp(Config.ViewmodelFieldOfView, 40, 80);
-
-            Config.AntiAliasingSamples = Math.Clamp(Config.AntiAliasingSamples, 0, 64);
-            Config.Volume = MathUtils.Saturate(Config.Volume);
-            Config.TextViewerFontSize = Math.Clamp(Config.TextViewerFontSize, 8, 24);
-            Config.PackageGridSize = Math.Clamp(Config.PackageGridSize, 0, Enum.GetValues<Types.PackageViewer.ThumbnailRenderers.ThumbnailSizes>().Length - 1);
-
-            if (!Enum.IsDefined(Config.Update.Channel))
-            {
-                Config.Update.Channel = UpdateChannel.Stable;
-            }
-
-            if (currentVersion < 2) // version 2: added anti aliasing samples
-            {
-                Config.AntiAliasingSamples = 8;
-            }
-
-            if (currentVersion < 3) // version 3: added volume
-            {
-                Config.Volume = 0.5f;
-            }
-
-            if (currentVersion < 4) // version 4: added vsync
-            {
-                Config.Vsync = 1;
-            }
-
-            if (currentVersion < 5) // version 5: added display fps
-            {
-                Config.DisplayFps = 1;
-            }
-
-            if (currentVersion < 8) // version 8: added explorer on start
-            {
-                Config.OpenExplorerOnStart = 1;
-            }
-
-            if (currentVersion < 10) // version 10: added startup window
-            {
-                IsFirstStartup = true;
-            }
-
-            if (currentVersion < 11) // version 11: added text viewer font size
-            {
-                Config.TextViewerFontSize = 10;
-            }
-
-            if (currentVersion < 12) // version 12: enable automatic update checks by default
-            {
-                Config.Update.CheckAutomatically = true;
-            }
-
-            if (currentVersion < 13) // version 13: added package grid view and grid size
-            {
-                Config.PackageGridView = 1;
-                Config.PackageGridSize = 2;
-            }
-
-            if (currentVersion < 14) // version 14: added mouse sensitivity
-            {
-                Config.MouseSensitivity = 4f;
-            }
-
-            if (currentVersion < 15) // version 15: added smooth camera setting
-            {
-                Config.SmoothCameraEnabled = true;
-            }
-
-            if (currentVersion < 16) // version 16: added viewmodel field of view
-            {
-                Config.ViewmodelFieldOfView = 64;
-            }
-
-            if (currentVersion > 0 && currentVersion != SettingsFileCurrentVersion)
-            {
-                Log.Info(nameof(Settings), $"Settings version changed: {currentVersion} -> {SettingsFileCurrentVersion}");
             }
 
             // If the version changed, force an update check (if enabled)
@@ -336,24 +224,55 @@ namespace GUI.Utils
         }
 
         /// <summary>
-        /// Serializes the current <see cref="Config"/> to disk, writing atomically via a temp file.
-        /// A run driven by automation keeps every change in memory instead.
+        /// Converts values whose meaning changed since the settings file version <paramref name="fileVersion"/> was written.
         /// </summary>
-        public static void Save()
+        /// <param name="fileVersion">The settings file version read from disk, 0 when no file was loaded.</param>
+        private static void Migrate(int fileVersion)
         {
-            if (Automation.Automation.IsEnabled)
+            if (fileVersion <= 0 || fileVersion == SettingsFileCurrentVersion)
             {
                 return;
             }
 
-            var tempFile = Path.GetTempFileName();
+            Log.Info(nameof(Settings), $"Settings version changed: {fileVersion} -> {SettingsFileCurrentVersion}");
 
-            using (var stream = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None))
+            // version 16: field of view changed from vertical to horizontal at 4:3
+            if (fileVersion < 16)
             {
-                KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(stream, Config, nameof(ValveResourceFormat));
+                var oldVerticalRadians = float.DegreesToRadians(Config.FieldOfView);
+                var horizontalAt4By3Radians = 2f * MathF.Atan(MathF.Tan(oldVerticalRadians * 0.5f) * (4f / 3f));
+                Config.FieldOfView = float.RadiansToDegrees(horizontalAt4By3Radians);
+            }
+        }
+
+        /// <summary>
+        /// Serializes the current <see cref="Config"/> to disk, writing atomically via a temp file.
+        /// A run driven by automation, or one that could not read the file, keeps every change in memory instead.
+        /// </summary>
+        public static void Save()
+        {
+            if (SaveDisabled)
+            {
+                return;
             }
 
-            File.Move(tempFile, SettingsFilePath, overwrite: true);
+            // Written next to the settings file so the move replaces it in one step
+            var tempFile = Path.Join(SettingsFolder, Path.GetRandomFileName());
+
+            try
+            {
+                using (var stream = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(stream, Config, nameof(ValveResourceFormat));
+                }
+
+                File.Move(tempFile, SettingsFilePath, overwrite: true);
+            }
+            catch
+            {
+                File.Delete(tempFile);
+                throw;
+            }
         }
 
         /// <summary>
