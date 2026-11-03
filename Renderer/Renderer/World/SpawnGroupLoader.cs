@@ -137,7 +137,7 @@ internal sealed class SpawnGroupLoader
                     placements.Add((entity, classname));
                 }
             }
-            catch (Exception e)
+            catch (Exception e) when (e is not OperationCanceledException)
             {
                 throw EntitySystem.EntityException(entity, classname, e);
             }
@@ -151,7 +151,7 @@ internal sealed class SpawnGroupLoader
             {
                 HandlePointPrefab(entity, classname);
             }
-            catch (Exception e)
+            catch (Exception e) when (e is not OperationCanceledException)
             {
                 throw EntitySystem.EntityException(entity, classname, e);
             }

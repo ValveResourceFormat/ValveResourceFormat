@@ -982,6 +982,8 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
             // The warm-up runs on the render loop thread, rethrow its failure to whoever is loading this viewer
             PrewarmFailure?.Throw();
+
+            RendererContext.CancellationToken.ThrowIfCancellationRequested();
         }
     }
 
@@ -1161,9 +1163,19 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         // Clamp frametime so it does not cause issues in things like particle rendering
         var frameTime = MathF.Min(1f, (float)elapsed.TotalSeconds);
         LastUpdate = currentTime;
-        OnUpdate(frameTime);
 
-        OnPaint(frameTime);
+        try
+        {
+            OnUpdate(frameTime);
+            OnPaint(frameTime);
+        }
+        catch (OperationCanceledException) when (RendererContext.CancellationToken.IsCancellationRequested)
+        {
+            // The tab was closed while the scene was loading on this thread
+            GraphicsContext.End();
+            RenderLoopThread.UnsetCurrentGLControl(this);
+            return false;
+        }
 
 #if DEBUG
         PaintedFrames++;

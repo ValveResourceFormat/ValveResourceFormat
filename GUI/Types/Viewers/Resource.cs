@@ -89,7 +89,7 @@ namespace GUI.Types.Viewers
                 {
                     InitializeSpecialViewer(vrfGuiContext, resource);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     GLViewerError = CodeTextBox.CreateFromException(ex, vrfGuiContext.DisplayPath);
                 }

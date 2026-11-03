@@ -540,6 +540,7 @@ namespace GUI.Types.GLViewers
             timer.Stop();
             Log.Debug(GetType().Name, $"Loading scene time: {timer.Elapsed}, shader variants: {Scene.RendererContext.ShaderLoader.ShaderCount}, materials: {Scene.RendererContext.MaterialLoader.MaterialCount}");
 
+            Scene.RendererContext.CancellationToken.ThrowIfCancellationRequested();
             ReportLoadingStatus("Initializing scene…");
 
             PostSceneLoad();
@@ -577,11 +578,15 @@ namespace GUI.Types.GLViewers
 
             try
             {
+                var cancellationToken = Scene.RendererContext.CancellationToken;
+                cancellationToken.ThrowIfCancellationRequested();
+
                 // A non-zero delta so that particles actually simulate
                 OnPaint(1f / 60f);
 
                 foreach (var particleNode in Scene.AllNodes.OfType<ParticleSceneNode>())
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     particleNode.Prewarm(Renderer.Camera);
                 }
             }

@@ -264,6 +264,7 @@ namespace GUI.Types.GLViewers
 
                 LoadedWorld.Load(mapExternalReferences);
 
+                Scene.RendererContext.CancellationToken.ThrowIfCancellationRequested();
                 NavMeshSceneNode.AddNavNodesToScene(LoadedWorld.NavMesh, Scene, LoadedWorld.NavigationHullNames);
                 NavSpaceSceneNode.AddToScene(LoadedWorld.NavSpace, Scene);
                 NavMeshSceneNode.AddFlowMapNodesToScene(LoadedWorld.NavFlowMap, LoadedWorld.NavMesh, Scene, LoadedWorld.NavigationHullNames);

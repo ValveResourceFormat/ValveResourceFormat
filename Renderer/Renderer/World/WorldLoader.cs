@@ -339,6 +339,8 @@ namespace ValveResourceFormat.Renderer.World
             loadedAfterEntities = true;
 
             LoadWorldNodes();
+
+            CancellationToken.ThrowIfCancellationRequested();
             LoadWorldPhysics();
 
             if (OwnsScene)
@@ -790,6 +792,11 @@ namespace ValveResourceFormat.Renderer.World
             }
             catch (Exception e)
             {
+                if (CancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
                 RendererContext.Logger.LogError(e, "Couldn't load navigation mesh from '{NavFilePath}'", navFilePath);
             }
         }
@@ -818,6 +825,11 @@ namespace ValveResourceFormat.Renderer.World
             }
             catch (Exception e)
             {
+                if (CancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
                 RendererContext.Logger.LogError(e, "Couldn't load navigation space from '{NavSpaceFilePath}'", navSpaceFilePath);
             }
         }
@@ -846,6 +858,11 @@ namespace ValveResourceFormat.Renderer.World
             }
             catch (Exception e)
             {
+                if (CancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
                 RendererContext.Logger.LogError(e, "Couldn't load navigation flow map from '{NavFlowMapFilePath}'", navFlowMapFilePath);
             }
         }

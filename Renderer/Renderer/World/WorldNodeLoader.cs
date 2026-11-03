@@ -49,7 +49,7 @@ namespace ValveResourceFormat.Renderer.World
 
             if (externalReferences is not null)
             {
-                Parallel.ForEach(externalReferences.ResourceRefInfoList, resourceReference =>
+                Parallel.ForEach(externalReferences.ResourceRefInfoList, new ParallelOptions { CancellationToken = RendererContext.CancellationToken }, resourceReference =>
                 {
                     var resource = RendererContext.FileLoader.LoadFileCompiled(resourceReference.Name);
                     if (resource is { DataBlock: Model model })

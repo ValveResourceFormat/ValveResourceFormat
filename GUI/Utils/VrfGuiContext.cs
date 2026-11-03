@@ -303,6 +303,8 @@ namespace GUI.Utils
                 return;
             }
 
+            var deferred = false;
+
             lock (ChildrenLock)
             {
                 if (Disposed)
@@ -317,13 +319,21 @@ namespace GUI.Utils
 #endif
 
                     WantsToBeDisposed = true;
-                    return;
+                    deferred = true;
                 }
-
+                else
+                {
 #if DEBUG
-                Log.Debug(nameof(VrfGuiContext), $"#{ContextId} Dispose (total children: {TotalChildren}, has parent: {ParentGuiContext != null}, prev: {WantsToBeDisposed})");
+                    Log.Debug(nameof(VrfGuiContext), $"#{ContextId} Dispose (total children: {TotalChildren}, has parent: {ParentGuiContext != null}, prev: {WantsToBeDisposed})");
 #endif
-                Disposed = true;
+                    Disposed = true;
+                }
+            }
+
+            if (deferred)
+            {
+                CancelLoading();
+                return;
             }
 
             ParentGuiContext?.RemoveChild(this);
@@ -356,14 +366,19 @@ namespace GUI.Utils
             return context;
         }
 
-        // Disposal has to wait for readers itself: callers would need the order right on every path,
-        // and they do not.
-        private void StopLoadingAndDispose(bool disposing)
+        private void CancelLoading()
         {
             foreach (var context in rendererContexts)
             {
                 context.CancelLoading();
             }
+        }
+
+        // Disposal has to wait for readers itself: callers would need the order right on every path,
+        // and they do not.
+        private void StopLoadingAndDispose(bool disposing)
+        {
+            CancelLoading();
 
             // The wait cannot happen on the thread that closed the tab, so the teardown follows it here
             Task.Run(async () =>

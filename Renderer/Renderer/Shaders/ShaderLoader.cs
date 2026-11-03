@@ -201,10 +201,13 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// happens: run it before rendering a frame that has to see each shader's final state, such as a pre-warm
         /// pass. Must be called on the thread holding the GL context.
         /// </summary>
+        /// <exception cref="OperationCanceledException">Loading was cancelled.</exception>
         public void LinkLoadedShaders()
         {
             foreach (var shader in CachedShaders.Values)
             {
+                RendererContext.CancellationToken.ThrowIfCancellationRequested();
+
                 shader.EnsureLoaded();
             }
         }

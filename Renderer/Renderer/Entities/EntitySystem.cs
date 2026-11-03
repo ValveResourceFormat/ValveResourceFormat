@@ -249,7 +249,7 @@ public sealed class EntitySystem
         {
             entity.Spawn();
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not OperationCanceledException)
         {
             throw EntityException(entity.Data, entity.Classname, e);
         }
