@@ -2051,19 +2051,11 @@ public partial class AnimationGraphExtract : IDisposable
 
     private (KVObject? param, long paramId, string? paramClass) FindParameterByName(string paramName)
     {
-        string[] namesToTry = [paramName, paramName.Replace('_', ' ')];
-
-        foreach (var comparison in new[] { StringComparison.Ordinal, StringComparison.OrdinalIgnoreCase })
+        foreach (var param in Parameters)
         {
-            foreach (var nameToTry in namesToTry)
+            if (ToScriptIdentifier(param.GetStringProperty("m_name")) == paramName)
             {
-                foreach (var param in Parameters)
-                {
-                    if (string.Equals(param.GetStringProperty("m_name"), nameToTry, comparison))
-                    {
-                        return (param, GetParameterId(param), param.GetStringProperty("_class"));
-                    }
-                }
+                return (param, GetParameterId(param), param.GetStringProperty("_class"));
             }
         }
 
@@ -2074,50 +2066,27 @@ public partial class AnimationGraphExtract : IDisposable
 
     private long FindTagIdByName(string tagName)
     {
-        static long TagIdOf(KVObject tag) => tag.GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-
-        var strippedName = tagName.StartsWith("TAG_", StringComparison.Ordinal)
-            ? tagName["TAG_".Length..]
-            : tagName;
-
-        var namesToTry = new[]
-        {
-            tagName,
-            strippedName,
-            tagName.Replace('_', ' '),
-            strippedName.Replace('_', ' '),
-            tagName.Replace(' ', '_'),
-        }.Distinct().ToArray();
-
-        foreach (var comparison in new[] { StringComparison.Ordinal, StringComparison.OrdinalIgnoreCase })
-        {
-            foreach (var nameVariant in namesToTry)
-            {
-                foreach (var tag in Tags)
-                {
-                    if (string.Equals(tag.GetStringProperty("m_name"), nameVariant, comparison))
-                    {
-                        return TagIdOf(tag);
-                    }
-                }
-            }
-        }
-
-        // Fuzzy alphanumeric-only match as last resort
-        var cleanInput = new string([.. strippedName.Where(char.IsLetterOrDigit)]).ToLowerInvariant();
         foreach (var tag in Tags)
         {
-            var cleanCurrent = new string([.. tag.GetStringProperty("m_name").Where(char.IsLetterOrDigit)]).ToLowerInvariant();
-            if (cleanCurrent == cleanInput
-                || cleanCurrent.Contains(cleanInput, StringComparison.Ordinal)
-                || cleanInput.Contains(cleanCurrent, StringComparison.Ordinal))
+            var identifier = ("TAG_" + ToScriptIdentifier(tag.GetStringProperty("m_name"))).ToUpperInvariant();
+
+            if (identifier == tagName)
             {
-                return TagIdOf(tag);
+                return tag.GetSubCollection("m_tagID").GetIntegerProperty("m_id");
             }
         }
 
         return -1;
     }
+
+    /// <summary>
+    /// Gets the identifier the compiler gives a parameter or tag name in a script: whitespace becomes an underscore
+    /// and operator and punctuation characters are removed.
+    /// </summary>
+    private static string ToScriptIdentifier(string name)
+        => new([.. name
+            .Where(static c => !"!%&()*+,-/:;<=>?[]^{|}'\"".Contains(c, StringComparison.Ordinal))
+            .Select(static c => c is ' ' or '\b' or '\t' or '\n' or '\v' or '\f' or '\r' ? '_' : c)]);
 
     private static string ExtractConditionFromTernary(string script, int index)
     {
