@@ -109,15 +109,22 @@ partial class ModelExtract
             return;
         }
 
+        var clips = new List<(string Name, NmClipExtract Extract)>();
+
         foreach (var animation in model.GetAllAnimations(fileLoader))
         {
-            if (animation is not ClipAnimation { Clip: var clip })
+            if (animation is ClipAnimation { Clip: var clip })
             {
-                continue;
+                clips.Add((animation.Name, new NmClipExtract(clip.Resource, fileLoader)));
             }
+        }
 
-            var clipContent = new NmClipExtract(clip.Resource, fileLoader).ToContentFile();
-            clipContent.FileName = animation.Name;
+        NmClipExtract.ShareSourceAnimations(clips.Select(static clip => clip.Extract));
+
+        foreach (var (name, extract) in clips)
+        {
+            var clipContent = extract.ToContentFile();
+            clipContent.FileName = name;
             clipContent.KeepFullPath = true;
             vmdl.AdditionalFiles.Add(clipContent);
         }

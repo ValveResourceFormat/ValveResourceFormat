@@ -143,12 +143,13 @@ rebuilt fails to decompile; `--skip_softbody_reconstruction` decompiles it witho
 
 What a recompiled model will be missing:
 
-| What                           | Why                   | Details                                                                                                                                                                                                               |
-| ------------------------------ | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Stereo flex controls           | Not in compiled files | The compiler splits a stereo slider into independent left and right controllers, so it comes back as two sliders.                                                                                                     |
-| Animations from include-models | Not implemented       | Their sequences are not written, but their `AnimIncludeModel` references are kept, so they come back if those models are decompiled too.                                                                              |
-| Vertical root motion           | Intentional           | The Z component of root motion is zeroed on export, matching how the engine applies movement to the visible body.                                                                                                     |
-| Attachment camera preview look | Not in compiled files | The `preview_scale` and `background_color` of an `Attachment Camera Preview` only affect the editor, so they come back at their defaults. A camera on an attachment that the compiled model does not have is dropped. |
+| What                           | Why                   | Details                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------ | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stereo flex controls           | Not in compiled files | The compiler splits a stereo slider into independent left and right controllers, so it comes back as two sliders.                                                                                                                                                                                                                       |
+| Animations from include-models | Not implemented       | Their sequences are not written, but their `AnimIncludeModel` references are kept, so they come back if those models are decompiled too.                                                                                                                                                                                                |
+| Shared clip sources            | Not in compiled files | A compiled Animgraph 2 clip holds only the frames it was cut from its source. Decompiling the model writes each source once from its longest clip, and the other clips select their frame range of it; a clip that is not such a range, or an additive, gets a DMX of its own. A clip decompiled on its own writes only its own frames. |
+| Vertical root motion           | Intentional           | The Z component of root motion is zeroed on export, matching how the engine applies movement to the visible body.                                                                                                                                                                                                                       |
+| Attachment camera preview look | Not in compiled files | The `preview_scale` and `background_color` of an `Attachment Camera Preview` only affect the editor, so they come back at their defaults. A camera on an attachment that the compiled model does not have is dropped.                                                                                                                   |
 
 ### glTF Export
 
@@ -368,13 +369,13 @@ graph's compiled commands and named from the debug names and meters the compiler
 Subgraphs that the compiler inlined are folded back into subgraph nodes, found among the
 other graphs of the file or, for one graph per file, the graphs of the folder.
 
-| Data                                     | Status                | Notes                                                                    |
-| ---------------------------------------- | --------------------- | ------------------------------------------------------------------------ |
-| Node positions, comments, editor state   | Not in compiled files | nodes are laid out in columns by their distance from a source            |
-| Names of nodes without a debug name      | Not in compiled files | named by their type, as vmixtool names new nodes                         |
-| Node generation counters                 | Not in compiled files | recovered from the debug ids of current graphs when they can be          |
-| Older graphs compiled with CS2 tools     | Not implemented       | one graph per file only; older track send settings are ignored           |
-| Inlined subgraphs of graphs in no folder | Not implemented       | without the other graphs, inlined nodes stay as they compiled            |
+| Data                                     | Status                | Notes                                                           |
+| ---------------------------------------- | --------------------- | --------------------------------------------------------------- |
+| Node positions, comments, editor state   | Not in compiled files | nodes are laid out in columns by their distance from a source   |
+| Names of nodes without a debug name      | Not in compiled files | named by their type, as vmixtool names new nodes                |
+| Node generation counters                 | Not in compiled files | recovered from the debug ids of current graphs when they can be |
+| Older graphs compiled with CS2 tools     | Not implemented       | one graph per file only; older track send settings are ignored  |
+| Inlined subgraphs of graphs in no folder | Not implemented       | without the other graphs, inlined nodes stay as they compiled   |
 
 ## Choreo, Captions, and UI
 
