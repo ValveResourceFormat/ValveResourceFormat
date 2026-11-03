@@ -36,14 +36,11 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// Rebuilds the bone scale markup an animation was authored with, which a DMX animation carrying
-    /// only position and orientation cannot hold.
+    /// Rebuilds the bone scale markup an animation was authored with, since a sequence's DMX
+    /// animation carries only position and orientation.
     /// </summary>
     static IEnumerable<KVObject> ProcessBoneScales(Skeleton skeleton, FlexController[] flexControllers, SequenceAnimation animation)
     {
-        // Quantization leaves an unresized bone a hair off one.
-        const float RestScaleTolerance = 1e-3f;
-
         var scaledBones = animation.GetScaledBones();
 
         if (scaledBones.Length == 0)

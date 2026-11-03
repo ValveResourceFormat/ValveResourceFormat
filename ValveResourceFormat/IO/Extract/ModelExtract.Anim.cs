@@ -254,18 +254,20 @@ partial class ModelExtract
 
     /// <summary>
     /// Every frame of an animation, laid out as the log layer values of each bone and flex controller.
-    /// Bones that are not exported have no values.
+    /// Bones that are not exported have no values, and no bone has scales when they are not written.
     /// </summary>
-    private readonly record struct DecodedTracks(Vector3[]?[] Positions, Quaternion[]?[] Orientations, float[][] FlexValues);
+    private readonly record struct DecodedTracks(Vector3[]?[] Positions, Quaternion[]?[] Orientations, float[]?[] Scales, float[][] FlexValues);
 
     private static DecodedTracks DecodeTracks(Skeleton skeleton, FlexController[] flexControllers, AnimationBase anim, bool nmSkelAxisFixup, bool keepClothProxyBones)
     {
+        var writeBoneScale = WritesBoneScale(anim);
         var frameCount = anim.FrameCount;
         var bones = skeleton.Bones;
         var rootMotionBone = skeleton["root_motion"];
 
         var positions = new Vector3[]?[bones.Length];
         var orientations = new Quaternion[]?[bones.Length];
+        var scales = new float[]?[bones.Length];
         var flexValues = new float[flexControllers.Length][];
 
         foreach (var bone in bones)
@@ -274,6 +276,11 @@ partial class ModelExtract
             {
                 positions[bone.Index] = new Vector3[frameCount];
                 orientations[bone.Index] = new Quaternion[frameCount];
+
+                if (writeBoneScale)
+                {
+                    scales[bone.Index] = new float[frameCount];
+                }
             }
         }
 
@@ -305,6 +312,7 @@ partial class ModelExtract
             {
                 var bonePositions = positions[bone.Index];
                 var boneOrientations = orientations[bone.Index];
+                var boneScales = scales[bone.Index];
 
                 if (bonePositions == null || boneOrientations == null)
                 {
@@ -322,6 +330,12 @@ partial class ModelExtract
 
                 bonePositions[i] = position;
                 boneOrientations[i] = frameBone.Angle;
+
+                if (boneScales != null)
+                {
+                    // An additive is generated as the difference to its base frame, which holds scale one.
+                    boneScales[i] = anim.IsAdditive ? 1f + frameBone.Scale : frameBone.Scale;
+                }
             }
 
             for (var flexId = 0; flexId < flexValues.Length; flexId++)
@@ -330,7 +344,7 @@ partial class ModelExtract
             }
         }
 
-        return new DecodedTracks(positions, orientations, flexValues);
+        return new DecodedTracks(positions, orientations, scales, flexValues);
     }
 
     /// <summary>
@@ -413,12 +427,19 @@ partial class ModelExtract
         }
     }
 
+    /// <summary>
+    /// Whether bone scale goes into the DMX. A sequence's bone scale is written as
+    /// AnimForceBoneScale markup in the model doc instead.
+    /// </summary>
+    private static bool WritesBoneScale(AnimationBase anim) => anim is not SequenceAnimation;
+
     private static void ProcessBoneChannels(Skeleton skeleton, DmeTransform[] transforms, DmeChannelsClip clip, DecodedTracks tracks, TimeSpan[] times)
     {
         foreach (var bone in skeleton.Bones)
         {
             var positions = tracks.Positions[bone.Index];
             var orientations = tracks.Orientations[bone.Index];
+            var scales = tracks.Scales[bone.Index];
 
             if (positions == null || orientations == null)
             {
@@ -439,7 +460,35 @@ partial class ModelExtract
 
             clip.Channels.Add(positionChannel);
             clip.Channels.Add(orientationChannel);
+
+            // The compiler rejects any scale on a root bone.
+            if (scales != null && bone.Parent != null && IsScaled(scales))
+            {
+                transform.Add("scale", 1f);
+
+                var scaleLogLayer = new DmeFloatLogLayer { LayerValues = scales };
+                scaleLogLayer.Times.AddRange(times);
+
+                var scaleChannel = BuildDmeChannel($"{boneName}_s", transform, "scale", new DmeFloatLog(), scaleLogLayer);
+                clip.Channels.Add(scaleChannel);
+            }
         }
+    }
+
+    // Quantization leaves an unresized bone a hair off one.
+    private const float RestScaleTolerance = 1e-3f;
+
+    private static bool IsScaled(float[] scales)
+    {
+        foreach (var scale in scales)
+        {
+            if (MathF.Abs(scale - 1f) > RestScaleTolerance)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
