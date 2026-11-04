@@ -30,15 +30,6 @@ uniform vec3 g_vNoiseUvScale = vec3(1.0);
 uniform vec3 g_vNoiseUvSpeed = vec3(0.25);
 uniform bool g_bSmootherNoiseBranchAndTrunk = true;
 
-// Rotates by twice the angle whose sine scales q.xyz and whose cosine is q.w
-vec3 RotateByFoliageQuaternion(vec3 v, vec4 q)
-{
-    vec3 conjugateAxis = -q.xyz;
-    vec3 halfXyz = v * q.w + cross(v, conjugateAxis);
-    float halfW = -dot(v, conjugateAxis);
-    return halfXyz * q.w + q.xyz * halfW + cross(q.xyz, halfXyz);
-}
-
 float GetDeflectionWave(float t, vec3 noise, float noiseLevel)
 {
     float slowWave = sin(t * 0.71);

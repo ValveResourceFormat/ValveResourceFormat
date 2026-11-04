@@ -9,9 +9,8 @@ uniform vec3 g_vColorTint = vec3(1.0); // SrgbRead(true)
 #include "../features/detail_texture_vs.slang"
 
 #if (F_FOLIAGE_ANIMATION > 0)
-    #include "../features/foliage_sway_vs.slang"
+    #include "../features/foliage_vr_vs.slang"
 
-    in vec4 vTEXCOORD3;
     out vec4 vFoliageParamsOut;
 #elif (F_VERTEX_COLOR == 1) || (F_PAINT_VERTEX_COLORS == 1)
     in vec4 vCOLOR;
@@ -21,10 +20,16 @@ void main()
 {
     WriteSurfaceVertex(false);
 
-#if (F_FOLIAGE_ANIMATION > 0)
+#if (F_FOLIAGE_ANIMATION == 4)
+    vFoliageParamsOut = vec4(0.0, 0.0, 0.0, 1.0);
+#elif (F_FOLIAGE_ANIMATION > 0)
     // Interpolate out for debug visualization
-    vFoliageParamsOut = vTEXCOORD3;
-    vFragPosition = AnimateFoliageSway(vFragPosition, vTEXCOORD3);
+    vFoliageParamsOut = vec4(vTEXCOORD3.xyz, 1.0);
+#endif
+
+#if (F_FOLIAGE_ANIMATION > 0) && (F_FOLIAGE_ANIMATION != 2)
+    vFragPosition = AnimateVrFoliage();
+    vCentroidNormalOut = vNormalOut;
     gl_Position = g_matWorldToProjection * vec4(vFragPosition, 1.0);
 #endif
 
