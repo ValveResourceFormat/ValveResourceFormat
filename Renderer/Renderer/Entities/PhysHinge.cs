@@ -155,6 +155,23 @@ public sealed class PhysHinge : PhysConstraint
     }
 
     /// <inheritdoc/>
+    protected override bool IsPulledBackByGravity
+    {
+        get
+        {
+            if (!hasHinge)
+            {
+                return false;
+            }
+
+            var lever = swingingBody.CenterOfMass - JointAnchor;
+            var weight = new Vector3(0f, 0f, -swingingBody.Mass * PhysicsSimulation.GravityValue);
+
+            return frictionTorque < MathF.Abs(Vector3.Dot(Vector3.Normalize(JointAxis), Vector3.Cross(lever, weight)));
+        }
+    }
+
+    /// <inheritdoc/>
     protected override void SetDriveSpeed(float? speed)
     {
         if (speed is not { } driveSpeed)
