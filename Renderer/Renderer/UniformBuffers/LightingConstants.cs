@@ -21,7 +21,9 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// <summary>Number of active barn lights in the scene.</summary>
         public uint NumBarnLights;
         /// <summary>Per-type light counts (index matches light type enum).</summary>
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)] private readonly uint[] NumLights;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)] private readonly uint[] NumLights;
+        /// <summary>How strongly the real-time shadow of the one mixed light shows, 0 to 1 as it fades between lights.</summary>
+        public float MixedShadowStrength = 1f;
         /// <summary>
         /// Surface-to-sun direction (XYZ) of the environment light, or zero when the scene has none, and the roughness its
         /// specular highlight is no sharper than (W).
@@ -87,7 +89,7 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// <summary>Initializes a new <see cref="LightingConstants"/> with all arrays allocated to their maximum sizes.</summary>
         public LightingConstants()
         {
-            NumLights = new uint[4];
+            NumLights = new uint[3];
             SunLightBakedShadowMask = new Vector4(-1f, 0f, 0f, 0f);
             LightPosition_Type = new Vector4[MAX_LIGHTS];
             LightDirection_InvRange = new Vector4[MAX_LIGHTS];

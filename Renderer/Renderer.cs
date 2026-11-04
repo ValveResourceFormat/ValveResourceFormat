@@ -2579,6 +2579,8 @@ public class Renderer : ISceneHost
 
         UpdateSunCascadeViews(views, updateContext.Camera);
 
+        Scene.LightingInfo.UpdateMixedShadows(updateContext.Camera.Location, updateContext.Timestep);
+
         if (Settings.EnableBarnLights)
         {
             Scene.LightingInfo.BinBarnLights(Camera, ShadowTextureSize);

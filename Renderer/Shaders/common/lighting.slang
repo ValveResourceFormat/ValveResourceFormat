@@ -181,7 +181,7 @@ float CalculateStationaryLightRealtimeShadow(uint nLightIndex, vec3 vPositionWs)
     }
 #endif
 
-    return flShadow;
+    return mix(1.0, flShadow, g_flMixedShadowStrength);
 }
 
 // Per-pixel dynamic light evaluation for legacy lights

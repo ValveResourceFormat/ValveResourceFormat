@@ -376,7 +376,10 @@ vec3 GetFogLight(int i, vec3 vPositionWs)
     }
     else if (nStoreIndex >= 0 && light.vParams.y != 0.0 && g_vLightShadowParams[nStoreIndex].x >= 0.0)
     {
-        flShadow = GetFogShadow(int(g_vLightShadowParams[nStoreIndex].x), vPositionWs);
+        bool bIsStationaryLight = uint(nStoreIndex) < g_nNumLights[0];
+        float flShadowStrength = bIsStationaryLight ? g_flMixedShadowStrength : 1.0;
+
+        flShadow = mix(1.0, GetFogShadow(int(g_vLightShadowParams[nStoreIndex].x), vPositionWs), flShadowStrength);
 
         if (flShadow <= 0.0)
         {

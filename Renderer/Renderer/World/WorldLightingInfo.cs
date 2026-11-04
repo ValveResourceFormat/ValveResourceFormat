@@ -547,7 +547,7 @@ namespace ValveResourceFormat.Renderer.World
                 var index = (uint)light.StationaryLightIndex;
                 AddLight(light, index, light.BakedStrengthScale);
 
-                if (usesFastPath && light.HasVrMixedLocalShadow)
+                if (usesFastPath && light.CanHaveVrMixedLocalShadow)
                 {
                     MixedShadowedLights.Add(light);
                     ShadowedDynamicLightIndices[light] = index;
@@ -608,18 +608,22 @@ namespace ValveResourceFormat.Renderer.World
 
             LightingData.DynamicLightCount = currentLightIndex;
 
+            mixedShadowSun = null;
+
             var envLight = lights.FirstOrDefault(static l => l.Entity == SceneLight.EntityType.Environment);
             if (envLight != null)
             {
                 var bakedLightIndex = envLight.Cost == SceneLight.LightCost.Stationary ? envLight.StationaryLightIndex : -1;
 
-                // The VR light binner only gives the sun a real-time shadow when the light asks for mixed shadows
-                if (usesFastPath && !(envLight.MixedShadows && envLight.CastShadows == 1))
-                {
-                    bakedLightIndex = -1;
-                }
-
                 StoreSunLight(envLight, new Vector4(bakedLightIndex, 0f, 0f, 0f));
+
+                // The VR light binner gives the sun a real-time shadow only while the sun holds the mixed shadow
+                if (usesFastPath)
+                {
+                    mixedShadowSun = envLight.CastShadows == 1 && bakedLightIndex != -1 ? envLight : null;
+                    mixedShadowSunIndex = bakedLightIndex;
+                    ApplySunMixedShadow();
+                }
 
                 if (LightmapGameVersionNumber == 0 && envLight.Cost == SceneLight.LightCost.Static)
                 {
@@ -877,6 +881,35 @@ namespace ValveResourceFormat.Renderer.World
         private readonly Dictionary<SceneLight, uint> ShadowedDynamicLightIndices = [];
         private readonly Dictionary<SceneLight, uint> DynamicLightIndices = [];
         private readonly List<SceneLight> MixedShadowedLights = [];
+        private SceneLight? mixedShadowSun;
+        private int mixedShadowSunIndex = -1;
+
+        /// <summary>Gets what picks the one stationary light whose real-time shadow is drawn over its baked shadows.</summary>
+        public MixedShadowSelector MixedShadows { get; } = new();
+
+        /// <summary>
+        /// Picks the light with the mixed shadow from the viewer position and advances the fade between picks.
+        /// Only scenes lit by the VR light binner have one.
+        /// </summary>
+        public void UpdateMixedShadows(Vector3 viewPosition, float deltaTime)
+        {
+            if (!usesUniformLightStore || !scene.RendererContext.FileLoader.GameInfo.VrLightBinnerSingleLightFastPath)
+            {
+                return;
+            }
+
+            MixedShadows.Update(viewPosition, deltaTime, MixedShadowedLights, mixedShadowSun);
+            ApplySunMixedShadow();
+        }
+
+        // The sun has a real-time shadow while it holds the mixed shadow, which fades by the shared strength
+        private void ApplySunMixedShadow()
+        {
+            var sunHasShadow = mixedShadowSun != null && MixedShadows.GetStrength(mixedShadowSun) > 0f;
+
+            LightingData.SunLightBakedShadowMask = new Vector4(sunHasShadow ? mixedShadowSunIndex : -1f, 0f, 0f, 0f);
+            LightingData.MixedShadowStrength = MixedShadows.Strength;
+        }
         private readonly List<SceneLight> FastPathShadowedLights = [];
         private readonly List<(int Priority, float Importance, uint Index)> FastPathFxLights = [];
 
@@ -927,27 +960,13 @@ namespace ValveResourceFormat.Renderer.World
                 }
             }
 
-            // One mixed local light gets a shadow map per view, the nearest
-            SceneLight? mixedLight = null;
-            var mixedImportance = float.MinValue;
-
+            // The mixed shadow light, until its shadow has faded out
             foreach (var light in MixedShadowedLights)
             {
-                var distanceFade = light.GetDistanceFade(viewPosition);
-
-                if (distanceFade <= 0f)
+                if (MixedShadows.GetStrength(light) > 0f)
                 {
-                    continue;
+                    FastPathShadowedLights.Add(light);
                 }
-
-                var importance = light.GetFastPathImportance(viewPosition, distanceFade);
-
-                KeepMoreImportant(light, importance, ref mixedLight, ref mixedImportance);
-            }
-
-            if (mixedLight != null)
-            {
-                FastPathShadowedLights.Add(mixedLight);
             }
 
             FastPathFxLights.Sort(static (a, b) =>

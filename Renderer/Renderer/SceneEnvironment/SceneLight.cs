@@ -472,11 +472,12 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     }
 
     /// <summary>
-    /// Gets whether the VR light binner gives this stationary light a real-time shadow map: a spot light
-    /// that casts shadows, bakes a light index and has mixed shadows.
+    /// Gets whether the VR light binner can give this stationary light the real-time mixed shadow map: a spot
+    /// light that casts shadows and bakes a light index. <see cref="MixedShadows"/> only says whether it starts
+    /// with the shadow, since one light at a time has it.
     /// </summary>
-    internal bool HasVrMixedLocalShadow
-        => MixedShadows && CastShadows == 1 && StationaryLightIndex != -1 && Entity == EntityType.Spot;
+    internal bool CanHaveVrMixedLocalShadow
+        => CastShadows == 1 && StationaryLightIndex != -1 && Entity == EntityType.Spot;
 
     /// <summary>
     /// Gets whether the VR light binner shades this light as a cheap diffuse-only point light: a point light with

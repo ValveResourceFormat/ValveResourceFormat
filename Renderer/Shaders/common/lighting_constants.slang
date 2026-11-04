@@ -12,7 +12,8 @@ layout(std140, binding = 1) uniform LightingConstants {
     vec2 g_vLightmapUvScale;
     uint g_nEnvMapDebugColors;       // reflections take each env map's debug colour from its data
     uint g_nNumBarnLights;
-    uvec4 g_nNumLights;
+    uvec3 g_nNumLights;
+    float g_flMixedShadowStrength;   // how strongly the real-time shadow of the one mixed light shows, 0 to 1 as it fades between lights
     vec4 g_vSunDirection;            // xyz: surface-to-sun, zero when the scene has no sun. w: min roughness
     vec4 g_vSunColor;                // rgb: color * brightness, a: flags
     vec4 g_vSunLightBakedShadowMask; // one-hot baked shadow channel mask, or the baked light index in x (-1 none)
