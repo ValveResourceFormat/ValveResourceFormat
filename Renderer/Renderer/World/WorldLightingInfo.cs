@@ -904,14 +904,13 @@ namespace ValveResourceFormat.Renderer.World
             ApplySunMixedShadow();
         }
 
-        // The sun's baked light index in x while its real-time shadow shows, and how far that has faded out in y
+        // The sun has a real-time shadow while it holds the mixed shadow, which fades by the shared strength
         private void ApplySunMixedShadow()
         {
-            var strength = mixedShadowSun != null ? MixedShadows.GetStrength(mixedShadowSun) : 0f;
+            var sunHasShadow = mixedShadowSun != null && MixedShadows.GetStrength(mixedShadowSun) > 0f;
 
-            LightingData.SunLightBakedShadowMask = strength > 0f
-                ? new Vector4(mixedShadowSunIndex, 1f - strength, 0f, 0f)
-                : new Vector4(-1f, 0f, 0f, 0f);
+            LightingData.SunLightBakedShadowMask = new Vector4(sunHasShadow ? mixedShadowSunIndex : -1f, 0f, 0f, 0f);
+            LightingData.MixedShadowStrength = MixedShadows.Strength;
         }
         private readonly List<SceneLight> FastPathShadowedLights = [];
         private readonly List<(int Priority, float Importance, uint Index)> FastPathFxLights = [];
@@ -1050,7 +1049,6 @@ namespace ValveResourceFormat.Renderer.World
                 var light = binned.Light;
                 LightingData.LightWorldToShadow[slot] = light.BarnFaces[0].WorldToFrustum;
                 LightingData.LightShadowOffsetScale[slot] = placement.OffsetScale;
-                LightingData.SetLightShadowStrength(slot, light.Cost == SceneLight.LightCost.Stationary ? MixedShadows.GetStrength(light) : 1f);
                 LightingData.LightShadowParams[ShadowedDynamicLightIndices[light]].X = slot;
                 slot++;
             }

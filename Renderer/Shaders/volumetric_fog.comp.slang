@@ -267,9 +267,7 @@ float GetFogShadowFromTile(sampler2DShadow shadowMap, mat4 matWorldToShadow, vec
 // How much of a light reaches a position through its shadow map of the scene
 float GetFogShadow(int nShadowSlot, vec3 vPositionWs)
 {
-    float flShadow = GetFogShadowFromTile(g_tBarnLightShadowDepth, g_matLightWorldToShadow[nShadowSlot], g_vLightShadowOffsetScale[nShadowSlot], vPositionWs, false);
-
-    return mix(1.0, flShadow, GetLightShadowStrength(uint(nShadowSlot)));
+    return GetFogShadowFromTile(g_tBarnLightShadowDepth, g_matLightWorldToShadow[nShadowSlot], g_vLightShadowOffsetScale[nShadowSlot], vPositionWs, false);
 }
 
 // How much of a light reaches a position through its faces in the fog shadow atlas. The face of a point light is the
@@ -379,6 +377,12 @@ vec3 GetFogLight(int i, vec3 vPositionWs)
     else if (nStoreIndex >= 0 && light.vParams.y != 0.0 && g_vLightShadowParams[nStoreIndex].x >= 0.0)
     {
         flShadow = GetFogShadow(int(g_vLightShadowParams[nStoreIndex].x), vPositionWs);
+
+        // A stationary light's shadow is the mixed one, which fades between lights
+        if (uint(nStoreIndex) < g_nNumLights[0])
+        {
+            flShadow = mix(1.0, flShadow, g_flMixedShadowStrength);
+        }
 
         if (flShadow <= 0.0)
         {

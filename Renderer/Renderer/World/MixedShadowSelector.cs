@@ -96,6 +96,25 @@ public sealed class MixedShadowSelector
         return 0f;
     }
 
+    /// <summary>
+    /// Gets the strength of the one mixed shadow, of the light fading out until it is gone and then of the
+    /// light fading in. The two fades never overlap.
+    /// </summary>
+    public float Strength
+    {
+        get
+        {
+            var strength = Current != null ? GetStrength(Current) : 0f;
+
+            foreach (var (light, _) in fadingOut)
+            {
+                strength = MathF.Max(strength, GetStrength(light));
+            }
+
+            return strength;
+        }
+    }
+
     private static float Ease(float t) => (1f - MathF.Cos(t * MathF.PI)) * 0.5f;
 
     // The enabled hint around the viewer with the highest importance names the light, the nearest hint on a tie

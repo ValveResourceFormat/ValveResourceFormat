@@ -21,7 +21,9 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// <summary>Number of active barn lights in the scene.</summary>
         public uint NumBarnLights;
         /// <summary>Per-type light counts (index matches light type enum).</summary>
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)] private readonly uint[] NumLights;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)] private readonly uint[] NumLights;
+        /// <summary>How strongly the real-time shadow of the one mixed light shows, 0 to 1 as it fades between lights.</summary>
+        public float MixedShadowStrength = 1f;
         /// <summary>
         /// Surface-to-sun direction (XYZ) of the environment light, or zero when the scene has none, and the roughness its
         /// specular highlight is no sharper than (W).
@@ -29,7 +31,7 @@ namespace ValveResourceFormat.Renderer.Buffers
         public Vector4 SunDirection;
         /// <summary>Sun color: linear color premultiplied by brightness (RGB), render-specular flag (W).</summary>
         public Vector4 SunColor;
-        /// <summary>Sun baked shadow data: V2 stores the one-hot shadow channel mask, V1 stores the sun's baked light index 0-255 in X (-1 for none) and how far its real-time shadow has faded out in Y.</summary>
+        /// <summary>Sun baked shadow data: V2 stores the one-hot shadow channel mask, V1 stores the sun's baked light index 0-255 in X (-1 for none).</summary>
         public Vector4 SunLightBakedShadowMask;
         /// <summary>World-space position (XYZ) and type (W) for each light.</summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_LIGHTS)] public Vector4[] LightPosition_Type;
@@ -55,8 +57,6 @@ namespace ValveResourceFormat.Renderer.Buffers
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_SHADOWED_DYNAMIC_LIGHTS)] public Matrix4x4[] LightWorldToShadow;
         /// <summary>Shadow atlas offset (XY) and scale (ZW) of each shadowed dynamic light.</summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_SHADOWED_DYNAMIC_LIGHTS)] public Vector4[] LightShadowOffsetScale;
-        /// <summary>How strongly the shadow of each shadowed dynamic light darkens it, four slots to an element; set through <see cref="SetLightShadowStrength"/>.</summary>
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_SHADOWED_DYNAMIC_LIGHTS / 4)] public Vector4[] LightShadowStrength;
 
         /// <summary>Environment map constants: highest mip level (X), number of cubes (Y), RGBM encoding bool (Z).</summary>
         public Vector4 EnvMapSizeConstants;
@@ -86,17 +86,10 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// <summary>Gets or sets the total light count (static plus dynamic); dynamic lights occupy indices from <see cref="StaticLightCount"/> up to this value.</summary>
         public uint DynamicLightCount { get => NumLights[1]; set => NumLights[1] = value; }
 
-        /// <summary>Sets how strongly the shadow in a slot of <see cref="LightWorldToShadow"/> darkens its light, 1 for a full shadow.</summary>
-        public void SetLightShadowStrength(int slot, float strength)
-        {
-            ref var element = ref LightShadowStrength[slot / 4];
-            element[slot % 4] = strength;
-        }
-
         /// <summary>Initializes a new <see cref="LightingConstants"/> with all arrays allocated to their maximum sizes.</summary>
         public LightingConstants()
         {
-            NumLights = new uint[4];
+            NumLights = new uint[3];
             SunLightBakedShadowMask = new Vector4(-1f, 0f, 0f, 0f);
             LightPosition_Type = new Vector4[MAX_LIGHTS];
             LightDirection_InvRange = new Vector4[MAX_LIGHTS];
@@ -108,8 +101,6 @@ namespace ValveResourceFormat.Renderer.Buffers
             Array.Fill(LightShadowParams, new Vector4(-1f, -1f, 0f, 0f));
             LightWorldToShadow = new Matrix4x4[MAX_SHADOWED_DYNAMIC_LIGHTS];
             LightShadowOffsetScale = new Vector4[MAX_SHADOWED_DYNAMIC_LIGHTS];
-            LightShadowStrength = new Vector4[MAX_SHADOWED_DYNAMIC_LIGHTS / 4];
-            Array.Fill(LightShadowStrength, Vector4.One);
         }
     }
 }
