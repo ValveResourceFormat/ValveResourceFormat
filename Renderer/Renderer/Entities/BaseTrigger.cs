@@ -22,20 +22,23 @@ public abstract class BaseTrigger : BaseModelEntity
         /// <summary>NPCs may touch this trigger. Nothing here is an NPC yet.</summary>
         AllowNpcs = 2,
 
-        /// <summary>Pushable props may touch this trigger. Nothing here is pushable yet.</summary>
-        AllowPushables = 4,
+        /// <summary>Projectiles may touch this trigger. Nothing here is a projectile yet.</summary>
+        AllowProjectiles = 4,
 
-        /// <summary>Physics props may touch this trigger. Nothing here is a physics prop yet.</summary>
+        /// <summary>Physics objects other than debris may touch this trigger. Only a <c>trigger_push</c> acts on them.</summary>
         AllowPhysics = 8,
 
         /// <summary>Only players in a vehicle may touch this trigger. No player here drives one.</summary>
         OnlyClientsInVehicles = 32,
 
-        /// <summary>Everything may touch this trigger.</summary>
+        /// <summary>Everything but physics debris may touch this trigger.</summary>
         AllowAll = 64,
 
         /// <summary>Only players out of a vehicle may touch this trigger.</summary>
         OnlyClientsOutOfVehicles = 512,
+
+        /// <summary>Physics debris may touch this trigger. Only a <c>trigger_push</c> acts on it.</summary>
+        AllowPhysicsDebris = 1024,
     }
 
     // Passed the filters and not yet left. Touch links also open for filtered-out entities, and the

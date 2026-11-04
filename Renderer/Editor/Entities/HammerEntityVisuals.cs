@@ -145,6 +145,10 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
     }
 
     /// <inheritdoc/>
+    public SceneNode CreatePartCollisionVisual(Scene scene, PhysAggregateData physics, int partIndex, string? name)
+        => PhysSceneNode.CreatePartPhysSceneNode(scene, physics, partIndex, name);
+
+    /// <inheritdoc/>
     public IEnumerable<SceneNode> CreateCollisionVisuals(Scene scene, PhysAggregateData physics, string name, BaseEntity? entity)
     {
         // The class of an entity draws its volume with one material, as Hammer applies it to the faces of a new one

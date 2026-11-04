@@ -838,6 +838,7 @@ public abstract class SoundEvent
                 => new SoundEventHLVRDefault(definition),
             "hlvr_update_vo_default" or "hlvr_update_vo_combine" or "hlvr_music_2d" or "hlvr_music_3d"
                 => new SoundEventHLVRDefault(definition),
+            "hlvr_phys_impact_basic" => new SoundEventHLVRPhysImpact(definition),
             "hlvr_gun_layers_3d" or "hlvr_player_gun_layers_3d" => new SoundEventHLVRGunLayers(definition),
             "hlvr_start_soundevent" => new SoundEventHLVRStartSoundEvent(definition),
             "hlvr_animate_soundevent" => new SoundEventHLVRMulti(definition),

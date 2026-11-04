@@ -19,6 +19,9 @@ public sealed class EntityCollider
     /// <summary>Gets the collision shape, in the entity's local space.</summary>
     public Rubikon Shape { get; }
 
+    /// <summary>Gets the compiled physics the shape was built from, including spheres and capsules <see cref="Rubikon"/> does not trace.</summary>
+    public ResourceTypes.PhysAggregateData PhysicsData { get; }
+
     /// <summary>Gets the shape's bounds in local space.</summary>
     public AABB LocalBounds { get; }
 
@@ -47,9 +50,11 @@ public sealed class EntityCollider
 
     /// <summary>Builds a collider from a brush entity's compiled physics.</summary>
     /// <param name="physics">The entity model's physics aggregate.</param>
-    public EntityCollider(PhysAggregateData physics)
+    /// <param name="partIndex">The part to collide as, in its own space.</param>
+    public EntityCollider(PhysAggregateData physics, int partIndex = 0)
     {
-        Shape = new Rubikon(physics);
+        PhysicsData = physics;
+        Shape = new Rubikon(physics, partIndex);
         LocalBounds = ComputeBounds(Shape, out var isEmpty);
         IsEmpty = isEmpty;
         Transform = Matrix4x4.Identity;

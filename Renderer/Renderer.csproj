@@ -11,6 +11,8 @@
     <IsAotCompatible Condition="'$(Configuration)' != 'Debug'">true</IsAotCompatible>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateDocumentationFile Condition="'$(Configuration)' != 'Debug'">true</GenerateDocumentationFile>
+    <!-- Box3D.NET is not strong-named; the runtime does not enforce strong-name references -->
+    <NoWarn>$(NoWarn);CS8002</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -43,6 +45,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Box3D.NET" Version="0.5.1" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="$(BundledNETCoreAppPackageVersion)" />
     <PackageReference Include="NLayer" Version="3.0.0" />
     <PackageReference Include="OpenTK.Graphics" Version="4.9.4" />

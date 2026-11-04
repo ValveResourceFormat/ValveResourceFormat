@@ -27,6 +27,9 @@ public interface IPlayerController
     /// <summary>Gets the direction the player is looking.</summary>
     Vector3 ViewForward { get; }
 
+    /// <summary>Gets the view angles in degrees, with yaw kept when looking straight up or down.</summary>
+    Vector3 ViewAngles { get; }
+
     /// <summary>Gets the entity the player stands on, or null in the air.</summary>
     BaseEntity? GroundEntity { get; }
 
@@ -48,6 +51,9 @@ public interface IPlayerController
     /// </summary>
     void Push(Vector3 delta);
 
+    /// <summary>Sets the velocity added on top of player movement this tick, summed over all pushers.</summary>
+    void SetBaseVelocity(Vector3 velocity);
+
     /// <summary>
     /// Takes the buttons seen since the last call, reported against the state the previous call left.
     /// Called once per tick by the player entity.
@@ -57,4 +63,7 @@ public interface IPlayerController
 
     /// <summary>Moves the player outright, keeping their velocity. Null angles keep the current ones.</summary>
     void Teleport(Vector3 feetPosition, Vector3? angles);
+
+    /// <summary>Gets how many times the player has been moved outright, by a teleport or a reset.</summary>
+    int TeleportCount { get; }
 }
