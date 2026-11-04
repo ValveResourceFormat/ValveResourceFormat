@@ -160,15 +160,14 @@ float CalculateDynamicLightShadow(uint nShadowSlot, vec3 vPositionWs)
     return ComputeBarnLightShadow_PCF_3x3_Gaussian(vShadowUv, flShadowRef, vTexelSize);
 }
 
-// The factor a stationary light's baked strength takes from its real-time shadow, 1 for lights without one.
-// The mixed shadow fades in and out as it moves between lights.
+// The factor a stationary light's baked strength takes from its real-time shadow, 1 for lights without one
 float CalculateStationaryLightRealtimeShadow(uint nLightIndex, vec3 vPositionWs)
 {
     float flShadow = 1.0;
 
     if (float(nLightIndex) == g_vSunLightBakedShadowMask.x)
     {
-        flShadow = mix(1.0, CalculateSunShadowMapVisibility(vPositionWs), g_flMixedShadowStrength);
+        flShadow = CalculateSunShadowMapVisibility(vPositionWs);
     }
 #if (S_VR_FAST_PATH_LIGHTING)
     else
@@ -177,12 +176,15 @@ float CalculateStationaryLightRealtimeShadow(uint nLightIndex, vec3 vPositionWs)
 
         if (nShadowSlot >= 0)
         {
-            flShadow = mix(1.0, CalculateDynamicLightShadow(uint(nShadowSlot), vPositionWs), g_flMixedShadowStrength);
+            flShadow = CalculateDynamicLightShadow(uint(nShadowSlot), vPositionWs);
         }
     }
 #endif
 
-    return flShadow;
+    float flMixedShadowStrength = g_flMixedShadowStrength;
+    float flFadedShadow = mix(1.0, flShadow, flMixedShadowStrength);
+
+    return flFadedShadow;
 }
 
 // Per-pixel dynamic light evaluation for legacy lights
