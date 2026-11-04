@@ -157,7 +157,7 @@ public static class EntityFactory
     /// <typeparam name="T">The entity class the classname spawns.</typeparam>
     /// <param name="classname">The classname to link, matched case-insensitively.</param>
     /// <param name="creator">Constructs the entity.</param>
-    public static void Register<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.NonPublicMethods)] T>(
+    public static void Register<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.NonPublicMethodsWithInherited)] T>(
         string classname, EntityCreator creator)
         where T : BaseEntity
     {

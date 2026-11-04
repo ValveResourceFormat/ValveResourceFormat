@@ -23,7 +23,7 @@ internal static class EntityInputTable
     /// the handlers alive under trimming.
     /// </summary>
     /// <typeparam name="T">The entity class to scan.</typeparam>
-    public static void Bind<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.NonPublicMethods)] T>()
+    public static void Bind<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.NonPublicMethodsWithInherited)] T>()
         where T : BaseEntity
     {
         if (Tables.ContainsKey(typeof(T)))
@@ -36,20 +36,23 @@ internal static class EntityInputTable
 
         var handlers = new Dictionary<string, Action<BaseEntity, EntityInputData>>(StringComparer.OrdinalIgnoreCase);
 
-        // Includes inherited protected methods, so each entity keeps its bases' inputs
-        foreach (var method in typeof(T).GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+        // Walked base by base, as a private input of a base class is not among the methods its subclasses inherit
+        for (var type = typeof(T); type != null; type = type.BaseType)
         {
-            var attribute = method.GetCustomAttribute<EntityInputAttribute>();
-
-            if (attribute == null)
+            foreach (var method in type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
             {
-                continue;
+                var attribute = method.GetCustomAttribute<EntityInputAttribute>();
+
+                if (attribute == null)
+                {
+                    continue;
+                }
+
+                var handler = method.CreateDelegate<Action<T, EntityInputData>>();
+
+                // A duplicate input name is a mistake, so let Add throw
+                handlers.Add(attribute.Name, (entity, data) => handler((T)entity, data));
             }
-
-            var handler = method.CreateDelegate<Action<T, EntityInputData>>();
-
-            // A duplicate input name is a mistake, so let Add throw
-            handlers.Add(attribute.Name, (entity, data) => handler((T)entity, data));
         }
 
         Tables.TryAdd(typeof(T), handlers.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase));
