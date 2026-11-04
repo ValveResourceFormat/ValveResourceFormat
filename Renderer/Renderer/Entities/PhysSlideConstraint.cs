@@ -25,6 +25,7 @@ public sealed class PhysSlideConstraint : PhysConstraint
     private float closedTranslation;
     private float openTranslation;
     private float frictionForce;
+    private Vector3 slideDirection;
 
     /// <summary>Initializes a slide constraint from its keyvalues.</summary>
     public PhysSlideConstraint(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
@@ -80,9 +81,14 @@ public sealed class PhysSlideConstraint : PhysConstraint
         closedTranslation = slidesFirst ? travel : -travel;
         openTranslation = slidesFirst ? travel - length : length - travel;
         frictionForce = definition.MaxMotorForce;
+        slideDirection = slide / length;
 
         return slider.AsJoint;
     }
+
+    /// <inheritdoc/>
+    protected override bool IsPulledBackByGravity
+        => hasSlider && frictionForce < slidingBody.Mass * PhysicsSimulation.GravityValue * MathF.Abs(slideDirection.Z);
 
     /// <inheritdoc/>
     protected override DriveTuning Tuning => new(Speed: 60f, ApproachRate: 8f, ArriveTolerance: 0.25f, StallProgress: 0.1f);

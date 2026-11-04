@@ -41,8 +41,15 @@ public abstract class PhysConstraint : BaseEntity
     // is blocked, and ends where it is.
     private const float DriveStallTime = 0.3f;
 
+    // A body gravity would pull back is lifted slower, and held where it ends up as a hand would, until the
+    // player who pressed it is this far away
+    private const float LiftSpeedScale = 0.4f;
+    private const float HoldReleaseDistance = 120f;
+
     private Body drivenBody;
     private bool isDriving;
+    private bool isHolding;
+    private BaseEntity? presser;
     private float driveGoal;
     private float driveStallError;
     private float driveStallTimeLeft;
@@ -140,6 +147,9 @@ public abstract class PhysConstraint : BaseEntity
     {
     }
 
+    /// <summary>Gets whether the joint friction is too weak to keep the body from falling back where it is.</summary>
+    protected virtual bool IsPulledBackByGravity => false;
+
     /// <summary>Finds the active constraint holding <paramref name="body"/>.</summary>
     internal static PhysConstraint? FindHolding(EntitySystem system, Body body)
     {
@@ -156,7 +166,7 @@ public abstract class PhysConstraint : BaseEntity
     }
 
     /// <summary>Runs <paramref name="body"/> to whichever end of its travel it is further from, as a press opens or shuts a drawer or cabinet door.</summary>
-    internal void Press(Body body)
+    internal void Press(Body body, BaseEntity? activator)
     {
         if (!hasJoint || !joint.IsValid || !TryGetTravel(body, out var position, out var firstEnd, out var secondEnd))
         {
@@ -164,33 +174,62 @@ public abstract class PhysConstraint : BaseEntity
         }
 
         drivenBody = body;
+        presser = activator;
         driveGoal = MathF.Abs(position - firstEnd) < MathF.Abs(position - secondEnd) ? secondEnd : firstEnd;
         isDriving = true;
+        isHolding = false;
         driveStallError = MathF.Abs(driveGoal - position);
         driveStallTimeLeft = DriveStallTime;
         Drive(position);
     }
 
-    /// <summary>Stops a run a press started, leaving the body to whatever holds it.</summary>
+    /// <summary>Stops a run a press started, or the hold after it, leaving the body to whatever holds it.</summary>
     internal void StopDrive()
     {
-        if (!isDriving)
+        if (!isDriving && !isHolding)
         {
             return;
         }
 
         isDriving = false;
+        isHolding = false;
+        presser = null;
 
         if (hasJoint && joint.IsValid)
         {
             SetDriveSpeed(null);
+            drivenBody.IsAwake = true;
         }
     }
 
     private void Drive(float position)
     {
         var error = driveGoal - position;
-        SetDriveSpeed(MathF.CopySign(MathF.Min(Tuning.Speed, MathF.Abs(error) * Tuning.ApproachRate), error));
+        var speed = IsPulledBackByGravity ? Tuning.Speed * LiftSpeedScale : Tuning.Speed;
+        SetDriveSpeed(MathF.CopySign(MathF.Min(speed, MathF.Abs(error) * Tuning.ApproachRate), error));
+    }
+
+    // Arrived or blocked: a body that would fall back stays put while the presser is near
+    private void EndDrive()
+    {
+        if (presser == null || !IsPulledBackByGravity)
+        {
+            StopDrive();
+            return;
+        }
+
+        isDriving = false;
+        isHolding = true;
+        SetDriveSpeed(0f);
+    }
+
+    private void UpdateHold()
+    {
+        if (presser is not { IsRemoved: false } holder || !drivenBody.IsValid
+            || Vector3.Distance(holder.WorldOrigin, drivenBody.CenterOfMass) > HoldReleaseDistance)
+        {
+            StopDrive();
+        }
     }
 
     private void UpdateDrive(float tickInterval)
@@ -205,7 +244,7 @@ public abstract class PhysConstraint : BaseEntity
 
         if (error <= Tuning.ArriveTolerance)
         {
-            StopDrive();
+            EndDrive();
             return;
         }
 
@@ -216,7 +255,7 @@ public abstract class PhysConstraint : BaseEntity
         }
         else if ((driveStallTimeLeft -= tickInterval) <= 0f)
         {
-            StopDrive();
+            EndDrive();
             return;
         }
 
@@ -361,6 +400,10 @@ public abstract class PhysConstraint : BaseEntity
         {
             UpdateDrive(tickInterval);
         }
+        else if (isHolding)
+        {
+            UpdateHold();
+        }
     }
 
     private void Break(BaseEntity? activator)
@@ -389,6 +432,8 @@ public abstract class PhysConstraint : BaseEntity
 
         hasJoint = false;
         isDriving = false;
+        isHolding = false;
+        presser = null;
 
         if (hasWorldFreedBody)
         {

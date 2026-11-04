@@ -285,7 +285,7 @@ public sealed class PlayerEntity : BaseEntity
             return false;
         }
 
-        constraint.Press(body);
+        constraint.Press(body, this);
         return true;
     }
 
