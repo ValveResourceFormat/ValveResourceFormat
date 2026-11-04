@@ -2195,13 +2195,6 @@ public class Renderer : ISceneHost
         renderContext.Framebuffer = target;
 
         SetViewportConstants(target.Width, target.Height, downsample);
-
-        if (layer == RenderLayer.WaterEffects)
-        {
-            // Data rather than an image: fog would write its color into the ripple and foam channels.
-            Scene.FogInfo.SetFogUniforms(ViewBuffer.Data, viewerFogEnabled: false, FogSpace.World);
-        }
-
         ViewBuffer.Update();
 
         SeedDepthFromScene(downsample);
@@ -2224,12 +2217,21 @@ public class Renderer : ISceneHost
                     continue;
                 }
 
+                SetViewConstants(view, state);
+
+                if (layer == RenderLayer.WaterEffects)
+                {
+                    // disable fog here
+                    Scene.FogInfo.SetFogUniforms(ViewBuffer.Data, viewerFogEnabled: false, FogSpace.World);
+                }
+
                 state.Scene.SetSceneBuffers();
                 state.LightBinner.Bind();
 
                 SetLightCullConstants(state, targetRemap);
                 ViewBuffer.Update();
 
+                renderContext.Camera = view.Camera;
                 renderContext.Scene = state.Scene;
                 renderContext.View = state;
 
