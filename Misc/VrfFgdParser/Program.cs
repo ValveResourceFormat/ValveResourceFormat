@@ -49,6 +49,7 @@ HashSet<string> editorModelClasses =
     "info_player_start_badguys",
     "info_roquelaire_perch",
     "func_nav_gen_proj",
+    "prop_handpose",
 ];
 
 // The table the library embeds is written over, and the games not installed here keep the classes it has of them
@@ -377,9 +378,17 @@ void FixValveShit(KVObject data)
 
     foreach (var helper in helpers)
     {
-        if (helper.GetStringProperty("name") is "model" or "studio")
+        if (helper.GetStringProperty("name") is not ("model" or "studio"))
         {
-            helper["name"] = new KVObject("editormodel");
+            continue;
+        }
+
+        helper["name"] = new KVObject("editormodel");
+
+        // model("editormodel") names no model, so the entity's own is drawn
+        if (helper.GetArray("arguments") is [{ } placeholder] && placeholder.ToString() == "editormodel")
+        {
+            helper.Remove("arguments");
         }
     }
 }

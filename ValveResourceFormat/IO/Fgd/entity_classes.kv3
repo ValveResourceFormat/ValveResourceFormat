@@ -12478,11 +12478,7 @@
 			helpers = 
 			[
 				{
-					name = "model"
-					arguments = 
-					[
-						"editormodel",
-					]
+					name = "editormodel"
 				},
 				{
 					name = "vecline_local"
