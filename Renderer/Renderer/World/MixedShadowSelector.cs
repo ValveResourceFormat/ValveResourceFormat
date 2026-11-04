@@ -166,6 +166,6 @@ public sealed class MixedShadowSelector
             }
         }
 
-        return best ?? (sun is { MixedShadows: true } ? sun : null);
+        return best ?? sun;
     }
 }
