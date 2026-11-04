@@ -47,7 +47,6 @@ public static class EntityFactory
         Register<PropDoorRotatingPhysics>("prop_door_rotating_physics", static (system, spawnInfo) => new PropDoorRotatingPhysics(system, spawnInfo));
         Register<PropDynamic>("prop_dynamic", static (system, spawnInfo) => new PropDynamic(system, spawnInfo));
         Register<PropDynamic>("prop_dynamic_override", static (system, spawnInfo) => new PropDynamic(system, spawnInfo));
-        Register<GenericEntity>("prop_handpose", static (system, spawnInfo) => new GenericEntity(system, spawnInfo));
         Register<NpcVrCitizen>("npc_vr_citizen_female", static (system, spawnInfo) => new NpcVrCitizen(system, spawnInfo));
         Register<NpcVrCitizen>("npc_vr_citizen_male", static (system, spawnInfo) => new NpcVrCitizen(system, spawnInfo));
         Register<NpcBossTier3>("npc_boss_tier3", static (system, spawnInfo) => new NpcBossTier3(system, spawnInfo));
