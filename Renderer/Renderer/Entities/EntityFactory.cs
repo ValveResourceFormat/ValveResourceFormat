@@ -29,6 +29,8 @@ public static class EntityFactory
 
         Register<InfoWorldLayer>("info_world_layer", static (system, spawnInfo) => new InfoWorldLayer(system, spawnInfo));
         Register<InfoVisibilityBox>("info_visibility_box", static (system, spawnInfo) => new InfoVisibilityBox(system, spawnInfo));
+        Register<InfoDynamicShadowHint>("info_dynamic_shadow_hint", static (system, spawnInfo) => new InfoDynamicShadowHint(system, spawnInfo));
+        Register<InfoDynamicShadowHint>("info_dynamic_shadow_hint_box", static (system, spawnInfo) => new InfoDynamicShadowHint(system, spawnInfo));
 
         Register<FuncBrush>("func_brush", static (system, spawnInfo) => new FuncBrush(system, spawnInfo));
         Register<FuncWater>("func_water", static (system, spawnInfo) => new FuncWater(system, spawnInfo));

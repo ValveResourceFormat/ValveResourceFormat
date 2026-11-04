@@ -167,7 +167,7 @@ float CalculateStationaryLightRealtimeShadow(uint nLightIndex, vec3 vPositionWs)
 
     if (float(nLightIndex) == g_vSunLightBakedShadowMask.x)
     {
-        flShadow = CalculateSunShadowMapVisibility(vPositionWs);
+        flShadow = mix(CalculateSunShadowMapVisibility(vPositionWs), 1.0, g_vSunLightBakedShadowMask.y);
     }
 #if (S_VR_FAST_PATH_LIGHTING)
     else
@@ -176,7 +176,8 @@ float CalculateStationaryLightRealtimeShadow(uint nLightIndex, vec3 vPositionWs)
 
         if (nShadowSlot >= 0)
         {
-            flShadow = CalculateDynamicLightShadow(uint(nShadowSlot), vPositionWs);
+            // The mixed shadow fades in and out as it moves between lights
+            flShadow = mix(1.0, CalculateDynamicLightShadow(uint(nShadowSlot), vPositionWs), GetLightShadowStrength(uint(nShadowSlot)));
         }
     }
 #endif

@@ -15,7 +15,7 @@ layout(std140, binding = 1) uniform LightingConstants {
     uvec4 g_nNumLights;
     vec4 g_vSunDirection;            // xyz: surface-to-sun, zero when the scene has no sun. w: min roughness
     vec4 g_vSunColor;                // rgb: color * brightness, a: flags
-    vec4 g_vSunLightBakedShadowMask; // one-hot baked shadow channel mask, or the baked light index in x (-1 none)
+    vec4 g_vSunLightBakedShadowMask; // one-hot baked shadow channel mask, or the baked light index in x (-1 none) and how far its real-time shadow has faded out in y
     vec4[MAX_LIGHTS] g_vLightPosition_Type;
     vec4[MAX_LIGHTS] g_vLightDirection_InvRange;
     mat4[MAX_LIGHTS] g_matLightToWorld;
@@ -25,6 +25,7 @@ layout(std140, binding = 1) uniform LightingConstants {
     vec4[MAX_LIGHTS] g_vLightShadowParams; // x: slot in the shadow arrays below, -1 for none. y: cookie slice, -1 for none. z: 1 / tan(outer cone angle). w: fast path mode, -1 unlit, 0 full, 1 diffuse only
     mat4[MAX_SHADOWED_DYNAMIC_LIGHTS] g_matLightWorldToShadow;
     vec4[MAX_SHADOWED_DYNAMIC_LIGHTS] g_vLightShadowOffsetScale; // xy: atlas offset, zw: atlas scale
+    vec4[MAX_SHADOWED_DYNAMIC_LIGHTS / 4] g_vLightShadowStrength; // one per shadow slot, four to an element
 
     vec4 g_vEnvMapSizeConstants;
 
@@ -35,6 +36,12 @@ layout(std140, binding = 1) uniform LightingConstants {
     vec4 g_vSpecularAlbedoColor;     // rgb: specular color whose highlight is lit with the albedo
     vec4 g_vSpecularLitColor;        // rgb: specular color whose highlight is added where the sun reaches
 };
+
+// How strongly the shadow in a slot darkens its light, 0 while a mixed shadow is faded out
+float GetLightShadowStrength(uint nShadowSlot)
+{
+    return g_vLightShadowStrength[nShadowSlot / 4u][nShadowSlot % 4u];
+}
 
 // The lightmap atlas coordinates in xy, and a hash of the unscaled coordinates in zw. The hash only
 // interpolates to a constant across a triangle whose vertices all share one lightmap position.

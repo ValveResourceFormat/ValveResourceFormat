@@ -267,7 +267,9 @@ float GetFogShadowFromTile(sampler2DShadow shadowMap, mat4 matWorldToShadow, vec
 // How much of a light reaches a position through its shadow map of the scene
 float GetFogShadow(int nShadowSlot, vec3 vPositionWs)
 {
-    return GetFogShadowFromTile(g_tBarnLightShadowDepth, g_matLightWorldToShadow[nShadowSlot], g_vLightShadowOffsetScale[nShadowSlot], vPositionWs, false);
+    float flShadow = GetFogShadowFromTile(g_tBarnLightShadowDepth, g_matLightWorldToShadow[nShadowSlot], g_vLightShadowOffsetScale[nShadowSlot], vPositionWs, false);
+
+    return mix(1.0, flShadow, GetLightShadowStrength(uint(nShadowSlot)));
 }
 
 // How much of a light reaches a position through its faces in the fog shadow atlas. The face of a point light is the
