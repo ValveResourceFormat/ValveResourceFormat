@@ -37,10 +37,6 @@ public sealed class MixedShadowSelector
     }
 
     /// <summary>Advances the fades, and picks the light again once the viewer has moved far enough.</summary>
-    /// <param name="viewPosition">The position of the viewer.</param>
-    /// <param name="deltaTime">Seconds since the last update.</param>
-    /// <param name="localLights">Stationary local lights that can cast the mixed shadow.</param>
-    /// <param name="sun">The environment light when it can cast the mixed shadow, otherwise <see langword="null"/>.</param>
     internal void Update(Vector3 viewPosition, float deltaTime, List<SceneLight> localLights, SceneLight? sun)
     {
         time += deltaTime;

@@ -891,8 +891,6 @@ namespace ValveResourceFormat.Renderer.World
         /// Picks the light with the mixed shadow from the viewer position and advances the fade between picks.
         /// Only scenes lit by the VR light binner have one.
         /// </summary>
-        /// <param name="viewPosition">The position of the viewer.</param>
-        /// <param name="deltaTime">Seconds since the last update.</param>
         public void UpdateMixedShadows(Vector3 viewPosition, float deltaTime)
         {
             if (!usesUniformLightStore || !scene.RendererContext.FileLoader.GameInfo.VrLightBinnerSingleLightFastPath)
