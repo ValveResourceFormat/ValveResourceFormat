@@ -150,6 +150,7 @@ public static class EntityFactory
         Register<LogicBranchListener>("logic_branch_listener", static (system, spawnInfo) => new LogicBranchListener(system, spawnInfo));
         Register<LogicCase>("logic_case", static (system, spawnInfo) => new LogicCase(system, spawnInfo));
         Register<LogicCompare>("logic_compare", static (system, spawnInfo) => new LogicCompare(system, spawnInfo));
+        Register<LogicChoreographedScene>("logic_choreographed_scene", static (system, spawnInfo) => new LogicChoreographedScene(system, spawnInfo));
         Register<LogicRelay>("logic_relay", static (system, spawnInfo) => new LogicRelay(system, spawnInfo));
         Register<LogicTimer>("logic_timer", static (system, spawnInfo) => new LogicTimer(system, spawnInfo));
         Register<MathCounter>("math_counter", static (system, spawnInfo) => new MathCounter(system, spawnInfo));
