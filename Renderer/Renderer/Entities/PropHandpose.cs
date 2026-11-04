@@ -8,9 +8,10 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>prop_handpose</c>. A spot where a hand takes a pose to poke, press or hold something, firing
 /// <c>OnHandPosed</c> and <c>OnHandUnPosed</c>. A use tap poses it briefly, a held use keeps it posed until let go.
 /// Only poses that fire either output can be used, and not those on a simulated body, which use grabs instead.
+/// Its model only shows the pose in the editor, so nothing is drawn for it here.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/hlvr/server/CHandPose">CHandPose</seealso>
-public sealed class PropHandpose : BaseModelEntity, IAimGrabbable
+public sealed class PropHandpose : BaseEntity, IAimGrabbable
 {
     // How far from the pose the aim may pass, as a reaching hand closes the gap
     private const float AimRadius = 8f;
@@ -32,9 +33,6 @@ public sealed class PropHandpose : BaseModelEntity, IAimGrabbable
     public PropHandpose(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
     {
     }
-
-    /// <inheritdoc/>
-    protected override bool BuildsCollider => false;
 
     /// <inheritdoc/>
     public override void Spawn()
