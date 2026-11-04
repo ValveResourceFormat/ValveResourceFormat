@@ -5,7 +5,7 @@ namespace ValveResourceFormat.Renderer.World;
 
 /// <summary>
 /// Picks the one stationary light whose real-time shadow is drawn over its baked shadows, as the VR light
-/// binner does. A new pick waits for the previous light's shadow to fade out, then fades in.
+/// binner does. A new pick waits for the shadow of the previous light to fade out, then fades in.
 /// </summary>
 public sealed class MixedShadowSelector
 {
@@ -144,7 +144,7 @@ public sealed class MixedShadowSelector
     }
 
     // Without a hint, the nearest light authored with mixed shadows that reaches the viewer, otherwise the
-    // sun. This stands in for the binner's score of the shadows each light casts from the objects nearby.
+    // sun. This stands in for how the binner scores each light by the shadows of the objects nearby.
     private static SceneLight? PickNearest(Vector3 viewPosition, List<SceneLight> localLights, SceneLight? sun)
     {
         SceneLight? best = null;

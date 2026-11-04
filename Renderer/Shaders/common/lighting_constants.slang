@@ -16,7 +16,7 @@ layout(std140, binding = 1) uniform LightingConstants {
     float g_flMixedShadowStrength;   // how strongly the real-time shadow of the one mixed light shows, 0 to 1 as it fades between lights
     vec4 g_vSunDirection;            // xyz: surface-to-sun, zero when the scene has no sun. w: min roughness
     vec4 g_vSunColor;                // rgb: color * brightness, a: flags
-    vec4 g_vSunLightBakedShadowMask; // one-hot baked shadow channel mask,, or the baked light index in x (-1 none)
+    vec4 g_vSunLightBakedShadowMask; // one-hot baked shadow channel mask, or the baked light index in x (-1 none)
     vec4[MAX_LIGHTS] g_vLightPosition_Type;
     vec4[MAX_LIGHTS] g_vLightDirection_InvRange;
     mat4[MAX_LIGHTS] g_matLightToWorld;
