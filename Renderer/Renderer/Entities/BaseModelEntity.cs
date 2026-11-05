@@ -224,17 +224,18 @@ public abstract class BaseModelEntity : BaseEntity
     // model, which a model with a spawn config is built from even when the entity has no model state
     private void ApplyModelState(Model model, ModelSceneNode node)
     {
-        var modelState = Data?.GetStringProperty("model_state") is { Length: > 0 } text
-            && KVDocumentExtensions.TryParseKV3WithoutHeader(text, out var block, out _) && block.ValueType == KVValueType.Collection
-                ? block
-                : null;
+        var modelState = ParseCollectionProperty("model_state");
 
         if (modelState?.GetStringProperty("material_group") is { Length: > 0 } materialGroup)
         {
             node.SetMaterialGroup(materialGroup);
         }
 
-        if (modelState?.GetSubCollection("body_groups") is { ValueType: KVValueType.Collection } bodyGroups)
+        var bodyGroups = modelState?.GetSubCollection("body_groups") is { ValueType: KVValueType.Collection } stateBodyGroups
+            ? stateBodyGroups
+            : ParseCollectionProperty("bodygroups");
+
+        if (bodyGroups != null)
         {
             foreach (var (name, value) in bodyGroups)
             {
@@ -249,6 +250,12 @@ public abstract class BaseModelEntity : BaseEntity
             AddConfigModels(node, result);
         }
     }
+
+    private KVObject? ParseCollectionProperty(string key)
+        => Data?.GetStringProperty(key) is { Length: > 0 } text
+            && KVDocumentExtensions.TryParseKV3WithoutHeader(text, out var block, out _) && block.ValueType == KVValueType.Collection
+                ? block
+                : null;
 
     // The game picks at random on every spawn, while a viewer that picks the same for an entity on every load
     // shows a map the same way each time it is opened
