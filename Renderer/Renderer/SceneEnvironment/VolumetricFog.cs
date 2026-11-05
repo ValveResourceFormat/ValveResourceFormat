@@ -390,9 +390,9 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// <summary>Lights and accumulates the fog for the view that is bound.</summary>
         /// <param name="scene">The scene whose lights light the fog.</param>
         /// <param name="camera">The view the fog is built for.</param>
-        /// <param name="shadowDepth">The shadow atlas of the scene's spot lights, or <see langword="null"/> if it has none.</param>
+        /// <param name="shadowDepth">The shadow atlas of the scene's spot lights.</param>
         /// <param name="fogShadowDepth">The atlas the <see cref="ShadowFaces"/> were rendered into, or <see langword="null"/> if there are none.</param>
-        public void Render(Scene scene, Camera camera, RenderTexture? shadowDepth, RenderTexture? fogShadowDepth)
+        public void Render(Scene scene, Camera camera, RenderTexture shadowDepth, RenderTexture? fogShadowDepth)
         {
             var cameraPosition = camera.Location;
             var hasPreparedLights = lightsPrepared;
@@ -472,18 +472,20 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
 
             scene.LightingInfo.BindLightCookieVolume();
 
-            if (shadowDepth != null)
-            {
-                GL.BindTextureUnit((int)ReservedTextureSlots.BarnLightShadowDepth, shadowDepth.Handle);
-            }
+            GL.BindTextureUnit((int)ReservedTextureSlots.BarnLightShadowDepth, shadowDepth.Handle);
+
+            // Bound even without fog shadows, so the shadow sampler never sees a material texture left on the unit
+            var fogShadowAtlas = shadowDepth;
 
             if (fogShadowDepth != null && shadowSlotCount > 0)
             {
                 shadowFaceBuffer ??= StorageBuffer.Allocate<FogShadowFaceGpu>(ReservedBufferSlots.FogShadowFaces, "FogShadowFaces", LightBudget * CubeFaceCount, BufferUsage.Dynamic);
                 shadowFaceBuffer.Update<FogShadowFaceGpu>(shadowFaceGpu.AsSpan(0, shadowSlotCount), 0);
                 shadowFaceBuffer.BindBufferBase();
-                GL.BindTextureUnit(ShadowTextureUnit, fogShadowDepth.Handle);
+                fogShadowAtlas = fogShadowDepth;
             }
+
+            GL.BindTextureUnit(ShadowTextureUnit, fogShadowAtlas.Handle);
 
             GL.BindImageTexture(0, volume.Handle, 0, true, 0, TextureAccess.WriteOnly, SizedInternalFormat.Rgba16f);
             GL.DispatchCompute(MathUtils.DivideRoundUp(GridWidth, 8), MathUtils.DivideRoundUp(GridHeight, 8), 1);
