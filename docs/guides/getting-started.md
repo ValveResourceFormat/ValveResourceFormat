@@ -67,9 +67,7 @@ Right-click a file to export it:
     - Materials: `.vmat`
     - Other files: their text format
 
-Pick the format in **Save as type**. For a model, **glTF** or **glTF Binary** gives a file you can open in Blender. For a map, a warning about what decompiled maps lack comes first.
-
-![Save dialog for the AK-47 model with the Save as type list open, offering vmdl, glTF and glTF Binary](./images/getting-started-export-save-dialog.webp)
+Pick the format in the output types dialog. For a model, **gltf** or **glb** gives a file you can open in Blender, which you then save where you choose. Every other format asks for a folder, and the file is written at its path in the game below it, such as `weapons/models/ak47/weapon_rif_ak47.vmdl`. For a map, a warning about what decompiled maps lack comes first.
 
 A window shows the progress and tells you when the export is done.
 

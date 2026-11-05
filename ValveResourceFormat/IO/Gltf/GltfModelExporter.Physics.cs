@@ -533,7 +533,7 @@ public partial class GltfModelExporter
         ExportedTextures[textureName] = texture;
 
         var pngBytes = TextureExtract.ToPngImage(bitmap);
-        TextureExportingTasks.Add(LinkAndSaveImage(image, pngBytes));
+        LinkAndSaveImage(image, pngBytes);
 
         return texture;
     }

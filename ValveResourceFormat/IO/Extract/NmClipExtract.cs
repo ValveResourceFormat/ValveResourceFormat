@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using ValveKeyValue;
@@ -60,17 +59,9 @@ public class NmClipExtract
 
         var (skeleton, secondaryAnimations, documentFileName, sourceFileName) = Sources;
 
-        var dmxFileName = Path.ChangeExtension(resource.FileName, ".dmx");
-        Debug.Assert(dmxFileName != null);
-        var dmxSubFileName = Path.GetFileName(dmxFileName);
-
-        if (documentFileName != null && sourceFileName != null && !separateFromSharedSource)
+        if (documentFileName == null || sourceFileName == null || separateFromSharedSource)
         {
-            dmxSubFileName = ContentFile.GetSubFileName(documentFileName, sourceFileName);
-        }
-        else
-        {
-            sourceFileName = NormalizeContentPath(dmxFileName);
+            sourceFileName = ContentPaths.ChangeExtension(resource.FileName!, ".dmx");
         }
 
         kv.Add("_class", "CNmClipDocument");
@@ -105,7 +96,7 @@ public class NmClipExtract
             if (sharedSourceStartFrame == null)
             {
                 contentFile.AddSubFile(
-                    dmxSubFileName,
+                    sourceFileName,
                     () => ModelExtract.ToDmxAnim(skeleton, [], animation, secondaryAnimations, nmSkelAxisFixup: true, keepClothProxyBones: true, composeAdditive)
                 );
             }
@@ -366,7 +357,7 @@ public class NmClipExtract
         {
             foreach (var dependency in skeletonResource.EditInfo.InputDependencies)
             {
-                skeletonSourceFiles.Add(NormalizeContentPath(dependency.ContentRelativeFilename));
+                skeletonSourceFiles.Add(ContentPaths.Normalize(dependency.ContentRelativeFilename));
             }
         }
 
@@ -395,7 +386,7 @@ public class NmClipExtract
 
         foreach (var dependency in resource.EditInfo.InputDependencies)
         {
-            var file = NormalizeContentPath(dependency.ContentRelativeFilename);
+            var file = ContentPaths.Normalize(dependency.ContentRelativeFilename);
 
             if (file.EndsWith(".vnmclip", StringComparison.OrdinalIgnoreCase))
             {
@@ -503,8 +494,6 @@ public class NmClipExtract
 
         return smallestDeviation <= IdentityTolerance ? baseFrame : -1;
     }
-
-    private static string NormalizeContentPath(string path) => path.Replace('\\', '/');
 
     /// <summary>
     /// Rebuilds the doc event track a compiled float curve came from. The compiler bakes a

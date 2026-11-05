@@ -109,12 +109,12 @@ in the Dump column.
 | vcs (compiled shader)              | Combo/parameter browser; `.vfx` reconstruction; per-stage source for GL and Vulkan platforms (see [Shaders](#shaders-vcs))                                                                                    |
 | SPIR-V `.spv`                      | Decompiled via SPIRV-Cross to HLSL (or GLSL), same as Vulkan vcs stages                                                                                                                                       |
 | dat (VCCD closed captions)         | Grid view; export to `.txt` KV1 (caption keys are lost, see [below](#choreo-captions-and-ui))                                                                                                                 |
-| bin (tools asset info)             | Text dump of the per-asset dependency and search data (an embedded KV3 segment in newer files is parsed but not dumped)                                                                                       |
-| vfont                              | Decrypted to the original TTF/OTF (CLI, and single-file export in the GUI)                                                                                                                                    |
-| uifont (CS:GO/CS2 UI font package) | Embedded fonts decrypted and extracted exactly (CLI, and single-file export in the GUI for single-font packages)                                                                                              |
+| bin (tools asset info)             | Text dump of the per-asset dependency and search data, decompiled to `.txt` (an embedded KV3 segment in newer files is parsed but not dumped)                                                                 |
+| vfont                              | Decrypted to the original TTF/OTF (CLI and GUI exports)                                                                                                                                                       |
+| uifont (CS:GO/CS2 UI font package) | Embedded fonts decrypted and extracted exactly (CLI and GUI exports)                                                                                                                                          |
 | vfe (flex scene file)              | Text view; export to a `.txt` dump                                                                                                                                                                            |
-| nav (navigation mesh)              | 3D view; export to `.glb`                                                                                                                                                                                     |
-| navspace (navigation space)        | 3D view of the blocks, transitions and occupied grid cells as layers; text info dump                                                                                                                          |
+| nav (navigation mesh)              | 3D view; export to `.glb`, or to `.gltf` with the glTF output                                                                                                                                                 |
+| navspace (navigation space)        | 3D view of the blocks, transitions and occupied grid cells as layers; text info dump, decompiled to `.txt`                                                                                                    |
 | navflowmap (navigation flow map)   | KV3 text dump; clusters drawn over the navigation mesh as layers                                                                                                                                              |
 | gnv (Dota grid navigation)         | Text info dump                                                                                                                                                                                                |
 | bvcd (binary choreo)               | Parsed as part of vcdlist                                                                                                                                                                                     |
@@ -123,6 +123,11 @@ in the Dump column.
 | Binary KeyValues3 (all versions)   | Text dump; backbone of the generic fallback above; writing supported                                                                                                                                          |
 | KeyValues3 text                    | Highlighted text view; Animgraph 1 graph documents also open in the graph viewer                                                                                                                              |
 | Binary resource writing            | Basic re-serialization of resources back to the compiled binary format (`Resource.Serialize`), for a subset of block types (binary KV3, plaintext, Panorama, external reference lists, and raw binary blocks) |
+
+## Output Paths
+
+Decompiled files are written at their content path below the output folder, see
+[output paths](./command-line.md#output-paths).
 
 ## Models (vmdl)
 
@@ -190,6 +195,12 @@ per-face texture projection, static props with their original properties, materi
 paint/vertex lighting buffers, aggregate props
 split back into individual entities, world layers, overlays, and per-surface-property
 physics geometry for collision that has no matching render mesh.
+
+Pieces that only the compiled map has are not written: the world, world nodes, `vrman`,
+`vvis`, world physics, entity lumps `.vents`, and the baked lightmaps, cubemaps and light
+probes. Prop models and materials from outside the map's folder (`maps/<map>/`) are only
+written with **Include dependencies** or `--decompile_dependencies`. They only come from the
+same package.
 
 Data that was already destroyed by the map compiler, and therefore cannot come back:
 
@@ -381,7 +392,7 @@ other graphs of the file or, for one graph per file, the graphs of the folder.
 ## Choreo, Captions, and UI
 
 - **Choreo** (`vcdlist`): scenes, actors, events, and flex curves are fully parsed. Scenes
-  are emitted as KV3 `.vcd`.
+  are emitted as KV3 `.vcd` at `scenes/<scene name>`.
 - **Closed captions**: caption text is recovered in full, but the compiled file stores only
   a CRC32 hash of each caption key, so exports are keyed by hash. The original key strings
   are not in the file.

@@ -145,7 +145,7 @@ namespace ValveResourceFormat.Renderer.World
             var renderContext = scene.RendererContext;
             Resource? mapResource = null;
 
-            if (mapResourceName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.OrdinalIgnoreCase))
+            if (ContentPaths.HasCompiledSuffix(mapResourceName))
             {
                 mapResource = renderContext.FileLoader.LoadFile(mapResourceName);
             }
@@ -182,7 +182,7 @@ namespace ValveResourceFormat.Renderer.World
 
         private WorldLoader(WorldResource world, Scene scene, EntitySystem entitySystem, Matrix4x4 rootTransform, bool ownsScene)
         {
-            MapName = Path.GetDirectoryName(world.Resource!.FileName!)!.Replace('\\', '/');
+            MapName = ContentPaths.GetDirectoryName(world.Resource!.FileName!);
             World = world;
             this.scene = scene;
             this.entitySystem = entitySystem;
@@ -450,7 +450,7 @@ namespace ValveResourceFormat.Renderer.World
             {
                 Debug.Assert(physResource?.FileName != null);
 
-                foreach (var node in entitySystem.ToolVisuals?.CreateCollisionVisuals(scene, phys, physResource.FileName[..^2], null) ?? [])
+                foreach (var node in entitySystem.ToolVisuals?.CreateCollisionVisuals(scene, phys, ContentPaths.TrimCompiledSuffix(physResource.FileName), null) ?? [])
                 {
                     node.Transform = rootTransform;
                     node.Layers = [PhysicsDebugLayer];
@@ -752,12 +752,7 @@ namespace ValveResourceFormat.Renderer.World
         {
             ArgumentNullException.ThrowIfNull(targetMapName);
 
-            var name = targetMapName.Replace('\\', '/');
-
-            if (name.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.OrdinalIgnoreCase))
-            {
-                name = name[..^GameFileLoader.CompiledFileSuffix.Length];
-            }
+            var name = ContentPaths.TrimCompiledSuffix(targetMapName.Replace('\\', '/'));
 
             if (name.EndsWith(".vmap", StringComparison.OrdinalIgnoreCase))
             {
@@ -884,7 +879,7 @@ namespace ValveResourceFormat.Renderer.World
                 return;
             }
 
-            var bombDamagePath = Path.Combine(MapName, "baked_bomb_damage.vdata_c");
+            var bombDamagePath = $"{MapName}/baked_bomb_damage.vdata_c";
             try
             {
                 using var bombDamageFile = RendererContext.FileLoader.LoadFile(bombDamagePath);
@@ -941,9 +936,7 @@ namespace ValveResourceFormat.Renderer.World
         /// <param name="mapName">Path to the map, with or without the compiled file suffix.</param>
         public static string GetWorldNameFromMap(string mapName)
         {
-            mapName = mapName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.InvariantCultureIgnoreCase)
-                ? mapName[..^GameFileLoader.CompiledFileSuffix.Length]
-                : mapName;
+            mapName = ContentPaths.TrimCompiledSuffix(mapName);
 
             const string VmapExtension = ".vmap";
             return $"{mapName[..^VmapExtension.Length]}/world.vwrld";

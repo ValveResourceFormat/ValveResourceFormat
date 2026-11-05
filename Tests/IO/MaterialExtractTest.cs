@@ -79,11 +79,9 @@ namespace Tests.IO
         public async Task ToMaterialMapsHdrCubemap([Matrix] bool withUnpackInfo)
         {
             var file = TestFixtures.Path("Textures", "cubemap.vtex_c");
-            using var resource = new Resource
-            {
-                FileName = file,
-            };
+            using var resource = new Resource();
             resource.Read(file);
+            resource.FileName = "materials/cubemap.vtex_c";
 
             MaterialExtract.UnpackInfo[] mapsToUnpack = withUnpackInfo
                 ? [new MaterialExtract.UnpackInfo
@@ -97,7 +95,7 @@ namespace Tests.IO
             using var contentFile = new TextureExtract(resource).ToMaterialMaps(mapsToUnpack);
 
             await Assert.That(contentFile.SubFiles).Count().IsEqualTo(1);
-            await Assert.That(contentFile.SubFiles[0].FileName).IsEqualTo(withUnpackInfo ? "env_map.exr" : "cubemap.exr");
+            await Assert.That(contentFile.SubFiles[0].FileName).IsEqualTo(withUnpackInfo ? "materials/env_map.exr" : "materials/cubemap.exr");
             var extracted = contentFile.SubFiles[0].Extract?.Invoke();
             await Assert.That(extracted).IsNotNull();
             await Assert.That(extracted).IsNotEmpty();
@@ -108,11 +106,9 @@ namespace Tests.IO
         public async Task ToMaterialMapsHdrTexture2D([Matrix] bool withUnpackInfo)
         {
             var file = TestFixtures.Path("Textures", "R32F.vtex_c");
-            using var resource = new Resource
-            {
-                FileName = file,
-            };
+            using var resource = new Resource();
             resource.Read(file);
+            resource.FileName = "materials/r32f.vtex_c";
 
             var texture = (Texture)resource.DataBlock!;
             await Assert.That(texture.IsHighDynamicRange).IsTrue();
@@ -139,7 +135,7 @@ namespace Tests.IO
             }
 
             await Assert.That(contentFile.SubFiles).Count().IsEqualTo(1);
-            await Assert.That(contentFile.SubFiles[0].FileName).IsEqualTo("flat_normal.exr");
+            await Assert.That(contentFile.SubFiles[0].FileName).IsEqualTo("materials/flat_normal.exr");
             var extracted = contentFile.SubFiles[0].Extract?.Invoke();
             await Assert.That(extracted).IsNotNull();
             await Assert.That(extracted).IsNotEmpty();

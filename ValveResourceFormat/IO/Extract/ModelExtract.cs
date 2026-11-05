@@ -75,7 +75,7 @@ public partial class ModelExtract
             physAggregateData = model.GetEmbeddedPhys();
         }
 
-        fileName = Path.ChangeExtension(modelResource.FileName ?? "model", ".vmdl");
+        fileName = modelResource.FileName != null ? ContentPaths.ChangeExtension(modelResource.FileName, ".vmdl") : modelData.Name;
         EnqueueMeshes();
         EnqueueAnimations();
     }
@@ -142,7 +142,7 @@ public partial class ModelExtract
             };
 
             vmdl.AddSubFile(
-                Path.GetFileName(renderMesh.FileName),
+                renderMesh.FileName,
                 () => ToDmxMesh(renderMesh.Mesh, Path.GetFileNameWithoutExtension(renderMesh.FileName), options)
             );
         }
@@ -150,7 +150,7 @@ public partial class ModelExtract
         foreach (var physHull in PhysHullsToExtract)
         {
             vmdl.AddSubFile(
-                Path.GetFileName(physHull.FileName),
+                physHull.FileName,
                 () => ToDmxMesh(physHull.Hull, physHull.BindPose)
             );
         }
@@ -158,7 +158,7 @@ public partial class ModelExtract
         foreach (var physMesh in PhysMeshesToExtract)
         {
             vmdl.AddSubFile(
-                Path.GetFileName(physMesh.FileName),
+                physMesh.FileName,
                 () => ToDmxMesh(physMesh.Mesh, physMesh.BindPose)
             );
         }
@@ -173,7 +173,7 @@ public partial class ModelExtract
             }
 
             vmdl.AddSubFile(
-                Path.GetFileName(anim.FileName),
+                anim.FileName,
                 () =>
                 {
                     Debug.Assert(model is not null, "model should not be null when AnimationsToExtract has items");
@@ -188,9 +188,9 @@ public partial class ModelExtract
     }
 
     /// <summary>
-    /// Gets the model name from either the model resource or the file name.
+    /// Gets the content path the model is written at: the path of its resource, or else the name the model was compiled with.
     /// </summary>
-    public string ModelName => model?.Name ?? fileName;
+    public string ModelName => fileName;
 
     /// <summary>Gets the model's cloth reconstruction, empty when <see cref="ReconstructsCloth"/> is false.</summary>
     internal ClothExtract Cloth

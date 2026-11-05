@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using ValveResourceFormat.CompiledShader;
@@ -127,18 +128,23 @@ public sealed class ShaderExtract
     /// <summary>
     /// Converts the shader to a content file with extracted shader code.
     /// </summary>
-    public ContentFile ToContentFile()
+    /// <param name="fileName">Content path of the vfx file, its includes go in a folder next to it. Defaults to <see cref="GetVfxFileName"/>.</param>
+    public ContentFile ToContentFile(string? fileName = null)
     {
         var vfx = ToVFX(ShaderExtractParams.Export);
 
+        fileName = ContentPaths.Normalize(fileName ?? GetVfxFileName());
+        var folder = Path.GetDirectoryName(fileName);
+
         var extract = new ContentFile
         {
-            Data = Encoding.UTF8.GetBytes(vfx.VfxContent)
+            Data = Encoding.UTF8.GetBytes(vfx.VfxContent),
+            FileName = fileName,
         };
 
-        foreach (var (fileName, content) in vfx.Includes)
+        foreach (var (includeName, content) in vfx.Includes)
         {
-            extract.AddSubFile(fileName, () => Encoding.UTF8.GetBytes(content));
+            extract.AddSubFile(ContentPaths.Join(folder, includeName), () => Encoding.UTF8.GetBytes(content));
         }
 
         return extract;

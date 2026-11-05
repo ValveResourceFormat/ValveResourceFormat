@@ -421,7 +421,7 @@ namespace GUI
                 if (selectedItems.Count > 1)
                 {
                     // We're selecting multiple files
-                    ExportFile.ExtractFilesFromListViewNodes(selectedItems, listView.VrfGuiContext, decompile);
+                    await ExportFile.ExtractFilesFromListViewNodes(selectedItems, listView.VrfGuiContext, decompile).ConfigureAwait(true);
                 }
                 else if (selectedItems.Count == 1)
                 {
@@ -444,20 +444,7 @@ namespace GUI
                 }
                 else
                 {
-                    var fileStream = File.Open(exportData.VrfGuiContext.FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-
-                    try
-                    {
-                        await ExportFile.ExtractFileFromStream(Path.GetFileName(exportData.VrfGuiContext.FileName), fileStream, exportData.VrfGuiContext, decompile, exportData.VrfGuiContext.DisplayPath).ConfigureAwait(true);
-                        fileStream = null; // ExtractFileFromStream should dispose it when done, not `using` here in case there's some threading
-                    }
-                    finally
-                    {
-                        if (fileStream != null)
-                        {
-                            await fileStream.DisposeAsync().ConfigureAwait(true);
-                        }
-                    }
+                    await ExportFile.ExtractFileFromDisk(exportData.VrfGuiContext.FileName, exportData.VrfGuiContext, decompile).ConfigureAwait(true);
                 }
             }
             else

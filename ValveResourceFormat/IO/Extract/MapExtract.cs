@@ -34,7 +34,7 @@ public sealed partial class MapExtract
     private List<ContentFile> EntityModels { get; } = [];
     private Dictionary<string, string> ModelEntityAssociations { get; } = [];
     private List<string> SceneObjectsToExtract { get; } = [];
-    private List<string> FolderExtractFilter { get; } = [];
+    private List<string> CompiledMapPieces { get; } = [];
     private List<string> SnapshotsToExtract { get; } = [];
 
     // render mesh vertices closer than this are the same Hammer vertex
@@ -405,27 +405,21 @@ public sealed partial class MapExtract
         }
     }
 
-    private static string NormalizePath(string path)
-    {
-        return path.Replace('\\', '/').TrimEnd('/');
-    }
-
     private static bool PathIsSubPath(string? equalOrSubPath, string path)
     {
-        if (string.IsNullOrEmpty(equalOrSubPath))
+        if (string.IsNullOrEmpty(equalOrSubPath) || !equalOrSubPath.StartsWith(path, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
-        return equalOrSubPath.StartsWith(path, StringComparison.OrdinalIgnoreCase);
+        return equalOrSubPath.Length == path.Length || equalOrSubPath[path.Length] is '/' or '\\';
     }
 
     private void InitMapExtract(Resource vmapResource)
     {
         LumpFolder = GetLumpFolderFromVmapRERL(vmapResource.ExternalReferences);
 
-        var worldPath = Path.Combine(LumpFolder, "world.vwrld");
-        FolderExtractFilter.Add(worldPath);
+        var worldPath = $"{LumpFolder}/world.vwrld";
         using var worldResource = FileLoader.LoadFileCompiled(worldPath) ??
             throw new FileNotFoundException($"Failed to find world resource, which is required for vmap_c extract, at {worldPath}");
         InitWorldExtract(worldResource);
@@ -461,26 +455,31 @@ public sealed partial class MapExtract
             throw new InvalidDataException("Failed to get lump folder directory name");
         }
 
-        return NormalizePath(pathDirName);
+        return pathDirName.Replace('\\', '/');
     }
 
     private void InitWorldExtract(Resource vworld)
     {
-        var lumpFolder = GetLumpFolderFromWorldPath(vworld.FileName);
-
-        if (lumpFolder == null && vworld.FileName != null)
+        if (LumpFolder.Length == 0)
         {
-            LumpFolder = vworld.FileName;
-        }
-        else if (lumpFolder != null)
-        {
-            LumpFolder = lumpFolder;
+            LumpFolder = GetLumpFolderFromWorldPath(vworld.FileName);
         }
 
         if (vworld.DataBlock is not World world)
         {
             throw new InvalidOperationException("Failed to get vworld");
         }
+
+        CompiledMapPieces.AddRange(
+        [
+            $"{LumpFolder}/world.vwrld",
+            $"{LumpFolder}/world.vrman",
+            $"{LumpFolder}/world_physics.vrman",
+            $"{LumpFolder}/world_physics.vphys",
+            $"{LumpFolder}/world_visibility.vvis",
+        ]);
+
+        CompiledMapPieces.AddRange((world.GetWorldLightingInfo()?.GetArray<string>("m_lightMaps") ?? []).OfType<string>());
 
         EntityLumpNames = world.GetEntityLumpNames();
         WorldNodeNames = world.GetWorldNodeNames();
@@ -490,7 +489,7 @@ public sealed partial class MapExtract
 
     private string? GetWorldPhysicsName()
     {
-        var manifestFileName = Path.Combine(LumpFolder, "world_physics.vrman_c");
+        var manifestFileName = $"{LumpFolder}/world_physics.vrman_c";
         using var manifestResource = FileLoader.LoadFile(manifestFileName);
 
         var manifest = (ResourceManifest?)manifestResource?.DataBlock;
@@ -507,7 +506,9 @@ public sealed partial class MapExtract
             return default;
         }
 
-        return NormalizePath(path);
+        path = ContentPaths.Normalize(path);
+        CompiledMapPieces.Add(path);
+        return path;
     }
 
     /// <summary>
@@ -559,8 +560,10 @@ public sealed partial class MapExtract
         vmap.AdditionalFiles.AddRange(PreExportedFragments);
         vmap.AdditionalFiles.AddRange(EntityModels);
 
-        // Add these files so they can be filtered out in folder extract
-        vmap.AdditionalFiles.AddRange(FolderExtractFilter.Select(r => new ContentFile { FileName = r }));
+        vmap.AdditionalFiles.AddRange(CompiledMapPieces
+            .Select(ContentPaths.Normalize)
+            .Where(name => PathIsSubPath(name, LumpFolder))
+            .Select(name => new ContentFile { FileName = name }));
 
         return vmap;
     }
@@ -570,17 +573,9 @@ public sealed partial class MapExtract
         var part = 2;
         foreach (var additionalMap in AdditionalMapDocuments)
         {
-            using var additionalDatamodel = new Datamodel.Datamodel("vmap", 29)
+            vmap.AdditionalFiles.Add(new ContentFile
             {
-                Root = additionalMap,
-            };
-
-            var ms = new MemoryStream();
-            additionalDatamodel.Save(ms, "binary", 9);
-
-            vmap.SubFiles.Add(new SubFile
-            {
-                Extract = ms.ToArray,
+                Data = SaveMapDocument(additionalMap),
                 FileName = GetMapOutputName(part++),
             });
         }
@@ -590,6 +585,11 @@ public sealed partial class MapExtract
     {
         foreach (var sceneObjectResourceName in SceneObjectsToExtract)
         {
+            if (!PathIsSubPath(sceneObjectResourceName, LumpFolder))
+            {
+                continue;
+            }
+
             var sceneObjectNameCompiled = sceneObjectResourceName + GameFileLoader.CompiledFileSuffix;
             using var sceneObject = FileLoader.LoadFile(sceneObjectNameCompiled);
 
@@ -607,7 +607,7 @@ public sealed partial class MapExtract
 
             var vmdl = sceneObjectExtract.ToContentFile();
             vmap.AdditionalFiles.Add(vmdl);
-            FolderExtractFilter.Add(sceneObjectNameCompiled);
+            CompiledMapPieces.Add(sceneObjectResourceName);
         }
     }
 
@@ -663,7 +663,8 @@ public sealed partial class MapExtract
         foreach (var worldNodeName in WorldNodeNames)
         {
             var worldNodeCompiled = worldNodeName + ".vwnod_c";
-            FolderExtractFilter.Add(worldNodeCompiled);
+            CompiledMapPieces.Add(worldNodeName + ".vwnod");
+            CompiledMapPieces.Add(worldNodeName + ".vrman");
 
             using var worldNode = FileLoader.LoadFile(worldNodeCompiled);
             if (worldNode != null && worldNode.DataBlock != null)
@@ -705,7 +706,7 @@ public sealed partial class MapExtract
         foreach (var entityLumpName in EntityLumpNames)
         {
             var entityLumpCompiled = entityLumpName + GameFileLoader.CompiledFileSuffix;
-            FolderExtractFilter.Add(entityLumpCompiled);
+            CompiledMapPieces.Add(entityLumpName);
 
             using var entityLumpResource = FileLoader.LoadFile(entityLumpCompiled);
             if (entityLumpResource != null && entityLumpResource.DataBlock != null)
@@ -727,6 +728,17 @@ public sealed partial class MapExtract
         using var stream = new MemoryStream();
 
         // datamodel.Save(stream, "keyvalues2", 4)
+        datamodel.Save(stream, "binary", 9);
+
+        return stream.ToArray();
+    }
+
+    private static byte[] SaveMapDocument(CMapRootElement root)
+    {
+        using var datamodel = new Datamodel.Datamodel("vmap", 29);
+        datamodel.Root = root;
+
+        using var stream = new MemoryStream();
         datamodel.Save(stream, "binary", 9);
 
         return stream.ToArray();
@@ -2088,7 +2100,7 @@ public sealed partial class MapExtract
 
         var objectFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_nObjectTypeFlags", normalize: true);
 
-        FolderExtractFilter.Add(modelName ?? meshName);
+        CompiledMapPieces.Add(modelName ?? meshName);
 
         var objectTransform = sceneObject.GetArray("m_vTransform").ToMatrix4x4();
         Vector4? drawCallTint = null;
@@ -2266,7 +2278,7 @@ public sealed partial class MapExtract
             InstancedAggregateModels.Add(modelName);
         }
 
-        FolderExtractFilter.Add(modelName);
+        CompiledMapPieces.Add(modelName);
         using var modelRes = FileLoader.LoadFileCompiled(modelName);
 
         if (modelRes is null || modelRes.DataBlock is null)
@@ -2416,7 +2428,7 @@ public sealed partial class MapExtract
         .WithProperty("visoccluder", StringBool(true));
 
     internal static string GetAutoPhysicsMaterialName(string rootFolder, string surfaceProperty)
-        => NormalizePath(Path.Combine(rootFolder, "_vrf", "physics_surfaces", surfaceProperty.ToLowerInvariant() + ".vmat"))!;
+        => ContentPaths.Join(rootFolder, "_vrf/physics_surfaces/" + surfaceProperty.ToLowerInvariant() + ".vmat");
 
     private string GetAndExportAutoPhysicsMaterialName(string surfaceProperty)
     {
@@ -2459,7 +2471,7 @@ public sealed partial class MapExtract
 
         vmat.SubFiles.Add(new SubFile()
         {
-            FileName = Path.GetFileName(textureName),
+            FileName = textureName,
             Extract = () =>
             {
                 using var bitmap = MapAutoPhysTextureGenerator.GenerateTexture(surfaceProperty);
@@ -2500,6 +2512,8 @@ public sealed partial class MapExtract
     {
         foreach (var childEntityName in entityLump.GetChildEntityNames())
         {
+            CompiledMapPieces.Add(childEntityName);
+
             using var entityLumpResource = FileLoader.LoadFileCompiled(childEntityName);
             if (entityLumpResource?.DataBlock is EntityLump childEntityLump)
             {
@@ -2524,6 +2538,8 @@ public sealed partial class MapExtract
             {
                 continue;
             }
+
+            AddBakedFiles(className, compiledEntity);
 
             if (className == "worldspawn")
             {
@@ -2637,7 +2653,7 @@ public sealed partial class MapExtract
             string? modelName = null;
             if (!string.IsNullOrEmpty(rawModelName))
             {
-                modelName = NormalizePath(rawModelName);
+                modelName = ContentPaths.Normalize(rawModelName);
             }
 
             if (modelName != null && PathIsSubPath(modelName, LumpFolder) && mapEntity is CMapPath)
@@ -2683,7 +2699,7 @@ public sealed partial class MapExtract
             string? snapshotFile = null;
             if (!string.IsNullOrEmpty(rawSnapshotFile))
             {
-                snapshotFile = NormalizePath(rawSnapshotFile);
+                snapshotFile = ContentPaths.Normalize(rawSnapshotFile);
             }
             if (snapshotFile != null && PathIsSubPath(snapshotFile, LumpFolder))
             {
@@ -2721,6 +2737,8 @@ public sealed partial class MapExtract
         {
             return;
         }
+
+        CompiledMapPieces.Add(modelName);
 
         var EntitiesToHammerMesh = true;
         ModelEntityAssociations.TryGetValue(modelName, out var associatedEntityClass);
@@ -2771,6 +2789,26 @@ public sealed partial class MapExtract
         foreach (var hammermesh in RenderMeshToHammerMesh(data, model, associatedEntityClass, worldTransform))
         {
             mapEntity.Children.Add(hammermesh);
+        }
+    }
+
+    /// <summary>
+    /// Lists the files the map compiler baked for an entity into the map's folder, such as cubemaps, light probe atlases
+    /// and light probe octrees, as compiled map pieces.
+    /// </summary>
+    private void AddBakedFiles(string className, Entity compiledEntity)
+    {
+        foreach (var (_, value) in compiledEntity.Children)
+        {
+            if (ToEditString(value) is { } text && text.EndsWith(".vtex", StringComparison.OrdinalIgnoreCase))
+            {
+                CompiledMapPieces.Add(text);
+            }
+        }
+
+        if (className is "env_combined_light_probe_volume" or "env_light_probe_volume" && compiledEntity.GetStringProperty("handshake") is { } handshake)
+        {
+            CompiledMapPieces.Add($"{LumpFolder}/lightmaps/env_light_probe_volume_{handshake}_octree.dat");
         }
     }
 
@@ -2877,7 +2915,7 @@ public sealed partial class MapExtract
         if (className is "env_combined_light_probe_volume" or "env_light_probe_volume" or "env_cubemap_box" or "env_cubemap")
         {
             // in newer s2 engine branches having `array_index` present causes all sort of issues and crashes
-            if (propertyKey is "cubemaptexture" or "lightprobetexture" or "array_index")
+            if (propertyKey is "cubemaptexture" or "array_index" || propertyKey.StartsWith("lightprobetexture", StringComparison.Ordinal))
             {
                 propertyKey = prefix + propertyKey;
             }
