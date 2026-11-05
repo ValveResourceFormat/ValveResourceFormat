@@ -181,7 +181,7 @@ public static partial class ShaderSpirvReflection
         [SamplerDefinition.Trilinear.AddressUV(Border).NoMipBias()] = "g_sTrilinearBorder",
         [SamplerDefinition.Point.AddressAll(Clamp).NoMipBias()] = "g_sPointClamp",
         [SamplerDefinition.Point.AddressAll(Border).NoMipBias()] = "g_sPointBorder",
-        [SamplerDefinition.Point.AddressUV(Border).NoMipBias()] = "g_sPointMirror",
+        [SamplerDefinition.Point.AddressUV(Mirror).NoMipBias()] = "g_sPointMirror",
         [SamplerDefinition.Point.AddressAll(Wrap)] = "g_sPoint",
         [new SamplerDefinition(Filter: ComparisonMinMagMipLinear, ComparisonFunc: LessEqual).AddressUV(Clamp)] = "g_tShadowDepthBufferCmpSampler",
         [SamplerDefinition.UserConfig.NoMipBias()] = "g_sUserConfig",

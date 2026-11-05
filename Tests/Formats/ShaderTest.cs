@@ -423,6 +423,39 @@ namespace Tests.Formats
         }
 
         [Test]
+        public async Task PointMirrorSamplerUsesMirrorAddressing()
+        {
+            var path = Path.Combine(ShadersDir, "vcs72_csgo_black_unlit_pc_50_ps.vcs");
+            using var program = new VfxProgramData();
+            program.Read(path);
+
+            var addressU = program.VariableDescriptions.Single(variable => variable.Name == "AddressU");
+            var addressV = program.VariableDescriptions.Single(variable => variable.Name == "AddressV");
+            var allowGlobalMipBias = program.VariableDescriptions.Single(variable => variable.Name == "AllowGlobalMipBiasOverride");
+            var filter = program.VariableDescriptions.Single(variable => variable.Name == "Filter");
+
+            addressU.IntDefs[0] = (int)RsTextureAddressMode.Mirror;
+            addressV.IntDefs[0] = (int)RsTextureAddressMode.Mirror;
+            allowGlobalMipBias.IntDefs[0] = 0;
+            filter.IntDefs[0] = (int)RsFilter.MinMagMipPoint;
+
+            var fields = new[]
+            {
+                new VfxVariableIndexData { PackedIndex = (short)addressU.Index, RegisterOffset = 0 },
+                new VfxVariableIndexData { PackedIndex = (short)addressV.Index, RegisterOffset = 0 },
+                new VfxVariableIndexData { PackedIndex = (short)allowGlobalMipBias.Index, RegisterOffset = 0 },
+                new VfxVariableIndexData { PackedIndex = (short)filter.Index, RegisterOffset = 0 },
+            };
+            var fieldBits = System.Runtime.InteropServices.MemoryMarshal.Cast<VfxVariableIndexData, uint>(fields.AsSpan());
+            var writeSequence = new VfxVariableIndexArray(fieldBits, 0, fields.Length, 0);
+
+            // This VCS 7.2 fixture assigns its first sampler binding at 14.
+            var name = ShaderSpirvReflection.GetNameForSampler(program, writeSequence, 14, 0);
+
+            await Assert.That(name).IsEqualTo("g_sPointMirror");
+        }
+
+        [Test]
         public async Task VfxShaderExtract_Invalid()
         {
             var path = Path.Combine(ShadersDir, "vcs64_error_pcgl_40_ps.vcs");
