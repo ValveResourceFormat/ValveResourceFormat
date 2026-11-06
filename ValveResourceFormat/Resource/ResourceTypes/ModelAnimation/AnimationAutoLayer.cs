@@ -26,6 +26,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public int LocalPose { get; set; }
 
         /// <summary>
+        /// Gets the name <see cref="LocalPose"/> resolves to against the sequence group's pose parameter
+        /// array. Empty when it resolves to nothing.
+        /// </summary>
+        public string PoseParameterName { get; internal set; } = string.Empty;
+
+        /// <summary>
         /// Gets or sets a value indicating whether this layer is applied after (post) the base animation.
         /// </summary>
         public bool Post { get; set; }

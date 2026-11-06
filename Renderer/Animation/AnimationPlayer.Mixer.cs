@@ -41,6 +41,9 @@ namespace ValveResourceFormat.Renderer
             /// </summary>
             public ClipDriver? Driver { get; set; }
 
+            /// <summary>The clips driven by this clip's local auto layers, which are composed into its frame.</summary>
+            internal List<PlaybackClip> ComposedLayers { get; } = [];
+
             /// <summary>Gets whether another clip drives this one.</summary>
             public bool IsDriven => Driver != null;
 
@@ -78,17 +81,34 @@ namespace ValveResourceFormat.Renderer
             public virtual float EvaluateCycle(float ownerCycle) => ownerCycle;
         }
 
-        /// <summary>Drives one of a sequence's auto layers from its blend curve at the owner's cycle.</summary>
+        /// <summary>
+        /// Drives one of a sequence's auto layers from its blend curve, over the owner's cycle or over a pose
+        /// parameter. The layer is laid over the pose the owner and the layers before it made.
+        /// </summary>
         public sealed record AutoLayerDriver(PlaybackClip Owner, AnimationAutoLayer Layer) : ClipDriver(Owner)
         {
+            /// <summary>
+            /// Whether the layer is composed into the owner's frame at full owner weight before the owner is
+            /// blended in. A blend sequence has no frame of its own, so its local layers are laid over the blend
+            /// instead, and so are the local layers of a layer that is itself composed.
+            /// </summary>
+            public bool ComposesIntoOwner { get; } = Layer.Local
+                && Owner.Animation is not SequenceAnimation { IsBlend: true }
+                && Owner.Driver is not AutoLayerDriver { ComposesIntoOwner: true };
+
             /// <inheritdoc/>
             public override float EvaluateWeight(AnimationPlayer player, float ownerCycle)
-                => EvaluateAutoLayerWeight(Layer, ownerCycle, Owner.Weight);
+            {
+                var poseValue = Layer.Pose ? player.GetPoseParameter(Layer.PoseParameterName) : 0f;
+                var ownerWeight = ComposesIntoOwner ? 1f : Owner.Weight;
+
+                return EvaluateAutoLayerWeight(Layer, ownerCycle, poseValue, ownerWeight);
+            }
 
             /// <inheritdoc/>
             public override float EvaluateCycle(float ownerCycle)
             {
-                if (Layer.Start == Layer.End)
+                if (Layer.Pose || Layer.Start == Layer.End)
                 {
                     return ownerCycle;
                 }
@@ -122,6 +142,7 @@ namespace ValveResourceFormat.Renderer
         private readonly Dictionary<string, PlaybackClip> clips = [];
         private const string WarpSuffix = ".warp";
         private readonly Frame BlendedFrame;
+        private readonly Frame LocalLayerFrame;
         private float currentBlendTime;
 
         /// <summary>
@@ -324,7 +345,10 @@ namespace ValveResourceFormat.Renderer
                 var sum = 0f;
                 foreach (var clip in clips.Values)
                 {
-                    sum += clip.Weight;
+                    if (!clip.IsDriven)
+                    {
+                        sum += clip.Weight;
+                    }
                 }
                 Debug.Assert(sum > 0f, "Total blend weight should be greater than zero.");
                 Debug.Assert(Math.Abs(sum - 1f) < 0.01f, $"Total blend weight should be approximately 1. Found: {sum}");
@@ -362,32 +386,35 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Evaluates an auto layer's weight at a point in its owner's cycle. Over the layer's range it is a
-        /// trapezoid rising from Start to Peak and falling from Tail to End, and nothing outside. A cross fade
-        /// layer past Tail biases the ramp to compensate for an owner weight below one, and a no blend layer
-        /// ignores the owner's weight. A layer with equal Start and End plays at the owner's weight throughout.
+        /// Evaluates an auto layer's weight. Over the layer's range, in the owner's cycle or in the pose
+        /// parameter's units for a pose layer, it is a trapezoid rising from Start to Peak and falling from
+        /// Tail to End, and nothing outside. A cross fade layer past Tail biases the ramp to compensate for an
+        /// owner weight below one, and a no blend layer ignores the owner's weight. A layer with equal Start
+        /// and End plays at the owner's weight throughout.
         /// </summary>
-        private static float EvaluateAutoLayerWeight(AnimationAutoLayer layer, float cycle, float ownerWeight)
+        private static float EvaluateAutoLayerWeight(AnimationAutoLayer layer, float cycle, float poseValue, float ownerWeight)
         {
             if (layer.Start == layer.End)
             {
                 return ownerWeight;
             }
 
-            if (cycle < layer.Start || cycle >= layer.End)
+            var index = layer.Pose ? poseValue : cycle;
+
+            if (index < layer.Start || index >= layer.End)
             {
                 return 0f;
             }
 
             var weight = 1f;
 
-            if (cycle < layer.Peak && layer.Start != layer.Peak)
+            if (index < layer.Peak && layer.Start != layer.Peak)
             {
-                weight = MathUtils.Remap(cycle, layer.Start, layer.Peak);
+                weight = MathUtils.Remap(index, layer.Start, layer.Peak);
             }
-            else if (cycle > layer.Tail && layer.End != layer.Tail)
+            else if (index > layer.Tail && layer.End != layer.Tail)
             {
-                weight = MathUtils.Remap(cycle, layer.End, layer.Tail);
+                weight = MathUtils.Remap(index, layer.End, layer.Tail);
             }
 
             if (layer.Spline)
@@ -395,7 +422,7 @@ namespace ValveResourceFormat.Renderer
                 weight = MathUtils.Smoothstep(0f, 1f, weight);
             }
 
-            if (layer.XFade && cycle > layer.Tail)
+            if (layer.XFade && index > layer.Tail)
             {
                 var denominator = 1f - ownerWeight + (weight * ownerWeight);
 
@@ -407,30 +434,67 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>
         /// Adds a clip for each of <paramref name="sequence"/>'s auto layers whose target resolves through
-        /// <see cref="AnimationLookup"/>, keyed off <paramref name="ownerKey"/>. Pose driven layers are skipped.
+        /// <see cref="AnimationLookup"/>, keyed off <paramref name="ownerKey"/>, and the layers of those layers.
         /// </summary>
         private void CreateAutoLayerClips(string ownerKey, PlaybackClip owner, SequenceAnimation sequence)
         {
+            owner.ComposedLayers.Clear();
+
             for (var i = 0; i < sequence.AutoLayers.Length; i++)
             {
                 var layer = sequence.AutoLayers[i];
 
-                if (layer.Pose || Resolve(layer.ReferencedAnimationName) is not { } referenced)
+                if (Resolve(layer.ReferencedAnimationName) is not { } referenced)
                 {
                     continue;
                 }
 
                 var key = $"{ownerKey}$autolayer{i}";
-                var layerClip = DriveClip(key, referenced, new AutoLayerDriver(owner, layer));
+                var driver = new AutoLayerDriver(owner, layer);
+                var layerClip = DriveClip(key, referenced, driver);
+
+                if (driver.ComposesIntoOwner)
+                {
+                    owner.ComposedLayers.Add(layerClip);
+                }
 
                 layerClip.IsAdditive = layer.Subtract || referenced.IsAdditive;
-                layerClip.MaskName = referenced is SequenceAnimation referencedSequence ? referencedSequence.BoneMaskName : string.Empty;
+                layerClip.MaskName = string.Empty;
 
-                if (referenced is SequenceAnimation { IsBlend: true } layerBlend)
+                if (referenced is not SequenceAnimation layerSequence)
                 {
-                    CreateBlendReferenceClips(key, layerClip, layerBlend);
+                    continue;
+                }
+
+                layerClip.MaskName = layerSequence.BoneMaskName;
+
+                if (layerSequence.IsBlend)
+                {
+                    CreateBlendReferenceClips(key, layerClip, layerSequence);
+                }
+
+                if (layerSequence.AutoLayers.Length > 0 && !IsInLayerChain(owner, layerSequence))
+                {
+                    CreateAutoLayerClips(key, layerClip, layerSequence);
                 }
             }
+        }
+
+        /// <summary>
+        /// Gets whether <paramref name="sequence"/> already plays in the chain of owners above a layer, as it
+        /// does when a sequence layers itself, directly or through others.
+        /// </summary>
+        private static bool IsInLayerChain(PlaybackClip owner, SequenceAnimation sequence)
+        {
+            for (PlaybackClip? clip = owner; clip != null; clip = clip.Driver?.Owner)
+            {
+                if (clip.Animation.Name == sequence.Name)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -537,38 +601,83 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                var frame = SampleFrame(clip);
+                if (clip.Driver is AutoLayerDriver { ComposesIntoOwner: true })
+                {
+                    continue;
+                }
+
+                var frame = ApplyLocalLayers(clip, SampleFrame(clip));
                 var blendFactor = layers
                     ? clip.Weight
                     : clip.Weight / (totalWeight + clip.Weight);
 
-                var mask = string.IsNullOrEmpty(clip.MaskName) ? null : masks.GetValueOrDefault(clip.MaskName);
-                var boneMask = mask?.BoneWeights;
-
-                for (var i = 0; i < frame.Bones.Length; i++)
-                {
-                    var boneMaskWeight = boneMask != null ? (float)boneMask[i] : 1f;
-                    var weightedBlendFactor = blendFactor * boneMaskWeight;
-
-                    BlendedFrame.Bones[i] = clip.IsAdditive
-                        ? BlendedFrame.Bones[i].BlendAdd(clip.Animation.GetAdditiveDelta(i, frame.Bones[i]), weightedBlendFactor)
-                        : BlendedFrame.Bones[i].Blend(frame.Bones[i], weightedBlendFactor);
-                }
-
-                var morphMask = mask?.MorphWeights;
-
-                for (var i = 0; i < frame.Datas.Length; i++)
-                {
-                    var morphMaskWeight = morphMask != null ? morphMask[i] : 1f;
-                    var weightedDataBlendFactor = blendFactor * morphMaskWeight;
-
-                    BlendedFrame.Datas[i] = clip.IsAdditive
-                        ? BlendedFrame.Datas[i] + frame.Datas[i] * weightedDataBlendFactor
-                        : MathUtils.Lerp(BlendedFrame.Datas[i], frame.Datas[i], weightedDataBlendFactor);
-                }
+                BlendClipInto(BlendedFrame, frame, clip, blendFactor);
 
                 totalWeight += clip.Weight;
             }
+        }
+
+        /// <summary>
+        /// Blends <paramref name="source"/>, the sampled frame of <paramref name="clip"/>, into
+        /// <paramref name="target"/> by <paramref name="blendFactor"/>, scaled per bone and per flex
+        /// controller by the clip's mask.
+        /// </summary>
+        private void BlendClipInto(Frame target, Frame source, PlaybackClip clip, float blendFactor)
+        {
+            var mask = string.IsNullOrEmpty(clip.MaskName) ? null : masks.GetValueOrDefault(clip.MaskName);
+            var boneMask = mask?.BoneWeights;
+
+            for (var i = 0; i < source.Bones.Length; i++)
+            {
+                var boneMaskWeight = boneMask != null ? (float)boneMask[i] : 1f;
+                var weightedBlendFactor = blendFactor * boneMaskWeight;
+
+                target.Bones[i] = clip.IsAdditive
+                    ? target.Bones[i].BlendAdd(clip.Animation.GetAdditiveDelta(i, source.Bones[i]), weightedBlendFactor)
+                    : target.Bones[i].Blend(source.Bones[i], weightedBlendFactor);
+            }
+
+            var morphMask = mask?.MorphWeights;
+
+            for (var i = 0; i < source.Datas.Length; i++)
+            {
+                var morphMaskWeight = morphMask != null ? morphMask[i] : 1f;
+                var weightedDataBlendFactor = blendFactor * morphMaskWeight;
+
+                target.Datas[i] = clip.IsAdditive
+                    ? target.Datas[i] + source.Datas[i] * weightedDataBlendFactor
+                    : MathUtils.Lerp(target.Datas[i], source.Datas[i], weightedDataBlendFactor);
+            }
+        }
+
+        /// <summary>
+        /// Lays the local layers of <paramref name="owner"/> over its sampled frame. Returns that frame
+        /// itself when the clip has none, else a copy of it with the layers composed in.
+        /// </summary>
+        private Frame ApplyLocalLayers(PlaybackClip owner, Frame frame)
+        {
+            var composed = false;
+
+            foreach (var layerClip in owner.ComposedLayers)
+            {
+                if (layerClip.Weight <= 0f)
+                {
+                    continue;
+                }
+
+                if (!composed)
+                {
+                    // Sampling the layer reuses the frame cache, which may hold the owner's frame
+                    frame.Bones.AsSpan().CopyTo(LocalLayerFrame.Bones);
+                    frame.Datas.AsSpan().CopyTo(LocalLayerFrame.Datas);
+                    composed = true;
+                }
+
+                var layerFrame = SampleFrame(layerClip);
+                BlendClipInto(LocalLayerFrame, layerFrame, layerClip, layerClip.Weight);
+            }
+
+            return composed ? LocalLayerFrame : frame;
         }
 
         private Frame SampleFrame(PlaybackClip clip)

@@ -146,6 +146,7 @@ namespace ValveResourceFormat.Renderer
             Pose = pose;
             FrameCache = new(skeleton, flexControllers);
             BlendedFrame = new(skeleton, flexControllers);
+            LocalLayerFrame = new(skeleton, flexControllers);
             AdditiveFrame = new(skeleton, flexControllers);
         }
 

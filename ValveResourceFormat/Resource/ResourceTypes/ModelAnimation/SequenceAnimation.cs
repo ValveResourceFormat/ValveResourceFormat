@@ -247,6 +247,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     layer.ReferencedAnimationName = sequenceNameArray[layer.LocalReference];
                 }
 
+                if (layer.LocalPose >= 0 && layer.LocalPose < poseParamNames.Length)
+                {
+                    layer.PoseParameterName = poseParamNames[layer.LocalPose];
+                }
+
                 AutoLayers[i] = layer;
             }
 
