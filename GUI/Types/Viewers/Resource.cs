@@ -808,7 +808,7 @@ namespace GUI.Types.Viewers
                 case ResourceType.ChoreoSceneFileData:
                 {
                     var specialTabPage = new ThemedTabPage("VCDLIST");
-                    specialTabPage.Controls.Add(new ChoreoViewer(resource));
+                    specialTabPage.Controls.Add(new ChoreoViewer(vrfGuiContext, resource));
                     resTabs.TabPages.Add(specialTabPage);
                     return true;
                 }

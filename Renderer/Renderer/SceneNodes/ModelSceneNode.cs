@@ -46,6 +46,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private float?[] flexControllerOverrides = [];
         private float[] flexControllerValues = [];
+        private float[] sceneFlexValues = [];
+        private float[] sceneFlexWeights = [];
+        private float[] sceneFlexAdditions = [];
+        private float[] sceneFlexBlend = [];
 
         /// <summary>Gets the animation graphs the model is bound to, by identifier and resource name. The first is the default.</summary>
         public IReadOnlyList<(string Identifier, string GraphPath)> AnimationGraphReferences { get; }
@@ -362,6 +366,35 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             PushFlexControllers(AnimationController.FlexValues ?? []);
         }
 
+        /// <inheritdoc cref="AnimationController.SetOverlayClip"/>
+        public void SetOverlayAnimation(AnimationBase animation, float time, float weight)
+        {
+            AnimationController.SetOverlayClip(animation, time, weight);
+
+            if (AnimationController.ActiveAnimation == null)
+            {
+                UpdateSkinningActive(weight > 0f);
+            }
+        }
+
+        /// <summary>
+        /// Blends flex controller values over the animated ones and the overrides, as a choreography scene does.
+        /// </summary>
+        /// <param name="values">The value of each flex controller of <see cref="Model.FlexControllers"/>.</param>
+        /// <param name="weights">How much each value replaces what is under it, from 0 to 1.
+        /// Empty or <see langword="null"/> to remove the layer.</param>
+        /// <param name="additions">What is added to each flex controller on top of the blended value.</param>
+        public void SetFlexControllerLayer(float[] values, float[]? weights, float[]? additions = null)
+        {
+            ArgumentNullException.ThrowIfNull(values);
+
+            sceneFlexValues = values;
+            sceneFlexWeights = weights ?? [];
+            sceneFlexAdditions = additions ?? [];
+
+            PushFlexControllers(AnimationController.FlexValues ?? []);
+        }
+
         /// <summary>
         /// Pushes flex controller values, with the overrides applied over them, to every mesh that morphs.
         /// </summary>
@@ -384,6 +417,23 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 }
 
                 values = flexControllerValues;
+            }
+
+            if (sceneFlexWeights.Length > 0)
+            {
+                if (sceneFlexBlend.Length != sceneFlexWeights.Length)
+                {
+                    sceneFlexBlend = new float[sceneFlexWeights.Length];
+                }
+
+                for (var i = 0; i < sceneFlexBlend.Length; i++)
+                {
+                    var animated = i < values.Length ? values[i] : 0f;
+                    var addition = i < sceneFlexAdditions.Length ? sceneFlexAdditions[i] : 0f;
+                    sceneFlexBlend[i] = float.Lerp(animated, sceneFlexValues[i], sceneFlexWeights[i]) + addition;
+                }
+
+                values = sceneFlexBlend;
             }
 
             foreach (var renderableMesh in RenderableMeshes)

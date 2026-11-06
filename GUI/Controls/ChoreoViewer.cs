@@ -1,10 +1,13 @@
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Windows.Forms;
+using GUI.Types.GLViewers;
 using GUI.Types.PackageViewer;
 using GUI.Utils;
 using ValveResourceFormat;
+using ValveResourceFormat.Renderer.Choreo;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.Choreo;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -14,13 +17,15 @@ namespace GUI.Controls
     class ChoreoViewer : TextControl
     {
         private readonly ChoreoSceneFileData choreoDataList;
+        private readonly VrfGuiContext vrfGuiContext;
         private readonly BetterListView fileListView;
 
-        public ChoreoViewer(Resource resource)
+        public ChoreoViewer(VrfGuiContext vrfGuiContext, Resource resource)
         {
             var dataBlock = (ChoreoSceneFileData?)resource.DataBlock;
             ArgumentNullException.ThrowIfNull(dataBlock);
             choreoDataList = dataBlock;
+            this.vrfGuiContext = vrfGuiContext;
 
             var fileName = Path.GetFileNameWithoutExtension(resource.FileName) + ".vcdlist";
 
@@ -34,6 +39,7 @@ namespace GUI.Controls
                 ShowItemToolTips = true
             };
             fileListView.ItemSelectionChanged += FileListView_ItemSelectionChanged;
+            fileListView.ItemActivate += FileListView_ItemActivate;
 
             // The first column stretches to fill the list
             fileListView.Columns.Add("Name");
@@ -95,6 +101,42 @@ namespace GUI.Controls
             {
                 ShowVcd(selectedScene.Value);
             }
+        }
+
+        private void FileListView_ItemActivate(object? sender, EventArgs e)
+        {
+            if (fileListView.SelectedItems.Count == 0 || fileListView.SelectedItems[0].Tag is not int index)
+            {
+                return;
+            }
+
+            var scene = choreoDataList.Scenes[index];
+            var modelFiles = vrfGuiContext.FindFilesWithExtension("vmdl_c").ToList();
+
+            var match = ChoreoActorMatcher.FindModel(scene, modelFiles);
+
+            if (match == null)
+            {
+                Log.Warn(nameof(ChoreoViewer), $"Found no model for the actors of {scene.Name}");
+                return;
+            }
+
+            var (model, actor) = match.Value;
+            var foundFile = vrfGuiContext.FindFileWithContext(model);
+            if (foundFile.Context == null)
+            {
+                return;
+            }
+
+            foundFile.Context.GLPostLoadAction = (viewerControl) =>
+            {
+                if (viewerControl is GLModelViewer modelViewer)
+                {
+                    modelViewer.SetStartScene(scene.Name, actor.Name);
+                }
+            };
+
+            Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
         }
 
         private void ShowVcdList()

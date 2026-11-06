@@ -521,6 +521,13 @@ namespace GUI.Utils
             return parent.FindFile(file, logNotFound);
         }
 
+        public override IEnumerable<string> FindFilesWithExtension(string extension)
+        {
+            var files = base.FindFilesWithExtension(extension);
+
+            return ParentGuiContext == null ? files : files.Union(ParentGuiContext.FindFilesWithExtension(extension), StringComparer.OrdinalIgnoreCase);
+        }
+
         // A file opened from another one, such as an entry of a package, finds no game of its own
         protected override GameFileLoader? GameInfoFallback => ParentGuiContext;
 

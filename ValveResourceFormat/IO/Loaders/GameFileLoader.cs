@@ -615,6 +615,34 @@ namespace ValveResourceFormat.IO
         private static bool IsSameEntry(Package package, PackageEntry entry, Package otherPackage, PackageEntry otherEntry)
             => entry == otherEntry || (entry.GetFullPath() == otherEntry.GetFullPath() && IsSamePackage(package, otherPackage));
 
+        /// <summary>
+        /// Lists the files with an extension in the searched packages. Folders on disk are not listed.
+        /// </summary>
+        /// <param name="extension">The extension without the dot, such as <c>vcdlist_c</c>.</param>
+        /// <returns>The distinct file paths for <see cref="LoadFile"/>.</returns>
+        public virtual IEnumerable<string> FindFilesWithExtension(string extension)
+        {
+            var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var package in EnumerateSearchedPackages())
+            {
+                if (package.Entries == null || !package.Entries.TryGetValue(extension, out var entries))
+                {
+                    continue;
+                }
+
+                foreach (var entry in entries)
+                {
+                    var file = entry.GetFullPath();
+
+                    if (files.Add(file))
+                    {
+                        yield return file;
+                    }
+                }
+            }
+        }
+
         private IEnumerable<Package> EnumerateSearchedPackages()
         {
             if (CurrentPackage != null)

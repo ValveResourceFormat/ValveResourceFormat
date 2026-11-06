@@ -47,6 +47,9 @@ namespace ValveResourceFormat.Renderer
             /// <summary>Gets whether another clip drives this one.</summary>
             public bool IsDriven => Driver != null;
 
+            /// <summary>Gets or sets whether this clip is posed from outside, over the clips that play on their own.</summary>
+            public bool IsOverlay { get; set; }
+
             /// <summary>Gets or sets the current frame index within the cycle being played.</summary>
             public int Frame
             {
@@ -141,6 +144,7 @@ namespace ValveResourceFormat.Renderer
         private PlaybackClip? previousClip;
         private readonly Dictionary<string, PlaybackClip> clips = [];
         private const string WarpSuffix = ".warp";
+        private const string OverlaySuffix = ".overlay";
         private readonly Frame BlendedFrame;
         private readonly Frame LocalLayerFrame;
         private float currentBlendTime;
@@ -271,7 +275,7 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var clip in clips.Values)
             {
-                if (clip.IsDriven)
+                if (clip.IsDriven || clip.IsOverlay)
                 {
                     continue;
                 }
@@ -306,7 +310,7 @@ namespace ValveResourceFormat.Renderer
             var allPaused = true;
             foreach (var clip in clips.Values)
             {
-                if (!clip.IsDriven && !clip.IsPaused)
+                if (!clip.IsDriven && !clip.IsOverlay && !clip.IsPaused)
                 {
                     allPaused = false;
                     break;
@@ -548,11 +552,6 @@ namespace ValveResourceFormat.Renderer
         {
             IsUsingMixer = false;
 
-            if (activeClip == null)
-            {
-                return null;
-            }
-
             var needsBlending = false;
             foreach (var clip in clips.Values)
             {
@@ -565,7 +564,7 @@ namespace ValveResourceFormat.Renderer
 
             if (!needsBlending)
             {
-                return SampleFrame(activeClip);
+                return activeClip == null ? null : SampleFrame(activeClip);
             }
 
             IsUsingMixer = true;
@@ -578,7 +577,7 @@ namespace ValveResourceFormat.Renderer
             return BlendedFrame;
         }
 
-        private static bool IsLayer(PlaybackClip clip) => clip.IsAdditive || clip.Driver is AutoLayerDriver;
+        private static bool IsLayer(PlaybackClip clip) => clip.IsAdditive || clip.IsOverlay || clip.Driver is AutoLayerDriver;
 
         /// <summary>
         /// Blends the clips that are layers, or those that are not, into <see cref="BlendedFrame"/>.
@@ -812,6 +811,46 @@ namespace ValveResourceFormat.Renderer
                     clip.Weight = 0f;
                 }
             }
+        }
+
+        /// <summary>
+        /// Poses an animation over the clips that play on their own, at a time the caller sets on each update.
+        /// </summary>
+        /// <param name="animation">The animation to pose.</param>
+        /// <param name="time">The time in the animation in seconds.</param>
+        /// <param name="weight">How much it replaces the pose under it, from 0 to 1. Zero removes it from the pose.</param>
+        public void SetOverlayClip(AnimationBase animation, float time, float weight)
+        {
+            var key = animation.Name + OverlaySuffix;
+
+            if (!clips.TryGetValue(key, out var clip))
+            {
+                clip = new PlaybackClip(animation)
+                {
+                    IsOverlay = true,
+                    Looping = false,
+                    IsAdditive = animation.IsAdditive,
+                    MaskName = animation is SequenceAnimation { BoneMaskName.Length: > 0 } maskedSequence ? maskedSequence.BoneMaskName : string.Empty,
+                };
+                clips[key] = clip;
+
+                if (animation is SequenceAnimation sequenceAnimation)
+                {
+                    if (sequenceAnimation.AutoLayers.Length > 0)
+                    {
+                        CreateAutoLayerClips(key, clip, sequenceAnimation);
+                    }
+
+                    if (sequenceAnimation.IsBlend)
+                    {
+                        CreateBlendReferenceClips(key, clip, sequenceAnimation);
+                    }
+                }
+            }
+
+            clip.Time = time;
+            clip.Weight = weight;
+            forceUpdate = true;
         }
 
         /// <summary>

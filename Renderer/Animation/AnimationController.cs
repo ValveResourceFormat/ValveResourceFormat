@@ -507,6 +507,10 @@ namespace ValveResourceFormat.Renderer
         public void SetAnimationWeight(string name, float weight, bool restartIfNew = false)
             => player.SetAnimationWeight(name, weight, restartIfNew);
 
+        /// <inheritdoc cref="AnimationPlayer.SetOverlayClip"/>
+        public void SetOverlayClip(AnimationBase animation, float time, float weight)
+            => player.SetOverlayClip(animation, time, weight);
+
         /// <summary>
         /// Sets properties for a clip with the specified animation name.
         /// </summary>

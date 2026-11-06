@@ -48,7 +48,7 @@ in the Dump column.
 | valst    | Action List                | text                          | generic | -                                                                                                            |
 | vanim    | Animation                  | text                          | generic | - (legacy, animation data now lives inside vmdl)                                                             |
 | vanmgrph | Animation Graph            | graph                         | yes     | editable graph document                                                                                      |
-| vcd      | Choreo Scene               | text                          | generic | KV3 text (no dedicated parsing; vcdlist scenes are separate)                                                 |
+| vcd      | Choreo Scene               | text                          | generic | KV3 text (see [Choreo](#choreo-captions-and-ui))                                                             |
 | vcdlist  | Choreo Scene File Data     | scene list, text              | yes     | per-scene `.vcd` as KV3 text (see [Choreo](#choreo-captions-and-ui))                                         |
 | vcompmat | Composite Material         | text                          | generic | KV3 text (no compositing preview)                                                                            |
 | vcss     | Panorama Style             | text                          | yes     | `.css` (prettified minified text)                                                                            |
@@ -380,8 +380,12 @@ other graphs of the file or, for one graph per file, the graphs of the folder.
 
 ## Choreo, Captions, and UI
 
-- **Choreo** (`vcdlist`): scenes, actors, events, and flex curves are fully parsed. Scenes
-  are emitted as KV3 `.vcd`.
+- **Choreo** (`vcdlist`, `vcd`): scenes, actors, events, and flex curves are fully parsed.
+  Scenes are emitted as KV3 `.vcd`. The model viewer finds the scenes of a model in the `vcd`
+  and `vcdlist` files of the mounted game and plays their flex animations, gestures, sequences,
+  speech and loops. Where a game has `expressions/heroes/phonemes.vfe`, the mouth follows the
+  phonemes and emphasis of speech. Look at, face, move to, animation clip and animation graph
+  events do not play.
 - **Closed captions**: caption text is recovered in full, but the compiled file stores only
   a CRC32 hash of each caption key, so exports are keyed by hash. The original key strings
   are not in the file.

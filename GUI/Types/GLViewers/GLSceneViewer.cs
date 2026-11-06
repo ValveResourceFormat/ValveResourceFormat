@@ -759,6 +759,11 @@ namespace GUI.Types.GLViewers
             }
         }
 
+        /// <summary>Runs before the scene updates, with the time the simulation advances by this frame.</summary>
+        protected virtual void OnSimulate(float timestep)
+        {
+        }
+
         /// <summary>
         /// Advances the sound system and reports its cost. Runs inside the frame's timing bracket rather
         /// than in <see cref="OnUpdate"/>, which is outside it, so the listener update shows up as a row.
@@ -856,6 +861,8 @@ namespace GUI.Types.GLViewers
                 // the dither still too, so that identical frames are identical to the pixel
                 Renderer.Postprocess.AnimateDither = !Automation.AutomationClock.Advance(ref timestep);
 #endif
+
+                OnSimulate(timestep);
 
                 var updateContext = new Scene.UpdateContext
                 {
