@@ -105,6 +105,11 @@ namespace ValveResourceFormat.TextureDecoders
                 return;
             }
 
+            if (bitmap.ColorType != ResourceTypes.Texture.DefaultBitmapColorType)
+            {
+                throw new NotSupportedException($"Texture conversions {decodeFlags} are not supported on {bitmap.ColorType} bitmaps.");
+            }
+
             var data = bitmap.GetPixelSpan();
 
             if (swapRA)
