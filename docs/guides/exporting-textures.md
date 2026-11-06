@@ -56,9 +56,9 @@ HDR textures, such as this sky, export as EXR with their full brightness range.
 
     ![Export window showing Export completed](./images/getting-started-export-progress.webp)
 
-Textures are written as PNG, HDR textures as EXR, and textures stored as JPEG or WebP keep that format. A texture compiled from a `.vtex` file of its own is saved as that `.vtex`, with the image next to it. The exported image keeps the alpha channel.
+Textures are written as PNG, HDR textures as EXR, and textures stored as JPEG or WebP keep that format. Each texture not stored as JPEG or WebP is also saved as a `.vtex`, with the image next to it. The exported image keeps the alpha channel.
 
-**Decompile & export** on a material writes the `.vmat` and its textures, with textures that pack several maps split into one image each.
+**Decompile & export** on a material writes the `.vmat` and its textures named after the compiled textures, with textures that pack several maps split into one image each.
 
 ## Exporting a Folder
 
@@ -66,7 +66,7 @@ Textures are written as PNG, HDR textures as EXR, and textures stored as JPEG or
 
     ![Context menu on the ak47 folder with Decompile & export highlighted](./images/getting-started-folder-export-menu.webp)
 
-2. Keep **image** for `vtex_c`. Set `vmat_c` to `* Do not export *` to get every texture under its own name instead of through its materials.
+2. Keep **image** for `vtex_c`.
 
     ![Select output file types window for the ak47 folder, with the list for vtex_c open, showing Do not export, image and vtex](./images/exporting-textures-folder-types.webp)
 

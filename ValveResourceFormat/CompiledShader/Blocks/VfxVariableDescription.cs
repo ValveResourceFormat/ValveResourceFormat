@@ -341,16 +341,25 @@ public class VfxVariableDescription : ShaderDataBlock
     {
         StringToken.Store(name);
 
+        if (GetNameWithoutTypePrefix(name) is { } unprefixedName)
+        {
+            StringToken.Store(unprefixedName);
+        }
+
+        return name;
+    }
+
+    internal static string? GetNameWithoutTypePrefix(string name)
+    {
         foreach (var prefix in TypePrefixes)
         {
             if (name.Length > prefix.Length && name.StartsWith(prefix, StringComparison.Ordinal))
             {
-                StringToken.Store(name.AsSpan(prefix.Length));
-                break;
+                return name[prefix.Length..];
             }
         }
 
-        return name;
+        return null;
     }
 
     private void FixupIntMinsMaxs()

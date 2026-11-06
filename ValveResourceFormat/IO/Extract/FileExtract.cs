@@ -58,6 +58,16 @@ namespace ValveResourceFormat.IO
         /// </summary>
         protected bool Disposed { get; private set; }
 
+        private readonly List<Resource> OwnedResources = [];
+
+        /// <summary>
+        /// Disposes <paramref name="resource"/> along with this content file, for a resource its sub files read from.
+        /// </summary>
+        internal void TakeOwnership(Resource resource)
+        {
+            OwnedResources.Add(resource);
+        }
+
         /// <summary>
         /// Adds a sub-file to be extracted alongside the main content file.
         /// </summary>
@@ -95,6 +105,11 @@ namespace ValveResourceFormat.IO
                 foreach (var externalRef in AdditionalFiles)
                 {
                     externalRef.Dispose();
+                }
+
+                foreach (var resource in OwnedResources)
+                {
+                    resource.Dispose();
                 }
             }
 
@@ -162,6 +177,12 @@ namespace ValveResourceFormat.IO
 
         /// <inheritdoc/>
         public GameInfo GameInfo => fileLoader.GameInfo;
+
+        /// <inheritdoc/>
+        public IEnumerable<string> FindFilesByName(string fileName) => fileLoader.FindFilesByName(fileName);
+
+        /// <inheritdoc/>
+        public IReadOnlyDictionary<uint, string> GetSurfacePropertyNames() => fileLoader.GetSurfacePropertyNames();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TrackingFileLoader"/> class.
@@ -508,7 +529,7 @@ namespace ValveResourceFormat.IO
                 {
                     var texture = (Texture)resource.DataBlock!;
 
-                    if (IsChildResource(resource) || texture.IsRawAnyImage)
+                    if (texture.IsRawAnyImage)
                     {
                         return TextureExtract.GetImageOutputExtension(texture);
                     }
@@ -557,14 +578,6 @@ namespace ValveResourceFormat.IO
                 ResourceType.PanoramaVectorGraphic => "svg",
                 _ => resourceType.GetExtension() ?? "dat",
             };
-        }
-
-        internal static void EnsurePopulatedStringToken(IFileLoader fileLoader)
-        {
-            if (fileLoader is GameFileLoader gameFileLoader)
-            {
-                gameFileLoader.EnsureStringTokenGameKeys();
-            }
         }
     }
 }

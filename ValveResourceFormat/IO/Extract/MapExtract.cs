@@ -153,6 +153,7 @@ public sealed partial class MapExtract
     private List<CMapRootElement> AdditionalMapDocuments { get; set; } = [];
 
     private readonly IFileLoader FileLoader;
+    private readonly IReadOnlyDictionary<uint, string> SurfacePropertyNames;
 
     // Units one texel spans on a face Hammer projects a texture onto, the game's Hammer default
     private readonly float TextureScale;
@@ -175,8 +176,19 @@ public sealed partial class MapExtract
         }
 
         return modelName.Contains("_mesh_blocklight", StringComparison.Ordinal)
-            || modelName.Contains("_mesh_overlay", StringComparison.Ordinal)
+            || IsOverlayMeshName(modelName)
             || modelName.Contains("_c0_", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Whether a compiled world mesh holds merged overlay geometry: <c>mesh_overlay</c>, <c>mesh_nsoverlay</c> or an
+    /// <c>agg_overlay_</c> aggregate.
+    /// </summary>
+    private static bool IsOverlayMeshName(string modelName)
+    {
+        return modelName.Contains("mesh_overlay", StringComparison.Ordinal)
+            || modelName.Contains("mesh_nsoverlay", StringComparison.Ordinal)
+            || modelName.Contains("agg_overlay_", StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -185,18 +197,83 @@ public sealed partial class MapExtract
     private static readonly string[] FoliageAnimationStreams = ["PivotPaint", "FoliageAnimation"];
 
     /// <summary>
-    /// The draw calls of every mesh embedded in a model, each paired with the mesh it belongs to.
+    /// The referenced meshes loaded during the export by name, owned until <see cref="ToValveMap"/> finishes.
     /// </summary>
-    private static IEnumerable<(Mesh Mesh, KVObject DrawCall)> EnumerateDrawCalls(Model model)
+    private readonly Dictionary<string, Resource?> ReferenceMeshResources = [];
+
+    private readonly Dictionary<string, Material.VsInputSignature> MaterialInputSignatures = [];
+
+    /// <summary>
+    /// The render meshes of a model's most detailed LOD, embedded and referenced, in mesh index order.
+    /// </summary>
+    private List<(Mesh Mesh, int MeshIndex)> GetRenderMeshes(Model model)
     {
-        foreach (var embedded in model.GetEmbeddedMeshes())
+        var lod = model.LodInfo.LowestLevel;
+        var meshes = model.GetEmbeddedMeshesForLod(lod).Select(static embedded => (embedded.Mesh, embedded.MeshIndex)).ToList();
+
+        foreach (var reference in model.GetReferenceMeshNamesForLod(lod))
         {
-            foreach (var meshSceneObject in embedded.Mesh.Data.GetArray("m_sceneObjects"))
+            if (!ReferenceMeshResources.TryGetValue(reference.MeshName, out var meshResource))
             {
-                foreach (var drawCall in meshSceneObject.GetArray("m_drawCalls"))
-                {
-                    yield return (embedded.Mesh, drawCall);
-                }
+                meshResource = FileLoader.LoadFileCompiled(reference.MeshName);
+                ReferenceMeshResources.Add(reference.MeshName, meshResource);
+            }
+
+            if (meshResource?.DataBlock is Mesh mesh)
+            {
+                meshes.Add((mesh, reference.MeshIndex));
+            }
+        }
+
+        meshes.Sort(static (a, b) => a.MeshIndex.CompareTo(b.MeshIndex));
+        return meshes;
+    }
+
+    private Material.VsInputSignature GetMaterialInputSignature(string materialName)
+    {
+        if (!MaterialInputSignatures.TryGetValue(materialName, out var inputSignature))
+        {
+            inputSignature = Material.LoadInputSignature(FileLoader, materialName);
+            MaterialInputSignatures.Add(materialName, inputSignature);
+        }
+
+        return inputSignature;
+    }
+
+    /// <summary>
+    /// Converts a render mesh to a datamodel mesh with one submesh per draw call.
+    /// </summary>
+    private Datamodel.Datamodel ConvertRenderMesh(Mesh mesh, string name, List<(DmeDag Dag, KVObject DrawCall)> submeshDrawCalls)
+    {
+        foreach (var drawCall in EnumerateDrawCalls(mesh))
+        {
+            if (Mesh.GetMaterialName(drawCall) is { } materialName)
+            {
+                GetMaterialInputSignature(materialName);
+            }
+        }
+
+        return ModelExtract.ConvertMeshToDatamodelMesh(mesh, name, new ModelExtract.DatamodelRenderMeshExtractOptions
+        {
+            MaterialInputSignatures = MaterialInputSignatures,
+            SplitDrawCallsIntoSeparateSubmeshes = true,
+            SubmeshDrawCalls = submeshDrawCalls,
+        });
+    }
+
+    private static IEnumerable<KVObject> EnumerateDrawCalls(Mesh mesh)
+        => mesh.Data.GetArray("m_sceneObjects").SelectMany(static meshSceneObject => meshSceneObject.GetArray("m_drawCalls"));
+
+    /// <summary>
+    /// The draw calls of every render mesh of a model, each paired with the mesh it belongs to.
+    /// </summary>
+    private IEnumerable<(Mesh Mesh, KVObject DrawCall)> EnumerateDrawCalls(Model model)
+    {
+        foreach (var (mesh, _) in GetRenderMeshes(model))
+        {
+            foreach (var drawCall in EnumerateDrawCalls(mesh))
+            {
+                yield return (mesh, drawCall);
             }
         }
     }
@@ -206,8 +283,6 @@ public sealed partial class MapExtract
     /// </summary>
     private bool HasFoliageAnimationStreams(Model model)
     {
-        var inputSignatures = new Dictionary<string, Material.VsInputSignature>();
-
         foreach (var (mesh, drawCall) in EnumerateDrawCalls(model))
         {
             var materialName = Mesh.GetMaterialName(drawCall);
@@ -217,11 +292,7 @@ public sealed partial class MapExtract
                 continue;
             }
 
-            if (!inputSignatures.TryGetValue(materialName, out var inputSignature))
-            {
-                inputSignature = Material.LoadInputSignature(FileLoader, materialName);
-                inputSignatures.Add(materialName, inputSignature);
-            }
+            var inputSignature = GetMaterialInputSignature(materialName);
 
             foreach (var vertexBuffer in drawCall.GetArray("m_vertexBuffers"))
             {
@@ -268,7 +339,7 @@ public sealed partial class MapExtract
             }
 
             var stream = streams.VertexBuffers[streamOverride.BufferIndex];
-            var drawCall = FindEmbeddedDrawCall(model, streamOverride);
+            var drawCall = FindDrawCall(model, streamOverride);
 
             // Streams painted on an older version of the model no longer match its vertex count
             if (drawCall is null || drawCall.GetInt32Property("m_nVertexCount") != stream.ElementCount
@@ -277,11 +348,7 @@ public sealed partial class MapExtract
                 continue;
             }
 
-            if (!ExtraVertexStreamInputSignatures.TryGetValue(materialName, out var inputSignature))
-            {
-                inputSignature = Material.LoadInputSignature(FileLoader, materialName);
-                ExtraVertexStreamInputSignatures.Add(materialName, inputSignature);
-            }
+            var inputSignature = GetMaterialInputSignature(materialName);
 
             var extraStream = new CDmExtraVertexStream
             {
@@ -313,18 +380,18 @@ public sealed partial class MapExtract
         return extraVertexData.ExtraStreams.Count > 0 ? extraVertexData : null;
     }
 
-    private static KVObject? FindEmbeddedDrawCall(Model model, WorldNode.ExtraVertexStreamOverride streamOverride)
+    private KVObject? FindDrawCall(Model model, WorldNode.ExtraVertexStreamOverride streamOverride)
     {
         var remaining = (int)streamOverride.DrawCallIndex;
 
-        foreach (var embeddedMesh in model.GetEmbeddedMeshes())
+        foreach (var (mesh, meshIndex) in GetRenderMeshes(model))
         {
-            if (embeddedMesh.MeshIndex != streamOverride.SubSceneObject)
+            if (meshIndex != streamOverride.SubSceneObject)
             {
                 continue;
             }
 
-            foreach (var meshSceneObject in embeddedMesh.Mesh.Data.GetArray("m_sceneObjects"))
+            foreach (var meshSceneObject in mesh.Data.GetArray("m_sceneObjects"))
             {
                 foreach (var drawCall in meshSceneObject.GetArray("m_drawCalls"))
                 {
@@ -340,8 +407,6 @@ public sealed partial class MapExtract
 
         return null;
     }
-
-    private readonly Dictionary<string, Material.VsInputSignature> ExtraVertexStreamInputSignatures = [];
 
     /// <summary>
     /// The material that replaces every draw call of one placed model, which is all a prop can express in Hammer,
@@ -390,7 +455,7 @@ public sealed partial class MapExtract
     {
         FileLoader = fileLoader ?? throw new ArgumentNullException(nameof(fileLoader), "A file loader must be provided to load the map's lumps");
         TextureScale = FileLoader.GameInfo.HammerTextureScale;
-        FileExtract.EnsurePopulatedStringToken(fileLoader);
+        SurfacePropertyNames = fileLoader.GetSurfacePropertyNames();
 
         switch (resource.ResourceType)
         {
@@ -641,6 +706,23 @@ public sealed partial class MapExtract
     /// </summary>
     public byte[] ToValveMap()
     {
+        try
+        {
+            return BuildValveMap();
+        }
+        finally
+        {
+            foreach (var meshResource in ReferenceMeshResources.Values)
+            {
+                meshResource?.Dispose();
+            }
+
+            ReferenceMeshResources.Clear();
+        }
+    }
+
+    private byte[] BuildValveMap()
+    {
         using var datamodel = new Datamodel.Datamodel("vmap", 29);
 
         datamodel.PrefixAttributes.Add("map_asset_references", AssetReferences);
@@ -656,8 +738,6 @@ public sealed partial class MapExtract
             var worldPhysMeshes = phys.Parts[0].Shape.GetAllMeshes().Where(m => collisionAttributes[m.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default");
 
             PhysTriangleMatcher = new PhysicsTriangleMatcher(worldPhysMeshes.ToArray());
-
-            // TODO: physics spheres and capsules are ignored
         }
 
         foreach (var worldNodeName in WorldNodeNames)
@@ -870,37 +950,25 @@ public sealed partial class MapExtract
     /// <summary>
     /// Adds the render meshes of a model to builders, one per material and tint.
     /// </summary>
-    /// <param name="model">Model whose embedded meshes are added.</param>
+    /// <param name="model">Model whose render meshes are added.</param>
     /// <param name="resource">Resource the model came from.</param>
     /// <param name="transform">Transform applied to the geometry.</param>
-    /// <param name="drawCallTint">Tint (gamma space, 0-255, alpha in W) per draw call index, defaults to the draw call's own tint and alpha.</param>
-    /// <param name="drawCallShadows">Hammer <c>disableShadows</c> mode per draw call index, defaults to 0.</param>
+    /// <param name="drawCallTint">Tint (gamma space, 0-255, alpha in W) per draw call index over all render meshes of the model, in <see cref="EnumerateDrawCalls(Model)"/> order, defaults to the draw call's own tint and alpha.</param>
+    /// <param name="drawCallShadows">Hammer <c>disableShadows</c> mode per draw call index, indexed like <paramref name="drawCallTint"/>, defaults to 0.</param>
     /// <param name="builders">Builders to add to, created per material, tint and shadow mode as needed.</param>
     /// <returns>Number of draw calls added.</returns>
     private int AddRenderMeshToBuilders(Model model, Resource resource, Matrix4x4 transform, Func<int, Vector4>? drawCallTint, Func<int, int>? drawCallShadows, Dictionary<HammerMeshGroup, HammerMeshBuilder> builders)
     {
-        var modelExtract = new ModelExtract(resource, FileLoader);
-        modelExtract.GrabMaterialInputSignatures(resource);
-
         var drawCallCount = 0;
 
-        // TODO: reference meshes
-        foreach (var embedded in model.GetEmbeddedMeshes())
+        foreach (var (mesh, _) in GetRenderMeshes(model))
         {
             var submeshDrawCalls = new List<(DmeDag Dag, KVObject DrawCall)>();
-            var dmxOptions = new ModelExtract.DatamodelRenderMeshExtractOptions
-            {
-                MaterialInputSignatures = modelExtract.MaterialInputSignatures,
-                SplitDrawCallsIntoSeparateSubmeshes = true,
-                SubmeshDrawCalls = submeshDrawCalls,
-            };
+            using var dmxMesh = ConvertRenderMesh(mesh, Path.GetFileNameWithoutExtension(resource.FileName ?? "mesh"), submeshDrawCalls);
 
-            using var dmxMesh = ModelExtract.ConvertMeshToDatamodelMesh(embedded.Mesh, Path.GetFileNameWithoutExtension(resource.FileName ?? "mesh"), dmxOptions);
-
-            for (var drawCallIndex = 0; drawCallIndex < submeshDrawCalls.Count; drawCallIndex++)
+            foreach (var (dag, drawCall) in submeshDrawCalls)
             {
-                var (dag, drawCall) = submeshDrawCalls[drawCallIndex];
-                drawCallCount++;
+                var drawCallIndex = drawCallCount++;
 
                 var tint = drawCallTint?.Invoke(drawCallIndex) ?? GetDrawCallTint(drawCall);
                 var material = Mesh.GetMaterialName(drawCall) ?? string.Empty;
@@ -972,7 +1040,7 @@ public sealed partial class MapExtract
     /// <summary>
     /// Converts the render meshes of one model into Hammer meshes, welded within the model and split into islands.
     /// </summary>
-    /// <param name="model">Model whose embedded meshes are converted.</param>
+    /// <param name="model">Model whose render meshes are converted.</param>
     /// <param name="resource">Resource the model came from.</param>
     /// <param name="entityClassname">Class of the entity the meshes belong to, null for world geometry.</param>
     /// <param name="transform">Transform applied to the geometry.</param>
@@ -1009,7 +1077,7 @@ public sealed partial class MapExtract
         {
             HammerMesheEntitiesSelectionSet?.Children.Add(hammerMeshEntitySelectionSet);
         }
-        else if (resource.FileName!.Contains("_mesh_overlay", StringComparison.Ordinal))
+        else if (IsOverlayMeshName(resource.FileName!))
         {
             OverlaysSelectionSet?.Children.Add(drawSelectionSet);
         }
@@ -1021,25 +1089,19 @@ public sealed partial class MapExtract
         return hammerMeshesToReturn;
     }
 
-    internal void AddOverlayGeometry(Model model, Resource resource, Matrix4x4 transform, KVObject sceneObject, ObjectTypeFlags objectFlags)
+    internal void AddOverlayGeometry(Model model, Resource resource, Matrix4x4 transform, int renderOrder, Func<int, Vector4> drawCallTint, Func<int, ObjectTypeFlags> drawCallFlags)
     {
-        var modelExtract = new ModelExtract(resource, FileLoader);
-        modelExtract.GrabMaterialInputSignatures(resource);
+        var drawCallCount = 0;
 
-        foreach (var embedded in model.GetEmbeddedMeshes())
+        foreach (var (mesh, _) in GetRenderMeshes(model))
         {
             var submeshDrawCalls = new List<(DmeDag Dag, KVObject DrawCall)>();
-            var dmxOptions = new ModelExtract.DatamodelRenderMeshExtractOptions
-            {
-                MaterialInputSignatures = modelExtract.MaterialInputSignatures,
-                SplitDrawCallsIntoSeparateSubmeshes = true,
-                SubmeshDrawCalls = submeshDrawCalls,
-            };
-
-            using var dmxMesh = ModelExtract.ConvertMeshToDatamodelMesh(embedded.Mesh, Path.GetFileNameWithoutExtension(resource.FileName ?? "overlay"), dmxOptions);
+            using var dmxMesh = ConvertRenderMesh(mesh, Path.GetFileNameWithoutExtension(resource.FileName ?? "overlay"), submeshDrawCalls);
 
             foreach (var (dag, drawCall) in submeshDrawCalls)
             {
+                var drawCallIndex = drawCallCount++;
+
                 if (dag.Shape is not DmeMesh shape)
                 {
                     continue;
@@ -1087,9 +1149,7 @@ public sealed partial class MapExtract
                     }
                 }
 
-                var tintColor = sceneObject.GetSubCollection("m_vTintColor").ToVector4();
-                var renderOrder = sceneObject.GetInt32Property("m_nOverlayRenderOrder");
-                var group = new OverlayGroup(material, renderOrder, tintColor, objectFlags & OverlayFlags);
+                var group = new OverlayGroup(material, renderOrder, drawCallTint(drawCallIndex), drawCallFlags(drawCallIndex) & OverlayFlags);
 
                 if (!WorldOverlayGeometry.TryGetValue(group, out var pieces))
                 {
@@ -1713,7 +1773,7 @@ public sealed partial class MapExtract
                 continue;
             }
 
-            propModel.SetExternalMeshData(referenceMesh);
+            propModel.SetExternalMeshData(referenceMesh, reference.MeshIndex);
             AddMeshTriangles(referenceMesh, positions, triangles, drawCalls);
         }
 
@@ -1792,7 +1852,7 @@ public sealed partial class MapExtract
     /// <summary>
     /// The tint every draw call of a model shares, or <see langword="null"/> when they differ.
     /// </summary>
-    private static Vector4? GetUniformDrawCallTint(Model model)
+    private Vector4? GetUniformDrawCallTint(Model model)
     {
         Vector4? uniformTint = null;
 
@@ -1838,17 +1898,25 @@ public sealed partial class MapExtract
         for (var i = 0; i < phys.Parts.Length; i++)
         {
             var shape = phys.Parts[i].Shape;
-            var hulls = shape.GetAllHulls().ToArray();
+            Action<HammerMeshBuilder>[] convexShapes =
+            [
+                .. shape.GetAllHulls().Select(hull => (Action<HammerMeshBuilder>)(builder =>
+                    builder.AddPhysHull(hull, phys, GetAndExportAutoPhysicsMaterialName, transform, materialOverride))),
+                .. shape.GetAllSpheres().Select(sphere => (Action<HammerMeshBuilder>)(builder =>
+                    builder.AddPhysSphere(sphere, phys, GetAndExportAutoPhysicsMaterialName, transform, materialOverride))),
+                .. shape.GetAllCapsules().Select(capsule => (Action<HammerMeshBuilder>)(builder =>
+                    builder.AddPhysCapsule(capsule, phys, GetAndExportAutoPhysicsMaterialName, transform, materialOverride))),
+            ];
             var meshes = shape.GetAllMeshes().ToArray();
 
             var hullsSelectionSet = new CMapSelectionSet
             {
-                SelectionSetName = "physics shape (" + hulls.Length + " hulls)"
+                SelectionSetName = "physics shape (" + convexShapes.Length + " hulls)"
             };
 
             var hullsEntitySelectionSet = new CMapSelectionSet
             {
-                SelectionSetName = "physics hull entity " + entityClassname + " (reconstructed from " + hulls.Length + (hulls.Length > 1 ? " hulls)" : " hull)")
+                SelectionSetName = "physics hull entity " + entityClassname + " (reconstructed from " + convexShapes.Length + (convexShapes.Length > 1 ? " hulls)" : " hull)")
             };
 
             var meshesSelectionSet = new CMapSelectionSet
@@ -1861,10 +1929,10 @@ public sealed partial class MapExtract
                 SelectionSetName = "physics mesh entity " + entityClassname + " (reconstructed from " + meshes.Length + (meshes.Length > 1 ? " meshes)" : " mesh)")
             };
 
-            foreach (var hull in hulls)
+            foreach (var addConvexShape in convexShapes)
             {
-                var hammerMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize, DefaultTextureScale = TextureScale };
-                hammerMeshBuilder.AddPhysHull(hull, phys, GetAndExportAutoPhysicsMaterialName, transform, materialOverride);
+                var hammerMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize, DefaultTextureScale = TextureScale, SurfacePropertyNames = SurfacePropertyNames };
+                addConvexShape(hammerMeshBuilder);
                 var meshData = hammerMeshBuilder.GenerateMesh();
 
                 if (meshData.FaceEdgeIndices.Count == 0)
@@ -1888,7 +1956,7 @@ public sealed partial class MapExtract
 
             // physics meshes are welded together and split by connectivity like the render geometry is, however
             // material doesnt matter and neither does tint
-            var physicsMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize, DefaultTextureScale = TextureScale };
+            var physicsMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize, DefaultTextureScale = TextureScale, SurfacePropertyNames = SurfacePropertyNames };
 
             foreach (var mesh in meshes)
             {
@@ -1914,7 +1982,7 @@ public sealed partial class MapExtract
                 }
             }
 
-            if (hulls.Length != 0)
+            if (convexShapes.Length != 0)
             {
                 if (string.IsNullOrEmpty(entityClassname))
                 {
@@ -1973,9 +2041,20 @@ public sealed partial class MapExtract
             ProcessAggregate(aggregateSceneObject, layerIndex, layerNodes);
         }
 
+        var clutterGroups = new Dictionary<int, CMapGroup>();
+
         foreach (var clutterSceneObject in node.ClutterSceneObjects)
         {
-            // TODO: Clutter
+            var clutter = new WorldNode.ClutterSceneObject(clutterSceneObject);
+
+            if (!clutterGroups.TryGetValue(clutter.Layer, out var clutterGroup))
+            {
+                clutterGroup = new CMapGroup { Name = "clutter" };
+                GetWorldLayerNode(clutter.Layer, layerNodes).Children.Add(clutterGroup);
+                clutterGroups.Add(clutter.Layer, clutterGroup);
+            }
+
+            AddClutter(clutter, clutterGroup);
         }
     }
 
@@ -2130,9 +2209,11 @@ public sealed partial class MapExtract
         var model = (Model)mesh.DataBlock;
 
         // overlays are not normal hammer geo, their projected geometry is collected and reconstructed at the end
-        if (modelName.Contains("_mesh_overlay", StringComparison.Ordinal))
+        if (IsOverlayMeshName(modelName))
         {
-            AddOverlayGeometry(model, mesh, objectTransform, sceneObject, objectFlags);
+            var overlayTint = sceneObject.GetSubCollection("m_vTintColor").ToVector4();
+            var renderOrder = sceneObject.GetInt32Property("m_nOverlayRenderOrder");
+            AddOverlayGeometry(model, mesh, objectTransform, renderOrder, _ => overlayTint, _ => objectFlags);
             return true;
         }
 
@@ -2276,10 +2357,17 @@ public sealed partial class MapExtract
 
         var model = (Model)modelRes.DataBlock;
 
-        // TODO: reference meshes
-        var mesh = ((Model)modelRes.DataBlock).GetEmbeddedMeshes().First();
-        var sceneObject = mesh.Mesh.Data.GetArray("m_sceneObjects")[0];
-        drawCalls = sceneObject.GetArray("m_drawCalls");
+        var renderMeshes = GetRenderMeshes(model);
+
+        if (renderMeshes.Count == 0)
+        {
+            return;
+        }
+
+        var sceneObject = renderMeshes[0].Mesh.Data.GetArray("m_sceneObjects")[0];
+        drawCalls = convertToHalfEdge
+            ? [.. renderMeshes.SelectMany(static mesh => EnumerateDrawCalls(mesh.Mesh))]
+            : [.. EnumerateDrawCalls(renderMeshes[0].Mesh)];
 
         if (convertToHalfEdge)
         {
@@ -2338,6 +2426,14 @@ public sealed partial class MapExtract
 
         int HammerMeshShadows(int drawCallIndex)
             => DisableShadowsFromFlags(fragmentFlags.GetValueOrDefault(drawCallIndex, allFlags));
+
+        if (IsOverlayMeshName(modelRes.FileName!))
+        {
+            AddOverlayGeometry(model, modelRes, Matrix4x4.Identity, 0,
+                drawCallIndex => fragmentTints.GetValueOrDefault(drawCallIndex, new Vector4(255f)) / 255f,
+                drawCallIndex => fragmentFlags.GetValueOrDefault(drawCallIndex, allFlags));
+            return;
+        }
 
         // world geometry is welded across all aggregates, the meshes are made once every world node is in
         WorldHammerMeshDrawCalls += AddRenderMeshToBuilders(model, modelRes, Matrix4x4.Identity, HammerMeshTint, HammerMeshShadows, WorldHammerMeshBuilders);
@@ -2660,6 +2756,7 @@ public sealed partial class MapExtract
                 }
 
                 ExtractEntityModel(mapEntity, modelName, worldTransform);
+                mapEntity.EntityProperties.Remove("model");
 
                 ReadOnlySpan<char> entityIdFull = Path.GetFileNameWithoutExtension(modelName);
                 var nameCutoff = entityIdFull.Length;
@@ -2786,7 +2883,7 @@ public sealed partial class MapExtract
                 continue;
             }
 
-            if (RemoveOrMutateCompilerGeneratedProperty(className, ref propertyKey))
+            if (RemoveOrMutateCompilerGeneratedProperty(className, compiledEntity, ref propertyKey))
             {
                 continue;
             }
@@ -2870,14 +2967,14 @@ public sealed partial class MapExtract
         return false;
     }
 
-    // TODO: cubemaptexture may be set by artist, needs to be handled differently (reference: CS2 /ui/ maps)
-    private static bool RemoveOrMutateCompilerGeneratedProperty(string className, ref string propertyKey)
+    private static bool RemoveOrMutateCompilerGeneratedProperty(string className, Entity compiledEntity, ref string propertyKey)
     {
         const string prefix = "vrf_stripped_";
         if (className is "env_combined_light_probe_volume" or "env_light_probe_volume" or "env_cubemap_box" or "env_cubemap")
         {
             // in newer s2 engine branches having `array_index` present causes all sort of issues and crashes
-            if (propertyKey is "cubemaptexture" or "lightprobetexture" or "array_index")
+            if (propertyKey == "lightprobetexture"
+                || (propertyKey is "cubemaptexture" or "array_index" && !compiledEntity.GetBooleanProperty("customcubemaptexture")))
             {
                 propertyKey = prefix + propertyKey;
             }

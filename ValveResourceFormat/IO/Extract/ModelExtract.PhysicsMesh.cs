@@ -69,7 +69,7 @@ partial class ModelExtract
             return;
         }
 
-        PhysicsSurfaceNames = physAggregateData.SurfacePropertyHashes.Select(StringToken.GetKnownString).ToArray();
+        PhysicsSurfaceNames = physAggregateData.GetSurfacePropertyNames(fileLoader?.GetSurfacePropertyNames());
 
         PhysicsCollisionTags = physAggregateData.CollisionAttributes.Select(attributes =>
             PhysAggregateData.GetInteractAsTags(attributes).ToHashSet()
@@ -90,6 +90,12 @@ partial class ModelExtract
 
         var bindPoses = physAggregateData.BindPose;
 
+        var meshNames = physAggregateData.Parts
+            .SelectMany(part => part.Shape.GetAllMeshes())
+            .Select(mesh => mesh.UserFriendlyName)
+            .OfType<string>()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         var i = 0;
         for (var partIndex = 0; partIndex < physAggregateData.Parts.Length; partIndex++)
         {
@@ -103,7 +109,7 @@ partial class ModelExtract
                 StoreSurfaceTagCombo(hull);
             }
 
-            foreach (var mesh in physicsPart.Shape.GetAllMeshes())
+            foreach (var mesh in physicsPart.Shape.GetAllMeshes().SelectMany(partMesh => SplitBySurface(partMesh, meshNames)))
             {
                 PhysMeshesToExtract.Add((mesh, GetDmxFileName_ForEmbeddedMesh("phys", i++), parentBone, bindPose));
 
@@ -115,6 +121,56 @@ partial class ModelExtract
                 }
             }
         }
+    }
+
+    private readonly HashSet<MeshDescriptor> surfaceSplitMeshes = [];
+
+    private static bool HasSeveralSurfaces(RnShapes.Mesh mesh)
+        => mesh.Materials.Length > 0 && mesh.Materials.AsSpan().ContainsAnyExcept(mesh.Materials[0]);
+
+    private static int CountMeshNodes(MeshDescriptor mesh)
+        => HasSeveralSurfaces(mesh.Shape) ? mesh.Shape.Materials.Distinct().Count() : 1;
+
+    /// <summary>
+    /// Splits a mesh whose triangles use several surface properties into one descriptor per surface, the mesh's
+    /// own surface property first and the rest in index order. The first keeps the mesh's name and each other one is
+    /// named after its surface property.
+    /// </summary>
+    private List<MeshDescriptor> SplitBySurface(MeshDescriptor mesh, HashSet<string> meshNames)
+    {
+        if (!HasSeveralSurfaces(mesh.Shape))
+        {
+            return [mesh];
+        }
+
+        List<MeshDescriptor> parts = [.. mesh.Shape.Materials.Distinct()
+            .OrderBy(surface => surface != mesh.SurfacePropertyIndex)
+            .ThenBy(surface => surface)
+            .Select((surface, index) => new MeshDescriptor
+            {
+                CollisionAttributeIndex = mesh.CollisionAttributeIndex,
+                SurfacePropertyIndex = surface,
+                UserFriendlyName = index == 0 || string.IsNullOrEmpty(mesh.UserFriendlyName)
+                    ? mesh.UserFriendlyName
+                    : ClaimUniqueName($"{mesh.UserFriendlyName}_{PhysicsSurfaceNames[surface]}", meshNames),
+                HitGroupName = mesh.HitGroupName,
+                Shape = mesh.Shape,
+            })];
+
+        surfaceSplitMeshes.UnionWith(parts);
+        return parts;
+    }
+
+    private static string ClaimUniqueName(string name, HashSet<string> usedNames)
+    {
+        var unique = name;
+
+        for (var suffix = 2; !usedNames.Add(unique); suffix++)
+        {
+            unique = FormattableString.Invariant($"{name}_{suffix}");
+        }
+
+        return unique;
     }
 
     private void StoreSurfaceTagCombo<T>(ShapeDescriptor<T> shapeDesc) where T : struct
@@ -164,7 +220,8 @@ partial class ModelExtract
         var uniformSurface = PhysicsSurfaceNames[mesh.SurfacePropertyIndex];
         var uniformCollisionTags = PhysicsCollisionTags[mesh.CollisionAttributeIndex];
         var fixRenderMeshCompileCrash = Type == ModelExtractType.Map_PhysicsToRenderMesh;
-        return ToDmxMesh(mesh.Shape, mesh.UserFriendlyName ?? "mesh", uniformSurface, uniformCollisionTags, PhysicsSurfaceNames, fixRenderMeshCompileCrash, bindPose ?? Matrix4x4.Identity);
+        int? onlySurface = surfaceSplitMeshes.Contains(mesh) ? mesh.SurfacePropertyIndex : null;
+        return ToDmxMesh(mesh.Shape, mesh.UserFriendlyName ?? "mesh", uniformSurface, uniformCollisionTags, PhysicsSurfaceNames, fixRenderMeshCompileCrash, bindPose ?? Matrix4x4.Identity, onlySurface);
     }
 
     /// <summary>
@@ -232,7 +289,8 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// Converts a Rubikon mesh shape to DMX mesh format.
+    /// Converts a Rubikon mesh shape to DMX mesh format, keeping only the triangles of surface
+    /// <paramref name="onlySurface"/> and the vertices they use when it is set.
     /// </summary>
     /// <remarks>
     /// <paramref name="bindPose"/> transforms the mesh's vertices from body-local space into bind-pose
@@ -245,27 +303,49 @@ partial class ModelExtract
         HashSet<string> uniformCollisionTags,
         string[] surfaceList,
         bool appendVertexNormalStream = false,
-        Matrix4x4? bindPose = null)
+        Matrix4x4? bindPose = null,
+        int? onlySurface = null)
     {
         using var dmx = new Datamodel.Datamodel("model", 22);
         DmxScaffolding.BaseLayout(name, out var dmeModel, out var dag, out var vertexData);
 
         var triangles = mesh.GetTriangles();
+        var materials = mesh.Materials;
+        var vertices = mesh.GetVertices().ToArray();
 
-        if (mesh.Materials.Length == 0)
+        var kept = new List<int>(triangles.Length * 3);
+        for (var t = 0; t < triangles.Length; t++)
+        {
+            if (onlySurface is null || materials[t] == onlySurface)
+            {
+                kept.AddRange([triangles[t].X, triangles[t].Y, triangles[t].Z]);
+            }
+        }
+
+        var indices = kept.ToArray();
+
+        if (onlySurface is not null)
+        {
+            (vertices, indices) = CompactVertices(vertices, kept);
+            materials = [];
+        }
+
+        var triangleCount = indices.Length / 3;
+
+        if (materials.Length == 0)
         {
             var materialName = new SurfaceTagCombo(uniformSurface, uniformCollisionTags).StringMaterial;
-            DmxScaffolding.TriangleFaceSet(dag, 0, triangles.Length, materialName);
+            DmxScaffolding.TriangleFaceSet(dag, 0, triangleCount, materialName);
         }
         else if (dag.Shape is DmeMesh dmeMesh)
         {
-            Debug.Assert(mesh.Materials.Length == triangles.Length);
+            Debug.Assert(materials.Length == triangleCount);
             Debug.Assert(surfaceList.Length > 0);
 
             Span<DmeFaceSet> faceSets = new DmeFaceSet[surfaceList.Length];
-            for (var t = 0; t < mesh.Materials.Length; t++)
+            for (var t = 0; t < materials.Length; t++)
             {
-                var surfaceIndex = mesh.Materials[t];
+                var surfaceIndex = materials[t];
                 var faceSet = faceSets[surfaceIndex];
 
                 if (faceSet == null)
@@ -285,17 +365,6 @@ partial class ModelExtract
                 faceSet.Faces.Add(-1);
             }
         }
-
-        var indices = new int[triangles.Length * 3];
-        for (var t = 0; t < triangles.Length; t++)
-        {
-            var triangle = triangles[t];
-            indices[t * 3] = triangle.X;
-            indices[t * 3 + 1] = triangle.Y;
-            indices[t * 3 + 2] = triangle.Z;
-        }
-
-        var vertices = mesh.GetVertices().ToArray();
 
         if (bindPose is Matrix4x4 pose)
         {
@@ -317,5 +386,30 @@ partial class ModelExtract
         dmx.Save(stream, "binary", 9);
 
         return stream.ToArray();
+    }
+
+    /// <summary>
+    /// Drops the vertices <paramref name="indices"/> does not reference, keeping the order of the rest.
+    /// </summary>
+    private static (Vector3[] Vertices, int[] Indices) CompactVertices(Vector3[] vertices, List<int> indices)
+    {
+        var used = new bool[vertices.Length];
+        foreach (var index in indices)
+        {
+            used[index] = true;
+        }
+
+        var remap = new int[vertices.Length];
+        var kept = new List<Vector3>();
+        for (var i = 0; i < vertices.Length; i++)
+        {
+            if (used[i])
+            {
+                remap[i] = kept.Count;
+                kept.Add(vertices[i]);
+            }
+        }
+
+        return ([.. kept], [.. indices.Select(index => remap[index])]);
     }
 }

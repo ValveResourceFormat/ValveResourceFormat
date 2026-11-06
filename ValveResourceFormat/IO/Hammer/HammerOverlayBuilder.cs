@@ -29,9 +29,6 @@ namespace ValveResourceFormat.IO
         // steepest angle at which a projection direction still counts as seeing a surface
         private static readonly float SurfaceSeenCos = MathF.Cos(float.DegreesToRadians(75f));
 
-        // receiver triangles steeper than this against the projection are left out of the lifted mesh
-        private static readonly float GrazingCos = MathF.Cos(float.DegreesToRadians(85f));
-
         // distance for welding overlapping vertices
         private const float WeldDistance = 1f / 64f;
 
@@ -228,11 +225,10 @@ namespace ValveResourceFormat.IO
 
             for (var t = 0; t < triangleCount; t++)
             {
-                // only what faced the overlay, and still has an area once flattened along the projection, past
-                // grazing the footprint squishes into slivers that only stack over the neighbouring geometry
+                // only what faces the projection and still has an area once flattened along it
                 var facingCos = Vector3.Dot(normals[t], direction);
 
-                if (areas[t] <= 0f || facingCos <= GrazingCos)
+                if (areas[t] <= 0f || facingCos <= 0f)
                 {
                     continue;
                 }

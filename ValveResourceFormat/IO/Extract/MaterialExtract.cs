@@ -28,8 +28,7 @@ public sealed class MaterialExtract
         public Channel Channel { get; init; }
     }
 
-    private static bool IsDefaultTexture(string textureFileName)
-        => textureFileName.StartsWith("materials/default/", StringComparison.OrdinalIgnoreCase);
+    private const string LayerNamePrefix = "layer_name_";
 
     private static readonly FrozenSet<string> SystemAttributeNames = new[]
     {
@@ -75,143 +74,171 @@ public sealed class MaterialExtract
     /// </summary>
     public ContentFile ToContentFile()
     {
+        var textureInputs = GetTextureInputs();
         var vmat = new ContentFile
         {
-            Data = Encoding.UTF8.GetBytes(ToValveMaterial())
+            Data = Encoding.UTF8.GetBytes(ToValveMaterial(textureInputs))
         };
 
-        var handledTextures = new HashSet<string>(material.TextureParams.Count);
-        foreach (var (type, filePath) in material.TextureParams)
+        foreach (var inputs in textureInputs.GroupBy(static input => input.Texture))
         {
-            var textureCompiledName = filePath + GameFileLoader.CompiledFileSuffix;
-            if (!handledTextures.Add(textureCompiledName))
+            if (inputs.Key is not { } texture)
             {
                 continue;
             }
 
-            var texture = fileLoader?.LoadFile(textureCompiledName);
-            if (texture is null)
+            var textureExtract = new TextureExtract(texture);
+            var vtex = textureExtract.ToMaterialMaps(inputs.Select(static input => input.Image));
+            vtex.TakeOwnership(texture);
+
+            if (inputs.FirstOrDefault(static input => input.IsPrimary) is { Image.FileName: { } primaryFileName }
+                && textureExtract.GetImageSettings() is { } settings)
             {
-                continue;
+                vtex.AddSubFile(Path.GetFileNameWithoutExtension(primaryFileName) + ".txt", () => Encoding.UTF8.GetBytes(settings));
             }
 
-            var images = GetTextureUnpackInfos(type, filePath, (Texture)texture.DataBlock!, omitDefaults: true, omitUniforms: true);
-            var vtex = new TextureExtract(texture).ToMaterialMaps(images);
-
-            if (vtex.SubFiles.Count > 0)
-            {
-                vmat.AdditionalFiles.Add(vtex);
-            }
-            else
-            {
-                vtex.Dispose();
-            }
+            vtex.KeepFullPath = true;
+            vmat.AdditionalFiles.Add(vtex);
         }
 
         return vmat;
     }
 
     /// <summary>
-    /// Generates the output texture file name from a compiled texture path.
+    /// Gets the images the texture parameters are written as, each input key once, with the loaded texture each one
+    /// is unpacked from. A key that is the first input of a parameter is not taken by another parameter's other inputs.
+    /// A texture no image is unpacked from is not kept.
     /// </summary>
-    public static string OutTextureName(string texturePath, bool keepOriginalExtension, bool hdr, string? desiredSuffix = null)
+    private List<(Resource? Texture, UnpackInfo Image, bool IsPrimary)> GetTextureInputs()
     {
-        if (!texturePath.EndsWith(".vtex", StringComparison.OrdinalIgnoreCase))
+        var textures = material.TextureParams.Select(param =>
         {
-            throw new ArgumentException($"{texturePath} must have .vtex", nameof(texturePath));
-        }
+            var texture = fileLoader?.LoadFileCompiled(param.Value);
+            return (Texture: texture, Images: GetTextureUnpackInfos(param.Key, param.Value, texture?.DataBlock as Texture).ToList());
+        }).ToList();
 
-        texturePath = Path.ChangeExtension(texturePath, null); // strip '.vtex'
-        if (texturePath.EndsWith(".generated", StringComparison.OrdinalIgnoreCase))
-        {
-            texturePath = Path.ChangeExtension(texturePath, null);
-        }
+        var primaryKeys = textures.Where(static texture => texture.Images.Count > 0).Select(static texture => texture.Images[0].TextureType).ToHashSet();
+        var inputs = new List<(Resource? Texture, UnpackInfo Image, bool IsPrimary)>();
+        var inputKeys = new HashSet<string>();
 
-        var textureParts = Path.GetFileName(texturePath)!.Split('_');
-        if (textureParts.Length > 2)
+        foreach (var (texture, images) in textures)
         {
-            // texture_suffix_ext_hash
-            if (textureParts[^1].All("0123456789abcdef".Contains)             // This is a hash
-            && textureParts[^2].Length >= 3 && textureParts[^2].Length <= 4 // This is the original extension
-            && !string.IsNullOrEmpty(string.Join("_", textureParts[..^2])))   // Name of the Input[0] image
+            var unpacked = false;
+
+            for (var i = 0; i < images.Count; i++)
             {
-                texturePath = Path.Combine(Path.GetDirectoryName(texturePath)!, string.Join("_", textureParts[..^2]));
-                texturePath = texturePath.Replace(Path.DirectorySeparatorChar, '/');
-            }
-            // Also seen "{MAT}_vmat_{G_TPARAM}_{HASH}.vtex"
-        }
-
-        if (desiredSuffix is not null)
-        {
-            // Strip e.g. _color if we want _metal
-            if (!texturePath.EndsWith(desiredSuffix, StringComparison.OrdinalIgnoreCase))
-            {
-                foreach (var suffix in BasicShaderDataProvider.CommonTextureSuffixes.Values)
+                if ((i == 0 || !primaryKeys.Contains(images[i].TextureType)) && inputKeys.Add(images[i].TextureType))
                 {
-                    if (texturePath.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-                    {
-                        texturePath = texturePath[..^suffix.Length];
-                        break;
-                    }
+                    inputs.Add((texture, images[i], i == 0));
+                    unpacked = true;
                 }
             }
-            // Keep the hash to avoid conflicts
-            texturePath += "_" + textureParts[^1] + desiredSuffix;
+
+            if (!unpacked)
+            {
+                texture?.Dispose();
+            }
         }
 
-        var extension = hdr ? "exr" : "png";
-        return Path.ChangeExtension(texturePath, keepOriginalExtension ? textureParts[^2] : extension);
+        return inputs;
     }
 
     /// <summary>
-    /// Gets the texture unpacking information for a material texture parameter.
+    /// Gets the images a texture parameter is written as, one per shader input. They are named after the compiled
+    /// texture, every input after the first with its input key appended. HDR textures are not unpacked, and a texture
+    /// the compiler generated from a constant is left to the constant.
     /// </summary>
-    public IEnumerable<UnpackInfo> GetTextureUnpackInfos(string textureType, string texturePath, Texture? texture, bool omitDefaults, bool omitUniforms)
+    public IEnumerable<UnpackInfo> GetTextureUnpackInfos(string textureType, string texturePath, Texture? texture)
     {
-        var isInput0 = true;
-        var shaderProvidedInputs = shaderDataProvider.GetInputsForTexture(textureType, material).ToList();
-        foreach (var (channel, newTextureType) in shaderProvidedInputs)
+        var inputs = shaderDataProvider.GetInputsForTexture(textureType, material).ToList();
+
+        if (inputs.Count == 0)
         {
-            if (omitUniforms && material.VectorParams.ContainsKey(newTextureType))
+            yield break;
+        }
+
+        var isConstant = material.VectorParams.ContainsKey(inputs[0].Name);
+
+        if (isConstant && IsGeneratedFromConstant(textureType, texturePath))
+        {
+            yield break;
+        }
+
+        var baseName = Path.ChangeExtension(texturePath, null);
+
+        if (texture?.ExtraData?.ContainsKey(VTexExtraData.SHEET) == true)
+        {
+            yield return new UnpackInfo
+            {
+                TextureType = inputs[0].Name,
+                FileName = baseName + ".mks",
+                Channel = inputs[0].Channel,
+            };
+
+            yield break;
+        }
+
+        var isHdr = texture?.IsHighDynamicRange ?? false;
+        var extension = isHdr ? ".exr" : ".png";
+
+        for (var i = 0; i < inputs.Count; i++)
+        {
+            var (channel, input) = inputs[i];
+
+            if (i > 0 && (isHdr || isConstant))
+            {
+                break;
+            }
+
+            if (i > 0 && material.VectorParams.ContainsKey(input))
             {
                 continue;
             }
 
-            string? desiredSuffix = null;
-            if (!isInput0)
+            var fileName = i == 0 ? baseName + extension : $"{baseName}_{input}{extension}";
+
+            if (texture != null && TextureExtract.IsSliced(texture))
             {
-                desiredSuffix = shaderDataProvider.GetSuffixForInputTexture(newTextureType, material) ?? "-" + channel;
+                fileName = TextureExtract.GetFirstSliceFileName(fileName, texture.Depth);
             }
-
-            var keepOriginalExtension = false;
-            if (isInput0 && IsDefaultTexture(texturePath))
-            {
-                if (omitDefaults)
-                {
-                    isInput0 = false;
-                    continue;
-                }
-
-                keepOriginalExtension = true;
-            }
-
-            var isHdr = texture?.IsHighDynamicRange ?? false;
 
             yield return new UnpackInfo
             {
-                TextureType = newTextureType,
-                FileName = OutTextureName(texturePath, keepOriginalExtension, isHdr, desiredSuffix),
+                TextureType = input,
+                FileName = fileName,
                 Channel = channel,
             };
-
-            isInput0 = false;
         }
+    }
+
+    /// <summary>
+    /// Whether the compiler generated the texture from a constant, which names it
+    /// <c>{material}_vmat_{parameter}_{hash}</c>.
+    /// </summary>
+    private bool IsGeneratedFromConstant(string textureType, string texturePath)
+    {
+        var prefix = $"{Path.GetFileNameWithoutExtension(material.Resource?.FileName)}_vmat_{textureType.ToLowerInvariant()}_";
+        var name = Path.GetFileNameWithoutExtension(texturePath);
+
+        return name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && name.Length > prefix.Length && name[prefix.Length..].All(char.IsAsciiHexDigit);
     }
 
     /// <summary>
     /// Converts the material to Valve material format as a string.
     /// </summary>
     public string ToValveMaterial()
+    {
+        var textureInputs = GetTextureInputs();
+
+        foreach (var texture in textureInputs.Select(static input => input.Texture).Distinct())
+        {
+            texture?.Dispose();
+        }
+
+        return ToValveMaterial(textureInputs);
+    }
+
+    private string ToValveMaterial(List<(Resource? Texture, UnpackInfo Image, bool IsPrimary)> textureInputs)
     {
         var root = KVObject.ListCollection();
         root.Add("shader", material.ShaderName);
@@ -223,34 +250,31 @@ public sealed class MaterialExtract
 
         foreach (var (key, value) in material.FloatParams)
         {
-            root.Add(key, value);
+            root.Add(key, FormatFloat(value));
         }
 
         foreach (var (key, value) in material.VectorParams)
         {
-            root.Add(key, string.Create(CultureInfo.InvariantCulture, $"[{value.X:F6} {value.Y:F6} {value.Z:F6} {value.W:F6}]"));
-        }
-
-        var originalTextures = KVObject.ListCollection();
-        foreach (var (key, value) in material.TextureParams)
-        {
-            using var textureResource = fileLoader?.LoadFileCompiled(value);
-            var textureData = textureResource?.DataBlock as Texture;
-            foreach (var unpackInfo in GetTextureUnpackInfos(key, value, textureData, false, true))
+            if (!textureInputs.Exists(input => input.Image.TextureType == key))
             {
-                root.Add(unpackInfo.TextureType, unpackInfo.FileName);
+                root.Add(key, FormatVector(value));
             }
-
-            originalTextures.Add(key, value);
         }
 
-        root.Add("Compiled Textures", originalTextures);
+        foreach (var (_, image, _) in textureInputs)
+        {
+            root.Add(image.TextureType, image.FileName);
+        }
 
         if (material.DynamicExpressions.Count > 0)
         {
+            var dynamicExpressions = fileLoader?.LoadShader(material.ShaderName) is { } shader
+                ? material.GetDynamicExpressions(shader.SelectMany(program => program.VariableDescriptions).Select(variable => variable.Name))
+                : material.DynamicExpressions;
+
             var dynamicExpressionsNode = KVObject.ListCollection();
             root.Add("DynamicParams", dynamicExpressionsNode);
-            foreach (var (key, value) in material.DynamicExpressions)
+            foreach (var (key, value) in dynamicExpressions)
             {
                 dynamicExpressionsNode.Add(key, value);
             }
@@ -271,19 +295,37 @@ public sealed class MaterialExtract
 
         foreach (var (key, value) in material.FloatAttributes)
         {
-            // Skip `int` definition if there is a `float` definition
-            attributes.RemoveAll(existing => existing.Key == key);
-            attributes.Add(new(key, value));
+            // An integer attribute also compiles to a float one of the same name
+            if (!material.IntAttributes.ContainsKey(key))
+            {
+                attributes.Add(new(key, FormatFloat(value)));
+            }
         }
 
         foreach (var (key, value) in material.VectorAttributes)
         {
-            attributes.Add(new(key, string.Create(CultureInfo.InvariantCulture, $"[{value.X:F6} {value.Y:F6} {value.Z:F6} {value.W:F6}]")));
+            attributes.Add(new(key, FormatVector(value)));
         }
 
         foreach (var (key, value) in material.StringAttributes)
         {
             attributes.Add(new(key, value ?? string.Empty));
+        }
+
+        var materialLayers = KVObject.ListCollection();
+
+        foreach (var (key, value) in material.StringAttributes)
+        {
+            if (key.StartsWith(LayerNamePrefix, StringComparison.OrdinalIgnoreCase) && key.Length > LayerNamePrefix.Length
+                && key[LayerNamePrefix.Length..].All(char.IsAsciiDigit))
+            {
+                attributes.RemoveAll(attribute => attribute.Key == key);
+
+                if (!string.IsNullOrEmpty(value))
+                {
+                    materialLayers.Add($"MaterialLayerReference_{key[LayerNamePrefix.Length..]}", value.Replace('\\', '/'));
+                }
+            }
         }
 
         if (attributes.Count > 0)
@@ -314,10 +356,20 @@ public sealed class MaterialExtract
             root.Add("ToolAttributes", toolattributes);
         }
 
+        if (materialLayers.Count > 0)
+        {
+            root.Add("MaterialLayers", materialLayers);
+        }
+
         using var ms = new MemoryStream();
         KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, new KVDocument(new(), "Layer0", root));
         return Encoding.UTF8.GetString(ms.GetBuffer(), 0, (int)ms.Length);
     }
+
+    private static string FormatFloat(float value) => value.ToString("0.0#########", CultureInfo.InvariantCulture);
+
+    private static string FormatVector(Vector4 value)
+        => $"[{FormatFloat(value.X)} {FormatFloat(value.Y)} {FormatFloat(value.Z)} {FormatFloat(value.W)}]";
 
     /// <summary>
     /// TextureColorA will be equal to TextureColor, as they are both the first layer
