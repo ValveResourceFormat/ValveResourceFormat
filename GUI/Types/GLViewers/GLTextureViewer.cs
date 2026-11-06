@@ -137,7 +137,7 @@ namespace GUI.Types.GLViewers
                     size *= mult;
                 }
 
-                if (SpriteSheetDisplayMode == SpriteSheetDisplay.CropToFrame && TryGetCurrentSpriteFrameRect(out var frameRect))
+                if (SpriteSheetDisplayMode == SpriteSheetDisplay.CropToFrame && TryGetCurrentSpriteFrameRect(out var frameRect, out _))
                 {
                     size *= new Vector2(frameRect.Z - frameRect.X, frameRect.W - frameRect.Y);
                 }
@@ -1746,9 +1746,10 @@ namespace GUI.Types.GLViewers
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
         }
 
-        private bool TryGetCurrentSpriteFrameRect(out Vector4 frameRect)
+        private bool TryGetCurrentSpriteFrameRect(out Vector4 frameRect, out Vector4 croppedRect)
         {
             frameRect = new Vector4(0f, 0f, 1f, 1f);
+            croppedRect = frameRect;
 
             if (SpriteSheetData == null)
             {
@@ -1771,6 +1772,7 @@ namespace GUI.Types.GLViewers
 
             var image = frame.Images[0];
             frameRect = new Vector4(image.UncroppedMin.X, image.UncroppedMin.Y, image.UncroppedMax.X, image.UncroppedMax.Y);
+            croppedRect = new Vector4(image.CroppedMin.X, image.CroppedMin.Y, image.CroppedMax.X, image.CroppedMax.Y);
             return true;
         }
 
@@ -1780,13 +1782,14 @@ namespace GUI.Types.GLViewers
 
             var mode = SpriteSheetDisplayMode;
 
-            if (!TryGetCurrentSpriteFrameRect(out var frameRect) || (captureFullSizeImage && mode == SpriteSheetDisplay.OutlineFrame))
+            if (!TryGetCurrentSpriteFrameRect(out var frameRect, out var croppedRect) || (captureFullSizeImage && mode == SpriteSheetDisplay.OutlineFrame))
             {
                 mode = SpriteSheetDisplay.FullSheet;
             }
 
             shader.SetUniform("g_nSpriteSheetMode", (int)mode);
             shader.SetUniform("g_vSpriteFrameMinMax", frameRect);
+            shader.SetUniform("g_vSpriteCroppedMinMax", croppedRect);
         }
 
         protected (float Scale, Vector2 Position) GetCurrentPositionAndScale()

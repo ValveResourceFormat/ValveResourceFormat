@@ -118,6 +118,7 @@ uniform int g_nChannelSplitMode;
 uniform int g_nCubemapProjectionType;
 uniform int g_nSpriteSheetMode = 0;
 uniform vec4 g_vSpriteFrameMinMax = vec4(0.0, 0.0, 1.0, 1.0);
+uniform vec4 g_vSpriteCroppedMinMax = vec4(0.0, 0.0, 1.0, 1.0);
 
 #define g_bCubeEquiRectangularProjection (g_nCubemapProjectionType == 1)
 #define g_bCubeCubicProjection (g_nCubemapProjectionType == 2)
@@ -305,6 +306,16 @@ void main()
     if (g_bTextureViewer)
     {
         float flBackgroundMix = 1.0;
+
+        if (g_bSpriteSheetCropToFrame)
+        {
+            bool bWithinCroppedArt = all(greaterThanEqual(vTexCoord.xy, g_vSpriteCroppedMinMax.xy)) && all(lessThanEqual(vTexCoord.xy, g_vSpriteCroppedMinMax.zw));
+
+            if (!bWithinCroppedArt)
+            {
+                vColorOutput.a = 0.0;
+            }
+        }
 
         const float flMaxUv = g_bVisualizeTiling ? 2.0 : 1.0;
         vec2 vBoundsCoord = g_bSpriteSheetCropToFrame ? vSheetBoundsCoord : vTexCoord.xy;
