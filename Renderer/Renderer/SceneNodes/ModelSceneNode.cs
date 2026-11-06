@@ -44,6 +44,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private readonly (string Name, string[] Materials)[] materialGroups;
 
+        private float?[] flexControllerOverrides = [];
+        private float[] flexControllerValues = [];
+
         /// <summary>Gets the animation graphs the model is bound to, by identifier and resource name. The first is the default.</summary>
         public IReadOnlyList<(string Identifier, string GraphPath)> AnimationGraphReferences { get; }
 
@@ -323,18 +326,55 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 UpdateAnimatedBoundingBox();
             }
 
-            if (AnimationController.AnimationFrame != null)
+            if (AnimationController.FlexValues is { } flexValues)
             {
-                UpdateFlexControllers();
+                PushFlexControllers(flexValues);
             }
         }
 
         /// <summary>
-        /// Pushes the frame's flex controller values, with the constraint driven morphs applied, to every mesh that morphs.
+        /// Sets a flex controller to a value that replaces the one animations give it, as a flex slider does.
         /// </summary>
-        private void UpdateFlexControllers()
+        /// <param name="controller">Index of the flex controller in <see cref="Model.FlexControllers"/>.</param>
+        /// <param name="value">The value, which the flex controller's range clamps.</param>
+        public void SetFlexControllerOverride(int controller, float value)
         {
-            var datas = AnimationController.FlexValues!;
+            var controllerCount = Model.FlexControllers.Length;
+
+            if (flexControllerOverrides.Length != controllerCount)
+            {
+                flexControllerOverrides = new float?[controllerCount];
+                flexControllerValues = new float[controllerCount];
+            }
+
+            flexControllerOverrides[controller] = value;
+
+            PushFlexControllers(AnimationController.FlexValues ?? []);
+        }
+
+        /// <summary>
+        /// Pushes flex controller values, with the overrides applied over them, to every mesh that morphs.
+        /// </summary>
+        private void PushFlexControllers(float[] animatedValues)
+        {
+            var values = animatedValues;
+
+            if (flexControllerOverrides.Length > 0)
+            {
+                for (var i = 0; i < flexControllerOverrides.Length; i++)
+                {
+                    if (flexControllerOverrides[i] is { } overridden)
+                    {
+                        flexControllerValues[i] = overridden;
+                    }
+                    else
+                    {
+                        flexControllerValues[i] = i < animatedValues.Length ? animatedValues[i] : 0f;
+                    }
+                }
+
+                values = flexControllerValues;
+            }
 
             foreach (var renderableMesh in RenderableMeshes)
             {
@@ -343,7 +383,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     continue;
                 }
 
-                if (renderableMesh.FlexStateManager.SetControllerValues(datas))
+                if (renderableMesh.FlexStateManager.SetControllerValues(values))
                 {
                     renderableMesh.FlexStateManager.UpdateComposite();
                     Scene.RendererContext.MorphAtlas.Queue(renderableMesh.FlexStateManager.MorphComposite);

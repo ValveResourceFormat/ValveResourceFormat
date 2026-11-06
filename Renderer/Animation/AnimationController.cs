@@ -437,6 +437,9 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public void RegisterPoseParameter(PoseParameter parameter) => modelPlayer.RegisterPoseParameter(parameter);
 
+        /// <summary>Gets the pose parameters registered on the model player.</summary>
+        public IReadOnlyCollection<PoseParameter> PoseParameters => modelPlayer.PoseParameters;
+
         /// <summary>Sets the live value of a registered pose parameter, clamped to its range.</summary>
         public void SetPoseParameter(string name, float value) => modelPlayer.SetPoseParameter(name, value);
 

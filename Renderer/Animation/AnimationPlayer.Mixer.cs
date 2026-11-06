@@ -160,6 +160,9 @@ namespace ValveResourceFormat.Renderer
             poseParameterValues[parameter.Name] = parameter.Clamp(0f);
         }
 
+        /// <summary>Gets the registered pose parameters.</summary>
+        public IReadOnlyCollection<PoseParameter> PoseParameters => poseParameterDefinitions.Values;
+
         /// <summary>
         /// Sets the live value of a pose parameter, clamped to its range when it was registered, and
         /// forces the next <see cref="Update"/> to recompute the pose.

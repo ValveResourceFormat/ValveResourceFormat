@@ -174,6 +174,10 @@ namespace ValveResourceFormat.Renderer
             {
                 UpdateClips(timeStep);
             }
+            else if (activeClip != null)
+            {
+                UpdateDrivenClips();
+            }
 
             AnimationFrame = GetFrame();
             forceUpdate = false;

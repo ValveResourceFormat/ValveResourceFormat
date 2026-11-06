@@ -20,6 +20,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.ResourceTypes.ModelData;
+using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace GUI.Types.GLViewers
 {
@@ -46,7 +47,8 @@ namespace GUI.Types.GLViewers
         private GLViewerSliderControl? animationTrackBar;
         private GLViewerSliderControl? slowmodeTrackBar;
         private GLViewerMultiSelectionControl? attachmentList;
-        public CheckedListBox? meshGroupListBox { get; private set; }
+        private CheckedListBox? meshGroupListBox;
+        private readonly List<(BodyGroup BodyGroup, ComboBox ComboBox)> bodyGroupSelections = [];
         public ComboBox? materialGroupListBox { get; private set; }
         private ComboBox? lodComboBox;
         private bool hasSelectableLods;
@@ -254,6 +256,11 @@ namespace GUI.Types.GLViewers
 
             additiveCheckBox.Enabled = false;
 
+            foreach (var parameter in animationController.PoseParameters)
+            {
+                AddPoseParameterControl(parameter);
+            }
+
             if (graphSessions.Length > 0)
             {
                 // Graph controls sit under the playback controls and replace the clip ones while a graph plays.
@@ -432,6 +439,161 @@ namespace GUI.Types.GLViewers
             Scene.PostProcessInfo.AddPostProcessVolume(post);
         }
 
+        private void AddBodyGroupSelection(BodyGroup bodyGroup)
+        {
+            Debug.Assert(UiControl != null);
+            Debug.Assert(modelSceneNode != null);
+
+            var comboBox = UiControl.AddSelection(bodyGroup.Name, (_, index) =>
+            {
+                if (index < 0)
+                {
+                    return;
+                }
+
+                using var lockedGl = MakeCurrent();
+                ApplyMeshGroups(GetCheckedMeshGroups());
+            });
+
+            for (var i = 0; i < bodyGroup.Choices.Count; i++)
+            {
+                var choiceName = bodyGroup.Choices[i].Name;
+                comboBox.Items.Add(string.IsNullOrEmpty(choiceName) ? string.Create(CultureInfo.InvariantCulture, $"Model {i}") : choiceName);
+            }
+
+            bodyGroupSelections.Add((bodyGroup, comboBox));
+            comboBox.SelectedIndex = FindActiveChoice(bodyGroup, modelSceneNode.GetActiveMeshGroups());
+        }
+
+        private void AddPoseParameterControl(PoseParameter parameter)
+        {
+            Debug.Assert(UiControl != null);
+            Debug.Assert(animationController != null);
+
+            var controller = animationController;
+            var range = parameter.Max - parameter.Min;
+            var current = controller.GetPoseParameter(parameter.Name);
+            var normalized = range > 0f ? (current - parameter.Min) / range : 0f;
+
+            UiControl.AddTrackBar(parameter.Name, value => controller.SetPoseParameter(parameter.Name, parameter.Min + value * range), normalized);
+        }
+
+        private void AddFlexControllerControls(ModelSceneNode sceneNode, FlexController[] controllers)
+        {
+            Debug.Assert(UiControl != null);
+
+            if (controllers.Length == 0)
+            {
+                return;
+            }
+
+            using var _ = UiControl.BeginGroup("Flex Controllers");
+
+            for (var i = 0; i < controllers.Length; i++)
+            {
+                var index = i;
+                var controller = controllers[i];
+                var range = controller.Max - controller.Min;
+
+                // The slider starts where the controller is zero, which is how a model with no animation shows
+                var zero = range > 0f ? Math.Clamp(-controller.Min / range, 0f, 1f) : 0f;
+
+                UiControl.AddTrackBar(controller.Name, value =>
+                {
+                    using var lockedGl = MakeCurrent();
+                    sceneNode.SetFlexControllerOverride(index, controller.Min + value * range);
+                }, zero);
+            }
+        }
+
+        private void ApplyMeshGroups(IEnumerable<string> groups)
+        {
+            Debug.Assert(modelSceneNode != null);
+
+            modelSceneNode.SetActiveMeshGroups(groups.Concat(GetSelectedBodyGroupChoices()));
+            modelStatsDirty = true;
+        }
+
+        private IEnumerable<string> GetCheckedMeshGroups()
+        {
+            Debug.Assert(modelSceneNode != null);
+
+            if (meshGroupListBox != null)
+            {
+                return meshGroupListBox.CheckedItems.OfType<string>();
+            }
+
+            var choiceNames = bodyGroupSelections
+                .SelectMany(static selection => selection.BodyGroup.Choices)
+                .Select(static choice => choice.FullName)
+                .ToHashSet();
+
+            return modelSceneNode.GetActiveMeshGroups().Where(name => !choiceNames.Contains(name));
+        }
+
+        private static void CheckMeshGroups(CheckedListBox listBox, IEnumerable<string> groups)
+        {
+            foreach (var group in groups)
+            {
+                var item = listBox.FindStringExact(group);
+
+                if (item != ListBox.NoMatches)
+                {
+                    listBox.SetItemChecked(item, true);
+                }
+            }
+        }
+
+        private static int FindActiveChoice(BodyGroup bodyGroup, ICollection<string> activeGroups)
+        {
+            for (var i = 0; i < bodyGroup.Choices.Count; i++)
+            {
+                if (activeGroups.Contains(bodyGroup.Choices[i].FullName))
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private IEnumerable<string> GetSelectedBodyGroupChoices()
+        {
+            foreach (var (bodyGroup, comboBox) in bodyGroupSelections)
+            {
+                if (comboBox.SelectedIndex >= 0)
+                {
+                    yield return bodyGroup.Choices[comboBox.SelectedIndex].FullName;
+                }
+            }
+        }
+
+        /// <summary>Shows the given active mesh groups in the body group and mesh group controls.</summary>
+        public void SetMeshGroupSelection(ICollection<string> activeGroups)
+        {
+            foreach (var (bodyGroup, comboBox) in bodyGroupSelections)
+            {
+                var index = FindActiveChoice(bodyGroup, activeGroups);
+
+                if (index >= 0)
+                {
+                    comboBox.SelectedIndex = index;
+                }
+            }
+
+            if (meshGroupListBox == null)
+            {
+                return;
+            }
+
+            foreach (int checkedItemIndex in meshGroupListBox.CheckedIndices)
+            {
+                meshGroupListBox.SetItemChecked(checkedItemIndex, false);
+            }
+
+            CheckMeshGroups(meshGroupListBox, activeGroups);
+        }
+
         protected override void AddUiControls()
         {
             Debug.Assert(UiControl != null);
@@ -442,7 +604,10 @@ namespace GUI.Types.GLViewers
 
                 Input.OrbitTargetProvider = () => modelSceneNode.BoundingBox.Center;
 
-                var animations = modelSceneNode.Animations.Keys.ToArray();
+                var animations = modelSceneNode.Animations
+                    .Where(static pair => pair.Value is not SequenceAnimation { Hidden: true })
+                    .Select(static pair => pair.Key)
+                    .ToArray();
 
                 if (animations.Length > 0 || graphSessions.Length > 0)
                 {
@@ -565,26 +730,37 @@ namespace GUI.Types.GLViewers
                     lodComboBox.SelectedIndex = 0;
                 }
 
-                var meshGroups = modelSceneNode.GetMeshGroups().ToArray<object>();
+                var bodyGroups = model.MeshGroups.BodyGroups.Where(static bodyGroup => bodyGroup.Choices.Count > 1).ToArray();
+                var bodyGroupChoiceNames = bodyGroups
+                    .SelectMany(static bodyGroup => bodyGroup.Choices)
+                    .Select(static choice => choice.FullName)
+                    .ToHashSet();
+                var meshGroups = modelSceneNode.GetMeshGroups()
+                    .Where(name => !bodyGroupChoiceNames.Contains(name))
+                    .ToArray<object>();
 
-                if (meshGroups.Length > 1)
+                if (bodyGroups.Length > 0 || meshGroups.Length > 1)
                 {
                     using var _ = UiControl.BeginGroup("Model");
 
-                    meshGroupListBox = UiControl.AddMultiSelection<string>("Mesh Group", listBox =>
+                    foreach (var bodyGroup in bodyGroups)
                     {
-                        listBox.Items.AddRange(meshGroups);
+                        AddBodyGroupSelection(bodyGroup);
+                    }
 
-                        foreach (var group in modelSceneNode.GetActiveMeshGroups())
-                        {
-                            listBox.SetItemChecked(listBox.FindStringExact(group), true);
-                        }
-                    }, groups =>
+                    if (meshGroups.Length > 1)
                     {
-                        using var lockedGl = MakeCurrent();
-                        modelSceneNode.SetActiveMeshGroups(groups);
-                        modelStatsDirty = true;
-                    });
+                        meshGroupListBox = UiControl.AddMultiSelection<string>("Mesh Group", listBox =>
+                        {
+                            listBox.Items.AddRange(meshGroups);
+
+                            CheckMeshGroups(listBox, modelSceneNode.GetActiveMeshGroups());
+                        }, groups =>
+                        {
+                            using var lockedGl = MakeCurrent();
+                            ApplyMeshGroups(groups);
+                        });
+                    }
                 }
 
                 var materialGroupNames = model.GetMaterialGroups().Select(group => group.Name).ToArray<object>();
@@ -603,6 +779,8 @@ namespace GUI.Types.GLViewers
                     materialGroupListBox.Items.AddRange(materialGroupNames);
                     materialGroupListBox.SelectedIndex = 0;
                 }
+
+                AddFlexControllerControls(modelSceneNode, model.FlexControllers);
             }
 
             if (phys != null)

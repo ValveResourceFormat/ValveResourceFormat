@@ -999,23 +999,7 @@ namespace GUI.Types.GLViewers
                 }
 
                 // Set same mesh groups
-                if (glModelViewer.meshGroupListBox != null)
-                {
-                    foreach (int checkedItemIndex in glModelViewer.meshGroupListBox.CheckedIndices)
-                    {
-                        glModelViewer.meshGroupListBox.SetItemChecked(checkedItemIndex, false);
-                    }
-
-                    foreach (var group in worldModel.GetActiveMeshGroups())
-                    {
-                        var item = glModelViewer.meshGroupListBox.FindStringExact(group);
-
-                        if (item != ListBox.NoMatches)
-                        {
-                            glModelViewer.meshGroupListBox.SetItemChecked(item, true);
-                        }
-                    }
-                }
+                glModelViewer.SetMeshGroupSelection(worldModel.GetActiveMeshGroups());
 
                 // Set same material group
                 if (glModelViewer.materialGroupListBox != null && worldModel.ActiveMaterialGroup != null)
