@@ -867,14 +867,35 @@ public sealed class TextureExtract
         return new SKRectI(startX, startY, endX, endY);
     }
 
-    private string GetInputFileNameForVtex()
+    /// <summary>
+    /// The path of this texture relative to the content root, as the compiler refuses an absolute input path.
+    /// A file opened from disk takes the folder of the vtex it was compiled from.
+    /// </summary>
+    private string GetContentFileName()
     {
-        if (isSpriteSheet)
+        if (!Path.IsPathRooted(fileName))
         {
-            return GetMksFileName().Replace(Path.DirectorySeparatorChar, '/');
+            return fileName;
         }
 
-        return GetImageFileName().Replace(Path.DirectorySeparatorChar, '/');
+        var inputDependencies = texture.Resource.EditInfo?.InputDependencies ?? [];
+
+        foreach (var dependency in inputDependencies)
+        {
+            if (dependency.ContentRelativeFilename.EndsWith(".vtex", StringComparison.OrdinalIgnoreCase))
+            {
+                return Path.Join(Path.GetDirectoryName(dependency.ContentRelativeFilename), Path.GetFileName(fileName));
+            }
+        }
+
+        return Path.GetFileName(fileName);
+    }
+
+    private string GetInputFileNameForVtex()
+    {
+        var extension = isSpriteSheet ? ".mks" : ImageOutputExtension;
+
+        return Path.ChangeExtension(GetContentFileName(), extension).Replace(Path.DirectorySeparatorChar, '/');
     }
 
     private string[] GetCubeArrayInputFileNames()
@@ -884,7 +905,7 @@ public sealed class TextureExtract
             return [GetInputFileNameForVtex()];
         }
 
-        var fileNameWithoutExtension = Path.ChangeExtension(fileName, null).Replace(Path.DirectorySeparatorChar, '/');
+        var fileNameWithoutExtension = Path.ChangeExtension(GetContentFileName(), null).Replace(Path.DirectorySeparatorChar, '/');
         var fileNames = new string[texture.Depth];
 
         for (uint depth = 0; depth < fileNames.Length; depth++)
