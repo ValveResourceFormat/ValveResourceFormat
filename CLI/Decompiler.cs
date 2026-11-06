@@ -2093,7 +2093,7 @@ namespace CLI
             return highestByShader.Values.Select(x => x.FilePath).ToHashSet();
         }
 
-        private void DumpContentFile(string path, ContentFile contentFile, bool dumpSubFiles = true, bool singleFileOutput = false)
+        private void DumpContentFile(string path, ContentFile contentFile, bool dumpSubFiles = true, bool singleFileOutput = false, bool keepFullPaths = false)
         {
             if (OutputToConsole)
             {
@@ -2106,16 +2106,19 @@ namespace CLI
                 DumpFile(path, contentFile.Data);
             }
 
+            // A map references its files by their full resource path, so they keep it.
+            keepFullPaths |= OutputIsDirectory && Path.GetExtension(path).Equals(".vmap", StringComparison.OrdinalIgnoreCase);
+
             foreach (var additionalFile in contentFile.AdditionalFiles)
             {
                 // Additional files (animation-graph clips) carry their full resource path. With a real output
                 // directory we keep it; otherwise we flatten to the leaf name next to the parent file, which can
                 // collide on shared names. Resolving these relative to the parent's output path properly needs a
                 // bigger rework of the extract path handling (also in the GUI's PackageExporter).
-                var additionalPath = additionalFile.KeepFullPath && OutputIsDirectory
+                var additionalPath = (additionalFile.KeepFullPath || keepFullPaths) && OutputIsDirectory
                     ? Path.Combine(OutputFile!, additionalFile.FileName)
                     : Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileName(additionalFile.FileName));
-                DumpContentFile(additionalPath, additionalFile);
+                DumpContentFile(additionalPath, additionalFile, keepFullPaths: keepFullPaths);
             }
 
             if (dumpSubFiles)

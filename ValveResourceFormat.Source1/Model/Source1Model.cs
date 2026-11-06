@@ -12,6 +12,9 @@ internal sealed class Source1Bone
     /// <summary>Bone name.</summary>
     public required string Name { get; init; }
 
+    /// <summary>Bone name in the converted model, with the characters the model compiler rejects replaced and unique among the bones.</summary>
+    public required string ExportName { get; init; }
+
     /// <summary>Index of the parent bone, or -1 for a root bone.</summary>
     public required int ParentIndex { get; init; }
 
@@ -544,6 +547,7 @@ internal sealed partial class Source1Model
         Mouth = mdl.Mouth;
 
         Bones = new Source1Bone[mdl.Bones.Length];
+        var exportNames = new ModelNameSet();
 
         var boneSize = Marshal.SizeOf<MdlFile.StudioBone>();
 
@@ -555,6 +559,7 @@ internal sealed partial class Source1Model
             Bones[i] = new Source1Bone
             {
                 Name = mdl.BoneNames[i],
+                ExportName = exportNames.Create(mdl.BoneNames[i]),
                 ParentIndex = bone.Parent,
                 Position = bone.Position,
                 Rotation = bone.Quaternion,

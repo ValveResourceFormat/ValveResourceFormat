@@ -415,7 +415,7 @@ internal static class Source1WorldConverter
         var reference = new EntityLump.Entity { ParentLump = lump };
         reference["classname"] = "skybox_reference";
         reference["origin"] = "0 0 0";
-        reference["targetmapname"] = $"{mapPath}/sky";
+        reference["targetmapname"] = $"{mapPath}/sky.vmap";
         reference["worldgroupid"] = SkyWorldGroup;
 
         return reference;
@@ -874,6 +874,7 @@ internal static class Source1WorldConverter
         entity["origin"] = Source1EntityConverter.FormatVector(origin);
         entity["cubemaptexture"] = Source1ResourceReferences.Reference(texture);
         entity["influenceradius"] = radius;
+        entity[Source1MapExport.RegroupKey] = 1L;
 
         return entity;
     }
@@ -1182,7 +1183,7 @@ internal static class Source1WorldConverter
             return null;
         }
 
-        return model.Sequences[index].Name;
+        return model.GetExportName(model.Sequences[index]);
     }
 
     private static string? FindSequence(Source1Model model, string? name)
@@ -1196,7 +1197,7 @@ internal static class Source1WorldConverter
         {
             if (sequence.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
             {
-                return sequence.Name;
+                return model.GetExportName(sequence);
             }
         }
 
@@ -1223,7 +1224,7 @@ internal static class Source1WorldConverter
             }
         }
 
-        return best?.Name;
+        return best == null ? null : model.GetExportName(best);
     }
 
     // The game draws a map with bloom and its own tonemap, which a master volume of the map sets

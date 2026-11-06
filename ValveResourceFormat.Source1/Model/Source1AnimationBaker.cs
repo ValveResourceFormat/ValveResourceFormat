@@ -28,7 +28,8 @@ internal sealed class Source1AnimationBaker
     private readonly List<string> names = [];
     private readonly Dictionary<string, int> nameIndices = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> sequenceNames = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<Source1Animation, int> firstSegments = [];
+    private readonly ModelNameSet boneMaskNames = new();
+    private readonly Dictionary<(Source1Animation Animation, int FrameCount), int> firstSegments = [];
     private readonly List<float[]> boneMaskWeights = [];
     private readonly KVObject animations = KVObject.Array();
     private readonly KVObject segments = KVObject.Array();
@@ -65,7 +66,7 @@ internal sealed class Source1AnimationBaker
             {
                 playable.Add(sequence);
                 sequenceNames.Add(sequence.Name);
-                AddName(sequence.Name);
+                AddName(source.GetExportName(sequence));
             }
         }
 
@@ -75,7 +76,7 @@ internal sealed class Source1AnimationBaker
         }
 
         // The mask at index zero stands for a sequence that has no weight list
-        boneMasks.Add(CreateBoneMask(string.Empty, []));
+        boneMasks.Add(CreateBoneMask(boneMaskNames.Create("default"), []));
 
         foreach (var sequence in playable)
         {
@@ -91,7 +92,7 @@ internal sealed class Source1AnimationBaker
         {
             foreach (var blend in sequence.Blends)
             {
-                GetFirstSegment(blend);
+                GetFirstSegment(blend, sequence.Blends[0].FrameCount);
             }
 
             return true;
@@ -120,18 +121,28 @@ internal sealed class Source1AnimationBaker
     private void AddSequence(Source1Sequence sequence)
     {
         var blendCount = sequence.Blends.Length;
+        var sequenceName = source.GetExportName(sequence);
         var fetch = CreateFetch(sequence);
         var references = KVObject.Array();
         var referencedCount = fetch.Count;
 
         for (var i = 0; i < referencedCount; i++)
         {
-            var animationName = blendCount == 1
-                ? sequence.Name
-                : string.Create(CultureInfo.InvariantCulture, $"{sequence.Name}$blend{i}");
+            var animationName = sequenceName;
 
-            references.Add(AddName(animationName));
+            if (blendCount > 1)
+            {
+                animationName = source.CreateExportName(string.Create(CultureInfo.InvariantCulture, $"{sequenceName}_blend{i}"));
+            }
+
+            var animationNameIndex = AddName(animationName);
+            references.Add(animationNameIndex);
             AddAnimation(animationName, sequence, sequence.Blends[i], i);
+
+            if (blendCount > 1)
+            {
+                sequences.Add(CreateHiddenSequence(animationName, sequence.IsLooping, sequence.Blends[i].IsDelta, animationNameIndex));
+            }
         }
 
         fetch.Data.Add("m_localReferenceArray", references);
@@ -140,7 +151,7 @@ internal sealed class Source1AnimationBaker
         AddControllerLayers(sequence, layers);
 
         sequences.Add(CreateSequenceDescription(
-            sequence.Name,
+            sequenceName,
             CreateSequenceFlags(sequence),
             CreateActivities(sequence),
             CreateTransition(sequence),
@@ -151,14 +162,16 @@ internal sealed class Source1AnimationBaker
 
     private void AddAnimation(string name, Source1Sequence sequence, Source1Animation animation, int blendIndex)
     {
-        var firstSegment = GetFirstSegment(animation);
-        var lastFrame = animation.FrameCount - 1;
+        var frameCount = sequence.Blends[0].FrameCount;
+        var firstSegment = GetFirstSegment(animation, frameCount);
+        var lastFrame = frameCount - 1;
 
         var movements = KVObject.Array();
 
         foreach (var movement in animation.Movements)
         {
-            movements.Add(CreateMovement(movement));
+            var endFrame = ScaleFrame(movement.EndFrame, animation.FrameCount, frameCount);
+            movements.Add(CreateMovement(movement, endFrame));
         }
 
         var events = KVObject.Array();
@@ -172,7 +185,8 @@ internal sealed class Source1AnimationBaker
         }
 
         var isHidden = sequence.Blends.Length > 1;
-        var animDesc = CreateAnimation(name, animation.Fps, animation.FrameCount, firstSegment, sequence.IsLooping, isHidden, animation.IsDelta, movements, events);
+        var fps = sequence.Blends[0].Fps;
+        var animDesc = CreateAnimation(name, fps, frameCount, firstSegment, sequence.IsLooping, isHidden, animation.IsDelta, movements, events);
 
         animations.Add(animDesc);
     }
@@ -222,9 +236,11 @@ internal sealed class Source1AnimationBaker
         return animDesc;
     }
 
-    private int GetFirstSegment(Source1Animation animation)
+    private int GetFirstSegment(Source1Animation animation, int targetFrameCount)
     {
-        if (firstSegments.TryGetValue(animation, out var first))
+        var key = (animation, targetFrameCount);
+
+        if (firstSegments.TryGetValue(key, out var first))
         {
             return first;
         }
@@ -246,10 +262,44 @@ internal sealed class Source1AnimationBaker
             Source1ModelConverter.ToBoneFrames(source, framePositions, frameRotations, animation.IsDelta);
         }
 
+        if (targetFrameCount != frameCount)
+        {
+            ResampleFrames(boneCount, frameCount, targetFrameCount, ref positions, ref rotations);
+        }
+
         first = AddSegments(segments, boneCount, positions, rotations);
-        firstSegments[animation] = first;
+        firstSegments[key] = first;
 
         return first;
+    }
+
+    private static void ResampleFrames(int boneCount, int frameCount, int targetFrameCount, ref Vector3[] positions, ref Quaternion[] rotations)
+    {
+        var resampledPositions = new Vector3[targetFrameCount * boneCount];
+        var resampledRotations = new Quaternion[targetFrameCount * boneCount];
+        var lastFrame = frameCount - 1;
+
+        for (var frame = 0; frame < targetFrameCount; frame++)
+        {
+            var cycle = targetFrameCount > 1 ? (float)frame / (targetFrameCount - 1) : 0f;
+            var sourceFrame = cycle * lastFrame;
+            var lower = Math.Min((int)sourceFrame, lastFrame);
+            var upper = Math.Min(lower + 1, lastFrame);
+            var fraction = sourceFrame - lower;
+
+            for (var bone = 0; bone < boneCount; bone++)
+            {
+                var lowerIndex = (lower * boneCount) + bone;
+                var upperIndex = (upper * boneCount) + bone;
+                var index = (frame * boneCount) + bone;
+
+                resampledPositions[index] = Vector3.Lerp(positions[lowerIndex], positions[upperIndex], fraction);
+                resampledRotations[index] = Source1PoseMath.Slerp(rotations[lowerIndex], rotations[upperIndex], fraction);
+            }
+        }
+
+        positions = resampledPositions;
+        rotations = resampledRotations;
     }
 
     // Decodes the bone-local transforms of every frame, in the space of the Source 1 bones
@@ -309,7 +359,7 @@ internal sealed class Source1AnimationBaker
         float end)
     {
         var isUpward = end > group.Rest;
-        var direction = isUpward ? "+" : "-";
+        var direction = isUpward ? "_up" : "_down";
         var steps = group.GetSteps(end);
         var parameter = source.PoseParameters.Length + group.Index;
 
@@ -317,7 +367,8 @@ internal sealed class Source1AnimationBaker
         {
             var from = steps[step - 1];
             var to = steps[step];
-            var name = string.Create(CultureInfo.InvariantCulture, $"{sequence.Name}${group.Name}{direction}{step}");
+            var sequenceName = source.GetExportName(sequence);
+            var name = source.CreateExportName(string.Create(CultureInfo.InvariantCulture, $"{sequenceName}_{group.Name}{direction}{step}"));
             var reference = AddControllerDelta(controllerSet, sequence, animation, name, restPositions, restRotations, group, from, to);
 
             // The ranges leave a margin so that the weight stays at one up to the end of the parameter
@@ -399,6 +450,10 @@ internal sealed class Source1AnimationBaker
 
     /// <summary>Creates a hidden additive sequence that plays one animation.</summary>
     internal static KVObject CreateControllerDeltaSequence(string name, bool isLooping, int animationName)
+        => CreateHiddenSequence(name, isLooping, true, animationName);
+
+    /// <summary>Creates a hidden sequence that plays one animation.</summary>
+    internal static KVObject CreateHiddenSequence(string name, bool isLooping, bool isDelta, int animationName)
     {
         var references = KVObject.Array();
         references.Add(animationName);
@@ -406,7 +461,7 @@ internal sealed class Source1AnimationBaker
         var fetch = CreateFetch(KVObject.Collection(), KVObject.Array(), KVObject.Array(), KVObject.Array(), KVObject.Array(), -1);
         fetch.Add("m_localReferenceArray", references);
 
-        var flags = CreateSequenceFlags(isLooping, true, true, false, false, false);
+        var flags = CreateSequenceFlags(isLooping, true, isDelta, false, false, false);
 
         return CreateSequenceDescription(name, flags, KVObject.Array(), KVObject.Collection(), KVObject.Array(), fetch, 0);
     }
@@ -688,7 +743,7 @@ internal sealed class Source1AnimationBaker
             flags.Add("m_bPose", (sourceLayer.Flags & Source1AutoLayerFlags.Pose) != 0);
 
             var layer = KVObject.Collection();
-            layer.Add("m_nLocalReference", AddName(sourceLayer.Sequence.Name));
+            layer.Add("m_nLocalReference", AddName(source.GetExportName(sourceLayer.Sequence)));
             layer.Add("m_nLocalPose", sourceLayer.PoseParameterIndex);
             layer.Add("m_flags", flags);
             layer.Add("m_start", sourceLayer.Start);
@@ -720,7 +775,7 @@ internal sealed class Source1AnimationBaker
         }
 
         boneMaskWeights.Add(weights);
-        boneMasks.Add(CreateBoneMask(sequence.Name, weights));
+        boneMasks.Add(CreateBoneMask(boneMaskNames.Create(sequence.Name), weights));
 
         return boneMasks.Count - 1;
     }
@@ -747,10 +802,21 @@ internal sealed class Source1AnimationBaker
         return mask;
     }
 
-    private static KVObject CreateMovement(Source1Movement movement)
+    // Moves a frame number of an animation to the same point of the animation resampled to another frame count
+    private static int ScaleFrame(int frame, int frameCount, int targetFrameCount)
+    {
+        if (frameCount == targetFrameCount || frameCount < 2)
+        {
+            return frame;
+        }
+
+        return (int)MathF.Round(frame * (targetFrameCount - 1f) / (frameCount - 1f));
+    }
+
+    private static KVObject CreateMovement(Source1Movement movement, int endFrame)
     {
         var data = KVObject.Collection();
-        data.Add("endframe", movement.EndFrame);
+        data.Add("endframe", endFrame);
         data.Add("motionflags", movement.Flags);
         data.Add("v0", movement.StartVelocity);
         data.Add("v1", movement.EndVelocity);
@@ -826,7 +892,7 @@ internal sealed class Source1AnimationBaker
 
         foreach (var bone in source.Bones)
         {
-            boneNames.Add(bone.Name);
+            boneNames.Add(bone.ExportName);
         }
 
         return boneNames;

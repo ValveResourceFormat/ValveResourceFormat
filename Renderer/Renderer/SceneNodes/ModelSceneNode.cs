@@ -46,9 +46,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private float?[] flexControllerOverrides = [];
         private float[] flexControllerValues = [];
-        private float[] sceneFlexValues = [];
-        private float[] sceneFlexWeights = [];
-        private float[] sceneFlexBlend = [];
         private float fadeStartDistanceSquared;
         private float fadeEndDistanceSquared;
         private float unfadedAlpha = 1f;
@@ -402,22 +399,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>
-        /// Blends flex controller values over the animated ones and the overrides, as a choreography scene does.
-        /// </summary>
-        /// <param name="values">The value of each flex controller of <see cref="Model.FlexControllers"/>.</param>
-        /// <param name="weights">How much each value replaces what is under it, from 0 to 1.
-        /// Empty or <see langword="null"/> to remove the layer.</param>
-        public void SetFlexControllerLayer(float[] values, float[]? weights)
-        {
-            ArgumentNullException.ThrowIfNull(values);
-
-            sceneFlexValues = values;
-            sceneFlexWeights = weights ?? [];
-
-            PushFlexControllers(AnimationController.FlexValues ?? []);
-        }
-
-        /// <summary>
         /// Pushes flex controller values, with the overrides applied over them, to every mesh that morphs.
         /// </summary>
         private void PushFlexControllers(float[] animatedValues)
@@ -439,22 +420,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 }
 
                 values = flexControllerValues;
-            }
-
-            if (sceneFlexWeights.Length > 0)
-            {
-                if (sceneFlexBlend.Length != sceneFlexWeights.Length)
-                {
-                    sceneFlexBlend = new float[sceneFlexWeights.Length];
-                }
-
-                for (var i = 0; i < sceneFlexBlend.Length; i++)
-                {
-                    var animated = i < values.Length ? values[i] : 0f;
-                    sceneFlexBlend[i] = float.Lerp(animated, sceneFlexValues[i], sceneFlexWeights[i]);
-                }
-
-                values = sceneFlexBlend;
             }
 
             foreach (var renderableMesh in RenderableMeshes)

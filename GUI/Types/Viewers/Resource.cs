@@ -1104,7 +1104,19 @@ namespace GUI.Types.Viewers
 
         private static void AddByteViewControl(ValveResourceFormat.Resource resource, Block block, Control blockTab)
         {
-            var input = block.GetRawBytes();
+            if (resource.Reader == null)
+            {
+                return;
+            }
+
+            byte[] input;
+
+            lock (resource.ReaderLock)
+            {
+                resource.Reader.BaseStream.Position = block.Offset;
+                input = resource.Reader.ReadBytes((int)block.Size);
+            }
+
             var text = ByteViewer.GetTextFromBytes(input.AsSpan());
 
             if (!string.IsNullOrEmpty(text))

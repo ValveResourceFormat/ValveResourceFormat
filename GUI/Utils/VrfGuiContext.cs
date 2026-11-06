@@ -540,13 +540,14 @@ namespace GUI.Utils
 
         private UncachedFileLoader? fileLoaderNoCache;
 
-        private sealed class UncachedFileLoader(VrfGuiContext context) : IFileLoader
+        private sealed class UncachedFileLoader(VrfGuiContext context) : IFileLoader, IMaterialExtractor
         {
             public Resource? LoadFile(string file) => context.LoadFileUncached(file);
             public Resource? LoadFileCompiled(string file) => LoadFile(string.Concat(file, CompiledFileSuffix));
             public ShaderCollection? LoadShader(string shaderName) => context.LoadShader(shaderName);
             public Stream? GetFileStream(string file) => context.GetFileStream(file);
             public GameInfo GameInfo => context.GameInfo;
+            public ContentFile? ExtractMaterial(ValveResourceFormat.ResourceTypes.Material material) => context.ExtractMaterial(material);
         }
 
         private Resource? LoadFileUncached(string file) => base.LoadFile(file);

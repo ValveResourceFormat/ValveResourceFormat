@@ -17,6 +17,8 @@ namespace ValveResourceFormat.Source1.Material;
 internal static class Source1MaterialConverter
 {
     private const float DefaultAlphaTestReference = 0.7f;
+    private const string SkyShaderName = "sky.vfx";
+    private const string SkyTextureParameter = "g_tSkyTexture";
 
     private static readonly (string Key, string Parameter)[] TextureMap =
     [
@@ -397,12 +399,31 @@ internal static class Source1MaterialConverter
         {
             Resource = new Resource(ResourceType.Material),
             Name = path,
-            ShaderName = "sky.vfx",
+            ShaderName = SkyShaderName,
         };
 
-        material.TextureParams["g_tSkyTexture"] = cubeTexturePath;
+        material.TextureParams[SkyTextureParameter] = cubeTexturePath;
 
         return Finish(material, path);
+    }
+
+    /// <summary>Gets whether the material is a sky made by <see cref="CreateSkyMaterial"/>.</summary>
+    public static bool IsSkyMaterial(ResourceTypes.Material material)
+    {
+        ArgumentNullException.ThrowIfNull(material);
+
+        return material.ShaderName == SkyShaderName && material.TextureParams.ContainsKey(SkyTextureParameter);
+    }
+
+    /// <summary>Describes a sky made by <see cref="CreateSkyMaterial"/>.</summary>
+    public static MaterialDescription DescribeSkyMaterial(ResourceTypes.Material material)
+    {
+        ArgumentNullException.ThrowIfNull(material);
+
+        var description = new MaterialDescription { Role = MaterialRole.Sky };
+        description.Layers[0].Color = MaterialInput.FromTexture(material.TextureParams[SkyTextureParameter], ChannelMapping.RGB);
+
+        return description;
     }
 
     // A texture path that climbs out of its mount is never found by the game, so the material draws without it

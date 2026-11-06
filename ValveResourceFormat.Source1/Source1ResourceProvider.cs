@@ -5,6 +5,7 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.GoldSrc;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.IO.ContentFormats.ValveMap;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Source1.Audio;
 using ValveResourceFormat.Source1.Bsp;
@@ -86,7 +87,28 @@ internal sealed class Source1ResourceProvider(Source1FileSystem fileSystem, ILog
     /// </summary>
     public bool HighDynamicRange { get; set; } = true;
 
+    /// <summary>The game that materials are written for when they are extracted.</summary>
+    public Game MaterialTargetGame { get; set; } = Game.Csgo;
+
     private Source1ConvertedMap? map;
+
+    /// <inheritdoc/>
+    public ContentFile? ExtractMaterial(ResourceTypes.Material material)
+    {
+        if (Source1MaterialConverter.IsSkyMaterial(material))
+        {
+            return MaterialTranslator.Translate(material, Source1MaterialConverter.DescribeSkyMaterial(material), MaterialTargetGame, LoadFile, logger);
+        }
+
+        if (!Source1MaterialReader.CanRead(material))
+        {
+            return null;
+        }
+
+        var reader = new Source1MaterialReader(fileSystem, () => HighDynamicRange);
+
+        return MaterialTranslator.Translate(material, reader.Read(material), MaterialTargetGame, LoadFile, logger);
+    }
 
     /// <summary>Gets the map loaded by <see cref="LoadMap"/>, or null when none is.</summary>
     public Source1ConvertedMap? Map => map;
@@ -395,6 +417,16 @@ internal sealed class Source1ResourceProvider(Source1FileSystem fileSystem, ILog
 
     /// <inheritdoc/>
     public EntityClassTable GetEntityClasses(ILogger logger) => Source1EntityClassCatalog.Get(fileSystem, logger);
+
+    /// <inheritdoc/>
+    public List<ResourceTypes.EntityLump.Entity> GetExportEntities(List<ResourceTypes.EntityLump.Entity> entities) => Source1MapExport.Regroup(entities);
+
+    /// <inheritdoc/>
+    public void AddExportProperties(string className, EditGameClassProps properties)
+        => Source1MapExport.AddRequiredProperties(className, properties);
+
+    /// <inheritdoc/>
+    public IEnumerable<string> GetExportResources(Resource entityLump) => Source1MapExport.GetResources(entityLump);
 
     /// <inheritdoc/>
     public bool Exists(string file)

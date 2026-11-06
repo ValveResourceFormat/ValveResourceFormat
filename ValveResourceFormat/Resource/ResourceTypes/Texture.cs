@@ -668,6 +668,11 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>The sprite sheet data, or null if not available.</returns>
         public SpritesheetData? GetSpriteSheetData()
         {
+            if (SheetData != null)
+            {
+                return SheetData;
+            }
+
             if (ExtraData.TryGetValue(VTexExtraData.SHEET, out var bytes))
             {
                 using var memoryStream = new MemoryStream(bytes);

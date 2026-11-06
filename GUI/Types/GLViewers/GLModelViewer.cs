@@ -124,8 +124,6 @@ namespace GUI.Types.GLViewers
             graphPauseButton?.Dispose();
             graphTimeScaleSlider?.Dispose();
             graphEventList?.Dispose();
-            scenePlayCheckBox?.Dispose();
-            sceneTimeTrackBar?.Dispose();
         }
 
         private void AddAnimationListComboBox()
@@ -783,7 +781,6 @@ namespace GUI.Types.GLViewers
                 }
 
                 AddFlexControllerControls(modelSceneNode, model.FlexControllers);
-                AddSceneControls(modelSceneNode);
             }
 
             if (phys != null)
@@ -1197,7 +1194,6 @@ namespace GUI.Types.GLViewers
             }
 
             UpdateRootMotion();
-            UpdateScene(frameTime);
 
             base.OnUpdate(frameTime);
         }

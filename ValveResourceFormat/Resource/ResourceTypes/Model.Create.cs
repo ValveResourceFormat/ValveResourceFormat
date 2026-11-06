@@ -11,12 +11,9 @@ namespace ValveResourceFormat.ResourceTypes
         private const ushort CurrentVersion = 1;
 
         /// <summary>
-        /// Creates a model resource with embedded meshes, ready for <see cref="ValveResourceFormat.Resource.Serialize"/>.
-        /// The model can also be read directly from the returned resource.
+        /// Creates a model resource with embedded meshes, which can be read directly from the returned resource.
         /// </summary>
         /// <remarks>
-        /// Set <see cref="ValveResourceFormat.Resource.FileName"/> on the resource to a name that ends in <c>.vmdl_c</c> before reading a serialized model back.
-        /// Meshes are written with uncompressed buffers.
         /// Attachments and hitbox sets are given as <c>m_attachments</c> and <c>m_hitboxsets</c> in <paramref name="extra"/>.
         /// </remarks>
         /// <param name="name">The model name.</param>

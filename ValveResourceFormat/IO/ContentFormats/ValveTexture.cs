@@ -95,6 +95,23 @@ public class CDmeVtex : DMElement
 
         return vtex;
     }
+
+    /// <summary>
+    /// Creates a cube texture configuration from input images, each holding the six faces side by side.
+    /// </summary>
+    public static CDmeVtex CreateCube((string FileName, string Channels, string MipAlgorithm)[] images, string outputFormat = "DXT1")
+    {
+        var vtex = CreateTexture2D(images, outputFormat);
+        vtex.OutputTypeString = "CUBE";
+
+        foreach (var element in vtex.InputTextureArray)
+        {
+            var input = (CDmeInputTexture)element!;
+            input.TypeString = "CUBE";
+        }
+
+        return vtex;
+    }
 }
 
 /// <summary>

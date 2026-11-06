@@ -2,6 +2,7 @@ using System.Globalization;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Source1.Bsp;
+using ValveResourceFormat.Source1.Model;
 
 namespace ValveResourceFormat.Source1.Entities;
 
@@ -78,6 +79,18 @@ internal static class Source1EntityConverter
         "noise",
         "origin",
         "angles",
+    };
+
+    // Keys that name a sequence, which a converted model names with the characters the model compiler accepts
+    private static readonly HashSet<string> SequenceKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "defaultanim",
+        "idleanim",
+        "startinganim",
+        "m_iszentry",
+        "m_iszplay",
+        "m_iszpostidle",
+        "m_iszcustommove",
     };
 
     /// <summary>
@@ -176,6 +189,18 @@ internal static class Source1EntityConverter
             if (TryParseOutput(value, out _))
             {
                 outputs.Add((key, value));
+                continue;
+            }
+
+            if (SequenceKeys.Contains(name))
+            {
+                entity[name] = ModelNames.Sanitize(value);
+                continue;
+            }
+
+            if (name == "ropematerial" && value.Length > 0)
+            {
+                entity[name] = Source1ResourceReferences.Reference(Source1Paths.ToMaterialPath(value));
                 continue;
             }
 
@@ -407,4 +432,22 @@ internal static class Source1EntityConverter
     /// <summary>Formats a vector as the <c>x y z</c> text of an entity key.</summary>
     public static string FormatVector(Vector3 value)
         => string.Create(CultureInfo.InvariantCulture, $"{value.X} {value.Y} {value.Z}");
+
+    private static readonly float[] ProbeVoxelSizes = [12f, 24f, 48f, 108f];
+
+    /// <summary>Picks the voxel size Hammer offers for a light probe volume that is closest to a grid cell size.</summary>
+    public static float GetProbeVoxelSize(float cellSize)
+    {
+        var closest = ProbeVoxelSizes[0];
+
+        foreach (var voxelSize in ProbeVoxelSizes)
+        {
+            if (MathF.Abs(voxelSize - cellSize) < MathF.Abs(closest - cellSize))
+            {
+                closest = voxelSize;
+            }
+        }
+
+        return closest;
+    }
 }

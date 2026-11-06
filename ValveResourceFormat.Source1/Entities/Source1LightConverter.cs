@@ -407,7 +407,7 @@ internal static class Source1LightConverter
             return (Vector3.Zero, 0f);
         }
 
-        var color = IntensityUnit * ColorSpace.LinearToGamma22(linear / peak);
+        var color = Vector3.Round(IntensityUnit * ColorSpace.LinearToGamma22(linear / peak));
 
         return (color, peak / IntensityUnit);
     }

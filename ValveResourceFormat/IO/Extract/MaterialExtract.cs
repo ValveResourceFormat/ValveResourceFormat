@@ -75,6 +75,11 @@ public sealed class MaterialExtract
     /// </summary>
     public ContentFile ToContentFile()
     {
+        if ((fileLoader as IMaterialExtractor)?.ExtractMaterial(material) is { } translated)
+        {
+            return translated;
+        }
+
         var vmat = new ContentFile
         {
             Data = Encoding.UTF8.GetBytes(ToValveMaterial())
@@ -213,6 +218,12 @@ public sealed class MaterialExtract
     /// </summary>
     public string ToValveMaterial()
     {
+        using var translated = (fileLoader as IMaterialExtractor)?.ExtractMaterial(material);
+        if (translated is not null)
+        {
+            return Encoding.UTF8.GetString(translated.Data!);
+        }
+
         var root = KVObject.ListCollection();
         root.Add("shader", material.ShaderName);
 

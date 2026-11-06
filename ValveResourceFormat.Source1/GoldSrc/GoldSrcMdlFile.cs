@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Globalization;
 using System.IO;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Source1.Model;
 
 namespace ValveResourceFormat.GoldSrc;
 
@@ -70,6 +71,8 @@ internal sealed class GoldSrcMdlFile
 
     /// <summary>The model that holds the textures when this file has none, loaded from the file named like this one with a T suffix.</summary>
     public GoldSrcMdlFile? TextureFile { get; set; }
+
+    private readonly ModelNameSet boneExportNames = new();
 
     public GoldSrcMdlFile(byte[] data, string name)
     {
@@ -471,15 +474,21 @@ internal sealed class GoldSrcMdlFile
         return result;
     }
 
-    private GoldSrcBone ReadBone(int at) => new()
+    private GoldSrcBone ReadBone(int at)
     {
-        Name = ReadString(at, 32),
-        Parent = ReadInt(at + 32),
-        Flags = ReadInt(at + 36),
-        Controllers = ReadInts(at + 40, ControllerChannelCount),
-        Value = ReadFloats(at + 64, ControllerChannelCount),
-        Scale = ReadFloats(at + 88, ControllerChannelCount),
-    };
+        var name = ReadString(at, 32);
+
+        return new GoldSrcBone
+        {
+            Name = name,
+            ExportName = boneExportNames.Create(name),
+            Parent = ReadInt(at + 32),
+            Flags = ReadInt(at + 36),
+            Controllers = ReadInts(at + 40, ControllerChannelCount),
+            Value = ReadFloats(at + 64, ControllerChannelCount),
+            Scale = ReadFloats(at + 88, ControllerChannelCount),
+        };
+    }
 
     private GoldSrcBoneController ReadBoneController(int at) => new()
     {
