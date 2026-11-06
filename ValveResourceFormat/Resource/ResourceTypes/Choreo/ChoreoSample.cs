@@ -1,5 +1,6 @@
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.Choreo.Curves;
+using ValveResourceFormat.ResourceTypes.Choreo.Enums;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo
 {
@@ -64,7 +65,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// </summary>
         /// <param name="inType">The input curve type.</param>
         /// <param name="outType">The output curve type.</param>
-        public void SetCurveType(byte inType, byte outType)
+        public void SetCurveType(CurveInterpolator inType, CurveInterpolator outType)
         {
             Curve = new CurveType
             {

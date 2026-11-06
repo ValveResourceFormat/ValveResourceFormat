@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.ResourceTypes.Choreo.Enums;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo.Curves
 {
@@ -7,6 +8,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Curves
     /// </summary>
     public struct CurveType
     {
+        // Indexed by CurveInterpolator
         private static readonly string[] Interpolators = [
             "default",
             "catmullrom_normalize_x",
@@ -27,31 +29,46 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Curves
             "bezier",
         ];
 
-        internal static byte ValidateInterpolator(byte type)
+        internal static CurveInterpolator ValidateInterpolator(byte type)
         {
             UnexpectedMagicException.Assert(type < Interpolators.Length, type);
-            return type;
+            return (CurveInterpolator)type;
+        }
+
+        internal static CurveType Parse(string name)
+        {
+            const string Prefix = "curve_";
+            const string Separator = "_to_curve_";
+
+            var separator = name.IndexOf(Separator, StringComparison.Ordinal);
+            UnexpectedMagicException.Assert(name.StartsWith(Prefix, StringComparison.Ordinal) && separator > 0, name);
+
+            var inType = Array.IndexOf(Interpolators, name[Prefix.Length..separator]);
+            var outType = Array.IndexOf(Interpolators, name[(separator + Separator.Length)..]);
+            UnexpectedMagicException.Assert(inType >= 0 && outType >= 0, name);
+
+            return new CurveType { InType = (CurveInterpolator)inType, OutType = (CurveInterpolator)outType };
         }
 
         /// <summary>
         /// Gets or sets the input curve type.
         /// </summary>
-        public byte InType { get; set; }
+        public CurveInterpolator InType { get; set; }
 
         /// <summary>
         /// Gets or sets the output curve type.
         /// </summary>
-        public byte OutType { get; set; }
+        public CurveInterpolator OutType { get; set; }
 
         /// <summary>
         /// Gets the name of the input interpolation type.
         /// </summary>
-        public readonly string InTypeName => Interpolators[InType];
+        public readonly string InTypeName => Interpolators[(int)InType];
 
         /// <summary>
         /// Gets the name of the output interpolation type.
         /// </summary>
-        public readonly string OutTypeName => Interpolators[OutType];
+        public readonly string OutTypeName => Interpolators[(int)OutType];
 
         /// <summary>
         /// Converts this curve type to a <see cref="KVObject"/>.
