@@ -383,7 +383,7 @@ public partial class GltfModelExporter
             lock (textureResource)
             {
                 var textureBlock = (ResourceTypes.Texture)textureResource.DataBlock!;
-                bitmap = textureBlock.GenerateBitmap();
+                bitmap = textureBlock.GenerateBitmap(decodeFlags: TextureDecoders.TextureCodec.Auto | TextureDecoders.TextureCodec.ForceLDR);
             }
 
             bitmap.SetImmutable();
