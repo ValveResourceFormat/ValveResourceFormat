@@ -152,7 +152,7 @@ public sealed class TextureExtract
 
                 if (isArray)
                 {
-                    outTextureName += isCubeMap ? $"_f{depth:D2}" : $"_z{depth:D3}";
+                    outTextureName += isCubeMap ? GetCubeArraySliceSuffix(depth) : $"_z{depth:D3}";
                 }
 
                 if (!isCubeMap)
@@ -213,6 +213,11 @@ public sealed class TextureExtract
                 }
             }
 
+            if (isCubeMap && LatLongCombineCubemap && ExportExr && !IgnoreVtexFile)
+            {
+                contentFile.Data = Encoding.UTF8.GetBytes(ToValveTexture());
+            }
+
             return contentFile;
         }
 
@@ -251,6 +256,9 @@ public sealed class TextureExtract
         // unpacking not supported in these scenarios
         if (isCubeMap || isArray)
         {
+            // The material references the image directly, so no vtex is written
+            IgnoreVtexFile = true;
+
             var vtexContent = ToContentFile();
 
             if (isCubeMap && LatLongCombineCubemap && ExportExr)
@@ -869,17 +877,71 @@ public sealed class TextureExtract
         return GetImageFileName().Replace(Path.DirectorySeparatorChar, '/');
     }
 
+    private string[] GetCubeArrayInputFileNames()
+    {
+        if (!isArray)
+        {
+            return [GetInputFileNameForVtex()];
+        }
+
+        var fileNameWithoutExtension = Path.ChangeExtension(fileName, null).Replace(Path.DirectorySeparatorChar, '/');
+        var fileNames = new string[texture.Depth];
+
+        for (uint depth = 0; depth < fileNames.Length; depth++)
+        {
+            fileNames[depth] = fileNameWithoutExtension + GetCubeArraySliceSuffix(depth) + ImageOutputExtension;
+        }
+
+        return fileNames;
+    }
+
+    private static string GetCubeArraySliceSuffix(uint depth) => $"_f{depth:D2}";
+
+    /// <summary>
+    /// The mip algorithm the texture was compiled with, which for a reflection cube is what blurs its mips by roughness.
+    /// </summary>
+    private string GetMipAlgorithm()
+    {
+        const string MipDependencyPrefix = "Texture Compiler Version Mip ";
+
+        var specialDependencies = texture.Resource.EditInfo?.SpecialDependencies ?? [];
+
+        foreach (var dependency in specialDependencies)
+        {
+            if (dependency.CompilerIdentifier == "CompileTexture" && dependency.String.StartsWith(MipDependencyPrefix, StringComparison.Ordinal))
+            {
+                return dependency.String[MipDependencyPrefix.Length..];
+            }
+        }
+
+        return "Box";
+    }
+
+    private CDmeVtex CreateVtex()
+    {
+        var outputFormat = texture.Format.ToString();
+
+        if (!isCubeMap)
+        {
+            return CDmeVtex.CreateTexture2D([(GetInputFileNameForVtex(), "rgba", "Box")], outputFormat);
+        }
+
+        if (texture.Flags.HasFlag(VTexFlags.TEXTURE_ARRAY))
+        {
+            return CDmeVtex.CreateCubeArray(GetCubeArrayInputFileNames(), GetMipAlgorithm(), outputFormat);
+        }
+
+        return CDmeVtex.CreateCube([(GetInputFileNameForVtex(), "rgba", GetMipAlgorithm())], outputFormat);
+    }
+
     /// <summary>
     /// Converts the texture to a Valve texture (vtex) configuration string.
     /// </summary>
     /// <returns>A vtex configuration string in KeyValues2 format.</returns>
     public string ToValveTexture()
     {
-        var inputTextureFileName = GetInputFileNameForVtex();
-        var outputFormat = texture.Format.ToString();
-
         using var datamodel = new Datamodel.Datamodel("vtex", 1);
-        datamodel.Root = CDmeVtex.CreateTexture2D([(inputTextureFileName, "rgba", "Box")], outputFormat);
+        datamodel.Root = CreateVtex();
 
         using var stream = new MemoryStream();
         datamodel.Save(stream, "keyvalues2_noids", 1);
