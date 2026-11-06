@@ -37,6 +37,14 @@ namespace ValveResourceFormat.Renderer
             orderedMorphIds = [.. morphIdToRuleId.Keys.Order()];
 
             MorphComposite = new MorphComposite(renderContext, morph);
+
+            // Rules with constant terms weigh a morph while every controller is at rest
+            UpdateComposite();
+
+            if (Array.Exists(flexValues, static value => value != 0f))
+            {
+                renderContext.MorphAtlas.Queue(MorphComposite);
+            }
         }
 
         /// <summary>Sets a single flex controller value, clamped to its defined range.</summary>

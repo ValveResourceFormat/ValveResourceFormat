@@ -410,7 +410,8 @@ namespace ValveResourceFormat.Renderer
 
                     AddDrawCall(drawCall, isAggregate);
 
-                    drawCall.VertexIdOffset = vertexOffset;
+                    // gl_VertexID includes the base vertex of the draw
+                    drawCall.VertexIdOffset = vertexOffset - drawCall.BaseVertex;
                     vertexOffset += objectDrawCall.GetInt32Property("m_nVertexCount");
 
                     i++;

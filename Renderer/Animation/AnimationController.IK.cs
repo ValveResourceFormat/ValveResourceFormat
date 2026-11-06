@@ -88,7 +88,7 @@ namespace ValveResourceFormat.Renderer
         /// Gets the flex controller values of the current frame with the morph driving constraints applied,
         /// or the frame's own values when no constraint writes morphs.
         /// </summary>
-        public float[]? FlexValues => BoneConstraints is { WritesMorphs: true } && AnimationFrame != null
+        public float[]? FlexValues => BoneConstraints is { WritesMorphs: true } && (AnimationFrame != null || EnableConstraints)
             ? constrainedFlexValues
             : AnimationFrame?.Datas;
 

@@ -229,6 +229,7 @@ namespace ValveResourceFormat.Renderer
             else if (AnimationFrame == null)
             {
                 // The model player already wrote the bind pose into our buffer.
+                ApplyInverseKinematics();
                 return true;
             }
 
