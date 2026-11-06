@@ -192,7 +192,8 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
         var framebufferFormat = request.Bitmap.ColorType switch
         {
-            HdrBitmapColorType => (ImageFormat?)HDRFormat,
+            HalfHdrBitmapColorType => (ImageFormat?)ImageFormat.RGBA16161616F,
+            HdrBitmapColorType => HDRFormat,
             DefaultBitmapColorType => LDRFormat,
             _ => null,
         };
@@ -247,17 +248,9 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
         GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
 
-        var pixels = request.Bitmap.GetPixels(out var outputLength);
-        var isHdr = Framebuffer.ColorFormat == ImageFormat.RGBA32323232F;
-        var readFormat = MaterialLoader.GetImageExportFormat(isHdr);
-        var fbBytesPerPixel = isHdr ? 16 : 4;
-        var fbRegionLength = request.Bitmap.Width * request.Bitmap.Height * fbBytesPerPixel;
-
-        if (fbRegionLength > outputLength)
-        {
-            RendererContext.Logger.LogWarning("Bitmap is too small to copy framebuffer contents to");
-            return false;
-        }
+        var pixels = request.Bitmap.GetPixels();
+        var isHdr = Framebuffer.ColorFormat != LDRFormat;
+        var readFormat = isHdr ? Framebuffer.ColorFormat.Value : MaterialLoader.GetImageExportFormat(hdr: false);
 
         Framebuffer.Bind(FramebufferTarget.ReadFramebuffer);
         GL.ReadBuffer(ReadBufferMode.ColorAttachment0);

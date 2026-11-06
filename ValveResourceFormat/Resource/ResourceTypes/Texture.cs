@@ -778,6 +778,12 @@ namespace ValveResourceFormat.ResourceTypes
             or VTexFormat.RGBA32323232F
             or VTexFormat.BC6H;
 
+        private bool IsHalfFloat => Format
+            is VTexFormat.R16F
+            or VTexFormat.RG1616F
+            or VTexFormat.RGBA16161616F
+            or VTexFormat.BC6H;
+
         /// <summary>
         /// Gets a value indicating whether this texture contains raw image data, not block data.
         /// </summary>
@@ -828,6 +834,11 @@ namespace ValveResourceFormat.ResourceTypes
         /// The color type used for high dynamic range bitmaps.
         /// </summary>
         public const SKColorType HdrBitmapColorType = SKColorType.RgbaF32;
+
+        /// <summary>
+        /// The color type used for high dynamic range bitmaps of textures stored as half floats.
+        /// </summary>
+        public const SKColorType HalfHdrBitmapColorType = SKColorType.RgbaF16;
 
         /// <summary>
         /// Generate a bitmap for given parameters.
@@ -882,9 +893,12 @@ namespace ValveResourceFormat.ResourceTypes
                 ? (RetrieveCodecFromResourceEditInfo() & ~removeDecodeFlags) | (decodeFlags & ~TextureCodec.Auto)
                 : decodeFlags;
 
-            var colorType = isHdrBitmap
-                ? HdrBitmapColorType
-                : DefaultBitmapColorType;
+            var colorType = DefaultBitmapColorType;
+
+            if (isHdrBitmap)
+            {
+                colorType = IsHalfFloat ? HalfHdrBitmapColorType : HdrBitmapColorType;
+            }
 
             var skiaBitmap = new SKBitmap(width, height, colorType, SKAlphaType.Unpremul);
 
@@ -994,7 +1008,7 @@ namespace ValveResourceFormat.ResourceTypes
                 VTexFormat.DXT5 => new DecodeBCn(blockWidth, blockHeight, TinyBCSharp.BlockFormat.BC3),
                 VTexFormat.ATI1N => new DecodeBCn(blockWidth, blockHeight, TinyBCSharp.BlockFormat.BC4U),
                 VTexFormat.ATI2N => new DecodeBCn(blockWidth, blockHeight, TinyBCSharp.BlockFormat.BC5U),
-                VTexFormat.BC6H => new DecodeBCn(blockWidth, blockHeight, TinyBCSharp.BlockFormat.BC6HUf32),
+                VTexFormat.BC6H => new DecodeBCn(blockWidth, blockHeight, TinyBCSharp.BlockFormat.BC6HUf16),
                 VTexFormat.BC7 => new DecodeBCn(blockWidth, blockHeight, TinyBCSharp.BlockFormat.BC7),
 
                 // ETC

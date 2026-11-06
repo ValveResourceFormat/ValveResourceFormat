@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Numerics.Tensors;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using SkiaSharp;
@@ -893,22 +895,16 @@ public sealed class TextureExtract
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(faces.Length, 6, nameof(faces));
 
-        var colorType = faces[0].Info.ColorType;
-        if (colorType != SKColorType.RgbaF32)
-        {
-            throw new InvalidOperationException($"Cubemap faces must be RgbaF32 format, got {colorType}");
-        }
-
         var faceWidth = faces[0].Width;
         var faceHeight = faces[0].Height;
 
-        var facePixels = new nint[6];
+        var faceColors = new SKColorF[6][];
         for (var face = 0; face < 6; face++)
         {
-            facePixels[face] = faces[face].GetPixels();
+            faceColors[face] = ReadCubemapFace(faces[face]);
         }
 
-        var latLongInfo = new SKImageInfo(faceWidth * 4, faceHeight * 2, colorType, faces[0].Info.AlphaType);
+        var latLongInfo = new SKImageInfo(faceWidth * 4, faceHeight * 2, SKColorType.RgbaF32, faces[0].Info.AlphaType);
         var latLongBitmap = new SKBitmap(latLongInfo);
         using var latLongPixels = latLongBitmap.PeekPixels();
 
@@ -930,7 +926,7 @@ public sealed class TextureExtract
 
                 var dir = new Vector3(sinV * cosU, cosV, sinV * sinU);
 
-                var color = SampleCubemapDirection(facePixels, faceWidth, faceHeight, dir);
+                var color = SampleCubemapDirection(faceColors, faceWidth, faceHeight, dir);
                 latLongSpan[y * width + x] = color;
             }
         });
@@ -938,7 +934,28 @@ public sealed class TextureExtract
         return latLongBitmap;
     }
 
-    private static unsafe SKColorF SampleCubemapDirection(nint[] facePixels, int faceWidth, int faceHeight, Vector3 dir)
+    private static SKColorF[] ReadCubemapFace(SKPixmap face)
+    {
+        var colorType = face.Info.ColorType;
+
+        if (colorType == SKColorType.RgbaF32)
+        {
+            return face.GetPixelSpan<SKColorF>().ToArray();
+        }
+
+        if (colorType != SKColorType.RgbaF16)
+        {
+            throw new InvalidOperationException($"Cubemap faces must be RgbaF32 or RgbaF16 format, got {colorType}");
+        }
+
+        var colors = new SKColorF[face.Width * face.Height];
+        var halfs = MemoryMarshal.Cast<byte, Half>(face.GetPixelSpan<byte>());
+        TensorPrimitives.ConvertToSingle(halfs, MemoryMarshal.Cast<SKColorF, float>(colors.AsSpan()));
+
+        return colors;
+    }
+
+    private static SKColorF SampleCubemapDirection(SKColorF[][] faceColors, int faceWidth, int faceHeight, Vector3 dir)
     {
         // determine which face the direction vector intersects and get the corresponding UV coordinates
         var absDir = Vector3.Abs(dir);
@@ -1018,7 +1035,7 @@ public sealed class TextureExtract
         var tx = fx - x0;
         var ty = fy - y0;
 
-        var colorSpan = new ReadOnlySpan<SKColorF>((void*)facePixels[faceIndex], faceWidth * faceHeight);
+        var colorSpan = faceColors[faceIndex].AsSpan();
 
         // get the four neighboring pixels
         var c00 = SampleCubemapSeamless(colorSpan, x0, y0, faceWidth, faceHeight);

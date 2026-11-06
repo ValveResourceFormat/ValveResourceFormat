@@ -43,6 +43,23 @@ namespace Tests.Resources
             }
         }
 
+        [Test]
+        [Arguments("BC6H.vtex_c", SKColorType.RgbaF16)]
+        [Arguments("RGBA16161616F.vtex_c", SKColorType.RgbaF16)]
+        [Arguments("R32F.vtex_c", SKColorType.RgbaF32)]
+        public async Task HdrBitmapColorTypeMatchesSourcePrecision(string fileName, SKColorType expected)
+        {
+            using var resource = new Resource();
+            resource.Read(Path.Combine(TexturesDir, fileName));
+
+            var texture = (Texture?)resource.DataBlock;
+            Debug.Assert(texture != null);
+
+            using var bitmap = texture.GenerateBitmap();
+
+            await Assert.That(bitmap.ColorType).IsEqualTo(expected);
+        }
+
         [Test, MethodDataSource(nameof(GetTextureFiles))]
         public async Task InPlaceLz4MipReadMatchesScratchRead(string fileName)
         {

@@ -11,6 +11,12 @@ namespace ValveResourceFormat.TextureDecoders
             using var pixels = bitmap.PeekPixels();
             var inputPixels = MemoryMarshal.Cast<byte, RG1616F>(input);
 
+            if (bitmap.ColorType == ResourceTypes.Texture.HalfHdrBitmapColorType)
+            {
+                DecodeHalfHdr(pixels, inputPixels);
+                return;
+            }
+
             if (bitmap.ColorType == ResourceTypes.Texture.HdrBitmapColorType)
             {
                 DecodeHdr(pixels, inputPixels);
@@ -18,6 +24,20 @@ namespace ValveResourceFormat.TextureDecoders
             }
 
             DecodeLdr(pixels, inputPixels);
+        }
+
+        private static void DecodeHalfHdr(SKPixmap pixels, ReadOnlySpan<RG1616F> inputPixels)
+        {
+            var halfColors = MemoryMarshal.Cast<byte, Half>(pixels.GetPixelSpan<byte>());
+            var pixelCount = halfColors.Length / 4;
+
+            for (var i = 0; i < pixelCount; i++)
+            {
+                halfColors[i * 4] = inputPixels[i].R;
+                halfColors[i * 4 + 1] = inputPixels[i].G;
+                halfColors[i * 4 + 2] = Half.Zero;
+                halfColors[i * 4 + 3] = Half.One;
+            }
         }
 
         private static void DecodeHdr(SKPixmap pixels, ReadOnlySpan<RG1616F> inputPixels)
