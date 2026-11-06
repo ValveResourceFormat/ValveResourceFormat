@@ -575,7 +575,7 @@ public class UserInput
             OrbitDistance = direction.Length();
         }
 
-        Velocity = (Camera.Location - previousCamera.Location) / deltaTime;
+        Velocity = deltaTime > 0f ? (Camera.Location - previousCamera.Location) / deltaTime : Vector3.Zero;
     }
 
     private (bool Clipped, Vector3 ClipPosition, float ImpactTime) ClipOrbitMovement(Vector3 fromLocation, Vector3 toLocation)
