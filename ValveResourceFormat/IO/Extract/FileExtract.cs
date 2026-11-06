@@ -359,16 +359,20 @@ namespace ValveResourceFormat.IO
 
         private static ContentFile ExtractPostProcessing(Resource resource)
         {
+            var postProcessing = (PostProcessing)resource.DataBlock!;
             var lutFileName = Path.ChangeExtension(resource.FileName, "raw")!;
             var contentFile = new ContentFile
             {
-                Data = ((PostProcessing)resource.DataBlock!).ToValvePostProcessingBytes(preloadLookupTable: true, lutFileName: lutFileName.Replace(Path.DirectorySeparatorChar, '/')),
+                Data = postProcessing.ToValvePostProcessingBytes(preloadLookupTable: true, lutFileName: lutFileName.Replace(Path.DirectorySeparatorChar, '/')),
             };
 
-            contentFile.AddSubFile(
-                fileName: Path.GetFileName(lutFileName)!,
-                extractMethod: () => ((PostProcessing)resource.DataBlock!).GetRAWData()
-            );
+            if (postProcessing.HasColorCorrection())
+            {
+                contentFile.AddSubFile(
+                    fileName: Path.GetFileName(lutFileName)!,
+                    extractMethod: () => postProcessing.GetRAWData()
+                );
+            }
 
             return contentFile;
         }
