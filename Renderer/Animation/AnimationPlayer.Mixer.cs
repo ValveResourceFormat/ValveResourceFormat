@@ -71,24 +71,42 @@ namespace ValveResourceFormat.Renderer
         /// <param name="Owner">The clip whose cycle position drives this one.</param>
         public abstract record ClipDriver(PlaybackClip Owner)
         {
-            /// <summary>The weight the driven clip contributes, before the owner's own weight.</summary>
-            public abstract float EvaluateWeight(AnimationPlayer player);
+            /// <summary>The weight the driven clip contributes, given the owner's cycle position from 0 to 1.</summary>
+            public abstract float EvaluateWeight(AnimationPlayer player, float ownerCycle);
+
+            /// <summary>The position in the driven clip's own cycle, 0 to 1. Defaults to the owner's cycle position.</summary>
+            public virtual float EvaluateCycle(float ownerCycle) => ownerCycle;
         }
 
         /// <summary>Drives one of a sequence's auto layers from its blend curve at the owner's cycle.</summary>
         public sealed record AutoLayerDriver(PlaybackClip Owner, AnimationAutoLayer Layer) : ClipDriver(Owner)
         {
             /// <inheritdoc/>
-            public override float EvaluateWeight(AnimationPlayer player)
-                => EvaluateAutoLayerWeight(Layer, Owner.Animation.GetCycleFraction(Owner.Time));
+            public override float EvaluateWeight(AnimationPlayer player, float ownerCycle)
+                => EvaluateAutoLayerWeight(Layer, ownerCycle, Owner.Weight);
+
+            /// <inheritdoc/>
+            public override float EvaluateCycle(float ownerCycle)
+            {
+                if (Layer.Start == Layer.End)
+                {
+                    return ownerCycle;
+                }
+
+                return MathUtils.Saturate((ownerCycle - Layer.Start) / (Layer.End - Layer.Start));
+            }
         }
 
         /// <summary>Drives one entry of a blend sequence's fetch from the live pose parameter values.</summary>
         public sealed record BlendDriver(PlaybackClip Owner, SequenceAnimation Sequence, int Index) : ClipDriver(Owner)
         {
             /// <inheritdoc/>
-            public override float EvaluateWeight(AnimationPlayer player)
-                => Sequence.Fetch!.Value.GetBlendWeight(Index, player.GetBlendPoseValue(Sequence, 0), player.GetBlendPoseValue(Sequence, 1));
+            public override float EvaluateWeight(AnimationPlayer player, float ownerCycle)
+            {
+                var weight = Sequence.Fetch!.Value.GetBlendWeight(Index, player.GetBlendPoseValue(Sequence, 0), player.GetBlendPoseValue(Sequence, 1));
+
+                return weight * Owner.Weight;
+            }
         }
 
         /// <summary>
@@ -324,8 +342,10 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                clip.Weight = driver.EvaluateWeight(this) * driver.Owner.Weight;
-                clip.Time = driver.Owner.Animation.GetCycleFraction(driver.Owner.Time) * clip.Animation.CycleDuration;
+                var ownerCycle = driver.Owner.Animation.GetCycleFraction(driver.Owner.Time);
+
+                clip.Weight = driver.EvaluateWeight(this, ownerCycle);
+                clip.Time = driver.EvaluateCycle(ownerCycle) * clip.Animation.CycleDuration;
             }
         }
 
@@ -339,32 +359,47 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Evaluates an auto layer's blend curve at a point in its owner's cycle: a trapezoid rising from
-        /// Start to Peak and falling from Tail to End, at full weight throughout when Start equals End.
+        /// Evaluates an auto layer's weight at a point in its owner's cycle. Over the layer's range it is a
+        /// trapezoid rising from Start to Peak and falling from Tail to End, and nothing outside. A cross fade
+        /// layer past Tail biases the ramp to compensate for an owner weight below one, and a no blend layer
+        /// ignores the owner's weight. A layer with equal Start and End plays at the owner's weight throughout.
         /// </summary>
-        private static float EvaluateAutoLayerWeight(AnimationAutoLayer layer, float cycle)
+        private static float EvaluateAutoLayerWeight(AnimationAutoLayer layer, float cycle, float ownerWeight)
         {
             if (layer.Start == layer.End)
             {
-                return 1f;
+                return ownerWeight;
             }
 
-            if (layer.NoBlend)
+            if (cycle < layer.Start || cycle >= layer.End)
             {
-                return cycle >= layer.Start && cycle <= layer.End ? 1f : 0f;
+                return 0f;
             }
 
-            var rising = layer.Start != layer.Peak ? MathUtils.Remap(cycle, layer.Start, layer.Peak) : 1f;
-            var falling = layer.Tail != layer.End ? MathUtils.Remap(cycle, layer.End, layer.Tail) : 1f;
+            var weight = 1f;
 
-            var weight = MathUtils.Saturate(Math.Min(rising, falling));
+            if (cycle < layer.Peak && layer.Start != layer.Peak)
+            {
+                weight = MathUtils.Remap(cycle, layer.Start, layer.Peak);
+            }
+            else if (cycle > layer.Tail && layer.End != layer.Tail)
+            {
+                weight = MathUtils.Remap(cycle, layer.End, layer.Tail);
+            }
 
             if (layer.Spline)
             {
                 weight = MathUtils.Smoothstep(0f, 1f, weight);
             }
 
-            return weight;
+            if (layer.XFade && cycle > layer.Tail)
+            {
+                var denominator = 1f - ownerWeight + (weight * ownerWeight);
+
+                return denominator > 0f ? weight * ownerWeight / denominator : 0f;
+            }
+
+            return layer.NoBlend ? weight : ownerWeight * weight;
         }
 
         /// <summary>
@@ -469,10 +504,26 @@ namespace ValveResourceFormat.Renderer
             IsUsingMixer = true;
             BlendedFrame.Clear(Skeleton);
 
+            // Layers go over the pose the other clips made, whatever order the clips were added in
+            BlendClips(false);
+            BlendClips(true);
+
+            return BlendedFrame;
+        }
+
+        private static bool IsLayer(PlaybackClip clip) => clip.IsAdditive || clip.Driver is AutoLayerDriver;
+
+        /// <summary>
+        /// Blends the clips that are layers, or those that are not, into <see cref="BlendedFrame"/>.
+        /// Clips that are not layers share the frame by their weights; layers do not count towards that share.
+        /// </summary>
+        private void BlendClips(bool layers)
+        {
             var totalWeight = 0f;
+
             foreach (var clip in clips.Values)
             {
-                if (clip.Weight <= 0f)
+                if (clip.Weight <= 0f || IsLayer(clip) != layers)
                 {
                     continue;
                 }
@@ -484,7 +535,7 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 var frame = SampleFrame(clip);
-                var blendFactor = clip.IsAdditive
+                var blendFactor = layers
                     ? clip.Weight
                     : clip.Weight / (totalWeight + clip.Weight);
 
@@ -515,8 +566,6 @@ namespace ValveResourceFormat.Renderer
 
                 totalWeight += clip.Weight;
             }
-
-            return BlendedFrame;
         }
 
         private Frame SampleFrame(PlaybackClip clip)
