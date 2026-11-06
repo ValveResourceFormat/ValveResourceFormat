@@ -2,6 +2,7 @@ using System.IO;
 using System.Text;
 using ValveResourceFormat.ResourceTypes.Choreo;
 using ValveResourceFormat.ResourceTypes.Choreo.Enums;
+using ValveResourceFormat.Source1.Model;
 
 namespace ValveResourceFormat.Source1.Choreo;
 
@@ -142,6 +143,13 @@ internal sealed class Source1ChoreoReader(BinaryReader reader, Func<short, strin
             closedCaptionsType = (ChoreoClosedCaptionsType)reader.ReadByte();
             closedCaptionsToken = ReadString();
             speakFlags = (ChoreoSpeakFlags)reader.ReadByte();
+        }
+
+        // These name a sequence of the model, which a converted model names with the characters the model compiler accepts
+        if (type is ChoreoEventType.Gesture or ChoreoEventType.Sequence)
+        {
+            name = ModelNames.Sanitize(name);
+            param1 = ModelNames.Sanitize(param1);
         }
 
         return new ChoreoEvent

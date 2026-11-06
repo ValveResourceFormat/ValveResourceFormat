@@ -28,7 +28,7 @@ namespace ValveResourceFormat.IO
     /// To read raw file bytes from a VPK package, use <c>Package.ReadEntry</c> instead.
     /// </para>
     /// </remarks>
-    public partial class GameFileLoader : IFileLoader, IDisposable
+    public partial class GameFileLoader : IFileLoader, IMaterialExtractor, IDisposable
     {
         private const string AddonsSuffix = "_addons";
         private const string GameinfoGi = "gameinfo.gi";
@@ -413,6 +413,9 @@ namespace ValveResourceFormat.IO
         /// Serves the files <see cref="LoadFile"/> does not find in the packages or on disk.
         /// </summary>
         public IResourceProvider? ResourceProvider { get; set; }
+
+        /// <inheritdoc/>
+        public ContentFile? ExtractMaterial(ResourceTypes.Material material) => ResourceProvider?.ExtractMaterial(material);
 
         /// <summary>
         /// Checks whether a file is in the packages, on disk, or served by the <see cref="ResourceProvider"/>, without loading it.

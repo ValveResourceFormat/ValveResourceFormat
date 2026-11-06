@@ -84,6 +84,7 @@ internal static class GoldSrcModelConverter
 
         var materialPaths = materialPathsByBlend[(int)GoldSrcStudioBlend.Opaque];
         var meshGroupNames = new List<string>();
+        var meshNames = new ModelNameSet();
         var meshes = new List<ModelMeshSource>();
         var sourceMeshes = new List<GoldSrcMdlMesh>();
         var defaultMask = 0UL;
@@ -112,7 +113,7 @@ internal static class GoldSrcModelConverter
                     defaultMask |= groupBit;
                 }
 
-                var meshName = string.Create(CultureInfo.InvariantCulture, $"{part.Name}.{subIndex}");
+                var meshName = meshNames.Create(part.Name, partIndex, string.Create(CultureInfo.InvariantCulture, $"_{subIndex}"));
                 var mesh = CreateMesh(source, textureSource, meshName, subModel, groupBit, boneToModel, materialPaths, sourceMeshes);
 
                 if (mesh != null)
@@ -171,7 +172,7 @@ internal static class GoldSrcModelConverter
             var value = bone.Value;
             var position = new Vector3(value[0], value[1], value[2]);
 
-            bones.Add(new ModelBone(bone.Name, bone.Parent, position, GetRestRotation(bone), 1f));
+            bones.Add(new ModelBone(bone.ExportName, bone.Parent, position, GetRestRotation(bone), 1f));
         }
 
         return bones;
@@ -231,10 +232,10 @@ internal static class GoldSrcModelConverter
         for (var i = 0; i < boneCount; i++)
         {
             var bone = source.Bones[i];
-            var parentName = (uint)bone.Parent < (uint)source.Bones.Length ? source.Bones[bone.Parent].Name : string.Empty;
+            var parentName = (uint)bone.Parent < (uint)source.Bones.Length ? source.Bones[bone.Parent].ExportName : string.Empty;
             var inverse = Matrix4x4.Invert(boneToModel[i], out var invertedRest) ? invertedRest : Matrix4x4.Identity;
 
-            meshBones.Add(new MeshBone(bone.Name, parentName, inverse));
+            meshBones.Add(new MeshBone(bone.ExportName, parentName, inverse));
             boneRemap[i] = i;
         }
 
@@ -398,7 +399,7 @@ internal static class GoldSrcModelConverter
     }
 
     private static string GetFilePath(string path, int textureIndex, GoldSrcMdlTexture texture, string extension)
-        => string.Create(CultureInfo.InvariantCulture, $"{path}/{textureIndex}_{texture.Name}{extension}");
+        => string.Create(CultureInfo.InvariantCulture, $"materials/{Path.ChangeExtension(path, null)}/{textureIndex}_{ModelNames.Sanitize(texture.Name)}{extension}");
 
     private static Dictionary<string, Resource> CreateFiles(string path, GoldSrcMdlFile textureSource)
     {
@@ -486,23 +487,28 @@ internal static class GoldSrcModelConverter
     private static KVObject CreateAttachments(GoldSrcMdlFile source)
     {
         var attachments = KVObject.Array();
-        var names = new HashSet<string>();
+        var names = new ModelNameSet();
 
-        foreach (var sourceAttachment in source.Attachments)
+        for (var i = 0; i < source.Attachments.Length; i++)
         {
-            if ((uint)sourceAttachment.Bone >= (uint)source.Bones.Length || !names.Add(sourceAttachment.Name))
+            var sourceAttachment = source.Attachments[i];
+
+            if ((uint)sourceAttachment.Bone >= (uint)source.Bones.Length)
             {
                 continue;
             }
 
-            var boneName = KVHelpers.MakeArray(source.Bones[sourceAttachment.Bone].Name);
+            // The file does not name its attachments, the game addresses them by index
+            var sourceName = sourceAttachment.Name.Length > 0 ? sourceAttachment.Name : string.Create(CultureInfo.InvariantCulture, $"attachment{i}");
+
+            var boneName = KVHelpers.MakeArray(source.Bones[sourceAttachment.Bone].ExportName);
             var rotation = KVHelpers.MakeArray(KVHelpers.ToKVArray(Quaternion.Identity));
             var offset = KVHelpers.MakeArray(KVHelpers.ToKVArray(sourceAttachment.Origin));
             var weight = KVHelpers.MakeArray(1f);
             var rootTransform = KVHelpers.MakeArray(false);
 
             var attachment = KVObject.Collection();
-            attachment.Add("m_name", sourceAttachment.Name);
+            attachment.Add("m_name", names.Create(sourceName));
             attachment.Add("m_bIgnoreRotation", false);
             attachment.Add("m_nInfluences", 1);
             attachment.Add("m_influenceNames", boneName);
@@ -540,7 +546,7 @@ internal static class GoldSrcModelConverter
             var hitbox = KVObject.Collection();
             hitbox.Add("m_name", string.Create(CultureInfo.InvariantCulture, $"hitbox{i}"));
             hitbox.Add("m_sSurfaceProperty", string.Empty);
-            hitbox.Add("m_sBoneName", source.Bones[sourceHitbox.Bone].Name);
+            hitbox.Add("m_sBoneName", source.Bones[sourceHitbox.Bone].ExportName);
             hitbox.Add("m_vMinBounds", KVHelpers.ToKVArray(sourceHitbox.Min));
             hitbox.Add("m_vMaxBounds", KVHelpers.ToKVArray(sourceHitbox.Max));
             hitbox.Add("m_flShapeRadius", 0f);

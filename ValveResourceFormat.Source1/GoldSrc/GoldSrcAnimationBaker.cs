@@ -29,7 +29,7 @@ internal sealed class GoldSrcAnimationBaker
 
     private readonly GoldSrcMdlFile source;
     private readonly List<string> names = [];
-    private readonly HashSet<string> usedNames = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ModelNameSet usedNames = new();
     private readonly List<BlendParameter> parameters = [];
     private readonly Dictionary<int, int> parameterIndices = [];
     private readonly KVObject animations = KVObject.Array();
@@ -106,7 +106,7 @@ internal sealed class GoldSrcAnimationBaker
 
         foreach (var bone in source.Bones)
         {
-            boneNames.Add(bone.Name);
+            boneNames.Add(bone.ExportName);
         }
 
         var group = Source1AnimationBaker.CreateAnimationGroup(boneNames);
@@ -137,7 +137,7 @@ internal sealed class GoldSrcAnimationBaker
             return null;
         }
 
-        var name = GetUniqueName(sequence.Label);
+        var name = usedNames.Create(sequence.Label);
         var sequenceNameIndex = names.Count;
         names.Add(name);
 
@@ -149,7 +149,7 @@ internal sealed class GoldSrcAnimationBaker
 
             if (isDriven)
             {
-                animationName = string.Create(CultureInfo.InvariantCulture, $"{name}$blend{i}");
+                animationName = usedNames.Create(string.Create(CultureInfo.InvariantCulture, $"{name}_blend{i}"));
                 references.Add(names.Count);
                 names.Add(animationName);
             }
@@ -196,14 +196,14 @@ internal sealed class GoldSrcAnimationBaker
             // The ranges leave a margin so that the weight stays at one up to the end of the parameter
             if (high > rest)
             {
-                var layerName = string.Create(CultureInfo.InvariantCulture, $"{name}$controller{controller}+");
+                var layerName = usedNames.Create(string.Create(CultureInfo.InvariantCulture, $"{name}_controller{controller}_up"));
                 var reference = AddControllerDelta(sequence, layerName, restPositions, restRotations, frameCount, controller, bones, high);
                 layers.Add(Source1AnimationBaker.CreateControllerLayer(reference, parameter, rest, high, high + 1f, high + 1f));
             }
 
             if (low < rest)
             {
-                var layerName = string.Create(CultureInfo.InvariantCulture, $"{name}$controller{controller}-");
+                var layerName = usedNames.Create(string.Create(CultureInfo.InvariantCulture, $"{name}_controller{controller}_down"));
                 var reference = AddControllerDelta(sequence, layerName, restPositions, restRotations, frameCount, controller, bones, low);
                 layers.Add(Source1AnimationBaker.CreateControllerLayer(reference, parameter, low - 1f, low, low, rest));
             }
@@ -276,18 +276,6 @@ internal sealed class GoldSrcAnimationBaker
         controllerParameterIndices[controller] = index;
 
         return index;
-    }
-
-    private string GetUniqueName(string label)
-    {
-        var name = label;
-
-        for (var suffix = 2; !usedNames.Add(name); suffix++)
-        {
-            name = string.Create(CultureInfo.InvariantCulture, $"{label}#{suffix}");
-        }
-
-        return name;
     }
 
     private (Vector3[] Positions, Quaternion[] Rotations) SampleAnimation(GoldSrcSequence sequence, int animation, int frameCount)
@@ -453,7 +441,7 @@ internal sealed class GoldSrcAnimationBaker
 
         // The mask at index zero stands for a sequence that has no weight list
         var boneMasks = KVObject.Array();
-        boneMasks.Add(Source1AnimationBaker.CreateBoneMask(string.Empty, []));
+        boneMasks.Add(Source1AnimationBaker.CreateBoneMask("default", []));
 
         var group = KVObject.Collection();
         group.Add("m_localS1SeqDescArray", sequences);

@@ -183,7 +183,7 @@ public sealed partial class MapExtract
     /// placing each one by the path's own world transform, which the blob positions are relative to.
     /// A node the compiler also emitted as its own entity keeps that entity's class, keys and id.
     /// </summary>
-    private static void AddPathNodes(CMapPath path, string className, Entity compiledEntity,
+    private void AddPathNodes(CMapPath path, string className, Entity compiledEntity,
         List<PathParticleRopeNode> nodes, Dictionary<int, Entity>? nodeEntities, Matrix4x4 worldTransform)
     {
         var pins = PathParticleRope.ParsePins(compiledEntity.GetStringProperty("pathnodepinsenabled"));

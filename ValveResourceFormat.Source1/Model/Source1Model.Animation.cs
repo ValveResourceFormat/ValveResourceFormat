@@ -17,6 +17,24 @@ internal sealed partial class Source1Model
     private string baseModelPath = string.Empty;
     private Source1Sequence[]? sequences;
     private Source1Animation[]? animations;
+    private ModelNameSet exportNames = new();
+    private readonly Dictionary<Source1Sequence, string> sequenceExportNames = [];
+
+    /// <summary>Gets the name the sequence has in a converted model, which the model compiler accepts and no other sequence has.</summary>
+    /// <param name="sequence">A sequence of <see cref="Sequences"/>.</param>
+    public string GetExportName(Source1Sequence sequence)
+    {
+        EnsureAnimations();
+        return sequenceExportNames[sequence];
+    }
+
+    /// <summary>Creates a name for an animation of a converted model that no sequence or other animation has.</summary>
+    /// <param name="name">The name to take it from.</param>
+    public string CreateExportName(string name)
+    {
+        EnsureAnimations();
+        return exportNames.Create(name);
+    }
 
     /// <summary>
     /// Sequences of the model followed by the sequences of its included models.
@@ -104,6 +122,14 @@ internal sealed partial class Source1Model
 
         poseParameters = [.. mergedPoseParameters];
         sequences = [.. loadedSequences];
+        exportNames = new ModelNameSet();
+        sequenceExportNames.Clear();
+
+        foreach (var sequence in loadedSequences)
+        {
+            sequenceExportNames[sequence] = exportNames.Create(sequence.Name);
+        }
+
         animations = [.. loadedAnimations];
     }
 

@@ -68,6 +68,7 @@ internal static class Source1ModelConverter
         var materialPaths = new ModelMaterialPaths(source, ResolveMaterialPaths(source, path => fileSystem?.Exists(path) ?? false), bindToRest, eyeTarget, fileSystem, modelMaterials);
         var flexConverter = new Source1FlexConverter(source, eyeTarget != null);
         var meshGroupNames = new List<string>();
+        var meshNames = new ModelNameSet();
         var meshes = new List<ModelMeshSource>();
         var sourceMeshes = new List<Source1Mesh>();
         var defaultMask = 0UL;
@@ -101,7 +102,7 @@ internal static class Source1ModelConverter
                         continue;
                     }
 
-                    var meshName = string.Create(CultureInfo.InvariantCulture, $"{part.Name}.{subIndex}.lod{lod}");
+                    var meshName = meshNames.Create(part.Name, partIndex, string.Create(CultureInfo.InvariantCulture, $"_{subIndex}_lod{lod}"));
 
                     meshes.Add(CreateMesh(source, meshName, lodMeshes, groupBit, bindToRest, eyeTarget, materialPaths, flexConverter));
                     sourceMeshes.AddRange(lodMeshes);
@@ -193,14 +194,14 @@ internal static class Source1ModelConverter
 
             if (eyeTarget is { } target && i == target.Index)
             {
-                meshBones.Add(new MeshBone(EyeTargetBoneName, source.Bones[target.Parent].Name, Matrix4x4.CreateTranslation(-target.Position)));
+                meshBones.Add(new MeshBone(EyeTargetBoneName, source.Bones[target.Parent].ExportName, Matrix4x4.CreateTranslation(-target.Position)));
                 continue;
             }
 
             var bone = source.Bones[i];
-            var parentName = (uint)bone.ParentIndex < (uint)source.Bones.Length ? source.Bones[bone.ParentIndex].Name : string.Empty;
+            var parentName = (uint)bone.ParentIndex < (uint)source.Bones.Length ? source.Bones[bone.ParentIndex].ExportName : string.Empty;
 
-            meshBones.Add(new MeshBone(bone.Name, parentName, restToBind * GetPoseToBone(source, i)));
+            meshBones.Add(new MeshBone(bone.ExportName, parentName, restToBind * GetPoseToBone(source, i)));
         }
 
         var buffers = Source1VertexBuffers.Create(vertexBuffers, VertexFields, indices.ToArray());
@@ -444,7 +445,7 @@ internal static class Source1ModelConverter
                 continue;
             }
 
-            var boneName = source.Bones[driver.Bone].Name;
+            var boneName = source.Bones[driver.Bone].ExportName;
             var controls = KVObject.Array();
 
             foreach (var control in driver.Controls)
@@ -492,7 +493,7 @@ internal static class Source1ModelConverter
             var ignoreRotation = (sourceAttachment.Flags & WorldAlignAttachmentFlag) != 0;
             var local = GetAttachmentLocal(source, sourceAttachment);
 
-            attachments.Add(CreateAttachment(sourceAttachment.Name, source.Bones[sourceAttachment.BoneIndex].Name, local.Translation, local, ignoreRotation));
+            attachments.Add(CreateAttachment(sourceAttachment.Name, source.Bones[sourceAttachment.BoneIndex].ExportName, local.Translation, local, ignoreRotation));
         }
 
         if (source.Bones.Length > 0 && names.Add(LightingOriginAttachmentName))
@@ -518,7 +519,7 @@ internal static class Source1ModelConverter
             }
 
             jiggleBones.Add(CreateJiggleBone(nodeNames.Count, jiggle));
-            nodeNames.Add(bone.Name);
+            nodeNames.Add(bone.ExportName);
         }
 
         var physics = Source1ModelPhysicsConverter.Convert(source);
@@ -614,10 +615,10 @@ internal static class Source1ModelConverter
             var local = GetAttachmentLocal(source, sourceAttachment);
             var offset = Vector3.Transform(illumination, local);
 
-            return CreateAttachment(LightingOriginAttachmentName, source.Bones[sourceAttachment.BoneIndex].Name, offset, local, false);
+            return CreateAttachment(LightingOriginAttachmentName, source.Bones[sourceAttachment.BoneIndex].ExportName, offset, local, false);
         }
 
-        return CreateAttachment(LightingOriginAttachmentName, source.Bones[0].Name, Vector3.Transform(illumination, GetPoseToBone(source, 0)), Matrix4x4.Identity, false);
+        return CreateAttachment(LightingOriginAttachmentName, source.Bones[0].ExportName, Vector3.Transform(illumination, GetPoseToBone(source, 0)), Matrix4x4.Identity, false);
     }
 
     private static Matrix4x4 GetAttachmentLocal(Source1Model source, Source1Attachment attachment)
@@ -669,7 +670,7 @@ internal static class Source1ModelConverter
                 var hitbox = KVObject.Collection();
                 hitbox.Add("m_name", sourceHitbox.Name);
                 hitbox.Add("m_sSurfaceProperty", bone.SurfaceProperty);
-                hitbox.Add("m_sBoneName", bone.Name);
+                hitbox.Add("m_sBoneName", bone.ExportName);
                 hitbox.Add("m_vMinBounds", KVHelpers.ToKVArray(Vector3.Min(min, max)));
                 hitbox.Add("m_vMaxBounds", KVHelpers.ToKVArray(Vector3.Max(min, max)));
                 hitbox.Add("m_flShapeRadius", 0f);
@@ -794,7 +795,7 @@ internal static class Source1ModelConverter
             Matrix4x4.Decompose(local, out _, out var rotation, out var translation);
 
             var flags = flexDriverBones.Contains(i) ? ModelSkeletonBoneFlags.BoneFlexDriver : ModelSkeletonBoneFlags.NoBoneFlags;
-            bones.Add(new ModelBone(bone.Name, bone.ParentIndex, translation, rotation, 1f, flags));
+            bones.Add(new ModelBone(bone.ExportName, bone.ParentIndex, translation, rotation, 1f, flags));
         }
 
         if (eyeTarget is { } target)

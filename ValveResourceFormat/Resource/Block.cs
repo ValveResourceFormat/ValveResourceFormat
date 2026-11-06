@@ -120,23 +120,6 @@ namespace ValveResourceFormat
             return data;
         }
 
-        /// <summary>
-        /// Gets the bytes of the block as stored in the resource file, or its serialized form for a resource that was built in memory.
-        /// </summary>
-        /// <returns>The block bytes.</returns>
-        public byte[] GetRawBytes()
-        {
-            if (Resource.CanReload)
-            {
-                return ReadRawData();
-            }
-
-            using var memory = new MemoryStream();
-            Serialize(memory);
-
-            return memory.ToArray();
-        }
-
         /// <inheritdoc/>
         public override string ToString()
         {

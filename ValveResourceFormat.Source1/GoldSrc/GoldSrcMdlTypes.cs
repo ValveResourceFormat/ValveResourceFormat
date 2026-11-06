@@ -16,6 +16,10 @@ internal enum GoldSrcTextureFlags
 internal sealed class GoldSrcBone
 {
     public required string Name { get; init; }
+
+    /// <summary>Bone name in the converted model, with the characters the model compiler rejects replaced and unique among the bones.</summary>
+    public required string ExportName { get; init; }
+
     public required int Parent { get; init; }
     public required int Flags { get; init; }
 

@@ -41,9 +41,7 @@ Source 1 and GoldSrc games open in the GUI viewer, which converts their files to
   - bone controllers, as pose parameters
   - ragdoll constraints, as physics joints
   - eyes and eyelids that follow the camera
-- Scenes from `scenes/scenes.image`:
-  - flex tracks
-  - gestures and sequences
+- Scenes from `scenes/scenes.image`, read but not played
 - VTF 7.0 to 7.6
 - VMT:
   - `#base`, `#include` and patch
@@ -114,7 +112,7 @@ Source 1 and GoldSrc games open in the GUI viewer, which converts their files to
 
 ### Export
 
-- Textures, materials, models and maps export like Source 2 resources: PNG, glTF and decompiled vmat, vmdl and vmap with the models, materials and textures they draw, and for maps the cube map and light probe textures and the tools materials of brushes
+- Textures, materials, models and maps export like Source 2 resources: PNG, glTF and decompiled vmat, vmdl and vmap with the models, materials and textures they draw, and for maps the tools materials of brushes; the cube map and light probe textures are left out, as Hammer bakes them again
 - Export with dependencies saves the file and the game files its conversion reads into a folder laid out like the game, with a `gameinfo.txt` or `liblist.gam`, including the sounds and scripts that entities, soundscapes and animation events name, and the models and icons that stand in for entities
 
 ## Not supported
@@ -138,9 +136,8 @@ Source 1 and GoldSrc games open in the GUI viewer, which converts their files to
   - most IK rules
   - jiggle boing
 - Scenes:
+  - playback
   - text `.vcd` files
-  - expression, look at, face, move to and AI events
-  - lip sync and speak sounds
 - VTF:
   - 7.6 deflate compression
   - console textures
@@ -186,7 +183,7 @@ Source 1 and GoldSrc games open in the GUI viewer, which converts their files to
 
 ### Export
 
-- Decompiled materials use the viewer's own `source1_` shaders
+- Decompiled materials, GoldSrc ones too, are written for the shaders of Counter-Strike 2. They keep the textures, blend mode, layers, self illumination, detail and roughness. Material proxies, environment map reflections and shader specific parameters are left out
 - Decompiled maps leave out particles
 - Export with dependencies leaves out sounds that entity classes play without naming them, such as the default sounds of doors
 

@@ -56,6 +56,7 @@ namespace GUI.Types.Exporter
         private readonly Dictionary<string, FileTypeToExtract> fileTypesToExtract = [];
         private readonly List<PackageEntry> filesToExtract = [];
         private readonly HashSet<string> extractedFiles = [];
+        private readonly List<string> extractedFolders = [];
         private string? path;
         private string? lastCreatedDirectory;
         private int processed;
@@ -388,7 +389,7 @@ namespace GUI.Types.Exporter
 
                 var fileFullName = packageFile.GetFullPath();
 
-                if (extractedFiles.Contains(fileFullName))
+                if (extractedFiles.Contains(fileFullName) || IsInExtractedFolder(fileFullName))
                 {
                     continue;
                 }
@@ -444,6 +445,19 @@ namespace GUI.Types.Exporter
                     ReportFailure(fileFullName, e);
                 }
             }
+        }
+
+        private bool IsInExtractedFolder(string fileFullName)
+        {
+            foreach (var folder in extractedFolders)
+            {
+                if (fileFullName.StartsWith(folder, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         // Converts a Source 1 or GoldSrc file, which loads the files it refers to from its own context
@@ -572,6 +586,12 @@ namespace GUI.Types.Exporter
         {
             foreach (var additionalFile in contentFile.AdditionalFiles)
             {
+                if (additionalFile.FileName.EndsWith('/'))
+                {
+                    extractedFolders.Add(additionalFile.FileName);
+                    continue;
+                }
+
                 extractedFiles.Add(additionalFile.FileName + GameFileLoader.CompiledFileSuffix);
                 var fileNameOut = additionalFile.FileName;
                 var flattenThis = flatSubfiles && !additionalFile.KeepFullPath;

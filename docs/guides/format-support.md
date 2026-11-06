@@ -88,7 +88,7 @@ in the Dump column.
 | vsndstck | Sound Stack Script         | text                          | yes     | script text                                                                                                  |
 | vsurf    | Surface Properties         | text                          | generic | -                                                                                                            |
 | vsvg     | Panorama Vector Graphic    | image                         | yes     | `.svg` (byte-exact)                                                                                          |
-| vtex     | Texture                    | image                         | yes     | `.png` / `.exr` (stored JPEG/PNG/WebP passes through as-is); `.mks` for sprite sheets; `.vtex` config for 2D |
+| vtex     | Texture                    | image                         | yes     | `.png` / `.exr` (stored JPEG/PNG/WebP passes through as-is); `.mks` for sprite sheets; `.vtex` config for 2D and LDR cube |
 | vts      | Panorama TypeScript        | text                          | yes     | `.js` (compiled JS, byte-exact)                                                                              |
 | vvis     | World Visibility           | 3D                            | yes     | -                                                                                                            |
 | vwenvmap | World Environment Maps     | text                          | generic | - (legacy, only in older map compiles)                                                                       |
@@ -279,15 +279,15 @@ All commonly shipped pixel formats decode.
 Compile-time transforms (YCoCg, hemi-octahedral normals, DXT5nm, normal Z-reconstruction)
 are reversed on export. LDR textures export as PNG and HDR as EXR, except textures that
 store a whole JPEG/PNG/WebP file, which are copied out byte-exact instead. Sprite sheets
-reconstruct a compilable `.mks` plus per-frame images; LDR cubemaps export one image per
-face, HDR cubemaps combine into a single equirectangular map, or one image per face with
-`ForceLDR`; arrays and volumes export per slice.
+reconstruct a compilable `.mks` plus per-frame images; LDR cubemaps export one image with
+the six faces side by side, HDR cubemaps combine into a single equirectangular map, or the
+side by side image with `ForceLDR`; arrays and volumes export per slice.
 
 | What                                       | Why                   | Details                                                                                                                                                                                                                                                                                                                                             |
 | ------------------------------------------ | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Original source images                     | Not in compiled files | Block compression (BC1-7, ETC2) is lossy at compile time; exports faithfully reflect the compiled data, not the artist's source.                                                                                                                                                                                                                    |
 | Mip chain                                  | Format limitation     | File extraction always uses the largest mip only; the texture viewer can save the mip, face, or slice it is currently showing, and per-mip access exists in the library API. HL:Alyx's per-mip roughness packing therefore has no single-file preserving export path. [#936](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/936) |
-| `.vtex` config for cubemaps/arrays/volumes | Not implemented       | Only flat 2D textures get a reconstructed `.vtex` compile config; other shapes extract images only. [#856](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/856)                                                                                                                                                                   |
+| `.vtex` config for cubemaps/arrays/volumes | Not implemented       | Flat 2D textures and single LDR cubemaps get a reconstructed `.vtex` compile config; other shapes extract images only. [#856](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/856)                                                                                                                                                                   |
 | Transform detection without edit info      | Not implemented       | Which compile-time transform to reverse is detected from the resource's edit info block; files stripped of it export still-encoded pixels without warning.                                                                                                                                                                                          |
 
 ## Animation

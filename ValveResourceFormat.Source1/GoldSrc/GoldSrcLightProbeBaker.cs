@@ -184,8 +184,8 @@ internal static class GoldSrcLightProbeBaker
         entity["origin"] = Source1EntityConverter.FormatVector(center);
         entity["box_mins"] = Source1EntityConverter.FormatVector(-size * 0.5f);
         entity["box_maxs"] = Source1EntityConverter.FormatVector(size * 0.5f);
-        entity["edge_fade_dists"] = Source1EntityConverter.FormatVector(Vector3.Zero);
-        entity["voxel_size"] = grid.CellSize;
+        entity["voxel_size"] = Source1EntityConverter.GetProbeVoxelSize(grid.CellSize);
+        entity[Source1MapExport.RegroupKey] = 1L;
         entity["lightprobetexture"] = Source1ResourceReferences.Reference(path);
 
         return entity;

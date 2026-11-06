@@ -55,7 +55,7 @@ internal static class Source1ModelPhysicsConverter
 
             var boneToModel = Source1ModelConverter.GetBoneToModel(source, boneIndex, bindToRest);
 
-            partIndices[solid.Index] = builder.BeginPart(bone.Name, boneToModel, mass);
+            partIndices[solid.Index] = builder.BeginPart(bone.ExportName, boneToModel, mass);
             partBones[solid.Index] = boneIndex;
 
             if (isRagdoll)

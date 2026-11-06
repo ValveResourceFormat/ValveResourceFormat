@@ -71,15 +71,7 @@ public sealed class ImageSubFile : SubFile
 /// </summary>
 public sealed class TextureExtract
 {
-    private static readonly string[] CubemapNames =
-    [
-        "rt",
-        "lf",
-        "bk",
-        "ft",
-        "up",
-        "dn",
-    ];
+    private const int CubeFaceCount = 6;
 
     private readonly Texture texture;
     private readonly string fileName;
@@ -92,11 +84,6 @@ public sealed class TextureExtract
     /// Gets or sets the decode flags for texture extraction.
     /// </summary>
     public TextureDecoders.TextureCodec DecodeFlags { get; set; } = TextureDecoders.TextureCodec.Auto;
-
-    /// <summary>
-    /// Whether to combine cubemap faces into a single latlong image. Only applies to cubemaps exported as EXR.
-    /// </summary>
-    public bool LatLongCombineCubemap { get; set; } = true;
 
     /// <summary>
     /// Should the vtex file be ignored. Defaults to true for files flagged as child resources.
@@ -121,7 +108,7 @@ public sealed class TextureExtract
         texture = (Texture)resource.DataBlock!;
         fileName = resource.FileName!;
         IgnoreVtexFile = FileExtract.IsChildResource(resource);
-        isSpriteSheet = texture.ExtraData?.ContainsKey(VTexExtraData.SHEET) ?? false;
+        isSpriteSheet = texture.GetSpriteSheetData() != null;
         isCubeMap = texture.Flags.HasFlag(VTexFlags.CUBE_TEXTURE);
         isArray = texture.Depth > 1;
     }
@@ -168,49 +155,21 @@ public sealed class TextureExtract
                     continue;
                 }
 
-                if (LatLongCombineCubemap && ExportExr)
+                var cubeDepth = depth;
+
+                if (ExportExr)
                 {
-                    var currentDepth = depth;
-                    contentFile.AddSubFile($"{outTextureName}{ImageOutputExtension}", () =>
-                    {
-                        var bitmaps = new SKBitmap[6];
-                        var faces = new SKPixmap[6];
-                        try
-                        {
-                            for (var face = 0; face < 6; face++)
-                            {
-                                bitmaps[face] = texture.GenerateBitmap(depth: currentDepth, face: (Texture.CubemapFace)face, decodeFlags: DecodeFlags);
-                                faces[face] = bitmaps[face].PeekPixels();
-                            }
-
-                            using var latLongBitmap = CreateLatLongFromCubemapFaces(faces);
-                            return ImageEncode(latLongBitmap);
-                        }
-                        finally
-                        {
-                            for (var face = 0; face < 6; face++)
-                            {
-                                faces[face]?.Dispose();
-                                bitmaps[face]?.Dispose();
-                            }
-                        }
-                    });
-
+                    contentFile.AddSubFile($"{outTextureName}{ImageOutputExtension}", () => CreateLatLongImage(cubeDepth));
                 }
                 else
                 {
-                    for (var face = 0; face < 6; face++)
-                    {
-                        var currentDepth = depth;
-                        var currentFace = face;
-
-                        contentFile.AddSubFile($"{outTextureName}_{CubemapNames[face]}{ImageOutputExtension}", () =>
-                        {
-                            using var bitmap = texture.GenerateBitmap(depth: currentDepth, face: (Texture.CubemapFace)currentFace, decodeFlags: DecodeFlags);
-                            return ImageEncode(bitmap);
-                        });
-                    }
+                    contentFile.AddSubFile($"{outTextureName}{ImageOutputExtension}", () => CreateCubeStripImage(cubeDepth));
                 }
+            }
+
+            if (isCubeMap && !isArray && !ExportExr && !IgnoreVtexFile)
+            {
+                contentFile.Data = Encoding.UTF8.GetBytes(ToValveTexture());
             }
 
             return contentFile;
@@ -253,8 +212,11 @@ public sealed class TextureExtract
         {
             var vtexContent = ToContentFile();
 
-            if (isCubeMap && LatLongCombineCubemap && ExportExr)
+            if (isCubeMap)
             {
+                // The material references the image directly, so no vtex is written
+                vtexContent.Data = null;
+
                 // use the file name set in material properties
                 var firstUnpackInfo = mapsToUnpack.FirstOrDefault();
 
@@ -879,11 +841,111 @@ public sealed class TextureExtract
         var outputFormat = texture.Format.ToString();
 
         using var datamodel = new Datamodel.Datamodel("vtex", 1);
-        datamodel.Root = CDmeVtex.CreateTexture2D([(inputTextureFileName, "rgba", "Box")], outputFormat);
+        var images = new[] { (inputTextureFileName, "rgba", "Box") };
+        datamodel.Root = isCubeMap
+            ? CDmeVtex.CreateCube(images, outputFormat)
+            : CDmeVtex.CreateTexture2D(images, outputFormat);
 
         using var stream = new MemoryStream();
         datamodel.Save(stream, "keyvalues2_noids", 1);
         return Encoding.UTF8.GetString(stream.GetBuffer(), 0, (int)stream.Length);
+    }
+
+    private SKBitmap[] GenerateCubeFaces(uint depth)
+    {
+        var faces = new SKBitmap[CubeFaceCount];
+
+        try
+        {
+            for (var face = 0; face < faces.Length; face++)
+            {
+                faces[face] = texture.GenerateBitmap(depth: depth, face: (Texture.CubemapFace)face, decodeFlags: DecodeFlags);
+            }
+        }
+        catch
+        {
+            DisposeAll(faces);
+            throw;
+        }
+
+        return faces;
+    }
+
+    private static void DisposeAll(SKBitmap?[] bitmaps)
+    {
+        foreach (var bitmap in bitmaps)
+        {
+            bitmap?.Dispose();
+        }
+    }
+
+    private byte[] CreateLatLongImage(uint depth)
+    {
+        var bitmaps = GenerateCubeFaces(depth);
+        var faces = new SKPixmap[bitmaps.Length];
+
+        try
+        {
+            for (var face = 0; face < faces.Length; face++)
+            {
+                faces[face] = bitmaps[face].PeekPixels();
+            }
+
+            using var latLongBitmap = CreateLatLongFromCubemapFaces(faces);
+            return ToExrImage(latLongBitmap);
+        }
+        finally
+        {
+            foreach (var face in faces)
+            {
+                face?.Dispose();
+            }
+
+            DisposeAll(bitmaps);
+        }
+    }
+
+    /// <summary>
+    /// The six faces of a cube side by side as one PNG, in the order right, left, back, front, up, down.
+    /// </summary>
+    private byte[] CreateCubeStripImage(uint depth)
+    {
+        var faces = GenerateCubeFaces(depth);
+
+        try
+        {
+            using var strip = JoinFaces(faces);
+            return ToPngImage(strip);
+        }
+        finally
+        {
+            DisposeAll(faces);
+        }
+    }
+
+    private static SKBitmap JoinFaces(SKBitmap[] faces)
+    {
+        var size = faces[0].Width;
+        var faceRowBytes = size * faces[0].BytesPerPixel;
+        var strip = new SKBitmap(new SKImageInfo(size * faces.Length, size, faces[0].ColorType, faces[0].AlphaType));
+        using var stripPixmap = strip.PeekPixels();
+        var stripPixels = stripPixmap.GetPixelSpan<byte>();
+
+        for (var i = 0; i < faces.Length; i++)
+        {
+            using var facePixmap = faces[i].PeekPixels();
+            var facePixels = facePixmap.GetPixelSpan<byte>();
+
+            for (var y = 0; y < size; y++)
+            {
+                var source = facePixels.Slice(y * faces[i].RowBytes, faceRowBytes);
+                var target = stripPixels.Slice((y * strip.RowBytes) + (i * faceRowBytes), faceRowBytes);
+
+                source.CopyTo(target);
+            }
+        }
+
+        return strip;
     }
 
     /// <summary>

@@ -83,7 +83,7 @@ namespace ValveResourceFormat
         internal List<Block> UnparsedBlocks => blocks.Items;
 
         /// <summary>
-        /// Appends a block to a resource that is being created, to be written by <see cref="Serialize"/> in the order added.
+        /// Appends a block to a resource that is being created.
         /// </summary>
         /// <param name="block">The block to add. Its <see cref="Block.Resource"/> is set to this resource.</param>
         /// <returns>The index of the block, which other blocks use to refer to it.</returns>
