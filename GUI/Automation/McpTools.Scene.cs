@@ -31,6 +31,7 @@ internal sealed partial class McpTools
         Select,
         Add,
         Open,
+        Details,
         Clear,
     }
 
@@ -419,7 +420,7 @@ internal sealed partial class McpTools
         GLSceneViewer viewer,
         [Description("Pixel X in the render area. Defaults to the centre.")] int? x = null,
         [Description("Pixel Y in the render area. Defaults to the centre.")] int? y = null,
-        [Description("select replaces the selection, as a click does. add toggles it in the selection, as Ctrl+click does. open opens it in its own tab, as Ctrl+double click does in a map, and returns that tab. clear removes the selection and reads no pixel. Until then, screenshots show the outline of a selected node, and the debug geometry of a selected light probe or envmap.")] PickAction action = PickAction.None,
+        [Description("select replaces the selection, as a click does. add toggles it in the selection, as Ctrl+click does. open opens it in its own tab, as Ctrl+double click does in a map, and returns that tab. details opens its info window, as a double click does. clear removes the selection and reads no pixel. Until then, screenshots show the outline of a selected node, and the debug geometry of a selected light probe or envmap.")] PickAction action = PickAction.None,
         CancellationToken cancellationToken = default)
     {
         if (action == PickAction.Clear)
@@ -449,6 +450,7 @@ internal sealed partial class McpTools
         {
             PickAction.Select => new PickRequest(pixelX, pixelY, PickIntent.Select),
             PickAction.Add => new PickRequest(pixelX, pixelY, PickIntent.Select, PickModifiers.Control),
+            PickAction.Details => new PickRequest(pixelX, pixelY, PickIntent.Details),
             _ => new PickRequest(pixelX, pixelY, PickIntent.Query),
         };
 

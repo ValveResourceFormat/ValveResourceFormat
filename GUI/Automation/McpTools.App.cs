@@ -190,6 +190,36 @@ internal sealed partial class McpTools
         return tab.Parent == null ? new { Closed = id } : throw new ToolException($"Tab {id} cannot be closed.");
     }
 
+    [Tool("List the inner tabs of a tab, such as the DATA and block tabs of a resource, and select one by name so its content is created. Errors from creating it show in get_log. With no name, it only lists.")]
+    private async Task<object> SelectSubTab(
+        TabPage tab,
+        [Description("Exact title of the inner tab to select.")] string? name = null,
+        CancellationToken cancellationToken = default)
+    {
+        var selected = await OnUi(() =>
+        {
+            var subTabs = tab.Controls.OfType<TabControl>().FirstOrDefault()
+                ?? throw new ToolException($"Tab {TabIds.IdOf(tab)} has no inner tabs.");
+
+            var pages = subTabs.TabPages.Cast<TabPage>().ToList();
+
+            if (name != null)
+            {
+                var page = pages.Find(page => page.Text == name)
+                    ?? throw new ToolException($"No inner tab '{name}', the tabs are {string.Join(", ", pages.Select(page => page.Text))}.");
+
+                subTabs.SelectedTab = page;
+            }
+
+            return (Names: pages.Select(page => page.Text).ToList(), Selected: subTabs.SelectedTab?.Text);
+        }, cancellationToken).ConfigureAwait(false);
+
+        // Content is created when the page becomes visible, which takes a message loop pass
+        await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken).ConfigureAwait(false);
+
+        return new { Tabs = selected.Names, Selected = selected.Selected };
+    }
+
     [Tool("Open a file as the command line does, and wait for its tab to load. If the viewer fails, the tab stays open. Pass its id instead of opening the file again.", Redraws = true)]
     private Task<object> OpenFile([Description("Absolute path, or vpk:package_dir.vpk:inner/file for a file in a package. list_package gives these links.")] string path, CancellationToken cancellationToken = default)
         => OpenReturnedTab(() => Program.MainForm.OpenCommandLineArgFile(path), $"'{path}'", cancellationToken);
