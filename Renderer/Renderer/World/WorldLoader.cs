@@ -514,10 +514,15 @@ namespace ValveResourceFormat.Renderer.World
             {"direct_light_indices", "g_tDirectLightIndices"},
             {"direct_light_strengths", "g_tDirectLightStrengths"},
             {"debug_chart_color", "g_tLightmapDebugCharts"},
+            {"lightmap", "g_tLightmap"},
+            {"lightmap_bump1", "g_tLightmapBump1"},
+            {"lightmap_bump2", "g_tLightmapBump2"},
+            {"lightmap_bump3", "g_tLightmapBump3"},
         };
 
         private readonly string[] LightmapSetV81_SteamVr = ["g_tIrradiance", "g_tDirectionalIrradiance"];
         private readonly string[] LightmapSetV81 = ["g_tIrradiance", "g_tDirectionalIrradiance", "g_tDirectLightIndices", "g_tDirectLightStrengths"];
+        private readonly string[] LightmapSetV81_Lightmap = ["g_tLightmap"];
         private readonly string[] LightmapSetV82 = ["g_tIrradiance", "g_tDirectionalIrradiance", "g_tDirectLightShadows"];
         private readonly string[] LightmapSetV83 = ["g_tIrradiance", "g_tDirectionalIrradianceR", "g_tDirectionalIrradianceG", "g_tDirectionalIrradianceB", "g_tDirectLightShadows"];
         private readonly string[] LightmapSetV85 = ["g_tIrradiance", "g_tDirectionalIrradianceLum", "g_tDirectLightShadows"];
@@ -570,7 +575,7 @@ namespace ValveResourceFormat.Renderer.World
             result.HasValidLightmaps = (result.LightmapVersionNumber, result.LightmapGameVersionNumber) switch
             {
                 (6, 0) => false,
-                (8, 1) => LightmapSetV81.All(lightmapPresent),
+                (8, 1) => LightmapSetV81.All(lightmapPresent) || LightmapSetV81_Lightmap.All(lightmapPresent),
                 (8, 2) => LightmapSetV82.All(lightmapPresent),
                 (8, 3 or 4) => LightmapSetV83.All(lightmapPresent),
                 (8, 5) => LightmapSetV85.All(lightmapPresent),

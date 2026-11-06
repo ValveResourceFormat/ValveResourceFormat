@@ -18,8 +18,9 @@ namespace GUI
 {
     partial class MainForm
     {
-        public void ShowVpkContextMenu(Control control, Point position, bool isRootNode, bool isFolderNode, bool deletedFilesRecovered, bool canEdit)
+        public void ShowVpkContextMenu(Control control, Point position, bool isRootNode, bool isFolderNode, bool deletedFilesRecovered, bool canEdit, ExportData? file)
         {
+            exportWithDependenciesToolStripMenuItem.Visible = file != null && ExportFile.CanExportWithDependencies(file);
             copyFileNameToolStripMenuItem.Visible = !isRootNode;
             openWithDefaultAppToolStripMenuItem.Visible = !isRootNode && !isFolderNode;
             openWithoutViewerToolStripMenuItem.Visible = !isRootNode && !isFolderNode;
@@ -393,6 +394,45 @@ namespace GUI
             await ExtractFiles(sender, false).ConfigureAwait(true);
         }
 
+        private async void ExportWithDependenciesToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (sender is not ToolStripMenuItem { Owner: ContextMenuStrip { SourceControl: var owner } })
+            {
+                throw new InvalidDataException("Invalid context menu structure");
+            }
+
+            if (owner is TabControl)
+            {
+                await ExportFile.ExportWithDependencies(GetTabExportData(sender)).ConfigureAwait(true);
+            }
+            else
+            {
+                await ExportSelectedWithDependencies(sender).ConfigureAwait(true);
+            }
+        }
+
+        private static async Task ExportSelectedWithDependencies(object sender)
+        {
+            var (context, items) = GetSelectedItems(sender);
+
+            if (context == null || items is not [{ PackageEntry: { } entry }])
+            {
+                return;
+            }
+
+            var exportData = new ExportData
+            {
+                PackageEntry = entry,
+                VrfGuiContext = context,
+            };
+
+            await ExportFile.ExportWithDependencies(exportData).ConfigureAwait(true);
+        }
+
+        private static ExportData GetTabExportData(object sender)
+            => FetchToolstripTabContext(sender).Tag as ExportData
+                ?? throw new InvalidDataException("There is no export data for this tab");
+
         private static async Task ExtractFiles(object sender, bool decompile)
         {
             if (sender is not ToolStripMenuItem { Owner: ContextMenuStrip { SourceControl: var owner } })
@@ -431,34 +471,7 @@ namespace GUI
             // Clicking context menu item when right clicking a tab
             else if (owner is TabControl)
             {
-                var tabPage = FetchToolstripTabContext(sender);
-
-                if (tabPage.Tag is not ExportData exportData)
-                {
-                    throw new InvalidDataException("There is no export data for this tab");
-                }
-
-                if (exportData.PackageEntry != null)
-                {
-                    await ExportFile.ExtractFileFromPackageEntry(exportData.PackageEntry, exportData.VrfGuiContext, decompile).ConfigureAwait(true);
-                }
-                else
-                {
-                    var fileStream = File.Open(exportData.VrfGuiContext.FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-
-                    try
-                    {
-                        await ExportFile.ExtractFileFromStream(Path.GetFileName(exportData.VrfGuiContext.FileName), fileStream, exportData.VrfGuiContext, decompile, exportData.VrfGuiContext.DisplayPath).ConfigureAwait(true);
-                        fileStream = null; // ExtractFileFromStream should dispose it when done, not `using` here in case there's some threading
-                    }
-                    finally
-                    {
-                        if (fileStream != null)
-                        {
-                            await fileStream.DisposeAsync().ConfigureAwait(true);
-                        }
-                    }
-                }
+                await ExportFile.ExtractFile(GetTabExportData(sender), decompile).ConfigureAwait(true);
             }
             else
             {

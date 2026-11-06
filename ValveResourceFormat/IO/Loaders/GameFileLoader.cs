@@ -357,7 +357,11 @@ namespace ValveResourceFormat.IO
 
             if (selectedPlatformType == VcsPlatformType.Undetermined)
             {
-                Logger.LogWarning("Failed to find shader \"{ShaderName}\"", shaderName);
+                // Content with a resource provider has no compiled shaders
+                if (ResourceProvider == null)
+                {
+                    Logger.LogWarning("Failed to find shader \"{ShaderName}\"", shaderName);
+                }
 
                 return collection;
             }
@@ -389,7 +393,7 @@ namespace ValveResourceFormat.IO
         /// <inheritdoc/>
         public Stream? GetFileStream(string file)
         {
-            var foundFile = FindFile(file);
+            var foundFile = FindFile(file, logNotFound: ResourceProvider?.Exists(file) != true);
 
             if (foundFile.PathOnDisk != null)
             {
@@ -401,8 +405,25 @@ namespace ValveResourceFormat.IO
             }
             else
             {
-                return null;
+                return ResourceProvider?.GetFileStream(file);
             }
+        }
+
+        /// <summary>
+        /// Serves the files <see cref="LoadFile"/> does not find in the packages or on disk.
+        /// </summary>
+        public IResourceProvider? ResourceProvider { get; set; }
+
+        /// <summary>
+        /// Checks whether a file is in the packages, on disk, or served by the <see cref="ResourceProvider"/>, without loading it.
+        /// </summary>
+        /// <param name="file">The file path to find.</param>
+        /// <returns>Whether the file exists.</returns>
+        public bool Exists(string file)
+        {
+            var (pathOnDisk, _, packageEntry) = FindFile(file, logNotFound: false);
+
+            return pathOnDisk != null || packageEntry != null || ResourceProvider?.Exists(file) == true;
         }
 
         /// <inheritdoc/>
@@ -419,7 +440,7 @@ namespace ValveResourceFormat.IO
 
             try
             {
-                var foundFile = FindFile(file);
+                var foundFile = FindFile(file, logNotFound: false);
 
                 if (foundFile.PathOnDisk != null)
                 {
@@ -433,6 +454,15 @@ namespace ValveResourceFormat.IO
                     resource.Read(stream);
                     resourceToReturn = resource;
                     resource = null;
+                }
+                else
+                {
+                    resourceToReturn = ResourceProvider?.LoadFile(file);
+
+                    if (resourceToReturn == null)
+                    {
+                        Logger.LogWarning("Failed to load \"{File}\"", file);
+                    }
                 }
             }
             finally

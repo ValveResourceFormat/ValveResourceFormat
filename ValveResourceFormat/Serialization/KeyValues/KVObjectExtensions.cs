@@ -5,6 +5,7 @@ using System.Text;
 using ValveKeyValue;
 using ValveKeyValue.KeyValues3;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Serialization.KeyValues
 {
@@ -68,6 +69,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 return defaultValue;
             }
 
+            if (value.ValueType == KVValueType.String)
+            {
+                return LeadingNumber.ParseInteger((string)value);
+            }
+
             return (int)value;
         }
 
@@ -81,6 +87,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 return defaultValue;
             }
 
+            if (value.ValueType == KVValueType.String)
+            {
+                return (uint)LeadingNumber.ParseInteger((string)value);
+            }
+
             return (uint)value;
         }
 
@@ -92,6 +103,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
             if (!TryGetScalar(obj, name, out var value))
             {
                 return defaultValue;
+            }
+
+            if (value.ValueType == KVValueType.String)
+            {
+                return LeadingNumber.ParseInteger((string)value);
             }
 
             return (long)value;
@@ -113,6 +129,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 return unchecked((ulong)(int)value);
             }
 
+            if (value.ValueType == KVValueType.String)
+            {
+                return (ulong)LeadingNumber.ParseInteger((string)value);
+            }
+
             return (ulong)value;
         }
 
@@ -124,6 +145,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
             if (!TryGetScalar(obj, name, out var value))
             {
                 return defaultValue;
+            }
+
+            if (value.ValueType == KVValueType.String)
+            {
+                return LeadingNumber.ParseFloat((string)value);
             }
 
             return (double)value;
@@ -139,6 +165,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 return defaultValue;
             }
 
+            if (value.ValueType == KVValueType.String)
+            {
+                return LeadingNumber.ParseFloat((string)value);
+            }
+
             return (float)value;
         }
 
@@ -150,6 +181,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
             if (!TryGetScalar(obj, name, out var value))
             {
                 return defaultValue;
+            }
+
+            if (value.ValueType == KVValueType.String)
+            {
+                return (byte)LeadingNumber.ParseInteger((string)value);
             }
 
             return (byte)value;
@@ -168,6 +204,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
             if (value.ValueType == KVValueType.String && bool.TryParse((string)value, out var parsed))
             {
                 return parsed;
+            }
+
+            if (value.ValueType == KVValueType.String)
+            {
+                return LeadingNumber.ParseInteger((string)value) != 0;
             }
 
             return (bool)value;

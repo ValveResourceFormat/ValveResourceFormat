@@ -19,7 +19,7 @@ namespace ValveResourceFormat.ResourceTypes
     /// Get one from <see cref="ValveResourceFormat.Resource.DataBlock"/> of a resource whose type is <see cref="ResourceType.Texture"/>.
     /// Use <see cref="GenerateBitmap"/> to decode the pixels.
     /// </remarks>
-    public class Texture : Block
+    public partial class Texture : Block
     {
         /// <summary>
         /// Defines the six faces of a cubemap texture.
@@ -839,7 +839,6 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>Skia bitmap.</returns>
         public SKBitmap GenerateBitmap(uint depth = 0, CubemapFace face = 0, uint mipLevel = 0, TextureCodec decodeFlags = TextureCodec.Auto)
         {
-            Debug.Assert(Reader is not null);
             ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(mipLevel, NumMipLevels, nameof(mipLevel));
 
             var depthMip = (Flags & VTexFlags.VOLUME_TEXTURE) == 0 ? Depth : MathUtils.MipLevelSize(Depth, (int)mipLevel);
@@ -901,12 +900,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var span = buf.AsSpan(0, uncompressedSize);
 
-                lock (Resource.ReaderLock)
-                {
-                    Reader.BaseStream.Position = DataOffset;
-                    SkipMipmaps(mipLevel);
-                    ReadTexture(mipLevel, span);
-                }
+                ReadMipLevelData(mipLevel, span);
 
                 if ((Flags & VTexFlags.CUBE_TEXTURE) != 0)
                 {
@@ -1074,16 +1068,15 @@ namespace ValveResourceFormat.ResourceTypes
             return CalculateBufferSizeForMipLevel(width, height, depth);
         }
 
+        private int FaceCount => (Flags & VTexFlags.CUBE_TEXTURE) != 0 ? 6 : 1;
+
         private (int Width, int Height, int Depth) CalculateTextureSizesForMipLevel(uint mipLevel)
         {
             var width = MathUtils.MipLevelSize(Width, (int)mipLevel);
             var height = MathUtils.MipLevelSize(Height, (int)mipLevel);
             var depth = (Flags & VTexFlags.VOLUME_TEXTURE) == 0 ? Depth : MathUtils.MipLevelSize(Depth, (int)mipLevel);
 
-            if ((Flags & VTexFlags.CUBE_TEXTURE) != 0)
-            {
-                depth *= 6;
-            }
+            depth *= FaceCount;
 
             return (width, height, depth);
         }
@@ -1158,6 +1151,40 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        private void ReadMipLevelData(uint mipLevel, Span<byte> output)
+        {
+            if (PixelData is not null)
+            {
+                CopyPixelData(mipLevel, output);
+                return;
+            }
+
+            Debug.Assert(Reader is not null);
+
+            lock (Resource.ReaderLock)
+            {
+                Reader.BaseStream.Position = DataOffset;
+                SkipMipmaps(mipLevel);
+                ReadTexture(mipLevel, output);
+            }
+        }
+
+        private void CopyPixelData(uint mipLevel, Span<byte> output)
+        {
+            Debug.Assert(PixelData is not null);
+
+            var faceCount = FaceCount;
+            var offset = 0;
+
+            for (var face = 0; face < faceCount; face++)
+            {
+                var pixels = PixelData[(int)mipLevel * faceCount + face].Span;
+
+                pixels.CopyTo(output[offset..]);
+                offset += pixels.Length;
+            }
+        }
+
         private void ReadTexture(uint mipLevel, Span<byte> output)
         {
             Debug.Assert(Reader is not null);
@@ -1221,7 +1248,6 @@ namespace ValveResourceFormat.ResourceTypes
         /// <param name="minMipLevelAllowed">The minimum mip level for which to read texture data.</param>
         public IEnumerable<(uint Level, int Width, int Height, int Depth, int BufferSize)> GetEveryMipLevelTexture(byte[] buffer, int minMipLevelAllowed = 0)
         {
-            Debug.Assert(Reader is not null);
             long position = DataOffset;
 
             foreach (var (mipLevel, width, height, depth, uncompressedSize) in GetEveryMipLevelMetrics())
@@ -1231,11 +1257,20 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
                 }
 
-                lock (Resource.ReaderLock)
+                if (PixelData is not null)
                 {
-                    Reader.BaseStream.Position = position;
-                    ReadTexture(mipLevel, buffer.AsSpan(0, uncompressedSize));
-                    position = Reader.BaseStream.Position;
+                    CopyPixelData(mipLevel, buffer.AsSpan(0, uncompressedSize));
+                }
+                else
+                {
+                    Debug.Assert(Reader is not null);
+
+                    lock (Resource.ReaderLock)
+                    {
+                        Reader.BaseStream.Position = position;
+                        ReadTexture(mipLevel, buffer.AsSpan(0, uncompressedSize));
+                        position = Reader.BaseStream.Position;
+                    }
                 }
 
                 yield return (mipLevel, width, height, depth, uncompressedSize);
@@ -1265,8 +1300,6 @@ namespace ValveResourceFormat.ResourceTypes
         /// <param name="mipLevel">Mip level for which to read texture data.</param>
         public void ReadTextureMipLevel(Span<byte> output, uint mipLevel)
         {
-            Debug.Assert(Reader is not null);
-
             var bufferSize = CalculateBufferSizeForMipLevel(mipLevel);
 
             if (bufferSize > output.Length)
@@ -1274,12 +1307,7 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new ArgumentException($"Buffer size ({output.Length}) must be at least {bufferSize}, mip level {mipLevel}");
             }
 
-            lock (Resource.ReaderLock)
-            {
-                Reader.BaseStream.Position = DataOffset;
-                SkipMipmaps(mipLevel);
-                ReadTexture(mipLevel, output);
-            }
+            ReadMipLevelData(mipLevel, output);
         }
 
         /// <summary>Calculate decompression buffer size for <see cref="ReadTextureMipLevelInPlace"/>.</summary>
@@ -1304,8 +1332,6 @@ namespace ValveResourceFormat.ResourceTypes
         /// <param name="mipLevel">Mip level for which to read texture data.</param>
         public void ReadTextureMipLevelInPlace(Span<byte> buffer, uint mipLevel)
         {
-            Debug.Assert(Reader is not null);
-
             var requiredSize = CalculateInPlaceDecompressionBufferSize(mipLevel);
 
             if (requiredSize > buffer.Length)
@@ -1321,6 +1347,8 @@ namespace ValveResourceFormat.ResourceTypes
                 ReadTextureMipLevel(buffer[..uncompressedSize], mipLevel);
                 return;
             }
+
+            Debug.Assert(Reader is not null);
 
             var compressedSize = CompressedMips![mipLevel];
 
@@ -1523,12 +1551,6 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             return codec;
-        }
-
-        /// <inheritdoc/>
-        public override void Serialize(Stream stream)
-        {
-            throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
         }
 
         /// <inheritdoc/>

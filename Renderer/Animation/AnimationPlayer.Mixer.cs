@@ -185,13 +185,13 @@ namespace ValveResourceFormat.Renderer
         public IReadOnlyCollection<PoseParameter> PoseParameters => poseParameterDefinitions.Values;
 
         /// <summary>
-        /// Sets the live value of a pose parameter, clamped to its range when it was registered, and
+        /// Sets the live value of a pose parameter, wrapped or clamped to its range when it was registered, and
         /// forces the next <see cref="Update"/> to recompute the pose.
         /// </summary>
         public void SetPoseParameter(string name, float value)
         {
             poseParameterValues[name] = poseParameterDefinitions.TryGetValue(name, out var parameter)
-                ? parameter.Clamp(value)
+                ? parameter.Normalize(value)
                 : value;
 
             forceUpdate = true;

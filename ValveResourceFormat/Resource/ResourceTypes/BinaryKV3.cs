@@ -84,7 +84,10 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the deserialized KeyValues3 data.
         /// </summary>
-        /// <remarks>Can be set to null to release the data. Next probe will deserialize again.</remarks>
+        /// <remarks>
+        /// Can be set to null to release the data. Next probe will deserialize again.
+        /// A resource without a reader, such as one built in memory, keeps the data because it cannot deserialize it again.
+        /// </remarks>
         [AllowNull]
         public KVDocument Data
         {
@@ -102,7 +105,15 @@ namespace ValveResourceFormat.ResourceTypes
                 return data!;
             }
 
-            set => data = value;
+            set
+            {
+                if (value == null && !Resource.CanReload)
+                {
+                    return;
+                }
+
+                data = value;
+            }
         }
 
         private KVDocument? data;

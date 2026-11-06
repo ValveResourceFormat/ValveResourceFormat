@@ -21,6 +21,7 @@ using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.Utils;
+using ValveResourceFormat.Source1;
 
 namespace GUI.Types.GLViewers
 {
@@ -199,7 +200,11 @@ namespace GUI.Types.GLViewers
 
                 if (!HasToolsVisibilityControls)
                 {
-                    UiControl.AddCheckBox("Show Tools", Tools.ShowTools, (v) => Tools.ShowTools = v);
+                    UiControl.AddCheckBox("Show Tools", Tools.ShowTools, (v) =>
+                    {
+                        Tools.ShowTools = v;
+                        RequestVisibilityUpdate();
+                    });
                 }
 
                 if (Renderer.Scenes.Any(static scene => scene.LightingInfo.LightProbes.Count > 0))

@@ -79,7 +79,7 @@ struct FogLight_t
     vec4 vPosition_Spot; // w: 1 for a spot light
     vec4 vDirection_OuterCos;
     vec4 vColor_InnerCos;
-    vec4 vFalloff; // xy: distance terms, z: range squared, w: bias
+    vec4 vFalloff; // xy: distance terms, z: range squared, w: bias, or the negated constant term
     vec4 vParams; // x: index in the lighting constants or -1, y: 1 when the fog shadows the light, z: first shadow face or -1
 };
 
@@ -326,7 +326,7 @@ vec3 GetFogLight(int i, vec3 vPositionWs)
     }
 
     float flClampedDistanceSquared = max(flDistanceSquared, 36.0);
-    float flAttenuation = saturate(1.0 / dot(vec2(sqrt(flClampedDistanceSquared), flClampedDistanceSquared), light.vFalloff.xy) - light.vFalloff.w);
+    float flAttenuation = GetDistanceAttenuation(light.vFalloff, flClampedDistanceSquared);
 
     if (flAttenuation <= 0.0)
     {

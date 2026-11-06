@@ -724,11 +724,13 @@ namespace GUI
                 muteTabToolStripMenuItem.Visible = sceneViewer?.HasSoundPlayer == true;
                 muteTabToolStripMenuItem.Text = sceneViewer?.Muted == true ? "&Unmute tab" : "&Mute tab";
 
-                var canExport = thisTab.Tag is ExportData exportData;
+                var exportData = thisTab.Tag as ExportData;
+                var canExport = exportData != null;
                 toolStripSeparator5.Visible = canExport || tabIndex == 0;
                 copyTabUrlToolStripMenuItem.Visible = canExport;
                 exportAsIsToolStripMenuItem.Visible = canExport;
                 decompileExportToolStripMenuItem.Visible = canExport;
+                exportTabWithDependenciesToolStripMenuItem.Visible = exportData != null && ExportFile.CanExportWithDependencies(exportData);
 
                 clearConsoleToolStripMenuItem.Visible = tabIndex == 0;
 

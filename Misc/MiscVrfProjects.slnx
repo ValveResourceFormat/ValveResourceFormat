@@ -9,4 +9,5 @@
   <Project Path="ShaderCatalog/ShaderCatalog.csproj" />
   <Project Path="../Renderer/Renderer.csproj" />
   <Project Path="../ValveResourceFormat/ValveResourceFormat.csproj" />
+  <Project Path="../ValveResourceFormat.Source1/ValveResourceFormat.Source1.csproj" />
 </Solution>

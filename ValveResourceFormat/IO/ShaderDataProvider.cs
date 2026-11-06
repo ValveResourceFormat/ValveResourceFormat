@@ -790,6 +790,11 @@ namespace ValveResourceFormat.IO
                 ["g_tAmbientOcclusion"] = [(Channel.R, "TextureAmbientOcclusion")],
             },
 
+            ["goldsrc_world"] = new()
+            {
+                ["g_tColorFrames"] = [(Channel.RGB, "TextureColor")],
+            },
+
             ["sky"] = new()
             {
                 ["g_tSkyTexture"] = [(Channel.RGBA, "SkyTexture")],
@@ -842,12 +847,13 @@ namespace ValveResourceFormat.IO
             combos ??= material.IntParams;
             var shaderName = Path.GetFileNameWithoutExtension(material.ShaderName);
 
-            if (shaderName == "csgo_decalmodulate")
+            if (shaderName is "csgo_decalmodulate" or Material.Source1ShaderPrefix + "decalmodulate")
             {
                 return CreateBlendState(RsBlendMode.DestColor, RsBlendMode.SrcColor);
             }
 
-            var blendModeParam = shaderName.EndsWith("static_overlay", StringComparison.Ordinal) || shaderName == "csgo_unlitgeneric"
+            var blendModeParam = shaderName.EndsWith("static_overlay", StringComparison.Ordinal)
+                || shaderName is "csgo_unlitgeneric" or Material.Source1ShaderPrefix + "modulate"
                 ? combos.GetValueOrDefault("F_BLEND_MODE")
                 : 0;
 
@@ -890,6 +896,7 @@ namespace ValveResourceFormat.IO
                 "pbr" => combos.GetValueOrDefault("F_DISABLE_DEPTH_WRITE") == 0,
                 "csgo_complex" => combos.GetValueOrDefault("F_DISABLE_Z_BUFFERING") == 0 && combos.GetValueOrDefault("F_DEPTH_BIAS") == 0,
                 "generic" or "zipline" or "black_unlit" or "environment_texture_set" or "water_dota" or "crystal" => true,
+                Material.Source1ShaderPrefix + "modulate" => combos.GetValueOrDefault("F_DISABLE_Z_WRITE", 1) == 0,
                 _ => false,
             };
         }

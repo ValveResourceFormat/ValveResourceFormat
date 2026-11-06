@@ -20,7 +20,7 @@ namespace ValveResourceFormat.ResourceTypes
     /// Represents a model resource containing meshes, skeleton, and animations.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/PermModelData_t">PermModelData_t</seealso>
-    public class Model : KeyValuesOrNTRO
+    public partial class Model : KeyValuesOrNTRO
     {
         /// <summary>
         /// Gets the model name.
@@ -71,6 +71,11 @@ namespace ValveResourceFormat.ResourceTypes
 
             return references;
         }
+
+        /// <summary>
+        /// Gets the bones that drive flex controllers. A driver whose bone or flex controller the model does not have is left out.
+        /// </summary>
+        public BoneFlexDriver[] BoneFlexDrivers => cachedBoneFlexDrivers ??= GetBoneFlexDrivers();
 
         /// <summary>
         /// Gets the bone constraints the model was authored with, in compiled order.
@@ -133,6 +138,7 @@ namespace ValveResourceFormat.ResourceTypes
         private List<ModelMesh>? cachedEmbeddedMeshes;
         private ModelLodInfo? cachedLodInfo;
         private BoneConstraint[]? cachedBoneConstraints;
+        private BoneFlexDriver[]? cachedBoneFlexDrivers;
         private BoneRemapTable? cachedBoneRemapTable;
         private ModelMeshGroups? cachedMeshGroups;
         private ModelConfigList? cachedConfigs;
@@ -247,6 +253,51 @@ namespace ValveResourceFormat.ResourceTypes
             return anchors;
         }
 
+        private BoneFlexDriver[] GetBoneFlexDrivers()
+        {
+            var driversData = Data.GetArray("m_boneFlexDrivers");
+
+            if (driversData == null || driversData.Count == 0)
+            {
+                return [];
+            }
+
+            var drivers = new List<BoneFlexDriver>(driversData.Count);
+
+            foreach (var driverData in driversData)
+            {
+                var bone = Skeleton.GetBoneIndex(driverData.GetStringProperty("m_boneName"));
+
+                if (bone < 0)
+                {
+                    continue;
+                }
+
+                var controls = new List<BoneFlexDriverControl>();
+
+                foreach (var controlData in driverData.GetArray("m_controls") ?? [])
+                {
+                    var controllerName = controlData.GetStringProperty("m_flexController");
+                    var controller = Array.FindIndex(FlexControllers, c => string.Equals(c.Name, controllerName, StringComparison.OrdinalIgnoreCase));
+
+                    if (controller < 0)
+                    {
+                        continue;
+                    }
+
+                    var component = controlData.GetEnumValue<ModelBoneFlexComponent>("m_nBoneComponent", normalize: true, stripExtension: "Component");
+                    controls.Add(new BoneFlexDriverControl(component, controller, controlData.GetFloatProperty("m_flMin"), controlData.GetFloatProperty("m_flMax")));
+                }
+
+                if (controls.Count > 0)
+                {
+                    drivers.Add(new BoneFlexDriver(bone, [.. controls]));
+                }
+            }
+
+            return [.. drivers];
+        }
+
         private FlexController[] GetFlexControllers()
         {
             if (Resource.GetBlockByType(BlockType.MRPH) is not Morph morph)
@@ -289,6 +340,7 @@ namespace ValveResourceFormat.ResourceTypes
             if (FlexControllers.Length == 0)
             {
                 cachedFlexControllers = morph?.FlexControllers;
+                cachedBoneFlexDrivers = null;
             }
         }
 

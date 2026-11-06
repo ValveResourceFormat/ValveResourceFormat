@@ -11,8 +11,9 @@ public static class EnvironmentMapArray
     private const int CubeFaces = 6;
 
     /// <summary>
-    /// Copies the cube textures into one array sized to the smallest cube, and points each environment map at it.
-    /// Cubes in another format are skipped.
+    /// Copies the cube textures into one array, and points each environment map at it. The array is sized to the
+    /// largest cube, and smaller cubes are scaled up to it, when the format can be blitted. Otherwise it is sized to
+    /// the smallest cube, which larger cubes copy a mip of. Cubes in another format are skipped.
     /// </summary>
     /// <param name="envMaps">Environment maps with their own cube textures.</param>
     /// <param name="materialLoader">Material loader the cube textures are evicted from.</param>
@@ -31,8 +32,13 @@ public static class EnvironmentMapArray
             return null;
         }
 
-        var size = cubes.Min(static envMap => envMap.EnvMapTexture.Width);
         var format = GetInternalFormat(cubes[0].EnvMapTexture);
+        var canResample = IsFramebufferRenderable(format);
+
+        // A cube smaller than the array is scaled up to it, which needs a format that can be blitted
+        var size = canResample
+            ? cubes.Max(static envMap => envMap.EnvMapTexture.Width)
+            : cubes.Min(static envMap => envMap.EnvMapTexture.Width);
         var maxCubes = GL.GetInteger(GetPName.MaxArrayTextureLayers) / CubeFaces;
 
         var packed = new List<(SceneEnvMap EnvMap, int FirstLevel)>(cubes.Count);
@@ -42,7 +48,7 @@ public static class EnvironmentMapArray
             var texture = envMap.EnvMapTexture;
             var firstLevel = FindLevelOfSize(texture, size);
 
-            if (firstLevel < 0 || GetInternalFormat(texture) != format)
+            if ((firstLevel < 0 && !canResample) || GetInternalFormat(texture) != format)
             {
                 logger.LogWarning("Skipping environment map {Width}x{Height} ({Format}), incompatible with the {Size}x{Size} ({ArrayFormat}) cube map array",
                     texture.Width, texture.Height, GetInternalFormat(texture), size, size, format);
@@ -64,7 +70,7 @@ public static class EnvironmentMapArray
         }
 
         // Every cube needs each level of the array, which a cube with fewer mips below that size cannot fill
-        var levels = packed.Min(static cube => cube.EnvMap.EnvMapTexture.NumMipLevels - cube.FirstLevel);
+        var levels = packed.Min(static cube => cube.EnvMap.EnvMapTexture.NumMipLevels - Math.Max(cube.FirstLevel, 0));
 
         var array = new RenderTexture(TextureTarget.TextureCubeMapArray, size, size, packed.Count, levels, "EnvironmentMapArray");
         GL.TextureStorage3D(array.Handle, levels, format, size, size, packed.Count * CubeFaces);
@@ -72,15 +78,30 @@ public static class EnvironmentMapArray
         array.SetWrapMode(RsTextureAddressMode.Clamp);
 
         var copied = new HashSet<RenderTexture>();
+        var readFbo = 0;
+        var drawFbo = 0;
 
         for (var index = 0; index < packed.Count; index++)
         {
             var (envMap, firstLevel) = packed[index];
             var texture = envMap.EnvMapTexture;
 
+            if (firstLevel < 0 && readFbo == 0)
+            {
+                readFbo = GraphicsDevice.CreateFramebuffer("EnvironmentMapBlitSrc");
+                drawFbo = GraphicsDevice.CreateFramebuffer("EnvironmentMapBlitDst");
+            }
+
             for (var level = 0; level < levels; level++)
             {
                 var levelSize = Math.Max(size >> level, 1);
+
+                if (firstLevel < 0)
+                {
+                    var sourceSize = Math.Max(texture.Width >> level, 1);
+                    BlitCube(readFbo, drawFbo, texture, level, sourceSize, array, index, levelSize);
+                    continue;
+                }
 
                 // The faces of a cube are its layers
                 GL.CopyImageSubData(
@@ -94,15 +115,40 @@ public static class EnvironmentMapArray
             envMap.ArrayIndex = index;
         }
 
-        // Only textures cached by the material loader are deleted, others are owned elsewhere
-        foreach (var texture in copied)
+        if (readFbo != 0)
         {
-            materialLoader.EvictTexture(texture);
+            GL.DeleteFramebuffer(readFbo);
+            GL.DeleteFramebuffer(drawFbo);
         }
+
+        // Only textures cached by the material loader are deleted, others are owned elsewhere
+        materialLoader.EvictTextures(copied);
 
         logger.LogDebug("Packed {Count} environment maps into a {Size}x{Size} cube map array with {Levels} mips", packed.Count, size, size, levels);
 
         return array;
+    }
+
+    private static void BlitCube(int readFbo, int drawFbo, RenderTexture source, int level, int sourceSize,
+        RenderTexture array, int index, int size)
+    {
+        for (var face = 0; face < CubeFaces; face++)
+        {
+            GL.NamedFramebufferTextureLayer(readFbo, FramebufferAttachment.ColorAttachment0, source.Handle, level, face);
+            GL.NamedFramebufferTextureLayer(drawFbo, FramebufferAttachment.ColorAttachment0, array.Handle, level, index * CubeFaces + face);
+
+            GL.BlitNamedFramebuffer(readFbo, drawFbo,
+                0, 0, sourceSize, sourceSize,
+                0, 0, size, size,
+                ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Linear);
+        }
+    }
+
+    private static bool IsFramebufferRenderable(SizedInternalFormat format)
+    {
+        var support = new long[1];
+        GL.GetInternalformat(ImageTarget.TextureCubeMap, format, InternalFormatParameter.FramebufferRenderable, support.Length, support);
+        return support[0] == (long)All.FullSupport;
     }
 
     private static int FindLevelOfSize(RenderTexture texture, int size)

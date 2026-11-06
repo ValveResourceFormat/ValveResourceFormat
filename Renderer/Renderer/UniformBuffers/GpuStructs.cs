@@ -90,6 +90,8 @@ public struct InstanceDataStandard
     public uint MorphAtlasStride;
     /// <summary>The scene node's light probe volume index in the low 16 bits, and its env map index in the high 16.</summary>
     public uint LightingData;
+    /// <summary>The position the scene node is lit from, which its light probe volume and env map were chosen at.</summary>
+    public Vector3 LightingOrigin;
 
     /// <summary>Packs <see cref="MeshBoneData"/> for a mesh.</summary>
     /// <param name="mesh">The mesh a draw call belongs to.</param>

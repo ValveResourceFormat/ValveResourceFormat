@@ -191,12 +191,10 @@ public sealed class SpawnGroupManager
         {
             var mapPackage = $"{group.MapName}.vpk";
 
-            if (!fileLoader.TryMountMapPackage(mapPackage))
+            if (fileLoader.TryMountMapPackage(mapPackage))
             {
-                return null;
+                group.MountedMapPackage = mapPackage;
             }
-
-            group.MountedMapPackage = mapPackage;
         }
 
         WorldLoader? world = null;
@@ -207,11 +205,15 @@ public sealed class SpawnGroupManager
         }
         catch (FileNotFoundException e)
         {
-            entitySystem.Logger.LogWarning("Not loading '{MapName}': {Message}", group.MapName, e.Message);
+            // A map without a package of its own is one that is not shipped, or one the loader serves without a package
+            if (group.MountedMapPackage != null)
+            {
+                entitySystem.Logger.LogWarning("Not loading '{MapName}': {Message}", group.MapName, e.Message);
+            }
         }
 
         // A prefab joins the scene of the map that placed it, which needs nothing of its package once loaded
-        if (!group.HasOwnScene)
+        if (!group.HasOwnScene && group.MountedMapPackage != null)
         {
             fileLoader.UnmountMapPackage(group.MountedMapPackage);
             group.MountedMapPackage = null;

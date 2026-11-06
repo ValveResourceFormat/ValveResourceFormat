@@ -239,7 +239,7 @@ void CalculateDynamicLightV1(inout LightingTerms_t lighting, MaterialProperties_
     }
 
     float flClampedDistanceSquared = max(flDistanceSquared, 1.0);
-    float flAttenuation = saturate(1.0 / dot(vec2(sqrt(flClampedDistanceSquared), flClampedDistanceSquared), vFalloffParams.xy) - vFalloffParams.w);
+    float flAttenuation = GetDistanceAttenuation(vFalloffParams, flClampedDistanceSquared);
 
     vec3 vCookie = vec3(1.0);
 

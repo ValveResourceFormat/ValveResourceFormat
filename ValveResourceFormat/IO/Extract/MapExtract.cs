@@ -34,6 +34,8 @@ public sealed partial class MapExtract
     private List<string> SceneObjectsToExtract { get; } = [];
     private List<string> FolderExtractFilter { get; } = [];
     private List<string> SnapshotsToExtract { get; } = [];
+    private HashSet<string> MaterialsToExtract { get; } = [];
+    private HashSet<string> TexturesToExtract { get; } = [];
 
     // render mesh vertices closer than this are the same Hammer vertex
     private const float HammerMeshWeldDistance = 1f / 64f;
@@ -528,6 +530,8 @@ public sealed partial class MapExtract
         AddSceneObjectFiles(vmap);
         // Export all gathered vsnap files
         AddSnapshotFiles(vmap);
+        AddProvidedMaterialFiles(vmap);
+        AddProvidedTextureFiles(vmap);
 
         foreach (var generatedMaterial in ProceduralPhysMaterialsToExtract)
         {
@@ -577,6 +581,8 @@ public sealed partial class MapExtract
                 continue;
             }
 
+            AddMaterialReferences(sceneObject);
+
             var sceneObjectExtract = sceneObject.ResourceType switch
             {
                 ResourceType.Model => new ModelExtract(sceneObject, FileLoader) { ReconstructSoftbody = ReconstructSoftbody },
@@ -602,6 +608,81 @@ public sealed partial class MapExtract
                 vsnap.FileName = snapshotName;
                 vmap.AdditionalFiles.Add(vsnap);
             }
+        }
+    }
+
+    private void AddMaterialReferences(Resource? resource)
+    {
+        if (resource?.ExternalReferences is not { } references)
+        {
+            return;
+        }
+
+        foreach (var reference in references.ResourceRefInfoList)
+        {
+            if (reference.Name.EndsWith(".vmat", StringComparison.Ordinal))
+            {
+                MaterialsToExtract.Add(reference.Name);
+            }
+        }
+    }
+
+    private void AddTextureReferences(Resource? resource)
+    {
+        if (resource?.ExternalReferences is not { } references)
+        {
+            return;
+        }
+
+        foreach (var reference in references.ResourceRefInfoList)
+        {
+            if (reference.Name.EndsWith(".vtex", StringComparison.Ordinal))
+            {
+                TexturesToExtract.Add(reference.Name);
+            }
+        }
+    }
+
+    // Tools materials of brushes are not drawn by the game, so only the faces of the map name them.
+    private void AddMeshMaterials(CDmePolygonMesh mesh)
+    {
+        foreach (var material in mesh.Materials)
+        {
+            MaterialsToExtract.Add(material);
+        }
+    }
+
+    // A texture that was not read from a compiled file, such as a converted cube map, is not in the game files, so the map carries it.
+    private void AddProvidedTextureFiles(ContentFile vmap)
+    {
+        foreach (var textureName in TexturesToExtract)
+        {
+            using var textureResource = FileLoader.LoadFileCompiled(textureName);
+            if (textureResource?.DataBlock is not Texture || textureResource.CanReload)
+            {
+                continue;
+            }
+
+            var vtex = new TextureExtract(textureResource).ToContentFile();
+            vtex.FileName = textureName;
+            vmap.AdditionalFiles.Add(vtex);
+        }
+    }
+
+    // A material that was not read from a compiled file, such as a converted one, is not in the game files, so the map carries it.
+    private void AddProvidedMaterialFiles(ContentFile vmap)
+    {
+        foreach (var materialName in MaterialsToExtract)
+        {
+            using var materialResource = FileLoader.LoadFileCompiled(materialName);
+            if (materialResource?.DataBlock is null || materialResource.CanReload)
+            {
+                continue;
+            }
+
+            var vmat = new MaterialExtract(materialResource, FileLoader).ToContentFile();
+            vmat.FileName = materialName;
+            vmap.AdditionalFiles.Add(vmat);
         }
     }
 
@@ -687,6 +768,8 @@ public sealed partial class MapExtract
             using var entityLumpResource = FileLoader.LoadFile(entityLumpCompiled);
             if (entityLumpResource != null && entityLumpResource.DataBlock != null)
             {
+                AddMaterialReferences(entityLumpResource);
+                AddTextureReferences(entityLumpResource);
                 GatherEntitiesFromLump((EntityLump)entityLumpResource.DataBlock);
             }
         }
@@ -856,6 +939,7 @@ public sealed partial class MapExtract
     {
         var modelExtract = new ModelExtract(resource, FileLoader);
         modelExtract.GrabMaterialInputSignatures(resource);
+        AddMaterialReferences(resource);
 
         var drawCallCount = 0;
 
@@ -1097,6 +1181,8 @@ public sealed partial class MapExtract
                     continue;
                 }
 
+                AddMeshMaterials(meshData);
+
                 var hammerMesh = new CMapMesh() { MeshData = meshData };
 
                 if (string.IsNullOrEmpty(entityClassname))
@@ -1129,6 +1215,8 @@ public sealed partial class MapExtract
                     {
                         continue;
                     }
+
+                    AddMeshMaterials(meshData);
 
                     var hammerMesh = new CMapMesh() { MeshData = meshData };
 
@@ -1486,6 +1574,8 @@ public sealed partial class MapExtract
         {
             return;
         }
+
+        AddMaterialReferences(modelRes);
 
         var model = (Model)modelRes.DataBlock;
 

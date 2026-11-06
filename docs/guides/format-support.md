@@ -122,7 +122,7 @@ in the Dump column.
 | VBKV / binary KeyValues1           | Text dump                                                                                                                                                                                                     |
 | Binary KeyValues3 (all versions)   | Text dump; backbone of the generic fallback above; writing supported                                                                                                                                          |
 | KeyValues3 text                    | Highlighted text view; Animgraph 1 graph documents also open in the graph viewer                                                                                                                              |
-| Binary resource writing            | Basic re-serialization of resources back to the compiled binary format (`Resource.Serialize`), for a subset of block types (binary KV3, plaintext, Panorama, external reference lists, and raw binary blocks) |
+| Binary resource writing            | Basic re-serialization of resources back to the compiled binary format (`Resource.Serialize`), for a subset of block types (binary KV3, plaintext, Panorama, external reference lists, vertex and index buffers, and raw binary blocks), and creating textures and models with embedded meshes in memory |
 
 ## Models (vmdl)
 
@@ -301,8 +301,8 @@ retarget clips authored on a different skeleton.
 
 Animation _graphs_ are decompiled to editable documents and visualized, for both Animgraph 1
 and Animgraph 2. Animgraph 2 graphs (`vnmgraph`) are also executed in the model viewer.
-The viewer evaluates bone constraints, including constraint-driven morphs, on every pose, and
-solves the two-bone and foot IK nodes of an executed Animgraph 2 graph; the model's own IK
+The viewer evaluates bone constraints, including constraint-driven morphs, and simulates the jiggle
+bones of the model's `FeModel` on every pose, and solves the two-bone and foot IK nodes of an executed Animgraph 2 graph; the model's own IK
 chains are not solved, and glTF export does not apply constraints. `vnmikrig` files have no
 dedicated support beyond the generic dump.
 
@@ -411,9 +411,7 @@ other graphs of the file or, for one graph per file, the graphs of the folder.
 - **Deadlock**: viewer shading is a work in progress.
 - **s&box**: compiled shaders are not supported. Managed resources extract as plaintext.
 - **Source 1 leftovers**: `vfont` (VFONT1), `uifont` packages, VBKV, closed captions, and
-  flex scene `.vfe` files are supported even where they appear in Source 1 games. Source 1
-  `.nav` meshes are not supported
-  ([#989](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/989)).
+  flex scene `.vfe` files are supported even where they appear in Source 1 games.
 
 ## Appendix: Recognized Magics
 

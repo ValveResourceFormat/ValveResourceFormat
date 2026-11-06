@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <PublishAot Condition="'$(Configuration)' != 'Debug'">true</PublishAot>
+    <IsAotCompatible Condition="'$(Configuration)' != 'Debug'">true</IsAotCompatible>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateDocumentationFile Condition="'$(Configuration)' != 'Debug'">true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Entities\entity_classes.kv3" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="ValveResourceFormat.Utils" />
+  </ItemGroup>
+</Project>

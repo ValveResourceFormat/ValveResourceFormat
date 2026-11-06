@@ -877,6 +877,23 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     }
 
     /// <summary>
+    /// Gets the falloff terms of a point or spot light as the shaders read them. They evaluate
+    /// <c>saturate(1 / (c + l * d + q * d^2) - bias)</c> in world units before the color, which carries the
+    /// <c>q*10000 + l*100 + c</c> scale. A light without a constant term gets a bias that brings the curve to
+    /// zero at the range.
+    /// </summary>
+    /// <param name="range">The distance the light is limited to.</param>
+    /// <returns>The linear term, the quadratic term, the squared range, and the bias, or the negated constant term when the light has one.</returns>
+    internal Vector4 GetFalloffParams(float range)
+    {
+        var hasBias = AttenuationConstant == 0f && range > 0f;
+        var falloffAtRange = (AttenuationQuadratic * range * range) + (AttenuationLinear * range) + 1.1920929e-7f;
+        var biasOrConstant = hasBias ? 1f / falloffAtRange : -AttenuationConstant;
+
+        return new Vector4(AttenuationLinear, AttenuationQuadratic, range * range, biasOrConstant);
+    }
+
+    /// <summary>
     /// What this light costs to render, which is <see cref="DirectLight"/> resolved against
     /// <see cref="StationaryLightIndex"/>.
     /// </summary>

@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Forms;
+using GUI.Types.Exporter;
 using GUI.Types.Viewers;
 using GUI.Utils;
 using ValvePak;
@@ -24,6 +25,7 @@ namespace GUI.Types.PackageViewer
 #pragma warning restore CA2213
         private VirtualPackageNode? VirtualRoot;
         private VirtualPackageNode? ContextFolder;
+        private bool isReadOnly;
 
         /// <summary>
         /// Whether this package is opened for editing, with the editing context menu.
@@ -65,6 +67,7 @@ namespace GUI.Types.PackageViewer
         /// Whether this package can be opened for editing: a package on disk, not one inside of another package.
         /// </summary>
         public bool CanEdit => !IsEditingPackage
+            && !isReadOnly
             && vrfGuiContext.ParentGuiContext == null
             && FileOnDisk != null
             && vrfGuiContext.CurrentPackage != null;
@@ -118,6 +121,17 @@ namespace GUI.Types.PackageViewer
                 ? NestedPackage.Open(vrfGuiContext.ParentGuiContext!.CurrentPackage!, entry)
                 : Package.Open(vrfGuiContext.FileName);
 
+            vrfGuiContext.CurrentPackage = package;
+
+            BuildVirtualRoot(package);
+        }
+
+        /// <summary>
+        /// Shows a package that has no file to save to, such as the textures of a WAD. The context owns the package.
+        /// </summary>
+        public void LoadReadOnly(Package package)
+        {
+            isReadOnly = true;
             vrfGuiContext.CurrentPackage = package;
 
             BuildVirtualRoot(package);
@@ -959,7 +973,19 @@ namespace GUI.Types.PackageViewer
                 return;
             }
 
-            Program.MainForm.ShowVpkContextMenu(control, e.Location, isRoot, isFolder, TreeView.DeletedFilesRecovered, CanEdit);
+            var entry = e.TreeNode?.PackageEntry ?? e.PackageEntry;
+            ExportData? file = null;
+
+            if (!isFolder && entry != null)
+            {
+                file = new ExportData
+                {
+                    PackageEntry = entry,
+                    VrfGuiContext = vrfGuiContext,
+                };
+            }
+
+            Program.MainForm.ShowVpkContextMenu(control, e.Location, isRoot, isFolder, TreeView.DeletedFilesRecovered, CanEdit, file);
         }
 
         public void Dispose()

@@ -120,6 +120,23 @@ namespace ValveResourceFormat
             return data;
         }
 
+        /// <summary>
+        /// Gets the bytes of the block as stored in the resource file, or its serialized form for a resource that was built in memory.
+        /// </summary>
+        /// <returns>The block bytes.</returns>
+        public byte[] GetRawBytes()
+        {
+            if (Resource.CanReload)
+            {
+                return ReadRawData();
+            }
+
+            using var memory = new MemoryStream();
+            Serialize(memory);
+
+            return memory.ToArray();
+        }
+
         /// <inheritdoc/>
         public override string ToString()
         {
@@ -147,5 +164,13 @@ namespace ValveResourceFormat
         /// </summary>
         /// <param name="stream">The stream to write the block data to.</param>
         public abstract void Serialize(Stream stream);
+
+        /// <summary>
+        /// Writes data that follows the block in the file without being part of the block, such as texture pixels.
+        /// </summary>
+        /// <param name="stream">The stream positioned at the end of the block.</param>
+        internal virtual void SerializeTrailingData(Stream stream)
+        {
+        }
     }
 }

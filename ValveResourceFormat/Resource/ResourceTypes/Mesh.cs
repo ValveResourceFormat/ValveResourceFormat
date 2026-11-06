@@ -13,7 +13,7 @@ namespace ValveResourceFormat.ResourceTypes
     /// Represents a mesh resource containing geometry and vertex buffer data.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/CRenderMesh">CRenderMesh</seealso>
-    public class Mesh : KeyValuesOrNTRO
+    public partial class Mesh : KeyValuesOrNTRO
     {
         /// <summary>
         /// Gets or sets the mesh's vertex/index buffer block (VBIB).
@@ -139,17 +139,26 @@ namespace ValveResourceFormat.ResourceTypes
 
             Name = Resource.FileName ?? string.Empty;
 
-            var attachmentsData = Data.GetArray("m_attachments");
+            ReadAttachments(Data, Attachments);
+            ReadHitboxSets(Data, HitboxSets);
+        }
+
+        internal static void ReadAttachments(KVObject data, Dictionary<string, Attachment> attachments)
+        {
+            var attachmentsData = data.GetArray("m_attachments");
             if (attachmentsData != null)
             {
                 for (var i = 0; i < attachmentsData.Count; i++)
                 {
                     var attachment = new Attachment(attachmentsData[i]);
-                    Attachments.Add(attachment.Name, attachment);
+                    attachments.Add(attachment.Name, attachment);
                 }
             }
+        }
 
-            var hitboxSetsData = Data.GetArray("m_hitboxsets");
+        internal static void ReadHitboxSets(KVObject data, Dictionary<string, Hitbox[]> hitboxSets)
+        {
+            var hitboxSetsData = data.GetArray("m_hitboxsets");
             if (hitboxSetsData != null)
             {
                 for (var i = 0; i < hitboxSetsData.Count; i++)
@@ -160,7 +169,7 @@ namespace ValveResourceFormat.ResourceTypes
                     var hitboxesKey = hitboxSet.ContainsKey("m_HitBoxes") ? "m_HitBoxes" : "m_hitboxes";
                     var hitboxes = hitboxSet.GetArray(hitboxesKey).Select(d => new Hitbox(d)).ToArray();
 
-                    HitboxSets.Add(hitboxSetName, hitboxes);
+                    hitboxSets.Add(hitboxSetName, hitboxes);
                 }
             }
         }

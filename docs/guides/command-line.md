@@ -54,7 +54,7 @@ The binary name is `Source2Viewer-CLI`.
 | `--version`                      | Show version information.                                                                                                                                                                                                                                                                                        |
 | `--help`                         | Show help information.                                                                                                                                                                                                                                                                                           |
 
-There are also `--test` and `--test_*` options for running every file through the decompile code paths, primarily intended for VRF developers. You can pass `--input "steam"` to automatically scan all Steam library folders for Source 2 files. See the `--help` output for details.
+There are also `--test` and `--test_*` options for running every file through the decompile code paths, primarily intended for VRF developers. `--test` also converts Source 1 textures, materials, models and maps, and counts them as the Source 2 resources they become. You can pass `--input "steam"` to automatically scan all Steam library folders for Source 2 files. See the `--help` output for details.
 
 ### Exit codes
 

@@ -193,7 +193,60 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public uint StreamingDataSize { get; private set; }
 
+        private const ushort CurrentVersion = 4;
+
+        private ReadOnlyMemory<byte>? StreamingData;
+
         private BinaryReader? Reader => Resource.Reader;
+
+        /// <summary>
+        /// Creates a sound resource from audio data that is already in the stored <paramref name="format"/>.
+        /// The sound reads its streaming data from <paramref name="streamingData"/>, which must stay unchanged while the sound is in use.
+        /// </summary>
+        /// <param name="format">The encoding of <paramref name="streamingData"/>.</param>
+        /// <param name="sampleRate">The sample frames per second.</param>
+        /// <param name="channels">The number of channels, 1 for mono or 2 for stereo.</param>
+        /// <param name="sampleCount">The number of sample frames.</param>
+        /// <param name="streamingData">
+        /// The audio as stored in a sound file: the sample bytes of PCM and ADPCM without a container header, or the bytes of an MP3 file.
+        /// </param>
+        /// <param name="adpcmHeader">The WAVEFORMATEX of ADPCM audio, with its extra bytes. Empty for other formats.</param>
+        /// <param name="loopStart">The sample frame the sound loops back to, or -1 when it does not loop.</param>
+        /// <param name="loopEnd">The sample frame the sound loops from, or 0 to loop at the end.</param>
+        /// <returns>A resource whose data block is the new sound.</returns>
+        public static Resource Create(
+            AudioFormatV4 format,
+            uint sampleRate,
+            byte channels,
+            uint sampleCount,
+            ReadOnlyMemory<byte> streamingData,
+            ReadOnlyMemory<byte> adpcmHeader = default,
+            int loopStart = -1,
+            int loopEnd = 0)
+        {
+            ArgumentOutOfRangeException.ThrowIfZero(sampleRate);
+            ArgumentOutOfRangeException.ThrowIfZero(channels);
+
+            var resource = new Resource(ResourceType.Sound, CurrentVersion);
+            var sound = new Sound
+            {
+                Resource = resource,
+                SampleRate = sampleRate,
+                Channels = channels,
+                SampleCount = sampleCount,
+                Duration = (float)sampleCount / sampleRate,
+                LoopStart = loopStart,
+                LoopEnd = loopEnd,
+                Header = adpcmHeader.ToArray(),
+                StreamingDataSize = (uint)streamingData.Length,
+                StreamingData = streamingData,
+            };
+
+            sound.SetSoundFormatBits(format);
+            resource.AddBlock(sound);
+
+            return resource;
+        }
 
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
@@ -613,6 +666,13 @@ namespace ValveResourceFormat.ResourceTypes
         public void ReadStreamingData(Span<byte> buffer)
         {
             Debug.Assert(buffer.Length == StreamingDataSize);
+
+            if (StreamingData is { } streamingData)
+            {
+                streamingData.Span.CopyTo(buffer);
+                return;
+            }
+
             Debug.Assert(Reader != null);
 
             lock (Resource.ReaderLock)

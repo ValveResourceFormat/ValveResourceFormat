@@ -163,45 +163,42 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Pre-decodes every sound the animation's events can play. Call when the animation is loaded.</summary>
         public static void PrewarmAnimationSounds(AnimationBase animation)
         {
-            PrewarmClipSounds(animation);
-            PrewarmLegacyAnimationEventSounds(animation);
-        }
-
-        private static void PrewarmClipSounds(AnimationBase animation)
-        {
-            if (animation is not ClipAnimation clipAnimation)
+            foreach (var soundName in GetEventSoundNames(animation))
             {
-                return;
-            }
-
-            foreach (var clipEvent in clipAnimation.Events)
-            {
-                if (clipEvent is Animation.SoundEvent soundEvent)
-                {
-                    Sound.Cache(soundEvent.Name);
-                }
+                Sound.Cache(soundName);
             }
         }
 
-        private static void PrewarmLegacyAnimationEventSounds(AnimationBase animation)
+        /// <summary>Gets the names of the sound events the events of an animation can play.</summary>
+        /// <param name="animation">The animation.</param>
+        public static IEnumerable<string> GetEventSoundNames(AnimationBase animation)
         {
-            if (animation is not SequenceAnimation sequence)
+            if (animation is ClipAnimation clipAnimation)
             {
-                return;
+                foreach (var clipEvent in clipAnimation.Events)
+                {
+                    if (clipEvent is Animation.SoundEvent soundEvent)
+                    {
+                        yield return soundEvent.Name;
+                    }
+                }
             }
 
-            foreach (var sequenceEvent in sequence.Events)
+            if (animation is SequenceAnimation sequence)
             {
-                if (sequenceEvent.Name is not ("AE_CL_PLAYSOUND" or "AE_CL_PLAYSOUND_ATTACHMENT"))
+                foreach (var sequenceEvent in sequence.Events)
                 {
-                    continue;
-                }
+                    if (sequenceEvent.Name is not ("AE_CL_PLAYSOUND" or "AE_CL_PLAYSOUND_ATTACHMENT"))
+                    {
+                        continue;
+                    }
 
-                var soundName = sequenceEvent.EventData?.GetStringProperty("name");
+                    var soundName = sequenceEvent.EventData?.GetStringProperty("name");
 
-                if (!string.IsNullOrEmpty(soundName))
-                {
-                    Sound.Cache(soundName);
+                    if (!string.IsNullOrEmpty(soundName))
+                    {
+                        yield return soundName;
+                    }
                 }
             }
         }

@@ -42,6 +42,7 @@ namespace GUI.Types.Viewers
 
         private ValveResourceFormat.Resource? resource;
         private RendererContext? rendererContext;
+        private IDisposable? ownedDisposable;
         private readonly List<(Func<GLGraphViewer> Create, string TabName)> preparedGraphViewers = [];
         private readonly List<GLGraphViewer> loadedGraphViewers = [];
         private const string EntityIOGraphTabName = "ENTITY I/O GRAPH";
@@ -81,13 +82,31 @@ namespace GUI.Types.Viewers
                 resourceTemp?.Dispose();
             }
 
-            vrfGuiContext.FindGameFromResource(resource);
+            Initialize(resource);
+        }
+
+        /// <summary>
+        /// Shows a resource that was built in memory instead of read from a file.
+        /// </summary>
+        /// <param name="loadedResource">The resource, which this viewer disposes.</param>
+        /// <param name="ownedDisposable">Something the resource depends on, which this viewer disposes with it.</param>
+        public void Load(ValveResourceFormat.Resource loadedResource, IDisposable? ownedDisposable = null)
+        {
+            resource = loadedResource;
+            this.ownedDisposable = ownedDisposable;
+
+            Initialize(loadedResource);
+        }
+
+        private void Initialize(ValveResourceFormat.Resource loadedResource)
+        {
+            vrfGuiContext.FindGameFromResource(loadedResource);
 
             if (viewMode != ResourceViewMode.ResourceBlocksOnly)
             {
                 try
                 {
-                    InitializeSpecialViewer(vrfGuiContext, resource);
+                    InitializeSpecialViewer(vrfGuiContext, loadedResource);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
@@ -1085,16 +1104,7 @@ namespace GUI.Types.Viewers
 
         private static void AddByteViewControl(ValveResourceFormat.Resource resource, Block block, Control blockTab)
         {
-            Debug.Assert(resource.Reader != null);
-
-            byte[] input;
-
-            lock (resource.ReaderLock)
-            {
-                resource.Reader.BaseStream.Position = block.Offset;
-                input = resource.Reader.ReadBytes((int)block.Size);
-            }
-
+            var input = block.GetRawBytes();
             var text = ByteViewer.GetTextFromBytes(input.AsSpan());
 
             if (!string.IsNullOrEmpty(text))
@@ -1370,6 +1380,7 @@ namespace GUI.Types.Viewers
             GLViewer?.Dispose();
             rendererContext?.Dispose();
             resource?.Dispose();
+            ownedDisposable?.Dispose();
 
             DisposeExtraGraphViewers();
             GLViewerError?.Dispose();

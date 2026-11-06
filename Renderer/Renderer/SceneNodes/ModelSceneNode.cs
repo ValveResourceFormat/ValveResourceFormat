@@ -46,6 +46,43 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private float?[] flexControllerOverrides = [];
         private float[] flexControllerValues = [];
+        private float[] sceneFlexValues = [];
+        private float[] sceneFlexWeights = [];
+        private float[] sceneFlexBlend = [];
+        private float fadeStartDistanceSquared;
+        private float fadeEndDistanceSquared;
+        private float unfadedAlpha = 1f;
+
+        /// <summary>
+        /// Fades the model out with its distance to the camera, from fully opaque at the start distance to gone at the end distance.
+        /// The fade scales the <see cref="SceneNode.Alpha"/> the node has when this is called, so it belongs in the dynamic partition of the scene.
+        /// </summary>
+        /// <param name="startDistance">The distance where the fade starts. A negative value is an offset from the end distance.</param>
+        /// <param name="endDistance">The distance where the model is gone, or zero for no fade.</param>
+        public void SetDistanceFade(float startDistance, float endDistance)
+        {
+            if (startDistance < 0f)
+            {
+                startDistance = MathF.Max(0f, startDistance + endDistance);
+            }
+
+            fadeStartDistanceSquared = startDistance * startDistance;
+            fadeEndDistanceSquared = endDistance * endDistance;
+            unfadedAlpha = Alpha;
+        }
+
+        private void UpdateDistanceFade(Vector3 cameraLocation)
+        {
+            if (fadeEndDistanceSquared <= 0f)
+            {
+                return;
+            }
+
+            var distanceSquared = BoundingBox.DistanceSquared(cameraLocation);
+            var fade = MathUtils.RemapValClamped(distanceSquared, fadeStartDistanceSquared, fadeEndDistanceSquared, 1f, 0f);
+
+            Alpha = unfadedAlpha * fade;
+        }
 
         /// <summary>Gets the animation graphs the model is bound to, by identifier and resource name. The first is the default.</summary>
         public IReadOnlyList<(string Identifier, string GraphPath)> AnimationGraphReferences { get; }
@@ -99,6 +136,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             Attachments = model.Attachments;
             LightingOriginAttachment = Attachments.GetValueOrDefault("lighting_origin");
             AnimationController.BoneConstraints = new BoneConstraintSolver(model);
+            AnimationController.BoneFlexDrivers = model.BoneFlexDrivers;
 
             if (JiggleBoneSolver.Create(model) is { } jiggleBones)
             {
@@ -323,6 +361,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             UpdateLightingOrigin(context.Camera.Location);
             UpdateAutoLod(context.Camera);
             AnimationController.ModelToWorld = Transform;
+            UpdateDistanceFade(context.Camera.Location);
             var animationUpdated = AnimationController.Update(context.Timestep);
 
             if (!animationUpdated)
@@ -363,6 +402,22 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>
+        /// Blends flex controller values over the animated ones and the overrides, as a choreography scene does.
+        /// </summary>
+        /// <param name="values">The value of each flex controller of <see cref="Model.FlexControllers"/>.</param>
+        /// <param name="weights">How much each value replaces what is under it, from 0 to 1.
+        /// Empty or <see langword="null"/> to remove the layer.</param>
+        public void SetFlexControllerLayer(float[] values, float[]? weights)
+        {
+            ArgumentNullException.ThrowIfNull(values);
+
+            sceneFlexValues = values;
+            sceneFlexWeights = weights ?? [];
+
+            PushFlexControllers(AnimationController.FlexValues ?? []);
+        }
+
+        /// <summary>
         /// Pushes flex controller values, with the overrides applied over them, to every mesh that morphs.
         /// </summary>
         private void PushFlexControllers(float[] animatedValues)
@@ -384,6 +439,22 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 }
 
                 values = flexControllerValues;
+            }
+
+            if (sceneFlexWeights.Length > 0)
+            {
+                if (sceneFlexBlend.Length != sceneFlexWeights.Length)
+                {
+                    sceneFlexBlend = new float[sceneFlexWeights.Length];
+                }
+
+                for (var i = 0; i < sceneFlexBlend.Length; i++)
+                {
+                    var animated = i < values.Length ? values[i] : 0f;
+                    sceneFlexBlend[i] = float.Lerp(animated, sceneFlexValues[i], sceneFlexWeights[i]);
+                }
+
+                values = sceneFlexBlend;
             }
 
             foreach (var renderableMesh in RenderableMeshes)

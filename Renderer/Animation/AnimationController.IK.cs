@@ -1,4 +1,5 @@
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -84,13 +85,18 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the bone constraints evaluated on the pose after each update.</summary>
         public BoneConstraintSolver? BoneConstraints { get; set; }
 
+        /// <summary>Gets or sets the bones that set flex controller values from their local position on every pose update.</summary>
+        public BoneFlexDriver[] BoneFlexDrivers { get; set; } = [];
+
         /// <summary>
-        /// Gets the flex controller values of the current frame with the morph driving constraints applied,
-        /// or the frame's own values when no constraint writes morphs.
+        /// Gets the flex controller values of the current frame with the bone flex drivers and the morph driving
+        /// constraints applied, or the frame's own values when neither writes flex controllers.
         /// </summary>
-        public float[]? FlexValues => BoneConstraints is { WritesMorphs: true } && (AnimationFrame != null || EnableConstraints)
+        public float[]? FlexValues => WritesFlexValues && (AnimationFrame != null || EnableConstraints)
             ? constrainedFlexValues
             : AnimationFrame?.Datas;
+
+        private bool WritesFlexValues => BoneFlexDrivers.Length > 0 || BoneConstraints is { WritesMorphs: true };
 
         /// <summary>
         /// Applies inverse kinematics to the current pose.
@@ -124,11 +130,14 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Evaluates the bone constraints on the current pose, and the morph driving ones on the frame's flex controller values.
+        /// Sets the flex controller values the bone flex drivers drive from the frame's bone positions, then evaluates
+        /// the bone constraints on the current pose, and the morph driving ones on the flex controller values.
         /// </summary>
         public void ApplyConstraints()
         {
-            if (BoneConstraints is not { Count: > 0 } || !EnableConstraints)
+            var evaluatesConstraints = BoneConstraints is { Count: > 0 } && EnableConstraints;
+
+            if (!evaluatesConstraints && BoneFlexDrivers.Length == 0)
             {
                 return;
             }
@@ -144,7 +153,38 @@ namespace ValveResourceFormat.Renderer
             Array.Clear(constrainedFlexValues);
             datas.CopyTo(constrainedFlexValues, 0);
 
-            BoneConstraints.Evaluate(Pose, constrainedFlexValues);
+            ApplyBoneFlexDrivers();
+
+            if (evaluatesConstraints)
+            {
+                BoneConstraints!.Evaluate(Pose, constrainedFlexValues);
+            }
+        }
+
+        private void ApplyBoneFlexDrivers()
+        {
+            // The frame of an external skeleton has bones the drivers do not index
+            if (AnimationFrame == null || externalRetargeter != null)
+            {
+                return;
+            }
+
+            foreach (var driver in BoneFlexDrivers)
+            {
+                var position = AnimationFrame.Bones[driver.Bone].Position;
+
+                foreach (var control in driver.Controls)
+                {
+                    var component = control.Component switch
+                    {
+                        ModelBoneFlexComponent.Tx => position.X,
+                        ModelBoneFlexComponent.Ty => position.Y,
+                        _ => position.Z,
+                    };
+
+                    constrainedFlexValues[control.FlexController] = MathUtils.RemapValClamped(component, control.Min, control.Max, 0f, 1f);
+                }
+            }
         }
 
         private static void ZeroBoneAndChildren(Span<Matrix4x4> pose, Bone bone)

@@ -445,8 +445,9 @@ public abstract class EntityHelper
     /// <param name="name">The file, without the compiled suffix.</param>
     /// <returns>Whether the file exists.</returns>
     private protected static bool CompiledFileExists(IHelperOwner owner, string name)
-        => owner.Scene.RendererContext.FileLoader.FindFile(name + GameFileLoader.CompiledFileSuffix, logNotFound: false)
-            is not { PathOnDisk: null, PackageEntry: null };
+    {
+        return owner.Scene.RendererContext.FileLoader.Exists(name + GameFileLoader.CompiledFileSuffix);
+    }
 
     /// <summary>Gets the key of the entity an argument of a declaration names, of which the editor keeps no more than 31 characters.</summary>
     /// <param name="argument">The argument.</param>

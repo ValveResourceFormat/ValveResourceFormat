@@ -208,7 +208,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
                     poseParam.GetStringProperty("m_sName"),
                     poseParam.GetFloatProperty("m_flStart"),
                     poseParam.GetFloatProperty("m_flEnd"),
-                    poseParam.GetBooleanProperty("m_bLooping")));
+                    poseParam.GetBooleanProperty("m_bLooping"),
+                    poseParam.GetFloatProperty("m_flLoop")));
             }
 
             return poseParameters;

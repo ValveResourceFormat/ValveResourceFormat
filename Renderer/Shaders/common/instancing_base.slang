@@ -13,6 +13,9 @@ struct InstanceDataStandard
     uint MorphAtlasOrigin;
     uint MorphAtlasStride;
     uint LightingData; // light probe volume in the low 16 bits, env map in the high 16
+    float LightingOriginX; // scalars, since a vec3 member would be 16 byte aligned
+    float LightingOriginY;
+    float LightingOriginZ;
 };
 
 layout(std430, binding = 0) readonly buffer InstanceBuffer

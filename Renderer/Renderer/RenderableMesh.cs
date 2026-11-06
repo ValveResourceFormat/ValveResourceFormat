@@ -209,6 +209,12 @@ namespace ValveResourceFormat.Renderer
         {
             ArgumentNullException.ThrowIfNull(drawCall);
 
+            // The error material wraps a shader and has no material resource to load again
+            if (!drawCall.Material.HasResource)
+            {
+                return;
+            }
+
             var dynamicParams = GetDynamicShaderParams(drawCall);
 
             dynamicParams.Remove("D_BAKED_LIGHTING_FROM_LIGHTMAP");
