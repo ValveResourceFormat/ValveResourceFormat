@@ -95,6 +95,51 @@ public class CDmeVtex : DMElement
 
         return vtex;
     }
+
+    /// <summary>
+    /// Creates a cube texture configuration from input images, each holding the six faces in one layout.
+    /// </summary>
+    public static CDmeVtex CreateCube((string FileName, string Channels, string MipAlgorithm)[] images, string outputFormat = "DXT1")
+    {
+        var vtex = CreateTexture2D(images, outputFormat);
+        vtex.OutputTypeString = "CUBE";
+
+        foreach (var element in vtex.InputTextureArray)
+        {
+            var input = (CDmeInputTexture)element!;
+            input.TypeString = "CUBE";
+        }
+
+        return vtex;
+    }
+
+    /// <summary>
+    /// Creates a cube array texture configuration, with one input image for each cube of the array.
+    /// </summary>
+    public static CDmeVtex CreateCubeArray(string[] fileNames, string mipAlgorithm, string outputFormat)
+    {
+        var vtex = new CDmeVtex
+        {
+            OutputTypeString = "CUBEARRAY",
+            OutputFormat = outputFormat,
+        };
+
+        var output = new CDmeTextureOutputChannel();
+        output.MipAlgorithm.Algorithm = mipAlgorithm;
+
+        for (var i = 0; i < fileNames.Length; i++)
+        {
+            var inputImageId = "InputTexture" + i;
+            var input = new CDmeInputTexture { Name = inputImageId, FileName = fileNames[i], TypeString = "CUBE" };
+            input.ImageProcessorArray.Add(new CDmeImageProcessor()); // Empty
+            vtex.InputTextureArray.Add(input);
+            output.InputTextureArray.Add(inputImageId);
+        }
+
+        vtex.TextureOutputChannelArray.Add(output);
+
+        return vtex;
+    }
 }
 
 /// <summary>
