@@ -188,7 +188,7 @@ into editable per-material Hammer meshes (near-coplanar triangle pairs merged ba
 quads) with real
 per-face texture projection, static props with their original properties, material overrides and vertex
 paint/vertex lighting buffers, aggregate props
-split back into individual entities, world layers, overlays, and per-surface-property
+split back into individual entities, world layers, and per-surface-property
 physics geometry for collision that has no matching render mesh.
 
 Data that was already destroyed by the map compiler, and therefore cannot come back:
@@ -197,7 +197,7 @@ Data that was already destroyed by the map compiler, and therefore cannot come b
 | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Prefab instances              | The compiler flattens prefabs into the world; nothing marks their boundaries.                                                                                        |
 | Groups and selection sets     | Only a numeric `hammeruniqueid` lineage survives; VRF rebuilds nesting from it, but the original names and folder structure are gone.                                |
-| Overlay projection parameters | Compiled maps store only the final projected triangles. VRF reconstructs overlays by geometric back-projection, which is an approximation of the original placement. |
+| Overlay projection parameters | Compiled maps store only the final projected triangles, which come back as plain Hammer meshes.                                                                      |
 | Per-face lightmap scale       | Not stored; all faces come back with default luxel density.                                                                                                          |
 | Mesh subdivision levels       | Only the final tessellated mesh is stored; subdivided surfaces come back flat (non-subdivided).                                                                      |
 | Per-light "No Shadow" flag    | Not preserved in compiled CS2 maps.                                                                                                                                  |

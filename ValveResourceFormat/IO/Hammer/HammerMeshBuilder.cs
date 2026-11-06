@@ -1102,7 +1102,7 @@ namespace ValveResourceFormat.IO
             return data;
         }
 
-        internal static IList<T>? GetElementArraySafe<T>(Element Element, string elementName)
+        static IList<T>? GetElementArraySafe<T>(Element Element, string elementName)
         {
             if (!Element.TryGetValue(elementName, out var arrayElement))
             {
