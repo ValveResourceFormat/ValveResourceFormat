@@ -103,11 +103,11 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
 
             Material.SetUniform("g_vSkyFogMinMaxDots", AngularFogMinMaxDots);
 
-            // The fog below the horizon is only there while both of its angles are above minus one degree
-            Material.SetUniform("g_bSkyMinAngularFog", AngularFog.X > -1f && AngularFog.Y > -1f);
+            // The fog below the horizon is only there while both of its angles are above minus ninety degrees
+            Material.SetUniform("g_bSkyMinAngularFog", AngularFog.X > -90f && AngularFog.Y > -90f);
         }
 
-        // Each angle is halved before it is turned into the height of a direction at that angle
-        private static float ToHeight(float degrees) => MathF.Sin(degrees * MathF.PI / 360f);
+        // The height of a direction at an angle above the horizon
+        private static float ToHeight(float degrees) => MathF.Sin(float.DegreesToRadians(degrees));
     }
 }
