@@ -481,26 +481,7 @@ namespace GUI.Types.Exporter
                     await WriteFileAsync(outFilePath, contentFile.Data, cancellationToken).ConfigureAwait(false);
                 }
 
-                foreach (var additionalFile in contentFile.AdditionalFiles)
-                {
-                    extractedFiles.Add(additionalFile.FileName + GameFileLoader.CompiledFileSuffix);
-                    var fileNameOut = additionalFile.FileName;
-                    var flattenThis = flatSubfiles && !additionalFile.KeepFullPath;
-
-                    if (additionalFile.Data != null)
-                    {
-                        if (flattenThis)
-                        {
-                            fileNameOut = Path.GetFileName(fileNameOut);
-                        }
-
-                        await WriteAssetFileAsync(fileNameOut, additionalFile.Data, cancellationToken).ConfigureAwait(false);
-                    }
-
-                    var contentRelativeFolder = flattenThis ? string.Empty : Path.GetDirectoryName(fileNameOut) ?? string.Empty;
-
-                    await ExtractSubfilesAsync(contentRelativeFolder, additionalFile, cancellationToken).ConfigureAwait(false);
-                }
+                await ExtractAdditionalFilesAsync(contentFile, flatSubfiles, cancellationToken).ConfigureAwait(false);
 
                 extractedFiles.Add(inFilePath);
 
@@ -519,6 +500,31 @@ namespace GUI.Types.Exporter
             finally
             {
                 contentFile?.Dispose();
+            }
+        }
+
+        private async Task ExtractAdditionalFilesAsync(ContentFile contentFile, bool flatSubfiles, CancellationToken cancellationToken)
+        {
+            foreach (var additionalFile in contentFile.AdditionalFiles)
+            {
+                extractedFiles.Add(additionalFile.FileName + GameFileLoader.CompiledFileSuffix);
+                var fileNameOut = additionalFile.FileName;
+                var flattenThis = flatSubfiles && !additionalFile.KeepFullPath;
+
+                if (additionalFile.Data != null)
+                {
+                    if (flattenThis)
+                    {
+                        fileNameOut = Path.GetFileName(fileNameOut);
+                    }
+
+                    await WriteAssetFileAsync(fileNameOut, additionalFile.Data, cancellationToken).ConfigureAwait(false);
+                }
+
+                var contentRelativeFolder = flattenThis ? string.Empty : Path.GetDirectoryName(fileNameOut) ?? string.Empty;
+
+                await ExtractSubfilesAsync(contentRelativeFolder, additionalFile, cancellationToken).ConfigureAwait(false);
+                await ExtractAdditionalFilesAsync(additionalFile, flatSubfiles, cancellationToken).ConfigureAwait(false);
             }
         }
 
