@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
@@ -13,7 +14,7 @@ namespace ValveResourceFormat.IO;
 /// <summary>
 /// Extracts Source 2 materials to editable vmat format.
 /// </summary>
-public sealed class MaterialExtract
+public sealed partial class MaterialExtract
 {
     /// <summary>
     /// Information about how to unpack a texture channel.
@@ -30,6 +31,13 @@ public sealed class MaterialExtract
 
     private static bool IsDefaultTexture(string textureFileName)
         => textureFileName.StartsWith("materials/default/", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The end of a texture compiled from an image a material references, named {image}_{extension}_{hash}.
+    /// The hash is a 32-bit value in hex without padding, so it never starts with a zero.
+    /// </summary>
+    [GeneratedRegex(@"(?<=[^/\\])_(?<extension>tga|psd|png|jpg|tif|tiff|exr|pfm|webp|mks)_[1-9a-f][0-9a-f]{0,7}$")]
+    private static partial Regex CompiledTextureSuffixRegex();
 
     private static readonly FrozenSet<string> SystemAttributeNames = new[]
     {
@@ -128,17 +136,12 @@ public sealed class MaterialExtract
         }
 
         var textureParts = Path.GetFileName(texturePath)!.Split('_');
-        if (textureParts.Length > 2)
+
+        // Also seen "{MAT}_vmat_{G_TPARAM}_{HASH}.vtex"
+        var compiledSuffix = CompiledTextureSuffixRegex().Match(texturePath);
+        if (compiledSuffix.Success)
         {
-            // texture_suffix_ext_hash
-            if (textureParts[^1].All("0123456789abcdef".Contains)             // This is a hash
-            && textureParts[^2].Length >= 3 && textureParts[^2].Length <= 4 // This is the original extension
-            && !string.IsNullOrEmpty(string.Join("_", textureParts[..^2])))   // Name of the Input[0] image
-            {
-                texturePath = Path.Combine(Path.GetDirectoryName(texturePath)!, string.Join("_", textureParts[..^2]));
-                texturePath = texturePath.Replace(Path.DirectorySeparatorChar, '/');
-            }
-            // Also seen "{MAT}_vmat_{G_TPARAM}_{HASH}.vtex"
+            texturePath = texturePath[..compiledSuffix.Index];
         }
 
         if (desiredSuffix is not null)
@@ -160,7 +163,13 @@ public sealed class MaterialExtract
         }
 
         var extension = hdr ? "exr" : "png";
-        return Path.ChangeExtension(texturePath, keepOriginalExtension ? textureParts[^2] : extension);
+
+        if (keepOriginalExtension && compiledSuffix.Success)
+        {
+            extension = compiledSuffix.Groups["extension"].Value;
+        }
+
+        return Path.ChangeExtension(texturePath, extension);
     }
 
     /// <summary>
