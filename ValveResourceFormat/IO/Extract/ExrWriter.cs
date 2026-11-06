@@ -10,12 +10,13 @@ using SkiaSharp;
 namespace ValveResourceFormat.IO;
 
 /// <summary>
-/// Writes RGBA float32 images as scanline OpenEXR files with ZIP compression.
+/// Writes RGBA float16 and float32 images as scanline OpenEXR files with ZIP compression.
 /// </summary>
 internal static class ExrWriter
 {
     private const int Magic = 20000630;
     private const int Version = 2;
+    private const int PixelTypeHalf = 1;
     private const int PixelTypeFloat = 2;
     private const byte CompressionZip = 3;
     private const int LinesPerBlock = 16;
@@ -32,7 +33,8 @@ internal static class ExrWriter
     private readonly record struct EncodedBlock(byte[] Buffer, int Length);
 
     /// <summary>
-    /// Encodes tightly packed RGBA float pixels, top row first, as an EXR file.
+    /// Encodes tightly packed RGBA half or float pixels, top row first, as an EXR file.
+    /// Half pixels are stored as HALF channels and float pixels as FLOAT channels.
     /// </summary>
     public static byte[] Write(SKPixmap pixels)
     {
@@ -42,12 +44,22 @@ internal static class ExrWriter
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
 
-        if (pixels.GetPixelSpan<SKColorF>().Length != width * height)
+        var colorType = pixels.ColorType;
+
+        if (colorType != SKColorType.RgbaF16 && colorType != SKColorType.RgbaF32)
+        {
+            throw new ArgumentException($"Pixels must be RgbaF16 or RgbaF32, got {colorType}.", nameof(pixels));
+        }
+
+        var isHalf = colorType == SKColorType.RgbaF16;
+        var channelSize = isHalf ? sizeof(ushort) : sizeof(float);
+
+        if (pixels.GetPixelSpan<byte>().Length != width * height * ChannelCount * channelSize)
         {
             throw new ArgumentException("Pixel data does not match the image size.", nameof(pixels));
         }
 
-        var header = WriteHeader(width, height);
+        var header = WriteHeader(width, height, isHalf ? PixelTypeHalf : PixelTypeFloat);
         var blockCount = MathUtils.DivideRoundUp(height, LinesPerBlock);
         var blocks = new EncodedBlock[blockCount];
 
@@ -56,7 +68,7 @@ internal static class ExrWriter
             // Blocks are independent and each is stored by its index, so the output does not depend on timing.
             Parallel.For(0, blockCount, blockIndex =>
             {
-                blocks[blockIndex] = EncodeBlock(pixels, blockIndex * LinesPerBlock);
+                blocks[blockIndex] = EncodeBlock(pixels, channelSize, blockIndex * LinesPerBlock);
             });
 
             var offsetTableSize = blockCount * sizeof(long);
@@ -97,7 +109,7 @@ internal static class ExrWriter
         }
     }
 
-    private static byte[] WriteHeader(int width, int height)
+    private static byte[] WriteHeader(int width, int height, int pixelType)
     {
         using var stream = new MemoryStream();
         using var writer = new BinaryWriter(stream);
@@ -117,7 +129,7 @@ internal static class ExrWriter
         foreach (var name in ChannelNames)
         {
             WriteNullTerminated(writer, name);
-            writer.Write(PixelTypeFloat);
+            writer.Write(pixelType);
 
             // pLinear followed by three reserved bytes
             writer.Write((byte)1);
@@ -181,11 +193,11 @@ internal static class ExrWriter
     /// <summary>
     /// Builds one block in an array rented from the shared pool: the first scanline number, the data size, and the data.
     /// </summary>
-    private static EncodedBlock EncodeBlock(SKPixmap pixels, int firstLine)
+    private static EncodedBlock EncodeBlock(SKPixmap pixels, int channelSize, int firstLine)
     {
         var width = pixels.Width;
         var lineCount = Math.Min(LinesPerBlock, pixels.Height - firstLine);
-        var rawSize = lineCount * ChannelCount * width * sizeof(float);
+        var rawSize = lineCount * ChannelCount * width * channelSize;
 
         using var raw = new RentedBuffer<byte>(rawSize);
         using var scratch = new RentedBuffer<byte>(rawSize);
@@ -193,9 +205,16 @@ internal static class ExrWriter
         // One byte smaller than raw, so compression fails exactly when the block would not shrink
         using var destination = new RentedBuffer<byte>(rawSize - 1);
 
-        var rgba = MemoryMarshal.Cast<SKColorF, float>(pixels.GetPixelSpan<SKColorF>());
-
-        DeinterleaveChannels(rgba, width, firstLine, lineCount, raw.Span);
+        if (channelSize == sizeof(ushort))
+        {
+            var rgba = MemoryMarshal.Cast<byte, Half>(pixels.GetPixelSpan<byte>());
+            DeinterleaveChannels(rgba, width, firstLine, lineCount, raw.Span);
+        }
+        else
+        {
+            var rgba = MemoryMarshal.Cast<byte, float>(pixels.GetPixelSpan<byte>());
+            DeinterleaveChannels(rgba, width, firstLine, lineCount, raw.Span);
+        }
 
         var data = CompressZip(raw.Span, scratch.Span, destination.Span);
 
@@ -208,8 +227,10 @@ internal static class ExrWriter
         return new EncodedBlock(block, blockSize);
     }
 
-    private static void DeinterleaveChannels(ReadOnlySpan<float> rgba, int width, int firstLine, int lineCount, Span<byte> destination)
+    private static void DeinterleaveChannels<T>(ReadOnlySpan<T> rgba, int width, int firstLine, int lineCount, Span<byte> destination)
+        where T : unmanaged
     {
+        var output = MemoryMarshal.Cast<byte, T>(destination);
         var position = 0;
 
         for (var line = 0; line < lineCount; line++)
@@ -220,9 +241,8 @@ internal static class ExrWriter
             {
                 for (var x = 0; x < width; x++)
                 {
-                    var value = rgba[rowStart + x * ChannelCount + sourceIndex];
-                    BinaryPrimitives.WriteSingleLittleEndian(destination[position..], value);
-                    position += sizeof(float);
+                    output[position] = rgba[rowStart + x * ChannelCount + sourceIndex];
+                    position++;
                 }
             }
         }

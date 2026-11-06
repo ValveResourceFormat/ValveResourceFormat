@@ -22,11 +22,11 @@ internal readonly struct DecodeBCn : ITextureDecoder
         using var pixmap = bitmap.PeekPixels();
         var data = pixmap.GetPixelSpan<byte>();
 
-        if (format == BlockFormat.BC6HUf32 && bitmap.ColorType != ResourceTypes.Texture.HdrBitmapColorType)
+        if (format == BlockFormat.BC6HUf16 && bitmap.ColorType != ResourceTypes.Texture.HalfHdrBitmapColorType)
         {
             using var dataHalf = new RentedBuffer<Half>(data.Length);
 
-            var decoder = BlockDecoder.Create(BlockFormat.BC6HUf16);
+            var decoder = BlockDecoder.Create(format);
             decoder.Decode(input, w, h, MemoryMarshal.AsBytes(dataHalf.Span), bitmap.Width, bitmap.Height);
 
             Common.ToClampedLdrColor(dataHalf.Span, data);

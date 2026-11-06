@@ -19,6 +19,7 @@ namespace Tests.IO
         private const int HeaderStart = 8;
         private const int LinesPerBlock = 16;
         private const int ChannelCount = 4;
+        private const int PixelTypeHalf = 1;
 
         // One-letter name and terminator, then pixel type, pLinear, reserved bytes and sampling
         private const int ChannelEntrySize = 2 + 16;
@@ -66,9 +67,47 @@ namespace Tests.IO
             var expected = FillPixels(bitmap);
 
             var exr = TextureExtract.ToExrImage(bitmap);
-            var decoded = Decode(exr, Width, Height);
+            var decoded = Decode(exr, Width, Height, sizeof(float));
 
             await Assert.That(decoded).IsEquivalentTo(expected, EqualityComparer<float>.Default);
+        }
+
+        [Test]
+        public async Task ExrRoundTripsHalfPixelsAsHalfChannels()
+        {
+            const int Width = 37;
+            const int Height = 40;
+
+            using var bitmap = new SKBitmap(Width, Height, SKColorType.RgbaF16, SKAlphaType.Unpremul);
+            var expected = FillHalfPixels(bitmap);
+
+            var exr = TextureExtract.ToExrImage(bitmap);
+            var header = ReadHeader(exr, out _);
+            var decoded = Decode(exr, Width, Height, sizeof(ushort));
+
+            for (var channel = 0; channel < ChannelCount; channel++)
+            {
+                var pixelType = BinaryPrimitives.ReadInt32LittleEndian(header["channels"].AsSpan(channel * ChannelEntrySize + 2));
+                await Assert.That(pixelType).IsEqualTo(PixelTypeHalf);
+            }
+
+            await Assert.That(decoded).IsEquivalentTo(expected, EqualityComparer<float>.Default);
+        }
+
+        private static float[] FillHalfPixels(SKBitmap bitmap)
+        {
+            using var pixels = bitmap.PeekPixels();
+            var halfs = MemoryMarshal.Cast<byte, Half>(pixels.GetPixelSpan<byte>());
+            var random = new Random(1234);
+            var floats = new float[halfs.Length];
+
+            for (var i = 0; i < halfs.Length; i++)
+            {
+                halfs[i] = (Half)(i % 3 == 0 ? 0.25f : random.NextSingle() * 100f);
+                floats[i] = (float)halfs[i];
+            }
+
+            return floats;
         }
 
         private static float[] FillPixels(SKBitmap bitmap)
@@ -115,8 +154,9 @@ namespace Tests.IO
             return text;
         }
 
-        // Returns RGBA pixels, undoing the channel order, byte split and delta predictor of the file
-        private static float[] Decode(byte[] exr, int width, int height)
+        // Returns RGBA pixels, undoing the channel order, byte split and delta predictor of the file.
+        // Half values are widened to float.
+        private static float[] Decode(byte[] exr, int width, int height, int valueSize)
         {
             ReadHeader(exr, out var tableStart);
 
@@ -131,7 +171,7 @@ namespace Tests.IO
                 var data = exr.AsSpan(blockStart + 2 * sizeof(int), dataSize);
 
                 var lineCount = Math.Min(LinesPerBlock, height - firstLine);
-                var rawSize = lineCount * ChannelCount * width * sizeof(float);
+                var rawSize = lineCount * ChannelCount * width * valueSize;
                 var raw = new byte[rawSize];
 
                 if (dataSize == rawSize)
@@ -168,8 +208,10 @@ namespace Tests.IO
                     {
                         for (var x = 0; x < width; x++)
                         {
-                            var value = BinaryPrimitives.ReadSingleLittleEndian(raw.AsSpan(position));
-                            position += sizeof(float);
+                            var value = valueSize == sizeof(float)
+                                ? BinaryPrimitives.ReadSingleLittleEndian(raw.AsSpan(position))
+                                : (float)BinaryPrimitives.ReadHalfLittleEndian(raw.AsSpan(position));
+                            position += valueSize;
                             result[((firstLine + line) * width + x) * ChannelCount + rgbaIndex] = value;
                         }
                     }
