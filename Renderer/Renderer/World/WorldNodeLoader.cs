@@ -135,9 +135,18 @@ namespace ValveResourceFormat.Renderer.World
                         modelNode.SetOverrideLod(lodOverride);
                     }
 
+                    var fadeStartDistance = sceneObject.GetFloatProperty("m_flFadeStartDistance");
+                    var fadeEndDistance = sceneObject.GetFloatProperty("m_flFadeEndDistance");
+                    var fades = fadeEndDistance > 0f;
+
+                    if (fades)
+                    {
+                        modelNode.SetDistanceFade(fadeStartDistance, fadeEndDistance);
+                    }
+
                     ApplyMaterialOverrides(modelNode, [.. materialOverrides[(uint)sceneObjectIndex]]);
                     extraVertexStreams.Apply(modelNode, (uint)sceneObjectIndex);
-                    scene.Add(modelNode, !isStatic);
+                    scene.Add(modelNode, !isStatic || fades);
                     IncludeBounds(modelNode);
                 }
 

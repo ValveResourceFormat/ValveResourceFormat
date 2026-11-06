@@ -21,8 +21,11 @@ namespace GUI.Types.Exporter
     /// </summary>
     class PackageExporter
     {
-        private class FileTypeToExtract
+        private class FileTypeToExtract(PackageEntry sample)
         {
+            /// <summary>Gets one file of the type, to tell what the type is converted to by reading it.</summary>
+            public PackageEntry Sample { get; } = sample;
+
             public string? OutputFormat;
             public int Count = 1;
         }
@@ -107,7 +110,7 @@ namespace GUI.Types.Exporter
             }
             else
             {
-                fileTypesToExtract[file.TypeName] = new FileTypeToExtract(); // Type to be filled in later
+                fileTypesToExtract[file.TypeName] = new FileTypeToExtract(file); // Type to be filled in later
             }
 
             filesToExtract.Add(file);
@@ -148,7 +151,7 @@ namespace GUI.Types.Exporter
         /// </summary>
         public Task ExecuteSingleFileExtractAsync(Resource resource, string inFilePath, string outFilePath, string initialText)
         {
-            RunInDialog(cancellationToken => ExtractFileAsync(resource, inFilePath, outFilePath, true, cancellationToken), initialText, out var workCompletion);
+            RunInDialog(cancellationToken => ExtractFileAsync(resource, inFilePath, outFilePath, true, exportData, cancellationToken), initialText, out var workCompletion);
             return workCompletion;
         }
 
@@ -165,10 +168,7 @@ namespace GUI.Types.Exporter
             if (decompile)
             {
                 // We need to know what files were handled by the glTF exporter
-                gltfExporter = new GltfModelExporter(new TrackingFileLoader(exportData.FileLoader))
-                {
-                    ProgressReporter = dialog,
-                };
+                gltfExporter = CreateGltfExporter(exportData.FileLoader);
             }
 
             dialog.OnProcess = async cancellationToken =>
@@ -193,6 +193,12 @@ namespace GUI.Types.Exporter
             // something to wait on before it disposes what the work is still reading from.
             workCompletion = AfterWorkStopped(dialog.WorkCompletion);
         }
+
+        // The tracking loader tells which files the glTF exporter handled
+        private GltfModelExporter CreateGltfExporter(IFileLoader fileLoader) => new(new TrackingFileLoader(fileLoader))
+        {
+            ProgressReporter = progress,
+        };
 
         private async Task AfterWorkStopped(Task workCompletion)
         {
@@ -248,9 +254,20 @@ namespace GUI.Types.Exporter
             foreach (var type in fileTypesToExtract.OrderByDescending(x => x.Value.Count))
             {
                 var resourceType = ResourceTypeExtensions.DetermineByFileExtension("." + type.Key);
-                var firstType = resourceType != ResourceType.Unknown
-                    ? FileExtract.GetExtension(resourceType)
-                    : type.Key.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.OrdinalIgnoreCase) ? type.Key[..^2] : type.Key;
+                string firstType;
+
+                if (resourceType != ResourceType.Unknown)
+                {
+                    firstType = FileExtract.GetExtension(resourceType);
+                }
+                else if (type.Key.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.OrdinalIgnoreCase))
+                {
+                    firstType = type.Key[..^2];
+                }
+                else
+                {
+                    firstType = GetConvertedType(type.Value.Sample) ?? type.Key;
+                }
 
                 var outputTypes = new List<string>()
                 {
@@ -286,6 +303,22 @@ namespace GUI.Types.Exporter
             typesDialog.ChangeTypeEvent -= OnTypesDialogSelectedValueChanged;
 
             return result;
+        }
+
+        // The Source 2 type that a Source 1 or GoldSrc file is converted to when decompiling, found by reading the file
+        private string? GetConvertedType(PackageEntry file)
+        {
+            var package = exportData.VrfGuiContext.CurrentPackage;
+
+            if (package == null)
+            {
+                return null;
+            }
+
+            using var stream = package.GetMemoryMappedStreamIfPossible(file);
+            var format = ConvertedExport.GetFormat(file.GetFullPath(), stream);
+
+            return format.IsSupported ? FileExtract.GetExtension(format.ResourceType) : null;
         }
 
         private void OnTypesDialogSelectedValueChanged(object? sender, EventArgs e)
@@ -375,7 +408,14 @@ namespace GUI.Types.Exporter
 
                     using var stream = currentPackage.GetMemoryMappedStreamIfPossible(packageFile);
 
-                    if (!decompile || !packageFile.TypeName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
+                    var isCompiledResource = packageFile.TypeName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal);
+
+                    if (decompile && !isCompiledResource && await TryExtractConvertedAsync(fileFullName, stream, outFilePath, cancellationToken).ConfigureAwait(false))
+                    {
+                        continue;
+                    }
+
+                    if (!decompile || !isCompiledResource)
                     {
                         // Extract as is
                         using var outStream = new FileStream(outFilePath, new FileStreamOptions
@@ -397,13 +437,35 @@ namespace GUI.Types.Exporter
 
                     resource.Read(stream);
 
-                    await ExtractFileAsync(resource, fileFullName, outFilePath, false, cancellationToken).ConfigureAwait(false);
+                    await ExtractFileAsync(resource, fileFullName, outFilePath, false, exportData, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
                     ReportFailure(fileFullName, e);
                 }
             }
+        }
+
+        // Converts a Source 1 or GoldSrc file, which loads the files it refers to from its own context
+        private async Task<bool> TryExtractConvertedAsync(string fileName, Stream stream, string outFilePath, CancellationToken cancellationToken)
+        {
+            var format = ConvertedExport.GetFormat(fileName, stream);
+
+            if (!format.IsSupported)
+            {
+                return false;
+            }
+
+            using var converted = ConvertedExport.Convert(fileName, stream, format, exportData.VrfGuiContext);
+
+            var convertedData = new ExportData
+            {
+                VrfGuiContext = converted.Context,
+            };
+
+            await ExtractFileAsync(converted.Resource, fileName, outFilePath, false, convertedData, cancellationToken).ConfigureAwait(false);
+
+            return true;
         }
 
         private void ReportFailure(string fileName, Exception exception)
@@ -419,13 +481,16 @@ namespace GUI.Types.Exporter
             Log.Error(nameof(PackageExporter), $"Failed to extract '{fileName}': {exception}");
         }
 
-        private async Task ExtractFileAsync(Resource resource, string inFilePath, string outFilePath, bool flatSubfiles, CancellationToken cancellationToken)
+        /// <param name="source">Serves the files that the resource refers to, which is the export data of the run for a file of the package.</param>
+        private async Task ExtractFileAsync(Resource resource, string inFilePath, string outFilePath, bool flatSubfiles, ExportData source, CancellationToken cancellationToken)
         {
             var outExtension = Path.GetExtension(outFilePath);
 
             if (GltfModelExporter.CanExport(resource) && outExtension is ".glb" or ".gltf")
             {
-                if (gltfExporter == null)
+                var gltf = source == exportData ? gltfExporter : CreateGltfExporter(source.FileLoader);
+
+                if (gltf == null)
                 {
                     ReportFailure(inFilePath, new InvalidOperationException("The glTF exporter is not available"));
                     return;
@@ -433,9 +498,9 @@ namespace GUI.Types.Exporter
 
                 try
                 {
-                    gltfExporter.Export(resource, outFilePath, cancellationToken);
+                    gltf.Export(resource, outFilePath, cancellationToken);
 
-                    if (gltfExporter.FileLoader is TrackingFileLoader trackingFileLoader)
+                    if (gltf.FileLoader is TrackingFileLoader trackingFileLoader)
                     {
                         lock (trackingFileLoader.LoadedFilePaths)
                         {
@@ -474,7 +539,7 @@ namespace GUI.Types.Exporter
                     flatSubfiles = false;
                 }
 
-                contentFile = FileExtract.Extract(resource, exportData.FileLoader, progress);
+                contentFile = FileExtract.Extract(resource, source.FileLoader, progress);
 
                 if (contentFile.Data != null)
                 {

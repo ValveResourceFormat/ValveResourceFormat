@@ -575,7 +575,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 {
                     var material = drawCall.Material;
 
-                    if (!material.Shader.DeclaresCombo(combo))
+                    if (!material.HasResource || !material.Shader.DeclaresCombo(combo))
                     {
                         continue;
                     }

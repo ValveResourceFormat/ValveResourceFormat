@@ -2,7 +2,9 @@ using System.Globalization;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using ValveKeyValue;
+using ValveResourceFormat.GoldSrc;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -52,23 +54,27 @@ HashSet<string> editorModelClasses =
     "prop_handpose",
 ];
 
-// The table the library embeds is written over, and the games not installed here keep the classes it has of them
-var classesPath = Path.GetFullPath(Path.Join(Path.GetDirectoryName(GetSourcePath()), "..", "..", "ValveResourceFormat", "IO", "Fgd", "entity_classes.kv3"));
-var previous = File.Exists(classesPath) ? KVDocumentExtensions.ParseKV3(classesPath).Root : new KVObject();
-var previousDefinitions = (previous.GetArray("classes") ?? []).ToDictionary(static data => data.GetStringProperty("id", data.GetStringProperty("name")), StringComparer.Ordinal);
-var previousTables = (previous.GetArray("games") ?? []).ToDictionary(static table => table.GetInt32Property("app_id"));
+// The tables the libraries embed are written over, and the games not installed here keep the classes they have of them
+var sourceFolder = Path.Join(Path.GetDirectoryName(GetSourcePath()), "..", "..");
+var source2File = new ClassFile(Path.GetFullPath(Path.Join(sourceFolder, "ValveResourceFormat", "IO", "Fgd", "entity_classes.kv3")));
+var source1File = new ClassFile(Path.GetFullPath(Path.Join(sourceFolder, "ValveResourceFormat.Source1", "Entities", "entity_classes.kv3")));
+var previousTables = source2File.PreviousTables.Concat(source1File.PreviousTables).ToDictionary();
 
-// Every version of each class by its name, with the games that declare it so, under a key of its own until
-// every game is read and the ids it is written under are known
-var definitions = new Dictionary<string, List<(string Text, string Key, KVObject Data, SortedSet<int> AppIds)>>(StringComparer.Ordinal);
-var gameTables = new List<KVObject>();
+var parsedTables = new Dictionary<int, KVObject>();
 
-var installed = games.ToDictionary(static game => game.AppID);
-var appIds = installed.Keys.Union(previousTables.Keys).Order();
+foreach (var game in games)
+{
+    foreach (var gameTable in ParseGame(game))
+    {
+        parsedTables.TryAdd(gameTable.GetInt32Property("app_id"), gameTable);
+    }
+}
+
+var appIds = parsedTables.Keys.Union(previousTables.Keys).Order();
 
 foreach (var appId in appIds)
 {
-    var table = installed.TryGetValue(appId, out var game) ? ParseGame(game) : null;
+    var table = parsedTables.GetValueOrDefault(appId);
 
     // A game whose tools are not installed here keeps what was found of it before
     if (table == null && previousTables.TryGetValue(appId, out var previousTable))
@@ -79,25 +85,29 @@ foreach (var appId in appIds)
 
     if (table != null)
     {
-        gameTables.Add(table);
+        GetFile(GetFamily(table)).GameTables.Add(table);
     }
 }
 
 Console.WriteLine();
 
-WriteClasses();
+WriteClasses(source2File);
+WriteClasses(source1File);
 WriteProperties();
 
 return 0;
 
-// The classes of an installed game, or null where none of its gameinfo files names FGD files that are there
-KVObject? ParseGame(GameFolderLocator.SteamLibraryGameInfo game)
+// The tables of an installed game, none where its gameinfo files name no FGD files that are there
+List<KVObject> ParseGame(GameFolderLocator.SteamLibraryGameInfo game)
 {
     Console.WriteLine($"Searching {game.AppID} {game.AppName} ({game.GamePath})");
 
-    // The folder is walked once for both, as most of the time goes to walking it
+    // The folder is walked once for all of them, as most of the time goes to walking it
     var files = Directory.EnumerateFiles(game.GamePath, "*", SearchOption.AllDirectories)
-        .Where(static path => path.EndsWith(".fgd", StringComparison.OrdinalIgnoreCase) || Path.GetFileName(path).Equals("gameinfo.gi", StringComparison.OrdinalIgnoreCase))
+        .Where(static path => path.EndsWith(".fgd", StringComparison.OrdinalIgnoreCase)
+            || Path.GetFileName(path).Equals("gameinfo.gi", StringComparison.OrdinalIgnoreCase)
+            || Path.GetFileName(path).Equals("gameinfo.txt", StringComparison.OrdinalIgnoreCase)
+            || Path.GetFileName(path).Equals("liblist.gam", StringComparison.OrdinalIgnoreCase))
         .ToList();
 
     foreach (var file in files.Where(static path => path.EndsWith(".fgd", StringComparison.OrdinalIgnoreCase)))
@@ -117,11 +127,156 @@ KVObject? ParseGame(GameFolderLocator.SteamLibraryGameInfo game)
     {
         if (ParseGameClasses(game, gameInfo) is { } table)
         {
-            return table;
+            return [table];
+        }
+    }
+
+    var source1Tables = ParseSource1Game(game, files);
+
+    return source1Tables.Count > 0 ? source1Tables : ParseGoldSrcGame(files);
+}
+
+// The tables of a GoldSrc game, one for each mod folder that has a liblist.gam and FGD files next to it
+List<KVObject> ParseGoldSrcGame(List<string> files)
+{
+    var tables = new List<KVObject>();
+
+    foreach (var liblist in files.Where(static path => Path.GetFileName(path).Equals("liblist.gam", StringComparison.OrdinalIgnoreCase)).Order(StringComparer.Ordinal))
+    {
+        var modFolder = Path.GetDirectoryName(liblist)!;
+        var appId = GoldSrcGameApps.GetAppId(Path.GetFileName(modFolder));
+
+        // The FGD files GoldSrc games ship are partial, so a table written before is kept as it is
+        if (appId == 0 || previousTables.ContainsKey(appId) || tables.Exists(table => table.GetInt32Property("app_id") == appId))
+        {
+            continue;
+        }
+
+        var fgdPaths = files.Where(path => path.EndsWith(".fgd", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(Path.GetDirectoryName(path), modFolder, StringComparison.OrdinalIgnoreCase)).Order(StringComparer.Ordinal).ToList();
+
+        if (fgdPaths.Count == 0)
+        {
+            continue;
+        }
+
+        if (LoadFgdFiles(fgdPaths) is { } fgd)
+        {
+            tables.Add(ConvertTable(fgd, appId, modFolder, GameFamily.GoldSrc));
+        }
+    }
+
+    return tables;
+}
+
+// The tables of a Source 1 game, one for each app id its mods name, as the folders of a game hold mods of several
+List<KVObject> ParseSource1Game(GameFolderLocator.SteamLibraryGameInfo game, List<string> files)
+{
+    var tables = new List<KVObject>();
+
+    var gameInfos = files
+        .Where(static path => Path.GetFileName(path).Equals("gameinfo.txt", StringComparison.OrdinalIgnoreCase))
+        .Order(StringComparer.Ordinal);
+
+    foreach (var gameInfo in gameInfos)
+    {
+        var data = ReadGameInfo(gameInfo);
+        var appId = GetSource1AppId(data) ?? game.AppID;
+
+        if (tables.Exists(table => table.GetInt32Property("app_id") == appId))
+        {
+            continue;
+        }
+
+        if (LoadSource1Fgd(gameInfo, data) is { } fgd)
+        {
+            tables.Add(ConvertTable(fgd, appId, Path.GetDirectoryName(gameInfo)!, GameFamily.Source1));
+        }
+    }
+
+    return tables;
+}
+
+static KVObject ReadGameInfo(string gameInfo)
+{
+    using var stream = File.OpenRead(gameInfo);
+
+    return KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(stream);
+}
+
+// A key of a block of a Source 1 gameinfo, which is not written with one case in every game
+static KVObject? FindKey(KVObject block, string key)
+{
+    foreach (var (name, value) in block)
+    {
+        if (name.Equals(key, StringComparison.OrdinalIgnoreCase))
+        {
+            return value;
         }
     }
 
     return null;
+}
+
+static int? GetSource1AppId(KVObject gameInfo)
+{
+    var appId = FindKey(gameInfo, "FileSystem") is { } fileSystem ? FindKey(fileSystem, "SteamAppId") : null;
+
+    return int.TryParse(appId?.ToString(CultureInfo.InvariantCulture), NumberStyles.Integer, CultureInfo.InvariantCulture, out var id) ? id : null;
+}
+
+// The FGD files Hammer loads for a Source 1 game, which are next to its tools: the one its gameinfo names, else the
+// ones no other of them includes
+static FgdFile? LoadSource1Fgd(string gameInfo, KVObject gameInfoData)
+{
+    var modFolder = Path.GetDirectoryName(Path.GetFullPath(gameInfo))!;
+    var toolsFolder = Path.Join(Path.GetDirectoryName(modFolder), "bin");
+
+    if (!Directory.Exists(toolsFolder))
+    {
+        return null;
+    }
+
+    List<string> paths;
+
+    if (FindKey(gameInfoData, "GameData")?.ToString(CultureInfo.InvariantCulture) is { Length: > 0 } gameData)
+    {
+        paths = [Path.Join(toolsFolder, gameData)];
+    }
+    else
+    {
+        paths = [.. Directory.EnumerateFiles(toolsFolder, "*.fgd").Order(StringComparer.OrdinalIgnoreCase)];
+
+        var included = paths
+            .SelectMany(static path => Regex.Matches(File.ReadAllText(path), @"@include\s+""([^""]+)""", RegexOptions.IgnoreCase))
+            .Select(static match => Path.GetFileName(match.Groups[1].Value))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        paths.RemoveAll(path => included.Contains(Path.GetFileName(path)));
+    }
+
+    var existingPaths = paths.FindAll(File.Exists);
+
+    if (existingPaths.Count == 0)
+    {
+        return null;
+    }
+
+    return LoadFgdFiles(existingPaths);
+}
+
+static FgdFile? LoadFgdFiles(List<string> paths)
+{
+    var fgdFiles = new KVObject();
+
+    foreach (var path in paths)
+    {
+        fgdFiles.Add(path, true);
+    }
+
+    var fgd = new FgdFile();
+
+    return fgd.LoadGameFiles(new KVObject { { "fgd_files", fgdFiles } }) ? fgd : null;
 }
 
 // The classes of one game as Hammer builds them
@@ -132,6 +287,11 @@ KVObject? ParseGameClasses(GameFolderLocator.SteamLibraryGameInfo game, string g
         return null;
     }
 
+    return ConvertTable(fgd, game.AppID, Path.GetDirectoryName(gameInfo)!, GameFamily.Source2);
+}
+
+KVObject ConvertTable(FgdFile fgd, int appId, string location, GameFamily family)
+{
     // Of the classes a class is based on, only the ones an entity can be required to be placed under are read
     var requiredParentClasses = fgd.Classes
         .Select(static gameClass => GetText(gameClass.Metadata, "required_parent_class"))
@@ -146,13 +306,24 @@ KVObject? ParseGameClasses(GameFolderLocator.SteamLibraryGameInfo game, string g
         if (ConvertClass(gameClass, requiredParentClasses) is { } data)
         {
             FixValveShit(data);
-            classIds.Add(AddDefinition(gameClass.Name, data, game.AppID));
+            classIds.Add(AddDefinition(gameClass.Name, data, appId, family));
         }
     }
 
-    Console.WriteLine($"Found {classIds.Count} classes in {Path.GetDirectoryName(gameInfo)}");
+    Console.WriteLine($"Found {classIds.Count} classes of {appId} in {location}");
 
-    var table = new KVObject { { "app_id", game.AppID } };
+    var table = new KVObject { { "app_id", appId } };
+
+    // Source 1 games are merged with each other and not with the Source 2 games
+    if (family == GameFamily.Source1)
+    {
+        table.Add("source1", true);
+    }
+
+    if (family == GameFamily.GoldSrc)
+    {
+        table.Add("goldsrc", true);
+    }
 
     if (fgd.GridNav is var (edgeSize, offsetX, offsetY, pickHeight))
     {
@@ -173,14 +344,7 @@ KVObject? ParseGameClasses(GameFolderLocator.SteamLibraryGameInfo game, string g
 // game mounts, or null where it names none that are there
 static FgdFile? LoadFgd(string gameInfo)
 {
-    KVObject gameInfoData;
-
-    using (var stream = File.OpenRead(gameInfo))
-    {
-        gameInfoData = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(stream);
-    }
-
-    if (!gameInfoData.TryGetValue("Hammer", out var hammer) || hammer == null)
+    if (!ReadGameInfo(gameInfo).TryGetValue("Hammer", out var hammer) || hammer == null)
     {
         return null;
     }
@@ -202,12 +366,13 @@ static FgdFile? LoadFgd(string gameInfo)
 KVObject KeepTable(KVObject previousTable)
 {
     var appId = previousTable.GetInt32Property("app_id");
+    var family = GetFamily(previousTable);
     var table = new KVObject();
 
     foreach (var (name, value) in previousTable)
     {
         table.Add(name, name == "classes"
-            ? KVObject.Array((previousTable.GetArray("classes") ?? []).Select(id => new KVObject(KeepDefinition((string)id, appId))))
+            ? KVObject.Array((previousTable.GetArray("classes") ?? []).Select(id => new KVObject(KeepDefinition((string)id, appId, family))))
             : value);
     }
 
@@ -215,10 +380,11 @@ KVObject KeepTable(KVObject previousTable)
 }
 
 // A class as it was written before, under the id it is given among the classes written now
-string KeepDefinition(string previousId, int appId)
+string KeepDefinition(string previousId, int appId, GameFamily family)
 {
-    var previousData = previousDefinitions.GetValueOrDefault(previousId)
-        ?? throw new InvalidDataException($"'{classesPath}' names class '{previousId}', which it does not declare.");
+    var file = GetFile(family);
+    var previousData = file.PreviousDefinitions.GetValueOrDefault(previousId)
+        ?? throw new InvalidDataException($"'{file.Path}' names class '{previousId}', which it does not declare.");
 
     // It is written as it would be by a game that is installed, which gives it its id last
     var data = new KVObject();
@@ -232,13 +398,14 @@ string KeepDefinition(string previousId, int appId)
     }
 
     FixValveShit(data);
-    return AddDefinition(data.GetStringProperty("name"), data, appId);
+    return AddDefinition(data.GetStringProperty("name"), data, appId, family);
 }
 
 // The key of the version of a class a game declares, which is shared by every game that declares it alike
-string AddDefinition(string name, KVObject data, int appId)
+string AddDefinition(string name, KVObject data, int appId, GameFamily family)
 {
     var text = data.ToKV3String();
+    var definitions = GetFile(family).Definitions;
 
     if (!definitions.TryGetValue(name, out var versions))
     {
@@ -413,9 +580,11 @@ static KVObject ConvertHelper(string name, IReadOnlyList<string> arguments, KVOb
 static KVObject ToArray(Vector3 vector) => KVObject.Array([vector.X, vector.Y, vector.Z]);
 
 // The classes of every game, written as the table the renderer shows entities with
-void WriteClasses()
+void WriteClasses(ClassFile file)
 {
-    Console.WriteLine($"Found {definitions.Count} classes in {gameTables.Count} games");
+    var definitions = file.Definitions;
+
+    Console.WriteLine($"Found {definitions.Count} classes in {file.GameTables.Count} games for {file.Path}");
 
     // A class every game declares alike is written once under its name. Where games declare it differently, each
     // version is written under its name and the first game that declares it so, and no version is the plain one.
@@ -464,7 +633,7 @@ void WriteClasses()
 
     var root = new KVObject
     {
-        { "games", KVObject.Array(gameTables.Select(MapClassIds)) },
+        { "games", KVObject.Array(file.GameTables.Select(MapClassIds)) },
         { "classes", KVObject.Array(classes) },
     };
 
@@ -472,10 +641,23 @@ void WriteClasses()
     var text = root.ToKV3String();
     var headerEnd = text.IndexOf('\n', StringComparison.Ordinal) + 1;
 
-    File.WriteAllText(classesPath, string.Concat(text.AsSpan(0, headerEnd), "// <auto-generated/>\n// Use Misc/VrfFgdParser project\n", text.AsSpan(headerEnd)));
+    File.WriteAllText(file.Path, string.Concat(text.AsSpan(0, headerEnd), "// <auto-generated/>\n// Use Misc/VrfFgdParser project\n", text.AsSpan(headerEnd)));
 }
 
 static string GetSourcePath([CallerFilePath] string path = "") => path;
+
+// Source 2 games are written to the table of the core library, Source 1 and GoldSrc games to the one of the Source 1 library
+ClassFile GetFile(GameFamily family) => family == GameFamily.Source2 ? source2File : source1File;
+
+static GameFamily GetFamily(KVObject table)
+{
+    if (table.GetBooleanProperty("goldsrc"))
+    {
+        return GameFamily.GoldSrc;
+    }
+
+    return table.GetBooleanProperty("source1") ? GameFamily.Source1 : GameFamily.Source2;
+}
 
 // A key of a block of keys as text, or null when it is not there
 static string? GetText(KVObject? keys, string key)
@@ -535,4 +717,36 @@ void WriteProperties()
     }
 
     File.WriteAllText("properties.txt", propertiesString.ToString());
+}
+
+enum GameFamily
+{
+    Source2,
+    Source1,
+    GoldSrc,
+}
+
+// A table file with the tables and classes written to it
+sealed class ClassFile
+{
+    public ClassFile(string path)
+    {
+        Path = path;
+
+        var previous = File.Exists(path) ? KVDocumentExtensions.ParseKV3(path).Root : new KVObject();
+        PreviousDefinitions = (previous.GetArray("classes") ?? []).ToDictionary(static data => data.GetStringProperty("id", data.GetStringProperty("name")), StringComparer.Ordinal);
+        PreviousTables = (previous.GetArray("games") ?? []).ToDictionary(static table => table.GetInt32Property("app_id"));
+    }
+
+    public string Path { get; }
+
+    public Dictionary<string, KVObject> PreviousDefinitions { get; }
+
+    public Dictionary<int, KVObject> PreviousTables { get; }
+
+    // Every version of each class by its name, with the games that declare it so, under a key of its own until
+    // every game is read and the ids it is written under are known
+    public Dictionary<string, List<(string Text, string Key, KVObject Data, SortedSet<int> AppIds)>> Definitions { get; } = new(StringComparer.Ordinal);
+
+    public List<KVObject> GameTables { get; } = [];
 }

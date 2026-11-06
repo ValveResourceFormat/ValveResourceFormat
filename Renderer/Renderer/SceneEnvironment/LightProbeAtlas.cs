@@ -163,10 +163,7 @@ public sealed class LightProbeAtlas
         }
 
         // Only textures cached by the material loader are deleted, others are owned elsewhere
-        foreach (var texture in copied)
-        {
-            materialLoader.EvictTexture(texture);
-        }
+        materialLoader.EvictTextures(copied);
 
         logger.LogDebug("Packed {Count} light probe volumes into a {Width}x{Height}x{Depth} light probe atlas",
             placed.Count, atlasSize.Width, atlasSize.Height, atlasSize.Depth);

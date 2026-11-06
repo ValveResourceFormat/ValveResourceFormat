@@ -1,14 +1,10 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using ValveKeyValue;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Audio;
 
@@ -116,7 +112,7 @@ public sealed class SoundEventPlayer : IDisposable
         set => dopplerScale = Math.Clamp(value, 0f, 2f);
     }
 
-    private readonly IFileLoader fileLoader;
+    private readonly SoundBankLoader bankLoader;
     private readonly IAudioDevice device;
     private readonly ILogger logger;
     private readonly AudioMixer mixer;
@@ -173,9 +169,9 @@ public sealed class SoundEventPlayer : IDisposable
     /// <summary>Creates a sound event player. Takes ownership of <paramref name="device"/> and starts the mixing thread immediately.</summary>
     public SoundEventPlayer(IFileLoader fileLoader, IAudioDevice device, ILogger? logger = null)
     {
-        this.fileLoader = fileLoader;
         this.device = device;
         this.logger = logger ?? NullLogger.Instance;
+        bankLoader = new SoundBankLoader(fileLoader, this.logger);
 
         SoundCache = new SoundCache(fileLoader, device.SampleRate, device.Channels, this.logger);
         Bank = new SoundEventBank();
@@ -287,18 +283,11 @@ public sealed class SoundEventPlayer : IDisposable
     }
 
     /// <summary>
-    /// Conventional path for an addon or workshop map's extra sound events. Addon files are not listed in
-    /// the base game's "soundevents/soundevents_manifest.vrman", so this is always attempted directly in
-    /// <see cref="LoadSoundEvents"/>. Most content has no such file.
-    /// </summary>
-    private const string AddonSoundEventsFile = "soundevents/soundevents_addon.vsndevts";
-
-    /// <summary>
     /// Loads sound event definitions from all soundevent files listed in the game's soundevents manifest,
-    /// plus <see cref="AddonSoundEventsFile"/> when present. An optional filter matches against the file
+    /// plus the addon sound events when present. An optional filter matches against the file
     /// name (e.g. "game_sounds").
     /// </summary>
-    public void LoadSoundEvents(string filter = "") => LoadSoundEventsInto(Bank, filter);
+    public void LoadSoundEvents(string filter = "") => bankLoader.LoadSoundEvents(Bank, filter);
 
     /// <summary>
     /// Load sound events and sound scape scripts in the background, then swap them in on the next <see cref="Update"/>.
@@ -308,66 +297,18 @@ public sealed class SoundEventPlayer : IDisposable
         var bank = new SoundEventBank();
         var soundscapes = new SoundscapeBank(bank);
 
-        LoadSoundEventsInto(bank, string.Empty, cancellationToken);
-        LoadSoundscapesInto(bank, soundscapes);
+        bankLoader.LoadSoundEvents(bank, string.Empty, cancellationToken);
+        bankLoader.LoadSoundscapes(bank, soundscapes);
 
         cancellationToken.ThrowIfCancellationRequested();
         return soundscapes;
     }, cancellationToken);
 
-    private void LoadSoundEventsInto(SoundEventBank bank, string filter, CancellationToken cancellationToken = default)
-    {
-        var stopwatch = Stopwatch.StartNew();
-
-        foreach (var soundEventsFile in GetSoundEventFiles())
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (filter.Length == 0 || soundEventsFile.Contains(filter, StringComparison.OrdinalIgnoreCase))
-            {
-                LoadSoundEventsFile(bank, soundEventsFile, optional: false);
-            }
-        }
-
-        if (filter.Length == 0 || AddonSoundEventsFile.Contains(filter, StringComparison.OrdinalIgnoreCase))
-        {
-            LoadSoundEventsFile(bank, AddonSoundEventsFile, optional: true);
-        }
-
-        stopwatch.Stop();
-        logger.LogInformation("Loaded {Count} sound events in {ElapsedMs} ms", bank.Count, stopwatch.ElapsedMilliseconds);
-    }
-
     /// <summary>
     /// Loads sound event definitions from a single soundevent (vsndevts) file. When <paramref name="optional"/>
-    /// is set, a missing file is skipped quietly instead of logging a warning (see <see cref="AddonSoundEventsFile"/>).
+    /// is set, a missing file is skipped quietly instead of logging a warning.
     /// </summary>
-    public void LoadSoundEventsFile(string fileName, bool optional = false) => LoadSoundEventsFile(Bank, fileName, optional);
-
-    private void LoadSoundEventsFile(SoundEventBank bank, string fileName, bool optional)
-    {
-        using var soundEventsFile = fileLoader.LoadFileCompiled(fileName);
-        if (soundEventsFile?.DataBlock == null)
-        {
-            if (!optional)
-            {
-                logger.LogWarning("Could not load sound events file {FileName}", fileName);
-            }
-
-            return;
-        }
-
-        if (soundEventsFile.DataBlock is not BinaryKV3)
-        {
-            logger.LogWarning(
-                "Sound events file {FileName} has unexpected data block type {BlockType}, skipping",
-                fileName,
-                soundEventsFile.DataBlock.GetType().Name);
-            return;
-        }
-
-        bank.AddSoundEvents(soundEventsFile.DataBlock.AsKeyValueCollection());
-    }
+    public void LoadSoundEventsFile(string fileName, bool optional = false) => bankLoader.LoadSoundEventsFile(Bank, fileName, optional);
 
     /// <summary>
     /// Loads scripted soundscape definitions (see <see cref="SoundscapeBank"/>) from the game's
@@ -375,77 +316,7 @@ public sealed class SoundEventPlayer : IDisposable
     /// single-sound-event soundscapes (see <see cref="AddSoundscape"/>), which need no separate loading
     /// step, so a missing manifest is not an error.
     /// </summary>
-    public void LoadSoundscapes() => LoadSoundscapesInto(Bank, Soundscapes);
-
-    private void LoadSoundscapesInto(SoundEventBank bank, SoundscapeBank soundscapes)
-    {
-        var manifest = ReadKeyValues1("scripts/soundscapes_manifest.txt");
-
-        if (manifest == null || !manifest.TryGetValue("soundscapes_manifest", out var fileList))
-        {
-            return;
-        }
-
-        foreach (var entry in fileList)
-        {
-            if (!entry.Key.Equals("file", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            var fileName = (string)entry.Value;
-
-            if (string.IsNullOrEmpty(fileName))
-            {
-                continue;
-            }
-
-            if (fileName.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
-            {
-                var script = ReadKeyValues1(fileName);
-
-                if (script != null)
-                {
-                    soundscapes.AddSoundscapes(script);
-                }
-            }
-            else
-            {
-                // Additional sound events used only by the soundscape script (e.g. an ambience .vsndevts)
-                // that may not otherwise be reachable from soundevents_manifest.vrman
-                LoadSoundEventsFile(bank, fileName, optional: false);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Reads and parses a loose KeyValues1 ("VDF") text file, or null when it does not exist or fails to
-    /// parse. Soundscape scripts author several sibling top-level blocks with no single enclosing key.
-    /// Hand-authored script files do show up with encoding quirks or syntax errors, so a
-    /// failure here is logged and skipped rather than allowed to take down the whole load.
-    /// </summary>
-    // Shared across all script files: creating a serializer spins up ValveKeyValue's reflection machinery
-    private static readonly KVSerializer KeyValues1Serializer = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
-
-    private KVObject? ReadKeyValues1(string file)
-    {
-        using var stream = fileLoader.GetFileStream(file);
-
-        if (stream == null)
-        {
-            return null;
-        }
-
-        try
-        {
-            return KeyValues1Serializer.DeserializeWithoutRoot(stream);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to parse KeyValues1 file {File}", file);
-            return null;
-        }
-    }
+    public void LoadSoundscapes() => bankLoader.LoadSoundscapes(Bank, Soundscapes);
 
     /// <summary>
     /// Plays a sound event by name. Allocation-free once a definition has played before: instances are
@@ -1046,50 +917,6 @@ public sealed class SoundEventPlayer : IDisposable
         }
 
         activeSoundscapeEvents.Clear();
-    }
-
-    private IEnumerable<string> GetSoundEventFiles()
-    {
-        var visitedManifests = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        return CollectSoundEventFiles("soundevents/soundevents_manifest.vrman", visitedManifests);
-    }
-
-    /// <summary>
-    /// Manifests can reference other manifests (e.g. a top-level .vrman listing per-game .vrman
-    /// files, which in turn list the actual .vsndevts files), so entries are recursed into rather
-    /// than assumed to all be sound event files. Guards against cycles with <paramref name="visitedManifests"/>.
-    /// </summary>
-    private IEnumerable<string> CollectSoundEventFiles(string manifestFileName, HashSet<string> visitedManifests)
-    {
-        if (!visitedManifests.Add(manifestFileName))
-        {
-            yield break;
-        }
-
-        using var manifestResource = fileLoader.LoadFileCompiled(manifestFileName);
-
-        if (manifestResource?.DataBlock is not ResourceManifest manifest)
-        {
-            yield break;
-        }
-
-        foreach (var resourceGroup in manifest.Resources)
-        {
-            foreach (var fileName in resourceGroup)
-            {
-                if (fileName.EndsWith(".vrman", StringComparison.OrdinalIgnoreCase))
-                {
-                    foreach (var nestedFile in CollectSoundEventFiles(fileName, visitedManifests))
-                    {
-                        yield return nestedFile;
-                    }
-                }
-                else
-                {
-                    yield return fileName;
-                }
-            }
-        }
     }
 
     /// <summary>Stops the mixing thread and disposes the mixer and the audio device.</summary>

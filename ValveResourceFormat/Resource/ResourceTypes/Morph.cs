@@ -334,13 +334,7 @@ namespace ValveResourceFormat.ResourceTypes
             loaded = true;
 
             // The rig is in this block, so it is readable whether or not the atlas exists.
-            FlexRules = GetMorphKeyValueCollection(Data, "m_FlexRules")
-                .Select(kv => ParseFlexRule(kv))
-                .ToArray();
-
-            FlexControllers = GetMorphKeyValueCollection(Data, "m_FlexControllers")
-                .Select(kv => ParseFlexController(kv))
-                .ToArray();
+            ReadRig();
 
             var atlasPath = AtlasPath;
             if (atlasPath.Length == 0)
@@ -350,6 +344,44 @@ namespace ValveResourceFormat.ResourceTypes
 
             TextureResource = fileLoader.LoadFileCompiled(atlasPath);
             Texture = TextureResource?.DataBlock as Texture;
+        }
+
+        /// <summary>
+        /// Creates a morph set from its data and the delta atlas its rects read from, for a morph set built in memory
+        /// rather than loaded from a file. <see cref="LoadFlexData"/> then has nothing left to load. Add the morph set to
+        /// a resource with <see cref="Resource.AddBlock"/>.
+        /// </summary>
+        /// <param name="data">The morph set data, laid out like <c>CMorphSetData</c>, without an atlas path.</param>
+        /// <param name="atlas">A resource whose data block is the delta atlas texture.</param>
+        public static Morph Create(KVObject data, Resource atlas)
+        {
+            ArgumentNullException.ThrowIfNull(data);
+            ArgumentNullException.ThrowIfNull(atlas);
+
+            // The resource that takes the block in sets it
+            var morph = new Morph(BlockType.MRPH)
+            {
+                Resource = null!,
+                Data = data,
+                TextureResource = atlas,
+                Texture = atlas.DataBlock as Texture,
+                loaded = true,
+            };
+
+            morph.ReadRig();
+
+            return morph;
+        }
+
+        private void ReadRig()
+        {
+            FlexRules = GetMorphKeyValueCollection(Data, "m_FlexRules")
+                .Select(kv => ParseFlexRule(kv))
+                .ToArray();
+
+            FlexControllers = GetMorphKeyValueCollection(Data, "m_FlexControllers")
+                .Select(kv => ParseFlexController(kv))
+                .ToArray();
         }
 
         private static FlexController ParseFlexController(KVObject kv)

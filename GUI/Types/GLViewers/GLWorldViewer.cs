@@ -16,6 +16,7 @@ using ValveResourceFormat.Renderer.Editor;
 using ValveResourceFormat.Renderer.Editor.Collision;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.Picking;
+using ValveResourceFormat.Renderer.Editor.Selection;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.Materials;

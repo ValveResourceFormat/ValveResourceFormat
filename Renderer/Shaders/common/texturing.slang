@@ -8,6 +8,7 @@
 #include "shared_combos.slang"
 #include "utils.slang"
 #include "fullbright.slang"
+#include "uv_render_modes.slang"
 #include "material_properties.slang"
 
 float GetCurvature(vec3 vNormal, vec3 vPositionWS)
@@ -333,42 +334,19 @@ bool HandleUVRenderModes(inout vec4 outputColor, MaterialProperties_t mat, sampl
 {
     if (g_iRenderMode == renderMode_UvDensity || g_iRenderMode == renderMode_LightmapUvDensity)
     {
-        outputColor.rgb = SrgbLinearToGamma(mat.Albedo);
         vec2 uv = g_iRenderMode == renderMode_UvDensity ? flUVs : mat.LightmapUv.xy;
 
         ivec2 vDims = g_iRenderMode == renderMode_LightmapUvDensity
             ? ivec2(8096)
             : textureSize(representativeTexture, 0);
 
-        uint testVal = ((uv.x < 0) != (uv.y < 0)) ? 0 : 1;
-        uvec2 vUVInPixels = uvec2(abs(uv) * vDims.xy);
-        if (((vUVInPixels.x + vUVInPixels.y) & 1) == testVal)
-        {
-            outputColor.rgb *= 0.6;
-        }
-
-        uvec2 vUVIn16Pixels = vUVInPixels / 16;
-        if (((vUVIn16Pixels.x + vUVIn16Pixels.y) & 1) == testVal)
-        {
-            outputColor.rgb *= 0.5;
-        }
+        outputColor.rgb = ApplyUvDensityChecker(SrgbLinearToGamma(mat.Albedo), uv, vDims);
 
         return true;
     }
     else if (g_iRenderMode == renderMode_MipmapUsage)
     {
-        outputColor.rgb = SrgbLinearToGamma(mat.Albedo);
-
-        ivec2 vTexDimensions = textureSize(representativeTexture, 0);
-        float flMipLevel = textureQueryLod(representativeTexture, flUVs).y;
-        float flMipLevels = log2(max(vTexDimensions.x, vTexDimensions.y));
-
-        uint testVal = ((flUVs.x < 0) != (flUVs.y < 0)) ? 0 : 1;
-        uvec2 vUVInPixels = uvec2(abs(flUVs) * vTexDimensions.xy);
-        uvec2 vUVIn16Pixels = vUVInPixels / uint(8 * round(1 + flMipLevel));
-
-        float fIntensity = (((vUVIn16Pixels.x + vUVIn16Pixels.y) & 1) == testVal) ? .75 : .25f;
-        outputColor.rgb = mix(outputColor.rgb, vec3(1.0, flMipLevel / flMipLevels, 0.0), fIntensity);
+        outputColor.rgb = ApplyMipmapUsageChecker(SrgbLinearToGamma(mat.Albedo), representativeTexture, flUVs);
 
         return true;
     }

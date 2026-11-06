@@ -434,7 +434,24 @@ public class Renderer : ISceneHost
             return;
         }
 
-        sky.ConfigureCamera(SkyCamera, camera);
+        // The fog's far clip applies to the map, not to its 3D sky
+        sky.ConfigureCamera(SkyCamera, camera, camera.NearPlane / sky.Scale, float.PositiveInfinity);
+    }
+
+    // A map's master fog clips the view at its far Z. Without one the far plane is infinite.
+    private void ApplyFogFarPlane(Camera camera)
+    {
+        var farZ = Scene.FogInfo.LinearFog?.FarZ ?? 0f;
+        var farPlane = farZ > 0f ? farZ : float.PositiveInfinity;
+
+        if (camera.FarPlane == farPlane)
+        {
+            return;
+        }
+
+        camera.FarPlane = farPlane;
+        camera.CreateProjectionMatrix();
+        camera.RecalculateMatrices();
     }
 
     /// <summary>
@@ -445,6 +462,7 @@ public class Renderer : ISceneHost
     {
         var count = 1;
 
+        ApplyFogFarPlane(camera);
         mainViewSceneStates.Clear();
         mainViewSceneStates.Add(ViewStateFor(mainViewStates, Scene));
 

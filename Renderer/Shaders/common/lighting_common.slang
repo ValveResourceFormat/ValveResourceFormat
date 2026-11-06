@@ -25,6 +25,17 @@ LightingTerms_t InitLighting()
 #define LIGHT_TYPE_DIRECTIONAL 0
 #define LIGHT_TYPE_SPOT 2
 
+// The distance falloff of a point or spot light. falloff.xy are the linear and quadratic terms, and falloff.w is the
+// bias that brings the curve to zero at the range, or the negated constant term of a light that has one.
+float GetDistanceAttenuation(vec4 falloff, float clampedDistanceSquared)
+{
+    float constantTerm = max(-falloff.w, 0.0);
+    float bias = max(falloff.w, 0.0);
+    float distanceTerms = dot(vec2(sqrt(clampedDistanceSquared), clampedDistanceSquared), falloff.xy);
+
+    return saturate(1.0 / (constantTerm + distanceTerms) - bias);
+}
+
 vec3 GetSunDirection()
 {
     return g_vSunDirection.xyz;

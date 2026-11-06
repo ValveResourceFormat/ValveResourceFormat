@@ -34,16 +34,16 @@ namespace ValveResourceFormat.Renderer.Materials
         [SamplerName("g_tFogCubeTexture")]
         FogCubeTexture,
         /// <summary>Baked irradiance, from the lightmap or the light probe volume.</summary>
-        [SamplerName("g_tIrradiance", "g_tLPV_Irradiance")]
+        [SamplerName("g_tIrradiance", "g_tLPV_Irradiance", "g_tLightmap")]
         Lightmap1,
         /// <summary>Baked directional irradiance, whole, red split, or a luminance direction.</summary>
-        [SamplerName("g_tDirectionalIrradiance", "g_tDirectionalIrradianceR", "g_tDirectionalIrradianceLum")]
+        [SamplerName("g_tDirectionalIrradiance", "g_tDirectionalIrradianceR", "g_tDirectionalIrradianceLum", "g_tLightmapBump1")]
         Lightmap2,
         /// <summary>Baked direct light indices, or green split directional irradiance.</summary>
-        [SamplerName("g_tDirectLightIndices", "g_tLPV_Indices", "g_tDirectionalIrradianceG")]
+        [SamplerName("g_tDirectLightIndices", "g_tLPV_Indices", "g_tDirectionalIrradianceG", "g_tLightmapBump2")]
         Lightmap3,
         /// <summary>Baked direct light strengths, or blue split directional irradiance.</summary>
-        [SamplerName("g_tDirectLightStrengths", "g_tLPV_Scalars", "g_tDirectionalIrradianceB")]
+        [SamplerName("g_tDirectLightStrengths", "g_tLPV_Scalars", "g_tDirectionalIrradianceB", "g_tLightmapBump3")]
         Lightmap4,
         /// <summary>Baked direct light shadows.</summary>
         [SamplerName("g_tDirectLightShadows", "g_tLPV_Shadows")]
@@ -120,6 +120,12 @@ namespace ValveResourceFormat.Renderer.Materials
 
         /// <summary>Gets the underlying parsed <see cref="ValveResourceFormat.ResourceTypes.Material"/> data, as read from the file.</summary>
         public Material Material { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether this material was loaded from a material resource.
+        /// Materials that only wrap a shader, such as the error material, have none.
+        /// </summary>
+        public bool HasResource => Material.Name.Length > 0;
 
         /// <summary>Gets the integer parameters, seeded from <see cref="Material"/> and writable per instance.</summary>
         public MaterialInputs<long> IntParams { get; } = [];
@@ -398,7 +404,7 @@ namespace ValveResourceFormat.Renderer.Materials
         {
             var layout = shader.GlobalsLayout;
 
-            globals ??= new Globals(Material.Name.Length > 0 ? Material.Name : shader.Name);
+            globals ??= new Globals(HasResource ? Material.Name : shader.Name);
 
             if (filledLayout != layout || filledVersion != InputsVersion)
             {
@@ -620,7 +626,8 @@ namespace ValveResourceFormat.Renderer.Materials
             {
                 var addressModeU = ToAddressMode(IntParams.GetValueOrDefault("g_nTextureAddressModeU"));
                 var addressModeV = ToAddressMode(IntParams.GetValueOrDefault("g_nTextureAddressModeV"));
-                userConfigSampler = Loader.GetOrCreateSampler(addressModeU, addressModeV);
+                var pointSample = IntParams.GetValueOrDefault("g_nTextureFilter") != 0;
+                userConfigSampler = Loader.GetOrCreateSampler(addressModeU, addressModeV, pointSample: pointSample);
 
                 static RsTextureAddressMode ToAddressMode(long mode)
                     => mode is >= 0 and <= (long)RsTextureAddressMode.MirrorOnce

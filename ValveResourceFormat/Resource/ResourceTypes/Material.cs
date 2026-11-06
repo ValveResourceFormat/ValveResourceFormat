@@ -16,6 +16,16 @@ namespace ValveResourceFormat.ResourceTypes
     public class Material : KeyValuesOrNTRO
     {
         /// <summary>
+        /// The prefix of the shader name of a material converted from a Source 1 material, which has no compiled shader.
+        /// </summary>
+        public const string Source1ShaderPrefix = "source1_";
+
+        /// <summary>
+        /// The prefix of the shader name of a material converted from a GoldSrc texture, which has no compiled shader.
+        /// </summary>
+        public const string GoldSrcShaderPrefix = "goldsrc_";
+
+        /// <summary>
         /// Gets or sets the material name.
         /// </summary>
         public string Name { get; set; } = string.Empty;
@@ -186,6 +196,88 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             Data = null;
+        }
+
+        /// <summary>
+        /// Builds the data block of a material created in memory from its name, shader, parameters and attributes,
+        /// in the layout of a compiled material. Dynamic parameters are not written.
+        /// </summary>
+        internal void BuildData()
+        {
+            var data = KVObject.Collection();
+            data.Add("m_materialName", Name);
+            data.Add("m_shaderName", ShaderName);
+            data.Add("m_intParams", CreateIntList(IntParams));
+            data.Add("m_floatParams", CreateFloatList(FloatParams));
+            data.Add("m_vectorParams", CreateVectorList(VectorParams));
+            data.Add("m_textureParams", CreateStringList(TextureParams, "m_pValue"));
+            data.Add("m_intAttributes", CreateIntList(IntAttributes));
+            data.Add("m_floatAttributes", CreateFloatList(FloatAttributes));
+            data.Add("m_vectorAttributes", CreateVectorList(VectorAttributes));
+            data.Add("m_stringAttributes", CreateStringList(StringAttributes, "m_value"));
+            data.Add("m_renderAttributesUsed", KVObject.Array());
+
+            Data = data;
+        }
+
+        private static KVObject CreateIntList(Dictionary<string, long> values)
+        {
+            var list = KVObject.Array();
+
+            foreach (var (name, value) in values)
+            {
+                var entry = KVObject.Collection();
+                entry.Add("m_name", name);
+                entry.Add("m_nValue", value);
+                list.Add(entry);
+            }
+
+            return list;
+        }
+
+        private static KVObject CreateFloatList(Dictionary<string, float> values)
+        {
+            var list = KVObject.Array();
+
+            foreach (var (name, value) in values)
+            {
+                var entry = KVObject.Collection();
+                entry.Add("m_name", name);
+                entry.Add("m_flValue", value);
+                list.Add(entry);
+            }
+
+            return list;
+        }
+
+        private static KVObject CreateVectorList(Dictionary<string, Vector4> values)
+        {
+            var list = KVObject.Array();
+
+            foreach (var (name, value) in values)
+            {
+                var entry = KVObject.Collection();
+                entry.Add("m_name", name);
+                entry.Add("m_value", KVHelpers.ToKVArray(value));
+                list.Add(entry);
+            }
+
+            return list;
+        }
+
+        private static KVObject CreateStringList(Dictionary<string, string> values, string valueKey)
+        {
+            var list = KVObject.Array();
+
+            foreach (var (name, value) in values)
+            {
+                var entry = KVObject.Collection();
+                entry.Add("m_name", name);
+                entry.Add(valueKey, value);
+                list.Add(entry);
+            }
+
+            return list;
         }
 
         private Dictionary<string, string> DecompileDynamicExpressions()

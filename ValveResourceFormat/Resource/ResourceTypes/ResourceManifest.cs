@@ -19,6 +19,22 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public List<List<string>> Resources { get; private set; } = [];
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ResourceManifest"/> class with no resources, to be read.
+        /// </summary>
+        public ResourceManifest()
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ResourceManifest"/> class that lists files in one group.
+        /// </summary>
+        /// <param name="files">The files of the manifest.</param>
+        public ResourceManifest(IEnumerable<string> files)
+        {
+            Resources = [[.. files]];
+        }
+
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {

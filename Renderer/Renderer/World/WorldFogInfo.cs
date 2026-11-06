@@ -40,13 +40,16 @@ namespace ValveResourceFormat.Renderer.World
 
         /// <summary>
         /// Sets this to the fog a 3D sky view draws with: the sky map's own gradient fog when it has an
-        /// active one, otherwise the world's, and always the world's cubemap fog.
+        /// active one, otherwise the world's, and always the world's cubemap fog. The linear fog is the sky map's own.
         /// </summary>
         /// <param name="world">The fog of the map the sky belongs to.</param>
         /// <param name="sky">The fog of the sky map.</param>
         internal void SetToSkyView(WorldFogInfo world, WorldFogInfo sky)
         {
             var ownGradientFog = sky.GradientFogActive;
+
+            LinearFog = sky.LinearFog;
+            ObjectsUseLinearFog = sky.ObjectsUseLinearFog;
 
             GradientFogActive = ownGradientFog || world.GradientFogActive;
             GradientFog = ownGradientFog ? sky.GradientFog : world.GradientFog;
@@ -61,6 +64,8 @@ namespace ValveResourceFormat.Renderer.World
         /// <param name="world">The fog of the map the sky belongs to.</param>
         internal void SetToVolumeSkyView(WorldFogInfo world)
         {
+            LinearFog = null;
+            ObjectsUseLinearFog = false;
             GradientFogActive = false;
             GradientFog = null;
             CubeFogActive = world.CubeFogActive;

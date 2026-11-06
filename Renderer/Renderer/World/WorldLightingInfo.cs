@@ -500,17 +500,9 @@ namespace ValveResourceFormat.Renderer.World
                     ? new Vector4(light.SizeParams.X, light.SizeParams.Y, diffuseGate, transmissiveGate)
                     : new Vector4(innerCosine, outerCosine, diffuseGate, transmissiveGate);
 
-                // g_vSingleLightFalloffParams: the raw linear and quadratic terms, as the shader evaluates
-                // saturate(1 / (x * d + y * d^2) - w) in world units before the color, which carries the
-                // q*10000 + l*100 + c scale. The bias w brings the curve to zero at the range; a light with a
-                // constant term gets none.
+                // g_vSingleLightFalloffParams, see SceneLight.GetFalloffParams
                 // TODO: light_ortho packs other values here, with no distance limit in z
-                var linear = light.AttenuationLinear;
-                var quadratic = light.AttenuationQuadratic;
-                var hasBias = light.AttenuationConstant == 0f && range > 0f;
-                var falloffAtRange = (quadratic * range * range) + (linear * range) + 1.1920929e-7f;
-
-                LightingData.LightFallOff[index] = new Vector4(linear, quadratic, range * range, hasBias ? 1f / falloffAtRange : 0f);
+                LightingData.LightFallOff[index] = light.GetFalloffParams(range);
 
                 var cookieSlice = -1;
 

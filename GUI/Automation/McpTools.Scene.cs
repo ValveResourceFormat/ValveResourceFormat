@@ -791,6 +791,7 @@ internal sealed partial class McpTools
             Animations = modelNode.Animations.Count,
             FlexControllers = NonZero(model.FlexControllers.Length),
             BoneConstraints = NonZero(model.BoneConstraints.Count),
+            JiggleBones = NonZero(model.GetEmbeddedPhys()?.FeModel?.JiggleBones.Length ?? 0),
             Physics = model.GetReferencedPhysNames().ToList(),
             EmbeddedPhysics = Flag(model.GetEmbeddedPhys() != null),
             NmSkeletons = model.NmSkeletonRefs,

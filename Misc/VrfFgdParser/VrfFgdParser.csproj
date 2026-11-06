@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="..\..\ValveResourceFormat\ValveResourceFormat.csproj" />
+    <ProjectReference Include="..\..\ValveResourceFormat.Source1\ValveResourceFormat.Source1.csproj" />
   </ItemGroup>
 </Project>

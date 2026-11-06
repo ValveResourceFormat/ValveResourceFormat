@@ -568,9 +568,36 @@ namespace ValveResourceFormat.Renderer.Shaders
         private static string GetShaderFile(string folder, string name)
             => string.Create(CultureInfo.InvariantCulture, $"{folder}/{name}");
 
+        private const string Source1ShaderFolder = "source1";
+        private const string GoldSrcShaderFolder = "goldsrc";
+
+        // The shader drawn for Source 1 shaders without a file
+        private const string Source1UnknownShader = "unlitgeneric";
+
+        private static string FindSource1ShaderFile(string name)
+        {
+            var shader = name[ResourceTypes.Material.Source1ShaderPrefix.Length..];
+            var file = GetShaderFile(Source1ShaderFolder, shader);
+
+            return Parser.AvailableShaders.ContainsKey(file) ? file : GetShaderFile(Source1ShaderFolder, Source1UnknownShader);
+        }
+
         private static string? FindShaderFile(string shaderName, Game game)
         {
             var name = shaderName[..^VfxExtension.Length];
+
+            if (name.StartsWith(ResourceTypes.Material.Source1ShaderPrefix, StringComparison.Ordinal))
+            {
+                return FindSource1ShaderFile(name);
+            }
+
+            if (name.StartsWith(ResourceTypes.Material.GoldSrcShaderPrefix, StringComparison.Ordinal))
+            {
+                var file = GetShaderFile(GoldSrcShaderFolder, name[ResourceTypes.Material.GoldSrcShaderPrefix.Length..]);
+
+                return Parser.AvailableShaders.ContainsKey(file) ? file : null;
+            }
+
             var available = Parser.AvailableShaders;
             List<string> folders = [];
 

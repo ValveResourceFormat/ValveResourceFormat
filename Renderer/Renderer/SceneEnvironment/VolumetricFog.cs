@@ -126,7 +126,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             public Vector4 Direction;
             // Color, and the cosine of the inner cone angle
             public Vector4 Color;
-            // The distance terms, the range squared and the bias
+            // The distance terms, the range squared, and the bias or the negated constant term
             public Vector4 Falloff;
             // Index in the lighting constants or -1, 1 when the fog shadows the light with the shadow map of the scene,
             // and the first shadow face of the light or -1
@@ -624,11 +624,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
                 var isSpot = light.Type == SceneLight.LightType.Spot;
 
                 // The distance falloff uses the attenuation terms as they are, the color carries their scale
-                var linear = light.AttenuationLinear;
-                var quadratic = light.AttenuationQuadratic;
-                var range = light.FogRange;
-                var hasBias = light.AttenuationConstant == 0f && range > 0f;
-                var falloffAtRange = (quadratic * range * range) + (linear * range) + 1.1920929e-7f;
+                var falloff = light.GetFalloffParams(light.FogRange);
 
                 var color = ColorSpace.SrgbGammaToLinear(light.Color)
                     * (light.Brightness * light.BrightnessScale * light.AttenuationColorScale * light.StyleBrightness * scale);
@@ -642,7 +638,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
                     Position = new Vector4(light.Position, isSpot ? 1f : 0f),
                     Direction = new Vector4(light.Direction, MathF.Cos(float.DegreesToRadians(light.SpotOuterAngle))),
                     Color = new Vector4(color, MathF.Cos(float.DegreesToRadians(light.SpotInnerAngle))),
-                    Falloff = new Vector4(linear, quadratic, range * range, hasBias ? 1f / falloffAtRange : 0f),
+                    Falloff = falloff,
                     Params = new Vector4(scene.LightingInfo.GetStoredLightIndex(light), isShadowed ? 1f : 0f, candidateShadowFace[candidateIndex], 0f),
                 };
 

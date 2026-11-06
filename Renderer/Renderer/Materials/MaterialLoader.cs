@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
         private readonly Dictionary<string, RenderTexture> Textures = [];
         private readonly Dictionary<string, RenderTexture> TexturesSrgb = [];
-        private readonly Dictionary<(RsTextureAddressMode AddressU, RsTextureAddressMode AddressV, bool Mipmaps, bool AnisotropicFiltering), int> Samplers = [];
+        private readonly Dictionary<(RsTextureAddressMode AddressU, RsTextureAddressMode AddressV, bool Mipmaps, bool AnisotropicFiltering, bool PointSample), int> Samplers = [];
         private readonly RendererContext RendererContext;
         private RenderTexture? ErrorTexture;
         private RenderMaterial? ErrorMaterial;
@@ -198,45 +198,50 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         /// <summary>
-        /// Drops a texture from the cache and deletes it, for one whose contents were copied into another, such as a
-        /// light probe volume packed into an atlas. A texture the cache does not hold is left alone.
+        /// Drops textures from the cache and deletes them, for ones whose contents were copied into another, such as
+        /// light probe volumes packed into an atlas. A texture the cache does not hold, or that a loaded material
+        /// uses, is left alone.
         /// </summary>
-        /// <param name="texture">The texture, as <see cref="GetTexture"/> returned it.</param>
-        /// <returns>Whether the cache held the texture.</returns>
-        public bool EvictTexture(RenderTexture texture)
+        /// <param name="textures">The textures, as <see cref="GetTexture"/> returned them.</param>
+        public void EvictTextures(HashSet<RenderTexture> textures)
         {
-            ArgumentNullException.ThrowIfNull(texture);
+            ArgumentNullException.ThrowIfNull(textures);
 
-            var evicted = false;
+            var usedByMaterials = new HashSet<RenderTexture>();
+
+            foreach (var material in Materials.Values)
+            {
+                usedByMaterials.UnionWith(material.Textures.Values);
+            }
+
+            var evicted = new HashSet<RenderTexture>();
 
             foreach (var cache in (Dictionary<string, RenderTexture>[])[Textures, TexturesSrgb])
             {
                 foreach (var (name, cached) in cache)
                 {
-                    if (ReferenceEquals(cached, texture))
+                    if (textures.Contains(cached) && !usedByMaterials.Contains(cached))
                     {
                         cache.Remove(name);
-                        evicted = true;
+                        evicted.Add(cached);
                     }
                 }
             }
 
-            if (evicted)
+            foreach (var texture in evicted)
             {
                 texture.Delete();
             }
-
-            return evicted;
         }
 
         /// <summary>
         /// Gets a sampler object for the supplied texture address modes, creating and caching one per <see cref="MaterialLoader" />.
         /// </summary>
-        public int GetOrCreateSampler(RsTextureAddressMode addressModeU, RsTextureAddressMode addressModeV, bool mipmaps = true, bool anisotropicFiltering = true)
+        public int GetOrCreateSampler(RsTextureAddressMode addressModeU, RsTextureAddressMode addressModeV, bool mipmaps = true, bool anisotropicFiltering = true, bool pointSample = false)
         {
-            var key = (addressModeU, addressModeV, mipmaps, anisotropicFiltering);
+            var key = (addressModeU, addressModeV, mipmaps, anisotropicFiltering, pointSample);
 
-            if (key == (RsTextureAddressMode.Wrap, RsTextureAddressMode.Wrap, true, true))
+            if (key == (RsTextureAddressMode.Wrap, RsTextureAddressMode.Wrap, true, true, false))
             {
                 return 0; // the default sampler state already wraps
             }
@@ -249,9 +254,17 @@ namespace ValveResourceFormat.Renderer.Materials
             var newSampler = new Sampler($"Sampler{addressModeU}{addressModeV}");
 
             newSampler.SetWrapMode(addressModeU, addressModeV);
-            newSampler.SetFiltering(mipmaps ? TextureMinFilter.LinearMipmapLinear : TextureMinFilter.Linear, TextureMagFilter.Linear);
 
-            if (anisotropicFiltering && MaxTextureMaxAnisotropy >= 4)
+            if (pointSample)
+            {
+                newSampler.SetFiltering(mipmaps ? TextureMinFilter.NearestMipmapNearest : TextureMinFilter.Nearest, TextureMagFilter.Nearest);
+            }
+            else
+            {
+                newSampler.SetFiltering(mipmaps ? TextureMinFilter.LinearMipmapLinear : TextureMinFilter.Linear, TextureMagFilter.Linear);
+            }
+
+            if (anisotropicFiltering && !pointSample && MaxTextureMaxAnisotropy >= 4)
             {
                 newSampler.SetMaxAnisotropy(MaxTextureMaxAnisotropy);
             }

@@ -18,4 +18,10 @@ uint GetObjectLightingData()
     return g_instanceBuffer[g_nObjectIndex].LightingData;
 }
 
+vec3 GetObjectLightingOrigin()
+{
+    InstanceDataStandard instance = g_instanceBuffer[g_nObjectIndex];
+    return vec3(instance.LightingOriginX, instance.LightingOriginY, instance.LightingOriginZ);
+}
+
 #endif

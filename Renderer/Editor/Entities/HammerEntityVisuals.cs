@@ -107,7 +107,8 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
     /// <inheritdoc/>
     public SceneNode? CreateStandIn(BaseEntity entity, ObjectTypeFlags flags)
     {
-        if (entity.Data == null)
+        // An entity the world geometry draws needs nothing to stand in for it
+        if (entity.Data == null || entity.Data.GetBooleanProperty("drawnbyworld"))
         {
             return null;
         }

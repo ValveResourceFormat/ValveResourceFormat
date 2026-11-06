@@ -46,6 +46,11 @@ namespace ValveResourceFormat
         public BinaryReader? Reader { get; private set; }
 
         /// <summary>
+        /// Gets whether the resource still has its input to read blocks from, which a resource built in memory never has.
+        /// </summary>
+        public bool CanReload => Reader != null;
+
+        /// <summary>
         /// Gets or sets the file name this resource was parsed from.
         /// </summary>
         public string? FileName { get; set; }
@@ -76,6 +81,21 @@ namespace ValveResourceFormat
         /// Gets the blocks without parsing the ones a <see cref="ReadMode.Deferred"/> read left unparsed.
         /// </summary>
         internal List<Block> UnparsedBlocks => blocks.Items;
+
+        /// <summary>
+        /// Appends a block to a resource that is being created, to be written by <see cref="Serialize"/> in the order added.
+        /// </summary>
+        /// <param name="block">The block to add. Its <see cref="Block.Resource"/> is set to this resource.</param>
+        /// <returns>The index of the block, which other blocks use to refer to it.</returns>
+        public int AddBlock(Block block)
+        {
+            ArgumentNullException.ThrowIfNull(block);
+
+            block.Resource = this;
+            blocks.Items.Add(block);
+
+            return blocks.Items.Count - 1;
+        }
 
         /// <summary>
         /// Gets the type of the resource, which decides the class of <see cref="DataBlock"/>.
@@ -500,6 +520,9 @@ namespace ValveResourceFormat
                 writer.Write((uint)blockSize);
                 writer.Flush();
                 stream.Position = blockOffsetEnd;
+
+                block.SerializeTrailingData(stream);
+                stream.Flush();
             }
 
             var end = stream.Position;
