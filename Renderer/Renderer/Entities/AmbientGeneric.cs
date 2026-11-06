@@ -41,7 +41,7 @@ public sealed class AmbientGeneric : BaseEntity
     public bool IsPlaying => playing.Playing;
 
     private SoundHandle playing;
-    private SceneNode? soundSource;
+    private BaseEntity? soundSource;
     private float fadeInSeconds;
     private float fadeOutSeconds;
 
@@ -79,7 +79,7 @@ public sealed class AmbientGeneric : BaseEntity
 
         if (!string.IsNullOrEmpty(sourceName))
         {
-            soundSource = EntitySystem.FindByTargetName(sourceName)?.RootNode;
+            soundSource = EntitySystem.FindByTargetName(sourceName);
 
             if (soundSource == null)
             {

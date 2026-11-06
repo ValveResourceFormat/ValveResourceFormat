@@ -93,8 +93,14 @@ public sealed class PointSoundEvent : BaseEntity
 
         var sourceEntityName = KeyValues.GetStringProperty("sourceentityname");
 
-        if (string.IsNullOrEmpty(sourceEntityName)
-            || EntitySystem.FindByTargetName(sourceEntityName)?.RootNode is not { } sourceNode)
+        if (string.IsNullOrEmpty(sourceEntityName))
+        {
+            return Transform.Translation;
+        }
+
+        var source = EntitySystem.FindByTargetName(sourceEntityName);
+
+        if (source == null)
         {
             return Transform.Translation;
         }
@@ -102,7 +108,7 @@ public sealed class PointSoundEvent : BaseEntity
         var attachmentName = KeyValues.GetStringProperty("sourceentityattachment");
 
         if (!string.IsNullOrEmpty(attachmentName)
-            && sourceNode is ModelSceneNode sourceModel
+            && source.RootNode is ModelSceneNode sourceModel
             && sourceModel.Attachments.ContainsKey(attachmentName))
         {
             return sourceModel.GetAttachmentTransform(attachmentName).Translation;
@@ -114,6 +120,6 @@ public sealed class PointSoundEvent : BaseEntity
             return Transform.Translation;
         }
 
-        return sourceNode.Transform.Translation;
+        return source.Transform.Translation;
     }
 }
