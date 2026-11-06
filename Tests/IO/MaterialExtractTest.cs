@@ -60,6 +60,34 @@ namespace Tests.IO
         }
 
         [Test]
+        [Arguments("materials/sky_well_01.vtex", "materials/sky_well_01.png")]
+        [Arguments("materials/brick_wall_01.vtex", "materials/brick_wall_01.png")]
+        [Arguments("materials/sky_png_01.vtex", "materials/sky_png_01.png")]
+        [Arguments("materials/png_2d6cc34.vtex", "materials/png_2d6cc34.png")]
+        [Arguments("materials/_png_2d6cc34.vtex", "materials/_png_2d6cc34.png")]
+        [Arguments("materials/plain.vtex", "materials/plain.png")]
+        [Arguments("materials/cs2_pfm_640ffd8a.vtex", "materials/cs2.png")]
+        [Arguments("materials/sky_csgo_cloudy01_cube_pfm_f9a0b177.vtex", "materials/sky_csgo_cloudy01_cube.png")]
+        [Arguments("materials/sky_well_strip_png_f9a0b177.vtex", "materials/sky_well_strip.png")]
+        [Arguments("materials/convoy_sky_001_exr_cd9c7418.vtex", "materials/convoy_sky_001.png")]
+        [Arguments("materials/height_tiff_ff487abc.vtex", "materials/height.png")]
+        [Arguments("materials/two_shot_lit_tga_3dfa.vtex", "materials/two_shot_lit.png")]
+        [Arguments("materials/mat_vmat_g_tcolor_2b2ebb3f.vtex", "materials/mat_vmat_g_tcolor_2b2ebb3f.png")]
+        public async Task OutTextureNameStripsOnlyCompiledSuffix(string texturePath, string expected)
+        {
+            await Assert.That(MaterialExtract.OutTextureName(texturePath, false, false)).IsEqualTo(expected);
+        }
+
+        [Test]
+        [Arguments("materials/default/default_color_tga_22e6f7.vtex", "materials/default/default_color.tga")]
+        [Arguments("materials/default/default_cube_pfm_2a7085f.vtex", "materials/default/default_cube.pfm")]
+        [Arguments("materials/default/default_mask_01.vtex", "materials/default/default_mask_01.png")]
+        public async Task OutTextureNameKeepsCompiledExtension(string texturePath, string expected)
+        {
+            await Assert.That(MaterialExtract.OutTextureName(texturePath, true, false)).IsEqualTo(expected);
+        }
+
+        [Test]
         [MatrixDataSource]
         public async Task ToMaterialMapsHdrCubemap([Matrix] bool withUnpackInfo)
         {
