@@ -55,6 +55,23 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public Matrix4x4 Transform { get; set; } = Matrix4x4.Identity;
 
+        /// <summary>Gets or sets the jiggle bones simulated on the pose on every update that advances time.</summary>
+        public JiggleBoneSolver? JiggleBones
+        {
+            get;
+            set
+            {
+                field = value;
+                animatedPose = value == null ? [] : Pose.AsSpan().ToArray();
+            }
+        }
+
+        // The pose before the jiggle bones moved it, which they start from again while the animation holds still
+        private Matrix4x4[] animatedPose = [];
+
+        /// <summary>Gets or sets the transform from model space to world space that the jiggle bones are simulated in.</summary>
+        public Matrix4x4 ModelToWorld { get; set; } = Matrix4x4.Identity;
+
         /// <summary>
         /// Optional resolver from an attachment/bone name to a world position, used to place the sounds of
         /// animation events. TODO: rework this.
@@ -206,7 +223,7 @@ namespace ValveResourceFormat.Renderer
             // External skeletons are posed in their own space; Transform is applied during remapping below.
             if (!player.Update(timeStep, externalRetargeter == null ? Transform : Matrix4x4.Identity))
             {
-                return false;
+                return StepJiggleBones(timeStep);
             }
 
             AnimationFrame = player.AnimationFrame;
@@ -229,11 +246,45 @@ namespace ValveResourceFormat.Renderer
             else if (AnimationFrame == null)
             {
                 // The model player already wrote the bind pose into our buffer.
-                ApplyInverseKinematics();
-                return true;
+                return FinishPose(timeStep);
             }
 
             ApplyClothRootPose();
+            return FinishPose(timeStep);
+        }
+
+        private bool FinishPose(float timeStep)
+        {
+            if (JiggleBones != null)
+            {
+                Pose.CopyTo(animatedPose, 0);
+            }
+
+            return EvaluateJiggleBones(timeStep);
+        }
+
+        /// <summary>
+        /// Moves the jiggle bones from the stored animated pose, as the simulation steps them while the animation holds still.
+        /// </summary>
+        /// <returns><see langword="true"/> if the pose was updated.</returns>
+        private bool StepJiggleBones(float timeStep)
+        {
+            if (JiggleBones == null || timeStep <= 0f)
+            {
+                return false;
+            }
+
+            animatedPose.CopyTo(Pose, 0);
+            return EvaluateJiggleBones(timeStep);
+        }
+
+        private bool EvaluateJiggleBones(float timeStep)
+        {
+            if (JiggleBones != null && timeStep > 0f)
+            {
+                JiggleBones.Evaluate(Pose, ModelToWorld, timeStep);
+            }
+
             ApplyInverseKinematics();
             return true;
         }

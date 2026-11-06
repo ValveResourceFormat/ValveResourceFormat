@@ -1306,7 +1306,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             float BaseMinLeft, float BaseMaxLeft, float BaseLeftFriction,
             float BaseMinUp, float BaseMaxUp, float BaseUpFriction,
             float BaseMinForward, float BaseMaxForward, float BaseForwardFriction,
-            float Radius0, float Radius1, Vector3 Point0, Vector3 Point1, int CollisionMask);
+            float Radius0, float Radius1, Vector3 Point0, Vector3 Point1, int CollisionMask)
+        {
+            /// <summary>Gets <see cref="Flags"/> as its named bits.</summary>
+            public FeJiggleBoneFlags BoneFlags => (FeJiggleBoneFlags)Flags;
+        }
 
         /// <summary>
         /// A jiggle bone keyed to its node. Both indices are stored unsigned, so the all-ones
@@ -1349,5 +1353,43 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             float[] Gravity, float[] GoalStrength, float[] GoalDamping, uint Flags);
 
         #endregion
+    }
+
+    /// <summary>The bits of <see cref="FeModel.FeJiggleBone.Flags"/>.</summary>
+    [Flags]
+    public enum FeJiggleBoneFlags : uint
+    {
+        /// <summary>The tip is pulled back to its animated position by springs.</summary>
+        Flexible = 0x1,
+
+        /// <summary>The tip is only moved by gravity and constraints.</summary>
+        Rigid = 0x2,
+
+        /// <summary>The tip is limited to a yaw range.</summary>
+        YawConstraint = 0x4,
+
+        /// <summary>The tip is limited to a pitch range.</summary>
+        PitchConstraint = 0x8,
+
+        /// <summary>The tip is limited to a maximum angle from its animated direction.</summary>
+        AngleConstraint = 0x10,
+
+        /// <summary>The tip stays at a fixed distance from the base, so it only swings.</summary>
+        LengthConstraint = 0x20,
+
+        /// <summary>The base of the bone hangs on a spring.</summary>
+        BaseSpring = 0x40,
+
+        /// <summary>The bone axes are negated, so the tip points along the bone's negative X axis.</summary>
+        InvertAxes = 0x80,
+
+        /// <summary>The capsule of the bone pushes the tip out of the collision spheres and capsules of the soft body.</summary>
+        Collision = 0x100,
+
+        /// <summary>The tip only collides with shapes that share a bit with the bone's collision mask.</summary>
+        CollisionMask = 0x200,
+
+        /// <summary>The goal of the bone is its simulated pose instead of its animated one.</summary>
+        GoalFromSimulatedPose = 0x400,
     }
 }

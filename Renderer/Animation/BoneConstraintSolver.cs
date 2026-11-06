@@ -82,6 +82,23 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>Gets the indices of every bone below <paramref name="bone"/>, in ascending order.</summary>
+        internal static int[] GetDescendants(Bone bone)
+        {
+            var collected = new List<int>();
+            var stack = new Stack<Bone>(bone.Children);
+            while (stack.TryPop(out var child))
+            {
+                collected.Add(child.Index);
+                foreach (var grandchild in child.Children)
+                {
+                    stack.Push(grandchild);
+                }
+            }
+
+            return [.. collected.Order()];
+        }
+
         private sealed class BuildContext(Skeleton skeleton, FlexController[] flexControllers, IReadOnlyDictionary<string, Attachment> attachments)
         {
             public Skeleton Skeleton { get; } = skeleton;
@@ -107,18 +124,7 @@ namespace ValveResourceFormat.Renderer
                 var bone = Skeleton.Bones[boneIndex];
                 if (!descendants.TryGetValue(bone, out var list))
                 {
-                    var collected = new List<int>();
-                    var stack = new Stack<Bone>(bone.Children);
-                    while (stack.TryPop(out var child))
-                    {
-                        collected.Add(child.Index);
-                        foreach (var grandchild in child.Children)
-                        {
-                            stack.Push(grandchild);
-                        }
-                    }
-
-                    list = [.. collected.Order()];
+                    list = GetDescendants(bone);
                     descendants[bone] = list;
                 }
 

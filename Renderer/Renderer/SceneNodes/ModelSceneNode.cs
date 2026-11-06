@@ -100,6 +100,15 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             LightingOriginAttachment = Attachments.GetValueOrDefault("lighting_origin");
             AnimationController.BoneConstraints = new BoneConstraintSolver(model);
 
+            if (JiggleBoneSolver.Create(model) is { } jiggleBones)
+            {
+                AnimationController.JiggleBones = jiggleBones;
+
+                // Jiggle bones move the skeleton of a model that has no animation to play
+                SetupSkinning();
+                UpdateSkinningActive(hasAnimation: false);
+            }
+
             // GetChildFrame already falls back to this node's own world Transform for an empty/
             // unmatched name - AnimationController.Transform is not it (see its doc comment), so route through here.
             AnimationController.ResolvePosition = attachmentName => GetChildFrame(attachmentName).Translation;
@@ -313,6 +322,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             UpdateLightingOrigin(context.Camera.Location);
             UpdateAutoLod(context.Camera);
+            AnimationController.ModelToWorld = Transform;
             var animationUpdated = AnimationController.Update(context.Timestep);
 
             if (!animationUpdated)
@@ -645,19 +655,16 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             AnimationController.SetAnimation(activeAnimation, blendTime, warp);
             UpdateBoundingBox();
 
-            if (activeAnimation != default)
+            UpdateSkinningActive(activeAnimation != default);
+        }
+
+        private void UpdateSkinningActive(bool hasAnimation)
+        {
+            var isPosed = hasAnimation || AnimationController.JiggleBones != null;
+
+            foreach (var renderer in meshRenderers)
             {
-                foreach (var renderer in meshRenderers)
-                {
-                    renderer.SetSkinningActive(IsAnimated);
-                }
-            }
-            else
-            {
-                foreach (var renderer in meshRenderers)
-                {
-                    renderer.SetSkinningActive(false);
-                }
+                renderer.SetSkinningActive(isPosed && IsAnimated);
             }
         }
 
@@ -711,10 +718,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             AnimationController.SetAnimationGraph(graph);
             UpdateBoundingBox();
 
-            foreach (var renderer in meshRenderers)
-            {
-                renderer.SetSkinningActive(graph != null && IsAnimated);
-            }
+            UpdateSkinningActive(graph != null);
         }
 
 #if DEBUG

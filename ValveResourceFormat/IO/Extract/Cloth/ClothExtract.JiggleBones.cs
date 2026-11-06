@@ -6,20 +6,6 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    [Flags]
-    private enum FeJiggleBoneFlags
-    {
-        Flexible = 0x1,
-        Rigid = 0x2,
-        YawConstraint = 0x4,
-        PitchConstraint = 0x8,
-        AngleConstraint = 0x10,
-        LengthConstraint = 0x20,
-        BaseSpring = 0x40,
-        InvertAxes = 0x80,
-        Collision = 0x300,
-    }
-
     private enum JiggleBoneType
     {
         Rigid = 0,
@@ -38,6 +24,7 @@ internal sealed partial class ClothExtract
 
         var jiggleBone = indexedJiggleBone.JiggleBone;
         var flags = (FeJiggleBoneFlags)jiggleBone.Flags;
+        var hasCollision = (flags & (FeJiggleBoneFlags.Collision | FeJiggleBoneFlags.CollisionMask)) != 0;
 
         var type = JiggleBoneType.Neither;
         if (flags.HasFlag(FeJiggleBoneFlags.Rigid))
@@ -61,7 +48,7 @@ internal sealed partial class ClothExtract
             ("has_base_spring", flags.HasFlag(FeJiggleBoneFlags.BaseSpring)),
             ("allow_flex_length", !flags.HasFlag(FeJiggleBoneFlags.LengthConstraint)),
             ("invert_axes", flags.HasFlag(FeJiggleBoneFlags.InvertAxes)),
-            ("has_collision", (flags & FeJiggleBoneFlags.Collision) != 0),
+            ("has_collision", hasCollision),
             ("length", jiggleBone.Length),
             ("tip_mass", jiggleBone.TipMass),
             ("angle_limit", float.RadiansToDegrees(jiggleBone.AngleLimit)),
@@ -97,7 +84,7 @@ internal sealed partial class ClothExtract
             ("point1", ToKVArray(jiggleBone.Point1))
         );
 
-        if ((flags & FeJiggleBoneFlags.Collision) != 0 && jiggleBone.CollisionMask is >= 0 and < ClothAllCollisionLayers)
+        if (hasCollision && jiggleBone.CollisionMask is >= 0 and < ClothAllCollisionLayers)
         {
             AddCollisionLayerFlags(node, "cloth_collision_layer", jiggleBone.CollisionMask);
         }
