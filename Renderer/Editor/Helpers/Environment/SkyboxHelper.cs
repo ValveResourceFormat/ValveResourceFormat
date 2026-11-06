@@ -28,31 +28,18 @@ internal sealed class SkyboxHelper(IHelperOwner owner, HelperDeclaration declara
             return;
         }
 
-        var scene = Owner.Scene;
-        var rendererContext = scene.RendererContext;
-
-        using var skyMaterial = rendererContext.FileLoader.LoadFileCompiled(materialName);
-
-        if (skyMaterial == null)
-        {
-            return;
-        }
-
         var tintKey = GetStringKey("tint_color");
         var tint = tintKey.Length > 0 ? EnvironmentKeys.ParseColor(tintKey).ToLinearColor().AsVector3() : Vector3.One;
 
         // The sky is infinitely far away, so only the way the entity is turned moves it
-        scene.Skybox2D?.Delete();
-        scene.Skybox2D = new SceneSkybox2D(rendererContext.MaterialLoader.LoadMaterial(skyMaterial))
-        {
-            Tint = tint * BrightnessScale,
-            Transform = Owner.RigidTransform with { Translation = Vector3.Zero },
-            FogType = (SkyFogType)EnvironmentKeys.ParseInteger(GetStringKey("fog_type"), (int)SkyFogType.Distance),
-            AngularFog = new Vector4(
-                GetFloatKey("angular_fog_min_start", DefaultAngularFog.X),
-                GetFloatKey("angular_fog_min_end", DefaultAngularFog.Y),
-                GetFloatKey("angular_fog_max_start", DefaultAngularFog.Z),
-                GetFloatKey("angular_fog_max_end", DefaultAngularFog.W)),
-        };
+        var transform = Owner.RigidTransform with { Translation = Vector3.Zero };
+        var fogType = (SkyFogType)EnvironmentKeys.ParseInteger(GetStringKey("fog_type"), (int)SkyFogType.Distance);
+        var angularFog = new Vector4(
+            GetFloatKey("angular_fog_min_start", DefaultAngularFog.X),
+            GetFloatKey("angular_fog_min_end", DefaultAngularFog.Y),
+            GetFloatKey("angular_fog_max_start", DefaultAngularFog.Z),
+            GetFloatKey("angular_fog_max_end", DefaultAngularFog.W));
+
+        SceneSkybox2D.Replace(Owner.Scene, materialName, tint * BrightnessScale, transform, fogType, angularFog);
     }
 }

@@ -60,6 +60,36 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         }
 
         /// <summary>
+        /// Replaces the 2D skybox of a scene with one drawn with a material, or keeps the current one when the
+        /// material does not load.
+        /// </summary>
+        /// <param name="scene">The scene whose <see cref="Scene.Skybox2D"/> is replaced.</param>
+        /// <param name="materialName">The compiled material of the sky.</param>
+        /// <param name="tint">The color multiplied with the sky.</param>
+        /// <param name="transform">The rotation of the sky.</param>
+        /// <param name="fogType">How the sky is fogged.</param>
+        /// <param name="angularFog">The angles an angular fog fades over.</param>
+        internal static void Replace(Scene scene, string materialName, Vector3 tint, Matrix4x4 transform, SkyFogType fogType, Vector4 angularFog)
+        {
+            var rendererContext = scene.RendererContext;
+
+            using var skyMaterial = rendererContext.FileLoader.LoadFileCompiled(materialName);
+            if (skyMaterial == null)
+            {
+                return;
+            }
+
+            scene.Skybox2D?.Delete();
+            scene.Skybox2D = new SceneSkybox2D(rendererContext.MaterialLoader.LoadMaterial(skyMaterial))
+            {
+                Tint = tint,
+                Transform = transform,
+                FogType = fogType,
+                AngularFog = angularFog,
+            };
+        }
+
+        /// <summary>
         /// Releases owned GPU resources.
         /// </summary>
         public virtual void Delete()

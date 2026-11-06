@@ -80,8 +80,9 @@ public static class EntityFactory
         Register<EnvGradientFog>("env_gradient_fog", static (system, spawnInfo) => new EnvGradientFog(system, spawnInfo));
         Register<EnvVolumetricFogController>("env_volumetric_fog_controller", static (system, spawnInfo) => new EnvVolumetricFogController(system, spawnInfo));
         Register<EnvVolumetricFogVolume>("env_volumetric_fog_volume", static (system, spawnInfo) => new EnvVolumetricFogVolume(system, spawnInfo));
-        Register<EnvSky>("env_global_light", static (system, spawnInfo) => new EnvSky(system, spawnInfo, isGlobalLight: true));
-        Register<EnvSky>("env_sky", static (system, spawnInfo) => new EnvSky(system, spawnInfo, isGlobalLight: false));
+        Register<EnvGlobalLight>("env_global_light", static (system, spawnInfo) => new EnvGlobalLight(system, spawnInfo));
+        Register<EnvSky>("env_sky", static (system, spawnInfo) => new EnvSky(system, spawnInfo));
+        Register<DotaLightInfo>("ent_dota_lightinfo", static (system, spawnInfo) => new DotaLightInfo(system, spawnInfo));
         Register<EnvTonemapController>("env_tonemap_controller", static (system, spawnInfo) => new EnvTonemapController(system, spawnInfo));
         Register<InfoMapParameters>("info_map_parameters", static (system, spawnInfo) => new InfoMapParameters(system, spawnInfo));
 
