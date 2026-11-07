@@ -132,12 +132,11 @@ namespace ValveResourceFormat.IO
 
             var dataHome = Path.Join(home, ".local", "share");
 
-            // Wine follows host symbolic links but can not resolve them, so real folders go first to match the library paths Steam lists
             string[] paths =
             [
+                .. GetSteamLinks(home),
                 .. GetSteamFolders(home, dataHome),
                 Path.Join(home, "Library", "Application Support", "Steam"),
-                .. GetSteamLinks(home),
             ];
 
             return FindSteamRoot(paths);
@@ -198,8 +197,6 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            AddLibrary(root);
-
             var libraryFolders = ReadSteamKeyValues(Path.Join(root, "steamapps", "libraryfolders.vdf"))
                 ?? ReadSteamKeyValues(Path.Join(root, "config", "libraryfolders.vdf"));
 
@@ -212,6 +209,12 @@ namespace ValveResourceFormat.IO
                         AddLibrary(path);
                     }
                 }
+            }
+
+            // Steam lists its main library, so the root is only needed when the file is missing or out of date
+            if (steamAppsPaths.Count == 0)
+            {
+                AddLibrary(root);
             }
 
             return steamAppsPaths;
