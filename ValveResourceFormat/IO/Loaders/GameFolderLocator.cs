@@ -47,7 +47,8 @@ namespace ValveResourceFormat.IO
                     {
                         foundPath = GetRegistryPath(Registry.CurrentUser, "SOFTWARE\\Valve\\Steam", "SteamPath")
                             ?? GetRegistryPath(Registry.LocalMachine, "SOFTWARE\\WOW6432Node\\Valve\\Steam", "InstallPath")
-                            ?? GetRegistryPath(Registry.LocalMachine, "SOFTWARE\\Valve\\Steam", "InstallPath");
+                            ?? GetRegistryPath(Registry.LocalMachine, "SOFTWARE\\Valve\\Steam", "InstallPath")
+                            ?? FindSteamPathUnderWine();
                     }
                     else if (OperatingSystem.IsLinux())
                     {
@@ -56,16 +57,7 @@ namespace ValveResourceFormat.IO
                             ? xdgDataHome
                             : Path.Join(home, ".local", "share");
 
-                        string[] paths =
-                        [
-                            Path.Join(home, ".steam", "root"),
-                            Path.Join(home, ".steam", "steam"),
-                            Path.Join(dataHome, "Steam"),
-                            Path.Join(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam"),
-                            Path.Join(home, "snap", "steam", "common", ".local", "share", "Steam"),
-                        ];
-
-                        foundPath = paths.FirstOrDefault(path => Directory.Exists(Path.Join(path, "appcache")));
+                        foundPath = FindSteamRoot([.. GetSteamLinks(home), .. GetSteamFolders(home, dataHome)]);
                     }
                     else if (OperatingSystem.IsMacOS())
                     {
@@ -84,6 +76,71 @@ namespace ValveResourceFormat.IO
 
                 return steamPath;
             }
+        }
+
+        private static string[] GetSteamFolders(string home, string dataHome)
+        {
+            return
+            [
+                Path.Join(dataHome, "Steam"),
+                Path.Join(home, ".steam", "debian-installation"),
+                Path.Join(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam"),
+                Path.Join(home, "snap", "steam", "common", ".local", "share", "Steam"),
+            ];
+        }
+
+        private static string[] GetSteamLinks(string home)
+        {
+            return
+            [
+                Path.Join(home, ".steam", "root"),
+                Path.Join(home, ".steam", "steam"),
+            ];
+        }
+
+        private static string? FindSteamRoot(string[] paths)
+        {
+            return paths.FirstOrDefault(static path => Directory.Exists(Path.Join(path, "appcache")));
+        }
+
+        /// <summary>
+        /// Wine passes the home folder of the host user to Windows processes as <c>\??\Z:\home\user</c>.
+        /// </summary>
+        /// <returns>The home folder as a Windows path, or <c>null</c> when not running under Wine.</returns>
+        private static string? GetWineHome()
+        {
+            const string NtPrefix = @"\??\";
+
+            var home = Environment.GetEnvironmentVariable("WINEHOMEDIR");
+
+            if (home == null || !home.StartsWith(NtPrefix, StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            return home[NtPrefix.Length..];
+        }
+
+        private static string? FindSteamPathUnderWine()
+        {
+            var home = GetWineHome();
+
+            if (home == null)
+            {
+                return null;
+            }
+
+            var dataHome = Path.Join(home, ".local", "share");
+
+            // Wine follows host symbolic links but can not resolve them, so real folders go first to match the library paths Steam lists
+            string[] paths =
+            [
+                .. GetSteamFolders(home, dataHome),
+                Path.Join(home, "Library", "Application Support", "Steam"),
+                .. GetSteamLinks(home),
+            ];
+
+            return FindSteamRoot(paths);
         }
 
         /// <summary>

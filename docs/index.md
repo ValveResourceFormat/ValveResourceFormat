@@ -101,7 +101,7 @@ If it crashes on startup under Wine or Proton with a `stack overflow` error, che
 
 Simply launch Source 2 Viewer and use the Game Explorer to automatically detect installed games, or use File > Open to manually browse for .vpk files. See [Getting Started](./guides/getting-started.md) and [VPK Management](./guides/vpk-management.md).
 
-Under Wine, the Explorer only finds games installed by a Windows Steam in the same Wine prefix, so games from a native Linux or macOS Steam are not listed. Open their packages with File > Open instead, from your Steam library on the `Z:` drive. Files opened from a game's folder still load the textures and models they use from that game, and **Add to Bookmarks** keeps a package in the Explorer for next time.
+Under Wine, the Explorer also finds games from a native Linux or macOS Steam. If it does not, use File > Open to reach your Steam library on the `Z:` drive. The file dialog does not list hidden folders such as `.local`, so type the path with backslashes, for example `Z:\home\<username>\.local\share\Steam`. Files opened from a game's folder still load the textures and models they use from that game, and **Add to Bookmarks** keeps a package in the Explorer for next time.
 
 ### Why does a file fail to open after a game update?
 
