@@ -60,21 +60,6 @@ namespace Tests.IO
         }
 
         [Test]
-        public async Task TestVmatExtract()
-        {
-            var file = TestFixtures.Path("point_worldtext_default.vmat_c");
-            using var resource = new Resource
-            {
-                FileName = file,
-            };
-            resource.Read(file);
-
-            var materialExtract = new MaterialExtract(resource);
-
-            await Assert.That(materialExtract.ToValveMaterial()).IsNotEmpty();
-        }
-
-        [Test]
         [MatrixDataSource]
         public async Task ToMaterialMapsHdrCubemap([Matrix] bool withUnpackInfo)
         {

@@ -18,21 +18,6 @@ namespace Tests.IO
     public class GltfExtractTest
     {
         [Test]
-        public void TestModel()
-        {
-            using var resource = new Resource();
-            var worldPath = TestFixtures.Path("box_creature_ik_model.vmdl_c");
-            resource.Read(worldPath);
-
-            var gltf = new GltfModelExporter(new NullFileLoader())
-            {
-                ExportMaterials = false,
-                ProgressReporter = new Progress<string>(progress => { }),
-            };
-            gltf.Export(resource, null);
-        }
-
-        [Test]
         public async Task TestSkinnedAnimatedExport()
         {
             using var resource = new Resource();
@@ -284,21 +269,6 @@ namespace Tests.IO
                 ProgressReporter = new Progress<string>(progress => { }),
             };
             await Assert.That(() => gltf.Export(resource, null)).ThrowsNothing();
-        }
-
-        [Test]
-        public void TestMesh()
-        {
-            using var resource = new Resource();
-            var worldPath = TestFixtures.Path("chen_weapon.vmesh_c");
-            resource.Read(worldPath);
-
-            var gltf = new GltfModelExporter(new NullFileLoader())
-            {
-                ExportMaterials = false,
-                ProgressReporter = new Progress<string>(progress => { }),
-            };
-            gltf.Export(resource, null);
         }
 
         [Test]

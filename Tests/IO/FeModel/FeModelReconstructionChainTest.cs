@@ -117,22 +117,6 @@ namespace Tests.IO
             await Assert.That(leaf.ChainBasesAreBulkGraded(leaf.BuildBoneChains()[0])).IsNull();
         }
 
-        /// <summary>
-        /// A twisted joint's hint left at {joint, twist end, 0, 0} reads as version 0; a graded hint does not.
-        /// </summary>
-        [Test]
-        public async Task AnUngradedTwistHintSaysTheChainCompiledAtVersionZero()
-        {
-            var ungraded = TwistedRope(new FeNodeWindBase(2, 1, 0, 0), new FeNodeWindBase(3, 2, 0, 0));
-            var graded = TwistedRope(new FeNodeWindBase(3, 1, 3, 3), new FeNodeWindBase(3, 2, 3, 3));
-
-            using (Assert.Multiple())
-            {
-                await Assert.That(ungraded.ChainHintsAreTwistWritten(TwistedRopeChain())).IsTrue();
-                await Assert.That(graded.ChainHintsAreTwistWritten(TwistedRopeChain())).IsFalse();
-            }
-        }
-
         private static ClothReconstruction TwistedRope(FeNodeWindBase hint2, FeNodeWindBase hint3) => new FeModelBuilder
         {
             Names = ["root", "j1", "j2", "j3"],

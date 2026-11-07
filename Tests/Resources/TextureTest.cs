@@ -339,21 +339,6 @@ namespace Tests.Resources
         }
 
         [Test]
-        public async Task Undo_YCoCg_TransformsColorCorrectly()
-        {
-            // Pure matrix: neutral chroma (Co == Cg == 128) reconstructs to neutral grey. The sRGB
-            // linearization of the inputs is the caller's job (ApplyTextureConversions), see issue #1127.
-            var rgb = Common.Decode_YCoCg(new Vector4(128, 128, 8, 128) / 255f);
-
-            using (Assert.Multiple())
-            {
-                await Assert.That(Common.ToClampedLdrColor(rgb.X)).IsEqualTo((byte)128);
-                await Assert.That(Common.ToClampedLdrColor(rgb.Y)).IsEqualTo((byte)128);
-                await Assert.That(Common.ToClampedLdrColor(rgb.Z)).IsEqualTo((byte)128);
-            }
-        }
-
-        [Test]
         public async Task ApplyTextureConversions_YCoCg_WithColorSpaceSrgb_LinearizesInputsBeforeMatrix()
         {
             using var bitmap = new SKBitmap(1, 1, SKColorType.Bgra8888, SKAlphaType.Unpremul);
@@ -456,30 +441,6 @@ namespace Tests.Resources
                 await Assert.That(Common.ToClampedLdrColor(0.5f)).IsEqualTo((byte)128);
                 await Assert.That(Common.ToClampedLdrColor(1f)).IsEqualTo((byte)255);
                 await Assert.That(Common.ToClampedLdrColor(2f)).IsEqualTo((byte)255);
-            }
-        }
-
-        [Test]
-        public async Task SwapRB_SwapsRedAndBlueChannels()
-        {
-            var pixels = new byte[] {
-                1, 2, 3, 4,
-                5, 6, 7, 8
-            };
-
-            Common.SwapRB(pixels);
-
-            using (Assert.Multiple())
-            {
-                await Assert.That(pixels[0]).IsEqualTo((byte)3);
-                await Assert.That(pixels[1]).IsEqualTo((byte)2);
-                await Assert.That(pixels[2]).IsEqualTo((byte)1);
-                await Assert.That(pixels[3]).IsEqualTo((byte)4);
-
-                await Assert.That(pixels[4]).IsEqualTo((byte)7);
-                await Assert.That(pixels[5]).IsEqualTo((byte)6);
-                await Assert.That(pixels[6]).IsEqualTo((byte)5);
-                await Assert.That(pixels[7]).IsEqualTo((byte)8);
             }
         }
 

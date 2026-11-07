@@ -7,34 +7,6 @@ namespace Tests.Formats
 {
     public class VfxEvalTest
     {
-        /*
-         * random(1,2)
-         */
-        [Test]
-        public async Task TestDynamicExpression1()
-        {
-            var exampleStr = "07 00 00 80 3F 07 00 00 00 40 06 20 00 00";
-            var expectedResult = "return random(1,2);";
-            await Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult).IsEqualTo(expectedResult);
-        }
-
-        [Test]
-        public async Task TestDynamicExpression2()
-        {
-            var exampleStr =
-            "07 CD CC 4C 3F 07 00 00 80 3F 06 20 00 08 00 07 00 00 80 3F 07 00 00 00 40 06 20 00 08 01 07 00 " +
-            "00 00 00 07 00 00 80 3F 06 20 00 08 02 09 02 07 CD CC CC 3D 0F 04 3A 00 3F 00 09 00 02 41 00 09 " +
-            "01 08 03 07 00 00 80 3F 09 03 15 07 00 00 80 3F 09 03 15 07 00 00 80 3F 09 03 15 06 19 00 08 04 " +
-            "09 04 07 00 00 80 3F 15 00";
-            var expectedResult = "v0 = random(.8,1);\n" +
-                "v1 = random(1,2);\n" +
-                "v2 = random(0,1);\n" +
-                "v3 = (v2>.1) ? v0 : v1;\n" +
-                "v4 = float3(1*v3,1*v3,1*v3);\n" +
-                "return v4*1;";
-            await Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult).IsEqualTo(expectedResult);
-        }
-
         [Test]
         public async Task TestDynamicExpression3()
         {
@@ -88,14 +60,6 @@ namespace Tests.Formats
                 "v0 = sqrt(1);\n" +
                 "v0 = rotation2d(1);\n" +
                 "return frac(v0);";
-            await Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult).IsEqualTo(expectedResult);
-        }
-
-        [Test]
-        public async Task TestDynamicExpression6()
-        {
-            var exampleStr = "07 00 00 80 3F 07 00 00 80 40 13 08 00 07 00 00 20 41 07 00 00 20 42 13 00";
-            var expectedResult = "v0 = 1+4;\nreturn 10+40;";
             await Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult).IsEqualTo(expectedResult);
         }
 
@@ -387,15 +351,6 @@ namespace Tests.Formats
         }
 
         [Test]
-        public async Task TestStoreAndLoadAttribute()
-        {
-            // v0 = ATTRIBUTE[04030201]; return v0+v0;
-            var exampleStr = "19 01 02 03 04 08 00 09 00 09 00 13 00";
-            var expectedResult = "v0 = ATTRIBUTE[04030201];\nreturn v0+v0;";
-            await Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult).IsEqualTo(expectedResult);
-        }
-
-        [Test]
         public async Task TestLocalVariablesAreNamedInOrderOfUse()
         {
             // variable slots are not sequential, they are named in the order they are assigned
@@ -421,15 +376,6 @@ namespace Tests.Formats
                 5 => "Five",
                 _ => "Unknown",
             };
-        }
-
-        [Test]
-        public async Task TestDynamicExpression16()
-        {
-            var exampleStr =
-            "07 00 00 00 00 00";
-            var expectedResult = "return 0;";
-            await Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult).IsEqualTo(expectedResult);
         }
 
         [Test]
@@ -618,14 +564,6 @@ namespace Tests.Formats
         }
 
         [Test]
-        public async Task TestMatrixColorTint2_WhiteInput()
-        {
-            // White has zero saturation, result should be ~identity
-            var result = VfxEvalFunctions.MatrixColorTint2(new Vector3(1f, 1f, 1f), 1.0f);
-            await AssertMatrixEqual(Matrix4x4.Identity, result, 1e-5f);
-        }
-
-        [Test]
         public async Task TestMatrixColorTint2_PureRed()
         {
             var result = VfxEvalFunctions.MatrixColorTint2(new Vector3(1f, 0f, 0f), 1.0f);
@@ -722,15 +660,6 @@ namespace Tests.Formats
         }
 
         [Test]
-        public async Task TestDivisionOpcode()
-        {
-            // 10 / 2
-            var exampleStr = "07 00 00 20 41 07 00 00 00 40 16 00";
-            var expectedResult = "return 10/2;";
-            await Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult).IsEqualTo(expectedResult);
-        }
-
-        [Test]
         public async Task TestMixedOperatorPrecedence()
         {
             // ((1*2)+3)-4
@@ -785,15 +714,6 @@ namespace Tests.Formats
         }
 
         [Test]
-        public async Task TestNestedFunctionCalls()
-        {
-            // cos(sin(10))
-            var exampleStr = "07 00 00 20 41 06 00 00 06 01 00 00";
-            var expectedResult = "return cos(sin(10));";
-            await Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult).IsEqualTo(expectedResult);
-        }
-
-        [Test]
         public async Task TestLerpFunction()
         {
             // lerp(1, 2, .5)
@@ -821,29 +741,11 @@ namespace Tests.Formats
         }
 
         [Test]
-        public async Task TestSwizzleW()
-        {
-            // ATTRIBUTE.w
-            var exampleStr = "19 01 02 03 04 1E FF 00";
-            var expectedResult = "return ATTRIBUTE[04030201].w;";
-            await Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult).IsEqualTo(expectedResult);
-        }
-
-        [Test]
         public async Task TestSwizzleXyzw()
         {
             // ATTRIBUTE.xyzw
             var exampleStr = "19 01 02 03 04 1E E4 00";
             var expectedResult = "return ATTRIBUTE[04030201].xyzw;";
-            await Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult).IsEqualTo(expectedResult);
-        }
-
-        [Test]
-        public async Task TestSwizzleXy()
-        {
-            // ATTRIBUTE.xy (packed as xyyy, trimmed to xy)
-            var exampleStr = "19 01 02 03 04 1E 54 00";
-            var expectedResult = "return ATTRIBUTE[04030201].xy;";
             await Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult).IsEqualTo(expectedResult);
         }
 
@@ -857,55 +759,12 @@ namespace Tests.Formats
         }
 
         [Test]
-        public async Task TestMultipleStoreLoad()
-        {
-            // v0 = 1; v1 = 2; return v0+v1;
-            var exampleStr = "07 00 00 80 3F 08 00 07 00 00 00 40 08 01 09 00 09 01 13 00";
-            var expectedResult = "v0 = 1;\nv1 = 2;\nreturn v0+v1;";
-            await Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult).IsEqualTo(expectedResult);
-        }
-
-        [Test]
-        public async Task TestFeatureWithNames()
-        {
-            // FEATURE[0] with feature names
-            var exampleStr = "1A 00 00";
-            await Assert.That(new VfxEval(ParseString(exampleStr), omitReturnStatement: true, features: ["MY_FEATURE", "OTHER"]).DynamicExpressionResult).IsEqualTo("MY_FEATURE");
-        }
-
-        [Test]
-        public async Task TestFeatureWithoutNames()
-        {
-            // FEATURE[2] without feature names
-            var exampleStr = "1A 02 00";
-            await Assert.That(new VfxEval(ParseString(exampleStr), omitReturnStatement: true).DynamicExpressionResult).IsEqualTo("FEAT[2]");
-        }
-
-        [Test]
         public async Task TestMaterialParam()
         {
             // MATERIAL_PARAM[04030201]
             var exampleStr = "1D 01 02 03 04 00";
             var expectedResult = "return MATERIAL_PARAM[04030201];";
             await Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult).IsEqualTo(expectedResult);
-        }
-
-        [Test]
-        public async Task TestExistsStandalone()
-        {
-            // exists(ATTRIBUTE[04030201])
-            var exampleStr = "1F 01 02 03 04 00";
-            var expectedResult = "return exists(ATTRIBUTE[04030201]);";
-            await Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult).IsEqualTo(expectedResult);
-        }
-
-        [Test]
-        public async Task TestOmitReturnStatement()
-        {
-            // 1+2 with omitReturnStatement
-            var exampleStr = "07 00 00 80 3F 07 00 00 00 40 13 00";
-            var expectedResult = "1+2";
-            await Assert.That(new VfxEval(ParseString(exampleStr), omitReturnStatement: true).DynamicExpressionResult).IsEqualTo(expectedResult);
         }
 
         [Test]

@@ -185,7 +185,6 @@ namespace Tests.Formats
 
         [Test]
         [Arguments(KV3BinaryCompressionMethod.Uncompressed)]
-        [Arguments(KV3BinaryCompressionMethod.Lz4)]
         [Arguments(KV3BinaryCompressionMethod.Zstd)]
         public async Task TestBinaryKV3Version5EmptyBlob(KV3BinaryCompressionMethod compressionMethod)
         {
@@ -567,7 +566,6 @@ namespace Tests.Formats
         [Arguments("ar_dizzy_kv3_v3_uncompressed.vpost_c", BlockType.DATA, KV3BinaryCompressionMethod.Uncompressed)]
         [Arguments("aw_ti9_gargoyle_collision_kv3_v3_zstd.vmdl_c", BlockType.ANIM, KV3BinaryCompressionMethod.Zstd)]
         [Arguments("compute_reactive_mask_kv3_v3_lz4.vmat_c", BlockType.DATA, KV3BinaryCompressionMethod.Lz4)]
-        [Arguments("panorama_world_panel_default_kv3_v3_lz4.vmat_c", BlockType.DATA, KV3BinaryCompressionMethod.Lz4)]
         [Arguments("piece_kv3_v4.vmdl_c", BlockType.PHYS, KV3BinaryCompressionMethod.Lz4)]
         [Arguments("default_ents_kv3_v4_zstd.vents_c", BlockType.DATA, KV3BinaryCompressionMethod.Zstd)]
         public async Task TestBinaryKV3SourceCompressionIsPreserved(

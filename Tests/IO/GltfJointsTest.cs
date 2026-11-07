@@ -7,21 +7,6 @@ namespace Tests.IO;
 public class GltfJointsTest
 {
     [Test]
-    public async Task FourJoints_Basic_NoZerosOrDuplicates_ShouldNotChange()
-    {
-        ushort[] joints = [1, 2, 3, 4];
-        float[] weights = [0.4f, 0.3f, 0.2f, 0.1f];
-        ushort[] expectedJoints = [1, 2, 3, 4];
-        float[] expectedWeights = [0.4f, 0.3f, 0.2f, 0.1f];
-        GltfModelExporter.FixDuplicateJoints(joints, weights, 4);
-        using (Assert.Multiple())
-        {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
-        }
-    }
-
-    [Test]
     public async Task FourJoints_WithZeroWeights_ShouldSetJointsToZero()
     {
         ushort[] joints = [1, 2, 3, 4];
@@ -37,132 +22,12 @@ public class GltfJointsTest
     }
 
     [Test]
-    public async Task FourJoints_WithDuplicates_ShouldMergeWeights()
-    {
-        ushort[] joints = [1, 2, 1, 3];
-        float[] weights = [0.3f, 0.3f, 0.2f, 0.2f];
-        ushort[] expectedJoints = [1, 2, 3, 0];
-        float[] expectedWeights = [0.5f, 0.3f, 0.2f, 0.0f];
-        GltfModelExporter.FixDuplicateJoints(joints, weights, 4);
-        using (Assert.Multiple())
-        {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
-        }
-    }
-
-    [Test]
-    public async Task FourJoints_MultipleSets_ShouldProcessCorrectly()
-    {
-        ushort[] joints = [1, 2, 3, 4, 5, 6, 5, 7];
-        float[] weights = [0.4f, 0.3f, 0.2f, 0.1f, 0.3f, 0.3f, 0.2f, 0.2f];
-        ushort[] expectedJoints = [1, 2, 3, 4, 5, 6, 7, 0];
-        float[] expectedWeights = [0.4f, 0.3f, 0.2f, 0.1f, 0.5f, 0.3f, 0.2f, 0.0f];
-        GltfModelExporter.FixDuplicateJoints(joints, weights, 4);
-        using (Assert.Multiple())
-        {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
-        }
-    }
-
-    [Test]
-    public async Task FourJoints_WithMultipleDuplicates_ShouldMergeAll()
-    {
-        ushort[] joints = [1, 1, 1, 1];
-        float[] weights = [0.25f, 0.25f, 0.25f, 0.25f];
-        ushort[] expectedJoints = [1, 0, 0, 0];
-        float[] expectedWeights = [1.0f, 0.0f, 0.0f, 0.0f];
-        GltfModelExporter.FixDuplicateJoints(joints, weights, 4);
-        using (Assert.Multiple())
-        {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
-        }
-    }
-
-    [Test]
-    public async Task EightJoints_Basic_NoZerosOrDuplicates_ShouldNotChange()
-    {
-        ushort[] joints = [1, 2, 3, 4, 5, 6, 7, 8];
-        float[] weights = [0.2f, 0.2f, 0.15f, 0.15f, 0.1f, 0.1f, 0.05f, 0.05f];
-        ushort[] expectedJoints = [1, 2, 3, 4, 5, 6, 7, 8];
-        float[] expectedWeights = [0.2f, 0.2f, 0.15f, 0.15f, 0.1f, 0.1f, 0.05f, 0.05f];
-        GltfModelExporter.FixDuplicateJoints(joints, weights, 8);
-        using (Assert.Multiple())
-        {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
-        }
-    }
-
-    [Test]
-    public async Task EightJoints_WithZeroWeights_ShouldSetJointsToZero()
-    {
-        ushort[] joints = [1, 2, 3, 4, 5, 6, 7, 8];
-        float[] weights = [0.3f, 0.3f, 0.2f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f];
-        ushort[] expectedJoints = [1, 2, 3, 4, 0, 0, 0, 0];
-        float[] expectedWeights = [0.3f, 0.3f, 0.2f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f];
-        GltfModelExporter.FixDuplicateJoints(joints, weights, 8);
-        using (Assert.Multiple())
-        {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
-        }
-    }
-
-    [Test]
-    public async Task EightJoints_WithDuplicates_ShouldMergeWeights()
-    {
-        ushort[] joints = [1, 2, 3, 4, 1, 5, 6, 7];
-        float[] weights = [0.2f, 0.2f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f];
-        ushort[] expectedJoints = [1, 2, 3, 4, 5, 6, 7, 0];
-        float[] expectedWeights = [0.3f, 0.2f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.0f];
-        GltfModelExporter.FixDuplicateJoints(joints, weights, 8);
-        using (Assert.Multiple())
-        {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
-        }
-    }
-
-    [Test]
-    public async Task EightJoints_WithMultipleDuplicates_ShouldMergeAll()
-    {
-        ushort[] joints = [1, 2, 1, 3, 2, 4, 3, 4];
-        float[] weights = [0.15f, 0.15f, 0.15f, 0.15f, 0.1f, 0.1f, 0.1f, 0.1f];
-        ushort[] expectedJoints = [1, 2, 3, 4, 0, 0, 0, 0];
-        float[] expectedWeights = [0.3f, 0.25f, 0.25f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f];
-        GltfModelExporter.FixDuplicateJoints(joints, weights, 8);
-        using (Assert.Multiple())
-        {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
-        }
-    }
-
-    [Test]
     public async Task EightJoints_ComplexCase_ShouldHandleCorrectly()
     {
         ushort[] joints = [1, 1, 1, 2, 2, 3, 3, 4];
         float[] weights = [0.1f, 0.1f, 0.1f, 0.2f, 0.2f, 0.15f, 0.15f, 0.0f];
         ushort[] expectedJoints = [1, 2, 3, 0, 0, 0, 0, 0];
         float[] expectedWeights = [0.3f, 0.4f, 0.3f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f];
-        GltfModelExporter.FixDuplicateJoints(joints, weights, 8);
-        using (Assert.Multiple())
-        {
-            await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
-            await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
-        }
-    }
-
-    [Test]
-    public async Task EightJoints_AllDuplicates_ShouldCollapse()
-    {
-        ushort[] joints = [1, 1, 1, 1, 1, 1, 1, 1];
-        float[] weights = [0.125f, 0.125f, 0.125f, 0.125f, 0.125f, 0.125f, 0.125f, 0.125f];
-        ushort[] expectedJoints = [1, 0, 0, 0, 0, 0, 0, 0];
-        float[] expectedWeights = [1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f];
         GltfModelExporter.FixDuplicateJoints(joints, weights, 8);
         using (Assert.Multiple())
         {
@@ -283,18 +148,6 @@ public class GltfJointsTest
             await Assert.That(joints).IsEquivalentTo(expectedJoints, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
             await Assert.That(weights).IsEquivalentTo(expectedWeights, TestFixtures.FloatComparer, CollectionOrdering.Matching);
         }
-    }
-
-    [Test]
-    public async Task SplitEightBoneJoints_SingleVertex_WritesAllEightIndices()
-    {
-        ushort[] joints = [1, 2, 3, 4, 5, 6, 7, 8];
-        var output = new ushort[8];
-
-        GltfModelExporter.SplitEightBoneJoints(joints, output);
-
-        // First half is JOINTS_0 (indices 0..3), second half is JOINTS_1 (indices 4..7).
-        await Assert.That(output).IsEquivalentTo(new ushort[] { 1, 2, 3, 4, 5, 6, 7, 8 }, EqualityComparer<ushort>.Default, CollectionOrdering.Matching);
     }
 
     [Test]

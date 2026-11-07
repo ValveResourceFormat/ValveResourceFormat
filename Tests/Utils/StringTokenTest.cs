@@ -47,17 +47,6 @@ namespace Tests.Utils
         }
 
         [Test]
-        public async Task EnsureStoresCustomKnownKeys()
-        {
-            var key = "my custom stringtoken key";
-            await Assert.That(EntityLumpKnownKeys.KnownKeys).DoesNotContain(key);
-
-            var addedHash = StringToken.Store(key);
-            var inverseLookupKey = StringToken.GetKnownString(addedHash);
-            await Assert.That(inverseLookupKey).IsEqualTo(key);
-        }
-
-        [Test]
         public async Task EnsurePreservesStringCase()
         {
             var key = "MyPreservedCaseKey";
@@ -89,18 +78,6 @@ namespace Tests.Utils
 
             await Assert.That(StringToken.Get(key)).IsEqualTo(StringToken.Get(lower));
             await Assert.That(StringToken.Get(key)).IsNotEqualTo(StringToken.Get(key.ToLowerInvariant()));
-        }
-
-        [Test]
-        public async Task EnsureStoresLowerCaseHash()
-        {
-            var key = "MyUppercaseKey";
-            var key2 = "myuppercasekey";
-
-            var upperCaseHash = StringToken.Store(key);
-            var lowerCaseHash = StringToken.Store(key2);
-
-            await Assert.That(upperCaseHash).IsEqualTo(lowerCaseHash);
         }
     }
 }

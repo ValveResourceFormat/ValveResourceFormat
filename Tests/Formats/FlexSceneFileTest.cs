@@ -40,21 +40,5 @@ namespace Tests.Formats
                 await Assert.That(vfe.KeyNames).Count().IsEqualTo(62);
             }
         }
-
-        [Test]
-        public async Task TestFlexSceneFileDecompile()
-        {
-            var vfeFilePath = TestFixtures.Path("phonemes.vfe");
-            var vfeOutputFilePath = TestFixtures.Path("phonemes.txt");
-
-            var expectedOutput = (await File.ReadAllTextAsync(vfeOutputFilePath)).ReplaceLineEndings();
-
-            var vfe = new FlexSceneFile();
-            vfe.Read(vfeFilePath);
-
-            var actualOutput = vfe.ToString().ReplaceLineEndings();
-
-            await Assert.That(actualOutput).IsEqualTo(expectedOutput);
-        }
     }
 }

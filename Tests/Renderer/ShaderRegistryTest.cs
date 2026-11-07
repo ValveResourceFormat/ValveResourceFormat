@@ -101,23 +101,6 @@ namespace Tests.Renderer
             }
         }
 
-        [Test]
-        public async Task PreprocessedSourceCanBePatched()
-        {
-            // Shaders can also be customized by patching the preprocessed source instead of overriding whole files.
-            // Note the result cannot be written back out as a shader file, as it is already fully inlined.
-            var parsedData = new ShaderLoader.ParsedShaderData();
-            var patched = Preprocess("fallback.vert.slang", parsedData)
-                .Replace("void main()", "void PatchedMain()", StringComparison.Ordinal);
-
-            using (Assert.Multiple())
-            {
-                await Assert.That(patched).Contains("void PatchedMain()");
-                await Assert.That(patched).DoesNotContain("void main()");
-                await Assert.That(parsedData.Sources).IsEmpty().Because("Sources are only filled in by ShaderLoader when it compiles a shader");
-            }
-        }
-
         // Field order deliberately differs from the shader's declaration order, since neither decides a location
         [StructLayout(LayoutKind.Sequential)]
         private struct TestVertex

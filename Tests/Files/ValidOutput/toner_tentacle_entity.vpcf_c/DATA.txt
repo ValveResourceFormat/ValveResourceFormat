@@ -1,0 +1,209 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:vpcf13:version{10b35a8e-b1ee-4f14-87a6-a7b6aae37699} -->
+{
+	_class = "CParticleSystemDefinition"
+	m_bShouldHitboxesFallbackToRenderBounds = false
+	m_nMaxParticles = 16
+	m_flNoDrawTimeToGoToSleep = 2.0
+	m_Renderers = 
+	[
+		{
+			_class = "C_OP_RenderRopes"
+			m_nSequenceCombineMode = "SEQUENCE_COMBINE_MODE_USE_SEQUENCE_0"
+			m_hTexture = resource:"materials/particle/beam_plasma_06.vtex"
+			m_flRadiusScale = 0.5
+			m_flFinalTextureScaleU = -1.0
+			m_flFinalTextureOffsetU = 1.0
+			m_flTextureVScrollRate = -60.0
+			m_nMaxTesselation = 10
+			m_nMinTesselation = 5
+			m_nOrientationType = 3
+			m_bAdditive = true
+			m_flTextureVWorldSize = 120.0
+			m_flTextureVOffset = 60.0
+			m_bDisableZBuffering = true
+			m_flDiffuseAmount = 0.0
+			m_flSelfIllumAmount = 1.0
+		},
+		{
+			_class = "C_OP_RenderRopes"
+			m_nMinTesselation = 5
+			m_nMaxTesselation = 2
+			m_flTextureVWorldSize = 60.0
+			m_flTextureVScrollRate = -120.0
+			m_flFinalTextureScaleU = -1.0
+			m_flFinalTextureOffsetU = 1.0
+			m_flRadiusScale = 0.5
+			m_nSequenceCombineMode = "SEQUENCE_COMBINE_MODE_USE_SEQUENCE_0"
+			m_bAdditive = true
+			m_hTexture = resource:"materials/particle/particle_glow_04.vtex"
+			m_flOpTimeOffsetMax = 5.0
+			m_nOpTimeOffsetSeed = 1
+			m_nOrientationType = 3
+			m_bDisableZBuffering = true
+			m_flDiffuseAmount = 0.0
+			m_flSelfIllumAmount = 1.0
+		},
+	]
+	m_Operators = 
+	[
+		{
+			_class = "C_OP_BasicMovement"
+			m_fDrag = 0.1
+		},
+		{
+			_class = "C_OP_Decay"
+			m_nOpEndCapState = 1
+		},
+		{
+			_class = "C_OP_LockToSavedSequentialPath"
+			m_PathParams = 
+			{
+				m_flMidPoint = 0.1
+				m_nEndControlPointNumber = 1
+			}
+		},
+		{
+			_class = "C_OP_RemapCPtoScalar"
+			m_nCPInput = 16
+			m_nFieldOutput = "16"
+			m_bScaleInitialRange = true
+			m_flInterpRate = 0.8
+		},
+		{
+			_class = "C_OP_CalculateVectorAttribute"
+			m_nControlPointInput1 = 
+			{
+				m_controlPointNameString = 2
+			}
+		},
+		{
+			_class = "C_OP_RemapCPtoVector"
+			m_nCPInput = 14
+			m_nFieldOutput = "6"
+			m_vInputMax = [ 1.0, 1.0, 1.0 ]
+			m_vOutputMin = [ 1.0, 0.0, 0.0 ]
+			m_vOutputMax = [ 0.4, 0.65, 0.85 ]
+		},
+		{
+			_class = "C_OP_RampScalarLinearSimple"
+			m_Rate = -3.0
+			m_nOpEndCapState = 1
+		},
+		{
+			_class = "C_OP_RampScalarLinearSimple"
+			m_Rate = -10.0
+			m_nField = "7"
+			m_nOpEndCapState = 1
+		},
+		{
+			_class = "C_OP_RemapCPtoScalar"
+			m_nCPInput = 16
+			m_flInterpRate = 0.9
+			m_bScaleInitialRange = true
+		},
+	]
+	m_Initializers = 
+	[
+		{
+			_class = "C_INIT_RandomLifeTime"
+			m_fLifetimeMax = 0.6
+			m_fLifetimeMin = 0.6
+		},
+		{
+			_class = "C_INIT_CreateSequentialPath"
+			m_bSaveOffset = true
+			m_flNumToAssign = 16.0
+			m_bLoop = false
+			m_PathParams = 
+			{
+				m_nEndControlPointNumber = 1
+				m_flMidPoint = 0.1
+			}
+		},
+		{
+			_class = "C_INIT_RandomAlpha"
+			m_nAlphaMin = 50
+			m_nAlphaMax = 55
+		},
+		{
+			_class = "C_INIT_RandomColor"
+			m_ColorMax = [ 107, 179, 228, 255 ]
+			m_ColorMin = [ 56, 169, 240, 255 ]
+			m_bDisableOperator = true
+		},
+		{
+			_class = "C_INIT_RemapParticleCountToScalar"
+			m_bScaleInitialRange = true
+			m_flOutputMax = 0.25
+			m_flOutputMin = 0.35
+			m_nInputMax = 15
+		},
+		{
+			_class = "C_INIT_RemapParticleCountToScalar"
+			m_nFieldOutput = "16"
+			m_nInputMax = 15
+		},
+		{
+			_class = "C_INIT_RemapParticleCountToScalar"
+			m_nFieldOutput = "16"
+			m_nInputMin = 10
+			m_nInputMax = 14
+			m_flOutputMin = 1.0
+			m_flOutputMax = 0.0
+			m_bScaleInitialRange = true
+		},
+		{
+			_class = "C_INIT_RemapParticleCountToScalar"
+			m_nFieldOutput = "16"
+			m_nInputMax = 5
+			m_bScaleInitialRange = true
+		},
+	]
+	m_Emitters = 
+	[
+		{
+			_class = "C_OP_InstantaneousEmitter"
+			m_flStartTimeMax = 0.4
+			m_nParticlesToEmit = 20
+			m_flStartTime = 0.005
+		},
+	]
+	m_controlPointConfigurations = 
+	[
+		{
+			m_name = "preview"
+			m_drivers = 
+			[
+				{
+					m_iAttachType = "PATTACH_WORLDORIGIN"
+					m_vecOffset = [ 0.0, 0.0, 0.0 ]
+					m_angOffset = [ null, null, null ]
+					m_entityName = "self"
+				},
+				{
+					m_iControlPoint = 1
+					m_iAttachType = "PATTACH_WORLDORIGIN"
+					m_vecOffset = [ 0.0, 0.0, 0.0 ]
+					m_angOffset = [ null, null, null ]
+					m_entityName = "self"
+				},
+			]
+		},
+	]
+	m_Children = 
+	[
+		{
+			m_ChildRef = resource:"particles/toner/toner_tentacle_entity_use.vpcf"
+		},
+	]
+	m_PreEmissionOperators = 
+	[
+		{
+			_class = "C_OP_SetSingleControlPointPosition"
+			m_nCP1 = 3
+			m_vecCP1Pos = [ 0.0, 0.0, 100.0 ]
+		},
+	]
+	m_nBehaviorVersion = 4
+	m_nFirstMultipleOverride_BackwardCompat = 4
+}

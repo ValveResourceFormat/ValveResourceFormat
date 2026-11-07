@@ -1,0 +1,10238 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+{
+	Graphs = 
+	[
+		{
+			Name = "citadel_weapons"
+			m_nGraphOutputChannels = 2
+			m_bIsMainGraph = false
+			m_Processors = 
+			[
+				{
+					_class = "CVMixFilterProcessorDesc"
+					m_name = "clip_fraction_hpf"
+					m_nDebugId = 4141725714
+					m_flxfade = 0.1
+					m_nChannels = 2
+					m_bDebugBypass = false
+					m_paramEnable = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 6
+						}
+					}
+					m_paramMix = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 7
+						}
+					}
+					m_desc = 
+					{
+						m_fldbGain = 0.0
+						m_flCutoffFreq = 0.0
+						m_flQ = 0.707
+						m_nFilterType = "FILTER_HIGHPASS"
+						m_nFilterSlope = "FILTER_SLOPE_24dB"
+						m_bEnabled = true
+					}
+					m_paramCutoffFreq = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 1
+						}
+					}
+					m_paramQ = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 8
+						}
+					}
+				},
+				{
+					_class = "CVMixUtilityProcessorDesc"
+					m_name = "mono downmix"
+					m_nDebugId = 4177755114
+					m_flxfade = 0.1
+					m_nChannels = 2
+					m_bDebugBypass = false
+					m_paramEnable = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 26
+						}
+					}
+					m_paramMix = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 27
+						}
+					}
+					m_desc = 
+					{
+						m_nOp = "VMIX_CHAN_STEREO"
+						m_flInputPan = -1.0
+						m_flOutputBalance = 0.0
+						m_fldbOutputGain = 0.0
+						m_bBassMono = false
+						m_flBassFreq = 120.0
+					}
+				},
+				{
+					_class = "CVMixSteamAudioHRTFProcessorDesc"
+					m_name = "audio.SteamAudioSource1"
+					m_nDebugId = 1431960596
+					m_flxfade = 0.1
+					m_nChannels = 2
+					m_bDebugBypass = false
+					m_paramEnable = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 33
+						}
+					}
+					m_paramMix = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 34
+						}
+					}
+					m_paramPositionX = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 30
+						}
+					}
+					m_paramPositionY = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 31
+						}
+					}
+					m_paramPositionZ = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 32
+						}
+					}
+					m_paramInterpolation = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 28
+						}
+					}
+					m_paramDirectMixLevel = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 36
+						}
+					}
+					m_paramPerspectiveCorrection = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 37
+						}
+					}
+					m_paramRelativePosition = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 38
+						}
+					}
+					m_paramDelayLeft = 
+					{
+						m_offset = 
+						{
+							category = "NULL_POINTER"
+							type = "VO_CHAR"
+							index = 0
+						}
+					}
+					m_paramDelayRight = 
+					{
+						m_offset = 
+						{
+							category = "NULL_POINTER"
+							type = "VO_CHAR"
+							index = 0
+						}
+					}
+				},
+				{
+					_class = "CVMixFilterProcessorDesc"
+					m_name = "OCCLUSION_FILTER"
+					m_nDebugId = 2479324221
+					m_flxfade = 0.1
+					m_nChannels = 2
+					m_bDebugBypass = false
+					m_paramEnable = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 48
+						}
+					}
+					m_paramMix = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 49
+						}
+					}
+					m_desc = 
+					{
+						m_fldbGain = 0.0
+						m_flCutoffFreq = 5199.999512
+						m_flQ = 0.508538
+						m_nFilterType = "FILTER_LOWPASS"
+						m_nFilterSlope = "FILTER_SLOPE_12dB"
+						m_bEnabled = true
+					}
+					m_paramCutoffFreq = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 43
+						}
+					}
+					m_paramQ = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 50
+						}
+					}
+				},
+				{
+					_class = "CVMixPannerProcessorDesc"
+					m_name = "audio.Panner1"
+					m_nDebugId = 4073693010
+					m_flxfade = 0.1
+					m_nChannels = -1
+					m_bDebugBypass = false
+					m_paramEnable = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 60
+						}
+					}
+					m_paramMix = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 60
+						}
+					}
+					m_desc = 
+					{
+						m_type = "PANNER_TYPE_EQUAL_POWER"
+						m_flStrength = 1.0
+					}
+					m_paramPan = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 59
+						}
+					}
+				},
+				{
+					_class = "CVMixFilterProcessorDesc"
+					m_name = "OCCLUSION_FILTER"
+					m_nDebugId = 2479324221
+					m_flxfade = 0.1
+					m_nChannels = -1
+					m_bDebugBypass = false
+					m_paramEnable = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 84
+						}
+					}
+					m_paramMix = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 85
+						}
+					}
+					m_desc = 
+					{
+						m_fldbGain = 0.0
+						m_flCutoffFreq = 5199.999512
+						m_flQ = 0.508538
+						m_nFilterType = "FILTER_LOWPASS"
+						m_nFilterSlope = "FILTER_SLOPE_12dB"
+						m_bEnabled = true
+					}
+					m_paramCutoffFreq = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 73
+						}
+					}
+					m_paramQ = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 86
+						}
+					}
+				},
+				{
+					_class = "CVMixFilterProcessorDesc"
+					m_name = "LPF"
+					m_nDebugId = 3330111051
+					m_flxfade = 0.1
+					m_nChannels = 2
+					m_bDebugBypass = false
+					m_paramEnable = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 72
+						}
+					}
+					m_paramMix = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 87
+						}
+					}
+					m_desc = 
+					{
+						m_fldbGain = 0.0
+						m_flCutoffFreq = 2000.0
+						m_flQ = 0.5
+						m_nFilterType = "FILTER_LOWPASS"
+						m_nFilterSlope = "FILTER_SLOPE_12dB"
+						m_bEnabled = true
+					}
+					m_paramCutoffFreq = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 78
+						}
+					}
+					m_paramQ = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 88
+						}
+					}
+				},
+				{
+					_class = "CVMixFilterProcessorDesc"
+					m_name = "HPF"
+					m_nDebugId = 3085856934
+					m_flxfade = 0.1
+					m_nChannels = 2
+					m_bDebugBypass = false
+					m_paramEnable = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 83
+						}
+					}
+					m_paramMix = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 95
+						}
+					}
+					m_desc = 
+					{
+						m_fldbGain = 0.0
+						m_flCutoffFreq = 2000.0
+						m_flQ = 0.239955
+						m_nFilterType = "FILTER_HIGHPASS"
+						m_nFilterSlope = "FILTER_SLOPE_12dB"
+						m_bEnabled = true
+					}
+					m_paramCutoffFreq = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 89
+						}
+					}
+					m_paramQ = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 96
+						}
+					}
+				},
+				{
+					_class = "CVMixFilterProcessorDesc"
+					m_name = "LPF"
+					m_nDebugId = 3330111051
+					m_flxfade = 0.1
+					m_nChannels = 2
+					m_bDebugBypass = false
+					m_paramEnable = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 72
+						}
+					}
+					m_paramMix = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 108
+						}
+					}
+					m_desc = 
+					{
+						m_fldbGain = 0.0
+						m_flCutoffFreq = 2000.0
+						m_flQ = 0.5
+						m_nFilterType = "FILTER_LOWPASS"
+						m_nFilterSlope = "FILTER_SLOPE_12dB"
+						m_bEnabled = true
+					}
+					m_paramCutoffFreq = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 102
+						}
+					}
+					m_paramQ = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 109
+						}
+					}
+				},
+				{
+					_class = "CVMixFilterProcessorDesc"
+					m_name = "HPF"
+					m_nDebugId = 3085856934
+					m_flxfade = 0.1
+					m_nChannels = 2
+					m_bDebugBypass = false
+					m_paramEnable = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 83
+						}
+					}
+					m_paramMix = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 116
+						}
+					}
+					m_desc = 
+					{
+						m_fldbGain = 0.0
+						m_flCutoffFreq = 2000.0
+						m_flQ = 0.239955
+						m_nFilterType = "FILTER_HIGHPASS"
+						m_nFilterSlope = "FILTER_SLOPE_12dB"
+						m_bEnabled = true
+					}
+					m_paramCutoffFreq = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 110
+						}
+					}
+					m_paramQ = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 117
+						}
+					}
+				},
+				{
+					_class = "CVMixPannerProcessorDesc"
+					m_name = "audio.Panner1"
+					m_nDebugId = 4073693010
+					m_flxfade = 0.1
+					m_nChannels = 2
+					m_bDebugBypass = false
+					m_paramEnable = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 119
+						}
+					}
+					m_paramMix = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 119
+						}
+					}
+					m_desc = 
+					{
+						m_type = "PANNER_TYPE_EQUAL_POWER"
+						m_flStrength = 1.0
+					}
+					m_paramPan = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 107
+						}
+					}
+				},
+				{
+					_class = "CVMixFilterProcessorDesc"
+					m_name = "audio.Filter4"
+					m_nDebugId = 3897136256
+					m_flxfade = 0.1
+					m_nChannels = 2
+					m_bDebugBypass = false
+					m_paramEnable = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 132
+						}
+					}
+					m_paramMix = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 121
+						}
+					}
+					m_desc = 
+					{
+						m_fldbGain = -3.050138
+						m_flCutoffFreq = 5457.901855
+						m_flQ = 0.396823
+						m_nFilterType = "FILTER_HIGH_SHELF"
+						m_nFilterSlope = "FILTER_SLOPE_12dB"
+						m_bEnabled = true
+					}
+					m_paramCutoffFreq = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 133
+						}
+					}
+					m_paramQ = 
+					{
+						m_offset = 
+						{
+							category = "HEAP_OFFSET"
+							type = "VO_FLOAT"
+							index = 134
+						}
+					}
+				},
+			]
+			m_graphInputs = 
+			[
+				{
+					m_name = "clip_fraction"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 0
+					}
+				},
+				{
+					m_name = "mono_downmix_fraction"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 11
+					}
+				},
+				{
+					m_name = "$auto:PlayTime"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 28
+					}
+				},
+				{
+					m_name = "$auto:distance"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 29
+					}
+				},
+				{
+					m_name = "$auto:position.x"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 30
+					}
+				},
+				{
+					m_name = "$auto:position.y"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 31
+					}
+				},
+				{
+					m_name = "$auto:position.z"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 32
+					}
+				},
+				{
+					m_name = "hrtf_on"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 33
+					}
+				},
+				{
+					m_name = "hrtf_mix"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 34
+					}
+				},
+				{
+					m_name = "occlusion"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 35
+					}
+				},
+				{
+					m_name = "occlusion_min"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 39
+					}
+				},
+				{
+					m_name = "occlusion_distance_scaled"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 42
+					}
+				},
+				{
+					m_name = "tail_stereo_pan"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 59
+					}
+				},
+				{
+					m_name = "distance_lpf_on"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 72
+					}
+				},
+				{
+					m_name = "distance_hpf_on"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 83
+					}
+				},
+				{
+					m_name = "enemy_target_gain"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 97
+					}
+				},
+				{
+					m_name = "point_effect_dry_vol"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 98
+					}
+				},
+				{
+					m_name = "source_reverb_level"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 101
+					}
+				},
+				{
+					m_name = "source_reverb_pan_amount"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 107
+					}
+				},
+				{
+					m_name = "facing"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 118
+					}
+				},
+				{
+					m_name = "source_reverb_interior_amount"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 120
+					}
+				},
+				{
+					m_name = "source_reverb_exterior_amount"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 126
+					}
+				},
+				{
+					m_name = "source_reverb_enclosure"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 131
+					}
+				},
+				{
+					m_name = "point_effect_wet_vol"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 140
+					}
+				},
+				{
+					m_name = "initial_reflection_send_vol"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 151
+					}
+				},
+				{
+					m_name = "debug.solo"
+					m_nOffset = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_UINT32"
+						index = 159
+					}
+				},
+			]
+			m_controlTransientInputs = [  ]
+			m_controlOutputs = [  ]
+			m_impulseResponseInputs = [  ]
+			m_MixCommands = 
+			[
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 4275089042
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 2258390383
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 1
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 1
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 1
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 1195821880
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 54958013
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 3
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 3
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 3
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 3680059199
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 1
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_REMAP_LINEAR"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 1
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 2
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 4136072109
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_PROCESS"
+					paramName = 2864565906
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = 0
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 61180745
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 1860726388
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 3
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 5
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 4247940653
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 3
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 9
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_ACCUMULATE"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 3
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 10
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 1132046981
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 7
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 3687541495
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 13
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 8
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COND_COPY_IF_NEGATIVE"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 15
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 14
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 15
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 14
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 15
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 14
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 9
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 10
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 16
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 11
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 25
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 16
+					}
+				},
+				{
+					command = "CMD_CONTROL_REMAP_SINE"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 16
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 17
+					}
+				},
+				{
+					command = "CMD_CONTROL_REMAP_SINE"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 25
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 21
+					}
+				},
+				{
+					command = "CMD_SUBMIX_PROCESS"
+					paramName = 2964706417
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = 1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 1562922137
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 11
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 25
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_ACCUMULATE"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 16
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 12
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 4063017223
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 13
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 3814827680
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_PROCESS"
+					paramName = 1167522118
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = 2
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 2637819450
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COND_COPY_IF_NEGATIVE"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 41
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 40
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 41
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 40
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 41
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 40
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 14
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 15
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 16
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 452614034
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 43
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 35
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 44
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 39
+					}
+				},
+				{
+					command = "CMD_CONTROL_REMAP_LINEAR"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 43
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 44
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 1042005761
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_PROCESS"
+					paramName = 167740558
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = 3
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 3714413208
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 448959650
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 51
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 35
+					}
+				},
+				{
+					command = "CMD_CONTROL_REMAP_LINEAR"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 51
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 52
+					}
+				},
+				{
+					command = "CMD_CONTROL_COND_COPY_IF_NEGATIVE"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 56
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 42
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 56
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 42
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 56
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 42
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 1300551064
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 17
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 58
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_ACCUMULATE"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 1
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 57
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 18
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 3628840372
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 19
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 4001233014
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 1152402402
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_PROCESS"
+					paramName = 3209853192
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = 4
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 2710980708
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 2710980708
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 61
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 42
+					}
+				},
+				{
+					command = "CMD_CONTROL_REMAP_LINEAR"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 61
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 62
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 5
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 67
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 5
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 20
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 69
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 21
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COND_COPY_IF_NEGATIVE"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 71
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 70
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 71
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 70
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 71
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 70
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 22
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 23
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 24
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 3782841558
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 73
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 51
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 74
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 39
+					}
+				},
+				{
+					command = "CMD_CONTROL_REMAP_LINEAR"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 73
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 74
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 25
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 2784540962
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 78
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 29
+					}
+				},
+				{
+					command = "CMD_CONTROL_REMAP_LINEAR"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 78
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 79
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 1042005761
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_PROCESS"
+					paramName = 167740558
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = 5
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 548642464
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 448959650
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 2096946469
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_PROCESS"
+					paramName = 2865998235
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = 6
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 2330398531
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 3760913927
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 89
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 29
+					}
+				},
+				{
+					command = "CMD_CONTROL_REMAP_LINEAR"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 89
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 90
+					}
+				},
+				{
+					command = "CMD_CONTROL_COND_COPY_IF_NEGATIVE"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 94
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 61
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 94
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 61
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 94
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 61
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 1659789505
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 26
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 2963061607
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_PROCESS"
+					paramName = 4018029858
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = 7
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 2699323645
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 4193673728
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 27
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 2426468691
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 28
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 505208111
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 97
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_ACCUMULATE"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 99
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 29
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 1829265841
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COND_COPY_IF_NEGATIVE"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 100
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 98
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 100
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 98
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 100
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 98
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 2809928538
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 30
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 31
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 4271128623
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 102
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 29
+					}
+				},
+				{
+					command = "CMD_CONTROL_REMAP_LINEAR"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 102
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 103
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 32
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 1497724832
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 2096946469
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_PROCESS"
+					paramName = 2865998235
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = 8
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 1068366889
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 3760913927
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 110
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 29
+					}
+				},
+				{
+					command = "CMD_CONTROL_REMAP_LINEAR"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 110
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 111
+					}
+				},
+				{
+					command = "CMD_CONTROL_COND_COPY_IF_NEGATIVE"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 115
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 101
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 115
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 101
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 115
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 101
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 45313965
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 33
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 2963061607
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_PROCESS"
+					paramName = 4018029858
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = 9
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 688109117
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 4193673728
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 1152402402
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_PROCESS"
+					paramName = 3209853192
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = 10
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 2315934506
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 2710980708
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 34
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 3699439760
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 121
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 118
+					}
+				},
+				{
+					command = "CMD_CONTROL_REMAP_LINEAR"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 121
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 122
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 7
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 128
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 7
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 35
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COND_COPY_IF_NEGATIVE"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 130
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 129
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 130
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 129
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 130
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 129
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 36
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 37
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 2147201599
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_PROCESS"
+					paramName = 2698829212
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = 11
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 112573885
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 112573885
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COND_COPY_IF_NEGATIVE"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 135
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 120
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 135
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 120
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 135
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 120
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 2182661866
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 38
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 8
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 137
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 8
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 39
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COND_COPY_IF_NEGATIVE"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 139
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 138
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 139
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 138
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 139
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 138
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 40
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 41
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COND_COPY_IF_NEGATIVE"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 141
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 126
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 7
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 7
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 141
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 126
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 141
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 126
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 25623176
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 7
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 7
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 42
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 144
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 131
+					}
+				},
+				{
+					command = "CMD_CONTROL_SINE_BLEND"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 144
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 142
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 9
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 144
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 9
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 144
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 9
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 43
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 146
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 131
+					}
+				},
+				{
+					command = "CMD_CONTROL_SINE_BLEND"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 146
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 142
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 10
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 146
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 10
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 146
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 10
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 44
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 148
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 131
+					}
+				},
+				{
+					command = "CMD_CONTROL_SINE_BLEND"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 148
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 142
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 148
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 45
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COND_COPY_IF_NEGATIVE"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 150
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 140
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 150
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 140
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 150
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 140
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 3373443840
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 46
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 7
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 47
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 4247437799
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 7
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 48
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 641918782
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 10
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 49
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 855271912
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 10
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 9
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 50
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER_SPECTRUM"
+					paramName = 1309947790
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 9
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_CONTROL_COND_COPY_IF_NEGATIVE"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 152
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 98
+					}
+				},
+				{
+					command = "CMD_SUBMIX_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 8
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 8
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 152
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 98
+					}
+				},
+				{
+					command = "CMD_CONTROL_COPY"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 152
+					}
+					m_nInputValue1 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 98
+					}
+				},
+				{
+					command = "CMD_SUBMIX_DEBUG"
+					paramName = 525853370
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 8
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 8
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 51
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_OUTPUT"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 1
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 153
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 52
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_OUTPUT"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 2
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 7
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 154
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 7
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 53
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_OUTPUT"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 3
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 155
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 54
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_OUTPUT"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 4
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 10
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 156
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 10
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 55
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_OUTPUT"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 5
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 9
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 157
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 9
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 56
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_OUTPUT"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 6
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 5
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 151
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 5
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 57
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_OUTPUT"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 8
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 158
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+				{
+					command = "CMD_SUBMIX_METER"
+					paramName = 0
+					outputSubmix = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					inputSubmix0 = 
+					{
+						category = "SUBMIX_INDEX"
+						type = "VO_CHAR"
+						index = 8
+					}
+					inputSubmix1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+					processor = -1
+					m_nInputValue0 = 
+					{
+						category = "INPUT_INDEX"
+						type = "VO_CHAR"
+						index = 58
+					}
+					m_nInputValue1 = 
+					{
+						category = "NULL_POINTER"
+						type = "VO_CHAR"
+						index = 0
+					}
+				},
+			]
+			m_heap = 
+			{
+				m_storage = 
+				[
+					1065353216, 1125515264, 1032805417, 1045220557,
+					1125515264, 1067450368, 1065353216, 1065353216,
+					1060437492, 1065353216, 1065353216, 0,
+					1065353216, 1065353216, 1065353216, 1065353216,
+					0, 0, 1065353216, 0,
+					1065353216, 0, 1065353216, 1065353216,
+					0, 0, 1065353216, 1065353216,
+					0, 0, 0, 0,
+					0, 1065353216, 1065353216, 1065353216,
+					1065353216, 0, 0, 1065353216,
+					1065353216, 1065353216, 1065353216, 1159479296,
+					0, 1065353216, 1159479296, 1185694720,
+					1065353216, 1065353216, 1057107852, 1048576000,
+					0, 1065353216, 1048576000, 1061158912,
+					3212836864, 1061868471, 1065331490, 0,
+					1065353216, 0, 0, 1065353216,
+					0, 1061158912, 1065353216, 1065353216,
+					1065353216, 1065353216, 1065353216, 1065353216,
+					1065353216, 1159479296, 0, 1065353216,
+					1159479296, 1185694720, 1185694720, 1148846080,
+					1161527296, 1185694720, 1163575296, 1065353216,
+					1065353216, 1065353216, 1057107852, 1065353216,
+					1056964608, 0, 1148846080, 1159479296,
+					0, 1125515264, 3212836864, 1065353216,
+					1047901891, 1065353216, 1065353216, 1065353216,
+					3212836864, 0, 1185694720, 1148846080,
+					1161527296, 1185694720, 1163575296, 1065353216,
+					1065353216, 1056964608, 0, 1148846080,
+					1159479296, 0, 1125515264, 3212836864,
+					1065353216, 1047901891, 1065353216, 1065353216,
+					1065353216, 1065353216, 1028443341, 1063675494,
+					1065353216, 0, 1065353216, 1065353216,
+					1065353216, 1065353216, 1065353216, 1065353216,
+					1065353216, 1168805687, 1053502562, 3212836864,
+					1065353216, 1065353216, 1065353216, 1065353216,
+					0, 3212836864, 1056964608, 0,
+					1065353216, 0, 1065353216, 1056964608,
+					1065353216, 1065353216, 3212836864, 0,
+					3212836864, 1065353216, 1065353216, 1065353216,
+					1065353216, 1065353216, 1065353216, 0,
+				]
+			}
+			m_audioMeters = 
+			[
+				{
+					m_name = "track_01"
+					m_displayName = ""
+					m_nDebugId = 713880202
+				},
+				{
+					m_name = "tail"
+					m_displayName = ""
+					m_nDebugId = 3650531859
+				},
+				{
+					m_name = "track_04"
+					m_displayName = ""
+					m_nDebugId = 3269414447
+				},
+				{
+					m_name = "low_ammo"
+					m_displayName = ""
+					m_nDebugId = 1923528092
+				},
+				{
+					m_name = "audio.Meter1"
+					m_displayName = "audio.Meter1"
+					m_nDebugId = 4083516781
+				},
+				{
+					m_name = "audio.Meter2"
+					m_displayName = "audio.Meter2"
+					m_nDebugId = 3964307782
+				},
+				{
+					m_name = "pre-hrtf-mix"
+					m_displayName = ""
+					m_nDebugId = 564866800
+				},
+				{
+					m_name = "mono_downmix/audio.Track1"
+					m_displayName = "mono_downmix/audio.Track1"
+					m_nDebugId = 3792489798
+				},
+				{
+					m_name = "mono_downmix/audio.Splitter1/audio:Out1"
+					m_displayName = ""
+					m_nDebugId = 2835374799
+				},
+				{
+					m_name = "mono_downmix/audio.Splitter1/audio.Out2"
+					m_displayName = ""
+					m_nDebugId = 95425105
+				},
+				{
+					m_name = "audio.Splitter1"
+					m_displayName = ""
+					m_nDebugId = 459457416
+				},
+				{
+					m_name = "mono downmix"
+					m_displayName = ""
+					m_nDebugId = 4177755114
+				},
+				{
+					m_name = "audio.Mix1"
+					m_displayName = ""
+					m_nDebugId = 1769111160
+				},
+				{
+					m_name = "mono_downmix/audio.Output1"
+					m_displayName = "mono_downmix/audio.Output1"
+					m_nDebugId = 607173503
+				},
+				{
+					m_name = "audio.Splitter2/audio:Out1"
+					m_displayName = ""
+					m_nDebugId = 1110969828
+				},
+				{
+					m_name = "post_hrtf_split"
+					m_displayName = ""
+					m_nDebugId = 2740759073
+				},
+				{
+					m_name = "occlusion-transient/audio.Track1"
+					m_displayName = "occlusion-transient/audio.Track1"
+					m_nDebugId = 1217064093
+				},
+				{
+					m_name = "OCCLUSION_ATTEN"
+					m_displayName = ""
+					m_nDebugId = 1393731528
+				},
+				{
+					m_name = "hrtf-bypass-mix"
+					m_displayName = ""
+					m_nDebugId = 1769413388
+				},
+				{
+					m_name = "occlusion-transient/audio.Output1"
+					m_displayName = "occlusion-transient/audio.Output1"
+					m_nDebugId = 4078902521
+				},
+				{
+					m_name = "audio.Splitter1/audio:Out1"
+					m_displayName = ""
+					m_nDebugId = 2835374799
+				},
+				{
+					m_name = "audio.Splitter1/audio.Out2"
+					m_displayName = ""
+					m_nDebugId = 95425105
+				},
+				{
+					m_name = "audio.Splitter1/audio:Out3"
+					m_displayName = ""
+					m_nDebugId = 1496290179
+				},
+				{
+					m_name = "audio.Splitter1"
+					m_displayName = ""
+					m_nDebugId = 459457416
+				},
+				{
+					m_name = "occlusion-tail/audio.Track1"
+					m_displayName = "occlusion-tail/audio.Track1"
+					m_nDebugId = 928964011
+				},
+				{
+					m_name = "distance_filter_source_reverb_send/audio.Track1"
+					m_displayName = "distance_filter_source_reverb_send/audio.Track1"
+					m_nDebugId = 2737087443
+				},
+				{
+					m_name = "OCCLUSION_ATTEN"
+					m_displayName = ""
+					m_nDebugId = 1393731528
+				},
+				{
+					m_name = "occlusion-tail/audio.Output1"
+					m_displayName = "occlusion-tail/audio.Output1"
+					m_nDebugId = 303164372
+				},
+				{
+					m_name = "distance_filter_source_reverb_send/audio.Output1"
+					m_displayName = "distance_filter_source_reverb_send/audio.Output1"
+					m_nDebugId = 947112714
+				},
+				{
+					m_name = "sum_tracks"
+					m_displayName = ""
+					m_nDebugId = 3894103668
+				},
+				{
+					m_name = "audio.Amp1"
+					m_displayName = ""
+					m_nDebugId = 1452881239
+				},
+				{
+					m_name = "distance_filter/audio.Track1"
+					m_displayName = "distance_filter/audio.Track1"
+					m_nDebugId = 3456518796
+				},
+				{
+					m_name = "source_reverb_sends/audio.Track1"
+					m_displayName = "source_reverb_sends/audio.Track1"
+					m_nDebugId = 3936574474
+				},
+				{
+					m_name = "audio.Amp3"
+					m_displayName = ""
+					m_nDebugId = 3298958526
+				},
+				{
+					m_name = "distance_filter/audio.Output1"
+					m_displayName = "distance_filter/audio.Output1"
+					m_nDebugId = 1667693186
+				},
+				{
+					m_name = "source_reverb_sends/audio.Splitter1/audio:Out1"
+					m_displayName = ""
+					m_nDebugId = 2835374799
+				},
+				{
+					m_name = "source_reverb_sends/audio.Splitter1/audio.Out2"
+					m_displayName = ""
+					m_nDebugId = 95425105
+				},
+				{
+					m_name = "audio.Splitter1"
+					m_displayName = ""
+					m_nDebugId = 459457416
+				},
+				{
+					m_name = "interior_volume"
+					m_displayName = ""
+					m_nDebugId = 2848904066
+				},
+				{
+					m_name = "audio.Splitter3/audio:Out1"
+					m_displayName = ""
+					m_nDebugId = 2922660487
+				},
+				{
+					m_name = "audio.Splitter3/audio.Out2"
+					m_displayName = ""
+					m_nDebugId = 4069864604
+				},
+				{
+					m_name = "audio.Splitter3"
+					m_displayName = ""
+					m_nDebugId = 1310856348
+				},
+				{
+					m_name = "exterior_volume"
+					m_displayName = ""
+					m_nDebugId = 1575509873
+				},
+				{
+					m_name = "source_reverb_sends/audio.SplitterBlend1/audio:Out"
+					m_displayName = ""
+					m_nDebugId = 1268275043
+				},
+				{
+					m_name = "source_reverb_sends/audio.SplitterBlend1/audio:Out2"
+					m_displayName = ""
+					m_nDebugId = 1561519010
+				},
+				{
+					m_name = "source_reverb_sends/audio.SplitterBlend1/audio:Out3"
+					m_displayName = ""
+					m_nDebugId = 3576588415
+				},
+				{
+					m_name = "audio.Amp2"
+					m_displayName = ""
+					m_nDebugId = 3372477013
+				},
+				{
+					m_name = "source_reverb_sends/audio.Output4"
+					m_displayName = "source_reverb_sends/audio.Output4"
+					m_nDebugId = 1248359338
+				},
+				{
+					m_name = "source_reverb_sends/audio.Output3"
+					m_displayName = "source_reverb_sends/audio.Output3"
+					m_nDebugId = 762609325
+				},
+				{
+					m_name = "source_reverb_sends/audio.Output2"
+					m_displayName = "source_reverb_sends/audio.Output2"
+					m_nDebugId = 2306892877
+				},
+				{
+					m_name = "source_reverb_sends/audio.Output1"
+					m_displayName = "source_reverb_sends/audio.Output1"
+					m_nDebugId = 1826898353
+				},
+				{
+					m_name = "audio.Amp3"
+					m_displayName = ""
+					m_nDebugId = 4153988872
+				},
+				{
+					m_name = "obscured_send"
+					m_displayName = ""
+					m_nDebugId = 2672352323
+				},
+				{
+					m_name = "ext"
+					m_displayName = ""
+					m_nDebugId = 970971230
+				},
+				{
+					m_name = "int_large"
+					m_displayName = ""
+					m_nDebugId = 1373668696
+				},
+				{
+					m_name = "int_medium"
+					m_displayName = ""
+					m_nDebugId = 1347980141
+				},
+				{
+					m_name = "int_small"
+					m_displayName = ""
+					m_nDebugId = 986584461
+				},
+				{
+					m_name = "initial_reflection_send"
+					m_displayName = ""
+					m_nDebugId = 326304231
+				},
+				{
+					m_name = "audio.Output1"
+					m_displayName = ""
+					m_nDebugId = 3996435445
+				},
+			]
+			m_controlMeters = 
+			[
+				{
+					m_name = "control.Input17/value"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 0
+					}
+				},
+				{
+					m_name = "control.Remap7/valueOut"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 1
+					}
+				},
+				{
+					m_name = "audio.Mix1/volume1"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 9
+					}
+				},
+				{
+					m_name = "audio.Mix1/volume2"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 10
+					}
+				},
+				{
+					m_name = "control.Input10/value"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 11
+					}
+				},
+				{
+					m_name = "mono_downmix/control.Input1/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 11
+					}
+				},
+				{
+					m_name = "mono_downmix/control.Crossfade1/fadeInValue"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 16
+					}
+				},
+				{
+					m_name = "mono_downmix/control.Crossfade1/fadeOutValue"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 25
+					}
+				},
+				{
+					m_name = "mono_downmix/audio.Mix1/volume1"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 25
+					}
+				},
+				{
+					m_name = "mono_downmix/audio.Mix1/volume2"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 16
+					}
+				},
+				{
+					m_name = "control.Input2/value"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 33
+					}
+				},
+				{
+					m_name = "control.Input1/value"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 34
+					}
+				},
+				{
+					m_name = "control.Input11/value"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 35
+					}
+				},
+				{
+					m_name = "occlusion-transient/control.Input1/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 35
+					}
+				},
+				{
+					m_name = "control.Input12/value"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 39
+					}
+				},
+				{
+					m_name = "occlusion-transient/control.Meter1/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 35
+					}
+				},
+				{
+					m_name = "occlusion-transient/control.Input2/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 39
+					}
+				},
+				{
+					m_name = "control.Input13/value"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 42
+					}
+				},
+				{
+					m_name = "occlusion-transient/control.Remap1/valueOut"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 43
+					}
+				},
+				{
+					m_name = "occlusion-transient/control.Input3/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 42
+					}
+				},
+				{
+					m_name = "occlusion-transient/control.Meter2/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 42
+					}
+				},
+				{
+					m_name = "control.Remap5/valueOut"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 51
+					}
+				},
+				{
+					m_name = "occlusion-transient/audio.Amp1/volume"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 42
+					}
+				},
+				{
+					m_name = "audio.Mix2/volume2"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 58
+					}
+				},
+				{
+					m_name = "audio.Mix2/volume1"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 57
+					}
+				},
+				{
+					m_name = "control.Input19/value"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 59
+					}
+				},
+				{
+					m_name = "occlusion-tail/control.Input1/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 51
+					}
+				},
+				{
+					m_name = "distance_filter_source_reverb_send/control.Input3/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 29
+					}
+				},
+				{
+					m_name = "occlusion-tail/control.Meter1/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 51
+					}
+				},
+				{
+					m_name = "occlusion-tail/control.Input2/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 39
+					}
+				},
+				{
+					m_name = "control.Remap6/valueOut"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 61
+					}
+				},
+				{
+					m_name = "distance_filter_source_reverb_send/control.Meter1/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 29
+					}
+				},
+				{
+					m_name = "control.Input16/value"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 72
+					}
+				},
+				{
+					m_name = "occlusion-tail/control.Remap1/valueOut"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 73
+					}
+				},
+				{
+					m_name = "occlusion-tail/control.Input3/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 61
+					}
+				},
+				{
+					m_name = "distance_filter_source_reverb_send/control.Remap1/valueOut"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 78
+					}
+				},
+				{
+					m_name = "distance_filter_source_reverb_send/control.Input2/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 72
+					}
+				},
+				{
+					m_name = "control.Input15/value"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 83
+					}
+				},
+				{
+					m_name = "occlusion-tail/control.Meter2/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 61
+					}
+				},
+				{
+					m_name = "distance_filter_source_reverb_send/control.Remap2/valueOut"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 89
+					}
+				},
+				{
+					m_name = "distance_filter_source_reverb_send/control.Input1/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 83
+					}
+				},
+				{
+					m_name = "occlusion-tail/audio.Amp1/volume"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 61
+					}
+				},
+				{
+					m_name = "control.Input20/value"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 97
+					}
+				},
+				{
+					m_name = "distance_filter/control.Input3/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 29
+					}
+				},
+				{
+					m_name = "control.Input27/value"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 98
+					}
+				},
+				{
+					m_name = "audio.Mix3/volume1"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 97
+					}
+				},
+				{
+					m_name = "audio.Mix3/volume2"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 99
+					}
+				},
+				{
+					m_name = "distance_filter/control.Meter1/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 29
+					}
+				},
+				{
+					m_name = "audio.Amp1/volume"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 98
+					}
+				},
+				{
+					m_name = "control.Input25/value"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 101
+					}
+				},
+				{
+					m_name = "distance_filter/control.Remap1/valueOut"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 102
+					}
+				},
+				{
+					m_name = "distance_filter/control.Input2/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 72
+					}
+				},
+				{
+					m_name = "source_reverb_sends/control.Input5/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 101
+					}
+				},
+				{
+					m_name = "control.Input23/value"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 107
+					}
+				},
+				{
+					m_name = "distance_filter/control.Remap2/valueOut"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 110
+					}
+				},
+				{
+					m_name = "distance_filter/control.Input1/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 83
+					}
+				},
+				{
+					m_name = "source_reverb_sends/audio.Amp3/volume"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 101
+					}
+				},
+				{
+					m_name = "source_reverb_sends/control.Input3/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 107
+					}
+				},
+				{
+					m_name = "control.Input7/value"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 118
+					}
+				},
+				{
+					m_name = "control.Input22/value"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 120
+					}
+				},
+				{
+					m_name = "control.Remap4/valueOut"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 121
+					}
+				},
+				{
+					m_name = "control.Input21/value"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 126
+					}
+				},
+				{
+					m_name = "source_reverb_sends/control.Input2/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 120
+					}
+				},
+				{
+					m_name = "control.Input24/value"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 131
+					}
+				},
+				{
+					m_name = "source_reverb_sends/control.Input1/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 126
+					}
+				},
+				{
+					m_name = "source_reverb_sends/audio.Amp2/volume"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 120
+					}
+				},
+				{
+					m_name = "source_reverb_sends/control.Input4/value:Out"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 131
+					}
+				},
+				{
+					m_name = "control.Input26/value"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 140
+					}
+				},
+				{
+					m_name = "source_reverb_sends/audio.Amp1/volume"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 126
+					}
+				},
+				{
+					m_name = "audio.Amp2/volume"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 140
+					}
+				},
+				{
+					m_name = "control.Input14/value"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 151
+					}
+				},
+				{
+					m_name = "audio.Amp3/volume"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 98
+					}
+				},
+				{
+					m_name = "audio.Output2/volume1"
+					m_nValueIndex = 
+					{
+						category = "HEAP_OFFSET"
+						type = "VO_FLOAT"
+						index = 151
+					}
+				},
+			]
+			m_nameInputMeters = [  ]
+			m_additionalOutputs = 
+			[
+				{
+					m_name = "obscured"
+				},
+				{
+					m_name = "reverb_04_ext"
+				},
+				{
+					m_name = "reverb_03_int_large"
+				},
+				{
+					m_name = "reverb_02_int_medium"
+				},
+				{
+					m_name = "reverb_01_int_small"
+				},
+				{
+					m_name = "initial_reflection"
+				},
+			]
+			m_automaticControlInputs = 
+			[
+				{
+					m_name = "PlayTime"
+					m_nGraphInputIndex = 2
+					m_nControlType = "VMIX_AUTO_PLAYTIME"
+				},
+				{
+					m_name = "distance"
+					m_nGraphInputIndex = 3
+					m_nControlType = "VMIX_AUTO_DISTANCE"
+				},
+				{
+					m_name = "position.x"
+					m_nGraphInputIndex = 4
+					m_nControlType = "VMIX_AUTO_POSITION_X"
+				},
+				{
+					m_name = "position.y"
+					m_nGraphInputIndex = 5
+					m_nControlType = "VMIX_AUTO_POSITION_Y"
+				},
+				{
+					m_name = "position.z"
+					m_nGraphInputIndex = 6
+					m_nControlType = "VMIX_AUTO_POSITION_Z"
+				},
+			]
+			m_Submixes = 
+			[
+				{
+					m_name = "track_01"
+					m_SendNames = 
+					[
+						"",
+						"",
+						"",
+						"",
+					]
+					m_nSoloNameHash = 4275089042
+					m_nChannels = 2
+					m_nSendOperator = "NAMED_SEND"
+					m_nMixDownRule = "SUM"
+				},
+				{
+					m_name = "tail"
+					m_SendNames = 
+					[
+						"",
+						"",
+						"",
+						"",
+					]
+					m_nSoloNameHash = 2258390383
+					m_nChannels = -1
+					m_nSendOperator = "NAMED_SEND"
+					m_nMixDownRule = "SUM"
+				},
+				{
+					m_name = "track_04"
+					m_SendNames = 
+					[
+						"",
+						"",
+						"",
+						"",
+					]
+					m_nSoloNameHash = 1195821880
+					m_nChannels = -1
+					m_nSendOperator = "NAMED_SEND"
+					m_nMixDownRule = "SUM"
+				},
+				{
+					m_name = "low_ammo"
+					m_SendNames = 
+					[
+						"",
+						"",
+						"",
+						"",
+					]
+					m_nSoloNameHash = 54958013
+					m_nChannels = -1
+					m_nSendOperator = "NAMED_SEND"
+					m_nMixDownRule = "SUM"
+				},
+				{
+					m_name = "audio.Splitter1"
+					m_SendNames = 
+					[
+						"",
+						"",
+						"",
+						"",
+					]
+					m_nSoloNameHash = 3512721096
+					m_nChannels = 2
+					m_nSendOperator = "NO_VOICES"
+					m_nMixDownRule = "SUM"
+				},
+				{
+					m_name = "audio.Splitter1"
+					m_SendNames = 
+					[
+						"",
+						"",
+						"",
+						"",
+					]
+					m_nSoloNameHash = 3577565873
+					m_nChannels = 2
+					m_nSendOperator = "NO_VOICES"
+					m_nMixDownRule = "SUM"
+				},
+				{
+					m_name = "audio.Splitter1"
+					m_SendNames = 
+					[
+						"",
+						"",
+						"",
+						"",
+					]
+					m_nSoloNameHash = 3521826239
+					m_nChannels = 2
+					m_nSendOperator = "NO_VOICES"
+					m_nMixDownRule = "SUM"
+				},
+				{
+					m_name = "audio.Splitter1"
+					m_SendNames = 
+					[
+						"",
+						"",
+						"",
+						"",
+					]
+					m_nSoloNameHash = 1390695989
+					m_nChannels = 2
+					m_nSendOperator = "NO_VOICES"
+					m_nMixDownRule = "SUM"
+				},
+				{
+					m_name = "audio.Splitter3"
+					m_SendNames = 
+					[
+						"",
+						"",
+						"",
+						"",
+					]
+					m_nSoloNameHash = 3518521455
+					m_nChannels = 2
+					m_nSendOperator = "NO_VOICES"
+					m_nMixDownRule = "SUM"
+				},
+				{
+					m_name = "audio.SplitterBlend1"
+					m_SendNames = 
+					[
+						"",
+						"",
+						"",
+						"",
+					]
+					m_nSoloNameHash = 1053220697
+					m_nChannels = 2
+					m_nSendOperator = "NO_VOICES"
+					m_nMixDownRule = "SUM"
+				},
+				{
+					m_name = "audio.SplitterBlend1"
+					m_SendNames = 
+					[
+						"",
+						"",
+						"",
+						"",
+					]
+					m_nSoloNameHash = 1553730413
+					m_nChannels = 2
+					m_nSendOperator = "NO_VOICES"
+					m_nMixDownRule = "SUM"
+				},
+			]
+			m_impulseResponseValues = [  ]
+			m_inputDefaultValues = null
+			m_sources = null
+			m_fixups = [  ]
+		},
+	]
+}

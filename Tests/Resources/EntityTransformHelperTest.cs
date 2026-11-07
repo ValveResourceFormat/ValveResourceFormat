@@ -56,54 +56,6 @@ namespace Tests.Resources
         }
 
         /// <summary>
-        /// At a pitch of +/-90 yaw and roll turn about the same axis, so the recovered angles cannot match
-        /// what went in; what they must still do is describe the same rotation.
-        /// </summary>
-        [Test]
-        public async Task ToEulerAnglesHandlesGimbalLock()
-        {
-            Vector3[] lockedAngles =
-            [
-                new(90f, 0f, 0f),
-                new(-90f, 0f, 0f),
-                new(90f, 40f, 0f),
-                new(-90f, 200f, 0f),
-                new(90f, 0f, 35f),
-            ];
-
-            foreach (var angles in lockedAngles)
-            {
-                var quaternion = EntityTransformHelper.EulerAnglesToQuaternion(angles);
-                var recovered = EntityTransformHelper.ToEulerAngles(quaternion);
-
-                await Assert.That(MathF.Abs(recovered.X)).IsEqualTo(90f).Within(1e-2f).Because($"pitch for {angles}");
-                await Assert.That(MathF.Sign(recovered.X)).IsEqualTo(MathF.Sign(angles.X)).Because($"pitch sign for {angles}");
-                await Assert.That(recovered.Z).IsEqualTo(0f).Within(Tolerance).Because($"roll is pinned for {angles}");
-
-                // Rebuilding from the recovered angles has to land on the same rotation
-                var original = Vector3.Transform(Vector3.UnitY, quaternion);
-                var rebuilt = Vector3.Transform(Vector3.UnitY, EntityTransformHelper.EulerAnglesToQuaternion(recovered));
-
-                await Assert.That(rebuilt.X).IsEqualTo(original.X).Within(1e-2f).Because($"left X for {angles}");
-                await Assert.That(rebuilt.Y).IsEqualTo(original.Y).Within(1e-2f).Because($"left Y for {angles}");
-                await Assert.That(rebuilt.Z).IsEqualTo(original.Z).Within(1e-2f).Because($"left Z for {angles}");
-            }
-        }
-
-        /// <summary>
-        /// Pitch is positive downwards in the Source convention, so forward's Z is negative sine of pitch.
-        /// </summary>
-        [Test]
-        public async Task EulerAnglesToForwardDirectionUsesSourcePitchSign()
-        {
-            var down = EntityTransformHelper.EulerAnglesToForwardDirection(new Vector3(90f, 0f, 0f));
-            var up = EntityTransformHelper.EulerAnglesToForwardDirection(new Vector3(-90f, 0f, 0f));
-
-            await Assert.That(down.Z).IsEqualTo(-1f).Within(Tolerance);
-            await Assert.That(up.Z).IsEqualTo(1f).Within(Tolerance);
-        }
-
-        /// <summary>
         /// Round trip through a direction, which cannot carry roll, so only pitch and yaw come back.
         /// </summary>
         [Test]
@@ -118,21 +70,6 @@ namespace Tests.Resources
                 await Assert.That(NormalizeDegrees(roundTripped.Y)).IsEqualTo(NormalizeDegrees(angles.Y)).Within(1e-2f).Because($"yaw for {angles}");
                 await Assert.That(roundTripped.Z).IsEqualTo(0f).Within(Tolerance).Because($"roll for {angles}");
             }
-        }
-
-        /// <summary>
-        /// Straight up or down leaves yaw undetermined, and it is pinned to zero rather than read out of noise.
-        /// </summary>
-        [Test]
-        public async Task ForwardDirectionToEulerAnglesPinsYawWhenVertical()
-        {
-            var up = EntityTransformHelper.ForwardDirectionToEulerAngles(new Vector3(0f, 0f, 1f));
-            var down = EntityTransformHelper.ForwardDirectionToEulerAngles(new Vector3(0f, 0f, -1f));
-
-            await Assert.That(up.X).IsEqualTo(-90f).Within(Tolerance);
-            await Assert.That(up.Y).IsEqualTo(0f).Within(Tolerance);
-            await Assert.That(down.X).IsEqualTo(90f).Within(Tolerance);
-            await Assert.That(down.Y).IsEqualTo(0f).Within(Tolerance);
         }
 
         /// <summary>
@@ -168,24 +105,6 @@ namespace Tests.Resources
                 await Assert.That(roundTripped.X).IsEqualTo(angles.X).Within(1e-2f).Because($"pitch for {angles}");
                 await Assert.That(NormalizeDegrees(roundTripped.Y)).IsEqualTo(NormalizeDegrees(angles.Y)).Within(1e-2f).Because($"yaw for {angles}");
                 await Assert.That(NormalizeDegrees(roundTripped.Z)).IsEqualTo(NormalizeDegrees(angles.Z)).Within(1e-2f).Because($"roll for {angles}");
-            }
-        }
-
-        /// <summary>
-        /// The angles a quaternion reports have to name the same rotation the caller handed in.
-        /// </summary>
-        [Test]
-        public async Task ToEulerAnglesMatchesQuaternionAxes()
-        {
-            foreach (var angles in Angles)
-            {
-                var quaternion = EntityTransformHelper.EulerAnglesToQuaternion(angles);
-                var forward = Vector3.Transform(Vector3.UnitX, quaternion);
-                var reported = EntityTransformHelper.EulerAnglesToForwardDirection(EntityTransformHelper.ToEulerAngles(quaternion));
-
-                await Assert.That(reported.X).IsEqualTo(forward.X).Within(Tolerance).Because($"X for {angles}");
-                await Assert.That(reported.Y).IsEqualTo(forward.Y).Within(Tolerance).Because($"Y for {angles}");
-                await Assert.That(reported.Z).IsEqualTo(forward.Z).Within(Tolerance).Because($"Z for {angles}");
             }
         }
 

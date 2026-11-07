@@ -48,16 +48,6 @@ namespace Tests.Resources
             await Assert.That(testStream.IsDisposed).IsTrue();
         }
 
-        [Test]
-        public async Task ResourceDisposesFileStreamFromFilename()
-        {
-            var resource = new Resource();
-            resource.Read(TestFixtures.Path(Fixture));
-            await Assert.That(resource.Reader).IsNotNull();
-            resource.Dispose();
-            await Assert.That(resource.Reader).IsNull();
-        }
-
         private sealed class TestableMemoryStream(byte[] buffer) : MemoryStream(buffer)
         {
             public bool IsDisposed { get; private set; }

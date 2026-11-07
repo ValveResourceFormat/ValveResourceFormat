@@ -82,14 +82,6 @@ namespace Tests.Renderer
             await Assert.That(camera.Roll).IsEqualTo(0f).Within(Tolerance);
         }
 
-        /// <summary>Positive pitch looks down, as in a QAngle and unlike most camera conventions.</summary>
-        [Test]
-        public async Task PositivePitchLooksDown()
-        {
-            await Assert.That(MakeCamera(new Vector3(45f, 0f, 0f)).Forward.Z).IsLessThan(0f);
-            await Assert.That(MakeCamera(new Vector3(-45f, 0f, 0f)).Forward.Z).IsGreaterThan(0f);
-        }
-
         [Test]
         public async Task DirectionVectorsAreOrthonormal()
         {

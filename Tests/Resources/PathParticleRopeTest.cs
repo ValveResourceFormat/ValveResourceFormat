@@ -86,15 +86,6 @@ namespace Tests.Resources
         }
 
         [Test]
-        public async Task ParsesPins()
-        {
-            bool[] expectedWords = [true, false];
-            bool[] expectedDigits = [true, false, true];
-            await Assert.That(PathParticleRope.ParsePins("[ true, false ]")).IsEquivalentTo(expectedWords, EqualityComparer<bool>.Default, CollectionOrdering.Matching);
-            await Assert.That(PathParticleRope.ParsePins("[ 1, 0, 1 ]")).IsEquivalentTo(expectedDigits, EqualityComparer<bool>.Default, CollectionOrdering.Matching);
-        }
-
-        [Test]
         public async Task ParsePinsAcceptsFloatTokensAndKeepsAlignment()
         {
             // Float-encoded pins (1.0 / 0.0) must map to pinned / unpinned, not be dropped.

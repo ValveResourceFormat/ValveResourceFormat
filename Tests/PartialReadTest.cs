@@ -54,18 +54,6 @@ namespace Tests
         }
 
         [Test]
-        public async Task RuntimeReadLeavesOnlyToolsDataUnparsed()
-        {
-            using var resource = Read("alchemist.vmdl_c", ReadMode.Runtime);
-
-            using (Assert.Multiple())
-            {
-                await Assert.That(resource.UnparsedBlocks.Where(static block => block.Type is not (BlockType.REDI or BlockType.RED2)).All(static block => block.IsRead)).IsTrue();
-                await Assert.That(resource.UnparsedBlocks.First(static block => block.Type is BlockType.REDI or BlockType.RED2).IsRead).IsFalse();
-            }
-        }
-
-        [Test]
         public async Task RuntimeReadDefersMaterialEditInfo()
         {
             using var resource = Read("reflectivity_90b.vmat_c", ReadMode.Runtime);

@@ -1,0 +1,121 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:vpcf13:version{10b35a8e-b1ee-4f14-87a6-a7b6aae37699} -->
+{
+	_class = "CParticleSystemDefinition"
+	m_flMaximumSimTime = 0.01
+	m_flMinimumSimTime = 0.01
+	m_nMaxParticles = 9
+	m_Operators = 
+	[
+		{
+			_class = "C_OP_BasicMovement"
+			m_bDisableOperator = true
+		},
+		{
+			_class = "C_OP_Decay"
+		},
+		{
+			_class = "C_OP_InterpolateRadius"
+			m_flBias = 0.8
+			m_flEndScale = 0.5
+			m_flStartScale = 0.6
+		},
+		{
+			_class = "C_OP_FadeOut"
+			m_flFadeOutTimeMin = 0.05
+			m_flFadeOutTimeMax = 0.05
+			m_bProportional = false
+		},
+		{
+			_class = "C_OP_PositionLock"
+			m_bLockRot = true
+		},
+	]
+	m_Renderers = 
+	[
+		{
+			_class = "C_OP_RenderTrails"
+			m_flMaxLength = 20.0
+			m_flFinalTextureScaleV = -1.0
+			m_flAddSelfAmount = 1.0
+			m_bAdditive = true
+			m_hTexture = resource:"materials/particle/lights/spotlight_single.vtex"
+			m_flMinLength = 15.0
+			m_flForwardShift = 1.0
+		},
+	]
+	m_Initializers = 
+	[
+		{
+			_class = "C_INIT_RandomLifeTime"
+			m_fLifetimeMin = 0.02
+			m_fLifetimeMax = 0.07
+		},
+		{
+			_class = "C_INIT_RandomRadius"
+			m_flRadiusMin = 0.5
+		},
+		{
+			_class = "C_INIT_RandomAlpha"
+		},
+		{
+			_class = "C_INIT_RandomColor"
+			m_ColorMin = [ 231, 132, 78, 255 ]
+			m_ColorMax = [ 228, 135, 37, 255 ]
+		},
+		{
+			_class = "C_INIT_CreateWithinSphere"
+		},
+		{
+			_class = "C_INIT_DistanceToCPInit"
+			m_flInputMax = 15.0
+			m_flOutputMin = 3.0
+			m_flOutputMax = 0.3
+			m_bScaleInitialRange = true
+		},
+		{
+			_class = "C_INIT_VelocityRandom"
+			m_LocalCoordinateSystemSpeedMin = [ 5.0, 50.0, 15.0 ]
+			m_LocalCoordinateSystemSpeedMax = [ 50.0, -50.0, -50.0 ]
+		},
+	]
+	m_Emitters = 
+	[
+		{
+			_class = "C_OP_InstantaneousEmitter"
+			m_nParticlesToEmit = 15
+			m_nMaxEmittedPerFrame = 100
+		},
+	]
+	m_controlPointConfigurations = 
+	[
+		{
+			m_name = "preview"
+			m_drivers = 
+			[
+				{
+					m_iAttachType = "PATTACH_WORLDORIGIN"
+					m_vecOffset = [ 0.0, 0.0, 0.0 ]
+					m_angOffset = [ null, null, null ]
+					m_entityName = "self"
+				},
+			]
+		},
+	]
+	m_Children = 
+	[
+		{
+			m_ChildRef = resource:"particles/weapon_fx/muzzleflash_smg_heavy_fire.vpcf"
+		},
+		{
+			m_ChildRef = resource:"particles/weapon_fx/muzzleflash_smg_heavy_spark.vpcf"
+		},
+		{
+			m_ChildRef = resource:"particles/weapon_fx/muzzleflash_smg_heavy_core.vpcf"
+		},
+		{
+			m_ChildRef = resource:"particles/weapon_fx/muzzleflash_smg_heavy_sparkfly.vpcf"
+		},
+	]
+	m_nBehaviorVersion = 4
+	m_nFirstMultipleOverride_BackwardCompat = 5
+}

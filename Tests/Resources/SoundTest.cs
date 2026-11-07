@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.IO;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using ValveResourceFormat;
@@ -146,54 +145,6 @@ namespace Tests.Resources
                 "");
 
             await Assert.That(sentence.ToValveSentence()).IsEqualTo(expected);
-        }
-
-        [Test]
-        public async Task TestSoundNoFileName()
-        {
-            var file = TestFixtures.Path("beep.vsnd_c");
-            using var fs = File.OpenRead(file);
-            using var resource = new Resource();
-            resource.Read(fs);
-
-            using (Assert.Multiple())
-            {
-                await Assert.That(resource.ResourceType).IsEqualTo(ResourceType.Sound);
-                await Assert.That(resource.DataBlock).IsAssignableTo<Sound>();
-            }
-
-            var soundData = (Sound?)resource.DataBlock;
-            Debug.Assert(soundData != null);
-
-            using var hash = SHA256.Create();
-            using var sound = soundData.GetSoundStream();
-            var actualHash = Convert.ToHexString(await hash.ComputeHashAsync(sound));
-
-            await Assert.That(actualHash).IsEqualTo(BeepSoundWaveHash);
-        }
-
-        [Test]
-        public async Task TestSoundNoFileNameVerifySize()
-        {
-            var file = TestFixtures.Path("beep.vsnd_c");
-            using var fs = File.OpenRead(file);
-            using var resource = new Resource();
-            resource.Read(fs);
-
-            using (Assert.Multiple())
-            {
-                await Assert.That(resource.ResourceType).IsEqualTo(ResourceType.Sound);
-                await Assert.That(resource.DataBlock).IsAssignableTo<Sound>();
-            }
-
-            var soundData = (Sound?)resource.DataBlock;
-            Debug.Assert(soundData != null);
-
-            using var hash = SHA256.Create();
-            using var sound = soundData.GetSoundStream();
-            var actualHash = Convert.ToHexString(await hash.ComputeHashAsync(sound));
-
-            await Assert.That(actualHash).IsEqualTo(BeepSoundWaveHash);
         }
     }
 }

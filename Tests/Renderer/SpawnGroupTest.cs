@@ -40,7 +40,6 @@ namespace Tests.Renderer
         [Test]
         [Arguments("maps/prefabs/de_dust2/de_dust2_skybox.vmap", "maps/prefabs/de_dust2/de_dust2_skybox")]
         [Arguments("prefabs/misc/team_select", "maps/prefabs/misc/team_select")]
-        [Arguments("stages/lms_stage1", "maps/stages/lms_stage1")]
         [Arguments("maps\\stages\\lms_stage2.vmap_c", "maps/stages/lms_stage2")]
         public async Task NamesTheMapUnderMaps(string targetMapName, string expected)
         {

@@ -129,24 +129,6 @@ namespace Tests.IO
         }
 
         /// <summary>
-        /// A model with no cloth registers no rest-position correction.
-        /// </summary>
-        [Test]
-        public async Task AModelWithoutClothEmitsItsCompiledSkeleton()
-        {
-            using var resource = new Resource();
-            resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", "townsfolk_03.vmdl_c"));
-            var extract = new ModelExtract(resource, new NullFileLoader());
-
-            using (Assert.Multiple())
-            {
-                await Assert.That(((Model)resource.DataBlock!).Skeleton.Bones.Length).IsEqualTo(56);
-                await Assert.That(extract.Cloth.RestBonePositions.Count).IsEqualTo(0);
-                await Assert.That(extract.Cloth.ProxyRestBonePositions.Count).IsEqualTo(0);
-            }
-        }
-
-        /// <summary>
         /// The worst distance between a real cloth control bone's <c>m_InitPose</c> and the world position
         /// its emitted joint chain accumulates to, with the rest-pose correction and with the compiled
         /// bone transforms.

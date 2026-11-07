@@ -1,0 +1,100 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:vpcf13:version{10b35a8e-b1ee-4f14-87a6-a7b6aae37699} -->
+{
+	_class = "CParticleSystemDefinition"
+	m_controlPointConfigurations = 
+	[
+		{
+			m_name = "preview"
+			m_drivers = 
+			[
+				{
+					m_iAttachType = "PATTACH_WORLDORIGIN"
+					m_vecOffset = [ 0.0, 0.0, 0.0 ]
+					m_angOffset = [ null, null, null ]
+					m_entityName = "self"
+				},
+			]
+		},
+	]
+	m_Operators = 
+	[
+		{
+			_class = "C_OP_BasicMovement"
+			m_fDrag = 0.1
+		},
+		{
+			_class = "C_OP_Decay"
+		},
+		{
+			_class = "C_OP_SetControlPointsToParticle"
+			m_nFirstControlPoint = 11
+			m_nNumControlPoints = 8
+		},
+		{
+			_class = "C_OP_MovementPlaceOnGround"
+			m_flOffset = 5.0
+			m_bDisableOperator = true
+		},
+	]
+	m_Renderers = 
+	[
+		{
+			_class = "C_OP_RenderSprites"
+			m_nOrientationType = 3
+			m_flStartFadeSize = 0.7
+			m_flEndFadeSize = 0.98
+			m_flZoomAmount1 = 4.0
+			m_flAnimationRate = 0.35
+			m_flDiffuseAmount = 0.25
+			m_hTexture = resource:"materials/particle/particle_glow_04.vtex"
+			m_bDisableOperator = true
+		},
+	]
+	m_Initializers = 
+	[
+		{
+			_class = "C_INIT_RingWave"
+			m_flInitialRadius = 32.0
+			m_flThickness = 2.0
+			m_flInitialSpeedMin = 60.0
+			m_flInitialSpeedMax = 80.0
+			m_bXYVelocityOnly = false
+		},
+		{
+			_class = "C_INIT_RandomLifeTime"
+			m_fLifetimeMin = 2.0
+			m_fLifetimeMax = 2.0
+		},
+		{
+			_class = "C_INIT_VelocityRandom"
+			m_LocalCoordinateSystemSpeedMin = [ -32.0, -32.0, 0.0 ]
+			m_LocalCoordinateSystemSpeedMax = [ 32.0, 32.0, 0.0 ]
+		},
+		{
+			_class = "C_INIT_PositionOffset"
+			m_OffsetMin = [ 0.0, 0.0, 60.0 ]
+			m_OffsetMax = [ 0.0, 0.0, 60.0 ]
+		},
+		{
+			_class = "C_INIT_PositionPlaceOnGround"
+		},
+	]
+	m_Emitters = 
+	[
+		{
+			_class = "C_OP_InstantaneousEmitter"
+			m_nParticlesToEmit = 8
+			m_nMinParticlesToEmit = 10
+		},
+	]
+	m_Children = 
+	[
+		{
+			m_ChildRef = resource:"particles/instanced/city_xen_attack/shot1/reviver_smoke_bomb_dazzle_instance1.vpcf"
+		},
+	]
+	m_nInitialParticles = 10
+	m_nMaxParticles = 8
+	m_nBehaviorVersion = 4
+	m_nFirstMultipleOverride_BackwardCompat = 2
+}

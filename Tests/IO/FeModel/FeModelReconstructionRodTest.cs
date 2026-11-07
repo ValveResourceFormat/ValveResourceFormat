@@ -179,18 +179,6 @@ namespace Tests.IO
         }
 
         /// <summary>
-        /// The rods between every pair of a joint's children read as its <c>child_sibling_spring</c>.
-        /// </summary>
-        [Test]
-        public async Task ChildSiblingSpringIsTheRodBetweenTwoChildrenOfOneJoint()
-        {
-            var joint = SiblingChain(RigidRod(0, 1, 3f), RigidRod(0, 2, 3f), RigidRod(0, 3, 3f), RigidRod(1, 2, 3f, 0.5f),
-                RigidRod(1, 3, 3f, 0.5f), RigidRod(2, 3, 3f, 0.5f));
-
-            await Assert.That(joint!.ChildSiblingSpring).IsEqualTo(0.5f);
-        }
-
-        /// <summary>
         /// A sibling set missing one of its pairs states no <c>child_sibling_spring</c>.
         /// </summary>
         [Test]

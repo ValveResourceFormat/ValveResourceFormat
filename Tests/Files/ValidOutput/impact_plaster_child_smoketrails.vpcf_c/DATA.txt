@@ -1,0 +1,165 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:vpcf19:version{aafc65d8-7a5a-4e01-bd8d-3ac118422503} -->
+{
+	_class = "CParticleSystemDefinition"
+	m_nMaxParticles = 400
+	m_BoundingBoxMin = [ -64.0, -64.0, -64.0 ]
+	m_BoundingBoxMax = [ 64.0, 64.0, 64.0 ]
+	m_bShouldSort = false
+	m_Renderers = 
+	[
+		{
+			_class = "C_OP_RenderSprites"
+			m_nSequenceCombineMode = "SEQUENCE_COMBINE_MODE_ALPHA_FROM0_RGB_FROM_1"
+			m_bMaxLuminanceBlendingSequence1 = true
+			m_flStartFadeSize = 0.4
+			m_flEndFadeSize = 0.55
+			m_hTexture = resource:"materials/particle/vistasmokev1/vistasmokev1.vtex"
+			m_flAnimationRate2 = 0.07
+			m_flAnimationRate = 0.5
+		},
+	]
+	m_Operators = 
+	[
+		{
+			_class = "C_OP_BasicMovement"
+			m_fDrag = 0.1
+			m_Gravity = [ 0.0, 0.0, 3.0 ]
+		},
+		{
+			_class = "C_OP_Decay"
+		},
+		{
+			_class = "C_OP_FadeOut"
+			m_flFadeOutTimeMax = 0.75
+			m_flFadeOutTimeMin = 0.5
+		},
+		{
+			_class = "C_OP_InterpolateRadius"
+			m_flBias = 0.6
+			m_flEndScale = 2.0
+			m_flStartScale = 0.5
+		},
+		{
+			_class = "C_OP_SpinUpdate"
+		},
+	]
+	m_Initializers = 
+	[
+		{
+			_class = "C_INIT_RandomSequence"
+			m_nSequenceMax = 1
+		},
+		{
+			_class = "C_INIT_RandomRotation"
+		},
+		{
+			_class = "C_INIT_RandomRadius"
+			m_flRadiusMax = 6.0
+			m_flRadiusMin = 4.0
+		},
+		{
+			_class = "C_INIT_RandomLifeTime"
+			m_fLifetimeMax = 1.3
+			m_fLifetimeMin = 1.0
+		},
+		{
+			_class = "C_INIT_RandomAlpha"
+			m_nAlphaMax = 40
+			m_nAlphaMin = 25
+		},
+		{
+			_class = "C_INIT_RandomColor"
+			m_TintMax = [ 192, 192, 192, 255 ]
+			m_flTintPerc = 0.6
+			m_ColorMax = [ 81, 81, 81, 255 ]
+			m_ColorMin = [ 183, 179, 179, 255 ]
+		},
+		{
+			_class = "C_INIT_RandomSecondSequence"
+			m_nSequenceMax = 1
+		},
+		{
+			_class = "C_INIT_CreateFromParentParticles"
+			m_flVelocityScale = 0.1
+		},
+		{
+			_class = "C_INIT_CreationNoise"
+			m_flNoiseScale = 1.0
+			m_nFieldOutput = "5"
+			m_flOutputMin = -1.0
+		},
+		{
+			_class = "C_INIT_RandomYawFlip"
+		},
+		{
+			_class = "C_INIT_RemapScalar"
+			m_nFieldOutput = "7"
+			m_flOutputMin = 1.0
+			m_flOutputMax = 0.1
+			m_bScaleInitialRange = true
+		},
+		{
+			_class = "C_INIT_RemapScalar"
+			m_flOutputMin = 2.0
+			m_flOutputMax = 0.5
+			m_bScaleInitialRange = true
+		},
+	]
+	m_Emitters = 
+	[
+		{
+			_class = "C_OP_ContinuousEmitter"
+			m_flOpEndFadeInTime = 0.1
+			m_flScalePerParentParticle = 1.0
+			m_flEmissionDuration = 
+			{
+				m_nType = "PF_TYPE_LITERAL"
+				m_flLiteralValue = 1.0
+			}
+			m_flEmitRate = 
+			{
+				m_nType = "PF_TYPE_LITERAL"
+				m_nMapType = "PF_MAP_TYPE_DIRECT"
+				m_flLiteralValue = 45.0
+				m_nControlPoint = 0
+				m_nScalarAttribute = 3
+				m_nVectorAttribute = 6
+				m_nVectorComponent = 0
+				m_flRandomMin = 0.0
+				m_flRandomMax = 1.0
+				m_nRandomMode = "PF_RANDOM_MODE_CONSTANT"
+				m_flMultFactor = 1.0
+				m_flInput0 = 0.0
+				m_flInput1 = 1.0
+				m_flOutput0 = 0.0
+				m_flOutput1 = 1.0
+				m_nBiasType = "PF_BIAS_TYPE_STANDARD"
+				m_flBiasParameter = 0.0
+				m_Curve = 
+				{
+					m_spline = [  ]
+					m_tangents = [  ]
+					m_vDomainMins = [ 0.0, 0.0 ]
+					m_vDomainMaxs = [ 0.0, 0.0 ]
+				}
+			}
+		},
+	]
+	m_nBehaviorVersion = 5
+	m_nFirstMultipleOverride_BackwardCompat = 9
+	m_controlPointConfigurations = 
+	[
+		{
+			m_name = "preview"
+			m_drivers = 
+			[
+				{
+					m_iAttachType = "PATTACH_WORLDORIGIN"
+					m_vecOffset = [ 0.0, 0.0, 0.0 ]
+					m_angOffset = [ null, null, null ]
+					m_entityName = "self"
+				},
+			]
+		},
+	]
+}
