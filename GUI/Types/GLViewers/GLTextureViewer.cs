@@ -1004,6 +1004,31 @@ namespace GUI.Types.GLViewers
             }
         }
 
+        internal float Zoom => TextureScale;
+
+        /// <summary>
+        /// Zooms around the view center by whole mouse wheel steps, or back to 100% with <paramref name="reset"/>.
+        /// </summary>
+        internal void ZoomSteps(int steps, bool reset)
+        {
+            Debug.Assert(GLControl != null);
+
+            if (reset)
+            {
+                ResetZoom();
+            }
+
+            var center = new System.Drawing.Point(GLControl.Width / 2, GLControl.Height / 2);
+
+            for (var i = 0; i < Math.Abs(steps); i++)
+            {
+                HandleMouseWheel(Math.Sign(steps), center, isShiftPressed: false, isCtrlPressed: false);
+            }
+
+            TextureScaleChangeTime = 10f;
+            InvalidateRender();
+        }
+
         private void ResetZoom()
         {
             MovedFromOrigin_Unzoomed = false;

@@ -465,6 +465,13 @@ internal sealed partial class McpTools
         };
     }
 
+    [Tool("Zoom a texture, image or graph tab around the center of its view, in the same 1.25x steps as the mouse wheel, without animation. 'reset' first returns to 100%, as the Reset zoom button does. Returns the zoom, where 1 is 100%.", Redraws = true)]
+    private static object Zoom(GLTextureViewer viewer, [Description("Wheel steps: positive zooms in, negative zooms out.")][Range(-100, 100)] int steps = 0, [Description("Return to 100% before stepping.")] bool reset = false)
+    {
+        viewer.ZoomSteps(steps, reset);
+        return new { zoom = viewer.Zoom };
+    }
+
     [Tool("Render a tab at an exact pixel size, capped to the window, so you can compare screenshots from two builds. Pass no size to follow the window again.", Redraws = true)]
     private static object SetViewport(GLBaseControl viewer, [Description("Render width.")][Range(1, int.MaxValue)] int? width = null, [Description("Render height.")][Range(1, int.MaxValue)] int? height = null)
     {
