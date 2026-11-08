@@ -5,10 +5,6 @@ permissions:
 
 on:
   push:
-    branches:
-    - master
-    tags:
-    - '*'
     paths-ignore:
     - '.github/*_TEMPLATE/**'
     - 'docs/**'
@@ -192,7 +188,7 @@ jobs:
       run: dotnet publish --configuration Release --self-contained --runtime win-x64 ${{ env.SKIP_ANALYSIS }} ${{ env.PUBLISH_ARGS }} GUI/GUI.csproj
 
     - name: Attest build provenance
-      if: github.event_name != 'pull_request'
+      if: github.ref == 'refs/heads/master' || github.ref_type == 'tag'
       uses: actions/attest-build-provenance@v4
       with:
         subject-path: GUI/bin/Release/win-x64/publish/Source2Viewer.exe
