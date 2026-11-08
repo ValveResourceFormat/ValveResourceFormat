@@ -30,7 +30,6 @@ namespace ValveResourceFormat.Renderer.Materials
     /// </summary>
     public sealed class TextureStreamingHelper(RendererContext rendererContext)
     {
-        // Streams waiting to ask for their next mips: chains heading to a target, and chains parked by the throttle
         private readonly ConcurrentQueue<StreamedTexture> pendingLoadRequests = new();
 
         private const long VideoMemoryReserve = 256L * 1024 * 1024;
@@ -38,13 +37,12 @@ namespace ValveResourceFormat.Renderer.Materials
         private long videoMemoryHeadroom = long.MaxValue;
         private bool loggedLowVideoMemory;
 
-        // One FIFO for everything: a texture only has one request out at a time, so this is already in chain order
+        // A texture only has one request out at a time, so this is already in chain order
         private readonly ConcurrentQueue<LoadedMipBits> loadedMipBits = new();
 
-        // Textures created since the last slice, which may happen on a loading thread
+        // Filled from loading threads, joins the list the slices own on the next pass
         private readonly ConcurrentQueue<StreamedTexture> newStreams = new();
 
-        // Every live streamed texture, owned by the thread doing the slices
         private readonly List<StreamedTexture> streams = [];
         private readonly Lock streamsLock = new();
 
@@ -58,15 +56,12 @@ namespace ValveResourceFormat.Renderer.Materials
 
         private long lastSliceDuration;
 
-        // A slice stops starting loads after this many requests or bytes, whichever comes first
         private const int MaxRequestsPerSlice = 16;
         private const long MaxRequestBytesPerSlice = 32L * 1024 * 1024;
 
-        // How often the meshes are measured
         private const float DemandIntervalSeconds = 0.25f;
 
-        // How fast an unrequested texture's demand eases toward coarser levels. The size halves every five
-        // seconds, which is one level per five seconds, so looking around does not reload mips.
+        // The size halves every five seconds, so looking around does not reload mips
         private const float DemandDecayLevelsPerSecond = 0.2f;
 
         // Shrinking a texture reallocates it, so it only happens when it frees at least this much
@@ -78,10 +73,8 @@ namespace ValveResourceFormat.Renderer.Materials
         private long lastDemandTimestamp;
         private long lastTargetsTimestamp;
 
-        // Streams taken off the request queue to be put in priority order, reused between slices
         private readonly List<StreamedTexture> loadCandidates = [];
 
-        // The view the draws are being measured through, and the node whose figures are worked out
         private Vector3 demandEye;
         private bool demandOrthographic;
         private float demandPixelsPerUnitAtUnitDistance;
@@ -132,9 +125,8 @@ namespace ValveResourceFormat.Renderer.Materials
             DiscardLoadedMipBits();
         }
 
-        // Drained rather than cleared: these buffers belong to the pool, not the garbage collector. The
-        // count comes off per item, never zeroed, so a load still in flight keeps its bytes counted.
-        // This does not wait for those: teardown does the waiting, off the thread that closed the tab.
+        // Drained rather than cleared, as these buffers belong to the pool. The count comes off per item,
+        // so a load still in flight keeps its bytes counted.
         private void DiscardLoadedMipBits()
         {
             while (loadedMipBits.TryDequeue(out var bits))
@@ -143,7 +135,6 @@ namespace ValveResourceFormat.Renderer.Materials
             }
         }
 
-        // Gives a load's buffer back and releases its hold on the in-flight limit and its texture
         private void DiscardBits(in LoadedMipBits bits)
         {
             ArrayPool<byte>.Shared.Return(bits.Buffer);
@@ -193,7 +184,6 @@ namespace ValveResourceFormat.Renderer.Materials
             => !stream.LoadInFlight && !stream.Queued && !stream.NeedsWholeChain && !stream.Failed
             && stream.Texture.Handle != 0 && stream.AllocatedChainLevel < stream.ChainLevels - 1;
 
-        // Streams are registered from loading threads, and join the list the slices own on the next pass
         private void DrainNewStreams()
         {
             while (newStreams.TryDequeue(out var stream))
@@ -217,8 +207,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
                 if (Stopwatch.GetTimestamp() >= deadline)
                 {
-                    // Only reachable if the throttle stopped balancing, which is a bug in here rather than
-                    // a slow read. Give up so teardown is not held hostage by it.
+                    // Only reachable if the in-flight count stopped balancing. Give up so teardown is not blocked.
                     rendererContext.Logger.LogError("Gave up waiting on {Bytes} streaming bytes", Interlocked.Read(ref bitsInFlight));
                     break;
                 }
@@ -282,15 +271,15 @@ namespace ValveResourceFormat.Renderer.Materials
                 demandPixelsPerUnit = demandOrthographic ? demandPixelsPerUnitAtUnitDistance : demandPixelsPerUnitAtUnitDistance / Math.Max(distance, 1f);
             }
 
-            var pixelsPerUnit = demandPixelsPerUnit;
-            var material = drawCall.Material;
+            // A mesh without a density needs its textures whole
+            var pixelsPerUv = drawCall.UvDensity > 0f ? drawCall.UvDensity * demandPixelsPerUnit : float.PositiveInfinity;
 
-            foreach (var (stream, inverseScale) in material.StreamedTextureScales)
+            foreach (var texture in drawCall.Material.Textures.Values)
             {
-                // World units one unit of the coordinates this texture is sampled with spans.
-                // A mesh without a density needs the texture whole.
-                var unitsPerUv = drawCall.UvDensity * inverseScale;
-                var pixelsPerUv = unitsPerUv > 0f ? unitsPerUv * pixelsPerUnit : float.PositiveInfinity;
+                if (texture.Stream is not { } stream)
+                {
+                    continue;
+                }
 
                 var firstThisPass = stream.DemandPass != demandPass;
 
@@ -302,7 +291,7 @@ namespace ValveResourceFormat.Renderer.Materials
             }
         }
 
-        // The finest chain level a texture was asked for: the one whose texels are about a pixel wide
+        // The chain level whose texels are about a pixel wide
         private static int DemandedChainLevel(StreamedTexture stream)
         {
             var texelsPerPixel = Math.Max(stream.AllocWidth, stream.AllocHeight) / stream.DemandPixelsPerUv;
@@ -311,9 +300,8 @@ namespace ValveResourceFormat.Renderer.Materials
             return float.IsFinite(levelFromSize) ? (int)Math.Clamp(levelFromSize, 0f, stream.ChainLevels - 1) : 0;
         }
 
-        // The chain level a texture should hold. Its demand snaps to what the last measure asked for when
-        // that is finer, and otherwise eases toward coarser levels with time. A texture nothing asked for
-        // since the last measure can keep what it holds or shrink, but not grow.
+        // Demand snaps to what the last measure asked for when that is finer, and otherwise eases toward
+        // coarser levels. A texture the last measure did not ask for can shrink, but not grow.
         private int ChooseTarget(StreamedTexture stream, float elapsedSeconds)
         {
             if (stream.NeedsWholeChain || !stream.DrawnByMesh)
@@ -333,7 +321,6 @@ namespace ValveResourceFormat.Renderer.Materials
             return requested ? target : Math.Max(target, stream.ResidentChainLevel);
         }
 
-        // Bytes of mip data that go away when storage is shrunk from its current top to a chain level
         private static long BytesFreedByShrink(StreamedTexture stream, int chainLevel)
         {
             var bytes = 0L;
@@ -357,8 +344,6 @@ namespace ValveResourceFormat.Renderer.Materials
             pendingLoadRequests.Enqueue(stream);
         }
 
-        // Points every texture at its target: queues loads for those that need more, and shrinks those that
-        // hold much more than they need.
         private void UpdateTargets(bool throttled)
         {
             suspended = false;
@@ -403,7 +388,6 @@ namespace ValveResourceFormat.Renderer.Materials
             }
         }
 
-        // Uploads the new mips, first making storage for the level the chain heads to if it has none yet.
         // A texture's bits always arrive smallest first, and the base level only reveals the levels that
         // arrived, so nothing can ever sample as black.
         private static void HookUpMipBits(in LoadedMipBits bits)
@@ -413,7 +397,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
             if (texture.Handle == 0)
             {
-                return; // deleted while the load was in flight; drop the data
+                return;
             }
 
             Debug.Assert(bits.MipCount == 1 || stream.Mips[stream.NextMip] == bits.Mip);
@@ -460,9 +444,7 @@ namespace ValveResourceFormat.Renderer.Materials
             }
         }
 
-        // Immutable storage cannot change size, so a different top level means a new texture object: allocate
-        // one, copy the resident levels it keeps into it, and swap the handle over. Growing leaves the new
-        // levels for the loads to fill, and shrinking drops the levels above the new top.
+        // Immutable storage cannot change size, so a different top level means a new texture object
         private static void ReplaceStorage(StreamedTexture stream, int chainLevel)
         {
             var texture = stream.Texture;
@@ -529,8 +511,6 @@ namespace ValveResourceFormat.Renderer.Materials
             return a.Texture.Handle.CompareTo(b.Texture.Handle);
         }
 
-        // Starts the queued loads in priority order. A throttled slice stops after a few requests or bytes,
-        // leaving the rest queued.
         private void IssueQueuedLoads(bool throttled)
         {
             while (pendingLoadRequests.TryDequeue(out var stream))
@@ -566,7 +546,6 @@ namespace ValveResourceFormat.Renderer.Materials
             loadCandidates.Clear();
         }
 
-        // The work itself, until the queues run dry or the deadline passes. Says whether it hooked anything up.
         private bool RunUntil(long deadline, bool throttled)
         {
             var hookedUp = false;
@@ -613,7 +592,6 @@ namespace ValveResourceFormat.Renderer.Materials
             return hookedUp;
         }
 
-        // Anything left to request, in flight, or waiting to be hooked up
         private bool HasPendingWork
             => !pendingLoadRequests.IsEmpty || !loadedMipBits.IsEmpty || Interlocked.Read(ref bitsInFlight) > 0;
 
@@ -649,14 +627,12 @@ namespace ValveResourceFormat.Renderer.Materials
             }
         }
 
-        // Asks for a stream's next mips toward its target, taking mips while they fit the byte budget, and
-        // returns the bytes requested, 0 if there was nothing to ask for. Only ever runs on the thread doing
-        // the slice, so reading the in-flight byte count cannot race the adds made right below it.
+        // Returns the bytes requested. Only ever runs on the thread doing the slice, so reading the in-flight
+        // byte count cannot race the adds made right below it.
         private long IssueLoadRequest(StreamedTexture stream, int budget)
         {
             stream.Queued = false;
 
-            // Already loading, finished inline by a non-streaming request, or gone
             if (stream.LoadInFlight || stream.Failed || stream.Texture.Handle == 0)
             {
                 return 0;
@@ -664,7 +640,6 @@ namespace ValveResourceFormat.Renderer.Materials
 
             PlanRequest(stream, budget);
 
-            // Nothing left this side of the target, so there is no request to make
             if (stream.RequestMipCount == 0)
             {
                 return 0;
@@ -693,9 +668,7 @@ namespace ValveResourceFormat.Renderer.Materials
             return stream.GateBytes;
         }
 
-        // Decides how much of the chain the next request reads: from where the texture got to, toward the
-        // target, taking mips while they fit the budget. Always at least one, or a chain whose next mip is
-        // bigger than the budget would never move.
+        // Always takes at least one mip, or a chain whose next mip is bigger than the budget would never move
         private static void PlanRequest(StreamedTexture stream, int budget)
         {
             var count = 0;
@@ -718,8 +691,7 @@ namespace ValveResourceFormat.Renderer.Materials
             stream.GateBytes = bytes;
         }
 
-        // Finishes a chain on the spot, for a caller that needs the whole texture rather than the part
-        // the meshes drawing it asked for, and keeps it whole from then on. Returns true if texture is whole.
+        // Finishes a chain on the spot and keeps it whole from then on. Returns true if the texture is whole.
         internal static bool FinishStreaming(RenderTexture tex)
         {
             if (tex.Stream is not { } stream)
@@ -768,17 +740,14 @@ namespace ValveResourceFormat.Renderer.Materials
             }
         }
 
-        // Serves one load request, on a thread pool thread: reads the mips it was asked for into a single
-        // pooled buffer, back to back, and queues them to be hooked up. The buffer holds exactly the mips: an
-        // in-place decode would need a margin past each one, pushing power of two mips into the pool bucket
-        // twice their size.
+        // The buffer holds exactly the mips: an in-place decode would need a margin past each one, pushing
+        // power of two mips into the pool bucket twice their size.
         internal void LoadStreamingData(StreamedTexture stream)
         {
             var first = stream.NextMip;
             var count = stream.RequestMipCount;
             var gateBytes = stream.GateBytes;
 
-            // Deleted since the request was issued, so there is nothing to load into
             if (stream.Texture.Handle == 0 || suspended)
             {
                 ReleaseInFlight(stream, gateBytes);
@@ -790,7 +759,6 @@ namespace ValveResourceFormat.Renderer.Materials
 
             try
             {
-                // The throttle counts the mips' exact sizes, which is all the buffer has to hold
                 buffer = ArrayPool<byte>.Shared.Rent(gateBytes);
 
                 var offset = 0;
