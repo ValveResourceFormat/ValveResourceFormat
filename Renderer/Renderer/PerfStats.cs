@@ -30,6 +30,9 @@ internal enum Counter
     ParticleDraw,
     SoundCacheMegabytes,
     SoundDecodeQueue,
+    GpuMemoryFreeMegabytes,
+    GpuMemoryTotalMegabytes,
+    ProcessMemoryMegabytes,
 }
 
 internal enum Metric
@@ -491,6 +494,22 @@ public class PerfStats
         }
 
         AddLine(displayText.Format($"Sound cache:      {counts[(int)Counter.SoundCacheMegabytes]:N0} MB decoded, {counts[(int)Counter.SoundDecodeQueue]:N0} queued to decode"), valueColor);
+
+        AddLine(displayText.Format($"RAM:              {counts[(int)Counter.ProcessMemoryMegabytes]:N0} MB working set"), valueColor);
+
+        var gpuMemoryFree = counts[(int)Counter.GpuMemoryFreeMegabytes];
+        var gpuMemoryTotal = counts[(int)Counter.GpuMemoryTotalMegabytes];
+
+        if (gpuMemoryTotal > 0)
+        {
+            var gpuMemoryUsed = gpuMemoryTotal - gpuMemoryFree;
+            AddLine(displayText.Format($"GPU memory:       {gpuMemoryUsed:N0} of {gpuMemoryTotal:N0} MB used"), valueColor);
+        }
+        else if (gpuMemoryFree > 0)
+        {
+            AddLine(displayText.Format($"GPU memory:       {gpuMemoryFree:N0} MB free"), valueColor);
+        }
+
         AddLine(FormatTonemapStats(), valueColor);
     }
 
@@ -556,6 +575,11 @@ public class PerfStats
         suspendDepth = 0;
         Array.Clear(counts);
         Array.Clear(floatMetrics);
+
+        var gpuMemory = GLEnvironment.GetGpuMemoryMegabytes();
+        counts[(int)Counter.GpuMemoryFreeMegabytes] = gpuMemory.Free;
+        counts[(int)Counter.GpuMemoryTotalMegabytes] = gpuMemory.Total;
+        counts[(int)Counter.ProcessMemoryMegabytes] = (int)(Environment.WorkingSet / (1024 * 1024));
 
         foreach (var costGroups in lightsInView)
         {

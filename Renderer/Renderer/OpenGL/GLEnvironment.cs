@@ -143,6 +143,24 @@ public static class GLEnvironment
     }
 
     /// <summary>
+    /// Gets the free and total video memory in megabytes, or 0 for a value the driver does not report.
+    /// The figures cover the whole adapter and come from vendor extensions.
+    /// </summary>
+    /// <returns>The currently available and the total video memory.</returns>
+    internal static (int Free, int Total) GetGpuMemoryMegabytes()
+    {
+        var free = (int)(GetAvailableVideoMemory().GetValueOrDefault() / (1024 * 1024));
+        var total = 0;
+
+        if (VideoMemoryQuerySupport == VideoMemoryQueryType.Nvx)
+        {
+            total = GL.GetInteger((GetPName)All.GpuMemoryInfoTotalAvailableMemoryNvx) / 1024;
+        }
+
+        return (free, total);
+    }
+
+    /// <summary>
     /// Sets the default OpenGL render state for Source 2 rendering.
     /// </summary>
     public static void SetDefaultRenderState()
