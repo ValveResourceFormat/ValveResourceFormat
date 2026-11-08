@@ -249,7 +249,7 @@ internal sealed class GoldSrcResourceProvider(GoldSrcFileSystem? fileSystem, ILo
     }
 
     /// <inheritdoc/>
-    public List<ResourceTypes.EntityLump.Entity> GetExportEntities(List<ResourceTypes.EntityLump.Entity> entities) => Source1MapExport.Regroup(entities);
+    public List<ResourceTypes.EntityLump.Entity> GetExportEntities(List<ResourceTypes.EntityLump.Entity> entities) => Source1MapExport.Regroup(Source1EntityExport.Convert(entities, MaterialTargetGame));
 
     /// <inheritdoc/>
     public void AddExportProperties(string className, EditGameClassProps properties)

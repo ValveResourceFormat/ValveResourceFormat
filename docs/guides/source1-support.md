@@ -112,7 +112,7 @@ Source 1 and GoldSrc games open in the GUI viewer, which converts their files to
 
 ### Export
 
-- Textures, materials, models and maps export like Source 2 resources: PNG, glTF and decompiled vmat, vmdl and vmap with the models, materials and textures they draw, and for maps the tools materials of brushes; the cube map and light probe textures are left out, as Hammer bakes them again
+- Textures, materials, models and maps export like Source 2 resources: PNG, glTF and decompiled vmat, vmdl and vmap with the models, materials and textures they draw, and for maps the tools materials of brushes; the cube map and light probe textures are left out, as Hammer bakes them again. Each cube map becomes a combined light probe volume with a box fitted to its room, nested by priority, below one volume that covers the world
 - Export with dependencies saves the file and the game files its conversion reads into a folder laid out like the game, with a `gameinfo.txt` or `liblist.gam`, including the sounds and scripts that entities, soundscapes and animation events name, and the models and icons that stand in for entities
 
 ## Not supported
@@ -183,7 +183,7 @@ Source 1 and GoldSrc games open in the GUI viewer, which converts their files to
 
 ### Export
 
-- Decompiled materials, GoldSrc ones too, are written for the shaders of Counter-Strike 2. They keep the textures, blend mode, layers, self illumination, detail and roughness. Material proxies, environment map reflections and shader specific parameters are left out
+- Decompiled materials, GoldSrc ones too, are written for the shaders of Counter-Strike 2. They keep the textures, blend mode, layers, self illumination, detail, roughness and metalness. CS:GO character materials use the Counter-Strike 2 character shader. Material proxies, environment map reflections and shader specific parameters are left out
 - Decompiled maps leave out particles
 - Export with dependencies leaves out sounds that entity classes play without naming them, such as the default sounds of doors
 

@@ -61,7 +61,7 @@ internal static partial class Source1SpriteConverter
         public Vector4 Fade;
     }
 
-    // The extra attributes are the second, third and fourth texture coordinates
+    // The fade is the fifth texture coordinate, as the compiler takes the fourth for the lightmap coordinates
     private static readonly VertexField[] SpriteFields =
     [
         new(nameof(SpriteVertex.Position), "POSITION", 0, DXGI_FORMAT.R32G32B32_FLOAT),
@@ -69,7 +69,7 @@ internal static partial class Source1SpriteConverter
         new(nameof(SpriteVertex.Color), "COLOR", 0, DXGI_FORMAT.R32G32B32A32_FLOAT),
         new(nameof(SpriteVertex.Billboard), "TEXCOORD", 1, DXGI_FORMAT.R32G32B32_FLOAT),
         new(nameof(SpriteVertex.Params), "TEXCOORD", 2, DXGI_FORMAT.R32G32B32A32_FLOAT),
-        new(nameof(SpriteVertex.Fade), "TEXCOORD", 3, DXGI_FORMAT.R32G32B32A32_FLOAT),
+        new(nameof(SpriteVertex.Fade), "TEXCOORD", 4, DXGI_FORMAT.R32G32B32A32_FLOAT),
     ];
 
     /// <summary>Gets whether entities of a class name their sprite in the <c>model</c> key.</summary>

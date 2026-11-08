@@ -1692,20 +1692,25 @@ internal sealed class GoldSrcMapConversion
 
     private PalettedImage? FindTexture(string name, IReadOnlyList<string> wads) => fileSystem?.FindTexture(name, wads);
 
-    // Texture names hold characters that mark their kind, such as { and !
+    // Texture names hold characters that mark their kind, such as { and !, which resource names cannot have.
+    // Those are written as an underscore and their hex code, and a literal underscore is doubled, so two names never collide.
     private static string GetFileName(string textureName)
     {
         var name = new StringBuilder(textureName.Length);
 
         foreach (var character in textureName.ToLowerInvariant())
         {
-            if (char.IsAsciiLetterOrDigit(character) || character == '_')
+            if (char.IsAsciiLetterOrDigit(character))
             {
                 name.Append(character);
             }
+            else if (character == '_')
+            {
+                name.Append("__");
+            }
             else
             {
-                name.Append(CultureInfo.InvariantCulture, $"-{(int)character:x}");
+                name.Append(CultureInfo.InvariantCulture, $"_{(int)character:x}");
             }
         }
 

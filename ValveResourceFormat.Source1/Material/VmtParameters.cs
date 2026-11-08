@@ -110,6 +110,30 @@ internal readonly struct VmtParameters(IReadOnlyDictionary<string, string> value
         return byteColor ? value / 255.0f : value;
     }
 
+    /// <summary>
+    /// Reads a color with an alpha. The <c>{r g b a}</c> form is in 0-255 and is returned normalized to 0-1.
+    /// </summary>
+    public Vector4 Color4(string key, Vector4 fallback)
+    {
+        if (!values.TryGetValue(key, out var text))
+        {
+            return fallback;
+        }
+
+        Span<float> components = stackalloc float[4];
+        components.Clear();
+        var count = ReadComponents(text, key, components, out var byteColor);
+
+        if (count != 4)
+        {
+            return fallback;
+        }
+
+        var value = new Vector4(components[0], components[1], components[2], components[3]);
+
+        return byteColor ? value / 255.0f : value;
+    }
+
     public Vector2 Pair(string key, Vector2 fallback)
     {
         if (!values.TryGetValue(key, out var text))

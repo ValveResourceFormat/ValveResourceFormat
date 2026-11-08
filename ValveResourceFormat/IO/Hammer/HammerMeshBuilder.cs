@@ -958,6 +958,8 @@ namespace ValveResourceFormat.IO
                 corners[i] = new Corner(Get(texcoords, sourceIndex), Get(texcoords1, sourceIndex), normal, tangent, Get(blendParams, sourceIndex), Get(tintColors, sourceIndex));
             }
 
+            CollapseFans(faceList, newPositions);
+
             // the render triangles cover physics triangles, which the physics reconstruction then leaves out
             if (PhysicsTriangleMatcher != null)
             {
@@ -978,7 +980,13 @@ namespace ValveResourceFormat.IO
 
             var baseVertex = AddVertices(newPositions);
 
-            Span<Corner> faceCorners = stackalloc Corner[3];
+            var maxFaceLength = 3;
+            foreach (var (faceIndices, _) in faceList)
+            {
+                maxFaceLength = Math.Max(maxFaceLength, faceIndices.Length);
+            }
+
+            var faceCorners = new Corner[maxFaceLength];
 
             foreach (var (faceIndices, faceSet) in faceList)
             {
@@ -988,11 +996,140 @@ namespace ValveResourceFormat.IO
                     faceIndices[i] += baseVertex;
                 }
 
-                AddFace(faceIndices, faceSet.Material.MaterialName, faceCorners[..faceIndices.Length]);
+                AddFace(faceIndices, faceSet.Material.MaterialName, faceCorners.AsSpan(0, faceIndices.Length));
             }
 
             static T? Get<T>(IList<T>? stream, int index) where T : struct
                 => stream is { Count: > 0 } ? stream[index] : null;
+        }
+
+        // Joins runs of triangles that fan around one vertex back into the polygon they were cut from, when that
+        // polygon is flat and convex. Any other run is left as triangles.
+        private static void CollapseFans(List<(int[] Indices, DmeFaceSet FaceSet)> faceList, Vector3[] positions)
+        {
+            var collapsed = new List<(int[] Indices, DmeFaceSet FaceSet)>(faceList.Count);
+            var polygon = new List<int>();
+            var start = 0;
+
+            while (start < faceList.Count)
+            {
+                var runLength = GatherFan(faceList, start, polygon);
+
+                if (runLength >= 2 && IsFlatConvexPolygon(polygon, positions))
+                {
+                    collapsed.Add((polygon.ToArray(), faceList[start].FaceSet));
+                }
+                else
+                {
+                    for (var i = 0; i < runLength; i++)
+                    {
+                        collapsed.Add(faceList[start + i]);
+                    }
+                }
+
+                start += runLength;
+            }
+
+            faceList.Clear();
+            faceList.AddRange(collapsed);
+        }
+
+        // Collects the polygon of the triangles fanning from the one at start, keeping their winding, and returns how
+        // many triangles it used. A fan either continues from the last corner added (first, a, b then first, b, c) or
+        // from the first one (first, b, a then first, c, b).
+        private static int GatherFan(List<(int[] Indices, DmeFaceSet FaceSet)> faceList, int start, List<int> polygon)
+        {
+            polygon.Clear();
+
+            var firstTriangle = faceList[start];
+            if (firstTriangle.Indices.Length != 3)
+            {
+                return 1;
+            }
+
+            var apex = firstTriangle.Indices[0];
+            polygon.AddRange(firstTriangle.Indices);
+
+            var runLength = 1;
+            var growsAtEnd = false;
+            var growsAtStart = false;
+
+            while (start + runLength < faceList.Count)
+            {
+                var next = faceList[start + runLength];
+
+                if (next.Indices.Length != 3 || next.Indices[0] != apex || !ReferenceEquals(next.FaceSet, firstTriangle.FaceSet))
+                {
+                    break;
+                }
+
+                if (!growsAtStart && next.Indices[1] == polygon[^1])
+                {
+                    polygon.Add(next.Indices[2]);
+                    growsAtEnd = true;
+                }
+                else if (!growsAtEnd && next.Indices[2] == polygon[1])
+                {
+                    polygon.Insert(1, next.Indices[1]);
+                    growsAtStart = true;
+                }
+                else
+                {
+                    break;
+                }
+
+                runLength++;
+            }
+
+            return runLength;
+        }
+
+        private static bool IsFlatConvexPolygon(List<int> polygon, Vector3[] positions)
+        {
+            const float PlaneTolerance = 0.01f;
+
+            if (polygon.Count < 4 || new HashSet<int>(polygon).Count != polygon.Count)
+            {
+                return false;
+            }
+
+            // Newell's method, the normal follows the winding
+            var origin = positions[polygon[0]];
+            var normal = Vector3.Zero;
+            for (var i = 0; i < polygon.Count; i++)
+            {
+                var current = positions[polygon[i]] - origin;
+                var next = positions[polygon[(i + 1) % polygon.Count]] - origin;
+                normal += Vector3.Cross(current, next);
+            }
+
+            var normalLength = normal.Length();
+            if (normalLength < 1e-6f)
+            {
+                return false;
+            }
+
+            normal /= normalLength;
+
+            for (var i = 0; i < polygon.Count; i++)
+            {
+                var previous = positions[polygon[(i + polygon.Count - 1) % polygon.Count]];
+                var current = positions[polygon[i]];
+                var next = positions[polygon[(i + 1) % polygon.Count]];
+
+                if (MathF.Abs(Vector3.Dot(normal, current - origin)) > PlaneTolerance)
+                {
+                    return false;
+                }
+
+                var turn = Vector3.Dot(normal, Vector3.Cross(current - previous, next - current));
+                if (turn < 0f)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private bool VerifyIndicesWithinBounds(ReadOnlySpan<int> indices)

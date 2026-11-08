@@ -52,6 +52,8 @@ internal enum MaterialSlots
     BlendMask = 1 << 9,
     Flow = 1 << 10,
     FlowNoise = 1 << 11,
+    LayerDetail = 1 << 20,
+    CubeMap = 1 << 21,
 }
 
 /// <summary>The parameters a water or refracting shader takes.</summary>
@@ -130,6 +132,18 @@ internal sealed class ShaderProfile
 
     /// <summary>Whether colors are written as they are, and not in the gamma space that most shaders convert to linear.</summary>
     public bool LinearColors { get; init; }
+
+    /// <summary>Whether the shader takes the tints, blending, detail textures and surface properties of the layers of a world surface.</summary>
+    public bool LayerBlending { get; init; }
+
+    /// <summary>The feature that draws without testing and writing the depth.</summary>
+    public string? DepthFeature { get; init; }
+
+    /// <summary>The feature that modulates the color with a gradient, with its three color stops.</summary>
+    public string? GradientFeature { get; init; }
+
+    /// <summary>The parameter of how far the cube map shifts with the view.</summary>
+    public string? CubeParallaxParam { get; init; }
 }
 
 /// <summary>The shaders of a game that materials of each role are written with.</summary>
@@ -143,7 +157,14 @@ internal sealed class MaterialTarget
     private const MaterialSlots DecalSlots = MaterialSlots.Color | MaterialSlots.Normal | MaterialSlots.Roughness
         | MaterialSlots.AmbientOcclusion | MaterialSlots.Metalness | MaterialSlots.Translucency;
 
+    private const MaterialSlots UnlitOverlaySlots = MaterialSlots.Color | MaterialSlots.Translucency;
+
+    private const MaterialSlots LitOverlaySlots = UnlitOverlaySlots | MaterialSlots.Normal | MaterialSlots.Roughness
+        | MaterialSlots.AmbientOcclusion;
+
     private static readonly int[] DecalBlendModes = [0, 0, 0, 2, 1, 1];
+
+    private static readonly int[] OverlayBlendModes = [0, 2, 1, 4, 3, 5];
 
     private readonly FrozenDictionary<MaterialRole, ShaderProfile> roles;
 
@@ -169,8 +190,16 @@ internal sealed class MaterialTarget
         _ => null,
     };
 
+    /// <summary>Gets the shaders of the special effects of surfaces, which replace the shader of the role.</summary>
+    public Dictionary<MaterialEffect, ShaderProfile> Effects { get; init; } = [];
+
     public ShaderProfile Find(MaterialDescription description)
     {
+        if (Effects.TryGetValue(description.Effect, out var effectProfile))
+        {
+            return effectProfile;
+        }
+
         if (roles.TryGetValue(description.Role, out var profile))
         {
             return profile;
@@ -207,14 +236,25 @@ internal sealed class MaterialTarget
             },
         };
 
+        var character = new ShaderProfile
+        {
+            Shader = "csgo_character",
+            Slots = LitSlots & ~(MaterialSlots.SelfIllum | MaterialSlots.Detail),
+            BlendFlags = true,
+            TextureTransform = TextureTransform.Single,
+            SlotFeatures = { [MaterialSlots.TintMask] = "F_TINT_MASK" },
+        };
+
         var world = new ShaderProfile
         {
             Shader = "csgo_lightmappedgeneric",
             Naming = LayerNaming.LayerPrefix,
-            Slots = LayerSlots | MaterialSlots.Translucency,
+            Slots = LayerSlots | MaterialSlots.Translucency | MaterialSlots.LayerDetail,
             FixedFeatures = [("F_LAYERS", 0)],
             BlendFlags = true,
             Specular = true,
+            TintParams = [],
+            LayerBlending = true,
             TextureTransform = TextureTransform.PerLayer,
         };
 
@@ -223,12 +263,13 @@ internal sealed class MaterialTarget
             Shader = "csgo_lightmappedgeneric",
             Naming = LayerNaming.LayerPrefix,
             Layers = 2,
-            Slots = LayerSlots | MaterialSlots.Translucency | MaterialSlots.BlendMask,
+            Slots = LayerSlots | MaterialSlots.Translucency | MaterialSlots.BlendMask | MaterialSlots.LayerDetail,
             FixedFeatures = [("F_LAYERS", 1)],
             BlendFlags = true,
             Specular = true,
             BlendMaskName = "BlendModulation",
-            TintParams = ["g_vLayer1Tint", "g_vLayer2Tint"],
+            TintParams = [],
+            LayerBlending = true,
             TextureTransform = TextureTransform.PerLayer,
             SlotFeatures = { [MaterialSlots.BlendMask] = "F_FANCY_BLENDING" },
         };
@@ -253,6 +294,23 @@ internal sealed class MaterialTarget
             VertexColorFeature = "F_VERTEX_COLOR",
             OpacityParam = null,
             TextureTransform = TextureTransform.Single,
+            DepthFeature = "F_DISABLE_Z_BUFFERING",
+            GradientFeature = "F_GRADIENTMODULATION",
+        };
+
+        var beachFoam = new ShaderProfile
+        {
+            Shader = "csgo_beachfoam",
+            Slots = MaterialSlots.Color,
+            TextureTransform = TextureTransform.Single,
+        };
+
+        var moonDome = new ShaderProfile
+        {
+            Shader = "csgo_moondome",
+            Slots = MaterialSlots.Color | MaterialSlots.CubeMap,
+            TextureTransform = TextureTransform.Single,
+            CubeParallaxParam = "g_flCubeParallax",
         };
 
         var water = new ShaderProfile
@@ -296,6 +354,25 @@ internal sealed class MaterialTarget
             SlotFeatures = { [MaterialSlots.Normal] = "F_NORMAL_MAP" },
         };
 
+        var overlay = new ShaderProfile
+        {
+            Shader = "csgo_static_overlay",
+            Slots = UnlitOverlaySlots,
+            BlendModeFeature = "F_BLEND_MODE",
+            BlendModeValues = OverlayBlendModes,
+            TextureTransform = TextureTransform.Single,
+        };
+
+        var litOverlay = new ShaderProfile
+        {
+            Shader = "csgo_static_overlay",
+            Slots = LitOverlaySlots,
+            FixedFeatures = [("F_LIT", 1)],
+            BlendModeFeature = "F_BLEND_MODE",
+            BlendModeValues = OverlayBlendModes,
+            TextureTransform = TextureTransform.Single,
+        };
+
         var sky = new ShaderProfile
         {
             Shader = "sky",
@@ -308,6 +385,7 @@ internal sealed class MaterialTarget
         return new MaterialTarget(lit, unlit, new()
         {
             [MaterialRole.LitModel] = lit,
+            [MaterialRole.Character] = character,
             [MaterialRole.LitWorld] = world,
             [MaterialRole.Blend2] = blend2,
             [MaterialRole.Blend4] = blend4,
@@ -315,8 +393,17 @@ internal sealed class MaterialTarget
             [MaterialRole.Water] = water,
             [MaterialRole.Refract] = refract,
             [MaterialRole.Decal] = decal,
+            [MaterialRole.Overlay] = overlay,
+            [MaterialRole.LitOverlay] = litOverlay,
             [MaterialRole.Sky] = sky,
-        });
+        })
+        {
+            Effects =
+            {
+                [MaterialEffect.BeachFoam] = beachFoam,
+                [MaterialEffect.MoonDome] = moonDome,
+            },
+        };
     }
 
     private static MaterialTarget CreateHalfLifeAlyx()
@@ -373,6 +460,25 @@ internal sealed class MaterialTarget
             SlotFeatures = { [MaterialSlots.Normal] = "F_NORMAL_MAP" },
         };
 
+        var overlay = new ShaderProfile
+        {
+            Shader = "vr_static_overlay",
+            Slots = UnlitOverlaySlots,
+            BlendModeFeature = "F_BLEND_MODE",
+            BlendModeValues = OverlayBlendModes,
+            TextureTransform = TextureTransform.Single,
+        };
+
+        var litOverlay = new ShaderProfile
+        {
+            Shader = "vr_static_overlay",
+            Slots = LitOverlaySlots,
+            FixedFeatures = [("F_LIT", 1)],
+            BlendModeFeature = "F_BLEND_MODE",
+            BlendModeValues = OverlayBlendModes,
+            TextureTransform = TextureTransform.Single,
+        };
+
         var sky = new ShaderProfile
         {
             Shader = "sky",
@@ -388,6 +494,8 @@ internal sealed class MaterialTarget
             [MaterialRole.Blend2] = blend2,
             [MaterialRole.Unlit] = unlit,
             [MaterialRole.Decal] = decal,
+            [MaterialRole.Overlay] = overlay,
+            [MaterialRole.LitOverlay] = litOverlay,
             [MaterialRole.Sky] = sky,
         });
     }
@@ -515,6 +623,15 @@ internal sealed class MaterialTarget
             AlphaTestParam = null,
         };
 
+        var overlay = new ShaderProfile
+        {
+            Shader = "citadel_overlay",
+            Slots = MaterialSlots.Color | MaterialSlots.Normal | MaterialSlots.Roughness | MaterialSlots.Translucency,
+            BackfaceFeature = null,
+            AlphaTestParam = null,
+            OpacityParam = null,
+        };
+
         var sky = new ShaderProfile
         {
             Shader = "sky",
@@ -530,6 +647,8 @@ internal sealed class MaterialTarget
             [MaterialRole.Blend2] = blend2,
             [MaterialRole.Unlit] = unlit,
             [MaterialRole.Decal] = decal,
+            [MaterialRole.Overlay] = overlay,
+            [MaterialRole.LitOverlay] = overlay,
             [MaterialRole.Sky] = sky,
         });
     }

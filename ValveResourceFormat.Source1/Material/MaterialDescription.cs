@@ -31,6 +31,15 @@ internal enum MaterialRole
     /// <summary>A decal projected or laid over other surfaces.</summary>
     Decal,
 
+    /// <summary>A mesh laid over the surface it covers that ignores lighting.</summary>
+    Overlay,
+
+    /// <summary>A mesh laid over the surface it covers that is lit.</summary>
+    LitOverlay,
+
+    /// <summary>A lit model surface of a character, whose metalness comes from a packed mask texture.</summary>
+    Character,
+
     /// <summary>The sky.</summary>
     Sky,
 }
@@ -139,7 +148,7 @@ internal sealed class MaterialLayer
 /// A material described independently of the game it comes from, to be written for another game.
 /// Colors are in linear space.
 /// </summary>
-internal sealed class MaterialDescription
+internal sealed partial class MaterialDescription
 {
     /// <summary>Gets or sets what the material is used for.</summary>
     public MaterialRole Role { get; set; }

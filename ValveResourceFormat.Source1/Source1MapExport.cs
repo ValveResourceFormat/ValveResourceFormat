@@ -1,5 +1,7 @@
 using System.Globalization;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
+using ValveResourceFormat.Source1.Bsp;
+using ValveResourceFormat.Source1.Entities;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -19,12 +21,19 @@ internal static class Source1MapExport
     /// </summary>
     public const string RegroupKey = "vrf_export_regroup";
 
+    private const string CombinedVolumeClass = "env_combined_light_probe_volume";
     private const float MinCubemapRadius = 128f;
     private const float CubemapEdgeFadeFraction = 0.25f;
 
     private static readonly string[] BakedTextureKeys = ["cubemaptexture", "lightprobetexture", "lightprobetexture_dli", "lightprobetexture_dls"];
 
-    public static List<EntityLump.Entity> Regroup(List<EntityLump.Entity> entities)
+    /// <summary>Regroups the entities that were split up for the engine.</summary>
+    /// <param name="entities">The converted entities.</param>
+    /// <param name="volumeMap">
+    /// The map, when the target game has <c>env_combined_light_probe_volume</c>: the cube map samples then become volumes fitted
+    /// to their rooms, below one volume that covers the world. Without it the cube maps stay <c>env_cubemap</c>.
+    /// </param>
+    public static List<EntityLump.Entity> Regroup(List<EntityLump.Entity> entities, BspFile? volumeMap = null)
     {
         var probeMin = new Vector3(float.MaxValue);
         var probeMax = new Vector3(float.MinValue);
@@ -55,6 +64,11 @@ internal static class Source1MapExport
             }
         }
 
+        if (volumeMap != null)
+        {
+            return RegroupAsVolumes(entities, volumeMap, cubemaps, voxelSize);
+        }
+
         var probeCenter = (probeMin + probeMax) * 0.5f;
         var probeHalfSize = (probeMax - probeMin) * 0.5f;
         var regrouped = new List<EntityLump.Entity>(entities.Count);
@@ -76,7 +90,7 @@ internal static class Source1MapExport
                     continue;
                 }
 
-                var volume = CopyWithoutRegroupKey(entity);
+                var volume = Source1EntityCopy.Copy(entity, RegroupKey);
                 volume["origin"] = Format(probeCenter);
                 volume["box_mins"] = Format(-probeHalfSize);
                 volume["box_maxs"] = Format(probeHalfSize);
@@ -85,7 +99,7 @@ internal static class Source1MapExport
             }
             else
             {
-                var cubemap = CopyWithoutRegroupKey(entity);
+                var cubemap = Source1EntityCopy.Copy(entity, RegroupKey);
 
                 if (className == "env_cubemap" && TryGetNearestDistance(entity, cubemaps, out var nearest))
                 {
@@ -99,6 +113,115 @@ internal static class Source1MapExport
         }
 
         return regrouped;
+    }
+
+    // The light probe tiles are dropped, the volume below all others covers their part. A map without samples
+    // reflects the default cube map everywhere, which the covering volume then carries.
+    private static List<EntityLump.Entity> RegroupAsVolumes(
+        List<EntityLump.Entity> entities,
+        BspFile bsp,
+        List<EntityLump.Entity> cubemaps,
+        float voxelSize)
+    {
+        var hasSamples = bsp.Cubemaps.Length > 0;
+        var origins = new List<Vector3>();
+
+        if (hasSamples)
+        {
+            foreach (var cubemap in cubemaps)
+            {
+                origins.Add(cubemap.GetVector3Property("origin"));
+            }
+        }
+
+        var volumes = Source1CubemapVolumes.Fit(bsp, origins);
+        var regrouped = new List<EntityLump.Entity>(entities.Count);
+        var volumeIndex = 0;
+
+        foreach (var entity in entities)
+        {
+            if (!entity.TryGetValue(RegroupKey, out _))
+            {
+                regrouped.Add(entity);
+                continue;
+            }
+
+            var className = entity.GetStringProperty("classname");
+
+            if (className == "env_cubemap" && volumeIndex < volumes.Count)
+            {
+                regrouped.Add(CreateVolume(entity, volumes[volumeIndex], voxelSize));
+                volumeIndex++;
+            }
+            else if (className is not ("env_cubemap" or "env_light_probe_volume"))
+            {
+                regrouped.Add(Source1EntityCopy.Copy(entity, RegroupKey));
+            }
+        }
+
+        if (bsp.Models.Length > 0 && entities.Count > 0)
+        {
+            EntityLump.Entity? defaultCubemap = null;
+
+            if (!hasSamples && cubemaps.Count > 0)
+            {
+                defaultCubemap = cubemaps[0];
+            }
+
+            regrouped.Add(CreateWorldVolume(entities[0].ParentLump, bsp.Models[0], defaultCubemap, voxelSize));
+        }
+
+        return regrouped;
+    }
+
+    private static EntityLump.Entity CreateVolume(EntityLump.Entity cubemap, Source1CubemapVolumes.Volume volume, float voxelSize)
+    {
+        var entity = new EntityLump.Entity { ParentLump = cubemap.ParentLump };
+        entity["classname"] = CombinedVolumeClass;
+        entity["origin"] = Format(volume.Origin);
+        entity["box_mins"] = Format(volume.Mins - volume.Origin);
+        entity["box_maxs"] = Format(volume.Maxs - volume.Origin);
+        entity["edge_fade_dists"] = Format(volume.EdgeFade);
+        entity["indoor_outdoor_level"] = (long)volume.Priority;
+        SetVoxelSize(entity, voxelSize);
+
+        if (cubemap.TryGetValue("cubemaptexture", out var texture))
+        {
+            entity["cubemaptexture"] = texture;
+        }
+
+        return entity;
+    }
+
+    private static EntityLump.Entity CreateWorldVolume(EntityLump lump, BspModel world, EntityLump.Entity? defaultCubemap, float voxelSize)
+    {
+        var center = (world.Min + world.Max) * 0.5f;
+        var halfSize = (world.Max - world.Min) * 0.5f;
+
+        var entity = new EntityLump.Entity { ParentLump = lump };
+        entity["classname"] = CombinedVolumeClass;
+        entity["origin"] = Format(center);
+        entity["box_mins"] = Format(-halfSize);
+        entity["box_maxs"] = Format(halfSize);
+        entity["indoor_outdoor_level"] = (long)Source1CubemapVolumes.FallbackPriority;
+        entity["flood_fill"] = 0L;
+        entity["voxelize"] = 0L;
+        SetVoxelSize(entity, voxelSize);
+
+        if (defaultCubemap != null && defaultCubemap.TryGetValue("cubemaptexture", out var texture))
+        {
+            entity["cubemaptexture"] = texture;
+        }
+
+        return entity;
+    }
+
+    private static void SetVoxelSize(EntityLump.Entity entity, float voxelSize)
+    {
+        if (voxelSize > 0f)
+        {
+            entity["voxel_size"] = Format(voxelSize);
+        }
     }
 
     public static void AddRequiredProperties(string className, EditGameClassProps properties)
@@ -202,21 +325,6 @@ internal static class Source1MapExport
         }
 
         return nearest != float.MaxValue;
-    }
-
-    private static EntityLump.Entity CopyWithoutRegroupKey(EntityLump.Entity entity)
-    {
-        var copy = new EntityLump.Entity { ParentLump = entity.ParentLump };
-
-        foreach (var (key, value) in entity.Children)
-        {
-            if (key != RegroupKey)
-            {
-                copy[key] = value;
-            }
-        }
-
-        return copy;
     }
 
     private static string Format(Vector3 value)

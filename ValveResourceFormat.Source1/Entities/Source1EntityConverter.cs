@@ -216,6 +216,7 @@ internal static class Source1EntityConverter
 
         ConvertModel(source, entity);
         ConvertLadder(source, entity);
+        ConvertRelay(source, entity);
 
         if (Source1LightConverter.IsLightClass(sourceClassName.ToLowerInvariant()))
         {
@@ -283,6 +284,32 @@ internal static class Source1EntityConverter
         entity.Remove("point0");
         entity["origin"] = FormatVector(start);
         entity["point1"] = FormatVector(end - start);
+    }
+
+    // The flags of a relay are keys in Source 2
+    private static void ConvertRelay(BspEntity source, EntityLump.Entity entity)
+    {
+        const int TriggerOnceFlag = 1;
+        const int FastRetriggerFlag = 2;
+
+        if (!source.ClassName.Equals("logic_relay", StringComparison.OrdinalIgnoreCase) || !source.Properties.ContainsKey("spawnflags"))
+        {
+            return;
+        }
+
+        var flags = source.GetInt("spawnflags");
+
+        if ((flags & TriggerOnceFlag) != 0)
+        {
+            entity["triggeronce"] = 1L;
+        }
+
+        if ((flags & FastRetriggerFlag) != 0)
+        {
+            entity["fastretrigger"] = 1L;
+        }
+
+        entity.Remove("spawnflags");
     }
 
     private static void ConvertModel(BspEntity source, EntityLump.Entity entity)

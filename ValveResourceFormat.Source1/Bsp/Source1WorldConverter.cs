@@ -216,7 +216,7 @@ internal static class Source1WorldConverter
 
         if (modelMeshes.Length > 0)
         {
-            AddWorldModels(map, bsp, new BspBrushSet(bsp), modelMeshes[0], locator, worldParts, skyParts, worldPartClusters, skyPartClusters, getMaterialInfo);
+            AddWorldModels(map, bsp, new BspBrushSet(bsp), modelMeshes[0], locator, entityLump, skyEntities, worldParts, skyParts, worldPartClusters, skyPartClusters, getMaterialInfo);
         }
 
         for (var i = 1; i < modelMeshes.Length; i++)
@@ -532,6 +532,8 @@ internal static class Source1WorldConverter
         BspBrushSet brushes,
         BspModelMesh world,
         IBrushLightingLocator locator,
+        EntityLump entityLump,
+        List<EntityLump.Entity> skyEntities,
         List<string> worldParts,
         List<string> skyParts,
         WorldPartClusters partClusters,
@@ -541,6 +543,7 @@ internal static class Source1WorldConverter
         var faceClusters = bsp.Visibility.ClusterCount > 0 ? new BspFaceClusters(bsp) : null;
         var faceBrushes = new BspFaceBrushes(bsp, brushes, bsp.GetLightmappedFaces(preferHdr: true));
         var groups = new Dictionary<WorldChunk, WorldChunkContents>();
+        var waterGroups = new Dictionary<WorldChunk, WorldChunkContents>();
         var worldFragments = new List<AggregatePiece>();
         var skyFragments = new List<AggregatePiece>();
 
@@ -548,6 +551,7 @@ internal static class Source1WorldConverter
         {
             var piece = new MaterialPiece(materialName, mesh.Vertices, mesh.Indices);
             var isBlended = getMaterialInfo(materialName)?.IsBlended ?? true;
+            var isWater = (mesh.Flags & BspMeshFlags.Water) != 0;
             var triangles = new Dictionary<WorldChunk, List<int>>();
             var chunkClusters = new Dictionary<WorldChunk, SortedSet<int>>();
 
@@ -594,7 +598,11 @@ internal static class Source1WorldConverter
                 var subPiece = CreateSubPiece(piece, starts);
                 var fragmentClusters = chunkClusters.GetValueOrDefault(chunk) ?? [];
 
-                if (isBlended)
+                if (isWater)
+                {
+                    GetChunkContents(waterGroups, chunk).Pieces.Add(subPiece);
+                }
+                else if (isBlended)
                 {
                     var contents = GetChunkContents(groups, chunk);
                     contents.Pieces.Add(subPiece);
@@ -657,6 +665,36 @@ internal static class Source1WorldConverter
             }
 
             part++;
+        }
+
+        AddWaterEntities(map, entityLump, skyEntities, waterGroups, ref part);
+    }
+
+    // The water surfaces are brush entities of their own, as Source 2 maps have them, which leave the world model
+    private static void AddWaterEntities(
+        Source1ConvertedMap map,
+        EntityLump entityLump,
+        List<EntityLump.Entity> skyEntities,
+        Dictionary<WorldChunk, WorldChunkContents> waterGroups,
+        ref int part)
+    {
+        foreach (var (chunk, contents) in waterGroups)
+        {
+            var path = GetBrushModelPath(map.MapPath, 0, part++);
+
+            AddFile(map, path, CreateBrushModel(contents.Pieces, path));
+
+            var water = new EntityLump.Entity { ParentLump = entityLump };
+            water["classname"] = "func_water";
+            water["model"] = Source1ResourceReferences.Reference(path);
+            water["origin"] = "0 0 0";
+
+            map.Entities.Add(water);
+
+            if (chunk.InSky)
+            {
+                skyEntities.Add(water);
+            }
         }
     }
 
@@ -805,6 +843,8 @@ internal static class Source1WorldConverter
             {
                 continue;
             }
+
+            Source1PhysicsPropExport.Mark(source.ClassName, entity);
 
             var brushModelIndex = ConvertModel(bsp, mapPath, source, entity);
             var isInSky = false;

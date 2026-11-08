@@ -60,7 +60,7 @@ internal static class MaterialTranslator
             }
 
             var maps = textures.DistinctBy(texture => texture.FileName).ToList();
-            var vtex = WriteImages(resource, maps, loadFile);
+            var vtex = WriteImages(resource, maps, description.BlendMode == MaterialBlendMode.AlphaTest, loadFile);
 
             if (vtex.SubFiles.Count > 0)
             {
@@ -116,7 +116,7 @@ internal static class MaterialTranslator
         return stem + extension;
     }
 
-    private static ContentFile WriteImages(Resource resource, List<MaterialTranslation.Texture> maps, Func<string, Resource?> loadFile)
+    private static ContentFile WriteImages(Resource resource, List<MaterialTranslation.Texture> maps, bool isAlphaTested, Func<string, Resource?> loadFile)
     {
         var texture = (VrfTexture)resource.DataBlock!;
         var extract = new TextureExtract(resource);
@@ -148,9 +148,16 @@ internal static class MaterialTranslator
             var second = LoadBitmap(source.SecondTexture, loadFile);
             var imageName = Path.GetFileName(map.FileName);
 
-            vtex.AddImageSubFile(imageName, image => ToPng(image, source, second));
-
             var (width, height) = GetImageSize(bitmap, source, second);
+
+            // An alpha tested texture always gets its mips weighted by coverage, whatever the settings say
+            if (isAlphaTested)
+            {
+                width = (int)BitOperations.RoundUpToPowerOf2((uint)width);
+                height = (int)BitOperations.RoundUpToPowerOf2((uint)height);
+            }
+
+            vtex.AddImageSubFile(imageName, image => ToPng(image, source, second, width, height));
 
             if (!BitOperations.IsPow2(width) || !BitOperations.IsPow2(height))
             {
@@ -186,14 +193,20 @@ internal static class MaterialTranslator
         return (Math.Max(bitmap.Width, second?.Width ?? 0), Math.Max(bitmap.Height, second?.Height ?? 0));
     }
 
-    private static byte[] ToPng(SKBitmap bitmap, MaterialInput source, SKBitmap? second)
+    private static byte[] ToPng(SKBitmap bitmap, MaterialInput source, SKBitmap? second, int width, int height)
     {
         if (!IsComputed(source))
         {
-            return ToPngChannels(bitmap, source);
-        }
+            if (bitmap.Width == width && bitmap.Height == height)
+            {
+                return ToPngChannels(bitmap, source);
+            }
 
-        var (width, height) = GetImageSize(bitmap, source, second);
+            using var resized = bitmap.Resize(bitmap.Info.WithSize(width, height), SKSamplingOptions.Default)
+                ?? throw new InvalidOperationException($"Failed to resize an image to {width}x{height}.");
+
+            return ToPngChannels(resized, source);
+        }
 
         using var image = new SKBitmap(width, height, SKColorType.Gray8, SKAlphaType.Opaque);
         using var imagePixmap = image.PeekPixels();

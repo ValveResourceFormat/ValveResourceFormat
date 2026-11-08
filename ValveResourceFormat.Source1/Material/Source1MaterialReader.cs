@@ -78,14 +78,52 @@ internal sealed class Source1MaterialReader(Source1FileSystem fileSystem, Func<b
             AddTranslucency(description);
         }
 
-        var isLit = description.Role is MaterialRole.LitModel or MaterialRole.LitWorld or MaterialRole.Blend2 or MaterialRole.Blend4;
+        ReadMetalness(description, material, values, isPhong, hasEnvmap);
+
+        var isLit = description.Role is MaterialRole.LitModel or MaterialRole.LitWorld or MaterialRole.Blend2 or MaterialRole.Blend4 or MaterialRole.LitOverlay or MaterialRole.Character;
 
         if (isLit && Source1Roughness.Read(material, values, isPhong, hasEnvmap) is { } roughness)
         {
             description.Layers[0].Roughness = roughness;
         }
 
+        Source1LayerBlendReader.Read(description, material, values);
+
         return description;
+    }
+
+    private void ReadMetalness(MaterialDescription description, ResourceTypes.Material material, VmtParameters values, bool isPhong, bool hasEnvmap)
+    {
+        MaterialInput? metalness = null;
+
+        if (description.Role == MaterialRole.Character)
+        {
+            metalness = Source1Metalness.ReadCharacter(material, values);
+        }
+        else if (description.Role is MaterialRole.LitModel or MaterialRole.LitWorld)
+        {
+            metalness = Source1Metalness.ReadReflective(material, values, isPhong, hasEnvmap, NormalHasAlpha(material));
+        }
+
+        if (metalness is { } input)
+        {
+            description.Layers[0].Metalness = input;
+        }
+    }
+
+    private bool NormalHasAlpha(ResourceTypes.Material material)
+    {
+        if (!material.TextureParams.TryGetValue("g_tNormal", out var path))
+        {
+            return false;
+        }
+
+        if (Source1TextureHeaders.TryRead(fileSystem, Source1Paths.RemoveVariant(path, out _)) is not { } header)
+        {
+            return false;
+        }
+
+        return (header.Flags & (VtfFlags.ONEBITALPHA | VtfFlags.EIGHTBITALPHA)) != 0;
     }
 
     private VmtParameters LoadValues(ResourceTypes.Material material)
@@ -120,14 +158,41 @@ internal sealed class Source1MaterialReader(Source1FileSystem fileSystem, Func<b
 
     private MaterialRole GetRole(string shader, ResourceTypes.Material material, VmtParameters values, bool isLitByDefault)
     {
-        if (shader == "decalmodulate" || values.Boolean("$decal") || material.IntAttributes.GetValueOrDefault("overlay") != 0)
+        if (material.IntAttributes.GetValueOrDefault("overlay") != 0)
+        {
+            var shaderRole = GetShaderRole(shader, material, isLitByDefault);
+
+            return GetOverlayRole(shaderRole, GetBlendMode(shader, material));
+        }
+
+        if (shader == "decalmodulate" || values.Boolean("$decal"))
         {
             return MaterialRole.Decal;
         }
 
+        return GetShaderRole(shader, material, isLitByDefault);
+    }
+
+    // The shaders of the targets only light overlays that are opaque, alpha tested or translucent
+    private static MaterialRole GetOverlayRole(MaterialRole shaderRole, MaterialBlendMode blendMode)
+    {
+        var isLitShader = shaderRole is MaterialRole.LitModel or MaterialRole.LitWorld or MaterialRole.Blend2 or MaterialRole.Blend4;
+        var canBeLit = blendMode is MaterialBlendMode.Opaque or MaterialBlendMode.AlphaTest or MaterialBlendMode.Translucent;
+
+        if (isLitShader && canBeLit)
+        {
+            return MaterialRole.LitOverlay;
+        }
+
+        return MaterialRole.Overlay;
+    }
+
+    private MaterialRole GetShaderRole(string shader, ResourceTypes.Material material, bool isLitByDefault)
+    {
         return shader switch
         {
             "vertexlitgeneric" or "eyes" or "eyerefract" or "teeth" or "skin" or "infected" => MaterialRole.LitModel,
+            "character" => MaterialRole.Character,
             "lightmappedtwotexture" or "worldtwotextureblend" when material.TextureParams.ContainsKey("g_tColor2") => MaterialRole.Blend2,
             "lightmappedgeneric" or "lightmappedreflective" or "lightmappedtwotexture" or "worldtwotextureblend" => MaterialRole.LitWorld,
             "worldvertextransition" => MaterialRole.Blend2,

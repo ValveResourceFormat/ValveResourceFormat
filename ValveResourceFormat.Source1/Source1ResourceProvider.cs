@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.GoldSrc;
@@ -92,6 +93,9 @@ internal sealed class Source1ResourceProvider(Source1FileSystem fileSystem, ILog
 
     private Source1ConvertedMap? map;
 
+    // The map each converted entity lump was made from
+    private readonly ConditionalWeakTable<ResourceTypes.EntityLump, BspFile> lumpMaps = new();
+
     /// <inheritdoc/>
     public ContentFile? ExtractMaterial(ResourceTypes.Material material)
     {
@@ -142,6 +146,14 @@ internal sealed class Source1ResourceProvider(Source1FileSystem fileSystem, ILog
         var locator = new Source1MapLighting(bsp);
 
         map = Source1WorldConverter.Convert(bsp, path => LoadModel(path)?.Source, fileSystem.OpenFile, GetMaterialInfo, locator, logger, sky, progress);
+
+        foreach (var file in map.Files.Values)
+        {
+            if (file.DataBlock is ResourceTypes.EntityLump lump)
+            {
+                lumpMaps.AddOrUpdate(lump, bsp);
+            }
+        }
 
         // Missing archive chunks are only found when the map's files are looked up
         foreach (var diagnostic in fileSystem.Diagnostics)
@@ -419,7 +431,33 @@ internal sealed class Source1ResourceProvider(Source1FileSystem fileSystem, ILog
     public EntityClassTable GetEntityClasses(ILogger logger) => Source1EntityClassCatalog.Get(fileSystem, logger);
 
     /// <inheritdoc/>
-    public List<ResourceTypes.EntityLump.Entity> GetExportEntities(List<ResourceTypes.EntityLump.Entity> entities) => Source1MapExport.Regroup(entities);
+    public List<ResourceTypes.EntityLump.Entity> GetExportEntities(List<ResourceTypes.EntityLump.Entity> entities)
+    {
+        var targetClasses = EntityClassCatalog.GetTable(MaterialTargetGame);
+        var hasCombinedVolume = targetClasses.FindClass("env_combined_light_probe_volume") != null;
+
+        var converted = Source1EntityExport.Convert(entities, MaterialTargetGame);
+        BspFile? volumeMap = null;
+
+        if (hasCombinedVolume && entities.Count > 0)
+        {
+            lumpMaps.TryGetValue(entities[0].ParentLump, out volumeMap);
+        }
+
+        var regrouped = Source1MapExport.Regroup(converted, volumeMap);
+
+        return Source1PhysicsPropExport.Apply(regrouped, ModelHasPhysics);
+    }
+
+    private bool ModelHasPhysics(string modelPath)
+    {
+        if (LoadFile(modelPath + GameFileLoader.CompiledFileSuffix)?.DataBlock is not ResourceTypes.Model model)
+        {
+            return false;
+        }
+
+        return model.GetEmbeddedPhys() is { Parts.Length: > 0 } || model.GetReferencedPhysNames().Any();
+    }
 
     /// <inheritdoc/>
     public void AddExportProperties(string className, EditGameClassProps properties)

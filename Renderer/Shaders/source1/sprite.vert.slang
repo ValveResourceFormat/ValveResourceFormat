@@ -13,13 +13,13 @@ in vec3 vTEXCOORD1;
 
 // Roll in radians (the width of the beam for orientations 6 and 7), how much of the distance to the camera the size
 // grows by (zero for a fixed size in the world), the fade: 1 fades with the distance like a glow, 2 fades with the
-// distances of vTEXCOORD3, and the frames per second of the animation of a texture sheet
+// distances of vTEXCOORD4, and the frames per second of the animation of a texture sheet
 in vec4 vTEXCOORD2;
 
 // Distances where a light glow starts to show, is at full strength, and is gone, and the radius of what has to be in
 // view for a glow to show, which is zero for a sprite that does not check. For orientations 6 and 7 the first three
 // are the vector from the start of the beam to its end.
-in vec4 vTEXCOORD3;
+in vec4 vTEXCOORD4;
 
 const float GlowFullDistance = 1200.0;
 const float MinUprightDot = 0.999848;
@@ -41,9 +41,9 @@ float GetFade(float mode, float cameraDistance)
 
     if (mode == 2.0)
     {
-        float minDistance = vTEXCOORD3.x;
-        float maxDistance = vTEXCOORD3.y;
-        float outerDistance = vTEXCOORD3.z;
+        float minDistance = vTEXCOORD4.x;
+        float maxDistance = vTEXCOORD4.y;
+        float outerDistance = vTEXCOORD4.z;
 
         if (outerDistance > maxDistance && cameraDistance > maxDistance)
         {
@@ -124,7 +124,7 @@ void main()
     }
     else if (orientation == 6)
     {
-        vec3 beamDelta = vTEXCOORD3.xyz;
+        vec3 beamDelta = vTEXCOORD4.xyz;
         vec3 beamStart = center - (vTEXCOORD1.y * beamDelta);
         float beamWidth = vTEXCOORD2.x;
         float lineDistance = length(cross(normalize(beamDelta), g_vCameraPositionWs - beamStart));
@@ -138,7 +138,7 @@ void main()
     }
     else if (orientation == 7)
     {
-        vec3 beamAxis = normalize(vTEXCOORD3.xyz);
+        vec3 beamAxis = normalize(vTEXCOORD4.xyz);
         float beamWidth = vTEXCOORD2.x;
         float lineDistance = length(cross(beamAxis, g_vCameraPositionWs - center));
 
@@ -167,5 +167,5 @@ void main()
 
     vTexCoordOut = texCoord;
     vVertexColorOut = vec4(vCOLOR.rgb * fade * beamFade, vCOLOR.a);
-    vGlowProxyOut = vec4(center, vTEXCOORD3.w);
+    vGlowProxyOut = vec4(center, vTEXCOORD4.w);
 }

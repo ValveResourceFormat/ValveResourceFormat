@@ -572,6 +572,7 @@ internal static class Source1MaterialConverter
         SetAlpha(material, values, shader);
         SetTextureFlags(material, features);
         SetDetail(material, values, shader, features);
+        SetSecondDetail(material, values, shader, features);
         SetFourWayBlend(material, values, shader);
         SetColorTint(material, values, shader);
         SetTransforms(material, values, shader, features);
@@ -620,6 +621,11 @@ internal static class Source1MaterialConverter
             }
 
             SetTexture(material, parameter, path);
+        }
+
+        if (shader == "character")
+        {
+            SetOptionalTexture(material, values, "$masks1", "g_tMasks1");
         }
     }
 
@@ -1260,6 +1266,15 @@ internal static class Source1MaterialConverter
         var detailTint = values.Vector("$detailtint", Vector3.One);
         material.VectorParams["g_vDetailTint"] = new Vector4(ConvertTint("$detailtint", detailTint, shader), 1f);
         material.IntParams["g_nDetailBlendMode"] = values.Integer("$detailblendmode", 0);
+    }
+
+    // The second layer of a world material can have a detail texture of its own, which the viewer does not draw
+    private static void SetSecondDetail(ResourceTypes.Material material, VmtParameters values, string shader, SurfaceFeatures features)
+    {
+        if (features.HasDetail && shader == "worldvertextransition")
+        {
+            SetOptionalTexture(material, values, "$detail2", "g_tDetail2");
+        }
     }
 
     // The four textures of the shader take the weight of their layer from the vertices, and show where it lies within their

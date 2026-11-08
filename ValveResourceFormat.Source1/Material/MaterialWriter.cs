@@ -29,6 +29,9 @@ internal sealed class MaterialTranslation(string shader)
 
     public string? SurfaceProperty { get; set; }
 
+    /// <summary>Gets the physics surface properties of the layers after the first.</summary>
+    public List<string> LayerSurfaceProperties { get; } = [];
+
     /// <summary>
     /// Gets the material in Valve material format.
     /// </summary>
@@ -61,6 +64,13 @@ internal sealed class MaterialTranslation(string shader)
         {
             var systemAttributes = KVObject.ListCollection();
             systemAttributes.Add("PhysicsSurfaceProperties", SurfaceProperty);
+
+            for (var i = 0; i < LayerSurfaceProperties.Count; i++)
+            {
+                var number = (i + 2).ToString(CultureInfo.InvariantCulture);
+                systemAttributes.Add("PhysicsSurfaceProperties" + number, LayerSurfaceProperties[i]);
+            }
+
             root.Add("SystemAttributes", systemAttributes);
         }
 
@@ -73,7 +83,7 @@ internal sealed class MaterialTranslation(string shader)
 /// <summary>
 /// Writes a <see cref="MaterialDescription"/> with the shader and input names of a target game.
 /// </summary>
-internal sealed class MaterialWriter
+internal sealed partial class MaterialWriter
 {
     private readonly MaterialDescription description;
     private readonly ShaderProfile profile;
@@ -153,6 +163,8 @@ internal sealed class MaterialWriter
 
         WriteShared();
         WriteWater();
+        WriteLayerBlending();
+        WriteEffects();
         translation.SurfaceProperty = description.SurfaceProperty;
     }
 
