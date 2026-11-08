@@ -90,7 +90,7 @@ internal sealed class ClothRenderBinding
 
     /// <summary>
     /// Zeroes the influences a vertex holds on the cloth proxy bones the compiler regenerates and renormalises the rest, in
-    /// place in the blend weight stream.
+    /// place in the given blend weights.
     /// </summary>
     private void DropProxyInfluences(int boneWeightCount, int[]? blendIndices, float[]? blendWeights)
     {

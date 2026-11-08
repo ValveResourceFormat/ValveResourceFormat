@@ -147,6 +147,7 @@ internal static class DmxMeshBuilder
         var boneArrayComponents = boneWeightCount > 4 ? 8 : 4;
         int[]? clothBlendIndices = null;
         float[]? clothBlendWeights = null;
+        string? clothWeightsSemantic = null;
         Vector3[]? clothPositions = null;
 
         foreach (var attribute in vertexBuffer.InputLayoutFields)
@@ -230,6 +231,7 @@ internal static class DmxMeshBuilder
                 }
 
                 clothBlendWeights = compactWeights;
+                clothWeightsSemantic = weightsSemantic;
                 vertexData.AddStream(weightsSemantic, compactWeights);
                 continue;
             }
@@ -297,6 +299,11 @@ internal static class DmxMeshBuilder
         {
             streams.Cloth.Apply(vertexData, indices, boneWeightCount, streams.ClothTriangles, clothBlendIndices, clothBlendWeights,
                 clothPositions);
+
+            if (clothWeightsSemantic != null && clothBlendWeights != null)
+            {
+                vertexData[clothWeightsSemantic] = new Datamodel.FloatArray(clothBlendWeights);
+            }
         }
     }
 
