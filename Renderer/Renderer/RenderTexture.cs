@@ -17,6 +17,9 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the OpenGL texture object handle, or 0 once <see cref="Delete"/> has been called.</summary>
         public int Handle { get; private set; }
 
+        /// <summary>The streaming state of a texture whose mips arrive after load, null for any other.</summary>
+        internal Materials.StreamedTexture? Stream { get; set; }
+
         /// <summary>Gets optional spritesheet layout data when the texture is a sprite atlas.</summary>
         public Texture.SpritesheetData? SpriteSheetData { get; }
 

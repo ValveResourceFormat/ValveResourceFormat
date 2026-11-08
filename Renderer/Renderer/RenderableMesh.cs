@@ -456,6 +456,8 @@ namespace ValveResourceFormat.Renderer
         {
             var vertexBuffers = objectDrawCall.GetArray("m_vertexBuffers");
 
+            material.MarkTexturesDrawnByMesh();
+
             var drawCall = new DrawCall
             {
                 Material = material,
@@ -463,6 +465,7 @@ namespace ValveResourceFormat.Renderer
                 MeshName = Name,
                 VertexBuffers = new VertexDrawBuffer[vertexBuffers.Count],
                 Index = drawCallIndex,
+                UvDensity = objectDrawCall.GetFloatProperty("m_flUvDensity"),
             };
 
             var primitiveType = objectDrawCall.GetEnumValue<RenderPrimitiveType>("m_nPrimitiveType");

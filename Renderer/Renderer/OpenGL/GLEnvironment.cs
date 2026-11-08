@@ -47,12 +47,6 @@ public static class GLEnvironment
     private static VideoMemoryQueryType VideoMemoryQuerySupport = VideoMemoryQueryType.None;
 
     /// <summary>
-    /// Gets the dedicated video memory that was free when the environment was initialized, in bytes, or null
-    /// when the driver has no query for it.
-    /// </summary>
-    public static long? AvailableVideoMemoryAtStartup { get; private set; }
-
-    /// <summary>
     /// Indicates whether indirect count draw calls are supported by the current driver.
     /// </summary>
     public static bool IndirectCountSupported { get; private set; }
@@ -135,8 +129,6 @@ public static class GLEnvironment
             VideoMemoryQuerySupport = VideoMemoryQueryType.Ati;
         }
 
-        AvailableVideoMemoryAtStartup = GetAvailableVideoMemory();
-
 #if DEBUG
         MaxLabelLength = GL.GetInteger(GetPName.MaxLabelLength) - 1;
 #endif
@@ -149,7 +141,12 @@ public static class GLEnvironment
     /// <returns>The currently available and the total video memory.</returns>
     internal static (int Free, int Total) GetGpuMemoryMegabytes()
     {
-        var free = (int)(GetAvailableVideoMemory().GetValueOrDefault() / (1024 * 1024));
+        if (VideoMemoryQuerySupport == VideoMemoryQueryType.None)
+        {
+            return (0, 0);
+        }
+
+        var free = (int)(GetAvailableVideoMemory() / (1024 * 1024));
         var total = 0;
 
         if (VideoMemoryQuerySupport == VideoMemoryQueryType.Nvx)
@@ -194,9 +191,9 @@ public static class GLEnvironment
     }
 
     /// <summary>
-    /// Queries the free dedicated video memory in bytes, or null when the driver has no query for it.
+    /// Queries the free dedicated video memory in bytes, or <see cref="long.MaxValue"/> when the driver has no query for it.
     /// </summary>
-    public static unsafe long? GetAvailableVideoMemory()
+    public static unsafe long GetAvailableVideoMemory()
     {
         switch (VideoMemoryQuerySupport)
         {
@@ -212,7 +209,7 @@ public static class GLEnvironment
             }
 
             default:
-                return null;
+                return long.MaxValue;
         }
     }
 

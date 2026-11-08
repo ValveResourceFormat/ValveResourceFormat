@@ -136,6 +136,18 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Gets the map of texture uniform names to the bound <see cref="RenderTexture"/> objects for this material.</summary>
         public MaterialInputs<RenderTexture> Textures { get; } = [];
 
+        /// <summary>Tells the streamed textures of this material that a mesh draws them.</summary>
+        internal void MarkTexturesDrawnByMesh()
+        {
+            foreach (var texture in Textures.Values)
+            {
+                if (texture.Stream is { } stream)
+                {
+                    stream.DrawnByMesh = true;
+                }
+            }
+        }
+
         /// <summary>Gets or sets a value indicating whether this material is rendered as a screen-space or world-space overlay (polygon-offset, no depth write).</summary>
         public bool IsOverlay { get; set; }
 
@@ -195,6 +207,99 @@ namespace ValveResourceFormat.Renderer.Materials
 
         private uint InputsVersion => unchecked(
             IntParams.Version + FloatParams.Version + VectorParams.Version + Matrices.Version + Textures.Version);
+
+        private const string TexCoordScaleSuffix = "TexCoordScale";
+        private const float MinTexCoordScale = 1f / 65536f;
+        private const float MaxTexCoordScale = 65535f;
+
+        private readonly Dictionary<string, float> texCoordScales = [];
+        private float smallestTexCoordScale = 1f;
+        private (StreamedTexture Stream, float InverseScale)[] streamedTextureScales = [];
+        private uint streamedTextureScalesVersion = uint.MaxValue;
+
+        /// <summary>
+        /// Gets the streamed textures of this material with the reciprocal of the factor each one's coordinates
+        /// are tiled by, which texture streaming multiplies the texel density the mesh asks for by. A texture
+        /// <c>g_tName</c> uses <c>g_vNameTexCoordScale</c> or <c>g_flNameTexCoordScale</c> when the material has
+        /// one, otherwise the smallest scale of the material.
+        /// </summary>
+        internal (StreamedTexture Stream, float InverseScale)[] StreamedTextureScales
+        {
+            get
+            {
+                var version = unchecked(Textures.Version + FloatParams.Version + VectorParams.Version);
+
+                if (version != streamedTextureScalesVersion)
+                {
+                    UpdateStreamedTextureScales();
+                    streamedTextureScalesVersion = version;
+                }
+
+                return streamedTextureScales;
+            }
+        }
+
+        private void UpdateStreamedTextureScales()
+        {
+            texCoordScales.Clear();
+            smallestTexCoordScale = float.MaxValue;
+
+            foreach (var (name, value) in FloatParams)
+            {
+                if (name.Contains(TexCoordScaleSuffix, StringComparison.Ordinal))
+                {
+                    AddTexCoordScale(name, "g_fl", Math.Abs(value));
+                }
+            }
+
+            foreach (var (name, value) in VectorParams)
+            {
+                if (name.Contains(TexCoordScaleSuffix, StringComparison.Ordinal))
+                {
+                    AddTexCoordScale(name, "g_v", Math.Min(Math.Abs(value.X), Math.Abs(value.Y)));
+                }
+            }
+
+            if (smallestTexCoordScale == float.MaxValue)
+            {
+                smallestTexCoordScale = 1f;
+            }
+
+            var scales = new List<(StreamedTexture Stream, float InverseScale)>();
+
+            foreach (var (textureName, texture) in Textures)
+            {
+                if (texture.Stream is not { } stream)
+                {
+                    continue;
+                }
+
+                var scale = texCoordScales.GetValueOrDefault(textureName, smallestTexCoordScale);
+
+                scales.Add((stream, 1f / scale));
+            }
+
+            streamedTextureScales = [.. scales];
+        }
+
+        private void AddTexCoordScale(string paramName, string prefix, float scale)
+        {
+            var clamped = float.IsFinite(scale) ? Math.Clamp(scale, MinTexCoordScale, MaxTexCoordScale) : 1f;
+
+            smallestTexCoordScale = Math.Min(smallestTexCoordScale, clamped);
+
+            if (!paramName.StartsWith(prefix, StringComparison.Ordinal) || !paramName.EndsWith(TexCoordScaleSuffix, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            var baseName = paramName.AsSpan(prefix.Length, paramName.Length - prefix.Length - TexCoordScaleSuffix.Length);
+
+            if (!baseName.IsEmpty)
+            {
+                texCoordScales[string.Concat("g_t", baseName)] = clamped;
+            }
+        }
 
         private readonly IShaderDataProvider shaderDataProvider;
         private RsBlendMode srcBlend;

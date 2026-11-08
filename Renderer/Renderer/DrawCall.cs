@@ -25,7 +25,12 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the number of indices to draw.</summary>
         public int IndexCount { get; set; }
 
-        //public float UvDensity { get; set; }     //TODO
+        /// <summary>
+        /// Gets or sets the average world units, in the mesh's space, that one unit of the draw's texture
+        /// coordinates spans. Zero when the mesh does not say.
+        /// </summary>
+        public float UvDensity { get; set; }
+
         //public string Flags { get; set; }        //TODO
 
         /// <summary>Gets or sets the per-draw-call tint color multiplier.</summary>
@@ -100,6 +105,7 @@ namespace ValveResourceFormat.Renderer
         public void SetNewMaterial(RenderMaterial newMaterial)
         {
             Material = newMaterial;
+            newMaterial.MarkTexturesDrawnByMesh();
             UpdateVertexArrayObject();
         }
 

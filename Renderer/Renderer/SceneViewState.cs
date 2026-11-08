@@ -71,6 +71,9 @@ public sealed class SceneViewState
     private readonly Frustum casterCullFrustum = new();
     private bool hasGpuCulledCasters;
 
+    // Set only while collecting a frame that measures texture demand
+    private TextureStreamingHelper? demandedTextures;
+
     private readonly List<SceneNode> cullResults = [];
     private int staticCullCount;
 
@@ -342,6 +345,11 @@ public sealed class SceneViewState
             return;
         }
 
+        if (demandedTextures != null && request.Node is MeshCollectionNode or SceneAggregate.Fragment or SceneAggregate { InstanceTransforms.Count: > 0 })
+        {
+            demandedTextures.AddDemand(request.Node, request.Call);
+        }
+
         // Aggregated geometry is opaque world detail that never samples the scene color, and the refract
         // pass is the one place it cannot go: it has neither the depth prepass nor the indirect draw path.
         var isAggregated = request.Node is SceneAggregate or SceneAggregate.Fragment;
@@ -460,9 +468,13 @@ public sealed class SceneViewState
     /// </summary>
     /// <param name="camera">The camera used to sort translucent draw calls by distance.</param>
     /// <param name="cullFrustum">An optional override frustum for culling; defaults to the camera frustum.</param>
-    public void CollectSceneDrawCalls(Camera camera, Frustum? cullFrustum = null)
+    /// <param name="textureDemand">When given, receives the draws that are kept, as the demand on the streamed textures they use.</param>
+    public void CollectSceneDrawCalls(Camera camera, Frustum? cullFrustum = null, TextureStreamingHelper? textureDemand = null)
     {
         ArgumentNullException.ThrowIfNull(camera);
+
+        demandedTextures = textureDemand;
+        demandedTextures?.BeginDemandView(camera);
 
         foreach (var bucket in renderLists.All)
         {
@@ -717,6 +729,8 @@ public sealed class SceneViewState
                 }
             }
         }
+
+        demandedTextures = null;
 
         if (staticCullCount >= visibleNodes.Count)
         {

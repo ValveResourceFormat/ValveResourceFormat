@@ -450,9 +450,10 @@ internal sealed partial class McpTools
         var picker = viewer.Picker;
         int[]? viewport = null;
 
-        if (picker != null)
+        // The picker shrinks while the tab is hidden, the render area does not
+        if (picker != null && viewer.GLControl != null)
         {
-            viewport = [picker.Texture.Width, picker.Texture.Height];
+            viewport = [viewer.GLControl.Width, viewer.GLControl.Height];
         }
 
         return new

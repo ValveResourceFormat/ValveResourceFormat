@@ -96,7 +96,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
     public bool Paused = true;
 
     /// <summary>
-    /// Pauses this control.
+    /// Pauses this control and gives back the texture memory and read buffers it no longer draws with.
     /// </summary>
     public virtual void OnDetachedFromRenderLoop()
     {
@@ -107,7 +107,51 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
             PrewarmPending = false;
             prewarmed.Set();
         }
+
+        if (RendererContext.CancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        var streaming = RendererContext.TextureStreaming;
+        streaming.Suspend();
+
+        // A control that never drew has no targets to give back, and may be detached while the loading
+        // thread still holds its context for the prewarm.
+        var releasesTargets = !FirstPaint && MainFramebuffer != GLDefaultFramebuffer && MainFramebuffer?.Width > 1;
+
+        if (!streaming.HasStorageToTrim() && !releasesTargets)
+        {
+            return;
+        }
+
+        // Holding the lock keeps the window from being destroyed after the check. Making the context
+        // current is not nestable, so callers must not have it current already.
+        using var glScope = glLock.EnterScope();
+
+        if (GraphicsContext is null || GLNativeWindow is not { Exists: true })
+        {
+            return;
+        }
+
+        using var lockedGl = MakeCurrent();
+        streaming.TrimStorage();
+
+        if (releasesTargets)
+        {
+            ReleaseScreenTargets();
+            ShouldResize = true;
+        }
     }
+
+    /// <summary>
+    /// Shrinks the render targets that are the size of the window. The next frame resizes them back.
+    /// </summary>
+    protected virtual void ReleaseScreenTargets()
+    {
+        MainFramebuffer?.Resize(1, 1, NumSamples);
+    }
+
     protected long lastFpsUpdate;
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2213:Disposable fields should be disposed", Justification = "RendererContext is disposed in Dispose method")]

@@ -430,6 +430,10 @@ internal sealed partial class McpTools
         }
 
         var picker = viewer.Picker ?? throw new ToolException("This viewer has no picker.");
+
+        // A tab that was hidden has a shrunk picker until its first frame
+        await RenderFrames(viewer, 1, cancellationToken).ConfigureAwait(false);
+
         var width = picker.Texture.Width;
         var height = picker.Texture.Height;
         var pixelX = x ?? width / 2;

@@ -36,6 +36,11 @@ public sealed class ToolsPass : IDisposable
     }
 
     /// <summary>
+    /// Shrinks the output framebuffer to free its memory. The next <see cref="Render"/> restores its size.
+    /// </summary>
+    public void ReleaseOutput() => output.Resize(1, 1);
+
+    /// <summary>
     /// Post processes the scene, outlines the selected nodes, draws the tool shapes of the main scene and those of
     /// the selection over it, and puts the result in the target.
     /// </summary>

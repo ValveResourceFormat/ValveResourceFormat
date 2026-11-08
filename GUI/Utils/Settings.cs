@@ -74,7 +74,7 @@ namespace GUI.Utils
             /// <summary>Gets or sets the selected UI theme index.</summary>
             public int Theme { get; set; }
             /// <summary>Gets or sets the maximum texture resolution loaded by the renderer.</summary>
-            public int MaxTextureSize { get; set => field = value <= 0 ? 1024 : Math.Min(value, 10240); } = 1024;
+            public int MaxTextureSize { get; set => field = value <= 0 ? 10240 : Math.Min(value, 10240); } = 10240;
             /// <summary>Gets or sets the shadow map resolution.</summary>
             public int ShadowResolution { get; set => field = value <= 0 ? 2048 : Math.Min(value, 4096); } = 2048;
             /// <summary>Gets or sets the camera field of view in degrees.</summary>

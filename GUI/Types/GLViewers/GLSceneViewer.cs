@@ -427,6 +427,13 @@ namespace GUI.Types.GLViewers
             Input.Camera.LookAt(center);
         }
 
+        protected override void ReleaseScreenTargets()
+        {
+            base.ReleaseScreenTargets();
+            Picker?.Resize(1, 1);
+            toolsPass?.ReleaseOutput();
+        }
+
         protected override void OnResize(int w, int h)
         {
             base.OnResize(w, h);

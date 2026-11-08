@@ -65,9 +65,10 @@ namespace ValveResourceFormat.Renderer
         public MorphComposite(RendererContext renderContext, Morph morph)
         {
             ArgumentNullException.ThrowIfNull(morph.TextureResource);
-            sourceAtlas = renderContext.MaterialLoader.LoadTexture(morph.TextureResource);
+            sourceAtlas = renderContext.MaterialLoader.GetTexture(morph.TextureResource);
 
             // The atlas is addressed texel by texel, so the filtering the vtex flags asked for must not apply.
+            // Every composite of the same morph shares it and sets the same filtering.
             sourceAtlas.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
 
             Width = morph.Data.GetInt32Property("m_nWidth");
