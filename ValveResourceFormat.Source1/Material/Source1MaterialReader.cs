@@ -38,6 +38,7 @@ internal sealed class Source1MaterialReader(Source1FileSystem fileSystem, Func<b
         {
             Role = GetRole(shader, material, values, hasNormal || isPhong),
             RenderBackfaces = IsEnabled(material, "F_RENDER_BACKFACES"),
+            UseSecondTexCoord = IsEnabled(material, "F_FORCE_UV2"),
             SpecularDirect = isPhong,
             SpecularIndirect = isPhong || hasEnvmap,
             UseVertexColor = IsEnabled(material, "F_VERTEX_COLOR"),

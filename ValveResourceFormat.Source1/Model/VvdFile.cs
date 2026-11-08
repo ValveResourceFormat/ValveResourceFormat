@@ -42,6 +42,9 @@ internal sealed class VvdFile
     public StudioVertex[] Vertices { get; }
     public Vector4[]? Tangents { get; }
 
+    /// <summary>The second set of texture coordinates of each vertex, or <see langword="null"/> when the model has one set.</summary>
+    public Vector2[]? TexCoords2 { get; }
+
     public VvdFile(Stream stream)
     {
         stream.Position = 0;
@@ -94,10 +97,41 @@ internal sealed class VvdFile
         fixups = numFixups > 0 ? LumpReader<VertexFixup>.ReadLumpAt(stream, fixupTableStart, numFixups) : [];
         Vertices = LumpReader<StudioVertex>.ReadLumpAt(stream, vertexDataStart, numVerts[0]);
 
+        var dataEnd = vertexDataStart + (long)numVerts[0] * Marshal.SizeOf<StudioVertex>();
+
         if (tangentDataStart != 0)
         {
             Tangents = LumpReader<Vector4>.ReadLumpAt(stream, tangentDataStart, numVerts[0]);
+            dataEnd = Math.Max(dataEnd, tangentDataStart + (long)numVerts[0] * Marshal.SizeOf<Vector4>());
         }
+
+        TexCoords2 = ReadSecondTexCoords(stream, reader, dataEnd, numVerts[0]);
+    }
+
+    // Models with a second texture coordinate set carry a small header and one Vector2 per vertex after the tangents
+    private static Vector2[]? ReadSecondTexCoords(Stream stream, BinaryReader reader, long start, int count)
+    {
+        const int HeaderSize = 20;
+
+        if (count == 0 || stream.Length - start != HeaderSize + (long)count * Marshal.SizeOf<Vector2>())
+        {
+            return null;
+        }
+
+        stream.Position = start;
+
+        _ = reader.ReadInt32();
+        var size = reader.ReadInt32();
+        _ = reader.ReadInt32();
+        var dataStart = reader.ReadInt32();
+        var elementSize = reader.ReadInt32();
+
+        if (size != stream.Length - start || dataStart != HeaderSize || elementSize != Marshal.SizeOf<Vector2>())
+        {
+            return null;
+        }
+
+        return LumpReader<Vector2>.ReadLumpAt(stream, start + dataStart, count);
     }
 
     public int[]? GetVertexIndices(int lod)

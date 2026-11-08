@@ -37,11 +37,14 @@ internal sealed class PhysicsAggregateBuilder
     private readonly List<Part> parts = [];
     private readonly KVObject joints = KVObject.Array();
 
-    private sealed class Part(string? boneName, Matrix4x4 bindPose, float mass)
+    private sealed class Part(string? boneName, Matrix4x4 bindPose, float mass, float inertiaScale, float linearDamping, float angularDamping)
     {
         public string? BoneName { get; } = boneName;
         public Matrix4x4 BindPose { get; } = bindPose;
         public float Mass { get; } = mass;
+        public float InertiaScale { get; } = inertiaScale;
+        public float LinearDamping { get; } = linearDamping;
+        public float AngularDamping { get; } = angularDamping;
         public KVObject Hulls { get; } = KVObject.Array();
         public KVObject Meshes { get; } = KVObject.Array();
         public HashSet<int> UsedCollisionAttributes { get; } = [];
@@ -54,7 +57,7 @@ internal sealed class PhysicsAggregateBuilder
         {
             if (parts.Count == 0)
             {
-                parts.Add(new Part(null, Matrix4x4.Identity, 0f));
+                parts.Add(new Part(null, Matrix4x4.Identity, 0f, 1f, 0f, 0f));
             }
 
             return parts[^1];
@@ -68,10 +71,13 @@ internal sealed class PhysicsAggregateBuilder
     /// <param name="boneName">The name of the bone.</param>
     /// <param name="bindPose">Takes the points of the shapes to the space of the model.</param>
     /// <param name="mass">The mass of the part in kilograms.</param>
+    /// <param name="inertiaScale">Multiplies the rotational inertia derived from the shapes.</param>
+    /// <param name="linearDamping">How fast the part loses linear velocity.</param>
+    /// <param name="angularDamping">How fast the part loses angular velocity.</param>
     /// <returns>The index of the part.</returns>
-    public int BeginPart(string boneName, Matrix4x4 bindPose, float mass)
+    public int BeginPart(string boneName, Matrix4x4 bindPose, float mass, float inertiaScale = 1f, float linearDamping = 0f, float angularDamping = 0f)
     {
-        parts.Add(new Part(boneName, bindPose, mass));
+        parts.Add(new Part(boneName, bindPose, mass, inertiaScale, linearDamping, angularDamping));
 
         return parts.Count - 1;
     }
@@ -283,6 +289,9 @@ internal sealed class PhysicsAggregateBuilder
             partObject.Add("m_flMass", part.Mass);
             partObject.Add("m_rnShape", shape);
             partObject.Add("m_nCollisionAttributeIndex", 0);
+            partObject.Add("m_flInertiaScale", part.InertiaScale);
+            partObject.Add("m_flLinearDamping", part.LinearDamping);
+            partObject.Add("m_flAngularDamping", part.AngularDamping);
             partData.Add(partObject);
 
             if (part.BoneName == null)

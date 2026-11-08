@@ -63,7 +63,7 @@ internal static class GoldSrcWorldConverter
 /// <summary>The state of the conversion of one map.</summary>
 internal sealed class GoldSrcMapConversion
 {
-    private const int NoDrawEffect = 32;
+    private const int NoDrawEffect = 128;
     private const int ConstantGlowEffect = 14;
     private const int DistortEffect = 15;
     private const int HologramEffect = 16;
@@ -368,6 +368,8 @@ internal sealed class GoldSrcMapConversion
 
             var modelKey = source.GetString("model");
 
+            ConvertMoveDirection(source, entity);
+
             if (modelKey.StartsWith('*'))
             {
                 ConvertBrushEntity(source, entity, modelKey);
@@ -385,6 +387,19 @@ internal sealed class GoldSrcMapConversion
         }
 
         return entities;
+    }
+
+    // A door moves along its angle key, as a yaw or as up and down, where Source 2 reads the angles of its direction from movedir
+    private static void ConvertMoveDirection(BspEntity source, EntityLump.Entity entity)
+    {
+        if (!source.ClassName.Equals("func_door", StringComparison.OrdinalIgnoreCase)
+            || !source.Properties.ContainsKey("angle")
+            || entity.ContainsKey("movedir"))
+        {
+            return;
+        }
+
+        entity["movedir"] = Source1EntityConverter.FormatVector(GetAngles(source));
     }
 
     // Lights are baked into the lightmaps, so they do not light anything by themselves
@@ -405,6 +420,7 @@ internal sealed class GoldSrcMapConversion
         return new Source1EntityConverterOptions
         {
             DynamicLights = false,
+            GoldSrcLighting = true,
             TargetOrigins = targetOrigins,
         };
     }

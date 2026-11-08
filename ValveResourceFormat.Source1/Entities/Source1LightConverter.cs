@@ -1,5 +1,6 @@
 using System.Globalization;
 using ValveKeyValue;
+using ValveResourceFormat.GoldSrc;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Source1.Bsp;
@@ -29,6 +30,22 @@ internal static class Source1LightConverter
     private const float MinWrittenAttenuationTerm = 0.002f;
     private const string DefaultSunLight = "255 255 255 200";
 
+    // GoldSrc lights are lit with a raw intensity that is not in gamma space. The map compiler scales it by the square
+    // of its brightest channel over ten, doubles what a surface receives and writes it through a square root curve.
+    private const float GoldSrcDefaultPointLight = 300f;
+    private const float GoldSrcDefaultSpotLight = 500f;
+    private const float GoldSrcIntensityDivisor = 10f;
+    private const float GoldSrcSampleScale = 2f;
+    private const float GoldSrcLightmapRange = 256f;
+    private const float GoldSrcLightmapExponent = 0.5f;
+    private const float GoldSrcOverbright = 2f;
+
+    // The share of the intensity of a sky light that a surface under open sky receives from the whole hemisphere
+    private const float GoldSrcSkyFraction = 0.124f;
+
+    // The largest range of a light that the tools accept, which is the diagonal of the cube of the map space
+    private static readonly float MaxLightRange = 2f * 16384f * MathF.Sqrt(3f);
+
     public static bool IsLightClass(string classname)
         => classname is "light" or "light_spot" or "light_environment" or "light_dynamic" or "env_projectedtexture";
 
@@ -42,7 +59,9 @@ internal static class Source1LightConverter
 
         var converted = classname switch
         {
+            "light_environment" when options.GoldSrcLighting => ConvertGoldSrcEnvironment(source, target, options),
             "light_environment" => ConvertEnvironment(source, target, options),
+            "light" or "light_spot" when options.GoldSrcLighting => ConvertGoldSrcLight(source, target, options),
             "light_spot" => ConvertSpot(source, target, options),
             "light_dynamic" => ConvertDynamic(source, target, options.MinLightingValue),
             "env_projectedtexture" => ConvertProjectedTexture(source, target, options),
@@ -102,14 +121,105 @@ internal static class Source1LightConverter
     {
         WritePointLight(source, target, options);
 
-        var inner = source.GetFloat("_inner_cone");
+        return WriteSpotCone(source, target, "_inner_cone", "_cone");
+    }
+
+    // The light that bakes a map of GoldSrc falls off with the inverse square of the distance, and is a spot when it
+    // is the light_spot class or has a target
+    private static string ConvertGoldSrcLight(BspEntity source, EntityLump.Entity target, Source1EntityConverterOptions options)
+    {
+        var isSpot = source.ClassName.Equals("light_spot", StringComparison.OrdinalIgnoreCase) || source.GetString("target").Length > 0;
+        var channels = ReadGoldSrcLight(source, isSpot);
+        var peak = MathF.Max(channels.X, MathF.Max(channels.Y, channels.Z));
+        var peakIntensity = peak * peak * peak / GoldSrcIntensityDivisor;
+
+        var surfaceIntensity = GoldSrcSampleScale * peakIntensity / (ReferenceDistance * ReferenceDistance);
+        var (color, _) = SplitColor(channels);
+
+        target["color"] = KVObject.PackedArray([(double)color.X, (double)color.Y, (double)color.Z, 255.0]);
+        target["brightness"] = (double)GetGoldSrcBrightness(surfaceIntensity);
+        target["attenuation0"] = 0.0;
+        target["attenuation1"] = 0.0;
+        target["attenuation2"] = 1.0;
+
+        // The light ends where it is below what one step of the lightmap can store
+        target["range"] = (double)Math.Clamp(MathF.Sqrt(GoldSrcSampleScale * peakIntensity), 1f, MaxLightRange);
+
+        WriteBakedLightAngles(source, target, options.TargetOrigins);
+        target["castshadows"] = 0L;
+
+        return isSpot ? WriteSpotCone(source, target, "_cone", "_cone2") : "light_omni";
+    }
+
+    // The sun is a spotlight of the map compiler that lights every surface facing it with its raw intensity, without a
+    // falloff. The sky also lights each surface from all around, with a fixed fraction of that intensity.
+    private static string ConvertGoldSrcEnvironment(BspEntity source, EntityLump.Entity target, Source1EntityConverterOptions options)
+    {
+        var channels = ReadGoldSrcLight(source, isSpot: true);
+        var peak = MathF.Max(channels.X, MathF.Max(channels.Y, channels.Z));
+        var (color, _) = SplitColor(channels);
+        var colorValue = KVObject.PackedArray([(double)color.X, (double)color.Y, (double)color.Z, 255.0]);
+
+        target["color"] = colorValue;
+        target["brightness"] = (double)GetGoldSrcBrightness(GoldSrcSampleScale * peak);
+        target["skycolor"] = colorValue;
+        target["skyintensity"] = (double)GetGoldSrcBrightness(GoldSrcSampleScale * peak * GoldSrcSkyFraction);
+        target["angulardiameter"] = 0.0;
+        target["castshadows"] = 1L;
+        target["range"] = 0.0;
+
+        WriteBakedLightAngles(source, target, options.TargetOrigins);
+
+        return "light_environment";
+    }
+
+    // What a surface that receives the raw intensity shows, as the lightmap stores it and as the world shades it
+    private static float GetGoldSrcBrightness(float surfaceIntensity)
+    {
+        var lightmapLevel = MathF.Pow(MathF.Min(surfaceIntensity / GoldSrcLightmapRange, 1f), GoldSrcLightmapExponent);
+        var shade = GoldSrcOverbright * MathF.Pow(lightmapLevel, GoldSrcGamma.LightExponent);
+
+        return MathF.Pow(shade, Gamma);
+    }
+
+    // The intensity is one value, or a color with an optional scale. A light without one uses a default.
+    private static Vector3 ReadGoldSrcLight(BspEntity source, bool isSpot)
+    {
+        var parts = source.GetString("_light").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var channels = Vector3.Zero;
+
+        if (parts.Length == 1 && BspEntity.TryParseFloat(parts[0], out var gray))
+        {
+            channels = new Vector3(gray);
+        }
+        else if (parts.Length is 3 or 4)
+        {
+            channels = source.GetVector3("_light");
+
+            if (parts.Length == 4 && BspEntity.TryParseFloat(parts[3], out var scale))
+            {
+                channels *= scale / IntensityUnit;
+            }
+        }
+
+        if (channels.X + channels.Y + channels.Z <= 0f)
+        {
+            return new Vector3(isSpot ? GoldSrcDefaultSpotLight : GoldSrcDefaultPointLight);
+        }
+
+        return channels;
+    }
+
+    private static string WriteSpotCone(BspEntity source, EntityLump.Entity target, string innerKey, string outerKey)
+    {
+        var inner = source.GetFloat(innerKey);
 
         if (inner == 0f)
         {
             inner = DefaultInnerCone;
         }
 
-        var outer = source.GetFloat("_cone");
+        var outer = source.GetFloat(outerKey);
 
         if (outer == 0f)
         {
@@ -548,7 +658,7 @@ internal static class Source1LightConverter
         quadratic *= scale;
     }
 
-    // Where the light has fallen to 1/256 of what it is 100 units away, or 0 where it never does
+    // Where the light has fallen to 1/256 of what it is 100 units away, or the largest range where it never does
     private static float GetReach(float constant, float linear, float quadratic)
     {
         var scale = constant + (linear * ReferenceDistance) + (quadratic * ReferenceDistance * ReferenceDistance);
@@ -564,7 +674,7 @@ internal static class Source1LightConverter
             return remaining / linear;
         }
 
-        return 0f;
+        return MaxLightRange;
     }
 
     // The map compiler points a light at the entity its target key names, and only without one along its angles

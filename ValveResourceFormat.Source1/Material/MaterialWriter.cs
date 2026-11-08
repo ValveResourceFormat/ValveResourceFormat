@@ -125,6 +125,11 @@ internal sealed partial class MaterialWriter
             SetFeature(profile.BackfaceFeature, 1);
         }
 
+        if (description.UseSecondTexCoord)
+        {
+            SetFeature(profile.SecondTexCoordFeature, 1);
+        }
+
         if (profile.Specular)
         {
             if (description.SpecularDirect)

@@ -113,6 +113,9 @@ internal struct Source1Vertex
     /// <summary>Texture coordinates.</summary>
     public Vector2 TexCoord;
 
+    /// <summary>Second set of texture coordinates, zero when the model has one set.</summary>
+    public Vector2 TexCoord2;
+
     /// <summary>Number of bone influences used (at least 1).</summary>
     public byte NumBones;
 
@@ -289,6 +292,9 @@ internal sealed partial class Source1Model
 
     /// <summary>Studio header flags.</summary>
     public int Flags { get; private set; }
+
+    /// <summary>Whether the vertices have a second set of texture coordinates.</summary>
+    public bool HasSecondTexCoord { get; private set; }
 
     /// <summary>Eye position.</summary>
     public Vector3 EyePosition { get; private set; }
@@ -633,6 +639,7 @@ internal sealed partial class Source1Model
 
         NumLods = drawnLods;
         LodSwitchPoints = vtx.LodSwitchPoints[..drawnLods];
+        HasSecondTexCoord = vvd.TexCoords2 != null;
 
         // Every level of detail reads the vertices of the most detailed one, which come first in each mesh
         var vertexIndices = vvd.GetVertexIndices(0);
@@ -756,6 +763,11 @@ internal sealed partial class Source1Model
             }
 
             vertices[i] = ConvertVertex(vvd.Vertices[source], vvd.Tangents is null ? default : vvd.Tangents[source], mdl.Bones.Length);
+
+            if (vvd.TexCoords2 != null)
+            {
+                vertices[i].TexCoord2 = vvd.TexCoords2[source];
+            }
         }
 
         var defaultSkin = mdl.SkinFamilies.Length > 0 ? mdl.SkinFamilies[0] : null;

@@ -51,11 +51,16 @@ internal static class Source1ModelPhysicsConverter
 
             var boneIndex = FindBone(source, solid.Index, section);
             var bone = source.Bones[boneIndex];
-            var mass = GetMass(section);
+            var mass = GetValue(section, "mass", 0f);
+
+            // The solid keys are not negative, and an inertia below 1 would shrink the inertia derived from the shapes
+            var inertiaScale = MathF.Max(GetValue(section, "inertia", 1f), 1f);
+            var linearDamping = MathF.Max(GetValue(section, "damping", 0f), 0f);
+            var angularDamping = MathF.Max(GetValue(section, "rotdamping", 0f), 0f);
 
             var boneToModel = Source1ModelConverter.GetBoneToModel(source, boneIndex, bindToRest);
 
-            partIndices[solid.Index] = builder.BeginPart(bone.ExportName, boneToModel, mass);
+            partIndices[solid.Index] = builder.BeginPart(bone.ExportName, boneToModel, mass, inertiaScale, linearDamping, angularDamping);
             partBones[solid.Index] = boneIndex;
 
             if (isRagdoll)
@@ -261,16 +266,16 @@ internal static class Source1ModelPhysicsConverter
         return 0;
     }
 
-    private static float GetMass(Source1WorldPhysicsConverter.Section? section)
+    private static float GetValue(Source1WorldPhysicsConverter.Section? section, string key, float defaultValue)
     {
         if (section != null
-            && section.Values.TryGetValue("mass", out var text)
-            && float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var mass))
+            && section.Values.TryGetValue(key, out var text)
+            && float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
         {
-            return mass;
+            return value;
         }
 
-        return 0f;
+        return defaultValue;
     }
 
     private static PhyFile.Solid Transform(PhyFile.Solid solid, Matrix4x4 transform)

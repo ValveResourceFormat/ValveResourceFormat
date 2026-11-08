@@ -90,6 +90,7 @@ partial class ModelExtract
     {
         var genericDataClasses = new string[] {
             "prop_data",
+            "door_options",
             "character_arm_config",
             "vr_carry_type",
             "door_sounds",

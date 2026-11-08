@@ -26,6 +26,12 @@ internal sealed class Source1EntityConverterOptions
     public bool HdrLighting { get; init; }
 
     /// <summary>
+    /// Gets whether the lights of the map are GoldSrc lights, which have no attenuation keys, read
+    /// <c>_cone</c> and <c>_cone2</c> as the inner and outer angle of a spot, and give the sun a raw intensity.
+    /// </summary>
+    public bool GoldSrcLighting { get; init; }
+
+    /// <summary>
     /// Gets the light level at which a dynamic light has faded to nothing at its radius, which depends on the
     /// version of the map.
     /// </summary>

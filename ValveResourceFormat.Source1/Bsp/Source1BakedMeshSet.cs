@@ -89,9 +89,7 @@ internal sealed class Source1BakedMeshSet<TVertex>(string namePrefix, VertexFiel
 
         foreach (var (key, chunk) in chunks)
         {
-            var area = key.InSky ? "sky" : "world";
-            var path = string.Create(CultureInfo.InvariantCulture, $"{map.MapPath}/models/{namePrefix}_{area}_{key.X}_{key.Y}_{count}.vmdl");
-            count++;
+            var path = GetPath(map, key, count++);
 
             Source1WorldConverter.AddFile(map, path, CreateModel(path, key.MaterialPath, chunk));
 
@@ -104,6 +102,31 @@ internal sealed class Source1BakedMeshSet<TVertex>(string namePrefix, VertexFiel
                 worldParts.Add(path);
             }
         }
+    }
+
+    /// <summary>
+    /// Adds the model of every chunk as the export form of the model with the same path in the set that drew the pieces,
+    /// which must have made its chunks in the same order.
+    /// </summary>
+    /// <param name="map">The converted map.</param>
+    public void AddExportModels(Source1ConvertedMap map)
+    {
+        var count = 0;
+
+        foreach (var (key, chunk) in chunks)
+        {
+            var path = GetPath(map, key, count++);
+            var resource = CreateModel(path, key.MaterialPath, chunk);
+            resource.FileName = path + Source1WorldConverter.CompiledSuffix;
+            map.ExportFiles.Add(resource.FileName, resource);
+        }
+    }
+
+    private string GetPath(Source1ConvertedMap map, ChunkKey key, int count)
+    {
+        var area = key.InSky ? "sky" : "world";
+
+        return string.Create(CultureInfo.InvariantCulture, $"{map.MapPath}/models/{namePrefix}_{area}_{key.X}_{key.Y}_{count}.vmdl");
     }
 
     /// <summary>Adds the model of a chunk that is not placed by its map area, such as the model of an entity.</summary>

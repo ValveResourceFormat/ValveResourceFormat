@@ -48,6 +48,26 @@ internal static class Source1RopeConverter
         new(nameof(RopeVertex.Axis), "TEXCOORD", 1, DXGI_FORMAT.R32G32B32A32_FLOAT),
     ];
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct TubeVertex
+    {
+        public Vector3 Position;
+        public Vector3 Normal;
+        public Vector2 TexCoord;
+        public Vector4 Color;
+    }
+
+    // Shaders other than the cable shader cannot widen a ribbon, so a rope that is written out is a tube of real width
+    private static readonly VertexField[] TubeFields =
+    [
+        new(nameof(TubeVertex.Position), "POSITION", 0, DXGI_FORMAT.R32G32B32_FLOAT),
+        new(nameof(TubeVertex.Normal), "NORMAL", 0, DXGI_FORMAT.R32G32B32_FLOAT),
+        new(nameof(TubeVertex.TexCoord), "TEXCOORD", 0, DXGI_FORMAT.R32G32_FLOAT),
+        new(nameof(TubeVertex.Color), "COLOR", 0, DXGI_FORMAT.R32G32B32A32_FLOAT),
+    ];
+
+    private const int TubeSides = 3;
+
     private readonly record struct Rope(
         Vector3 Start,
         Vector3? End,
@@ -90,6 +110,7 @@ internal static class Source1RopeConverter
 
         var leaves = new BspLeafAmbient(bsp);
         var meshes = new Source1BakedMeshSet<RopeVertex>("rope", RopeFields);
+        var tubes = new Source1BakedMeshSet<TubeVertex>("rope", TubeFields);
 
         foreach (var entity in bsp.Entities)
         {
@@ -100,13 +121,14 @@ internal static class Source1RopeConverter
 
             named.TryGetValue(entity.GetString("NextKey"), out var next);
 
-            if (CreateRope(entity, next) is { } rope && AddRope(meshes, leaves, locator, getMaterialInfo, rope))
+            if (CreateRope(entity, next) is { } rope && AddRope(meshes, tubes, leaves, locator, getMaterialInfo, rope))
             {
                 map.DrawnEntities.Add(entity);
             }
         }
 
         meshes.AddModels(map, worldParts, skyParts);
+        tubes.AddExportModels(map);
     }
 
     private static Rope? CreateRope(BspEntity entity, BspEntity? next)
@@ -169,6 +191,7 @@ internal static class Source1RopeConverter
 
     private static bool AddRope(
         Source1BakedMeshSet<RopeVertex> meshes,
+        Source1BakedMeshSet<TubeVertex> tubes,
         BspLeafAmbient leaves,
         IBrushLightingLocator locator,
         Func<string, Source1MaterialInfo?> getMaterialInfo,
@@ -192,8 +215,11 @@ internal static class Source1RopeConverter
         var materialPath = Source1Paths.AddVariant(Source1Paths.ToMaterialPath(rope.MaterialName), Source1ResourceProvider.CableVariant);
         var inSky = locator.IsInSky(rope.Start);
         var chunk = meshes.Get(inSky, rope.Start, materialPath);
+        var tubeChunk = tubes.Get(inSky, rope.Start, materialPath);
         var halfWidth = rope.Width * 0.5f;
         var previous = -1;
+        var previousTube = -1;
+        var side = Vector3.Zero;
 
         for (var i = 0; i < points.Length; i++)
         {
@@ -211,9 +237,52 @@ internal static class Source1RopeConverter
             }
 
             previous = first;
+
+            // The ring is turned by carrying the last side along the rope, so that it does not twist
+            side = MathUtils.SafeNormalize(MathUtils.ProjectOntoPlane(side, direction), MathUtils.Perpendicular(direction), 0.01f);
+            var around = Vector3.Cross(direction, side);
+            var ring = AddRing(tubeChunk, points[i], side, around, v, color, halfWidth);
+
+            if (previousTube >= 0)
+            {
+                for (var corner = 0; corner < TubeSides; corner++)
+                {
+                    tubeChunk.AddQuad(previousTube + corner, previousTube + corner + 1, ring + corner + 1, ring + corner);
+                }
+            }
+
+            previousTube = ring;
         }
 
         return true;
+    }
+
+    // The corners of a ring around a point, one more than the sides so that the texture can wrap, and the index of the first
+    private static int AddRing(Source1BakedMeshSet<TubeVertex>.Chunk chunk, Vector3 center, Vector3 side, Vector3 around, float v, Vector4 color, float radius)
+    {
+        var first = -1;
+
+        for (var corner = 0; corner <= TubeSides; corner++)
+        {
+            var fraction = (float)corner / TubeSides;
+            var angle = fraction * MathF.Tau;
+            var normal = (side * MathF.Cos(angle)) + (around * MathF.Sin(angle));
+            var vertex = new TubeVertex
+            {
+                Position = center + (normal * radius),
+                Normal = normal,
+                TexCoord = new Vector2(fraction, v),
+                Color = color,
+            };
+            var index = chunk.AddVertex(vertex, center, radius);
+
+            if (corner == 0)
+            {
+                first = index;
+            }
+        }
+
+        return first;
     }
 
     private static RopeVertex CreateVertex(Vector3 position, Vector2 texCoord, Vector4 color, Vector3 direction, float halfWidth)

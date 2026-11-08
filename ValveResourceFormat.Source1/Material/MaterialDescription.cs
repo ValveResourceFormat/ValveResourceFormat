@@ -165,6 +165,9 @@ internal sealed partial class MaterialDescription
     /// <summary>Gets or sets whether both faces of the geometry are drawn.</summary>
     public bool RenderBackfaces { get; set; }
 
+    /// <summary>Gets or sets whether the textures that are not the color are read from the second set of texture coordinates of the mesh.</summary>
+    public bool UseSecondTexCoord { get; set; }
+
     /// <summary>Gets or sets the translucency, which is the alpha of the color when the material blends.</summary>
     public MaterialInput Translucency { get; set; }
 

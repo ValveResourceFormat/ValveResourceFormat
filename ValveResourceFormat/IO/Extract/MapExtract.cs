@@ -612,9 +612,16 @@ public sealed partial class MapExtract
         foreach (var sceneObjectResourceName in SceneObjectsToExtract)
         {
             var sceneObjectNameCompiled = sceneObjectResourceName + GameFileLoader.CompiledFileSuffix;
-            using var sceneObject = FileLoader.LoadFile(sceneObjectNameCompiled);
+            using var loadedSceneObject = FileLoader.LoadFile(sceneObjectNameCompiled);
 
-            if (sceneObject == null || sceneObject.DataBlock == null)
+            if (loadedSceneObject == null)
+            {
+                continue;
+            }
+
+            var sceneObject = ResourceProvider?.GetExportResource(loadedSceneObject) ?? loadedSceneObject;
+
+            if (sceneObject.DataBlock == null)
             {
                 continue;
             }

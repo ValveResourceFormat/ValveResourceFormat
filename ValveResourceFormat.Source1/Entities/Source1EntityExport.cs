@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Globalization;
 using System.Linq;
 using ValveResourceFormat.IO;
@@ -32,6 +33,8 @@ internal static class Source1EntityExport
     private static readonly HashSet<string> ExcludedClasses = new(StringComparer.OrdinalIgnoreCase)
     {
         "color_correction",
+        "cs_bot_patrol_route_respawn",
+        "cs_bot_patrol_route_waypoint",
         "env_detail_controller",
         "env_lightglow",
         "env_tonemap_controller",
@@ -42,6 +45,7 @@ internal static class Source1EntityExport
         "func_occluder",
         "func_precipitation",
         "func_viscluster",
+        "infodecal",
         "info_lighting",
         "info_no_dynamic_shadow",
         "point_spotlight",
@@ -49,12 +53,95 @@ internal static class Source1EntityExport
         "shadow_control",
     };
 
+    // Keys of Source 1 that no entity class of the Source 2 game declares
+    private static readonly string[] LeftoverKeys =
+    [
+        "uniformscale",
+        "shadowdepth",
+        "shadowdepthnocache",
+        "preventpropcombine",
+        "enablelightbounce",
+        "mingpulevel",
+        "mincpulevel",
+        "maxgpulevel",
+        "maxcpulevel",
+        "ignorenormals",
+        "drawinfastreflection",
+        "disablex360",
+        "disablevertexlighting",
+        "disableshadowdepth",
+        "disableflashlight",
+        "disableselfshadowing",
+        "cubemapsize",
+    ];
+
+    // Keys the map compiler of Source 1 reads from a light, which the lights of the Source 2 game do not declare
+    private static readonly string[] LightCompileKeys =
+    [
+        "_light",
+        "_lighthdr",
+        "_lightscalehdr",
+        "_distance",
+        "_cone",
+        "_cone2",
+        "_inner_cone",
+        "_exponent",
+        "_hardfalloff",
+        "_constant_attn",
+        "_linear_attn",
+        "_quadratic_attn",
+        "_fifty_percent_distance",
+        "_zero_percent_distance",
+    ];
+
     // Ropes are written as the models the converter bakes them into, in every game
     private static readonly HashSet<string> RopeClasses = new(StringComparer.OrdinalIgnoreCase)
     {
         "keyframe_rope",
         "move_rope",
     };
+
+    private static readonly string[] MaterialKeys =
+    [
+        "material",
+        "overlaymaterial",
+        "detailmaterial",
+    ];
+
+    private static readonly HashSet<string> TonemapClasses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "env_tonemap_controller",
+        "env_tonemap_controller_ghost",
+        "env_tonemap_controller_infected",
+    };
+
+    private const string FogClass = "env_fog_controller";
+
+    // Inputs the tonemap controller of Source 2 has under other names
+    private static readonly FrozenDictionary<string, string> TonemapInputRenames = new Dictionary<string, string>
+    {
+        ["SetAutoExposureMin"] = "SetMinExposure",
+        ["SetAutoExposureMax"] = "SetMaxExposure",
+        ["UseDefaultAutoExposure"] = "Disable",
+        ["SetTonemapPercentBrightPixels"] = "SetPercentBrightPixels",
+        ["SetTonemapPercentTarget"] = "SetPercentTarget",
+        ["SetTonemapMinAvgLum"] = "SetMinAverageLuminosity",
+        ["SetTonemapRate"] = "SetRate",
+    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
+    // Inputs the tonemap controller of Source 2 has no counterpart for
+    private static readonly HashSet<string> TonemapRemovedInputs = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "SetBloomExponent",
+        "BlendTonemapScale",
+    };
+
+    private static readonly FrozenDictionary<string, string> FogInputRenames = new Dictionary<string, string>
+    {
+        ["SetStartDist"] = "SetFogStartDistance",
+        ["SetEndDist"] = "SetFogEndDistance",
+        ["SetColor"] = "SetFogColor",
+    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Gets the entities as they are written to a Hammer map for a game.
@@ -68,17 +155,31 @@ internal static class Source1EntityExport
         var targetClasses = EntityClassCatalog.GetTable(targetGame);
         var droppedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var hasEnvironmentLight = false;
+        var hasTonemap = false;
 
         foreach (var entity in entities)
         {
             var className = entity.GetStringProperty("classname") ?? string.Empty;
             var isDropped = RopeClasses.Contains(className) || (targetGame == Game.Csgo && ExcludedClasses.Contains(className));
 
+            // A dynamic light with no radius is never drawn and lights nothing
+            if (!isDropped && IsPointLight(className) && entity.ContainsKey("range") && entity.GetFloatProperty("range") <= 0f)
+            {
+                isDropped = true;
+            }
+
             // Only one light_environment lights a map
             if (!isDropped && className == "light_environment")
             {
                 isDropped = hasEnvironmentLight;
                 hasEnvironmentLight = true;
+            }
+
+            // The first tonemap controller is the master one
+            if (!isDropped && className == "env_tonemap_controller")
+            {
+                isDropped = hasTonemap;
+                hasTonemap = true;
             }
 
             if (isDropped)
@@ -94,9 +195,96 @@ internal static class Source1EntityExport
             converted.Add(Convert(entity, className, targetGame, targetClasses));
         }
 
+        ConvertInputs(converted, GetClassesByName(entities));
         RemoveConnectionsToDropped(converted, droppedNames);
 
         return converted;
+    }
+
+    private static Dictionary<string, string> GetClassesByName(List<EntityLump.Entity> entities)
+    {
+        var classesByName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var entity in entities)
+        {
+            var name = entity.GetStringProperty("targetname");
+            var className = entity.GetStringProperty("classname");
+
+            if (!string.IsNullOrEmpty(name) && className != null)
+            {
+                classesByName.TryAdd(name, className);
+            }
+        }
+
+        return classesByName;
+    }
+
+    // The inputs of a controller are named by the class of the entity they target
+    private static void ConvertInputs(List<EntityLump.Entity> entities, Dictionary<string, string> classesByName)
+    {
+        foreach (var entity in entities)
+        {
+            var connections = entity.Connections;
+
+            if (connections == null)
+            {
+                continue;
+            }
+
+            for (var i = connections.Count - 1; i >= 0; i--)
+            {
+                var connection = connections[i];
+
+                if (!classesByName.TryGetValue(connection.TargetName, out var targetClass))
+                {
+                    continue;
+                }
+
+                if (TonemapClasses.Contains(targetClass) && TonemapRemovedInputs.Contains(connection.InputName))
+                {
+                    connections.RemoveAt(i);
+                    continue;
+                }
+
+                var renames = GetInputRenames(targetClass);
+
+                if (renames != null && renames.TryGetValue(connection.InputName, out var inputName))
+                {
+                    connections[i] = WithInputName(connection, inputName);
+                }
+            }
+        }
+    }
+
+    private static FrozenDictionary<string, string>? GetInputRenames(string className)
+    {
+        if (TonemapClasses.Contains(className))
+        {
+            return TonemapInputRenames;
+        }
+
+        if (className.Equals(FogClass, StringComparison.OrdinalIgnoreCase))
+        {
+            return FogInputRenames;
+        }
+
+        return null;
+    }
+
+    private static EntityLump.Connection WithInputName(EntityLump.Connection connection, string inputName)
+    {
+        return new EntityLump.Connection
+        {
+            SourceEntity = connection.SourceEntity,
+            OutputName = connection.OutputName,
+            InputName = inputName,
+            TargetName = connection.TargetName,
+            OverrideParam = connection.OverrideParam,
+            Delay = connection.Delay,
+            TimesToFire = connection.TimesToFire,
+            TargetType = connection.TargetType,
+            ParamMap = connection.ParamMap,
+        };
     }
 
     // A name that a kept entity also has still has a target
@@ -128,8 +316,30 @@ internal static class Source1EntityExport
         entity.Remove("drawnbyworld");
         ConvertDefaultAnimation(entity, targetClasses.FindClass(className));
 
+        // Physics props and sprites are written by their own export
+        var isSpriteOrPhysicsProp = className == "env_sprite" || entity.ContainsKey(Source1PhysicsPropExport.ClassNameKey);
+
+        if (!isSpriteOrPhysicsProp)
+        {
+            ConvertMaterialKeys(entity);
+            ConvertRenderMode(entity);
+            RemoveUnmatchedRenderFx(entity);
+        }
+
+        if (targetGame == Game.Csgo)
+        {
+            RemoveLeftoverKeys(entity, className);
+        }
+
         switch (className)
         {
+            case "func_brush" or "func_door" when targetGame == Game.Csgo:
+                entity["lightmapstatic"] = 1L;
+                break;
+            case "env_tonemap_controller":
+                entity["master"] = 1L;
+                entity.Remove("spawnflags");
+                break;
             case "env_sun" when targetGame == Game.Csgo:
                 ConvertSun(entity);
                 break;
@@ -150,6 +360,80 @@ internal static class Source1EntityExport
         }
 
         return entity;
+    }
+
+    // Baked lights are the only point lights that have a range, and it is above zero for all of them
+    private static bool IsPointLight(string className)
+        => className is "light_omni" or "light_spot";
+
+    private static void RemoveLeftoverKeys(EntityLump.Entity entity, string className)
+    {
+        foreach (var key in LeftoverKeys)
+        {
+            entity.Remove(key);
+        }
+
+        if (!className.StartsWith("light", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        foreach (var key in LightCompileKeys)
+        {
+            entity.Remove(key);
+        }
+    }
+
+    // The breakable brushes use the same key for the kind of debris they break into, which is a number
+    private static void ConvertMaterialKeys(EntityLump.Entity entity)
+    {
+        foreach (var key in MaterialKeys)
+        {
+            var material = entity.GetStringProperty(key);
+
+            if (string.IsNullOrWhiteSpace(material) || material.EndsWith(".vmat", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            entity[key] = Source1Paths.ToMaterialPath(material);
+        }
+    }
+
+    // The numbers of the two engines differ, and Source 2 only has normal, alpha blended and hidden entities. The modes
+    // that blend by the alpha of the entity become alpha blended, and any other mode draws normally.
+    private static void ConvertRenderMode(EntityLump.Entity entity)
+    {
+        if (!entity.ContainsKey("rendermode"))
+        {
+            return;
+        }
+
+        var name = (RenderMode)entity.GetIntegerProperty("rendermode") switch
+        {
+            RenderMode.Normal => "kRenderNormal",
+            RenderMode.TransColor or RenderMode.TransTexture or RenderMode.TransAlpha => "kRenderTransAlpha",
+            _ => null,
+        };
+
+        if (name == null)
+        {
+            entity.Remove("rendermode");
+            return;
+        }
+
+        entity["rendermode"] = name;
+    }
+
+    // Effects up to this number mean the same in both engines, and later ones are other effects or do not exist
+    private static void RemoveUnmatchedRenderFx(EntityLump.Entity entity)
+    {
+        const long LastMatchingRenderFx = 13;
+
+        if (entity.ContainsKey("renderfx") && entity.GetIntegerProperty("renderfx") > LastMatchingRenderFx)
+        {
+            entity.Remove("renderfx");
+        }
     }
 
     private static void ConvertDefaultAnimation(EntityLump.Entity entity, EntityClass? targetClass)

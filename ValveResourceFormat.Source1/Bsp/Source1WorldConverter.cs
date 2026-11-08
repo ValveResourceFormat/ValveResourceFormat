@@ -25,6 +25,9 @@ internal sealed class Source1ConvertedMap
     /// <summary>The resources by normalized path, with the <c>_c</c> suffix of compiled files.</summary>
     public Dictionary<string, Resource> Files { get; } = [];
 
+    /// <summary>The resources written out in place of the resource with the same path in <see cref="Files"/>.</summary>
+    public Dictionary<string, Resource> ExportFiles { get; } = [];
+
     /// <summary>The path of the map resource, which names the world beside it.</summary>
     public required string MapPath { get; init; }
 
@@ -71,7 +74,7 @@ internal sealed class Source1ConvertedMap
 /// </summary>
 internal static class Source1WorldConverter
 {
-    private const string CompiledSuffix = "_c";
+    internal const string CompiledSuffix = "_c";
     private const string DefaultCubemapPath = "materials/engine/defaultcubemap.vtex";
     private const string SkyWorldGroup = "skybox";
 
@@ -171,7 +174,8 @@ internal static class Source1WorldConverter
         var skyEntities = new List<EntityLump.Entity>();
 
         progress?.Report("Converting entities…");
-        var entities = ConvertEntities(bsp, mapPath, entityLump, sourceEntities, locator, skyEntities, loadModel, openFile);
+        var modelOrigins = new Dictionary<int, Vector3>();
+        var entities = ConvertEntities(bsp, mapPath, entityLump, sourceEntities, locator, skyEntities, modelOrigins, loadModel, openFile);
 
         progress?.Report("Building world geometry…");
         var modelMeshes = BspMeshBuilder.BuildAll(bsp, getMaterialInfo);
@@ -223,6 +227,11 @@ internal static class Source1WorldConverter
         {
             var path = GetBrushModelPath(mapPath, i);
             var pieces = GetPieces(modelMeshes[i]);
+
+            if (modelOrigins.TryGetValue(i, out var modelOrigin))
+            {
+                pieces = CenterPieces(pieces, modelOrigin);
+            }
 
             AddFile(map, path, CreateBrushModel(pieces, path));
         }
@@ -830,6 +839,7 @@ internal static class Source1WorldConverter
         List<BspEntity> sources,
         IBrushLightingLocator locator,
         List<EntityLump.Entity> skyEntities,
+        Dictionary<int, Vector3> modelOrigins,
         Func<string, Source1Model?> loadModel,
         Func<string, Stream?> openFile)
     {
@@ -852,6 +862,13 @@ internal static class Source1WorldConverter
             if (brushModelIndex > 0)
             {
                 isInSky = IsBrushEntityInSky(bsp, source, brushModelIndex, locator);
+
+                if (source.ClassName.Equals("func_smokevolume", StringComparison.OrdinalIgnoreCase))
+                {
+                    var origin = GetSmokeVolumeOrigin(bsp.Models[brushModelIndex]);
+                    entity["origin"] = Source1EntityConverter.FormatVector(origin);
+                    modelOrigins[brushModelIndex] = origin;
+                }
             }
             else if (ConvertEntityModel(entityModels, source, entity, loadModel))
             {
@@ -978,6 +995,34 @@ internal static class Source1WorldConverter
         }
 
         return 0;
+    }
+
+    // The brush of a smoke volume is placed by an origin at the middle of its model, on whole units, and its model is
+    // relative to that origin
+    private static Vector3 GetSmokeVolumeOrigin(BspModel model)
+    {
+        var center = (model.Min + model.Max) * 0.5f;
+
+        return new Vector3(MathF.Truncate(center.X), MathF.Truncate(center.Y), MathF.Truncate(center.Z));
+    }
+
+    private static List<MaterialPiece> CenterPieces(List<MaterialPiece> pieces, Vector3 origin)
+    {
+        var centered = new List<MaterialPiece>(pieces.Count);
+
+        foreach (var piece in pieces)
+        {
+            var vertices = (BspVertex[])piece.Vertices.Clone();
+
+            for (var i = 0; i < vertices.Length; i++)
+            {
+                vertices[i].Position -= origin;
+            }
+
+            centered.Add(piece with { Vertices = vertices });
+        }
+
+        return centered;
     }
 
     // A brush entity is placed by its entity transform, so it is in the 3D sky box area when the center of its model is in it

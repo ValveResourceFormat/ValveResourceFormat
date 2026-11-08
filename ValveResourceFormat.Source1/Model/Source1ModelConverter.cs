@@ -43,6 +43,7 @@ internal static class Source1ModelConverter
         public Vector2 TexCoord;
         public uint BoneIndices;
         public uint BoneWeights;
+        public Vector2 TexCoord2;
     }
 
     private static readonly VertexField[] VertexFields =
@@ -53,6 +54,12 @@ internal static class Source1ModelConverter
         new(nameof(ConvertedVertex.TexCoord), "TEXCOORD", 0, DXGI_FORMAT.R32G32_FLOAT),
         new(nameof(ConvertedVertex.BoneIndices), "BLENDINDICES", 0, DXGI_FORMAT.R8G8B8A8_UINT),
         new(nameof(ConvertedVertex.BoneWeights), "BLENDWEIGHT", 0, DXGI_FORMAT.R8G8B8A8_UNORM),
+    ];
+
+    private static readonly VertexField[] VertexFieldsWithTexCoord2 =
+    [
+        .. VertexFields,
+        new(nameof(ConvertedVertex.TexCoord2), "TEXCOORD", 1, DXGI_FORMAT.R32G32_FLOAT),
     ];
 
     /// <summary>Converts a model.</summary>
@@ -116,9 +123,11 @@ internal static class Source1ModelConverter
         modelData.Add("m_hitboxsets", CreateHitboxSets(source));
         modelData.Add("m_boneFlexDrivers", CreateBoneFlexDrivers(source));
 
-        if (eyeTarget != null && source.Eyelids.Length > 0)
+        var modelInfo = CreateModelInfo(source, eyeTarget != null && source.Eyelids.Length > 0);
+
+        if (modelInfo != null)
         {
-            modelData.Add("m_modelInfo", CreateModelInfo());
+            modelData.Add("m_modelInfo", modelInfo);
         }
 
         var bones = CreateBones(source, bindToRest, eyeTarget);
@@ -204,7 +213,8 @@ internal static class Source1ModelConverter
             meshBones.Add(new MeshBone(bone.ExportName, parentName, restToBind * GetPoseToBone(source, i)));
         }
 
-        var buffers = Source1VertexBuffers.Create(vertexBuffers, VertexFields, indices.ToArray());
+        var vertexFields = source.HasSecondTexCoord ? VertexFieldsWithTexCoord2 : VertexFields;
+        var buffers = Source1VertexBuffers.Create(vertexBuffers, vertexFields, indices.ToArray());
 
         return new ModelMeshSource(name, buffers, drawCalls, min, max)
         {
@@ -401,17 +411,30 @@ internal static class Source1ModelConverter
 
     // The eyelids follow the elevation of the view target above the eye: the angle from the up axis of the eye bone
     // is 90 degrees when level, and each constraint covers one direction of the full quarter turn.
-    private static KVObject CreateModelInfo()
+    private static KVObject? CreateModelInfo(Source1Model source, bool hasEyelids)
     {
-        var constraints = KVObject.Array();
-        constraints.Add(CreateEyeLookConstraint(Source1FlexConverter.EyeLookDownController, 90f, 180f));
-        constraints.Add(CreateEyeLookConstraint(Source1FlexConverter.EyeLookUpController, 90f, 0f));
+        var keyValues = Source1ModelKeyValues.Convert(source);
 
-        var keyValues = KVObject.Collection();
-        keyValues.Add("BoneConstraintList", constraints);
+        if (hasEyelids)
+        {
+            var constraints = KVObject.Array();
+            constraints.Add(CreateEyeLookConstraint(Source1FlexConverter.EyeLookDownController, 90f, 180f));
+            constraints.Add(CreateEyeLookConstraint(Source1FlexConverter.EyeLookUpController, 90f, 0f));
+            keyValues.Add("BoneConstraintList", constraints);
+        }
+
+        if (keyValues.Count == 0 && source.SurfaceProperty.Length == 0)
+        {
+            return null;
+        }
 
         var modelInfo = KVObject.Collection();
-        modelInfo.Add("m_keyValueText", keyValues.ToKV3String());
+        modelInfo.Add("m_sSurfaceProperty", source.SurfaceProperty);
+
+        if (keyValues.Count > 0)
+        {
+            modelInfo.Add("m_keyValueText", keyValues.ToKV3String());
+        }
 
         return modelInfo;
     }
@@ -869,6 +892,11 @@ internal static class Source1ModelConverter
 
             var path = GetMaterialPath(mesh, paths[index]);
 
+            if (source.HasSecondTexCoord)
+            {
+                path = Source1Paths.AddVariant(path, Source1ModelMaterials.SecondTexCoordVariant);
+            }
+
             if ((source.Flags & (int)MdlFile.StudioFlags.AmbientBoost) != 0)
             {
                 return Source1Paths.AddVariant(path, Source1ModelMaterials.AmbientBoostVariant);
@@ -961,6 +989,7 @@ internal static class Source1ModelConverter
                 TexCoord = source.TexCoord,
                 BoneIndices = PackBoneIndices(source),
                 BoneWeights = PackBoneWeights(source),
+                TexCoord2 = source.TexCoord2,
             };
         }
 

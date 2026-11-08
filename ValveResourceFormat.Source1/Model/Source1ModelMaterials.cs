@@ -17,6 +17,9 @@ internal sealed class Source1ModelMaterials
     /// <summary>The variant name of a material of a model whose ambient light is boosted.</summary>
     public const string AmbientBoostVariant = "ambientboost";
 
+    /// <summary>The variant name of a material of a model with a second set of texture coordinates.</summary>
+    public const string SecondTexCoordVariant = "uv2";
+
     private const string EyeballSuffix = "_eyeball";
     private const string MouthSuffix = "_mouth";
 

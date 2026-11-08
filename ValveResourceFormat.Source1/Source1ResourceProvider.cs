@@ -51,6 +51,7 @@ internal sealed class Source1ResourceProvider(Source1FileSystem fileSystem, ILog
     public const string TextureSheetVariant = "sheet";
 
     private const string AmbientBoostParameter = "g_flAmbientBoost";
+    private const string SecondTexCoordFeature = "F_FORCE_UV2";
 
     /// <summary>The variant name of a material that is drawn on top of the surface under it.</summary>
     public const string OverlayVariant = "overlay";
@@ -467,6 +468,19 @@ internal sealed class Source1ResourceProvider(Source1FileSystem fileSystem, ILog
     public IEnumerable<string> GetExportResources(Resource entityLump) => Source1MapExport.GetResources(entityLump);
 
     /// <inheritdoc/>
+    public Resource GetExportResource(Resource resource)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+
+        if (map != null && resource.FileName != null && map.ExportFiles.TryGetValue(resource.FileName, out var exported))
+        {
+            return exported;
+        }
+
+        return resource;
+    }
+
+    /// <inheritdoc/>
     public bool Exists(string file)
     {
         ArgumentNullException.ThrowIfNull(file);
@@ -703,12 +717,25 @@ internal sealed class Source1ResourceProvider(Source1FileSystem fileSystem, ILog
             return LoadModelMaterial(materialPath);
         }
 
+        if (variant == Source1ModelMaterials.SecondTexCoordVariant)
+        {
+            var secondTexCoordResource = LoadMaterialResource(materialPath);
+
+            if (secondTexCoordResource?.DataBlock is ResourceTypes.Material material)
+            {
+                material.IntParams[SecondTexCoordFeature] = 1;
+                material.BuildData();
+            }
+
+            return secondTexCoordResource;
+        }
+
         if (variant != Source1ModelMaterials.AmbientBoostVariant)
         {
             return LoadMaterialVariant(materialPath, variant);
         }
 
-        var resource = LoadModelMaterial(materialPath);
+        var resource = LoadMaterialResource(materialPath);
 
         if (resource?.DataBlock is ResourceTypes.Material boosted)
         {

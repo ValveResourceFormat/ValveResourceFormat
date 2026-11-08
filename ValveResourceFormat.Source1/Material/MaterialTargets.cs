@@ -102,6 +102,9 @@ internal sealed class ShaderProfile
 
     public string? BackfaceFeature { get; init; } = "F_RENDER_BACKFACES";
 
+    /// <summary>The feature that reads the textures other than the color from the second set of texture coordinates.</summary>
+    public string? SecondTexCoordFeature { get; init; }
+
     /// <summary>Whether the shader has the features F_SPECULAR_DIRECT and F_SPECULAR_INDIRECT.</summary>
     public bool Specular { get; init; }
 
@@ -227,6 +230,7 @@ internal sealed class MaterialTarget
             Slots = LitSlots,
             BlendFlags = true,
             Specular = true,
+            SecondTexCoordFeature = "F_FORCE_UV2",
             TextureTransform = TextureTransform.Single,
             SlotFeatures =
             {
