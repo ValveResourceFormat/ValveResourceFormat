@@ -70,6 +70,11 @@ namespace ValveResourceFormat.Renderer.Materials
         /// </summary>
         public TextureStreamingMode Mode { get; set; }
 
+        /// <summary>
+        /// Whether meshes out of view keep their textures sharp, so turning the camera does not load or drop mips.
+        /// </summary>
+        public bool IgnoreViewAngles { get; set; }
+
         internal void BeginStreaming(StreamedTexture stream) => newStreams.Enqueue(stream);
 
         /// <summary>
@@ -202,9 +207,8 @@ namespace ValveResourceFormat.Renderer.Materials
 
         /// <summary>
         /// Measures how many pixels each streamed texture spans on screen at the closest mesh drawing it, and
-        /// points every texture at the mips it needs, within the video memory budget. Meshes out of view count
-        /// too, so turning the camera does not move memory. Runs a few times a second, or every call while
-        /// textures load immediately. Call before the slice, on a thread with a GL context.
+        /// points every texture at the mips it needs, within the video memory budget. Runs a few times a
+        /// second, or every call while textures load immediately. Call before the slice, on a thread with a GL context.
         /// </summary>
         /// <param name="camera">The camera the scenes are seen through.</param>
         /// <param name="scenes">The scenes drawn, with sky scenes mapped into the viewer's world.</param>
@@ -235,14 +239,14 @@ namespace ValveResourceFormat.Renderer.Materials
                 var toViewerWorld = scene.ToViewerWorld;
                 var sceneScale = MathUtils.MaxAxisScale(toViewerWorld);
 
-                GatherNodeDemand(scene.StaticNodes, camera.Location, toViewerWorld, sceneScale, orthographic, pixelsPerUnitAtUnitDistance);
-                GatherNodeDemand(scene.DynamicNodes, camera.Location, toViewerWorld, sceneScale, orthographic, pixelsPerUnitAtUnitDistance);
+                GatherNodeDemand(scene.StaticNodes, camera, toViewerWorld, sceneScale, orthographic, pixelsPerUnitAtUnitDistance);
+                GatherNodeDemand(scene.DynamicNodes, camera, toViewerWorld, sceneScale, orthographic, pixelsPerUnitAtUnitDistance);
             }
 
             UpdateTargets(MathF.Pow(2f, -elapsed / DemandHalfLifeSeconds));
         }
 
-        private static void GatherNodeDemand(IReadOnlyList<SceneNode> nodes, Vector3 eye, in Matrix4x4 toViewerWorld, float sceneScale, bool orthographic, float pixelsPerUnitAtUnitDistance)
+        private void GatherNodeDemand(IReadOnlyList<SceneNode> nodes, Camera camera, in Matrix4x4 toViewerWorld, float sceneScale, bool orthographic, float pixelsPerUnitAtUnitDistance)
         {
             for (var i = 0; i < nodes.Count; i++)
             {
@@ -253,7 +257,14 @@ namespace ValveResourceFormat.Renderer.Materials
                     continue;
                 }
 
-                var distance = MathF.Sqrt(node.BoundingBox.Transform(toViewerWorld).DistanceSquared(eye));
+                var bounds = node.BoundingBox.Transform(toViewerWorld);
+
+                if (!IgnoreViewAngles && !camera.ViewFrustum.Intersects(bounds))
+                {
+                    continue;
+                }
+
+                var distance = MathF.Sqrt(bounds.DistanceSquared(camera.Location));
                 var pixelsPerUnit = orthographic ? pixelsPerUnitAtUnitDistance : pixelsPerUnitAtUnitDistance / Math.Max(distance, 1f);
                 var worldScale = sceneScale * MathUtils.MaxAxisScale(node.Transform);
 
