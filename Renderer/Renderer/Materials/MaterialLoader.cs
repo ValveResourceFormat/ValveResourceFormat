@@ -416,7 +416,6 @@ namespace ValveResourceFormat.Renderer.Materials
                     ResidentChainLevel = chainLevels - 1,
                     AllocatedChainLevel = chainLevels - 1,
                     TargetChainLevel = chainLevels - 1,
-                    SmoothedChainLevel = chainLevels - 1,
                     Mips = new PlannedMip[chainLevels - 1],
                 };
 

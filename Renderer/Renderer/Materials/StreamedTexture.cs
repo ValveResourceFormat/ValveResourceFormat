@@ -72,22 +72,30 @@ namespace ValveResourceFormat.Renderer.Materials
         /// measures it, so it streams the whole chain.</summary>
         public volatile bool DrawnByMesh;
 
-        /// <summary>Most screen pixels per texture coordinate unit any draw measured in demand pass
-        /// <see cref="DemandPass"/>, infinite for a draw that needs the texture whole.</summary>
-        public float DemandPixelsPerUv;
+        /// <summary>Most pixels any mesh needed of the texture in the current demand pass.</summary>
+        public float DemandPixels;
 
-        /// <summary>The last demand pass that measured this texture, 0 before any did.</summary>
-        public int DemandPass;
-
-        /// <summary>Demand as a fractional chain level: the finest level requested, easing toward coarser
-        /// levels with time while nothing requests it.</summary>
-        public float SmoothedChainLevel;
+        /// <summary>Most pixels needed lately, halving every few seconds no mesh asks for them.</summary>
+        public float SmoothedDemandPixels;
 
         /// <summary>The mip's level in the source texture data, past the user's size cap.</summary>
         public uint DataMipLevel(in PlannedMip mip) => (uint)(mip.ChainLevel + MinMipLevelAllowed);
 
         /// <summary>Index into <see cref="Mips"/> of the mip at a chain level.</summary>
         public int MipIndex(int chainLevel) => ChainLevels - 2 - chainLevel;
+
+        /// <summary>Bytes of storage whose top is at a chain level, leaving out the smallest mip.</summary>
+        public long StorageBytes(int chainLevel)
+        {
+            var bytes = 0L;
+
+            for (var i = MipIndex(chainLevel); i >= 0; i--)
+            {
+                bytes += Mips[i].BufferSize;
+            }
+
+            return bytes;
+        }
 
         public void Execute() => Streaming.LoadStreamingData(this);
     }

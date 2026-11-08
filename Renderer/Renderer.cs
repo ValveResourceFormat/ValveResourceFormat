@@ -2598,9 +2598,6 @@ public class Renderer : ISceneHost
         var pvsPosition = LockedCullPosition ?? updateContext.Camera.Location;
         var pvsEnabled = !Settings.DisableAllCulling && Settings.EnablePvsCulling;
 
-        var streaming = RendererContext.TextureStreaming;
-        var measureTextureDemand = !Prewarming && streaming.BeginDemandPass();
-
         foreach (var view in views)
         {
             // Sky views cull from the main eye mapped into sky space; an eye outside the sky visibility culls nothing
@@ -2614,7 +2611,7 @@ public class Renderer : ISceneHost
                     ? visibility.GetVisibilityRowForPoint(Vector3.Transform(viewPvsPosition, scene.WorldToVisibility))
                     : default;
 
-                state.CollectSceneDrawCalls(view.Camera, CullFrustumFor(view), measureTextureDemand ? streaming : null);
+                state.CollectSceneDrawCalls(view.Camera, CullFrustumFor(view));
             }
         }
 
@@ -2625,6 +2622,9 @@ public class Renderer : ISceneHost
 
         if (!Prewarming)
         {
+            var streaming = RendererContext.TextureStreaming;
+            streaming.GatherDemand(Camera, Scenes);
+
             if (streaming.Mode == TextureStreamingMode.Immediate)
             {
                 streaming.FinishAllStreaming(RendererContext.CancellationToken);
