@@ -29,6 +29,15 @@ namespace ValveResourceFormat.Renderer.Materials
         // Streams waiting to ask for their next mip: new textures, and chains parked by the throttle
         private readonly ConcurrentQueue<StreamedTexture> pendingLoadRequests = new();
 
+        private const float MaxVideoMemoryUsage = 0.9f;
+        private const long MinVideoMemoryReserve = 128L * 1024 * 1024;
+
+        private static long VideoMemoryReserve => Math.Max(MinVideoMemoryReserve,
+            (long)(GLEnvironment.AvailableVideoMemoryAtStartup.GetValueOrDefault() * (1f - MaxVideoMemoryUsage)));
+
+        private long? videoMemoryHeadroom;
+        private bool loggedLowVideoMemory;
+
         // One FIFO for everything: a texture only has one request out at a time, so this is already in chain order
         private readonly ConcurrentQueue<LoadedMipBits> loadedMipBits = new();
 
@@ -236,6 +245,8 @@ namespace ValveResourceFormat.Renderer.Materials
         {
             var hookedUp = false;
 
+            SampleVideoMemory();
+
             // Start newly loaded textures and restart chains parked by the throttle
             while (Interlocked.Read(ref bitsInFlight) < MaxBitsInFlight && pendingLoadRequests.TryDequeue(out var stream))
             {
@@ -293,6 +304,14 @@ namespace ValveResourceFormat.Renderer.Materials
         private bool HasPendingWork
             => !pendingLoadRequests.IsEmpty || !loadedMipBits.IsEmpty || Interlocked.Read(ref bitsInFlight) > 0;
 
+        private void SampleVideoMemory()
+        {
+            if (HasPendingWork)
+            {
+                videoMemoryHeadroom = GLEnvironment.GetAvailableVideoMemory() - Interlocked.Read(ref bitsInFlight);
+            }
+        }
+
         /// <summary>
         /// Blocks until nothing is left to stream, to no budget. Must be called on a thread with a GL context.
         /// </summary>
@@ -338,6 +357,20 @@ namespace ValveResourceFormat.Renderer.Materials
                 RetireStream(stream);
                 return;
             }
+
+            if (videoMemoryHeadroom is { } headroom && headroom - stream.GateBytes < VideoMemoryReserve)
+            {
+                if (!loggedLowVideoMemory)
+                {
+                    loggedLowVideoMemory = true;
+                    rendererContext.Logger.LogWarning("Texture streaming low memory available ({Free} MB)", headroom / (1024 * 1024));
+                }
+
+                RetireStream(stream);
+                return;
+            }
+
+            videoMemoryHeadroom -= stream.GateBytes;
 
             // Counted from the request, not from the enqueue, so the throttle bounds rented buffers too
             Interlocked.Add(ref bitsInFlight, stream.GateBytes);

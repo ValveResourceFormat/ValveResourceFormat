@@ -34,6 +34,24 @@ public static class GLEnvironment
     private static ParallelShaderCompileType ParallelShaderCompileSupport = ParallelShaderCompileType.None;
     private static int parallelShaderCompileConfigured;
 
+    private enum VideoMemoryQueryType : byte
+    {
+        None,
+        Nvx,
+        Ati,
+    }
+
+    private const GetPName GpuMemoryInfoCurrentAvailableVidmemNvx = (GetPName)0x9049;
+    private const GetPName TextureFreeMemoryAti = (GetPName)0x87FC;
+
+    private static VideoMemoryQueryType VideoMemoryQuerySupport = VideoMemoryQueryType.None;
+
+    /// <summary>
+    /// Gets the dedicated video memory that was free when the environment was initialized, in bytes, or null
+    /// when the driver has no query for it.
+    /// </summary>
+    public static long? AvailableVideoMemoryAtStartup { get; private set; }
+
     /// <summary>
     /// Indicates whether indirect count draw calls are supported by the current driver.
     /// </summary>
@@ -108,6 +126,17 @@ public static class GLEnvironment
             logger.LogWarning("Parallel shader compilation is not supported");
         }
 
+        if (extensions.Contains("GL_NVX_gpu_memory_info"))
+        {
+            VideoMemoryQuerySupport = VideoMemoryQueryType.Nvx;
+        }
+        else if (extensions.Contains("GL_ATI_meminfo"))
+        {
+            VideoMemoryQuerySupport = VideoMemoryQueryType.Ati;
+        }
+
+        AvailableVideoMemoryAtStartup = GetAvailableVideoMemory();
+
 #if DEBUG
         MaxLabelLength = GL.GetInteger(GetPName.MaxLabelLength) - 1;
 #endif
@@ -143,6 +172,29 @@ public static class GLEnvironment
             {
                 GL.Arb.MaxShaderCompilerThreads(uint.MaxValue);
             }
+        }
+    }
+
+    /// <summary>
+    /// Queries the free dedicated video memory in bytes, or null when the driver has no query for it.
+    /// </summary>
+    public static unsafe long? GetAvailableVideoMemory()
+    {
+        switch (VideoMemoryQuerySupport)
+        {
+            case VideoMemoryQueryType.Nvx:
+                return GL.GetInteger(GpuMemoryInfoCurrentAvailableVidmemNvx) * 1024L;
+
+            case VideoMemoryQueryType.Ati:
+            {
+                // Free total, largest free block, free auxiliary, largest auxiliary block, all in kilobytes
+                var memory = stackalloc int[4];
+                GL.GetInteger(TextureFreeMemoryAti, memory);
+                return memory[0] * 1024L;
+            }
+
+            default:
+                return null;
         }
     }
 
