@@ -1155,6 +1155,13 @@ internal static class Source1WorldConverter
             entity["defaultanim"] = sequence;
         }
 
+        var namesDefaultAnim = FindSequence(model, source.GetString("DefaultAnim")) != null;
+
+        if (namesDefaultAnim && source.GetInt("HoldAnimation") == 0)
+        {
+            entity["idleanimationloopmode"] = "ANIM_LOOP_MODE_LOOPING";
+        }
+
         return true;
     }
 

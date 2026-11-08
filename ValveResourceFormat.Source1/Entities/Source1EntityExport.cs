@@ -1,5 +1,7 @@
 using System.Globalization;
+using System.Linq;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -47,6 +49,13 @@ internal static class Source1EntityExport
         "shadow_control",
     };
 
+    // Ropes are written as the models the converter bakes them into, in every game
+    private static readonly HashSet<string> RopeClasses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "keyframe_rope",
+        "move_rope",
+    };
+
     /// <summary>
     /// Gets the entities as they are written to a Hammer map for a game.
     /// </summary>
@@ -56,13 +65,14 @@ internal static class Source1EntityExport
     public static List<EntityLump.Entity> Convert(List<EntityLump.Entity> entities, Game targetGame)
     {
         var converted = new List<EntityLump.Entity>(entities.Count);
+        var targetClasses = EntityClassCatalog.GetTable(targetGame);
         var droppedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var hasEnvironmentLight = false;
 
         foreach (var entity in entities)
         {
             var className = entity.GetStringProperty("classname") ?? string.Empty;
-            var isDropped = targetGame == Game.Csgo && ExcludedClasses.Contains(className);
+            var isDropped = RopeClasses.Contains(className) || (targetGame == Game.Csgo && ExcludedClasses.Contains(className));
 
             // Only one light_environment lights a map
             if (!isDropped && className == "light_environment")
@@ -81,7 +91,7 @@ internal static class Source1EntityExport
                 continue;
             }
 
-            converted.Add(Convert(entity, className, targetGame));
+            converted.Add(Convert(entity, className, targetGame, targetClasses));
         }
 
         RemoveConnectionsToDropped(converted, droppedNames);
@@ -111,9 +121,12 @@ internal static class Source1EntityExport
         }
     }
 
-    private static EntityLump.Entity Convert(EntityLump.Entity source, string className, Game targetGame)
+    private static EntityLump.Entity Convert(EntityLump.Entity source, string className, Game targetGame, EntityClassTable targetClasses)
     {
         var entity = Source1EntityCopy.Copy(source);
+
+        entity.Remove("drawnbyworld");
+        ConvertDefaultAnimation(entity, targetClasses.FindClass(className));
 
         switch (className)
         {
@@ -137,6 +150,33 @@ internal static class Source1EntityExport
         }
 
         return entity;
+    }
+
+    private static void ConvertDefaultAnimation(EntityLump.Entity entity, EntityClass? targetClass)
+    {
+        var defaultAnimation = entity.GetStringProperty("defaultanim");
+
+        if (defaultAnimation == null)
+        {
+            return;
+        }
+
+        entity.Remove("defaultanim");
+
+        var hasIdleAnimation = targetClass?.PreviewAnimationKeys.Contains("IdleAnim", StringComparer.OrdinalIgnoreCase) == true;
+
+        if (!hasIdleAnimation)
+        {
+            entity.Remove("idleanimationloopmode");
+            return;
+        }
+
+        if (entity.ContainsKey("idleanim") || entity.ContainsKey("startinganim"))
+        {
+            return;
+        }
+
+        entity["idleanim"] = defaultAnimation;
     }
 
     // The sun of Source 2 pitches upwards where the one of Source 1 pitches downwards, and its sprite has other keys
