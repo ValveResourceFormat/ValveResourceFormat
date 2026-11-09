@@ -23,7 +23,7 @@ namespace ValveResourceFormat.Renderer.Materials
     /// <summary>
     /// Reads texture mip data on background threads and gives it to the GPU over the frames that follow.
     /// A streamed texture starts out holding only its smallest mip. A texture materials draw then grows to
-    /// the resolution the closest mesh drawing it needs, measured by <see cref="GatherDemand"/>, and gives
+    /// the resolution the closest visible mesh drawing it needs, measured by <see cref="BeginDemandPass"/>, and gives
     /// back mips when video memory runs out. A texture that no mesh draw call uses, such as one a particle
     /// draws, grows to its whole chain.
     /// </summary>
@@ -62,6 +62,12 @@ namespace ValveResourceFormat.Renderer.Materials
         private const int MaxShrinksPerSlice = 32;
 
         private long lastDemandTimestamp;
+        private float demandDecay;
+        private Vector3 demandEye;
+        private bool demandOrthographic;
+        private float demandPixelsPerUnitAtUnitDistance;
+        private float demandPixelsPerModelUnit;
+        private SceneNode? demandNode;
 
         private readonly List<StreamedTexture> loadCandidates = [];
 
@@ -69,11 +75,6 @@ namespace ValveResourceFormat.Renderer.Materials
         /// How textures load. Safe to change at any point; chains already under way finish either way.
         /// </summary>
         public TextureStreamingMode Mode { get; set; }
-
-        /// <summary>
-        /// Whether meshes out of view keep their textures sharp, so turning the camera does not load or drop mips.
-        /// </summary>
-        public bool IgnoreViewAngles { get; set; }
 
         internal void BeginStreaming(StreamedTexture stream) => newStreams.Enqueue(stream);
 
@@ -206,103 +207,64 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         /// <summary>
-        /// Measures how many pixels each streamed texture spans on screen at the closest mesh drawing it, and
-        /// points every texture at the mips it needs, within the video memory budget. Runs a few times a
-        /// second, or every call while textures load immediately. Call before the slice, on a thread with a GL context.
+        /// Starts a measure of the resolution each streamed texture needs, if one is due. It runs a few times
+        /// a second, or every frame while textures load immediately. The views drawn this frame then report the
+        /// draws they keep through <see cref="BeginDemandView"/> and <see cref="AddDemand"/>, and
+        /// <see cref="EndDemandPass"/> points every texture at the mips it needs. Call on a thread with a GL context.
         /// </summary>
-        /// <param name="camera">The camera the scenes are seen through.</param>
-        /// <param name="scenes">The scenes drawn, with sky scenes mapped into the viewer's world.</param>
-        internal void GatherDemand(Camera camera, IReadOnlyList<Scene> scenes)
+        /// <returns>Whether this frame's draws are to be measured.</returns>
+        internal bool BeginDemandPass()
         {
             if (Mode == TextureStreamingMode.Synchronous)
             {
-                return;
+                return false;
             }
 
             var elapsed = lastDemandTimestamp == 0 ? 0f : (float)Stopwatch.GetElapsedTime(lastDemandTimestamp).TotalSeconds;
 
             if (Mode == TextureStreamingMode.Timesliced && lastDemandTimestamp != 0 && newStreams.IsEmpty && elapsed < DemandIntervalSeconds)
             {
-                return;
+                return false;
             }
 
             lastDemandTimestamp = Stopwatch.GetTimestamp();
+            demandDecay = MathF.Pow(2f, -elapsed / DemandHalfLifeSeconds);
 
+            return true;
+        }
+
+        /// <summary>
+        /// Sets the camera that the draws given to <see cref="AddDemand"/> are seen through, in the space of
+        /// the scene they belong to.
+        /// </summary>
+        internal void BeginDemandView(Camera camera)
+        {
             // Pixels a world unit covers at distance 1. An orthographic projection is the same at any distance.
             var projection = camera.ProjectionMatrix;
-            var orthographic = projection.M44 == 1f;
-            var pixelsPerUnitAtUnitDistance = projection.M22 * camera.WindowSize.Y * 0.5f;
 
-            for (var i = 0; i < scenes.Count; i++)
-            {
-                var scene = scenes[i];
-                var toViewerWorld = scene.ToViewerWorld;
-                var sceneScale = MathUtils.MaxAxisScale(toViewerWorld);
-
-                GatherNodeDemand(scene.StaticNodes, camera, toViewerWorld, sceneScale, orthographic, pixelsPerUnitAtUnitDistance);
-                GatherNodeDemand(scene.DynamicNodes, camera, toViewerWorld, sceneScale, orthographic, pixelsPerUnitAtUnitDistance);
-            }
-
-            UpdateTargets(MathF.Pow(2f, -elapsed / DemandHalfLifeSeconds));
+            demandEye = camera.Location;
+            demandOrthographic = projection.M44 == 1f;
+            demandPixelsPerUnitAtUnitDistance = projection.M22 * camera.WindowSize.Y * 0.5f;
+            demandNode = null;
         }
 
-        private void GatherNodeDemand(IReadOnlyList<SceneNode> nodes, Camera camera, in Matrix4x4 toViewerWorld, float sceneScale, bool orthographic, float pixelsPerUnitAtUnitDistance)
+        /// <summary>
+        /// Records how many pixels a draw that survived culling needs of the streamed textures of its material.
+        /// </summary>
+        internal void AddDemand(SceneNode node, DrawCall drawCall)
         {
-            for (var i = 0; i < nodes.Count; i++)
+            // A node has many draws, and they are given together
+            if (node != demandNode)
             {
-                var node = nodes[i];
+                var distance = MathF.Sqrt(node.BoundingBox.DistanceSquared(demandEye));
+                var pixelsPerUnit = demandOrthographic ? demandPixelsPerUnitAtUnitDistance : demandPixelsPerUnitAtUnitDistance / Math.Max(distance, 1f);
 
-                if (!node.LayerEnabled || node is not (MeshCollectionNode or SceneAggregate.Fragment or SceneAggregate { InstanceTransforms.Count: > 0 }))
-                {
-                    continue;
-                }
-
-                var bounds = node.BoundingBox.Transform(toViewerWorld);
-
-                if (!IgnoreViewAngles && !camera.ViewFrustum.Intersects(bounds))
-                {
-                    continue;
-                }
-
-                var distance = MathF.Sqrt(bounds.DistanceSquared(camera.Location));
-                var pixelsPerUnit = orthographic ? pixelsPerUnitAtUnitDistance : pixelsPerUnitAtUnitDistance / Math.Max(distance, 1f);
-                var worldScale = sceneScale * MathUtils.MaxAxisScale(node.Transform);
-
-                switch (node)
-                {
-                    case SceneAggregate.Fragment fragment:
-                        AddDemand(fragment.DrawCall, pixelsPerUnit, worldScale);
-                        break;
-
-                    case SceneAggregate aggregate:
-                        AddDemand(aggregate.RenderMesh.DrawCallsOpaque, pixelsPerUnit, worldScale);
-                        break;
-
-                    case MeshCollectionNode meshes:
-                        foreach (var mesh in meshes.AllRenderableMeshes)
-                        {
-                            AddDemand(mesh.DrawCallsOpaque, pixelsPerUnit, worldScale);
-                            AddDemand(mesh.DrawCallsBlended, pixelsPerUnit, worldScale);
-                            AddDemand(mesh.DrawCallsOverlay, pixelsPerUnit, worldScale);
-                        }
-
-                        break;
-                }
+                demandNode = node;
+                demandPixelsPerModelUnit = pixelsPerUnit * MathUtils.MaxAxisScale(node.Transform);
             }
-        }
 
-        private static void AddDemand(List<DrawCall> drawCalls, float pixelsPerUnit, float worldScale)
-        {
-            foreach (var drawCall in drawCalls)
-            {
-                AddDemand(drawCall, pixelsPerUnit, worldScale);
-            }
-        }
-
-        private static void AddDemand(DrawCall drawCall, float pixelsPerUnit, float worldScale)
-        {
             // A mesh without a density needs its textures whole
-            var pixels = drawCall.UvDensity > 0f ? drawCall.UvDensity * worldScale * pixelsPerUnit : float.PositiveInfinity;
+            var pixels = drawCall.UvDensity > 0f ? drawCall.UvDensity * demandPixelsPerModelUnit : float.PositiveInfinity;
 
             foreach (var texture in drawCall.Material.Textures.Values)
             {
@@ -311,6 +273,16 @@ namespace ValveResourceFormat.Renderer.Materials
                     stream.DemandPixels = Math.Max(stream.DemandPixels, pixels);
                 }
             }
+        }
+
+        /// <summary>
+        /// Ends the measure <see cref="BeginDemandPass"/> started, and points every texture at the mips it needs,
+        /// within the video memory budget. Call before the slice.
+        /// </summary>
+        internal void EndDemandPass()
+        {
+            demandNode = null;
+            UpdateTargets(demandDecay);
         }
 
         // The chain level a texture should hold, from the most pixels any mesh needed of it lately
@@ -523,7 +495,7 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>
         /// Does one frame's worth of streaming: starts the
         /// loads it can, and gives the GPU whatever mip data has arrived since last time. Call once per
-        /// frame, after <see cref="GatherDemand"/>, on a thread with a GL context.
+        /// frame, after <see cref="EndDemandPass"/>, on a thread with a GL context.
         /// </summary>
         /// <param name="frameTime">Length of the previous frame in seconds. This call gets 20% of it, minus
         /// what the previous call spent, so its own cost cannot grow its budget.</param>
@@ -637,7 +609,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
         /// <summary>
         /// Blocks until every texture holds what it needs, to no budget. Must be called on a thread with a
-        /// GL context, after <see cref="GatherDemand"/>.
+        /// GL context, after <see cref="EndDemandPass"/>.
         /// </summary>
         /// <param name="cancellationToken">Stops early, leaving chains unfinished.</param>
         public void FinishAllStreaming(CancellationToken cancellationToken = default)
