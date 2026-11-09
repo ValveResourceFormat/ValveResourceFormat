@@ -347,6 +347,9 @@ internal static class Source1EntityExport
                 entity["enablesoundevent"] = 1L;
                 entity["soundevent"] = source.GetStringProperty("soundscape") ?? string.Empty;
                 break;
+            case "light_omni":
+                entity["lightsourceradius"] = 2.0;
+                break;
             case "info_particle_system":
                 if (!entity.ContainsKey("start_active"))
                 {
