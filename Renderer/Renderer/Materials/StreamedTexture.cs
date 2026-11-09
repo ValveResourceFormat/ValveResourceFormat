@@ -55,6 +55,18 @@ namespace ValveResourceFormat.Renderer.Materials
         /// until its data is applied or dropped.</summary>
         public int GateBytes;
 
+        /// <summary>Bytes the issued request reads into, with the room in-place decoding needs past each mip.</summary>
+        public int StagingBytes;
+
+        /// <summary>Region of the staging ring the issued request reads into, or -1 when it reads into a pooled array.</summary>
+        public int StagingRegion = -1;
+
+        /// <summary>Generation of the staging ring <see cref="StagingRegion"/> belongs to.</summary>
+        public int StagingGeneration;
+
+        /// <summary>Offset of <see cref="StagingRegion"/> in the staging ring.</summary>
+        public int StagingOffset;
+
         /// <summary>Set while a read is out, from its request until its data is applied or dropped. Only an
         /// idle texture can have its storage replaced outside the upload path.</summary>
         public volatile bool LoadInFlight;
@@ -97,6 +109,22 @@ namespace ValveResourceFormat.Renderer.Materials
             return bytes;
         }
 
+        /// <summary>Bytes an in-place read of consecutive mips needs: packed back to back, plus the room
+        /// a compressed mip needs past its end while it decodes.</summary>
+        public int InPlaceReadBytes(int firstMip, int count)
+        {
+            var offset = 0;
+            var bytes = 0;
+
+            for (var i = firstMip; i < firstMip + count; i++)
+            {
+                bytes = Math.Max(bytes, offset + Data.CalculateInPlaceDecompressionBufferSize(DataMipLevel(Mips[i])));
+                offset += Mips[i].BufferSize;
+            }
+
+            return bytes;
+        }
+
         public void Execute() => Streaming.LoadStreamingData(this);
     }
 
@@ -104,11 +132,12 @@ namespace ValveResourceFormat.Renderer.Materials
     readonly record struct PlannedMip(int ChainLevel, int Width, int Height, int BufferSize);
 
     /// <summary>Loaded mip bits waiting for <see cref="TextureStreamingHelper"/> to hook them up on the
-    /// render thread: one mip, or a texture's whole remaining chain packed into one buffer.</summary>
+    /// render thread: one mip, or several of a texture's mips packed back to back.</summary>
     /// <param name="Stream">The texture the data belongs to.</param>
     /// <param name="Mip">The first (smallest) mip in the buffer.</param>
     /// <param name="MipCount">Number of consecutive planned mips the buffer holds, starting at <paramref name="Mip"/>.</param>
     /// <param name="ByteSize">The amount this item holds of the in-flight throttle, unwound when it is consumed.</param>
-    /// <param name="Buffer">Pooled buffer with its mips back to back, in plan order.</param>
-    readonly record struct LoadedMipBits(StreamedTexture Stream, PlannedMip Mip, int MipCount, int ByteSize, byte[] Buffer);
+    /// <param name="Buffer">Pooled buffer holding the mips, or null when they are in the staging ring.</param>
+    /// <param name="StagingOffset">Where the mips start in the staging ring, when <paramref name="Buffer"/> is null.</param>
+    readonly record struct LoadedMipBits(StreamedTexture Stream, PlannedMip Mip, int MipCount, int ByteSize, byte[]? Buffer, int StagingOffset = 0);
 }
