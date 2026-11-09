@@ -299,6 +299,13 @@ partial class MainForm
             sizeof(int));
     }
 
+    /// <summary>Puts the window behind all others before it is first shown, so a viewer started by an agent does not cover what the user is looking at.</summary>
+    private void PlaceAutomationWindowBehind()
+    {
+        PInvoke.SetWindowPos((HWND)Handle, HWND.HWND_BOTTOM, 0, 0, 0, 0,
+            SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
+    }
+
     private static readonly Lazy<bool> IsRunningOnWine = new(GetIsRunningOnWine);
 
     // Detect Wine by checking for the `wine_get_version` export on ntdll.dll. Wine-staging can hide that

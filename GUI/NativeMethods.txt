@@ -44,6 +44,7 @@ SetDefaultDllDirectories
 SetParent
 SetWindowLongPtr
 SetWindowPlacement
+SetWindowPos
 SetWindowTheme
 SHChangeNotify
 ShowCursor
@@ -72,6 +73,7 @@ WM_LBUTTONDOWN
 WM_LBUTTONDBLCLK
 COPYDATASTRUCT
 HWND_MESSAGE
+HWND_BOTTOM
 ITaskbarList3
 RegisterWindowMessage
 TaskbarList

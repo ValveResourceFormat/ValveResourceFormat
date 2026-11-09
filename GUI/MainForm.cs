@@ -441,6 +441,7 @@ namespace GUI
             {
                 UpdateWindowTitle(null);
                 SetAutomationBorderColor();
+                PlaceAutomationWindowBehind();
 
                 if (Args.Length > 0)
                 {
@@ -1397,6 +1398,7 @@ namespace GUI
                     APIVersion = ValveResourceFormat.Renderer.GLEnvironment.RequiredVersion,
                     Flags = GLBaseControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
                     StartVisible = false,
+                    StartFocused = false,
                     Title = "Source 2 Viewer Shader Validator"
                 });
 

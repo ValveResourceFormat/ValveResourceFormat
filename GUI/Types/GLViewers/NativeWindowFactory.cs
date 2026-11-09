@@ -36,6 +36,7 @@ static class NativeWindowFactory
                     APIVersion = ValveResourceFormat.Renderer.GLEnvironment.RequiredVersion,
                     Flags = GLBaseControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
                     StartVisible = false,
+                    StartFocused = false,
                     Title = "Source 2 Viewer OpenGL warm-up",
                 }));
 
