@@ -107,7 +107,7 @@ public class RendererContext : IDisposable
         MorphAtlas = new MorphCompositeAtlas(this);
     }
 
-    /// <inheritdoc/>
+    /// <summary>Releases the context. Call it, or <see cref="CancelLoading"/>, before the GL context goes away.</summary>
     public void Dispose()
     {
         Dispose(disposing: true);
@@ -165,12 +165,13 @@ public class RendererContext : IDisposable
         return new LoadScope(this);
     }
 
-    /// <summary>Asks loading to stop. Returns straight away without waiting for it.</summary>
+    /// <summary>Stops loading for good, waiting only for texture streaming reads already writing to GPU mapped memory.</summary>
     public void CancelLoading()
     {
         if (!disposed)
         {
             loadCancellation.Cancel();
+            TextureStreaming.CancelReads();
         }
     }
 

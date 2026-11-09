@@ -1,5 +1,6 @@
 using System.Threading;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer.Materials
@@ -55,6 +56,9 @@ namespace ValveResourceFormat.Renderer.Materials
         /// until its data is applied or dropped.</summary>
         public int GateBytes;
 
+        /// <summary>Where the issued request reads into, or null when it reads into a pooled array.</summary>
+        public StagingRegion? Staging;
+
         /// <summary>Set while a read is out, from its request until its data is applied or dropped. Only an
         /// idle texture can have its storage replaced outside the upload path.</summary>
         public volatile bool LoadInFlight;
@@ -72,22 +76,45 @@ namespace ValveResourceFormat.Renderer.Materials
         /// measures it, so it streams the whole chain.</summary>
         public volatile bool DrawnByMesh;
 
-        /// <summary>Most screen pixels per texture coordinate unit any draw measured in demand pass
-        /// <see cref="DemandPass"/>, infinite for a draw that needs the texture whole.</summary>
-        public float DemandPixelsPerUv;
+        /// <summary>Most pixels any mesh needed of the texture in the current demand pass.</summary>
+        public float DemandPixels;
 
-        /// <summary>The last demand pass that measured this texture, 0 before any did.</summary>
-        public int DemandPass;
-
-        /// <summary>Demand as a fractional chain level: the finest level requested, easing toward coarser
-        /// levels with time while nothing requests it.</summary>
-        public float SmoothedChainLevel;
+        /// <summary>Most pixels needed lately, halving every few seconds no mesh asks for them.</summary>
+        public float SmoothedDemandPixels;
 
         /// <summary>The mip's level in the source texture data, past the user's size cap.</summary>
         public uint DataMipLevel(in PlannedMip mip) => (uint)(mip.ChainLevel + MinMipLevelAllowed);
 
         /// <summary>Index into <see cref="Mips"/> of the mip at a chain level.</summary>
         public int MipIndex(int chainLevel) => ChainLevels - 2 - chainLevel;
+
+        /// <summary>Bytes of storage whose top is at a chain level, leaving out the smallest mip.</summary>
+        public long StorageBytes(int chainLevel)
+        {
+            var bytes = 0L;
+
+            for (var i = MipIndex(chainLevel); i >= 0; i--)
+            {
+                bytes += Mips[i].BufferSize;
+            }
+
+            return bytes;
+        }
+
+        /// <summary>Bytes consecutive mips need to be read back to back and decoded in place.</summary>
+        public int InPlaceReadBytes(int firstMip, int count)
+        {
+            var offset = 0;
+            var bytes = 0;
+
+            for (var i = firstMip; i < firstMip + count; i++)
+            {
+                bytes = Math.Max(bytes, offset + Data.CalculateInPlaceDecompressionBufferSize(DataMipLevel(Mips[i])));
+                offset += Mips[i].BufferSize;
+            }
+
+            return bytes;
+        }
 
         public void Execute() => Streaming.LoadStreamingData(this);
     }
@@ -96,11 +123,11 @@ namespace ValveResourceFormat.Renderer.Materials
     readonly record struct PlannedMip(int ChainLevel, int Width, int Height, int BufferSize);
 
     /// <summary>Loaded mip bits waiting for <see cref="TextureStreamingHelper"/> to hook them up on the
-    /// render thread: one mip, or a texture's whole remaining chain packed into one buffer.</summary>
+    /// render thread: one mip, or several of a texture's mips packed back to back.</summary>
     /// <param name="Stream">The texture the data belongs to.</param>
     /// <param name="Mip">The first (smallest) mip in the buffer.</param>
     /// <param name="MipCount">Number of consecutive planned mips the buffer holds, starting at <paramref name="Mip"/>.</param>
     /// <param name="ByteSize">The amount this item holds of the in-flight throttle, unwound when it is consumed.</param>
-    /// <param name="Buffer">Pooled buffer with its mips back to back, in plan order.</param>
-    readonly record struct LoadedMipBits(StreamedTexture Stream, PlannedMip Mip, int MipCount, int ByteSize, byte[] Buffer);
+    /// <param name="Buffer">Pooled buffer holding the mips, or null when they are in the texture's staging region.</param>
+    readonly record struct LoadedMipBits(StreamedTexture Stream, PlannedMip Mip, int MipCount, int ByteSize, byte[]? Buffer);
 }

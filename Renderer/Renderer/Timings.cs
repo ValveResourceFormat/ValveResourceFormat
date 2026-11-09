@@ -20,6 +20,7 @@ public class Timings
         public bool CpuOnly;
         public bool Collapsed;
         public long LastFrame = -1;
+        public int Order;
         public long StartTimestamp;
 
         public int StartQuery;
@@ -185,6 +186,7 @@ public class Timings
 
         openRegions.Add(region);
         frameRegions.Add(region);
+        region.Order = frameRegions.Count;
 
         // No GPU queries for a CPU-only region: it issues no draw work, so a GPU time would only measure the gap around it
         if (!cpuOnly)
@@ -347,6 +349,8 @@ public class Timings
             displayRows.Add(new DisplayRow(result, maxTime, foldPeak, result.Collapsed && foldPeak < ExpandCollapsedMs));
         }
 
+        AddSkippedRegions();
+
         // Title, column names, swapchain, total, unaccounted, and the async header with its rows
         var fixedLines = 5 + (asyncRows.Count > 0 ? 1 + asyncRows.Count : 0);
         CollapseToFit((int)((1f - 2f * y) / lineHeight) - fixedLines);
@@ -398,6 +402,29 @@ public class Timings
                 : displayText.Format($"  {name} {"-",6} {"",6} {row.Detail,6}");
 
             AddLine(text, new Color32(150, 255, 150));
+        }
+    }
+
+    // A region that skipped this frame, such as one that only runs while there is work, stays listed with
+    // nothing for this frame for as long as its peak is remembered
+    private void AddSkippedRegions()
+    {
+        foreach (var region in regions.Values)
+        {
+            if (region.LastFrame == frame || (region.PreviousMax ?? region.CurrentMax) is not { } peak)
+            {
+                continue;
+            }
+
+            var index = 0;
+
+            while (index < displayRows.Count && displayRows[index].Result.Region.Order < region.Order)
+            {
+                index++;
+            }
+
+            var foldPeak = region.PreviousFoldMax ?? peak;
+            displayRows.Insert(index, new DisplayRow(new TimingResult(region, 0.0, 0.0), peak, foldPeak, region.Collapsed && foldPeak < ExpandCollapsedMs));
         }
     }
 

@@ -1329,10 +1329,10 @@ namespace GUI.Types.GLViewers
                     return;
             }
 
-            var state = simulationState;
-
             if (UiControl is { IsHandleCreated: true } control)
             {
+                // Declared here, as a capture allocates its closure where its scope starts, every frame otherwise
+                var state = simulationState;
                 control.BeginInvoke(() => UpdateSimulationButtons(state));
             }
         }

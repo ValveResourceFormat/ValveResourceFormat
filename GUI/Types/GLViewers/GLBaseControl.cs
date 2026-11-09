@@ -139,15 +139,13 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         if (releasesTargets)
         {
-            ReleaseScreenTargets();
+            TrimRenderTargets();
             ShouldResize = true;
         }
     }
 
-    /// <summary>
-    /// Shrinks the render targets that are the size of the window. The next frame resizes them back.
-    /// </summary>
-    protected virtual void ReleaseScreenTargets()
+    /// <summary>Shrinks the render targets to their lowest memory footprint.</summary>
+    protected virtual void TrimRenderTargets()
     {
         MainFramebuffer?.Resize(1, 1, NumSamples);
     }

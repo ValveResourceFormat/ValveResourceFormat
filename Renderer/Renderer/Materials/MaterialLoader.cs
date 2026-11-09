@@ -86,6 +86,7 @@ namespace ValveResourceFormat.Renderer.Materials
             Samplers.Clear();
 
             RendererContext.TextureStreaming.CancelAllStreaming();
+            RendererContext.TextureStreaming.DeleteStaging();
         }
 
         /// <summary>Returns a cached <see cref="RenderMaterial"/> for the given resource path and shader arguments, loading and caching it on first access.</summary>
@@ -416,7 +417,6 @@ namespace ValveResourceFormat.Renderer.Materials
                     ResidentChainLevel = chainLevels - 1,
                     AllocatedChainLevel = chainLevels - 1,
                     TargetChainLevel = chainLevels - 1,
-                    SmoothedChainLevel = chainLevels - 1,
                     Mips = new PlannedMip[chainLevels - 1],
                 };
 
