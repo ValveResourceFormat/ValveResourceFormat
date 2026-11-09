@@ -83,12 +83,17 @@ namespace ValveResourceFormat.Renderer.Materials
         internal void BeginStreaming(StreamedTexture stream) => newStreams.Enqueue(stream);
 
         /// <summary>
-        /// Throws away everything queued, hands its buffers back to the pool, and waits out reads writing to
-        /// the staging buffer. Makes no GL calls, but must run before the GL context goes away.
+        /// Stops reads from writing to the staging buffer and waits out the ones under way, so the buffer can
+        /// go away with the GL context. Makes no GL calls.
+        /// </summary>
+        public void CancelReads() => staging.Close();
+
+        /// <summary>
+        /// Throws away everything queued and hands its buffers back to the pool. Makes no GL calls, so it
+        /// is safe during teardown with no current context.
         /// </summary>
         public void CancelAllStreaming()
         {
-            staging.Close();
             DropQueuedWork();
 
             newStreams.Clear();

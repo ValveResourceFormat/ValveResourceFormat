@@ -504,9 +504,6 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
             GLNativeWindow.MouseMove -= OnNativeMouseMove;
         }
 
-        // Reads still in flight write to a buffer mapped from this context, which goes away with the window
-        RendererContext.TextureStreaming.CancelAllStreaming();
-
         NativeWindowFactory.Destroy(GLNativeWindow);
         GraphicsContext = null;
         RendererContext.Dispose();
