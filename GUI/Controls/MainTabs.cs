@@ -177,7 +177,7 @@ internal class MainTabs : ThemedTabControl
 
         Log.Info(nameof(MainForm), $"Closing {tab.Text}");
 
-        RenderLoopThread.UnsetIfClosingParentOfCurrentGLControl(tab);
+        RenderLoopThread.UnsetIfInside(tab);
 
         if (isClosingCurrentTab && tabIndex > 0)
         {

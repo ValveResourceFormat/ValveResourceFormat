@@ -21,6 +21,7 @@ namespace GUI.Types.GLViewers
         public static void Initialize(Form form)
         {
             form.Activated += OnAppActivated;
+            form.Resize += OnAppResized;
 
 #if DEBUG
             GUI.Utils.CodeHotReloadService.CodeHotReloaded += OnAppActivated;
@@ -33,6 +34,15 @@ namespace GUI.Types.GLViewers
         public static void OnAppActivated(object? sender, EventArgs e)
         {
             SignalIfAttached();
+        }
+
+        // Nothing is seen while minimized, so the viewer gives back what it holds for drawing
+        private static void OnAppResized(object? sender, EventArgs e)
+        {
+            if (sender is Form { WindowState: FormWindowState.Minimized } form)
+            {
+                UnsetIfInside(form);
+            }
         }
 
         private static void SignalIfAttached()
@@ -152,7 +162,8 @@ namespace GUI.Types.GLViewers
             glControl.OnDetachedFromRenderLoop();
         }
 
-        public static void UnsetIfClosingParentOfCurrentGLControl(Control parentControl)
+        /// <summary>Detaches the current control when it sits inside <paramref name="parentControl"/>.</summary>
+        public static void UnsetIfInside(Control parentControl)
         {
             var glControl = currentGLControl;
 

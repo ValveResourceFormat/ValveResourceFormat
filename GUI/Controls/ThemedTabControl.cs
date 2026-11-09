@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
+using GUI.Types.GLViewers;
 using GUI.Utils;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -386,6 +387,17 @@ namespace GUI.Controls
             if (IsHandleCreated && !Disposing && !IsDisposed)
             {
                 BeginInvoke(() => CalculateTabWidth());
+            }
+        }
+
+        // A viewer on a tab that is no longer shown gives back what it holds for drawing
+        protected override void OnDeselected(TabControlEventArgs e)
+        {
+            base.OnDeselected(e);
+
+            if (e.TabPage != null)
+            {
+                RenderLoopThread.UnsetIfInside(e.TabPage);
             }
         }
 
