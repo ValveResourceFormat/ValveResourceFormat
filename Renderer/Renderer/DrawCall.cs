@@ -34,6 +34,11 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the optional bounding box used for draw-level culling.</summary>
         public AABB? DrawBounds { get; set; }
 
+        /// <summary>
+        /// Gets or sets the handshake of the environment map this draw call reflects, or 0 to reflect the one picked for its scene node.
+        /// </summary>
+        public int CubeMapHandshake { get; set; }
+
         internal uint InstanceBufferIndex { get; set; }
 
         /// <summary>Gets or sets the mesh identifier, which replacement shaders can tell draws apart by.</summary>

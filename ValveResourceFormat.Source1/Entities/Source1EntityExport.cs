@@ -93,12 +93,8 @@ internal static class Source1EntityExport
         "_zero_percent_distance",
     ];
 
-    // Ropes are written as the models the converter bakes them into, in every game
-    private static readonly HashSet<string> RopeClasses = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "keyframe_rope",
-        "move_rope",
-    };
+    private const string ClientsideRopeClass = "path_particle_rope_clientside";
+    private const string RopeClass = "path_particle_rope";
 
     /// <summary>
     /// Gets the entities as they are written to a Hammer map for a game.
@@ -115,9 +111,7 @@ internal static class Source1EntityExport
         foreach (var entity in entities)
         {
             var className = entity.GetStringProperty("classname") ?? string.Empty;
-            var isDropped = RopeClasses.Contains(className) || (targetGame == Game.Csgo && ExcludedClasses.Contains(className));
-
-            if (isDropped)
+            if (targetGame == Game.Csgo && ExcludedClasses.Contains(className))
             {
                 if (entity.GetStringProperty("targetname") is { Length: > 0 } droppedName)
                 {
@@ -145,6 +139,12 @@ internal static class Source1EntityExport
         if (targetGame == Game.Csgo)
         {
             RemoveLeftoverKeys(entity, className);
+        }
+
+        // A game without the clientside rope has the rope that runs on the server
+        if (className == ClientsideRopeClass && targetClasses.FindClass(className) == null && targetClasses.FindClass(RopeClass) != null)
+        {
+            entity["classname"] = RopeClass;
         }
 
         switch (className)

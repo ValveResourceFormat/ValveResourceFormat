@@ -1,14 +1,15 @@
-using System.Runtime.InteropServices;
-using ValveResourceFormat.Blocks;
+using System.Globalization;
+using System.Linq;
+using System.Text;
+using ValveResourceFormat.Source1.Entities;
 using ValveResourceFormat.Source1.Material;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Source1.Bsp;
 
 /// <summary>
-/// Converts the <c>move_rope</c> and <c>keyframe_rope</c> chains of a map to ribbons, one model per material and map area.
-/// Each rope runs from its own origin to the entity its <c>NextKey</c> names, settled into the hang it rests in, and the
-/// cable shader turns the ribbon to face the camera.
+/// Converts the <c>move_rope</c> and <c>keyframe_rope</c> chains of a map to paths. Each rope runs from its own origin to the
+/// entity its <c>NextKey</c> names, settled into the hang it rests in, and becomes the nodes of a path that an effect draws
+/// as a cable with the material of the rope.
 /// </summary>
 internal static class Source1RopeConverter
 {
@@ -27,46 +28,9 @@ internal static class Source1RopeConverter
     private const int ConstraintIterations = 3;
     private static readonly Vector3 Gravity = new(0f, 0f, -1500f);
 
-    // Barbed wire follows the spline past both of its ends
-    private static readonly float[] BarbedSubdivisions = [1.5f, -0.5f, 0.5f];
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct RopeVertex
-    {
-        public Vector3 Position;
-        public Vector2 TexCoord;
-        public Vector4 Color;
-        public Vector4 Axis;
-    }
-
-    // The direction and half width of the ribbon read as the second texture coordinate
-    private static readonly VertexField[] RopeFields =
-    [
-        new(nameof(RopeVertex.Position), "POSITION", 0, DXGI_FORMAT.R32G32B32_FLOAT),
-        new(nameof(RopeVertex.TexCoord), "TEXCOORD", 0, DXGI_FORMAT.R32G32_FLOAT),
-        new(nameof(RopeVertex.Color), "COLOR", 0, DXGI_FORMAT.R32G32B32A32_FLOAT),
-        new(nameof(RopeVertex.Axis), "TEXCOORD", 1, DXGI_FORMAT.R32G32B32A32_FLOAT),
-    ];
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct TubeVertex
-    {
-        public Vector3 Position;
-        public Vector3 Normal;
-        public Vector2 TexCoord;
-        public Vector4 Color;
-    }
-
-    // Shaders other than the cable shader cannot widen a ribbon, so a rope that is written out is a tube of real width
-    private static readonly VertexField[] TubeFields =
-    [
-        new(nameof(TubeVertex.Position), "POSITION", 0, DXGI_FORMAT.R32G32B32_FLOAT),
-        new(nameof(TubeVertex.Normal), "NORMAL", 0, DXGI_FORMAT.R32G32B32_FLOAT),
-        new(nameof(TubeVertex.TexCoord), "TEXCOORD", 0, DXGI_FORMAT.R32G32_FLOAT),
-        new(nameof(TubeVertex.Color), "COLOR", 0, DXGI_FORMAT.R32G32B32A32_FLOAT),
-    ];
-
-    private const int TubeSides = 3;
+    // A rope gets a particle every spacing units, at least four to a segment, and the effect holds 1000 particles
+    private const float MinParticleSpacing = 8f;
+    private const float MaxSpacedParticles = 450f;
 
     private readonly record struct Rope(
         Vector3 Start,
@@ -78,23 +42,20 @@ internal static class Source1RopeConverter
         float Width,
         float TextureScale,
         int Subdivisions,
-        bool IsBarbed,
         string MaterialName);
 
-    /// <summary>Converts the ropes of a map and adds their models to the converted map.</summary>
-    /// <param name="map">The converted map, which gets the models and the entities that were converted.</param>
+    private readonly record struct EffectKey(string MaterialPath, float TextureRepeats);
+
+    /// <summary>Gets whether the entity is a rope that <see cref="Convert"/> turns into a path.</summary>
+    /// <param name="entity">The entity.</param>
+    public static bool IsRope(BspEntity entity)
+        => entity.ClassName is "move_rope" or "keyframe_rope";
+
+    /// <summary>Converts the ropes of a map to paths and adds the effects that draw them to the converted map.</summary>
+    /// <param name="map">The converted map, which gets the effects and the paths that were converted.</param>
     /// <param name="bsp">The map.</param>
-    /// <param name="locator">Finds the 3D sky area.</param>
     /// <param name="getMaterialInfo">Reads the texture of a material, or returns null when it has none.</param>
-    /// <param name="worldParts">Gets the paths of the models of the map.</param>
-    /// <param name="skyParts">Gets the paths of the models in the 3D sky box area.</param>
-    public static void Convert(
-        Source1ConvertedMap map,
-        BspFile bsp,
-        IBrushLightingLocator locator,
-        Func<string, Source1MaterialInfo?> getMaterialInfo,
-        List<string> worldParts,
-        List<string> skyParts)
+    public static void Convert(Source1ConvertedMap map, BspFile bsp, Func<string, Source1MaterialInfo?> getMaterialInfo)
     {
         var named = new Dictionary<string, BspEntity>(StringComparer.OrdinalIgnoreCase);
 
@@ -109,26 +70,22 @@ internal static class Source1RopeConverter
         }
 
         var leaves = new BspLeafAmbient(bsp);
-        var meshes = new Source1BakedMeshSet<RopeVertex>("rope", RopeFields);
-        var tubes = new Source1BakedMeshSet<TubeVertex>("rope", TubeFields);
+        var effects = new Dictionary<EffectKey, string>();
 
         foreach (var entity in bsp.Entities)
         {
-            if (entity.ClassName is not ("move_rope" or "keyframe_rope"))
+            if (!IsRope(entity))
             {
                 continue;
             }
 
             named.TryGetValue(entity.GetString("NextKey"), out var next);
 
-            if (CreateRope(entity, next) is { } rope && AddRope(meshes, tubes, leaves, locator, getMaterialInfo, rope))
+            if (CreateRope(entity, next) is { } rope && CreatePath(map, effects, leaves, getMaterialInfo, rope) is { } path)
             {
-                map.DrawnEntities.Add(entity);
+                map.RopePaths.Add(entity, path);
             }
         }
-
-        meshes.AddModels(map, worldParts, skyParts);
-        tubes.AddExportModels(map);
     }
 
     private static Rope? CreateRope(BspEntity entity, BspEntity? next)
@@ -168,7 +125,6 @@ internal static class Source1RopeConverter
             entity.GetFloat("Width", 2f),
             Math.Clamp(entity.GetFloat("TextureScale", 4f), 0.1f, 10f),
             subdivisions,
-            entity.GetInt("Barbed") == 1,
             GetMaterialName(entity));
     }
 
@@ -189,17 +145,16 @@ internal static class Source1RopeConverter
         };
     }
 
-    private static bool AddRope(
-        Source1BakedMeshSet<RopeVertex> meshes,
-        Source1BakedMeshSet<TubeVertex> tubes,
+    private static Source1ConvertedMap.RopePath? CreatePath(
+        Source1ConvertedMap map,
+        Dictionary<EffectKey, string> effects,
         BspLeafAmbient leaves,
-        IBrushLightingLocator locator,
         Func<string, Source1MaterialInfo?> getMaterialInfo,
         Rope rope)
     {
         if (getMaterialInfo(rope.MaterialName) is not { } info)
         {
-            return false;
+            return null;
         }
 
         var nodes = Settle(rope);
@@ -211,89 +166,68 @@ internal static class Source1RopeConverter
         var totalTexCoord = pixelsPerUnit * (rope.Length + rope.Slack + SlackFudge);
         var pointCount = ((rope.NodeCount - 1) * steps.Length) + 1;
         var texCoordStep = totalTexCoord / pointCount / textureHeight;
+        var textureRepeats = MathF.Round((points.Length - 1) * texCoordStep, 2);
 
         var materialPath = Source1Paths.AddVariant(Source1Paths.ToMaterialPath(rope.MaterialName), Source1ResourceProvider.CableVariant);
-        var inSky = locator.IsInSky(rope.Start);
-        var chunk = meshes.Get(inSky, rope.Start, materialPath);
-        var tubeChunk = tubes.Get(inSky, rope.Start, materialPath);
-        var halfWidth = rope.Width * 0.5f;
-        var previous = -1;
-        var previousTube = -1;
-        var side = Vector3.Zero;
+        var key = new EffectKey(materialPath, textureRepeats);
 
-        for (var i = 0; i < points.Length; i++)
+        if (!effects.TryGetValue(key, out var effectPath))
         {
-            var direction = points[Math.Min(i + 1, points.Length - 1)] - points[Math.Max(i - 1, 0)];
-            direction = MathUtils.SafeNormalize(direction);
-
-            var v = i * texCoordStep;
-            var color = new Vector4(lights[i], 1f);
-            var first = chunk.AddVertex(CreateVertex(points[i], new Vector2(0f, v), color, direction, halfWidth), points[i], rope.Width);
-            var second = chunk.AddVertex(CreateVertex(points[i], new Vector2(1f, v), color, direction, -halfWidth), points[i], rope.Width);
-
-            if (previous >= 0)
-            {
-                chunk.AddQuad(previous, previous + 1, second, first);
-            }
-
-            previous = first;
-
-            // The ring is turned by carrying the last side along the rope, so that it does not twist
-            side = MathUtils.SafeNormalize(MathUtils.ProjectOntoPlane(side, direction), MathUtils.Perpendicular(direction), 0.01f);
-            var around = Vector3.Cross(direction, side);
-            var ring = AddRing(tubeChunk, points[i], side, around, v, color, halfWidth);
-
-            if (previousTube >= 0)
-            {
-                for (var corner = 0; corner < TubeSides; corner++)
-                {
-                    tubeChunk.AddQuad(previousTube + corner, previousTube + corner + 1, ring + corner + 1, ring + corner);
-                }
-            }
-
-            previousTube = ring;
+            effectPath = string.Create(CultureInfo.InvariantCulture, $"{map.MapPath}/particles/rope_{effects.Count}.vpcf");
+            Source1WorldConverter.AddFile(map, effectPath, Source1RopeEffect.Create(effectPath, materialPath, textureRepeats));
+            effects.Add(key, effectPath);
         }
 
-        return true;
-    }
+        var pathLength = 0f;
 
-    // The corners of a ring around a point, one more than the sides so that the texture can wrap, and the index of the first
-    private static int AddRing(Source1BakedMeshSet<TubeVertex>.Chunk chunk, Vector3 center, Vector3 side, Vector3 around, float v, Vector4 color, float radius)
-    {
-        var first = -1;
-
-        for (var corner = 0; corner <= TubeSides; corner++)
+        for (var i = 1; i < points.Length; i++)
         {
-            var fraction = (float)corner / TubeSides;
-            var angle = fraction * MathF.Tau;
-            var normal = (side * MathF.Cos(angle)) + (around * MathF.Sin(angle));
-            var vertex = new TubeVertex
-            {
-                Position = center + (normal * radius),
-                Normal = normal,
-                TexCoord = new Vector2(fraction, v),
-                Color = color,
-            };
-            var index = chunk.AddVertex(vertex, center, radius);
-
-            if (corner == 0)
-            {
-                first = index;
-            }
+            pathLength += Vector3.Distance(points[i - 1], points[i]);
         }
 
-        return first;
+        var spacing = MathF.Max(MinParticleSpacing, pathLength / MaxSpacedParticles);
+
+        return new Source1ConvertedMap.RopePath(
+            effectPath,
+            rope.Width * 0.5f,
+            spacing,
+            FormatNodes(points),
+            FormatPins(points.Length),
+            FormatColors(lights));
     }
 
-    private static RopeVertex CreateVertex(Vector3 position, Vector2 texCoord, Vector4 color, Vector3 direction, float halfWidth)
+    // The positions are relative to the first point. A node leans toward its neighbours by a third of the way to them,
+    // which keeps the path on the straight lines between the points.
+    private static string FormatNodes(Vector3[] points)
     {
-        return new RopeVertex
+        var text = new StringBuilder("[\n");
+        var last = points.Length - 1;
+
+        for (var i = 0; i <= last; i++)
         {
-            Position = position,
-            TexCoord = texCoord,
-            Color = color,
-            Axis = new Vector4(direction, halfWidth),
-        };
+            var position = points[i] - points[0];
+            var inTangent = i > 0 ? (points[i - 1] - points[i]) / 3f : Vector3.Zero;
+            var outTangent = i < last ? (points[i + 1] - points[i]) / 3f : Vector3.Zero;
+
+            text.Append(CultureInfo.InvariantCulture, $"\t[ {Source1EntityConverter.FormatVector(position)} {Source1EntityConverter.FormatVector(inTangent)} {Source1EntityConverter.FormatVector(outTangent)} ],\n");
+        }
+
+        return text.Append(']').ToString();
+    }
+
+    private static string FormatPins(int count)
+        => $"[ {string.Join(", ", Enumerable.Repeat("true", count))} ]";
+
+    private static string FormatColors(Vector3[] lights)
+    {
+        var text = new StringBuilder("[\n");
+
+        foreach (var light in lights)
+        {
+            text.Append(CultureInfo.InvariantCulture, $"\t[ {Source1EntityConverter.FormatVector(light)} ],\n");
+        }
+
+        return text.Append(']').ToString();
     }
 
     // Lets the rope fall under gravity for the time a rope hangs before it is first drawn, held at the ends by
@@ -412,11 +346,6 @@ internal static class Source1RopeConverter
 
     private static float[] GetSubdivisionSteps(Rope rope)
     {
-        if (rope.IsBarbed)
-        {
-            return BarbedSubdivisions;
-        }
-
         var steps = new float[rope.Subdivisions];
 
         for (var i = 0; i < steps.Length; i++)

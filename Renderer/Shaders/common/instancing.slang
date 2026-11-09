@@ -51,7 +51,7 @@ ObjectData_t GetObjectData()
 {
     InstanceDataStandard instanceData = g_instanceBuffer[gl_BaseInstance];
 
-    g_nObjectIndex = instanceData.Identification;
+    g_nObjectIndex = uint(gl_BaseInstance);
 
     ObjectData_t object;
     object.vTint = UnpackColor32(instanceData.TintAlpha);
@@ -68,7 +68,7 @@ mat3x4 CalculateObjectToWorldMatrix()
 {
     InstanceDataStandard instanceData = g_instanceBuffer[gl_BaseInstance];
 
-    g_nObjectIndex = instanceData.Identification;
+    g_nObjectIndex = uint(gl_BaseInstance);
 
     return g_transformBuffer[instanceData.TransformIndex + gl_InstanceID];
 }

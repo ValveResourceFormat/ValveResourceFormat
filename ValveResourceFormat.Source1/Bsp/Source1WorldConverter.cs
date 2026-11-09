@@ -25,9 +25,6 @@ internal sealed class Source1ConvertedMap
     /// <summary>The resources by normalized path, with the <c>_c</c> suffix of compiled files.</summary>
     public Dictionary<string, Resource> Files { get; } = [];
 
-    /// <summary>The resources written out in place of the resource with the same path in <see cref="Files"/>.</summary>
-    public Dictionary<string, Resource> ExportFiles { get; } = [];
-
     /// <summary>The path of the map resource, which names the world beside it.</summary>
     public required string MapPath { get; init; }
 
@@ -39,6 +36,18 @@ internal sealed class Source1ConvertedMap
 
     /// <summary>The Source 1 entities whose ropes and sprites the world draws, which need no stand-in.</summary>
     public HashSet<BspEntity> DrawnEntities { get; } = [];
+
+    /// <summary>The keys of a rope entity written as a path of nodes hung along the rope, drawn by the effect it names.</summary>
+    /// <param name="EffectPath">The path of the effect that draws the rope.</param>
+    /// <param name="Radius">The radius of the rope.</param>
+    /// <param name="ParticleSpacing">The distance between the particles of the rope.</param>
+    /// <param name="PathNodes">The position and tangents of each node, as the <c>pathnodes</c> key.</param>
+    /// <param name="PinsEnabled">Whether each node holds the rope, as the <c>pathnodepinsenabled</c> key.</param>
+    /// <param name="Colors">The light at each node, as the <c>pathnodecolors</c> key.</param>
+    public readonly record struct RopePath(string EffectPath, float Radius, float ParticleSpacing, string PathNodes, string PinsEnabled, string Colors);
+
+    /// <summary>The Source 1 rope entities, which are written as paths.</summary>
+    public Dictionary<BspEntity, RopePath> RopePaths { get; } = [];
 
     /// <summary>The model that stands for the sprite of an entity, which the entity draws itself.</summary>
     /// <param name="Path">The path of the model.</param>
@@ -80,6 +89,9 @@ internal static class Source1WorldConverter
 
     // The scale of a sky_camera that sets none, which the Source 2 sky camera would read as 1
     private const float DefaultSkyScale = 16f;
+
+    // The seconds a rope simulates before it holds still, which is long enough for the effect to create its particles
+    private const float RopeMaxSimulationTime = 1f;
 
     private const int BloomBlurBuffers = 5;
 
@@ -131,8 +143,9 @@ internal static class Source1WorldConverter
     // The layer that the aggregate scene objects of a compiled world are in
     private const string AggregateLayerName = "world_layer_base";
 
-    // A chunk is the faces of one brush, or of one cluster, or of one cell of the grid when its cluster is negative
-    private readonly record struct WorldChunk(bool InSky, int Brush, int Cluster, int X, int Y, int Z);
+    // A chunk is the faces of one brush, or of one cluster, or of one cell of the grid when its cluster is negative,
+    // that share a cube map sample, so that one scene object names one environment map
+    private readonly record struct WorldChunk(bool InSky, int Brush, int Cluster, int X, int Y, int Z, int CubeMap = 0);
 
     private sealed class WorldChunkContents
     {
@@ -140,9 +153,13 @@ internal static class Source1WorldConverter
         public SortedSet<int> Clusters { get; } = [];
     }
 
-    private readonly record struct MaterialPiece(string Material, BspVertex[] Vertices, int[] Indices);
+    private readonly record struct MaterialPiece(string Material, BspVertex[] Vertices, int[] Indices)
+    {
+        // The handshake of the environment map the piece reflects, or 0 when it names none
+        public int CubeMap { get; init; }
+    }
 
-    private readonly record struct AggregatePiece(MaterialPiece Piece, IReadOnlyCollection<int> Clusters);
+    private readonly record struct AggregatePiece(MaterialPiece Piece, IReadOnlyCollection<int> Clusters, int CubeMap);
 
     /// <summary>Converts a map.</summary>
     /// <param name="bsp">The map.</param>
@@ -179,6 +196,7 @@ internal static class Source1WorldConverter
 
         progress?.Report("Building world geometry…");
         var modelMeshes = BspMeshBuilder.BuildAll(bsp, getMaterialInfo);
+        var patches = new Source1CubemapPatches(bsp, openFile);
 
         if (sky != null)
         {
@@ -193,7 +211,7 @@ internal static class Source1WorldConverter
             MapPath = mapPath,
             Entities = entities,
             SourceEntities = sourceEntities,
-            BumpedMaterials = GetBumpedMaterials(modelMeshes),
+            BumpedMaterials = GetBumpedMaterials(modelMeshes, patches),
         };
 
         AddFile(map, $"{mapPath}.vmap", CreateMap(worldFolder));
@@ -220,13 +238,13 @@ internal static class Source1WorldConverter
 
         if (modelMeshes.Length > 0)
         {
-            AddWorldModels(map, bsp, new BspBrushSet(bsp), modelMeshes[0], locator, entityLump, skyEntities, worldParts, skyParts, worldPartClusters, skyPartClusters, getMaterialInfo);
+            AddWorldModels(map, bsp, new BspBrushSet(bsp), modelMeshes[0], locator, entityLump, skyEntities, worldParts, skyParts, worldPartClusters, skyPartClusters, getMaterialInfo, patches);
         }
 
         for (var i = 1; i < modelMeshes.Length; i++)
         {
             var path = GetBrushModelPath(mapPath, i);
-            var pieces = GetPieces(modelMeshes[i]);
+            var pieces = GetPieces(modelMeshes[i], patches);
 
             if (modelOrigins.TryGetValue(i, out var modelOrigin))
             {
@@ -254,9 +272,9 @@ internal static class Source1WorldConverter
         skyParts.AddRange(detail.SkyParts);
 
         progress?.Report("Converting ropes and sprites…");
-        Source1RopeConverter.Convert(map, bsp, locator, getMaterialInfo, worldParts, skyParts);
+        Source1RopeConverter.Convert(map, bsp, getMaterialInfo);
         Source1SpriteConverter.Convert(map, bsp, locator, getMaterialInfo, worldParts, skyParts);
-        MarkDrawnByWorld(map, entities);
+        MarkDrawnByWorld(map, entities, skyEntities);
         AddSpotlightLights(map, bsp, entityLump, entities);
 
         var nodePath = $"{worldFolder}world_nodes/node001";
@@ -458,7 +476,7 @@ internal static class Source1WorldConverter
         AddFile(map, $"{lumpPath}.vents", CreateEntityLump($"{lumpPath}.vents", $"{bsp.Name}_sky", entities));
     }
 
-    private static HashSet<string> GetBumpedMaterials(BspModelMesh[] modelMeshes)
+    private static HashSet<string> GetBumpedMaterials(BspModelMesh[] modelMeshes, Source1CubemapPatches patches)
     {
         var materials = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -468,7 +486,7 @@ internal static class Source1WorldConverter
             {
                 if ((mesh.Flags & BspMeshFlags.Bumped) != 0)
                 {
-                    materials.Add(Source1Paths.ToMaterialPath(name));
+                    materials.Add(Source1Paths.ToMaterialPath(patches.Resolve(name).Material));
                 }
             }
         }
@@ -518,7 +536,7 @@ internal static class Source1WorldConverter
         map.Files.Add(resource.FileName, resource);
     }
 
-    private static List<MaterialPiece> GetPieces(BspModelMesh model)
+    private static List<MaterialPiece> GetPieces(BspModelMesh model, Source1CubemapPatches patches)
     {
         var pieces = new List<MaterialPiece>();
 
@@ -529,7 +547,9 @@ internal static class Source1WorldConverter
                 continue;
             }
 
-            pieces.Add(new MaterialPiece(materialName, materialMesh.Vertices, materialMesh.Indices));
+            var drawn = patches.Resolve(materialName);
+
+            pieces.Add(new MaterialPiece(drawn.Material, materialMesh.Vertices, materialMesh.Indices) { CubeMap = drawn.CubeMap });
         }
 
         return pieces;
@@ -550,7 +570,8 @@ internal static class Source1WorldConverter
         List<string> skyParts,
         WorldPartClusters partClusters,
         WorldPartClusters skyPartClusters,
-        Func<string, Source1MaterialInfo?> getMaterialInfo)
+        Func<string, Source1MaterialInfo?> getMaterialInfo,
+        Source1CubemapPatches patches)
     {
         var faceClusters = bsp.Visibility.ClusterCount > 0 ? new BspFaceClusters(bsp) : null;
         var faceBrushes = new BspFaceBrushes(bsp, brushes, bsp.GetLightmappedFaces(preferHdr: true));
@@ -561,7 +582,8 @@ internal static class Source1WorldConverter
 
         foreach (var (materialName, mesh) in world.Materials)
         {
-            var piece = new MaterialPiece(materialName, mesh.Vertices, mesh.Indices);
+            var drawn = patches.Resolve(materialName);
+            var piece = new MaterialPiece(drawn.Material, mesh.Vertices, mesh.Indices);
             var isBlended = getMaterialInfo(materialName)?.IsBlended ?? true;
             var isWater = (mesh.Flags & BspMeshFlags.Water) != 0;
             var triangles = new Dictionary<WorldChunk, List<int>>();
@@ -578,6 +600,12 @@ internal static class Source1WorldConverter
                 if (brush >= 0)
                 {
                     chunk = new WorldChunk(chunk.InSky, brush, -1, 0, 0, 0);
+                }
+
+                // Water entities and the 3D sky have no cube map of their own to name
+                if (!isWater && !chunk.InSky)
+                {
+                    chunk = chunk with { CubeMap = drawn.CubeMap };
                 }
 
                 if (!triangles.TryGetValue(chunk, out var starts))
@@ -623,7 +651,7 @@ internal static class Source1WorldConverter
                 else
                 {
                     var fragments = chunk.InSky ? skyFragments : worldFragments;
-                    fragments.Add(new AggregatePiece(subPiece, fragmentClusters));
+                    fragments.Add(new AggregatePiece(subPiece, fragmentClusters, chunk.CubeMap));
                 }
             }
         }
@@ -648,8 +676,15 @@ internal static class Source1WorldConverter
 
             var cluster = clusters.Count > 0 ? clusters.Min : -1;
             var chunk = GetWorldChunk(overlay.Vertices[0].Position, cluster, locator);
-            var materialPath = Source1Paths.ToMaterialPath(overlay.Material);
+            var drawnOverlay = patches.Resolve(overlay.Material);
+            var materialPath = Source1Paths.ToMaterialPath(drawnOverlay.Material);
             var overlayMaterial = Source1Paths.AddVariant(materialPath, Source1ResourceProvider.OverlayVariant);
+
+            if (!chunk.InSky)
+            {
+                chunk = chunk with { CubeMap = drawnOverlay.CubeMap };
+            }
+
             var contents = GetChunkContents(groups, chunk);
 
             contents.Pieces.Add(new MaterialPiece(overlayMaterial, overlay.Vertices, overlay.Indices));
@@ -674,6 +709,7 @@ internal static class Source1WorldConverter
             {
                 worldParts.Add(path);
                 partClusters.Set(path, contents.Clusters);
+                partClusters.SetCubeMap(path, chunk.CubeMap);
             }
 
             part++;
@@ -794,7 +830,7 @@ internal static class Source1WorldConverter
             var bounds = GetBounds(aggregatePiece.Piece);
 
             materialPieces.Add(aggregatePiece.Piece);
-            fragments.Add(new AggregateFragment(bounds, aggregatePiece.Clusters));
+            fragments.Add(new AggregateFragment(bounds, aggregatePiece.Clusters, aggregatePiece.CubeMap));
             drawBounds.Add(bounds);
         }
 
@@ -873,7 +909,7 @@ internal static class Source1WorldConverter
                     modelOrigins[brushModelIndex] = origin;
                 }
             }
-            else if (ConvertEntityModel(entityModels, source, entity, loadModel))
+            else if (ConvertEntityModel(entityModels, source, entity, loadModel) || Source1RopeConverter.IsRope(source))
             {
                 isInSky = locator.IsInSky(source.Origin);
             }
@@ -918,22 +954,28 @@ internal static class Source1WorldConverter
 
         var extension = bsp.HasHdrLighting ? Source1Paths.HdrTextureExtension : Source1Paths.TextureExtension;
 
-        foreach (var sample in bsp.Cubemaps)
+        for (var i = 0; i < bsp.Cubemaps.Length; i++)
         {
-            var name = string.Create(CultureInfo.InvariantCulture, $"c{sample.OriginX}_{sample.OriginY}_{sample.OriginZ}");
-            var texture = $"materials/maps/{bsp.Name}/{name}{extension}";
+            var sample = bsp.Cubemaps[i];
+            var texture = $"materials/maps/{bsp.Name}/{Source1CubemapPatches.GetSampleName(sample)}{extension}";
 
-            entities.Add(CreateCubemap(lump, sample.Origin, texture, radius));
+            entities.Add(CreateCubemap(lump, sample.Origin, texture, radius, Source1CubemapPatches.GetHandshake(i)));
         }
     }
 
-    private static EntityLump.Entity CreateCubemap(EntityLump lump, Vector3 origin, string texture, float radius)
+    private static EntityLump.Entity CreateCubemap(EntityLump lump, Vector3 origin, string texture, float radius, int handshake = 0)
     {
         var entity = new EntityLump.Entity { ParentLump = lump };
         entity["classname"] = "env_cubemap";
         entity["origin"] = Source1EntityConverter.FormatVector(origin);
         entity["cubemaptexture"] = Source1ResourceReferences.Reference(texture);
         entity["influenceradius"] = radius;
+
+        if (handshake > 0)
+        {
+            entity["handshake"] = (long)handshake;
+        }
+
         entity[Source1MapExport.RegroupKey] = 1L;
 
         return entity;
@@ -1122,20 +1164,32 @@ internal static class Source1WorldConverter
         }
     }
 
-    // The world draws the ropes and sprites of these entities, so a tool draws no stand-in for them
-    private static void MarkDrawnByWorld(Source1ConvertedMap map, List<EntityLump.Entity> entities)
+    // The world draws the ropes and sprites of these entities, so a tool draws no stand-in for them. A rope that has no path
+    // draws nothing, so its entity is dropped.
+    private static void MarkDrawnByWorld(Source1ConvertedMap map, List<EntityLump.Entity> entities, List<EntityLump.Entity> skyEntities)
     {
-        for (var i = 0; i < map.SourceEntities.Count; i++)
+        for (var i = map.SourceEntities.Count - 1; i >= 0; i--)
         {
             var entity = entities[i];
             var source = map.SourceEntities[i];
+
+            if (Source1RopeConverter.IsRope(source) && !map.RopePaths.ContainsKey(source))
+            {
+                entities.RemoveAt(i);
+                skyEntities.Remove(entity);
+                continue;
+            }
 
             if (map.DrawnEntities.Contains(source))
             {
                 entity["drawnbyworld"] = true;
             }
 
-            if (map.SpriteModels.TryGetValue(source, out var spriteModel))
+            if (map.RopePaths.TryGetValue(source, out var rope))
+            {
+                ConvertRope(entity, rope);
+            }
+            else if (map.SpriteModels.TryGetValue(source, out var spriteModel))
             {
                 entity["classname"] = "func_brush";
                 entity["model"] = Source1ResourceReferences.Reference(spriteModel.Path);
@@ -1154,6 +1208,44 @@ internal static class Source1WorldConverter
                 entity.Remove("model");
             }
         }
+    }
+
+    // A rope keeps its name and origin and becomes the path its points run along
+    private static void ConvertRope(EntityLump.Entity entity, Source1ConvertedMap.RopePath rope)
+    {
+        var targetName = entity.GetStringProperty("targetname");
+        var origin = entity.GetStringProperty("origin");
+
+        var keys = new List<string>();
+
+        foreach (var (key, _) in entity.Children)
+        {
+            keys.Add(key);
+        }
+
+        foreach (var key in keys)
+        {
+            entity.Remove(key);
+        }
+
+        entity["classname"] = "path_particle_rope_clientside";
+
+        if (targetName != null)
+        {
+            entity["targetname"] = targetName;
+        }
+
+        entity["origin"] = origin ?? string.Empty;
+        entity["effect_name"] = Source1ResourceReferences.Reference(rope.EffectPath);
+        entity["slack"] = 0f;
+        entity["radius"] = rope.Radius;
+        entity["particle_spacing"] = rope.ParticleSpacing;
+        entity["start_active"] = true;
+        entity["max_simulation_time"] = RopeMaxSimulationTime;
+        entity["closed_loop"] = 0L;
+        entity["pathnodes"] = rope.PathNodes;
+        entity["pathnodepinsenabled"] = rope.PinsEnabled;
+        entity["pathnodecolors"] = rope.Colors;
     }
 
     // An entity that does not draw its model at spawn keeps it, and starts disabled so its inputs can show it
@@ -1563,7 +1655,10 @@ internal static class Source1WorldConverter
         foreach (var piece in pieces)
         {
             var material = Source1Paths.ToMaterialPath(piece.Material);
-            var drawCall = new MeshDrawCall(material, vertices.Count, piece.Vertices.Length, indices.Count, piece.Indices.Length);
+            var drawCall = new MeshDrawCall(material, vertices.Count, piece.Vertices.Length, indices.Count, piece.Indices.Length)
+            {
+                CubeMapHandshake = piece.CubeMap,
+            };
 
             if (!materials.Contains(material, StringComparer.OrdinalIgnoreCase))
             {

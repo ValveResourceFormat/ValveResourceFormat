@@ -69,6 +69,11 @@ namespace ValveResourceFormat.ResourceTypes
             data.Add("m_vertexBuffers", vertexBuffers);
             data.Add("m_bUseCompressedNormalTangent", HasCompressedNormalTangent(buffers.VertexBuffers[drawCall.VertexBufferIndex]));
 
+            if (drawCall.CubeMapHandshake > 0)
+            {
+                data.Add("vrf_cubeMapHandshake", drawCall.CubeMapHandshake);
+            }
+
             return data;
         }
 

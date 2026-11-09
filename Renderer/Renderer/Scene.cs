@@ -976,16 +976,32 @@ namespace ValveResourceFormat.Renderer
                 Write(entries, node.TintAlpha, mesh.DrawCallsBlended, entry, morphed);
             }
 
-            static void Write(InstanceDataStandard[] entries, Vector4 tint, List<DrawCall> calls, InstanceDataStandard entry, bool morphed)
+            void Write(InstanceDataStandard[] entries, Vector4 tint, List<DrawCall> calls, InstanceDataStandard entry, bool morphed)
             {
+                var nodeLightingData = entry.LightingData;
+
                 foreach (var call in calls)
                 {
                     entry.TintAlpha = PackTint(tint * call.TintColor);
                     entry.MorphVertexIdOffset = morphed ? call.VertexIdOffset : -1;
+                    entry.LightingData = GetDrawLightingData(nodeLightingData, call);
 
                     entries[call.InstanceBufferIndex] = entry;
                 }
             }
+        }
+
+        // A draw call that names an environment map reflects it instead of the one picked for its node
+        private uint GetDrawLightingData(uint nodeLightingData, DrawCall call)
+        {
+            if (call.CubeMapHandshake <= 0
+                || !LightingInfo.EnvMapHandshakes.TryGetValue(call.CubeMapHandshake, out var envMap)
+                || envMap.ShaderIndex < 0)
+            {
+                return nodeLightingData;
+            }
+
+            return (nodeLightingData & 0xFFFFu) | ((uint)envMap.ShaderIndex << 16);
         }
 
         /// <summary>

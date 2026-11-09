@@ -40,6 +40,9 @@ internal enum MaterialRole
     /// <summary>A lit model surface of a character, whose metalness comes from a packed mask texture.</summary>
     Character,
 
+    /// <summary>The cable that a particle effect draws.</summary>
+    Cable,
+
     /// <summary>The sky.</summary>
     Sky,
 }

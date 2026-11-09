@@ -105,6 +105,11 @@ internal sealed class Source1ResourceProvider(Source1FileSystem fileSystem, ILog
             return MaterialTranslator.Translate(material, Source1MaterialConverter.DescribeSkyMaterial(material), MaterialTargetGame, LoadFile, logger);
         }
 
+        if (Source1MaterialConverter.IsCableMaterial(material))
+        {
+            return MaterialTranslator.Translate(material, Source1MaterialConverter.DescribeCableMaterial(material), MaterialTargetGame, LoadFile, logger);
+        }
+
         if (!Source1MaterialReader.CanRead(material))
         {
             return null;
@@ -466,19 +471,6 @@ internal sealed class Source1ResourceProvider(Source1FileSystem fileSystem, ILog
 
     /// <inheritdoc/>
     public IEnumerable<string> GetExportResources(Resource entityLump) => Source1MapExport.GetResources(entityLump);
-
-    /// <inheritdoc/>
-    public Resource GetExportResource(Resource resource)
-    {
-        ArgumentNullException.ThrowIfNull(resource);
-
-        if (map != null && resource.FileName != null && map.ExportFiles.TryGetValue(resource.FileName, out var exported))
-        {
-            return exported;
-        }
-
-        return resource;
-    }
 
     /// <inheritdoc/>
     public bool Exists(string file)

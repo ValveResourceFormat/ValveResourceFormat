@@ -18,6 +18,7 @@ internal static class Source1MaterialConverter
 {
     private const float DefaultAlphaTestReference = 0.7f;
     private const string SkyShaderName = "sky.vfx";
+    private const string CableShaderName = "cables.vfx";
     private const string SkyTextureParameter = "g_tSkyTexture";
 
     private static readonly (string Key, string Parameter)[] TextureMap =
@@ -199,16 +200,37 @@ internal static class Source1MaterialConverter
     }
 
     /// <summary>
-    /// Copies a material so that the Source 1 cable shader draws it, which turns the ribbons of a rope to face the camera.
+    /// Copies a material so that the cable shader draws it, as the cable of a particle effect.
     /// </summary>
     /// <param name="source">The material to copy.</param>
     internal static Resource AsCable(ResourceTypes.Material source)
     {
-        var material = Copy(source, ResourceTypes.Material.Source1ShaderPrefix + "cable");
-        material.IntParams["F_RENDER_BACKFACES"] = 1;
-        material.IntParams["F_NO_Z_PREPASS"] = 1;
+        var material = Copy(source, CableShaderName);
 
         return Finish(material, source.Name);
+    }
+
+    /// <summary>Gets whether the material is a cable made by <see cref="AsCable"/>.</summary>
+    public static bool IsCableMaterial(ResourceTypes.Material material)
+    {
+        ArgumentNullException.ThrowIfNull(material);
+
+        return material.ShaderName == CableShaderName;
+    }
+
+    /// <summary>Describes a cable made by <see cref="AsCable"/>.</summary>
+    public static MaterialDescription DescribeCableMaterial(ResourceTypes.Material material)
+    {
+        ArgumentNullException.ThrowIfNull(material);
+
+        var description = new MaterialDescription { Role = MaterialRole.Cable };
+
+        if (material.TextureParams.TryGetValue("g_tColor", out var color))
+        {
+            description.Layers[0].Color = MaterialInput.FromTexture(color, ChannelMapping.RGB);
+        }
+
+        return description;
     }
 
     /// <summary>

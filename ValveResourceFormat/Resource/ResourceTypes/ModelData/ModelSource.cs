@@ -18,6 +18,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
 
         /// <summary>Gets the index of the index buffer in <see cref="VBIB.IndexBuffers"/> the draw call reads.</summary>
         public int IndexBufferIndex { get; init; }
+
+        /// <summary>Gets the handshake of the environment map the draw call reflects, or 0 to reflect the one picked for the model.</summary>
+        public int CubeMapHandshake { get; init; }
     }
 
     /// <summary>

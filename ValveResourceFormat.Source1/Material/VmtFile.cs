@@ -388,6 +388,103 @@ internal sealed partial class VmtFile
         return Merge(merged, replace, replace: true);
     }
 
+    /// <summary>A patch that only sets the cube map of the material it includes.</summary>
+    /// <param name="Target">The path of the included material.</param>
+    /// <param name="Envmap">The cube map the patch sets, or <see langword="null"/> when it names none.</param>
+    internal readonly record struct EnvmapPatch(string Target, string? Envmap);
+
+    /// <summary>
+    /// Gets the material a patch stands for when the only thing it changes is <c>$envmap</c>. Source 2 has no cube map per material,
+    /// so such a patch is the material it includes.
+    /// </summary>
+    /// <param name="path">The path of the material file, such as <c>materials/maps/mymap/wall_0_0_64.vmt</c>.</param>
+    /// <param name="openFile">Opens a file by normalized path, or returns null when it is missing.</param>
+    /// <returns>The included material and the cube map, or <see langword="null"/> when the file is missing or is not such a patch.</returns>
+    internal static EnvmapPatch? GetEnvmapPatch(string path, Func<string, Stream?> openFile)
+    {
+        try
+        {
+            var context = new LoadContext(openFile, null);
+            var root = ReadRoot(NormalizePath(path, ".vmt"), context);
+
+            if (!IsPatch(root))
+            {
+                return null;
+            }
+
+            string? include = null;
+            string? envmap = null;
+
+            foreach (var child in root.Children)
+            {
+                if (!child.IsBlock && child.Name.Equals("include", StringComparison.OrdinalIgnoreCase))
+                {
+                    include = child.Value;
+                }
+                else if (!child.IsBlock || !SetsOnlyEnvmap(child, ref envmap))
+                {
+                    return null;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(include))
+            {
+                return null;
+            }
+
+            return new EnvmapPatch(include, envmap);
+        }
+        catch (Exception e) when (e is InvalidDataException or IOException)
+        {
+            return null;
+        }
+    }
+
+    private static bool SetsOnlyEnvmap(VmtNode section, ref string? envmap)
+    {
+        var isSection = section.Name.Equals("insert", StringComparison.OrdinalIgnoreCase)
+            || section.Name.Equals("replace", StringComparison.OrdinalIgnoreCase);
+
+        if (!isSection)
+        {
+            return false;
+        }
+
+        return HasOnlyEnvmap(section, ref envmap);
+    }
+
+    // Some patches set the cube map inside a block named for the shader, and water patches also empty the proxies
+    private static bool HasOnlyEnvmap(VmtNode block, ref string? envmap)
+    {
+        foreach (var child in block.Children)
+        {
+            if (!child.IsBlock)
+            {
+                if (!child.Name.Equals("$envmap", StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                envmap = child.Value;
+                continue;
+            }
+
+            if (child.Name.Equals("Proxies", StringComparison.OrdinalIgnoreCase))
+            {
+                if (child.Children.Count > 0)
+                {
+                    return false;
+                }
+            }
+            else if (!HasOnlyEnvmap(child, ref envmap))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     // Sets the values of changes over the ones of the target and merges its blocks into the blocks of the same name
     private static VmtNode Overlay(VmtNode target, VmtNode changes)
     {

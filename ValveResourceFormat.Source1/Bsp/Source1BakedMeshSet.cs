@@ -104,24 +104,6 @@ internal sealed class Source1BakedMeshSet<TVertex>(string namePrefix, VertexFiel
         }
     }
 
-    /// <summary>
-    /// Adds the model of every chunk as the export form of the model with the same path in the set that drew the pieces,
-    /// which must have made its chunks in the same order.
-    /// </summary>
-    /// <param name="map">The converted map.</param>
-    public void AddExportModels(Source1ConvertedMap map)
-    {
-        var count = 0;
-
-        foreach (var (key, chunk) in chunks)
-        {
-            var path = GetPath(map, key, count++);
-            var resource = CreateModel(path, key.MaterialPath, chunk);
-            resource.FileName = path + Source1WorldConverter.CompiledSuffix;
-            map.ExportFiles.Add(resource.FileName, resource);
-        }
-    }
-
     private string GetPath(Source1ConvertedMap map, ChunkKey key, int count)
     {
         var area = key.InSky ? "sky" : "world";

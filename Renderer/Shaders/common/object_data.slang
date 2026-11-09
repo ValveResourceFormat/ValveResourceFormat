@@ -5,7 +5,7 @@
 
 #include "instancing_base.slang"
 
-// The scene node a fragment belongs to, forwarded by the vertex stage. A vertex stage that lights
+// The instance entry of the draw a fragment belongs to, forwarded by the vertex stage. A vertex stage that lights
 // through these includes defines VRF_VERTEX_STAGE first, and writes the index itself.
 #ifdef VRF_VERTEX_STAGE
 flat out uint g_nObjectIndex;

@@ -203,6 +203,11 @@ internal sealed class MaterialTarget
             return effectProfile;
         }
 
+        if (description.Role == MaterialRole.Cable)
+        {
+            return Cable;
+        }
+
         if (roles.TryGetValue(description.Role, out var profile))
         {
             return profile;
@@ -213,6 +218,14 @@ internal sealed class MaterialTarget
 
         return isLit ? Lit : Unlit;
     }
+
+    // Every game has the cable shader of the particle renderer that draws ropes.
+    private static readonly ShaderProfile Cable = new()
+    {
+        Shader = "cables",
+        Slots = MaterialSlots.Color,
+        BackfaceFeature = null,
+    };
 
     private static readonly MaterialTarget Cs2 = CreateCs2();
 

@@ -15,7 +15,19 @@ internal sealed class WorldPartClusters
     private const int MaxClustersPerPart = 255;
 
     private readonly Dictionary<string, int[]> parts = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> cubeMaps = new(StringComparer.Ordinal);
     private readonly List<WorldAggregate> aggregates = [];
+
+    /// <summary>Sets the environment map a model reflects.</summary>
+    /// <param name="part">The model path.</param>
+    /// <param name="handshake">The handshake of the environment map, or 0 when the model names none.</param>
+    public void SetCubeMap(string part, int handshake)
+    {
+        if (handshake > 0)
+        {
+            cubeMaps[part] = handshake;
+        }
+    }
 
     /// <summary>Sets the clusters of a model.</summary>
     /// <param name="part">The model path.</param>
@@ -63,6 +75,11 @@ internal sealed class WorldPartClusters
             else
             {
                 sceneObject.Add("m_nObjectTypeFlags", 0L);
+            }
+
+            if (cubeMaps.TryGetValue(path, out var cubeMap))
+            {
+                sceneObject.Add("m_nCubeMapPrecomputedHandshake", (long)cubeMap);
             }
 
             sceneObject.Add("m_vTintColor", KVHelpers.ToKVArray(Vector4.One));
@@ -114,6 +131,7 @@ internal sealed class WorldPartClusters
                 mesh.Add("m_vTintColor", CreateWhiteTint());
                 mesh.Add("m_objectFlags", flags);
                 mesh.Add("m_nLightProbeVolumePrecomputedHandshake", 0L);
+                mesh.Add("vrf_cubeMapHandshake", (long)fragment.CubeMap);
                 mesh.Add("m_nInstanceStreamOffset", 0L);
                 mesh.Add("m_nVertexAlbedoStreamOffset", 0L);
                 mesh.Add("m_nVertexEmissiveStreamOffset", 0L);
@@ -157,6 +175,7 @@ internal sealed class WorldPartClusters
 /// <summary>One draw call of an aggregate model.</summary>
 /// <param name="Bounds">The bounds of the draw call, in the space of the world.</param>
 /// <param name="Clusters">The visibility clusters that list the draw call, or none to cull it by its bounds.</param>
-internal sealed record AggregateFragment(AABB Bounds, IReadOnlyCollection<int> Clusters);
+/// <param name="CubeMap">The handshake of the environment map the draw call reflects, or 0 when it names none.</param>
+internal sealed record AggregateFragment(AABB Bounds, IReadOnlyCollection<int> Clusters, int CubeMap);
 
 internal sealed record WorldAggregate(string Path, List<AggregateFragment> Fragments);

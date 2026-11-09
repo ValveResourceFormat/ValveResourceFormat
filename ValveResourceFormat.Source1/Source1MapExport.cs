@@ -285,7 +285,8 @@ internal static class Source1MapExport
             var name = reference.Name;
             var isResource = name.EndsWith(".vmdl", StringComparison.Ordinal)
                 || name.EndsWith(".vtex", StringComparison.Ordinal)
-                || name.EndsWith(".vpost", StringComparison.Ordinal);
+                || name.EndsWith(".vpost", StringComparison.Ordinal)
+                || name.EndsWith(".vpcf", StringComparison.Ordinal);
 
             if (isResource && !baked.Contains(name))
             {

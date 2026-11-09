@@ -552,9 +552,9 @@ public sealed partial class MapExtract
         AddSceneObjectFiles(vmap);
         // Export all gathered vsnap files
         AddSnapshotFiles(vmap);
+        AddProvidedAssetFiles(vmap);
         AddProvidedMaterialFiles(vmap);
         AddProvidedTextureFiles(vmap);
-        AddProvidedAssetFiles(vmap);
 
         foreach (var generatedMaterial in ProceduralPhysMaterialsToExtract)
         {
@@ -612,14 +612,12 @@ public sealed partial class MapExtract
         foreach (var sceneObjectResourceName in SceneObjectsToExtract)
         {
             var sceneObjectNameCompiled = sceneObjectResourceName + GameFileLoader.CompiledFileSuffix;
-            using var loadedSceneObject = FileLoader.LoadFile(sceneObjectNameCompiled);
+            using var sceneObject = FileLoader.LoadFile(sceneObjectNameCompiled);
 
-            if (loadedSceneObject == null)
+            if (sceneObject == null)
             {
                 continue;
             }
-
-            var sceneObject = ResourceProvider?.GetExportResource(loadedSceneObject) ?? loadedSceneObject;
 
             if (sceneObject.DataBlock == null)
             {
@@ -706,7 +704,9 @@ public sealed partial class MapExtract
     {
         foreach (var assetName in ProvidedResources)
         {
-            if (!assetName.EndsWith(".vpost", StringComparison.Ordinal) && !assetName.EndsWith(".vmap", StringComparison.Ordinal))
+            var isParticle = assetName.EndsWith(".vpcf", StringComparison.Ordinal);
+
+            if (!isParticle && !assetName.EndsWith(".vpost", StringComparison.Ordinal) && !assetName.EndsWith(".vmap", StringComparison.Ordinal))
             {
                 continue;
             }
@@ -715,6 +715,11 @@ public sealed partial class MapExtract
             if (assetResource == null)
             {
                 continue;
+            }
+
+            if (isParticle)
+            {
+                AddMaterialReferences(assetResource);
             }
 
             var asset = FileExtract.Extract(assetResource, FileLoader);

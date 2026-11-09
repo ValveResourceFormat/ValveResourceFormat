@@ -14,7 +14,7 @@ internal static class Source1Paths
     private const string GameModelExtension = ".mdl";
     private const string ModelExtension = ".vmdl";
     private const string GameSpriteExtension = ".spr";
-    private const char VariantSeparator = '#';
+    private const string VariantSeparator = "__v_";
 
     private const string GameMaterialExtension = ".vmt";
     private const string MaterialExtension = ".vmat";
@@ -312,7 +312,7 @@ internal static class Source1Paths
     {
         var extension = Path.GetExtension(path);
         var stem = path.AsSpan(0, path.Length - extension.Length);
-        var separator = stem.LastIndexOf(VariantSeparator);
+        var separator = stem.LastIndexOf(VariantSeparator, StringComparison.Ordinal);
 
         if (separator < 0)
         {
@@ -320,7 +320,7 @@ internal static class Source1Paths
             return path;
         }
 
-        variant = stem[(separator + 1)..].ToString();
+        variant = stem[(separator + VariantSeparator.Length)..].ToString();
         return string.Concat(stem[..separator], extension);
     }
 

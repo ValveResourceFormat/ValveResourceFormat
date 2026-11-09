@@ -330,6 +330,9 @@ namespace ValveResourceFormat.Renderer
             foreach (var fragmentData in aggregateMeshes)
             {
                 var lightProbeVolumeHandshake = fragmentData.GetInt32Property("m_nLightProbeVolumePrecomputedHandshake");
+
+                // Compiled aggregates name no environment map, so this only binds fragments of maps that write one
+                var cubeMapHandshake = fragmentData.GetInt32Property("vrf_cubeMapHandshake");
                 var drawCallIndex = fragmentData.GetInt32Property("m_nDrawCallIndex");
                 var drawCall = RenderMesh.DrawCallsOpaque[drawCallIndex];
                 var drawBounds = drawCall.DrawBounds ?? throw new InvalidDataException("Draw call bounds must exist for all new format fragments");
@@ -347,7 +350,7 @@ namespace ValveResourceFormat.Renderer
                     RenderMesh = RenderMesh,
                     Tint = tintColor / 255f,
                     Parent = this,
-                    LightingCache = SceneNodeLightingCache.FromHandshakes(new PrecomputedLightingHandshakes(0, lightProbeVolumeHandshake)),
+                    LightingCache = SceneNodeLightingCache.FromHandshakes(new PrecomputedLightingHandshakes(cubeMapHandshake, lightProbeVolumeHandshake)),
                     Flags = flags,
                     LodGroupMask = lodGroupMask,
                     LodSetupIndex = lodSetupIndex,

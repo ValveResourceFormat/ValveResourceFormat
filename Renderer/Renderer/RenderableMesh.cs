@@ -598,6 +598,8 @@ namespace ValveResourceFormat.Renderer
                 drawCall.MeshId = objectDrawCall.GetInt32Property("m_nMeshID");
             }
 
+            drawCall.CubeMapHandshake = objectDrawCall.GetInt32Property("vrf_cubeMapHandshake");
+
             if (objectDrawCall.ContainsKey("m_nFirstMeshlet"))
             {
                 drawCall.FirstMeshlet = objectDrawCall.GetInt32Property("m_nFirstMeshlet");

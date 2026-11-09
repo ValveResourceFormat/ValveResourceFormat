@@ -113,6 +113,7 @@ Source 1 and GoldSrc games open in the GUI viewer, which converts their files to
 ### Export
 
 - Textures, materials, models and maps export like Source 2 resources: PNG, glTF and decompiled vmat, vmdl and vmap with the models, materials and textures they draw, and for maps the tools materials of brushes; the cube map and light probe textures are left out, as Hammer bakes them again. Each cube map becomes a combined light probe volume with a box fitted to its room, nested by priority, below one volume that covers the world
+- Ropes (`move_rope`, `keyframe_rope`) convert to `path_particle_rope_clientside`, or `path_particle_rope` on targets without the client class, with a generated particle effect per material and texture repeat. Barbed wire is a plain wire
 - Export with dependencies saves the file and the game files its conversion reads into a folder laid out like the game, with a `gameinfo.txt` or `liblist.gam`, including the sounds and scripts that entities, soundscapes and animation events name, and the models and icons that stand in for entities
 
 ## Not supported

@@ -68,12 +68,5 @@ namespace ValveResourceFormat.IO
         /// <param name="entityLump">The entity lump resource.</param>
         /// <returns>The paths of the resources without the <b>"_c"</b> suffix.</returns>
         public IEnumerable<string> GetExportResources(Resource entityLump) => [];
-
-        /// <summary>
-        /// Gets the form of a model that is written to a Hammer map, when it differs from the form that is drawn.
-        /// </summary>
-        /// <param name="resource">The resource as this provider serves it.</param>
-        /// <returns>The resource to extract.</returns>
-        public Resource GetExportResource(Resource resource) => resource;
     }
 }
