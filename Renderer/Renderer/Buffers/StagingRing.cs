@@ -3,56 +3,53 @@ using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer.Buffers;
 
+/// <summary>A reserved stretch of a <see cref="StagingRing"/>.</summary>
+internal readonly record struct StagingRegion(int Index, int Generation, int Offset, int Length);
+
 /// <summary>
 /// A persistently mapped pixel unpack buffer that background threads write upload data into, so uploads
-/// copy from it on the GPU instead of from client memory on the render thread. Regions are reserved in
-/// order on the render thread, and come back once their writer let go of them and the GPU finished the
-/// copies made from them.
+/// copy from it on the GPU instead of from client memory on the render thread. The render thread reserves
+/// regions in order, and reuses them once their writer let go and the GPU finished copying from them.
 /// </summary>
 internal sealed unsafe class StagingRing(string name, int size)
 {
     private const int MaxRegions = 1024;
-    private const int NotReleased = -1;
+    private const int InUse = -1;
+    private const int NothingCopied = 0;
 
-    private struct Region
+    private struct Slot
     {
         public long End;
 
-        // NotReleased, 0 when nothing was copied from it, or the serial of the fence covering those copies
-        public int ReleasedSerial;
+        // InUse, NothingCopied, or the serial of the fence covering the uploads copied from it
+        public int Released;
     }
 
-    private readonly Region[] regions = new Region[MaxRegions];
+    private readonly Slot[] slots = new Slot[MaxRegions];
     private readonly Queue<(int Serial, IntPtr Sync)> fences = new();
 
     private byte* mapped;
+    private int generation;
     private long head;
     private long tail;
-    private int firstRegion;
-    private int regionCount;
+    private int firstSlot;
+    private int slotCount;
     private int nextSerial = 1;
     private int completedSerial;
     private bool fenceDue;
     private int writers;
     private volatile bool closed;
 
-    /// <summary>Gets the size of the ring in bytes, the most a single region can hold.</summary>
+    /// <summary>Gets the size of the ring in bytes, the most a region can hold.</summary>
     public int Size => size;
 
     /// <summary>Gets the buffer handle, 0 until the first reservation.</summary>
     public int Handle { get; private set; }
 
-    /// <summary>Gets the number of times the buffer was deleted, so a region from before can be told apart.</summary>
-    public int Generation { get; private set; }
-
-    /// <summary>
-    /// Reserves a contiguous region, creating the buffer on first use. Only the render thread reserves.
-    /// </summary>
-    /// <returns>Whether the region fit. It does not while older regions are in use.</returns>
-    public bool TryReserve(int length, out int region, out int offset)
+    /// <summary>Reserves a region, which fails while older ones still take up the room. Render thread only.</summary>
+    public bool TryReserve(int length, out StagingRegion region)
     {
-        region = -1;
-        offset = 0;
+        region = default;
 
         if (length > size)
         {
@@ -67,68 +64,62 @@ internal sealed unsafe class StagingRing(string name, int size)
         Reclaim();
 
         var start = tail;
-        var physical = (int)(start % size);
+        var offset = (int)(start % size);
 
-        // A region never wraps, so the end of the buffer is skipped when it does not fit there
-        if (physical + length > size)
+        // A region never wraps, so it skips the end of the buffer when it does not fit there
+        if (offset + length > size)
         {
-            start += size - physical;
+            start += size - offset;
+            offset = 0;
         }
 
-        if (regionCount == MaxRegions || start + length - head > size)
+        if (slotCount == MaxRegions || start + length - head > size)
         {
             return false;
         }
 
-        region = (firstRegion + regionCount) % MaxRegions;
-        regions[region] = new Region { End = start + length, ReleasedSerial = NotReleased };
-        regionCount++;
+        var index = (firstSlot + slotCount) % MaxRegions;
+
+        slots[index] = new Slot { End = start + length, Released = InUse };
+        slotCount++;
         tail = start + length;
-        offset = (int)(start % size);
+        region = new(index, generation, offset, length);
 
         return true;
     }
 
-    /// <summary>Gets the mapped memory of a region.</summary>
-    public Span<byte> GetSpan(int offset, int length) => new(mapped + offset, length);
-
-    /// <summary>
-    /// Marks the start of a write from any thread, failing once the buffer is being deleted.
-    /// Every successful call is paired with <see cref="EndWrite"/>.
-    /// </summary>
-    public bool TryBeginWrite()
+    /// <summary>Starts a write to a region from any thread, failing once its buffer is going away. Pair with <see cref="EndWrite"/>.</summary>
+    public bool TryBeginWrite(StagingRegion region, out Span<byte> span)
     {
         Interlocked.Increment(ref writers);
 
-        if (closed)
+        if (closed || region.Generation != generation)
         {
             Interlocked.Decrement(ref writers);
+            span = default;
             return false;
         }
 
+        span = new(mapped + region.Offset, region.Length);
         return true;
     }
 
-    /// <summary>Marks the end of a write that <see cref="TryBeginWrite"/> started.</summary>
+    /// <summary>Ends a write that <see cref="TryBeginWrite"/> started.</summary>
     public void EndWrite() => Interlocked.Decrement(ref writers);
 
     /// <summary>
-    /// Gives a region back. Any thread can give back a region nothing was copied from; one that uploads
-    /// were issued from is given back on the render thread, and comes free after the next <see cref="Fence"/> passes.
+    /// Gives a region back. Any thread can when nothing was copied from it; the render thread does after
+    /// issuing uploads from it, and the region then stays taken until the next <see cref="Fence"/> passes.
     /// </summary>
-    public void Release(int region, int generation, bool copiedFrom)
+    public void Release(StagingRegion region, bool copiedFrom)
     {
-        if (generation != Generation)
+        if (region.Generation != generation)
         {
             return;
         }
 
-        if (copiedFrom)
-        {
-            fenceDue = true;
-        }
-
-        Volatile.Write(ref regions[region].ReleasedSerial, copiedFrom ? nextSerial : 0);
+        fenceDue |= copiedFrom;
+        Volatile.Write(ref slots[region.Index].Released, copiedFrom ? nextSerial : NothingCopied);
     }
 
     /// <summary>Fences the uploads issued from the regions given back since the last call. Render thread only.</summary>
@@ -139,44 +130,38 @@ internal sealed unsafe class StagingRing(string name, int size)
             return;
         }
 
-        fences.Enqueue((nextSerial, GL.FenceSync(SyncCondition.SyncGpuCommandsComplete, WaitSyncFlags.None)));
-        nextSerial++;
+        fences.Enqueue((nextSerial++, GL.FenceSync(SyncCondition.SyncGpuCommandsComplete, WaitSyncFlags.None)));
         fenceDue = false;
     }
 
     private void Reclaim()
     {
-        while (fences.TryPeek(out var fence))
+        // Zero timeout only asks; the flush gets a fence that was never submitted to the GPU
+        while (fences.TryPeek(out var fence)
+            && GL.ClientWaitSync(fence.Sync, ClientWaitSyncFlags.SyncFlushCommandsBit, 0)
+                is WaitSyncStatus.AlreadySignaled or WaitSyncStatus.ConditionSatisfied)
         {
-            // Zero timeout only asks; the flush makes sure a fence that was never submitted gets there
-            var status = GL.ClientWaitSync(fence.Sync, ClientWaitSyncFlags.SyncFlushCommandsBit, 0);
-
-            if (status is not (WaitSyncStatus.AlreadySignaled or WaitSyncStatus.ConditionSatisfied))
-            {
-                break;
-            }
-
             GL.DeleteSync(fence.Sync);
             completedSerial = fence.Serial;
             fences.Dequeue();
         }
 
-        while (regionCount > 0)
+        while (slotCount > 0)
         {
-            ref var region = ref regions[firstRegion];
-            var serial = Volatile.Read(ref region.ReleasedSerial);
+            ref var slot = ref slots[firstSlot];
+            var released = Volatile.Read(ref slot.Released);
 
-            if (serial == NotReleased || serial > completedSerial)
+            if (released == InUse || released > completedSerial)
             {
                 break;
             }
 
-            head = region.End;
-            firstRegion = (firstRegion + 1) % MaxRegions;
-            regionCount--;
+            head = slot.End;
+            firstSlot = (firstSlot + 1) % MaxRegions;
+            slotCount--;
         }
 
-        if (regionCount == 0)
+        if (slotCount == 0)
         {
             head = 0;
             tail = 0;
@@ -204,10 +189,7 @@ internal sealed unsafe class StagingRing(string name, int size)
         closed = false;
     }
 
-    /// <summary>
-    /// Fails every write from here on and waits out the ones under way, so the buffer can go away with
-    /// its context. Makes no GL calls.
-    /// </summary>
+    /// <summary>Fails every write from here on and waits out the ones under way. Makes no GL calls.</summary>
     public void Close()
     {
         closed = true;
@@ -221,8 +203,8 @@ internal sealed unsafe class StagingRing(string name, int size)
     }
 
     /// <summary>
-    /// Deletes the buffer, after waiting out the writes under way. Regions handed out before are dropped
-    /// when given back, and the next reservation makes a new buffer. Render thread only.
+    /// Deletes the buffer once the writes under way are done. Regions handed out before are dropped when
+    /// given back, and the next reservation makes a new buffer. Render thread only.
     /// </summary>
     public void Delete()
     {
@@ -243,11 +225,11 @@ internal sealed unsafe class StagingRing(string name, int size)
 
         Handle = 0;
         mapped = null;
+        generation++;
         head = 0;
         tail = 0;
-        firstRegion = 0;
-        regionCount = 0;
+        firstSlot = 0;
+        slotCount = 0;
         fenceDue = false;
-        Generation++;
     }
 }

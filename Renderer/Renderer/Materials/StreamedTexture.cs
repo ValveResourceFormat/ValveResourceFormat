@@ -1,5 +1,6 @@
 using System.Threading;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer.Materials
@@ -55,17 +56,8 @@ namespace ValveResourceFormat.Renderer.Materials
         /// until its data is applied or dropped.</summary>
         public int GateBytes;
 
-        /// <summary>Bytes the issued request reads into, with the room in-place decoding needs past each mip.</summary>
-        public int StagingBytes;
-
-        /// <summary>Region of the staging ring the issued request reads into, or -1 when it reads into a pooled array.</summary>
-        public int StagingRegion = -1;
-
-        /// <summary>Generation of the staging ring <see cref="StagingRegion"/> belongs to.</summary>
-        public int StagingGeneration;
-
-        /// <summary>Offset of <see cref="StagingRegion"/> in the staging ring.</summary>
-        public int StagingOffset;
+        /// <summary>Where the issued request reads into, or null when it reads into a pooled array.</summary>
+        public StagingRegion? Staging;
 
         /// <summary>Set while a read is out, from its request until its data is applied or dropped. Only an
         /// idle texture can have its storage replaced outside the upload path.</summary>
@@ -109,8 +101,7 @@ namespace ValveResourceFormat.Renderer.Materials
             return bytes;
         }
 
-        /// <summary>Bytes an in-place read of consecutive mips needs: packed back to back, plus the room
-        /// a compressed mip needs past its end while it decodes.</summary>
+        /// <summary>Bytes consecutive mips need to be read back to back and decoded in place.</summary>
         public int InPlaceReadBytes(int firstMip, int count)
         {
             var offset = 0;
@@ -137,7 +128,6 @@ namespace ValveResourceFormat.Renderer.Materials
     /// <param name="Mip">The first (smallest) mip in the buffer.</param>
     /// <param name="MipCount">Number of consecutive planned mips the buffer holds, starting at <paramref name="Mip"/>.</param>
     /// <param name="ByteSize">The amount this item holds of the in-flight throttle, unwound when it is consumed.</param>
-    /// <param name="Buffer">Pooled buffer holding the mips, or null when they are in the staging ring.</param>
-    /// <param name="StagingOffset">Where the mips start in the staging ring, when <paramref name="Buffer"/> is null.</param>
-    readonly record struct LoadedMipBits(StreamedTexture Stream, PlannedMip Mip, int MipCount, int ByteSize, byte[]? Buffer, int StagingOffset = 0);
+    /// <param name="Buffer">Pooled buffer holding the mips, or null when they are in the texture's staging region.</param>
+    readonly record struct LoadedMipBits(StreamedTexture Stream, PlannedMip Mip, int MipCount, int ByteSize, byte[]? Buffer);
 }

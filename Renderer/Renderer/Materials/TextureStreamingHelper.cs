@@ -45,11 +45,10 @@ namespace ValveResourceFormat.Renderer.Materials
         private readonly List<StreamedTexture> streams = [];
         private readonly Lock streamsLock = new();
 
-        // Cap on buffer bytes between a load request and its hookup. Reads finish far faster than the slices
-        // upload, so this only has to cover a few frames of uploads.
+        // Cap on buffer bytes between a load request and its hookup, enough for a few frames of uploads
         private const long MaxBitsInFlight = 64L * 1024 * 1024;
 
-        // Requests read straight into here, and upload from it; one too big for it reads into a pooled array
+        // Requests read into it and upload from it; one too big for it reads into a pooled array
         private readonly StagingRing staging = new("Texture Streaming Staging", (int)MaxBitsInFlight);
 
         private long bitsInFlight;
@@ -84,9 +83,8 @@ namespace ValveResourceFormat.Renderer.Materials
         internal void BeginStreaming(StreamedTexture stream) => newStreams.Enqueue(stream);
 
         /// <summary>
-        /// Throws away everything queued and hands its buffers back to the pool, and waits out reads writing
-        /// to the staging buffer. Makes no GL calls, so it is safe during teardown with no current context,
-        /// and must run before the context goes away.
+        /// Throws away everything queued, hands its buffers back to the pool, and waits out reads writing to
+        /// the staging buffer. Makes no GL calls, but must run before the GL context goes away.
         /// </summary>
         public void CancelAllStreaming()
         {
@@ -142,13 +140,13 @@ namespace ValveResourceFormat.Renderer.Materials
             ReleaseInFlight(bits.Stream, bits.ByteSize);
         }
 
-        // Only the render thread passes uploaded, after issuing the uploads from the staging region
+        // Only the render thread passes uploaded, for a staging region it uploads from
         private void ReleaseInFlight(StreamedTexture stream, long bytes, bool uploaded = false)
         {
-            if (stream.StagingRegion >= 0)
+            if (stream.Staging is { } region)
             {
-                staging.Release(stream.StagingRegion, stream.StagingGeneration, uploaded);
-                stream.StagingRegion = -1;
+                staging.Release(region, uploaded);
+                stream.Staging = null;
             }
 
             Interlocked.Add(ref bitsInFlight, -bytes);
@@ -156,8 +154,8 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         /// <summary>
-        /// Deletes the staging buffer, waiting out reads still writing to it. Call with the GL context
-        /// current, after the textures are deleted and streaming is cancelled.
+        /// Deletes the staging buffer. Call with the GL context current, after the textures are deleted
+        /// and streaming is cancelled.
         /// </summary>
         public void DeleteStaging() => staging.Delete();
 
@@ -244,9 +242,11 @@ namespace ValveResourceFormat.Renderer.Materials
                 return false;
             }
 
-            var elapsed = lastDemandTimestamp == 0 ? 0f : (float)Stopwatch.GetElapsedTime(lastDemandTimestamp).TotalSeconds;
+            var first = lastDemandTimestamp == 0;
+            var elapsed = first ? 0f : (float)Stopwatch.GetElapsedTime(lastDemandTimestamp).TotalSeconds;
+            var due = first || elapsed >= DemandIntervalSeconds || !newStreams.IsEmpty || Mode == TextureStreamingMode.Immediate;
 
-            if (Mode == TextureStreamingMode.Timesliced && lastDemandTimestamp != 0 && newStreams.IsEmpty && elapsed < DemandIntervalSeconds)
+            if (!due)
             {
                 return false;
             }
@@ -300,13 +300,98 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         /// <summary>
-        /// Ends the measure <see cref="BeginDemandPass"/> started, and points every texture at the mips it needs,
-        /// within the video memory budget. Call before the slice.
+        /// Ends the measure <see cref="BeginDemandPass"/> started: points every texture at the mips it needs within
+        /// the video memory budget, queues loads for those short of them and, over budget, shrinks those past
+        /// them. Call before the slice.
         /// </summary>
         internal void EndDemandPass()
         {
             demandNode = null;
-            UpdateTargets(demandDecay);
+
+            using var _ = streamsLock.EnterScope();
+
+            DrainNewStreams();
+
+            var resident = 0L;
+            var wanted = 0L;
+
+            for (var i = streams.Count - 1; i >= 0; i--)
+            {
+                var stream = streams[i];
+
+                if (stream.Texture.Handle == 0 || stream.Failed)
+                {
+                    streams[i] = streams[^1];
+                    streams.RemoveAt(streams.Count - 1);
+                    continue;
+                }
+
+                stream.TargetChainLevel = ChooseTarget(stream, demandDecay);
+                resident += stream.StorageBytes(stream.AllocatedChainLevel);
+                wanted += stream.StorageBytes(stream.TargetChainLevel);
+            }
+
+            var free = GLEnvironment.GetAvailableVideoMemory();
+            var budget = free == long.MaxValue ? long.MaxValue : resident + free - VideoMemoryReserve;
+
+            if (wanted > budget)
+            {
+                if (!loggedLowVideoMemory)
+                {
+                    loggedLowVideoMemory = true;
+                    rendererContext.Logger.LogWarning("Texture streaming low memory available ({Free} MB)", (budget - resident) / (1024 * 1024));
+                }
+
+                FitTargets(wanted, budget);
+            }
+
+            var shrinks = 0;
+
+            foreach (var stream in streams)
+            {
+                if (stream.TargetChainLevel < stream.ResidentChainLevel)
+                {
+                    QueueLoad(stream);
+                }
+                else if (resident > budget && shrinks < MaxShrinksPerSlice && CanShrink(stream))
+                {
+                    ReplaceStorage(stream, stream.TargetChainLevel);
+                    shrinks++;
+                }
+            }
+        }
+
+        private static bool CanShrink(StreamedTexture stream)
+            => !stream.LoadInFlight && !stream.Queued && stream.TargetChainLevel > stream.AllocatedChainLevel;
+
+        // Takes one mip off every texture at a time until they all fit
+        private void FitTargets(long wanted, long budget)
+        {
+            while (wanted > budget)
+            {
+                var before = wanted;
+
+                foreach (var stream in streams)
+                {
+                    if (stream.NeedsWholeChain || stream.TargetChainLevel >= stream.ChainLevels - 1)
+                    {
+                        continue;
+                    }
+
+                    wanted -= stream.Mips[stream.MipIndex(stream.TargetChainLevel)].BufferSize;
+                    stream.TargetChainLevel++;
+
+                    if (wanted <= budget)
+                    {
+                        return;
+                    }
+                }
+
+                if (wanted == before)
+                {
+                    return;
+                }
+            }
         }
 
         // The chain level a texture should hold, from the most pixels any mesh needed of it lately
@@ -341,93 +426,9 @@ namespace ValveResourceFormat.Renderer.Materials
             pendingLoadRequests.Enqueue(stream);
         }
 
-        // Points every texture at its target, taking one mip off every texture at a time until they fit in
-        // video memory. Then queues loads for those below it and, over budget, shrinks those above it.
-        private void UpdateTargets(float decay)
-        {
-            using var _ = streamsLock.EnterScope();
-
-            DrainNewStreams();
-
-            var resident = 0L;
-            var wanted = 0L;
-
-            for (var i = streams.Count - 1; i >= 0; i--)
-            {
-                var stream = streams[i];
-
-                if (stream.Texture.Handle == 0 || stream.Failed)
-                {
-                    streams[i] = streams[^1];
-                    streams.RemoveAt(streams.Count - 1);
-                    continue;
-                }
-
-                stream.TargetChainLevel = ChooseTarget(stream, decay);
-                resident += stream.StorageBytes(stream.AllocatedChainLevel);
-                wanted += stream.StorageBytes(stream.TargetChainLevel);
-            }
-
-            var free = GLEnvironment.GetAvailableVideoMemory();
-            var budget = free == long.MaxValue ? long.MaxValue : resident + free - VideoMemoryReserve;
-            var overBudget = resident > budget;
-
-            while (wanted > budget)
-            {
-                var before = wanted;
-
-                foreach (var stream in streams)
-                {
-                    if (stream.NeedsWholeChain || stream.TargetChainLevel >= stream.ChainLevels - 1)
-                    {
-                        continue;
-                    }
-
-                    wanted -= stream.Mips[stream.MipIndex(stream.TargetChainLevel)].BufferSize;
-                    stream.TargetChainLevel++;
-
-                    if (wanted <= budget)
-                    {
-                        break;
-                    }
-                }
-
-                if (wanted == before)
-                {
-                    break;
-                }
-
-                if (!loggedLowVideoMemory)
-                {
-                    loggedLowVideoMemory = true;
-                    rendererContext.Logger.LogWarning("Texture streaming low memory available ({Free} MB)", (budget - resident) / (1024 * 1024));
-                }
-            }
-
-            var shrinks = 0;
-
-            foreach (var stream in streams)
-            {
-                if (stream.LoadInFlight || stream.Queued)
-                {
-                    continue;
-                }
-
-                if (stream.TargetChainLevel < stream.ResidentChainLevel)
-                {
-                    QueueLoad(stream);
-                }
-                else if (overBudget && stream.TargetChainLevel > stream.AllocatedChainLevel && shrinks < MaxShrinksPerSlice)
-                {
-                    ReplaceStorage(stream, stream.TargetChainLevel);
-                    shrinks++;
-                }
-            }
-        }
-
         // A texture's bits always arrive smallest first, and the base level only reveals the levels that
-        // arrived, so nothing can ever sample as black.
-        // The source is the mips' address in client memory, or their offset in the bound unpack buffer
+        // arrived, so nothing can ever sample as black. The source is the mips' address in client memory,
+        // or their offset in the bound unpack buffer.
         private static void HookUpMipBits(in LoadedMipBits bits, nint source)
         {
             var stream = bits.Stream;
@@ -523,9 +524,9 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         /// <summary>
-        /// Does one frame's worth of streaming: starts the
-        /// loads it can, and gives the GPU whatever mip data has arrived since last time. Call once per
-        /// frame, after <see cref="EndDemandPass"/>, on a thread with a GL context.
+        /// Does one frame's worth of streaming: starts the loads it can, and gives the GPU whatever mip data
+        /// has arrived since last time. Call once per frame, after <see cref="EndDemandPass"/>, on a thread
+        /// with a GL context.
         /// </summary>
         /// <param name="frameTime">Length of the previous frame in seconds. This call gets 20% of it, minus
         /// what the previous call spent, so its own cost cannot grow its budget.</param>
@@ -581,10 +582,10 @@ namespace ValveResourceFormat.Renderer.Materials
                 var issuedBytes = IssueLoadRequest(stream, budget);
 
                 // Smaller requests behind it would keep taking the room it waits for
-                if (issuedBytes < 0)
+                if (issuedBytes == StagingFull)
                 {
                     stagingFull = true;
-                    pendingLoadRequests.Enqueue(stream);
+                    QueueLoad(stream);
                     continue;
                 }
 
@@ -600,68 +601,65 @@ namespace ValveResourceFormat.Renderer.Materials
 
         private bool RunUntil(long deadline, bool throttled)
         {
-            var hookedUp = false;
-
             IssueQueuedLoads(throttled);
 
             // Otherwise captures carry a permanent zero-cost debug group
-            if (!loadedMipBits.IsEmpty)
+            if (loadedMipBits.IsEmpty)
             {
-                using var _ = new GLDebugGroup("Texture Mip Uploads");
+                return false;
+            }
 
-                GL.BindBuffer(BufferTarget.PixelUnpackBuffer, staging.Handle);
+            using var _ = new GLDebugGroup("Texture Mip Uploads");
 
-                try
+            var hookedUp = false;
+
+            while (loadedMipBits.TryDequeue(out var bits))
+            {
+                var stream = bits.Stream;
+
+                // Texture deleted while the load was in flight; the chain ends here
+                if (stream.Texture.Handle == 0)
                 {
-                    while (loadedMipBits.TryDequeue(out var bits))
-                    {
-                        var stream = bits.Stream;
-
-                        // Texture deleted while the load was in flight; the chain ends here
-                        if (stream.Texture.Handle == 0)
-                        {
-                            DiscardBits(in bits);
-                            continue;
-                        }
-
-                        ReleaseInFlight(stream, bits.ByteSize, uploaded: true);
-
-                        if (bits.Buffer == null)
-                        {
-                            HookUpMipBits(in bits, bits.StagingOffset);
-                        }
-                        else
-                        {
-                            GL.BindBuffer(BufferTarget.PixelUnpackBuffer, 0);
-                            HookUpPinned(in bits);
-                            GL.BindBuffer(BufferTarget.PixelUnpackBuffer, staging.Handle);
-
-                            // The GL upload copies out of client memory before returning, so it is dead here
-                            ArrayPool<byte>.Shared.Return(bits.Buffer);
-                        }
-
-                        hookedUp = true;
-
-                        // Only a hookup moves a chain forward, which is what paces the whole pipeline
-                        if (stream.ResidentChainLevel > stream.TargetChainLevel)
-                        {
-                            QueueLoad(stream);
-                        }
-
-                        if (Stopwatch.GetTimestamp() >= deadline)
-                        {
-                            break;
-                        }
-                    }
+                    DiscardBits(in bits);
+                    continue;
                 }
-                finally
+
+                Upload(in bits);
+                hookedUp = true;
+
+                // Only a hookup moves a chain forward, which is what paces the whole pipeline
+                if (stream.ResidentChainLevel > stream.TargetChainLevel)
                 {
-                    GL.BindBuffer(BufferTarget.PixelUnpackBuffer, 0);
-                    staging.Fence();
+                    QueueLoad(stream);
+                }
+
+                if (Stopwatch.GetTimestamp() >= deadline)
+                {
+                    break;
                 }
             }
 
+            staging.Fence();
+
             return hookedUp;
+        }
+
+        private void Upload(in LoadedMipBits bits)
+        {
+            if (bits.Buffer is { } buffer)
+            {
+                // The GL upload copies out of client memory before returning, so the buffer is dead after it
+                HookUpPinned(in bits);
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
+            else if (bits.Stream.Staging is { } region)
+            {
+                GL.BindBuffer(BufferTarget.PixelUnpackBuffer, staging.Handle);
+                HookUpMipBits(in bits, region.Offset);
+                GL.BindBuffer(BufferTarget.PixelUnpackBuffer, 0);
+            }
+
+            ReleaseInFlight(bits.Stream, bits.ByteSize, uploaded: true);
         }
 
         private bool HasPendingWork
@@ -691,8 +689,10 @@ namespace ValveResourceFormat.Renderer.Materials
             }
         }
 
-        // Returns the bytes requested, or -1 when the staging ring has no room for them. Only ever runs on the
-        // thread doing the slice, so reading the in-flight byte count cannot race the adds made right below it.
+        private const long StagingFull = -1;
+
+        // Returns the bytes requested, or StagingFull. Only ever runs on the thread doing the slice, so
+        // reading the in-flight byte count cannot race the adds made right below it.
         private long IssueLoadRequest(StreamedTexture stream, int budget)
         {
             stream.Queued = false;
@@ -709,20 +709,16 @@ namespace ValveResourceFormat.Renderer.Materials
                 return 0;
             }
 
-            stream.StagingBytes = stream.InPlaceReadBytes(stream.NextMip, stream.RequestMipCount);
+            var readBytes = stream.InPlaceReadBytes(stream.NextMip, stream.RequestMipCount);
 
-            if (stream.StagingBytes <= staging.Size)
+            if (readBytes <= staging.Size)
             {
-                // Out of room until older uploads are done with theirs
-                if (!staging.TryReserve(stream.StagingBytes, out var region, out var offset))
+                if (!staging.TryReserve(readBytes, out var region))
                 {
-                    stream.Queued = true;
-                    return -1;
+                    return StagingFull;
                 }
 
-                stream.StagingRegion = region;
-                stream.StagingGeneration = staging.Generation;
-                stream.StagingOffset = offset;
+                stream.Staging = region;
             }
 
             // Counted from the request, not from the enqueue, so the in-flight limit bounds rented buffers too
@@ -813,39 +809,36 @@ namespace ValveResourceFormat.Renderer.Materials
             var first = stream.NextMip;
             var count = stream.RequestMipCount;
             var gateBytes = stream.GateBytes;
-            var staged = stream.StagingRegion >= 0;
 
-            if (stream.Texture.Handle == 0 || suspended)
-            {
-                ReleaseInFlight(stream, gateBytes);
-                return;
-            }
-
-            // Owned here until the enqueue hands it over; any exit before that returns it
+            // The request is owned here until the enqueue hands it over; any exit before that gives it up
             byte[]? buffer = null;
             var writing = false;
+            var handedOver = false;
 
             try
             {
+                if (stream.Texture.Handle == 0 || suspended)
+                {
+                    return;
+                }
+
                 Span<byte> target;
 
-                if (staged)
+                if (stream.Staging is { } region)
                 {
-                    // The ring is being deleted, and the texture with it
-                    writing = staging.TryBeginWrite();
+                    writing = staging.TryBeginWrite(region, out target);
 
-                    if (!writing || stream.Texture.Handle == 0)
+                    if (!writing)
                     {
-                        ReleaseInFlight(stream, gateBytes);
                         return;
                     }
-
-                    target = staging.GetSpan(stream.StagingOffset, stream.StagingBytes);
                 }
                 else
                 {
-                    buffer = ArrayPool<byte>.Shared.Rent(stream.StagingBytes);
-                    target = buffer.AsSpan(0, stream.StagingBytes);
+                    var readBytes = stream.InPlaceReadBytes(first, count);
+
+                    buffer = ArrayPool<byte>.Shared.Rent(readBytes);
+                    target = buffer.AsSpan(0, readBytes);
                 }
 
                 var offset = 0;
@@ -862,21 +855,19 @@ namespace ValveResourceFormat.Renderer.Materials
                     }
                 }
 
-                // Suspended during the read: nothing will upload it, and the finally returns the buffer
+                // Suspended during the read: nothing will upload it
                 if (suspended)
                 {
-                    ReleaseInFlight(stream, gateBytes);
                     return;
                 }
 
-                loadedMipBits.Enqueue(new LoadedMipBits(stream, stream.Mips[first], count, gateBytes, buffer, stream.StagingOffset));
-                buffer = null; // handed over
+                loadedMipBits.Enqueue(new LoadedMipBits(stream, stream.Mips[first], count, gateBytes, buffer));
+                handedOver = true;
             }
             catch (Exception e) // A corrupt or truncated vtex, or the package disposed under a load still in flight at teardown.
             {
                 rendererContext.Logger.LogError(e, "Loading mips of {Texture} failed", stream.Name);
                 stream.Failed = true;
-                ReleaseInFlight(stream, gateBytes);
             }
             finally
             {
@@ -885,9 +876,14 @@ namespace ValveResourceFormat.Renderer.Materials
                     staging.EndWrite();
                 }
 
-                if (buffer != null)
+                if (!handedOver)
                 {
-                    ArrayPool<byte>.Shared.Return(buffer);
+                    if (buffer != null)
+                    {
+                        ArrayPool<byte>.Shared.Return(buffer);
+                    }
+
+                    ReleaseInFlight(stream, gateBytes);
                 }
             }
         }
