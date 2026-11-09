@@ -2143,10 +2143,15 @@ public class Renderer : ISceneHost
     {
         Debug.Assert(WaterEffectsBuffer != null);
 
-        var hasDraws = NeedsWaterEffectsMap(view);
-
-        if (!hasDraws && waterEffectsMapIsNeutral)
+        if (!NeedsWaterEffectsMap(view))
         {
+            if (!waterEffectsMapIsNeutral)
+            {
+                ClearWaterEffectsMap();
+                GL.Viewport(0, 0, renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
+                renderContext.Framebuffer.Bind(FramebufferTarget.Framebuffer);
+            }
+
             return;
         }
 
@@ -2161,19 +2166,24 @@ public class Renderer : ISceneHost
             SetupWaterEffectsTexture();
         }
 
-        if (hasDraws)
+        RenderReducedResolutionLayer(view, renderContext, WaterEffectsBuffer, new Vector2(downsampleX, downsampleY), RenderLayer.WaterEffects);
+        waterEffectsMapIsNeutral = false;
+    }
+
+    // Water samples the map in normalized coordinates with a neutral border, so with nothing drawn in it a
+    // single neutral pixel reads the same as a full map. Leaves the map bound.
+    private void ClearWaterEffectsMap()
+    {
+        Debug.Assert(WaterEffectsBuffer != null);
+
+        if (WaterEffectsBuffer.Resize(1, 1))
         {
-            RenderReducedResolutionLayer(view, renderContext, WaterEffectsBuffer, new Vector2(downsampleX, downsampleY), RenderLayer.WaterEffects);
-        }
-        else
-        {
-            GL.Viewport(0, 0, width, height);
-            WaterEffectsBuffer.BindAndClear();
-            GL.Viewport(0, 0, renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
-            renderContext.Framebuffer.Bind(FramebufferTarget.Framebuffer);
+            SetupWaterEffectsTexture();
         }
 
-        waterEffectsMapIsNeutral = !hasDraws;
+        GL.Viewport(0, 0, 1, 1);
+        WaterEffectsBuffer.BindAndClear();
+        waterEffectsMapIsNeutral = true;
     }
 
     /// <summary>
@@ -2351,6 +2361,38 @@ public class Renderer : ISceneHost
             Textures.Add(new(ReservedTextureSlots.SceneColor, "g_tSceneColor", ResolvedSceneColor));
             Textures.Add(new(ReservedTextureSlots.SceneDepth, "g_tSceneDepth", ResolvedSceneDepth));
         }
+    }
+
+    /// <summary>Shrinks the render targets to their lowest memory footprint.</summary>
+    public void TrimRenderTargets()
+    {
+        EnsureResolvedTextureSize(1, 1);
+
+        if (TranslucentDepthBuffer?.Resize(1, 1) == true)
+        {
+            Textures.RemoveAll(static t => t.Slot == ReservedTextureSlots.TranslucentSceneDepth);
+            Textures.Add(new(ReservedTextureSlots.TranslucentSceneDepth, "g_tTranslucentSceneDepth", TranslucentDepthBuffer.Depth!));
+        }
+
+        if (WaterEffectsBuffer != null)
+        {
+            ClearWaterEffectsMap();
+        }
+
+        EffectsBloomBuffer?.Resize(1, 1);
+        BloomAmountBuffer?.Resize(1, 1);
+
+        if (BarnLightShadowBuffer?.Resize(4, 4) == true)
+        {
+            Textures.RemoveAll(static t => t.Slot == ReservedTextureSlots.BarnLightShadowDepth);
+            Textures.Add(new(ReservedTextureSlots.BarnLightShadowDepth, "g_tBarnLightShadowDepth", BarnLightShadowBuffer.Depth!));
+        }
+
+        orderIndependentLayers?.Delete();
+        orderIndependentLayers = null;
+
+        screenSpaceAo.Delete();
+        SetScreenSpaceAoTexture(null);
     }
 
     /// <summary>
