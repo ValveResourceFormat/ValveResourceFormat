@@ -455,7 +455,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
         var fade = (distanceSquared - fadeEndSquared) / (fadeStartSquared - fadeEndSquared);
 
-        return Math.Clamp(fade, 0f, 1f);
+        return MathUtils.Saturate(fade);
     }
 
     // Fade distances this large mean the light does not fade

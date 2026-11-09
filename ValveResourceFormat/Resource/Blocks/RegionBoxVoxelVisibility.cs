@@ -144,7 +144,7 @@ namespace ValveResourceFormat.Blocks
 
             var clusters = data.GetArray("m_clusters");
             ClusterCount = clusters.Count;
-            BytesPerCluster = (ClusterCount + 7) / 8;
+            BytesPerCluster = MathUtils.DivideRoundUp(ClusterCount, 8);
 
             var blockOffsets = data.GetArray<int>("m_blockOffset") ?? [];
 

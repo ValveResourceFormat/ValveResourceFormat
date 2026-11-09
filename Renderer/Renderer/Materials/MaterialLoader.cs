@@ -834,7 +834,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
             for (var i = 0; i < stops.Length; i++)
             {
-                sorted[i] = (Math.Clamp(stops[i].Position, 0f, 1f), stops[i].Color);
+                sorted[i] = (MathUtils.Saturate(stops[i].Position), stops[i].Color);
             }
 
             // Both orderings are stable, so stops sharing a position keep their authored order. How a list

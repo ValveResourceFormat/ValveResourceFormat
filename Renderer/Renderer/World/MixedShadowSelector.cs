@@ -78,14 +78,14 @@ public sealed class MixedShadowSelector
         if (light == Current)
         {
             var fadeInStart = changeTime + FadeOutTime;
-            return Ease(Math.Clamp((time - fadeInStart) / FadeInTime, 0f, 1f));
+            return Ease(MathUtils.Saturate((time - fadeInStart) / FadeInTime));
         }
 
         foreach (var (fadingLight, fadeOutStart) in fadingOut)
         {
             if (fadingLight == light)
             {
-                return Ease(1f - Math.Clamp((time - fadeOutStart) / FadeOutTime, 0f, 1f));
+                return Ease(1f - MathUtils.Saturate((time - fadeOutStart) / FadeOutTime));
             }
         }
 

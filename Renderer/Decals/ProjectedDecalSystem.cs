@@ -459,7 +459,7 @@ namespace ValveResourceFormat.Renderer.Decals
 
             if (fadeTime > 0f && decal.Lifetime == DecalLifetime.Timed)
             {
-                tint.W *= 1f - Math.Clamp(fadeTime / MathF.Max(material.FadeDuration, 1e-4f), 0f, 1f);
+                tint.W *= 1f - MathUtils.Saturate(fadeTime / MathF.Max(material.FadeDuration, 1e-4f));
             }
 
             // Eight bits of linear color would band in the darks

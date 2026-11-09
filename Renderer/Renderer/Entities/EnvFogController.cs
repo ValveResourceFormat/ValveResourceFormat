@@ -84,7 +84,7 @@ public sealed class EnvFogController : BaseEntity
     private void UpdateFog()
     {
         // A fog that is off covers nothing, though it keeps its color
-        var maxDensity = enabled ? Math.Clamp(current.MaxDensity, 0f, 1f) : 0f;
+        var maxDensity = enabled ? MathUtils.Saturate(current.MaxDensity) : 0f;
 
         Scene.FogInfo.LinearFog = new LinearFog(
             ColorSpace.SrgbGammaToLinear(current.Color) * hdrColorScale,

@@ -90,7 +90,7 @@ namespace ValveResourceFormat.Particles.Utils
 
         private void CollectPairs()
         {
-            var groupCount = (count + GroupSize - 1) / GroupSize;
+            var groupCount = MathUtils.DivideRoundUp(count, GroupSize);
             Span<int> groupBoxes = groupCount * 6 <= 1024 ? stackalloc int[groupCount * 6] : new int[groupCount * 6];
 
             for (var group = 0; group < groupCount; group++)

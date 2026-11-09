@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Particles.Utils
 
             var sorted = stops
                 .Select(stop => (
-                    Position: Math.Clamp(stop.GetFloatProperty("m_flPosition"), 0f, 1f),
+                    Position: MathUtils.Saturate(stop.GetFloatProperty("m_flPosition")),
                     Color: stop.TryGetValue("m_Color", out var color) ? color.ToVector3() : Vector3.Zero))
                 .OrderBy(stop => stop.Position)
                 .ToArray();

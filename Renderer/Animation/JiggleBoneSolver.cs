@@ -498,7 +498,7 @@ namespace ValveResourceFormat.Renderer
 
             if (MathF.Abs(denominator) > MinimumLengthSquared)
             {
-                s = Math.Clamp(Vector3.Dot(q0 - p0, toward) / denominator, 0f, 1f);
+                s = MathUtils.Saturate(Vector3.Dot(q0 - p0, toward) / denominator);
             }
 
             var colliderLengthSquared = d1.LengthSquared();
@@ -507,7 +507,7 @@ namespace ValveResourceFormat.Renderer
             if (colliderLengthSquared > MinimumLengthSquared)
             {
                 var point = p0 + (s * d2);
-                t = Math.Clamp(Vector3.Dot(point - q0, d1) / colliderLengthSquared, 0f, 1f);
+                t = MathUtils.Saturate(Vector3.Dot(point - q0, d1) / colliderLengthSquared);
             }
 
             return (s, t);

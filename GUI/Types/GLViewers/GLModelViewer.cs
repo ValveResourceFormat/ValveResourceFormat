@@ -496,7 +496,7 @@ namespace GUI.Types.GLViewers
                 var range = controller.Max - controller.Min;
 
                 // The slider starts where the controller is zero, which is how a model with no animation shows
-                var zero = range > 0f ? Math.Clamp(-controller.Min / range, 0f, 1f) : 0f;
+                var zero = range > 0f ? MathUtils.Saturate(-controller.Min / range) : 0f;
 
                 UiControl.AddTrackBar(controller.Name, value =>
                 {

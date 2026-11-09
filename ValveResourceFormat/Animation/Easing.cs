@@ -45,7 +45,7 @@ public static class Easing
     /// <summary>Eases <paramref name="t"/>, from 0 to 1, with the given operation.</summary>
     public static float Evaluate(EasingOperation operation, float t)
     {
-        t = Math.Clamp(t, 0f, 1f);
+        t = MathUtils.Saturate(t);
 
         return operation switch
         {

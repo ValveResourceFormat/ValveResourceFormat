@@ -905,7 +905,7 @@ internal static class GraphLayout
         /// <param name="anchor">Height of the socket relative to the node's vertical center.</param>
         private float SocketPosition(int node, int slot, float anchor)
         {
-            var row = Math.Clamp(anchor / height[node] + 0.5f, 0f, 1f);
+            var row = MathUtils.Saturate(anchor / height[node] + 0.5f);
             return (slot + row) / ranks[rankOf[node]].Count;
         }
 

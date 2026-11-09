@@ -167,7 +167,7 @@ public class BloomRenderer
         // The scene blooms by the strongest of the three modes, the composite weighs the modes against each other
         var scalesSceneByStrongestMode = Game is Game.Csgo or Game.Steampal or Game.Citadel;
         var bloomScale = scalesSceneByStrongestMode
-            ? MathF.Max(MathF.Max(settings.AddBloomStrength, settings.ScreenBloomStrength), settings.BlurBloomStrength)
+            ? MathUtils.Max(settings.AddBloomStrength, settings.ScreenBloomStrength, settings.BlurBloomStrength)
             : settings.BloomStrength;
 
         var thresholdWidth = MathF.Max(settings.BloomThresholdWidth, 1e-4f);

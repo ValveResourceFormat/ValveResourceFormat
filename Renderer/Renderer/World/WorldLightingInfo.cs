@@ -493,8 +493,8 @@ namespace ValveResourceFormat.Renderer.World
                 var diffuseGate = light.RenderDiffuse ? 1f : 0f;
                 var transmissiveGate = light.RenderTransmissive ? 1f : 0f;
 
-                var innerCosine = Math.Clamp(MathF.Cos(float.DegreesToRadians(light.SpotInnerAngle)), 0f, 1f);
-                var outerCosine = Math.Clamp(MathF.Cos(float.DegreesToRadians(light.SpotOuterAngle)), 0f, 1f);
+                var innerCosine = MathUtils.Saturate(MathF.Cos(float.DegreesToRadians(light.SpotInnerAngle)));
+                var outerCosine = MathUtils.Saturate(MathF.Cos(float.DegreesToRadians(light.SpotOuterAngle)));
 
                 LightingData.LightSpotInnerOuterCosines[index] = light.Entity == SceneLight.EntityType.Ortho
                     ? new Vector4(light.SizeParams.X, light.SizeParams.Y, diffuseGate, transmissiveGate)

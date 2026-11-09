@@ -253,10 +253,10 @@ namespace ValveResourceFormat.Renderer.Decals
                 GetPixelFormat(), regionBlocksX * regionBlocksY * blockBytes, upload);
         }
 
-        private (int Width, int Height) GetLevelSize(int level) => (Math.Max(1, Width >> level), Math.Max(1, Height >> level));
+        private (int Width, int Height) GetLevelSize(int level) => (MathUtils.MipLevelSize(Width, level), MathUtils.MipLevelSize(Height, level));
 
         private PixelFormat GetPixelFormat() => (PixelFormat)imageFormat.ToGLSizedInternalFormat(srgb);
 
-        private static int GetBlockCount(int texels) => (texels + BlockSize - 1) / BlockSize;
+        private static int GetBlockCount(int texels) => MathUtils.DivideRoundUp(texels, BlockSize);
     }
 }

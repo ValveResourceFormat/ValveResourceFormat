@@ -55,7 +55,7 @@ namespace ValveResourceFormat.Renderer
                 var node = nodes[batch];
                 var drawCalls = node.RenderMesh.DrawCallsOpaque;
 
-                var endSize = Math.Clamp(node.EndCullSize, 0f, 1f);
+                var endSize = MathUtils.Saturate(node.EndCullSize);
 
                 node.FirstCommand = commands.Count;
 
