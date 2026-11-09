@@ -46,20 +46,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>One light and the particle it follows.</summary>
         public sealed class Slot
         {
-            /// <summary>Gets or sets the id of the particle the light follows.</summary>
-            public int ParticleId { get; set; }
+            public int ParticleId;
+            public bool InUse;
 
-            /// <summary>Gets or sets whether the light follows a particle.</summary>
-            public bool InUse { get; set; }
+            /// <summary>Whether the light was updated this step.</summary>
+            public bool Touched;
 
-            /// <summary>Gets or sets whether the light was updated this step.</summary>
-            public bool Touched { get; set; }
+            /// <summary>What the light shows while it is in use.</summary>
+            public LightState State;
 
-            /// <summary>Gets or sets what the light shows while it is in use.</summary>
-            public LightState State { get; set; }
-
-            /// <summary>Gets or sets the scene light, created by the first <see cref="Apply"/> after the slot.</summary>
-            public SceneLight? Light { get; set; }
+            /// <summary>The scene light, created by the first <see cref="Apply"/> after the slot.</summary>
+            public SceneLight? Light;
         }
 
         private readonly List<Slot> slots = [];

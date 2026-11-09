@@ -48,7 +48,7 @@ internal static class ExrWriter
         }
 
         var header = WriteHeader(width, height);
-        var blockCount = (height + LinesPerBlock - 1) / LinesPerBlock;
+        var blockCount = MathUtils.DivideRoundUp(height, LinesPerBlock);
         var blocks = new EncodedBlock[blockCount];
 
         try

@@ -212,13 +212,66 @@ namespace ValveResourceFormat.Animation
             }
             else
             {
-                if (TransitionDuration != 0.0f)
-                {
-                    Debug.Assert(IsSourceACachedPoseOrOffState);
-                }
+                Debug.Assert(TransitionDuration == 0.0f || IsSourceACachedPoseOrOffState);
             }
 
             base.ShutdownInternal(ctx);
+        }
+
+        // Everything the target state contributes to the layer goes into a scratch context, which
+        // EndTargetLayerContext blends with the source context it returns
+        LayerContext? BeginTargetLayerContext(GraphContext ctx)
+        {
+            if (!ctx.IsInLayer)
+            {
+                return null;
+            }
+
+            var sourceLayerContext = ctx.LayerContext;
+            targetLayerContext.Reset();
+            ctx.LayerContext = targetLayerContext;
+
+            return sourceLayerContext;
+        }
+
+        void EndTargetLayerContext(GraphContext ctx, LayerContext? sourceLayerContext)
+        {
+            if (!ctx.IsInLayer || sourceLayerContext == null)
+            {
+                return;
+            }
+
+            // Calculate the new layer weights based on the transition progress
+            UpdateLayerContext(sourceLayerContext, targetLayerContext);
+
+            // Restore original context
+            ctx.LayerContext = sourceLayerContext;
+        }
+
+        // The override value node is only alive for the read
+        float ReadSyncEventOffset(GraphContext ctx)
+        {
+            if (EventOffsetOverrideNode == null)
+            {
+                return TimeOffset;
+            }
+
+            EventOffsetOverrideNode.Initialize(ctx);
+            var offset = EventOffsetOverrideNode.GetValue(ctx);
+            EventOffsetOverrideNode.Shutdown(ctx);
+
+            return offset;
+        }
+
+        void UpdateBlendedSyncTrack(SyncTrack sourceSyncTrack, SyncTrackTimeRange range)
+        {
+            var targetSyncTrack = TargetStateNode.SyncTrack;
+            ownedSyncTrack.SetToBlendOf(sourceSyncTrack, targetSyncTrack, BlendWeight);
+            blendedSyncTrack = ownedSyncTrack;
+
+            BlendedDuration = SyncTrack.CalculateDurationSynchronized(SourceNode!.Duration, TargetStateNode.Duration, sourceSyncTrack.NumEvents, targetSyncTrack.NumEvents, blendedSyncTrack.NumEvents, BlendWeight);
+            PreviousTime = blendedSyncTrack.GetPercentageThrough(range.StartTime);
+            CurrentTime = blendedSyncTrack.GetPercentageThrough(range.EndTime);
         }
 
         void StartCachingSourcePose(GraphContext ctx)
@@ -347,15 +400,7 @@ namespace ValveResourceFormat.Animation
 
             var sourceNodeResult = options.SourceNodeResult;
 
-            // Layer context update: everything the target state contributes goes into a scratch
-            // context which is lerped with the source context at the end.
-            LayerContext? sourceLayerContext = null;
-            if (ctx.IsInLayer)
-            {
-                sourceLayerContext = ctx.LayerContext;
-                targetLayerContext.Reset();
-                ctx.LayerContext = targetLayerContext;
-            }
+            var sourceLayerContext = BeginTargetLayerContext(ctx);
 
             // Cache source node pose
             if (cachedPoseBufferID != -1 && sourceNodeResult.Pose != null)
@@ -428,16 +473,7 @@ namespace ValveResourceFormat.Animation
                 // Only apply the transition's sync offset when we are not part of a synced update
                 if (options.UpdateRange == null)
                 {
-                    if (EventOffsetOverrideNode != null)
-                    {
-                        EventOffsetOverrideNode.Initialize(ctx);
-                        SyncEventOffset = MathF.Floor(EventOffsetOverrideNode.GetValue(ctx));
-                        EventOffsetOverrideNode.Shutdown(ctx);
-                    }
-                    else
-                    {
-                        SyncEventOffset = MathF.Floor(TimeOffset);
-                    }
+                    SyncEventOffset = MathF.Floor(ReadSyncEventOffset(ctx));
                 }
                 else
                 {
@@ -462,16 +498,7 @@ namespace ValveResourceFormat.Animation
             else
             {
                 // Try get the sync event offset (note this may be in seconds based on the flags)
-                if (EventOffsetOverrideNode != null)
-                {
-                    EventOffsetOverrideNode.Initialize(ctx);
-                    SyncEventOffset = EventOffsetOverrideNode.GetValue(ctx);
-                    EventOffsetOverrideNode.Shutdown(ctx);
-                }
-                else
-                {
-                    SyncEventOffset = TimeOffset;
-                }
+                SyncEventOffset = ReadSyncEventOffset(ctx);
 
                 // Should we clamp how long the transition is active for?
                 var sourceDuration = SourceNode!.Duration;
@@ -582,14 +609,7 @@ namespace ValveResourceFormat.Animation
 
             CalculateBlendWeight();
 
-            if (ctx.IsInLayer && sourceLayerContext != null)
-            {
-                // Calculate the new layer weights based on the transition progress
-                UpdateLayerContext(sourceLayerContext, targetLayerContext);
-
-                // Restore original context
-                ctx.LayerContext = sourceLayerContext;
-            }
+            EndTargetLayerContext(ctx, sourceLayerContext);
 
             GraphPoseNodeResult result;
 
@@ -612,13 +632,7 @@ namespace ValveResourceFormat.Animation
 
                 if (targetUpdateRange != null && sourceSyncTrackForBlend != null)
                 {
-                    // Create the blended sync track
-                    var targetSyncTrack = TargetStateNode.SyncTrack;
-                    ownedSyncTrack.SetToBlendOf(sourceSyncTrackForBlend, targetSyncTrack, BlendWeight);
-                    blendedSyncTrack = ownedSyncTrack;
-                    BlendedDuration = SyncTrack.CalculateDurationSynchronized(SourceNode.Duration, TargetStateNode.Duration, sourceSyncTrackForBlend.NumEvents, targetSyncTrack.NumEvents, blendedSyncTrack.NumEvents, BlendWeight);
-                    PreviousTime = blendedSyncTrack.GetPercentageThrough(targetUpdateRange.Value.StartTime);
-                    CurrentTime = blendedSyncTrack.GetPercentageThrough(targetUpdateRange.Value.EndTime);
+                    UpdateBlendedSyncTrack(sourceSyncTrackForBlend, targetUpdateRange.Value);
                 }
                 else
                 {
@@ -766,25 +780,11 @@ namespace ValveResourceFormat.Animation
             // Update the target state
             //-------------------------------------------------------------------------
 
-            // Record source layer ctx and reset the layer ctx for the target state
-            LayerContext? sourceLayerContext = null;
-            if (ctx.IsInLayer)
-            {
-                sourceLayerContext = ctx.LayerContext;
-                targetLayerContext.Reset();
-                ctx.LayerContext = targetLayerContext;
-            }
+            var sourceLayerContext = BeginTargetLayerContext(ctx);
 
             var targetNodeResult = TargetStateNode.Update(ctx, syncedRange);
 
-            if (ctx.IsInLayer && sourceLayerContext != null)
-            {
-                // Calculate the new layer weights based on the transition progress
-                UpdateLayerContext(sourceLayerContext, targetLayerContext);
-
-                // Restore original context
-                ctx.LayerContext = sourceLayerContext;
-            }
+            EndTargetLayerContext(ctx, sourceLayerContext);
 
             // Blend poses and root motion
             //-------------------------------------------------------------------------
@@ -816,14 +816,7 @@ namespace ValveResourceFormat.Animation
             if (syncedRange != null && !IsSourceACachedPoseOrOffState && SourceNode != null)
             {
                 // Recreate the blended sync track with the new weight
-                var sourceSyncTrack = SourceNode.SyncTrack;
-                var targetSyncTrack = TargetStateNode.SyncTrack;
-                ownedSyncTrack.SetToBlendOf(sourceSyncTrack, targetSyncTrack, BlendWeight);
-                blendedSyncTrack = ownedSyncTrack;
-
-                BlendedDuration = SyncTrack.CalculateDurationSynchronized(SourceNode.Duration, TargetStateNode.Duration, sourceSyncTrack.NumEvents, targetSyncTrack.NumEvents, blendedSyncTrack.NumEvents, BlendWeight);
-                PreviousTime = blendedSyncTrack.GetPercentageThrough(syncedRange.Value.StartTime);
-                CurrentTime = blendedSyncTrack.GetPercentageThrough(syncedRange.Value.EndTime);
+                UpdateBlendedSyncTrack(SourceNode.SyncTrack, syncedRange.Value);
             }
             else
             {

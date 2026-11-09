@@ -106,11 +106,15 @@ public sealed class LightProbeAtlas
         var maxSize = GL.GetInteger(GetPName.Max3DTextureSize);
         var slots = LightProbeAtlasPacker.Pack([.. candidates.Select(static candidate => candidate.Grid)], maxSize, maxSize / IrradianceFaces, out var atlasSize);
 
-        var placed = candidates
-            .Zip(slots, static (candidate, slot) => (candidate.Volume, candidate.Grid, Slot: slot))
-            .Where(static placement => placement.Slot != null)
-            .Select(static placement => new Placement(placement.Volume, placement.Grid, placement.Slot!.Value))
-            .ToList();
+        var placed = new List<Placement>(candidates.Count);
+
+        for (var i = 0; i < candidates.Count; i++)
+        {
+            if (slots[i] is { } slot)
+            {
+                placed.Add(new Placement(candidates[i].Volume, candidates[i].Grid, slot));
+            }
+        }
 
         if (placed.Count < candidates.Count)
         {
@@ -125,16 +129,16 @@ public sealed class LightProbeAtlas
         var irradianceAtlas = CreateTexture(atlasFormat, atlasSize.Width, atlasSize.Height, atlasSize.Depth * IrradianceFaces, "LightProbeAtlasIrradiance");
         var copied = new HashSet<RenderTexture>();
 
-        foreach (var placement in placed)
+        foreach (var (volume, grid, slot) in placed)
         {
-            var (_, grid, slot) = placement;
-            copied.Add(placement.Volume.Irradiance!);
+            var irradiance = volume.Irradiance!;
+            copied.Add(irradiance);
 
             // Each face slice is copied into the matching face slice of the atlas
             for (var face = 0; face < IrradianceFaces; face++)
             {
                 GL.CopyImageSubData(
-                    placement.Volume.Irradiance!.Handle, ImageTarget.Texture3D, 0, 0, 0, face * grid.Depth,
+                    irradiance.Handle, ImageTarget.Texture3D, 0, 0, 0, face * grid.Depth,
                     irradianceAtlas.Handle, ImageTarget.Texture3D, 0, slot.X, slot.Y, (face * atlasSize.Depth) + slot.Z,
                     grid.Width, grid.Height, grid.Depth);
             }
@@ -180,31 +184,33 @@ public sealed class LightProbeAtlas
     private static RenderTexture? PackDirectLight(List<Placement> placed, Func<SceneLightProbe, RenderTexture?> getTexture,
         (int Width, int Height, int Depth) atlasSize, string label, HashSet<RenderTexture> copied, ILogger logger)
     {
-        var sources = placed
-            .Select(placement => (placement, Texture: getTexture(placement.Volume)))
-            .Where(source => source.Texture != null && Covers(source.Texture, source.placement.Grid))
-            .ToList();
+        RenderTexture? atlas = null;
+        var format = default(SizedInternalFormat);
 
-        if (sources.Count == 0)
+        foreach (var (volume, grid, slot) in placed)
         {
-            return null;
-        }
+            if (getTexture(volume) is not { } texture || !Covers(texture, grid))
+            {
+                continue;
+            }
 
-        var format = GetInternalFormat(sources[0].Texture!);
-        var atlas = CreateTexture(format, atlasSize.Width, atlasSize.Height, atlasSize.Depth, label);
-        ClearToZero(atlas, format);
+            // The first volume that has the texture decides the format
+            if (atlas == null)
+            {
+                format = GetInternalFormat(texture);
+                atlas = CreateTexture(format, atlasSize.Width, atlasSize.Height, atlasSize.Depth, label);
+                ClearToZero(atlas, format);
+            }
 
-        foreach (var ((_, grid, slot), texture) in sources)
-        {
-            if (GetInternalFormat(texture!) != format || !CanCopy(texture!))
+            if (GetInternalFormat(texture) != format || !CanCopy(texture))
             {
                 logger.LogWarning("Skipping light probe volume {Label} texture {Width}x{Height}x{Depth}, incompatible with the atlas",
-                    label, texture!.Width, texture.Height, texture.Depth);
+                    label, texture.Width, texture.Height, texture.Depth);
                 continue;
             }
 
             GL.CopyImageSubData(
-                texture!.Handle, ImageTarget.Texture3D, 0, 0, 0, 0,
+                texture.Handle, ImageTarget.Texture3D, 0, 0, 0, 0,
                 atlas.Handle, ImageTarget.Texture3D, 0, slot.X, slot.Y, slot.Z,
                 grid.Width, grid.Height, grid.Depth);
 

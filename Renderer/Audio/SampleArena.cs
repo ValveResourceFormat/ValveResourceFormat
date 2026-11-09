@@ -3,15 +3,14 @@ using System.Threading;
 namespace ValveResourceFormat.Renderer.Audio;
 
 /// <summary>
-/// Slab allocator for decoded PCM16 samples. Cached sounds live as (offset, length) regions in a few
-/// large shared slabs instead of one managed array each, which were the biggest allocation source in the
-/// audio system (large object heap churn on every decode and eviction). Slabs are allocated once and recycled. Evicting a sound returns its region to
-/// a free list (coalescing with neighbors), so steady-state decoding allocates nothing. Sounds larger
-/// than a slab get a dedicated slab, dropped wholesale on eviction.
+/// Slab allocator for decoded PCM16 samples. Cached sounds live as regions of a few large shared slabs
+/// instead of one managed array each, which churned the large object heap on every decode and eviction.
+/// Evicting a sound returns its region to a coalescing free list, so steady-state decoding allocates
+/// nothing. A sound larger than a slab gets a slab of its own, dropped whole on eviction.
 /// </summary>
 internal sealed class SampleArena
 {
-    /// <summary>Slab size in samples (32 MB): comfortably above almost every sound, small enough to not overshoot the cache budget much.</summary>
+    /// <summary>Slab size in samples (32 MB): above almost every sound, without overshooting the cache budget much.</summary>
     public const int SlabLength = 1 << 24;
 
     private readonly Lock mutex = new();

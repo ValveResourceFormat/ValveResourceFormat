@@ -222,8 +222,7 @@ namespace ValveResourceFormat.Animation
     }
 
     // Evaluates the best matching sampled float-curve event, falling back to the default value
-    // (Esoterica FloatCurveEventNode). Curve evaluation itself is not ported: float-curve
-    // events are not surfaced as typed clip events yet, so a matched event keeps the default.
+    // (Esoterica FloatCurveEventNode).
     partial class FloatCurveEventNode
     {
         FloatValueNode? DefaultNode;
@@ -595,7 +594,6 @@ namespace ValveResourceFormat.Animation
             var omega = 2f * MathF.PI * Hertz;
             var dt = ctx.DeltaTime;
 
-            // Semi-implicit Euler spring integration
             // Implicit Euler, matching Esoterica (stable at high stiffness / large steps)
             var omegaDt = omega * dt;
             var scale = 1f / (1f + omegaDt * (2f * DampingRatio + omegaDt));

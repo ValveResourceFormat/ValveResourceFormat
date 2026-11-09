@@ -141,33 +141,28 @@ namespace ValveResourceFormat.Animation
             var elapsedTime = UseActualElapsedTimeInStateForTimedEvents
                 ? (float)ElapsedTimeInState.TotalSeconds
                 : Duration * CurrentTime;
-            foreach (var timedEvent in TimedElapsedEvents)
-            {
-                var fire = timedEvent.ComparisionOperator == StateNode.TimedEvent.Comparison.GreaterThanEqual
-                    ? elapsedTime >= timedEvent.TimeValueSeconds
-                    : elapsedTime <= timedEvent.TimeValueSeconds;
-
-                if (fire)
-                {
-                    ctx.SampledEvents.EmplaceGraphEvent(NodeIdx, GraphEventType.Timed, timedEvent.ID, isActiveBranch);
-                }
-            }
+            SampleTimedEvents(ctx, TimedElapsedEvents, elapsedTime, isActiveBranch);
 
             var currentTimeRemaining = (1f - CurrentTime) * Duration;
-            foreach (var timedEvent in TimedRemainingEvents)
-            {
-                var fire = timedEvent.ComparisionOperator == StateNode.TimedEvent.Comparison.GreaterThanEqual
-                    ? currentTimeRemaining >= timedEvent.TimeValueSeconds
-                    : currentTimeRemaining <= timedEvent.TimeValueSeconds;
-
-                if (fire)
-                {
-                    ctx.SampledEvents.EmplaceGraphEvent(NodeIdx, GraphEventType.Timed, timedEvent.ID, isActiveBranch);
-                }
-            }
+            SampleTimedEvents(ctx, TimedRemainingEvents, currentTimeRemaining, isActiveBranch);
 
             // Keep the state's recorded event range covering everything sampled this update
             SampledEventRange = new(SampledEventRange.StartIdx, ctx.SampledEvents.Count);
+        }
+
+        void SampleTimedEvents(GraphContext ctx, StateNode.TimedEvent[] timedEvents, float time, bool isActiveBranch)
+        {
+            foreach (var timedEvent in timedEvents)
+            {
+                var fire = timedEvent.ComparisionOperator == StateNode.TimedEvent.Comparison.GreaterThanEqual
+                    ? time >= timedEvent.TimeValueSeconds
+                    : time <= timedEvent.TimeValueSeconds;
+
+                if (fire)
+                {
+                    ctx.SampledEvents.EmplaceGraphEvent(NodeIdx, GraphEventType.Timed, timedEvent.ID, isActiveBranch);
+                }
+            }
         }
 
         public void UpdateLayerContext(GraphContext ctx)

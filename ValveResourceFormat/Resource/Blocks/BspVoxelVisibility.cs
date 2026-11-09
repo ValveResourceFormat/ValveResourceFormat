@@ -13,54 +13,28 @@ namespace ValveResourceFormat.Blocks
         /// <summary>
         /// Represents one split plane and the two subtrees either side of it.
         /// </summary>
-        /// <param name="normal">Plane normal.</param>
-        /// <param name="distance">Plane distance along the normal.</param>
-        /// <param name="front">Child on the positive side.</param>
-        /// <param name="back">Child on the negative side.</param>
-        public readonly struct Node(Vector3 normal, float distance, int front, int back)
+        /// <param name="Normal">Plane normal.</param>
+        /// <param name="Distance">Plane distance along the normal.</param>
+        /// <param name="Front">Child on the positive side.</param>
+        /// <param name="Back">Child on the negative side.</param>
+        public readonly record struct Node(Vector3 Normal, float Distance, int Front, int Back)
         {
-            /// <summary>Gets the plane normal.</summary>
-            public Vector3 Normal => normal;
-
-            /// <summary>Gets the plane distance along the normal.</summary>
-            public float Distance => distance;
-
-            /// <summary>Gets the child on the positive side of the plane.</summary>
-            public int Front => front;
-
-            /// <summary>Gets the child on the negative side of the plane.</summary>
-            public int Back => back;
-
             /// <summary>Gets how far a point sits in front of the plane.</summary>
             /// <param name="point">Point to measure.</param>
-            public float DistanceTo(Vector3 point) => Vector3.Dot(normal, point) - distance;
+            public float DistanceTo(Vector3 point) => Vector3.Dot(Normal, point) - Distance;
         }
 
         /// <summary>
         /// Represents one cluster.
         /// </summary>
-        /// <param name="bounds">The box this cluster covers, empty when the map left it unset.</param>
-        /// <param name="rowOffset">Byte offset of this cluster's visibility row.</param>
-        /// <param name="nearVisibleDistance">Distance this cluster starts being drawn at.</param>
-        /// <param name="farVisibleDistance">Distance this cluster stops being drawn at.</param>
-        public readonly struct Cluster(AABB bounds, int rowOffset, float nearVisibleDistance, float farVisibleDistance)
+        /// <param name="Bounds">The box this cluster covers, empty when the map left it unset.</param>
+        /// <param name="RowOffset">Byte offset of this cluster's visibility row.</param>
+        /// <param name="NearVisibleDistance">Distance this cluster starts being drawn at.</param>
+        /// <param name="FarVisibleDistance">Distance this cluster stops being drawn at. Later formats dropped this.</param>
+        public readonly record struct Cluster(AABB Bounds, int RowOffset, float NearVisibleDistance, float FarVisibleDistance)
         {
-            /// <summary>Gets the box this cluster covers.</summary>
-            public AABB Bounds => bounds;
-
-            /// <summary>Gets the byte offset of this cluster's visibility row.</summary>
-            public int RowOffset => rowOffset;
-
-            /// <summary>Gets the distance this cluster starts being drawn at.</summary>
-            public float NearVisibleDistance => nearVisibleDistance;
-
-            /// <summary>
-            /// Gets the distance this cluster stops being drawn at. Later formats dropped this.
-            /// </summary>
-            public float FarVisibleDistance => farVisibleDistance;
-
             /// <summary>Gets whether this cluster was given a real box. Most are not.</summary>
-            public bool HasBounds => bounds.Size != Vector3.Zero;
+            public bool HasBounds => Bounds.Size != Vector3.Zero;
         }
 
         /// <summary>Gets the split plane tree. The root is index 0.</summary>
@@ -106,7 +80,7 @@ namespace ValveResourceFormat.Blocks
             var nodes = data.GetArray("m_nodes");
 
             Clusters = new Cluster[clusters.Count];
-            BytesPerCluster = (clusters.Count + 7) / 8;
+            BytesPerCluster = MathUtils.DivideRoundUp(clusters.Count, 8);
 
             var min = new Vector3(float.MaxValue);
             var max = new Vector3(float.MinValue);

@@ -72,30 +72,14 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public void Render()
         {
-            if (queued.Count == 0 && placed.Count == 0)
+            if (queued.Count == 0)
             {
                 return;
             }
 
             using var _ = new GLDebugGroup("Morph Composites");
 
-            if (queued.Count == 0)
-            {
-                return;
-            }
-
-            var needsRepack = false;
-
-            foreach (var composite in queued)
-            {
-                if (!composite.IsPlaced && !TryPlace(composite))
-                {
-                    needsRepack = true;
-                    break;
-                }
-            }
-
-            if (needsRepack)
+            if (!TryPlaceQueued())
             {
                 Repack();
             }
@@ -108,6 +92,19 @@ namespace ValveResourceFormat.Renderer
             }
 
             Draw(texture);
+        }
+
+        private bool TryPlaceQueued()
+        {
+            foreach (var composite in queued)
+            {
+                if (!composite.IsPlaced && !TryPlace(composite))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private bool TryPlace(MorphComposite composite)

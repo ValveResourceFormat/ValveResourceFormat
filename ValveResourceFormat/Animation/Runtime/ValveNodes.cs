@@ -1,7 +1,4 @@
-using System.Diagnostics;
-using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
-using ValveResourceFormat.Serialization.KeyValues;
 using Transform = ValveResourceFormat.ResourceTypes.ModelAnimation.FrameBone;
 
 namespace ValveResourceFormat.Animation

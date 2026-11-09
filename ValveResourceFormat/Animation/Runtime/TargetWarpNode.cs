@@ -180,6 +180,12 @@ namespace ValveResourceFormat.Animation
         {
             Debug.Assert(section.IsFixedSection);
 
+            AccumulateSection(section, startTransform);
+        }
+
+        // The original root motion of a section, replayed from a new start
+        void AccumulateSection(WarpSection section, Transform startTransform)
+        {
             warpedTransforms[section.StartFrame] = startTransform;
 
             for (var f = section.StartFrame + 1; f <= section.EndFrame; f++)
@@ -207,13 +213,8 @@ namespace ValveResourceFormat.Animation
         {
             Debug.Assert(section.WarpRule == TargetWarpRule.RotationOnly);
 
-            warpedTransforms[section.StartFrame] = startTransform;
-
             // Generate base root motion
-            for (var f = section.StartFrame + 1; f <= section.EndFrame; f++)
-            {
-                warpedTransforms[f] = deltaTransforms[f] * warpedTransforms[f - 1];
-            }
+            AccumulateSection(section, startTransform);
 
             // Modify facing
             for (var f = section.StartFrame + 1; f <= section.EndFrame; f++)
@@ -956,18 +957,18 @@ namespace ValveResourceFormat.Animation
             return false;
         }
 
-        bool OffsetWarpedRootMotion(GraphContext ctx)
+        void OffsetWarpedRootMotion(GraphContext ctx)
         {
             var previousRequestedTarget = requestedWarpTarget;
             if (!TryReadTarget(ctx))
             {
-                return false;
+                return;
             }
 
             if (TransformMath.IsNearEqual(requestedWarpTarget, previousRequestedTarget))
             {
                 requestedWarpTarget = previousRequestedTarget;
-                return false;
+                return;
             }
 
             var delta = previousRequestedTarget.Inverse() * requestedWarpTarget;
@@ -978,8 +979,6 @@ namespace ValveResourceFormat.Animation
 
             warpStartWorldTransform *= delta;
             warpTarget *= delta;
-
-            return true;
         }
 
         bool CanRecalculateWarpedRootMotion(int startFrameIdx)

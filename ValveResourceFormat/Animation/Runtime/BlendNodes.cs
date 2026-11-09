@@ -193,20 +193,7 @@ namespace ValveResourceFormat.Animation
 
             EvaluateBlendSpace(ctx);
 
-            // Calculate the actual update range: an externally supplied one, or this frame's time
-            // step converted to a range on the blended sync track.
-            SyncTrackTimeRange range;
-            if (updateRange != null)
-            {
-                range = updateRange.Value;
-            }
-            else
-            {
-                var deltaPercentage = Duration > 0f ? ctx.DeltaTime / Duration : 0f;
-                var fromTime = CurrentTime;
-                var toTime = AllowLooping ? CurrentTime + deltaPercentage : MathUtils.Saturate(CurrentTime + deltaPercentage);
-                range = new SyncTrackTimeRange(blendedSyncTrack!.GetTime(fromTime), blendedSyncTrack.GetTime(toTime));
-            }
+            var range = CalculateUpdateRange(ctx, updateRange, blendedSyncTrack!, AllowLooping);
 
             // Single source
             if (blendSource1 == null)
@@ -241,6 +228,23 @@ namespace ValveResourceFormat.Animation
 
     public partial class PoseNode
     {
+        /// <summary>
+        /// The range an update covers: the one supplied from outside, or else this frame's time step
+        /// as a range on the sync track.
+        /// </summary>
+        protected SyncTrackTimeRange CalculateUpdateRange(GraphContext ctx, SyncTrackTimeRange? updateRange, SyncTrack syncTrack, bool allowLooping)
+        {
+            if (updateRange is { } range)
+            {
+                return range;
+            }
+
+            var deltaPercentage = Duration > 0f ? ctx.DeltaTime / Duration : 0f;
+            var toTime = allowLooping ? CurrentTime + deltaPercentage : MathUtils.Saturate(CurrentTime + deltaPercentage);
+
+            return new SyncTrackTimeRange(syncTrack.GetTime(CurrentTime), syncTrack.GetTime(toTime));
+        }
+
         /// <summary>
         /// Updates a blend source when it is valid; otherwise it contributes the default pose and no events.
         /// </summary>
@@ -441,20 +445,7 @@ namespace ValveResourceFormat.Animation
 
             EvaluateBlendSpace(ctx);
 
-            // Calculate the actual update range: an externally supplied one, or this frame's time
-            // step converted to a range on the blended sync track.
-            SyncTrackTimeRange range;
-            if (updateRange != null)
-            {
-                range = updateRange.Value;
-            }
-            else
-            {
-                var deltaPercentage = Duration > 0f ? ctx.DeltaTime / Duration : 0f;
-                var fromTime = CurrentTime;
-                var toTime = AllowLooping ? CurrentTime + deltaPercentage : MathUtils.Saturate(CurrentTime + deltaPercentage);
-                range = new SyncTrackTimeRange(blendedSyncTrack!.GetTime(fromTime), blendedSyncTrack.GetTime(toTime));
-            }
+            var range = CalculateUpdateRange(ctx, updateRange, blendedSyncTrack!, AllowLooping);
 
             // Single source
             if (bsr.Src1 == -1)

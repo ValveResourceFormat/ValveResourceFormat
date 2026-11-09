@@ -29,11 +29,6 @@ namespace ValveResourceFormat.Animation
 
     partial class ConstBoolNode
     {
-        public override void Instantiate(GraphContext ctx)
-        {
-            // No initialization needed for ConstBoolNode
-        }
-
         protected override bool GetValueInternal(GraphContext ctx) => Value;
     }
 
@@ -218,10 +213,10 @@ namespace ValveResourceFormat.Animation
         protected override bool GetValueInternal(GraphContext ctx)
         {
             var inputValue = InputValueNode.GetValue(ctx);
-            var inRangeInclusive = inputValue >= Range.Min && inputValue <= Range.Max;
-            var inRangeExclusive = inputValue > Range.Min && inputValue < Range.Max;
 
-            return IsInclusiveCheck ? inRangeInclusive : inRangeExclusive;
+            return IsInclusiveCheck
+                ? inputValue >= Range.Min && inputValue <= Range.Max
+                : inputValue > Range.Min && inputValue < Range.Max;
         }
     }
 
@@ -237,9 +232,6 @@ namespace ValveResourceFormat.Animation
 
         protected override bool GetValueInternal(GraphContext ctx)
         {
-            var result = false;
-            var eventFound = false;
-
             var ignoreInactiveEvents = EventConditionRules.IsRuleSet(Animation.EventConditionRules.IgnoreInactiveEvents);
             var searchRange = EventSearch.CalculateSearchRange(ctx, SourceStateNode, EventConditionRules);
 
@@ -256,9 +248,10 @@ namespace ValveResourceFormat.Animation
                     continue;
                 }
 
+                // The first foot event found decides
                 if (EventSearch.TryGetFootPhase(sampledEvent, out var foot))
                 {
-                    result = PhaseCondition switch
+                    return PhaseCondition switch
                     {
                         FootPhaseCondition.LeftFootDown => foot == FootPhase.LeftFootDown,
                         FootPhaseCondition.RightFootDown => foot == FootPhase.RightFootDown,
@@ -269,16 +262,10 @@ namespace ValveResourceFormat.Animation
                         FootPhaseCondition.None => foot == FootPhase.None,
                         _ => false,
                     };
-                    eventFound = true;
-                }
-
-                if (eventFound)
-                {
-                    break;
                 }
             }
 
-            return result;
+            return false;
         }
     }
 
@@ -351,15 +338,7 @@ namespace ValveResourceFormat.Animation
             }
 
             // Ensure that all conditions have been matched
-            for (var t = 0; t < Conditions.Length; t++)
-            {
-                if (!foundConditions[t])
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return !foundConditions.Contains(false);
         }
     }
 
@@ -400,20 +379,11 @@ namespace ValveResourceFormat.Animation
 
         protected override bool GetValueInternal(GraphContext ctx) => TryMatchTags(ctx);
 
-        private SampledEventRange CalculateSearchRange(GraphContext ctx)
-        {
-            var restrictSearch = SourceStateNode != null && EventConditionRules.IsRuleSet(Animation.EventConditionRules.LimitSearchToSourceState);
-
-            return restrictSearch
-                ? SourceStateNode!.SampledEventRange
-                : new SampledEventRange(0, ctx.SampledEvents.Count);
-        }
-
         private bool TryMatchTags(GraphContext ctx)
         {
             Span<bool> foundIDs = stackalloc bool[EventIDs.Length];
 
-            var searchRange = CalculateSearchRange(ctx);
+            var searchRange = EventSearch.CalculateSearchRange(ctx, SourceStateNode, EventConditionRules);
             var ignoreInactiveEvents = EventConditionRules.IsRuleSet(Animation.EventConditionRules.IgnoreInactiveEvents);
             var searchAnimEvents = EventConditionRules.IsRuleSet(Animation.EventConditionRules.SearchBothGraphAndAnimEvents)
                 || EventConditionRules.IsRuleSet(Animation.EventConditionRules.SearchOnlyAnimEvents);
@@ -435,48 +405,31 @@ namespace ValveResourceFormat.Animation
                     continue;
                 }
 
-                StringToken foundID = default;
+                var searched = sampledEvent.IsAnimationEvent ? searchAnimEvents : searchGraphEvents;
+                var foundID = sampledEvent.ID;
 
-                if (sampledEvent.IsAnimationEvent)
+                if (!searched || !foundID.IsValid)
                 {
-                    if (searchAnimEvents)
-                    {
-                        foundID = sampledEvent.ID;
-                    }
-                }
-                else if (searchGraphEvents)
-                {
-                    foundID = sampledEvent.ID;
+                    continue;
                 }
 
-                if (foundID.IsValid)
+                for (var t = 0; t < EventIDs.Length; t++)
                 {
-                    for (var t = 0; t < EventIDs.Length; t++)
+                    if (EventIDs[t] == foundID)
                     {
-                        if (EventIDs[t] == foundID)
+                        if (operatorOr)
                         {
-                            if (operatorOr)
-                            {
-                                return true;
-                            }
-
-                            foundIDs[t] = true;
-                            break;
+                            return true;
                         }
+
+                        foundIDs[t] = true;
+                        break;
                     }
                 }
             }
 
             // With the 'and' operator every requested ID must have been found
-            for (var t = 0; t < EventIDs.Length; t++)
-            {
-                if (!foundIDs[t])
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return !foundIDs.Contains(false);
         }
     }
 
@@ -657,8 +610,6 @@ namespace ValveResourceFormat.Animation
             return SourceStateNode.CurrentTime >= transitionPoint;
         }
     }
-
-    // SyncEventIndexConditionNode
 
     partial class TimeConditionNode
     {
