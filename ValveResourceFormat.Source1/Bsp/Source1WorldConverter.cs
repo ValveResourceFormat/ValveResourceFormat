@@ -315,6 +315,7 @@ internal static class Source1WorldConverter
         }
 
         OrderLightsBySpawn(worldEntities);
+        Source1EntityFinalizer.Apply(worldEntities);
         AddFile(map, $"{lumpPath}.vents", CreateEntityLump($"{lumpPath}.vents", bsp.Name, worldEntities));
 
         foreach (var file in map.Files.Values)
@@ -389,6 +390,8 @@ internal static class Source1WorldConverter
         {
             skyLumpEntities.Add(CreateSkyFog(lump, skyCamera));
         }
+
+        Source1EntityFinalizer.Apply(skyLumpEntities);
 
         return skyLumpEntities;
     }

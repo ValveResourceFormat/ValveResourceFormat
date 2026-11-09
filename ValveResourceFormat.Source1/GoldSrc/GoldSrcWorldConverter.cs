@@ -315,6 +315,7 @@ internal sealed class GoldSrcMapConversion
 
         map.AddFile($"{worldFolder}world.vwrld", Source1WorldConverter.CreateWorld($"{worldFolder}world.vwrld", lumpPath, nodePath, new Source1WorldConverter.WorldLightmaps(lightmapPaths)));
         map.AddFile($"{nodePath}.vwnod", CreateWorldNode($"{nodePath}.vwnod", worldParts));
+        Source1EntityFinalizer.Apply(entities);
         map.AddFile($"{lumpPath}.vents", Source1WorldConverter.CreateEntityLump($"{lumpPath}.vents", bsp.Name, entities));
 
         foreach (var file in map.Files.Values)
