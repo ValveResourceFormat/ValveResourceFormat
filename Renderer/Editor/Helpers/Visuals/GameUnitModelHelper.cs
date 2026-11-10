@@ -29,7 +29,7 @@ internal sealed class GameUnitModelHelper : EntityHelper
     }
 
     /// <inheritdoc/>
-    public override void AddToScene() => AddShapes(Matrix4x4.CreateTranslation(Owner.Transform.Translation));
+    public override void AddToScene() => AddShapes(ShapePlacement.Origin, keepsMarkerSize: true);
 
     internal override void Render(ToolRenderContext context, in HelperRenderState state)
     {

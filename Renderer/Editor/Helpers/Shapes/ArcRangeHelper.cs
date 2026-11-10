@@ -78,7 +78,7 @@ internal sealed class ArcRangeHelper : EntityHelper
     }
 
     /// <inheritdoc/>
-    public override void AddToScene() => AddShapes();
+    public override void AddToScene() => AddShapes(ShapePlacement.Entity);
 
     internal override void Render(ToolRenderContext context, in HelperRenderState state)
     {

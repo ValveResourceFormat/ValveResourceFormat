@@ -122,7 +122,7 @@ internal sealed class BoxHelper : EntityHelper
     {
         if (DrawUnselected)
         {
-            AddShapes(layer: HammerEntityVisuals.HelpersLayer);
+            AddShapes(IsOriented ? ShapePlacement.Entity : ShapePlacement.Origin, layer: HammerEntityVisuals.HelpersLayer);
         }
     }
 

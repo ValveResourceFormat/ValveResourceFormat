@@ -191,6 +191,12 @@ namespace ValveResourceFormat.Renderer
         public bool KeepsMarkerSize { get; set; }
 
         /// <summary>
+        /// Gets or sets whether an entity that places this node moves it with its origin only, leaving it aligned
+        /// to the world axes and unscaled.
+        /// </summary>
+        public bool KeepsWorldAxes { get; set; }
+
+        /// <summary>
         /// How large this node is drawn next to whatever places it. Only a marker differs, and only where its
         /// scene is magnified.
         /// </summary>

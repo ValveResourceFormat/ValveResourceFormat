@@ -134,13 +134,18 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
             node.Flags |= flags;
         }
 
-        // The entity takes the first as its own, and owns the others along with it
-        foreach (var node in placed.Skip(1))
+        // The entity takes the first as its own, and owns the others along with it. Shapes of the editor are
+        // not what the entity is drawn as, so they never take its place.
+        owner.StandIn = placed.Find(static node => node is not ToolSceneNode);
+
+        foreach (var node in placed)
         {
-            entity.AddNode(node);
+            if (node != owner.StandIn)
+            {
+                entity.AddNode(node);
+            }
         }
 
-        owner.StandIn = placed.FirstOrDefault();
         return owner.StandIn;
     }
 

@@ -47,7 +47,13 @@ internal sealed class AnglesHelper : EntityHelper
     }
 
     /// <inheritdoc/>
-    public override void AddToScene() => AddShapes();
+    public override void AddToScene()
+    {
+        // Angles of a key that are not local to the entity are an orientation in the world
+        var isWorldAligned = AnglesKey != null && !IsLocal;
+
+        AddShapes(isWorldAligned ? ShapePlacement.Origin : ShapePlacement.Entity);
+    }
 
     internal override void Render(ToolRenderContext context, in HelperRenderState state)
     {

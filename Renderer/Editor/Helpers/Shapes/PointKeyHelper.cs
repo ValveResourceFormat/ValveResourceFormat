@@ -56,7 +56,8 @@ internal abstract class PointKeyHelper : EntityHelper
     {
         if (DrawUnselected)
         {
-            AddShapes();
+            // A point in the world stays where it is
+            AddShapes(IsLocal ? ShapePlacement.Entity : ShapePlacement.World);
         }
     }
 

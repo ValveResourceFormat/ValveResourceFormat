@@ -96,7 +96,8 @@ internal sealed class SphereHelper : EntityHelper
     {
         if (AlwaysRender)
         {
-            AddShapes();
+            // A center the key names is a point in the world, which stays where it is
+            AddShapes(OriginKey == null ? ShapePlacement.Origin : ShapePlacement.World);
         }
     }
 

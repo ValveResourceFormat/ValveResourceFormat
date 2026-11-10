@@ -51,7 +51,8 @@ public interface IHelperOwner
     /// <param name="node">The node. A node without a layer is given the one of the entity.</param>
     /// <param name="followsEntity">
     /// Whether the node is placed at the entity itself, so that an entity that moves takes it along. A node
-    /// placed some other way, such as a box that does not turn with the entity, stays where it was put.
+    /// placed some other way, such as a shape at a point in the world, stays where it was put. A node with
+    /// <see cref="SceneNode.KeepsWorldAxes"/> follows the origin of the entity without turning with it.
     /// </param>
     void AddNode(SceneNode node, bool followsEntity = false);
 

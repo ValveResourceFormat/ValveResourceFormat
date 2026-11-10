@@ -44,7 +44,7 @@ internal sealed class WireBoxHelper : EntityHelper
     }
 
     /// <inheritdoc/>
-    public override void AddToScene() => AddShapes();
+    public override void AddToScene() => AddShapes(IsWorld ? ShapePlacement.World : ShapePlacement.Origin);
 
     internal override void Render(ToolRenderContext context, in HelperRenderState state)
     {

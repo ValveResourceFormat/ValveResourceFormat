@@ -1379,10 +1379,14 @@ public abstract class BaseEntity
 
         foreach (var node in placedNodes)
         {
-            node.Transform = node.ApplyPlacementScale(Transform);
+            node.Transform = node.ApplyPlacementScale(GetPlacement(node, Transform));
             Scene.DynamicSet.Update(node);
         }
     }
+
+    // A node kept aligned to the world axes follows the origin of the frame alone
+    private static Matrix4x4 GetPlacement(SceneNode node, in Matrix4x4 frame)
+        => node.KeepsWorldAxes ? Matrix4x4.CreateTranslation(frame.Translation) : frame;
 
     /// <summary>
     /// Adds a node to the scene and takes ownership of its lifetime, visibility and, by default, placement.
@@ -1403,7 +1407,7 @@ public abstract class BaseEntity
 
         if (followsEntity)
         {
-            node.Transform = Transform;
+            node.Transform = GetPlacement(node, Transform);
             placedNodes.Add(node);
         }
 
@@ -1424,7 +1428,7 @@ public abstract class BaseEntity
 
         foreach (var node in placedNodes)
         {
-            node.SetParent(parentModel, parentAttachmentName, node.ApplyPlacementScale(local));
+            node.SetParent(parentModel, parentAttachmentName, node.ApplyPlacementScale(GetPlacement(node, local)));
         }
 
         placedNodes.Clear();

@@ -54,7 +54,7 @@ internal sealed class OrientedWidthHeightHelper : EntityHelper
     public override AABB? ObjectBounds => GetBox().Transform(Owner.RigidTransform);
 
     /// <inheritdoc/>
-    public override void AddToScene() => AddShapes();
+    public override void AddToScene() => AddShapes(ShapePlacement.Entity);
 
     // From the entity along its forward and left axes, just behind it
     private AABB GetBox() => new(new Vector3(0f, 0f, -Depth), new Vector3(GetFloatKey(WidthKey, DefaultSize), GetFloatKey(HeightKey, DefaultSize), 0f));

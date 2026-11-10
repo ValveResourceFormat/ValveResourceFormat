@@ -34,7 +34,7 @@ internal sealed class RadiusSphereHelper : EntityHelper
     /// <inheritdoc/>
     public override void AddToScene()
     {
-        AddShapes();
+        AddShapes(ShapePlacement.Origin);
     }
 
     internal override void Render(ToolRenderContext context, in HelperRenderState state)

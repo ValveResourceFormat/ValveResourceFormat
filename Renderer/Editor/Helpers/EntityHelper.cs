@@ -120,32 +120,55 @@ public abstract class EntityHelper
     {
     }
 
+    /// <summary>What the shapes a helper adds to the scene are placed at, as the entity moves.</summary>
+    private protected enum ShapePlacement
+    {
+        /// <summary>Where they were drawn, whatever the entity does.</summary>
+        World,
+
+        /// <summary>At the origin of the entity, aligned to the world axes.</summary>
+        Origin,
+
+        /// <summary>At the entity, turned and scaled with it.</summary>
+        Entity,
+    }
+
     /// <summary>
     /// Adds the shapes the helper draws while its entity is not selected to the scene, as part of it. They are
     /// hidden while the entity is selected, when the selection draws them as they are then.
     /// </summary>
-    /// <param name="placement">
-    /// Where the shapes are placed, for shapes that keep their size as markers do, or <see langword="null"/> to
-    /// draw them in the world.
+    /// <param name="placement">What the shapes are placed at, as the entity moves.</param>
+    /// <param name="keepsMarkerSize">
+    /// Whether the shapes keep their size as markers do, rather than being magnified with their scene.
     /// </param>
     /// <param name="layer">
     /// The visibility layer of the shapes, besides those of the entity, or <see langword="null"/> for the ones the
     /// options that hide the helper give.
     /// </param>
-    private protected void AddShapes(Matrix4x4? placement = null, WorldLayer? layer = null)
+    private protected void AddShapes(ShapePlacement placement = ShapePlacement.World, bool keepsMarkerSize = false, WorldLayer? layer = null)
     {
         if (RequiresSelection)
         {
             return;
         }
 
-        var transform = placement ?? Matrix4x4.Identity;
-        Matrix4x4.Invert(transform, out var worldToPlacement);
+        var transform = placement switch
+        {
+            ShapePlacement.Origin => Matrix4x4.CreateTranslation(Owner.Transform.Translation),
+            ShapePlacement.Entity => Owner.Transform,
+            _ => Matrix4x4.Identity,
+        };
+
+        if (!Matrix4x4.Invert(transform, out var worldToPlacement))
+        {
+            return;
+        }
 
         var node = new ToolSceneNode(Owner.Scene)
         {
             Layers = layer != null ? [layer] : VisibilityLayers,
-            KeepsMarkerSize = placement != null,
+            KeepsMarkerSize = keepsMarkerSize,
+            KeepsWorldAxes = placement == ShapePlacement.Origin,
         };
 
         node.Draw(context =>
@@ -163,7 +186,7 @@ public abstract class EntityHelper
 
         node.Transform = transform;
         shapeNodes.Add(node);
-        Owner.AddNode(node);
+        Owner.AddNode(node, followsEntity: placement != ShapePlacement.World);
     }
 
     /// <summary>Hides the shapes the helper draws while its entity is not selected, while it is.</summary>

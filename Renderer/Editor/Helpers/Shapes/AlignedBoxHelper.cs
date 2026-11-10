@@ -33,7 +33,7 @@ internal sealed class AlignedBoxHelper : EntityHelper
     public override AABB? ObjectBounds => new(Owner.Transform.Translation + Mins, Owner.Transform.Translation + Maxs);
 
     /// <inheritdoc/>
-    public override void AddToScene() => AddShapes(Matrix4x4.CreateTranslation(Owner.Transform.Translation));
+    public override void AddToScene() => AddShapes(ShapePlacement.Origin, keepsMarkerSize: true);
 
     internal override void Render(ToolRenderContext context, in HelperRenderState state)
     {
