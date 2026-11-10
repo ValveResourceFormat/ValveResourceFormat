@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Text;
 using ValveKeyValue;
@@ -310,13 +311,13 @@ namespace ValveResourceFormat.Blocks
             {
                 if (isZstdCompressed)
                 {
-                    using var zstdDecompressor = new ZstdSharp.Decompressor();
-
                     // There is no expected decompressed size, so we just use buffer size for fully decoded vertex buffer
                     // and then use the return value of zstd decompress to pass into the vertex decoder as the buffer size
                     tempZstd = ArrayPool<byte>.Shared.Rent(decompressedSize);
 
-                    if (!zstdDecompressor.TryUnwrap(span, tempZstd, out var written))
+                    var written = 0;
+
+                    if (!span.IsEmpty && !ZstandardDecoder.TryDecompress(span, tempZstd, out written))
                     {
                         throw new InvalidDataException("Failed to decompress ZSTD.");
                     }

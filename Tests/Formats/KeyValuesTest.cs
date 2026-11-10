@@ -1,6 +1,8 @@
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -308,17 +310,17 @@ namespace Tests.Formats
             var sizeUncompressed = BinaryPrimitives.ReadInt32LittleEndian(data.AsSpan(HeaderStart + 28));
             var sizeCompressed = BinaryPrimitives.ReadInt32LittleEndian(data.AsSpan(HeaderStart + 32));
             var frames = data.AsSpan(HeaderStart + 52, sizeCompressed);
-            var firstFrameLength = GetZstdFrameLength(frames);
-            var firstFrameContentSize = ZstdSharp.Decompressor.GetDecompressedSize(frames[..firstFrameLength]);
-            var secondFrameContentSize = ZstdSharp.Decompressor.GetDecompressedSize(frames[firstFrameLength..]);
+            var firstFrameLength = GetZstdFrameLength(frames, sizeUncompressed);
+            ZstandardDecoder.TryGetMaxDecompressedLength(frames[..firstFrameLength], out var firstFrameContentSize);
+            ZstandardDecoder.TryGetMaxDecompressedLength(frames[firstFrameLength..], out var secondFrameContentSize);
 
             stream.Position = 0;
             var deserializedBinaryKV3 = ReadBinaryKV3(stream);
 
             using (Assert.Multiple())
             {
-                await Assert.That(firstFrameContentSize).IsEqualTo((ulong)sizeUncompressed);
-                await Assert.That(secondFrameContentSize).IsEqualTo(4UL);
+                await Assert.That(firstFrameContentSize).IsEqualTo(sizeUncompressed);
+                await Assert.That(secondFrameContentSize).IsEqualTo(4L);
                 await Assert.That(deserializedBinaryKV3.Data.Root["blob"].AsBlob()).IsEquivalentTo(new byte[] { 1, 2, 3, 4 }, EqualityComparer<byte>.Default, CollectionOrdering.Matching);
                 await Assert.That((string)deserializedBinaryKV3.Data.Root["value"]).IsEqualTo("hello");
             }
@@ -462,31 +464,17 @@ namespace Tests.Formats
             await Assert.That(() => ReadCraftedBinaryKV3(4, bytes1: [], bytes4: [1, 0, 0], strings: ["a"], types: [9, 0x86, 0x00])).Throws<UnexpectedMagicException>();
         }
 
-        private static int GetZstdFrameLength(ReadOnlySpan<byte> data)
+        private static int GetZstdFrameLength(ReadOnlySpan<byte> data, int contentSize)
         {
-            var descriptor = data[4];
-            var contentSizeFlag = descriptor >> 6;
-            var singleSegment = (descriptor & 0x20) != 0;
-            var hasChecksum = (descriptor & 0x04) != 0;
-            var offset = 5;
+            using var decoder = new ZstandardDecoder();
+            var status = decoder.Decompress(data, new byte[contentSize], out var bytesConsumed, out _);
 
-            offset += singleSegment ? 0 : 1;
-            offset += (descriptor & 3) switch { 0 => 0, 1 => 1, 2 => 2, _ => 4 };
-            offset += contentSizeFlag switch { 0 => singleSegment ? 1 : 0, 1 => 2, 2 => 4, _ => 8 };
-
-            while (true)
+            if (status != OperationStatus.Done)
             {
-                var header = data[offset] | (data[offset + 1] << 8) | (data[offset + 2] << 16);
-                var blockType = (header >> 1) & 3;
-                offset += 3 + (blockType == 1 ? 1 : header >> 3);
-
-                if ((header & 1) != 0)
-                {
-                    break;
-                }
+                throw new InvalidDataException($"First zstd frame did not decode completely: {status}");
             }
 
-            return offset + (hasChecksum ? 4 : 0);
+            return bytesConsumed;
         }
 
         // Header fields start after the magic and the format guid

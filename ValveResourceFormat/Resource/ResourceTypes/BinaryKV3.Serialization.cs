@@ -1,4 +1,5 @@
 using System.IO;
+using System.IO.Compression;
 using K4os.Compression.LZ4;
 using K4os.Compression.LZ4.Encoders;
 using ValveKeyValue;
@@ -376,9 +377,13 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static ArraySegment<byte> CompressZstd(ReadOnlySpan<byte> input)
         {
-            using var compressor = new ZstdSharp.Compressor();
-            var output = new byte[ZstdSharp.Compressor.GetCompressBound(input.Length)];
-            var length = compressor.Wrap(input, output);
+            var output = new byte[ZstandardEncoder.GetMaxCompressedLength(input.Length)];
+
+            if (!ZstandardEncoder.TryCompress(input, output, out var length))
+            {
+                throw new InvalidOperationException("Failed to compress binary KV3 data with Zstandard.");
+            }
+
             return new ArraySegment<byte>(output, 0, length);
         }
 

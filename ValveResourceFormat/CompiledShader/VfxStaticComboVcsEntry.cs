@@ -134,23 +134,17 @@ public class VfxStaticComboVcsEntry
             case 2: // ZStd without dictionary
             case 3: // ZStd with dictionary 1
             case 5: // ZStd with dictionary 2
-                using (var zstdDecompressor = new ZstdSharp.Decompressor())
+            {
+                var dictionary = compressionType switch
                 {
-                    var dictionary = compressionType switch
-                    {
-                        3 => ZstdDictionary.GetDictionary_2bc2fa87(),
-                        5 => ZstdDictionary.GetDictionary_255df362(),
-                        _ => null,
-                    };
+                    3 => ZstdDictionary.GetDictionary_2bc2fa87(),
+                    5 => ZstdDictionary.GetDictionary_255df362(),
+                    _ => null,
+                };
 
-                    if (dictionary != null)
-                    {
-                        zstdDecompressor.LoadDictionary(dictionary);
-                    }
-
-                    BinaryKV3.DecompressZSTD(zstdDecompressor, reader, stream.BufferSpan, compressedSize);
-                }
+                BinaryKV3.DecompressZSTD(reader, stream.BufferSpan, compressedSize, dictionary);
                 break;
+            }
 
             case 4: // Raw LZ4 block, not an LZ4 frame
                 BinaryKV3.DecompressLZ4(reader, stream.BufferSpan, compressedSize);

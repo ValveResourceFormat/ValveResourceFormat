@@ -185,11 +185,6 @@ Vortice.SpirvCross
   Copyright (c) Amer Koleci and Contributors
   https://github.com/amerkoleci/Vortice.Vulkan
 
-ZstdSharp.Port
-  License: MIT
-  Copyright (c) 2021 Oleg Stepanischev
-  https://github.com/oleg-st/ZstdSharp
-
 Licenses
 --------
 

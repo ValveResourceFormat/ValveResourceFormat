@@ -75,6 +75,7 @@
  */
 
 using System.Diagnostics;
+using System.IO.Compression;
 using System.Reflection;
 using System.Threading;
 
@@ -83,45 +84,34 @@ namespace ValveResourceFormat.CompiledShader
     internal static class ZstdDictionary
     {
         private static readonly Lock zstdDictLock = new();
-        private static byte[]? zstdDict_2bc2fa87;
-        private static byte[]? zstdDict_255df362;
+        private static ZstandardDictionary? zstdDict_2bc2fa87;
+        private static ZstandardDictionary? zstdDict_255df362;
 
-        public static byte[] GetDictionary_2bc2fa87()
+        public static ZstandardDictionary GetDictionary_2bc2fa87()
         {
             lock (zstdDictLock)
             {
-                if (zstdDict_2bc2fa87 != null)
-                {
-                    return zstdDict_2bc2fa87;
-                }
-
-                using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ValveResourceFormat.Utils.vfx_zstd_2bc2fa87.bin");
-                Debug.Assert(stream != null);
-
-                zstdDict_2bc2fa87 = new byte[0x10000];
-                stream.ReadExactly(zstdDict_2bc2fa87, 0, zstdDict_2bc2fa87.Length);
-
-                return zstdDict_2bc2fa87;
+                return zstdDict_2bc2fa87 ??= Load("ValveResourceFormat.Utils.vfx_zstd_2bc2fa87.bin");
             }
         }
 
-        public static byte[] GetDictionary_255df362() // Added in 2025
+        public static ZstandardDictionary GetDictionary_255df362() // Added in 2025
         {
             lock (zstdDictLock)
             {
-                if (zstdDict_255df362 != null)
-                {
-                    return zstdDict_255df362;
-                }
-
-                using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ValveResourceFormat.Utils.vfx_zstd_255df362.bin");
-                Debug.Assert(stream != null);
-
-                zstdDict_255df362 = new byte[0x10000];
-                stream.ReadExactly(zstdDict_255df362, 0, zstdDict_255df362.Length);
-
-                return zstdDict_255df362;
+                return zstdDict_255df362 ??= Load("ValveResourceFormat.Utils.vfx_zstd_255df362.bin");
             }
+        }
+
+        private static ZstandardDictionary Load(string resourceName)
+        {
+            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
+            Debug.Assert(stream != null);
+
+            var data = new byte[0x10000];
+            stream.ReadExactly(data);
+
+            return ZstandardDictionary.Create(data);
         }
     }
 }

@@ -3,6 +3,7 @@ using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.IO.Compression;
 using System.Numerics.Tensors;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -248,21 +249,32 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        internal static void DecompressZSTD(ZstdSharp.Decompressor zstdDecompressor, BinaryReader reader, Span<byte> output, int compressedSize)
+        internal static void DecompressZSTD(BinaryReader reader, Span<byte> output, int compressedSize, ZstandardDictionary? dictionary = null)
         {
             using var inputBuf = new RentedBuffer<byte>(compressedSize);
             var input = inputBuf.Span;
             reader.BaseStream.ReadExactly(input);
 
-            if (!zstdDecompressor.TryUnwrap(input, output, out var written) || output.Length != written)
+            if (input.IsEmpty && output.IsEmpty)
+            {
+                return;
+            }
+
+            var written = 0;
+            var success = dictionary == null
+                ? ZstandardDecoder.TryDecompress(input, output, out written)
+                : ZstandardDecoder.TryDecompress(input, output, out written, dictionary);
+
+            if (!success || output.Length != written)
             {
                 throw new InvalidDataException($"Failed to decompress ZSTD (expected {output.Length} bytes, got {written})");
             }
         }
 
         // Streams the compressed blobs in chunks straight into each blob, so neither side needs one large buffer
-        private static void DecompressZSTDBinaryBlobs(ZstdSharp.Decompressor zstdDecompressor, BinaryReader reader, byte[][] blobs, int compressedSize)
+        private static void DecompressZSTDBinaryBlobs(BinaryReader reader, byte[][] blobs, int compressedSize)
         {
+            using var zstdDecoder = new ZstandardDecoder();
             var inputBuf = ArrayPool<byte>.Shared.Rent(Math.Min(compressedSize, ZstdStreamInputSize));
             var input = new ArraySegment<byte>(inputBuf, 0, 0);
             var remainingInput = compressedSize;
@@ -270,6 +282,11 @@ namespace ValveResourceFormat.ResourceTypes
 
             int Unwrap(Span<byte> output)
             {
+                if (status == OperationStatus.Done)
+                {
+                    zstdDecoder.Reset();
+                }
+
                 if (input.Count == 0)
                 {
                     var length = Math.Min(remainingInput, inputBuf.Length);
@@ -278,7 +295,7 @@ namespace ValveResourceFormat.ResourceTypes
                     input = new ArraySegment<byte>(inputBuf, 0, length);
                 }
 
-                status = zstdDecompressor.UnwrapStream(input, output, out var consumed, out var written);
+                status = zstdDecoder.Decompress(input, output, out var consumed, out var written);
 
                 if (status == OperationStatus.InvalidData || (consumed == 0 && written == 0))
                 {
@@ -360,20 +377,11 @@ namespace ValveResourceFormat.ResourceTypes
                 return predicate(block);
             }
 
-            ZstdSharp.Decompressor? zstdDecompressor = null;
-
-            try
-            {
-                return AnyDecompressed(reader, header.CompressionMethod, ref zstdDecompressor, header.SizeDecompressedBuffer1, header.SizeCompressedBuffer1, predicate)
-                    || (header.Version >= 5 && AnyDecompressed(reader, header.CompressionMethod, ref zstdDecompressor, header.SizeUncompressedBuffer2, header.SizeCompressedBuffer2, predicate));
-            }
-            finally
-            {
-                zstdDecompressor?.Dispose();
-            }
+            return AnyDecompressed(reader, header.CompressionMethod, header.SizeDecompressedBuffer1, header.SizeCompressedBuffer1, predicate)
+                || (header.Version >= 5 && AnyDecompressed(reader, header.CompressionMethod, header.SizeUncompressedBuffer2, header.SizeCompressedBuffer2, predicate));
         }
 
-        private static bool AnyDecompressed(BinaryReader reader, KV3BinaryCompressionMethod compressionMethod, ref ZstdSharp.Decompressor? zstdDecompressor,
+        private static bool AnyDecompressed(BinaryReader reader, KV3BinaryCompressionMethod compressionMethod,
             int size, int compressedSize, Func<ReadOnlySpan<byte>, bool> predicate)
         {
             if (size < 0 || compressedSize < 0 || compressedSize > reader.BaseStream.Length - reader.BaseStream.Position)
@@ -383,7 +391,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             using var output = new RentedBuffer<byte>(size);
 
-            ReadBufferData(reader, compressionMethod, ref zstdDecompressor, output.Span, compressedSize);
+            ReadBufferData(reader, compressionMethod, output.Span, compressedSize);
             return predicate(output.Span);
         }
 
@@ -473,7 +481,7 @@ namespace ValveResourceFormat.ResourceTypes
             return header;
         }
 
-        private static void ReadBufferData(BinaryReader reader, KV3BinaryCompressionMethod compressionMethod, ref ZstdSharp.Decompressor? zstdDecompressor, Span<byte> output, int compressedSize)
+        private static void ReadBufferData(BinaryReader reader, KV3BinaryCompressionMethod compressionMethod, Span<byte> output, int compressedSize)
         {
             switch (compressionMethod)
             {
@@ -484,8 +492,7 @@ namespace ValveResourceFormat.ResourceTypes
                     DecompressLZ4(reader, output, compressedSize);
                     break;
                 case KV3BinaryCompressionMethod.Zstd:
-                    zstdDecompressor ??= new ZstdSharp.Decompressor();
-                    DecompressZSTD(zstdDecompressor, reader, output, compressedSize);
+                    DecompressZSTD(reader, output, compressedSize);
                     break;
             }
         }
@@ -505,7 +512,6 @@ namespace ValveResourceFormat.ResourceTypes
 
             var buffer1Raw = ArrayPool<byte>.Shared.Rent(header.SizeDecompressedBuffer1);
             byte[]? buffer2Raw = null;
-            ZstdSharp.Decompressor? zstdDecompressor = null;
 
             try
             {
@@ -515,7 +521,7 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     var buffer1Span = new ArraySegment<byte>(buffer1Raw, 0, header.SizeUncompressedBuffer1);
 
-                    ReadBufferData(reader, header.CompressionMethod, ref zstdDecompressor, buffer1Raw.AsSpan(0, header.SizeDecompressedBuffer1), header.SizeCompressedBuffer1);
+                    ReadBufferData(reader, header.CompressionMethod, buffer1Raw.AsSpan(0, header.SizeDecompressedBuffer1), header.SizeCompressedBuffer1);
 
                     var buffer1 = new Buffers();
 
@@ -620,7 +626,7 @@ namespace ValveResourceFormat.ResourceTypes
                     buffer2Raw = ArrayPool<byte>.Shared.Rent(header.SizeUncompressedBuffer2);
                     var buffer2Span = new ArraySegment<byte>(buffer2Raw, 0, header.SizeUncompressedBuffer2);
 
-                    ReadBufferData(reader, header.CompressionMethod, ref zstdDecompressor, buffer2Span, header.SizeCompressedBuffer2);
+                    ReadBufferData(reader, header.CompressionMethod, buffer2Span, header.SizeCompressedBuffer2);
 
                     var buffer2 = new Buffers();
                     context.Buffer = buffer2;
@@ -763,9 +769,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                             var sizeCompressedBinaryBlobs = header.SizeCompressedTotal - header.SizeCompressedBuffer1 - header.SizeCompressedBuffer2;
 
-                            zstdDecompressor ??= new ZstdSharp.Decompressor();
-
-                            DecompressZSTDBinaryBlobs(zstdDecompressor, reader, context.BinaryBlobs, sizeCompressedBinaryBlobs);
+                            DecompressZSTDBinaryBlobs(reader, context.BinaryBlobs, sizeCompressedBinaryBlobs);
                         }
                         else
                         {
@@ -813,8 +817,6 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     ArrayPool<byte>.Shared.Return(buffer2Raw);
                 }
-
-                zstdDecompressor?.Dispose();
             }
         }
 
