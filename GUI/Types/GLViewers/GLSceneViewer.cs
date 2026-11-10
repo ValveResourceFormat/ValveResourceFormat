@@ -680,6 +680,7 @@ namespace GUI.Types.GLViewers
             //         && Vector3.DistanceSquared(hit.HitPosition, sound) > OcclusionEndMargin * OcclusionEndMargin;
 
             soundPlayer.Suspended = true; // start with fade-in
+            soundPlayer.Mute = Automation.Automation.IsEnabled;
             soundPlayer.Volume = Settings.Config.Volume;
             soundPlayer.MixGroupVolume["Weapons"] = 0.7f;
             soundPlayer.MixGroupVolume["Foley"] = 0.5f;
