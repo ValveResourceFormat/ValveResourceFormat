@@ -147,7 +147,7 @@ namespace ValveResourceFormat.Renderer.Buffers
                 unsafe
                 {
                     var dest = (void*)(PersistentPtr + offset);
-                    Unsafe.CopyBlock(dest, Unsafe.AsPointer(ref data[0]), (uint)size);
+                    MemoryMarshal.AsBytes(data.AsSpan())[..size].CopyTo(new Span<byte>(dest, size));
                 }
                 return;
             }
