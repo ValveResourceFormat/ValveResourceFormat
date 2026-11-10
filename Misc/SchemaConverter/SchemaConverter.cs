@@ -49,7 +49,7 @@ var destinationDir = Path.Combine(repositoryDir, target.DestinationDir);
 
 Converter.Test(target);
 
-var (latestSha, latestSchemaFile) = await GetLatestSchema();
+var (latestSha, latestSchemaFile) = await GetLatestSchema().ConfigureAwait(false);
 Console.WriteLine($"Using schema {SchemaRepository}@{latestSha}");
 
 var newDir = Path.Combine(Path.GetTempPath(), "SchemaConverter", target.Name, "new");
@@ -65,7 +65,7 @@ if (baselineDirArg != null)
 else if (target.GeneratedFrom.Length > 0)
 {
     baselineSha = target.GeneratedFrom;
-    var baselineSchemaFile = await GetSchemaAtCommit(baselineSha);
+    var baselineSchemaFile = await GetSchemaAtCommit(baselineSha).ConfigureAwait(false);
 
     if (baselineSchemaFile != null)
     {
@@ -87,7 +87,7 @@ var hasConflicts = MergeInto(destinationDir, baselineDir, newDir);
 if (!dryRun)
 {
     target.SetGeneratedFrom(latestSha);
-    Process.Run("dotnet", ["build", Path.Combine(repositoryDir, target.BuildProject), "/p:NoWarn=CA1812"]);
+    await Process.RunAsync("dotnet", ["build", Path.Combine(repositoryDir, target.BuildProject), "/p:NoWarn=CA1812"]).ConfigureAwait(false);
 }
 
 return hasConflicts ? 1 : 0;
@@ -108,11 +108,11 @@ async Task<(string Sha, string File)> GetLatestSchema()
         {
             using var http = CreateHttpClient();
             var commitsUrl = $"https://api.github.com/repos/{SchemaRepository}/commits?path={SchemaPath}&per_page=1";
-            using var commits = JsonDocument.Parse(await http.GetStringAsync(commitsUrl));
+            using var commits = JsonDocument.Parse(await http.GetStringAsync(new Uri(commitsUrl)).ConfigureAwait(false));
             var sha = commits.RootElement[0].GetProperty("sha").GetString() ?? throw new InvalidDataException("Commit without sha");
 
-            var file = await GetSchemaAtCommit(sha) ?? throw new InvalidDataException($"Failed to download schema at {sha}");
-            File.WriteAllText(latestShaFile, sha);
+            var file = await GetSchemaAtCommit(sha).ConfigureAwait(false) ?? throw new InvalidDataException($"Failed to download schema at {sha}");
+            await File.WriteAllTextAsync(latestShaFile, sha).ConfigureAwait(false);
             return (sha, file);
         }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
@@ -126,7 +126,7 @@ async Task<(string Sha, string File)> GetLatestSchema()
         throw new InvalidOperationException("No saved schema to fall back to, run once with network access.");
     }
 
-    var savedSha = File.ReadAllText(latestShaFile).Trim();
+    var savedSha = (await File.ReadAllTextAsync(latestShaFile).ConfigureAwait(false)).Trim();
     return (savedSha, CachedSchemaFile(savedSha));
 }
 
@@ -146,10 +146,10 @@ async Task<string?> GetSchemaAtCommit(string sha)
     try
     {
         using var http = CreateHttpClient();
-        var content = await http.GetByteArrayAsync($"https://raw.githubusercontent.com/{SchemaRepository}/{sha}/{SchemaPath}");
+        var content = await http.GetByteArrayAsync(new Uri($"https://raw.githubusercontent.com/{SchemaRepository}/{sha}/{SchemaPath}")).ConfigureAwait(false);
 
         Directory.CreateDirectory(cacheDir);
-        File.WriteAllBytes(file, content);
+        await File.WriteAllBytesAsync(file, content).ConfigureAwait(false);
         return file;
     }
     catch (Exception e) when (e is HttpRequestException or TaskCanceledException)

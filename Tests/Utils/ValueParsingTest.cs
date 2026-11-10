@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using TUnit.Assertions.Enums;
 using ValveResourceFormat.Utils;
 
 namespace Tests.Utils
@@ -73,10 +74,10 @@ namespace Tests.Utils
             var three = new float[3];
 
             ValueParsing.ParseVector("  1   banana 3 4", three);
-            await Assert.That(three).IsEquivalentTo([1f, 0f, 3f]);
+            await Assert.That(three).IsEquivalentTo([1f, 0f, 3f], EqualityComparer<float>.Default, CollectionOrdering.Matching);
 
             ValueParsing.ParseVector("5", three);
-            await Assert.That(three).IsEquivalentTo([5f, 0f, 0f]);
+            await Assert.That(three).IsEquivalentTo([5f, 0f, 0f], EqualityComparer<float>.Default, CollectionOrdering.Matching);
         }
 
         [Test]
@@ -85,7 +86,7 @@ namespace Tests.Utils
             var destination = new float[4];
 
             await Assert.That(ValueParsing.ParseFloatArray("1-2", destination)).IsEqualTo(2);
-            await Assert.That(destination).IsEquivalentTo([1f, -2f, 0f, 0f]);
+            await Assert.That(destination).IsEquivalentTo([1f, -2f, 0f, 0f], EqualityComparer<float>.Default, CollectionOrdering.Matching);
 
             await Assert.That(ValueParsing.ParseFloatArray("1,2", destination)).IsEqualTo(1);
             await Assert.That(ValueParsing.ParseFloatArray("[1 2]", destination)).IsEqualTo(0);
@@ -119,19 +120,19 @@ namespace Tests.Utils
             var values = new float[3];
 
             await Assert.That(ValueParsing.ParseLeadingFloats(",5", ",", values)).IsEqualTo(1);
-            await Assert.That(values).IsEquivalentTo(new float[] { 5f, 0f, 0f });
+            await Assert.That(values).IsEquivalentTo([5f, 0f, 0f], EqualityComparer<float>.Default, CollectionOrdering.Matching);
 
             await Assert.That(ValueParsing.ParseLeadingFloats("5,,7", ",", values)).IsEqualTo(2);
-            await Assert.That(values).IsEquivalentTo(new float[] { 5f, 7f, 0f });
+            await Assert.That(values).IsEquivalentTo([5f, 7f, 0f], EqualityComparer<float>.Default, CollectionOrdering.Matching);
 
             await Assert.That(ValueParsing.ParseLeadingFloats(",,", ",", values)).IsEqualTo(0);
-            await Assert.That(values).IsEquivalentTo(new float[] { 0f, 0f, 0f });
+            await Assert.That(values).IsEquivalentTo([0f, 0f, 0f], EqualityComparer<float>.Default, CollectionOrdering.Matching);
 
             await Assert.That(ValueParsing.ParseLeadingFloats("1, 90 [2]", "[], ", values)).IsEqualTo(3);
-            await Assert.That(values).IsEquivalentTo(new float[] { 1f, 90f, 2f });
+            await Assert.That(values).IsEquivalentTo([1f, 90f, 2f], EqualityComparer<float>.Default, CollectionOrdering.Matching);
 
             await Assert.That(ValueParsing.ParseLeadingFloats("5, 90", ",", values)).IsEqualTo(2);
-            await Assert.That(values).IsEquivalentTo(new float[] { 5f, 90f, 0f });
+            await Assert.That(values).IsEquivalentTo([5f, 90f, 0f], EqualityComparer<float>.Default, CollectionOrdering.Matching);
         }
     }
 }
