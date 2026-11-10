@@ -252,7 +252,7 @@ internal class GraphNode
 }
 
 /// <summary>One line of a node's content.</summary>
-internal abstract class GraphRow
+internal closed class GraphRow
 {
 }
 

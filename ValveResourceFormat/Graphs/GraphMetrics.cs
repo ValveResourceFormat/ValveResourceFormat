@@ -139,7 +139,6 @@ internal static class GraphMetrics
                     + outputWidth,
                 ResourceRow resource => MarginX * 2f + 19f + RowFont.MeasureText(resource.Text),
                 AnnotationRow annotation => MarginX * 2f + 14f + RowFont.MeasureText(annotation.Text),
-                _ => 0f,
             };
 
             width = Math.Max(width, rowWidth);
