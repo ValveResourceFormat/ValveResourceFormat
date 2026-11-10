@@ -57,25 +57,16 @@ namespace ValveResourceFormat.Blocks
         /// <summary>
         /// Represents one box of space belonging to a cluster.
         /// </summary>
-        /// <param name="bounds">The box this region covers.</param>
-        /// <param name="clusterId">The cluster this box belongs to.</param>
-        /// <param name="mergedRow">One based index of the merged row seen from inside this box, 0 for none.</param>
-        public readonly struct Region(AABB bounds, ushort clusterId, ushort mergedRow = 0)
+        /// <param name="Bounds">The box this region covers.</param>
+        /// <param name="ClusterId">The cluster this box belongs to, or <see cref="NoCluster"/> when none does.</param>
+        /// <param name="MergedRow">
+        /// One based index of the merged row a point inside this box sees in place of its cluster's row,
+        /// or 0 when it sees its cluster's row.
+        /// </param>
+        public readonly record struct Region(AABB Bounds, ushort ClusterId, ushort MergedRow = 0)
         {
-            /// <summary>Gets the box this region covers.</summary>
-            public AABB Bounds => bounds;
-
-            /// <summary>Gets the cluster this box belongs to, or <see cref="NoCluster"/> when none does.</summary>
-            public ushort ClusterId => clusterId;
-
             /// <summary>Gets whether a cluster claims this box at all.</summary>
-            public bool HasCluster => clusterId != NoCluster;
-
-            /// <summary>
-            /// Gets the one based index of the merged row a point inside this box sees in place of its
-            /// cluster's row, or 0 when it sees its cluster's row.
-            /// </summary>
-            public ushort MergedRow => mergedRow;
+            public bool HasCluster => ClusterId != NoCluster;
         }
 
         /// <summary>Gets the minimum bounds of the octree.</summary>

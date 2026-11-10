@@ -15,8 +15,9 @@ public static class TwoBoneSolver
     {
         var skeleton = pose.Skeleton;
 
-        // Set up bone indices
-        Span<int> boneIndices = stackalloc int[3];
+        const int NumBonesInChain = 3;
+
+        Span<int> boneIndices = stackalloc int[NumBonesInChain];
         boneIndices[2] = effectorBoneIdx;
         for (var i = 1; i >= 0; --i)
         {
@@ -24,11 +25,8 @@ public static class TwoBoneSolver
             Debug.Assert(boneIndices[i] != -1);
         }
 
-        const int NumBonesInChain = 3;
-        var startBoneIdx = boneIndices[0];
-
         // The parent of the start of the chain, needed to calculate the local transforms
-        var baseParentIndex = skeleton.GetParentBoneIndex(startBoneIdx);
+        var baseParentIndex = skeleton.GetParentBoneIndex(boneIndices[0]);
         var baseParentTransform = baseParentIndex != -1 ? pose.GetModelSpaceTransform(baseParentIndex) : Transform.Identity;
 
         Span<Transform> modelSpaceTransforms = stackalloc Transform[NumBonesInChain];
@@ -54,26 +52,20 @@ public static class TwoBoneSolver
 
         Solve(modelSpaceTransforms, modelSpaceChainReferenceTransforms, targetTransform, chainRotationWeight);
 
-        // Blend results back into the pose, computing relative transforms in reverse order
-        if (hasBlendWeight && blendMode == IKBlendMode.Pose)
+        // Write the results back into the pose as relative transforms, in reverse order
+        var blendPose = hasBlendWeight && blendMode == IKBlendMode.Pose;
+
+        for (var i = NumBonesInChain - 1; i >= 0; i--)
         {
-            for (var i = NumBonesInChain - 1; i > 0; i--)
+            var parentTransform = i > 0 ? modelSpaceTransforms[i - 1] : baseParentTransform;
+            var localTransform = TransformMath.Delta(parentTransform, modelSpaceTransforms[i]);
+
+            if (blendPose)
             {
-                var localTransformPostIK = TransformMath.Delta(modelSpaceTransforms[i - 1], modelSpaceTransforms[i]);
-                pose.SetTransform(boneIndices[i], TransformMath.SLerp(pose.GetTransform(boneIndices[i]), localTransformPostIK, blendWeight));
+                localTransform = TransformMath.SLerp(pose.GetTransform(boneIndices[i]), localTransform, blendWeight);
             }
 
-            var startLocalTransformPostIK = TransformMath.Delta(baseParentTransform, modelSpaceTransforms[0]);
-            pose.SetTransform(startBoneIdx, TransformMath.SLerp(pose.GetTransform(boneIndices[0]), startLocalTransformPostIK, blendWeight));
-        }
-        else
-        {
-            for (var i = NumBonesInChain - 1; i > 0; i--)
-            {
-                pose.SetTransform(boneIndices[i], TransformMath.Delta(modelSpaceTransforms[i - 1], modelSpaceTransforms[i]));
-            }
-
-            pose.SetTransform(startBoneIdx, TransformMath.Delta(baseParentTransform, modelSpaceTransforms[0]));
+            pose.SetTransform(boneIndices[i], localTransform);
         }
     }
 

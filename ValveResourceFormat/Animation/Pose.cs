@@ -62,7 +62,6 @@ namespace ValveResourceFormat.Animation
         /// <summary>Sets every bone to the reference pose.</summary>
         public void SetToReferencePose()
         {
-            Debug.Assert(Skeleton != null);
             Skeleton.ParentSpaceReferencePose.CopyTo(ParentSpaceTransforms, 0);
             Type = PoseType.ReferencePose;
         }
@@ -70,7 +69,6 @@ namespace ValveResourceFormat.Animation
         /// <summary>Sets every bone to the identity additive transform.</summary>
         public void SetToZeroPose()
         {
-            Debug.Assert(Skeleton != null);
             Array.Fill(ParentSpaceTransforms, TransformMath.Zero);
             Type = PoseType.ZeroPose;
         }
@@ -78,8 +76,6 @@ namespace ValveResourceFormat.Animation
         /// <summary>Calculate model-space transforms for the requested LOD (number of relevant bones).</summary>
         public void CalculateModelSpaceTransforms(int numRelevantBones)
         {
-            Debug.Assert(Skeleton != null);
-
             var numTotalBones = ParentSpaceTransforms.Length;
             if (numTotalBones == 0)
             {
@@ -102,7 +98,6 @@ namespace ValveResourceFormat.Animation
         /// <summary>Gets the model space transform of a bone, calculating it if not cached.</summary>
         public Transform GetModelSpaceTransform(int boneIdx)
         {
-            Debug.Assert(Skeleton != null);
             Debug.Assert(boneIdx < Skeleton.ParentSpaceReferencePose.Length);
 
             if (CalculatedModelSpace)
@@ -110,11 +105,10 @@ namespace ValveResourceFormat.Animation
                 return ModelSpaceTransforms[boneIdx];
             }
 
-            // Otherwise calculate on-demand (matching C++ fallback)
+            // Not cached, so only the chain above this bone is calculated
             Span<int> boneParents = stackalloc int[Skeleton.ParentSpaceReferencePose.Length];
             var nextEntry = 0;
 
-            // Get parent list
             var parentIdx = Skeleton.ParentIndices[boneIdx];
             while (parentIdx != -1)
             {
@@ -122,13 +116,11 @@ namespace ValveResourceFormat.Animation
                 parentIdx = Skeleton.ParentIndices[parentIdx];
             }
 
-            // Start with bone's parent-space transform
             var boneModelSpaceTransform = ParentSpaceTransforms[boneIdx];
 
-            // If we have parents, accumulate them from root down
+            // Accumulated from the root down, in the order the cached transforms are
             if (nextEntry > 0)
             {
-                // Calculate model-space transform of parent
                 var arrayIdx = nextEntry - 1;
                 parentIdx = boneParents[arrayIdx--];
                 var parentModelSpaceTransform = ParentSpaceTransforms[parentIdx];
@@ -140,7 +132,6 @@ namespace ValveResourceFormat.Animation
                     parentModelSpaceTransform = nextTransform * parentModelSpaceTransform;
                 }
 
-                // Calculate model-space transform of bone
                 boneModelSpaceTransform *= parentModelSpaceTransform;
             }
 

@@ -174,16 +174,23 @@ namespace ValveResourceFormat.Animation
         {
             var snapMode = SampleAnimationEvents(ctx, ref result);
 
-            if (shouldSampleRootMotion)
+            SampleRootMotionAndPose(ctx, clip, ref result, PreviousTime, CurrentTime, shouldPlayInReverse, shouldSampleRootMotion, snapMode);
+            return result;
+        }
+
+        internal static void SampleRootMotionAndPose(GraphContext ctx, GraphClip clip, ref GraphPoseNodeResult result,
+            float previousTime, float currentTime, bool playInReverse, bool sampleRootMotion, FrameSnapEventMode? snapMode)
+        {
+            if (sampleRootMotion)
             {
                 // Reversed playback samples the mirrored range, computed here rather than in the
                 // clip's delta query to keep that free of the rare special case
-                if (shouldPlayInReverse)
+                if (playInReverse)
                 {
-                    var sampleStartTime = 1f - PreviousTime;
-                    var sampleEndTime = 1f - CurrentTime;
+                    var sampleStartTime = 1f - previousTime;
+                    var sampleEndTime = 1f - currentTime;
 
-                    if (PreviousTime <= CurrentTime)
+                    if (previousTime <= currentTime)
                     {
                         result.RootMotionDelta = clip.GetRootMotionDeltaNoLooping(sampleStartTime, sampleEndTime);
                     }
@@ -196,11 +203,11 @@ namespace ValveResourceFormat.Animation
                 }
                 else
                 {
-                    result.RootMotionDelta = clip.GetRootMotionDelta(PreviousTime, CurrentTime);
+                    result.RootMotionDelta = clip.GetRootMotionDelta(previousTime, currentTime);
                 }
             }
 
-            var sampleTime = shouldPlayInReverse ? 1f - CurrentTime : CurrentTime;
+            var sampleTime = playInReverse ? 1f - currentTime : currentTime;
 
             if (snapMode is { } frameSelectionMode)
             {
@@ -211,7 +218,6 @@ namespace ValveResourceFormat.Animation
 
             clip.SamplePoseAtPercentage(sampleTime, result.Pose);
             ctx.RecordClipSample(clip, sampleTime);
-            return result;
         }
 
         /// <summary>
@@ -480,7 +486,7 @@ namespace ValveResourceFormat.Animation
 
             var eventSampleStartTime = shouldPlayInReverse ? actualSampleEndTime : actualSampleStartTime;
             var eventSampleEndTime = shouldPlayInReverse ? actualSampleStartTime : actualSampleEndTime;
-            var sampleEndTime = shouldPlayInReverse ? 1f - CurrentTime : CurrentTime;
+            var sampleEndTime = actualSampleEndTime;
 
             if (hasLooped)
             {
@@ -523,40 +529,7 @@ namespace ValveResourceFormat.Animation
                 }
             }
 
-            // Root motion
-            if (SampleRootMotion)
-            {
-                if (shouldPlayInReverse)
-                {
-                    if (PreviousTime <= CurrentTime)
-                    {
-                        result.RootMotionDelta = clip.GetRootMotionDeltaNoLooping(actualSampleStartTime, actualSampleEndTime);
-                    }
-                    else
-                    {
-                        var preLoopDelta = clip.GetRootMotionDeltaNoLooping(actualSampleStartTime, 0f);
-                        var postLoopDelta = clip.GetRootMotionDeltaNoLooping(1f, actualSampleEndTime);
-                        result.RootMotionDelta = postLoopDelta * preLoopDelta;
-                    }
-                }
-                else
-                {
-                    result.RootMotionDelta = clip.GetRootMotionDelta(PreviousTime, CurrentTime);
-                }
-            }
-
-            // Pose
-            var sampleTime = shouldPlayInReverse ? 1f - CurrentTime : CurrentTime;
-
-            if (snapMode is { } frameSelectionMode)
-            {
-                var frameTime = clip.GetFrameTime(sampleTime);
-                var frameIndex = frameSelectionMode == FrameSnapEventMode.Round ? frameTime.NearestFrameIndex : frameTime.LowerBoundFrameIndex;
-                sampleTime = clip.GetPercentageThrough(frameIndex);
-            }
-
-            clip.SamplePoseAtPercentage(sampleTime, result.Pose);
-            ctx.RecordClipSample(clip, sampleTime);
+            ClipNode.SampleRootMotionAndPose(ctx, clip, ref result, PreviousTime, CurrentTime, shouldPlayInReverse, SampleRootMotion, snapMode);
 
             isFirstUpdate = false;
             return result;

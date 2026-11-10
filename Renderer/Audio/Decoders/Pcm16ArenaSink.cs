@@ -22,50 +22,31 @@ internal interface IPcm16Sink
 /// into a <see cref="SampleArena"/> region - the final resting place of the cached sound - growing or
 /// trimming the region as the real decoded length reveals itself.
 /// </summary>
-internal sealed class Pcm16ArenaSink : IPcm16Sink
+/// <param name="arena">The arena the final PCM lives in.</param>
+/// <param name="targetChannels">Mixer channel count.</param>
+/// <param name="targetRate">Mixer sample rate.</param>
+/// <param name="sourceFrameHint">
+/// Expected source frame count from the sound resource, taking precedence over the decoder's own
+/// estimate for sizing the region (0 or negative when unknown).
+/// </param>
+internal sealed class Pcm16ArenaSink(SampleArena arena, int targetChannels, int targetRate, long sourceFrameHint) : IPcm16Sink
 {
-    private readonly SampleArena arena;
-    private readonly int targetChannels;
-    private readonly int targetRate;
-    private readonly long sourceFrameHint;
-
-    private short[] slab = [];
-    private int slabIndex = -1;
-    private int offset;
-    private int capacity;
-    private int written;
+    private readonly float[] carryFrame = new float[targetChannels];
+    private SampleArena.Allocation region;
 
     private int sourceChannels;
     private double step;
     private double nextSourcePos;
-    private long consumedFrames;
-    private readonly float[] carryFrame;
     private bool hasCarry;
 
     /// <summary>Gets the source sample rate reported by the decoder.</summary>
     public int SourceRate { get; private set; }
 
     /// <summary>Gets how many source frames have been consumed, for duration validation.</summary>
-    public long SourceFramesConsumed => consumedFrames;
+    public long SourceFramesConsumed { get; private set; }
 
     /// <summary>Gets the number of samples written to the arena so far.</summary>
-    public int WrittenSamples => written;
-
-    /// <param name="arena">The arena the final PCM lives in.</param>
-    /// <param name="targetChannels">Mixer channel count.</param>
-    /// <param name="targetRate">Mixer sample rate.</param>
-    /// <param name="sourceFrameHint">
-    /// Expected source frame count from the sound resource, taking precedence over the decoder's own
-    /// estimate for sizing the region (0 or negative when unknown).
-    /// </param>
-    public Pcm16ArenaSink(SampleArena arena, int targetChannels, int targetRate, long sourceFrameHint)
-    {
-        this.arena = arena;
-        this.targetChannels = targetChannels;
-        this.targetRate = targetRate;
-        this.sourceFrameHint = sourceFrameHint;
-        carryFrame = new float[targetChannels];
-    }
+    public int WrittenSamples { get; private set; }
 
     /// <inheritdoc/>
     public void SetFormat(int channels, int sampleRate, long estimatedSourceSamples)
@@ -79,9 +60,8 @@ internal sealed class Pcm16ArenaSink : IPcm16Sink
             : estimatedSourceSamples > 0 ? estimatedSourceSamples / channels : 65536;
 
         var targetSamples = ((long)(estimatedFrames * (double)targetRate / sampleRate) + 16) * targetChannels;
-        var allocation = arena.Allocate((int)Math.Clamp(targetSamples, 4096, int.MaxValue / 2));
 
-        (slab, slabIndex, offset, capacity) = (allocation.Slab, allocation.SlabIndex, allocation.Offset, allocation.Length);
+        region = arena.Allocate((int)Math.Clamp(targetSamples, 4096, int.MaxValue / 2));
     }
 
     /// <inheritdoc/>
@@ -97,23 +77,23 @@ internal sealed class Pcm16ArenaSink : IPcm16Sink
 
         if (SourceRate == targetRate)
         {
-            EnsureCapacity(written + chunkFrames * targetChannels);
+            EnsureCapacity(WrittenSamples + chunkFrames * targetChannels);
 
             for (var frame = 0; frame < chunkFrames; frame++)
             {
                 for (var ch = 0; ch < targetChannels; ch++)
                 {
-                    var value = samples[frame * sourceChannels + Math.Min(ch, sourceChannels - 1)];
-                    slab[offset + written++] = Quantize(value, random);
+                    Emit(Source(samples, frame, ch), random);
                 }
             }
 
-            consumedFrames += chunkFrames;
+            SourceFramesConsumed += chunkFrames;
             return;
         }
 
-        // Resample: frames [consumedFrames - (hasCarry ? 1 : 0), consumedFrames + chunkFrames) are on hand
-        var chunkEnd = consumedFrames + chunkFrames;
+        // Resample: frames [firstFrame - (hasCarry ? 1 : 0), firstFrame + chunkFrames) are on hand
+        var firstFrame = SourceFramesConsumed;
+        var chunkEnd = firstFrame + chunkFrames;
 
         while (true)
         {
@@ -122,24 +102,22 @@ internal sealed class Pcm16ArenaSink : IPcm16Sink
             // frame1 = frame0 + 1 must be inside this chunk; the final source frame is interpolated
             // against itself once the stream ends via the carry in the next (absent) chunk, so a tiny
             // tail may go unemitted. Inaudible.
-            if (frame0 + 1 >= chunkEnd || frame0 < consumedFrames - (hasCarry ? 1 : 0))
+            if (frame0 + 1 >= chunkEnd || frame0 < firstFrame - (hasCarry ? 1 : 0))
             {
                 break;
             }
 
             var t = (float)(nextSourcePos - frame0);
-            EnsureCapacity(written + targetChannels);
+            var frame = (int)(frame0 - firstFrame);
+
+            EnsureCapacity(WrittenSamples + targetChannels);
 
             for (var ch = 0; ch < targetChannels; ch++)
             {
-                var sourceChannel = Math.Min(ch, sourceChannels - 1);
+                var s0 = frame < 0 ? carryFrame[ch] : Source(samples, frame, ch);
+                var s1 = Source(samples, frame + 1, ch);
 
-                var s0 = frame0 < consumedFrames
-                    ? carryFrame[ch]
-                    : samples[(int)(frame0 - consumedFrames) * sourceChannels + sourceChannel];
-                var s1 = samples[(int)(frame0 + 1 - consumedFrames) * sourceChannels + sourceChannel];
-
-                slab[offset + written++] = Quantize(MathUtils.Lerp(s0, s1, t), random);
+                Emit(MathUtils.Lerp(s0, s1, t), random);
             }
 
             nextSourcePos += step;
@@ -147,11 +125,11 @@ internal sealed class Pcm16ArenaSink : IPcm16Sink
 
         for (var ch = 0; ch < targetChannels; ch++)
         {
-            carryFrame[ch] = samples[(chunkFrames - 1) * sourceChannels + Math.Min(ch, sourceChannels - 1)];
+            carryFrame[ch] = Source(samples, chunkFrames - 1, ch);
         }
 
         hasCarry = true;
-        consumedFrames = chunkEnd;
+        SourceFramesConsumed = chunkEnd;
     }
 
     /// <summary>
@@ -159,36 +137,38 @@ internal sealed class Pcm16ArenaSink : IPcm16Sink
     /// </summary>
     public SampleArena.Allocation Finish()
     {
-        arena.FreeTail(slabIndex, offset, written, capacity);
-        return new SampleArena.Allocation(slab, slabIndex, offset, written);
+        arena.FreeTail(region.SlabIndex, region.Offset, WrittenSamples, region.Length);
+        return region with { Length = WrittenSamples };
     }
 
     /// <summary>Returns the whole region to the arena after a failed decode.</summary>
     public void Abandon()
     {
-        if (slabIndex >= 0)
-        {
-            arena.Free(slabIndex, offset, capacity);
-            slabIndex = -1;
-            slab = [];
-            capacity = 0;
-            written = 0;
-        }
+        arena.Free(region.SlabIndex, region.Offset, region.Length);
+        region = default;
+        WrittenSamples = 0;
     }
+
+    // A source with fewer channels than the mixer repeats its last one
+    private float Source(ReadOnlySpan<float> samples, int frame, int channel)
+        => samples[frame * sourceChannels + Math.Min(channel, sourceChannels - 1)];
+
+    private void Emit(float value, Random random)
+        => region.Slab[region.Offset + WrittenSamples++] = Quantize(value, random);
 
     private void EnsureCapacity(int neededSamples)
     {
-        if (neededSamples <= capacity)
+        if (neededSamples <= region.Length)
         {
             return;
         }
 
         // The estimate came in low (e.g. a header-less MP3): move to a half-again larger region
-        var grown = arena.Allocate(Math.Max(neededSamples, capacity + capacity / 2));
-        Array.Copy(slab, offset, grown.Slab, grown.Offset, written);
-        arena.Free(slabIndex, offset, capacity);
+        var grown = arena.Allocate(Math.Max(neededSamples, region.Length + region.Length / 2));
+        Array.Copy(region.Slab, region.Offset, grown.Slab, grown.Offset, WrittenSamples);
+        arena.Free(region.SlabIndex, region.Offset, region.Length);
 
-        (slab, slabIndex, offset, capacity) = (grown.Slab, grown.SlabIndex, grown.Offset, grown.Length);
+        region = grown;
     }
 
     // Random.Shared rather than the player's SoundRandom: this runs on decode threads, where thread

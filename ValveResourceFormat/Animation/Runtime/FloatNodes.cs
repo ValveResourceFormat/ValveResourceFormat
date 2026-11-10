@@ -595,7 +595,6 @@ namespace ValveResourceFormat.Animation
             var omega = MathF.Tau * Hertz;
             var dt = ctx.DeltaTime;
 
-            // Semi-implicit Euler spring integration
             // Implicit Euler, matching Esoterica (stable at high stiffness / large steps)
             var omegaDt = omega * dt;
             var scale = 1f / (1f + omegaDt * (2f * DampingRatio + omegaDt));
