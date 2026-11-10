@@ -106,7 +106,7 @@ namespace ValveResourceFormat.Blocks
             var nodes = data.GetArray("m_nodes");
 
             Clusters = new Cluster[clusters.Count];
-            BytesPerCluster = (clusters.Count + 7) / 8;
+            BytesPerCluster = MathUtils.DivideRoundUp(clusters.Count, 8);
 
             var min = new Vector3(float.MaxValue);
             var max = new Vector3(float.MinValue);

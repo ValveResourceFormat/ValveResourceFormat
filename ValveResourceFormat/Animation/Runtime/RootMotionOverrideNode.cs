@@ -210,10 +210,7 @@ namespace ValveResourceFormat.Animation
                 if (maxLinearVelocity >= 0f)
                 {
                     var maxLinearValue = ctx.DeltaTime * maxLinearVelocity;
-                    if (translation.LengthSquared() > maxLinearValue * maxLinearValue)
-                    {
-                        translation = Vector3.Normalize(translation) * maxLinearValue;
-                    }
+                    translation = MathUtils.ClampLength(translation, maxLinearValue);
                 }
 
                 adjustedDisplacementDelta.Position = translation;

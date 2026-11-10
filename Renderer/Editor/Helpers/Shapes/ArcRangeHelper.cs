@@ -181,7 +181,7 @@ internal sealed class ArcRangeHelper : EntityHelper
         if (AlignPieToLocalForward)
         {
             var reference = Vector3.Dot(direction, Vector3.UnitX) > 0.99f ? Vector3.UnitZ : Vector3.UnitX;
-            var axisX = MathUtils.SafeNormalize(reference - direction * Vector3.Dot(direction, reference));
+            var axisX = MathUtils.SafeNormalize(MathUtils.ProjectOntoPlane(reference, direction));
 
             return (axisX, Vector3.Cross(direction, axisX), direction);
         }
@@ -192,8 +192,7 @@ internal sealed class ArcRangeHelper : EntityHelper
         }
 
         // Some axis across the direction, turned out of it
-        var across = MathUtils.SafeNormalize(new Vector3((1f - direction.Z) * direction.Y * direction.Y + direction.Z, 0f, -direction.X));
-        across = MathUtils.SafeNormalize(across - direction * Vector3.Dot(across, direction));
+        var across = MathUtils.Perpendicular(direction);
 
         return (Vector3.Cross(across, direction), across, direction);
     }

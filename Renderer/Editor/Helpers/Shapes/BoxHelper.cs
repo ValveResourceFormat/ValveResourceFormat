@@ -222,7 +222,7 @@ internal sealed class BoxHelper : EntityHelper
         var center = bounds.Center;
         var half = bounds.Size / 2f;
         var (inner, outer) = fadesPastSides ? (half, half + edgeFade) : (half - Vector3.Min(half, edgeFade), half);
-        var steps = (int)MathF.Ceiling(MathF.Max(MathF.Abs(edgeFade.X), MathF.Max(MathF.Abs(edgeFade.Y), MathF.Abs(edgeFade.Z))) / FadeStep);
+        var steps = (int)MathF.Ceiling(Vector3.Abs(edgeFade).MaxComponent() / FadeStep);
 
         var outlines = new List<(Vector3 Start, Vector3 End)>();
 

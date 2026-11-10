@@ -74,6 +74,6 @@ public readonly struct FrameTime
             return clamped < 0f ? 1f - clamped : clamped;
         }
 
-        return Math.Clamp(value, 0f, 1f);
+        return MathUtils.Saturate(value);
     }
 }

@@ -407,7 +407,7 @@ public abstract class EntityHelper
     /// <param name="key">Name of the key.</param>
     /// <returns>The value, or <see langword="null"/> when the helper has no such key.</returns>
     protected string? GetMetadata(string key)
-        => Declaration.Metadata is { } block && block.ContainsKey(key) ? block.GetStringProperty(key) : null;
+        => Declaration.Metadata?.GetStringProperty(key);
 
     /// <summary>Gets a block of keys a block holds under a key.</summary>
     /// <param name="block">The block to look in, or <see langword="null"/> for none.</param>
@@ -421,7 +421,7 @@ public abstract class EntityHelper
     /// <param name="key">Name of the key.</param>
     /// <returns>The value, or <see langword="null"/> when the block has no such key or it is empty.</returns>
     private protected static string? GetBlockString(KVObject? block, string key)
-        => block != null && block.ContainsKey(key) && block.GetStringProperty(key) is { Length: > 0 } value ? value : null;
+        => block?.GetStringProperty(key) is { Length: > 0 } value ? value : null;
 
     /// <summary>Gets a flag of a block.</summary>
     /// <param name="block">The block to look in, or <see langword="null"/> for none.</param>

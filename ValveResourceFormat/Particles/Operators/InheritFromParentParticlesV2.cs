@@ -163,7 +163,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                     if (carried >= 1f)
                     {
-                        carried -= MathF.Floor(carried);
+                        carried = MathUtils.Fract(carried);
                         walk += reverse ? -1 : 1;
                     }
                 }

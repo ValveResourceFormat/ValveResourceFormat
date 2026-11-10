@@ -214,8 +214,8 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
         // Render the texture at requested mip level size,
         // reading pixels back to the bitmap below will crop it
-        var blockWidth = Math.Max(inputTexture.Width >> request.Mip, 1);
-        var blockHeight = Math.Max(inputTexture.Height >> request.Mip, 1);
+        var blockWidth = MathUtils.MipLevelSize(inputTexture.Width, request.Mip);
+        var blockHeight = MathUtils.MipLevelSize(inputTexture.Height, request.Mip);
 
         if (Framebuffer.Width < blockWidth || Framebuffer.Height < blockHeight)
         {

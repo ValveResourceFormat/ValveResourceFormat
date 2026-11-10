@@ -180,11 +180,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             var (forward, left, up) = ForwardDirectionToFrame(direction);
 
-            return new Matrix4x4(
-                forward.X, forward.Y, forward.Z, 0,
-                left.X, left.Y, left.Z, 0,
-                up.X, up.Y, up.Z, 0,
-                0, 0, 0, 1);
+            return MathUtils.CreateBasis(forward, left, up);
         }
 
         /// <summary>

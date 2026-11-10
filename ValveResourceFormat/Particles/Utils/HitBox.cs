@@ -68,11 +68,7 @@ namespace ValveResourceFormat.Particles.Utils
             var y = MathUtils.SafeNormalize(m.GetRow(1).AsVector3());
             var z = MathUtils.SafeNormalize(m.GetRow(2).AsVector3());
 
-            return new Matrix4x4(
-                x.X, x.Y, x.Z, 0f,
-                y.X, y.Y, y.Z, 0f,
-                z.X, z.Y, z.Z, 0f,
-                0f, 0f, 0f, 1f);
+            return MathUtils.CreateBasis(x, y, z);
         }
     }
 }

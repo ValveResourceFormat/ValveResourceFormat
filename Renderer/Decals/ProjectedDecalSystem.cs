@@ -459,7 +459,7 @@ namespace ValveResourceFormat.Renderer.Decals
 
             if (fadeTime > 0f && decal.Lifetime == DecalLifetime.Timed)
             {
-                tint.W *= 1f - Math.Clamp(fadeTime / MathF.Max(material.FadeDuration, 1e-4f), 0f, 1f);
+                tint.W *= 1f - MathUtils.Saturate(fadeTime / MathF.Max(material.FadeDuration, 1e-4f));
             }
 
             // Eight bits of linear color would band in the darks
@@ -725,7 +725,7 @@ namespace ValveResourceFormat.Renderer.Decals
         public static Matrix4x4 CreateBoxTransform(Vector3 center, Vector3 normal, Vector3 up, Vector3 size)
         {
             var axisZ = Vector3.Normalize(normal);
-            var axisY = up - axisZ * Vector3.Dot(up, axisZ);
+            var axisY = MathUtils.ProjectOntoPlane(up, axisZ);
 
             axisY = axisY.LengthSquared() > 1e-8f
                 ? Vector3.Normalize(axisY)
@@ -737,11 +737,10 @@ namespace ValveResourceFormat.Renderer.Decals
             axisY *= size.Y;
             axisZ *= size.Z;
 
-            return new Matrix4x4(
-                axisX.X, axisX.Y, axisX.Z, 0f,
-                axisY.X, axisY.Y, axisY.Z, 0f,
-                axisZ.X, axisZ.Y, axisZ.Z, 0f,
-                center.X, center.Y, center.Z, 1f);
+            var transform = MathUtils.CreateBasis(axisX, axisY, axisZ);
+            transform.Translation = center;
+
+            return transform;
         }
 
         private static Vector3 GetOrthogonal(Vector3 direction)

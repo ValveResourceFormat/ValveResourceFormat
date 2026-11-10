@@ -80,7 +80,7 @@ public static class EnvironmentMapArray
 
             for (var level = 0; level < levels; level++)
             {
-                var levelSize = Math.Max(size >> level, 1);
+                var levelSize = MathUtils.MipLevelSize(size, level);
 
                 // The faces of a cube are its layers
                 GL.CopyImageSubData(
@@ -109,7 +109,7 @@ public static class EnvironmentMapArray
     {
         for (var level = 0; level < texture.NumMipLevels; level++)
         {
-            if (Math.Max(texture.Width >> level, 1) == size)
+            if (MathUtils.MipLevelSize(texture.Width, level) == size)
             {
                 return level;
             }

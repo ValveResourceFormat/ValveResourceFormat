@@ -70,7 +70,7 @@ public static class LightProbeAtlasPacker
         return best ?? new LightProbeAtlasSlot?[sizes.Count];
     }
 
-    private static int Align(int value) => (value + BlockSize - 1) / BlockSize * BlockSize;
+    private static int Align(int value) => MathUtils.DivideRoundUp(value, BlockSize) * BlockSize;
 
     // Grows by 25% per step, at least one block
     private static int NextSide(int side) => Align(side + Math.Max(side / 4, BlockSize));

@@ -101,8 +101,8 @@ public static class TwoBoneSolver
         var theta = MathF.Acos(cosTheta);
 
         // The desired bend in the mid joint that puts the end effector at the required distance from the chain root
-        var cosThetaDesired = Math.Clamp(((length1 * length1) + (length2 * length2) - (lenHDesired * lenHDesired)) / (2f * length1 * length2), -1f, 1f);
-        var thetaDesired = MathF.Acos(cosThetaDesired);
+        var cosThetaDesired = ((length1 * length1) + (length2 * length2) - (lenHDesired * lenHDesired)) / (2f * length1 * length2);
+        var thetaDesired = MathUtils.SafeAcos(cosThetaDesired);
 
         // How much we need to rotate in the mid joint
         var thetaDelta = thetaDesired - theta;

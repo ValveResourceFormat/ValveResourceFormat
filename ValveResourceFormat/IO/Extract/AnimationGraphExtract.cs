@@ -1439,7 +1439,7 @@ public partial class AnimationGraphExtract : IDisposable
     {
         var result = condition.Trim();
 
-        while (result.StartsWith('(') && result.EndsWith(')'))
+        while (result.StartsWith('(') && FindMatchingParenthesis(result, 0) == result.Length - 1)
         {
             var parenCount = 0;
             var shouldRemove = true;

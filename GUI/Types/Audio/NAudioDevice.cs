@@ -1,5 +1,3 @@
-using System.Buffers;
-using System.Runtime.InteropServices;
 using System.Threading;
 using NAudio.Wave;
 using ValveResourceFormat.Renderer.Audio;
@@ -50,25 +48,18 @@ namespace GUI.Types.Audio
         public void SubmitSamples(ReadOnlySpan<float> samples)
         {
             var byteCount = samples.Length * sizeof(float);
-            var bytes = ArrayPool<byte>.Shared.Rent(byteCount);
+            using var rented = new RentedBuffer<float>(samples.Length);
 
-            try
+            samples.CopyTo(rented.Span);
+
+            while (!disposed && buffer.BufferedDuration > MixAhead)
             {
-                MemoryMarshal.AsBytes(samples).CopyTo(bytes);
-
-                while (!disposed && buffer.BufferedDuration > MixAhead)
-                {
-                    Thread.Sleep(1);
-                }
-
-                if (!disposed)
-                {
-                    buffer.AddSamples(bytes, 0, byteCount);
-                }
+                Thread.Sleep(1);
             }
-            finally
+
+            if (!disposed)
             {
-                ArrayPool<byte>.Shared.Return(bytes);
+                buffer.AddSamples(rented.ByteArray, 0, byteCount);
             }
         }
 

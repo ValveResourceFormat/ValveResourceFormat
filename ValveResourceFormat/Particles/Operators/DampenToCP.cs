@@ -48,7 +48,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                 // Motion lives in the Verlet position pair, so shortening the step damps the particle
                 var previousPosition = previousPositions[i];
-                var dampened = previousPosition + ((position - previousPosition) * dampening);
+                var dampened = MathUtils.Lerp(previousPosition, position, dampening);
 
                 positions[i] = Vector3.Lerp(position, dampened, strength);
             }

@@ -31,7 +31,7 @@ internal class ThumbnailTextureRenderer : ThumbnailRenderer
 
         for (var i = 1; i < textureData.NumMipLevels; i++)
         {
-            if (Math.Max(textureData.Width >> i, 1) < size || Math.Max(textureData.Height >> i, 1) < size)
+            if (MathUtils.MipLevelSize(textureData.Width, i) < size || MathUtils.MipLevelSize(textureData.Height, i) < size)
             {
                 break;
             }

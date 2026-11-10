@@ -52,7 +52,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
             if (avoidSingularity)
             {
-                left = StablePerpendicular(forward);
+                left = MathUtils.Perpendicular(forward);
                 up = Vector3.Cross(forward, left);
             }
             else
@@ -62,12 +62,6 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
             var targetRotation = Quaternion.CreateFromRotationMatrix(MathUtils.CreateBasis(forward, left, up));
             output.SetOrientation(Quaternion.Slerp(output.GetRotation(), targetRotation, amount));
-        }
-
-        private static Vector3 StablePerpendicular(Vector3 forward)
-        {
-            var perpendicular = MathUtils.SafeNormalize(new Vector3(((1f - forward.Z) * (forward.Y * forward.Y)) + forward.Z, 0f, -forward.X));
-            return MathUtils.SafeNormalize(MathUtils.ProjectOntoPlane(perpendicular, forward));
         }
     }
 }

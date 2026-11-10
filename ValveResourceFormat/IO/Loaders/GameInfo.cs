@@ -273,7 +273,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                var childValue = FindValue(child, key)!;
+                var childValue = GameFolderLocator.GetChild(child, key)!;
 
                 if (childValue.IsCollection && mergedKeys.Add(key))
                 {

@@ -1057,7 +1057,7 @@ internal sealed class CrossingRepair
             var t = span > 0.01f ? MathUtils.Saturate((middle - bounds[wire].MinX) / span) : 0f;
             var lower = from[wire].X <= to[wire].X ? from[wire] : to[wire];
             var upper = from[wire].X <= to[wire].X ? to[wire] : from[wire];
-            var crossing = lower.Y + ((upper.Y - lower.Y) * t);
+            var crossing = MathUtils.Lerp(lower.Y, upper.Y, t);
 
             lowest = Math.Max(lowest, crossing);
             highest = Math.Min(highest, crossing);

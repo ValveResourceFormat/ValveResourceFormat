@@ -74,13 +74,13 @@ namespace ValveResourceFormat.Particles.Initializers
 
                 if (scalePosition)
                 {
-                    position = origin + ((position - origin) * finalScale);
+                    position = MathUtils.Lerp(origin, position, finalScale);
                 }
 
                 if (scaleVelocity)
                 {
                     previous = scalePosition
-                        ? origin + ((previous - origin) * finalScale)
+                        ? MathUtils.Lerp(origin, previous, finalScale)
                         : position - (velocity * finalScale);
                 }
                 else if (scalePosition)

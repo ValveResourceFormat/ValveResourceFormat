@@ -215,7 +215,7 @@ namespace ValveResourceFormat.Animation
             }
 
             var dot2D = ((reference.X * v.X) + (reference.Y * v.Y)) / (referenceLength2D * vLength2D);
-            var angle = MathF.Acos(Math.Clamp(dot2D, -1f, 1f));
+            var angle = MathUtils.SafeAcos(dot2D);
 
             // Sign from cross(reference, v) . UnitZ
             var crossZ = (reference.X * v.Y) - (reference.Y * v.X);

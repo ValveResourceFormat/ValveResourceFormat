@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.IO;
 using System.Security.Cryptography;
 
@@ -213,16 +212,9 @@ public class UIFontFilePackage
         aes.DecryptEcb(input[..iv.Length], iv, PaddingMode.None);
 
         var ciphertext = input[iv.Length..];
-        var decrypted = ArrayPool<byte>.Shared.Rent(ciphertext.Length);
+        using var decrypted = new RentedBuffer<byte>(ciphertext.Length);
 
-        try
-        {
-            var length = aes.DecryptCbc(ciphertext, iv, decrypted, PaddingMode.PKCS7);
-            return ParseFontFile(decrypted.AsSpan(0, length));
-        }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(decrypted);
-        }
+        var length = aes.DecryptCbc(ciphertext, iv, decrypted.Span, PaddingMode.PKCS7);
+        return ParseFontFile(decrypted.Span[..length]);
     }
 }

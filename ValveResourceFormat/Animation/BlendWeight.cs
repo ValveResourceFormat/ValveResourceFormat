@@ -67,7 +67,7 @@ public struct BlendWeight
             // Some easing functions will under or overshoot
             if (EasingOperation is not EasingOperation.Linear and not EasingOperation.None)
             {
-                weight = Math.Clamp(Easing.Evaluate(EasingOperation, weight), 0f, 1f);
+                weight = MathUtils.Saturate(Easing.Evaluate(EasingOperation, weight));
             }
 
             if (State == BlendWeightState.TurningOff)

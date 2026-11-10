@@ -92,24 +92,14 @@ internal class Slider : UserControl
 
         if (DesignMode) { return; }
 
-        var mousePos = ClipPointToRect(PointToClient(Cursor.Position), ClientRectangle);
+        var mouseX = PointToClient(Cursor.Position).X;
 
         var knobRadius = KnobSize / 2;
         var trackWidth = Width - KnobSize;
 
-        Value = trackWidth > 0 ? MathUtils.Saturate(MathUtils.Remap(mousePos.X - knobRadius, 0f, trackWidth)) : 0f;
+        Value = trackWidth > 0 ? MathUtils.Saturate(MathUtils.Remap(mouseX - knobRadius, 0f, trackWidth)) : 0f;
 
         ValueChanged?.Invoke(Value);
-    }
-
-    private static Point ClipPointToRect(Point point, Rectangle rectangle)
-    {
-        if (point.X < 0) { point.X = 0; }
-        if (point.Y < 0) { point.Y = 0; }
-        if (point.X > rectangle.Width) { point.X = rectangle.Width; }
-        if (point.Y > rectangle.Height) { point.Y = rectangle.Height; }
-
-        return point;
     }
 
     protected override void OnMouseMove(MouseEventArgs e)

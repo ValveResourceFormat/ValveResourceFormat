@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Linq;
+using System.Numerics.Tensors;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
@@ -557,11 +558,7 @@ namespace ValveResourceFormat.Renderer
                 up = MathUtils.SafeNormalize(MathUtils.ProjectOntoPlane(up, forward));
                 var side = MathUtils.SafeNormalize(Vector3.Cross(forward, up));
 
-                var basis = new Matrix4x4(
-                    side.X, side.Y, side.Z, 0f,
-                    forward.X, forward.Y, forward.Z, 0f,
-                    up.X, up.Y, up.Z, 0f,
-                    0f, 0f, 0f, 1f);
+                var basis = MathUtils.CreateBasis(side, forward, up);
                 return Quaternion.CreateFromRotationMatrix(basis);
             }
         }

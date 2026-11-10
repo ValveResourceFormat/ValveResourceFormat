@@ -167,8 +167,8 @@ partial class HalfEdgeMesh
 
         // concavity, area imbalance between the two diagonal splits
         {
-            var areaA = TriangleArea(v1, v2, v3) + TriangleArea(v1, v3, v4);
-            var areaB = TriangleArea(v2, v3, v4) + TriangleArea(v4, v1, v2);
+            var areaA = MathUtils.TriangleArea(v1, v2, v3) + MathUtils.TriangleArea(v1, v3, v4);
+            var areaB = MathUtils.TriangleArea(v2, v3, v4) + MathUtils.TriangleArea(v4, v1, v2);
 
             var areaMin = MathF.Min(areaA, areaB);
             var areaMax = MathF.Max(areaA, areaB);

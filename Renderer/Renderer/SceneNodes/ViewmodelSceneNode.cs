@@ -945,12 +945,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         var right = -punchedRight;
         var up = Vector3.Cross(forward, right);
 
-        var cameraRotation = Quaternion.CreateFromRotationMatrix(new Matrix4x4(
-            right.X, right.Y, right.Z, 0,
-            up.X, up.Y, up.Z, 0,
-            forward.X, forward.Y, forward.Z, 0,
-            0, 0, 0, 1
-        ));
+        var cameraRotation = Quaternion.CreateFromRotationMatrix(MathUtils.CreateBasis(right, up, forward));
 
         var viewmodelOffsetRot = Quaternion.CreateFromAxisAngle(Vector3.UnitY, -float.DegreesToRadians(90))
             * Quaternion.CreateFromAxisAngle(Vector3.UnitX, -float.DegreesToRadians(90));

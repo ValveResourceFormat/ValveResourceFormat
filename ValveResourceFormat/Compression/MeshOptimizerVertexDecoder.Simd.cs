@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
@@ -307,83 +306,75 @@ namespace ValveResourceFormat.Compression
                 throw new InvalidOperationException("Data buffer too small for control data.");
             }
 
-            var bufferPool = ArrayPool<byte>.Shared.Rent(VertexBlockMaxSize * 4);
-            var buffer = bufferPool.AsSpan(0, VertexBlockMaxSize * 4);
+            using var bufferPool = new RentedBuffer<byte>(VertexBlockMaxSize * 4);
+            var buffer = bufferPool.Span;
 
-            var transposedPool = ArrayPool<byte>.Shared.Rent(VertexBlockSizeBytes);
-            var transposed = transposedPool.AsSpan(0, VertexBlockSizeBytes);
+            using var transposedPool = new RentedBuffer<byte>(VertexBlockSizeBytes);
+            var transposed = transposedPool.Span;
 
             // we can decode directly into the output buffer if vertex count is aligned to 16 (delta decode works 16 vertices at a time)
             var target = vertexCount == vertexCountAligned ? vertexData : transposed;
 
-            try
+            var control = data[..controlSize];
+            data = data[controlSize..];
+
+            for (var k = 0; k < vertexSize; k += 4)
             {
-                var control = data[..controlSize];
-                data = data[controlSize..];
+                var ctrlByte = version == 0 ? (byte)0 : control[k / 4];
 
-                for (var k = 0; k < vertexSize; k += 4)
+                for (var j = 0; j < 4; ++j)
                 {
-                    var ctrlByte = version == 0 ? (byte)0 : control[k / 4];
+                    var ctrl = (ctrlByte >> (j * 2)) & 3;
 
-                    for (var j = 0; j < 4; ++j)
+                    if (ctrl == 3)
                     {
-                        var ctrl = (ctrlByte >> (j * 2)) & 3;
-
-                        if (ctrl == 3)
+                        // literal encoding; safe to over-copy due to tail
+                        if (data.Length < vertexCountAligned)
                         {
-                            // literal encoding; safe to over-copy due to tail
-                            if (data.Length < vertexCountAligned)
-                            {
-                                throw new InvalidOperationException("Data buffer too small for literal encoding.");
-                            }
+                            throw new InvalidOperationException("Data buffer too small for literal encoding.");
+                        }
 
-                            data[..vertexCountAligned].CopyTo(buffer.Slice(j * vertexCountAligned, vertexCountAligned));
-                            data = data[vertexCount..];
-                        }
-                        else if (ctrl == 2)
-                        {
-                            // zero encoding
-                            buffer.Slice(j * vertexCountAligned, vertexCountAligned).Clear();
-                        }
-                        else
-                        {
-                            // for v0, headers are mapped to 0..3; for v1, headers are mapped to 4..8
-                            var hshift = version == 0 ? 0 : 4 + ctrl;
-
-                            data = DecodeBytesSimd(data, buffer.Slice(j * vertexCountAligned, vertexCountAligned), hshift);
-                        }
+                        data[..vertexCountAligned].CopyTo(buffer.Slice(j * vertexCountAligned, vertexCountAligned));
+                        data = data[vertexCount..];
                     }
-
-                    var channel = version == 0 ? 0 : channels[k / 4];
-
-                    switch (channel & 3)
+                    else if (ctrl == 2)
                     {
-                        case 0:
-                            DecodeDeltas4Simd<Channel0>(buffer, target[k..], vertexCountAligned, vertexSize, lastVertex[k..], 0);
-                            break;
-                        case 1:
-                            DecodeDeltas4Simd<Channel1>(buffer, target[k..], vertexCountAligned, vertexSize, lastVertex[k..], 0);
-                            break;
-                        case 2:
-                            DecodeDeltas4Simd<Channel2>(buffer, target[k..], vertexCountAligned, vertexSize, lastVertex[k..], (32 - (channel >> 4)) & 31);
-                            break;
-                        default:
-                            throw new InvalidOperationException("Invalid channel type");
+                        // zero encoding
+                        buffer.Slice(j * vertexCountAligned, vertexCountAligned).Clear();
+                    }
+                    else
+                    {
+                        // for v0, headers are mapped to 0..3; for v1, headers are mapped to 4..8
+                        var hshift = version == 0 ? 0 : 4 + ctrl;
+
+                        data = DecodeBytesSimd(data, buffer.Slice(j * vertexCountAligned, vertexCountAligned), hshift);
                     }
                 }
 
-                if (target == transposed)
-                {
-                    transposed[..(vertexCount * vertexSize)].CopyTo(vertexData);
-                }
+                var channel = version == 0 ? 0 : channels[k / 4];
 
-                target.Slice(vertexSize * (vertexCount - 1), vertexSize).CopyTo(lastVertex);
+                switch (channel & 3)
+                {
+                    case 0:
+                        DecodeDeltas4Simd<Channel0>(buffer, target[k..], vertexCountAligned, vertexSize, lastVertex[k..], 0);
+                        break;
+                    case 1:
+                        DecodeDeltas4Simd<Channel1>(buffer, target[k..], vertexCountAligned, vertexSize, lastVertex[k..], 0);
+                        break;
+                    case 2:
+                        DecodeDeltas4Simd<Channel2>(buffer, target[k..], vertexCountAligned, vertexSize, lastVertex[k..], (32 - (channel >> 4)) & 31);
+                        break;
+                    default:
+                        throw new InvalidOperationException("Invalid channel type");
+                }
             }
-            finally
+
+            if (target == transposed)
             {
-                ArrayPool<byte>.Shared.Return(bufferPool);
-                ArrayPool<byte>.Shared.Return(transposedPool);
+                transposed[..(vertexCount * vertexSize)].CopyTo(vertexData);
             }
+
+            target.Slice(vertexSize * (vertexCount - 1), vertexSize).CopyTo(lastVertex);
 
             return data;
         }

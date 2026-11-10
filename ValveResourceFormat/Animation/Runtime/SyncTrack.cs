@@ -322,7 +322,7 @@ partial class SyncTrack
         {
             // Only the last event is allowed to wrap around
             Debug.Assert(eventIdx == NumEvents - 1);
-            percentageThroughClip -= MathF.Floor(percentageThroughClip);
+            percentageThroughClip = MathUtils.Fract(percentageThroughClip);
         }
 
         return percentageThroughClip;

@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.Blocks;
@@ -38,52 +37,41 @@ public class MeshletBuffer : RawBinary
             throw new InvalidOperationException("Resource reader is required to lazily read meshlet data.");
         }
 
-        var byteCount = vertexCount * sizeof(uint);
-        var rented = ArrayPool<byte>.Shared.Rent(byteCount);
+        using var rented = new RentedBuffer<uint>(vertexCount);
+        var entries = rented.Span;
 
-        try
+        lock (Resource.ReaderLock)
         {
-            var buffer = rented.AsSpan(0, byteCount);
+            Resource.Reader.BaseStream.Position = Offset + (long)entryOffset * sizeof(uint);
+            Resource.Reader.ReadExactly(MemoryMarshal.AsBytes(entries));
+        }
 
-            lock (Resource.ReaderLock)
+        for (var i = 0; i < vertexCount; i++)
+        {
+            vertices[i] = (int)(entries[i] >> 18);
+        }
+
+        var maxIntroduced = -1;
+
+        for (var t = 0; t < triangleCount; t++)
+        {
+            var triangle = entries[t] & 0x3FFFFu;
+
+            for (var k = 0; k < 3; k++)
             {
-                Resource.Reader.BaseStream.Position = Offset + (long)entryOffset * sizeof(uint);
-                Resource.Reader.ReadExactly(buffer);
-            }
+                var reference = (int)((triangle >> (6 * k)) & 0x3F);
 
-            var entries = MemoryMarshal.Cast<byte, uint>(buffer);
-
-            for (var i = 0; i < vertexCount; i++)
-            {
-                vertices[i] = (int)(entries[i] >> 18);
-            }
-
-            var maxIntroduced = -1;
-
-            for (var t = 0; t < triangleCount; t++)
-            {
-                var triangle = entries[t] & 0x3FFFFu;
-
-                for (var k = 0; k < 3; k++)
+                if (reference == ((maxIntroduced + 1) & 0x3F))
                 {
-                    var reference = (int)((triangle >> (6 * k)) & 0x3F);
-
-                    if (reference == ((maxIntroduced + 1) & 0x3F))
-                    {
-                        // Next vertex in introduction order.
-                        indices[t * 3 + k] = ++maxIntroduced;
-                    }
-                    else
-                    {
-                        // Reuse: the vertex congruent to the reference within the current 64-entry window.
-                        indices[t * 3 + k] = reference + 64 * ((maxIntroduced - reference) / 64);
-                    }
+                    // Next vertex in introduction order.
+                    indices[t * 3 + k] = ++maxIntroduced;
+                }
+                else
+                {
+                    // Reuse: the vertex congruent to the reference within the current 64-entry window.
+                    indices[t * 3 + k] = reference + 64 * ((maxIntroduced - reference) / 64);
                 }
             }
-        }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(rented);
         }
     }
 }

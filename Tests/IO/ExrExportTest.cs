@@ -9,6 +9,7 @@ using SkiaSharp;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Utils;
 
 namespace Tests.IO
 {
@@ -120,7 +121,7 @@ namespace Tests.IO
             ReadHeader(exr, out var tableStart);
 
             var result = new float[width * height * ChannelCount];
-            var blockCount = (height + LinesPerBlock - 1) / LinesPerBlock;
+            var blockCount = MathUtils.DivideRoundUp(height, LinesPerBlock);
 
             for (var blockIndex = 0; blockIndex < blockCount; blockIndex++)
             {

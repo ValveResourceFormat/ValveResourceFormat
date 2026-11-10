@@ -73,7 +73,7 @@ namespace ValveResourceFormat.Particles.Operators
             var indexed = reverse || random || step != 1;
             var firstRow = (int)MathF.Ceiling(start);
             var subSampleOffset = firstRow - (int)MathF.Floor(start);
-            var fraction = start - MathF.Floor(start);
+            var fraction = MathUtils.Fract(start);
             var cursor = firstRow;
 
             var field = snapshot.AttributeToWrite;

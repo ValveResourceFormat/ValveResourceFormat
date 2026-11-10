@@ -353,11 +353,7 @@ namespace ValveResourceFormat.IO
                     }
 
                     var third = Vector3.Cross(first, second);
-                    var basis = new Matrix4x4(
-                        first.X, first.Y, first.Z, 0f,
-                        second.X, second.Y, second.Z, 0f,
-                        third.X, third.Y, third.Z, 0f,
-                        0f, 0f, 0f, 1f);
+                    var basis = MathUtils.CreateBasis(first, second, third);
                     yield return Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(basis));
                 }
             }

@@ -799,7 +799,7 @@ public sealed partial class FgdFile
             return false;
         }
 
-        var filterType = filter.ContainsKey("filter_type") ? filter.GetStringProperty("filter_type") : null;
+        var filterType = filter.GetStringProperty("filter_type");
 
         if (string.IsNullOrEmpty(filterType))
         {
@@ -813,7 +813,7 @@ public sealed partial class FgdFile
             return false;
         }
 
-        if (!filter.ContainsKey("group") || string.IsNullOrEmpty(filter.GetStringProperty("group")))
+        if (string.IsNullOrEmpty(filter.GetStringProperty("group")))
         {
             Error(tokens, "Error: missing 'group' key in @VisGroupFilter specification");
             return false;
@@ -847,7 +847,7 @@ public sealed partial class FgdFile
                 return false;
             }
 
-            startExpanded = keys.ContainsKey("start_expanded") && keys.GetBooleanProperty("start_expanded");
+            startExpanded = keys.GetBooleanProperty("start_expanded");
         }
 
         EntityGroups.Add(new FgdEntityGroup(groupName, startExpanded));

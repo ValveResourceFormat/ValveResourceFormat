@@ -453,7 +453,8 @@ namespace ValveResourceFormat.Renderer.Materials
                 return tex;
             }
 
-            var buffer = ArrayPool<byte>.Shared.Rent(data.GetBiggestBufferSize());
+            using var mipBuffer = new RentedBuffer<byte>(data.GetBiggestBufferSize());
+            var buffer = mipBuffer.ByteArray;
             byte[]? decodedBuffer = null;
 
             if (rgba8UncompressedFallback)
@@ -503,8 +504,6 @@ namespace ValveResourceFormat.Renderer.Materials
             finally
             {
                 Monitor.Exit(data);
-
-                ArrayPool<byte>.Shared.Return(buffer);
 
                 if (decodedBuffer != null)
                 {
@@ -834,7 +833,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
             for (var i = 0; i < stops.Length; i++)
             {
-                sorted[i] = (Math.Clamp(stops[i].Position, 0f, 1f), stops[i].Color);
+                sorted[i] = (MathUtils.Saturate(stops[i].Position), stops[i].Color);
             }
 
             // Both orderings are stable, so stops sharing a position keep their authored order. How a list

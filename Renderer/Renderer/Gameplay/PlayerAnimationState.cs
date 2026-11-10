@@ -429,7 +429,7 @@ public sealed class PlayerAnimationState
 
         foreach (var (heading, opposite) in reversals)
         {
-            if (wishDirection != opposite || MathF.Acos(Math.Clamp(Vector2.Dot(heading, moveHeading), -1f, 1f)) > MathF.PI / 6f)
+            if (wishDirection != opposite || MathUtils.SafeAcos(Vector2.Dot(heading, moveHeading)) > MathF.PI / 6f)
             {
                 continue;
             }

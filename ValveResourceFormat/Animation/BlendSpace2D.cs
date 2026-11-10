@@ -183,7 +183,7 @@ public static class BlendSpace2D
     {
         var ab = b - a;
         var lengthSq = Vector2.Dot(ab, ab);
-        t = lengthSq <= 1e-10f ? 0f : Math.Clamp(Vector2.Dot(p - a, ab) / lengthSq, 0f, 1f);
+        t = lengthSq <= 1e-10f ? 0f : MathUtils.Saturate(Vector2.Dot(p - a, ab) / lengthSq);
         return a + ab * t;
     }
 }

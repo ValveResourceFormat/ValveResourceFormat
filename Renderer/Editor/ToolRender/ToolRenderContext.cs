@@ -599,11 +599,10 @@ public sealed class ToolRenderContext
             up = new Vector3(-forward.Z, 0f, 0f);
         }
 
-        return new Matrix4x4(
-            -up.X, -up.Y, -up.Z, 0f,
-            left.X, left.Y, left.Z, 0f,
-            forward.X, forward.Y, forward.Z, 0f,
-            origin.X, origin.Y, origin.Z, 1f);
+        var frame = MathUtils.CreateBasis(-up, left, forward);
+        frame.Translation = origin;
+
+        return frame;
     }
 
     // Half a sphere around Z, in the frame: its pole first, then each ring around from +X, out to the rim
@@ -992,7 +991,7 @@ public sealed class ToolRenderContext
     }
 
     // The normal the CPU lights a face by, which faces away from the side its corners turn clockwise on
-    private static Vector3 GetShadeNormal(Vector3 a, Vector3 b, Vector3 c) => MathUtils.SafeNormalize(Vector3.Cross(c - a, b - a));
+    private static Vector3 GetShadeNormal(Vector3 a, Vector3 b, Vector3 c) => MathUtils.SafeNormalize(MathUtils.TriangleCross(a, c, b));
 
     private void AddFaces(Vector3 a, Vector3 b, Vector3 c, Color32 colorA, Color32 colorB, Color32 colorC, ToolFaceSides sides)
     {

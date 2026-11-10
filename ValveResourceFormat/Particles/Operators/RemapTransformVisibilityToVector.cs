@@ -53,7 +53,7 @@ namespace ValveResourceFormat.Particles.Operators
             {
                 var current = output[i];
                 var final = ParticleFieldExtensions.ApplySetMethod(value, initial[i], current, particleSystemState.CurrentStep, setMethod);
-                output[i] = current + ((final - current) * strength);
+                output[i] = MathUtils.Lerp(current, final, strength);
             }
         }
     }

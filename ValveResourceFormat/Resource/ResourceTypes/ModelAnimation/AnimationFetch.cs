@@ -179,8 +179,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                         closestDistance = distance;
                         cellX = x;
                         cellY = y;
-                        u = Math.Clamp(cellU, 0f, 1f);
-                        v = Math.Clamp(cellV, 0f, 1f);
+                        u = MathUtils.Saturate(cellU);
+                        v = MathUtils.Saturate(cellV);
                     }
                 }
             }

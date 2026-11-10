@@ -48,7 +48,7 @@ internal static class ExrWriter
         }
 
         var header = WriteHeader(width, height);
-        var blockCount = (height + LinesPerBlock - 1) / LinesPerBlock;
+        var blockCount = MathUtils.DivideRoundUp(height, LinesPerBlock);
         var blocks = new EncodedBlock[blockCount];
 
         try
@@ -189,32 +189,23 @@ internal static class ExrWriter
         var lineCount = Math.Min(LinesPerBlock, pixels.Height - firstLine);
         var rawSize = lineCount * ChannelCount * width * sizeof(float);
 
-        var raw = ArrayPool<byte>.Shared.Rent(rawSize);
-        var scratch = ArrayPool<byte>.Shared.Rent(rawSize);
+        using var raw = new RentedBuffer<byte>(rawSize);
+        using var scratch = new RentedBuffer<byte>(rawSize);
 
-        try
-        {
-            var rgba = MemoryMarshal.Cast<SKColorF, float>(pixels.GetPixelSpan<SKColorF>());
-            var rawSpan = raw.AsSpan(0, rawSize);
+        var rgba = MemoryMarshal.Cast<SKColorF, float>(pixels.GetPixelSpan<SKColorF>());
 
-            DeinterleaveChannels(rgba, width, firstLine, lineCount, rawSpan);
+        DeinterleaveChannels(rgba, width, firstLine, lineCount, raw.Span);
 
-            stream.SetLength(0);
-            var data = CompressZip(rawSpan, scratch.AsSpan(0, rawSize), stream);
+        stream.SetLength(0);
+        var data = CompressZip(raw.Span, scratch.Span, stream);
 
-            var blockSize = BlockHeaderSize + data.Length;
-            var block = ArrayPool<byte>.Shared.Rent(blockSize);
-            BinaryPrimitives.WriteInt32LittleEndian(block, firstLine);
-            BinaryPrimitives.WriteInt32LittleEndian(block.AsSpan(sizeof(int)), data.Length);
-            data.CopyTo(block.AsSpan(BlockHeaderSize));
+        var blockSize = BlockHeaderSize + data.Length;
+        var block = ArrayPool<byte>.Shared.Rent(blockSize);
+        BinaryPrimitives.WriteInt32LittleEndian(block, firstLine);
+        BinaryPrimitives.WriteInt32LittleEndian(block.AsSpan(sizeof(int)), data.Length);
+        data.CopyTo(block.AsSpan(BlockHeaderSize));
 
-            return new EncodedBlock(block, blockSize);
-        }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(raw);
-            ArrayPool<byte>.Shared.Return(scratch);
-        }
+        return new EncodedBlock(block, blockSize);
     }
 
     private static void DeinterleaveChannels(ReadOnlySpan<float> rgba, int width, int firstLine, int lineCount, Span<byte> destination)

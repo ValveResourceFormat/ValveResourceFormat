@@ -287,19 +287,11 @@ namespace ValveResourceFormat.Blocks
 
             if (decompressedSize > totalSize)
             {
-                var temp = ArrayPool<byte>.Shared.Rent(totalSize);
+                using var temp = new RentedBuffer<byte>(totalSize);
+                var span = temp.Span;
+                reader.ReadExactly(span);
 
-                try
-                {
-                    var span = temp.AsSpan(0, totalSize);
-                    reader.ReadExactly(span);
-
-                    buffer.Data = DecompressData(buffer, span, decompressedSize, isVertex, isZstdCompressed, isMeshoptCompressed);
-                }
-                finally
-                {
-                    ArrayPool<byte>.Shared.Return(temp);
-                }
+                buffer.Data = DecompressData(buffer, span, decompressedSize, isVertex, isZstdCompressed, isMeshoptCompressed);
             }
             else
             {
@@ -424,31 +416,24 @@ namespace ValveResourceFormat.Blocks
                 var isZstdCompressed = data.GetByteProperty("m_bCompressedZSTD") == 1;
                 var compressedSize = (int)dataBlock.Size;
 
-                var temp = ArrayPool<byte>.Shared.Rent(compressedSize);
+                using var temp = new RentedBuffer<byte>(compressedSize);
+                var span = temp.Span;
 
-                try
+                Debug.Assert(Resource.Reader != null);
+
+                lock (Resource.ReaderLock)
                 {
-                    Debug.Assert(Resource.Reader != null);
-                    var span = temp.AsSpan(0, compressedSize);
-
-                    lock (Resource.ReaderLock)
-                    {
-                        Resource.Reader.BaseStream.Position = dataBlock.Offset;
-                        Resource.Reader.ReadExactly(span);
-                    }
-
-                    if (isZstdCompressed || isMeshoptCompressed)
-                    {
-                        buffer.Data = DecompressData(buffer, span, (int)buffer.TotalSizeInBytes, isVertex, isZstdCompressed, isMeshoptCompressed);
-                    }
-                    else
-                    {
-                        buffer.Data = span.ToArray();
-                    }
+                    Resource.Reader.BaseStream.Position = dataBlock.Offset;
+                    Resource.Reader.ReadExactly(span);
                 }
-                finally
+
+                if (isZstdCompressed || isMeshoptCompressed)
                 {
-                    ArrayPool<byte>.Shared.Return(temp);
+                    buffer.Data = DecompressData(buffer, span, (int)buffer.TotalSizeInBytes, isVertex, isZstdCompressed, isMeshoptCompressed);
+                }
+                else
+                {
+                    buffer.Data = span.ToArray();
                 }
             }
 

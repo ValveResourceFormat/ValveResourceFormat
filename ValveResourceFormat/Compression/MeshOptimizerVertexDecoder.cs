@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
@@ -273,77 +272,69 @@ namespace ValveResourceFormat.Compression
                 throw new InvalidOperationException("Data buffer too small for control data.");
             }
 
-            var bufferPool = ArrayPool<byte>.Shared.Rent(VertexBlockMaxSize * 4);
-            var buffer = bufferPool.AsSpan(0, VertexBlockMaxSize * 4);
+            using var bufferPool = new RentedBuffer<byte>(VertexBlockMaxSize * 4);
+            var buffer = bufferPool.Span;
 
-            var transposedPool = ArrayPool<byte>.Shared.Rent(VertexBlockSizeBytes);
-            var transposed = transposedPool.AsSpan(0, VertexBlockSizeBytes);
+            using var transposedPool = new RentedBuffer<byte>(VertexBlockSizeBytes);
+            var transposed = transposedPool.Span;
 
             // we could decode directly into the output buffer
             // this uses strided writes and also reads the last vertex once, which is bad for performance for write-combined memory so we always go through transposed
 
-            try
+            var control = data[..controlSize];
+            data = data[controlSize..];
+
+            for (var k = 0; k < vertexSize; k += 4)
             {
-                var control = data[..controlSize];
-                data = data[controlSize..];
+                var ctrlByte = version == 0 ? (byte)0 : control[k / 4];
 
-                for (var k = 0; k < vertexSize; k += 4)
+                for (var j = 0; j < 4; ++j)
                 {
-                    var ctrlByte = version == 0 ? (byte)0 : control[k / 4];
+                    var ctrl = (ctrlByte >> (j * 2)) & 3;
 
-                    for (var j = 0; j < 4; ++j)
+                    if (ctrl == 3)
                     {
-                        var ctrl = (ctrlByte >> (j * 2)) & 3;
+                        // literal encoding
+                        if (data.Length < vertexCount)
+                        {
+                            throw new InvalidOperationException("Data buffer too small for literal encoding.");
+                        }
 
-                        if (ctrl == 3)
-                        {
-                            // literal encoding
-                            if (data.Length < vertexCount)
-                            {
-                                throw new InvalidOperationException("Data buffer too small for literal encoding.");
-                            }
-
-                            data[..vertexCount].CopyTo(buffer.Slice(j * vertexCount, vertexCount));
-                            data = data[vertexCount..];
-                        }
-                        else if (ctrl == 2)
-                        {
-                            // zero encoding
-                            buffer.Slice(j * vertexCount, vertexCount).Clear();
-                        }
-                        else
-                        {
-                            data = DecodeBytes(data, buffer.Slice(j * vertexCount, vertexCountAligned), version == 0 ? BitsV0 : BitsV1.AsSpan(ctrl));
-                        }
+                        data[..vertexCount].CopyTo(buffer.Slice(j * vertexCount, vertexCount));
+                        data = data[vertexCount..];
                     }
-
-                    var channel = version == 0 ? 0 : channels[k / 4];
-
-                    switch (channel & 3)
+                    else if (ctrl == 2)
                     {
-                        case 0:
-                            DecodeDeltas1(1, buffer, transposed[k..], vertexCount, vertexSize, lastVertex[k..], 0);
-                            break;
-                        case 1:
-                            DecodeDeltas1(2, buffer, transposed[k..], vertexCount, vertexSize, lastVertex[k..], 0);
-                            break;
-                        case 2:
-                            DecodeDeltas1(4, buffer, transposed[k..], vertexCount, vertexSize, lastVertex[k..], (32 - (channel >> 4)) & 31);
-                            break;
-                        default:
-                            throw new InvalidOperationException("Invalid channel type");
+                        // zero encoding
+                        buffer.Slice(j * vertexCount, vertexCount).Clear();
+                    }
+                    else
+                    {
+                        data = DecodeBytes(data, buffer.Slice(j * vertexCount, vertexCountAligned), version == 0 ? BitsV0 : BitsV1.AsSpan(ctrl));
                     }
                 }
 
-                transposed[..(vertexCount * vertexSize)].CopyTo(vertexData);
+                var channel = version == 0 ? 0 : channels[k / 4];
 
-                transposed.Slice(vertexSize * (vertexCount - 1), vertexSize).CopyTo(lastVertex);
+                switch (channel & 3)
+                {
+                    case 0:
+                        DecodeDeltas1(1, buffer, transposed[k..], vertexCount, vertexSize, lastVertex[k..], 0);
+                        break;
+                    case 1:
+                        DecodeDeltas1(2, buffer, transposed[k..], vertexCount, vertexSize, lastVertex[k..], 0);
+                        break;
+                    case 2:
+                        DecodeDeltas1(4, buffer, transposed[k..], vertexCount, vertexSize, lastVertex[k..], (32 - (channel >> 4)) & 31);
+                        break;
+                    default:
+                        throw new InvalidOperationException("Invalid channel type");
+                }
             }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(bufferPool);
-                ArrayPool<byte>.Shared.Return(transposedPool);
-            }
+
+            transposed[..(vertexCount * vertexSize)].CopyTo(vertexData);
+
+            transposed.Slice(vertexSize * (vertexCount - 1), vertexSize).CopyTo(lastVertex);
 
             return data;
         }
@@ -394,46 +385,39 @@ namespace ValveResourceFormat.Compression
             var resultArray = GC.AllocateUninitializedArray<byte>(vertexCount * vertexSize);
 
             // C code always uses [256] here, but more than vertexSize can't be used
-            var lastVertexBuffer = ArrayPool<byte>.Shared.Rent(vertexSize);
-            var lastVertex = lastVertexBuffer.AsSpan(0, vertexSize);
+            using var lastVertexBuffer = new RentedBuffer<byte>(vertexSize);
+            var lastVertex = lastVertexBuffer.Span;
 
-            try
+            buffer.Slice(buffer.Length - tailSize, vertexSize).CopyTo(lastVertex);
+
+            var channels = version == 0 ? null : buffer.Slice(buffer.Length - tailSize + vertexSize, vertexSize / 4);
+
+            var vertexBlockSize = GetVertexBlockSize(vertexSize);
+
+            var vertexOffset = 0;
+
+            var result = resultArray.AsSpan();
+
+            useSimd &= IsHardwareAccelerated;
+
+            while (vertexOffset < vertexCount)
             {
-                buffer.Slice(buffer.Length - tailSize, vertexSize).CopyTo(lastVertex);
+                var blockSize = vertexOffset + vertexBlockSize < vertexCount
+                    ? vertexBlockSize
+                    : vertexCount - vertexOffset;
 
-                var channels = version == 0 ? null : buffer.Slice(buffer.Length - tailSize + vertexSize, vertexSize / 4);
+                var vertexData = result[(vertexOffset * vertexSize)..];
 
-                var vertexBlockSize = GetVertexBlockSize(vertexSize);
-
-                var vertexOffset = 0;
-
-                var result = resultArray.AsSpan();
-
-                useSimd &= IsHardwareAccelerated;
-
-                while (vertexOffset < vertexCount)
+                if (useSimd)
                 {
-                    var blockSize = vertexOffset + vertexBlockSize < vertexCount
-                        ? vertexBlockSize
-                        : vertexCount - vertexOffset;
-
-                    var vertexData = result[(vertexOffset * vertexSize)..];
-
-                    if (useSimd)
-                    {
-                        buffer = DecodeVertexBlockSimd(buffer, vertexData, blockSize, vertexSize, lastVertex, channels, version);
-                    }
-                    else
-                    {
-                        buffer = DecodeVertexBlock(buffer, vertexData, blockSize, vertexSize, lastVertex, channels, version);
-                    }
-
-                    vertexOffset += blockSize;
+                    buffer = DecodeVertexBlockSimd(buffer, vertexData, blockSize, vertexSize, lastVertex, channels, version);
                 }
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(lastVertexBuffer);
+                else
+                {
+                    buffer = DecodeVertexBlock(buffer, vertexData, blockSize, vertexSize, lastVertex, channels, version);
+                }
+
+                vertexOffset += blockSize;
             }
 
             if (buffer.Length != tailSizePad)

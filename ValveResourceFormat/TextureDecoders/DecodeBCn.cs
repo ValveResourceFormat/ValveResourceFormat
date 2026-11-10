@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Runtime.InteropServices;
 using SkiaSharp;
 using TinyBCSharp;
@@ -25,19 +24,12 @@ internal readonly struct DecodeBCn : ITextureDecoder
 
         if (format == BlockFormat.BC6HUf32 && bitmap.ColorType != ResourceTypes.Texture.HdrBitmapColorType)
         {
-            var dataHalf = ArrayPool<byte>.Shared.Rent(data.Length * sizeof(ushort));
+            using var dataHalf = new RentedBuffer<Half>(data.Length);
 
-            try
-            {
-                var decoder = BlockDecoder.Create(BlockFormat.BC6HUf16);
-                decoder.Decode(input, w, h, dataHalf, bitmap.Width, bitmap.Height);
+            var decoder = BlockDecoder.Create(BlockFormat.BC6HUf16);
+            decoder.Decode(input, w, h, MemoryMarshal.AsBytes(dataHalf.Span), bitmap.Width, bitmap.Height);
 
-                Common.ToClampedLdrColor(MemoryMarshal.Cast<byte, Half>(dataHalf), data);
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(dataHalf);
-            }
+            Common.ToClampedLdrColor(dataHalf.Span, data);
         }
         else
         {

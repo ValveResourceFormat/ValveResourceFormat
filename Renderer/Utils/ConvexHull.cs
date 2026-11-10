@@ -149,7 +149,7 @@ namespace ValveResourceFormat.Renderer.Utils
 
         private void AddFace(int a, int b, int c)
         {
-            var normal = Vector3.Normalize(Vector3.Cross(local[b] - local[a], local[c] - local[a]));
+            var normal = Vector3.Normalize(MathUtils.TriangleCross(local[a], local[b], local[c]));
             faces.Add(new Face(a, b, c, normal, Vector3.Dot(normal, local[a])));
         }
 

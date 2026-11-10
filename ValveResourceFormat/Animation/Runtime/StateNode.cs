@@ -186,8 +186,8 @@ namespace ValveResourceFormat.Animation
             }
             else
             {
-                ctx.LayerContext.Weight *= Math.Clamp(LayerWeightNode?.GetValue(ctx) ?? 1.0f, 0f, 1f);
-                ctx.LayerContext.RootMotionWeight *= Math.Clamp(LayerRootMotionWeightNode?.GetValue(ctx) ?? 1.0f, 0f, 1f);
+                ctx.LayerContext.Weight *= MathUtils.Saturate(LayerWeightNode?.GetValue(ctx) ?? 1.0f);
+                ctx.LayerContext.RootMotionWeight *= MathUtils.Saturate(LayerRootMotionWeightNode?.GetValue(ctx) ?? 1.0f);
             }
 
             // Update bone mask task list

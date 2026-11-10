@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Buffers.Binary;
 using System.IO;
 
@@ -47,18 +46,11 @@ namespace ValveResourceFormat.Compression
             // Every 16 tokens start with a 2 byte mask, and no token is longer than its output
             var stream = reader.BaseStream;
             var maxInputSize = (int)Math.Min(info.Size + (info.Size + 15L) / 16 * 2, stream.Length - stream.Position);
-            var input = ArrayPool<byte>.Shared.Rent(maxInputSize);
+            using var input = new RentedBuffer<byte>(maxInputSize);
 
-            try
-            {
-                stream.ReadExactly(input, 0, maxInputSize);
-                var consumed = FastDecompress(input.AsSpan(0, maxInputSize), result, info.Size);
-                stream.Position -= maxInputSize - consumed;
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(input);
-            }
+            stream.ReadExactly(input.Span);
+            var consumed = FastDecompress(input.Span, result, info.Size);
+            stream.Position -= maxInputSize - consumed;
         }
 
         private static int FastDecompress(ReadOnlySpan<byte> input, Span<byte> result, int size)

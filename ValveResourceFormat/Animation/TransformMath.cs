@@ -92,9 +92,7 @@ public static class TransformMath
     /// <summary>The rotation aligning one unit vector onto another, around a fallback axis for opposite vectors.</summary>
     public static Quaternion FromRotationBetweenUnitVectors(Vector3 from, Vector3 to, Vector3 fallbackRotationAxis)
     {
-        var rotationAxis = Vector3.Cross(from, to);
-        var axisLengthSquared = rotationAxis.LengthSquared();
-        rotationAxis = axisLengthSquared > 0f ? rotationAxis / MathF.Sqrt(axisLengthSquared) : fallbackRotationAxis;
+        var rotationAxis = MathUtils.SafeNormalize(Vector3.Cross(from, to), fallbackRotationAxis);
 
         var dot = Vector3.Dot(from, to);
         if (dot >= 1f - Epsilon)
@@ -169,10 +167,10 @@ public static class TransformMath
         }
 
         return Quaternion.Normalize(new Quaternion(
-            from.X + ((to.X - from.X) * t),
-            from.Y + ((to.Y - from.Y) * t),
-            from.Z + ((to.Z - from.Z) * t),
-            from.W + ((to.W - from.W) * t)));
+            MathUtils.Lerp(from.X, to.X, t),
+            MathUtils.Lerp(from.Y, to.Y, t),
+            MathUtils.Lerp(from.Z, to.Z, t),
+            MathUtils.Lerp(from.W, to.W, t)));
     }
 
     /// <summary>Interpolates translation and scale linearly and rotation with a normalized lerp.</summary>
@@ -201,11 +199,7 @@ public static class TransformMath
         var left = MathUtils.SafeNormalize(Vector3.Cross(up, forwardVector));
 
         // Rows are the images of the forward, left and up axes
-        var m = new Matrix4x4(
-            forwardVector.X, forwardVector.Y, forwardVector.Z, 0f,
-            left.X, left.Y, left.Z, 0f,
-            up.X, up.Y, up.Z, 0f,
-            0f, 0f, 0f, 1f);
+        var m = MathUtils.CreateBasis(forwardVector, left, up);
 
         return Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(m));
     }

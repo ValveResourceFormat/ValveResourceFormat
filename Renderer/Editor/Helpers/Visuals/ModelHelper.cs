@@ -222,7 +222,7 @@ public class ModelHelper : EntityHelper
         {
             var value = GetStringKey(owner, sourceKey);
 
-            name = value.Length > 0 && models.ContainsKey(value) ? models.GetStringProperty(value) : null;
+            name = value.Length > 0 ? models.GetStringProperty(value) : null;
         }
 
         var arguments = declaration.Arguments;

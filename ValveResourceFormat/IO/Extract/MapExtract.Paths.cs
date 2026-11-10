@@ -816,7 +816,7 @@ public sealed partial class MapExtract
 
         foreach (var fraction in new[] { 0.5f, 0.25f, 0.75f })
         {
-            var candidate = low + (high - low) * fraction;
+            var candidate = MathUtils.Lerp(low, high, fraction);
 
             if (Reproduces(candidate, segments))
             {

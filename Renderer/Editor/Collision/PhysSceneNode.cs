@@ -624,10 +624,7 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
 
         private static Vector3 ComputeNormal(Vector3 a, Vector3 b, Vector3 c)
         {
-            var side1 = b - a;
-            var side2 = c - a;
-
-            return Vector3.Normalize(Vector3.Cross(side1, side2));
+            return Vector3.Normalize(MathUtils.TriangleCross(a, b, c));
         }
     }
 }

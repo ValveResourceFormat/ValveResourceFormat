@@ -382,7 +382,7 @@ internal sealed class GraphWireRouter
 
         return Lerp(previous, to);
 
-        float Lerp(Vector2 a, Vector2 b) => b.X - a.X > 0.01f ? a.Y + ((b.Y - a.Y) * MathUtils.Saturate((x - a.X) / (b.X - a.X))) : b.Y;
+        float Lerp(Vector2 a, Vector2 b) => b.X - a.X > 0.01f ? MathUtils.Lerp(a.Y, b.Y, MathUtils.Saturate((x - a.X) / (b.X - a.X))) : b.Y;
     }
 
     /// <summary>Fills <see cref="blocked"/> with the sorted spans of a column that cards and lanes already take.</summary>

@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Diagnostics;
 using System.Threading;
 using OpenTK.Graphics.OpenGL;
@@ -148,76 +147,70 @@ namespace ValveResourceFormat.Renderer.Decals
         {
             Debug.Assert(ArrayTexture != null);
 
-            var scratch = ArrayPool<byte>.Shared.Rent(GetBlockCount(Width) * GetBlockCount(Height) * clearBlock.Length);
-            var buffer = ArrayPool<byte>.Shared.Rent(data.GetBiggestBufferSize());
+            using var scratchBuffer = new RentedBuffer<byte>(GetBlockCount(Width) * GetBlockCount(Height) * clearBlock.Length);
+            using var mipBuffer = new RentedBuffer<byte>(data.GetBiggestBufferSize());
+            var scratch = scratchBuffer.ByteArray;
+            var buffer = mipBuffer.ByteArray;
 
             byte[]? smallestMip = null;
             var smallestLevel = -1;
             var smallestWidth = 0;
             var smallestHeight = 0;
 
+            // Clear what a smaller texture leaves uncovered
+            for (var level = 0; level < levels; level++)
+            {
+                var (levelWidth, levelHeight) = GetLevelSize(level);
+                var size = GetBlockCount(levelWidth) * GetBlockCount(levelHeight) * clearBlock.Length;
+
+                for (var offset = 0; offset < size; offset += clearBlock.Length)
+                {
+                    clearBlock.CopyTo(scratch, offset);
+                }
+
+                GL.CompressedTextureSubImage3D(ArrayTexture.Handle, level, 0, 0, layer, levelWidth, levelHeight, 1, GetPixelFormat(), size, scratch);
+            }
+
+            Monitor.Enter(data); // reader lock
+
             try
             {
-                // Clear what a smaller texture leaves uncovered
-                for (var level = 0; level < levels; level++)
+                foreach (var (mip, width, height, _, bufferSize) in data.GetEveryMipLevelTexture(buffer))
                 {
-                    var (levelWidth, levelHeight) = GetLevelSize(level);
-                    var size = GetBlockCount(levelWidth) * GetBlockCount(levelHeight) * clearBlock.Length;
+                    var level = (int)mip;
 
-                    for (var offset = 0; offset < size; offset += clearBlock.Length)
+                    if (level >= levels)
                     {
-                        clearBlock.CopyTo(scratch, offset);
+                        continue;
                     }
 
-                    GL.CompressedTextureSubImage3D(ArrayTexture.Handle, level, 0, 0, layer, levelWidth, levelHeight, 1, GetPixelFormat(), size, scratch);
-                }
+                    UploadRegion(layer, level, width, height, buffer, scratch);
 
-                Monitor.Enter(data); // reader lock
-
-                try
-                {
-                    foreach (var (mip, width, height, _, bufferSize) in data.GetEveryMipLevelTexture(buffer))
+                    if (level > smallestLevel)
                     {
-                        var level = (int)mip;
+                        smallestLevel = level;
+                        smallestWidth = width;
+                        smallestHeight = height;
 
-                        if (level >= levels)
+                        if (level == data.NumMipLevels - 1)
                         {
-                            continue;
+                            smallestMip = buffer.AsSpan(0, bufferSize).ToArray();
                         }
-
-                        UploadRegion(layer, level, width, height, buffer, scratch);
-
-                        if (level > smallestLevel)
-                        {
-                            smallestLevel = level;
-                            smallestWidth = width;
-                            smallestHeight = height;
-
-                            if (level == data.NumMipLevels - 1)
-                            {
-                                smallestMip = buffer.AsSpan(0, bufferSize).ToArray();
-                            }
-                        }
-                    }
-                }
-                finally
-                {
-                    Monitor.Exit(data);
-                }
-
-                // Past its own mip chain, repeat the smallest image
-                if (smallestMip != null)
-                {
-                    for (var level = smallestLevel + 1; level < levels; level++)
-                    {
-                        UploadRegion(layer, level, smallestWidth, smallestHeight, smallestMip, scratch);
                     }
                 }
             }
             finally
             {
-                ArrayPool<byte>.Shared.Return(scratch);
-                ArrayPool<byte>.Shared.Return(buffer);
+                Monitor.Exit(data);
+            }
+
+            // Past its own mip chain, repeat the smallest image
+            if (smallestMip != null)
+            {
+                for (var level = smallestLevel + 1; level < levels; level++)
+                {
+                    UploadRegion(layer, level, smallestWidth, smallestHeight, smallestMip, scratch);
+                }
             }
         }
 
@@ -253,10 +246,10 @@ namespace ValveResourceFormat.Renderer.Decals
                 GetPixelFormat(), regionBlocksX * regionBlocksY * blockBytes, upload);
         }
 
-        private (int Width, int Height) GetLevelSize(int level) => (Math.Max(1, Width >> level), Math.Max(1, Height >> level));
+        private (int Width, int Height) GetLevelSize(int level) => (MathUtils.MipLevelSize(Width, level), MathUtils.MipLevelSize(Height, level));
 
         private PixelFormat GetPixelFormat() => (PixelFormat)imageFormat.ToGLSizedInternalFormat(srgb);
 
-        private static int GetBlockCount(int texels) => (texels + BlockSize - 1) / BlockSize;
+        private static int GetBlockCount(int texels) => MathUtils.DivideRoundUp(texels, BlockSize);
     }
 }

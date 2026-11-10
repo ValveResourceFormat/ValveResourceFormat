@@ -21,7 +21,7 @@ internal sealed class FogHelper(IHelperOwner owner, HelperDeclaration declaratio
             color * GetFloatKey("hdrcolorscale"),
             GetFloatKey("fogstart"),
             GetFloatKey("fogend"),
-            isEnabled ? Math.Clamp(GetFloatKey("fogmaxdensity"), 0f, 1f) : 0f,
+            isEnabled ? MathUtils.Saturate(GetFloatKey("fogmaxdensity")) : 0f,
             GetFloatKey("fogexponent"));
     }
 }

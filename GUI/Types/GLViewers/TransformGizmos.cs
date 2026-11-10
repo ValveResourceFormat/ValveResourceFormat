@@ -1,4 +1,5 @@
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Utils;
 
 namespace GUI.Types.GLViewers
 {
@@ -223,7 +224,7 @@ namespace GUI.Types.GLViewers
 
             var along = end - start;
             var lengthSquared = along.LengthSquared();
-            var t = lengthSquared > 0f ? Math.Clamp(Vector2.Dot(mouse - start, along) / lengthSquared, 0f, 1f) : 0f;
+            var t = lengthSquared > 0f ? MathUtils.Saturate(Vector2.Dot(mouse - start, along) / lengthSquared) : 0f;
             return Vector2.Distance(mouse, start + (along * t));
         }
     }

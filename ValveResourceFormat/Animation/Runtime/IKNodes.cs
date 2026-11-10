@@ -109,7 +109,7 @@ namespace ValveResourceFormat.Animation
                 targetTransform *= ctx.WorldTransformInverse;
             }
 
-            TwoBoneSolver.Solve(solvePose, effectorBoneIdx, targetTransform, ChainRotationWeight, BlendMode, Math.Clamp(weight, 0f, 1f));
+            TwoBoneSolver.Solve(solvePose, effectorBoneIdx, targetTransform, ChainRotationWeight, BlendMode, MathUtils.Saturate(weight));
 
             solvePose.CopyParentSpaceTransformsTo(PoseTransforms);
             result.Pose = PoseTransforms;
@@ -242,7 +242,7 @@ namespace ValveResourceFormat.Animation
 
             var leftTarget = LeftTargetNode.GetValue(ctx);
             var rightTarget = RightTargetNode.GetValue(ctx);
-            var blendWeight = Math.Clamp(weight, 0f, 1f);
+            var blendWeight = MathUtils.Saturate(weight);
 
             // Solve on a copy, the child's buffer is its own sampling output
             solvePose.SetParentSpaceTransforms(result.Pose);

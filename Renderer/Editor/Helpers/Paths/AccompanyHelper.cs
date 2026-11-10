@@ -183,11 +183,7 @@ internal sealed class AccompanyHelper(IHelperOwner owner, HelperDeclaration decl
     // The node keeps how far it is rolled about its forward axis from the frame upright to the path
     private static (Vector3 Left, Vector3 Up) ApplyRoll(Matrix4x4 nodeTransform, Vector3 forward, Vector3 left, Vector3 up)
     {
-        var frame = new Matrix4x4(
-            forward.X, forward.Y, forward.Z, 0f,
-            left.X, left.Y, left.Z, 0f,
-            up.X, up.Y, up.Z, 0f,
-            0f, 0f, 0f, 1f);
+        var frame = MathUtils.CreateBasis(forward, left, up);
 
         nodeTransform.Translation = Vector3.Zero;
 

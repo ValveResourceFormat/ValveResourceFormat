@@ -154,7 +154,7 @@ sealed partial class AimCSNode : PassthroughNode
         {
             Yaw = Math.Clamp(ValveMath.AngleNormalize((HorizontalAngleNode?.GetValue(ctx) ?? 0f) * plantWeight), -89f, 89f),
             Pitch = Math.Clamp(ValveMath.AngleNormalize((VerticalAngleNode?.GetValue(ctx) ?? 0f) * plantWeight), -89f, 89f),
-            Crouch = Math.Clamp(CrouchWeightNode?.GetValue(ctx) ?? 0f, 0f, 1f),
+            Crouch = MathUtils.Saturate(CrouchWeightNode?.GetValue(ctx) ?? 0f),
             ActionWeight = actionBlend.GetWeight(),
             Drop = Math.Clamp(WeaponDropNode?.GetValue(ctx) ?? 0f, -10f, 10f),
             HandIKWeight = handIKBlend.GetWeight(),
@@ -448,7 +448,7 @@ sealed class AimCSSolver
         };
 
         // Hands onto the weapon
-        var handIKWeight = Math.Clamp(p.HandIKWeight, 0f, 1f);
+        var handIKWeight = MathUtils.Saturate(p.HandIKWeight);
         if (handIKWeight > 0.001f)
         {
             if (s.LeftHandIK)
@@ -465,7 +465,7 @@ sealed class AimCSSolver
 
     void ApplyWeaponDrop(Parameters p, float pitch)
     {
-        var drop = p.Drop * (1f - MathUtils.Saturate(MathF.Abs(pitch) / 70f)) * Math.Clamp(1f - p.ActionWeight, 0f, 1f);
+        var drop = p.Drop * (1f - MathUtils.Saturate(MathF.Abs(pitch) / 70f)) * MathUtils.Saturate(1f - p.ActionWeight);
         if (MathF.Abs(drop) <= 0.001f)
         {
             return;

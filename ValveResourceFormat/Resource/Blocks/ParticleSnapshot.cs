@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Collections;
 using System.Collections.ObjectModel;
 using System.Globalization;
@@ -116,46 +115,39 @@ namespace ValveResourceFormat.Blocks
 
             // Decompress SNAP block compression
             var info = BlockCompress.GetDecompressedSize(reader);
-            var decompressed = ArrayPool<byte>.Shared.Rent(info.Size);
+            using var decompressed = new RentedBuffer<byte>(info.Size);
 
-            try
+            BlockCompress.FastDecompress(info, reader, decompressed.Span);
+            using var decompressedStream = new MemoryStream(decompressed.ByteArray, 0, info.Size);
+            using var innerReader = new BinaryReader(decompressedStream);
+
+            // Get DATA block to know how to read SNAP data
+            var data = Resource.DataBlock!.AsKeyValueCollection();
+
+            var numParticles = data.GetIntegerProperty("num_particles");
+            var attributes = data.GetArray("attributes");
+            var stringList = data.GetArray<string>("string_list");
+
+            var attributeData = new Dictionary<(string Name, string Type), IEnumerable>(attributes.Count);
+
+            foreach (var attribute in attributes)
             {
-                BlockCompress.FastDecompress(info, reader, decompressed.AsSpan(0, info.Size));
-                using var decompressedStream = new MemoryStream(decompressed, 0, info.Size);
-                using var innerReader = new BinaryReader(decompressedStream);
+                var attributeName = attribute.GetStringProperty("name");
+                var attributeType = attribute.GetStringProperty("type");
 
-                // Get DATA block to know how to read SNAP data
-                var data = Resource.DataBlock!.AsKeyValueCollection();
-
-                var numParticles = data.GetIntegerProperty("num_particles");
-                var attributes = data.GetArray("attributes");
-                var stringList = data.GetArray<string>("string_list");
-
-                var attributeData = new Dictionary<(string Name, string Type), IEnumerable>(attributes.Count);
-
-                foreach (var attribute in attributes)
+                var attributeArray = attributeType switch
                 {
-                    var attributeName = attribute.GetStringProperty("name");
-                    var attributeType = attribute.GetStringProperty("type");
+                    "skinning" => ReadSkinningData(innerReader, numParticles, stringList!),
+                    "string" => ReadStringArray(innerReader, numParticles, stringList!),
+                    "bone" => ReadStringArray(innerReader, numParticles, stringList!),
+                    _ => ReadArrayOfType(innerReader, numParticles, attributeType),
+                };
 
-                    var attributeArray = attributeType switch
-                    {
-                        "skinning" => ReadSkinningData(innerReader, numParticles, stringList!),
-                        "string" => ReadStringArray(innerReader, numParticles, stringList!),
-                        "bone" => ReadStringArray(innerReader, numParticles, stringList!),
-                        _ => ReadArrayOfType(innerReader, numParticles, attributeType),
-                    };
-
-                    attributeData.Add((attributeName, attributeType), attributeArray);
-                }
-
-                NumParticles = (uint)numParticles;
-                AttributeData = attributeData;
+                attributeData.Add((attributeName, attributeType), attributeArray);
             }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(decompressed);
-            }
+
+            NumParticles = (uint)numParticles;
+            AttributeData = attributeData;
         }
 
         private static IEnumerable ReadArrayOfType(BinaryReader reader, long count, string type)

@@ -312,7 +312,7 @@ internal class RenderTestWindow : GameWindow
             }
             var center = bbox.Center;
             var size = bbox.Size;
-            var offset = Math.Max(size.X, Math.Max(size.Y, size.Z)) * 0.5f;
+            var offset = size.MaxComponent() * 0.5f;
 
             Input!.SaveCameraForTransition(3f);
             Input.Camera.SetLocation(new Vector3(center.X + offset, center.Y + offset * 0.5f, center.Z + offset));

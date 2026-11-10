@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -673,7 +672,8 @@ namespace GUI.Types.PackageViewer
                             Length = length,
                         };
 
-                        var bytes = ArrayPool<byte>.Shared.Rent((int)newEntry.TotalLength);
+                        using var rented = new RentedBuffer<byte>((int)newEntry.TotalLength);
+                        var bytes = rented.ByteArray;
 
                         try
                         {
@@ -750,10 +750,6 @@ namespace GUI.Types.PackageViewer
                             {
                                 newEntry.TypeName = "txt";
                             }
-                        }
-                        finally
-                        {
-                            ArrayPool<byte>.Shared.Return(bytes);
                         }
 
                         hiddenFiles.Add(newEntry);

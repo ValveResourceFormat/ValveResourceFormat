@@ -1,6 +1,3 @@
-using System.Buffers;
-using System.Runtime.InteropServices;
-
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
@@ -17,28 +14,20 @@ namespace ValveResourceFormat.Renderer
         {
             System.Diagnostics.Debug.Assert(size % 6 == 0);
 
-            var sizeInBytes = size * sizeof(ushort);
-            var indicesBytes = ArrayPool<byte>.Shared.Rent(sizeInBytes);
+            using var rented = new RentedBuffer<ushort>(size);
+            var indices = rented.Span;
 
-            try
+            for (var i = 0; i < size / 6; ++i)
             {
-                var indices = MemoryMarshal.Cast<byte, ushort>(indicesBytes.AsSpan());
-                for (var i = 0; i < size / 6; ++i)
-                {
-                    indices[(i * 6) + 0] = (ushort)((i * 4) + 0);
-                    indices[(i * 6) + 1] = (ushort)((i * 4) + 1);
-                    indices[(i * 6) + 2] = (ushort)((i * 4) + 2);
-                    indices[(i * 6) + 3] = (ushort)((i * 4) + 0);
-                    indices[(i * 6) + 4] = (ushort)((i * 4) + 2);
-                    indices[(i * 6) + 5] = (ushort)((i * 4) + 3);
-                }
+                indices[(i * 6) + 0] = (ushort)((i * 4) + 0);
+                indices[(i * 6) + 1] = (ushort)((i * 4) + 1);
+                indices[(i * 6) + 2] = (ushort)((i * 4) + 2);
+                indices[(i * 6) + 3] = (ushort)((i * 4) + 0);
+                indices[(i * 6) + 4] = (ushort)((i * 4) + 2);
+                indices[(i * 6) + 5] = (ushort)((i * 4) + 3);
+            }
 
-                GLHandle = GraphicsDevice.CreateBuffer<byte>(nameof(QuadIndexBuffer), indicesBytes.AsSpan(0, sizeInBytes), BufferUsage.Static);
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(indicesBytes);
-            }
+            GLHandle = GraphicsDevice.CreateBuffer<ushort>(nameof(QuadIndexBuffer), indices, BufferUsage.Static);
         }
     }
 }

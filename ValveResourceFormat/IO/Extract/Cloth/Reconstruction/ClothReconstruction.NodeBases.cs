@@ -478,8 +478,7 @@ namespace ValveResourceFormat.IO
 
             x = Vector3.Normalize(x);
             var z = Vector3.Cross(x, y);
-            var predicted = Quaternion.CreateFromRotationMatrix(new Matrix4x4(
-                x.X, x.Y, x.Z, 0f, y.X, y.Y, y.Z, 0f, z.X, z.Y, z.Z, 0f, 0f, 0f, 0f, 1f));
+            var predicted = Quaternion.CreateFromRotationMatrix(MathUtils.CreateBasis(x, y, z));
             var orientation = node < Index.InitPoseRotations.Length ? Index.InitPoseRotations[node] : Quaternion.Identity;
             var adjust = Quaternion.Normalize(Quaternion.Conjugate(predicted) * orientation);
 

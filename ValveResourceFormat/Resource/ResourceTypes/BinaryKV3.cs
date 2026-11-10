@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -235,43 +236,27 @@ namespace ValveResourceFormat.ResourceTypes
 
         internal static void DecompressLZ4(BinaryReader reader, Span<byte> output, int compressedSize)
         {
-            var inputBuf = ArrayPool<byte>.Shared.Rent(compressedSize);
+            using var inputBuf = new RentedBuffer<byte>(compressedSize);
+            var input = inputBuf.Span;
+            reader.BaseStream.ReadExactly(input);
 
-            try
+            var written = LZ4Codec.Decode(input, output);
+
+            if (written != output.Length)
             {
-                var input = inputBuf.AsSpan(0, compressedSize);
-                reader.BaseStream.ReadExactly(input);
-
-                var written = LZ4Codec.Decode(input, output);
-
-                if (written != output.Length)
-                {
-                    throw new InvalidDataException($"Failed to decompress LZ4 (expected {output.Length} bytes, got {written})");
-                }
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(inputBuf);
+                throw new InvalidDataException($"Failed to decompress LZ4 (expected {output.Length} bytes, got {written})");
             }
         }
 
         internal static void DecompressZSTD(ZstdSharp.Decompressor zstdDecompressor, BinaryReader reader, Span<byte> output, int compressedSize)
         {
-            var inputBuf = ArrayPool<byte>.Shared.Rent(compressedSize);
+            using var inputBuf = new RentedBuffer<byte>(compressedSize);
+            var input = inputBuf.Span;
+            reader.BaseStream.ReadExactly(input);
 
-            try
+            if (!zstdDecompressor.TryUnwrap(input, output, out var written) || output.Length != written)
             {
-                var input = inputBuf.AsSpan(0, compressedSize);
-                reader.BaseStream.ReadExactly(input);
-
-                if (!zstdDecompressor.TryUnwrap(input, output, out var written) || output.Length != written)
-                {
-                    throw new InvalidDataException($"Failed to decompress ZSTD (expected {output.Length} bytes, got {written})");
-                }
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(inputBuf);
+                throw new InvalidDataException($"Failed to decompress ZSTD (expected {output.Length} bytes, got {written})");
             }
         }
 
@@ -396,17 +381,10 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new InvalidDataException("A compressed KV3 buffer is outside of the block.");
             }
 
-            var output = ArrayPool<byte>.Shared.Rent(size);
+            using var output = new RentedBuffer<byte>(size);
 
-            try
-            {
-                ReadBufferData(reader, compressionMethod, ref zstdDecompressor, output.AsSpan(0, size), compressedSize);
-                return predicate(output.AsSpan(0, size));
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(output);
-            }
+            ReadBufferData(reader, compressionMethod, ref zstdDecompressor, output.Span, compressedSize);
+            return predicate(output.Span);
         }
 
         private static Header ReadHeader(int version, BinaryReader reader, long blockEnd)
@@ -752,34 +730,27 @@ namespace ValveResourceFormat.ResourceTypes
                         // Each blob is split into frames of up to the compression frame size, a frame never spans two blobs,
                         // and the frames are chained so that later frames can reference earlier blobs
                         using var lz4decoder = new LZ4ChainDecoder(header.CompressionFrameSize, 0);
-                        var inputBuf = ArrayPool<byte>.Shared.Rent(ushort.MaxValue);
+                        using var inputBuf = new RentedBuffer<byte>(ushort.MaxValue);
 
-                        try
+                        foreach (var blob in context.BinaryBlobs)
                         {
-                            foreach (var blob in context.BinaryBlobs)
+                            var blobOffset = 0;
+
+                            while (blobOffset < blob.Length)
                             {
-                                var blobOffset = 0;
+                                var compressedBlockLength = BinaryPrimitives.ReadUInt16LittleEndian(bufferWithBinaryBlobSizes);
+                                bufferWithBinaryBlobSizes = bufferWithBinaryBlobSizes[sizeof(ushort)..];
 
-                                while (blobOffset < blob.Length)
+                                var input = inputBuf.Span[..compressedBlockLength];
+                                reader.ReadExactly(input);
+
+                                if (!lz4decoder.DecodeAndDrain(input, blob.AsSpan(blobOffset), out var decoded) || decoded < 1)
                                 {
-                                    var compressedBlockLength = MemoryMarshal.Read<ushort>(bufferWithBinaryBlobSizes);
-                                    bufferWithBinaryBlobSizes = bufferWithBinaryBlobSizes[sizeof(ushort)..];
-
-                                    var input = inputBuf.AsSpan(0, compressedBlockLength);
-                                    reader.ReadExactly(input);
-
-                                    if (!lz4decoder.DecodeAndDrain(input, blob.AsSpan(blobOffset), out var decoded) || decoded < 1)
-                                    {
-                                        throw new InvalidDataException("Failed to decompress LZ4 binary blob frame");
-                                    }
-
-                                    blobOffset += decoded;
+                                    throw new InvalidDataException("Failed to decompress LZ4 binary blob frame");
                                 }
+
+                                blobOffset += decoded;
                             }
-                        }
-                        finally
-                        {
-                            ArrayPool<byte>.Shared.Return(inputBuf);
                         }
 
                         Debug.Assert(bufferWithBinaryBlobSizes.Count == 0);

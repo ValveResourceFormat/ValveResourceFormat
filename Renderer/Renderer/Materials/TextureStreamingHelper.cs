@@ -790,21 +790,14 @@ namespace ValveResourceFormat.Renderer.Materials
 
         internal static void LoadAndHookUpMip(StreamedTexture stream, in PlannedMip mip)
         {
-            var buffer = ArrayPool<byte>.Shared.Rent(mip.BufferSize);
+            using var buffer = new RentedBuffer<byte>(mip.BufferSize);
 
-            try
+            lock (stream.Data)
             {
-                lock (stream.Data)
-                {
-                    stream.Data.ReadTextureMipLevel(buffer.AsSpan(0, mip.BufferSize), stream.DataMipLevel(mip));
-                }
+                stream.Data.ReadTextureMipLevel(buffer.Span, stream.DataMipLevel(mip));
+            }
 
-                HookUpPinned(new LoadedMipBits(stream, mip, MipCount: 1, mip.BufferSize, buffer));
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer);
-            }
+            HookUpPinned(new LoadedMipBits(stream, mip, MipCount: 1, mip.BufferSize, buffer.ByteArray));
         }
 
         // Reads the requested mips back to back, each decoded in place, into the staging region reserved for

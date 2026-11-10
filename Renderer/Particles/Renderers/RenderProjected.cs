@@ -198,7 +198,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 ? Vector3.Cross(normal.Y > 0.99f ? Vector3.UnitX : Vector3.UnitY, normal)
                 : -Vector3.UnitX;
 
-            normal = normal.LengthSquared() > 1e-8f ? Vector3.Normalize(normal) : Vector3.UnitZ;
+            normal = MathUtils.SafeNormalize(normal, Vector3.UnitZ, 1e-8f);
 
             var center = position;
             var depth = width;

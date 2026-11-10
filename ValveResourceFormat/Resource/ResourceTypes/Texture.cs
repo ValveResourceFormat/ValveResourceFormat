@@ -600,14 +600,9 @@ namespace ValveResourceFormat.ResourceTypes
                             _ => throw new UnexpectedMagicException("Unknown mip compression method", compressionMethod, nameof(compressionMethod)),
                         };
 
-                        CompressedMips = new int[mips];
-
                         reader.BaseStream.Position += mipsOffset - 8;
 
-                        for (var mip = 0; mip < mips; mip++)
-                        {
-                            CompressedMips[mip] = reader.ReadInt32();
-                        }
+                        CompressedMips = reader.ReadArray<int>(mips);
                     }
                     else if (type == VTexExtraData.CUBEMAP_RADIANCE_SH)
                     {
@@ -615,14 +610,9 @@ namespace ValveResourceFormat.ResourceTypes
                         var coeffs = reader.ReadUInt32();
 
                         //Spherical Harmonics
-                        RadianceCoefficients = new float[coeffs];
-
                         reader.BaseStream.Position += coeffsOffset - 8;
 
-                        for (var c = 0; c < coeffs; c++)
-                        {
-                            RadianceCoefficients[c] = reader.ReadSingle();
-                        }
+                        RadianceCoefficients = reader.ReadArray<float>(coeffs);
                     }
 
                     reader.BaseStream.Position = prevOffset;
@@ -895,11 +885,11 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);
-            var buf = ArrayPool<byte>.Shared.Rent(uncompressedSize);
+            using var buf = new RentedBuffer<byte>(uncompressedSize);
 
             try
             {
-                var span = buf.AsSpan(0, uncompressedSize);
+                var span = buf.Span;
 
                 lock (Resource.ReaderLock)
                 {
@@ -942,7 +932,6 @@ namespace ValveResourceFormat.ResourceTypes
             }
             finally
             {
-                ArrayPool<byte>.Shared.Return(buf);
                 skiaBitmap?.Dispose();
             }
         }
@@ -1181,16 +1170,8 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new NotSupportedException("Zstd compressed texture mips are not supported.");
             }
 
-            var buf = ArrayPool<byte>.Shared.Rent(compressedSize);
-
-            try
-            {
-                DecompressLz4Mip(buf.AsSpan(0, compressedSize), output);
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buf);
-            }
+            using var buf = new RentedBuffer<byte>(compressedSize);
+            DecompressLz4Mip(buf.Span, output);
         }
 
         private void DecompressLz4Mip(Span<byte> source, Span<byte> output)
@@ -1336,24 +1317,16 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Debug.Assert(Reader is not null);
 
-            var buffer = ArrayPool<byte>.Shared.Rent(size);
+            using var buffer = new RentedBuffer<byte>(size);
+            int read;
 
-            try
+            lock (Resource.ReaderLock)
             {
-                int read;
-
-                lock (Resource.ReaderLock)
-                {
-                    Reader.BaseStream.Position = DataOffset;
-                    read = Reader.BaseStream.ReadAtLeast(buffer.AsSpan(0, size), size, throwOnEndOfStream: false);
-                }
-
-                return SKBitmap.Decode(buffer.AsSpan(0, read));
+                Reader.BaseStream.Position = DataOffset;
+                read = Reader.BaseStream.ReadAtLeast(buffer.Span, size, throwOnEndOfStream: false);
             }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer);
-            }
+
+            return SKBitmap.Decode(buffer.Span[..read]);
         }
 
         private int CalculateJpegSize()
