@@ -194,7 +194,7 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, S
 
         var name = (string)value;
 
-        if (int.TryParse(name, NumberStyles.Integer, CultureInfo.InvariantCulture, out var numeric))
+        if (int.TryParse(name, CultureInfo.InvariantCulture, out var numeric))
         {
             return FromEnumValue(key, numeric, @default);
         }

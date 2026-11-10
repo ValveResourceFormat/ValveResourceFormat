@@ -1350,10 +1350,7 @@ namespace GUI.Types.GLViewers
                 // Add ag2 folders
                 foreach (var anim in animations)
                 {
-                    if (!animationToFolder.ContainsKey(anim))
-                    {
-                        animationToFolder[anim] = (Path.GetDirectoryName(anim) ?? string.Empty).Replace('\\', '/');
-                    }
+                    animationToFolder.TryAdd(anim, (Path.GetDirectoryName(anim) ?? string.Empty).Replace('\\', '/'));
                 }
 
                 if (animationToFolder.Count > 0)
@@ -1369,7 +1366,7 @@ namespace GUI.Types.GLViewers
                     var ungroupedAnimations = folderGroups
                         .Where(g => string.IsNullOrEmpty(g.Key))
                         .SelectMany(g => g)
-                        .OrderBy(a => a)
+                        .Order()
                         .ToList();
 
                     foreach (var folderGroup in groupedFolders)
@@ -1381,7 +1378,7 @@ namespace GUI.Types.GLViewers
                         });
                         animationIndexMap.Add(default);
 
-                        foreach (var anim in folderGroup.OrderBy(a => a))
+                        foreach (var anim in folderGroup.Order())
                         {
                             var displayName = Path.GetFileNameWithoutExtension(anim);
                             animationComboBox.Items.Add(new ThemedComboBoxItem

@@ -187,7 +187,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                 file.LineNumber++;
 
 #if DEBUG
-                if (!line.All(static c => char.IsAscii(c)))
+                if (!Ascii.IsValid(line))
                 {
                     // At least on nvidia, trying to compile GLSL with non ascii characters will throw bizarre errors like
                     // wrong #line source-line error, or EOF.

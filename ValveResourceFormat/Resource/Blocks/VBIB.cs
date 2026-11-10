@@ -1,7 +1,6 @@
 using System.Buffers;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using ValveKeyValue;
@@ -877,7 +876,7 @@ namespace ValveResourceFormat.Blocks
                 {
                     for (var i = 0; i < weights.Length; i++)
                     {
-                        var packed = Unsafe.ReadUnaligned<uint>(ref MemoryMarshal.GetReference(data[offset..(offset + 4)]));
+                        var packed = MemoryMarshal.Read<uint>(data[offset..]);
 
                         weights[i] = new Vector4(
                             packed & 0x0000FFFF,
@@ -901,13 +900,14 @@ namespace ValveResourceFormat.Blocks
         }
 
         private static void MarshallAttributeArray<T>(T[] result, int size, OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
+            where T : struct
         {
             var offset = (int)attribute.Offset;
             var data = vertexBuffer.Data.AsSpan();
 
             for (var i = 0; i < vertexBuffer.ElementCount; i++)
             {
-                result[i] = Unsafe.ReadUnaligned<T>(ref MemoryMarshal.GetReference(data.Slice(offset, size)));
+                result[i] = MemoryMarshal.Read<T>(data.Slice(offset, size));
 
                 offset += (int)vertexBuffer.ElementSizeInBytes;
             }

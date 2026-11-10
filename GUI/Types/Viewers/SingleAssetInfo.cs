@@ -148,7 +148,7 @@ namespace GUI.Types.Viewers
             using var ms = new MemoryStream();
             KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, assetInfo, "Asset Info");
 
-            var infoControl = new CodeTextBox(Encoding.UTF8.GetString(ms.ToArray()))
+            var infoControl = new CodeTextBox(Encoding.UTF8.GetString(ms.GetBuffer().AsSpan(0, (int)ms.Length)))
             {
                 Dock = DockStyle.Fill,
             };

@@ -132,7 +132,7 @@ namespace CLI
                 var name = separator < 0 ? part : part[..separator].Trim();
                 var value = 1;
 
-                if (separator >= 0 && !int.TryParse(part[(separator + 1)..], NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+                if (separator >= 0 && !int.TryParse(part[(separator + 1)..], CultureInfo.InvariantCulture, out value))
                 {
                     ReportError($"Invalid combo value in \"{part}\".");
                     return;

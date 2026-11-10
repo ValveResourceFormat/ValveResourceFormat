@@ -836,12 +836,9 @@ public partial class GltfModelExporter
     {
         var indices = new int[count];
 
-        var byteCount = count * (int)indexBuffer.ElementSizeInBytes;
-        var byteStart = start * (int)indexBuffer.ElementSizeInBytes;
-
         if (indexBuffer.ElementSizeInBytes == 4)
         {
-            System.Buffer.BlockCopy(indexBuffer.Data, byteStart, indices, 0, byteCount);
+            MemoryMarshal.Cast<byte, int>(indexBuffer.Data).Slice(start, count).CopyTo(indices);
             TensorPrimitives.Add(indices, baseVertex, indices);
         }
         else if (indexBuffer.ElementSizeInBytes == 2)

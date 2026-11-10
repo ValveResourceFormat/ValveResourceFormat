@@ -38,7 +38,7 @@ internal static partial class ClothBones
     /// its own index, a dropped one at <c>-1 - f</c> with <c>f</c> the index of the nearest kept bone. Built once per
     /// skeleton; callers must not modify it.
     /// </summary>
-    internal static int[] Compaction(Skeleton skeleton) => Compactions.GetValue(skeleton, BuildCompaction);
+    internal static int[] Compaction(Skeleton skeleton) => Compactions.GetOrAdd(skeleton, BuildCompaction);
 
     private static int[] BuildCompaction(Skeleton skeleton)
     {

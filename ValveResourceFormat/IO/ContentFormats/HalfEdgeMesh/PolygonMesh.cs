@@ -1781,10 +1781,7 @@ public sealed class PolygonMesh
                 numGroups = 1;
                 verticesSortedByGroup = new(verticesToMerge);
 
-                for (var i = 0; i < numVerticesToMerge; i++)
-                {
-                    vertexGroupAssignments[i] = 0;
-                }
+                Array.Fill(vertexGroupAssignments, 0, 0, numVerticesToMerge);
 
                 groupVertexCounts[0] = numVerticesToMerge;
                 groupOffsets[0] = 0;

@@ -78,7 +78,7 @@ public partial class AnimationGraphExtract
                     continue;
                 }
 
-                var common = consumerPath.Zip(sourcePath).TakeWhile(pair => pair.First == pair.Second).Count();
+                var common = consumerPath.AsSpan().CommonPrefixLength(sourcePath);
                 if (common == consumerPath.Length && common == sourcePath.Length)
                 {
                     continue;

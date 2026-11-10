@@ -54,7 +54,7 @@ internal sealed class ClothRenderBinding
             return null;
         }
 
-        var boneNames = surface is not null ? skeleton.Bones.Select(static bone => bone.Name).ToArray() : null;
+        var boneNames = surface is not null ? Array.ConvertAll(skeleton.Bones, static bone => bone.Name) : null;
         return new ClothRenderBinding(ClothBones.Compaction(skeleton), boneNames, surface);
     }
 

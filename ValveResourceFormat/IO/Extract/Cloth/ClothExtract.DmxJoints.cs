@@ -124,7 +124,7 @@ internal sealed partial class ClothExtract
         var appended = new List<(int Node, DmeJoint Joint)>();
         foreach (var (node, culledName) in culledClothBones)
         {
-            if (node >= cloth.Index.InitPosePositions.Length || boneIndexByName.ContainsKey(culledName))
+            if (node >= cloth.Index.InitPosePositions.Length || !boneIndexByName.TryAdd(culledName, dmeModel.JointList.Count))
             {
                 continue;
             }
@@ -133,7 +133,6 @@ internal sealed partial class ClothExtract
             joint.Transform.Name = culledName;
             joint.Transform.Position = cloth.Index.InitPosePositions[node];
             joint.Transform.Orientation = cloth.Index.InitPoseRotations[node];
-            boneIndexByName[culledName] = dmeModel.JointList.Count;
             dmeModel.JointList.Add(joint);
             appended.Add((node, joint));
         }

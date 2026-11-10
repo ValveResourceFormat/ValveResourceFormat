@@ -92,7 +92,7 @@ namespace ValveResourceFormat.IO
         /// or zero when there are none.
         /// </summary>
         internal float DefaultGroundFriction => Index.WorldCollisionFriction.Count > 0
-            ? Index.WorldCollisionFriction.Values.GroupBy(static f => f.Ground).OrderByDescending(static g => g.Count()).First().Key
+            ? Index.WorldCollisionFriction.Values.CountBy(static f => f.Ground).MaxBy(static g => g.Value).Key
             : 0f;
 
         /// <summary>Gets the authored relaxation factor of <paramref name="node"/>'s stray radius, or 1 without one.</summary>

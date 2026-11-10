@@ -133,13 +133,7 @@ internal sealed partial class McpTools
             matching.Add(entry);
         }
 
-        var counts = new Dictionary<(Log.Category, string, string), int>();
-
-        foreach (var entry in matching)
-        {
-            var key = (entry.Category, entry.Component, entry.Message);
-            counts[key] = counts.GetValueOrDefault(key) + 1;
-        }
+        var counts = matching.CountBy(entry => (entry.Category, entry.Component, entry.Message)).ToDictionary();
 
         // Each line stands at its last repeat, so one that keeps coming back stays among the newest
         var lines = new List<string>();

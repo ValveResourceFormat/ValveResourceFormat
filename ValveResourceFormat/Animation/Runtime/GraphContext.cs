@@ -334,14 +334,13 @@ namespace ValveResourceFormat.Animation
 
         public int CreateCachedPose()
         {
-            for (var i = 0; i < cachedPoseBuffers.Count; i++)
+            var freeIndex = cachedPoseBufferInUse.IndexOf(false);
+
+            if (freeIndex >= 0)
             {
-                if (!cachedPoseBufferInUse[i])
-                {
-                    cachedPoseBufferInUse[i] = true;
-                    Graph.ParentSpaceReferencePose.CopyTo(cachedPoseBuffers[i], 0);
-                    return i;
-                }
+                cachedPoseBufferInUse[freeIndex] = true;
+                Graph.ParentSpaceReferencePose.CopyTo(cachedPoseBuffers[freeIndex], 0);
+                return freeIndex;
             }
 
             var buffer = new Transform[Graph.ParentSpaceReferencePose.Length];

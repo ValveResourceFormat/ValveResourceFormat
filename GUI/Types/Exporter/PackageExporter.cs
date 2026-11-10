@@ -598,8 +598,7 @@ namespace GUI.Types.Exporter
             // Chop the longest run of leading asset folders that the user folder already ends with
             for (var slash = assetName.LastIndexOf('/'); slash > 0; slash = assetName.LastIndexOf('/', slash - 1))
             {
-                if (normalized.Length >= slash
-                    && normalized.AsSpan(normalized.Length - slash).SequenceEqual(assetName.AsSpan(0, slash))
+                if (normalized.AsSpan().EndsWith(assetName.AsSpan(0, slash))
                     && (normalized.Length == slash || normalized[normalized.Length - slash - 1] == '/'))
                 {
                     return Path.Combine(userFolder, assetName[(slash + 1)..]);

@@ -1058,13 +1058,8 @@ namespace ValveResourceFormat.Particles
                     {
                         changed = true;
 
-                        for (var j = 0; j < constraints.Count; j++)
-                        {
-                            if (j != i)
-                            {
-                                settled[j] = false;
-                            }
-                        }
+                        settled.Clear();
+                        settled[i] = true;
                     }
                 }
 

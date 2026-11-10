@@ -553,14 +553,12 @@ namespace ValveResourceFormat.ToolsAssetInfo
 
                 if (currentPos < alignedPos)
                 {
-                    var paddingBytes = alignedPos - currentPos;
+                    Span<byte> padding = stackalloc byte[(int)(alignedPos - currentPos)];
+                    reader.ReadExactly(padding);
 
-                    for (var i = 0; i < paddingBytes; i++)
+                    if (padding.ContainsAnyExcept((byte)0))
                     {
-                        if (reader.ReadByte() != 0)
-                        {
-                            throw new InvalidDataException("Alignment padding contains non-zero bytes");
-                        }
+                        throw new InvalidDataException("Alignment padding contains non-zero bytes");
                     }
                 }
 

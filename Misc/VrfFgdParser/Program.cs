@@ -525,7 +525,7 @@ void WriteProperties()
 
     var propertiesString = new StringBuilder();
 
-    foreach (var property in allProperties.OrderBy(x => x))
+    foreach (var property in allProperties.Order())
     {
         propertiesString.Append('"');
         propertiesString.Append(property);

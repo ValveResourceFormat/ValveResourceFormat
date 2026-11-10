@@ -309,10 +309,7 @@ namespace GUI
                     context.CurrentPackage.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
 
                     var tempPath = $"{Path.GetTempPath()}Source 2 Viewer - {Path.GetFileName(context.CurrentPackage.FileName)} - {file.GetFileName()}";
-                    using (var stream = new FileStream(tempPath, FileMode.Create))
-                    {
-                        stream.Write(output, 0, output.Length);
-                    }
+                    File.WriteAllBytes(tempPath, output);
 
                     Process.Start(new ProcessStartInfo(tempPath) { UseShellExecute = true });
                 }

@@ -26,9 +26,8 @@ namespace Tests.Resources
             var soundData = (Sound?)resource.DataBlock;
             Debug.Assert(soundData != null);
 
-            using var hash = SHA256.Create();
             using var sound = soundData.GetSoundStream();
-            var actualHash = Convert.ToHexString(await hash.ComputeHashAsync(sound));
+            var actualHash = Convert.ToHexString(await SHA256.HashDataAsync(sound));
 
             await Assert.That(actualHash).IsEqualTo(BeepSoundWaveHash);
         }

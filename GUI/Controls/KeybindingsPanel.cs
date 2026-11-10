@@ -16,7 +16,7 @@ namespace GUI.Controls
             AutoSize = true;
             AutoSizeMode = AutoSizeMode.GrowAndShrink;
             BackColor = Color.Transparent;
-            Padding = new Padding(this.AdjustForDPI(4), this.AdjustForDPI(4), this.AdjustForDPI(4), this.AdjustForDPI(4));
+            Padding = new Padding(this.AdjustForDPI(4));
         }
 
         /// <summary>

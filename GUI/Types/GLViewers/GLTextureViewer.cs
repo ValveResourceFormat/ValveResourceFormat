@@ -749,12 +749,10 @@ namespace GUI.Types.GLViewers
         private void SetInitialDecodeFlagsState(CheckedListBox listBox)
         {
             listBox.Items.Clear();
-            var values = Enum.GetValues<TextureCodec>();
 
             var i = 0;
-            for (var flag = 0; flag < values.Length; flag++)
+            foreach (var value in Enum.GetValues<TextureCodec>())
             {
-                var value = (TextureCodec)values.GetValue(flag)!;
                 var name = Enum.GetName(value)!;
 
                 var isCombinedFlag = (value & value - 1) != 0;

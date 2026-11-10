@@ -332,7 +332,7 @@ namespace GUI.Forms
             var x = Math.Clamp(point.X, 0, rectangle.Width);
             var y = Math.Clamp(point.Y, 0, rectangle.Height);
 
-            return point;
+            return new Point(x, y);
         }
 
         private void BetterColorPicker_Load(object sender, EventArgs e)

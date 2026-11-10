@@ -412,7 +412,7 @@ public sealed class ShaderExtract
             writer.WriteLine("{");
             writer.Indent++;
 
-            foreach (var (symbol, i) in symbols.Select((symbol, i) => (symbol, i)))
+            foreach (var (i, symbol) in symbols.Index())
             {
                 var type = string.Empty;
                 if (!Options.NoHungarianTypeGuessing && symbol.Name.Length > 2)

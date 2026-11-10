@@ -121,7 +121,7 @@ namespace GUI.Utils
                 while (LogQueue.TryDequeue(out var line))
                 {
                     sb.Append(CultureInfo.InvariantCulture, $"[{line.Time:HH:mm:ss.fff}] [{line.Component}] ");
-                    sb.Append(string.Concat(line.Message, Environment.NewLine));
+                    sb.AppendLine(line.Message);
                 }
 
                 control.AppendText(sb.ToString());

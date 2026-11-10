@@ -969,7 +969,7 @@ class Converter
 
                 var components = value.EnumerateArray().Select(c => c.GetDouble()).ToArray();
                 var isIdentity = csType == "Quaternion" && components is [0, 0, 0, 1];
-                if (components.All(c => c == 0) || isIdentity)
+                if (!components.AsSpan().ContainsAnyExcept(0.0) || isIdentity)
                 {
                     return string.Empty;
                 }

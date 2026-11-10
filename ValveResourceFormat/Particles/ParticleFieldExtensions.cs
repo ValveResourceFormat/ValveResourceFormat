@@ -8,13 +8,7 @@ namespace ValveResourceFormat.Particles
         {
             component = Math.Clamp(component, 0, 2);
 
-            return component switch
-            {
-                0 => vector.X,
-                1 => vector.Y,
-                2 => vector.Z,
-                _ => vector.Z,
-            };
+            return vector[component];
         }
 
         /// <summary>Whether <paramref name="setMethod"/> combines the value with the particle's initial value.</summary>

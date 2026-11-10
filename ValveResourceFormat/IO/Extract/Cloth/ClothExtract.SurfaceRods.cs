@@ -193,7 +193,7 @@ internal sealed partial class ClothExtract
     private static IEnumerable<int[]> GlobalFaces(ProxyMesh proxy, IEnumerable<int[]> faces)
     {
         var nodeOf = proxy.NodeIndices;
-        return faces.Select(face => face.Select(local => nodeOf[local]).ToArray());
+        return faces.Select(face => Array.ConvertAll(face, local => nodeOf[local]));
     }
 
     /// <summary>

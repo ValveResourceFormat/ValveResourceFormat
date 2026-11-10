@@ -301,15 +301,7 @@ public sealed class FgdClass
 
     internal int IndexOfVariable(string name)
     {
-        for (var i = 0; i < Variables.Count; i++)
-        {
-            if (Variables[i].Name.Equals(name, StringComparison.OrdinalIgnoreCase))
-            {
-                return i;
-            }
-        }
-
-        return -1;
+        return Variables.FindIndex(variable => variable.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
     }
 
     internal void AddTag(string tag)

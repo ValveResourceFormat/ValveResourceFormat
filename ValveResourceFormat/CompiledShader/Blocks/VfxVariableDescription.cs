@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -269,30 +270,12 @@ public class VfxVariableDescription : ShaderDataBlock
 
         DefaultInputTexture = ReadStringWithMaxLength(datareader, 64);
 
-        for (var i = 0; i < 4; i++)
-        {
-            IntDefs[i] = datareader.ReadInt32();
-        }
-        for (var i = 0; i < 4; i++)
-        {
-            IntMins[i] = datareader.ReadInt32();
-        }
-        for (var i = 0; i < 4; i++)
-        {
-            IntMaxs[i] = datareader.ReadInt32();
-        }
-        for (var i = 0; i < 4; i++)
-        {
-            FloatDefs[i] = datareader.ReadSingle();
-        }
-        for (var i = 0; i < 4; i++)
-        {
-            FloatMins[i] = datareader.ReadSingle();
-        }
-        for (var i = 0; i < 4; i++)
-        {
-            FloatMaxs[i] = datareader.ReadSingle();
-        }
+        datareader.ReadExactly(MemoryMarshal.AsBytes(IntDefs.AsSpan()));
+        datareader.ReadExactly(MemoryMarshal.AsBytes(IntMins.AsSpan()));
+        datareader.ReadExactly(MemoryMarshal.AsBytes(IntMaxs.AsSpan()));
+        datareader.ReadExactly(MemoryMarshal.AsBytes(FloatDefs.AsSpan()));
+        datareader.ReadExactly(MemoryMarshal.AsBytes(FloatMins.AsSpan()));
+        datareader.ReadExactly(MemoryMarshal.AsBytes(FloatMaxs.AsSpan()));
 
         FixupIntMinsMaxs();
 

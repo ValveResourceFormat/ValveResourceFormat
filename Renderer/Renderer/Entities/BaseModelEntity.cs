@@ -362,7 +362,7 @@ public abstract class BaseModelEntity : BaseEntity
 
     private static int ReadBodyGroupChoice(KVObject value) => value.ValueType switch
     {
-        KVValueType.String => int.TryParse((string)value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : 0,
+        KVValueType.String => int.TryParse((string)value, CultureInfo.InvariantCulture, out var parsed) ? parsed : 0,
         KVValueType.Collection or KVValueType.Array or KVValueType.Null => 0,
         _ => value.ToInt32(CultureInfo.InvariantCulture),
     };

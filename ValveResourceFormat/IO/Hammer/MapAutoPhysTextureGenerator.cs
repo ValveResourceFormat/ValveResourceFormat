@@ -60,9 +60,9 @@ internal static class MapAutoPhysTextureGenerator
         var lineWidth = TextureSize - LineMargin;
         var widestWord = 0f;
 
-        foreach (var word in text.Split('\n'))
+        foreach (var wordRange in text.AsSpan().Split('\n'))
         {
-            widestWord = MathF.Max(widestWord, font.MeasureText(word, textPaint));
+            widestWord = MathF.Max(widestWord, font.MeasureText(text.AsSpan(wordRange), textPaint));
         }
 
         if (widestWord > lineWidth)
@@ -113,9 +113,9 @@ internal static class MapAutoPhysTextureGenerator
     {
         var lines = new List<string>(6);
 
-        foreach (var word in text.Split('\n'))
+        foreach (var wordRange in text.AsSpan().Split('\n'))
         {
-            var rest = word.AsSpan();
+            var rest = text.AsSpan(wordRange);
 
             while (!rest.IsEmpty)
             {

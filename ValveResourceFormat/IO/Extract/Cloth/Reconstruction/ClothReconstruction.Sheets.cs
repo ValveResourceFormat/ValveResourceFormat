@@ -136,11 +136,11 @@ namespace ValveResourceFormat.IO
             }
 
             return GatherProxyMesh(mesh, srcOf, clothEnable,
-                [.. mesh.Faces.Select(f => f.Select(v => localToSlot[v]).ToArray())],
+                mesh.Faces.ConvertAll(f => Array.ConvertAll(f, v => localToSlot[v])),
                 mesh.SimulatedCount, mesh.PinnedCount + (total - n), mesh.IsDropRisk, mesh.IsFreeFloating);
         }
 
-        private static T[] GatherSlots<T>(T[] source, int[] sourceOf) => [.. sourceOf.Select(index => source[index])];
+        private static T[] GatherSlots<T>(T[] source, int[] sourceOf) => Array.ConvertAll(sourceOf, index => source[index]);
 
         /// <summary>
         /// Builds a proxy mesh whose vertex <c>i</c> copies vertex <c>sourceOf[i]</c> of <paramref name="source"/>.
@@ -227,7 +227,7 @@ namespace ValveResourceFormat.IO
                 {
                     foreach (var island in islands)
                     {
-                        var vertices = island.OrderBy(v => v).ToArray();
+                        var vertices = island.Order().ToArray();
                         var remap = new Dictionary<int, int>(vertices.Length);
                         for (var i = 0; i < vertices.Length; i++)
                         {
@@ -340,8 +340,8 @@ namespace ValveResourceFormat.IO
                 slotOf[sourceOf[slot]] = slot;
             }
 
-            List<int[]> faces = [.. a.Faces.Select(f => f.Select(v => slotOf[v]).ToArray()),
-                .. b.Faces.Select(f => f.Select(v => slotOf[an + v]).ToArray())];
+            var faces = a.Faces.ConvertAll(f => Array.ConvertAll(f, v => slotOf[v]));
+            faces.AddRange(b.Faces.ConvertAll(f => Array.ConvertAll(f, v => slotOf[an + v])));
             return GatherProxyMesh(both, sourceOf, GatherSlots(both.ClothEnable, sourceOf), faces,
                 a.SimulatedCount + b.SimulatedCount, a.PinnedCount + b.PinnedCount,
                 a.IsDropRisk || b.IsDropRisk, a.IsFreeFloating && b.IsFreeFloating);
@@ -513,13 +513,13 @@ namespace ValveResourceFormat.IO
             var vertices = ComputeProxyVertexArrays(nodeIndices);
 
             var faces = SurfaceFacesInLaneOrder(remap);
-            RestoreStaticQuadCornerOrder(faces, [.. rodsFaces.Select(face => face.Select(corner => remap[corner]).ToArray())], nodeIndices);
+            RestoreStaticQuadCornerOrder(faces, rodsFaces.ConvertAll(face => Array.ConvertAll(face, corner => remap[corner])), nodeIndices);
 
             var surfaceFaceCount = faces.Count;
             rodsFaces.Reverse();
             foreach (var face in rodsFaces)
             {
-                faces.Add([.. face.Select(corner => remap[corner])]);
+                faces.Add(Array.ConvertAll(face, corner => remap[corner]));
             }
 
             var meshOf = Array.ConvertAll(nodeIndices, ProxyMeshIndexOf);

@@ -497,7 +497,7 @@ public class ModelHelper : EntityHelper
         {
             node.SetMaterialGroup(name);
         }
-        else if (int.TryParse(skin, NumberStyles.Integer, CultureInfo.InvariantCulture, out var index) && index >= 0 && index < groups.Count)
+        else if (int.TryParse(skin, CultureInfo.InvariantCulture, out var index) && index >= 0 && index < groups.Count)
         {
             node.SetMaterialGroup(groups[index]);
         }
@@ -510,7 +510,7 @@ public class ModelHelper : EntityHelper
         {
             var choice = value.ValueType switch
             {
-                KVValueType.String => int.TryParse(value.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : 0,
+                KVValueType.String => int.TryParse(value.ToString(), CultureInfo.InvariantCulture, out var parsed) ? parsed : 0,
                 KVValueType.Collection or KVValueType.Array or KVValueType.Null => 0,
                 _ => value.ToInt32(CultureInfo.InvariantCulture),
             };
@@ -603,7 +603,7 @@ public class ModelHelper : EntityHelper
 
         for (var i = 0; i < parts.Length; i++)
         {
-            if (!int.TryParse(parts[i], NumberStyles.Integer, CultureInfo.InvariantCulture, out var channel))
+            if (!int.TryParse(parts[i], CultureInfo.InvariantCulture, out var channel))
             {
                 return null;
             }

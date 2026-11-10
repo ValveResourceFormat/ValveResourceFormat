@@ -70,7 +70,7 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
     }
 
     // Every entity of the game has one set of helpers, made the first time anything asks for them
-    internal EntityHelperOwner GetEntity(BaseEntity entity) => gameEntities.GetValue(entity, CreateEntity);
+    internal EntityHelperOwner GetEntity(BaseEntity entity) => gameEntities.GetOrAdd(entity, CreateEntity);
 
     private EntityHelperOwner CreateEntity(BaseEntity entity)
     {

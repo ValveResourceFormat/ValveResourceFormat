@@ -589,7 +589,7 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     builder.AppendLine();
 
-                    foreach (var connection in entityConnections.OrderBy(x => x))
+                    foreach (var connection in entityConnections.Order())
                     {
                         // TODO: Inputs?
                         builder.AppendLine(CultureInfo.InvariantCulture, $"\toutput {connection}(void) : \"\"");

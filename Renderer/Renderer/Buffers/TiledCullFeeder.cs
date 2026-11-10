@@ -259,10 +259,7 @@ public sealed class TiledCullFeeder
         batchItemCount[BatchDecals] = Math.Min(decals, MaxItemsPerBatch);
 
         // Nothing was projected, so nothing was rejected either: every slot reaches every tile.
-        for (var batch = 0; batch < BatchCount; batch++)
-        {
-            batchBinnedCount[batch] = batchItemCount[batch];
-        }
+        batchItemCount.CopyTo(batchBinnedCount, 0);
     }
 
     /// <summary>
@@ -338,10 +335,7 @@ public sealed class TiledCullFeeder
         var count = 0;
         var binned = 0;
 
-        for (var i = 0; i < MaxItemsPerBatch; i++)
-        {
-            items[first + i] = RejectAll;
-        }
+        items.AsSpan(first, MaxItemsPerBatch).Fill(RejectAll);
 
         foreach (var envMap in envMaps)
         {
@@ -473,10 +467,7 @@ public sealed class TiledCullFeeder
                 Array.Copy(items, source, items, itemCursor, count);
             }
 
-            for (var i = count; i < masks * ItemsPerMask; i++)
-            {
-                items[itemCursor + i] = RejectAll;
-            }
+            items.AsSpan(itemCursor + count, (masks * ItemsPerMask) - count).Fill(RejectAll);
 
             batchFirstItem[batch] = itemCursor;
 
@@ -762,10 +753,7 @@ public sealed class TiledCullFeeder
 
         if (projection.HullCount <= MaxHullVertices && planeCount + projection.HullCount <= planes.Length)
         {
-            for (var i = 0; i < projection.HullCount; i++)
-            {
-                planes[planeCount + i] = hull[i];
-            }
+            hull.AsSpan(0, projection.HullCount).CopyTo(planes.AsSpan(planeCount));
 
             item.NumPlanes0 = (uint)projection.HullCount;
             planeCount += projection.HullCount;
@@ -815,10 +803,7 @@ public sealed class TiledCullFeeder
 
         if (projection.HullCount <= MaxHullVertices && planeCount + projection.HullCount <= planes.Length)
         {
-            for (var i = 0; i < projection.HullCount; i++)
-            {
-                planes[planeCount + i] = hull[i];
-            }
+            hull.AsSpan(0, projection.HullCount).CopyTo(planes.AsSpan(planeCount));
 
             item.NumPlanes1 = (uint)projection.HullCount;
             planeCount += projection.HullCount;

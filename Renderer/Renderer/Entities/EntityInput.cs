@@ -59,7 +59,7 @@ public readonly struct EntityInputData
 
     /// <summary>Reads the parameter as an integer.</summary>
     public int Int(int defaultValue = 0)
-        => int.TryParse(Parameter, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+        => int.TryParse(Parameter, CultureInfo.InvariantCulture, out var value)
             ? value
             : defaultValue;
 
@@ -77,7 +77,7 @@ public readonly struct EntityInputData
             return value;
         }
 
-        return int.TryParse(Parameter, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number)
+        return int.TryParse(Parameter, CultureInfo.InvariantCulture, out var number)
             ? number != 0
             : defaultValue;
     }

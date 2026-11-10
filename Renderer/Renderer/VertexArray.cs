@@ -121,7 +121,7 @@ namespace ValveResourceFormat.Renderer
                 // so their locations are wrong too
                 foreach (var name in shader.DescribeAttributes(missing).Split(", "))
                 {
-                    if (supplies.Names != null && Array.IndexOf(supplies.Names, name) < 0)
+                    if (supplies.Names != null && !supplies.Names.Contains(name))
                     {
                         shader.Logger.LogDebug("{Geometry} declares {Names}, so every custom attribute after {Attribute} sits at a different location than {ShaderName} expects",
                             geometry, string.Join(", ", supplies.Names), name, shader.Name);

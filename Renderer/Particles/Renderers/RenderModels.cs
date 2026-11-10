@@ -218,7 +218,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return null;
             }
 
-            if (!int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+            if (!int.TryParse(parts[1], CultureInfo.InvariantCulture, out var value))
             {
                 return null;
             }

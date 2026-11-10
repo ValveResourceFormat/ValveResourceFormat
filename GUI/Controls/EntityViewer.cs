@@ -133,7 +133,7 @@ namespace GUI.Types.Viewers
                 VisibleChanged -= EntityViewer_VisibleChanged;
 
                 pendingIconClassnames = null;
-                Task.Factory.StartNew(() => LoadEntityIcons(classnames)).ContinueWith(t =>
+                Task.Run(() => LoadEntityIcons(classnames)).ContinueWith(t =>
                 {
                     if (t.Exception != null)
                     {

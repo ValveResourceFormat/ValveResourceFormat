@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Linq;
+using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.IO.ContentFormats.HalfEdgeMesh;
 
@@ -122,10 +123,7 @@ public abstract class ComponentData<T> : IEnumerable<T>, IDataStream where T : s
     public void CopyFrom(T[] source)
     {
         var count = Math.Min(_list.Count, source.Length);
-        for (var i = 0; i < count; i++)
-        {
-            _list[i] = source[i];
-        }
+        source.AsSpan(0, count).CopyTo(CollectionsMarshal.AsSpan(_list));
     }
 
 #pragma warning disable CA1033

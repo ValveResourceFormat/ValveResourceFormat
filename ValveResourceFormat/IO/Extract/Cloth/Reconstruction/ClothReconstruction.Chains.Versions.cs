@@ -120,13 +120,13 @@ namespace ValveResourceFormat.IO
             var influences = Index.FitMatrixTargets.TryGetValue(child, out var own) ? own
                 : Index.NodeBases.TryGetValue(child, out var basis) ? [basis.NodeX0, basis.NodeX1, basis.NodeY0, basis.NodeY1]
                 : [];
-            return (influences.Length > 0 && Array.TrueForAll(influences, influence => Array.IndexOf(targets, influence) >= 0))
+            return (influences.Length > 0 && Array.TrueForAll(influences, influence => targets.Contains(influence)))
                 || (own is not null && HoldsOneWideEntryOf(targets, child));
         }
 
         private bool HoldsOneWideEntryOf(int[] targets, int node)
         {
-            if (Array.IndexOf(targets, node) < 0)
+            if (!targets.Contains(node))
             {
                 return false;
             }
@@ -139,7 +139,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                if (Array.IndexOf(targets, i) < 0)
+                if (!targets.Contains(i))
                 {
                     return false;
                 }

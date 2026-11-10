@@ -102,7 +102,7 @@ if (notFoundHashes.Count > 0)
 Console.WriteLine($"Found {foundKeys.Count} strings:");
 Console.WriteLine();
 
-foreach (var key in foundKeys.OrderBy(x => x))
+foreach (var key in foundKeys.Order())
 {
     Console.Write('"');
     Console.Write(key);

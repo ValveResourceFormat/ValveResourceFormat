@@ -33,8 +33,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             this.animationController = animationController;
 
-            var boneIndexes = skeleton.Bones.Select((b, i) => (b, i))
-                                            .ToDictionary(p => p.b.Name.ToLowerInvariant(), p => p.i);
+            var boneIndexes = skeleton.Bones.Index()
+                                            .ToDictionary(p => p.Item.Name.ToLowerInvariant(), p => p.Index);
 
             foreach (var pair in hitboxSets)
             {

@@ -117,7 +117,7 @@ namespace ValveResourceFormat.IO
             {
                 AllowAddonDependencies = fileSystem.GetBooleanProperty("AllowAddonDependencies");
 
-                if (int.TryParse(GetString(fileSystem, "SteamAppId"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var steamAppId))
+                if (int.TryParse(GetString(fileSystem, "SteamAppId"), CultureInfo.InvariantCulture, out var steamAppId))
                 {
                     SteamAppId = steamAppId;
                     Game = GetGame(steamAppId);
@@ -290,19 +290,6 @@ namespace ValveResourceFormat.IO
             }
 
             return merged;
-        }
-
-        private static KVObject? FindValue(KVObject collection, string key)
-        {
-            foreach (var (childKey, value) in collection)
-            {
-                if (childKey.Equals(key, StringComparison.OrdinalIgnoreCase))
-                {
-                    return value;
-                }
-            }
-
-            return null;
         }
 
         private static string? GetString(KVObject block, string name)

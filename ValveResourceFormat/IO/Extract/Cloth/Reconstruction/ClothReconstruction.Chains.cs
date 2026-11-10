@@ -1670,8 +1670,7 @@ namespace ValveResourceFormat.IO
 
         private static string SurfaceElementKey(IEnumerable<int> corners)
         {
-            var sorted = corners.ToArray();
-            Array.Sort(sorted);
+            var sorted = corners.Order().ToArray();
             return string.Join(',', sorted);
         }
     }

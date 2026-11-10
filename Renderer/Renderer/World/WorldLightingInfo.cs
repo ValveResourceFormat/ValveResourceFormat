@@ -1244,7 +1244,7 @@ namespace ValveResourceFormat.Renderer.World
             foreach (var (name, value) in table)
             {
                 if (value.ValueType == KVValueType.Collection
-                    || !int.TryParse((string)value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var slice))
+                    || !int.TryParse((string)value, CultureInfo.InvariantCulture, out var slice))
                 {
                     continue;
                 }

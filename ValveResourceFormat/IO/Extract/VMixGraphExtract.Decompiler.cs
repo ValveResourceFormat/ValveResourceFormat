@@ -1367,7 +1367,7 @@ public sealed partial class VMixGraphExtract
             foreach (var k in lostVolumes)
             {
                 // The other volumes are usually the complementary output of the same control
-                var partner = splitter.Inputs.Where(static input => input.Key.StartsWith("volume", StringComparison.Ordinal)).Select(static input => input.Value).FirstOrDefault();
+                var partner = splitter.Inputs.Find(static input => input.Key.StartsWith("volume", StringComparison.Ordinal)).Value;
                 var recovered = partner.Plug switch
                 {
                     "inverseOut" => partner with { Plug = "valueOut" },
@@ -2112,7 +2112,7 @@ public sealed partial class VMixGraphExtract
                     }
                 }
 
-                var firstOutput = inner.Where(static name => TypeOf(name) == "audio.Output").Order(StringComparer.Ordinal).FirstOrDefault();
+                var firstOutput = inner.Where(static name => TypeOf(name) == "audio.Output").Min(StringComparer.Ordinal);
 
                 if (graphName != null)
                 {

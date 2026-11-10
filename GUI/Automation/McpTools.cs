@@ -69,11 +69,11 @@ internal sealed class IdRegistry<T>
     where T : class
 {
     private static int LastId;
-    private static readonly ConditionalWeakTable<T, StrongBox<int>>.CreateValueCallback NextId = static _ => new StrongBox<int>(Interlocked.Increment(ref LastId));
+    private static readonly Func<T, StrongBox<int>> NextId = static _ => new StrongBox<int>(Interlocked.Increment(ref LastId));
 
     private readonly ConditionalWeakTable<T, StrongBox<int>> Ids = [];
 
-    public int IdOf(T item) => Ids.GetValue(item, NextId).Value;
+    public int IdOf(T item) => Ids.GetOrAdd(item, NextId).Value;
 
     public T? Find(int id)
     {

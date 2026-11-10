@@ -378,7 +378,7 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            var names = clique.Select(node => cloth.Fe.CtrlName[node]).ToList();
+            var names = clique.ConvertAll(node => cloth.Fe.CtrlName[node]);
             softbodyChildren.Add(MakeClothSelfCollisionCluster(NodeNameSafe($"cluster_{string.Join("_", names)}"), names,
                 radii[0], strayRadii[0], radii: radii, strayRadii: strayRadii));
             foreach (var a in clique)

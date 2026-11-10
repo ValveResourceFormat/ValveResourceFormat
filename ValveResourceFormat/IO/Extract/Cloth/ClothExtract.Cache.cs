@@ -8,7 +8,7 @@ internal sealed partial class ClothExtract
 {
     private static readonly ConditionalWeakTable<ClothReconstruction, ExportLookups> Lookups = new();
 
-    private static ExportLookups LookupsOf(ClothReconstruction cloth) => Lookups.GetValue(cloth, static c => new ExportLookups(c));
+    private static ExportLookups LookupsOf(ClothReconstruction cloth) => Lookups.GetOrAdd(cloth, static c => new ExportLookups(c));
 
     /// <summary>
     /// Indexes over a reconstruction's compiled arrays, built lazily and shared, so callers must not modify them.

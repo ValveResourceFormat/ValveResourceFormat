@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
 using OpenTK.Mathematics;
@@ -97,7 +96,7 @@ public class GLControl : Control
             const int CS_OWNDC = 0x20;
 
             var cp = base.CreateParams;
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            if (OperatingSystem.IsWindows())
             {
                 cp.ClassStyle |= CS_VREDRAW | CS_HREDRAW | CS_OWNDC;
             }
@@ -113,7 +112,7 @@ public class GLControl : Control
     /// <param name="nativeWindow">The NativeWindow that must become a child of this control.</param>
     private void NonportableReparent(NativeWindow nativeWindow)
     {
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (!OperatingSystem.IsWindows())
         {
             throw new NotSupportedException("The current operating system is not supported by this control.");
         }
@@ -229,7 +228,7 @@ public class GLControl : Control
             return;
         }
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        if (OperatingSystem.IsMacOS())
         {
             BeginInvoke(new Action(ResizeNativeWindow)); // Need the native window to resize first otherwise our control will be in the wrong place.
         }

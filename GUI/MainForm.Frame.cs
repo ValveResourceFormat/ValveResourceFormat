@@ -289,14 +289,9 @@ partial class MainForm
     }
 
     /// <summary>Colors the window border so a viewer driven by an agent stands out. Only Windows 11 draws it.</summary>
-    private unsafe void SetAutomationBorderColor()
+    private void SetAutomationBorderColor()
     {
-        var color = ColorTranslator.ToWin32(Themer.CurrentThemeColors.Accent);
-
-        PInvoke.DwmSetWindowAttribute((HWND)Handle,
-            Windows.Win32.Graphics.Dwm.DWMWINDOWATTRIBUTE.DWMWA_BORDER_COLOR,
-            &color,
-            sizeof(int));
+        FormBorderColor = Themer.CurrentThemeColors.Accent;
     }
 
     /// <summary>Puts the window behind all others before it is first shown, so a viewer started by an agent does not cover what the user is looking at.</summary>

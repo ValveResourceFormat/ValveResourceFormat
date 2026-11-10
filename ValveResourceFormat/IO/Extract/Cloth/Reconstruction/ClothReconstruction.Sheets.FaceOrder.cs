@@ -10,18 +10,7 @@ namespace ValveResourceFormat.IO
         // Rods whose inverse-mass sum is at or below this are dropped by the rod importer.
         private const float RodMassFloor = 1e-6f;
 
-        internal static readonly Comparer<int[]> ShippedNodeComparer = Comparer<int[]>.Create(static (x, y) =>
-        {
-            for (var i = 0; i < x.Length && i < y.Length; i++)
-            {
-                if (x[i] != y[i])
-                {
-                    return x[i].CompareTo(y[i]);
-                }
-            }
-
-            return x.Length.CompareTo(y.Length);
-        });
+        internal static readonly Comparer<int[]> ShippedNodeComparer = Comparer<int[]>.Create(static (x, y) => x.AsSpan().SequenceCompareTo(y));
 
         private float? quadBendTolerance;
         private int[]? surfaceNodeRanks;
@@ -1002,7 +991,7 @@ namespace ValveResourceFormat.IO
 
             faces.Reverse();
             MergeFacesInNodeCreationOrder(faces, triangles);
-            return [.. faces.Select(face => face.Select(corner => localOf[corner]).ToArray())];
+            return faces.ConvertAll(face => Array.ConvertAll(face, corner => localOf[corner]));
         }
 
         /// <summary>Gets each face's consecutive corner pairs, so never a quad's diagonals.</summary>

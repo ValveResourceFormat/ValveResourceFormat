@@ -325,29 +325,13 @@ namespace ValveResourceFormat.IO
                 return false;
             }
 
-            foreach (var (_, searchPath) in gameInfo.SearchPaths)
-            {
-                if (string.Equals(searchPath, folderName, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return gameInfo.SearchPaths.Exists(searchPath => string.Equals(searchPath.Value, folderName, StringComparison.OrdinalIgnoreCase));
         }
 
         private static bool IsGameSearchPath(GameInfo gameInfo, string folder)
         {
-            foreach (var (key, searchPath) in gameInfo.SearchPaths)
-            {
-                if (key.Equals("Game", StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(Path.Combine(gameInfo.GameRoot, searchPath), folder, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return gameInfo.SearchPaths.Exists(searchPath => searchPath.Key.Equals("Game", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(Path.Combine(gameInfo.GameRoot, searchPath.Value), folder, StringComparison.OrdinalIgnoreCase));
         }
 
         private void FindGameFoldersForWorkshopFile(HashSet<string> folders)

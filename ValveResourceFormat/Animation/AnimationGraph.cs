@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using ValveKeyValue;
 using ValveResourceFormat.Animation;
 using ValveResourceFormat.IO;
@@ -84,7 +85,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
 
         // Signaled bool parameters and the value each returns to after the next update
         private readonly Dictionary<string, bool> signaledBoolParameters = [];
-        private readonly object signalLock = new();
+        private readonly Lock signalLock = new();
 
         /// <summary>
         /// Loads the graph definition, its skeleton and all referenced animation clips.

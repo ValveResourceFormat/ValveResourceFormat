@@ -236,9 +236,9 @@ internal sealed partial class ClothExtract
         {
             if (joint.GetStringProperty("vertex_map") is { Length: > 0 } entries)
             {
-                foreach (var entry in entries.Split(','))
+                foreach (var entry in entries.Split(',', StringSplitOptions.TrimEntries))
                 {
-                    maps.Add(ClothReconstruction.VertexMapName(entry.Trim()));
+                    maps.Add(ClothReconstruction.VertexMapName(entry));
                 }
             }
         }
@@ -272,9 +272,9 @@ internal sealed partial class ClothExtract
         {
             if (cloth.GetVertexMapNames(joint.Node) is { } names)
             {
-                foreach (var name in names.Split(','))
+                foreach (var name in names.Split(',', StringSplitOptions.TrimEntries))
                 {
-                    maps.Add(ClothReconstruction.VertexMapName(name.Trim()));
+                    maps.Add(ClothReconstruction.VertexMapName(name));
                 }
             }
         }

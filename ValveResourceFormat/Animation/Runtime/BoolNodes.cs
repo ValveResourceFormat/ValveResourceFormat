@@ -351,15 +351,7 @@ namespace ValveResourceFormat.Animation
             }
 
             // Ensure that all conditions have been matched
-            for (var t = 0; t < Conditions.Length; t++)
-            {
-                if (!foundConditions[t])
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return !foundConditions.Contains(false);
         }
     }
 
@@ -451,32 +443,22 @@ namespace ValveResourceFormat.Animation
 
                 if (foundID.IsValid)
                 {
-                    for (var t = 0; t < EventIDs.Length; t++)
-                    {
-                        if (EventIDs[t] == foundID)
-                        {
-                            if (operatorOr)
-                            {
-                                return true;
-                            }
+                    var index = Array.IndexOf(EventIDs, foundID);
 
-                            foundIDs[t] = true;
-                            break;
+                    if (index >= 0)
+                    {
+                        if (operatorOr)
+                        {
+                            return true;
                         }
+
+                        foundIDs[index] = true;
                     }
                 }
             }
 
             // With the 'and' operator every requested ID must have been found
-            for (var t = 0; t < EventIDs.Length; t++)
-            {
-                if (!foundIDs[t])
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return !foundIDs.Contains(false);
         }
     }
 

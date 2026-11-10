@@ -43,11 +43,8 @@ public static class LeadingNumber
 
     private static int SkipDigits(ReadOnlySpan<char> text, int start)
     {
-        while (start < text.Length && char.IsAsciiDigit(text[start]))
-        {
-            start++;
-        }
+        var nonDigitIndex = text[start..].IndexOfAnyExceptInRange('0', '9');
 
-        return start;
+        return nonDigitIndex < 0 ? text.Length : start + nonDigitIndex;
     }
 }

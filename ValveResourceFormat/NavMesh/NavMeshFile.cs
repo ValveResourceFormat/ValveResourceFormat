@@ -267,7 +267,7 @@ namespace ValveResourceFormat.NavMesh
             {
                 var length = binaryReader.ReadUInt16();
                 var name = binaryReader.ReadBytes(length);
-                PlaceNames[i] = Encoding.UTF8.GetString(name).TrimEnd('\0');
+                PlaceNames[i] = Encoding.UTF8.GetString(name.AsSpan().TrimEnd((byte)0));
             }
 
             HasUnnamedAreas = binaryReader.ReadByte() != 0;

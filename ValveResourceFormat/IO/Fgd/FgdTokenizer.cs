@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 
 namespace ValveResourceFormat.IO.Fgd;
@@ -14,6 +15,8 @@ internal sealed class FgdTokenizer
     /// </summary>
     public readonly record struct Token(string Source, int Start, int End, int Line)
     {
+        private static readonly SearchValues<char> FloatCharacters = SearchValues.Create("0123456789+-.Ee");
+
         public ReadOnlySpan<char> Span => Source.AsSpan(Start, End - Start);
 
         public string Text => Source[Start..End];
@@ -38,15 +41,7 @@ internal sealed class FgdTokenizer
                     span = span[1..];
                 }
 
-                foreach (var character in span)
-                {
-                    if (!char.IsAsciiDigit(character))
-                    {
-                        return false;
-                    }
-                }
-
-                return true;
+                return !span.ContainsAnyExceptInRange('0', '9');
             }
         }
 
@@ -62,15 +57,7 @@ internal sealed class FgdTokenizer
                     return false;
                 }
 
-                foreach (var character in span)
-                {
-                    if (!char.IsAsciiDigit(character) && character is not ('+' or '-' or '.' or 'E' or 'e'))
-                    {
-                        return false;
-                    }
-                }
-
-                return true;
+                return !span.ContainsAnyExcept(FloatCharacters);
             }
         }
 

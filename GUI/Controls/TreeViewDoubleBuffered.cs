@@ -42,7 +42,7 @@ namespace GUI.Controls
         {
             base.OnHandleCreated(e);
 
-            if (DesignMode || Environment.OSVersion.Platform != PlatformID.Win32NT)
+            if (DesignMode || !OperatingSystem.IsWindows())
             {
                 return;
             }

@@ -137,7 +137,7 @@ public sealed class FuncCombineBarrier : FuncBrush
     }
 
     private static State ParseState(string? value)
-        => int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number) && number == 1
+        => int.TryParse(value, CultureInfo.InvariantCulture, out var number) && number == 1
             ? State.BlocksCombine
             : State.BlocksHumans;
 }

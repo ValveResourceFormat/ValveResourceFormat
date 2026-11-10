@@ -680,7 +680,7 @@ namespace GUI.Types.GLViewers
                     openShaderButton.Text = renderMat.Material.ShaderName;
                 }
 
-                previewObjectComboBox.Items.AddRange([.. Enum.GetNames<PreviewObjectType>().Where(n => previewObjects.ContainsKey(Enum.Parse<PreviewObjectType>(n)))]);
+                previewObjectComboBox.Items.AddRange([.. Enum.GetValues<PreviewObjectType>().Where(type => previewObjects.ContainsKey(type)).Select(type => type.ToString())]);
                 previewObjectComboBox.SelectedItem = currentPreviewObject.ToString();
 
                 CreateMaterialEditControls(renderMat);

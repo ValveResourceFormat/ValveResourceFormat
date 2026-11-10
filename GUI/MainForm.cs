@@ -401,14 +401,7 @@ namespace GUI
 #if SCREENSHOT_MODE
             mainFormBottomPanel.Visible = false;
             SetBounds(x: 100, y: 100, width: 480 + 6, height: 480 + 3); // Tweak size as needed
-            unsafe
-            {
-                var preference = Windows.Win32.Graphics.Dwm.DWM_WINDOW_CORNER_PREFERENCE.DWMWCP_DONOTROUND;
-                PInvoke.DwmSetWindowAttribute((Windows.Win32.Foundation.HWND)Handle,
-                    Windows.Win32.Graphics.Dwm.DWMWINDOWATTRIBUTE.DWMWA_WINDOW_CORNER_PREFERENCE,
-                    &preference,
-                    sizeof(Windows.Win32.Graphics.Dwm.DWM_WINDOW_CORNER_PREFERENCE));
-            }
+            FormCornerPreference = FormCornerPreference.DoNotRound;
 #else
             if (StartPosition == FormStartPosition.Manual && !Automation.Automation.IsEnabled)
             {
@@ -1138,14 +1131,13 @@ namespace GUI
 
         private void MainForm_DragDrop(object sender, DragEventArgs e)
         {
-            if (e.Data?.GetData(DataFormats.FileDrop) is string[] paths)
+            if (e.Data is { } data && data.TryGetData<string[]>(DataFormats.FileDrop, out var paths))
             {
                 OpenFiles(paths);
                 return;
             }
 
-            var text = e.Data?.GetData("ObjectData") as string ?? e.Data?.GetData(typeof(string)) as string
-                ?? e.Data?.GetData(DataFormats.UnicodeText) as string;
+            var text = GetDroppedText(e.Data);
             var files = GetDroppedFiles(text).ToList();
             OpenFiles(files.Where(file => file.Entry == null).Select(file => file.Path).ToList());
 
@@ -1176,7 +1168,7 @@ namespace GUI
         {
             e.Effect = DragDropEffects.None;
 
-            if (e.Data?.GetData(DataFormats.FileDrop) is string[] paths)
+            if (e.Data is { } data && data.TryGetData<string[]>(DataFormats.FileDrop, out var paths))
             {
                 if (paths.Any(File.Exists))
                 {
@@ -1187,14 +1179,34 @@ namespace GUI
             }
 
             // Dropping files from apps that provide a path string (e.g. VS Code, Source 2 asset browser).
-            var text = e.Data?.GetData("ObjectData") as string ?? e.Data?.GetData(typeof(string)) as string
-                ?? e.Data?.GetData(DataFormats.UnicodeText) as string;
+            var text = GetDroppedText(e.Data);
             if (GetDroppedFiles(text).Any())
             {
                 e.Effect = (e.AllowedEffect & DragDropEffects.Copy) != 0
                     ? DragDropEffects.Copy
                     : e.AllowedEffect & DragDropEffects.Move;
             }
+        }
+
+        private static string? GetDroppedText(IDataObject? data)
+        {
+            if (data == null)
+            {
+                return null;
+            }
+
+            if (data.TryGetData<string>("ObjectData", out var objectData))
+            {
+                return objectData;
+            }
+
+            if (data.TryGetData<string>(DataFormats.StringFormat, out var stringData))
+            {
+                return stringData;
+            }
+
+            data.TryGetData<string>(DataFormats.UnicodeText, out var unicodeText);
+            return unicodeText;
         }
 
         private IEnumerable<(string Path, VrfGuiContext? PackageContext, PackageEntry? Entry)> GetDroppedFiles(string? text)

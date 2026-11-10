@@ -46,7 +46,7 @@ internal sealed partial class ClothExtract
         {
             List<BoneChainJoint> next = [.. chain.Joints.Where(child => generation.Contains(child.ParentNode))];
             members.AddRange(next.Select(static child => child.Name));
-            generation = [.. next.Select(static child => child.Node)];
+            generation = next.ConvertAll(static child => child.Node);
         }
 
         if (members.Count < 2)

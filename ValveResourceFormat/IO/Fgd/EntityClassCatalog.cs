@@ -35,7 +35,7 @@ public static class EntityClassCatalog
         ArgumentNullException.ThrowIfNull(fileLoader);
         ArgumentNullException.ThrowIfNull(logger);
 
-        return Loaded.GetValue(fileLoader, loader => FindTable(loader, logger));
+        return Loaded.GetOrAdd(fileLoader, loader => FindTable(loader, logger));
     }
 
     /// <summary>Gets the entity classes of a game.</summary>
@@ -114,7 +114,7 @@ public static class EntityClassCatalog
         // Of versions as many games declare, it is the one of the game with the lowest app id
         var mergedClasses = gameClasses
             .GroupBy(static entityClass => entityClass.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(static versions => versions.MaxBy(version => versions.Count(other => other == version))!);
+            .Select(static versions => versions.CountBy(static version => version).MaxBy(static pair => pair.Value).Key);
 
         var extraClasses = (extra.GetArray("classes") ?? []).Select(ReadClass);
 

@@ -35,14 +35,9 @@ internal class EntityIOGraphViewer : GLGraphViewer
     {
         try
         {
-            var entities = new List<EntityLump.Entity>();
+            var traversal = EntityLumpTraversal.EnumerateEntities(entityLump, rendererContext.FileLoader, Matrix4x4.Identity);
 
-            foreach (var traversed in EntityLumpTraversal.EnumerateEntities(entityLump, rendererContext.FileLoader, Matrix4x4.Identity))
-            {
-                entities.Add(traversed.Entity);
-            }
-
-            return entities;
+            return [.. traversal.Select(traversed => traversed.Entity)];
         }
         catch (Exception e)
         {
@@ -322,19 +317,7 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
     private static string IslandLabel(List<GraphNode> island)
     {
-        GraphNode? best = null;
-        var bestDegree = -1;
-
-        foreach (var node in island)
-        {
-            var degree = node.Inputs.Count + node.Outputs.Count;
-
-            if (degree > bestDegree)
-            {
-                bestDegree = degree;
-                best = node;
-            }
-        }
+        var best = island.MaxBy(node => node.Inputs.Count + node.Outputs.Count);
 
         return $"{best!.Title} ({island.Count} nodes)";
     }

@@ -310,7 +310,7 @@ namespace ValveResourceFormat.IO
             var size = MathF.Max(max.X - min.X, max.Y - min.Y) * 10f + 1f;
 
             var allPoints = new Vector2[n + 3];
-            Array.Copy(points, allPoints, n);
+            points.CopyTo(allPoints, 0);
             allPoints[n] = center + new Vector2(0f, size * 2f);
             allPoints[n + 1] = center + new Vector2(-size * 2f, -size);
             allPoints[n + 2] = center + new Vector2(size * 2f, -size);

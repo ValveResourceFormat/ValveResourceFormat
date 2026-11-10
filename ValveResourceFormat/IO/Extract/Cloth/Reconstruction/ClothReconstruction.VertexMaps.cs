@@ -328,7 +328,7 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>Gets whether <paramref name="nameHash"/> is registered in <see cref="FeModel.VertexSetNames"/>.</summary>
-        internal bool RegistersVertexSet(uint nameHash) => Array.IndexOf(Fe.VertexSetNames, nameHash) >= 0;
+        internal bool RegistersVertexSet(uint nameHash) => Fe.VertexSetNames.Contains(nameHash);
 
         /// <summary>Gets the first selection named <paramref name="name"/>.</summary>
         internal bool TryGetVertexMap(string name, out VertexMap map)

@@ -736,7 +736,7 @@ public sealed class TextureExtract
 
             foreach (var (floatName, floatValue) in sequence.FloatParams)
             {
-                mksBuilder.AppendLine(CultureInfo.InvariantCulture, $"{floatName} {floatValue.ToString(CultureInfo.InvariantCulture)}");
+                mksBuilder.AppendLine(CultureInfo.InvariantCulture, $"{floatName} {floatValue}");
             }
 
             for (var f = 0; f < sequence.Frames.Length; f++)
@@ -766,7 +766,7 @@ public sealed class TextureExtract
                     : $"{textureName}_seq{s}_{f}.png";
 
                 sprites.TryAdd(sprite, imageFileName);
-                mksBuilder.AppendLine(CultureInfo.InvariantCulture, $"frame {sprites[sprite]} {frame.DisplayTime.ToString(CultureInfo.InvariantCulture)}");
+                mksBuilder.AppendLine(CultureInfo.InvariantCulture, $"frame {sprites[sprite]} {frame.DisplayTime}");
             }
         }
 

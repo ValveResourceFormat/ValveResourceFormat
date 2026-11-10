@@ -1110,10 +1110,7 @@ namespace GUI.Types.Viewers
             };
             blockTab.Controls.Add(bv);
 
-            Program.MainForm.Invoke((MethodInvoker)(() =>
-            {
-                bv.SetBytes(input);
-            }));
+            Program.MainForm.Invoke(() => bv.SetBytes(input));
         }
 
         private static void AddTextViewControl(ResourceType resourceType, Block block, Control blockTab)

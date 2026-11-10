@@ -36,7 +36,7 @@ public static class Blender
         Span<FrameBone> resultPose)
     {
         // A full weight takes the target as is, ignoring the mask
-        if (blendWeight == 0f || boneMaskWeights.IndexOfAnyExcept(0f) == -1)
+        if (blendWeight == 0f || !boneMaskWeights.ContainsAnyExcept(0f))
         {
             sourcePose[..resultPose.Length].CopyTo(resultPose);
             return;

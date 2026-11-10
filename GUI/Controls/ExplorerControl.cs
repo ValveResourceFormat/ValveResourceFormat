@@ -6,7 +6,6 @@ using System.Globalization;
 using System.IO;
 using System.IO.Enumeration;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Utils;
@@ -110,25 +109,32 @@ namespace GUI.Controls
             string[] listedFiles = [.. Settings.Config.RecentFiles, .. Settings.Config.BookmarkedFiles];
 
             // Scan for vpks
-            var scanTask = Task.Run(() => ScanForSteamGames(listedFiles));
-            scanTask.ContinueWith(async t =>
+            _ = ScanForSteamGamesAndUpdateTree(listedFiles, scanningTreeNode);
+        }
+
+        private async Task ScanForSteamGamesAndUpdateTree(string[] listedFiles, TreeNode scanningTreeNode)
+        {
+            try
             {
-                Log.Error(nameof(ExplorerControl), t.Exception!.ToString());
+                await Task.Run(() => ScanForSteamGames(listedFiles)).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                Log.Error(nameof(ExplorerControl), e.ToString());
 
                 await handleCreated.Task.ConfigureAwait(false);
                 await treeView.InvokeAsync(() =>
                 {
                     scanningTreeNode.Text = "Failed to scan game folders, see the console for details.";
                 }).ConfigureAwait(false);
-            }, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
-            scanTask.ContinueWith(async t =>
+                return;
+            }
+
+            await handleCreated.Task.ConfigureAwait(false);
+            await treeView.InvokeAsync(() =>
             {
-                await handleCreated.Task.ConfigureAwait(false);
-                await treeView.InvokeAsync(() =>
-                {
-                    scanningTreeNode.Remove();
-                }).ConfigureAwait(false);
-            }, CancellationToken.None, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
+                scanningTreeNode.Remove();
+            }).ConfigureAwait(false);
         }
 
         private async Task ScanForSteamGames(string[] listedFiles)

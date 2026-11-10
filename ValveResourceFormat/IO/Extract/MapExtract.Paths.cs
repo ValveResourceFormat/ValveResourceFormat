@@ -112,7 +112,7 @@ public sealed partial class MapExtract
     private static float[] ReadRadiusScales(Entity compiledEntity)
     {
         var radiusScales = PathParticleRope.ParseRadiusScales(compiledEntity.GetStringProperty("pathnoderadiusscales"));
-        return radiusScales.All(scale => scale == 0f) ? [] : radiusScales;
+        return radiusScales.AsSpan().ContainsAnyExcept(0f) ? radiusScales : [];
     }
 
     /// <summary>
@@ -131,7 +131,7 @@ public sealed partial class MapExtract
         {
             var separator = entry.IndexOf(':', StringComparison.Ordinal);
 
-            if (separator > 0 && int.TryParse(entry.AsSpan(0, separator), NumberStyles.Integer, CultureInfo.InvariantCulture, out var index))
+            if (separator > 0 && int.TryParse(entry.AsSpan(0, separator), CultureInfo.InvariantCulture, out var index))
             {
                 names[index] = entry[(separator + 1)..].Trim();
             }
@@ -158,7 +158,7 @@ public sealed partial class MapExtract
             }
 
             if (entity.GetStringProperty("path_uniqueid") is { } ownerId && entity.TryGetValue("path_index", out var indexValue)
-                && int.TryParse(ToEditString(indexValue), NumberStyles.Integer, CultureInfo.InvariantCulture, out var nodeIndex))
+                && int.TryParse(ToEditString(indexValue), CultureInfo.InvariantCulture, out var nodeIndex))
             {
                 if (!nodeEntities.TryGetValue(ownerId, out var pathNodes))
                 {

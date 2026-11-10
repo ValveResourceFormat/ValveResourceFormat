@@ -352,7 +352,7 @@ namespace ValveResourceFormat.ResourceTypes
                     }
 
                     blockCompressedSizes.Add((ushort)encoded);
-                    output.Write(target, 0, encoded);
+                    output.Write(target.AsSpan(0, encoded));
                 }
 
                 inputOffset += segmentLength;
@@ -596,10 +596,7 @@ namespace ValveResourceFormat.ResourceTypes
             Align(ref offset, alignment);
             var padding = offset - originalOffset;
 
-            for (var i = 0; i < padding; i++)
-            {
-                writer.Write((byte)0);
-            }
+            writer.Write(stackalloc byte[padding]);
         }
     }
 }

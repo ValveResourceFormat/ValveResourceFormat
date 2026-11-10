@@ -26,8 +26,8 @@ namespace ValveResourceFormat.IO
             this.fe = fe;
 
             var initPose = fe.InitPose;
-            InitPosePositions = [.. initPose.Select(static p => p.Position)];
-            InitPoseRotations = [.. initPose.Select(static p => p.Orientation)];
+            InitPosePositions = Array.ConvertAll(initPose, static p => p.Position);
+            InitPoseRotations = Array.ConvertAll(initPose, static p => p.Orientation);
 
             Quads = ReadNodeIndexArray(fe.Quads.Select(static q => q.Nodes), 4);
             Tris = ReadNodeIndexArray(fe.Tris.Select(static t => t.Nodes), 3);

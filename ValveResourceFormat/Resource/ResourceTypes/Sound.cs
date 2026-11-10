@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.Runtime.InteropServices;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -569,31 +568,36 @@ namespace ValveResourceFormat.ResourceTypes
                 // http://www.codeproject.com/Articles/129173/Writing-a-Proper-Wave-File
                 // https://github.com/microsoft/DirectXTK/wiki/Wave-Formats
 
-                stream.Write("RIFF"u8);
-                stream.Write(MemoryMarshal.AsBytes([totalSize - 8]));
-                stream.Write("WAVE"u8);
-                stream.Write("fmt "u8);
+                using var writer = new BinaryWriter(stream);
+
+                writer.Write("RIFF"u8);
+                writer.Write(totalSize - 8);
+                writer.Write("WAVE"u8);
+                writer.Write("fmt "u8);
 
                 if (AudioFormat == WaveAudioFormat.ADPCM)
                 {
-                    stream.Write(MemoryMarshal.AsBytes([Header.Length]));
-                    stream.Write(Header); // Quite likely to be ADPCMWAVEFORMAT
+                    writer.Write(Header.Length);
+                    writer.Write(Header); // Quite likely to be ADPCMWAVEFORMAT
                 }
                 else
                 {
                     var byteRate = SampleRate * Channels * (Bits / 8);
                     var blockAlign = Channels * (Bits / 8);
 
-                    stream.Write(MemoryMarshal.AsBytes([16])); // size of PCMWAVEFORMAT
+                    writer.Write(16); // size of PCMWAVEFORMAT
 
                     // PCMWAVEFORMAT
-                    stream.Write(MemoryMarshal.AsBytes([(ushort)AudioFormat, (ushort)Channels]));
-                    stream.Write(MemoryMarshal.AsBytes([SampleRate, byteRate]));
-                    stream.Write(MemoryMarshal.AsBytes([(ushort)blockAlign, (ushort)Bits]));
+                    writer.Write((ushort)AudioFormat);
+                    writer.Write((ushort)Channels);
+                    writer.Write(SampleRate);
+                    writer.Write(byteRate);
+                    writer.Write((ushort)blockAlign);
+                    writer.Write((ushort)Bits);
                 }
 
-                stream.Write("data"u8);
-                stream.Write(MemoryMarshal.AsBytes([StreamingDataSize]));
+                writer.Write("data"u8);
+                writer.Write(StreamingDataSize);
 
                 Debug.Assert(stream.Position == waveHeaderSize);
             }

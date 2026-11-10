@@ -636,7 +636,7 @@ namespace ValveResourceFormat.IO
             => !Array.Exists(face, corner => corner < 0 || corner >= Fe.CtrlName.Length || IsProxyMeshNode(corner));
 
         private static bool SpansRing(int[] face, List<int> ring)
-            => Array.IndexOf(face, ring[0]) >= 0 && Array.IndexOf(face, ring[1]) >= 0;
+            => face.Contains(ring[0]) && face.Contains(ring[1]);
 
         private Dictionary<int, Vector3> CollectHingeFanJoints(bool rigidOnly)
         {

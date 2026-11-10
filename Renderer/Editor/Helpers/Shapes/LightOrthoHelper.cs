@@ -57,7 +57,7 @@ internal sealed class LightOrthoHelper(IHelperOwner owner, HelperDeclaration dec
 
         for (var i = 0; i < Math.Min(parts.Length, channels.Length); i++)
         {
-            channels[i] = byte.TryParse(parts[i], NumberStyles.Integer, CultureInfo.InvariantCulture, out var channel) ? channel : (byte)0;
+            channels[i] = byte.TryParse(parts[i], CultureInfo.InvariantCulture, out var channel) ? channel : (byte)0;
         }
 
         return new Color32(channels[0], channels[1], channels[2], channels[3]);

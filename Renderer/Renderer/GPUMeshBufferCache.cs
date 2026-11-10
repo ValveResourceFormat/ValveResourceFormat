@@ -154,14 +154,14 @@ namespace ValveResourceFormat.Renderer
 
         private static bool UsesAnyBuffer(VAOKey key, int[] bufferHandles)
         {
-            if (Array.IndexOf(bufferHandles, key.IndexBuffer) >= 0)
+            if (bufferHandles.Contains(key.IndexBuffer))
             {
                 return true;
             }
 
             foreach (var handle in key.VertexBuffers)
             {
-                if (Array.IndexOf(bufferHandles, handle) >= 0)
+                if (bufferHandles.Contains(handle))
                 {
                     return true;
                 }

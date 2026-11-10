@@ -189,10 +189,7 @@ namespace ValveResourceFormat.Animation
                 transforms = buffer.Transforms;
 
                 // Set initial world space positions up to the end of the rotation warp event
-                for (var i = 0; i <= warpEndFrame; i++)
-                {
-                    transforms[i] = ctx.WorldTransform;
-                }
+                transforms.AsSpan(0, warpEndFrame + 1).Fill(ctx.WorldTransform);
 
                 // Distribute the desired orientation delta among the warped frames
                 for (var i = warpStartFrame + 1; i <= warpEndFrame; i++)
@@ -203,10 +200,7 @@ namespace ValveResourceFormat.Animation
                 }
 
                 // Set the remaining root motion to the result of the last frame
-                for (var i = warpEndFrame + 1; i < numFrames; i++)
-                {
-                    transforms[i] = transforms[warpEndFrame];
-                }
+                transforms.AsSpan(warpEndFrame + 1, numFrames - warpEndFrame - 1).Fill(transforms[warpEndFrame]);
             }
             else
             {

@@ -1441,34 +1441,7 @@ public partial class AnimationGraphExtract : IDisposable
 
         while (result.StartsWith('(') && FindMatchingParenthesis(result, 0) == result.Length - 1)
         {
-            var parenCount = 0;
-            var shouldRemove = true;
-
-            for (var i = 0; i < result.Length; i++)
-            {
-                if (result[i] == '(')
-                {
-                    parenCount++;
-                }
-                else if (result[i] == ')')
-                {
-                    parenCount--;
-                    if (parenCount == 0 && i < result.Length - 1)
-                    {
-                        shouldRemove = false;
-                        break;
-                    }
-                }
-            }
-
-            if (shouldRemove && parenCount == 0)
-            {
-                result = result[1..^1].Trim();
-            }
-            else
-            {
-                break;
-            }
+            result = result[1..^1].Trim();
         }
 
         return result;
@@ -1688,8 +1661,7 @@ public partial class AnimationGraphExtract : IDisposable
 
             if (parenCount == 0 && i + op.Length <= expression.Length)
             {
-                var potentialOp = expression.Substring(i, op.Length);
-                if (potentialOp == op)
+                if (expression.AsSpan(i).StartsWith(op, StringComparison.Ordinal))
                 {
                     var trimmedPart = currentPart.ToString().Trim();
                     if (!string.IsNullOrEmpty(trimmedPart))

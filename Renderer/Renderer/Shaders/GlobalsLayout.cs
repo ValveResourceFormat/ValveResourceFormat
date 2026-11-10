@@ -361,7 +361,7 @@ public sealed class GlobalsLayout
             return;
         }
 
-        if (!text.EndsWith(")", StringComparison.Ordinal))
+        if (!text.EndsWith(')'))
         {
             throw new ShaderLoader.ShaderCompilerException($"Could not parse the default value '{declaration.Initializer}' of uniform '{declaration.Name}'");
         }
@@ -414,7 +414,7 @@ public sealed class GlobalsLayout
             return 0d;
         }
 
-        var negative = text.StartsWith("-", StringComparison.Ordinal);
+        var negative = text.StartsWith('-');
 
         if (negative)
         {

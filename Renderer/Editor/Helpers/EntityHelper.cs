@@ -281,7 +281,7 @@ public abstract class EntityHelper
 
         for (var i = 0; i < Math.Min(parts.Length, channels.Length); i++)
         {
-            if (!byte.TryParse(parts[i], NumberStyles.Integer, CultureInfo.InvariantCulture, out channels[i]))
+            if (!byte.TryParse(parts[i], CultureInfo.InvariantCulture, out channels[i]))
             {
                 return default;
             }
@@ -325,7 +325,7 @@ public abstract class EntityHelper
     {
         byte GetChannel(int index) => GetArgument(index) is not { } argument
             ? byte.MaxValue
-            : byte.TryParse(argument, NumberStyles.Integer, CultureInfo.InvariantCulture, out var channel) ? channel : (byte)0;
+            : byte.TryParse(argument, CultureInfo.InvariantCulture, out var channel) ? channel : (byte)0;
 
         return new Color32(GetChannel(start), GetChannel(start + 1), GetChannel(start + 2));
     }

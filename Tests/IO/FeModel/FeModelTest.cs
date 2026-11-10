@@ -207,8 +207,8 @@ namespace Tests.IO
         {
             var cloth = LoadFeModel(ChainClothFixture);
             var ringSizes = cloth.Fe.CtrlOffsets
-                .GroupBy(static offset => offset.CtrlParent)
-                .ToDictionary(static group => group.Key, static group => group.Count());
+                .CountBy(static offset => offset.CtrlParent)
+                .ToDictionary();
 
             using (Assert.Multiple())
             {
