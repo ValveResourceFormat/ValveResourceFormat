@@ -282,6 +282,7 @@ public sealed partial class VMixGraphExtract
         return false;
     }
 
+    // Older and newer graphs name the same field differently, so the first key the object has is read
     private static int GetInt32(KVObject obj, int defaultValue, params ReadOnlySpan<string> keys)
         => obj.GetInt32Property(FirstPresentKey(obj, keys), defaultValue);
 
@@ -301,6 +302,7 @@ public sealed partial class VMixGraphExtract
         return keys[0];
     }
 
+    // Reads the elements of an array that is itself an element of another, which GetFloatArray cannot reach by key
     private static float[] ToFloats(IEnumerable<KVObject> values) => [.. values.Select(static value => (float)(double)value)];
 
     private static IReadOnlyList<KVObject> GetList(KVObject obj, string key)

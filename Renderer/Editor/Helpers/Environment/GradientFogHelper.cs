@@ -14,7 +14,7 @@ internal sealed class GradientFogHelper(IHelperOwner owner, HelperDeclaration de
     /// Gets whether the fog is only there while the entity names a gradient fog texture, as the block the
     /// helper is declared with can ask.
     /// </summary>
-    private bool IsTextureRequired => GetMetadataFlag("textureRequired", false);
+    private bool IsTextureRequired => GetMetadataFlag("textureRequired");
 
     /// <summary>Gets the gradient fog texture the entity names, or <see langword="null"/> when it names none.</summary>
     private string? TextureName => GetStringKey("gradientfogtexture") is { Length: > 0 } name ? name : null;
@@ -35,12 +35,11 @@ internal sealed class GradientFogHelper(IHelperOwner owner, HelperDeclaration de
 
     private SceneGradientFog CreateFog()
     {
-        var hasHeightFog = EnvironmentKeys.ParseInteger(GetStringKey("heightfog"), 1) != 0;
+        var hasHeightFog = GetBooleanKey("heightfog", true);
         var strength = GetFloatKey("fogstrength");
 
         // The fog color defaults to white where the entity has none
-        var colorKey = GetStringKey("fogcolor");
-        var color = colorKey.Length > 0 ? EnvironmentKeys.ParseColor(colorKey) : Color32.White;
+        var color = ValueParsing.TryParseColor(GetStringKey("fogcolor"), out var fogColor) ? fogColor : Color32.White;
 
         // Without height fog the fog has no height range, and its height does not thin it
         return new SceneGradientFog(Owner.Scene)

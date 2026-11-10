@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using Microsoft.Extensions.Logging;
@@ -240,7 +239,7 @@ public class ModelHelper : EntityHelper
             return -1;
         }
 
-        Color32 GetColorArgument(int index) => (index < arguments.Count ? ParseClampedColor(arguments[index]) : null) ?? Color32.White;
+        Color32 GetColorArgument(int index) => index < arguments.Count && ValueParsing.TryParseColor(arguments[index], out var color, clamp: true) ? color : Color32.White;
 
         // The word static is only looked for where neither of the other bounds is chosen
         var boundsMode = FindOption("fixedbounds") >= 0 ? ModelBoundsMode.Fixed
@@ -428,12 +427,7 @@ public class ModelHelper : EntityHelper
             return new Vector4(tint.R, tint.G, tint.B, byte.MaxValue) / byte.MaxValue;
         }
 
-        var color = GetVector3Key("rendercolor", new Vector3(byte.MaxValue));
-
-        // The amount is a byte, so one meant as a fraction leaves the model all but transparent
-        var alpha = unchecked((byte)GetIntegerKey("renderamt", byte.MaxValue));
-
-        return new Vector4(color, alpha) / byte.MaxValue;
+        return Owner.KeyValues.GetRenderTint();
     }
 
     private void ApplyKeys(ModelSceneNode node)
@@ -497,7 +491,7 @@ public class ModelHelper : EntityHelper
         {
             node.SetMaterialGroup(name);
         }
-        else if (int.TryParse(skin, CultureInfo.InvariantCulture, out var index) && index >= 0 && index < groups.Count)
+        else if (ValueParsing.TryParseInt(skin, out var index) && index >= 0 && index < groups.Count)
         {
             node.SetMaterialGroup(groups[index]);
         }
@@ -508,14 +502,7 @@ public class ModelHelper : EntityHelper
     {
         foreach (var (bodyGroup, value) in bodyGroups)
         {
-            var choice = value.ValueType switch
-            {
-                KVValueType.String => int.TryParse(value.ToString(), CultureInfo.InvariantCulture, out var parsed) ? parsed : 0,
-                KVValueType.Collection or KVValueType.Array or KVValueType.Null => 0,
-                _ => value.ToInt32(CultureInfo.InvariantCulture),
-            };
-
-            SetBodyGroup(node, choices, bodyGroup, choice);
+            SetBodyGroup(node, choices, bodyGroup, value.ToInt32OrDefault());
         }
     }
 
@@ -529,7 +516,7 @@ public class ModelHelper : EntityHelper
         }
     }
 
-    // A key that holds a block of keys writes it without the header of a file
+    // A key that holds a block of keys writes it as KV3 text without the header of a file, not as a keyvalue string
     private static KVObject? ParseBlock(string text)
         => !string.IsNullOrWhiteSpace(text) && KVDocumentExtensions.TryParseKV3WithoutHeader(text, out var block, out _)
             && block.ValueType == KVValueType.Collection ? block : null;
@@ -588,29 +575,4 @@ public class ModelHelper : EntityHelper
     }
 
     private static string? NonEmpty(string value) => value.Length > 0 ? value : null;
-
-    // Three or four numbers, each clamped to a byte, the alpha full where it is left out
-    private static Color32? ParseClampedColor(string text)
-    {
-        var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
-        if (parts.Length is < 3 or > 4)
-        {
-            return null;
-        }
-
-        Span<byte> channels = [byte.MaxValue, byte.MaxValue, byte.MaxValue, byte.MaxValue];
-
-        for (var i = 0; i < parts.Length; i++)
-        {
-            if (!int.TryParse(parts[i], CultureInfo.InvariantCulture, out var channel))
-            {
-                return null;
-            }
-
-            channels[i] = (byte)Math.Clamp(channel, 0, byte.MaxValue);
-        }
-
-        return new Color32(channels[0], channels[1], channels[2], channels[3]);
-    }
 }

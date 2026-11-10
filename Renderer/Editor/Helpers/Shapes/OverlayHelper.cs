@@ -34,7 +34,7 @@ internal sealed class OverlayHelper(IHelperOwner owner, HelperDeclaration declar
         var center = new Vector3((0.5f - GetFloatKey("centeru")) * size.X, (0.5f - GetFloatKey("centerv")) * size.Y, 0f);
         var box = Matrix4x4.CreateScale(size) * Matrix4x4.CreateTranslation(center) * Owner.RigidTransform;
 
-        var color = Owner.KeyValues.ContainsKey("rendercolor") ? GetVector3Key("rendercolor") / byte.MaxValue : Vector3.One;
+        var color = Owner.KeyValues.GetColor32Property("rendercolor");
 
         decals.Add(decal, box, new Vector4(ColorSpace.SrgbGammaToLinear(color), 1f), permanent: true);
     }
@@ -84,5 +84,5 @@ internal sealed class OverlayHelper(IHelperOwner owner, HelperDeclaration declar
         context.PopTransform();
     }
 
-    private float GetSize(string key) => Owner.KeyValues.ContainsKey(key) ? GetFloatKey(key) : DefaultSize;
+    private float GetSize(string key) => GetFloatKey(key, DefaultSize);
 }

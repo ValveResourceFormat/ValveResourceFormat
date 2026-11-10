@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -15,7 +16,7 @@ internal sealed class GenericToVpcf1 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            var cls = node.GetString("_class", "");
+            var cls = node.GetStringProperty("_class", "");
 
             if (cls == "CParticleSystemDefinition")
             {

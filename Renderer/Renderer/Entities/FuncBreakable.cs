@@ -22,7 +22,7 @@ public sealed class FuncBreakable : BaseModelEntity
     {
         base.Spawn();
 
-        Health = KeyValues.GetFloatProperty("health", 1f);
+        Health = KeyValues.GetInt32Property("health", 1);
     }
 
     /// <summary>Breaks the brush: hidden, passable, and <c>OnBreak</c> fired.</summary>
@@ -45,13 +45,13 @@ public sealed class FuncBreakable : BaseModelEntity
     private void InputBreak(EntityInputData data) => Break(data.Activator);
 
     [EntityInput("SetHealth")]
-    private void InputSetHealth(EntityInputData data) => SetHealth(data.Float(Health), data.Activator);
+    private void InputSetHealth(EntityInputData data) => SetHealth(data.Int((int)Health), data.Activator);
 
     [EntityInput("AddHealth")]
-    private void InputAddHealth(EntityInputData data) => SetHealth(Health + data.Float(), data.Activator);
+    private void InputAddHealth(EntityInputData data) => SetHealth(Health + data.Int(), data.Activator);
 
     [EntityInput("RemoveHealth")]
-    private void InputRemoveHealth(EntityInputData data) => SetHealth(Health - data.Float(), data.Activator);
+    private void InputRemoveHealth(EntityInputData data) => SetHealth(Health - data.Int(), data.Activator);
 
     private void SetHealth(float health, BaseEntity? activator)
     {

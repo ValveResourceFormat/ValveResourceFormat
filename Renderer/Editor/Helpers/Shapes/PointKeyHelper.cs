@@ -82,7 +82,7 @@ internal abstract class PointKeyHelper : EntityHelper
     // Until the key holds all three numbers the point is the origin of the entity, as a point in its space
     private Vector3? ReadPoint()
     {
-        var isRead = KeyValueScanner.TryReadVector(GetStringKey(PointKey), out var point);
+        var isRead = ValueParsing.TryParseVector3(GetStringKey(PointKey), out var point);
 
         if (isRead && !IsLocal)
         {

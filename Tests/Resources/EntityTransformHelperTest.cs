@@ -2,6 +2,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace Tests.Resources
 {
@@ -244,63 +245,41 @@ namespace Tests.Resources
         }
 
         [Test]
-        public async Task ParseVectorReadsThreeComponents()
+        public async Task GetVector3PropertyUsesDefaultForEmptyText()
         {
-            await Assert.That(EntityTransformHelper.ParseVector3("1.5 -2 3")).IsEqualTo(new Vector3(1.5f, -2f, 3f));
+            var entity = MakeEntity(("empty", ""), ("blank", "  "), ("color", "203 235 255 255"), ("short", "1 2"));
+
+            await Assert.That(entity.GetVector3Property("empty", Vector3.One)).IsEqualTo(Vector3.One);
+            await Assert.That(entity.GetVector3Property("blank", Vector3.One)).IsEqualTo(Vector3.One);
+            await Assert.That(entity.GetVector3Property("missing", Vector3.One)).IsEqualTo(Vector3.One);
+            await Assert.That(entity.GetVector3Property("color")).IsEqualTo(new Vector3(203f, 235f, 255f));
+            await Assert.That(entity.GetVector3Property("short", Vector3.One)).IsEqualTo(Vector3.One);
+        }
+
+        [Test]
+        public async Task TryParseAnglesReadsAnglesAndQuaternions()
+        {
+            await Assert.That(EntityTransformHelper.TryParseAngles("10 20 30", out var angles)).IsTrue();
+            await Assert.That(angles).IsEqualTo(new Vector3(10f, 20f, 30f));
+
+            await Assert.That(EntityTransformHelper.TryParseAngles("0 0 0 1", out var identity)).IsTrue();
+            await Assert.That(identity).IsEqualTo(Vector3.Zero);
+
+            await Assert.That(EntityTransformHelper.TryParseAngles("10 20 30 40 50", out var extra)).IsTrue();
+            await Assert.That(extra).IsEqualTo(new Vector3(10f, 20f, 30f));
+
+            await Assert.That(EntityTransformHelper.TryParseAngles("10 20", out _)).IsFalse();
+            await Assert.That(EntityTransformHelper.TryParseAngles("", out _)).IsFalse();
         }
 
         /// <summary>
-        /// Anything that is not three numbers is not a vector, and callers get the default rather than a throw.
-        /// </summary>
-        [Test]
-        public async Task ParseVectorReturnsDefaultForMalformedInput()
-        {
-            await Assert.That(EntityTransformHelper.ParseVector3("")).IsEqualTo(Vector3.Zero);
-            await Assert.That(EntityTransformHelper.ParseVector3("1 2")).IsEqualTo(Vector3.Zero);
-        }
-
-        [Test]
-        public async Task ParseVector2ReadsTwoComponents()
-        {
-            await Assert.That(EntityTransformHelper.ParseVector2("1.5 -2")).IsEqualTo(new Vector2(1.5f, -2f));
-        }
-
-        [Test]
-        public async Task ParseVector2ReturnsDefaultForMalformedInput()
-        {
-            await Assert.That(EntityTransformHelper.ParseVector2("")).IsEqualTo(Vector2.Zero);
-            await Assert.That(EntityTransformHelper.ParseVector2("1")).IsEqualTo(Vector2.Zero);
-            await Assert.That(EntityTransformHelper.ParseVector2("1 2 3")).IsEqualTo(Vector2.Zero);
-        }
-
-        [Test]
-        public async Task TryParseVectorReportsWhetherItParsed()
-        {
-            await Assert.That(EntityTransformHelper.TryParseVector3("1 2 3", out var vector3)).IsTrue();
-            await Assert.That(vector3).IsEqualTo(new Vector3(1f, 2f, 3f));
-
-            // A color stored with its alpha reads as its color
-            await Assert.That(EntityTransformHelper.TryParseVector3("203 235 255 255", out var color)).IsTrue();
-            await Assert.That(color).IsEqualTo(new Vector3(203f, 235f, 255f));
-
-            await Assert.That(EntityTransformHelper.TryParseVector3("1 2", out _)).IsFalse();
-            await Assert.That(EntityTransformHelper.TryParseVector3("1 2 banana", out _)).IsFalse();
-            await Assert.That(EntityTransformHelper.TryParseVector3("", out _)).IsFalse();
-
-            await Assert.That(EntityTransformHelper.TryParseVector2("1 2", out var vector2)).IsTrue();
-            await Assert.That(vector2).IsEqualTo(new Vector2(1f, 2f));
-
-            await Assert.That(EntityTransformHelper.TryParseVector2("1 2 3", out _)).IsFalse();
-        }
-
-        /// <summary>
-        /// A malformed value has to fall back to what the caller asked for, not to zero: "scales" defaults
+        /// An empty value has to fall back to what the caller asked for, not to zero: "scales" defaults
         /// to one, and collapsing it to zero would make the entity vanish.
         /// </summary>
         [Test]
-        public async Task GetVector3PropertyFallsBackToItsDefaultForMalformedInput()
+        public async Task GetVector3PropertyFallsBackToItsDefaultForEmptyInput()
         {
-            var entity = MakeEntity(("scales", "1 1"), ("origin", "not a vector"));
+            var entity = MakeEntity(("scales", ""), ("origin", "not a vector"));
 
             await Assert.That(entity.GetVector3Property("scales", Vector3.One)).IsEqualTo(Vector3.One);
             await Assert.That(entity.GetVector3Property("origin")).IsEqualTo(Vector3.Zero);

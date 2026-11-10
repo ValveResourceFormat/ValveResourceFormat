@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -22,7 +23,7 @@ internal sealed class Vpcf11ToVpcf12 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            if (node.GetString("_class", "") != "C_OP_RepeatedTriggerChildGroup")
+            if (node.GetStringProperty("_class", "") != "C_OP_RepeatedTriggerChildGroup")
             {
                 return;
             }
@@ -31,7 +32,7 @@ internal sealed class Vpcf11ToVpcf12 : ParticleUpgradeStep
 
             for (var i = 0; i < Pairs.Length; i++)
             {
-                values[i] = (node.GetFloat(Pairs[i].Min, 0f), node.GetFloat(Pairs[i].Max, 0f));
+                values[i] = (node.GetFloatProperty(Pairs[i].Min), node.GetFloatProperty(Pairs[i].Max));
             }
 
             foreach (var (_, min, max) in Pairs)

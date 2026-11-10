@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -15,7 +16,7 @@ internal sealed class Vpcf10ToVpcf11 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            if (node.GetString("_class", "") != "C_OP_AttractToControlPoint")
+            if (node.GetStringProperty("_class", "") != "C_OP_AttractToControlPoint")
             {
                 return;
             }
@@ -28,12 +29,12 @@ internal sealed class Vpcf10ToVpcf11 : ParticleUpgradeStep
                 return;
             }
 
-            var force = node.GetFloat("m_fForceAmount", 0f);
-            var scaleCP = node.GetInt("m_nScaleCP", -1);
-            var scaleField = node.GetInt("m_nScaleCPField", 0);
-            var remapPull = node.GetBool("m_bRemapPullForceToLife", false);
-            var forceMin = node.GetFloat("m_fForceAmountMin", 0f);
-            var exponent = node.GetFloat("m_fLifespanScaleExp", 1f);
+            var force = node.GetFloatProperty("m_fForceAmount");
+            var scaleCP = node.GetIntegerProperty("m_nScaleCP", -1);
+            var scaleField = node.GetIntegerProperty("m_nScaleCPField", 0);
+            var remapPull = node.GetParticleBooleanProperty("m_bRemapPullForceToLife");
+            var forceMin = node.GetFloatProperty("m_fForceAmountMin");
+            var exponent = node.GetFloatProperty("m_fLifespanScaleExp", 1f);
 
             node.Remove("m_nScaleCP");
             node.Remove("m_nScaleCPField");

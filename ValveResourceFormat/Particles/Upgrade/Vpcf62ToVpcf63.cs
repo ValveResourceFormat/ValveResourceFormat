@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -15,15 +16,15 @@ internal sealed class Vpcf62ToVpcf63 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            if (node.GetString("_class", "") != "C_OP_RemapAverageScalarValuetoCP")
+            if (node.GetStringProperty("_class", "") != "C_OP_RemapAverageScalarValuetoCP")
             {
                 return;
             }
 
-            var inputMin = node.GetFloat("m_flInputMin", 0f);
-            var inputMax = node.GetFloat("m_flInputMax", 1f);
-            var outputMin = node.GetFloat("m_flOutputMin", 0f);
-            var outputMax = node.GetFloat("m_flOutputMax", 1f);
+            var inputMin = node.GetFloatProperty("m_flInputMin");
+            var inputMax = node.GetFloatProperty("m_flInputMax", 1f);
+            var outputMin = node.GetFloatProperty("m_flOutputMin");
+            var outputMax = node.GetFloatProperty("m_flOutputMax", 1f);
             node.Remove("m_flInputMin");
             node.Remove("m_flInputMax");
             node.Remove("m_flOutputMin");

@@ -45,30 +45,131 @@ namespace ValveResourceFormat.Serialization.KeyValues
         }
 
         /// <summary>
-        /// Gets a string property from the key-value object.
+        /// Gets a string property from the key-value object. A number is returned as its invariant text,
+        /// and any other value that is not a string gives <paramref name="defaultValue"/>.
         /// </summary>
         //[return: NotNullIfNotNull(nameof(defaultValue))]
         public static string GetStringProperty(this KVObject obj, string name, string? defaultValue = null)
         {
-            if (!obj.TryGetValue(name, out var value) || value.ValueType != KVValueType.String)
+            if (!obj.TryGetValue(name, out var value))
             {
                 return defaultValue!;
             }
 
-            return (string)value;
+            switch (value.ValueType)
+            {
+                case KVValueType.String:
+                    return (string)value;
+                case KVValueType.Int16:
+                case KVValueType.Int32:
+                case KVValueType.Int64:
+                case KVValueType.UInt16:
+                case KVValueType.UInt32:
+                case KVValueType.UInt64:
+                case KVValueType.FloatingPoint:
+                case KVValueType.FloatingPoint64:
+                    return value.ToString(CultureInfo.InvariantCulture);
+                default:
+                    return defaultValue!;
+            }
         }
 
         /// <summary>
         /// Gets an Int32 property from the key-value object.
         /// </summary>
         public static int GetInt32Property(this KVObject obj, string name, int defaultValue = 0)
-        {
-            if (!TryGetScalar(obj, name, out var value))
-            {
-                return defaultValue;
-            }
+            => obj.TryGetValue(name, out var value) ? value.ToInt32OrDefault(defaultValue) : defaultValue;
 
-            return (int)value;
+        /// <summary>
+        /// Converts a value to an integer. Text is read as the integer it starts with, a typed number is cast the way C does
+        /// and a boolean is 0 or 1. Text that holds no integer is 0.
+        /// </summary>
+        /// <param name="obj">The value.</param>
+        /// <param name="defaultValue">The result for empty or white space text and for any kind of value that is not text, a number or a boolean.</param>
+        public static int ToInt32OrDefault(this KVObject obj, int defaultValue = 0)
+        {
+            var culture = CultureInfo.InvariantCulture;
+
+            switch (obj.ValueType)
+            {
+                case KVValueType.String:
+                    return IsBlankText(obj) ? defaultValue : ValueParsing.ParseLeadingInt((string)obj);
+                case KVValueType.Boolean:
+                    return (bool)obj ? 1 : 0;
+                case KVValueType.Int16:
+                case KVValueType.Int32:
+                case KVValueType.Int64:
+                    return unchecked((int)obj.ToInt64(culture));
+                case KVValueType.UInt16:
+                case KVValueType.UInt32:
+                case KVValueType.UInt64:
+                    return unchecked((int)obj.ToUInt64(culture));
+                case KVValueType.FloatingPoint:
+                case KVValueType.FloatingPoint64:
+                    return (int)obj.ToDouble(culture);
+                default:
+                    return defaultValue;
+            }
+        }
+
+        /// <summary>
+        /// Converts a value to a float. Text is read as a whole number and is 0 when it is not one, a typed number is cast
+        /// and a boolean is 0 or 1.
+        /// </summary>
+        /// <param name="obj">The value.</param>
+        /// <param name="defaultValue">The result for empty or white space text and for any kind of value that is not text, a number or a boolean.</param>
+        public static float ToFloatOrDefault(this KVObject obj, float defaultValue = 0f)
+        {
+            var culture = CultureInfo.InvariantCulture;
+
+            switch (obj.ValueType)
+            {
+                case KVValueType.String:
+                    return IsBlankText(obj) ? defaultValue : ValueParsing.ParseFloat((string)obj);
+                case KVValueType.Boolean:
+                    return (bool)obj ? 1f : 0f;
+                case KVValueType.Int16:
+                case KVValueType.Int32:
+                case KVValueType.Int64:
+                    return obj.ToInt64(culture);
+                case KVValueType.UInt16:
+                case KVValueType.UInt32:
+                case KVValueType.UInt64:
+                    return obj.ToUInt64(culture);
+                case KVValueType.FloatingPoint:
+                case KVValueType.FloatingPoint64:
+                    return (float)obj.ToDouble(culture);
+                default:
+                    return defaultValue;
+            }
+        }
+
+        /// <summary>
+        /// Converts a value to a boolean. Text goes through <see cref="ValueParsing.ParseBool"/>, an integer is true
+        /// when it is not zero and a float is true when its value truncated to an integer is not zero, so 0.5 is false.
+        /// </summary>
+        /// <param name="obj">The value.</param>
+        /// <param name="defaultValue">The result for empty or white space text, for text that is not a boolean and for any other kind of value.</param>
+        public static bool ToBooleanOrDefault(this KVObject obj, bool defaultValue = false)
+        {
+            switch (obj.ValueType)
+            {
+                case KVValueType.String:
+                    return IsBlankText(obj) ? defaultValue : ValueParsing.ParseBool((string)obj, defaultValue);
+                case KVValueType.Boolean:
+                    return (bool)obj;
+                case KVValueType.Int16:
+                case KVValueType.Int32:
+                case KVValueType.Int64:
+                case KVValueType.UInt16:
+                case KVValueType.UInt32:
+                case KVValueType.UInt64:
+                case KVValueType.FloatingPoint:
+                case KVValueType.FloatingPoint64:
+                    return obj.ToInt64OrDefault() != 0;
+                default:
+                    return defaultValue;
+            }
         }
 
         /// <summary>
@@ -85,16 +186,112 @@ namespace ValveResourceFormat.Serialization.KeyValues
         }
 
         /// <summary>
-        /// Gets a 64-bit integer property from the key-value object.
+        /// Gets a 64-bit integer property from the key-value object. Text is read as the integer it starts with,
+        /// a typed number is cast the way C does and a boolean is 0 or 1. Text that holds no integer is 0.
         /// </summary>
         public static long GetIntegerProperty(this KVObject obj, string name, long defaultValue = 0)
+            => obj.TryGetValue(name, out var value) ? value.ToInt64OrDefault(defaultValue) : defaultValue;
+
+        /// <summary>
+        /// Converts a value to a 64-bit integer. Text is read as the integer it starts with, a typed number is cast
+        /// the way C does and a boolean is 0 or 1. Text that holds no integer is 0.
+        /// </summary>
+        /// <param name="obj">The value.</param>
+        /// <param name="defaultValue">The result for empty or white space text and for any kind of value that is not text, a number or a boolean.</param>
+        public static long ToInt64OrDefault(this KVObject obj, long defaultValue = 0)
         {
-            if (!TryGetScalar(obj, name, out var value))
+            var culture = CultureInfo.InvariantCulture;
+
+            switch (obj.ValueType)
+            {
+                case KVValueType.String:
+                    if (IsBlankText(obj))
+                    {
+                        return defaultValue;
+                    }
+
+                    return ValueParsing.TryParseLeadingLong((string)obj, out var parsed) ? parsed : 0;
+                case KVValueType.Boolean:
+                    return (bool)obj ? 1 : 0;
+                case KVValueType.Int16:
+                case KVValueType.Int32:
+                case KVValueType.Int64:
+                    return obj.ToInt64(culture);
+                case KVValueType.UInt16:
+                case KVValueType.UInt32:
+                case KVValueType.UInt64:
+                    return unchecked((long)obj.ToUInt64(culture));
+                case KVValueType.FloatingPoint:
+                case KVValueType.FloatingPoint64:
+                    return (long)obj.ToDouble(culture);
+                default:
+                    return defaultValue;
+            }
+        }
+
+        /// <summary>
+        /// Gets a two component vector property. Text is split on spaces and each part is read as a whole float, with extra
+        /// parts ignored. An array must have exactly two elements. Text with fewer than two parts, empty or white space text,
+        /// an array of any other length and a value of any other kind give <paramref name="defaultValue"/>.
+        /// </summary>
+        /// <remarks>
+        /// A wrong count uses the default so a malformed "scales" does not collapse a model.
+        /// </remarks>
+        public static Vector2 GetVector2Property(this KVObject obj, string name, Vector2 defaultValue = default)
+        {
+            if (!obj.TryGetValue(name, out var value))
             {
                 return defaultValue;
             }
 
-            return (long)value;
+            Span<float> components = stackalloc float[2];
+            return TryReadVector(value, components) ? new Vector2(components) : defaultValue;
+        }
+
+        /// <summary>
+        /// Gets a three component vector property. See <see cref="ToVector3OrDefault"/>.
+        /// </summary>
+        public static Vector3 GetVector3Property(this KVObject obj, string name, Vector3 defaultValue = default)
+            => obj.TryGetValue(name, out var value) ? value.ToVector3OrDefault(defaultValue) : defaultValue;
+
+        /// <summary>
+        /// Converts a value to a three component vector. Text is split on spaces and each part is read as a whole float, with extra
+        /// parts ignored, so a color with its alpha reads as its color. An array must have exactly three elements. Text with
+        /// fewer than three parts, empty or white space text, an array of any other length and a value of any other kind
+        /// give <paramref name="defaultValue"/>.
+        /// </summary>
+        /// <remarks>
+        /// A wrong count uses the default so a malformed "scales" does not collapse a model.
+        /// </remarks>
+        public static Vector3 ToVector3OrDefault(this KVObject value, Vector3 defaultValue = default)
+        {
+            Span<float> components = stackalloc float[3];
+            return TryReadVector(value, components) ? new Vector3(components) : defaultValue;
+        }
+
+        private static bool TryReadVector(KVObject? value, Span<float> components)
+        {
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (value.ValueType == KVValueType.String)
+            {
+                return ValueParsing.ParseVector((string)value, components) == components.Length;
+            }
+
+            if (value.ValueType is not (KVValueType.Collection or KVValueType.Array) || value.Count != components.Length)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < components.Length; i++)
+            {
+                components[i] = value.GetElement<float>(i);
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -133,14 +330,19 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// Gets a float property from the key-value object.
         /// </summary>
         public static float GetFloatProperty(this KVObject obj, string name, float defaultValue = 0)
-        {
-            if (!TryGetScalar(obj, name, out var value))
-            {
-                return defaultValue;
-            }
+            => obj.TryGetValue(name, out var value) ? value.ToFloatOrDefault(defaultValue) : defaultValue;
 
-            return (float)value;
-        }
+        /// <summary>
+        /// Gets a float property, or null when the key is absent.
+        /// </summary>
+        public static float? GetNullableFloatProperty(this KVObject obj, string name)
+            => TryGetScalar(obj, name, out var value) ? value.ToFloatOrDefault() : null;
+
+        /// <summary>
+        /// Gets an Int32 property, or null when the key is absent.
+        /// </summary>
+        public static int? GetNullableInt32Property(this KVObject obj, string name)
+            => TryGetScalar(obj, name, out var value) ? value.ToInt32OrDefault() : null;
 
         /// <summary>
         /// Gets a byte property from the key-value object.
@@ -159,22 +361,35 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// Gets a boolean property from the key-value object.
         /// </summary>
         public static bool GetBooleanProperty(this KVObject obj, string name, bool defaultValue = false)
+            => obj.TryGetValue(name, out var value) ? value.ToBooleanOrDefault(defaultValue) : defaultValue;
+
+        /// <summary>
+        /// Converts a particle field to a boolean like <see cref="ToBooleanOrDefault"/>, except that a float is
+        /// true when it is not zero, so 0.5 is true.
+        /// </summary>
+        /// <param name="obj">The value.</param>
+        /// <param name="defaultValue">The result for text that is not a boolean and for any kind of value that is not text, a number or a boolean.</param>
+        private static bool ToParticleBoolean(this KVObject obj, bool defaultValue = false)
         {
-            if (!TryGetScalar(obj, name, out var value))
+            if (obj.ValueType is KVValueType.FloatingPoint or KVValueType.FloatingPoint64)
             {
-                return defaultValue;
+                return obj.ToDouble(CultureInfo.InvariantCulture) != 0;
             }
 
-            if (value.ValueType == KVValueType.String && bool.TryParse((string)value, out var parsed))
-            {
-                return parsed;
-            }
-
-            return (bool)value;
+            return obj.ToBooleanOrDefault(defaultValue);
         }
 
+        /// <summary>
+        /// Gets a particle boolean field, or <paramref name="defaultValue"/> when the key is absent. See <see cref="ToParticleBoolean"/>.
+        /// </summary>
+        public static bool GetParticleBooleanProperty(this KVObject obj, string name, bool defaultValue = false)
+            => obj.TryGetValue(name, out var value) ? value.ToParticleBoolean(defaultValue) : defaultValue;
+
+        private static bool IsBlankText(KVObject value)
+            => value.ValueType == KVValueType.String && string.IsNullOrWhiteSpace((string)value);
+
         private static bool TryGetScalar(KVObject obj, string name, out KVObject value)
-            => obj.TryGetValue(name, out value!) && !(value.ValueType == KVValueType.String && string.IsNullOrWhiteSpace((string)value));
+            => obj.TryGetValue(name, out value!) && !IsBlankText(value);
 
         /// <summary>
         /// Gets the values of an array child by name.
@@ -439,6 +654,31 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static bool IsNotBlobType(this KVObject obj, string key)
             => obj.TryGetValue(key, out var value) && value.ValueType == KVValueType.Array;
+
+        /// <summary>
+        /// Reads a color from text of three or four numbers, or from an array of exactly three or four numbers. Where the
+        /// fourth is left out the color is opaque. Each number is truncated to an integer and wraps to a byte.
+        /// </summary>
+        /// <returns>The color, or null when the value is not text of three or four numbers or an array of three or four.</returns>
+        public static Color32? ToColor32(this KVObject obj)
+        {
+            if (obj.ValueType == KVValueType.String)
+            {
+                return ValueParsing.TryParseColor((string)obj, out var color) ? color : null;
+            }
+
+            if (!obj.IsArray || obj.Count is not (3 or 4))
+            {
+                return null;
+            }
+
+            var red = unchecked((byte)obj[0].ToInt32OrDefault());
+            var green = unchecked((byte)obj[1].ToInt32OrDefault());
+            var blue = unchecked((byte)obj[2].ToInt32OrDefault());
+            var alpha = obj.Count == 4 ? unchecked((byte)obj[3].ToInt32OrDefault()) : byte.MaxValue;
+
+            return new Color32(red, green, blue, alpha);
+        }
 
         /// <summary>
         /// Converts the key-value object to a Vector2.

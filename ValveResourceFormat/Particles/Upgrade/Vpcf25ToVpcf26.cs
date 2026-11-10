@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -15,7 +16,7 @@ internal sealed class Vpcf25ToVpcf26 : ParticleUpgradeStep
     {
         foreach (var element in root.ElementsOf("m_Constraints"))
         {
-            if (!UpgradeKV.IsObject(element) || element.GetString("_class", "") != "C_OP_WorldTraceConstraint")
+            if (!UpgradeKV.IsObject(element) || element.GetStringProperty("_class", "") != "C_OP_WorldTraceConstraint")
             {
                 continue;
             }
@@ -25,7 +26,7 @@ internal sealed class Vpcf25ToVpcf26 : ParticleUpgradeStep
                 continue;
             }
 
-            var mode = element.GetInt("m_nCollisionMode", 0);
+            var mode = element.GetIntegerProperty("m_nCollisionMode", 0);
             element.Remove("m_nCollisionMode");
             element.SetString("m_nCollisionMode", mode switch
             {

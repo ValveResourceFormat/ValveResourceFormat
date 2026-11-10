@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -13,14 +14,14 @@ internal sealed class Vpcf22ToVpcf23 : ParticleUpgradeStep
 
     public override void Apply(KVObject root)
     {
-        if (root.GetInt("m_nBehaviorVersion", 0) != 9)
+        if (root.GetIntegerProperty("m_nBehaviorVersion", 0) != 9)
         {
             return;
         }
 
         foreach (var element in root.ElementsOf("m_Renderers"))
         {
-            if (!UpgradeKV.IsObject(element) || element.GetString("_class", "") != "C_OP_RenderSprites")
+            if (!UpgradeKV.IsObject(element) || element.GetStringProperty("_class", "") != "C_OP_RenderSprites")
             {
                 continue;
             }
@@ -30,12 +31,12 @@ internal sealed class Vpcf22ToVpcf23 : ParticleUpgradeStep
                 continue;
             }
 
-            if (element.GetBool("m_bFitCycleToLifetime", false))
+            if (element.GetParticleBooleanProperty("m_bFitCycleToLifetime"))
             {
                 return;
             }
 
-            if (element.GetString("m_nAnimationType", "ANIMATION_TYPE_FIXED_RATE") != "ANIMATION_TYPE_FIXED_RATE")
+            if (element.GetStringProperty("m_nAnimationType", "ANIMATION_TYPE_FIXED_RATE") != "ANIMATION_TYPE_FIXED_RATE")
             {
                 return;
             }

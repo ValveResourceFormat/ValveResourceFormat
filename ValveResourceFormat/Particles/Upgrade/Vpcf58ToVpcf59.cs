@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -15,12 +16,12 @@ internal sealed class Vpcf58ToVpcf59 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            if (node.GetString("_class", "") != "C_OP_RenderProjected")
+            if (node.GetStringProperty("_class", "") != "C_OP_RenderProjected")
             {
                 return;
             }
 
-            var material = node.GetString("m_hProjectedMaterial", "materials/particle/base_projected.vmat");
+            var material = node.GetStringProperty("m_hProjectedMaterial", "materials/particle/base_projected.vmat");
             node.Remove("m_hProjectedMaterial");
 
             var materials = node.Find("m_vecProjectedMaterials");

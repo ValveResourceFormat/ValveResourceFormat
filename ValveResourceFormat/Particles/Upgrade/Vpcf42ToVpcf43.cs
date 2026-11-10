@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -15,7 +16,7 @@ internal sealed class Vpcf42ToVpcf43 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            var cls = node.GetString("_class", "");
+            var cls = node.GetStringProperty("_class", "");
             var isAdd = cls == "C_INIT_AddVectorToVector";
 
             if (!isAdd && cls != "C_INIT_OffsetVectorToVector")
@@ -23,11 +24,11 @@ internal sealed class Vpcf42ToVpcf43 : ParticleUpgradeStep
                 return;
             }
 
-            var vecMin = node.GetFloat3(isAdd ? "m_vOffsetMin" : "m_vecOutputMin", Vector3.Zero);
-            var vecMax = node.GetFloat3(isAdd ? "m_vOffsetMax" : "m_vecOutputMax", isAdd ? Vector3.Zero : Vector3.One);
-            var fieldOut = (int)node.GetInt("m_nFieldOutput", 0);
-            var fieldIn = (int)node.GetInt("m_nFieldInput", 0);
-            var scale = node.GetFloat3("m_vecScale", Vector3.One);
+            var vecMin = node.GetVector3Property(isAdd ? "m_vOffsetMin" : "m_vecOutputMin");
+            var vecMax = node.GetVector3Property(isAdd ? "m_vOffsetMax" : "m_vecOutputMax", isAdd ? Vector3.Zero : Vector3.One);
+            var fieldOut = (int)node.GetIntegerProperty("m_nFieldOutput", 0);
+            var fieldIn = (int)node.GetIntegerProperty("m_nFieldInput", 0);
+            var scale = node.GetVector3Property("m_vecScale", Vector3.One);
 
             Vpcf38ToVpcf39.RebuildGenericOperatorFields(node);
             node.SetString("_class", "C_INIT_InitVec");

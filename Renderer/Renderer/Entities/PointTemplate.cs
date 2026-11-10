@@ -97,8 +97,7 @@ public sealed class PointTemplate : BaseEntity
             "INSERT_INTO_NEWLY_CREATED_SPAWN_GROUP" => OwnerSpawnGroupType.InsertIntoNewlyCreatedSpawnGroup,
 
             // Stored as a number, or absent
-            null => (OwnerSpawnGroupType)KeyValues.GetInt32Property("spawngrouptype"),
-            _ => OwnerSpawnGroupType.InsertIntoPointTemplateSpawnGroup,
+            _ => (OwnerSpawnGroupType)KeyValues.GetInt32Property("spawngrouptype", (int)OwnerSpawnGroupType.InsertIntoPointTemplateSpawnGroup),
         };
     }
 

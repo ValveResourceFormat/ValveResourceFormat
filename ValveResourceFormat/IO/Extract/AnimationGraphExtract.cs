@@ -1537,7 +1537,7 @@ public partial class AnimationGraphExtract : IDisposable
 
             foundComponents.Add(component);
             var cleanRightSide = rightSide.Trim('(', ')', ' ');
-            if (!float.TryParse(cleanRightSide, CultureInfo.InvariantCulture, out var floatValue))
+            if (!ValueParsing.TryParseFloat(cleanRightSide, out var floatValue))
             {
                 continue;
             }
@@ -1802,7 +1802,7 @@ public partial class AnimationGraphExtract : IDisposable
             {
                 return HandleParameterComparison(stateStatusCondition, rightSide, sourceValue);
             }
-            else if (float.TryParse(rightSide, CultureInfo.InvariantCulture, out var floatValue))
+            else if (ValueParsing.TryParseFloat(rightSide, out var floatValue))
             {
                 stateStatusCondition.Add("m_comparisonValueType", "StateComparisonValue_FixedValue");
                 stateStatusCondition.Add("m_comparisonFixedValue", floatValue);
@@ -1880,7 +1880,7 @@ public partial class AnimationGraphExtract : IDisposable
 
         var (op, _, rightSide) = ParseOperatorExpression(conditionString);
 
-        if (op != null && rightSide != null && float.TryParse(rightSide, CultureInfo.InvariantCulture, out var value))
+        if (op != null && rightSide != null && ValueParsing.TryParseFloat(rightSide, out var value))
         {
             timeCondition.Add("m_option",
                 op == "<=" && value != 0.0f || op == "==" && value != 0.0f
@@ -1920,7 +1920,7 @@ public partial class AnimationGraphExtract : IDisposable
             cycleCondition.Add("m_comparisonOp", OperatorToComparisonOp(foundOp));
             cycleCondition.Add("m_comparisonString", rightSide);
 
-            if (float.TryParse(rightSide, CultureInfo.InvariantCulture, out var floatValue))
+            if (ValueParsing.TryParseFloat(rightSide, out var floatValue))
             {
                 cycleCondition.Add("m_comparisonValue", floatValue);
             }
@@ -1970,7 +1970,7 @@ public partial class AnimationGraphExtract : IDisposable
         {
             comparisonValue.Add("m_nType", 2);
 
-            if (int.TryParse(rightSide, out var intValue))
+            if (ValueParsing.TryParseInt(rightSide, out var intValue))
             {
                 comparisonValue.Add("m_data", intValue);
 
@@ -1988,7 +1988,7 @@ public partial class AnimationGraphExtract : IDisposable
         {
             comparisonValue.Add("m_nType", 4);
 
-            if (float.TryParse(rightSide, CultureInfo.InvariantCulture, out var floatValue))
+            if (ValueParsing.TryParseFloat(rightSide, out var floatValue))
             {
                 comparisonValue.Add("m_data", floatValue);
             }
@@ -1997,7 +1997,7 @@ public partial class AnimationGraphExtract : IDisposable
         {
             comparisonValue.Add("m_nType", 3);
 
-            if (int.TryParse(rightSide, out var intValue))
+            if (ValueParsing.TryParseInt(rightSide, out var intValue))
             {
                 comparisonValue.Add("m_data", intValue);
             }
@@ -2014,7 +2014,7 @@ public partial class AnimationGraphExtract : IDisposable
         {
             comparisonValue.Add("m_nType", 4);
 
-            if (float.TryParse(rightSide, CultureInfo.InvariantCulture, out var floatValue))
+            if (ValueParsing.TryParseFloat(rightSide, out var floatValue))
             {
                 comparisonValue.Add("m_data", floatValue);
             }
@@ -2037,7 +2037,7 @@ public partial class AnimationGraphExtract : IDisposable
         }
         else
         {
-            if (float.TryParse(paramName, CultureInfo.InvariantCulture, out var floatValue))
+            if (ValueParsing.TryParseFloat(paramName, out var floatValue))
             {
                 stateStatusCondition.Add("m_comparisonValueType", "StateComparisonValue_FixedValue");
                 stateStatusCondition.Add("m_comparisonFixedValue", floatValue);
@@ -3591,7 +3591,7 @@ public partial class AnimationGraphExtract : IDisposable
                     if (colonIndex != -1)
                     {
                         var frameIndexStr = nameValue[(colonIndex + 1)..].Trim();
-                        if (int.TryParse(frameIndexStr, out var frameIndex))
+                        if (ValueParsing.TryParseInt(frameIndexStr, out var frameIndex))
                         {
                             node.Add("m_nFrameIndex", frameIndex);
                         }

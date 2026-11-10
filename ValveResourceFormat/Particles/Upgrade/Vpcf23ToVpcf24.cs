@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -84,22 +85,10 @@ internal sealed class Vpcf23ToVpcf24 : ParticleUpgradeStep
             return (255, 255, 255);
         }
 
-        Span<int> components = stackalloc int[4];
-        var index = 0;
-
-        foreach (var component in value.Values)
-        {
-            if (!component.TryGetNumber(out var number))
-            {
-                return (255, 255, 255);
-            }
-
-            components[index++] = (int)number;
-        }
-
-        return (components[0], components[1], components[2]);
+        return (value[0].ToInt32OrDefault(255), value[1].ToInt32OrDefault(255), value[2].ToInt32OrDefault(255));
     }
 
+    // Only an array of exactly four numbers counts, anything else gives the default
     private static Vector4 GetFloat4(KVObject element, string name, Vector4 defaultValue)
     {
         var value = element.Find(name);
@@ -109,20 +98,7 @@ internal sealed class Vpcf23ToVpcf24 : ParticleUpgradeStep
             return defaultValue;
         }
 
-        Span<float> components = stackalloc float[4];
-        var index = 0;
-
-        foreach (var component in value.Values)
-        {
-            if (!component.TryGetNumber(out var number))
-            {
-                return defaultValue;
-            }
-
-            components[index++] = (float)number;
-        }
-
-        return new Vector4(components);
+        return value.ToVector4();
     }
 
     private static KVObject IntArray(params int[] values) => KVObject.PackedArray(values);

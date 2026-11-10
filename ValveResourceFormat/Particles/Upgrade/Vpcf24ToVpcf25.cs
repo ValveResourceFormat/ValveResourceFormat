@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -15,7 +16,7 @@ internal sealed class Vpcf24ToVpcf25 : ParticleUpgradeStep
     {
         foreach (var element in root.ElementsOf("m_PreEmissionOperators"))
         {
-            if (!UpgradeKV.IsObject(element) || element.GetString("_class", "") != "C_OP_StopAfterCPDuration")
+            if (!UpgradeKV.IsObject(element) || element.GetStringProperty("_class", "") != "C_OP_StopAfterCPDuration")
             {
                 continue;
             }
@@ -25,9 +26,9 @@ internal sealed class Vpcf24ToVpcf25 : ParticleUpgradeStep
                 continue;
             }
 
-            var duration = element.GetFloat("m_flDuration", 1f);
-            var cp = element.GetInt("m_nCP", -1);
-            var cpField = element.GetInt("m_nCPField", 0);
+            var duration = element.GetFloatProperty("m_flDuration", 1f);
+            var cp = element.GetIntegerProperty("m_nCP", -1);
+            var cpField = element.GetIntegerProperty("m_nCPField", 0);
 
             element.Remove("m_flDuration");
             element.Remove("m_nCP");

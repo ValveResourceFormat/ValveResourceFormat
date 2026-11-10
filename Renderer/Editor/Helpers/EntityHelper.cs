@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Globalization;
 using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.IO;
@@ -265,72 +264,20 @@ public abstract class EntityHelper
     /// <param name="key">Name of the key.</param>
     /// <returns>The color, or <see langword="null"/> when the block has no such color.</returns>
     protected Color32? GetMetadataColor(string key)
-        => Declaration.Metadata is { } block && block.ContainsKey(key) ? ReadColorArray(block[key]) : null;
+        => Declaration.Metadata is { } block && block.TryGetValue(key, out var value) ? value.ToColor32() : null;
 
-    /// <summary>
-    /// Gets a color key of the entity as three or four numbers, opaque where there are three. A value that is not
-    /// a color is transparent black.
-    /// </summary>
+    /// <summary>Gets a key of the entity as a color of three or four numbers.</summary>
     /// <param name="key">Name of the key.</param>
     /// <param name="defaultValue">The color where the entity has no such key.</param>
-    /// <returns>The color.</returns>
+    /// <returns>The color, black where the value is not a color.</returns>
     private protected Color32 GetColorKey(string key, Color32 defaultValue)
-    {
-        if (!Owner.KeyValues.TryGetValue(key, out var value))
-        {
-            return defaultValue;
-        }
-
-        if (value.IsArray)
-        {
-            return ReadColorArray(value) ?? default;
-        }
-
-        return Owner.KeyValues.GetStringProperty(key) is { } text ? ParseColor(text) : default;
-    }
-
-    /// <summary>Parses a color as three or four numbers, opaque where there are three, and transparent black where it is not a color.</summary>
-    /// <param name="text">The color as text.</param>
-    /// <returns>The color.</returns>
-    private protected static Color32 ParseColor(string text)
-    {
-        var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        Span<byte> channels = [0, 0, 0, byte.MaxValue];
-
-        if (parts.Length < 3)
-        {
-            return default;
-        }
-
-        for (var i = 0; i < Math.Min(parts.Length, channels.Length); i++)
-        {
-            if (!byte.TryParse(parts[i], CultureInfo.InvariantCulture, out channels[i]))
-            {
-                return default;
-            }
-        }
-
-        return new Color32(channels[0], channels[1], channels[2], channels[3]);
-    }
-
-    // Three or four numbers, opaque where the fourth is left out
-    private static Color32? ReadColorArray(KVObject? value)
-    {
-        if (value is not { IsArray: true, Count: >= 3 })
-        {
-            return null;
-        }
-
-        byte GetChannel(int index) => index < value.Count ? value[index].ToByte(CultureInfo.InvariantCulture) : byte.MaxValue;
-
-        return new Color32(GetChannel(0), GetChannel(1), GetChannel(2), GetChannel(3));
-    }
+        => Owner.KeyValues.GetColor32(key, defaultValue);
 
     /// <summary>Gets a flag of the block the helper is declared with.</summary>
     /// <param name="key">Name of the key.</param>
     /// <param name="defaultValue">The value where the block has no such key.</param>
     /// <returns>The flag.</returns>
-    protected bool GetMetadataFlag(string key, bool defaultValue) => GetBlockFlag(Declaration.Metadata, key, defaultValue);
+    protected bool GetMetadataFlag(string key, bool defaultValue = false) => GetBlockFlag(Declaration.Metadata, key, defaultValue);
 
     /// <summary>Gets whether any argument of the declaration is a flag, without regard to case.</summary>
     /// <param name="flag">The flag.</param>
@@ -340,15 +287,15 @@ public abstract class EntityHelper
 
     /// <summary>
     /// Gets the color three arguments of the declaration give, each channel on its own: full where its
-    /// argument is left out, and none where it is not a number.
+    /// argument is left out. Each argument is read as the integer it starts with and wraps to a byte.
     /// </summary>
     /// <param name="start">Index of the first of the three.</param>
     /// <returns>The color, opaque.</returns>
     protected Color32 GetColorArguments(int start)
     {
-        byte GetChannel(int index) => GetArgument(index) is not { } argument
-            ? byte.MaxValue
-            : byte.TryParse(argument, CultureInfo.InvariantCulture, out var channel) ? channel : (byte)0;
+        byte GetChannel(int index) => GetArgument(index) is { } argument
+            ? unchecked((byte)ValueParsing.ParseLeadingInt(argument))
+            : byte.MaxValue;
 
         return new Color32(GetChannel(start), GetChannel(start + 1), GetChannel(start + 2));
     }
@@ -373,59 +320,6 @@ public abstract class EntityHelper
     private protected static string GetStringKey(IHelperOwner owner, string key)
         => owner.KeyValues.GetStringProperty(key) ?? string.Empty;
 
-    /// <summary>Gets a key of the entity as a number.</summary>
-    /// <param name="key">Name of the key.</param>
-    /// <param name="defaultValue">The value where the entity has no such key.</param>
-    /// <returns>The value.</returns>
-    protected float GetFloatKey(string key, float defaultValue = 0f)
-        => Owner.KeyValues.ContainsKey(key) ? Owner.KeyValues.GetFloatProperty(key) : defaultValue;
-
-    /// <summary>Gets a key of the entity as a flag.</summary>
-    /// <param name="key">Name of the key.</param>
-    /// <param name="defaultValue">The value where the entity has no such key, or where it is neither a number nor a boolean.</param>
-    /// <returns>Whether the value is a number other than zero, or true.</returns>
-    protected bool GetBooleanKey(string key, bool defaultValue)
-    {
-        if (!Owner.KeyValues.TryGetValue(key, out var stored))
-        {
-            return defaultValue;
-        }
-
-        // A compiled map keeps flags as booleans rather than as text
-        if (stored.ValueType == KVValueType.Boolean)
-        {
-            return (bool)stored;
-        }
-
-        var value = GetStringKey(key);
-
-        if (float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number))
-        {
-            return number != 0f;
-        }
-
-        return bool.TryParse(value, out var flag) ? flag : defaultValue;
-    }
-
-    /// <summary>Gets a key of the entity as an integer.</summary>
-    /// <param name="key">Name of the key.</param>
-    /// <param name="defaultValue">The value where the entity has no such key.</param>
-    /// <returns>The value.</returns>
-    protected int GetIntegerKey(string key, int defaultValue = 0)
-        => Owner.KeyValues.ContainsKey(key) ? Owner.KeyValues.GetInt32Property(key) : defaultValue;
-
-    /// <summary>Gets a key of the entity as a vector.</summary>
-    /// <param name="key">Name of the key.</param>
-    /// <returns>The value, zero when the entity has no such key.</returns>
-    protected Vector2 GetVector2Key(string key) => Owner.KeyValues.GetVector2Property(key);
-
-    /// <summary>Gets a key of the entity as a vector.</summary>
-    /// <param name="key">Name of the key.</param>
-    /// <param name="defaultValue">The value where the entity has no such key.</param>
-    /// <returns>The value.</returns>
-    protected Vector3 GetVector3Key(string key, Vector3 defaultValue = default)
-        => Owner.KeyValues.ContainsKey(key) ? Owner.KeyValues.GetVector3Property(key) : defaultValue;
-
     /// <summary>Gets a key of the block the helper is declared with as text.</summary>
     /// <param name="key">Name of the key.</param>
     /// <returns>The value, or <see langword="null"/> when the helper has no such key.</returns>
@@ -438,6 +332,42 @@ public abstract class EntityHelper
     /// <returns>The block, or <see langword="null"/> when there is no block under the key.</returns>
     private protected static KVObject? GetBlock(KVObject? block, string key)
         => block != null && block.ContainsKey(key) && block[key] is { ValueType: KVValueType.Collection } value ? value : null;
+
+    // The key getters below are shorthands for reading the owner entity's keys with the KVObjectExtensions getters.
+
+    /// <summary>Gets a key of the entity as a number.</summary>
+    /// <param name="key">Name of the key.</param>
+    /// <param name="defaultValue">The value where the entity has no such key.</param>
+    /// <returns>The value.</returns>
+    protected float GetFloatKey(string key, float defaultValue = 0f)
+        => Owner.KeyValues.GetFloatProperty(key, defaultValue);
+
+    /// <summary>Gets a key of the entity as a flag.</summary>
+    /// <param name="key">Name of the key.</param>
+    /// <param name="defaultValue">The value where the entity has no such key.</param>
+    /// <returns>The flag.</returns>
+    protected bool GetBooleanKey(string key, bool defaultValue = false)
+        => Owner.KeyValues.GetBooleanProperty(key, defaultValue);
+
+    /// <summary>Gets a key of the entity as an integer.</summary>
+    /// <param name="key">Name of the key.</param>
+    /// <param name="defaultValue">The value where the entity has no such key.</param>
+    /// <returns>The value.</returns>
+    protected int GetIntegerKey(string key, int defaultValue = 0)
+        => Owner.KeyValues.GetInt32Property(key, defaultValue);
+
+    /// <summary>Gets a key of the entity as a two component vector.</summary>
+    /// <param name="key">Name of the key.</param>
+    /// <returns>The value, zero where the entity has no such key.</returns>
+    protected Vector2 GetVector2Key(string key)
+        => Owner.KeyValues.GetVector2Property(key);
+
+    /// <summary>Gets a key of the entity as a vector.</summary>
+    /// <param name="key">Name of the key.</param>
+    /// <param name="defaultValue">The value where the entity has no such key.</param>
+    /// <returns>The value.</returns>
+    protected Vector3 GetVector3Key(string key, Vector3 defaultValue = default)
+        => Owner.KeyValues.GetVector3Property(key, defaultValue);
 
     /// <summary>Gets a key of a block as text.</summary>
     /// <param name="block">The block to look in, or <see langword="null"/> for none.</param>
@@ -452,7 +382,7 @@ public abstract class EntityHelper
     /// <param name="defaultValue">The value where the block has no such key.</param>
     /// <returns>The flag.</returns>
     private protected static bool GetBlockFlag(KVObject? block, string key, bool defaultValue = false)
-        => block != null && block.ContainsKey(key) ? block.GetBooleanProperty(key) : defaultValue;
+        => block?.GetBooleanProperty(key, defaultValue) ?? defaultValue;
 
     /// <summary>Gets an argument of the declaration, or <see langword="null"/> when it has fewer.</summary>
     /// <param name="index">Zero based index of the argument.</param>

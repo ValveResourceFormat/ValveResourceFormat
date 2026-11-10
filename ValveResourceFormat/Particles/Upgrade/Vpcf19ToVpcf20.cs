@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -20,7 +21,7 @@ internal sealed class Vpcf19ToVpcf20 : ParticleUpgradeStep
                 continue;
             }
 
-            var fit = element.GetBool("m_bFitCycleToLifetime", false);
+            var fit = element.GetParticleBooleanProperty("m_bFitCycleToLifetime");
             element.Remove("m_bFitCycleToLifetime");
             element.SetString("m_nAnimationType", fit
                 ? "ANIMATION_TYPE_FIT_LIFETIME"

@@ -57,10 +57,10 @@ public sealed class AmbientGeneric : BaseEntity
 
         SoundName = KeyValues.GetStringProperty("message");
 
-        Volume = MathUtils.Saturate(KeyValues.GetFloatProperty("health", 10f) / 10f);
+        Volume = MathUtils.Saturate(KeyValues.GetInt32Property("health", 10) / 10f);
 
-        fadeInSeconds = KeyValues.GetFloatProperty("fadeinsecs");
-        fadeOutSeconds = KeyValues.GetFloatProperty("fadeoutsecs");
+        fadeInSeconds = KeyValues.GetInt32Property("fadeinsecs");
+        fadeOutSeconds = KeyValues.GetInt32Property("fadeoutsecs");
 
         if (string.IsNullOrEmpty(SoundName))
         {

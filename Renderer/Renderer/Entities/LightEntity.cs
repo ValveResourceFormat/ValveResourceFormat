@@ -365,10 +365,9 @@ public sealed class LightEntity : BaseEntity
     private void InputSetColor(EntityInputData data)
     {
         // A light in color temperature mode keeps its color
-        if (light is { ColorTemperature: null } && data.Parameter is { } parameter
-            && EntityTransformHelper.TryParseVector3(parameter, out var color))
+        if (light is { ColorTemperature: null } && data.Color() is { } color)
         {
-            light.Color = Vector3.Clamp(color / 255f, Vector3.Zero, Vector3.One);
+            light.Color = color / 255f;
             Changed();
         }
     }

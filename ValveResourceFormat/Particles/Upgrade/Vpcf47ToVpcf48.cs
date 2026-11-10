@@ -1,5 +1,6 @@
 using System.Text;
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -17,7 +18,7 @@ internal sealed class Vpcf47ToVpcf48 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            var cls = node.GetString("_class", "");
+            var cls = node.GetStringProperty("_class", "");
             var isVisibility = cls is "C_OP_RemapCPVisibilityToScalar" or "C_OP_RemapCPVisibilityToVector";
             var isYaw = cls == "C_OP_RemapCPOrientationToYaw";
             var isOrientation = isYaw || cls == "C_OP_RemapCPOrientationToRotations";

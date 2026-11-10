@@ -400,7 +400,7 @@ public class FuncDoor : BaseToggle
 
     /// <summary>Jumps the door to its open end for 0, else its closed end.</summary>
     [EntityInput("SetToggleState")]
-    protected void InputSetToggleState(EntityInputData data) => JumpToEnd(data.Int() == 0);
+    protected void InputSetToggleState(EntityInputData data) => JumpToEnd(data.Float() == 0f);
 
     private void GoUp()
     {

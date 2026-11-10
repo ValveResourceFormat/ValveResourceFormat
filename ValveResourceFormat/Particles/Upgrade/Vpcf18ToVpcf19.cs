@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -13,14 +14,14 @@ internal sealed class Vpcf18ToVpcf19 : ParticleUpgradeStep
 
     public override void Apply(KVObject root)
     {
-        if (root.GetInt("m_nBehaviorVersion", 0) != 8)
+        if (root.GetIntegerProperty("m_nBehaviorVersion", 0) != 8)
         {
             return;
         }
 
         foreach (var element in root.ElementsOf("m_Initializers"))
         {
-            if (UpgradeKV.IsObject(element) && element.GetString("_class", "") == "C_INIT_InheritFromParentParticles")
+            if (UpgradeKV.IsObject(element) && element.GetStringProperty("_class", "") == "C_INIT_InheritFromParentParticles")
             {
                 return;
             }
@@ -28,7 +29,7 @@ internal sealed class Vpcf18ToVpcf19 : ParticleUpgradeStep
 
         foreach (var element in root.ElementsOf("m_Operators"))
         {
-            if (UpgradeKV.IsObject(element) && element.GetString("_class", "") == "C_OP_InheritFromParentParticles")
+            if (UpgradeKV.IsObject(element) && element.GetStringProperty("_class", "") == "C_OP_InheritFromParentParticles")
             {
                 return;
             }

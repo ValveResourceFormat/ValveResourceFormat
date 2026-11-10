@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -17,7 +18,7 @@ internal sealed class Vpcf52ToVpcf53 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            switch (node.GetString("_class", ""))
+            switch (node.GetStringProperty("_class", ""))
             {
                 case "C_INIT_RingWave":
                 {
@@ -30,7 +31,7 @@ internal sealed class Vpcf52ToVpcf53 : ParticleUpgradeStep
                 {
                     var cp = unchecked((int)node.TakeInt("m_nControlPointNumber", 0));
                     Vpcf45ToVpcf46.FillTransformInput(node.MergeObject("m_TransformInput"), cp);
-                    var scaleLocal = node.GetBool("m_bScaleLocal", false);
+                    var scaleLocal = node.GetParticleBooleanProperty("m_bScaleLocal");
                     node.MergeObject("m_TransformInput").SetBool("m_bUseOrientation", scaleLocal);
                     node.Remove("m_bScaleLocal");
                     break;
@@ -40,7 +41,7 @@ internal sealed class Vpcf52ToVpcf53 : ParticleUpgradeStep
                 {
                     var cp = unchecked((int)node.TakeInt("m_nControlPointNumber", 0));
 
-                    if (node.GetBool("m_bLocalSpace", false))
+                    if (node.GetParticleBooleanProperty("m_bLocalSpace"))
                     {
                         Vpcf45ToVpcf46.FillTransformInput(node.MergeObject("m_TransformInput"), cp);
                     }

@@ -63,7 +63,14 @@ public sealed class EnvGlobalLight : BaseEntity
     private void AddDynamicSun()
     {
         var skyColor = KeyValues.GetColor32Property("ambientcolor2");
-        var groundColor = KeyValues.TryGetValue("ambientcolor3", out _) ? KeyValues.GetColor32Property("ambientcolor3") : skyColor;
+        var groundColor = skyColor;
+
+        if (KeyValues.TryGetValue("ambientcolor3", out var ground))
+        {
+            var color = ground.ToColor32() ?? default;
+            groundColor = new Vector3(color.R, color.G, color.B) / 255f;
+        }
+
         var ambientAngles = KeyValues.GetVector3Property("ambientangles");
 
         // The sky and ground colors fade over the hemisphere, scaled by groundscale. ambientscale2 is not used by the

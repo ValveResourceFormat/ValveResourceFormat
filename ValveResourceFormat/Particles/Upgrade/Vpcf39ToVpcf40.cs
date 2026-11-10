@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -26,13 +27,13 @@ internal sealed class Vpcf39ToVpcf40 : ParticleUpgradeStep
 
     internal static void ScaleInitFloatAngles(KVObject node)
     {
-        if (node.GetString("_class", "") != "C_INIT_InitFloat")
+        if (node.GetStringProperty("_class", "") != "C_INIT_InitFloat")
         {
             return;
         }
 
-        var field = unchecked((ulong)node.GetInt("m_nOutputField", 3));
-        var setMethod = node.GetString("m_nSetMethod", "PARTICLE_SET_REPLACE_VALUE");
+        var field = unchecked((ulong)node.GetIntegerProperty("m_nOutputField", 3));
+        var setMethod = node.GetStringProperty("m_nSetMethod", "PARTICLE_SET_REPLACE_VALUE");
 
         if (field > 20 || ((AngleFieldMask >> (int)field) & 1) == 0)
         {
@@ -53,13 +54,13 @@ internal sealed class Vpcf39ToVpcf40 : ParticleUpgradeStep
 
     internal static void ScaleInputToDegrees(KVObject input)
     {
-        var type = input.GetString("m_nType", "PF_TYPE_LITERAL");
-        var mapType = input.GetString("m_nMapType", "PF_MAP_TYPE_DIRECT");
+        var type = input.GetStringProperty("m_nType", "PF_TYPE_LITERAL");
+        var mapType = input.GetStringProperty("m_nMapType", "PF_MAP_TYPE_DIRECT");
 
         if (mapType is "PF_MAP_TYPE_REMAP" or "PF_MAP_TYPE_REMAP_BIASED")
         {
-            input.SetFloat("m_flOutput0", input.GetFloat("m_flOutput0", 0f) * RadiansToDegrees);
-            input.SetFloat("m_flOutput1", input.GetFloat("m_flOutput1", 1f) * RadiansToDegrees);
+            input.SetFloat("m_flOutput0", input.GetFloatProperty("m_flOutput0") * RadiansToDegrees);
+            input.SetFloat("m_flOutput1", input.GetFloatProperty("m_flOutput1", 1f) * RadiansToDegrees);
             return;
         }
 
@@ -76,7 +77,7 @@ internal sealed class Vpcf39ToVpcf40 : ParticleUpgradeStep
             {
                 if (UpgradeKV.IsObject(point))
                 {
-                    point.SetFloat("y", point.GetFloat("y", 0f) * RadiansToDegrees);
+                    point.SetFloat("y", point.GetFloatProperty("y") * RadiansToDegrees);
                 }
             }
 
@@ -87,18 +88,18 @@ internal sealed class Vpcf39ToVpcf40 : ParticleUpgradeStep
 
         if (mapType == "PF_MAP_TYPE_MULT")
         {
-            input.SetFloat("m_flMultFactor", input.GetFloat("m_flMultFactor", 1f) * RadiansToDegrees);
+            input.SetFloat("m_flMultFactor", input.GetFloatProperty("m_flMultFactor", 1f) * RadiansToDegrees);
             return;
         }
 
         if (type is "PF_TYPE_RANDOM_UNIFORM" or "PF_TYPE_RANDOM_BIASED")
         {
-            input.SetFloat("m_flRandomMin", input.GetFloat("m_flRandomMin", 0f) * RadiansToDegrees);
-            input.SetFloat("m_flRandomMax", input.GetFloat("m_flRandomMax", 1f) * RadiansToDegrees);
+            input.SetFloat("m_flRandomMin", input.GetFloatProperty("m_flRandomMin") * RadiansToDegrees);
+            input.SetFloat("m_flRandomMax", input.GetFloatProperty("m_flRandomMax", 1f) * RadiansToDegrees);
         }
         else if (type == "PF_TYPE_LITERAL")
         {
-            input.SetFloat("m_flLiteralValue", input.GetFloat("m_flLiteralValue", 0f) * RadiansToDegrees);
+            input.SetFloat("m_flLiteralValue", input.GetFloatProperty("m_flLiteralValue") * RadiansToDegrees);
         }
     }
 
@@ -124,7 +125,7 @@ internal sealed class Vpcf39ToVpcf40 : ParticleUpgradeStep
                     break;
                 }
 
-                components[index++] = element.TryGetNumber(out var number) ? (float)number : 0f;
+                components[index++] = element.ToFloatOrDefault();
             }
         }
 
@@ -134,7 +135,7 @@ internal sealed class Vpcf39ToVpcf40 : ParticleUpgradeStep
 
     internal static void RewriteRotationRandom(KVObject node)
     {
-        var cls = node.GetString("_class", "");
+        var cls = node.GetStringProperty("_class", "");
         int outputField;
 
         switch (cls)
@@ -146,20 +147,20 @@ internal sealed class Vpcf39ToVpcf40 : ParticleUpgradeStep
                 outputField = 5;
                 break;
             case "C_INIT_RandomRotation":
-                outputField = (int)node.GetInt("m_nFieldOutput", 4);
+                outputField = (int)node.GetIntegerProperty("m_nFieldOutput", 4);
                 break;
             default:
                 return;
         }
 
-        var degrees = node.GetFloat("m_flDegrees", 0f);
-        var degreesMin = node.GetFloat("m_flDegreesMin", 0f);
-        var degreesMax = node.GetFloat("m_flDegreesMax", 360f);
+        var degrees = node.GetFloatProperty("m_flDegrees");
+        var degreesMin = node.GetFloatProperty("m_flDegreesMin");
+        var degreesMax = node.GetFloatProperty("m_flDegreesMax", 360f);
         var min = degrees + degreesMin;
         var max = degrees + degreesMax;
         var hasExponent = node.ContainsKey("m_flRotationRandExponent");
-        var exponent = node.GetFloat("m_flRotationRandExponent", 1f);
-        var flip = node.GetBool("m_bRandomlyFlipDirection", true);
+        var exponent = node.GetFloatProperty("m_flRotationRandExponent", 1f);
+        var flip = node.GetParticleBooleanProperty("m_bRandomlyFlipDirection", true);
 
         Vpcf38ToVpcf39.RebuildAsInitFloat(node, min, max, hasExponent, exponent);
 

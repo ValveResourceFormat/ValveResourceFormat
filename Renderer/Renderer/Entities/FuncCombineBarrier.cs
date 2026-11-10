@@ -1,4 +1,3 @@
-using System.Globalization;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -47,7 +46,7 @@ public sealed class FuncCombineBarrier : FuncBrush
     public override void Spawn()
     {
         // Read first: the base spawn enables the barrier, which applies the state
-        BarrierState = ParseState(KeyValues.GetStringProperty("barrier_state"));
+        BarrierState = KeyValues.GetInt32Property("barrier_state") == 1 ? State.BlocksCombine : State.BlocksHumans;
 
         base.Spawn();
     }
@@ -128,16 +127,11 @@ public sealed class FuncCombineBarrier : FuncBrush
     [EntityInput("SetBarrierState")]
     private void InputSetBarrierState(EntityInputData data)
     {
-        BarrierState = ParseState(data.Parameter);
+        BarrierState = data.Int() == 1 ? State.BlocksCombine : State.BlocksHumans;
 
         if (IsEnabled)
         {
             ApplyState();
         }
     }
-
-    private static State ParseState(string? value)
-        => int.TryParse(value, CultureInfo.InvariantCulture, out var number) && number == 1
-            ? State.BlocksCombine
-            : State.BlocksHumans;
 }

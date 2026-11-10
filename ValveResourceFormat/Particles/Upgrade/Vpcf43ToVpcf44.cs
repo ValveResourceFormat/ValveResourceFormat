@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -16,26 +17,26 @@ internal sealed class Vpcf43ToVpcf44 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            var cls = node.GetString("_class", "");
+            var cls = node.GetStringProperty("_class", "");
 
             if (cls is not ("C_INIT_RemapScalar" or "C_INIT_RemapCPtoScalar" or "C_INIT_RemapSpeedToScalar"))
             {
                 return;
             }
 
-            var inputMin = node.GetFloat("m_flInputMin", 0f);
-            var inputMax = node.GetFloat("m_flInputMax", 1f);
-            var outputMin = node.GetFloat("m_flOutputMin", 0f);
-            var outputMax = node.GetFloat("m_flOutputMax", 1f);
-            var startTime = node.GetFloat("m_flStartTime", -1f);
-            var endTime = node.GetFloat("m_flEndTime", -1f);
-            var fieldOutput = (int)node.GetInt("m_nFieldOutput", 3);
-            var fieldInput = (int)node.GetInt("m_nFieldInput", 8);
-            var setMethod = node.GetString("m_nSetMethod", "PARTICLE_SET_REPLACE_VALUE");
-            var remapBias = node.GetFloat("m_flRemapBias", 0.5f);
-            var cpInput = (int)node.GetInt("m_nCPInput", node.GetInt("m_nControlPointNumber", 0));
-            var field = (int)node.GetInt("m_nField", 0);
-            var perParticle = cls == "C_INIT_RemapSpeedToScalar" && node.GetBool("m_bPerParticle", false);
+            var inputMin = node.GetFloatProperty("m_flInputMin");
+            var inputMax = node.GetFloatProperty("m_flInputMax", 1f);
+            var outputMin = node.GetFloatProperty("m_flOutputMin");
+            var outputMax = node.GetFloatProperty("m_flOutputMax", 1f);
+            var startTime = node.GetFloatProperty("m_flStartTime", -1f);
+            var endTime = node.GetFloatProperty("m_flEndTime", -1f);
+            var fieldOutput = (int)node.GetIntegerProperty("m_nFieldOutput", 3);
+            var fieldInput = (int)node.GetIntegerProperty("m_nFieldInput", 8);
+            var setMethod = node.GetStringProperty("m_nSetMethod", "PARTICLE_SET_REPLACE_VALUE");
+            var remapBias = node.GetFloatProperty("m_flRemapBias", 0.5f);
+            var cpInput = (int)node.GetIntegerProperty("m_nCPInput", node.GetIntegerProperty("m_nControlPointNumber", 0));
+            var field = (int)node.GetIntegerProperty("m_nField", 0);
+            var perParticle = cls == "C_INIT_RemapSpeedToScalar" && node.GetParticleBooleanProperty("m_bPerParticle");
 
             Vpcf38ToVpcf39.RebuildGenericOperatorFields(node);
             node.SetString("_class", "C_INIT_InitFloat");

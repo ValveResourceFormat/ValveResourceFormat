@@ -126,8 +126,8 @@ public sealed class LogicCase : BaseEntity
             return true;
         }
 
-        return float.TryParse(authored, NumberStyles.Float, CultureInfo.InvariantCulture, out var authoredNumber)
-            && float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var valueNumber)
+        return ValueParsing.TryParseFloat(authored, out var authoredNumber)
+            && ValueParsing.TryParseFloat(value, out var valueNumber)
             && authoredNumber == valueNumber;
     }
 

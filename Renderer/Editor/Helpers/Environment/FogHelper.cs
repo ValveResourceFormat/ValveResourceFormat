@@ -13,8 +13,8 @@ internal sealed class FogHelper(IHelperOwner owner, HelperDeclaration declaratio
     /// <inheritdoc/>
     public LinearFog GetFog()
     {
-        var isEnabled = LeadingNumber.ParseInteger(GetStringKey("fogenable")) != 0;
-        var color = EnvironmentKeys.ParseColor(GetStringKey("fogcolor")).ToLinearColor().AsVector3();
+        var isEnabled = GetIntegerKey("fogenable") != 0;
+        var color = GetColorKey("fogcolor", Color32.Black).ToLinearColor().AsVector3();
 
         // A fog that is off covers nothing, though it keeps its color
         return new LinearFog(

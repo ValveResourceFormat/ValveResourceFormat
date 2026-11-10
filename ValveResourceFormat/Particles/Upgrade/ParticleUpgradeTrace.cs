@@ -59,7 +59,7 @@ public static class ParticleUpgradeTrace
                 }
 
                 sourceIndexByNode[element] = sources.Count;
-                sources.Add((listName, element.GetString("_class", "")));
+                sources.Add((listName, element.GetStringProperty("_class", "")));
             }
         }
 
@@ -79,7 +79,7 @@ public static class ParticleUpgradeTrace
                     continue;
                 }
 
-                var className = element.GetString("_class", "");
+                var className = element.GetStringProperty("_class", "");
                 string? originalClass = null;
 
                 if (sourceIndexByNode.TryGetValue(element, out var id))

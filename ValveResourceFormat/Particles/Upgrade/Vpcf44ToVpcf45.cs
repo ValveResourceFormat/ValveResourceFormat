@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -19,7 +20,7 @@ internal sealed class Vpcf44ToVpcf45 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            var cls = node.GetString("_class", "");
+            var cls = node.GetStringProperty("_class", "");
             var isInit = cls == "C_INIT_InitFloat";
 
             if (!isInit && cls != "C_OP_SetFloat")
@@ -28,7 +29,7 @@ internal sealed class Vpcf44ToVpcf45 : ParticleUpgradeStep
             }
 
             var input = node.Find("m_InputValue");
-            var setMethod = node.GetString("m_nSetMethod", "PARTICLE_SET_REPLACE_VALUE");
+            var setMethod = node.GetStringProperty("m_nSetMethod", "PARTICLE_SET_REPLACE_VALUE");
 
             if (input is not { IsCollection: true })
             {
@@ -37,7 +38,7 @@ internal sealed class Vpcf44ToVpcf45 : ParticleUpgradeStep
 
             if (!isInit)
             {
-                var field = unchecked((ulong)node.GetInt("m_nOutputField", 3));
+                var field = unchecked((ulong)node.GetIntegerProperty("m_nOutputField", 3));
 
                 if (field <= 20
                     && ((AngleFieldMask >> (int)field) & 1) != 0
@@ -54,24 +55,24 @@ internal sealed class Vpcf44ToVpcf45 : ParticleUpgradeStep
 
     private static void ScaleInputDomainToDegrees(KVObject input)
     {
-        if (input.GetString("m_nType", "PF_TYPE_LITERAL") != "PF_TYPE_PARTICLE_FLOAT")
+        if (input.GetStringProperty("m_nType", "PF_TYPE_LITERAL") != "PF_TYPE_PARTICLE_FLOAT")
         {
             return;
         }
 
-        var attribute = unchecked((ulong)input.GetInt("m_nScalarAttribute", 3));
+        var attribute = unchecked((ulong)input.GetIntegerProperty("m_nScalarAttribute", 3));
 
         if (attribute > 20 || ((AngleFieldMask >> (int)attribute) & 1) == 0)
         {
             return;
         }
 
-        var mapType = input.GetString("m_nMapType", "PF_MAP_TYPE_DIRECT");
+        var mapType = input.GetStringProperty("m_nMapType", "PF_MAP_TYPE_DIRECT");
 
         if (mapType is "PF_MAP_TYPE_REMAP" or "PF_MAP_TYPE_REMAP_BIASED")
         {
-            input.SetFloat("m_flInput0", input.GetFloat("m_flInput0", 0f) * RadiansToDegrees);
-            input.SetFloat("m_flInput1", input.GetFloat("m_flInput1", 1f) * RadiansToDegrees);
+            input.SetFloat("m_flInput0", input.GetFloatProperty("m_flInput0") * RadiansToDegrees);
+            input.SetFloat("m_flInput1", input.GetFloatProperty("m_flInput1", 1f) * RadiansToDegrees);
             return;
         }
 
@@ -91,7 +92,7 @@ internal sealed class Vpcf44ToVpcf45 : ParticleUpgradeStep
         {
             if (UpgradeKV.IsObject(point))
             {
-                point.SetFloat("x", point.GetFloat("x", 0f) * RadiansToDegrees);
+                point.SetFloat("x", point.GetFloatProperty("x") * RadiansToDegrees);
             }
         }
 
@@ -121,7 +122,7 @@ internal sealed class Vpcf44ToVpcf45 : ParticleUpgradeStep
                     break;
                 }
 
-                components[index++] = element.TryGetNumber(out var number) ? (float)number : 0f;
+                components[index++] = element.ToFloatOrDefault();
             }
         }
 

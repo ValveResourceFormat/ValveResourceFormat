@@ -16,17 +16,17 @@ internal sealed class DotaLightInfoHelper(IHelperOwner owner, HelperDeclaration 
     /// <inheritdoc/>
     public LinearFog GetFog()
     {
-        var isInspectorView = EnvironmentKeys.ParseInteger(GetStringKey("preview_inspector_view"), 0) != 0;
-        var isNight = EnvironmentKeys.ParseInteger(GetStringKey("preview_day_or_night"), 0) != 0;
+        var isInspectorView = GetIntegerKey("preview_inspector_view") != 0;
+        var isNight = GetIntegerKey("preview_day_or_night") != 0;
         var time = isNight ? "night" : "day";
         var colorKey = isInspectorView ? $"inspector_view_fog_color_{time}" : $"fog_color_{time}";
 
         // Only the color and the distances are given, the rest of the fog stays as no fog has it
         var fog = LinearFog.None;
 
-        if (GetStringKey(colorKey) is { Length: > 0 } color)
+        if (ValueParsing.TryParseColor(GetStringKey(colorKey), out var color))
         {
-            fog = fog with { Color = EnvironmentKeys.ParseColor(color).ToLinearColor().AsVector3() };
+            fog = fog with { Color = color.ToLinearColor().AsVector3() };
         }
 
         // The inspector view always fogs the same distances

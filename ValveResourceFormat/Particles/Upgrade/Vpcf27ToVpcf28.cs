@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -47,28 +48,28 @@ internal sealed class Vpcf27ToVpcf28 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            var cls = node.GetString("_class", "");
+            var cls = node.GetStringProperty("_class", "");
 
             if (cls is not ("C_OP_RenderSprites" or "C_OP_RenderRopes" or "C_OP_RenderTrails"))
             {
                 return;
             }
 
-            var texture = node.GetString("m_hTexture", "materials/particle/base_sprite.vtex");
-            var motionVectorsTexture = node.GetString("m_hMotionVectorsTexture", "");
-            var normalTexture = node.GetString("m_hNormalTexture", "");
-            var combineMode = node.GetString("m_nSequenceCombineMode", "SEQUENCE_COMBINE_MODE_USE_SEQUENCE_0");
-            var additive = node.GetBool("m_bAdditive", false);
-            var mod2X = node.GetBool("m_bMod2X", false);
-            var lighten = node.GetBool("m_bLightenMode", false);
-            var motionVectors = node.GetBool("m_bMotionVectors", false);
-            var normalMap = node.GetBool("m_bNormalMap", false);
-            var zoom0 = node.GetFloat("m_flZoomAmount0", 1f);
-            var zoom1 = node.GetFloat("m_flZoomAmount1", 1f);
-            var animationRate = node.GetFloat("m_flAnimationRate", 1f);
-            var animationRate2 = node.GetFloat("m_flAnimationRate2", 0f);
-            var scaleU = node.GetFloat("m_flFinalTextureScaleU", 1f);
-            var scaleV = node.GetFloat("m_flFinalTextureScaleV", 1f);
+            var texture = node.GetStringProperty("m_hTexture", "materials/particle/base_sprite.vtex");
+            var motionVectorsTexture = node.GetStringProperty("m_hMotionVectorsTexture", "");
+            var normalTexture = node.GetStringProperty("m_hNormalTexture", "");
+            var combineMode = node.GetStringProperty("m_nSequenceCombineMode", "SEQUENCE_COMBINE_MODE_USE_SEQUENCE_0");
+            var additive = node.GetParticleBooleanProperty("m_bAdditive");
+            var mod2X = node.GetParticleBooleanProperty("m_bMod2X");
+            var lighten = node.GetParticleBooleanProperty("m_bLightenMode");
+            var motionVectors = node.GetParticleBooleanProperty("m_bMotionVectors");
+            var normalMap = node.GetParticleBooleanProperty("m_bNormalMap");
+            var zoom0 = node.GetFloatProperty("m_flZoomAmount0", 1f);
+            var zoom1 = node.GetFloatProperty("m_flZoomAmount1", 1f);
+            var animationRate = node.GetFloatProperty("m_flAnimationRate", 1f);
+            var animationRate2 = node.GetFloatProperty("m_flAnimationRate2");
+            var scaleU = node.GetFloatProperty("m_flFinalTextureScaleU", 1f);
+            var scaleV = node.GetFloatProperty("m_flFinalTextureScaleV", 1f);
 
             var twoSequences = false;
             var textureBlend = -1f;
@@ -88,8 +89,8 @@ internal sealed class Vpcf27ToVpcf28 : ParticleUpgradeStep
                     channels1 = "SPRITECARD_TEXTURE_CHANNEL_MIX_A";
                     break;
                 case "SEQUENCE_COMBINE_MODE_WEIGHTED_BLEND":
-                    var rgbWeight = node.GetFloat("m_flSequence1RGBWeight", 0.5f);
-                    var alphaWeight = node.GetFloat("m_flSequence1AlphaWeight", 0.5f);
+                    var rgbWeight = node.GetFloatProperty("m_flSequence1RGBWeight", 0.5f);
+                    var alphaWeight = node.GetFloatProperty("m_flSequence1AlphaWeight", 0.5f);
 
                     if (rgbWeight == 1f && alphaWeight == 0f)
                     {

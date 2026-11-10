@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -29,7 +30,7 @@ internal sealed class Vpcf38ToVpcf39 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            var cls = node.GetString("_class", "");
+            var cls = node.GetStringProperty("_class", "");
 
             if (!Initializers.TryGetValue(cls, out var spec))
             {
@@ -41,18 +42,18 @@ internal sealed class Vpcf38ToVpcf39 : ParticleUpgradeStep
 
             if (cls == "C_INIT_RandomAlpha")
             {
-                min = node.GetInt(spec.MinKey, 255) / 255f;
-                max = node.GetInt(spec.MaxKey, 255) / 255f;
+                min = node.GetIntegerProperty(spec.MinKey, 255) / 255f;
+                max = node.GetIntegerProperty(spec.MaxKey, 255) / 255f;
             }
             else
             {
-                min = node.GetFloat(spec.MinKey, spec.MinDefault);
-                max = node.GetFloat(spec.MaxKey, spec.MaxDefault);
+                min = node.GetFloatProperty(spec.MinKey, spec.MinDefault);
+                max = node.GetFloatProperty(spec.MaxKey, spec.MaxDefault);
             }
 
             var hasExponent = node.ContainsKey(spec.ExponentKey);
-            var exponent = node.GetFloat(spec.ExponentKey, 1f);
-            var outputField = spec.ReadsFieldOutput ? (int)node.GetInt("m_nFieldOutput", spec.OutputField) : spec.OutputField;
+            var exponent = node.GetFloatProperty(spec.ExponentKey, 1f);
+            var outputField = spec.ReadsFieldOutput ? (int)node.GetIntegerProperty("m_nFieldOutput", spec.OutputField) : spec.OutputField;
 
             RebuildAsInitFloat(node, min, max, hasExponent, exponent);
             node.SetInt("m_nOutputField", outputField);
@@ -67,20 +68,20 @@ internal sealed class Vpcf38ToVpcf39 : ParticleUpgradeStep
     internal static void RebuildGenericOperatorFields(KVObject node)
     {
         var strength = node.Find("m_flOpStrength");
-        var disable = node.GetBool("m_bDisableOperator", false);
-        var endCap = node.GetString("m_nOpEndCapState", "PARTICLE_ENDCAP_ALWAYS_ON");
-        var startFadeIn = node.GetFloat("m_flOpStartFadeInTime", 0f);
-        var endFadeIn = node.GetFloat("m_flOpEndFadeInTime", 0f);
-        var startFadeOut = node.GetFloat("m_flOpStartFadeOutTime", 0f);
-        var endFadeOut = node.GetFloat("m_flOpEndFadeOutTime", 0f);
-        var oscillatePeriod = node.GetFloat("m_flOpFadeOscillatePeriod", 0f);
-        var normalize = node.GetBool("m_bNormalizeToStopTime", false);
-        var timeOffsetMin = node.GetFloat("m_flOpTimeOffsetMin", 0f);
-        var timeOffsetMax = node.GetFloat("m_flOpTimeOffsetMax", 0f);
-        var timeOffsetSeed = (int)node.GetInt("m_nOpTimeOffsetSeed", 0);
-        var timeScaleSeed = (int)node.GetInt("m_nOpTimeScaleSeed", 0);
-        var timeScaleMin = node.GetFloat("m_flOpTimeScaleMin", 1f);
-        var timeScaleMax = node.GetFloat("m_flOpTimeScaleMax", 1f);
+        var disable = node.GetParticleBooleanProperty("m_bDisableOperator");
+        var endCap = node.GetStringProperty("m_nOpEndCapState", "PARTICLE_ENDCAP_ALWAYS_ON");
+        var startFadeIn = node.GetFloatProperty("m_flOpStartFadeInTime");
+        var endFadeIn = node.GetFloatProperty("m_flOpEndFadeInTime");
+        var startFadeOut = node.GetFloatProperty("m_flOpStartFadeOutTime");
+        var endFadeOut = node.GetFloatProperty("m_flOpEndFadeOutTime");
+        var oscillatePeriod = node.GetFloatProperty("m_flOpFadeOscillatePeriod");
+        var normalize = node.GetParticleBooleanProperty("m_bNormalizeToStopTime");
+        var timeOffsetMin = node.GetFloatProperty("m_flOpTimeOffsetMin");
+        var timeOffsetMax = node.GetFloatProperty("m_flOpTimeOffsetMax");
+        var timeOffsetSeed = (int)node.GetIntegerProperty("m_nOpTimeOffsetSeed", 0);
+        var timeScaleSeed = (int)node.GetIntegerProperty("m_nOpTimeScaleSeed", 0);
+        var timeScaleMin = node.GetFloatProperty("m_flOpTimeScaleMin", 1f);
+        var timeScaleMax = node.GetFloatProperty("m_flOpTimeScaleMax", 1f);
 
         node.Clear();
 

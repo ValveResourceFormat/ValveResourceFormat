@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -19,7 +20,7 @@ internal sealed class Vpcf12ToVpcf13 : ParticleUpgradeStep
                 continue;
             }
 
-            var feathering = element.GetBool("m_bParticleFeathering", false);
+            var feathering = element.GetParticleBooleanProperty("m_bParticleFeathering");
             element.Remove("m_bParticleFeathering");
             element.SetString("m_nFeatheringMode", feathering
                 ? "PARTICLE_DEPTH_FEATHERING_ON_OPTIONAL"

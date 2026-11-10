@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -13,7 +14,7 @@ internal sealed class Vpcf3ToVpcf4 : ParticleUpgradeStep
 
     public override void Apply(KVObject root)
     {
-        if (root.GetInt("m_nBehaviorVersion", 0) != 1)
+        if (root.GetIntegerProperty("m_nBehaviorVersion", 0) != 1)
         {
             return;
         }
@@ -22,18 +23,18 @@ internal sealed class Vpcf3ToVpcf4 : ParticleUpgradeStep
 
         foreach (var element in root.ElementsOf("m_Emitters"))
         {
-            if (!UpgradeKV.IsObject(element) || element.GetString("_class", "") != "C_OP_ContinuousEmitter")
+            if (!UpgradeKV.IsObject(element) || element.GetStringProperty("_class", "") != "C_OP_ContinuousEmitter")
             {
                 continue;
             }
 
-            var scale = element.GetFloat("m_flEmissionScale", 0f);
+            var scale = element.GetFloatProperty("m_flEmissionScale");
 
             if (scale <= 0f)
             {
                 element.Remove("m_flEmissionScale");
             }
-            else if (element.GetBool("m_bScalePerParticle", false))
+            else if (element.GetParticleBooleanProperty("m_bScalePerParticle"))
             {
                 element.Remove("m_bScalePerParticle");
                 element.Remove("m_flEmissionScale");
@@ -52,8 +53,8 @@ internal sealed class Vpcf3ToVpcf4 : ParticleUpgradeStep
 
         foreach (var element in root.ElementsOf("m_Initializers"))
         {
-            if (UpgradeKV.IsObject(element) && element.GetString("_class", "") == "C_INIT_CreateWithinSphere"
-                && element.GetBool("m_bUseHighestEndCP", false))
+            if (UpgradeKV.IsObject(element) && element.GetStringProperty("_class", "") == "C_INIT_CreateWithinSphere"
+                && element.GetParticleBooleanProperty("m_bUseHighestEndCP"))
             {
                 return;
             }
@@ -61,8 +62,8 @@ internal sealed class Vpcf3ToVpcf4 : ParticleUpgradeStep
 
         foreach (var element in root.ElementsOf("m_Initializers"))
         {
-            if (UpgradeKV.IsObject(element) && element.GetString("_class", "") == "C_INIT_CreateFromCPs"
-                && element.GetInt("m_nIncrement", 1) != 0)
+            if (UpgradeKV.IsObject(element) && element.GetStringProperty("_class", "") == "C_INIT_CreateFromCPs"
+                && element.GetIntegerProperty("m_nIncrement", 1) != 0)
             {
                 return;
             }
@@ -70,8 +71,8 @@ internal sealed class Vpcf3ToVpcf4 : ParticleUpgradeStep
 
         foreach (var element in root.ElementsOf("m_Emitters"))
         {
-            if (UpgradeKV.IsObject(element) && element.GetString("_class", "") == "C_OP_NoiseEmitter"
-                && element.GetFloat("m_flEmissionScale", 0f) > 0f)
+            if (UpgradeKV.IsObject(element) && element.GetStringProperty("_class", "") == "C_OP_NoiseEmitter"
+                && element.GetFloatProperty("m_flEmissionScale") > 0f)
             {
                 return;
             }

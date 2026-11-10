@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -17,7 +18,7 @@ internal sealed class Vpcf65ToVpcf66 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            if (node.GetString("_class", "") != "C_OP_MaxVelocity")
+            if (node.GetStringProperty("_class", "") != "C_OP_MaxVelocity")
             {
                 return;
             }
@@ -28,7 +29,7 @@ internal sealed class Vpcf65ToVpcf66 : ParticleUpgradeStep
 
                 if (overrideCP != -1)
                 {
-                    var field = (int)node.GetInt("m_nOverrideCPField", 0);
+                    var field = (int)node.GetIntegerProperty("m_nOverrideCPField", 0);
                     var maxVelocity = node.SetObject("m_flMaxVelocity");
                     maxVelocity.SetString("m_nType", "PF_TYPE_CONTROL_POINT_COMPONENT");
                     maxVelocity.SetInt("m_nControlPoint", overrideCP);

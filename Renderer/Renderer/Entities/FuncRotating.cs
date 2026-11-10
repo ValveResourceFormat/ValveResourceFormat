@@ -124,7 +124,7 @@ public sealed class FuncRotating : BaseModelEntity
         base.Spawn();
 
         // Absent means zero rather than the FGD's 20, so the guard below is what a map that omits it gets.
-        FanFriction = KeyValues.GetFloatProperty("fanfriction") / 100f;
+        FanFriction = KeyValues.GetInt32Property("fanfriction") / 100f;
 
         // Prevent a divide by zero if the level designer forgot the friction
         if (FanFriction == 0f)
@@ -163,7 +163,7 @@ public sealed class FuncRotating : BaseModelEntity
 
         // Authored 0 to 10, and emitted as a fraction of full volume. A map that leaves it at zero means
         // the default rather than silence, as it did before the keyvalue existed.
-        Volume = MathUtils.Saturate(KeyValues.GetFloatProperty("volume") / 10f);
+        Volume = MathUtils.Saturate(KeyValues.GetInt32Property("volume") / 10f);
 
         if (Volume == 0f)
         {

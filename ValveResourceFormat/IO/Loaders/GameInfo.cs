@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.IO;
 using ValveKeyValue;
 using ValveResourceFormat.IO.ContentFormats.HalfEdgeMesh;
@@ -111,17 +110,14 @@ namespace ValveResourceFormat.IO
         {
             FilePath = filePath;
             GameRoot = Path.GetDirectoryName(Path.GetDirectoryName(filePath)) ?? string.Empty;
-            Name = GetString(root, "game");
+            Name = root.GetStringProperty("game");
 
             if (root.TryGetValue("FileSystem", out var fileSystem))
             {
                 AllowAddonDependencies = fileSystem.GetBooleanProperty("AllowAddonDependencies");
 
-                if (int.TryParse(GetString(fileSystem, "SteamAppId"), CultureInfo.InvariantCulture, out var steamAppId))
-                {
-                    SteamAppId = steamAppId;
-                    Game = GetGame(steamAppId);
-                }
+                SteamAppId = fileSystem.GetInt32Property("SteamAppId");
+                Game = GetGame(SteamAppId);
 
                 if (fileSystem.TryGetValue("SearchPaths", out var searchPaths))
                 {
@@ -134,7 +130,7 @@ namespace ValveResourceFormat.IO
 
             if (root.TryGetValue("Hammer", out var hammer))
             {
-                var textureScale = ReadSingle(hammer, "DefaultTextureScale") ?? 0f;
+                var textureScale = hammer.GetFloatProperty("DefaultTextureScale");
 
                 if (textureScale != 0f)
                 {
@@ -146,14 +142,14 @@ namespace ValveResourceFormat.IO
 
             if (root.TryGetValue("Engine2", out var engine))
             {
-                MapMaxCoord = ReadSingle(engine, "MapMaxCoord") ?? MapMaxCoord;
+                MapMaxCoord = engine.GetFloatProperty("MapMaxCoord", MapMaxCoord);
 
                 if (engine.TryGetValue("RenderingPipeline", out var pipeline))
                 {
                     SkipPostProcessing = pipeline.GetBooleanProperty("SkipPostProcessing");
                     TonemappingVrForward = pipeline.GetBooleanProperty("TonemappingVRForward");
-                    DefaultAutoExposureMin = ReadSingle(pipeline, "Tonemapping_DefaultAutoExposureMin");
-                    DefaultAutoExposureMax = ReadSingle(pipeline, "Tonemapping_DefaultAutoExposureMax");
+                    DefaultAutoExposureMin = pipeline.GetNullableFloatProperty("Tonemapping_DefaultAutoExposureMin");
+                    DefaultAutoExposureMax = pipeline.GetNullableFloatProperty("Tonemapping_DefaultAutoExposureMax");
                 }
             }
 
@@ -174,7 +170,7 @@ namespace ValveResourceFormat.IO
                 DirectLightBaking = worldRenderer.GetBooleanProperty("DirectLightBaking", defaultValue: true);
                 LpvEdgeBlending = worldRenderer.GetBooleanProperty("LPVEdgeBlending", defaultValue: true);
 
-                var mipProcessor = GetString(worldRenderer, "EnvironmentMapMipProcessor");
+                var mipProcessor = worldRenderer.GetStringProperty("EnvironmentMapMipProcessor");
                 EnvironmentMapsAreRgbm = mipProcessor != null && mipProcessor.Contains("RGBM", StringComparison.Ordinal);
             }
         }
@@ -218,9 +214,9 @@ namespace ValveResourceFormat.IO
                 root = Merge(root, ReadFile(branchSpecificPath));
             }
 
-            var parentMod = GetString(root, "LayeredOnMod");
+            var parentMod = root.GetStringProperty("LayeredOnMod");
 
-            if (depth >= MaxLayerDepth || parentMod == null)
+            if (depth >= MaxLayerDepth || string.IsNullOrEmpty(parentMod))
             {
                 return root;
             }
@@ -290,27 +286,6 @@ namespace ValveResourceFormat.IO
             }
 
             return merged;
-        }
-
-        private static string? GetString(KVObject block, string name)
-        {
-            if (!block.TryGetValue(name, out var value) || value.IsCollection)
-            {
-                return null;
-            }
-
-            var text = value.ToString();
-            return string.IsNullOrEmpty(text) ? null : text;
-        }
-
-        private static float? ReadSingle(KVObject block, string name)
-        {
-            if (!float.TryParse(GetString(block, name), NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
-            {
-                return null;
-            }
-
-            return value;
         }
     }
 }

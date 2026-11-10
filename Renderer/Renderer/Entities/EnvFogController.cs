@@ -107,9 +107,6 @@ public sealed class EnvFogController : BaseEntity
         UpdateFog();
     }
 
-    // "255 200 100" (0-255) to 0-1 sRGB; an unparseable parameter keeps the current color
-    private static Vector3 ParseColor(EntityInputData data, Vector3 color) => Vector3.Clamp(data.Vector(color * 255f) / 255f, Vector3.Zero, Vector3.One);
-
     [EntityInput("TurnOn")]
     private void InputTurnOn(EntityInputData data)
     {
@@ -124,6 +121,9 @@ public sealed class EnvFogController : BaseEntity
         UpdateFog();
     }
 
+    // "255 200 100" (0-255) to 0-1 sRGB; an unparseable parameter keeps the fallback color
+    private static Vector3 ParseColor(EntityInputData data, Vector3 fallback) => data.Color() / 255f ?? fallback;
+
     [EntityInput("SetColor")] private void InputSetColor(EntityInputData data) => Set(current with { Color = ParseColor(data, current.Color) });
 
     [EntityInput("SetColorSecondary")] private void InputSetColorSecondary(EntityInputData data) => Set(current with { SecondaryColor = ParseColor(data, current.SecondaryColor) });
@@ -137,7 +137,7 @@ public sealed class EnvFogController : BaseEntity
     [EntityInput("SetFarZ")]
     private void InputSetFarZ(EntityInputData data)
     {
-        farZ = data.Float(farZ);
+        farZ = data.Int((int)farZ);
         UpdateFog();
     }
 

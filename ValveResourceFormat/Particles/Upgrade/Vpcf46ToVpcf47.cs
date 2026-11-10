@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -16,7 +17,7 @@ internal sealed class Vpcf46ToVpcf47 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            switch (node.GetString("_class", ""))
+            switch (node.GetStringProperty("_class", ""))
             {
                 case "C_INIT_RemapInitialDirectionToCPToVector":
                     node.SetString("_class", "C_INIT_RemapInitialDirectionToTransformToVector");

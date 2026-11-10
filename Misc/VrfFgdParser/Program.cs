@@ -134,7 +134,7 @@ KVObject? ParseGameClasses(GameFolderLocator.SteamLibraryGameInfo game, string g
 
     // Of the classes a class is based on, only the ones an entity can be required to be placed under are read
     var requiredParentClasses = fgd.Classes
-        .Select(static gameClass => GetText(gameClass.Metadata, "required_parent_class"))
+        .Select(static gameClass => gameClass.Metadata.GetStringProperty("required_parent_class"))
         .OfType<string>()
         .Where(static name => name.Length > 0)
         .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -331,12 +331,12 @@ static KVObject? ConvertClass(FgdClass gameClass, HashSet<string> requiredParent
         data.Add("helpers", helpers);
     }
 
-    if (GetText(gameClass.Metadata, "required_parent_class") is { Length: > 0 } requiredParentClass)
+    if (gameClass.Metadata.GetStringProperty("required_parent_class") is { Length: > 0 } requiredParentClass)
     {
         data.Add("required_parent_class", requiredParentClass);
     }
 
-    if (GetText(gameClass.Metadata, "auto_apply_material") is { Length: > 0 } autoApplyMaterial)
+    if (gameClass.Metadata.GetStringProperty("auto_apply_material") is { Length: > 0 } autoApplyMaterial)
     {
         data.Add("auto_apply_material", autoApplyMaterial);
     }
@@ -476,10 +476,6 @@ void WriteClasses()
 }
 
 static string GetSourcePath([CallerFilePath] string path = "") => path;
-
-// A key of a block of keys as text, or null when it is not there
-static string? GetText(KVObject? keys, string key)
-    => keys != null && keys.ContainsKey(key) ? keys[key].ToString(CultureInfo.InvariantCulture) : null;
 
 // The property names and trigger materials of every Source 2 game, whichever game declares them
 void ParseFile(string file)

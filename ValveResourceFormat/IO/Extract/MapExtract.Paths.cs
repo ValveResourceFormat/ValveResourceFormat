@@ -109,15 +109,25 @@ public sealed partial class MapExtract
     /// The per-node radius scales, or none when the compiler wrote its 0 default for a node class
     /// that declares no radius key.
     /// </summary>
-    private static float[] ReadRadiusScales(Entity compiledEntity)
+    private static float[] ReadRadiusScales(Entity compiledEntity, int nodeCount)
     {
-        var radiusScales = PathParticleRope.ParseRadiusScales(compiledEntity.GetStringProperty("pathnoderadiusscales"));
+        var text = compiledEntity.GetStringProperty("pathnoderadiusscales");
+        var radiusScales = PathParticleRope.ParseRadiusScales(text, PerNodeCount(text, nodeCount));
         return radiusScales.AsSpan().ContainsAnyExcept(0f) ? radiusScales : [];
     }
 
     /// <summary>
+    /// The number of entries to read from a per-node key, none when the compiler did not write it.
+    /// </summary>
+    private static int PerNodeCount(string? text, int nodeCount)
+        => string.IsNullOrWhiteSpace(text) ? 0 : nodeCount;
+
+    /// <summary>
     /// Parses the <c>pathNodeNames</c> key, one <c>index: name;</c> entry per named node.
     /// </summary>
+    /// <remarks>
+    /// The key is a list of entries rather than a single value, so no shared parser reads it.
+    /// </remarks>
     private static Dictionary<int, string> ParsePathNodeNames(string? pathNodeNames)
     {
         var names = new Dictionary<int, string>();
@@ -131,9 +141,9 @@ public sealed partial class MapExtract
         {
             var separator = entry.IndexOf(':', StringComparison.Ordinal);
 
-            if (separator > 0 && int.TryParse(entry.AsSpan(0, separator), CultureInfo.InvariantCulture, out var index))
+            if (separator > 0)
             {
-                names[index] = entry[(separator + 1)..].Trim();
+                names[ValueParsing.ParseLeadingInt(entry.AsSpan(0, separator))] = entry[(separator + 1)..].Trim();
             }
         }
 
@@ -158,7 +168,7 @@ public sealed partial class MapExtract
             }
 
             if (entity.GetStringProperty("path_uniqueid") is { } ownerId && entity.TryGetValue("path_index", out var indexValue)
-                && int.TryParse(ToEditString(indexValue), CultureInfo.InvariantCulture, out var nodeIndex))
+                && ValueParsing.TryParseInt(ToEditString(indexValue), out var nodeIndex))
             {
                 if (!nodeEntities.TryGetValue(ownerId, out var pathNodes))
                 {
@@ -186,10 +196,13 @@ public sealed partial class MapExtract
     private static void AddPathNodes(CMapPath path, string className, Entity compiledEntity,
         List<PathParticleRopeNode> nodes, Dictionary<int, Entity>? nodeEntities, Matrix4x4 worldTransform)
     {
-        var pins = PathParticleRope.ParsePins(compiledEntity.GetStringProperty("pathnodepinsenabled"));
-        var radiusScales = ReadRadiusScales(compiledEntity);
-        var colors = PathParticleRope.ParseColors(compiledEntity.GetStringProperty("pathnodecolors"));
-        var moveSpeedTypes = PathParticleRope.ParseFloatBlob(compiledEntity.GetStringProperty("pathnodemovespeedtypes"));
+        var pinsText = compiledEntity.GetStringProperty("pathnodepinsenabled");
+        var pins = PathParticleRope.ParsePins(pinsText, PerNodeCount(pinsText, nodes.Count));
+        var radiusScales = ReadRadiusScales(compiledEntity, nodes.Count);
+        var colorsText = compiledEntity.GetStringProperty("pathnodecolors");
+        var colors = PathParticleRope.ParseColors(colorsText, PerNodeCount(colorsText, nodes.Count));
+        var moveSpeedTypesText = compiledEntity.GetStringProperty("pathnodemovespeedtypes");
+        var moveSpeedTypes = PathParticleRope.ParseFloats(moveSpeedTypesText, PerNodeCount(moveSpeedTypesText, nodes.Count), 0f);
         var nodeClassName = PathNodeClassName(className);
 
         path.ClosedLoop = compiledEntity.TryGetValue("closed_loop", out var closedLoop) && ToEditString(closedLoop) is "1" or "true";
@@ -390,7 +403,7 @@ public sealed partial class MapExtract
         cable.TextureOffsetAlongPath = Snap(rings[0].Along, tolerance);
         cable.FlipFaces = FacesPointInward(positions, indices, rings);
 
-        var radiusScales = ReadRadiusScales(compiledEntity);
+        var radiusScales = ReadRadiusScales(compiledEntity, nodes.Count);
         var firstScale = radiusScales.Length > 0 && radiusScales[0] != 0f ? radiusScales[0] : 1f;
         cable.Radius = Snap(rings[0].Radius / firstScale);
 

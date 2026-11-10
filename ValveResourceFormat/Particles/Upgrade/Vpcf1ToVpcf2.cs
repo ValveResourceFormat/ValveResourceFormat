@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -63,7 +64,7 @@ internal sealed class Vpcf1ToVpcf2 : ParticleUpgradeStep
 
         foreach (var element in ops.Elements())
         {
-            var isMatch = UpgradeKV.IsObject(element) && PreEmissionClasses.Contains(element.GetString("_class", ""));
+            var isMatch = UpgradeKV.IsObject(element) && PreEmissionClasses.Contains(element.GetStringProperty("_class", ""));
             (isMatch ? moved : kept).Add(element);
         }
 

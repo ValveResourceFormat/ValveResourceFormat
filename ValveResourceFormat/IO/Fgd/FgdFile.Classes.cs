@@ -229,7 +229,7 @@ public sealed partial class FgdFile
             return false;
         }
 
-        numbers = new Vector3(LeadingNumber.ParseFloat(x.Span), LeadingNumber.ParseFloat(y.Span), LeadingNumber.ParseFloat(z.Span));
+        numbers = new Vector3(ValueParsing.ParseLeadingFloat(x.Span), ValueParsing.ParseLeadingFloat(y.Span), ValueParsing.ParseLeadingFloat(z.Span));
         return true;
     }
 
@@ -244,7 +244,10 @@ public sealed partial class FgdFile
             return false;
         }
 
-        gameClass.Color = ParseColor(red, green, blue);
+        gameClass.Color = new Color32(
+            unchecked((byte)ValueParsing.ParseLeadingInt(red.Span)),
+            unchecked((byte)ValueParsing.ParseLeadingInt(green.Span)),
+            unchecked((byte)ValueParsing.ParseLeadingInt(blue.Span)));
         gameClass.HasColor = true;
 
         if (!tokens.Accept(")"))
@@ -644,7 +647,7 @@ public sealed partial class FgdFile
                 break;
 
             case FgdStorage.Integer:
-                SetDefaultInteger(variable, LeadingNumber.ParseInteger(text));
+                SetDefaultInteger(variable, ValueParsing.ParseLeadingInt(text));
                 variable.HasDefault = true;
                 break;
         }
@@ -874,7 +877,7 @@ public sealed partial class FgdFile
                     return false;
                 }
 
-                isDefault = LeadingNumber.ParseInteger(defaultToken.Span) != 0;
+                isDefault = ValueParsing.ParseLeadingInt(defaultToken.Span) != 0;
             }
             else if (!isFlags)
             {
@@ -891,7 +894,7 @@ public sealed partial class FgdFile
 
             if (isFlags)
             {
-                var value = LeadingNumber.ParseInteger(valueText);
+                var value = ValueParsing.ParseLeadingInt(valueText);
 
                 variable.Choices.Add(new FgdChoice
                 {
@@ -959,7 +962,7 @@ public sealed partial class FgdFile
 
         if (storage == FgdStorage.Integer)
         {
-            SetDefaultInteger(variable, LeadingNumber.ParseInteger(named.ValueText));
+            SetDefaultInteger(variable, ValueParsing.ParseLeadingInt(named.ValueText));
         }
         else if (storage == FgdStorage.String)
         {

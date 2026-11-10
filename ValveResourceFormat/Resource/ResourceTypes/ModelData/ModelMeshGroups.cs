@@ -182,7 +182,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
 
             var separator = body.LastIndexOf(ChoiceSeparator, StringComparison.Ordinal);
 
-            if (separator >= 0 && IsChoiceIndex(body[(separator + ChoiceSeparator.Length)..]))
+            if (separator >= 0 && IsChoiceIndex(body.AsSpan(separator + ChoiceSeparator.Length)))
             {
                 return (body[..separator], choiceName, true);
             }
@@ -190,22 +190,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
             return (body, choiceName, false);
         }
 
-        private static bool IsChoiceIndex(string text)
-        {
-            if (text.Length == 0)
-            {
-                return false;
-            }
-
-            foreach (var character in text)
-            {
-                if (!char.IsAsciiDigit(character))
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
+        private static bool IsChoiceIndex(ReadOnlySpan<char> text)
+            => !text.IsEmpty && !text.ContainsAnyExceptInRange('0', '9');
     }
 }

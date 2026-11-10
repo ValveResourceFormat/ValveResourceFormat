@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -13,16 +14,16 @@ internal sealed class Vpcf4ToVpcf5 : ParticleUpgradeStep
 
     public override void Apply(KVObject root)
     {
-        if (root.GetInt("m_nBehaviorVersion", 0) != 2)
+        if (root.GetIntegerProperty("m_nBehaviorVersion", 0) != 2)
         {
             return;
         }
 
         foreach (var element in root.ElementsOf("m_ForceGenerators"))
         {
-            if (UpgradeKV.IsObject(element) && element.GetString("_class", "") == "C_OP_TwistAroundAxis"
-                && element.GetBool("m_bLocalSpace", false)
-                && element.GetInt("m_nControlPointNumber", 0) != 0)
+            if (UpgradeKV.IsObject(element) && element.GetStringProperty("_class", "") == "C_OP_TwistAroundAxis"
+                && element.GetParticleBooleanProperty("m_bLocalSpace")
+                && element.GetIntegerProperty("m_nControlPointNumber", 0) != 0)
             {
                 return;
             }

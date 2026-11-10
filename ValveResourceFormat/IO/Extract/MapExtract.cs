@@ -2059,17 +2059,12 @@ public sealed partial class MapExtract
         }
         else if (key == "hammeruniqueid")
         {
-            try
+            var hammerUniqueIdString = compiledEntity.TryGetValue(key, out var hammerValue) ? ToEditString(hammerValue) : null;
+
+            // The lineage is not essential, so an unreadable id leaves it unchanged.
+            if (!string.IsNullOrEmpty(hammerUniqueIdString) && TryParseLineage(hammerUniqueIdString, out var ids))
             {
-                var hammerUniqueIdString = compiledEntity.TryGetValue(key, out var hammerValue) ? ToEditString(hammerValue) : null;
-                if (!string.IsNullOrEmpty(hammerUniqueIdString))
-                {
-                    lineage = Array.ConvertAll(hammerUniqueIdString.Split(':'), static part => int.Parse(part, CultureInfo.InvariantCulture));
-                }
-            }
-            catch (FormatException)
-            {
-                // not essential, ignore
+                lineage = ids;
             }
 
             if (lineage.Length > 0)
@@ -2081,6 +2076,22 @@ public sealed partial class MapExtract
         }
 
         return false;
+
+        static bool TryParseLineage(string text, out int[] ids)
+        {
+            var parts = text.Split(':');
+            ids = new int[parts.Length];
+
+            for (var i = 0; i < parts.Length; i++)
+            {
+                if (!ValueParsing.TryParseInt(parts[i], out ids[i]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
     }
 
     // TODO: cubemaptexture may be set by artist, needs to be handled differently (reference: CS2 /ui/ maps)

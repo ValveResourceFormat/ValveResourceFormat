@@ -612,6 +612,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         // Driver vectors can have null components (e.g. m_angOffset = [null, null, null]),
         // which the plain ToVector3 conversion throws on; GetFloatArray maps null elements to 0.
+        // An array shorter than three numbers is zero, where the shared vector getter fills in the missing components
         private static Vector3 ReadDriverVector(KVObject driver, string key)
         {
             var components = driver.GetFloatArray(key);

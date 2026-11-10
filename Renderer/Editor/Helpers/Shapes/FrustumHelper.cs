@@ -64,7 +64,7 @@ internal sealed class FrustumHelper : EntityHelper
         }
 
         // Unlike the color of a camera path node, an empty one is the default rather than transparent
-        var color = GetStringKey(ColorKey) is { Length: > 0 } colorText ? ParseColor(colorText) : CameraFrustum.DefaultColor;
+        var color = ValueParsing.TryParseColor(GetStringKey(ColorKey), out var keyColor) ? keyColor : CameraFrustum.DefaultColor;
 
         CameraFrustum.DrawEntityView(context, Owner.RigidTransform, fov, GetFloatKey(NearPlaneKey, CameraFrustum.DefaultNearPlane),
             GetFloatKey(FarPlaneKey, CameraFrustum.DefaultFarPlane), aspectRatio, color);

@@ -1,4 +1,3 @@
-using System.Globalization;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.ResourceTypes;
@@ -39,7 +38,7 @@ internal sealed class LightConeHelper : EntityHelper
         InnerAngleKey = GetArgument(0)?.ToLowerInvariant() ?? "innerconeangle";
         OuterAngleKey = GetArgument(1)?.ToLowerInvariant() ?? "outerconeangle";
         ColorKey = GetArgument(2)?.ToLowerInvariant() ?? "color";
-        PitchScale = GetArgument(3) is { } scale ? ParseFloat(scale) : 1f;
+        PitchScale = GetArgument(3) is { } scale ? ValueParsing.ParseFloat(scale) : 1f;
     }
 
     internal override void Render(ToolRenderContext context, in HelperRenderState state)
@@ -173,7 +172,4 @@ internal sealed class LightConeHelper : EntityHelper
 
     private static Color32 ToColor(Vector3 color, float intensity)
         => new((byte)(int)(color.X * 255f * intensity), (byte)(int)(color.Y * 255f * intensity), (byte)(int)(color.Z * 255f * intensity), Alpha);
-
-    private static float ParseFloat(string value)
-        => float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var result) ? result : 0f;
 }

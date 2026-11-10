@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using ValveKeyValue;
@@ -97,7 +96,7 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, S
             return ReadNumberProvider(value)?.NextNumber(ParticleSystemState.Default) ?? 0f;
         }
 
-        return (float)value.CoerceDouble(0f);
+        return value.ToFloatOrDefault();
     }
 
     /// <summary>Reads an int property, returning <paramref name="default"/> if the key is absent.</summary>
@@ -114,18 +113,7 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, S
             return (int)(ReadNumberProvider(value)?.NextNumber(ParticleSystemState.Default) ?? 0f);
         }
 
-        return ScalarInt32(value);
-    }
-
-    /// <summary>Reads an int the way <see cref="KVObjectExtensions.GetInt32Property"/> does: a blank string is zero.</summary>
-    private static int ScalarInt32(KVObject value)
-    {
-        if (value.ValueType == KVValueType.String && string.IsNullOrWhiteSpace((string)value))
-        {
-            return 0;
-        }
-
-        return (int)value;
+        return value.ToInt32OrDefault();
     }
 
     /// <summary>
@@ -135,13 +123,12 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, S
     public readonly int ControlPoint(string key, int @default = 0)
         => Math.Clamp(Int32(key, @default), 0, ParticleSystemState.MaxControlPoint);
 
-    private readonly long Long(string k) => Data.GetIntegerProperty(k);
     /// <summary>Reads a long property, returning <paramref name="default"/> if the key is absent.</summary>
-    public readonly long Long(string key, long @default = default) => GetValueOrDefault(key, Long, @default);
+    public readonly long Long(string key, long @default = default) => Data.GetIntegerProperty(key, @default);
 
-    private readonly bool Boolean(string k) => Data.GetBooleanProperty(k);
-    /// <summary>Reads a bool property, returning <paramref name="default"/> if the key is absent.</summary>
-    public readonly bool Boolean(string key, bool @default = default) => GetValueOrDefault(key, Boolean, @default);
+    /// <summary>Reads a bool property, returning <paramref name="default"/> if the key is absent or the text is not a boolean.</summary>
+    public readonly bool Boolean(string key, bool @default = default)
+        => Data.GetParticleBooleanProperty(key, @default);
 
     /// <summary>Reads a string property, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly string String(string key, string @default = "") => Data.GetStringProperty(key, @default);
@@ -155,7 +142,7 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, S
         // Some content authors vectors as space-separated strings ("0.7 0.5 0.25").
         if (value.ValueType == KVValueType.String)
         {
-            return EntityTransformHelper.ParseVector3((string)value);
+            return value.ToVector3OrDefault();
         }
 
         // Newer content authors some vector fields as full vector-input structures; the call site
@@ -177,8 +164,8 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, S
         => ReadEnum(key, @default, normalize: true);
 
     /// <summary>
-    /// Reads an enum authored either as a member name or as its raw integer value, falling back to
-    /// <paramref name="default"/> for anything this enum does not define.
+    /// Reads an enum authored either as a member name, a comma-separated list of flag names or as its raw integer value.
+    /// A string that is wholly an integer is read as one. Anything this enum does not define falls back to <paramref name="default"/>.
     /// </summary>
     private readonly T ReadEnum<T>(string key, T @default, bool normalize) where T : struct, Enum
     {
@@ -194,13 +181,14 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, S
 
         var name = (string)value;
 
-        if (int.TryParse(name, CultureInfo.InvariantCulture, out var numeric))
+        if (ValueParsing.TryParseInt(name, out var numeric))
         {
             return FromEnumValue(key, numeric, @default);
         }
 
         var member = normalize ? KVObjectExtensions.NormalizeEnumName<T>(name, "Flags") : name;
 
+        // Parsing also accepts comma-separated flag names
         if (System.Enum.TryParse<T>(member, false, out var result))
         {
             return result;
@@ -343,7 +331,7 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, S
         else
         {
             // A value that is not a block is a literal; a string that does not parse, empty included, is zero
-            return new LiteralNumberProvider((float)pfParameters.CoerceDouble(0f));
+            return new LiteralNumberProvider(pfParameters.ToFloatOrDefault());
         }
     }
 
@@ -457,7 +445,7 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, S
         // Fields that became transform inputs without a format bump still hold a bare control point number in older content.
         if (!transformParameters.IsNull)
         {
-            return new ControlPointTransformProvider(Math.Clamp(ScalarInt32(transformParameters), 0, ParticleSystemState.MaxControlPoint), true);
+            return new ControlPointTransformProvider(Math.Clamp(transformParameters.ToInt32OrDefault(), 0, ParticleSystemState.MaxControlPoint), true);
         }
 
         return new IdentityTransformProvider();

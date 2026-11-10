@@ -400,6 +400,7 @@ public sealed class GlobalsLayout
         values[1..constant.ComponentCount].Fill(values[0]);
     }
 
+    // Reads a shader source literal: true and false, hex, and an f suffix, which the keyvalue number parsers reject
     private static double ParseScalar(GlobalsDeclaration declaration, ReadOnlySpan<char> text)
     {
         text = text.Trim();
@@ -436,7 +437,7 @@ public sealed class GlobalsLayout
             text = text[..^1];
         }
 
-        if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+        if (!ValueParsing.TryParseDouble(text, out var value))
         {
             throw new ShaderLoader.ShaderCompilerException($"Could not parse the default value '{declaration.Initializer}' of uniform '{declaration.Name}'");
         }

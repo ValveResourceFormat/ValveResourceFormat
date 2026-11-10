@@ -23,17 +23,16 @@ internal sealed class SkyboxHelper(IHelperOwner owner, HelperDeclaration declara
     /// <inheritdoc/>
     public override void AddToScene()
     {
-        if (MaterialName is not { } materialName || EnvironmentKeys.ParseInteger(GetStringKey("startdisabled"), 0) != 0)
+        if (MaterialName is not { } materialName || GetBooleanKey("startdisabled"))
         {
             return;
         }
 
-        var tintKey = GetStringKey("tint_color");
-        var tint = tintKey.Length > 0 ? EnvironmentKeys.ParseColor(tintKey).ToLinearColor().AsVector3() : Vector3.One;
+        var tint = ValueParsing.TryParseColor(GetStringKey("tint_color"), out var tintColor) ? tintColor.ToLinearColor().AsVector3() : Vector3.One;
 
         // The sky is infinitely far away, so only the way the entity is turned moves it
         var transform = Owner.RigidTransform with { Translation = Vector3.Zero };
-        var fogType = (SkyFogType)EnvironmentKeys.ParseInteger(GetStringKey("fog_type"), (int)SkyFogType.Distance);
+        var fogType = (SkyFogType)GetIntegerKey("fog_type", (int)SkyFogType.Distance);
         var angularFog = new Vector4(
             GetFloatKey("angular_fog_min_start", DefaultAngularFog.X),
             GetFloatKey("angular_fog_min_end", DefaultAngularFog.Y),

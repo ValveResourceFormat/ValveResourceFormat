@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -17,12 +18,12 @@ internal sealed class Vpcf56ToVpcf57 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            switch (node.GetString("_class", ""))
+            switch (node.GetStringProperty("_class", ""))
             {
                 case "C_OP_SetSingleControlPointPosition":
                 {
                     var cp = unchecked((int)node.TakeInt("m_nHeadLocation", 0));
-                    var useWorld = node.GetBool("m_bUseWorldLocation", false);
+                    var useWorld = node.GetParticleBooleanProperty("m_bUseWorldLocation");
                     node.Remove("m_bUseWorldLocation");
 
                     if (useWorld)

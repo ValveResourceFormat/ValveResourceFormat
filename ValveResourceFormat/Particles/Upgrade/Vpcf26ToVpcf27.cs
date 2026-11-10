@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -16,7 +17,7 @@ internal sealed class Vpcf26ToVpcf27 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            if (node.GetString("_class", "") == "C_INIT_RingWave")
+            if (node.GetStringProperty("_class", "") == "C_INIT_RingWave")
             {
                 ConvertRingWave(node);
             }
@@ -24,7 +25,7 @@ internal sealed class Vpcf26ToVpcf27 : ParticleUpgradeStep
 
         UpgradeKV.WalkObjects(root, static node =>
         {
-            if (node.GetString("_class", "") == "C_INIT_CreateWithinSphere")
+            if (node.GetStringProperty("_class", "") == "C_INIT_CreateWithinSphere")
             {
                 ConvertCreateWithinSphere(node);
             }
@@ -32,7 +33,7 @@ internal sealed class Vpcf26ToVpcf27 : ParticleUpgradeStep
 
         UpgradeKV.WalkObjects(root, static node =>
         {
-            if (node.GetString("_class", "") == "C_OP_CurlNoiseForce" && node.GetBool("m_useCurl", false))
+            if (node.GetStringProperty("_class", "") == "C_OP_CurlNoiseForce" && node.GetParticleBooleanProperty("m_useCurl"))
             {
                 node.Remove("m_useCurl");
                 node.SetString("m_nNoiseType", "PARTICLE_DIR_NOISE_CURL");
@@ -57,15 +58,15 @@ internal sealed class Vpcf26ToVpcf27 : ParticleUpgradeStep
 
     private static void ConvertRingWave(KVObject node)
     {
-        var radius = node.GetFloat("m_flInitialRadius", 0f);
-        var thickness = node.GetFloat("m_flThickness", 0f);
-        var speedMin = node.GetFloat("m_flInitialSpeedMin", 0f);
-        var speedMax = node.GetFloat("m_flInitialSpeedMax", 0f);
-        var roll = node.GetFloat("m_flRoll", 0f);
-        var pitch = node.GetFloat("m_flPitch", 0f);
-        var yaw = node.GetFloat("m_flYaw", 0f);
-        var overrideCP = node.GetInt("m_nOverrideCP", -1);
-        var overrideCP2 = node.GetInt("m_nOverrideCP2", -1);
+        var radius = node.GetFloatProperty("m_flInitialRadius");
+        var thickness = node.GetFloatProperty("m_flThickness");
+        var speedMin = node.GetFloatProperty("m_flInitialSpeedMin");
+        var speedMax = node.GetFloatProperty("m_flInitialSpeedMax");
+        var roll = node.GetFloatProperty("m_flRoll");
+        var pitch = node.GetFloatProperty("m_flPitch");
+        var yaw = node.GetFloatProperty("m_flYaw");
+        var overrideCP = node.GetIntegerProperty("m_nOverrideCP", -1);
+        var overrideCP2 = node.GetIntegerProperty("m_nOverrideCP2", -1);
 
         node.Remove("m_flInitialRadius");
         node.Remove("m_flThickness");
@@ -116,19 +117,19 @@ internal sealed class Vpcf26ToVpcf27 : ParticleUpgradeStep
 
     private static void ConvertCreateWithinSphere(KVObject node)
     {
-        var scaleCP = node.GetInt("m_nScaleCP", -1);
+        var scaleCP = node.GetIntegerProperty("m_nScaleCP", -1);
 
         if (scaleCP == -1)
         {
             return;
         }
 
-        var radiusMin = node.GetFloat("m_fRadiusMin", 0f);
-        var radiusMax = node.GetFloat("m_fRadiusMax", 0f);
-        var speedMin = node.GetFloat("m_fSpeedMin", 0f);
-        var speedMax = node.GetFloat("m_fSpeedMax", 0f);
-        var localMin = node.GetFloat3("m_LocalCoordinateSystemSpeedMin", Vector3.Zero);
-        var localMax = node.GetFloat3("m_LocalCoordinateSystemSpeedMax", Vector3.Zero);
+        var radiusMin = node.GetFloatProperty("m_fRadiusMin");
+        var radiusMax = node.GetFloatProperty("m_fRadiusMax");
+        var speedMin = node.GetFloatProperty("m_fSpeedMin");
+        var speedMax = node.GetFloatProperty("m_fSpeedMax");
+        var localMin = node.GetVector3Property("m_LocalCoordinateSystemSpeedMin");
+        var localMax = node.GetVector3Property("m_LocalCoordinateSystemSpeedMax");
 
         node.Remove("m_fRadiusMin");
         node.Remove("m_fRadiusMax");

@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -16,13 +17,13 @@ internal sealed class Vpcf30ToVpcf31 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            if (node.GetString("_class", "") != "C_OP_RenderTrails")
+            if (node.GetStringProperty("_class", "") != "C_OP_RenderTrails")
             {
                 return;
             }
 
-            var offsetU = node.GetFloat("m_flFinalTextureOffsetU", 0f);
-            var offsetV = node.GetFloat("m_flFinalTextureOffsetV", 0f);
+            var offsetU = node.GetFloatProperty("m_flFinalTextureOffsetU");
+            var offsetV = node.GetFloatProperty("m_flFinalTextureOffsetV");
 
             node.Remove("m_flFinalTextureOffsetU");
             node.Remove("m_flFinalTextureOffsetV");
@@ -72,7 +73,7 @@ internal sealed class Vpcf30ToVpcf31 : ParticleUpgradeStep
 
         if (existing is { IsCollection: true })
         {
-            offset += existing.GetFloat("m_flLiteralValue", 0f);
+            offset += existing.GetFloatProperty("m_flLiteralValue");
         }
 
         var input = controls.SetObject(name);

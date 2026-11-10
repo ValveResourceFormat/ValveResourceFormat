@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -15,16 +16,16 @@ internal sealed class Vpcf16ToVpcf17 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            if (node.GetString("_class", "") != "C_OP_ContinuousEmitter")
+            if (node.GetStringProperty("_class", "") != "C_OP_ContinuousEmitter")
             {
                 return;
             }
 
-            var duration = node.GetFloat("m_flEmissionDuration", 0f);
-            var startTime = node.GetFloat("m_flStartTime", 0f);
-            var emitRate = node.GetFloat("m_flEmitRate", 100f);
-            var scaleCP = node.GetInt("m_nScaleControlPoint", -1);
-            var scaleField = node.GetInt("m_nScaleControlPointField", 0);
+            var duration = node.GetFloatProperty("m_flEmissionDuration");
+            var startTime = node.GetFloatProperty("m_flStartTime");
+            var emitRate = node.GetFloatProperty("m_flEmitRate", 100f);
+            var scaleCP = node.GetIntegerProperty("m_nScaleControlPoint", -1);
+            var scaleField = node.GetIntegerProperty("m_nScaleControlPointField", 0);
 
             node.Remove("m_flEmissionDuration");
             node.Remove("m_flStartTime");

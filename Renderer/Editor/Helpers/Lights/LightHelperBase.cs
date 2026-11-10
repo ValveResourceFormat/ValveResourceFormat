@@ -69,7 +69,7 @@ internal abstract class LightHelperBase : EntityHelper
         }
     }
 
-    private bool ShowsLuminaire => GetBooleanKey("showlight", false);
+    private bool ShowsLuminaire => GetBooleanKey("showlight");
 
     /// <inheritdoc/>
     private protected override void OnSelectionChanged(bool isSelected)

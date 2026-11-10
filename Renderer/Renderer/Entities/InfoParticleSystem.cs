@@ -131,7 +131,7 @@ public class InfoParticleSystem : BaseEntity
         {
             var value = KeyValues.GetStringProperty(ControlPointValueKeys[index]);
 
-            if (!string.IsNullOrEmpty(value) && EntityTransformHelper.TryParseVector3(value, out var position))
+            if (ValueParsing.TryParseVector3(value, out var position))
             {
                 effect.GetControlPoint(index).Position = position;
                 applied++;

@@ -60,8 +60,8 @@ internal sealed class SphereHelper : EntityHelper
             EdgeFadeKey = GetMetadata("edge_fade")?.ToLowerInvariant() ?? string.Empty;
             Color = GetMetadataColor("color") ?? Color32.White;
             UnselectedColor = GetMetadataColor("unselectedColor") ?? DefaultUnselectedColor;
-            SingleSelect = GetMetadataFlag("singleSelect", false);
-            AlwaysRender = GetMetadataFlag("alwaysRender", false);
+            SingleSelect = GetMetadataFlag("singleSelect");
+            AlwaysRender = GetMetadataFlag("alwaysRender");
             return;
         }
 
@@ -137,9 +137,12 @@ internal sealed class SphereHelper : EntityHelper
         }
 
         // The key names a point in the world once it holds one
-        var center = OriginKey != null && KeyValueScanner.TryReadVector(GetStringKey(OriginKey), out var originKeyValue)
-            ? originKeyValue
-            : Owner.RigidTransform.Translation;
+        var center = Owner.RigidTransform.Translation;
+
+        if (OriginKey != null && ValueParsing.TryParseVector3(GetStringKey(OriginKey), out var keyOrigin))
+        {
+            center = keyOrigin;
+        }
 
         context.DrawWireSphere(center, radius, 12, 12);
 

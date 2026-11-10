@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -18,14 +19,14 @@ internal sealed class Vpcf40ToVpcf41 : ParticleUpgradeStep
 
     internal static void RewriteRandomVector(KVObject node)
     {
-        if (node.GetString("_class", "") != "C_INIT_RandomVector")
+        if (node.GetStringProperty("_class", "") != "C_INIT_RandomVector")
         {
             return;
         }
 
-        var vecMin = node.GetFloat3("m_vecMin", Vector3.Zero);
-        var vecMax = node.GetFloat3("m_vecMax", Vector3.Zero);
-        var outputField = (int)node.GetInt("m_nFieldOutput", 0);
+        var vecMin = node.GetVector3Property("m_vecMin");
+        var vecMax = node.GetVector3Property("m_vecMax");
+        var outputField = (int)node.GetIntegerProperty("m_nFieldOutput", 0);
 
         Vpcf38ToVpcf39.RebuildGenericOperatorFields(node);
         node.SetString("_class", "C_INIT_InitVec");

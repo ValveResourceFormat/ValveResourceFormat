@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -15,7 +16,7 @@ internal sealed class Vpcf50ToVpcf51 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            if (node.GetString("_class", "") != "C_OP_InstantaneousEmitter")
+            if (node.GetStringProperty("_class", "") != "C_OP_InstantaneousEmitter")
             {
                 return;
             }
@@ -30,12 +31,12 @@ internal sealed class Vpcf50ToVpcf51 : ParticleUpgradeStep
         var input = node.Find(name);
 
         if (input is not { IsCollection: true }
-            || input.GetString("m_nType", "PF_TYPE_LITERAL") != "PF_TYPE_RANDOM_UNIFORM")
+            || input.GetStringProperty("m_nType", "PF_TYPE_LITERAL") != "PF_TYPE_RANDOM_UNIFORM")
         {
             return;
         }
 
-        if (input.GetString("m_nRandomMode", "PF_RANDOM_MODE_CONSTANT") == "PF_TYPE_RANDOM_UNIFORM")
+        if (input.GetStringProperty("m_nRandomMode", "PF_RANDOM_MODE_CONSTANT") == "PF_TYPE_RANDOM_UNIFORM")
         {
             input.SetString("m_nRandomMode", "PF_RANDOM_MODE_CONSTANT");
         }

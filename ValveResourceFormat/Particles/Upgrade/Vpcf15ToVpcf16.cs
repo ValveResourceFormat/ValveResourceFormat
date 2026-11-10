@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -15,7 +16,7 @@ internal sealed class Vpcf15ToVpcf16 : ParticleUpgradeStep
     {
         foreach (var element in root.ElementsOf("m_Renderers"))
         {
-            if (UpgradeKV.IsObject(element) && element.GetString("_class", "") == "C_OP_RenderModels")
+            if (UpgradeKV.IsObject(element) && element.GetStringProperty("_class", "") == "C_OP_RenderModels")
             {
                 element.SetBool("m_bForceLoopingAnimation", true);
             }

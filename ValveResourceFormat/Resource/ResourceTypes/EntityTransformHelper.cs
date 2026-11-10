@@ -1,4 +1,6 @@
-using System.Globalization;
+using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Utils;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -30,9 +32,19 @@ namespace ValveResourceFormat.ResourceTypes
         {
             scaleVector = entity.GetVector3Property("scales", Vector3.One);
             positionVector = entity.GetVector3Property("origin");
-            var pitchYawRoll = entity.GetVector3Property("angles");
+            var pitchYawRoll = GetAngles(entity);
 
             rotationMatrix = EulerAnglesToRotationMatrix(pitchYawRoll);
+        }
+
+        private static Vector3 GetAngles(Entity entity)
+        {
+            if (entity.TryGetValue("angles", out var value) && value is { ValueType: KVValueType.String })
+            {
+                return TryParseAngles((string)value, out var angles) ? angles : default;
+            }
+
+            return entity.GetVector3Property("angles");
         }
 
         /// <summary>
@@ -256,101 +268,38 @@ namespace ValveResourceFormat.ResourceTypes
             => EulerAnglesToRotationMatrix(pitchYawRoll) * Matrix4x4.CreateTranslation(origin);
 
         /// <summary>
-        /// Parses a string representation of a Vector2.
+        /// Parses an "angles" string: four numbers are a rotation quaternion, which is converted to angles, and
+        /// three or five or more are pitch, yaw and roll in degrees, read from the first three.
         /// </summary>
         /// <param name="input">The input string.</param>
-        /// <returns>The parsed vector, or zero if the input is not two numbers.</returns>
-        public static Vector2 ParseVector2(string input)
-            => TryParseVector2(input, out var value) ? value : default;
-
-        /// <summary>
-        /// Parses a string representation of a Vector2, reporting whether it was one.
-        /// </summary>
-        /// <param name="input">The input string.</param>
-        /// <param name="value">The parsed vector, or zero if the input is not two numbers.</param>
-        /// <returns>Whether the input parsed.</returns>
-        public static bool TryParseVector2(string input, out Vector2 value)
+        /// <param name="angles">The angles in degrees, or zero if the input holds fewer than three numbers.</param>
+        /// <returns>Whether the input held at least three numbers.</returns>
+        /// <remarks>Not part of <see cref="ValueParsing"/> because the four-number quaternion form is specific to angles.</remarks>
+        public static bool TryParseAngles(string? input, out Vector3 angles)
         {
-            value = default;
+            angles = default;
 
             if (string.IsNullOrEmpty(input))
             {
                 return false;
             }
 
-            Span<float> components = stackalloc float[2];
+            Span<float> numbers = stackalloc float[5];
+            var count = ValueParsing.ParseFloatArray(input, numbers);
 
-            if (!TryParseComponents(input, components))
+            if (count == 4)
+            {
+                angles = ToEulerAngles(new Quaternion(numbers[0], numbers[1], numbers[2], numbers[3]));
+                return true;
+            }
+
+            if (count < 3)
             {
                 return false;
             }
 
-            value = new Vector2(components);
+            angles = new Vector3(numbers[0], numbers[1], numbers[2]);
             return true;
-        }
-
-        /// <summary>
-        /// Parses a string representation of a Vector3.
-        /// </summary>
-        /// <param name="input">The input string.</param>
-        /// <returns>The parsed vector, or zero if the input does not start with three numbers.</returns>
-        public static Vector3 ParseVector3(string input)
-            => TryParseVector3(input, out var value) ? value : default;
-
-        /// <summary>
-        /// Parses a string representation of a Vector3, reporting whether it was one. Numbers after the third
-        /// are ignored, so a color with its alpha, such as "255 128 0 255", reads as its color.
-        /// </summary>
-        /// <remarks>
-        /// Callers with a meaningful default need this rather than <see cref="ParseVector3"/>, whose zero
-        /// is indistinguishable from a genuine "0 0 0" - a malformed "scales" falling back to zero rather
-        /// than to one collapses the thing being scaled.
-        /// </remarks>
-        /// <param name="input">The input string.</param>
-        /// <param name="value">The parsed vector, or zero if the input does not start with three numbers.</param>
-        /// <returns>Whether the input parsed.</returns>
-        public static bool TryParseVector3(string input, out Vector3 value)
-        {
-            value = default;
-
-            if (string.IsNullOrEmpty(input))
-            {
-                return false;
-            }
-
-            Span<float> components = stackalloc float[3];
-
-            if (!TryParseComponents(input, components, ignoreTrailing: true))
-            {
-                return false;
-            }
-
-            value = new Vector3(components);
-            return true;
-        }
-
-        // With ignoreTrailing, whatever follows the components is not read
-        private static bool TryParseComponents(ReadOnlySpan<char> input, Span<float> components, bool ignoreTrailing = false)
-        {
-            var count = 0;
-
-            foreach (var range in input.Split(' '))
-            {
-                if (count == components.Length && ignoreTrailing)
-                {
-                    break;
-                }
-
-                if (count == components.Length
-                    || !float.TryParse(input[range], NumberStyles.Float, CultureInfo.InvariantCulture, out components[count]))
-                {
-                    return false;
-                }
-
-                count++;
-            }
-
-            return count == components.Length;
         }
     }
 }

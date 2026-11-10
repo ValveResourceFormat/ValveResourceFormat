@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -13,14 +14,14 @@ internal sealed class Vpcf5ToVpcf6 : ParticleUpgradeStep
 
     public override void Apply(KVObject root)
     {
-        if (root.GetInt("m_nBehaviorVersion", 0) != 3)
+        if (root.GetIntegerProperty("m_nBehaviorVersion", 0) != 3)
         {
             return;
         }
 
         foreach (var element in root.ElementsOf("m_Initializers"))
         {
-            if (UpgradeKV.IsObject(element) && element.GetString("_class", "") == "C_INIT_RemapInitialCPDirectionToRotation")
+            if (UpgradeKV.IsObject(element) && element.GetStringProperty("_class", "") == "C_INIT_RemapInitialCPDirectionToRotation")
             {
                 return;
             }

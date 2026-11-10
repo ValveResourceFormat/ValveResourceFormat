@@ -21,10 +21,7 @@ public static class SceneLightingVolume
     private static Volume ReadVolume(EntityLump.Entity entity, bool isSphere)
     {
         // The handshake baked objects name this volume by, 0 when it has none
-        if (!int.TryParse(entity.GetStringProperty("handshake"), out var handShake))
-        {
-            handShake = entity.GetInt32Property("handshake");
-        }
+        var handShake = entity.GetInt32Property("handshake");
 
         AABB bounds;
         Vector3 edgeFadeDists;
@@ -124,13 +121,13 @@ public static class SceneLightingVolume
             VoxelSize = entity.GetFloatProperty("voxel_size"),
 
             AtlasSize = new Vector3(
-                entity.GetFloatProperty("light_probe_size_x"),
-                entity.GetFloatProperty("light_probe_size_y"),
-                entity.GetFloatProperty("light_probe_size_z")),
+                entity.GetInt32Property("light_probe_size_x"),
+                entity.GetInt32Property("light_probe_size_y"),
+                entity.GetInt32Property("light_probe_size_z")),
             AtlasOffset = new Vector3(
-                entity.GetFloatProperty("light_probe_atlas_x"),
-                entity.GetFloatProperty("light_probe_atlas_y"),
-                entity.GetFloatProperty("light_probe_atlas_z")),
+                entity.GetInt32Property("light_probe_atlas_x"),
+                entity.GetInt32Property("light_probe_atlas_y"),
+                entity.GetInt32Property("light_probe_atlas_z")),
         };
 
         // A texture the volume was baked without reads as no direct light and no shadow

@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -23,10 +24,10 @@ internal sealed class Vpcf9ToVpcf10 : ParticleUpgradeStep
                 continue;
             }
 
-            var cls = element.GetString("_class", "");
+            var cls = element.GetStringProperty("_class", "");
 
-            if ((cls == "C_OP_ContinuousEmitter" && element.GetFloat("m_bInitFromKilledParentParticles", 0f) > 0f)
-                || (cls == "C_OP_InstantaneousEmitter" && element.GetBool("m_flInitFromKilledParentParticles", false)))
+            if ((cls == "C_OP_ContinuousEmitter" && element.GetFloatProperty("m_bInitFromKilledParentParticles") > 0f)
+                || (cls == "C_OP_InstantaneousEmitter" && element.GetParticleBooleanProperty("m_flInitFromKilledParentParticles")))
             {
                 gate = true;
                 break;
@@ -45,13 +46,13 @@ internal sealed class Vpcf9ToVpcf10 : ParticleUpgradeStep
                 continue;
             }
 
-            if (element.GetString("_class", "") != "C_INIT_InitFromParentKilled"
-                && !element.GetBool("m_bRunForParentApplyKillList", true))
+            if (element.GetStringProperty("_class", "") != "C_INIT_InitFromParentKilled"
+                && !element.GetParticleBooleanProperty("m_bRunForParentApplyKillList", true))
             {
                 continue;
             }
 
-            if (element.GetBool("m_bDisableOperator", false))
+            if (element.GetParticleBooleanProperty("m_bDisableOperator"))
             {
                 element.SetBool("m_bDisableOperator", false);
             }

@@ -191,7 +191,7 @@ public sealed class LogicTimer : BaseEntity
     private void InputUpperRandomBound(EntityInputData data) => upperBound = data.Float();
 
     [EntityInput("UseRandomTime")]
-    private void InputUseRandomTime(EntityInputData data) => useRandomTime = data.Bool();
+    private void InputUseRandomTime(EntityInputData data) => useRandomTime = data.Int() != 0;
 
     [EntityInput("PauseAfterFiring")]
     private void InputPauseAfterFiring(EntityInputData data) => pauseAfterFiring = data.Bool();

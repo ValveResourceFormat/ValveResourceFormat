@@ -55,7 +55,7 @@ internal sealed class SweptPlayerHullHelper(IHelperOwner owner, HelperDeclaratio
     {
         // The numbers the key holds are read as far as they go, the rest of the point staying at zero
         Span<float> point = stackalloc float[3];
-        KeyValueScanner.Scan(GetStringKey(EndKey), point);
+        ValueParsing.ParseFloatArray(GetStringKey(EndKey), point);
 
         return (Owner.RigidTransform.Translation, Vector3.Transform(new Vector3(point), Owner.RigidTransform));
     }

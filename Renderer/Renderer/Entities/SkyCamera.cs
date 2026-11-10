@@ -22,7 +22,7 @@ public sealed class SkyCamera : PointCamera
     {
         base.Spawn();
 
-        var scale = KeyValues.GetFloatProperty("scale");
+        var scale = KeyValues.GetInt32Property("scale");
         SkyScale = scale > 0f ? scale : 1f;
     }
 }

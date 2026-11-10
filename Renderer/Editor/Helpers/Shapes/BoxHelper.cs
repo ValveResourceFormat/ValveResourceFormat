@@ -99,8 +99,8 @@ internal sealed class BoxHelper : EntityHelper
         EdgeFadesKey = GetMetadata("edge_fades")?.ToLowerInvariant();
         EdgeFadeKey = GetMetadata("single_edge_fade")?.ToLowerInvariant();
         DrawUnselected = GetMetadataFlag("draw_unselected_box", true);
-        OnlyVisibleHighlightEnabled = GetMetadataFlag("only_visible_highlight_enabled", false);
-        IsLightProbeVolume = GetMetadataFlag("is_light_probe_volume", false);
+        OnlyVisibleHighlightEnabled = GetMetadataFlag("only_visible_highlight_enabled");
+        IsLightProbeVolume = GetMetadataFlag("is_light_probe_volume");
         FadesPastSides = owner.Scene.RendererContext.FileLoader.GameInfo.LpvEdgeBlending;
     }
 

@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Linq;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Particles;
@@ -218,7 +217,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return null;
             }
 
-            if (!int.TryParse(parts[1], CultureInfo.InvariantCulture, out var value))
+            if (!ValueParsing.TryParseInt(parts[1], out var value))
             {
                 return null;
             }

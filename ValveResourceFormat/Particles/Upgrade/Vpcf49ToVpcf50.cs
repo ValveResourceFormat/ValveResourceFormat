@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -19,12 +20,12 @@ internal sealed class Vpcf49ToVpcf50 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            switch (node.GetString("_class", ""))
+            switch (node.GetStringProperty("_class", ""))
             {
                 case "C_INIT_CreateWithinSphere":
                 {
-                    var useHighest = node.GetBool("m_bUseHighestEndCP", false);
-                    var distribute = node.GetBool("m_bDistributeInCPRange", false);
+                    var useHighest = node.GetParticleBooleanProperty("m_bUseHighestEndCP");
+                    var distribute = node.GetParticleBooleanProperty("m_bDistributeInCPRange");
 
                     node.SetString("_class", "C_INIT_CreateWithinSphereTransform");
                     var cp = Math.Max(unchecked((int)node.TakeInt("m_nControlPointNumber", 0)), 0);

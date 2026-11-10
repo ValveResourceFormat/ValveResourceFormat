@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
@@ -1244,7 +1243,7 @@ namespace ValveResourceFormat.Renderer.World
             foreach (var (name, value) in table)
             {
                 if (value.ValueType == KVValueType.Collection
-                    || !int.TryParse((string)value, CultureInfo.InvariantCulture, out var slice))
+                    || !ValueParsing.TryParseInt((string)value, out var slice))
                 {
                     continue;
                 }

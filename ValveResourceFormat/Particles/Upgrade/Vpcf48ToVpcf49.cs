@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -17,7 +18,7 @@ internal sealed class Vpcf48ToVpcf49 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            var cls = node.GetString("_class", "");
+            var cls = node.GetStringProperty("_class", "");
             var isDistanceToCP = cls == "C_OP_DistanceToCP";
             var isCylindrical = cls == "C_OP_CylindricalDistanceToCP";
 

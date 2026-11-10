@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -13,11 +14,11 @@ internal sealed class Vpcf13ToVpcf14 : ParticleUpgradeStep
 
     public override void Apply(KVObject root)
     {
-        if (root.GetInt("m_nBehaviorVersion", 0) == 6)
+        if (root.GetIntegerProperty("m_nBehaviorVersion", 0) == 6)
         {
             foreach (var element in root.ElementsOf("m_Initializers"))
             {
-                if (UpgradeKV.IsObject(element) && element.GetString("_class", "") == "C_INIT_RemapInitialCPDirectionToRotation")
+                if (UpgradeKV.IsObject(element) && element.GetStringProperty("_class", "") == "C_INIT_RemapInitialCPDirectionToRotation")
                 {
                     return;
                 }
@@ -26,11 +27,11 @@ internal sealed class Vpcf13ToVpcf14 : ParticleUpgradeStep
             root.SetInt("m_nBehaviorVersion", 7);
         }
 
-        if (root.GetInt("m_nBehaviorVersion", 0) == 7)
+        if (root.GetIntegerProperty("m_nBehaviorVersion", 0) == 7)
         {
             foreach (var element in root.ElementsOf("m_Initializers"))
             {
-                if (UpgradeKV.IsObject(element) && element.GetString("_class", "") == "C_INIT_CreateSequentialPath")
+                if (UpgradeKV.IsObject(element) && element.GetStringProperty("_class", "") == "C_INIT_CreateSequentialPath")
                 {
                     return;
                 }
@@ -38,7 +39,7 @@ internal sealed class Vpcf13ToVpcf14 : ParticleUpgradeStep
 
             foreach (var element in root.ElementsOf("m_Operators"))
             {
-                if (UpgradeKV.IsObject(element) && element.GetString("_class", "") == "C_OP_LockToSavedSequentialPath")
+                if (UpgradeKV.IsObject(element) && element.GetStringProperty("_class", "") == "C_OP_LockToSavedSequentialPath")
                 {
                     return;
                 }

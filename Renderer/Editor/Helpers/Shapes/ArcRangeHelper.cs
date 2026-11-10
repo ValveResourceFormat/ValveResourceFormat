@@ -71,8 +71,8 @@ internal sealed class ArcRangeHelper : EntityHelper
         MaxAngleKey = (GetMetadata("max_angle_key") ?? "max_angle").ToLowerInvariant();
         FovKey = (GetMetadata("fov_key") ?? "fov").ToLowerInvariant();
         IsLocalAxis = GetMetadataFlag("is_local_axis", true);
-        AlignPieToLocalForward = GetMetadataFlag("align_pie_to_local_forward", false);
-        AlignPieToLocalUp = GetMetadataFlag("align_pie_to_local_up", false);
+        AlignPieToLocalForward = GetMetadataFlag("align_pie_to_local_forward");
+        AlignPieToLocalUp = GetMetadataFlag("align_pie_to_local_up");
         Radius = declaration.Metadata?.GetFloatProperty("radius", DefaultRadius) ?? DefaultRadius;
         DrawTriangle = GetMetadataFlag("draw_triangle", true);
     }
@@ -154,18 +154,25 @@ internal sealed class ArcRangeHelper : EntityHelper
     {
         var start = Vector3.Zero;
         var end = Vector3.UnitZ;
-        var value = GetStringKey(AxisKey);
+        var value = GetStringKey(AxisKey).AsSpan();
 
         if (IsLocalAxis)
         {
-            KeyValueScanner.ReadAxis(value, ref start, ref end);
+            Span<float> components = [start.X, start.Y, start.Z, end.X, end.Y, end.Z];
+            Span<float> numbers = stackalloc float[6];
+
+            var count = ValueParsing.ParseAxis(value, numbers);
+            numbers[..count].CopyTo(components);
+
+            start = new Vector3(components[..3]);
+            end = new Vector3(components[3..]);
 
             return (start, MathUtils.SafeNormalize(end - start));
         }
 
         // A point in the world the axis points to from the entity
         Span<float> point = stackalloc float[3];
-        KeyValueScanner.Scan(value, point);
+        ValueParsing.ParseFloatArray(value, point);
         start = new Vector3(point);
 
         Matrix4x4.Invert(Owner.RigidTransform, out var worldToLocal);

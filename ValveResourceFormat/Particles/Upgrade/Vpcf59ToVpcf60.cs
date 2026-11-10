@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -15,12 +16,12 @@ internal sealed class Vpcf59ToVpcf60 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            if (node.GetString("_class", "") != "C_OP_RenderModels")
+            if (node.GetStringProperty("_class", "") != "C_OP_RenderModels")
             {
                 return;
             }
 
-            var raw = node.GetBool("m_bUseRawMeshGroup", false);
+            var raw = node.GetParticleBooleanProperty("m_bUseRawMeshGroup");
             node.Remove("m_bUseRawMeshGroup");
             node.SetString("m_nSubModelFieldType", raw ? "SUBMODEL_AS_MESHGROUP_MASK" : "SUBMODEL_AS_BODYGROUP_SUBMODEL");
         });

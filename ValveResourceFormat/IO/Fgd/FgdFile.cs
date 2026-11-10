@@ -676,7 +676,7 @@ public sealed partial class FgdFile
             return false;
         }
 
-        GridNav = (LeadingNumber.ParseInteger(values[0].Span), LeadingNumber.ParseInteger(values[1].Span), LeadingNumber.ParseInteger(values[2].Span), LeadingNumber.ParseInteger(values[3].Span));
+        GridNav = (ValueParsing.ParseLeadingInt(values[0].Span), ValueParsing.ParseLeadingInt(values[1].Span), ValueParsing.ParseLeadingInt(values[2].Span), ValueParsing.ParseLeadingInt(values[3].Span));
         return true;
     }
 
@@ -689,7 +689,7 @@ public sealed partial class FgdFile
             return false;
         }
 
-        MapSize = (LeadingNumber.ParseInteger(low.Span), LeadingNumber.ParseInteger(high.Span));
+        MapSize = (ValueParsing.ParseLeadingInt(low.Span), ValueParsing.ParseLeadingInt(high.Span));
         return true;
     }
 
@@ -715,7 +715,7 @@ public sealed partial class FgdFile
             return false;
         }
 
-        Version = LeadingNumber.ParseInteger(version.Span);
+        Version = ValueParsing.ParseLeadingInt(version.Span);
         return true;
     }
 
@@ -874,7 +874,4 @@ public sealed partial class FgdFile
 
         return true;
     }
-
-    private static Color32 ParseColor(Token red, Token green, Token blue)
-        => new((byte)LeadingNumber.ParseInteger(red.Span), (byte)LeadingNumber.ParseInteger(green.Span), (byte)LeadingNumber.ParseInteger(blue.Span));
 }

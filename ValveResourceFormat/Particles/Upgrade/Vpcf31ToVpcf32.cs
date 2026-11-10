@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -17,14 +18,14 @@ internal sealed class Vpcf31ToVpcf32 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            var cls = node.GetString("_class", "");
+            var cls = node.GetStringProperty("_class", "");
 
             if (cls is not ("C_INIT_CreateInEpitrochoid" or "C_OP_ConstrainDistance" or "C_INIT_CreateWithinBox"))
             {
                 return;
             }
 
-            var scaleCP = node.GetInt("m_nScaleCP", -1);
+            var scaleCP = node.GetIntegerProperty("m_nScaleCP", -1);
 
             if (scaleCP <= -1)
             {
@@ -35,9 +36,9 @@ internal sealed class Vpcf31ToVpcf32 : ParticleUpgradeStep
             {
                 case "C_INIT_CreateInEpitrochoid":
                 {
-                    var radius1 = node.GetFloat("m_flRadius1", 4f);
-                    var radius2 = node.GetFloat("m_flRadius2", 40f);
-                    var offset = node.GetFloat("m_flOffset", 24f);
+                    var radius1 = node.GetFloatProperty("m_flRadius1", 4f);
+                    var radius2 = node.GetFloatProperty("m_flRadius2", 40f);
+                    var offset = node.GetFloatProperty("m_flOffset", 24f);
 
                     node.Remove("m_flRadius1");
                     node.Remove("m_flRadius2");
@@ -52,8 +53,8 @@ internal sealed class Vpcf31ToVpcf32 : ParticleUpgradeStep
 
                 case "C_OP_ConstrainDistance":
                 {
-                    var minDistance = node.GetFloat("m_fMinDistance", 0f);
-                    var maxDistance = node.GetFloat("m_fMaxDistance", 100f);
+                    var minDistance = node.GetFloatProperty("m_fMinDistance");
+                    var maxDistance = node.GetFloatProperty("m_fMaxDistance", 100f);
 
                     node.Remove("flMinDistance");
                     node.Remove("flMaxDistance");
@@ -66,8 +67,8 @@ internal sealed class Vpcf31ToVpcf32 : ParticleUpgradeStep
 
                 default:
                 {
-                    var vecMin = node.GetFloat3("m_vecMin", Vector3.Zero);
-                    var vecMax = node.GetFloat3("m_vecMax", Vector3.Zero);
+                    var vecMin = node.GetVector3Property("m_vecMin");
+                    var vecMax = node.GetVector3Property("m_vecMax");
 
                     node.Remove("m_vecMin");
                     node.Remove("m_vecMax");

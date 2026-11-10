@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -16,14 +17,14 @@ internal sealed class Vpcf63ToVpcf64 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            if (node.GetString("_class", "") != "C_INIT_PositionPlaceOnGround"
-                || !node.GetBool("m_bTraceAlongNormal", false))
+            if (node.GetStringProperty("_class", "") != "C_INIT_PositionPlaceOnGround"
+                || !node.GetParticleBooleanProperty("m_bTraceAlongNormal"))
             {
                 return;
             }
 
-            var attribute = (int)node.GetInt("m_nTraceDirectionAttribute", 21);
-            var setNormal = node.GetBool("m_bSetNormal", false);
+            var attribute = (int)node.GetIntegerProperty("m_nTraceDirectionAttribute", 21);
+            var setNormal = node.GetParticleBooleanProperty("m_bSetNormal");
             node.Remove("m_bTraceAlongNormal");
             node.Remove("m_nTraceDirectionAttribute");
 

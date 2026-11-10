@@ -1,5 +1,6 @@
 using System.Linq;
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -65,11 +66,11 @@ internal sealed class Vpcf7ToVpcf8 : ParticleUpgradeStep
             return false;
         }
 
-        return element.GetString("_class", "") switch
+        return element.GetStringProperty("_class", "") switch
         {
-            "C_INIT_CreateInEpitrochoid" => element.GetBool("m_bOffsetExistingPos", false),
-            "C_INIT_MoveBetweenPoints" => element.GetBool("m_bTrailBias", false),
-            "C_INIT_InitFromCPSnapshot" => element.GetInt("m_nAttributeToWrite", 0) == 2,
+            "C_INIT_CreateInEpitrochoid" => element.GetParticleBooleanProperty("m_bOffsetExistingPos"),
+            "C_INIT_MoveBetweenPoints" => element.GetParticleBooleanProperty("m_bTrailBias"),
+            "C_INIT_InitFromCPSnapshot" => element.GetIntegerProperty("m_nAttributeToWrite", 0) == 2,
             var cls => AlwaysOverrideClasses.Contains(cls),
         };
     }

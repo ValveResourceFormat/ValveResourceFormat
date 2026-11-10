@@ -125,8 +125,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             DefaultExpAirDrag = data.GetFloatProperty("m_flDefaultExpAirDrag");
             DefaultVelQuadAirDrag = data.GetFloatProperty("m_flDefaultVelQuadAirDrag");
             DefaultExpQuadAirDrag = data.GetFloatProperty("m_flDefaultExpQuadAirDrag");
-            DefaultVelRodAirDrag = ReadOptionalFloat(data, "m_flDefaultVelRodAirDrag");
-            DefaultExpRodAirDrag = ReadOptionalFloat(data, "m_flDefaultExpRodAirDrag");
+            DefaultVelRodAirDrag = data.GetNullableFloatProperty("m_flDefaultVelRodAirDrag");
+            DefaultExpRodAirDrag = data.GetNullableFloatProperty("m_flDefaultExpRodAirDrag");
             RodVelocitySmoothRate = data.GetFloatProperty("m_flRodVelocitySmoothRate");
             QuadVelocitySmoothRate = data.GetFloatProperty("m_flQuadVelocitySmoothRate");
             AddWorldCollisionRadius = data.GetFloatProperty("m_flAddWorldCollisionRadius");
@@ -281,7 +281,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         #region Nodes
 
         /// <summary>Gets <c>m_CtrlHash</c>, the hash of each <see cref="CtrlName"/>.</summary>
-        public uint[] CtrlHash => ctrlHash ??= ReadUInt32Array(Data, "m_CtrlHash");
+        public uint[] CtrlHash => ctrlHash ??= Data.GetUnsignedIntegerArray<uint>("m_CtrlHash");
 
         /// <summary>
         /// Gets <c>m_CtrlName</c>, the per-node control names. Generated proxy-mesh nodes are prefixed with <c>$</c>, the
@@ -298,7 +298,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public FeTransform[] InitPose => initPose ??= ReadArray(Data, "m_InitPose", static o => ReadTransform(o));
 
         /// <summary>Gets <c>m_AntiTunnelBytecode</c>.</summary>
-        public uint[] AntiTunnelBytecode => antiTunnelBytecode ??= ReadUInt32Array(Data, "m_AntiTunnelBytecode");
+        public uint[] AntiTunnelBytecode => antiTunnelBytecode ??= Data.GetUnsignedIntegerArray<uint>("m_AntiTunnelBytecode");
 
         /// <summary>Gets <c>m_AntiTunnelTargetNodes</c>, the nodes <see cref="AntiTunnelProbes"/> target.</summary>
         public int[] AntiTunnelTargetNodes => antiTunnelTargetNodes ??= ReadInt32Array(Data, "m_AntiTunnelTargetNodes");
@@ -344,19 +344,19 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public int[] SourceElems => sourceElems ??= Data.IsNotBlobType("m_SourceElems") ? ReadInt32Array(Data, "m_SourceElems") : [];
 
         /// <summary>Gets <c>m_GoalDampedSpringIntegrators</c>, a bitmask with one bit per dynamic node.</summary>
-        public uint[] GoalDampedSpringIntegrators => goalDampedSpringIntegrators ??= ReadUInt32Array(Data, "m_GoalDampedSpringIntegrators");
+        public uint[] GoalDampedSpringIntegrators => goalDampedSpringIntegrators ??= Data.GetUnsignedIntegerArray<uint>("m_GoalDampedSpringIntegrators");
 
         /// <summary>Gets <c>m_DynNodeVertexSet</c>, each dynamic node's index into <see cref="VertexSetNames"/>.</summary>
         public byte[] DynNodeVertexSet => dynNodeVertexSet ??= Data.GetArray<byte>("m_DynNodeVertexSet") ?? [];
 
         /// <summary>Gets <c>m_VertexSetNames</c>, the vertex set name hashes.</summary>
-        public uint[] VertexSetNames => vertexSetNames ??= ReadUInt32Array(Data, "m_VertexSetNames");
+        public uint[] VertexSetNames => vertexSetNames ??= Data.GetUnsignedIntegerArray<uint>("m_VertexSetNames");
 
         /// <summary>Gets <c>m_MorphSetData</c>.</summary>
-        public byte[] MorphSetData => morphSetData ??= ReadByteArray(Data, "m_MorphSetData");
+        public byte[] MorphSetData => morphSetData ??= Data.GetUnsignedIntegerArray<byte>("m_MorphSetData");
 
         /// <summary>Gets <c>m_VertexMapValues</c>, the per-node weights of every <see cref="VertexMaps"/> entry, 0 to 255.</summary>
-        public byte[] VertexMapValues => vertexMapValues ??= ReadByteArray(Data, "m_VertexMapValues");
+        public byte[] VertexMapValues => vertexMapValues ??= Data.GetUnsignedIntegerArray<byte>("m_VertexMapValues");
 
         /// <summary>Gets <c>m_LockToGoal</c>, the nodes locked to their animated goal.</summary>
         public int[] LockToGoal => lockToGoal ??= ReadInt32Array(Data, "m_LockToGoal");
@@ -449,7 +449,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>Gets <c>m_FitMatrices</c>. Each fit covers the <see cref="FitWeights"/> from the previous one's end to its own.</summary>
         public FeFitMatrix[] FitMatrices => fitMatrices ??= ReadArray(Data, "m_FitMatrices", static o => new FeFitMatrix(
             ReadTransform(o.GetSubCollection("bone")), ReadVector3(o.GetSubCollection("vCenter")),
-            o.GetInt32Property("nEnd"), o.GetInt32Property("nNode"), o.GetInt32Property("nBeginDynamic"), ReadOptionalInt32(o, "nCtrl")));
+            o.GetInt32Property("nEnd"), o.GetInt32Property("nNode"), o.GetInt32Property("nBeginDynamic"), o.GetNullableInt32Property("nCtrl")));
 
         /// <summary>Gets <c>m_FitWeights</c>.</summary>
         public FeFitWeight[] FitWeights => fitWeights ??= ReadArray(Data, "m_FitWeights", static o => new FeFitWeight(
@@ -561,7 +561,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             return new FeTaperedCapsuleRigid(spheres, o.GetInt32Property("nNode"), o.GetInt32Property("nCollisionMask"),
-                o.GetInt32Property("nVertexMapIndex", -1), o.GetInt32Property("nFlags"), ReadOptionalFloat(o, "flStickiness"));
+                o.GetInt32Property("nVertexMapIndex", -1), o.GetInt32Property("nFlags"), o.GetNullableFloatProperty("flStickiness"));
         });
 
         /// <summary>
@@ -585,7 +585,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             return new FeSphereRigid(sphere, o.GetInt32Property("nNode"), o.GetInt32Property("nCollisionMask"),
-                o.GetInt32Property("nVertexMapIndex", -1), o.GetInt32Property("nFlags"), ReadOptionalFloat(o, "flStickiness"));
+                o.GetInt32Property("nVertexMapIndex", -1), o.GetInt32Property("nFlags"), o.GetNullableFloatProperty("flStickiness"));
         });
 
         /// <summary>Gets <c>m_SDFRigids</c>.</summary>
@@ -612,7 +612,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             return new FeBoxRigid(frame, o.GetInt32Property("nNode"), o.GetInt32Property("nCollisionMask"),
                 o.GetSubCollection("vSize") is { } size ? size.ToVector3() : null,
-                o.GetInt32Property("nVertexMapIndex", -1), o.GetInt32Property("nFlags"), ReadOptionalFloat(o, "flStickiness"));
+                o.GetInt32Property("nVertexMapIndex", -1), o.GetInt32Property("nFlags"), o.GetNullableFloatProperty("flStickiness"));
         });
 
         /// <summary>
@@ -633,7 +633,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>Gets <c>m_SelfCollisionLayers</c>.</summary>
         public FeModelSelfCollisionLayer[] SelfCollisionLayers => selfCollisionLayers ??= ReadArray(Data, "m_SelfCollisionLayers", static o => new FeModelSelfCollisionLayer(
             o.GetStringProperty("m_Name") ?? string.Empty, ReadInt32Array(o, "m_Nodes"), o.GetFloatProperty("m_flParentReaction"),
-            ReadUInt32(o, "m_nFlags"), ReadUInt32Array(o, "m_nEndIdx")));
+            ReadUInt32(o, "m_nFlags"), o.GetUnsignedIntegerArray<uint>("m_nEndIdx")));
 
         #endregion
 
@@ -699,19 +699,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return array is null ? [] : [.. array.Select(map)];
         }
 
+        // There is no shared int array getter; a missing key is an empty array
         private static int[] ReadInt32Array(KVObject data, string key)
             => data.GetArray<int>(key) ?? [];
-
-        /// <summary>Reads an integer array as unsigned values, keeping the bits of a negative entry.</summary>
-        private static uint[] ReadUInt32Array(KVObject data, string key)
-            => data.GetUnsignedIntegerArray<uint>(key);
-
-        private static byte[] ReadByteArray(KVObject data, string key)
-            => data.GetUnsignedIntegerArray<byte>(key);
-
-        private static float? ReadOptionalFloat(KVObject data, string key) => data.ContainsKey(key) ? data.GetFloatProperty(key) : null;
-
-        private static int? ReadOptionalInt32(KVObject data, string key) => data.ContainsKey(key) ? data.GetInt32Property(key) : null;
 
         /// <summary>Reads an unsigned 32-bit field, keeping the bits of a value stored as a negative integer.</summary>
         private static uint ReadUInt32(KVObject data, string key) => unchecked((uint)data.GetIntegerProperty(key));

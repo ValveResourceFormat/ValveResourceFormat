@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -31,7 +32,7 @@ internal sealed class Vpcf29ToVpcf30 : ParticleUpgradeStep
                 return;
             }
 
-            var state = node.GetInt("m_nOpEndCapState", 0);
+            var state = node.GetIntegerProperty("m_nOpEndCapState", 0);
 
             if (state is < -1 or > 1)
             {
@@ -50,12 +51,12 @@ internal sealed class Vpcf29ToVpcf30 : ParticleUpgradeStep
 
         UpgradeKV.WalkObjects(root, static node =>
         {
-            if (!HitboxClasses.Contains(node.GetString("_class", "")))
+            if (!HitboxClasses.Contains(node.GetStringProperty("_class", "")))
             {
                 return;
             }
 
-            var scale = node.GetFloat("m_flHitBoxScale", 1f);
+            var scale = node.GetFloatProperty("m_flHitBoxScale", 1f);
             node.Remove("m_flHitBoxScale");
 
             var doubled = (scale - 0.5f) + (scale - 0.5f);

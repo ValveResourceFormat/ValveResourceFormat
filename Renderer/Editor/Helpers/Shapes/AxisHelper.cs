@@ -52,14 +52,17 @@ internal sealed class AxisHelper : EntityHelper
     // Both points are at the entity until the key holds all six numbers, comma and all
     private (Vector3 Start, Vector3 End) GetPoints()
     {
-        var start = Vector3.Zero;
-        var end = Vector3.Zero;
+        Span<float> components = stackalloc float[6];
+        var count = ValueParsing.ParseAxis(GetStringKey(AxisKey), components);
 
-        if (KeyValueScanner.ReadAxis(GetStringKey(AxisKey), ref start, ref end) < 6)
+        if (count < components.Length)
         {
             var origin = Owner.RigidTransform.Translation;
             return (origin, origin);
         }
+
+        var start = new Vector3(components[..3]);
+        var end = new Vector3(components[3..]);
 
         return IsLocal
             ? (Vector3.Transform(start, Owner.RigidTransform), Vector3.Transform(end, Owner.RigidTransform))

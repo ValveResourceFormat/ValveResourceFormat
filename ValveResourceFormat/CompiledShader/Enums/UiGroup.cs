@@ -92,7 +92,7 @@ public struct UiGroup
 
         for (var i = 0; i < parts.Length; i++)
         {
-            if (int.TryParse(parts[i], out var parsedOrder))
+            if (ValueParsing.TryParseInt(parts[i], out var parsedOrder))
             {
                 order = parsedOrder;
                 name = i > 0 ? string.Join(",", parts[..i]).Trim() : string.Empty;

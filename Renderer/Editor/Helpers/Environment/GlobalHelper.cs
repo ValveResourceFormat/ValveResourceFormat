@@ -20,5 +20,5 @@ internal sealed class GlobalHelper(IHelperOwner owner, HelperDeclaration declara
     /// with its fog turned off.
     /// </summary>
     public bool IsEnabled
-        => EnvironmentKeys.ParseInteger(GetStringKey("startdisabled"), 0) == 0 && EnvironmentKeys.ParseInteger(GetStringKey("fogenable"), 1) != 0;
+        => !GetBooleanKey("startdisabled") && GetBooleanKey("fogenable", true);
 }

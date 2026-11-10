@@ -26,10 +26,15 @@ internal sealed class SoundEventScriptedLoop : SoundEvent
         var singleWave = data.GetStringProperty("wave");
         trackNames = !string.IsNullOrEmpty(singleWave) ? [singleWave] : SoundscapeOperatorParsing.GetRandomWaveFiles(data);
 
-        volume = data.GetSoundFloat("volume", 1f);
-        pitch = data.GetSoundFloat("pitch", 100f) / 100f;
-        origin = SoundscapeOperatorParsing.ParseOrigin(data);
-        distanceMult = SoundscapeOperatorParsing.SoundLevelToDistanceMult(data.GetStringProperty("soundlevel"));
+        // Authored ranges are picked from once when the definition is read; there is no player to draw from yet
+        var (volumeMin, volumeMax) = SoundscapeOperatorParsing.ReadRange(data.GetStringProperty("volume"), 1f);
+        var (pitchMin, pitchMax) = SoundscapeOperatorParsing.ReadRange(data.GetStringProperty("pitch"), 100f);
+        var soundLevel = SoundscapeOperatorParsing.ReadSoundLevel(data);
+
+        volume = MathUtils.Lerp(volumeMin, volumeMax, System.Random.Shared.NextSingle());
+        pitch = MathUtils.Lerp(pitchMin, pitchMax, System.Random.Shared.NextSingle()) / 100f;
+        distanceMult = SoundscapeOperatorParsing.SoundLevelToDistanceMult(soundLevel.Pick(System.Random.Shared.NextSingle()));
+        origin = SoundscapeOperatorParsing.ReadOrigin(data);
     }
 
     protected override void DoStart()

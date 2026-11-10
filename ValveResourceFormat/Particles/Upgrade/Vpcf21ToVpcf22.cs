@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -16,27 +17,27 @@ internal sealed class Vpcf21ToVpcf22 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            if (node.GetString("_class", "") != "C_OP_RenderTrails")
+            if (node.GetStringProperty("_class", "") != "C_OP_RenderTrails")
             {
                 return;
             }
 
-            var taper = node.GetFloat("m_flRadiusTaper", 1f);
+            var taper = node.GetFloatProperty("m_flRadiusTaper", 1f);
             var radiusScale = node.Find("m_flRadiusScale");
             float scale;
 
             if (radiusScale is { IsCollection: true })
             {
-                if (radiusScale.GetString("m_nType", "PF_TYPE_LITERAL") != "PF_TYPE_LITERAL")
+                if (radiusScale.GetStringProperty("m_nType", "PF_TYPE_LITERAL") != "PF_TYPE_LITERAL")
                 {
                     return;
                 }
 
-                scale = radiusScale.GetFloat("m_flLiteralValue", 1f);
+                scale = radiusScale.GetFloatProperty("m_flLiteralValue", 1f);
             }
             else
             {
-                scale = node.GetFloat("m_flRadiusScale", 1f);
+                scale = node.GetFloatProperty("m_flRadiusScale", 1f);
             }
 
             float newTaper;

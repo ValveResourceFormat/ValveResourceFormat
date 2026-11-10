@@ -23,7 +23,7 @@ internal sealed class CubemapFogHelper(IHelperOwner owner, HelperDeclaration dec
 
     private SceneCubemapFog CreateFog()
     {
-        var source = (SceneCubemapFog.FogSource)EnvironmentKeys.ParseInteger(GetStringKey("cubemapfogsource"), 0);
+        var source = (SceneCubemapFog.FogSource)GetIntegerKey("cubemapfogsource");
         var transform = Owner.RigidTransform;
         var brightness = 1f;
         string? materialName = null;
@@ -80,8 +80,8 @@ internal sealed class CubemapFogHelper(IHelperOwner owner, HelperDeclaration dec
     // an end height, how high the fog reaches is the way from its start to its end.
     private void SetHeight(SceneCubemapFog fog)
     {
-        var heightType = EnvironmentKeys.ParseInteger(GetStringKey("cubemapfogheighttype"), -1);
-        var hasHeightFog = heightType < 0 ? EnvironmentKeys.ParseInteger(GetStringKey("cubemapheightfog"), 1) != 0 : heightType == 1;
+        var heightType = GetIntegerKey("cubemapfogheighttype", -1);
+        var hasHeightFog = heightType < 0 ? GetBooleanKey("cubemapheightfog", true) : heightType == 1;
         var heightStart = GetFloatKey("cubemapfogheightstart");
         var heightWidth = 0f;
 

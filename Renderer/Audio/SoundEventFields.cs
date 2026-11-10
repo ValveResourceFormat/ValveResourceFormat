@@ -1,5 +1,5 @@
-using System.Globalization;
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Audio;
@@ -14,6 +14,7 @@ internal static class SoundEventFields
     private const string Separators = "[], ";
 
     /// <summary>Gets a float field. A string holding several values yields the first one.</summary>
+    /// <remarks>Not a KVObjectExtensions method: text is a bracket or comma list read as leading numbers.</remarks>
     public static float GetSoundFloat(this KVObject data, string name, float defaultValue = 0f)
     {
         if (!data.TryGetValue(name, out var value))
@@ -34,13 +35,14 @@ internal static class SoundEventFields
             return value.Count == 1 ? ToFloat(value[0]) : defaultValue;
         }
 
-        return (float)value;
+        return value.ToFloatOrDefault(defaultValue);
     }
 
     /// <summary>
-    /// Gets a boolean field, true when its value is positive. A string is parsed whole as one number
-    /// and is false when it is not one.
+    /// Gets a boolean field. Text follows <see cref="ValueParsing.ParseSoundEventBool"/> and numbers are true when not zero.
+    /// An array of one element uses that element, where text is parsed whole as a number. Any other array yields the default.
     /// </summary>
+    /// <remarks>Not a KVObjectExtensions method: it uses its own text and one-element array rules.</remarks>
     public static bool GetSoundBool(this KVObject data, string name, bool defaultValue = false)
     {
         if (!data.TryGetValue(name, out var value))
@@ -48,20 +50,33 @@ internal static class SoundEventFields
             return defaultValue;
         }
 
-        if (value.ValueType == KVValueType.String)
-        {
-            return float.TryParse((string)value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && number > 0f;
-        }
-
         if (value.IsArray)
         {
-            return defaultValue;
+            if (value.Count != 1)
+            {
+                return defaultValue;
+            }
+
+            var element = value[0];
+
+            if (element.ValueType == KVValueType.String)
+            {
+                return ValueParsing.TryParseFloat((string)element, out var number) && number != 0f;
+            }
+
+            return element.ToFloatOrDefault() != 0f;
         }
 
-        return (float)value > 0f;
+        if (value.ValueType == KVValueType.String)
+        {
+            return ValueParsing.ParseSoundEventBool((string)value);
+        }
+
+        return value.ToFloatOrDefault() != 0f;
     }
 
     /// <summary>Gets a three component vector field, zero when absent or when an array has the wrong element count.</summary>
+    /// <remarks>Not a KVObjectExtensions method: text is a bracket or comma list, and a wrong-sized array is ignored.</remarks>
     public static Vector3 GetSoundVector3(this KVObject data, string name)
     {
         if (!data.TryGetValue(name, out var value))
@@ -85,6 +100,7 @@ internal static class SoundEventFields
         return new Vector3(ToFloat(value[0]), ToFloat(value[1]), ToFloat(value[2]));
     }
 
+    // Not a KVObjectExtensions method: text goes through the lenient list parser instead of a whole-number parse.
     private static float ToFloat(KVObject value)
     {
         if (value.ValueType == KVValueType.String)
@@ -94,35 +110,23 @@ internal static class SoundEventFields
             return result[0];
         }
 
-        return (float)value;
+        return value.ToFloatOrDefault();
     }
 
     /// <summary>
     /// Fills every component from the tokens in order. Components past the last token repeat it,
     /// surplus tokens are ignored, and no tokens at all yields zeroes.
     /// </summary>
+    /// <remarks>Not a ValueParsing method: the last value repeats into the remaining components.</remarks>
     private static void ParseFloats(ReadOnlySpan<char> text, Span<float> destination)
     {
-        var count = 0;
+        var count = ValueParsing.ParseLeadingFloats(text, Separators, destination);
 
-        foreach (var range in text.SplitAny(Separators))
+        if (count == 0)
         {
-            var token = text[range];
-
-            if (token.IsEmpty)
-            {
-                continue;
-            }
-
-            destination[count++] = LeadingNumber.ParseFloat(token);
-
-            if (count == destination.Length)
-            {
-                return;
-            }
+            return;
         }
 
-        var last = count > 0 ? destination[count - 1] : 0f;
-        destination[count..].Fill(last);
+        destination[count..].Fill(destination[count - 1]);
     }
 }

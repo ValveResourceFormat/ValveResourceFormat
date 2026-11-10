@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -25,7 +26,7 @@ internal sealed class Vpcf20ToVpcf21 : ParticleUpgradeStep
                 continue;
             }
 
-            var initialValue = element.GetBool("m_bScaleInitialValue", false);
+            var initialValue = element.GetParticleBooleanProperty("m_bScaleInitialValue");
             element.Remove("m_bScaleInitialValue");
             element.SetString("m_nSetMethod", initialValue
                 ? "PARTICLE_SET_SCALE_INITIAL_VALUE"
@@ -42,7 +43,7 @@ internal sealed class Vpcf20ToVpcf21 : ParticleUpgradeStep
                 continue;
             }
 
-            var initialRange = element.GetBool("m_bScaleInitialRange", false);
+            var initialRange = element.GetParticleBooleanProperty("m_bScaleInitialRange");
             element.Remove("m_bScaleInitialValue");
 
             if (initialRange)
@@ -51,7 +52,7 @@ internal sealed class Vpcf20ToVpcf21 : ParticleUpgradeStep
             }
             else if (element.ContainsKey("m_bScaleCurrent"))
             {
-                var current = element.GetBool("m_bScaleCurrent", false);
+                var current = element.GetParticleBooleanProperty("m_bScaleCurrent");
                 element.Remove("m_bScaleCurrent");
                 element.SetString("m_nSetMethod", current
                     ? "PARTICLE_SET_SCALE_CURRENT_VALUE"
@@ -70,7 +71,7 @@ internal sealed class Vpcf20ToVpcf21 : ParticleUpgradeStep
                 continue;
             }
 
-            var initialRange = element.GetBool("m_bScaleInitialRange", false);
+            var initialRange = element.GetParticleBooleanProperty("m_bScaleInitialRange");
             element.Remove("m_bScaleInitialValue");
             element.SetString("m_nSetMethod", initialRange
                 ? "PARTICLE_SET_SCALE_INITIAL_VALUE"

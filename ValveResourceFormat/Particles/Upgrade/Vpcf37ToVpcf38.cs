@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -16,13 +17,13 @@ internal sealed class Vpcf37ToVpcf38 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            if (node.GetString("_class", "") != "CParticleSystemDefinition")
+            if (node.GetStringProperty("_class", "") != "CParticleSystemDefinition")
             {
                 return;
             }
 
-            var viewModel = node.GetBool("m_bViewModelEffect", false);
-            var screenSpace = node.GetBool("m_bScreenSpaceEffect", false);
+            var viewModel = node.GetParticleBooleanProperty("m_bViewModelEffect");
+            var screenSpace = node.GetParticleBooleanProperty("m_bScreenSpaceEffect");
             node.Remove("m_bViewModelEffect");
 
             if (viewModel && !screenSpace)

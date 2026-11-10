@@ -18,7 +18,7 @@ internal sealed class SoundEventScriptedRandom : SoundEvent
     private readonly (float Min, float Max) timeRange;
     private readonly bool randomPosition;
     private readonly Vector3? origin;
-    private readonly float distanceMult;
+    private readonly SoundLevelRange soundLevel;
 
     /// <summary>
     /// The first play waits half an interval, not a whole one, when a soundscape becomes active.
@@ -38,12 +38,12 @@ internal sealed class SoundEventScriptedRandom : SoundEvent
         var data = definition.Data.GetSubCollection("operator");
 
         trackNames = SoundscapeOperatorParsing.GetRandomWaveFiles(data);
-        volumeRange = SoundscapeOperatorParsing.ParseRange(data, "volume", 1f);
-        pitchRange = SoundscapeOperatorParsing.ParseRange(data, "pitch", 100f);
-        timeRange = SoundscapeOperatorParsing.ParseRange(data, "time", 10f);
+        volumeRange = SoundscapeOperatorParsing.ReadRange(data.GetStringProperty("volume"), 1f);
+        pitchRange = SoundscapeOperatorParsing.ReadRange(data.GetStringProperty("pitch"), 100f);
+        timeRange = SoundscapeOperatorParsing.ReadRange(data.GetStringProperty("time"), 10f);
         randomPosition = string.Equals(data.GetStringProperty("position"), "random", StringComparison.OrdinalIgnoreCase);
-        origin = SoundscapeOperatorParsing.ParseOrigin(data);
-        distanceMult = SoundscapeOperatorParsing.SoundLevelToDistanceMult(data.GetStringProperty("soundlevel"));
+        soundLevel = SoundscapeOperatorParsing.ReadSoundLevel(data);
+        origin = SoundscapeOperatorParsing.ReadOrigin(data);
     }
 
     protected override void DoStart()
@@ -70,7 +70,7 @@ internal sealed class SoundEventScriptedRandom : SoundEvent
 
         if (StartTrack(trackNames, volume, pitch, range: 0f) is SampleProvider3D spatial)
         {
-            spatial.DistanceMult = distanceMult;
+            spatial.DistanceMult = SoundscapeOperatorParsing.SoundLevelToDistanceMult(soundLevel.Roll(Random.NextSingle()));
         }
     }
 

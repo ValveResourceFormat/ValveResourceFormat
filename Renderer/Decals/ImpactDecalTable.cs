@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.IO;
 using ValveKeyValue;
 using ValveResourceFormat.IO;
@@ -157,7 +156,7 @@ namespace ValveResourceFormat.Renderer.Decals
                 {
                     // Entries that name a sprite sheet sequence rather than a material are not supported
                     if (material.EndsWith(".vmat", StringComparison.OrdinalIgnoreCase)
-                        && float.TryParse((string)weight, NumberStyles.Float, CultureInfo.InvariantCulture, out var probability))
+                        && ValueParsing.TryParseFloat((string)weight, out var probability))
                     {
                         options.Add(new DecalOption(material, null, probability));
                     }

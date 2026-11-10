@@ -20,11 +20,7 @@ internal static class NmGraphExtractExtensions
         return node.GetStringProperty(key);
     }
 
-    public static long GetInt64Property(this KVObject node, string key, long defaultValue)
-        => node.TryGetValue(key, out var value) && !value.IsNull
-            ? node.GetIntegerProperty(key, defaultValue)
-            : defaultValue;
-
+    // A missing or null key throws, where GetFloatProperty returns a default
     public static float GetRequiredFloatProperty(this KVObject node, string key)
     {
         if (!node.TryGetValue(key, out var value) || value.IsNull)
@@ -761,7 +757,7 @@ public sealed partial class NmGraphExtract : IDisposable
                     ? CreateConstBoneTargetNode(nodeIndex, target.BoneID.Name)
                     : CreateConstTargetNode(nodeIndex, compiledNode),
             // An older class that carries the bone name directly
-            "ConstBoneTarget" => CreateConstBoneTargetNode(nodeIndex, GetOptionalString(compiledNode, "m_boneName")),
+            "ConstBoneTarget" => CreateConstBoneTargetNode(nodeIndex, compiledNode.GetStringProperty("m_boneName", "")),
             "ConstFloat" => CreateConstFloatNode(nodeIndex, GetDefinition<ConstFloatNode>(nodeIndex)),
             "ConstBool" => CreateConstValueNode(GetConstDocNodeClassName("Bool"), nodeIndex, "Bool", "m_bValue", GetDefinition<ConstBoolNode>(nodeIndex).Value),
             "ConstID" => CreateConstValueNode(GetConstDocNodeClassName("ID"), nodeIndex, "ID", "m_value", GetDefinition<ConstIDNode>(nodeIndex).Value.Name),
@@ -1058,7 +1054,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
         for (var i = 0; i < inputKeys.Length; i++)
         {
-            ConnectIfValid((int)compiledNode.GetInt64Property(inputKeys[i], -1), node, i, graphBuilder);
+            ConnectIfValid((int)compiledNode.GetIntegerProperty(inputKeys[i], -1), node, i, graphBuilder);
         }
     }
 
@@ -2411,9 +2407,6 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private static KVObject? GetOptionalObject(KVObject node, string key)
         => node.TryGetValue(key, out var value) && !value.IsNull ? value : null;
-
-    private static string GetOptionalString(KVObject node, string key, string fallback = "")
-        => GetOptionalObject(node, key) is { } value ? (string)value : fallback;
 
     private static string GetCompiledClassName(KVObject node)
         => node.GetStringProperty("_class");

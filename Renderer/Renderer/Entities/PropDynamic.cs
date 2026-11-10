@@ -157,7 +157,7 @@ public sealed class PropDynamic : BaseModelEntity
         string? skin;
 
         // A number is a skin index, even where a group is named like one
-        if (int.TryParse(value, CultureInfo.InvariantCulture, out var index))
+        if (ValueParsing.TryParseInt(value, out var index))
         {
             // Every model has a skin 0, whether or not it names any groups
             if (index == 0 && skins.Count == 0)
@@ -202,7 +202,7 @@ public sealed class PropDynamic : BaseModelEntity
             bodyGroup = bodyGroups.Count == 1 ? bodyGroups[0] : null;
         }
 
-        var isIndex = int.TryParse(choiceText, CultureInfo.InvariantCulture, out var index);
+        var isIndex = ValueParsing.TryParseInt(choiceText, out var index);
 
         var match = bodyGroup == null ? -1 : choices.FindIndex(choice =>
             choice.BodyGroup.Equals(bodyGroup, StringComparison.OrdinalIgnoreCase)

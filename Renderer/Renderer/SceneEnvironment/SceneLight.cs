@@ -651,17 +651,17 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             FallOff = entity.GetFloatProperty("skirt", 0.1f),
             MinRoughness = entity.GetFloatProperty("minroughness", MinSpecularRoughness),
 
-            Enabled = entity.GetInt32Property("enabled", 1) != 0,
-            RenderDiffuse = entity.GetInt32Property("renderdiffuse", 1) != 0,
-            RenderSpecular = entity.GetInt32Property("renderspecular", 1) == 1, // 0 = off, 1 = real time, 2 = baked into cubemaps
-            RenderTransmissive = entity.GetInt32Property("rendertransmissive", 1) != 0,
+            Enabled = entity.GetBooleanProperty("enabled", true),
+            RenderDiffuse = entity.GetBooleanProperty("renderdiffuse", true),
+            RenderSpecular = entity.GetInt32Property("renderspecular", 1) == 1,
+            RenderTransmissive = entity.GetBooleanProperty("rendertransmissive", true),
             FogContributionStrength = entity.GetFloatProperty("fogcontributionstrength", 1.0f),
             PrecomputedMaxRange = entity.GetFloatProperty("precomputedmaxrange", 0f),
         };
 
         if (entity.TryGetValue("lower_hemisphere_is_black", out _))
         {
-            light.LowerHemisphereIsBlack = entity.GetInt32Property("lower_hemisphere_is_black", 1) != 0;
+            light.LowerHemisphereIsBlack = entity.GetBooleanProperty("lower_hemisphere_is_black", true);
         }
 
         // The sun and ortho lights light the fog unless told not to, the other lights only when told to
@@ -694,7 +694,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
                 light.BakedLightIndexScale = entity.GetFloatProperty("bakelightindexscale");
             }
 
-            if (entity.GetInt32Property("baked_light_indexing", 1) == 0)
+            if (!entity.GetBooleanProperty("baked_light_indexing", true))
             {
                 light.StationaryLightIndex = -1;
             }
@@ -706,7 +706,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
         light.DirectLight = (DirectLightType)entity.GetInt32Property("directlight", (int)defaultDirectLight);
         light.CastShadows = entity.GetInt32Property("castshadows", 1);
-        light.MixedShadows = entity.GetInt32Property("mixedshadows", 0) != 0;
+        light.MixedShadows = entity.GetBooleanProperty("mixedshadows");
         light.FadeMinDist = entity.GetFloatProperty("fademindist", 0f);
         light.FadeMaxDist = entity.GetFloatProperty("fademaxdist", 0f);
         light.Priority = entity.GetInt32Property("priority", 0);
@@ -777,7 +777,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             light.ShadowFadeSizeStart = entity.GetFloatProperty("shadowfade_size_start", 0.1f);
             light.ShadowFadeSizeEnd = entity.GetFloatProperty("shadowfade_size_end", 0.05f);
 
-            light.PrecomputedFieldsValid = entity.GetInt32Property("precomputedfieldsvalid") != 0;
+            light.PrecomputedFieldsValid = entity.GetBooleanProperty("precomputedfieldsvalid");
             if (light.PrecomputedFieldsValid)
             {
                 light.PrecomputedObbOrigin = entity.GetVector3Property("precomputedobborigin");

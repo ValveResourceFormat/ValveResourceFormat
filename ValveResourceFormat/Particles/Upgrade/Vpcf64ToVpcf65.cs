@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -17,7 +18,7 @@ internal sealed class Vpcf64ToVpcf65 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            if (node.GetString("_class", "") != "C_INIT_CreateSpiralSphere")
+            if (node.GetStringProperty("_class", "") != "C_INIT_CreateSpiralSphere")
             {
                 return;
             }
@@ -46,9 +47,9 @@ internal sealed class Vpcf64ToVpcf65 : ParticleUpgradeStep
                 return;
             }
 
-            var radius = node.GetFloat("m_flInitialRadius", 0f);
-            var speedMin = node.GetFloat("m_flInitialSpeedMin", 0f);
-            var speedMax = node.GetFloat("m_flInitialSpeedMax", 0f);
+            var radius = node.GetFloatProperty("m_flInitialRadius");
+            var speedMin = node.GetFloatProperty("m_flInitialSpeedMin");
+            var speedMax = node.GetFloatProperty("m_flInitialSpeedMax");
             node.Remove("m_flInitialRadius");
             node.Remove("m_flInitialSpeedMin");
             node.Remove("m_flInitialSpeedMax");

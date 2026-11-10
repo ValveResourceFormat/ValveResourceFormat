@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -15,14 +16,14 @@ internal sealed class Vpcf34ToVpcf35 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            var cls = node.GetString("_class", "");
+            var cls = node.GetStringProperty("_class", "");
 
             if (cls is not ("C_OP_RenderSprites" or "C_OP_RenderRopes" or "C_OP_RenderTrails"))
             {
                 return;
             }
 
-            var fog = node.GetBool("m_bFogParticles", false);
+            var fog = node.GetParticleBooleanProperty("m_bFogParticles");
             node.Remove("m_bFogParticles");
             node.SetString("m_nFogType", fog ? "PARTICLE_FOG_ENABLED" : "PARTICLE_FOG_GAME_DEFAULT");
         });

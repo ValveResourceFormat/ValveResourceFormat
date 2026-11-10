@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -13,7 +14,7 @@ internal sealed class Vpcf8ToVpcf9 : ParticleUpgradeStep
 
     public override void Apply(KVObject root)
     {
-        if (root.GetInt("m_nBehaviorVersion", 0) != 5)
+        if (root.GetIntegerProperty("m_nBehaviorVersion", 0) != 5)
         {
             return;
         }

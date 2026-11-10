@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -14,7 +15,7 @@ internal sealed class Vpcf35ToVpcf36 : ParticleUpgradeStep
 
     public override void Apply(KVObject root)
     {
-        if (root.GetInt("m_nBehaviorVersion", 0) != 11)
+        if (root.GetIntegerProperty("m_nBehaviorVersion", 0) != 11)
         {
             return;
         }
@@ -34,7 +35,7 @@ internal sealed class Vpcf35ToVpcf36 : ParticleUpgradeStep
             foreach (var child in node.Values)
             {
                 if (child is { IsCollection: true }
-                    && child.GetString("m_nType", "PF_TYPE_LITERAL") == "PF_TYPE_PARTICLE_NUMBER_NORMALIZED")
+                    && child.GetStringProperty("m_nType", "PF_TYPE_LITERAL") == "PF_TYPE_PARTICLE_NUMBER_NORMALIZED")
                 {
                     return true;
                 }

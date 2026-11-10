@@ -53,9 +53,9 @@ internal sealed class AccompanyHelper(IHelperOwner owner, HelperDeclaration decl
         }
 
         var nodes = PathSpline.ReadNodes(Owner, includeClosingNode: false);
-        var radiusScales = PathParticleRope.ParseRadiusScales(Owner.KeyValues.GetStringProperty(RadiusScalesKey));
-        var pathUp = Vector3.TransformNormal(Vector3.UnitZ, Owner.RigidTransform);
         var count = nodes.Length;
+        var radiusScales = PathParticleRope.ParseRadiusScales(Owner.KeyValues.GetStringProperty(RadiusScalesKey), count);
+        var pathUp = Vector3.TransformNormal(Vector3.UnitZ, Owner.RigidTransform);
         var previousDirection = Vector3.Zero;
 
         var frames = new NodeFrame[count];
@@ -78,9 +78,7 @@ internal sealed class AccompanyHelper(IHelperOwner owner, HelperDeclaration decl
                 (left, up) = ApplyRoll(node.RigidTransform, forward, left, up);
             }
 
-            var radiusScale = i < radiusScales.Length ? radiusScales[i] : 1f;
-
-            frames[i] = new NodeFrame(origin, left * radiusScale, up);
+            frames[i] = new NodeFrame(origin, left * radiusScales[i], up);
         }
 
         return Frames = frames;

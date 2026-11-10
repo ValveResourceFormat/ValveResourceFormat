@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -49,7 +50,7 @@ internal sealed class Vpcf28ToVpcf29 : ParticleUpgradeStep
         {
             SwapEnum(node, "m_nOrientationType", OrientationTypes);
 
-            switch (node.GetString("_class", ""))
+            switch (node.GetStringProperty("_class", ""))
             {
                 case "C_OP_RenderStandardLight":
                     SwapEnum(node, "m_nLightType", LightTypes);
@@ -75,7 +76,7 @@ internal sealed class Vpcf28ToVpcf29 : ParticleUpgradeStep
             return;
         }
 
-        if (table.TryGetValue(node.GetInt(name, 0), out var replacement))
+        if (table.TryGetValue(node.GetIntegerProperty(name, 0), out var replacement))
         {
             node.SetString(name, replacement);
         }

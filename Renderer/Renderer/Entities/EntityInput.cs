@@ -1,5 +1,4 @@
 using System.Globalization;
-using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
@@ -51,34 +50,52 @@ public readonly struct EntityInputData
         return text.EndsWith('.', StringComparison.Ordinal) ? text + "0" : text;
     }
 
-    /// <summary>Reads the parameter as a float.</summary>
+    /// <summary>Reads the number the parameter starts with, which is zero for text that is not a number.</summary>
+    /// <param name="defaultValue">The value returned when there is no parameter.</param>
     public float Float(float defaultValue = 0f)
-        => float.TryParse(Parameter, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
-            ? value
-            : defaultValue;
+        => string.IsNullOrEmpty(Parameter) ? defaultValue : ValueParsing.ParseLeadingFloat(Parameter);
 
-    /// <summary>Reads the parameter as an integer.</summary>
+    /// <summary>Reads the integer the parameter starts with, which is zero for text that is not a number.</summary>
+    /// <param name="defaultValue">The value returned when there is no parameter.</param>
     public int Int(int defaultValue = 0)
-        => int.TryParse(Parameter, CultureInfo.InvariantCulture, out var value)
-            ? value
-            : defaultValue;
+        => string.IsNullOrEmpty(Parameter) ? defaultValue : ValueParsing.ParseLeadingInt(Parameter);
 
-    /// <summary>Reads the parameter as a vector of three space-separated numbers.</summary>
+    /// <summary>Reads up to three space separated numbers from the parameter, with the missing ones zero.</summary>
+    /// <param name="defaultValue">The value returned when there is no parameter.</param>
     public Vector3 Vector(Vector3 defaultValue = default)
-        => Parameter != null && EntityTransformHelper.TryParseVector3(Parameter, out var value)
-            ? value
-            : defaultValue;
-
-    /// <summary>Reads the parameter as a boolean, accepting both <c>1</c> and <c>true</c>.</summary>
-    public bool Bool(bool defaultValue = false)
     {
-        if (bool.TryParse(Parameter, out var value))
+        if (string.IsNullOrEmpty(Parameter))
         {
-            return value;
+            return defaultValue;
         }
 
-        return int.TryParse(Parameter, CultureInfo.InvariantCulture, out var number)
-            ? number != 0
-            : defaultValue;
+        Span<float> components = stackalloc float[3];
+        ValueParsing.ParseVector(Parameter, components);
+
+        return new Vector3(components);
+    }
+
+    /// <summary>Reads the parameter as an "R G B" or "R G B A" color, which is its red, green and blue as 0-255.</summary>
+    /// <returns>The color, or null when the parameter is not three or four numbers.</returns>
+    public Vector3? Color()
+    {
+        if (!ValueParsing.TryParseColor(Parameter, out var color))
+        {
+            return null;
+        }
+
+        return new Vector3(color.R, color.G, color.B);
+    }
+
+    /// <summary>Reads the parameter as a boolean, where an empty parameter is false.</summary>
+    /// <param name="defaultValue">The value returned when there is no parameter or it is not a boolean.</param>
+    public bool Bool(bool defaultValue = false)
+    {
+        if (Parameter == null)
+        {
+            return defaultValue;
+        }
+
+        return ValueParsing.ParseBool(Parameter, defaultValue);
     }
 }

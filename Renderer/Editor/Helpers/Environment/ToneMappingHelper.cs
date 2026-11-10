@@ -1,5 +1,6 @@
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.SceneEnvironment;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
@@ -31,5 +32,5 @@ internal sealed class ToneMappingHelper(IHelperOwner owner, HelperDeclaration de
     }
 
     private float? GetExposure(string key)
-        => Owner.KeyValues.ContainsKey(key.ToLowerInvariant()) ? GetFloatKey(key.ToLowerInvariant()) : null;
+        => Owner.KeyValues.GetNullableFloatProperty(key.ToLowerInvariant());
 }

@@ -89,9 +89,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             var geometry = new CableGeometry
             {
                 Nodes = nodes,
-                RadiusScales = PathParticleRope.ParseRadiusScales(entity.GetStringProperty("pathnoderadiusscales")),
-                Colors = PathParticleRope.ParseColors(entity.GetStringProperty("pathnodecolors")),
-                Pins = PathParticleRope.ParsePins(entity.GetStringProperty("pathnodepinsenabled")),
+                RadiusScales = PathParticleRope.ParseRadiusScales(entity.GetStringProperty("pathnoderadiusscales"), nodes.Count),
+                Colors = PathParticleRope.ParseColors(entity.GetStringProperty("pathnodecolors"), nodes.Count),
+                Pins = PathParticleRope.ParsePins(entity.GetStringProperty("pathnodepinsenabled"), nodes.Count),
                 BaseRadius = baseRadius,
                 ParticleSpacing = particleSpacing,
             };

@@ -998,6 +998,7 @@ internal sealed class AnimGraph1Builder : IDisposable
         }
     }
 
+    // A vector is stored either as an array or as a collection keyed "0" and "1"
     private static (float x, float y) ParseVector2(KVObject obj, string key)
     {
         if (!obj.ContainsKey(key))

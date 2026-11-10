@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -19,7 +20,7 @@ internal sealed class Vpcf61ToVpcf62 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            if (node.GetString("_class", "") != "C_INIT_CreateWithinSphereTransform")
+            if (node.GetStringProperty("_class", "") != "C_INIT_CreateWithinSphereTransform")
             {
                 return;
             }
@@ -38,11 +39,11 @@ internal sealed class Vpcf61ToVpcf62 : ParticleUpgradeStep
             return;
         }
 
-        switch (input.GetString("m_nType", "PVEC_TYPE_LITERAL"))
+        switch (input.GetStringProperty("m_nType", "PVEC_TYPE_LITERAL"))
         {
             case "PVEC_TYPE_LITERAL":
             {
-                var value = input.GetFloat3("m_vLiteralValue", Vector3.Zero);
+                var value = input.GetVector3Property("m_vLiteralValue");
                 node.Remove(name);
                 var rebuilt = node.SetObject(name);
                 rebuilt.SetString("m_nType", "PVEC_TYPE_LITERAL");
@@ -88,7 +89,7 @@ internal sealed class Vpcf61ToVpcf62 : ParticleUpgradeStep
 
     private static void NegateFloatInput(KVObject input)
     {
-        switch (input.GetString("m_nType", "PF_TYPE_LITERAL"))
+        switch (input.GetStringProperty("m_nType", "PF_TYPE_LITERAL"))
         {
             case "PF_TYPE_LITERAL":
                 NegateFloat(input, "m_flLiteralValue");
@@ -101,7 +102,7 @@ internal sealed class Vpcf61ToVpcf62 : ParticleUpgradeStep
                 break;
 
             case "PF_TYPE_CONTROL_POINT_COMPONENT":
-                if (input.GetString("m_nMapType", "PF_MAP_TYPE_INVALID") == "PF_MAP_TYPE_DIRECT")
+                if (input.GetStringProperty("m_nMapType", "PF_MAP_TYPE_INVALID") == "PF_MAP_TYPE_DIRECT")
                 {
                     input.SetString("m_nMapType", "PF_MAP_TYPE_MULT");
                 }
@@ -124,7 +125,7 @@ internal sealed class Vpcf61ToVpcf62 : ParticleUpgradeStep
                 break;
         }
 
-        switch (input.GetString("m_nMapType", "PF_MAP_TYPE_INVALID"))
+        switch (input.GetStringProperty("m_nMapType", "PF_MAP_TYPE_INVALID"))
         {
             case "PF_MAP_TYPE_MULT":
                 NegateFloat(input, "m_flMultFactor");
@@ -161,12 +162,12 @@ internal sealed class Vpcf61ToVpcf62 : ParticleUpgradeStep
 
     private static void NegateY(KVObject obj, string name)
     {
-        var value = obj.GetFloat3(name, Vector3.Zero);
+        var value = obj.GetVector3Property(name);
         obj.SetFloatArray(name, value.X, -value.Y, value.Z);
     }
 
     private static void NegateFloat(KVObject obj, string name)
-        => obj.SetFloat(name, -obj.GetFloat(name, 0f));
+        => obj.SetFloat(name, -obj.GetFloatProperty(name));
 
     private static void NegateDomainY(KVObject curve, string name)
     {
@@ -184,7 +185,7 @@ internal sealed class Vpcf61ToVpcf62 : ParticleUpgradeStep
                     break;
                 }
 
-                components[index++] = element.TryGetNumber(out var number) ? (float)number : 0f;
+                components[index++] = element.ToFloatOrDefault();
             }
         }
 

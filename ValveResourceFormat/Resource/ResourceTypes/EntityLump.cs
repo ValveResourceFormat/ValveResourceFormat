@@ -37,61 +37,19 @@ namespace ValveResourceFormat.ResourceTypes
             public string? FriendlyTargetName => TargetName is { } targetName ? ApplyNameFixup(targetName, string.Empty, string.Empty) : null;
 
             /// <summary>
-            /// Gets a Vector2 property value by name.
+            /// Gets a Color32 property value.
             /// </summary>
-            /// <param name="name">The property name.</param>
-            /// <param name="defaultValue">The default value to return if the property is not found.</param>
-            /// <returns>The Vector2 property value or the default value.</returns>
-            public Vector2 GetVector2Property(string name, Vector2 defaultValue = default)
+            /// <param name="key">The property name.</param>
+            /// <param name="defaultValue">The color where the property is missing.</param>
+            /// <returns>The color, <paramref name="defaultValue"/> if the property is missing, or black if it cannot be read.</returns>
+            public Color32 GetColor32(string key, Color32 defaultValue)
             {
-                if (!TryGetValue(name, out var value))
+                if (!TryGetValue(key, out var value) || value == null)
                 {
                     return defaultValue;
                 }
 
-                if (value != null && value.ValueType != KVValueType.Null)
-                {
-                    if (value.ValueType is KVValueType.Collection or KVValueType.Array)
-                    {
-                        return value.ToVector2();
-                    }
-
-                    if (value.ValueType == KVValueType.String)
-                    {
-                        return EntityTransformHelper.TryParseVector2((string)value, out var parsed) ? parsed : defaultValue;
-                    }
-                }
-
-                return defaultValue;
-            }
-
-            /// <summary>
-            /// Gets a Vector3 property value by name.
-            /// </summary>
-            /// <param name="name">The property name.</param>
-            /// <param name="defaultValue">The default value to return if the property is not found.</param>
-            /// <returns>The Vector3 property value or the default value.</returns>
-            public Vector3 GetVector3Property(string name, Vector3 defaultValue = default)
-            {
-                if (!TryGetValue(name, out var value))
-                {
-                    return defaultValue;
-                }
-
-                if (value != null && value.ValueType != KVValueType.Null)
-                {
-                    if (value.ValueType is KVValueType.Collection or KVValueType.Array)
-                    {
-                        return value.ToVector3();
-                    }
-
-                    if (value.ValueType == KVValueType.String)
-                    {
-                        return EntityTransformHelper.TryParseVector3((string)value, out var parsed) ? parsed : defaultValue;
-                    }
-                }
-
-                return defaultValue;
+                return value.ToColor32() ?? new Color32(0, 0, 0);
             }
 
             /// <summary>
@@ -101,8 +59,8 @@ namespace ValveResourceFormat.ResourceTypes
             /// <returns>The normalized color vector (0-1 range).</returns>
             public Vector3 GetColor32Property(string key)
             {
-                var defaultColor = new Vector3(255f);
-                return GetVector3Property(key, defaultColor) / 255f;
+                var color = GetColor32(key, Color32.White);
+                return new Vector3(color.R, color.G, color.B) / 255f;
             }
 
             /// <summary>
@@ -111,16 +69,7 @@ namespace ValveResourceFormat.ResourceTypes
             /// <param name="key">The property name.</param>
             /// <returns>The alpha, or 1 if the property has no alpha component.</returns>
             public float GetColor32Alpha(string key)
-            {
-                var components = this.GetArray<float>(key);
-
-                if (components == null || components.Length < 4)
-                {
-                    return 1f;
-                }
-
-                return components[3] / 255f;
-            }
+                => GetColor32(key, Color32.White).A / 255f;
 
             /// <summary>
             /// Gets the render tint as a colour plus alpha, from <c>rendercolor</c> and <c>renderamt</c>.
@@ -128,16 +77,11 @@ namespace ValveResourceFormat.ResourceTypes
             /// <returns>The tint, with each channel normalized to 0-1.</returns>
             public Vector4 GetRenderTint()
             {
-                // todo: rendercolor might sometimes be vec4, which holds renderamt
+                // A fourth rendercolor component is ignored, opacity only comes from renderamt
                 var color = GetColor32Property("rendercolor");
-                var amount = this.GetFloatProperty("renderamt", 1.0f);
+                var amount = unchecked((byte)this.GetInt32Property("renderamt", byte.MaxValue));
 
-                if (amount > 1f)
-                {
-                    amount /= 255f;
-                }
-
-                return new Vector4(color, amount);
+                return new Vector4(color, amount / 255f);
             }
 
             /// <summary>

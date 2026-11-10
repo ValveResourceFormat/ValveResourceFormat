@@ -6,7 +6,6 @@ using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
@@ -193,8 +192,7 @@ public abstract class BaseModelEntity : BaseEntity
         return ModelNode ?? base.CreateRootNode();
     }
 
-    // Older games store a boolean, newer ones a cast shadows mode where 1 is no shadows. The modes that keep
-    // only realtime (2) or only baked (3) shadows are not modelled.
+    // Older games store a boolean, newer ones a cast shadows mode where 1 and 3 turn shadows off
     private static bool DisablesShadows(EntityLump.Entity data)
     {
         if (!data.TryGetValue("disableshadows", out var value))
@@ -202,22 +200,17 @@ public abstract class BaseModelEntity : BaseEntity
             return false;
         }
 
-        return value.ValueType switch
+        if (value.ValueType == KVValueType.Boolean)
         {
-            KVValueType.Boolean => (bool)value,
-            KVValueType.String => ParseDisable((string)value),
-            _ => (int)value == 1,
-        };
-    }
+            return (bool)value;
+        }
 
-    private static bool ParseDisable(string text)
-    {
-        if (bool.TryParse(text, out var disabled))
+        if (value.ValueType == KVValueType.String && bool.TryParse((string)value, out var disabled))
         {
             return disabled;
         }
 
-        return text == "1";
+        return value.ToInt32OrDefault() is 1 or 3;
     }
 
     // The model state sets the material group and the body groups, then picks between the configs of the
@@ -239,7 +232,7 @@ public abstract class BaseModelEntity : BaseEntity
         {
             foreach (var (name, value) in bodyGroups)
             {
-                SetBodyGroup(node, name, ReadBodyGroupChoice(value));
+                SetBodyGroup(node, name, value.ToInt32OrDefault());
             }
         }
 
@@ -360,13 +353,6 @@ public abstract class BaseModelEntity : BaseEntity
         }
     }
 
-    private static int ReadBodyGroupChoice(KVObject value) => value.ValueType switch
-    {
-        KVValueType.String => int.TryParse((string)value, CultureInfo.InvariantCulture, out var parsed) ? parsed : 0,
-        KVValueType.Collection or KVValueType.Array or KVValueType.Null => 0,
-        _ => value.ToInt32(CultureInfo.InvariantCulture),
-    };
-
     private static void SetBodyGroup(ModelSceneNode node, string bodyGroup, int index)
     {
         foreach (var choice in node.GetBodyGroupChoices())
@@ -394,13 +380,13 @@ public abstract class BaseModelEntity : BaseEntity
             return;
         }
 
-        if (data.Parameter == null || !EntityTransformHelper.TryParseVector3(data.Parameter.Trim(), out var color))
+        if (data.Color() is not { } color)
         {
             EntitySystem.Logger.LogWarning("{Classname} '{TargetName}' cannot take Color \"{Value}\", which is not \"R G B\"", Classname, TargetName, data.Parameter);
             return;
         }
 
-        node.Tint = Vector3.Clamp(color / 255f, Vector3.Zero, Vector3.One);
+        node.Tint = color / 255f;
     }
 
     /// <summary>Sets the model's alpha from 0-255.</summary>
@@ -412,15 +398,13 @@ public abstract class BaseModelEntity : BaseEntity
             return;
         }
 
-        var alpha = data.Float(float.NaN);
-
-        if (float.IsNaN(alpha))
+        if (string.IsNullOrEmpty(data.Parameter))
         {
-            EntitySystem.Logger.LogWarning("{Classname} '{TargetName}' cannot take Alpha \"{Value}\", which is not a number", Classname, TargetName, data.Parameter);
+            EntitySystem.Logger.LogWarning("{Classname} '{TargetName}' cannot take Alpha without a parameter", Classname, TargetName);
             return;
         }
 
-        node.Alpha = MathUtils.Saturate(alpha / 255f);
+        node.Alpha = Math.Clamp(data.Int(), 0, 255) / 255f;
     }
 
     /// <summary>

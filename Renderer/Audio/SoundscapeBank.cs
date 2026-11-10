@@ -111,9 +111,9 @@ public sealed class SoundscapeBank
                     // A soundscape pulled in by another one is mixed under it at its own master volume,
                     // e.g. the same street ambience layered in quieter from inside a building. Authored as
                     // a range like everything else in these scripts; the engine draws from it per
-                    // activation, this resolution happens once so it takes the middle of the range.
-                    var (min, max) = SoundscapeOperatorParsing.ParseRange(operation.Value, "volume", 1f);
-                    var nestedVolume = volume * MathUtils.Saturate((min + max) * 0.5f);
+                    // activation, this resolution happens once so it rolls once and keeps the result.
+                    var (min, max) = SoundscapeOperatorParsing.ReadRange(operation.Value.GetStringProperty("volume"), 1f);
+                    var nestedVolume = volume * MathUtils.Saturate(MathUtils.Lerp(min, max, Random.Shared.NextSingle()));
 
                     Flatten(nestedName, nested, events, visited, nestedVolume, depth + 1, ref syntheticIndex);
                 }

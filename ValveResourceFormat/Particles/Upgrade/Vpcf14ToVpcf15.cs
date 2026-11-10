@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles.Upgrade;
 
@@ -15,14 +16,14 @@ internal sealed class Vpcf14ToVpcf15 : ParticleUpgradeStep
     {
         UpgradeKV.WalkObjects(root, static node =>
         {
-            var scaleCP = node.GetInt("m_nOpScaleCP", -1);
-            var seed = node.GetInt("m_nOpStrengthScaleSeed", 0);
-            var minScale = node.GetFloat("m_flOpStrengthMinScale", 1f);
-            var maxScale = node.GetFloat("m_flOpStrengthMaxScale", 1f);
+            var scaleCP = node.GetIntegerProperty("m_nOpScaleCP", -1);
+            var seed = node.GetIntegerProperty("m_nOpStrengthScaleSeed", 0);
+            var minScale = node.GetFloatProperty("m_flOpStrengthMinScale", 1f);
+            var maxScale = node.GetFloatProperty("m_flOpStrengthMaxScale", 1f);
 
             if (scaleCP > -1 || (seed != 0 && (minScale != 1f || maxScale != 1f)))
             {
-                var component = node.GetInt("m_nScaleCPComponent", 0);
+                var component = node.GetIntegerProperty("m_nScaleCPComponent", 0);
                 var strength = node.SetObject("m_flOpStrength");
 
                 if (scaleCP > -1)

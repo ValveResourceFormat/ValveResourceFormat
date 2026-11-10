@@ -55,9 +55,9 @@ public sealed class EnvParticleGlow : InfoParticleSystem
     [EntityInput("SetColorTint")]
     private void InputSetColorTint(EntityInputData data)
     {
-        if (Effect != null)
+        if (Effect != null && data.Color() is { } color)
         {
-            Effect.GetControlPoint(16).Position = data.Vector();
+            Effect.GetControlPoint(16).Position = color;
         }
     }
 

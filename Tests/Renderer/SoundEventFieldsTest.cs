@@ -38,12 +38,12 @@ namespace Tests.Renderer
         }
 
         [Test]
-        public async Task StringBooleansArePositiveNumbers()
+        public async Task BooleansFollowSoundEventRules()
         {
             var data = KVObject.Collection();
-            data.Add("set_child_position", "true");
-            data.Add("enable_retrigger", " 0.5 ");
-            data.Add("block_matching_events", "-1.0");
+            data.Add("set_child_position", "no");
+            data.Add("enable_retrigger", "2");
+            data.Add("block_matching_events", "TRUE");
             data.Add("block_match_this_event", "1.0,1.0");
 
             var definition = Define(data);
@@ -51,8 +51,22 @@ namespace Tests.Renderer
             using (Assert.Multiple())
             {
                 await Assert.That(definition.SetChildPosition).IsFalse();
-                await Assert.That(definition.EnableRetrigger).IsTrue();
-                await Assert.That(definition.BlockMatchingEvents).IsFalse();
+                await Assert.That(definition.EnableRetrigger).IsFalse();
+                await Assert.That(definition.BlockMatchingEvents).IsTrue();
+            }
+
+            var numbers = KVObject.Collection();
+            numbers.Add("set_child_position", 0);
+            numbers.Add("enable_retrigger", -1);
+            numbers.Add("block_matching_events", 0.5f);
+
+            var numericDefinition = Define(numbers);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(numericDefinition.SetChildPosition).IsFalse();
+                await Assert.That(numericDefinition.EnableRetrigger).IsTrue();
+                await Assert.That(numericDefinition.BlockMatchingEvents).IsTrue();
             }
         }
 
