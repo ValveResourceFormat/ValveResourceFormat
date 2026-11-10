@@ -58,11 +58,48 @@ namespace ValveResourceFormat.Animation
                 return base.Update(ctx);
             }
 
-            var result = ChildNode.Update(ctx, updateRange);
-            Duration = ChildNode.Duration;
-            PreviousTime = ChildNode.PreviousTime;
-            CurrentTime = ChildNode.CurrentTime;
+            return UpdateFrom(ChildNode, ctx, updateRange);
+        }
+    }
+
+    public partial class PoseNode
+    {
+        // Updates the node this one passes through and takes its timing
+        private protected GraphPoseNodeResult UpdateFrom(PoseNode source, GraphContext ctx, SyncTrackTimeRange? updateRange)
+        {
+            var result = source.Update(ctx, updateRange);
+            Duration = source.Duration;
+            PreviousTime = source.PreviousTime;
+            CurrentTime = source.CurrentTime;
             return result;
+        }
+
+        // Initializes a selected node and takes its timing; an invalid selection is shut down and discarded
+        private protected bool TryInitializeSelection(GraphContext ctx, SyncTrackTime initialTime, ref PoseNode? selected)
+        {
+            Debug.Assert(selected != null);
+            selected.Initialize(ctx, initialTime);
+
+            if (selected.IsValid)
+            {
+                Duration = selected.Duration;
+                PreviousTime = selected.PreviousTime;
+                CurrentTime = selected.CurrentTime;
+                return true;
+            }
+
+            selected.Shutdown(ctx);
+            selected = null;
+            return false;
+        }
+
+        private protected static void ShutdownSelection(GraphContext ctx, ref PoseNode? selected)
+        {
+            if (selected != null)
+            {
+                selected.Shutdown(ctx);
+                selected = null;
+            }
         }
     }
 
@@ -318,19 +355,7 @@ namespace ValveResourceFormat.Animation
             if (selectedIndex != -1)
             {
                 SelectedNode = OptionNodes[selectedIndex];
-                SelectedNode.Initialize(ctx, initialTime);
-
-                if (SelectedNode.IsValid)
-                {
-                    Duration = SelectedNode.Duration;
-                    PreviousTime = SelectedNode.PreviousTime;
-                    CurrentTime = SelectedNode.CurrentTime;
-                }
-                else
-                {
-                    SelectedNode.Shutdown(ctx);
-                    SelectedNode = null;
-                }
+                TryInitializeSelection(ctx, initialTime, ref SelectedNode);
             }
 
             if (SelectedNode == null)
@@ -341,12 +366,7 @@ namespace ValveResourceFormat.Animation
 
         protected override void ShutdownInternal(GraphContext ctx)
         {
-            if (SelectedNode != null)
-            {
-                SelectedNode.Shutdown(ctx);
-                SelectedNode = null;
-            }
-
+            ShutdownSelection(ctx, ref SelectedNode);
             base.ShutdownInternal(ctx);
         }
 
@@ -375,11 +395,7 @@ namespace ValveResourceFormat.Animation
                 return base.Update(ctx);
             }
 
-            var result = SelectedNode.Update(ctx, updateRange);
-            Duration = SelectedNode.Duration;
-            PreviousTime = SelectedNode.PreviousTime;
-            CurrentTime = SelectedNode.CurrentTime;
-            return result;
+            return UpdateFrom(SelectedNode, ctx, updateRange);
         }
     }
 
@@ -438,29 +454,12 @@ namespace ValveResourceFormat.Animation
                 SelectedNode = FallbackNode;
             }
 
-            bool TryInitializeSelectedNode()
-            {
-                SelectedNode!.Initialize(ctx, initialTime);
-
-                if (SelectedNode.IsValid)
-                {
-                    Duration = SelectedNode.Duration;
-                    PreviousTime = SelectedNode.PreviousTime;
-                    CurrentTime = SelectedNode.CurrentTime;
-                    return true;
-                }
-
-                SelectedNode.Shutdown(ctx);
-                SelectedNode = null;
-                return false;
-            }
-
             if (SelectedNode != null)
             {
-                if (!TryInitializeSelectedNode() && FallbackNode != null)
+                if (!TryInitializeSelection(ctx, initialTime, ref SelectedNode) && FallbackNode != null)
                 {
                     SelectedNode = FallbackNode;
-                    TryInitializeSelectedNode();
+                    TryInitializeSelection(ctx, initialTime, ref SelectedNode);
                 }
             }
 
@@ -472,12 +471,7 @@ namespace ValveResourceFormat.Animation
 
         protected override void ShutdownInternal(GraphContext ctx)
         {
-            if (SelectedNode != null)
-            {
-                SelectedNode.Shutdown(ctx);
-                SelectedNode = null;
-            }
-
+            ShutdownSelection(ctx, ref SelectedNode);
             base.ShutdownInternal(ctx);
         }
 
@@ -492,11 +486,7 @@ namespace ValveResourceFormat.Animation
                 return base.Update(ctx);
             }
 
-            var result = SelectedNode.Update(ctx, updateRange);
-            Duration = SelectedNode.Duration;
-            PreviousTime = SelectedNode.PreviousTime;
-            CurrentTime = SelectedNode.CurrentTime;
-            return result;
+            return UpdateFrom(SelectedNode, ctx, updateRange);
         }
     }
 
@@ -580,19 +570,7 @@ namespace ValveResourceFormat.Animation
             if (selectedIndex != -1)
             {
                 SelectedNode = OptionNodes[selectedIndex];
-                SelectedNode.Initialize(ctx, initialTime);
-
-                if (SelectedNode.IsValid)
-                {
-                    Duration = SelectedNode.Duration;
-                    PreviousTime = SelectedNode.PreviousTime;
-                    CurrentTime = SelectedNode.CurrentTime;
-                }
-                else
-                {
-                    SelectedNode.Shutdown(ctx);
-                    SelectedNode = null;
-                }
+                TryInitializeSelection(ctx, initialTime, ref SelectedNode);
             }
 
             if (SelectedNode == null)
@@ -603,12 +581,7 @@ namespace ValveResourceFormat.Animation
 
         protected override void ShutdownInternal(GraphContext ctx)
         {
-            if (SelectedNode != null)
-            {
-                SelectedNode.Shutdown(ctx);
-                SelectedNode = null;
-            }
-
+            ShutdownSelection(ctx, ref SelectedNode);
             base.ShutdownInternal(ctx);
         }
 
@@ -626,11 +599,7 @@ namespace ValveResourceFormat.Animation
                 return base.Update(ctx);
             }
 
-            var result = SelectedNode.Update(ctx, updateRange);
-            Duration = SelectedNode.Duration;
-            PreviousTime = SelectedNode.PreviousTime;
-            CurrentTime = SelectedNode.CurrentTime;
-            return result;
+            return UpdateFrom(SelectedNode, ctx, updateRange);
         }
     }
 }
