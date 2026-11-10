@@ -429,7 +429,7 @@ public class PlayerMovement : IPlayerController
         Effects.DecayViewPunch(deltaTime, ViewPunchDecay);
         DecayPushViewLag(deltaTime);
 
-        var horizontalSpeed = new Vector2(Velocity.X, Velocity.Y).Length();
+        var horizontalSpeed = Velocity.AsVector2().Length();
         Effects.Update(deltaTime, horizontalSpeed, StepSmoothingEnabled);
 
         var feet = Vector3.Lerp(PreviousFeet, Feet, Accumulator / TickInterval);
@@ -806,7 +806,7 @@ public class PlayerMovement : IPlayerController
 
         DuckSpeed = MathUtils.Approach(DuckSpeed, DuckSpeedIdeal, deltaTime * 3f);
 
-        var horizontalPosition = new Vector2(position.X, position.Y);
+        var horizontalPosition = position.AsVector2();
 
         if (DuckSpeed >= DuckSpeedIdeal)
         {
@@ -1238,7 +1238,7 @@ public class PlayerMovement : IPlayerController
 
             // 2024-11-07 CS2 update
             if (!OnGround && Velocity.Z < 0f && result.HitNormal.Z >= WalkableSlope
-                && new Vector2(Velocity.X, Velocity.Y).LengthSquared() < 1f)
+                && Velocity.AsVector2().LengthSquared() < 1f)
             {
                 Velocity = Vector3.Zero;
                 return position;
@@ -1564,7 +1564,7 @@ public class PlayerMovement : IPlayerController
     /// </summary>
     private static float LateralProgress(Vector3 start, Vector3 position, Vector3 delta)
     {
-        var intended = new Vector2(delta.X, delta.Y);
+        var intended = delta.AsVector2();
         var intendedLength = intended.Length();
 
         if (intendedLength < 1e-4f)
@@ -1583,7 +1583,7 @@ public class PlayerMovement : IPlayerController
     /// </summary>
     private static float LateralFraction(Vector3 start, Vector3 position, Vector3 delta)
     {
-        var intended = new Vector2(delta.X, delta.Y).Length();
+        var intended = delta.AsVector2().Length();
 
         if (intended < 1e-4f)
         {
@@ -1765,7 +1765,7 @@ public class PlayerMovement : IPlayerController
     private void RecordLanding(double time, float fallSpeed)
     {
         LandedTime = time;
-        LandedVelocity = new Vector2(Velocity.X, Velocity.Y);
+        LandedVelocity = Velocity.AsVector2();
         LandedVelocityZ = -fallSpeed;
     }
 
@@ -2078,7 +2078,7 @@ public class PlayerMovement : IPlayerController
     /// <returns>How much more friction there was than speed left to take, which comes off the acceleration.</returns>
     private float Friction()
     {
-        var speed = new Vector2(Velocity.X, Velocity.Y).Length();
+        var speed = Velocity.AsVector2().Length();
 
         if (speed < 0.1f)
         {

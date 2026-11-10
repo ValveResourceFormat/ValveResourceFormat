@@ -1235,7 +1235,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         var luminaireFlags = 0u;
         if (light.Entity == EntityType.Rect)
         {
-            luminaireHalfSize = new Vector2(light.SizeParams.X, light.SizeParams.Y);
+            luminaireHalfSize = light.SizeParams.AsVector2();
             luminaireFlags = light.Shape == 1f ? DiscLuminaireFlag : RectLuminaireFlag;
         }
 

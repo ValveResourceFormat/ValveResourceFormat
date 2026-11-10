@@ -40,9 +40,9 @@ namespace ValveResourceFormat.Renderer
             {
                 Sign = sign;
                 Position = matrix.Translation;
-                Forward = sign * new Vector3(matrix.M11, matrix.M12, matrix.M13);
-                Left = sign * new Vector3(matrix.M21, matrix.M22, matrix.M23);
-                Up = sign * new Vector3(matrix.M31, matrix.M32, matrix.M33);
+                Forward = sign * matrix.X.AsVector3();
+                Left = sign * matrix.Y.AsVector3();
+                Up = sign * matrix.Z.AsVector3();
                 Tip = Position + (length * Forward);
             }
 

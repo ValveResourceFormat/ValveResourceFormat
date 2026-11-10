@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders;
@@ -58,9 +59,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var localChannel = dataChannels[segmentKV.GetInt32Property("m_nLocalChannel")];
 
             // Read header
-            var decoderName = decoderNames[BitConverter.ToInt16(containerSpan[0..2])];
+            var decoderName = decoderNames[BinaryPrimitives.ReadInt16LittleEndian(containerSpan[0..2])];
             //var cardinality = BitConverter.ToInt16(containerSpan[2..4]);
-            var numElements = BitConverter.ToInt16(containerSpan[4..6]);
+            var numElements = BinaryPrimitives.ReadInt16LittleEndian(containerSpan[4..6]);
             //var totalLength = BitConverter.ToInt16(containerSpan[6..8]);
 
             if (localChannel.Attribute == AnimationChannelAttribute.Unknown)

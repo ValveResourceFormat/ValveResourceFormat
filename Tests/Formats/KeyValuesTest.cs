@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -304,8 +305,8 @@ namespace Tests.Formats
             var data = stream.ToArray();
 
             // The first frame must hold only the buffer, readers stop at its end and stream the blobs separately
-            var sizeUncompressed = BitConverter.ToInt32(data, HeaderStart + 28);
-            var sizeCompressed = BitConverter.ToInt32(data, HeaderStart + 32);
+            var sizeUncompressed = BinaryPrimitives.ReadInt32LittleEndian(data.AsSpan(HeaderStart + 28));
+            var sizeCompressed = BinaryPrimitives.ReadInt32LittleEndian(data.AsSpan(HeaderStart + 32));
             var frames = data.AsSpan(HeaderStart + 52, sizeCompressed);
             var firstFrameLength = GetZstdFrameLength(frames);
             var firstFrameContentSize = ZstdSharp.Decompressor.GetDecompressedSize(frames[..firstFrameLength]);
@@ -340,12 +341,12 @@ namespace Tests.Formats
             using var stream = new MemoryStream();
             binaryKV3.Serialize(stream);
             var data = stream.ToArray();
-            int Header(int offset) => BitConverter.ToInt32(data, HeaderStart + offset);
+            int Header(int offset) => BinaryPrimitives.ReadInt32LittleEndian(data.AsSpan(HeaderStart + offset));
 
             using (Assert.Multiple())
             {
-                await Assert.That(BitConverter.ToUInt16(data, HeaderStart + 24)).IsEqualTo((ushort)2);
-                await Assert.That(BitConverter.ToUInt16(data, HeaderStart + 26)).IsEqualTo((ushort)2);
+                await Assert.That(BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(HeaderStart + 24))).IsEqualTo((ushort)2);
+                await Assert.That(BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(HeaderStart + 26))).IsEqualTo((ushort)2);
                 await Assert.That(Header(84)).IsEqualTo(7); // root, 4 members, 2 array elements
                 await Assert.That(Header(88)).IsEqualTo(2);
                 await Assert.That(Header(92)).IsEqualTo(2);
@@ -379,8 +380,8 @@ namespace Tests.Formats
 
             using (Assert.Multiple())
             {
-                await Assert.That(BitConverter.ToUInt16(data, HeaderStart + 24)).IsEqualTo(ushort.MaxValue);
-                await Assert.That(BitConverter.ToInt32(data, HeaderStart + 88)).IsEqualTo(70000);
+                await Assert.That(BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(HeaderStart + 24))).IsEqualTo(ushort.MaxValue);
+                await Assert.That(BinaryPrimitives.ReadInt32LittleEndian(data.AsSpan(HeaderStart + 88))).IsEqualTo(70000);
                 await Assert.That(deserializedBinaryKV3.Data.Root).Count().IsEqualTo(70000);
             }
         }

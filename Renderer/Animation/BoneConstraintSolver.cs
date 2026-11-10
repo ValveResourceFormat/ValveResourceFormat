@@ -981,7 +981,7 @@ namespace ValveResourceFormat.Renderer
                 parameters.translationScales = ReadFloats(inputs);
                 parameters.rotationScales = ReadFloats(inputs);
                 parameters.inputScales = ReadFloats(inputs);
-                parameters.basePositions = [.. Enumerable.Range(0, outputs).Select(_ => ReadFloats(3)).Select(v => new Vector3(v[0], v[1], v[2]))];
+                parameters.basePositions = [.. Enumerable.Range(0, outputs).Select(_ => ReadFloats(3)).Select(v => new Vector3(v))];
                 parameters.outputWeights = [.. Enumerable.Range(0, outputs).Select(_ => ReadFloats(7 * poses))];
                 return parameters;
             }
@@ -1011,7 +1011,7 @@ namespace ValveResourceFormat.Renderer
                         if (translationScales[i] > 0f)
                         {
                             var t = translations[i];
-                            var d = Vector3.Distance(inputPose[i].Position, new Vector3(t[k * 3], t[k * 3 + 1], t[k * 3 + 2]));
+                            var d = Vector3.Distance(inputPose[i].Position, new Vector3(t.AsSpan(k * 3)));
                             distance += (d <= translationThreshold ? 0f : d) / translationScales[i];
                         }
 
@@ -1036,14 +1036,11 @@ namespace ValveResourceFormat.Renderer
 
                 for (var c = 0; c < 7; c++)
                 {
-                    for (var k = 0; k < PoseCount; k++)
-                    {
-                        channels[c] += weights[c * PoseCount + k] * distances[k];
-                    }
+                    channels[c] = TensorPrimitives.Dot(weights.AsSpan(c * PoseCount, PoseCount), distances[..PoseCount]);
                 }
 
                 var rotation = new Quaternion(channels[3], channels[4], channels[5], channels[6]);
-                return new FrameBone(basePositions[output] + new Vector3(channels[0], channels[1], channels[2]), 1f, rotation == default ? rotation : Quaternion.Normalize(rotation));
+                return new FrameBone(basePositions[output] + new Vector3(channels), 1f, rotation == default ? rotation : Quaternion.Normalize(rotation));
             }
         }
 

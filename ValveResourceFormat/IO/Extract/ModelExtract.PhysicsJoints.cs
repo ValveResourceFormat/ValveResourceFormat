@@ -288,7 +288,7 @@ partial class ModelExtract
             double radius = capsule.Shape.Radius;
             double height = Vector3.Distance(capsule.Shape.Center[0], capsule.Shape.Center[1]);
             mass += GetSurfaceMass(physics, surfaceProperties, capsule.SurfacePropertyIndex,
-                Math.PI * radius * radius * (height + 4d / 3d * radius), 2d * Math.PI * radius * (height + 2d * radius));
+                Math.PI * radius * radius * (height + 4d / 3d * radius), Math.Tau * radius * (height + 2d * radius));
         }
 
         foreach (var hull in shape.GetAllHulls())

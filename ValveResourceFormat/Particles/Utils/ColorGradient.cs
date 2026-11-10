@@ -66,7 +66,7 @@ namespace ValveResourceFormat.Particles.Utils
 
             var blended = MathUtils.Lerp(colors[index], colors[index + 1], (t - positions[index]) / span);
 
-            return new Vector3(MathF.Truncate(blended.X), MathF.Truncate(blended.Y), MathF.Truncate(blended.Z)) / 255f;
+            return Vector3.Truncate(blended) / 255f;
         }
 
         /// <summary>The stop matching <paramref name="t"/>, else the last stop before it, or -1 when it is before every stop.</summary>

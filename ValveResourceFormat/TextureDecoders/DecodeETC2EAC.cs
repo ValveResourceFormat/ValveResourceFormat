@@ -1,5 +1,6 @@
 // Credit to https://github.com/mafaca/UtinyRipper (C# port of https://github.com/Ishotihadus/mikunyan)
 
+using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
 using SkiaSharp;
 
@@ -99,9 +100,7 @@ namespace ValveResourceFormat.TextureDecoders
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static ulong Get6SwapedBytes(ReadOnlySpan<byte> block)
         {
-            return block[7] | (uint)block[6] << 8 |
-                    (uint)block[5] << 16 | (uint)block[4] << 24 |
-                    (ulong)block[3] << 32 | (ulong)block[2] << 40;
+            return BinaryPrimitives.ReadUInt64BigEndian(block) & 0xFFFF_FFFF_FFFF;
         }
     }
 }

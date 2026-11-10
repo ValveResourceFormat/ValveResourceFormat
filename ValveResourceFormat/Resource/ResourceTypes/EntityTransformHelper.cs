@@ -152,7 +152,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>The Euler angles in degrees.</returns>
         public static Vector3 ForwardDirectionToEulerAngles(Vector3 direction)
         {
-            var xyDist = MathF.Sqrt(direction.X * direction.X + direction.Y * direction.Y);
+            var xyDist = direction.AsVector2().Length();
 
             if (xyDist <= 0.001f)
             {
@@ -193,6 +193,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static (Vector3 Forward, Vector3 Left, Vector3 Up) ForwardDirectionToFrame(Vector3 direction)
         {
+            // Faster than AsVector2().Length()
             var xyDist = MathF.Sqrt(direction.X * direction.X + direction.Y * direction.Y);
 
             if (xyDist <= 0.001f)
@@ -206,6 +207,7 @@ namespace ValveResourceFormat.ResourceTypes
             var forward = Vector3.Normalize(direction);
 
             // Yaw's sine and cosine come from the flattened direction, pitch's from forward: no trig needed.
+            // Faster than AsVector2().Length()
             var flat = MathF.Sqrt(forward.X * forward.X + forward.Y * forward.Y);
             var cosYaw = forward.X / flat;
             var sinYaw = forward.Y / flat;
@@ -283,7 +285,7 @@ namespace ValveResourceFormat.ResourceTypes
                 return false;
             }
 
-            value = new Vector2(components[0], components[1]);
+            value = new Vector2(components);
             return true;
         }
 
@@ -323,7 +325,7 @@ namespace ValveResourceFormat.ResourceTypes
                 return false;
             }
 
-            value = new Vector3(components[0], components[1], components[2]);
+            value = new Vector3(components);
             return true;
         }
 

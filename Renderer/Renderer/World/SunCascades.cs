@@ -85,7 +85,7 @@ public sealed class SunCascades
         var sun = scene.LightingInfo;
 
         // The uniform stores surface-to-sun; the frustum looks along the rays, away from the sun
-        var toSun = new Vector3(sun.LightingData.SunDirection.X, sun.LightingData.SunDirection.Y, sun.LightingData.SunDirection.Z);
+        var toSun = sun.LightingData.SunDirection.AsVector3();
         var sunDir = MathUtils.SafeNormalize(-toSun, Vector3.UnitX, 0.0001f);
 
         cascadeCount = Math.Clamp(cascadeCount, 2, Count);

@@ -64,9 +64,9 @@ namespace ValveResourceFormat.Particles.Utils
 
         private static Matrix4x4 NormalizeRows(Matrix4x4 m)
         {
-            var x = MathUtils.SafeNormalize(m.GetRow(0).AsVector3());
-            var y = MathUtils.SafeNormalize(m.GetRow(1).AsVector3());
-            var z = MathUtils.SafeNormalize(m.GetRow(2).AsVector3());
+            var x = MathUtils.SafeNormalize(m.X.AsVector3());
+            var y = MathUtils.SafeNormalize(m.Y.AsVector3());
+            var z = MathUtils.SafeNormalize(m.Z.AsVector3());
 
             return MathUtils.CreateBasis(x, y, z);
         }

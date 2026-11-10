@@ -17,8 +17,8 @@ partial class HalfEdgeMesh
         float maxFaceAngleDegrees = 40f,
         float maxShapeAngleDegrees = 80f)
     {
-        var angleFaceCos = MathF.Cos(maxFaceAngleDegrees * (MathF.PI / 180f));
-        var angleShape = maxShapeAngleDegrees * (MathF.PI / 180f);
+        var angleFaceCos = MathF.Cos(float.DegreesToRadians(maxFaceAngleDegrees));
+        var angleShape = float.DegreesToRadians(maxShapeAngleDegrees);
 
         // "full" edges considered for removal, and their error
         var candidates = new List<(float Error, HalfEdgeHandle Edge)>();
@@ -203,10 +203,5 @@ partial class HalfEdgeMesh
     private static Vector3 TriangleNormal(Vector3 a, Vector3 b, Vector3 c)
     {
         return Vector3.Normalize(MathUtils.TriangleCross(a, b, c));
-    }
-
-    private static float TriangleArea(Vector3 a, Vector3 b, Vector3 c)
-    {
-        return MathUtils.TriangleCross(a, b, c).Length() * 0.5f;
     }
 }

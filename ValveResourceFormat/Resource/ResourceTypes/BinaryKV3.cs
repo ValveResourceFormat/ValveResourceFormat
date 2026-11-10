@@ -670,7 +670,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (header.CountBlocks == 0)
                     {
-                        var trailer = MemoryMarshal.Read<uint>(buffer2Span[offset..]);
+                        var trailer = BinaryPrimitives.ReadUInt32LittleEndian(buffer2Span[offset..]);
                         offset += 4;
                         UnexpectedMagicException.Assert(trailer == 0xFFEEDD00, trailer);
 
@@ -692,7 +692,7 @@ namespace ValveResourceFormat.ResourceTypes
                         var blobLengths = MemoryMarshal.Cast<byte, int>(bufferWithBinaryBlobSizes[..end]);
                         bufferWithBinaryBlobSizes = bufferWithBinaryBlobSizes[end..];
 
-                        var trailer = MemoryMarshal.Read<uint>(bufferWithBinaryBlobSizes);
+                        var trailer = BinaryPrimitives.ReadUInt32LittleEndian(bufferWithBinaryBlobSizes);
                         bufferWithBinaryBlobSizes = bufferWithBinaryBlobSizes[sizeof(int)..];
                         UnexpectedMagicException.Assert(trailer == 0xFFEEDD00, trailer);
 

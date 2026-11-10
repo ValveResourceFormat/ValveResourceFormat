@@ -118,6 +118,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         // SCREEN_Z foreshortens as the camera tilts).
         private static (Vector3 Right, Vector3 Up) QuadBasis(Vector3 baseRight, Vector3 baseUp, float roll, float yaw)
         {
+            // Faster than MathF.SinCos
             var c = MathF.Cos(roll);
             var s = MathF.Sin(roll);
             var right = (baseRight * c) + (baseUp * s);

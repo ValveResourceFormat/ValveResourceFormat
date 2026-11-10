@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.IO;
 using System.Threading.Tasks;
 using GUI.Utils;
@@ -41,8 +42,8 @@ static class ViewerFactory
             }
         }
 
-        var magic = BitConverter.ToUInt32(magicData[..4]);
-        var magicResourceVersion = BitConverter.ToUInt16(magicData[4..]);
+        var magic = BinaryPrimitives.ReadUInt32LittleEndian(magicData);
+        var magicResourceVersion = BinaryPrimitives.ReadUInt16LittleEndian(magicData[4..]);
 
         if (PackageViewer.PackageViewer.IsAccepted(magic))
         {

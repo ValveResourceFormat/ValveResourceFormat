@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
@@ -988,7 +989,7 @@ namespace CLI
                 stream.Seek(-magicData.Length, SeekOrigin.Current);
             }
 
-            var magic = BitConverter.ToUInt32(magicData);
+            var magic = BinaryPrimitives.ReadUInt32LittleEndian(magicData);
 
             // Packages count and print themselves, because they may expand into the files inside of them
             if (magic == Package.MAGIC)

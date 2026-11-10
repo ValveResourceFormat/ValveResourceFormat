@@ -142,7 +142,7 @@ namespace ValveResourceFormat.Renderer
                     outside |= Vector.LessThan(distance + radius, Vector<float>.Zero);
                 }
 
-                if (Vector.EqualsAll(outside, Vector<int>.AllBitsSet))
+                if (Vector.AllWhereAllBitsSet(outside))
                 {
                     continue; // whole vector culled
                 }
@@ -185,7 +185,7 @@ namespace ValveResourceFormat.Renderer
                     & Vector.LessThanOrEqual(Vector.Abs(new Vector<float>(centerY, i) - py), new Vector<float>(extentY, i))
                     & Vector.LessThanOrEqual(Vector.Abs(new Vector<float>(centerZ, i) - pz), new Vector<float>(extentZ, i));
 
-                if (Vector.EqualsAll(inside, Vector<int>.Zero))
+                if (Vector.NoneWhereAllBitsSet(inside))
                 {
                     continue; // whole vector missed
                 }

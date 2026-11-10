@@ -186,7 +186,7 @@ namespace Tests.Renderer
 
             // The entity rotation's third row is up, so a roll in the wrong direction fails here
             var entity = EntityTransformHelper.EulerAnglesToRotationMatrix(angles);
-            var entityUp = new Vector3(entity.M31, entity.M32, entity.M33);
+            var entityUp = entity.Z.AsVector3();
 
             await Assert.That(rolled.Up.X).IsEqualTo(entityUp.X).Within(1e-3f).Because("up X");
             await Assert.That(rolled.Up.Y).IsEqualTo(entityUp.Y).Within(1e-3f).Because("up Y");

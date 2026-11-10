@@ -463,7 +463,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                     {
                         GL.GetUniform(Program, GetUniformLocation(name), ptr);
                     }
-                    Default.VectorParams[name] = new Vector4(floatVal[0], floatVal[1], floatVal[2], floatVal[3]);
+                    Default.VectorParams[name] = new Vector4(floatVal);
                 }
                 else if (isScalar && !Default.FloatParams.ContainsKey(name))
                 {

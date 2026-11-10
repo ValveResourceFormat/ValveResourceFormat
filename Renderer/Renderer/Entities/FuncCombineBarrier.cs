@@ -93,7 +93,7 @@ public sealed class FuncCombineBarrier : FuncBrush
         }
 
         var size = bounds.Size;
-        var width = MathF.Sqrt(size.X * size.X + size.Y * size.Y);
+        var width = size.AsVector2().Length();
         var columns = (int)(width / CellSpacing);
         var rows = (int)(size.Z / CellSpacing);
 

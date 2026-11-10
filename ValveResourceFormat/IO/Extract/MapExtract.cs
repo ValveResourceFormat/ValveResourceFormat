@@ -2240,9 +2240,9 @@ public sealed partial class MapExtract
 
         return vectors[0].Length switch
         {
-            2 => new Datamodel.Vector2Array(vectors.Select(static v => new Vector2(v[0], v[1]))),
-            3 => new Datamodel.Vector3Array(vectors.Select(static v => new Vector3(v[0], v[1], v[2]))),
-            4 => new Datamodel.Vector4Array(vectors.Select(static v => new Vector4(v[0], v[1], v[2], v[3]))),
+            2 => new Datamodel.Vector2Array(vectors.Select(static v => new Vector2(v))),
+            3 => new Datamodel.Vector3Array(vectors.Select(static v => new Vector3(v))),
+            4 => new Datamodel.Vector4Array(vectors.Select(static v => new Vector4(v))),
             _ => null,
         };
     }

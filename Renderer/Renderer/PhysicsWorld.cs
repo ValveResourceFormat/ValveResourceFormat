@@ -173,6 +173,7 @@ public sealed class PhysicsWorld
     internal static Rubikon.TraceResult TracePlane(Vector3 from, Vector3 to, Vector3 halfExtents, Vector3 normal, float planeOffset, bool detectStartSolid = false)
     {
         // Extent of the box toward the plane along the normal (support half-width)
+        // Faster than Vector3.Dot(Vector3.Abs(normal), halfExtents)
         var extent = MathF.Abs(normal.X) * halfExtents.X + MathF.Abs(normal.Y) * halfExtents.Y + MathF.Abs(normal.Z) * halfExtents.Z;
 
         // Signed gap of the box's nearest face to the plane at each end (>0 outside the solid)

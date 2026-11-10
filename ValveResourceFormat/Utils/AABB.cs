@@ -78,10 +78,7 @@ namespace ValveResourceFormat.Utils
         /// <returns><see langword="true"/> if the point is inside the box.</returns>
         public bool Contains(Vector3 point)
         {
-            return
-                Min.X <= point.X && point.X <= Max.X &&
-                Min.Y <= point.Y && point.Y <= Max.Y &&
-                Min.Z <= point.Z && point.Z <= Max.Z;
+            return Vector3.LessThanOrEqualAll(Min, point) && Vector3.LessThanOrEqualAll(point, Max);
         }
 
         /// <summary>Returns the squared distance from the point to this box, zero if contained. </summary>
@@ -99,10 +96,7 @@ namespace ValveResourceFormat.Utils
         /// <returns><see langword="true"/> if the boxes overlap.</returns>
         public bool Intersects(in AABB other)
         {
-            return
-                Min.X <= other.Max.X && other.Min.X <= Max.X &&
-                Min.Y <= other.Max.Y && other.Min.Y <= Max.Y &&
-                Min.Z <= other.Max.Z && other.Min.Z <= Max.Z;
+            return Vector3.LessThanOrEqualAll(Min, other.Max) && Vector3.LessThanOrEqualAll(other.Min, Max);
         }
 
         /// <summary>
@@ -112,10 +106,7 @@ namespace ValveResourceFormat.Utils
         /// <returns><see langword="true"/> if the other box is fully contained.</returns>
         public bool Contains(in AABB other)
         {
-            return
-                Min.X <= other.Min.X && other.Max.X <= Max.X &&
-                Min.Y <= other.Min.Y && other.Max.Y <= Max.Y &&
-                Min.Z <= other.Min.Z && other.Max.Z <= Max.Z;
+            return Vector3.LessThanOrEqualAll(Min, other.Min) && Vector3.LessThanOrEqualAll(other.Max, Max);
         }
 
         /// <summary>
@@ -163,10 +154,10 @@ namespace ValveResourceFormat.Utils
             var extents = Max - center;
             var newCenter = Vector3.Transform(center, transform);
 
-            var newExtents = new Vector3(
-                (MathF.Abs(transform.M11) * extents.X) + (MathF.Abs(transform.M21) * extents.Y) + (MathF.Abs(transform.M31) * extents.Z),
-                (MathF.Abs(transform.M12) * extents.X) + (MathF.Abs(transform.M22) * extents.Y) + (MathF.Abs(transform.M32) * extents.Z),
-                (MathF.Abs(transform.M13) * extents.X) + (MathF.Abs(transform.M23) * extents.Y) + (MathF.Abs(transform.M33) * extents.Z));
+            var newExtents =
+                (Vector3.Abs(transform.X.AsVector3()) * extents.X) +
+                (Vector3.Abs(transform.Y.AsVector3()) * extents.Y) +
+                (Vector3.Abs(transform.Z.AsVector3()) * extents.Z);
 
             return new AABB(newCenter - newExtents, newCenter + newExtents);
         }

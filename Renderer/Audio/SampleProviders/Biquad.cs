@@ -40,8 +40,8 @@ internal struct Biquad
 
         var a = MathF.Pow(10f, gainDecibels / 40f);
         var w0 = MathF.Tau * frequency / sampleRate;
-        var cosW0 = MathF.Cos(w0);
-        var alpha = MathF.Sin(w0) / (2f * q);
+        var (sinW0, cosW0) = MathF.SinCos(w0);
+        var alpha = sinW0 / (2f * q);
 
         Normalize(
             1f + (alpha * a), -2f * cosW0, 1f - (alpha * a),
@@ -62,8 +62,8 @@ internal struct Biquad
 
         var a = MathF.Pow(10f, gainDecibels / 40f);
         var w0 = MathF.Tau * frequency / sampleRate;
-        var cosW0 = MathF.Cos(w0);
-        var alpha = MathF.Sin(w0) * 0.5f * MathF.Sqrt(2f);
+        var (sinW0, cosW0) = MathF.SinCos(w0);
+        var alpha = sinW0 * 0.5f * MathF.Sqrt(2f);
         var twoSqrtAAlpha = 2f * MathF.Sqrt(a) * alpha;
 
         Normalize(

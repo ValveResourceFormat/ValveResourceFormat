@@ -168,13 +168,7 @@ namespace ValveResourceFormat.IO
             axes.Sort((a, b) => extent[b].CompareTo(extent[a]));
             var (axisU, axisV) = (axes[0], axes[1]);
 
-            var projected = new Vector2[positions.Length];
-            for (var i = 0; i < positions.Length; i++)
-            {
-                projected[i] = new Vector2(positions[i][axisU], positions[i][axisV]);
-            }
-
-            return projected;
+            return Array.ConvertAll(positions, position => new Vector2(position[axisU], position[axisV]));
         }
 
         /// <summary>Adds a triangle to the two nearest non-collinear vertices for each vertex no face covers.</summary>

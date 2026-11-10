@@ -978,7 +978,7 @@ public abstract class BaseEntity
             }
         }
 
-        if (filled is not { } volume || !(volume.Min.X < volume.Max.X && volume.Min.Y < volume.Max.Y && volume.Min.Z < volume.Max.Z))
+        if (filled is not { } volume || !Vector3.LessThanAll(volume.Min, volume.Max))
         {
             return false;
         }
@@ -1274,7 +1274,7 @@ public abstract class BaseEntity
     /// <summary>The velocity of this entity's surface at a world position: linear plus the angular sweep.</summary>
     public Vector3 GetSurfaceVelocity(Vector3 at)
     {
-        var omega = new Vector3(AngularVelocity.Z, AngularVelocity.X, AngularVelocity.Y) * (MathF.PI / 180f);
+        var omega = Vector3.DegreesToRadians(new Vector3(AngularVelocity.Z, AngularVelocity.X, AngularVelocity.Y));
 
         return Velocity + Vector3.Cross(omega, at - WorldOrigin);
     }

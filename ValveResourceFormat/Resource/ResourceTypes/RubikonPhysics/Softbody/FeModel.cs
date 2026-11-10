@@ -573,7 +573,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             Vector4? sphere = null;
             if (o.GetArray<float>("vSphere") is { Length: 4 } s)
             {
-                sphere = new Vector4(s[0], s[1], s[2], s[3]);
+                sphere = new Vector4(s);
             }
             else if (o.ContainsKey("m_vSphere"))
             {

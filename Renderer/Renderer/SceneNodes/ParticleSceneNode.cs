@@ -616,7 +616,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             var components = driver.GetFloatArray(key);
             return components is { Length: >= 3 }
-                ? new Vector3(components[0], components[1], components[2])
+                ? new Vector3(components)
                 : Vector3.Zero;
         }
 

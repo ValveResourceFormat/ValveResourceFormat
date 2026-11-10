@@ -28,7 +28,7 @@ namespace ValveResourceFormat.Renderer.Utils
         ];
 
         /// <summary>Elevations tried at each yaw: the usual one, then flat for low rooms, then from above.</summary>
-        private static readonly float[] Elevations = [30f * MathF.PI / 180f, 15f * MathF.PI / 180f, 60f * MathF.PI / 180f];
+        private static readonly float[] Elevations = [float.DegreesToRadians(30f), float.DegreesToRadians(15f), float.DegreesToRadians(60f)];
 
         /// <summary>
         /// Direction from the target to the first candidate, which is where the camera ends up unless

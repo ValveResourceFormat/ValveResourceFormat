@@ -75,7 +75,7 @@ internal static class SoundscapeOperatorParsing
             }
         }
 
-        return new Vector3(values[0], values[1], values[2]);
+        return new Vector3(values);
     }
 
     /// <summary>

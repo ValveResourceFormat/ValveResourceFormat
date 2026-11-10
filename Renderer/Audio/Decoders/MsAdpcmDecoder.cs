@@ -1,3 +1,5 @@
+using System.Buffers.Binary;
+
 namespace ValveResourceFormat.Renderer.Audio.Decoders;
 
 /// <summary>
@@ -39,19 +41,19 @@ internal static class MsAdpcmDecoder
 
         for (var ch = 0; ch < channels; ch++)
         {
-            delta[ch] = BitConverter.ToInt16(block[pos..]);
+            delta[ch] = BinaryPrimitives.ReadInt16LittleEndian(block[pos..]);
             pos += 2;
         }
 
         for (var ch = 0; ch < channels; ch++)
         {
-            sample1[ch] = BitConverter.ToInt16(block[pos..]);
+            sample1[ch] = BinaryPrimitives.ReadInt16LittleEndian(block[pos..]);
             pos += 2;
         }
 
         for (var ch = 0; ch < channels; ch++)
         {
-            sample2[ch] = BitConverter.ToInt16(block[pos..]);
+            sample2[ch] = BinaryPrimitives.ReadInt16LittleEndian(block[pos..]);
             pos += 2;
         }
 

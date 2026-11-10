@@ -129,10 +129,7 @@ namespace ValveResourceFormat.IO
                     while (stack.TryPop(out var nodeWithIndex))
                     {
                         var node = nodeWithIndex.Node;
-                        var nodeOverlaps =
-                            max.X >= node.Min.X && min.X <= node.Max.X &&
-                            max.Y >= node.Min.Y && min.Y <= node.Max.Y &&
-                            max.Z >= node.Min.Z && min.Z <= node.Max.Z;
+                        var nodeOverlaps = Vector3.GreaterThanOrEqualAll(max, node.Min) && Vector3.LessThanOrEqualAll(min, node.Max);
 
                         if (!nodeOverlaps)
                         {

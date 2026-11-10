@@ -122,7 +122,7 @@ internal sealed class Vpcf23ToVpcf24 : ParticleUpgradeStep
             components[index++] = (float)number;
         }
 
-        return new Vector4(components[0], components[1], components[2], components[3]);
+        return new Vector4(components);
     }
 
     private static KVObject IntArray(params int[] values) => KVObject.PackedArray(values);

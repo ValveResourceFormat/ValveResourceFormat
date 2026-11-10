@@ -938,7 +938,7 @@ namespace ValveResourceFormat.IO
                 }
 
                 var extent = max - min;
-                var term = VolumetricMassPerUnitExtent * (extent.X + extent.Y + extent.Z);
+                var term = VolumetricMassPerUnitExtent * Vector3.Sum(extent);
                 for (var i = 0; i < map.Weights.Length; i++)
                 {
                     var node = map.VertexBase + i;

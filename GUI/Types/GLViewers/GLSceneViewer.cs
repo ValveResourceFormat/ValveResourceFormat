@@ -297,7 +297,7 @@ namespace GUI.Types.GLViewers
             sunAngles.X = Math.Clamp(sunAngles.X, 0f, 89f);
             sunAngles.Y = MathUtils.Wrap(sunAngles.Y, 0f, 360f);
 
-            Scene.LightingInfo.SetSunDirectionFromAngles(new Vector3(sunAngles.X, sunAngles.Y, 0f));
+            Scene.LightingInfo.SetSunDirectionFromAngles(sunAngles.AsVector3());
         }
 
         public virtual void PostSceneLoad()

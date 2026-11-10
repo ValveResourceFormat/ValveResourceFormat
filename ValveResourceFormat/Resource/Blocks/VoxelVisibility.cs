@@ -715,7 +715,7 @@ namespace ValveResourceFormat.Blocks
 
         private int FindLeafNode(Vector3 point, ref Vector3 min, ref Vector3 max)
         {
-            if (point.X < min.X || point.Y < min.Y || point.Z < min.Z || point.X > max.X || point.Y > max.Y || point.Z > max.Z)
+            if (Vector3.LessThanAny(point, min) || Vector3.GreaterThanAny(point, max))
             {
                 return -1;
             }

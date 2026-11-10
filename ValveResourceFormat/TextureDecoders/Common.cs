@@ -254,10 +254,8 @@ namespace ValveResourceFormat.TextureDecoders
                 TensorPrimitives.Subtract(z, scratch, z);
 
                 TensorPrimitives.Multiply(x, x, length);
-                TensorPrimitives.Multiply(y, y, scratch);
-                TensorPrimitives.Add(length, scratch, length);
-                TensorPrimitives.Multiply(z, z, scratch);
-                TensorPrimitives.Add(length, scratch, length);
+                TensorPrimitives.MultiplyAdd(y, y, length, length);
+                TensorPrimitives.MultiplyAdd(z, z, length, length);
                 TensorPrimitives.Sqrt(length, length);
 
                 TensorPrimitives.Divide(x, length, x);

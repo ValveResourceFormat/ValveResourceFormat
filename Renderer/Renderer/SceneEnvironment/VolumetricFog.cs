@@ -518,7 +518,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
                 if (fogVolume.Shape == ShapeHeight)
                 {
                     heightScale = size.Z / fogVolume.HeightFogDepth;
-                    edgeScale = MathF.Sqrt((size.X * size.X) + (size.Y * size.Y)) / fogVolume.HeightFogEdgeWidth;
+                    edgeScale = size.AsVector2().Length() / fogVolume.HeightFogEdgeWidth;
                 }
 
                 var hasTint = fogVolume.Tint != null;
@@ -1134,7 +1134,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
 
             if (light.Entity == SceneLight.EntityType.Ortho)
             {
-                spread = MathF.Sqrt((light.SizeParams.X * light.SizeParams.X) + (light.SizeParams.Y * light.SizeParams.Y));
+                spread = light.SizeParams.AsVector2().Length();
             }
             else
             {

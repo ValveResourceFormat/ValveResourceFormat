@@ -646,7 +646,7 @@ sealed class AimCSSolver
     // Offsets the weapon in its own axes when looking far up or down
     static Transform OffsetByPitch(Settings s, Transform pivot, Transform weaponModel, float pitch)
     {
-        static bool IsZero(Vector3 v) => MathF.Abs(v.X) <= 0.01f && MathF.Abs(v.Y) <= 0.01f && MathF.Abs(v.Z) <= 0.01f;
+        static bool IsZero(Vector3 v) => Vector3.LessThanOrEqualAll(Vector3.Abs(v), new Vector3(0.01f));
 
         if ((IsZero(s.OffsetLow) && IsZero(s.OffsetHigh)) || (s.OffsetPitchRange.X <= -90f && s.OffsetPitchRange.Y >= 90f))
         {

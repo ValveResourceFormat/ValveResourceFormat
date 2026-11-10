@@ -235,14 +235,12 @@ public partial class GltfModelExporter
         for (var lat = 0; lat <= latitudeSegments; lat++)
         {
             var theta = lat * MathF.PI / latitudeSegments;
-            var sinTheta = MathF.Sin(theta);
-            var cosTheta = MathF.Cos(theta);
+            var (sinTheta, cosTheta) = MathF.SinCos(theta);
 
             for (var lon = 0; lon <= longitudeSegments; lon++)
             {
                 var phi = lon * MathF.Tau / longitudeSegments;
-                var sinPhi = MathF.Sin(phi);
-                var cosPhi = MathF.Cos(phi);
+                var (sinPhi, cosPhi) = MathF.SinCos(phi);
 
                 var x = cosPhi * sinTheta;
                 var y = cosTheta;

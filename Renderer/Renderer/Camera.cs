@@ -197,7 +197,7 @@ namespace ValveResourceFormat.Renderer
                 return null;
             }
 
-            var ndc = new Vector2(clip.X, clip.Y) / clip.W;
+            var ndc = clip.AsVector2() / clip.W;
             return new Vector2((ndc.X + 1f) * 0.5f * WindowSize.X, (1f - ndc.Y) * 0.5f * WindowSize.Y);
         }
 

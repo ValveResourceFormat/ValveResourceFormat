@@ -130,8 +130,8 @@ public sealed class BombDamage : GenericData
             var bombsite = floats.Slice(i * 7, 7);
             Bombsites[i] = new BombDamageBombsite
             {
-                BoundsMin = new Vector3(bombsite[0], bombsite[1], bombsite[2]),
-                BoundsMax = new Vector3(bombsite[3], bombsite[4], bombsite[5]),
+                BoundsMin = new Vector3(bombsite),
+                BoundsMax = new Vector3(bombsite[3..]),
                 BombPower = bombsite[6]
             };
         }

@@ -265,7 +265,7 @@ namespace ValveResourceFormat.Renderer
         /// <returns>Number of mip levels to use.</returns>
         public static int MaxMipCount(int width, int height)
         {
-            return Math.Max((int)MathF.Log(MathF.Max(width, height), 2) - 2, 1);
+            return Math.Max(int.Log2(Math.Max(width, height)) - 2, 1);
         }
 
         /// <summary>Attaches the specified mip level of this texture to a framebuffer attachment point.</summary>

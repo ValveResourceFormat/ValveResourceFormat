@@ -154,9 +154,9 @@ namespace Tests.Resources
             {
                 var matrix = EntityTransformHelper.ForwardDirectionToRotationMatrix(direction);
 
-                var forward = new Vector3(matrix.M11, matrix.M12, matrix.M13);
-                var left = new Vector3(matrix.M21, matrix.M22, matrix.M23);
-                var up = new Vector3(matrix.M31, matrix.M32, matrix.M33);
+                var forward = matrix.X.AsVector3();
+                var left = matrix.Y.AsVector3();
+                var up = matrix.Z.AsVector3();
 
                 await Assert.That(forward.X).IsEqualTo(direction.X).Within(Tolerance).Because($"forward X for {direction}");
                 await Assert.That(forward.Y).IsEqualTo(direction.Y).Within(Tolerance).Because($"forward Y for {direction}");

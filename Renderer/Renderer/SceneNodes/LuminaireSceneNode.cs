@@ -85,7 +85,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         // The end caps face out of the tube along +Y and -Y
                         AddDisc(verts, inds, Vector3.UnitY * sizeY, Vector3.UnitZ * sizeX, Vector3.UnitX * sizeX);
                         AddDisc(verts, inds, -Vector3.UnitY * sizeY, Vector3.UnitX * sizeX, Vector3.UnitZ * sizeX);
-                        area += 2f * MathF.PI * sizeX * sizeX;
+                        area += MathF.Tau * sizeX * sizeX;
                     }
 
                     halfExtents = new Vector3(sizeX, sizeY, sizeX);

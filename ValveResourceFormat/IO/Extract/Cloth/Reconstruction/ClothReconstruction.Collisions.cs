@@ -175,9 +175,9 @@ namespace ValveResourceFormat.IO
                     var s1 = spheres[1];
                     capsule = new CollisionCapsule
                     {
-                        Point0 = new Vector3(s0.X, s0.Y, s0.Z),
+                        Point0 = s0.AsVector3(),
                         Radius0 = s0.W,
-                        Point1 = new Vector3(s1.X, s1.Y, s1.Z),
+                        Point1 = s1.AsVector3(),
                         Radius1 = s1.W,
                     };
                 }
@@ -402,7 +402,7 @@ namespace ValveResourceFormat.IO
         /// <summary>Reconstructs the cloth collision spheres (<c>m_SphereRigids</c>).</summary>
         private List<CollisionSphere> BuildCollisionSpheres()
             => ReadRigids(RigidColliderKind.Sphere, Fe.SphereRigids.Select(static rigid =>
-                (rigid.Sphere is { } sphere ? new CollisionSphere { Center = new Vector3(sphere.X, sphere.Y, sphere.Z), Radius = sphere.W } : null,
+                (rigid.Sphere is { } sphere ? new CollisionSphere { Center = sphere.AsVector3(), Radius = sphere.W } : null,
                 rigid.Node, rigid.CollisionMask, rigid.VertexMapIndex, rigid.Flags)));
     }
 }

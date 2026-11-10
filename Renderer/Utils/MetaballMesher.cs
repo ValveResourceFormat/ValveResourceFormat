@@ -482,7 +482,7 @@ namespace ValveResourceFormat.Renderer.Utils
             var facing = Vector3.Abs(normal);
 
             var (uv, uAxis) = facing.Z >= facing.X && facing.Z >= facing.Y
-                ? (new Vector2(position.X, position.Y), Vector3.UnitX)
+                ? (position.AsVector2(), Vector3.UnitX)
                 : facing.X >= facing.Y
                     ? (new Vector2(position.Y, position.Z), Vector3.UnitY)
                     : (new Vector2(position.X, position.Z), Vector3.UnitX);

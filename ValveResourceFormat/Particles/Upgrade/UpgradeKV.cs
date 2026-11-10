@@ -294,7 +294,7 @@ internal static class UpgradeKV
             components[index++] = (float)number;
         }
 
-        return new Vector3(components[0], components[1], components[2]);
+        return new Vector3(components);
     }
 
     public static void SetMember(this KVObject obj, string name, KVObject value)

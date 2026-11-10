@@ -71,9 +71,9 @@ namespace ValveResourceFormat.ResourceTypes
                 var o = i * FloatsPerNode;
                 nodes.Add(new PathParticleRopeNode
                 {
-                    Position = new Vector3(floats[o + 0], floats[o + 1], floats[o + 2]),
-                    InTangent = new Vector3(floats[o + 3], floats[o + 4], floats[o + 5]),
-                    OutTangent = new Vector3(floats[o + 6], floats[o + 7], floats[o + 8]),
+                    Position = new Vector3(floats.AsSpan(o)),
+                    InTangent = new Vector3(floats.AsSpan(o + 3)),
+                    OutTangent = new Vector3(floats.AsSpan(o + 6)),
                 });
             }
 

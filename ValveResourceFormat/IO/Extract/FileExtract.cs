@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.IO;
 using System.Text;
 using ValveKeyValue;
@@ -409,7 +410,7 @@ namespace ValveResourceFormat.IO
                 return null;
             }
 
-            var magic = BitConverter.ToUInt32(buffer);
+            var magic = BinaryPrimitives.ReadUInt32LittleEndian(buffer);
 
             return magic switch
             {

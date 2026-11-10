@@ -299,7 +299,8 @@ public partial class GltfModelExporter
                     }
                     else
                     {
-                        weights = [.. Enumerable.Repeat(baseWeights0, (int)vertexBuffer.ElementCount)];
+                        weights = new Vector4[(int)vertexBuffer.ElementCount];
+                        Array.Fill(weights, baseWeights0);
                     }
                 }
 

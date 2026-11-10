@@ -1,4 +1,4 @@
-using System.Buffers;
+using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -109,7 +109,7 @@ namespace ValveResourceFormat.ResourceTypes
                         private static SKRectI ToPixelRect(Vector2 min, Vector2 max, int width, int height)
                         {
                             // Empty frames are stored as a degenerate rectangle
-                            if (max.X <= min.X || max.Y <= min.Y)
+                            if (Vector2.LessThanOrEqualAny(max, min))
                             {
                                 return SKRectI.Empty;
                             }
@@ -1367,9 +1367,7 @@ namespace ValveResourceFormat.ResourceTypes
                 do
                 {
                     // Integers in png are big endian
-                    var number = Reader.ReadBytes(sizeof(uint));
-                    Array.Reverse(number);
-                    size += BitConverter.ToInt32(number);
+                    size += BinaryPrimitives.ReverseEndianness(Reader.ReadInt32());
                     size += 12; // length + chunk type + crc
 
                     chunk = Reader.ReadInt32();

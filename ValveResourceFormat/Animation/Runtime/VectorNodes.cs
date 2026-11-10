@@ -207,6 +207,7 @@ namespace ValveResourceFormat.Animation
         // Signed rotation around Z between the reference and v (Esoterica CalculateYawAngleBetweenVectors)
         static float CalculateYawAngleDegrees(Vector3 reference, Vector3 v)
         {
+            // Faster than AsVector2().Length()
             var referenceLength2D = MathF.Sqrt((reference.X * reference.X) + (reference.Y * reference.Y));
             var vLength2D = MathF.Sqrt((v.X * v.X) + (v.Y * v.Y));
             if (referenceLength2D < 1e-4f || vLength2D < 1e-4f)

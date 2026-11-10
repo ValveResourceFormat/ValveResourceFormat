@@ -63,8 +63,7 @@ public sealed class InfoDynamicShadowHint : BaseEntity
 
         var local = Vector3.Transform(position, worldToLocal);
 
-        return local.X >= boxMins.X && local.Y >= boxMins.Y && local.Z >= boxMins.Z
-            && local.X <= boxMaxs.X && local.Y <= boxMaxs.Y && local.Z <= boxMaxs.Z;
+        return Vector3.GreaterThanOrEqualAll(local, boxMins) && Vector3.LessThanOrEqualAll(local, boxMaxs);
     }
 
     /// <summary>

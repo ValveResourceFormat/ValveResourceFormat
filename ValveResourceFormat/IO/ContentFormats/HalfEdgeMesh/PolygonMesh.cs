@@ -397,7 +397,7 @@ public sealed class PolygonMesh
         FinaliseNewellNormal(vNormal, refpt, count, out pOutNormal, out pOutPlaneDistance);
     }
 
-    private static readonly float CollinearTolerance = MathF.Cos(1f * (MathF.PI / 180f));
+    private static readonly float CollinearTolerance = MathF.Cos(float.DegreesToRadians(1f));
 
     /// <summary>
     /// Computes the tangent of a face corner from the face's texture mapping around it, as a direction with the
@@ -899,7 +899,7 @@ public sealed class PolygonMesh
     /// </summary>
     public bool AreEdgesCoLinear(HalfEdgeHandle hEdgeA, HalfEdgeHandle hEdgeB, float flAngleToleranceInDegrees)
     {
-        var flTolerance = MathF.Cos(MathF.Min(flAngleToleranceInDegrees, 180.0f) * (MathF.PI / 180f));
+        var flTolerance = MathF.Cos(float.DegreesToRadians(MathF.Min(flAngleToleranceInDegrees, 180.0f)));
 
         if ((hEdgeA == HalfEdgeHandle.Invalid) || (hEdgeB == HalfEdgeHandle.Invalid))
         {

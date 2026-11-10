@@ -592,7 +592,7 @@ namespace ValveResourceFormat.Animation
         protected override float GetValueInternal(GraphContext ctx)
         {
             var target = InputValueNode.GetValue(ctx);
-            var omega = 2f * MathF.PI * Hertz;
+            var omega = MathF.Tau * Hertz;
             var dt = ctx.DeltaTime;
 
             // Semi-implicit Euler spring integration

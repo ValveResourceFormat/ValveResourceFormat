@@ -321,7 +321,7 @@ internal static class DmxMeshBuilder
 
         if (!HasStream(vertexData, "texcoord$0"))
         {
-            vertexData.AddIndexedStream("texcoord$0", Enumerable.Repeat(Vector2.Zero, elementCount).ToArray(), indices);
+            vertexData.AddIndexedStream("texcoord$0", new Vector2[elementCount], indices);
         }
     }
 

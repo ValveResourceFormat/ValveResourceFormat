@@ -37,7 +37,7 @@ internal sealed class DepthPyramid(RendererContext rendererContext)
         Texture?.Delete();
 
         // Mips needed to take the larger axis down to 1
-        var maxMipLevel = (int)Math.Log2(Math.Max(targetWidth, targetHeight));
+        var maxMipLevel = int.Log2(Math.Max(targetWidth, targetHeight));
 
         Texture = RenderTexture.Create(targetWidth, targetHeight, ImageFormat.R32F, maxMipLevel + 1, "DepthPyramid");
         Texture.SetBaseMaxLevel(0, maxMipLevel);

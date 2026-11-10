@@ -228,10 +228,7 @@ namespace ValveResourceFormat.Animation
                     {
                         var sourceBuffer = pool.GetBuffer(maskBufferIndices[task.SourceTaskIdx]);
                         maskBufferIndices[i] = maskBufferIndices[task.SourceTaskIdx];
-                        for (var b = 0; b < sourceBuffer.Length; b++)
-                        {
-                            sourceBuffer[b] *= task.Weight;
-                        }
+                        TensorPrimitives.Multiply(sourceBuffer, task.Weight, sourceBuffer);
 
                         break;
                     }

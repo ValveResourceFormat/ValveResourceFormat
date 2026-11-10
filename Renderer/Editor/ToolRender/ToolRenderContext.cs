@@ -387,7 +387,7 @@ public sealed class ToolRenderContext
 
         for (var i = 1; i <= segments; i++)
         {
-            var point = GetPoint(i / (float)segments * MathF.PI * 2f);
+            var point = GetPoint(i / (float)segments * MathF.Tau);
             DrawLine(previous, point);
             previous = point;
         }

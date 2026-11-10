@@ -204,7 +204,7 @@ public sealed class DotaLightInfo : BaseEntity
             }
 
             var offset = lightInfo.WorldOrigin - position;
-            var distance = MathF.Sqrt(offset.X * offset.X + offset.Y * offset.Y);
+            var distance = offset.AsVector2().Length();
             var innerRadius = keyValues.GetFloatProperty("inner_radius");
             var outerRadius = keyValues.GetFloatProperty("outer_radius");
 

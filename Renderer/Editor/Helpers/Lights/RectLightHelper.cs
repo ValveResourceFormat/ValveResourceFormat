@@ -30,7 +30,7 @@ internal sealed class RectLightHelper : LightHelperBase
             return;
         }
 
-        var halfSize = new Vector2(SizeParams.X, SizeParams.Y);
+        var halfSize = SizeParams.AsVector2();
 
         context.PushTransform(Owner.RigidTransform);
 

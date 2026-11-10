@@ -47,6 +47,7 @@ namespace ValveResourceFormat.Particles.Utils
             var z = NextSigned();
             var outside = Vector128.GreaterThan(LengthsSquared(x, y, z), Vector128<float>.One);
 
+            // Faster than Vector128.AnyWhereAllBitsSet
             while (outside.ExtractMostSignificantBits() != 0)
             {
                 x = Vector128.ConditionalSelect(outside, NextSigned(), x);

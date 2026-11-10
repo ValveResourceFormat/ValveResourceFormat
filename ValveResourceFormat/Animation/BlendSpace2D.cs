@@ -175,7 +175,7 @@ public static class BlendSpace2D
 
         // The pairwise blend weights derived from these have to stay within 0 and 1
         bary = Vector3.Max(bary, Vector3.Zero);
-        bary /= bary.X + bary.Y + bary.Z;
+        bary /= Vector3.Sum(bary);
         return true;
     }
 

@@ -642,8 +642,7 @@ public class Rubikon
 
         foreach (var hull in Hulls)
         {
-            if (point.X < hull.Min.X || point.Y < hull.Min.Y || point.Z < hull.Min.Z
-                || point.X > hull.Max.X || point.Y > hull.Max.Y || point.Z > hull.Max.Z)
+            if (Vector3.LessThanAny(point, hull.Min) || Vector3.GreaterThanAny(point, hull.Max))
             {
                 continue;
             }

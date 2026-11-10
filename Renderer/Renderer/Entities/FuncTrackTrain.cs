@@ -885,7 +885,7 @@ public class FuncTrackTrain : BaseModelEntity
     {
         if (angle < -180f || angle > 180f)
         {
-            angle = MathF.Min(MathF.Max(angle - MathF.Floor(angle * (1f / 360f) + 0.5f) * 360f, -180f), 180f);
+            angle = Math.Clamp(angle - MathF.Floor(angle * (1f / 360f) + 0.5f) * 360f, -180f, 180f);
         }
 
         return angle < 0f ? angle + 360f : angle;

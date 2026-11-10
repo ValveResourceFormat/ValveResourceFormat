@@ -1829,7 +1829,7 @@ namespace ValveResourceFormat.Renderer
             var bestScore = float.MaxValue;
 
             var boundsCenter = objectBounds?.Center ?? position;
-            var maxReachSquared = objectBounds is { } bounds ? (boundsCenter - bounds.Min).LengthSquared() : float.MaxValue;
+            var maxReachSquared = objectBounds is { } bounds ? Vector3.DistanceSquared(boundsCenter, bounds.Min) : float.MaxValue;
 
             foreach (var probe in CollectionsMarshal.AsSpan(boundLightProbes))
             {

@@ -61,9 +61,9 @@ namespace Tests.IO
 
                     using (Assert.Multiple())
                     {
-                        await Assert.That(new Vector3(bind.M11, bind.M12, bind.M13).Length()).IsEqualTo(1f).Within(0.01f).Because($"joint {joint.Name}");
-                        await Assert.That(new Vector3(bind.M21, bind.M22, bind.M23).Length()).IsEqualTo(1f).Within(0.01f).Because($"joint {joint.Name}");
-                        await Assert.That(new Vector3(bind.M31, bind.M32, bind.M33).Length()).IsEqualTo(1f).Within(0.01f).Because($"joint {joint.Name}");
+                        await Assert.That(bind.X.AsVector3().Length()).IsEqualTo(1f).Within(0.01f).Because($"joint {joint.Name}");
+                        await Assert.That(bind.Y.AsVector3().Length()).IsEqualTo(1f).Within(0.01f).Because($"joint {joint.Name}");
+                        await Assert.That(bind.Z.AsVector3().Length()).IsEqualTo(1f).Within(0.01f).Because($"joint {joint.Name}");
                     }
                 }
             }

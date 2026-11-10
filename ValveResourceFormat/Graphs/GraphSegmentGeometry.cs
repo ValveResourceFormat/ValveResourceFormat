@@ -38,8 +38,10 @@ internal static class GraphSegmentGeometry
     /// </summary>
     public static bool SegmentCrossesBox(Vector2 a, Vector2 b, Vector2 min, Vector2 max)
     {
-        if ((a.X >= min.X && a.X <= max.X && a.Y >= min.Y && a.Y <= max.Y)
-            || (b.X >= min.X && b.X <= max.X && b.Y >= min.Y && b.Y <= max.Y))
+        var aInside = Vector2.GreaterThanOrEqualAll(a, min) && Vector2.LessThanOrEqualAll(a, max);
+        var bInside = Vector2.GreaterThanOrEqualAll(b, min) && Vector2.LessThanOrEqualAll(b, max);
+
+        if (aInside || bInside)
         {
             return true;
         }

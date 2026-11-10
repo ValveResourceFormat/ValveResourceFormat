@@ -122,8 +122,6 @@ internal static class TensorPrimitivesExtensions
 
     private static Vector<uint> ToUnorm8Lanes(Vector<float> value)
     {
-        // Vector conversion of NaN is not defined to give 0 like the scalar cast
-        value = Vector.ConditionalSelect(Vector.Equals(value, value), value, Vector<float>.Zero);
         value = Vector.Min(Vector.Max(value, Vector<float>.Zero), Vector<float>.One);
 
         return Vector.AsVectorUInt32(Vector.ConvertToInt32((value * 255f) + new Vector<float>(0.5f)));

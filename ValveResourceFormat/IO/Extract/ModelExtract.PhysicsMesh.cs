@@ -221,7 +221,7 @@ partial class ModelExtract
 
         if (appendVertexNormalStream)
         {
-            vertexData.AddIndexedStream("normal$0", Enumerable.Repeat(new Vector3(0, 0, 0), vertexPositions.Length).ToArray(), indices);
+            vertexData.AddIndexedStream("normal$0", new Vector3[vertexPositions.Length], indices);
         }
 
         DmxScaffolding.TieElementRoot(dmx, dmeModel);
@@ -309,7 +309,7 @@ partial class ModelExtract
 
         if (appendVertexNormalStream)
         {
-            vertexData.AddIndexedStream("normal$0", Enumerable.Repeat(new Vector3(0, 0, 0), vertices.Length).ToArray(), indices);
+            vertexData.AddIndexedStream("normal$0", new Vector3[vertices.Length], indices);
         }
 
         DmxScaffolding.TieElementRoot(dmx, dmeModel);

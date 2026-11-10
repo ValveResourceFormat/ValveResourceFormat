@@ -340,7 +340,7 @@ namespace GUI.Types.GLViewers
                     RendererControl.CreateRowCheckBox(binding.Gizmo.Visible, visible => binding.Gizmo.Visible = visible, "Gizmo"),
                     RendererControl.CreateRowButton("Reset", () => binding.ResetPending = true)));
 
-                var (row, fields) = RendererControl.CreateVectorRow(new Vector3(value.X, value.Y, value.Z), vector =>
+                var (row, fields) = RendererControl.CreateVectorRow(value.AsVector3(), vector =>
                 {
                     graph.VectorParameters[paramName] = new Vector4(vector, 0f);
                     binding.Initialized = true;
@@ -586,7 +586,7 @@ namespace GUI.Types.GLViewers
                 }
 
                 var vector = animGraph.VectorParameters[binding.ParameterName];
-                parameterValue = new FrameBone(new Vector3(vector.X, vector.Y, vector.Z), 1f, Quaternion.Identity);
+                parameterValue = new FrameBone(vector.AsVector3(), 1f, Quaternion.Identity);
             }
 
             var characterValue = binding.IsWorldSpace ? parameterValue * animGraph.WorldTransform.Inverse() : parameterValue;

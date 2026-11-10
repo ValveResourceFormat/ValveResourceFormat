@@ -47,7 +47,7 @@ internal sealed class VertexKDTree
 
         ComputeBounds(out var min, out var max, start, count);
         var axis = GreatestAxis(max - min);
-        var split = (Component(max, axis) + Component(min, axis)) * 0.5f;
+        var split = (max[axis] + min[axis]) * 0.5f;
         var splitIndex = FindMidpointIndex(start, count, axis, split);
 
         if (splitIndex == start || splitIndex == start + count)
@@ -72,7 +72,7 @@ internal sealed class VertexKDTree
 
         for (var i = mid; i < end; i++)
         {
-            if (Component(_positions[_refs[i]], axis) < split)
+            if (_positions[_refs[i]][axis] < split)
             {
                 (_refs[mid], _refs[i]) = (_refs[i], _refs[mid]);
                 mid++;
@@ -81,7 +81,7 @@ internal sealed class VertexKDTree
 
         for (var i = mid - 1; i >= start; i--)
         {
-            if (Component(_positions[_refs[i]], axis) >= split)
+            if (_positions[_refs[i]][axis] >= split)
             {
                 (_refs[mid - 1], _refs[i]) = (_refs[i], _refs[mid - 1]);
                 mid--;
@@ -103,13 +103,6 @@ internal sealed class VertexKDTree
     }
 
     private static int GreatestAxis(Vector3 v) => v.X >= v.Y ? (v.X > v.Z ? 0 : 2) : (v.Y > v.Z ? 1 : 2);
-
-    private static float Component(Vector3 v, int axis) => axis switch
-    {
-        0 => v.X,
-        1 => v.Y,
-        _ => v.Z,
-    };
 
     public List<int> FindVertsInBox(Vector3 minBounds, Vector3 maxBounds)
     {
@@ -134,9 +127,7 @@ internal sealed class VertexKDTree
                 var idx = _refs[i];
                 var p = _positions[idx];
 
-                if (p.X >= minBounds.X && p.X <= maxBounds.X &&
-                    p.Y >= minBounds.Y && p.Y <= maxBounds.Y &&
-                    p.Z >= minBounds.Z && p.Z <= maxBounds.Z)
+                if (Vector3.GreaterThanOrEqualAll(p, minBounds) && Vector3.LessThanOrEqualAll(p, maxBounds))
                 {
                     result.Add(idx);
                 }
@@ -145,12 +136,12 @@ internal sealed class VertexKDTree
         else
         {
             var axis = node.Axis;
-            if (Component(minBounds, axis) <= node.Split)
+            if (minBounds[axis] <= node.Split)
             {
                 FindVertsInBoxRecursive(node.Children[0], minBounds, maxBounds, result);
             }
 
-            if (Component(maxBounds, axis) >= node.Split)
+            if (maxBounds[axis] >= node.Split)
             {
                 FindVertsInBoxRecursive(node.Children[1], minBounds, maxBounds, result);
             }

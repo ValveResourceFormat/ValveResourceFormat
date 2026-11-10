@@ -1308,8 +1308,7 @@ namespace GUI.Types.GLViewers
                 CenterPosition();
             }
 
-            Position.X = MathF.Round(Position.X);
-            Position.Y = MathF.Round(Position.Y);
+            Position = Vector2.Round(Position);
         }
 
         private void RecenterTexture()

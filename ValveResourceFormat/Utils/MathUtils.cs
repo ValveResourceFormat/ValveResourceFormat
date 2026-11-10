@@ -139,7 +139,7 @@ namespace ValveResourceFormat.Utils
                 return Vector3.DistanceSquared(point, start);
             }
 
-            var t = Math.Clamp(Vector3.Dot(point - start, segment) / lengthSquared, 0f, 1f);
+            var t = Saturate(Vector3.Dot(point - start, segment) / lengthSquared);
 
             return Vector3.DistanceSquared(point, start + (segment * t));
         }
@@ -354,7 +354,7 @@ namespace ValveResourceFormat.Utils
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float DecibelsToLinear(float decibels)
         {
-            return MathF.Pow(10f, decibels / 20f);
+            return float.Exp10(decibels / 20f);
         }
 
         /// <summary>
@@ -442,12 +442,7 @@ namespace ValveResourceFormat.Utils
         /// The length of one of a transform's basis vectors: how much it scales along that axis.
         /// <paramref name="axis"/> is 0 for X, 1 for Y, 2 for Z.
         /// </summary>
-        public static float AxisScale(this Matrix4x4 m, int axis) => axis switch
-        {
-            0 => m.GetRow(0).AsVector3().Length(),
-            1 => m.GetRow(1).AsVector3().Length(),
-            _ => m.GetRow(2).AsVector3().Length(),
-        };
+        public static float AxisScale(this Matrix4x4 m, int axis) => m.GetRow(axis).AsVector3().Length();
 
         /// <summary>
         /// The largest per-axis scale baked into a transform.

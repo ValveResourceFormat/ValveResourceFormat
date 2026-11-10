@@ -211,14 +211,14 @@ public class PathTrack : BaseEntity
         }
         else
         {
-            yaw = MathF.Atan2(forward.Y, forward.X) * (180f / MathF.PI);
+            yaw = float.RadiansToDegrees(MathF.Atan2(forward.Y, forward.X));
 
             if (yaw < 0f)
             {
                 yaw += 360f;
             }
 
-            pitch = MathF.Atan2(-forward.Z, MathF.Sqrt(forward.X * forward.X + forward.Y * forward.Y)) * (180f / MathF.PI);
+            pitch = float.RadiansToDegrees(MathF.Atan2(-forward.Z, forward.AsVector2().Length()));
 
             if (pitch < 0f)
             {

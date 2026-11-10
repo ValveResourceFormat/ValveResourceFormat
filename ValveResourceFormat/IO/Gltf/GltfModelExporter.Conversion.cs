@@ -75,7 +75,7 @@ public partial class GltfModelExporter
     {
         for (var i = 0; i < tangents.Length; i++)
         {
-            var rotated = Vector3.Transform(new Vector3(tangents[i].X, tangents[i].Y, tangents[i].Z), SourceToGltfRotation);
+            var rotated = Vector3.Transform(tangents[i].AsVector3(), SourceToGltfRotation);
             tangents[i] = new Vector4(rotated, tangents[i].W);
         }
     }

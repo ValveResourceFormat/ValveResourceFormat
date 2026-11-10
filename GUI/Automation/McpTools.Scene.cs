@@ -545,7 +545,7 @@ internal sealed partial class McpTools
         }
 
         var point = Vector4.Transform(new Vector4(u * 2f - 1f, 1f - v * 2f, (depth - range.Near) / (range.Far - range.Near), 1f), clipToWorld);
-        var position = new Vector3(point.X, point.Y, point.Z) / point.W;
+        var position = point.AsVector3() / point.W;
 
         return inSky ? Vector3.Transform(position, scene.ToViewerWorld) : position;
     }

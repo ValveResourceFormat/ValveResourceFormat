@@ -339,7 +339,7 @@ namespace ValveResourceFormat.Particles.Utils
 
         /// <summary>Whether a direction bias is large enough for the picks to score their candidates along it.</summary>
         public static bool HasDirectionBias(Vector3 bias)
-            => MathF.Abs(bias.X) >= 1e-4f || MathF.Abs(bias.Y) >= 1e-4f || MathF.Abs(bias.Z) >= 1e-4f;
+            => Vector3.GreaterThanOrEqualAny(Vector3.Abs(bias), new Vector3(1e-4f));
 
         /// <summary>
         /// Whether <paramref name="point"/> lies inside any box, or with <paramref name="boundBox"/>
@@ -459,7 +459,7 @@ namespace ValveResourceFormat.Particles.Utils
         private static Vector3 ClosestPointOnCapsule(Vector3 mins, Vector3 maxs, Vector3 point)
         {
             var size = maxs - mins;
-            var radius = (size.X + size.Y + size.Z) * 0.25f;
+            var radius = Vector3.Sum(size) * 0.25f;
             var axis = size.X >= size.Y && size.X >= size.Z ? 0 : size.Y >= size.X && size.Y >= size.Z ? 1 : 2;
             var offset = Vector3.Zero;
             offset[axis] = (size[axis] * 0.5f) - radius;

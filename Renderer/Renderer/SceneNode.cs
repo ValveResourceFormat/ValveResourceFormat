@@ -53,7 +53,7 @@ namespace ValveResourceFormat.Renderer
             get => new(Tint, Alpha);
             set
             {
-                Tint = new Vector3(value.X, value.Y, value.Z);
+                Tint = value.AsVector3();
                 Alpha = value.W;
             }
         }

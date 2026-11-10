@@ -92,7 +92,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 for (var i = 0; i < values.Length; i++)
                 {
-                    positions[i] = new Vector3(values[i].X, values[i].Y, values[i].Z);
+                    positions[i] = values[i].AsVector3();
                 }
 
                 flexData.Add(name, positions);

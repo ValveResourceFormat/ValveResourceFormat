@@ -51,7 +51,7 @@ internal sealed class BarnLightHelper : LightHelperBase
         // A texture decides the shape, which is then outlined as a rectangle
         var exponent = HasCookie ? 0f : ShapeExponent;
 
-        var nearHalfSize = new Vector2(SizeParams.X, SizeParams.Y);
+        var nearHalfSize = SizeParams.AsVector2();
         var farCenter = new Vector3(Range, Shear.X, Shear.Y);
         var farHalfSize = GetHalfSizeAt(Range);
 
@@ -186,7 +186,7 @@ internal sealed class BarnLightHelper : LightHelperBase
 
     // The light widens by size_params.z per unit of distance from its luminaire
     private Vector2 GetHalfSizeAt(float distance)
-        => new Vector2(SizeParams.X, SizeParams.Y) * (distance * SizeParams.Z + 1f);
+        => SizeParams.AsVector2() * (distance * SizeParams.Z + 1f);
 
     private static void DrawFrustum(ToolRenderContext context, Vector2 nearHalfSize, Vector3 farCenter, Vector2 farHalfSize, float exponent)
     {

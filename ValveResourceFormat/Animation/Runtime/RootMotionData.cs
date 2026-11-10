@@ -116,7 +116,7 @@ partial class RootMotionData
         }
 
         var movementDelta = Transforms[frameIdx].Position - Transforms[frameIdx - 1].Position;
-        if (MathF.Abs(movementDelta.X) <= TransformMath.Epsilon && MathF.Abs(movementDelta.Y) <= TransformMath.Epsilon)
+        if (TransformMath.IsNearZero2(movementDelta))
         {
             return Transforms[frameIdx].Angle;
         }

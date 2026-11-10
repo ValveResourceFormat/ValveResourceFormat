@@ -195,7 +195,7 @@ namespace GUI.Types.GLViewers
                     // Saved cameras predate the camera holding pitch the engine's way round, and are
                     // stored positive upwards, so already saved ones keep pointing where they did.
                     Input.Camera.SetLocationPitchYaw(
-                        new Vector3(savedFloats[0], savedFloats[1], savedFloats[2]),
+                        new Vector3(savedFloats),
                         -savedFloats[3],
                         savedFloats[4]);
                 }

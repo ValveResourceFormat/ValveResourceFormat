@@ -221,7 +221,7 @@ namespace ValveResourceFormat.IO
             foreach (var sample in samples)
             {
                 var (normal, offset) = PlanarizedBoxPlaneAt(sample, min, max);
-                if ((normal - sample.Normal).Length() >= PlanarizeNormalTolerance
+                if (Vector3.Distance(normal, sample.Normal) >= PlanarizeNormalTolerance
                     || MathF.Abs(offset - sample.Offset) >= PlanarizeOffsetTolerance)
                 {
                     return null;
@@ -380,7 +380,7 @@ namespace ValveResourceFormat.IO
         internal static (Vector3 Point0, Vector3 Point1) PlanarizedAxis(CapsuleFit fit,
             List<PlanarizeSample> samples, List<int> members)
         {
-            if ((fit.C1 - fit.C0).Length() > PlanarizeCapAxisMinimum)
+            if (Vector3.Distance(fit.C1, fit.C0) > PlanarizeCapAxisMinimum)
             {
                 return (fit.C0, fit.C1);
             }
@@ -576,7 +576,7 @@ namespace ValveResourceFormat.IO
                     offset = Vector3.Dot(normal, sample.Local);
                 }
 
-                if ((normal - sample.Normal).Length() < PlanarizeNormalTolerance
+                if (Vector3.Distance(normal, sample.Normal) < PlanarizeNormalTolerance
                     && MathF.Abs(offset - sample.Offset) < PlanarizeOffsetTolerance)
                 {
                     members.Add(i);
@@ -741,7 +741,7 @@ namespace ValveResourceFormat.IO
             var determinant = (a * ((d * f) - (e * e))) - (b * ((b * f) - (e * c)))
                 + (c * ((b * e) - (d * c)));
             var phi = Math.Acos(Math.Clamp(determinant / 2, -1.0, 1.0)) / 3;
-            var smallest = q + (2 * p * Math.Cos(phi + (2 * Math.PI / 3)));
+            var smallest = q + (2 * p * Math.Cos(phi + (Math.Tau / 3)));
 
             Span<Vector3> rows =
             [
@@ -1709,13 +1709,13 @@ namespace ValveResourceFormat.IO
                 for (var j = i + 1; j < pool.Count; j++)
                 {
                     var b = samples[pool[j]];
-                    var span = (a.Normal - b.Normal).Length();
+                    var span = Vector3.Distance(a.Normal, b.Normal);
                     if (span < 1e-3f)
                     {
                         continue;
                     }
 
-                    var radius = (a.Tangent - b.Tangent).Length() / span;
+                    var radius = Vector3.Distance(a.Tangent, b.Tangent) / span;
                     var centre = a.Tangent - (radius * a.Normal);
                     var inliers = new HashSet<int>();
                     foreach (var k in pool)

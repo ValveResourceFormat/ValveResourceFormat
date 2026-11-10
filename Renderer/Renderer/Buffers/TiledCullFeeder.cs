@@ -637,7 +637,7 @@ public sealed class TiledCullFeeder
 
             if (clipCorner.W >= cameraNearPlane)
             {
-                projected[pointCount++] = NdcToPixel(new Vector2(clipCorner.X, clipCorner.Y) / clipCorner.W);
+                projected[pointCount++] = NdcToPixel(clipCorner.AsVector2() / clipCorner.W);
 
                 ndcDepthNear = MathF.Max(ndcDepthNear, clipCorner.Z / clipCorner.W);
             }
@@ -681,7 +681,7 @@ public sealed class TiledCullFeeder
 
                 var t = MathUtils.Remap(cameraNearPlane, near.W, far.W);
 
-                var crossing = Vector2.Lerp(new Vector2(near.X, near.Y), new Vector2(far.X, far.Y), t) / cameraNearPlane;
+                var crossing = Vector2.Lerp(near.AsVector2(), far.AsVector2(), t) / cameraNearPlane;
 
                 projected[pointCount++] = NdcToPixel(crossing);
             }
@@ -715,8 +715,8 @@ public sealed class TiledCullFeeder
         }
 
         if (projection.HullCount == 0
-            || projection.RawMin.X > viewportSize.X || projection.RawMin.Y > viewportSize.Y
-            || projection.RawMax.X < 0f || projection.RawMax.Y < 0f)
+            || Vector2.GreaterThanAny(projection.RawMin, viewportSize)
+            || Vector2.LessThanAny(projection.RawMax, Vector2.Zero))
         {
             return false;
         }
@@ -1019,8 +1019,8 @@ public sealed class TiledCullFeeder
             return 0f;
         }
 
-        var pc = NdcToPixel(new Vector2(atCentre.X, atCentre.Y) / atCentre.W);
-        var pe = NdcToPixel(new Vector2(atEdge.X, atEdge.Y) / atEdge.W);
+        var pc = NdcToPixel(atCentre.AsVector2() / atCentre.W);
+        var pe = NdcToPixel(atEdge.AsVector2() / atEdge.W);
 
         return Vector2.Distance(pe, pc);
     }

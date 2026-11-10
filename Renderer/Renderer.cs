@@ -844,7 +844,7 @@ public class Renderer : ISceneHost
         scene.LightingInfo.AddEnvironmentMap(environmentMap);
         scene.LightingInfo.UseSceneBoundsForSunLightFrustum = true;
 
-        var sunForward = EntityTransformHelper.EulerAnglesToForwardDirection(new Vector3(DefaultSunAngles.X, DefaultSunAngles.Y, 0f));
+        var sunForward = EntityTransformHelper.EulerAnglesToForwardDirection(DefaultSunAngles.AsVector3());
         scene.LightingInfo.LightingData.SunDirection = new Vector4(-sunForward, scene.LightingInfo.GetSunMinRoughness());
         scene.LightingInfo.LightingData.SunColor =
             new Vector4(DefaultSunColor.AsVector3() * DefaultSunColor.W, 1f);

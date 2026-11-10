@@ -329,10 +329,8 @@ namespace GUI.Forms
 
         internal static Point ClipPointToRect(Point point, Rectangle rectangle)
         {
-            if (point.X < 0) { point.X = 0; }
-            if (point.Y < 0) { point.Y = 0; }
-            if (point.X > rectangle.Width) { point.X = rectangle.Width; }
-            if (point.Y > rectangle.Height) { point.Y = rectangle.Height; }
+            var x = Math.Clamp(point.X, 0, rectangle.Width);
+            var y = Math.Clamp(point.Y, 0, rectangle.Height);
 
             return point;
         }

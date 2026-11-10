@@ -24,7 +24,7 @@ public static class TransformMath
 
     /// <summary>Whether every component of a vector is within epsilon of zero.</summary>
     public static bool IsNearZero(Vector3 v, float epsilon = Epsilon)
-        => MathF.Abs(v.X) <= epsilon && MathF.Abs(v.Y) <= epsilon && MathF.Abs(v.Z) <= epsilon;
+        => Vector3.LessThanOrEqualAll(Vector3.Abs(v), new Vector3(epsilon));
 
     /// <summary>The delta that concatenated onto <paramref name="from"/> gives <paramref name="to"/>, ignoring scale.</summary>
     public static Transform DeltaNoScale(Transform from, Transform to)
@@ -59,11 +59,7 @@ public static class TransformMath
         var qt0 = 1f - ot;
         var qt1 = dot > 0f ? ot : -ot;
 
-        return Quaternion.Normalize(new Quaternion(
-            q0.X * qt0 + q1.X * qt1,
-            q0.Y * qt0 + q1.Y * qt1,
-            q0.Z * qt0 + q1.Z * qt1,
-            q0.W * qt0 + q1.W * qt1));
+        return Quaternion.Normalize((q0 * qt0) + (q1 * qt1));
     }
 
     /// <summary>The shortest rotation aligning one unit vector onto another.</summary>
@@ -145,15 +141,17 @@ public static class TransformMath
     /// <summary>Normalizes on the ground plane, dropping the vertical component.</summary>
     public static Vector3 Normalize2(Vector3 v)
     {
+        // Faster than AsVector2().Length()
         var length = MathF.Sqrt((v.X * v.X) + (v.Y * v.Y));
         return length != 0f ? new Vector3(v.X / length, v.Y / length, 0f) : Vector3.Zero;
     }
 
+    // Faster than AsVector2().Length()
     /// <summary>The length on the ground plane, ignoring the vertical component.</summary>
     public static float Length2(Vector3 v) => MathF.Sqrt((v.X * v.X) + (v.Y * v.Y));
 
     /// <summary>Whether the ground plane components are within epsilon of zero.</summary>
-    public static bool IsNearZero2(Vector3 v, float epsilon = Epsilon) => MathF.Abs(v.X) <= epsilon && MathF.Abs(v.Y) <= epsilon;
+    public static bool IsNearZero2(Vector3 v, float epsilon = Epsilon) => Vector2.LessThanOrEqualAll(Vector2.Abs(v.AsVector2()), new Vector2(epsilon));
 
     /// <summary>Whether two vectors point the same way on the ground plane.</summary>
     public static bool IsVectorInTheSameHemisphere2D(Vector3 reference, Vector3 v) => Vector3.Dot(Normalize2(reference), Normalize2(v)) > 0f;
@@ -186,10 +184,7 @@ public static class TransformMath
         }
 
         var delta = a.PositionScale - b.PositionScale;
-        return MathF.Abs(delta.X) <= translationScaleThreshold
-            && MathF.Abs(delta.Y) <= translationScaleThreshold
-            && MathF.Abs(delta.Z) <= translationScaleThreshold
-            && MathF.Abs(delta.W) <= translationScaleThreshold;
+        return Vector4.LessThanOrEqualAll(Vector4.Abs(delta), new Vector4(translationScaleThreshold));
     }
 
     /// <summary>A rotation facing the forward vector while keeping as close to the up vector as possible.</summary>
