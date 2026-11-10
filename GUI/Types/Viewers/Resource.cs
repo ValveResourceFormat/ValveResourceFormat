@@ -916,7 +916,7 @@ namespace GUI.Types.Viewers
                 ShowRootLines = true,
             };
 
-            treeView.BeginUpdate();
+            using var _ = treeView.SuspendPainting();
 
             var rootNodes = new Dictionary<string, TreeNode>();
             var rootLookup = rootNodes.GetAlternateLookup<ReadOnlySpan<char>>();
@@ -977,7 +977,6 @@ namespace GUI.Types.Viewers
             }
 
             treeView.ExpandAll();
-            treeView.EndUpdate();
 
             void OnNodeDoubleClick(object? sender, TreeNodeMouseClickEventArgs e)
             {

@@ -63,19 +63,13 @@ namespace GUI.Types.PackageViewer
             var min = Math.Min(a, b);
             var max = Math.Max(a, b);
 
-            BeginUpdate();
-            try
-            {
-                SelectedIndices.Clear();
+            using var _ = this.SuspendPainting();
 
-                for (var i = min; i <= max; i++)
-                {
-                    SelectedIndices.Add(i);
-                }
-            }
-            finally
+            SelectedIndices.Clear();
+
+            for (var i = min; i <= max; i++)
             {
-                EndUpdate();
+                SelectedIndices.Add(i);
             }
         }
 

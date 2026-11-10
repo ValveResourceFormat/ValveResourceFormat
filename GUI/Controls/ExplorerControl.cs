@@ -379,9 +379,8 @@ namespace GUI.Controls
                     }
                     else
                     {
-                        treeView.BeginUpdate();
+                        using var _ = treeView.SuspendPainting();
                         treeView.Nodes.Insert(dataIndex, treeNode);
-                        treeView.EndUpdate();
                     }
                 }, cancellationToken).ConfigureAwait(false);
             });
@@ -473,7 +472,7 @@ namespace GUI.Controls
 
         private void OnFilterTextBoxTextChanged(object? sender, EventArgs e)
         {
-            treeView.BeginUpdate();
+            using var _ = treeView.SuspendPainting();
             treeView.Nodes.Clear();
 
             var text = filterTextBox.Text.Replace(Path.DirectorySeparatorChar, '/');
@@ -522,7 +521,6 @@ namespace GUI.Controls
             }
 
             treeView.Nodes.AddRange([.. foundNodes]);
-            treeView.EndUpdate();
         }
 
         private void OnVisibleChanged(object sender, EventArgs e)
@@ -538,14 +536,13 @@ namespace GUI.Controls
 
         private void RedrawList(int appid, TreeNode[] list)
         {
-            treeView.BeginUpdate();
+            using var _ = treeView.SuspendPainting();
             var node = TreeData.Find(node => node.AppID == appid);
             Debug.Assert(node != null);
             node.ParentNode.Nodes.Clear();
             node.ParentNode.Nodes.AddRange(list);
             node.ParentNode.Expand();
             node.Children = list;
-            treeView.EndUpdate();
 
             if (filterTextBox.Text.Length > 0)
             {

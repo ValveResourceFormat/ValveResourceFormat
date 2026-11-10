@@ -314,20 +314,20 @@ namespace GUI.Types.PackageViewer
 
             var replacedFiles = new HashSet<PackageEntry>();
 
-            treeView.BeginUpdate();
-
-            foreach (var (entry, replacedEntry) in addedFiles)
+            using (treeView.mainTreeView.SuspendPainting())
             {
-                if (replacedEntry != null)
+                foreach (var (entry, replacedEntry) in addedFiles)
                 {
-                    treeView.RemoveFileNode(replacedEntry);
-                    replacedFiles.Add(replacedEntry);
-                }
+                    if (replacedEntry != null)
+                    {
+                        treeView.RemoveFileNode(replacedEntry);
+                        replacedFiles.Add(replacedEntry);
+                    }
 
-                treeView.AddFileNode(entry);
+                    treeView.AddFileNode(entry);
+                }
             }
 
-            treeView.EndUpdate();
             folder.CreatedNode?.Expand();
             treeView.RefreshListView(replacedFiles);
 
@@ -360,38 +360,38 @@ namespace GUI.Types.PackageViewer
             var removedFiles = new HashSet<PackageEntry>();
             var refusedFolders = new List<string>();
 
-            TreeView.BeginUpdate();
-
-            foreach (var item in items)
+            using (TreeView.mainTreeView.SuspendPainting())
             {
-                if (item.PackageEntry is { } entry)
+                foreach (var item in items)
                 {
-                    if (package.RemoveFile(entry))
+                    if (item.PackageEntry is { } entry)
                     {
-                        removedFiles.Add(entry);
-                        TreeView.RemoveFileNode(entry);
-                    }
-                }
-                else if (item.PkgNode is { Parent: not null } folder)
-                {
-                    var folderPath = GetFolderPath(folder);
-
-                    if (TreeViewWithSearchResults.EnumerateFiles(folder).Any())
-                    {
-                        if (!IsNormalizedFolderPath(folderPath))
+                        if (package.RemoveFile(entry))
                         {
-                            refusedFolders.Add(folderPath);
-                            continue;
+                            removedFiles.Add(entry);
+                            TreeView.RemoveFileNode(entry);
+                        }
+                    }
+                    else if (item.PkgNode is { Parent: not null } folder)
+                    {
+                        var folderPath = GetFolderPath(folder);
+
+                        if (TreeViewWithSearchResults.EnumerateFiles(folder).Any())
+                        {
+                            if (!IsNormalizedFolderPath(folderPath))
+                            {
+                                refusedFolders.Add(folderPath);
+                                continue;
+                            }
+
+                            removedFiles.UnionWith(package.RemoveDirectory(folderPath));
                         }
 
-                        removedFiles.UnionWith(package.RemoveDirectory(folderPath));
+                        TreeView.RemoveFolderNode(folder);
                     }
-
-                    TreeView.RemoveFolderNode(folder);
                 }
             }
 
-            TreeView.EndUpdate();
             TreeView.RefreshListView(removedFiles);
 
             if (removedFiles.Count > 0)
@@ -476,10 +476,9 @@ namespace GUI.Types.PackageViewer
                 return;
             }
 
-            treeView.BeginUpdate();
+            using var _ = treeView.mainTreeView.SuspendPainting();
             treeView.RemoveFileNode(entry, oldDirectoryPath, oldPath);
             treeView.AddFileNode(entry);
-            treeView.EndUpdate();
             treeView.RefreshListView();
 
             HasUnsavedChanges = true;
@@ -559,15 +558,13 @@ namespace GUI.Types.PackageViewer
                 }
             }
 
-            treeView.BeginUpdate();
+            using var _ = treeView.mainTreeView.SuspendPainting();
             treeView.RemoveFolderNode(folder, oldFilePaths);
 
             foreach (var file in movedFiles)
             {
                 treeView.AddFileNode(file);
             }
-
-            treeView.EndUpdate();
 
             foreach (var emptyFolder in emptyFolders)
             {

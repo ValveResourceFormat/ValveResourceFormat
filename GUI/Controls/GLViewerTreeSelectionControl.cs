@@ -31,33 +31,32 @@ namespace GUI.Controls
                 ShowLines = false,
             };
 
-            treeView.BeginUpdate();
-
-            // The tree finds items by their paths ignoring case
-            var items = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var path in paths)
+            using (treeView.SuspendPainting())
             {
-                items.Add(path);
-                AddPath(path)?.Checked = isChecked(path);
+                // The tree finds items by their paths ignoring case
+                var items = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var path in paths)
+                {
+                    items.Add(path);
+                    AddPath(path)?.Checked = isChecked(path);
+                }
+
+                CheckGroups(treeView.Nodes, items);
+
+                if (!foldGroups)
+                {
+                    treeView.ExpandAll();
+                }
+                else if (treeView.Nodes is [var root])
+                {
+                    // A lone item at the top holds all the others, so it lists its groups, each folded away
+                    root.Expand();
+                }
+
+                // A lone item at the top is never folded, so only several need the arrows that fold them
+                treeView.ShowRootLines = treeView.Nodes.Count > 1 && treeView.Nodes.Cast<TreeNode>().Any(static node => node.Nodes.Count > 0);
             }
-
-            CheckGroups(treeView.Nodes, items);
-
-            if (!foldGroups)
-            {
-                treeView.ExpandAll();
-            }
-            else if (treeView.Nodes is [var root])
-            {
-                // A lone item at the top holds all the others, so it lists its groups, each folded away
-                root.Expand();
-            }
-
-            // A lone item at the top is never folded, so only several need the arrows that fold them
-            treeView.ShowRootLines = treeView.Nodes.Count > 1 && treeView.Nodes.Cast<TreeNode>().Any(static node => node.Nodes.Count > 0);
-
-            treeView.EndUpdate();
 
             treeView.LabelClicked += node => SetChecked(node, !node.Checked);
             treeView.AfterCheck += (_, e) =>

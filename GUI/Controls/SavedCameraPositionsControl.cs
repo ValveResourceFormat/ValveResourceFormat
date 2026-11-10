@@ -69,7 +69,7 @@ namespace GUI.Controls
         {
             var previousCamera = cmbPositions.SelectedItem?.ToString();
 
-            cmbPositions.BeginUpdate();
+            using var _ = cmbPositions.SuspendPainting();
             cmbPositions.Items.Clear();
 
             if (Settings.Config.SavedCameras.Count == 0)
@@ -99,8 +99,6 @@ namespace GUI.Controls
 
                 cmbPositions.SelectedIndex = selectedIndex;
             }
-
-            cmbPositions.EndUpdate();
         }
 
         private void BtnSetPos_Click(object sender, EventArgs e)

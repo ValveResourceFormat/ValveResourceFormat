@@ -378,7 +378,7 @@ namespace GUI.Types.PackageViewer
                 AddFileToListView(file);
             }
 
-            mainListView.BeginUpdate();
+            using var _ = mainListView.SuspendPainting();
             mainListView.VirtualListSize = ListViewItems.Count;
 
             AssignIcons();
@@ -387,8 +387,6 @@ namespace GUI.Types.PackageViewer
             {
                 mainListView.EnsureVisible(0);
             }
-
-            mainListView.EndUpdate();
 
             ShowSearchResultsState(DisplayedFolder == null);
 
@@ -505,7 +503,7 @@ namespace GUI.Types.PackageViewer
                 }
                 else if (entry is FolderNavigationEntry { Node: var node })
                 {
-                    mainTreeView.BeginUpdate();
+                    using var _ = mainTreeView.SuspendPainting();
                     var treeNode = CreateTreeNodes(node);
 
                     if (treeNode != null)
@@ -514,8 +512,6 @@ namespace GUI.Types.PackageViewer
                         treeNode.Expand();
                         mainTreeView.SelectedNode = treeNode;
                     }
-
-                    mainTreeView.EndUpdate();
 
                     DisplayMainListView();
                     MainListView_DisplayNodes(node);
@@ -1097,16 +1093,6 @@ namespace GUI.Types.PackageViewer
             }
         }
 
-        internal void BeginUpdate()
-        {
-            mainTreeView.BeginUpdate();
-        }
-
-        internal void EndUpdate()
-        {
-            mainTreeView.EndUpdate();
-        }
-
         /// <summary>
         /// Initializes the TreeView in the control with the contents of the passed Package. Contents are sorted and expanded by default.
         /// </summary>
@@ -1116,7 +1102,7 @@ namespace GUI.Types.PackageViewer
             mainTreeView.Root = rootVirtual;
 
             var control = mainTreeView;
-            control.BeginUpdate();
+            using var _ = control.SuspendPainting();
             control.PathSeparator = Package.DirectorySeparatorChar.ToString();
             control.Name = "treeViewVpk";
             control.VrfGuiContext = vrfGuiContext;
@@ -1155,7 +1141,6 @@ namespace GUI.Types.PackageViewer
             root.Expand();
 
             control.TreeViewNodeSorter = new TreeViewFileSorter();
-            control.EndUpdate();
 
             // Defer until OnLoad, see comment on PendingInitialDisplayNode.
             PendingInitialDisplayNode = rootVirtual;
@@ -1168,7 +1153,7 @@ namespace GUI.Types.PackageViewer
                 return;
             }
 
-            mainTreeView.BeginUpdate();
+            using var _ = mainTreeView.SuspendPainting();
 
             var node = (BetterTreeNode)e.Node;
             CreateNodes(node);
@@ -1183,8 +1168,6 @@ namespace GUI.Types.PackageViewer
                     node.Expand();
                 }
             }
-
-            mainTreeView.EndUpdate();
         }
 
         private void CreateNodes(BetterTreeNode realNode)
@@ -1196,7 +1179,7 @@ namespace GUI.Types.PackageViewer
                 return;
             }
 
-            mainTreeView.BeginUpdate();
+            using var _ = mainTreeView.SuspendPainting();
             realNode.Nodes.Clear();
 
             foreach (var node in currentNode.Folders)
@@ -1221,7 +1204,6 @@ namespace GUI.Types.PackageViewer
             }
 
             currentNode.CreatedNode = realNode;
-            mainTreeView.EndUpdate();
         }
 
         private void CreateFileNode(BetterTreeNode realNode, PackageEntry file, bool isCreating = false)
@@ -1374,31 +1356,31 @@ namespace GUI.Types.PackageViewer
                         return;
                     }
 
-                    mainTreeView.BeginUpdate();
-
-                    var name = $"Deleted files ({foundFiles.Count} files found, names are guessed)";
-                    var rootVirtual = new VirtualPackageNode(name, 0, null);
-                    DeletedFilesRoot = rootVirtual;
-
-                    foreach (var file in foundFiles)
+                    using (mainTreeView.SuspendPainting())
                     {
-                        BetterTreeView.AddFileNode(rootVirtual, file);
+                        var name = $"Deleted files ({foundFiles.Count} files found, names are guessed)";
+                        var rootVirtual = new VirtualPackageNode(name, 0, null);
+                        DeletedFilesRoot = rootVirtual;
+
+                        foreach (var file in foundFiles)
+                        {
+                            BetterTreeView.AddFileNode(rootVirtual, file);
+                        }
+
+                        var root = new BetterTreeNode(rootVirtual.Name, rootVirtual)
+                        {
+                            Name = "root_deleted",
+                            ImageIndex = deletedImage,
+                            SelectedImageIndex = deletedImage,
+                        };
+                        mainTreeView.Nodes.Add(root);
+                        CreateNodes(root);
+
+                        root.Expand();
+                        mainTreeView.SelectedNode = root;
+                        DisplayMainListView();
+                        MainListView_DisplayNodes(rootVirtual);
                     }
-
-                    var root = new BetterTreeNode(rootVirtual.Name, rootVirtual)
-                    {
-                        Name = "root_deleted",
-                        ImageIndex = deletedImage,
-                        SelectedImageIndex = deletedImage,
-                    };
-                    mainTreeView.Nodes.Add(root);
-                    CreateNodes(root);
-
-                    root.Expand();
-                    mainTreeView.SelectedNode = root;
-                    DisplayMainListView();
-                    MainListView_DisplayNodes(rootVirtual);
-                    mainTreeView.EndUpdate();
                 }));
 
                 return Task.CompletedTask;
@@ -1604,7 +1586,7 @@ namespace GUI.Types.PackageViewer
             // When left or right clicking a folder, select it in the tree view and ensure it is visible
             if (item.PkgNode != null && mainListView.SelectedIndices.Count <= 1)
             {
-                mainTreeView.BeginUpdate();
+                using var _ = mainTreeView.SuspendPainting();
                 var node = CreateTreeNodes(item.PkgNode);
 
                 if (node != null)
@@ -1612,8 +1594,6 @@ namespace GUI.Types.PackageViewer
                     node.EnsureVisible();
                     mainTreeView.SelectedNode = node;
                 }
-
-                mainTreeView.EndUpdate();
             }
 
             if (e.Button != MouseButtons.Right)
@@ -1626,14 +1606,15 @@ namespace GUI.Types.PackageViewer
                 // When right clicking a file, select it in the tree view and ensure it is visible
                 if (mainListView.SelectedIndices.Count <= 1 && FindFolderNodeOfFile(item.PackageEntry) is { } pkgNode)
                 {
-                    mainTreeView.BeginUpdate();
+                    BetterTreeNode? parentNode;
 
-                    // Create tree nodes for the deepest folder (this also creates all ancestor nodes)
-                    var parentNode = CreateTreeNodes(pkgNode);
+                    using (mainTreeView.SuspendPainting())
+                    {
+                        // Create tree nodes for the deepest folder (this also creates all ancestor nodes)
+                        parentNode = CreateTreeNodes(pkgNode);
+                    }
 
-                    mainTreeView.EndUpdate();
-
-                    // Select the file node after EndUpdate so EnsureVisible works correctly
+                    // Select the file node after painting resumes so EnsureVisible works correctly
                     if (parentNode != null)
                     {
                         foreach (BetterTreeNode node in parentNode.Nodes)
@@ -1688,7 +1669,7 @@ namespace GUI.Types.PackageViewer
             // if user left double clicks a folder, open its contents and display in list view
             if (item.PkgNode != null)
             {
-                mainTreeView.BeginUpdate();
+                using var _ = mainTreeView.SuspendPainting();
                 var node = CreateTreeNodes(item.PkgNode);
 
                 if (node != null)
@@ -1696,8 +1677,6 @@ namespace GUI.Types.PackageViewer
                     node.Expand();
                     mainTreeView.SelectedNode = node;
                 }
-
-                mainTreeView.EndUpdate();
 
                 MainListView_DisplayNodes(item.PkgNode);
             }
@@ -1994,7 +1973,7 @@ namespace GUI.Types.PackageViewer
                 break;
             }
 
-            mainTreeView.BeginUpdate();
+            using var _ = mainTreeView.SuspendPainting();
             var treeNode = CreateTreeNodes(node);
 
             if (treeNode != null)
@@ -2022,8 +2001,6 @@ namespace GUI.Types.PackageViewer
                 DisplayMainListView();
                 MainListView_DisplayNodes(node, updatePath: false);
             }
-
-            mainTreeView.EndUpdate();
         }
 
         private static int GetFolderImageIndex() => ImageIndexFolder;

@@ -1232,7 +1232,7 @@ namespace GUI.Types.GLViewers
                     renderModes.Add(mode);
                 }
 
-                renderModeComboBox.BeginUpdate();
+                using var _ = renderModeComboBox.SuspendPainting();
                 renderModeComboBox.Items.Clear();
 
                 foreach (var renderMode in renderModes)
@@ -1242,7 +1242,6 @@ namespace GUI.Types.GLViewers
 
                 renderModeCurrentIndex = -10;
                 renderModeComboBox.SelectedIndex = selectedIndex;
-                renderModeComboBox.EndUpdate();
             }
         }
 

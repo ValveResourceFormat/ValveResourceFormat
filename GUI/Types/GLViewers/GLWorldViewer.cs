@@ -366,11 +366,10 @@ namespace GUI.Types.GLViewers
                             Input.Camera.SetFromTransformMatrix(CameraMatrices[index - 1]);
                         }
                     });
-                    cameraComboBox.BeginUpdate();
+                    using var _ = cameraComboBox.SuspendPainting();
                     cameraComboBox.Items.Add("Set view to camera…");
                     cameraComboBox.Items.AddRange([.. LoadedWorld.CameraNames]);
                     cameraComboBox.SelectedIndex = 0;
-                    cameraComboBox.EndUpdate();
                 }
             }
 

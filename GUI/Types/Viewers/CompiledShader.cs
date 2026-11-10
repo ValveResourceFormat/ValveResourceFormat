@@ -289,16 +289,8 @@ namespace GUI.Types.Viewers
 
                 DisplayStaticCombo(combo);
 
-                fileListView.BeginUpdate();
-
-                try
-                {
-                    CreateStaticComboNodes(combo, node);
-                }
-                finally
-                {
-                    fileListView.EndUpdate();
-                }
+                using var _ = fileListView.SuspendPainting();
+                CreateStaticComboNodes(combo, node);
             }
             else if (node.Tag is VfxStaticComboData combo)
             {

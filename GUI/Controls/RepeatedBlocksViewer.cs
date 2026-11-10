@@ -37,22 +37,21 @@ namespace GUI.Controls
             blockListView.Columns.Add("Block");
             blockListView.Columns.Add("Size");
 
-            blockListView.BeginUpdate();
-
-            foreach (var (index, block) in blocks)
+            using (blockListView.SuspendPainting())
             {
-                var name = blockNames.GetValueOrDefault(index, string.Empty);
-                var item = new ListViewItem(name)
+                foreach (var (index, block) in blocks)
                 {
-                    Tag = block,
-                    ToolTipText = name,
-                };
-                item.SubItems.Add(index.ToString(CultureInfo.InvariantCulture));
-                item.SubItems.Add(HumanReadableByteSizeFormatter.Format(block.Size));
-                blockListView.Items.Add(item);
+                    var name = blockNames.GetValueOrDefault(index, string.Empty);
+                    var item = new ListViewItem(name)
+                    {
+                        Tag = block,
+                        ToolTipText = name,
+                    };
+                    item.SubItems.Add(index.ToString(CultureInfo.InvariantCulture));
+                    item.SubItems.Add(HumanReadableByteSizeFormatter.Format(block.Size));
+                    blockListView.Items.Add(item);
+                }
             }
-
-            blockListView.EndUpdate();
 
             Themer.ThemeControl(blockListView);
             AddControl(blockListView);

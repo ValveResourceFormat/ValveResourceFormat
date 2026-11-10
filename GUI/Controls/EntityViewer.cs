@@ -211,7 +211,7 @@ namespace GUI.Types.Viewers
                 filteredEntities.Add((entity, classname, targetname));
             }
 
-            EntityViewerGrid.BeginUpdate();
+            using var _ = EntityViewerGrid.SuspendPainting();
             EntityViewerGrid.Items.Clear();
 
             if (filteredEntities.Count > 0)
@@ -241,8 +241,6 @@ namespace GUI.Types.Viewers
 
                 EntityViewerGrid.Items.AddRange(items);
             }
-
-            EntityViewerGrid.EndUpdate();
 
             // when search changes set first entity as selected in entity props
             if (filteredEntities.Count > 0)

@@ -78,10 +78,9 @@ namespace GUI.Controls
                 }
             }
 
-            antiAliasingComboBox.BeginUpdate();
+            using var _ = antiAliasingComboBox.SuspendPainting();
             antiAliasingComboBox.Items.AddRange(strings);
             antiAliasingComboBox.SelectedIndex = selectedSamples;
-            antiAliasingComboBox.EndUpdate();
         }
 
         private void GamePathRemoveClick(object sender, EventArgs e)

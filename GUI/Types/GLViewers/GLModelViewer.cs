@@ -1313,7 +1313,7 @@ namespace GUI.Types.GLViewers
 
             animationIndexMap.Clear();
 
-            animationComboBox.BeginUpdate();
+            using var _ = animationComboBox.SuspendPainting();
             animationComboBox.Items.Clear();
 
             if (animations.Length > 0 || graphSessions.Length > 0)
@@ -1423,8 +1423,6 @@ namespace GUI.Types.GLViewers
                 animationComboBox.SelectedIndex = 0;
                 animationComboBox.Enabled = false;
             }
-
-            animationComboBox.EndUpdate();
         }
     }
 }

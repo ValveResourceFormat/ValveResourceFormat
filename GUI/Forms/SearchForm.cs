@@ -91,12 +91,11 @@ namespace GUI.Forms
             onlyInFolderCheckBox.Checked |= onlyInFolder;
 
             var selected = extensionComboBox.Text;
-            extensionComboBox.BeginUpdate();
+            using var _ = extensionComboBox.SuspendPainting();
             extensionComboBox.Items.Clear();
             extensionComboBox.Items.Add("Any extension");
             extensionComboBox.Items.AddRange(package.Entries?.Keys.Order(NumericComparer).ToArray() ?? []);
             extensionComboBox.SelectedIndex = Math.Max(0, extensionComboBox.FindStringExact(selected));
-            extensionComboBox.EndUpdate();
 
             UpdateState();
         }
@@ -127,12 +126,11 @@ namespace GUI.Forms
             }
 
             // Show loading state
-            filterKeyComboBox.BeginUpdate();
+            using var _ = filterKeyComboBox.SuspendPainting();
             filterKeyComboBox.Items.Clear();
             filterKeyComboBox.Items.Add("Loading asset info\u2026");
             filterKeyComboBox.SelectedIndex = 0;
             filterKeyComboBox.Enabled = false;
-            filterKeyComboBox.EndUpdate();
 
             filterValueComboBox.Items.Clear();
             filterValueComboBox.Visible = false;
@@ -155,7 +153,7 @@ namespace GUI.Forms
             lastPopulatedKeysHash = keys?.GetHashCode() ?? 0;
             var hasKeys = keys != null && keys.Count > 0;
 
-            filterKeyComboBox.BeginUpdate();
+            using var _ = filterKeyComboBox.SuspendPainting();
             filterKeyComboBox.Items.Clear();
 
             if (hasKeys)
@@ -174,20 +172,17 @@ namespace GUI.Forms
                 filterKeyComboBox.Enabled = false;
             }
 
-            filterKeyComboBox.EndUpdate();
-
             filterValueComboBox.Items.Clear();
             filterValueComboBox.Visible = false;
         }
 
         private void FilterKeyComboBox_SelectedIndexChanged(object? sender, EventArgs e)
         {
-            filterValueComboBox.BeginUpdate();
+            using var _ = filterValueComboBox.SuspendPainting();
             filterValueComboBox.Items.Clear();
 
             if (filterKeyComboBox.SelectedItem is not FilterKeyEntry entry)
             {
-                filterValueComboBox.EndUpdate();
                 filterValueComboBox.Visible = false;
                 return;
             }
@@ -195,7 +190,6 @@ namespace GUI.Forms
             filterValueComboBox.Items.Add("(Any value)");
             filterValueComboBox.Items.AddRange([.. entry.Values]);
             filterValueComboBox.SelectedIndex = 0;
-            filterValueComboBox.EndUpdate();
             filterValueComboBox.Visible = true;
         }
 

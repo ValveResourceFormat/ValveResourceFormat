@@ -345,11 +345,10 @@ namespace GUI.Types.GLViewers
                             var depthMip = textureData.Depth >> SelectedMip;
                             var newSelectedDepth = Math.Min(SelectedDepth, depthMip - 1);
 
-                            depthComboBox.BeginUpdate();
+                            using var _ = depthComboBox.SuspendPainting();
                             depthComboBox.Items.Clear();
                             depthComboBox.Items.AddRange(Enumerable.Range(0, depthMip).Select(x => $"#{x}").ToArray());
                             depthComboBox.SelectedIndex = newSelectedDepth;
-                            depthComboBox.EndUpdate();
                         }
 
                         if (softwareDecodeCheckBox != null && softwareDecodeCheckBox.Checked)
