@@ -1,10 +1,10 @@
 #version 460
 
-#include "common/utils.slang"
+#include "common/luminance_histogram.slang"
 
-layout(binding = 0) uniform sampler2D inputImage;
+layout (local_size_x = 256) in;
 
-// Global histogram buffer (256 bins)
+// Global histogram buffer (256 bins), filled by the MSAA resolve
 layout(binding = 15, std430) buffer HistogramBuffer
 {
     uint histogram[256];
@@ -13,62 +13,13 @@ layout(binding = 15, std430) buffer HistogramBuffer
 // Shared histogram used inside a workgroup
 shared uint localHistogram[256];
 
-uniform float logMinLuminance;      // Minimum log luminance value
-uniform float logLuminanceRange;    // Range of log luminance (inverse scale factor)
+uniform int g_nTotalPixels;
 
 layout(binding = 11, std140) buffer Luminance { float outputLuminance; };
 
-#define D_HISTOGRAM_MODE 0
-
-#if D_HISTOGRAM_MODE == 0
-    layout (local_size_x = 16, local_size_y = 16) in;
-#else
-    layout (local_size_x = 256) in;
-#endif
-
 void main()
 {
-    uvec3 globalID = gl_GlobalInvocationID;
-    uint bin       = gl_LocalInvocationIndex;
-
-    uvec2 imageResolution = uvec2(textureSize(inputImage, 0).xy);
-
-#if D_HISTOGRAM_MODE == 0
-
-    localHistogram[bin] = 0;
-    memoryBarrierShared();
-    barrier();
-
-    if (globalID.x < imageResolution.x && globalID.y < imageResolution.y)
-    {
-        vec3 color = texelFetch(inputImage, ivec2(globalID.xy), 0).rgb;
-        float luma = GetLuma(color);
-
-        // log2(0) = undefined
-        luma = max(luma, 0.005);
-
-        // Convert to log space and normalize
-        float logLuma = log2(luma);
-        float normalizedLogLuma = saturate((logLuma - logMinLuminance) / logLuminanceRange);
-
-        // Map to histogram bin
-        uint destBin = uint(normalizedLogLuma * 255.0);
-
-        // Accumulate into shared histogram
-        atomicAdd(localHistogram[destBin], 1u);
-    }
-
-    // Ensure all threads finished writing
-    memoryBarrierShared();
-    barrier();
-
-    // Accumulate shared histogram into global histogram
-    if (localHistogram[bin] > 0u)
-    {
-        atomicAdd(histogram[bin], localHistogram[bin]);
-    }
-#else
-    uint totalPixels = imageResolution.x * imageResolution.y;
+    uint bin = gl_LocalInvocationIndex;
 
     // sum up weighted bin values
     localHistogram[bin] = histogram[bin] * bin;
@@ -87,9 +38,7 @@ void main()
     if(bin == 0)
     {
         uint weightedSum = localHistogram[0];
-        float averageBin = totalPixels > 0u ? float(weightedSum) / float(totalPixels) : 0.0;
-        float logLuma = averageBin * (logLuminanceRange / 255.0) + logMinLuminance;
-        outputLuminance = exp2(logLuma);
+        float averageBin = g_nTotalPixels > 0 ? float(weightedSum) / float(g_nTotalPixels) : 0.0;
+        outputLuminance = HistogramBinToLuminance(averageBin);
     }
-#endif
 }

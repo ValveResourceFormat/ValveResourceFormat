@@ -2,17 +2,30 @@
 
 #include "common/utils.slang"
 #include "common/view_constants.slang"
+#include "common/luminance_histogram.slang"
 
 layout (local_size_x = 8, local_size_y = 8) in;
 
 #define D_DOF 0
 
-#define D_MSAA_SAMPLES 1
+// Also bins the average luminance of each pixel's samples into the auto exposure histogram
+#define D_HISTOGRAM 0
 
 uniform bool g_bFlipY = false;
 
+uniform int g_iSampleCount;
+
 layout(binding = 0) uniform sampler2DMS g_tSourceMsaa;
 layout(binding = 1, rgba16f) uniform writeonly image2D g_tDest;
+
+#if D_HISTOGRAM == 1
+layout(binding = 15, std430) buffer HistogramBuffer
+{
+    uint histogram[256];
+};
+
+shared uint localHistogram[256];
+#endif
 
 #if D_DOF == 1
 uniform mat4 g_invViewProjMatrix;
@@ -21,19 +34,15 @@ uniform vec4 g_vNearFarScaleBias;
 uniform sampler2DMS g_tSceneDepthMsaa; // bound above the reserved slots, this is a per draw input
 #endif
 
-void main()
+// Writes the resolved pixel and returns the average color of its samples
+vec3 ResolvePixel(ivec2 coord)
 {
-    ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
-    ivec2 destSize = imageSize(g_tDest);
-
-    if (coord.x >= destSize.x || coord.y >= destSize.y)
-        return;
-
     ivec2 sampleCoord = coord;
     sampleCoord.y = g_bFlipY ? textureSize(g_tSourceMsaa).y - sampleCoord.y - 1 : sampleCoord.y;
 
-    float invNumSamples = 1.0 / float(D_MSAA_SAMPLES);
+    float invNumSamples = 1.0 / float(g_iSampleCount);
     vec3 resolved = vec3(0.0);
+    vec3 averageColor = vec3(0.0);
 
 #if D_DOF == 1
     float lowestDepth = 1.0;
@@ -44,7 +53,7 @@ void main()
     float outputAlpha = 0.0;
 #endif
 
-    for (int i = 0; i < D_MSAA_SAMPLES; i++)
+    for (int i = 0; i < g_iSampleCount; i++)
     {
         vec4 texel = texelFetch(g_tSourceMsaa, sampleCoord, i);
         // Flush NaN/+Inf to 0; clamp(NaN/+Inf, ...) otherwise returns 65504 (white) on NVIDIA and blows up bloom.
@@ -53,6 +62,7 @@ void main()
         vec3 s = mix(vec3(0.0), clamp(texel.rgb, vec3(0.0), vec3(65504.0)), valid);
         // Karis average: weight by inverse luminance to reduce fireflies
         resolved += s * (invNumSamples / (Max3(s) + 1.0));
+        averageColor += s * invNumSamples;
 
 #if D_DOF == 1
         lowestDepth = min(texelFetch(g_tSceneDepthMsaa, sampleCoord, i).x, lowestDepth);
@@ -99,4 +109,47 @@ void main()
 #endif
 
     imageStore(g_tDest, coord, vec4(resolved, outputAlpha));
+
+    return averageColor;
+}
+
+void main()
+{
+    ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 destSize = imageSize(g_tDest);
+    bool inBounds = coord.x < destSize.x && coord.y < destSize.y;
+
+#if D_HISTOGRAM == 1
+    // Every invocation has to reach the barriers, including the ones outside the image
+    for (uint i = gl_LocalInvocationIndex; i < 256u; i += gl_WorkGroupSize.x * gl_WorkGroupSize.y)
+    {
+        localHistogram[i] = 0u;
+    }
+    barrier();
+#endif
+
+    vec3 averageColor = vec3(0.0);
+
+    if (inBounds)
+    {
+        averageColor = ResolvePixel(coord);
+    }
+
+#if D_HISTOGRAM == 1
+    if (inBounds)
+    {
+        atomicAdd(localHistogram[LuminanceToHistogramBin(GetLuma(averageColor))], 1u);
+    }
+
+    memoryBarrierShared();
+    barrier();
+
+    for (uint i = gl_LocalInvocationIndex; i < 256u; i += gl_WorkGroupSize.x * gl_WorkGroupSize.y)
+    {
+        if (localHistogram[i] > 0u)
+        {
+            atomicAdd(histogram[i], localHistogram[i]);
+        }
+    }
+#endif
 }

@@ -260,8 +260,8 @@ public class Renderer : ISceneHost
     /// </summary>
     public bool ForceResolveSceneDepth { get; set; }
 
-    private readonly Shader[] histogramShaders = new Shader[2];
-    private readonly StorageBuffer[] histogramBuffers = new StorageBuffer[2];
+    // Set by the main scene pass for PostprocessRender, which runs after it with no render context
+    private bool MeterSceneLuminance;
 
     // Injected
     /// <summary>
@@ -886,12 +886,6 @@ public class Renderer : ISceneHost
         depthDownsampleShader = Scene.RendererContext.ShaderLoader.LoadShader("depth_downsample");
         orderIndependentCompositeShader = Scene.RendererContext.ShaderLoader.LoadShader("oit_composite");
 
-        histogramShaders[0] = Scene.RendererContext.ShaderLoader.LoadShader("histogram");
-        histogramShaders[1] = Scene.RendererContext.ShaderLoader.LoadShader("histogram", ("D_HISTOGRAM_MODE", 1));
-
-        histogramBuffers[0] = StorageBuffer.Allocate<uint>(ReservedBufferSlots.BufferSlot15, "Histogram", 256, BufferUsage.GpuOnly);
-        histogramBuffers[1] = StorageBuffer.Allocate<uint>(ReservedBufferSlots.BufferSlot11, "HistogramReadback", 4, BufferUsage.Readback);
-
         ResolvedSceneColor = RenderTexture.Create(4, 4, ImageFormat.RGBA16161616F, nameof(ResolvedSceneColor));
         ResolvedSceneColor.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
         ResolvedSceneColor.SetWrapMode(RsTextureAddressMode.Clamp);
@@ -1508,7 +1502,7 @@ public class Renderer : ISceneHost
         }
 
         var isWireframe = IsWireframe && isStandardPass; // To avoid toggling it mid frame
-        var computeFramebufferLuminance = Postprocess.State.ExposureSettings.AutoExposureEnabled;
+        MeterSceneLuminance = isStandardPass && Postprocess.State.ExposureSettings.AutoExposureEnabled;
 
         // TODO: check if renderpass allows wireframe mode
         // TODO+: replace wireframe shaders with solid color
@@ -1593,8 +1587,6 @@ public class Renderer : ISceneHost
                     RenderTranslucentLayer(skyTranslucent, ref renderContext);
                 }
             }
-
-            copyColor |= computeFramebufferLuminance;
 
             if (isMainFramebuffer)
             {
@@ -1690,11 +1682,6 @@ public class Renderer : ISceneHost
         {
             RenderEffectsBloomMap(mainView, renderContext);
             RenderBloomAmountMap(mainView, renderContext);
-        }
-
-        if (isStandardPass && computeFramebufferLuminance)
-        {
-            ComputeAverageLuminance(renderContext);
         }
 
         if (isStandardPass)
@@ -1938,50 +1925,6 @@ public class Renderer : ISceneHost
             // The draw overwrote the maps kept in the atlas
             volumetricFog.InvalidateShadows();
         }
-    }
-
-    private void ComputeAverageLuminance(Scene.RenderContext renderContext)
-    {
-        Debug.Assert(ResolvedSceneColor != null);
-
-        using var _ = new GLDebugGroup("Compute Average Luminance");
-
-        var width = ResolvedSceneColor.Width;
-        var height = ResolvedSceneColor.Height;
-
-        static void Dispatch(Shader shader, RenderTexture texture, int x, int y)
-        {
-            var logMin = -8f;
-            var logRange = 13f;
-
-            shader.Use();
-            shader.SetTexture(0, "inputImage", texture);
-            shader.SetUniform1("logMinLuminance", logMin);
-            shader.SetUniform1("logLuminanceRange", logRange);
-
-            GL.DispatchCompute(x, y, 1);
-        }
-
-        histogramBuffers[0].Clear();
-        histogramBuffers[0].BindBufferBase();
-        histogramBuffers[1].BindBufferBase();
-
-        var inputTex = ResolvedSceneColor;
-
-        // Build histogram
-        var groupsX = Math.Max(1, MathUtils.DivideRoundUp(width, 16));
-        var groupsY = Math.Max(1, MathUtils.DivideRoundUp(height, 16));
-        Dispatch(histogramShaders[0], inputTex, groupsX, groupsY);
-        GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
-
-        // Reduce histogram
-        Dispatch(histogramShaders[1], inputTex, 1, 1); // local_size_x = 256
-
-        GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit | MemoryBarrierFlags.BufferUpdateBarrierBit);
-
-        var output = Vector4.Zero;
-        histogramBuffers[1].Read(ref output);
-        Postprocess.AverageLuminance = output.X;
     }
 
     private void UpdateMorphAtlas()
@@ -2495,7 +2438,9 @@ public class Renderer : ISceneHost
 
         EnsureResolvedTextureSize(inputFramebuffer.Width, inputFramebuffer.Height);
 
-        Postprocess.Render(inputFramebuffer, outputFramebuffer, ResolvedSceneColor!, Camera, flipY);
+        var meterLuminance = MeterSceneLuminance && ReferenceEquals(inputFramebuffer, MainFramebuffer);
+
+        Postprocess.Render(inputFramebuffer, outputFramebuffer, ResolvedSceneColor!, Camera, flipY, meterLuminance);
     }
 
     /// <summary>
@@ -2532,8 +2477,7 @@ public class Renderer : ISceneHost
         ShadowDepthBuffer?.Delete();
         BarnLightShadowBuffer?.Delete();
         FogShadowBuffer?.Delete();
-        histogramBuffers[0]?.Delete();
-        histogramBuffers[1]?.Delete();
+        Postprocess.Delete();
         WaterEffectsBuffer?.Delete();
         EffectsBloomBuffer?.Delete();
         BloomAmountBuffer?.Delete();

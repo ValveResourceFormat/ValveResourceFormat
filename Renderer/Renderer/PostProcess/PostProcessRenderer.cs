@@ -15,6 +15,9 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
         private readonly RendererContext RendererContext;
         private Shader? shaderMsaaResolve;
+        private Shader? shaderHistogramReduce;
+        private StorageBuffer? histogramBuffer;
+        private StorageBuffer? histogramReadbackBuffer;
         private Shader? shaderDepthResolve;
         private Shader? shaderPostProcess;
         private Shader? shaderPostProcessBloom;
@@ -134,14 +137,24 @@ namespace ValveResourceFormat.Renderer.PostProcess
         public void Load(int msaaSamples)
         {
             var msaa = (byte)msaaSamples;
-            shaderMsaaResolve = RendererContext.ShaderLoader.LoadShader("msaa_resolve", ("D_MSAA_SAMPLES", msaa));
+            shaderMsaaResolve = RendererContext.ShaderLoader.LoadShader("msaa_resolve");
             shaderDepthResolve = RendererContext.ShaderLoader.LoadShader("depth_resolve", ("D_MSAA_SAMPLES", msaa));
             shaderPostProcess = RendererContext.ShaderLoader.LoadShader("post_processing", ("D_BLOOM", 0));
             shaderPostProcessBloom = RendererContext.ShaderLoader.LoadShader("post_processing", ("D_BLOOM", 1));
             shaderCombineLuts = RendererContext.ShaderLoader.LoadShader("combine_luts");
+            shaderHistogramReduce = RendererContext.ShaderLoader.LoadShader("histogram");
 
-            DOF.MsaaSamples = msaa;
+            histogramBuffer ??= StorageBuffer.Allocate<uint>(ReservedBufferSlots.BufferSlot15, "Histogram", 256, BufferUsage.GpuOnly);
+            histogramReadbackBuffer ??= StorageBuffer.Allocate<uint>(ReservedBufferSlots.BufferSlot11, "HistogramReadback", 4, BufferUsage.Readback);
+
             Bloom.Load();
+        }
+
+        /// <summary>Releases the GPU buffers of the luminance metering.</summary>
+        public void Delete()
+        {
+            histogramBuffer?.Delete();
+            histogramReadbackBuffer?.Delete();
         }
 
         /// <summary>
@@ -161,6 +174,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
             {
                 shaderMsaaResolve.Use();
                 shaderMsaaResolve.SetTexture(0, "g_tSourceMsaa", source.Color);
+                shaderMsaaResolve.SetUniform("g_iSampleCount", source.NumSamples);
                 GL.BindImageTexture(1, destColor.Handle, 0, false, 0,
                     TextureAccess.WriteOnly, SizedInternalFormat.Rgba16f);
                 GL.DispatchCompute(groupsX, groupsY, 1);
@@ -276,25 +290,41 @@ namespace ValveResourceFormat.Renderer.PostProcess
         /// <summary>
         /// Resolves MSAA, applies DOF/bloom, tonemaps, and writes the final LDR image to <paramref name="colorBufferDraw"/>.
         /// </summary>
+        /// <param name="colorBufferRead">The multisampled HDR scene framebuffer.</param>
+        /// <param name="colorBufferDraw">Where the final LDR image goes.</param>
+        /// <param name="resolveTarget">The texture the MSAA resolve writes the scene color to.</param>
+        /// <param name="camera">The camera the scene was drawn with.</param>
+        /// <param name="flipY">Whether the image is flipped vertically.</param>
+        /// <param name="meterLuminance">Whether to measure the average luminance of the scene into <see cref="AverageLuminance"/>.</param>
         public void Render(Framebuffer colorBufferRead, Framebuffer colorBufferDraw,
-            RenderTexture resolveTarget, Camera camera, bool flipY)
+            RenderTexture resolveTarget, Camera camera, bool flipY, bool meterLuminance)
         {
             Debug.Assert(shaderMsaaResolve != null);
             Debug.Assert(shaderPostProcess != null && shaderPostProcessBloom != null);
+            Debug.Assert(histogramBuffer != null);
 
             Debug.Assert(BlueNoise != null);
 
             using var _ = GraphicsContext.RenderState.Scope(depthTest: false, depthWrite: false);
 
+            if (meterLuminance)
+            {
+                histogramBuffer.Clear();
+                histogramBuffer.BindBufferBase();
+            }
+
             using (new GLDebugGroup("MSAA Resolve"))
             {
-                var msaaResolveShader = DOF.Enabled ? DOF.MsaaResolveDof : shaderMsaaResolve;
+                var dofCombo = (byte)(DOF.Enabled ? 1 : 0);
+                var histogramCombo = (byte)(meterLuminance ? 1 : 0);
+                var msaaResolveShader = shaderMsaaResolve.WithCombo("D_DOF", dofCombo).WithCombo("D_HISTOGRAM", histogramCombo);
 
                 msaaResolveShader.Use();
                 msaaResolveShader.SetTexture(0, "g_tSourceMsaa", colorBufferRead.Color);
                 GL.BindImageTexture(1, resolveTarget.Handle, 0, false, 0,
                     TextureAccess.WriteOnly, SizedInternalFormat.Rgba16f);
                 msaaResolveShader.SetUniform("g_bFlipY", flipY);
+                msaaResolveShader.SetUniform("g_iSampleCount", colorBufferRead.NumSamples);
 
                 if (DOF.Enabled)
                 {
@@ -388,6 +418,34 @@ namespace ValveResourceFormat.Renderer.PostProcess
                 GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
                 GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
             }
+
+            if (meterLuminance)
+            {
+                ComputeAverageLuminance(resolveTarget.Width * resolveTarget.Height);
+            }
+        }
+
+        // Reduces the histogram filled by the MSAA resolve into the average luminance
+        private void ComputeAverageLuminance(int totalPixels)
+        {
+            Debug.Assert(shaderHistogramReduce != null);
+            Debug.Assert(histogramReadbackBuffer != null);
+
+            using var _ = new GLDebugGroup("Compute Average Luminance");
+
+            histogramReadbackBuffer.BindBufferBase();
+
+            GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
+
+            shaderHistogramReduce.Use();
+            shaderHistogramReduce.SetUniform("g_nTotalPixels", totalPixels);
+            GL.DispatchCompute(1, 1, 1); // local_size_x = 256
+
+            GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit | MemoryBarrierFlags.BufferUpdateBarrierBit);
+
+            var output = Vector4.Zero;
+            histogramReadbackBuffer.Read(ref output);
+            AverageLuminance = output.X;
         }
 
         /// <summary>
