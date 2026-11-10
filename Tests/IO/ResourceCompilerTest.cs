@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using ValveKeyValue;
 using ValvePak;
@@ -428,42 +427,27 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
         startInfo.ArgumentList.Add("-i");
         startInfo.ArgumentList.Add(inputPath);
 
-        using var process = new Process { StartInfo = startInfo };
+        using var process = Process.Start(startInfo)!;
         var output = new StringBuilder();
-        var outputLock = new Lock();
+        var timeout = TimeSpan.FromMilliseconds(CompileTimeoutMs);
 
-        void OnDataReceived(object sender, DataReceivedEventArgs e)
+        try
         {
-            if (e.Data != null)
+            foreach (var line in process.ReadAllLines(timeout))
             {
-                lock (outputLock)
-                {
-                    output.AppendLine(e.Data);
-                }
+                output.AppendLine(line.Content);
             }
         }
-
-        process.OutputDataReceived += OnDataReceived;
-        process.ErrorDataReceived += OnDataReceived;
-
-        process.Start();
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-
-        if (!process.WaitForExit(CompileTimeoutMs))
+        catch (TimeoutException)
         {
             process.Kill(entireProcessTree: true);
             process.WaitForExit();
             Assert.Fail($"resourcecompiler timed out after {CompileTimeoutMs / 1000}s compiling {inputPath}.\n{Tail(output.ToString())}");
         }
 
-        // Flush the remaining async output after the process has exited.
         process.WaitForExit();
 
-        lock (outputLock)
-        {
-            return (process.ExitCode, output.ToString());
-        }
+        return (process.ExitCode, output.ToString());
     }
 
     private static string Tail(string text, int maxLength = 8000)

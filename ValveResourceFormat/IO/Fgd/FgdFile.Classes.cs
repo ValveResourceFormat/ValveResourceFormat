@@ -516,7 +516,7 @@ public sealed partial class FgdFile
         while (tokens.TryPeek(0, out var word) && (word.Is("report") || word.Is("readonly")))
         {
             tokens.TryRead(out _);
-            variable.Metadata[word.Text.ToLowerInvariant()] = true;
+            variable.Metadata[word.Text.ToLowerOrdinal()] = true;
         }
 
         if (tokens.PeekIs(0, "["))
@@ -787,12 +787,12 @@ public sealed partial class FgdFile
 
             if (key.Is("group") || key.Is("min") || key.Is("max") || key.Is("associated_key"))
             {
-                variable.Metadata[key.Text.ToLowerInvariant()] = value;
+                variable.Metadata[key.Text.ToLowerOrdinal()] = value;
             }
             else if (key.Is("important") || key.Is("randomizable") || key.Is("scale_world") || key.Is("scale_bone_relative")
                 || key.Is("readonly") || key.Is("report") || key.Is("hidden"))
             {
-                variable.Metadata[key.Text.ToLowerInvariant()] = true;
+                variable.Metadata[key.Text.ToLowerOrdinal()] = true;
             }
             else
             {

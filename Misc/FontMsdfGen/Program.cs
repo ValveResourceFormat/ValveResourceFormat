@@ -23,17 +23,11 @@ if (!File.Exists(msdfgenPath))
 
 var metrics = new FontMetric[128];
 
-using Process process = new()
+var startInfo = new ProcessStartInfo(msdfgenPath, $"-font {fontFilePath} -imageout output.png -json output.json -pxrange {pxRange} -charset charset.txt -yorigin top -dimensions 512 512 -scanline")
 {
-    StartInfo =
-    {
-        FileName = msdfgenPath,
-        Arguments = $"-font {fontFilePath} -imageout output.png -json output.json -pxrange {pxRange} -charset charset.txt -yorigin top -dimensions 512 512 -scanline",
-        UseShellExecute = false,
-    }
+    UseShellExecute = false,
 };
-process.Start();
-process.WaitForExit();
+Process.Run(startInfo);
 
 var json = System.Text.Json.JsonSerializer.Deserialize<MetricsFile>(File.ReadAllText("./output.json"));
 

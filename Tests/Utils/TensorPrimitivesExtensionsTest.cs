@@ -40,7 +40,7 @@ namespace Tests.Utils
 
             for (var i = 1; i < source.Length; i++)
             {
-                source[i] = (ushort)random.Next(ushort.MaxValue + 1);
+                source[i] = random.NextInteger<ushort>();
             }
 
             var destination = new float[Length];

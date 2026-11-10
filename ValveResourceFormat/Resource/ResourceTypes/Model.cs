@@ -751,8 +751,8 @@ namespace ValveResourceFormat.ResourceTypes
                 return null;
             }
 
-            using var ms = new MemoryStream(Encoding.UTF8.GetBytes(keyvaluesString));
-            return KVDocumentExtensions.ParseKV3(ms).Root;
+            using var stream = new StringStream(keyvaluesString, Encoding.UTF8);
+            return KVDocumentExtensions.ParseKV3(stream).Root;
         }
     }
 }

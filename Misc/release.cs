@@ -31,23 +31,15 @@ RunGitCommand($"tag \"{version}\" --message \"{version}\" --sign");
 
 static void RunGitCommand(string arguments)
 {
-    using var process = new Process
+    var startInfo = new ProcessStartInfo("git", arguments)
     {
-        StartInfo = new ProcessStartInfo
-        {
-            FileName = "git",
-            Arguments = arguments,
-            UseShellExecute = false,
-            RedirectStandardOutput = false,
-            RedirectStandardError = false
-        }
+        UseShellExecute = false,
     };
 
-    process.Start();
-    process.WaitForExit();
+    var status = Process.Run(startInfo);
 
-    if (process.ExitCode != 0)
+    if (status.ExitCode != 0)
     {
-        Environment.Exit(process.ExitCode);
+        Environment.Exit(status.ExitCode);
     }
 }

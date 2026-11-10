@@ -54,12 +54,10 @@ internal static class ExrWriter
         try
         {
             // Blocks are independent and each is stored by its index, so the output does not depend on timing.
-            // Each worker compresses its blocks into one stream that it keeps for all of them.
-            Parallel.For(0, blockCount, () => new MemoryStream(), (blockIndex, _, stream) =>
+            Parallel.For(0, blockCount, blockIndex =>
             {
-                blocks[blockIndex] = EncodeBlock(pixels, blockIndex * LinesPerBlock, stream);
-                return stream;
-            }, stream => stream.Dispose());
+                blocks[blockIndex] = EncodeBlock(pixels, blockIndex * LinesPerBlock);
+            });
 
             var offsetTableSize = blockCount * sizeof(long);
             var totalSize = header.Length + offsetTableSize;
@@ -183,7 +181,7 @@ internal static class ExrWriter
     /// <summary>
     /// Builds one block in an array rented from the shared pool: the first scanline number, the data size, and the data.
     /// </summary>
-    private static EncodedBlock EncodeBlock(SKPixmap pixels, int firstLine, MemoryStream stream)
+    private static EncodedBlock EncodeBlock(SKPixmap pixels, int firstLine)
     {
         var width = pixels.Width;
         var lineCount = Math.Min(LinesPerBlock, pixels.Height - firstLine);
@@ -192,12 +190,14 @@ internal static class ExrWriter
         using var raw = new RentedBuffer<byte>(rawSize);
         using var scratch = new RentedBuffer<byte>(rawSize);
 
+        // One byte smaller than raw, so compression fails exactly when the block would not shrink
+        using var destination = new RentedBuffer<byte>(rawSize - 1);
+
         var rgba = MemoryMarshal.Cast<SKColorF, float>(pixels.GetPixelSpan<SKColorF>());
 
         DeinterleaveChannels(rgba, width, firstLine, lineCount, raw.Span);
 
-        stream.SetLength(0);
-        var data = CompressZip(raw.Span, scratch.Span, stream);
+        var data = CompressZip(raw.Span, scratch.Span, destination.Span);
 
         var blockSize = BlockHeaderSize + data.Length;
         var block = ArrayPool<byte>.Shared.Rent(blockSize);
@@ -229,10 +229,10 @@ internal static class ExrWriter
     }
 
     /// <summary>
-    /// Returns the data to store for <paramref name="raw"/>: the bytes compressed into <paramref name="stream"/>,
+    /// Returns the data to store for <paramref name="raw"/>: the bytes compressed into <paramref name="destination"/>,
     /// or <paramref name="raw"/> itself when compression does not shrink it.
     /// </summary>
-    private static ReadOnlySpan<byte> CompressZip(ReadOnlySpan<byte> raw, Span<byte> scratch, MemoryStream stream)
+    private static ReadOnlySpan<byte> CompressZip(ReadOnlySpan<byte> raw, Span<byte> scratch, Span<byte> destination)
     {
         // Even bytes go to the first half and odd bytes to the second, so similar bytes sit together
         var half = raw.Length / 2;
@@ -249,17 +249,12 @@ internal static class ExrWriter
             scratch[i] = (byte)(scratch[i] - scratch[i - 1] + 128);
         }
 
-        using (var zlib = new ZLibStream(stream, CompressionLevel.Optimal, leaveOpen: true))
+        if (!ZLibEncoder.TryCompress(scratch, destination, out var written))
         {
-            zlib.Write(scratch);
-        }
-
-        // A block that did not shrink is stored as it was, which is how readers tell the two apart
-        if (stream.Length >= raw.Length)
-        {
+            // A block that did not shrink is stored as it was, which is how readers tell the two apart
             return raw;
         }
 
-        return stream.GetBuffer().AsSpan(0, (int)stream.Length);
+        return destination[..written];
     }
 }

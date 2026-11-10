@@ -55,7 +55,7 @@ namespace GUI.Types.Audio
                 length += bytes.Length;
             }
 
-            public MemoryStream ToStream() => new(samples, 0, length, writable: false);
+            public ReadOnlyMemoryStream ToStream() => new(samples.AsMemory(0, length));
         }
 
         /// <summary>

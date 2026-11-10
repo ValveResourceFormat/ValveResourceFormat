@@ -87,7 +87,7 @@ var hasConflicts = MergeInto(destinationDir, baselineDir, newDir);
 if (!dryRun)
 {
     target.SetGeneratedFrom(latestSha);
-    Process.Start("dotnet", $"build \"{Path.Combine(repositoryDir, target.BuildProject)}\" /p:NoWarn=CA1812")?.WaitForExit();
+    Process.Run("dotnet", ["build", Path.Combine(repositoryDir, target.BuildProject), "/p:NoWarn=CA1812"]);
 }
 
 return hasConflicts ? 1 : 0;
@@ -304,28 +304,22 @@ static (string Text, bool Conflicted) MergeText(string current, string baseline,
         File.WriteAllText(baseFile, baseline);
         File.WriteAllText(newFile, generated);
 
-        var startInfo = new ProcessStartInfo("git")
-        {
-            RedirectStandardOutput = true,
-            UseShellExecute = false,
-        };
+        string[] arguments = ["merge-file", "-p", "-L", "manual", "-L", "previous schema", "-L", "new schema", currentFile, baseFile, newFile];
+        var result = Process.RunAndCaptureText("git", arguments);
+        var exitCode = result.ExitStatus.ExitCode;
 
-        foreach (var argument in (string[])["merge-file", "-p", "-L", "manual", "-L", "previous schema", "-L", "new schema", currentFile, baseFile, newFile])
+        if (result.StandardError.Length > 0)
         {
-            startInfo.ArgumentList.Add(argument);
+            Console.Error.Write(result.StandardError);
         }
-
-        using var process = Process.Start(startInfo) ?? throw new InvalidOperationException("Failed to start git");
-        var output = process.StandardOutput.ReadToEnd();
-        process.WaitForExit();
 
         // git merge-file exits with the number of conflicts, negative on errors
-        if (process.ExitCode < 0)
+        if (exitCode < 0)
         {
-            throw new InvalidOperationException($"git merge-file failed with {process.ExitCode}");
+            throw new InvalidOperationException($"git merge-file failed with {exitCode}");
         }
 
-        return (output, process.ExitCode > 0);
+        return (result.StandardOutput, exitCode > 0);
     }
     finally
     {

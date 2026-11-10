@@ -86,9 +86,9 @@ namespace Tests
         /// <summary>Parses KV3 text into a document.</summary>
         public static KVObject ParseKV3(string text)
         {
-            using var ms = new MemoryStream(Encoding.UTF8.GetBytes(text));
+            using var stream = new StringStream(text, Encoding.UTF8);
 
-            return KVDocumentExtensions.ParseKV3(ms).Root;
+            return KVDocumentExtensions.ParseKV3(stream).Root;
         }
 
         /// <summary>The first node of the given class anywhere in the document, depth first.</summary>

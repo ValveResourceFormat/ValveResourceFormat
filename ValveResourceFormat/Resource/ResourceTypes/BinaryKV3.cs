@@ -347,7 +347,7 @@ namespace ValveResourceFormat.ResourceTypes
                 return predicate(block);
             }
 
-            using var reader = new BinaryReader(new MemoryStream(block.Array!, block.Offset, block.Count, writable: false));
+            using var reader = new BinaryReader(new ReadOnlyMemoryStream(block.AsMemory()));
 
             var magic = reader.ReadUInt32();
 

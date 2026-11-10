@@ -1,5 +1,6 @@
 using System.Globalization;
 using ValveKeyValue;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Audio;
 
@@ -113,7 +114,7 @@ internal static class SoundEventFields
                 continue;
             }
 
-            destination[count++] = ParseLeadingFloat(token);
+            destination[count++] = LeadingNumber.ParseFloat(token);
 
             if (count == destination.Length)
             {
@@ -123,19 +124,5 @@ internal static class SoundEventFields
 
         var last = count > 0 ? destination[count - 1] : 0f;
         destination[count..].Fill(last);
-    }
-
-    private static float ParseLeadingFloat(ReadOnlySpan<char> token)
-    {
-        // Like atof: use the longest numeric prefix, and treat a token without one as zero
-        for (var length = token.Length; length > 0; length--)
-        {
-            if (float.TryParse(token[..length], NumberStyles.Float, CultureInfo.InvariantCulture, out var result))
-            {
-                return result;
-            }
-        }
-
-        return 0f;
     }
 }

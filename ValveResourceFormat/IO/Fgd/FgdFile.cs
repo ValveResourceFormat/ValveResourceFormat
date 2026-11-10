@@ -238,12 +238,12 @@ public sealed partial class FgdFile
 
             foreach (var input in gameClass.Inputs)
             {
-                builder.AppendLine(CultureInfo.InvariantCulture, $"	input {input.Name}({(input.IsApi ? "api" : input.Type.ToString().ToLowerInvariant())})");
+                builder.AppendLine(CultureInfo.InvariantCulture, $"	input {input.Name}({(input.IsApi ? "api" : input.Type.ToString().ToLowerOrdinal())})");
             }
 
             foreach (var output in gameClass.Outputs)
             {
-                builder.AppendLine(CultureInfo.InvariantCulture, $"	output {output.Name}({(output.IsApi ? "api" : output.Type.ToString().ToLowerInvariant())})");
+                builder.AppendLine(CultureInfo.InvariantCulture, $"	output {output.Name}({(output.IsApi ? "api" : output.Type.ToString().ToLowerOrdinal())})");
             }
         }
 
@@ -424,7 +424,7 @@ public sealed partial class FgdFile
             return ParseClassDeclaration(tokens, classType);
         }
 
-        return section.Text.ToLowerInvariant() switch
+        return section.Text.ToLowerOrdinal() switch
         {
             "exclude" => ParseExclude(tokens),
             "include" => ParseInclude(tokens, depth),

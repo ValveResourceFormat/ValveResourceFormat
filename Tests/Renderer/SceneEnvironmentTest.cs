@@ -1,8 +1,5 @@
-using System.IO;
-using System.Text;
 using System.Threading.Tasks;
 using ValveResourceFormat.Renderer.SceneEnvironment;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace Tests.Renderer
 {
@@ -56,8 +53,7 @@ namespace Tests.Renderer
                 }
                 """;
 
-            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(Kv));
-            var style = new CurveLightStyle(KVDocumentExtensions.ParseKV3(stream).Root);
+            var style = new CurveLightStyle(TestFixtures.ParseKV3(Kv));
 
             await Assert.That(style.Duration).IsEqualTo(2f).Within(Tolerance);
             await Assert.That(style.Events[0]).IsEqualTo(new LightStyleEvent("on", 0.5f));

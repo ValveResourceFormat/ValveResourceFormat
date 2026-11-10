@@ -190,7 +190,7 @@ namespace ValveResourceFormat.ResourceTypes
                 /// </summary>
                 public bool IsNamed => Name.Length > 0
                     && !Name.StartsWith("CDme", StringComparison.Ordinal)
-                    && !Name.Any(char.IsWhiteSpace);
+                    && !Name.AsSpan().ContainsAnyWhiteSpace();
 
                 /// <summary>
                 /// Gets the time at which a frame starts, measured from the start of the sequence.

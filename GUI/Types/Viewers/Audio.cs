@@ -28,7 +28,7 @@ namespace GUI.Types.Viewers
                 using var fileStream = File.Open(vrfGuiContext.FileName!, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                 var data = new byte[fileStream.Length];
                 await fileStream.ReadExactlyAsync(data).ConfigureAwait(false);
-                stream = new MemoryStream(data, writable: false);
+                stream = new ReadOnlyMemoryStream(data);
             }
 
             if (vrfGuiContext.FileName!.EndsWith(".mp3", StringComparison.InvariantCultureIgnoreCase))

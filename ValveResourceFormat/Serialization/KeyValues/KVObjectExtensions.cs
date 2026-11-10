@@ -648,7 +648,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
             try
             {
-                using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(text));
+                using var stream = new StringStream(text, System.Text.Encoding.UTF8);
                 root = KVSerializer.Create(KVSerializationFormat.KeyValues3Text).Deserialize(stream, new KVSerializerOptions { SkipHeader = true }).Root;
                 error = string.Empty;
                 return true;

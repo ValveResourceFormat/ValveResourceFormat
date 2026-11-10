@@ -1,6 +1,4 @@
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using ValveKeyValue;
 using ValveResourceFormat;
@@ -47,8 +45,7 @@ public class ModelExtractPhysicsTest
         var originalKeyValues = model.KeyValues.ToKV3String();
 
         var text = new ModelExtract(resource, new NullFileLoader()).ToValveModel();
-        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(text));
-        var children = KVDocumentExtensions.ParseKV3(stream).Root.GetSubCollection("rootNode").GetArray("children");
+        var children = TestFixtures.ParseKV3(text).GetSubCollection("rootNode").GetArray("children");
 
         var bodies = children.Single(node => node.GetStringProperty("_class") == "PhysicsBodyMarkupList").GetArray("children");
         await Assert.That(bodies.Count).IsEqualTo(15);

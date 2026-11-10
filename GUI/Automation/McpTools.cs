@@ -123,7 +123,7 @@ internal sealed partial class McpTools : IDisposable
         TransformSchemaNode = static (context, schema) =>
         {
             // The custom converters leave these unconstrained
-            var type = Nullable.GetUnderlyingType(context.TypeInfo.Type) ?? context.TypeInfo.Type;
+            var type = context.TypeInfo.Type.GetNullableUnderlyingType() ?? context.TypeInfo.Type;
 
             if (type == typeof(Vector3))
             {
@@ -319,7 +319,7 @@ internal sealed partial class McpTools : IDisposable
 
             if (parameter.GetCustomAttribute<RangeAttribute>() is { } range)
             {
-                var valueType = Nullable.GetUnderlyingType(parameter.ParameterType) ?? parameter.ParameterType;
+                var valueType = parameter.ParameterType.GetNullableUnderlyingType() ?? parameter.ParameterType;
 
                 // Integer bounds would truncate the value before comparing it
                 if (range.OperandType == typeof(int) && valueType == typeof(float))

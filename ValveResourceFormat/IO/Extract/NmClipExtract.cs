@@ -582,7 +582,7 @@ public class NmClipExtract
         {
             var attributeType = eventName[EntityAttribute.Length..];
             eventName = EntityAttribute;
-            kvDocEvent.Add("m_nValueType", $"EVENT_ENTITY_ATTR_TYPE_{attributeType.ToUpperInvariant()}");
+            kvDocEvent.Add("m_nValueType", $"EVENT_ENTITY_ATTR_TYPE_{attributeType.ToUpperOrdinal()}");
         }
 
         var docEventClass = $"CNmClipDocEvent_{eventName}";

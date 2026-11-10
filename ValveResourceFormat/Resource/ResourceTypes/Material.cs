@@ -253,9 +253,9 @@ namespace ValveResourceFormat.ResourceTypes
                 return null;
             }
 
-            using var ms = new MemoryStream(Encoding.UTF8.GetBytes(inputSignatureString));
+            using var stream = new StringStream(inputSignatureString, Encoding.UTF8);
 
-            return KVDocumentExtensions.ParseKV3(ms).Root;
+            return KVDocumentExtensions.ParseKV3(stream).Root;
         }
 
         /// <summary>

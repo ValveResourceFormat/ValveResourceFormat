@@ -636,7 +636,7 @@ namespace GUI.Controls
 
             if (File.Exists(path))
             {
-                Process.Start(new ProcessStartInfo()
+                Process.StartAndForget(new ProcessStartInfo()
                 {
                     FileName = "explorer.exe",
                     Arguments = @$"/select, ""{path}"""

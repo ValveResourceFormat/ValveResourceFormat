@@ -140,10 +140,12 @@ namespace Tests.IO
                 }
                 else
                 {
-                    using var input = new MemoryStream(data.ToArray());
-                    using var zlib = new ZLibStream(input, CompressionMode.Decompress);
                     var reordered = new byte[rawSize];
-                    zlib.ReadExactly(reordered);
+
+                    if (!ZLibDecoder.TryDecompress(data, reordered, out var written) || written != rawSize)
+                    {
+                        throw new InvalidDataException("EXR block did not inflate to the expected size.");
+                    }
 
                     for (var i = 1; i < rawSize; i++)
                     {

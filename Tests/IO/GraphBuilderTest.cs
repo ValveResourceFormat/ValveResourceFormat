@@ -116,8 +116,7 @@ namespace Tests.IO
                 }
                 """;
 
-            using var stream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(Graph));
-            var data = KVSerializer.Create(KVSerializationFormat.KeyValues3Text).Deserialize(stream).Root;
+            var data = TestFixtures.ParseKV3(Graph);
 
             var document = new GraphDocument();
             new PulseGraphBuilder(data).Build(document);
@@ -199,8 +198,7 @@ namespace Tests.IO
                 }
                 """;
 
-            using var stream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(Graph));
-            var data = KVSerializer.Create(KVSerializationFormat.KeyValues3Text).Deserialize(stream).Root;
+            var data = TestFixtures.ParseKV3(Graph);
 
             var reports = new CollectingProgress();
             var document = new GraphDocument();
@@ -280,8 +278,7 @@ namespace Tests.IO
                 }
                 """;
 
-            using var stream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(Graph));
-            var data = KVSerializer.Create(KVSerializationFormat.KeyValues3Text).Deserialize(stream).Root;
+            var data = TestFixtures.ParseKV3(Graph);
 
             var document = new GraphDocument();
             new PulseGraphBuilder(data).Build(document);

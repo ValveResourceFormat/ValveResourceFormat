@@ -109,7 +109,7 @@ namespace CLI
                 FileLoader = new EmptyIncludedFileLoader(),
             };
 
-            using var stream = new MemoryStream(data, writable: false);
+            using var stream = new ReadOnlyMemoryStream(data);
             return KVSerializer.Create(format).Deserialize(stream, options);
         }
 
@@ -123,7 +123,7 @@ namespace CLI
         /// </summary>
         private void WriteIncludes(byte[] data)
         {
-            using var reader = new StreamReader(new MemoryStream(data, writable: false), Encoding.UTF8);
+            using var reader = new StreamReader(new ReadOnlyMemoryStream(data), Encoding.UTF8);
 
             while (reader.ReadLine() is { } line)
             {

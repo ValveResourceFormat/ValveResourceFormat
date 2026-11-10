@@ -36,7 +36,7 @@ public sealed class PointEntityFader : BaseEntity
 
         try
         {
-            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(curveText));
+            using var stream = new StringStream(curveText, Encoding.UTF8);
             curve = new PiecewiseCurve(KVDocumentExtensions.ParseKV3(stream).Root, isLooped: false);
         }
         catch (Exception e) when (e is InvalidDataException or KeyValueException or FormatException)

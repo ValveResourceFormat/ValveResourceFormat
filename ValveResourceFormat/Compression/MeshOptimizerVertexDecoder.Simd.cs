@@ -90,7 +90,7 @@ namespace ValveResourceFormat.Compression
             // each lane of mask is 0x00 or 0xff; sad yields 255*popcount(mask0) in low word => low byte is -popcount(mask0)
             var npops = Sse2.SumAbsoluteDifferences(mask, Vector128<byte>.Zero).AsByte();
             var sm1r = sm1 - Ssse3.Shuffle(npops, Vector128<byte>.Zero);
-            var shuf = Sse2.UnpackLow(sm0.AsInt64(), sm1r.AsInt64()).AsByte();
+            var shuf = Vector128.ZipLower(sm0.AsInt64(), sm1r.AsInt64()).AsByte();
 
             // expand rest via the shuffle mask; lanes it zeroes are filled from sel
             var result = Ssse3.Shuffle(rest, shuf) | Sse2.AndNot(mask, sel);
@@ -103,15 +103,15 @@ namespace ValveResourceFormat.Compression
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void Transpose8(ref Vector128<byte> x0, ref Vector128<byte> x1, ref Vector128<byte> x2, ref Vector128<byte> x3)
         {
-            var t0 = Sse2.UnpackLow(x0, x1);
-            var t1 = Sse2.UnpackHigh(x0, x1);
-            var t2 = Sse2.UnpackLow(x2, x3);
-            var t3 = Sse2.UnpackHigh(x2, x3);
+            var t0 = Vector128.ZipLower(x0, x1);
+            var t1 = Vector128.ZipUpper(x0, x1);
+            var t2 = Vector128.ZipLower(x2, x3);
+            var t3 = Vector128.ZipUpper(x2, x3);
 
-            x0 = Sse2.UnpackLow(t0.AsInt16(), t2.AsInt16()).AsByte();
-            x1 = Sse2.UnpackHigh(t0.AsInt16(), t2.AsInt16()).AsByte();
-            x2 = Sse2.UnpackLow(t1.AsInt16(), t3.AsInt16()).AsByte();
-            x3 = Sse2.UnpackHigh(t1.AsInt16(), t3.AsInt16()).AsByte();
+            x0 = Vector128.ZipLower(t0.AsInt16(), t2.AsInt16()).AsByte();
+            x1 = Vector128.ZipUpper(t0.AsInt16(), t2.AsInt16()).AsByte();
+            x2 = Vector128.ZipLower(t1.AsInt16(), t3.AsInt16()).AsByte();
+            x3 = Vector128.ZipUpper(t1.AsInt16(), t3.AsInt16()).AsByte();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
