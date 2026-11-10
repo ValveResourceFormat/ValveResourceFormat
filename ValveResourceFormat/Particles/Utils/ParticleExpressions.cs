@@ -109,7 +109,7 @@ namespace ValveResourceFormat.Particles.Utils
         /// The result an unknown expression passes on when evaluated over whole blocks of four: the
         /// output already written for the same lane of the previous block, or zero in the first block.
         /// </summary>
-        public static T PreviousBlockResult<T>(Span<T> outputs, int index) where T : struct
+        public static T PreviousBlockResult<T>(ReadOnlySpan<T> outputs, int index) where T : struct
             => index >= 4 ? outputs[index - 4] : default;
 
         private static float NonZero(float value)

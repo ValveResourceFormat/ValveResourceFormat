@@ -70,7 +70,7 @@ namespace GUI.Types.Viewers
         {
             var filename = Path.GetFileName(vrfGuiContext.FileName);
             var leadProgramType = ComputeVCSFileName(filename).ProgramType;
-            var vcsCollectionName = filename.AsSpan(0, filename.LastIndexOf('_')); // in the form water_dota_pcgl_40
+            var vcsCollectionName = filename.AsSpan(0, filename.LastIndexOf('_', StringComparison.Ordinal)); // in the form water_dota_pcgl_40
 
             var shaderCollection = ShaderCollection.GetShaderCollection(vrfGuiContext.FileName, vrfGuiContext.CurrentPackage);
 

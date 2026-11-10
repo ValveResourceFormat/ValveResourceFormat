@@ -137,7 +137,7 @@ namespace ValveResourceFormat.IO
 
         private static int RingSuffixIndex(string name, out int underscore)
         {
-            underscore = name.LastIndexOf('_');
+            underscore = name.LastIndexOf('_', StringComparison.Ordinal);
             return underscore >= 0
                 && int.TryParse(name.AsSpan(underscore + 1), NumberStyles.None, CultureInfo.InvariantCulture, out var index)
                 ? index

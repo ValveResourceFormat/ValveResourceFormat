@@ -202,13 +202,13 @@ internal class GraphNode
     {
         var display = resourcePath;
 
-        var extension = display.LastIndexOf('.');
+        var extension = display.LastIndexOf('.', StringComparison.Ordinal);
         if (extension >= 0)
         {
             display = display[..extension];
         }
 
-        var lastSlash = display.LastIndexOf('/');
+        var lastSlash = display.LastIndexOf('/', StringComparison.Ordinal);
         if (lastSlash >= 0)
         {
             display = display[(lastSlash + 1)..];

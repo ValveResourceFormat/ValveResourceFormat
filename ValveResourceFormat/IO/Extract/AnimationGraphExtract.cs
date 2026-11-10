@@ -1439,7 +1439,7 @@ public partial class AnimationGraphExtract : IDisposable
     {
         var result = condition.Trim();
 
-        while (result.StartsWith('(') && FindMatchingParenthesis(result, 0) == result.Length - 1)
+        while (result.StartsWith('(', StringComparison.Ordinal) && FindMatchingParenthesis(result, 0) == result.Length - 1)
         {
             result = result[1..^1].Trim();
         }
@@ -2152,7 +2152,7 @@ public partial class AnimationGraphExtract : IDisposable
 
             currentScript = afterColon;
 
-            if (currentScript.StartsWith('('))
+            if (currentScript.StartsWith('(', StringComparison.Ordinal))
             {
                 var matchingParen = FindMatchingParenthesis(currentScript, 0);
                 if (matchingParen == currentScript.Length - 1)
@@ -3587,7 +3587,7 @@ public partial class AnimationGraphExtract : IDisposable
                 {
                     var nameValue = AddNodeName(node, value);
 
-                    var colonIndex = nameValue.LastIndexOf(':');
+                    var colonIndex = nameValue.LastIndexOf(':', StringComparison.Ordinal);
                     if (colonIndex != -1)
                     {
                         var frameIndexStr = nameValue[(colonIndex + 1)..].Trim();

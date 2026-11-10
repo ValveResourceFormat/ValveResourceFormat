@@ -174,7 +174,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
                 choiceName = fullName[(marker + ChoiceNameMarker.Length)..];
                 body = fullName[..marker];
 
-                if (body.EndsWith('_'))
+                if (body.EndsWith('_', StringComparison.Ordinal))
                 {
                     body = body[..^1];
                 }

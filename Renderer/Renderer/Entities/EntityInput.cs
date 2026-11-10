@@ -48,7 +48,7 @@ public readonly struct EntityInputData
         // Not "0.0#####": custom formats round a float to 7 significant digits, and ties away from zero
         var text = value.ToString("F6", CultureInfo.InvariantCulture).TrimEnd('0');
 
-        return text.EndsWith('.') ? text + "0" : text;
+        return text.EndsWith('.', StringComparison.Ordinal) ? text + "0" : text;
     }
 
     /// <summary>Reads the parameter as a float.</summary>

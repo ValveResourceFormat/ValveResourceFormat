@@ -321,7 +321,7 @@ internal sealed class PulseGraphBuilder
     private string GetCellName(int cellIdx)
     {
         var className = cells[cellIdx].GetStringProperty("_class");
-        var index = className.LastIndexOf('_');
+        var index = className.LastIndexOf('_', StringComparison.Ordinal);
         return index == -1 ? "Unknown" : className[(index + 1)..];
     }
 

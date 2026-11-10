@@ -341,7 +341,7 @@ namespace ValveResourceFormat.IO
 
             if (fileName != null)
             {
-                var lastDot = fileName.LastIndexOf('.');
+                var lastDot = fileName.LastIndexOf('.', StringComparison.Ordinal);
                 Debug.Assert(lastDot >= 0);
                 physFileName = $"{fileName.AsSpan(0, lastDot)}_physics{fileName.AsSpan(lastDot)}";
             }
@@ -371,7 +371,7 @@ namespace ValveResourceFormat.IO
 
                 if (fileName != null)
                 {
-                    var lastDot = fileName.LastIndexOf('.');
+                    var lastDot = fileName.LastIndexOf('.', StringComparison.Ordinal);
                     Debug.Assert(lastDot >= 0);
                     physFileName = $"{fileName.AsSpan(0, lastDot)}_physics{fileName.AsSpan(lastDot)}";
                 }

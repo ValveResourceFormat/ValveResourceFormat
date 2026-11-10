@@ -416,7 +416,7 @@ namespace ValveResourceFormat.Particles.Constraints
         /// the stop speed times the frame time, or always when that is negative, by caching its position in the stick field, which holds it there on later
         /// steps. Returns whether it stuck; with a stick field only particles that stick take the contact normal.
         /// </summary>
-        private static bool Stick(int index, Span<Vector3> positions, Span<Vector3> previousPositions, Span<Vector3> stickColumn, float stop)
+        private static bool Stick(int index, ReadOnlySpan<Vector3> positions, ReadOnlySpan<Vector3> previousPositions, Span<Vector3> stickColumn, float stop)
         {
             if (stop >= 0f && Vector3.DistanceSquared(positions[index], previousPositions[index]) >= stop * stop)
             {

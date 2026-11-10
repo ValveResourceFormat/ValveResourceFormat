@@ -288,7 +288,7 @@ public sealed partial class VMixGraphExtract
         return string.Concat(FolderOf(file), name.ToLowerInvariant(), ".vmix");
     }
 
-    private static string FolderOf(string file) => file.LastIndexOf('/') is var slash and >= 0 ? file[..(slash + 1)] : string.Empty;
+    private static string FolderOf(string file) => file.LastIndexOf('/', StringComparison.Ordinal) is var slash and >= 0 ? file[..(slash + 1)] : string.Empty;
 
     /// <summary>
     /// The content path of the vmix this resource was compiled from, as the editor references it.

@@ -22,7 +22,7 @@ namespace ValveResourceFormat.IO
             var isProxy = new bool[n];
             for (var node = 0; node < n && node < Index.InitPosePositions.Length; node++)
             {
-                isProxy[node] = Fe.CtrlName[node]?.StartsWith('$') == true
+                isProxy[node] = Fe.CtrlName[node]?.StartsWith('$', StringComparison.Ordinal) == true
                     && !Fe.CtrlName[node].StartsWith(FreeClothNodePrefix, StringComparison.Ordinal)
                     && !coveredNodes.Contains(node) && !IsHingeRegeneratedProxy(node);
             }

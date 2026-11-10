@@ -850,7 +850,7 @@ namespace ValveResourceFormat.IO
                 : int.MaxValue;
 
         private static int ProxyNameSeparator(string name)
-            => name.StartsWith(ProxyNamePrefix, StringComparison.Ordinal) ? name.IndexOf('p', ProxyNamePrefix.Length) : -1;
+            => name.StartsWith(ProxyNamePrefix, StringComparison.Ordinal) ? name.IndexOf('p', ProxyNamePrefix.Length, StringComparison.Ordinal) : -1;
 
         /// <summary>Gets whether <paramref name="node"/> is a proxy-sheet vertex (<c>$cloth_m&lt;N&gt;p&lt;S&gt;</c>).</summary>
         internal bool IsProxyMeshNode(int node) => ProxyMeshIndexOf(node) >= 0;

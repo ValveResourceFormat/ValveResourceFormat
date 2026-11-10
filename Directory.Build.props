@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
     <!-- The SDK version is pinned in global.json -->
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
 
     <ProjectBaseVersion>20.1</ProjectBaseVersion>
     <ProjectVersion Condition="'$(GITHUB_RUN_NUMBER)' != ''">$(ProjectBaseVersion).$(GITHUB_RUN_NUMBER)</ProjectVersion>

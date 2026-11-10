@@ -59,7 +59,7 @@ namespace ValveResourceFormat.IO
                 return;
             }
 
-            result.Add(sequence.StartsWith('@') ? sequence[1..] : sequence);
+            result.Add(sequence.StartsWith('@', StringComparison.Ordinal) ? sequence[1..] : sequence);
         }
     }
 }

@@ -197,7 +197,7 @@ namespace ValveResourceFormat.IO
             var isLastWorkshop = false;
 
             // Check for slash here to support paths on linux under wine
-            if (!Path.IsPathFullyQualified(directory) && !directory.StartsWith('/'))
+            if (!Path.IsPathFullyQualified(directory) && !directory.StartsWith('/', StringComparison.Ordinal))
             {
 #if DEBUG_FILE_LOAD
                 Logger.LogDebug("Not a fully qualified path \"{Directory}\", not checking for mod", directory);
@@ -274,7 +274,7 @@ namespace ValveResourceFormat.IO
         {
             var childDirectory = GameSearchFileName!;
 
-            if (!Path.IsPathFullyQualified(childDirectory) && !childDirectory.StartsWith('/'))
+            if (!Path.IsPathFullyQualified(childDirectory) && !childDirectory.StartsWith('/', StringComparison.Ordinal))
             {
                 return null;
             }
@@ -348,7 +348,7 @@ namespace ValveResourceFormat.IO
 
             // Extract the appid from path
             var contentIndexEnd = contentIndex + STEAMAPPS_WORKSHOP_CONTENT.Length + 1;
-            var slashAfterAppId = filePath.IndexOf('/', contentIndexEnd);
+            var slashAfterAppId = filePath.IndexOf('/', contentIndexEnd, StringComparison.Ordinal);
 
             if (slashAfterAppId == -1)
             {

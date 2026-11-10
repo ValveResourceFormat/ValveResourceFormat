@@ -142,7 +142,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         // Components that fall past the end of the batch are dropped on write and read as 0 instead of
         // whatever those slots last held, which only reaches the offset path's previous position.
-        private static Vector3 ReadScalarComponents(Span<float> values, int index)
+        private static Vector3 ReadScalarComponents(ReadOnlySpan<float> values, int index)
         {
             var y = index + 4 < values.Length ? values[index + 4] : 0f;
             var z = index + 8 < values.Length ? values[index + 8] : 0f;

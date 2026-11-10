@@ -129,7 +129,7 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
 
                 // The authored container path feeds the right-click "Isolate group" action.
                 var path = nodePaths[nodeIdx];
-                var lastSlash = path.LastIndexOf('/');
+                var lastSlash = path.LastIndexOf('/', StringComparison.Ordinal);
                 node.GroupPath = lastSlash > 0 ? path[..lastSlash] : null;
 
                 var category = AnimGraphHues.CategoryOfAG2(node.NodeType);

@@ -159,11 +159,11 @@ namespace GUI.Controls
 
             while (end < path.Length)
             {
-                end = path.IndexOf(PathSeparator, end + 1);
+                end = path.IndexOf(PathSeparator, end + 1, StringComparison.Ordinal);
                 end = end < 0 ? path.Length : end;
 
                 var groupPath = path[..end];
-                node = nodes[groupPath] ?? nodes.Add(groupPath, groupPath[(groupPath.LastIndexOf(PathSeparator) + 1)..]);
+                node = nodes[groupPath] ?? nodes.Add(groupPath, groupPath[(groupPath.LastIndexOf(PathSeparator, StringComparison.Ordinal) + 1)..]);
                 nodes = node.Nodes;
             }
 

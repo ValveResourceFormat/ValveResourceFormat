@@ -385,7 +385,7 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
 
         return [.. (sequenceData.Data.GetArray("m_localS1SeqDescArray") ?? [])
             .Select(static sequence => sequence.GetStringProperty("m_sName"))
-            .Where(static name => !string.IsNullOrEmpty(name) && !name.StartsWith('@'))];
+            .Where(static name => !string.IsNullOrEmpty(name) && !name.StartsWith('@', StringComparison.Ordinal))];
     }
 
     private static void WriteContentFile(ContentFile contentFile, string outFilePath)

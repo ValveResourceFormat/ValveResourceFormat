@@ -249,7 +249,7 @@ namespace ValveResourceFormat.IO
 
         /// <summary>Returns whether a control-node name is a generated cloth proxy node rather than a skeleton bone.</summary>
         internal static bool IsProxyNodeName(string? name)
-            => string.IsNullOrEmpty(name) || name.StartsWith('$');
+            => string.IsNullOrEmpty(name) || name.StartsWith('$', StringComparison.Ordinal);
 
         /// <summary>Returns whether <paramref name="node"/> is a static (pinned) node, with zero inverse mass.</summary>
         internal bool IsStatic(int node)

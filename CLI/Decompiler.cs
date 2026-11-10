@@ -236,7 +236,7 @@ namespace CLI
                     }
 
                     // A folder is matched the same as --vpk_filepath, but a file has to match exactly
-                    if (linkedPath.EndsWith('/'))
+                    if (linkedPath.EndsWith('/', StringComparison.Ordinal))
                     {
                         vpk_filepath = linkedPath;
                     }
@@ -335,7 +335,7 @@ namespace CLI
                 OutputFile = FixPathSlashes(OutputFile);
 
                 // A path that does not exist is a folder unless it has a file extension
-                OutputIsDirectory = OutputFile.EndsWith(Path.DirectorySeparatorChar)
+                OutputIsDirectory = OutputFile.EndsWith(Path.DirectorySeparatorChar, StringComparison.Ordinal)
                     || Directory.Exists(OutputFile)
                     || !Path.HasExtension(OutputFile);
             }
@@ -562,7 +562,7 @@ namespace CLI
             if (Directory.Exists(InputFile))
             {
                 // Make sure we always have a trailing slash for input folders
-                if (!InputFile.EndsWith(Path.DirectorySeparatorChar))
+                if (!InputFile.EndsWith(Path.DirectorySeparatorChar, StringComparison.Ordinal))
                 {
                     InputFile += Path.DirectorySeparatorChar;
                 }
@@ -1942,7 +1942,7 @@ namespace CLI
                         {
                             // Remove the last part from the file name ("_features", ...)
                             var fileName = Path.GetFileNameWithoutExtension(filePath);
-                            var newFileNameBase = fileName.AsSpan(0, fileName.LastIndexOf('_'));
+                            var newFileNameBase = fileName.AsSpan(0, fileName.LastIndexOf('_', StringComparison.Ordinal));
                             var directory = Path.GetDirectoryName(filePath);
 
                             outputFile = Path.Combine(directory ?? string.Empty, string.Concat(newFileNameBase, ".vfx"));

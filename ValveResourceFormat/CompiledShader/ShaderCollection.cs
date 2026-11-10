@@ -54,7 +54,7 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
         ShaderCollection shaderCollection = [];
 
         var filename = Path.GetFileName(targetFilename);
-        var vcsCollectionName = filename.AsSpan(0, filename.LastIndexOf('_')); // in the form water_dota_pcgl_40
+        var vcsCollectionName = filename.AsSpan(0, filename.LastIndexOf('_', StringComparison.Ordinal)); // in the form water_dota_pcgl_40
 
         if (vrfPackage != null)
         {

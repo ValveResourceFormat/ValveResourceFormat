@@ -968,7 +968,7 @@ namespace GUI.Types.PackageViewer
                 return ext;
             }
 
-            if (ext.StartsWith('v'))
+            if (ext.StartsWith('v', StringComparison.Ordinal))
             {
                 ext = ext[1..];
             }

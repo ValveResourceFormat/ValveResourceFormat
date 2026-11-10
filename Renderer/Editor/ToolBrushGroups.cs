@@ -94,7 +94,7 @@ public static class ToolBrushGroups
     {
         ArgumentNullException.ThrowIfNull(group);
 
-        for (var end = group.Length; end > 0; end = group.LastIndexOf('/', end - 1))
+        for (var end = group.Length; end > 0; end = group.LastIndexOf('/', end - 1, StringComparison.Ordinal))
         {
             yield return group[..end];
         }

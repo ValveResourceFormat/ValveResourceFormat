@@ -789,7 +789,7 @@ class Converter
         {
             var cleanPart = part;
 
-            if (cleanPart.StartsWith('C') && cleanPart.Length > 1 && char.IsUpper(cleanPart[1]))
+            if (cleanPart.StartsWith('C', StringComparison.Ordinal) && cleanPart.Length > 1 && char.IsUpper(cleanPart[1]))
             {
                 cleanPart = cleanPart[1..];
             }

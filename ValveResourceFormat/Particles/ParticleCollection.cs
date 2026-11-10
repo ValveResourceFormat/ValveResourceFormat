@@ -376,7 +376,7 @@ namespace ValveResourceFormat.Particles
             return span;
         }
 
-        private static void Blend(Span<float> previous, Span<float> current, Span<float> blended, float fraction)
+        private static void Blend(ReadOnlySpan<float> previous, ReadOnlySpan<float> current, Span<float> blended, float fraction)
             => TensorPrimitives.Lerp(previous, current, fraction, blended);
 
         private static void Blend(Span<Vector3> previous, Span<Vector3> current, Span<Vector3> blended, float fraction)

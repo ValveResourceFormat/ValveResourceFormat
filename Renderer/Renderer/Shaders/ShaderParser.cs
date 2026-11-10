@@ -290,7 +290,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                 file.GenericHeader = header;
                 file.GenericLines.Add(line.Trim());
 
-                if (!line.StartsWith('}'))
+                if (!line.StartsWith('}', StringComparison.Ordinal))
                 {
                     return;
                 }

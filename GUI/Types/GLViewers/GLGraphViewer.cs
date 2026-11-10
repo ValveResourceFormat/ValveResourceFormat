@@ -820,7 +820,7 @@ namespace GUI.Types.GLViewers
 
                 if (node.GroupPath != null)
                 {
-                    var groupName = node.GroupPath[(node.GroupPath.LastIndexOf('/') + 1)..];
+                    var groupName = node.GroupPath[(node.GroupPath.LastIndexOf('/', StringComparison.Ordinal) + 1)..];
                     AddFilterAction(contextMenu, $"Isolate group '{groupName}'", () => View.Isolate(node, GraphIsolateMode.Group));
                 }
             }

@@ -709,7 +709,7 @@ namespace ValveResourceFormat.ResourceTypes
                     continue;
                 }
 
-                var sequenceName = animation.Name.StartsWith('@') ? animation.Name[1..] : animation.Name;
+                var sequenceName = animation.Name.StartsWith('@', StringComparison.Ordinal) ? animation.Name[1..] : animation.Name;
 
                 sequenceAnimation.IsAdditive |= additiveSequences.Contains(sequenceName);
             }

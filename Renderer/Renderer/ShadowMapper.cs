@@ -237,8 +237,10 @@ public class ShadowMapper
 
     private static void ApplyHysteresis(Span<BinnedLight> candidateSpan, int atlasSize)
     {
-        foreach (ref var candidate in candidateSpan)
+        for (var i = 0; i < candidateSpan.Length; i++)
         {
+            ref var candidate = ref candidateSpan[i];
+
             if (!candidate.WantsShadows)
             {
                 continue;

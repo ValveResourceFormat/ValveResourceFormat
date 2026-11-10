@@ -337,7 +337,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     var operand = PopExpression(dataReader).Operand(Precedence.Unary);
 
                     // Negating a negative operand would otherwise print as a decrement
-                    if (op == OPCODE.NEGATE && operand.StartsWith('-'))
+                    if (op == OPCODE.NEGATE && operand.StartsWith('-', StringComparison.Ordinal))
                     {
                         operand = $"({operand})";
                     }

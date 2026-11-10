@@ -81,7 +81,7 @@ public sealed partial class VMixGraphExtract
         private static string? TypeOf(string name)
         {
             // Nodes of inlined subgraphs are named after the subgraph node, then their own name
-            if (name.LastIndexOf('/') is var slash and >= 0)
+            if (name.LastIndexOf('/', StringComparison.Ordinal) is var slash and >= 0)
             {
                 name = name[(slash + 1)..];
             }
@@ -305,7 +305,7 @@ public sealed partial class VMixGraphExtract
 
         private static (string Node, string Plug)? Split(string? name)
         {
-            if (name == null || name.LastIndexOf('/') is not (var slash and > 0))
+            if (name == null || name.LastIndexOf('/', StringComparison.Ordinal) is not (var slash and > 0))
             {
                 return null;
             }
@@ -683,7 +683,7 @@ public sealed partial class VMixGraphExtract
         /// </summary>
         private bool InnerBoundary(string? name, int submix)
         {
-            if (name == null || name.LastIndexOf('/') is not (var slash and > 0))
+            if (name == null || name.LastIndexOf('/', StringComparison.Ordinal) is not (var slash and > 0))
             {
                 return false;
             }
@@ -691,7 +691,7 @@ public sealed partial class VMixGraphExtract
             var last = name[(slash + 1)..];
             var nodeName = name;
 
-            if (last is "audio:In" or "audio:Source" or "audio:Out" && name.LastIndexOf('/', slash - 1) > 0)
+            if (last is "audio:In" or "audio:Source" or "audio:Out" && name.LastIndexOf('/', slash - 1, StringComparison.Ordinal) > 0)
             {
                 nodeName = name[..slash];
             }

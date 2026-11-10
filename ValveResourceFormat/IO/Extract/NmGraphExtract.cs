@@ -2528,13 +2528,13 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private static string GetPathParent(string path)
     {
-        var separatorIndex = path.LastIndexOf('/');
+        var separatorIndex = path.LastIndexOf('/', StringComparison.Ordinal);
         return separatorIndex < 0 ? string.Empty : path[..separatorIndex];
     }
 
     private static string GetPathLeaf(string path)
     {
-        var separatorIndex = path.LastIndexOf('/');
+        var separatorIndex = path.LastIndexOf('/', StringComparison.Ordinal);
         return separatorIndex < 0 ? path : path[(separatorIndex + 1)..];
     }
 

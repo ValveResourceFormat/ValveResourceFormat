@@ -17,7 +17,7 @@ internal static partial class ClothBones
 
     /// <summary>Whether the compiler generated this bone from a cloth proxy mesh.</summary>
     internal static bool IsGeneratedProxyBone(Bone bone)
-        => bone.IsProceduralCloth && bone.Name.StartsWith('$');
+        => bone.IsProceduralCloth && bone.Name.StartsWith('$', StringComparison.Ordinal);
 
     /// <summary>
     /// Whether the compiler rebuilds this cloth proxy bone on its own, so the document must not declare it: a generated

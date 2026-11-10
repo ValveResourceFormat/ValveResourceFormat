@@ -88,7 +88,7 @@ internal sealed partial class ClothExtract
             var name = cloth.Fe.CtrlName[node];
             var lockedWithoutParent = cloth.Index.IsLockedToGoal(node) && node < cloth.SkelParents.Length
                 && cloth.SkelParents[node] < 0;
-            if (name.StartsWith('$') || !(lockedWithoutParent || cloth.Index.IsLockedToParent(node))
+            if (name.StartsWith('$', StringComparison.Ordinal) || !(lockedWithoutParent || cloth.Index.IsLockedToParent(node))
                 || !needsLock(node, name))
             {
                 continue;
@@ -111,7 +111,7 @@ internal sealed partial class ClothExtract
         {
             var bone = effect.Params is not null && effect.Params.ContainsKey("Node")
                 && effect.Params.GetInt32Property("Node") is var ctrl && ctrl >= 0 && ctrl < cloth.Fe.CtrlName.Length
-                && !cloth.Fe.CtrlName[ctrl].StartsWith('$')
+                && !cloth.Fe.CtrlName[ctrl].StartsWith('$', StringComparison.Ordinal)
                     ? cloth.Fe.CtrlName[ctrl]
                     : null;
             var parent = bone is null ? null : FindStaticClothNode(softbodyChildren, bone);

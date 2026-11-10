@@ -79,7 +79,7 @@ internal sealed partial class ClothExtract
         {
             var name = cloth.Fe.CtrlName[node];
             if (map.WeightOf(node) > 0f && (name.StartsWith("$cloth_", StringComparison.Ordinal)
-                || (!name.StartsWith('$') && !jointNames.Contains(name))))
+                || (!name.StartsWith('$', StringComparison.Ordinal) && !jointNames.Contains(name))))
             {
                 return true;
             }
@@ -119,7 +119,7 @@ internal sealed partial class ClothExtract
             }
 
             var memberName = AuthoredNodeName(cloth, node, proxyNodeNames: null);
-            if (memberName is null || memberName.StartsWith('$'))
+            if (memberName is null || memberName.StartsWith('$', StringComparison.Ordinal))
             {
                 return parentUnderMap && !maps.Contains(',', StringComparison.Ordinal)
                     ? GroupFor(ClothReconstruction.VertexMapName(maps)).Children
