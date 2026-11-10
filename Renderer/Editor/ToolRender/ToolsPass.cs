@@ -4,9 +4,9 @@ using ValveResourceFormat.Renderer.Editor.Selection;
 namespace ValveResourceFormat.Renderer.Editor.ToolRender;
 
 /// <summary>
-/// Draws the selection outline and the tool shapes over the final image, as Hammer draws its tool layers: hidden
-/// by the scene and by each other unless their mode draws them over it, blended in linear space, and multisampled
-/// with the scene.
+/// Draws the selection outline, the reference grid and the tool shapes over the final image, as Hammer draws its
+/// tool layers: hidden by the scene and by each other unless their mode draws them over it, blended in linear
+/// space, and multisampled with the scene.
 /// </summary>
 public sealed class ToolsPass : IDisposable
 {
@@ -17,16 +17,21 @@ public sealed class ToolsPass : IDisposable
     private readonly ToolShaders shaders;
     private readonly Framebuffer sceneFramebuffer;
     private readonly Framebuffer output;
+    private readonly InfiniteGrid grid;
     private readonly List<(ToolSceneNode Node, float Distance)> nodes = [];
 
+    /// <summary>Gets or sets whether the reference grid is drawn in the main scene.</summary>
+    public bool ShowGrid { get; set; }
+
     /// <summary>Initializes the pass.</summary>
-    /// <param name="rendererContext">Renderer context for loading the tools shader.</param>
+    /// <param name="rendererContext">Renderer context for loading the tools and grid shaders.</param>
     /// <param name="sceneFramebuffer">What the scene is rendered into, whose depth hides the shapes.</param>
     public ToolsPass(RendererContext rendererContext, Framebuffer sceneFramebuffer)
     {
         ArgumentNullException.ThrowIfNull(sceneFramebuffer);
 
         shaders = new ToolShaders(rendererContext);
+        grid = new InfiniteGrid(rendererContext);
         this.sceneFramebuffer = sceneFramebuffer;
 
         output = Framebuffer.Prepare(nameof(ToolsPass), sceneFramebuffer.Width, sceneFramebuffer.Height, sceneFramebuffer.NumSamples,
@@ -41,18 +46,21 @@ public sealed class ToolsPass : IDisposable
     public void ReleaseOutput() => output.Resize(1, 1);
 
     /// <summary>
-    /// Post processes the scene, outlines the selected nodes, draws the tool shapes of the main scene and those of
-    /// the selection over it, and puts the result in the target.
+    /// Post processes the scene, outlines the selected nodes, draws the grid and the occlusion debug of the main
+    /// scene, then its tool shapes, those of the selection and the extra shapes over it, and puts the result in the
+    /// target.
     /// </summary>
     /// <param name="renderer">The renderer of the frame.</param>
     /// <param name="target">Where the final image goes.</param>
     /// <param name="selection">What is selected, with its shapes in world space.</param>
+    /// <param name="extraShapes">Shapes in world space of the main scene that are not tied to a node or the selection.</param>
     /// <param name="textRenderer">What the text among the shapes of the main scene is written with.</param>
-    public void Render(Renderer renderer, Framebuffer target, SelectionVisuals selection, TextRenderer textRenderer)
+    public void Render(Renderer renderer, Framebuffer target, SelectionVisuals selection, ToolGeometry extraShapes, TextRenderer textRenderer)
     {
         ArgumentNullException.ThrowIfNull(renderer);
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(selection);
+        ArgumentNullException.ThrowIfNull(extraShapes);
         ArgumentNullException.ThrowIfNull(textRenderer);
 
         var (width, height) = (sceneFramebuffer.Width, sceneFramebuffer.Height);
@@ -74,11 +82,11 @@ public sealed class ToolsPass : IDisposable
 
             using (GraphicsContext.RenderState.Scope(multisampleEnable: output.NumSamples > 1))
             {
-                var state = (Pass: this, Renderer: renderer, Selection: selection, TextRenderer: textRenderer);
+                var state = (Pass: this, Renderer: renderer, Selection: selection, ExtraShapes: extraShapes, TextRenderer: textRenderer);
 
                 renderer.DrawOverScenes(output, ref state, static (context, ref state) =>
                 {
-                    state.Pass.RenderScene(context.View!, state.Renderer, state.Selection, state.TextRenderer);
+                    state.Pass.RenderScene(context.View!, state.Renderer, state.Selection, state.ExtraShapes, state.TextRenderer);
                 });
             }
 
@@ -92,16 +100,23 @@ public sealed class ToolsPass : IDisposable
         target.Bind(FramebufferTarget.Framebuffer);
     }
 
-    private void RenderScene(SceneViewState view, Renderer renderer, SelectionVisuals selection, TextRenderer textRenderer)
+    private void RenderScene(SceneViewState view, Renderer renderer, SelectionVisuals selection, ToolGeometry extraShapes, TextRenderer textRenderer)
     {
         CollectNodes(view);
 
-        // The shapes of the selection are in the space of the main scene
+        // The shapes of the selection and the extra shapes are in the space of the main scene
         var isMainView = view == renderer.MainViewState;
         var selectionShapes = isMainView && !selection.Shapes.IsEmpty ? selection.Shapes : null;
+        var mainExtraShapes = isMainView && !extraShapes.IsEmpty ? extraShapes : null;
 
         AddLabels(textRenderer, renderer.Camera);
         AddLabels(textRenderer, renderer.Camera, selectionShapes);
+        AddLabels(textRenderer, renderer.Camera, mainExtraShapes);
+
+        if (isMainView)
+        {
+            DrawMainSceneOverlays(renderer);
+        }
 
         foreach (var layer in Layers)
         {
@@ -111,6 +126,22 @@ public sealed class ToolsPass : IDisposable
             }
 
             selectionShapes?.DrawLayer(layer, shaders, objectId: 0);
+            mainExtraShapes?.DrawLayer(layer, shaders, objectId: 0);
+        }
+    }
+
+    private void DrawMainSceneOverlays(Renderer renderer)
+    {
+        using var _ = new GLDebugGroup("Overlays");
+
+        if (renderer.Settings.OcclusionDebugEnabled)
+        {
+            renderer.Scene.OcclusionDebug?.Render();
+        }
+
+        if (ShowGrid)
+        {
+            grid.Render();
         }
     }
 

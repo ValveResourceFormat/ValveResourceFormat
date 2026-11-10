@@ -11,8 +11,8 @@ namespace ValveResourceFormat.Renderer
         private readonly Shader shader;
 
         /// <summary>Initializes the grid geometry and loads the grid shader.</summary>
-        /// <param name="scene">Scene providing the renderer context.</param>
-        public InfiniteGrid(Scene scene)
+        /// <param name="rendererContext">Renderer context for loading the grid shader.</param>
+        public InfiniteGrid(RendererContext rendererContext)
         {
             var vertices = new[]
             {
@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Renderer
                 -1f, -1f,
             };
 
-            shader = scene.RendererContext.ShaderLoader.LoadShader("grid");
+            shader = rendererContext.ShaderLoader.LoadShader("grid");
 
             var buffer = GraphicsDevice.CreateBuffer<float>(nameof(InfiniteGrid), vertices, BufferUsage.Static);
 

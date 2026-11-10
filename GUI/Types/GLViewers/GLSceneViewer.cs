@@ -71,7 +71,6 @@ namespace GUI.Types.GLViewers
         private bool showVisDebug;
         protected bool ShowSpeed { get; set; }
         private bool showPhysicsTraces;
-        private PhysicsTraceDebugRenderer? physicsTraceRenderer;
 
         private enum PerfDisplay
         {
@@ -100,7 +99,8 @@ namespace GUI.Types.GLViewers
         private ComboBox? renderModeComboBox;
         private ComboBox? cubemapColorsComboBox;
         private bool isCubemapsRenderMode;
-        private InfiniteGrid? baseGrid;
+        private readonly ToolGeometry overlayShapes = new();
+        private readonly ToolRenderContext overlayContext;
         private SelectionVisuals? selectionVisuals;
         private ToolsPass? toolsPass;
 
@@ -138,6 +138,7 @@ namespace GUI.Types.GLViewers
             TextRenderer = new(rendererContext, Renderer.Camera);
             crosshairRenderer = new CrosshairRenderer(rendererContext);
             Scene = Renderer.Scene;
+            overlayContext = new ToolRenderContext(overlayShapes);
 
 #if DEBUG
             ShaderHotReload.ShadersReloaded += OnHotReload;
@@ -147,8 +148,7 @@ namespace GUI.Types.GLViewers
         public override void Dispose()
         {
             // Delete GL resources before the base disposes the GL context
-            physicsTraceRenderer?.Delete();
-            physicsTraceRenderer = null;
+            overlayShapes.Delete();
 
             selectionVisuals?.Delete();
             selectionVisuals = null;
@@ -545,7 +545,6 @@ namespace GUI.Types.GLViewers
             TextRenderer.Load();
             Renderer.Postprocess.Load(NumSamples);
 
-            baseGrid = new InfiniteGrid(Scene);
             Debug.Assert(MainFramebuffer != null);
 
             selectionVisuals = new(Selection, EntityVisuals, Tools, Scene.RendererContext);
@@ -801,8 +800,12 @@ namespace GUI.Types.GLViewers
             });
         }
 
-        /// <summary>Draws viewer specific lines over the scene, after the frame's camera is final.</summary>
-        protected virtual void RenderOverlayLines(Scene.RenderContext renderContext)
+        /// <summary>
+        /// Draws viewer specific shapes over the scene, once per frame after the camera is final. They are drawn
+        /// with the tools of the main scene, whether or not tools are shown.
+        /// </summary>
+        /// <param name="context">Where the shapes go, in world space.</param>
+        protected virtual void UpdateOverlayShapes(ToolRenderContext context)
         {
         }
 
@@ -825,8 +828,21 @@ namespace GUI.Types.GLViewers
 
             Debug.Assert(toolsPass != null && selectionVisuals != null);
 
-            // The tools are drawn over the final image, so they keep their colors whatever the exposure
-            toolsPass.Render(Renderer, GLDefaultFramebuffer, selectionVisuals, TextRenderer);
+            // The tools and overlays are drawn over the final image, so they keep their colors whatever the exposure
+            toolsPass.Render(Renderer, GLDefaultFramebuffer, selectionVisuals, overlayShapes, TextRenderer);
+        }
+
+        private void UpdateOverlays()
+        {
+            overlayShapes.Clear();
+            overlayContext.Reset();
+
+            if (showPhysicsTraces && !Renderer.EntitySystem.PhysicsWorld.IsEmpty)
+            {
+                PhysicsTraceDebugRenderer.Draw(overlayContext, Renderer.EntitySystem.PhysicsWorld, Input, Renderer.Camera);
+            }
+
+            UpdateOverlayShapes(overlayContext);
         }
 
         protected override void OnBufferSwapped(double blockedMs, double framePeriodMs)
@@ -839,6 +855,7 @@ namespace GUI.Types.GLViewers
             Debug.Assert(MainFramebuffer != null);
             Debug.Assert(Picker != null);
             Debug.Assert(selectionVisuals != null);
+            Debug.Assert(toolsPass != null);
 
             Renderer.PerfStats.Capture = perfDisplay == PerfDisplay.Stats || CaptureStats;
             Renderer.PerfStats.Timings.Capture = perfDisplay == PerfDisplay.Timings || CaptureStats;
@@ -887,12 +904,14 @@ namespace GUI.Types.GLViewers
                     }, Renderer.Camera);
                 }
                 selectionVisuals.Update(renderContext, updateContext);
+                UpdateOverlays();
             }
 
             // After the update, so the listener is placed with this frame's camera vectors rather than
             // this frame's position and last frame's facing
             UpdateSoundPlayer();
 
+            toolsPass.ShowGrid = ShowBaseGrid;
             Renderer.ForceResolveSceneDepth = ShowBaseGrid || !Selection.IsEmpty;
 
             var quadOverdrawThisFrame = false;
@@ -931,37 +950,19 @@ namespace GUI.Types.GLViewers
                 }
             }
 
-            using (new GLDebugGroup("Lines Render"))
+            if (ShowBaseGrid)
             {
-                RenderOverlayLines(renderContext);
+                // Match the grid shader's axis colors
+                var xAxisColor = new Color32(0.9f, 0.2f, 0.2f, 1f);
+                var yAxisColor = new Color32(0.2f, 0.8f, 0.2f, 1f);
 
-                if (Renderer.Settings.OcclusionDebugEnabled && Scene.OcclusionDebug != null)
-                {
-                    Scene.OcclusionDebug.Render();
-                }
+                // Just past the grid's origin square
+                const float labelDistance = 128f + 16f;
 
-                if (showPhysicsTraces && !Renderer.EntitySystem.PhysicsWorld.IsEmpty)
-                {
-                    physicsTraceRenderer ??= new PhysicsTraceDebugRenderer(Scene.RendererContext);
-                    physicsTraceRenderer.Render(Renderer.EntitySystem.PhysicsWorld, Input, Renderer.Camera);
-                }
-
-                if (ShowBaseGrid && baseGrid != null)
-                {
-                    baseGrid.Render();
-
-                    // Match the grid shader's axis colors
-                    var xAxisColor = new Color32(0.9f, 0.2f, 0.2f, 1f);
-                    var yAxisColor = new Color32(0.2f, 0.8f, 0.2f, 1f);
-
-                    // Just past the grid's origin square
-                    const float labelDistance = 128f + 16f;
-
-                    DrawWorldSpaceText("+X", 10f, Vector3.UnitX * labelDistance, xAxisColor, renderContext);
-                    DrawWorldSpaceText("-X", 10f, -Vector3.UnitX * labelDistance, xAxisColor, renderContext);
-                    DrawWorldSpaceText("+Y", 10f, Vector3.UnitY * labelDistance, yAxisColor, renderContext);
-                    DrawWorldSpaceText("-Y", 10f, -Vector3.UnitY * labelDistance, yAxisColor, renderContext);
-                }
+                DrawWorldSpaceText("+X", 10f, Vector3.UnitX * labelDistance, xAxisColor, renderContext);
+                DrawWorldSpaceText("-X", 10f, -Vector3.UnitX * labelDistance, xAxisColor, renderContext);
+                DrawWorldSpaceText("+Y", 10f, Vector3.UnitY * labelDistance, yAxisColor, renderContext);
+                DrawWorldSpaceText("-Y", 10f, -Vector3.UnitY * labelDistance, yAxisColor, renderContext);
             }
 
             GL.EndQuery(QueryTarget.TimeElapsed);

@@ -1,4 +1,5 @@
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Utils;
 
 namespace GUI.Types.GLViewers
@@ -6,7 +7,7 @@ namespace GUI.Types.GLViewers
     /// <summary>
     /// Draggable world space move and rotate handles, drawn as lines on top of the scene.
     /// </summary>
-    sealed class TransformGizmos(RendererContext rendererContext) : LineDebugRenderer(rendererContext, nameof(TransformGizmos))
+    sealed class TransformGizmos
     {
         public sealed class Gizmo(string name, bool allowRotation)
         {
@@ -30,8 +31,6 @@ namespace GUI.Types.GLViewers
 
         private static readonly Vector3[] Axes = [Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ];
         private static readonly Color32[] AxisColors = [new(0.9f, 0.25f, 0.25f, 1f), new(0.3f, 0.85f, 0.3f, 1f), new(0.3f, 0.5f, 1f, 1f)];
-
-        private readonly List<SimpleVertex> vertices = [];
 
         public List<Gizmo> Gizmos { get; } = [];
         public Gizmo? HoveredGizmo { get; private set; }
@@ -118,11 +117,11 @@ namespace GUI.Types.GLViewers
             activeHandle = NoHandle;
         }
 
-        public void Render(Camera camera)
+        public void Draw(ToolRenderContext context, Camera camera)
         {
-            vertices.Clear();
-
             var (highlighted, highlightedHandle) = ActiveGizmo != null ? (ActiveGizmo, activeHandle) : (HoveredGizmo, hoveredHandle);
+
+            context.PushRenderMode(ToolRenderMode.WireframeNoZ);
 
             foreach (var gizmo in Gizmos)
             {
@@ -132,13 +131,11 @@ namespace GUI.Types.GLViewers
                         ? Color32.Yellow
                         : handle == MoveScreen ? Color32.White : AxisColors[handle % Rotate];
 
-                    vertices.Add(new SimpleVertex(from, color));
-                    vertices.Add(new SimpleVertex(to, color));
+                    context.DrawLine(from, to, color);
                 }
             }
 
-            Upload(vertices);
-            RenderLines(disableDepthTest: true);
+            context.PopRenderMode();
         }
 
         // The lines a gizmo is drawn with and picked by, each with the handle it belongs to

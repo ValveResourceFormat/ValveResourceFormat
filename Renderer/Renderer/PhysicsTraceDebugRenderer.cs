@@ -1,5 +1,5 @@
+using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Renderer.Input;
-using ValveResourceFormat.Renderer.SceneNodes;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -7,37 +7,24 @@ namespace ValveResourceFormat.Renderer
     /// Debug visualization for physics traces: draws the player collision hull while player
     /// movement is active, and sweeps a small box from the camera to show where it lands.
     /// </summary>
-    public class PhysicsTraceDebugRenderer : LineDebugRenderer
+    public static class PhysicsTraceDebugRenderer
     {
         private const float CameraTraceRange = 10000f;
         private const float ContactBallRadius = 0.5f;
         private const float NormalLineLength = 16f;
+        private const int ContactBallSegments = 16;
         private static readonly Vector3 CameraTraceHalfExtents = new(8f, 8f, 8f);
         private static readonly Color32 ContactColor = new(1f, 0.5f, 0f, 1f);
         private static readonly Color32 NormalColor = new(0.25f, 1f, 1f, 1f);
 
-        private readonly List<SimpleVertex> vertices = new(64);
-
-        /// <summary>Initializes the renderer and creates GPU resources.</summary>
-        /// <param name="rendererContext">Renderer context for loading shaders.</param>
-        public PhysicsTraceDebugRenderer(RendererContext rendererContext)
-            : base(rendererContext, nameof(PhysicsTraceDebugRenderer))
-        {
-        }
-
-        /// <summary>Rebuilds and renders the debug geometry for the current frame.</summary>
+        /// <summary>Draws the debug geometry for the current frame as blended lines the scene can hide.</summary>
+        /// <param name="context">Where the lines go.</param>
         /// <param name="physics">Physics world to trace against.</param>
         /// <param name="input">User input providing the player movement state.</param>
         /// <param name="camera">Camera the debug trace is fired from.</param>
-        public void Render(PhysicsWorld physics, UserInput input, Camera camera)
+        public static void Draw(ToolRenderContext context, PhysicsWorld physics, UserInput input, Camera camera)
         {
-            Rebuild(physics, input, camera);
-            RenderLines();
-        }
-
-        private void Rebuild(PhysicsWorld physics, UserInput input, Camera camera)
-        {
-            vertices.Clear();
+            context.PushRenderMode(ToolRenderMode.WireframeTranslucent);
 
             // Player collision hull while walk-mode movement is driving the camera
             if (input.WalkMode)
@@ -45,13 +32,12 @@ namespace ValveResourceFormat.Renderer
                 var movement = input.PlayerMovement;
                 var halfExtents = movement.HullHalfExtents;
                 var feet = movement.Position;
-                var hull = new AABB(
-                    feet - new Vector3(halfExtents.X, halfExtents.Y, 0f),
-                    feet + new Vector3(halfExtents.X, halfExtents.Y, halfExtents.Z * 2f));
+                var hullMins = feet - new Vector3(halfExtents.X, halfExtents.Y, 0f);
+                var hullMaxs = feet + new Vector3(halfExtents.X, halfExtents.Y, halfExtents.Z * 2f);
 
                 // Green when grounded, red in air
-                var hullColor = movement.OnGround ? new Color32(0f, 1f, 0f, 1f) : Color32.Red;
-                ShapeSceneNode.AddBox(vertices, hull, hullColor);
+                context.DrawColor = movement.OnGround ? new Color32(0f, 1f, 0f, 1f) : Color32.Red;
+                context.DrawWireBox(hullMins, hullMaxs);
 
                 // Sweep the hull down a bit and mark the ground contact point
                 var hullCenter = feet + new Vector3(0f, 0f, halfExtents.Z);
@@ -59,8 +45,7 @@ namespace ValveResourceFormat.Renderer
 
                 if (groundTrace.Hit)
                 {
-                    ShapeSceneNode.AddSphere(vertices, groundTrace.ContactPoint, ContactBallRadius, ContactColor);
-                    ShapeSceneNode.AddLine(vertices, groundTrace.ContactPoint, groundTrace.ContactPoint + groundTrace.HitNormal * NormalLineLength, NormalColor);
+                    DrawContact(context, groundTrace.ContactPoint, groundTrace.HitNormal);
                 }
             }
 
@@ -72,16 +57,23 @@ namespace ValveResourceFormat.Renderer
             var end = trace.Hit ? trace.HitPosition : to;
             var endColor = trace.Hit ? new Color32(1f, 1f, 1f, 1f) : new Color32(1f, 0.25f, 0.25f, 1f);
 
-            ShapeSceneNode.AddLine(vertices, from, end, new Color32(1f, 1f, 1f, 0.5f));
-            ShapeSceneNode.AddBox(vertices, new AABB(end - CameraTraceHalfExtents, end + CameraTraceHalfExtents), endColor);
+            context.DrawLine(from, end, new Color32(1f, 1f, 1f, 0.5f));
+
+            context.DrawColor = endColor;
+            context.DrawWireBox(end - CameraTraceHalfExtents, end + CameraTraceHalfExtents);
 
             if (trace.Hit)
             {
-                ShapeSceneNode.AddSphere(vertices, trace.ContactPoint, ContactBallRadius, ContactColor);
-                ShapeSceneNode.AddLine(vertices, trace.ContactPoint, trace.ContactPoint + trace.HitNormal * NormalLineLength, NormalColor);
+                DrawContact(context, trace.ContactPoint, trace.HitNormal);
             }
 
-            Upload(vertices);
+            context.PopRenderMode();
+        }
+
+        private static void DrawContact(ToolRenderContext context, Vector3 point, Vector3 normal)
+        {
+            context.DrawSphereCircles(point, ContactBallRadius, ContactBallSegments, ContactColor);
+            context.DrawLine(point, point + normal * NormalLineLength, NormalColor);
         }
     }
 }

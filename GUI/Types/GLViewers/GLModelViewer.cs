@@ -13,6 +13,7 @@ using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Editor;
 using ValveResourceFormat.Renderer.Editor.Collision;
 using ValveResourceFormat.Renderer.Editor.Picking;
+using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -95,10 +96,6 @@ namespace GUI.Types.GLViewers
 
         public override void Dispose()
         {
-            // Delete GL resources before the base disposes the GL context
-            graphGizmos?.Delete();
-            graphGizmos = null;
-
             base.Dispose();
 
             animationComboBox?.Dispose();
@@ -835,14 +832,14 @@ namespace GUI.Types.GLViewers
         // The graph's last update followed by the model stats, rewritten every frame a graph plays
         private char[] graphDebugText = [];
 
-        protected override void RenderOverlayLines(Scene.RenderContext renderContext)
+        protected override void UpdateOverlayShapes(ToolRenderContext context)
         {
             if (animGraph == null || modelSceneNode == null || graphGizmoBindings.Count == 0)
             {
                 return;
             }
 
-            graphGizmos ??= new TransformGizmos(Scene.RendererContext);
+            graphGizmos ??= new TransformGizmos();
 
             if (shownGizmoBindings != graphGizmoBindings)
             {
@@ -852,7 +849,7 @@ namespace GUI.Types.GLViewers
                 graphGizmos.Gizmos.AddRange(graphGizmoBindings.Select(static binding => binding.Gizmo));
             }
 
-            var camera = renderContext.Camera;
+            var camera = Renderer.Camera;
             var packedMouse = Interlocked.Read(ref gizmoMousePosition);
             var mouse = new Vector2((int)(packedMouse >> 32), (int)(packedMouse & 0xFFFFFFFF));
 
@@ -902,7 +899,7 @@ namespace GUI.Types.GLViewers
                 }
             }
 
-            graphGizmos.Render(camera);
+            graphGizmos.Draw(context, camera);
         }
 
         protected void SetAnimationControllerUpdateHandler()
