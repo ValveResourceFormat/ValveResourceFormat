@@ -43,13 +43,13 @@ namespace Tests.IO
                 new MaterialExtract.UnpackInfo()
                 {
                     TextureType = "TextureColor",
-                    FileName = "test_color_jpg_65b7aff5_TextureColor.png",
+                    FileName = "test_color_jpg_65b7aff5_Color.png",
                     Channel = ChannelMapping.RGB
                 },
                 new MaterialExtract.UnpackInfo()
                 {
                     TextureType = translucent ? "TextureTranslucency" : "TextureMetalness",
-                    FileName = translucent ? "test_color_jpg_65b7aff5_TextureTranslucency.png" : "test_color_jpg_65b7aff5_TextureMetalness.png",
+                    FileName = translucent ? "test_color_jpg_65b7aff5_Translucency.png" : "test_color_jpg_65b7aff5_Metalness.png",
                     Channel = ChannelMapping.A
                 }
             };

@@ -256,8 +256,8 @@ bytecode back to readable expression text. Float parameters are written with a d
 Compiled textures are unpacked back into the original input maps (color, normal, roughness,
 masks, ...) using the channel processor metadata in the compiled shader when it is
 available. Without the shader file, a built-in table covers the most common shaders. Each
-image is named after its compiled texture with the input key appended, such as
-`bar_color_psd_9e877263_TextureColor.png` and `bar_normal_psd_d730f98f_TextureRoughness.png`. Textures in `materials/default/` are written
+image is named after its compiled texture with the input key, without its `Texture` prefix, appended, such as
+`bar_color_psd_9e877263_Color.png` and `bar_normal_psd_d730f98f_Roughness.png`. Textures in `materials/default/` are written
 like any other. A texture the compiler generated from a constant is written as that
 constant. HDR textures are not unpacked and are written whole as EXR. A cubemap is written
 as one six-face strip, or as an equirectangular map when HDR. Texture arrays and volume
