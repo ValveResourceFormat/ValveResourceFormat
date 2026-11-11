@@ -524,7 +524,6 @@ namespace GUI.Utils
         // A file opened from another one, such as an entry of a package, finds no game of its own
         protected override GameFileLoader? GameInfoFallback => ParentGuiContext;
 
-        // Override to add support for parent file loaders
         public override IEnumerable<string> FindFilesByName(string fileName)
             => base.FindFilesByName(fileName).Concat(ParentGuiContext?.FindFilesByName(fileName) ?? []).Distinct();
 

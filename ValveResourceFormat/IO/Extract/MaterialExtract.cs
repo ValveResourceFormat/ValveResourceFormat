@@ -145,7 +145,7 @@ public sealed class MaterialExtract
 
     /// <summary>
     /// Gets the images a texture parameter is written as, one per shader input. They are named after the compiled
-    /// texture, every input after the first with its input key appended. HDR textures are not unpacked, and a texture
+    /// texture with the input key appended. HDR textures are not unpacked, and a texture
     /// the compiler generated from a constant is left to the constant.
     /// </summary>
     public IEnumerable<UnpackInfo> GetTextureUnpackInfos(string textureType, string texturePath, Texture? texture)
@@ -195,7 +195,7 @@ public sealed class MaterialExtract
                 continue;
             }
 
-            var fileName = i == 0 ? baseName + extension : $"{baseName}_{input}{extension}";
+            var fileName = $"{baseName}_{input}{extension}";
 
             if (texture != null && TextureExtract.IsSliced(texture))
             {

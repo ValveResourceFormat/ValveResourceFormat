@@ -56,7 +56,7 @@ HDR textures, such as this sky, export as EXR with their full brightness range.
 
     ![Export window showing Export completed](./images/getting-started-export-progress.webp)
 
-Textures are written as PNG, HDR textures as EXR, and textures stored as JPEG or WebP keep that format. Each texture not stored as JPEG or WebP is also saved as a `.vtex`, with the image next to it. The exported image keeps the alpha channel.
+Textures are written as PNG, HDR textures as EXR, and textures stored as JPEG, PNG or WebP keep that format. Every other texture is also saved as a `.vtex`, with the image next to it. The exported image keeps the alpha channel.
 
 **Decompile & export** on a material writes the `.vmat` and its textures named after the compiled textures, with textures that pack several maps split into one image each.
 

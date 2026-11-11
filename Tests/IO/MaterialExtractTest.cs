@@ -43,7 +43,7 @@ namespace Tests.IO
                 new MaterialExtract.UnpackInfo()
                 {
                     TextureType = "TextureColor",
-                    FileName = "test_color_jpg_65b7aff5.png",
+                    FileName = "test_color_jpg_65b7aff5_TextureColor.png",
                     Channel = ChannelMapping.RGB
                 },
                 new MaterialExtract.UnpackInfo()

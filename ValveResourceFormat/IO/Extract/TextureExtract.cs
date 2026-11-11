@@ -444,10 +444,7 @@ public sealed class TextureExtract
             return fileName;
         }
 
-        var name = Path.GetFileName(fileName);
-        var baseName = Path.GetFileNameWithoutExtension(name).Replace("_z0", "-z0", StringComparison.Ordinal);
-
-        return string.Concat(fileName.AsSpan(0, fileName.Length - name.Length), baseName, "_z000", Path.GetExtension(name));
+        return Path.ChangeExtension(fileName, null) + "_z000" + Path.GetExtension(fileName);
     }
 
     private static string GetSliceFileName(string firstSliceFileName, uint slice)
@@ -507,14 +504,10 @@ public sealed class TextureExtract
 
     private bool CombinesLatLong => isCubeMap && LatLongCombineCubemap && ExportExr;
 
-    /// <summary>
-    /// The texture name the cubemap and slice images are named after. The compiler loads an input whose name
-    /// contains "_z0" as a slice stack named up to the first such occurrence, so the name must not contain one.
-    /// </summary>
-    private string ImageBaseName => Path.GetFileNameWithoutExtension(fileName).Replace("_z0", "-z0", StringComparison.OrdinalIgnoreCase);
+    private string ImageBaseName => Path.GetFileNameWithoutExtension(fileName);
 
     private string GetSliceImageFileName(uint depth)
-        => string.Create(CultureInfo.InvariantCulture, $"{ImageBaseName}_z{depth:D3}{ImageOutputExtension}");
+        => GetSliceFileName(GetFirstSliceFileName(Path.GetFileName(GetImageFileName()), texture.Depth), depth);
 
     private string GetCubeImageName(uint depth)
         => isArray ? string.Create(CultureInfo.InvariantCulture, $"{ImageBaseName}_f{depth:D2}") : ImageBaseName;

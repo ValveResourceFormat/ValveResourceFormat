@@ -2184,8 +2184,8 @@ public sealed partial class MapExtract
         if (className is "env_combined_light_probe_volume" or "env_light_probe_volume" or "env_cubemap_box" or "env_cubemap")
         {
             // in newer s2 engine branches having `array_index` present causes all sort of issues and crashes
-            if (propertyKey == "lightprobetexture"
-                || (propertyKey is "cubemaptexture" or "array_index" && !compiledEntity.GetBooleanProperty("customcubemaptexture")))
+            if (propertyKey is "lightprobetexture" or "array_index"
+                || (propertyKey == "cubemaptexture" && !compiledEntity.GetBooleanProperty("customcubemaptexture")))
             {
                 propertyKey = prefix + propertyKey;
             }
