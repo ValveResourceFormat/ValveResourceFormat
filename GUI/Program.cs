@@ -20,7 +20,8 @@ namespace GUI
 #nullable enable
 
         /// <summary>Whether this build was produced by the CI for a tagged stable release.</summary>
-        public const bool IsReleaseBuild =
+        // Not const, so the compiler does not flag code as unreachable in release builds
+        public static bool IsReleaseBuild =>
 #if CI_RELEASE_BUILD // For CI builds, it is set in Directory.Build.props
             true;
 #else
