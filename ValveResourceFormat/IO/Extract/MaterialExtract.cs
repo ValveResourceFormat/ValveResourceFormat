@@ -185,12 +185,12 @@ public sealed class MaterialExtract
         {
             var (channel, input) = inputs[i];
 
-            if (i > 0 && (isHdr || isConstant))
+            if (i > 0 && isHdr)
             {
                 break;
             }
 
-            if (i > 0 && material.VectorParams.ContainsKey(input))
+            if (material.VectorParams.ContainsKey(input))
             {
                 continue;
             }
@@ -323,7 +323,7 @@ public sealed class MaterialExtract
 
                 if (!string.IsNullOrEmpty(value))
                 {
-                    materialLayers.Add($"MaterialLayerReference_{key[LayerNamePrefix.Length..]}", value.Replace('\\', '/'));
+                    materialLayers.Add($"MaterialLayerReference_{key[LayerNamePrefix.Length..]}", GetLayerMaterialPath(value));
                 }
             }
         }
@@ -364,6 +364,25 @@ public sealed class MaterialExtract
         using var ms = new MemoryStream();
         KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, new KVDocument(new(), "Layer0", root));
         return Encoding.UTF8.GetString(ms.GetBuffer(), 0, (int)ms.Length);
+    }
+
+    /// <summary>
+    /// Gets the path of a layer material. A bare compiled layer name resolves to the content path of the input
+    /// dependency with that file name.
+    /// </summary>
+    private string GetLayerMaterialPath(string layerName)
+    {
+        var path = layerName.Replace('\\', '/');
+
+        if (path.Contains('/', StringComparison.Ordinal) || material.Resource?.EditInfo is not { } editInfo)
+        {
+            return path;
+        }
+
+        return editInfo.InputDependencies.Concat(editInfo.AdditionalInputDependencies)
+            .Select(static dependency => dependency.ContentRelativeFilename.Replace('\\', '/'))
+            .FirstOrDefault(dependency => Path.GetFileName(dependency).Equals(path, StringComparison.OrdinalIgnoreCase))
+            ?? path;
     }
 
     private static string FormatFloat(float value) => value.ToString("0.0#########", CultureInfo.InvariantCulture);
