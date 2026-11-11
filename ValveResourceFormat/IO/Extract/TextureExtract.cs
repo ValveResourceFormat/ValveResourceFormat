@@ -98,7 +98,8 @@ public sealed class TextureExtract
     public TextureCodec DecodeFlags { get; set; } = TextureCodec.Auto;
 
     /// <summary>
-    /// Whether to combine cubemap faces into a single latlong image. Only applies to cubemaps exported as EXR.
+    /// Whether to combine cubemap faces into a single latlong image. Only applies to cubemaps exported as EXR without a
+    /// vtex file, which reads the faces from a lossless strip instead.
     /// </summary>
     public bool LatLongCombineCubemap { get; set; } = true;
 
@@ -179,7 +180,7 @@ public sealed class TextureExtract
 
                 var cubeName = GetCubeImageName(depth);
 
-                if (CombinesLatLong)
+                if (CombinesLatLong && !writeVtex)
                 {
                     contentFile.AddSubFile(cubeName + ImageOutputExtension, () =>
                     {
@@ -238,6 +239,12 @@ public sealed class TextureExtract
         }
 
         vtex.AddImageSubFile(Path.GetFileName(GetImageFileName())!, ImageEncode);
+
+        if (writeVtex && GetRoughnessImageFileName() is { } roughnessFileName)
+        {
+            vtex.AddImageSubFile(Path.GetFileName(roughnessFileName), bitmap => ToPngImageChannels(bitmap, ChannelMapping.A));
+        }
+
         return vtex;
     }
 
@@ -506,8 +513,13 @@ public sealed class TextureExtract
 
     private string ImageBaseName => Path.GetFileNameWithoutExtension(fileName);
 
+    /// <summary>
+    /// Gets the image of a slice. A single slice is a plain image.
+    /// </summary>
     private string GetSliceImageFileName(uint depth)
-        => GetSliceFileName(GetFirstSliceFileName(Path.GetFileName(GetImageFileName()), texture.Depth), depth);
+        => texture.Depth == 1
+            ? Path.GetFileName(GetImageFileName())
+            : GetSliceFileName(GetFirstSliceFileName(Path.GetFileName(GetImageFileName()), texture.Depth), depth);
 
     private string GetCubeImageName(uint depth)
         => isArray ? string.Create(CultureInfo.InvariantCulture, $"{ImageBaseName}_f{depth:D2}") : ImageBaseName;
@@ -1134,7 +1146,7 @@ public sealed class TextureExtract
                 ? (volumeType, volumeType, [GetContentPath(GetSliceImageFileName(0))])
                 : ("2D", "2D", [GetInputFileNameForVtex()]);
 
-        var (imageProcessors, colorMip, alphaMip) = GetRecordedProcessing();
+        var (imageProcessors, colorMip, alphaMip, normalizesNormals) = GetRecordedProcessing();
         var vtex = new CDmeVtex
         {
             OutputTypeString = outputType,
@@ -1147,16 +1159,21 @@ public sealed class TextureExtract
         if (ExportExr)
         {
             colorSpace = "linear";
-            channels = "rgb";
-
-            if (texture.Format == VTexFormat.RGBA16161616F)
-            {
-                vtex.OutputClearColor = new Vector4(0f, 0f, 0f, 1f);
-            }
+            channels = texture.Format is VTexFormat.RGBA16161616 or VTexFormat.RGBA16161616F or VTexFormat.RGBA32323232F ? "rgba" : "rgb";
         }
         else
         {
             (colorSpace, channels) = GetColorSpaceAndChannels();
+        }
+
+        // The roughness mip algorithms read a normal and a roughness input and store one minus the roughness. A texture
+        // that holds roughness alone gets a flat normal.
+        var roughnessFileName = colorMip == "AnisoRoughness_RG" ? fileNames[0] : GetRoughnessImageFileName()?.Replace(Path.DirectorySeparatorChar, '/');
+
+        if (roughnessFileName != null)
+        {
+            fileNames = [colorMip == "AnisoRoughness_RG" ? "[0.5 0.5 1.0 1.0]" : fileNames[0], roughnessFileName];
+            imageProcessors = normalizesNormals ? ["NormalizeNormals"] : [];
         }
 
         var inputNames = new string[fileNames.Length];
@@ -1165,8 +1182,9 @@ public sealed class TextureExtract
         {
             inputNames[i] = string.Create(CultureInfo.InvariantCulture, $"InputTexture{i}");
             var input = new CDmeInputTexture { Name = inputNames[i], FileName = fileNames[i], TypeString = inputType, ColorSpace = colorSpace };
+            var processors = roughnessFileName != null && i == 1 ? ["Inverse"] : imageProcessors;
 
-            foreach (var processor in imageProcessors.DefaultIfEmpty("None"))
+            foreach (var processor in processors.DefaultIfEmpty("None"))
             {
                 input.ImageProcessorArray.Add(new CDmeImageProcessor { Algorithm = processor });
             }
@@ -1215,13 +1233,15 @@ public sealed class TextureExtract
     }
 
     /// <summary>
-    /// Gets the image processors and the color and alpha mip algorithms the compiler recorded in the special dependencies.
+    /// Gets the image processors to run again on the decoded image, the color and alpha mip algorithms the compiler
+    /// recorded in the special dependencies, and whether it normalized a normal input.
     /// </summary>
-    private (List<string> ImageProcessors, string ColorMip, string AlphaMip) GetRecordedProcessing()
+    private (List<string> ImageProcessors, string ColorMip, string AlphaMip, bool NormalizesNormals) GetRecordedProcessing()
     {
         const string Prefix = "Texture Compiler Version ";
         var imageProcessors = new List<string>();
         var mips = new List<string>();
+        var normalizesNormals = false;
 
         foreach (var dependency in texture.Resource.EditInfo?.SpecialDependencies ?? [])
         {
@@ -1237,22 +1257,33 @@ public sealed class TextureExtract
                 name = name[4..];
                 mips.Add(name switch
                 {
-                    "Box Inverse" => "BoxInverse",
+                    // Box Inverse inverts the first mip, which the decoded pixels already hold inverted
+                    "Box Inverse" => "Box",
                     "Normals" => "MipNormal",
                     "AnisoNormals" => "AnisoNormal",
                     _ when name.StartsWith("Artist ", StringComparison.Ordinal) => name["Artist ".Length..],
                     _ => name,
                 });
             }
-            else if (name.StartsWith("Image ", StringComparison.Ordinal))
+            else
             {
-                imageProcessors.Add(name[6..] switch
+                // The decoded pixels already hold what the other processors wrote, the decode undoes the YCoCg encoding
+                // and crops the power of two fill
+                switch (name)
                 {
-                    "YCoCg Conversion" => "ConvertToYCoCg",
-                    "Dilate Color" => "DilateColorInTransparentPixels",
-                    "Mod2X" => "Mod2XCenter",
-                    var processor => processor,
-                });
+                    case "Image FillToPowerOfTwo":
+                        imageProcessors.Add("FillToPowerOfTwo");
+                        break;
+                    case "Image YCoCg Conversion":
+                        imageProcessors.Add("ConvertToYCoCg");
+                        break;
+                    case "Image Dilate Color":
+                        imageProcessors.Add("DilateColorInTransparentPixels");
+                        break;
+                    case "Image NormalizeNormals":
+                        normalizesNormals = true;
+                        break;
+                }
             }
         }
 
@@ -1266,8 +1297,33 @@ public sealed class TextureExtract
         var alphaMip = mips.Find(IsAlphaMip);
         var colorMip = mips.Find(mip => !IsAlphaMip(mip)) ?? alphaMip ?? (texture.NumMipLevels > 1 ? "Box" : "None");
 
-        return (imageProcessors, colorMip, alphaMip ?? colorMip);
+        return (imageProcessors, LimitMips(colorMip), LimitMips(alphaMip ?? colorMip), normalizesNormals);
     }
+
+    /// <summary>
+    /// Limits a Box mip chain to the mips the texture has when it ends before the full chain, which stops at a smaller
+    /// side of 4 for block compressed formats and at 1 for the others.
+    /// </summary>
+    private string LimitMips(string mipAlgorithm)
+    {
+        var size = texture.IsBlockCompressed
+            ? Math.Min(texture.Width, texture.Height) / 4
+            : Math.Max(Math.Max(texture.Width, texture.Height), texture.Flags.HasFlag(VTexFlags.VOLUME_TEXTURE) ? texture.Depth : 1);
+        var fullMipCount = BitOperations.Log2((uint)Math.Max(size, 1)) + 1;
+
+        return mipAlgorithm == "Box" && texture.NumMipLevels < fullMipCount
+            ? string.Create(CultureInfo.InvariantCulture, $"Box{texture.NumMipLevels}")
+            : mipAlgorithm;
+    }
+
+    /// <summary>
+    /// Gets the image for the roughness that normal maps store in blue, which the decode moves to alpha, or
+    /// <see langword="null"/> when the texture stores none.
+    /// </summary>
+    private string? GetRoughnessImageFileName()
+        => isCubeMap || isSliced || isSpriteSheet || !ImageDecodeFlags.HasFlag(TextureCodec.BlueToAlpha)
+            ? null
+            : Path.ChangeExtension(fileName, null) + "_roughness.png";
 
     /// <summary>
     /// Gets whether the color channels were compiled from sRGB input, by which of the raw and the linearized mean of

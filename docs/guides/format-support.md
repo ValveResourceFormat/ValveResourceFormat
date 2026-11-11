@@ -286,19 +286,24 @@ See the [exporting textures guide](./exporting-textures.md) for the workflow.
 
 All commonly shipped pixel formats decode.
 Compile-time transforms (YCoCg, hemi-octahedral normals, DXT5nm, normal Z-reconstruction)
-are reversed on export. LDR textures export as PNG and HDR as EXR, except textures that
+are reversed on export, except that DXT5nm and two-channel normals keep their stored
+channels next to a `.vtex`. LDR textures export as PNG and HDR as EXR, except textures that
 store a whole JPEG/PNG/WebP file, which are copied out byte-exact instead. Sprite sheets
-reconstruct a compilable `.mks` plus per-frame images; LDR cubemaps export one image per
-face, plus a six-face strip when a `.vtex` is written; HDR cubemaps combine into a single
-equirectangular map, or one image per face with `ForceLDR`; arrays and volumes export per
-slice. Every texture shape gets a reconstructed `.vtex` compile config, except stored
-JPEG/PNG/WebP files.
+reconstruct a compilable `.mks` plus per-frame images; cubemaps export one image per face,
+plus a six-face strip when a `.vtex` is written; without a `.vtex`, HDR cubemaps combine into
+a single equirectangular map instead, or one image per face with `ForceLDR`; arrays and
+volumes export per slice, and a single slice as one plain image. Every texture shape gets a
+reconstructed `.vtex` compile config, except stored JPEG/PNG/WebP files. The config runs
+again only the image processors the decode undid (YCoCg, power-of-two fill) and dilation;
+it limits a Box mip chain to the mips the texture has; it reads the roughness of hemi-octahedral
+normal maps from a second `_roughness` image; and it keeps the alpha of RGBA HDR formats.
 
 | What                                  | Why                   | Details                                                                                                                                                                                                                                                                                                                                             |
 | ------------------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Original source images                | Not in compiled files | Block compression (BC1-7, ETC2) is lossy at compile time; exports faithfully reflect the compiled data, not the artist's source.                                                                                                                                                                                                                    |
 | Mip chain                             | Format limitation     | File extraction always uses the largest mip only; the texture viewer can save the mip, face, or slice it is currently showing, and per-mip access exists in the library API. HL:Alyx's per-mip roughness packing therefore has no single-file preserving export path. [#936](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/936) |
 | Transform detection without edit info | Not implemented       | Which compile-time transform to reverse is detected from the resource's edit info block; files stripped of it export still-encoded pixels without warning.                                                                                                                                                                                          |
+| Clamp flags                           | Compiler              | CS2's and Dota 2's compilers never set the clamp flags, so a recompiled texture loses them; HL:Alyx's compiler sets them from the `.vtex`.                                                                                                                                                                                                          |
 
 ## Animation
 
