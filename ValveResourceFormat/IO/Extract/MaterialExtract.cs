@@ -197,7 +197,7 @@ public sealed class MaterialExtract
 
             var fileName = $"{baseName}_{input}{extension}";
 
-            if (texture != null && TextureExtract.IsSliced(texture))
+            if (texture is { Depth: > 1 } && TextureExtract.IsSliced(texture))
             {
                 fileName = TextureExtract.GetFirstSliceFileName(fileName, texture.Depth);
             }
