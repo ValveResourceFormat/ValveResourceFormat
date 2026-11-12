@@ -70,7 +70,8 @@ vec4 SampleMask2()
 #endif
 }
 
-// The sun lights half-lambert, so surfaces facing away from it keep half of its light
+// The sun lights half-lambert, so surfaces facing away from it keep half of its light,
+// and the sky and ground colors fill in where the sun shadow falls
 vec3 GetIllumination(vec3 worldNormal, vec3 lightDirection)
 {
     if (g_iRenderMode == renderMode_FullBright)
@@ -82,7 +83,8 @@ vec3 GetIllumination(vec3 worldNormal, vec3 lightDirection)
     float shadow = CalculateSunShadowMapVisibility(vFragPosition);
 
     vec3 sun = GetSunColor() * (halfLambert * shadow);
-    vec3 ambient = CalculateDotaDirectionalAmbient(worldNormal) * g_flAmbientScale;
+    vec3 shadowFill = GetSkyAmbientLighting(worldNormal) * (1.0 - shadow);
+    vec3 ambient = (CalculateDotaDirectionalAmbient(worldNormal) + shadowFill) * g_flAmbientScale;
 
     return sun + ambient;
 }
