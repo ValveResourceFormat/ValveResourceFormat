@@ -344,8 +344,8 @@ void main()
 
         if (g_bSpriteSheetOutlineFrame)
         {
-            vec2 vMin = g_vSpriteFrameMinMax.xy;
-            vec2 vMax = g_vSpriteFrameMinMax.zw;
+            vec2 vMin = g_vSpriteCroppedMinMax.xy;
+            vec2 vMax = g_vSpriteCroppedMinMax.zw;
             vec2 vThickness = fwidth(vTexCoord.xy) * 1.5;
 
             bool bInsideX = vTexCoord.x >= vMin.x - vThickness.x && vTexCoord.x <= vMax.x + vThickness.x;
