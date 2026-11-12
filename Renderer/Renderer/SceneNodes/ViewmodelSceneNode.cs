@@ -702,6 +702,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         viewmodel.SelectedItemIndex = KnifeItemIndex;
 
         CacheSounds();
+        entitySystem.TempEntities.PrecacheImpacts(scene, RifleTracer, PistolTracer);
 
         viewmodel.Layers = [ViewmodelLayer];
         viewmodel.Flags |= ObjectTypeFlags.DisableVisCulling | ObjectTypeFlags.NoShadows;

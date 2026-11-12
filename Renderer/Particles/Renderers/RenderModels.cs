@@ -196,6 +196,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             renderAttributeCombo = ParseRenderAttributeCombo(parse.String("m_szRenderAttribute"));
 
+            for (var i = 0; i < models.Count; i++)
+            {
+                if (models[i].Model != null)
+                {
+                    Release(TakeNode(i));
+                }
+            }
+
             // The nodes have no way to stop casting shadows, so m_bDisableShadows is not applied. Taking
             // decals (m_bAcceptsDecals) is left to the host, and m_bAllowApproximateTransforms only saves
             // updating a model that barely moved.

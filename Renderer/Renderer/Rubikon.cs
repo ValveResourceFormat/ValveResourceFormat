@@ -101,6 +101,12 @@ public class Rubikon
 
     private int[] HullIndices { get; }
 
+    /// <summary>Gets the hashes of the surface properties the shapes use, with repeats.</summary>
+    public IEnumerable<uint> SurfacePropertyHashes
+        => Meshes.Concat(Compounds.SelectMany(static compound => compound.Meshes))
+            .SelectMany(static mesh => mesh.SurfacePropertyHashes.Append(mesh.SurfacePropertyHash))
+            .Concat(Hulls.Concat(Compounds.SelectMany(static compound => compound.Hulls)).Select(static hull => hull.SurfacePropertyHash));
+
     /// <summary>Initializes <see cref="Rubikon"/> by parsing the mesh and hull shapes from one part of the physics aggregate data.</summary>
     /// <param name="physicsData">Source physics aggregate containing shapes and collision attributes.</param>
     /// <param name="partIndex">The part to take the shapes of, in its own space.</param>

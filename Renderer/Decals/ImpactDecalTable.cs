@@ -166,9 +166,14 @@ namespace ValveResourceFormat.Renderer.Decals
             }
         }
 
+        public DecalOption[] GetOptions(string? groupName)
+            => !string.IsNullOrEmpty(groupName) && decalGroups.TryGetValue(groupName, out var options) ? options : [];
+
         public DecalOption? PickOption(string? groupName, Random random)
         {
-            if (string.IsNullOrEmpty(groupName) || !decalGroups.TryGetValue(groupName, out var options) || options.Length == 0)
+            var options = GetOptions(groupName);
+
+            if (options.Length == 0)
             {
                 return null;
             }
