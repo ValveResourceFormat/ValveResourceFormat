@@ -341,6 +341,14 @@ namespace GUI.Types.GLViewers
                 animationController = modelSceneNode.AnimationController;
                 Scene.Add(modelSceneNode, true);
 
+                if (model.Configs.Evaluate(ModelConfigList.SpawnConfigName, null, new Random(0)) is { } config)
+                {
+                    foreach (var attached in modelSceneNode.ApplyConfig(config, Vector3.One))
+                    {
+                        Scene.Add(attached, true);
+                    }
+                }
+
                 if (modelSceneNode.RenderableMeshes.Count == 1)
                 {
                     var mesh = modelSceneNode.RenderableMeshes[0];
