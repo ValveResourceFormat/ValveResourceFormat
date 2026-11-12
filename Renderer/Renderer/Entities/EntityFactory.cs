@@ -54,6 +54,8 @@ public static class EntityFactory
         Register<FuncBreakable>("func_breakable", static (system, spawnInfo) => new FuncBreakable(system, spawnInfo));
         Register<FuncShatterglass>("func_shatterglass", static (system, spawnInfo) => new FuncShatterglass(system, spawnInfo));
         Register<XenFloraAnimatedMover>("xen_flora_animatedmover", static (system, spawnInfo) => new XenFloraAnimatedMover(system, spawnInfo));
+        Register<TextureBasedAnimatable>("texture_based_animatable", static (system, spawnInfo) => new TextureBasedAnimatable(system, spawnInfo));
+        Register<TextureBasedAnimatable>("hl_vr_texture_based_animatable", static (system, spawnInfo) => new TextureBasedAnimatable(system, spawnInfo));
         Register<TriggerMultiple>("trigger_multiple", static (system, spawnInfo) => new TriggerMultiple(system, spawnInfo));
         Register<TriggerOnce>("trigger_once", static (system, spawnInfo) => new TriggerOnce(system, spawnInfo));
         Register<TriggerLook>("trigger_look", static (system, spawnInfo) => new TriggerLook(system, spawnInfo));
