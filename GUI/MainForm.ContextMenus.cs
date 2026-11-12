@@ -26,6 +26,7 @@ namespace GUI
             viewAssetInfoToolStripMenuItem.Visible = !isRootNode && !isFolderNode;
             searchInFolderToolStripMenuItem.Visible = isFolderNode && !isRootNode;
 
+            viewPackageMetadataToolStripMenuItem.Visible = isRootNode;
             verifyPackageContentsToolStripMenuItem.Visible = isRootNode;
             recoverDeletedToolStripMenuItem.Visible = isRootNode && !deletedFilesRecovered;
             editThisVpkToolStripMenuItem.Visible = isRootNode && canEdit;
@@ -349,6 +350,21 @@ namespace GUI
             {
                 Cursor.Current = Cursors.Default;
             }
+        }
+
+        private void OnViewPackageMetadataToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            var (guiContext, _) = GetSingleSelectedNode(sender);
+
+            if (guiContext?.CurrentPackage == null)
+            {
+                return;
+            }
+
+            var tab = Types.Viewers.PackageMetadata.Create(guiContext);
+            tab.ImageIndex = AppIcons.Icons["VPKMetadata"];
+            mainTabs.TabPages.Add(tab);
+            mainTabs.SelectTab(tab);
         }
 
         private static (VrfGuiContext?, IBetterBaseItem?) GetSingleSelectedNode(object sender)
