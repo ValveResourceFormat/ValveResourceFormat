@@ -927,7 +927,8 @@ namespace ValveResourceFormat.IO
 
             return combos.GetValueOrDefault("F_VERTEX_ANIMATION") > 0
                 || combos.GetValueOrDefault("F_FOLIAGE_ANIMATION") > 0
-                || combos.GetValueOrDefault("F_JITTER_VERTICES") > 0;
+                || combos.GetValueOrDefault("F_JITTER_VERTICES") > 0
+                || combos.GetValueOrDefault("F_PRE_BAKED_VERTEX_ANIMATION") > 0;
         }
 
         /// <inheritdoc/>
