@@ -1,3 +1,5 @@
+using System.Linq;
+
 namespace ValveResourceFormat.Renderer;
 
 /// <summary>
@@ -28,6 +30,9 @@ public sealed class PhysicsWorld
     }
 
     private readonly List<Body> bodies = [];
+
+    /// <summary>Gets the shapes, in their own local spaces.</summary>
+    public IEnumerable<Rubikon> Shapes => bodies.Select(static body => body.Shape);
 
     /// <summary>Gets whether there is nothing to collide with.</summary>
     public bool IsEmpty => bodies.Count == 0 && GroundPlane is null;
