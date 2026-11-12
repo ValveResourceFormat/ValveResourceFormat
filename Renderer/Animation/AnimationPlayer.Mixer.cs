@@ -173,25 +173,25 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>
         /// Registers a pose parameter a blend sequence positions its animations along, with its live
-        /// value at zero clamped into range.
+        /// value at zero normalized into range.
         /// </summary>
         public void RegisterPoseParameter(PoseParameter parameter)
         {
             poseParameterDefinitions[parameter.Name] = parameter;
-            poseParameterValues[parameter.Name] = parameter.Clamp(0f);
+            poseParameterValues[parameter.Name] = parameter.Normalize(0f);
         }
 
         /// <summary>Gets the registered pose parameters.</summary>
         public IReadOnlyCollection<PoseParameter> PoseParameters => poseParameterDefinitions.Values;
 
         /// <summary>
-        /// Sets the live value of a pose parameter, clamped to its range when it was registered, and
+        /// Sets the live value of a pose parameter, wrapped or clamped to its range when it was registered, and
         /// forces the next <see cref="Update"/> to recompute the pose.
         /// </summary>
         public void SetPoseParameter(string name, float value)
         {
             poseParameterValues[name] = poseParameterDefinitions.TryGetValue(name, out var parameter)
-                ? parameter.Clamp(value)
+                ? parameter.Normalize(value)
                 : value;
 
             forceUpdate = true;
