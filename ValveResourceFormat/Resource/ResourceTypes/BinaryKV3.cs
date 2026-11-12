@@ -220,11 +220,17 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             var version = magic & 0xFF;
-            magic &= 0xFFFFFF00;
+            var signature = magic & 0xFFFFFF00;
 
-            if (magic != 0x4B563300)
+            if (signature != 0x4B563300)
             {
-                throw new UnexpectedMagicException("Unsupported KV3 signature", magic, nameof(magic));
+                if (magic == 0x2D2D213C) // "<!--"
+                {
+                    ReadText(reader, magic);
+                    return;
+                }
+
+                throw new UnexpectedMagicException("Unsupported KV3 signature", signature, nameof(signature));
             }
 
             if (version < 1 || version > 5)
@@ -233,6 +239,23 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             ReadBuffer((int)version, reader);
+        }
+
+        private void ReadText(BinaryReader reader, uint magic)
+        {
+            using var text = new RentedBuffer<byte>((int)Size);
+            BinaryPrimitives.WriteUInt32LittleEndian(text.Span, magic);
+            reader.BaseStream.ReadExactly(text.Span[sizeof(uint)..]);
+
+            var length = text.Span.IndexOf((byte)0);
+
+            if (length < 0)
+            {
+                length = text.Span.Length;
+            }
+
+            using var stream = new ReadOnlyMemoryStream(text.ByteArray.AsMemory(0, length));
+            Data = KVDocumentExtensions.ParseKV3(stream);
         }
 
         internal static void DecompressLZ4(BinaryReader reader, Span<byte> output, int compressedSize)
