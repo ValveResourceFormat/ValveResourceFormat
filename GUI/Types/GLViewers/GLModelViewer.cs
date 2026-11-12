@@ -469,11 +469,10 @@ namespace GUI.Types.GLViewers
             Debug.Assert(animationController != null);
 
             var controller = animationController;
-            var range = parameter.Max - parameter.Min;
-            var current = controller.GetPoseParameter(parameter.Name);
-            var normalized = range > 0f ? (current - parameter.Min) / range : 0f;
+            var (slider, field) = RendererControl.CreateRangedFloatEditor(controller.GetPoseParameter(parameter.Name), parameter.Min, parameter.Max, wholeNumbers: false,
+                value => controller.SetPoseParameter(parameter.Name, value));
 
-            UiControl.AddTrackBar(parameter.Name, value => controller.SetPoseParameter(parameter.Name, parameter.Min + value * range), normalized);
+            UiControl.AddControl(RendererControl.CreatePropertyRow(parameter.Name, slider, field));
         }
 
         private void AddFlexControllerControls(ModelSceneNode sceneNode, FlexController[] controllers)
@@ -491,16 +490,15 @@ namespace GUI.Types.GLViewers
             {
                 var index = i;
                 var controller = controllers[i];
-                var range = controller.Max - controller.Min;
 
                 // The slider starts where the controller is zero, which is how a model with no animation shows
-                var zero = range > 0f ? MathUtils.Saturate(-controller.Min / range) : 0f;
-
-                UiControl.AddTrackBar(controller.Name, value =>
+                var (slider, field) = RendererControl.CreateRangedFloatEditor(Math.Clamp(0f, controller.Min, controller.Max), controller.Min, controller.Max, wholeNumbers: false, value =>
                 {
                     using var lockedGl = MakeCurrent();
-                    sceneNode.SetFlexControllerOverride(index, controller.Min + value * range);
-                }, zero);
+                    sceneNode.SetFlexControllerOverride(index, value);
+                });
+
+                UiControl.AddControl(RendererControl.CreatePropertyRow(controller.Name, slider, field));
             }
         }
 
