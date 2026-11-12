@@ -2,6 +2,7 @@
 
 #include "common/instancing.slang"
 #include "common/animation.slang"
+#include "common/morph.slang"
 
 in vec3 vPOSITION;
 
@@ -11,7 +12,7 @@ flat out uint sceneObjectId;
 flat out uint meshletId;
 
 void main(void) {
-    gl_Position = g_matWorldToProjection * vec4(vec4(vPOSITION, 1.0) * CalculateSkinTransform(), 1.0);
+    gl_Position = g_matWorldToProjection * vec4(vec4(vPOSITION + GetMorphOffset(), 1.0) * CalculateSkinTransform(), 1.0);
     sceneObjectId = g_instanceBuffer[gl_BaseInstance].Identification;
     meshletId = gl_DrawID;
 }
