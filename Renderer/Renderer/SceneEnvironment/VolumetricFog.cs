@@ -50,9 +50,15 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         private const int CubeFaceCount = 6;
         private const float ShadowNearPlane = 1f;
 
-        // The texture units the baked light and the shadow atlas of the fog are bound to while the fog is built
+        // The texture units the baked light, the shadow atlas and the lit froxels of the fog are bound to while the fog is built
         private const int IrradianceTextureUnit = 30;
         private const int ShadowTextureUnit = 29;
+        private const int LightingTextureUnit = 28;
+
+        // A froxel keeps this much of its light of the previous frames, and its jitter repeats every 32 frames
+        private const float HistoryWeight = 0.9f;
+        private const int JitterFrameMask = 31;
+        private const float GoldenRatio = 1.618034f;
 
         // Cube face order of a point light's shadow faces: +X, -X, +Y, -Y, +Z, -Z
         private static readonly Vector3[] CubeFaceDirections = [Vector3.UnitX, -Vector3.UnitX, Vector3.UnitY, -Vector3.UnitY, Vector3.UnitZ, -Vector3.UnitZ];
@@ -174,7 +180,11 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         private readonly List<FogLightCandidate> lightCandidates = [];
         private readonly RendererContext rendererContext;
         private RenderTexture? volume;
+        private RenderTexture? lighting;
+        private bool hasHistory;
+        private int frame;
         private Shader? shader;
+        private Shader? integrateShader;
 
         // Anisotropy is left out. Nothing in the game's fog shaders reads it
         private int staticLightCount;
@@ -392,7 +402,8 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// <param name="camera">The view the fog is built for.</param>
         /// <param name="shadowDepth">The shadow atlas of the scene's spot lights.</param>
         /// <param name="fogShadowDepth">The atlas the <see cref="ShadowFaces"/> were rendered into, or <see langword="null"/> if there are none.</param>
-        public void Render(Scene scene, Camera camera, RenderTexture shadowDepth, RenderTexture? fogShadowDepth)
+        /// <param name="blueNoise">The blue noise that jitters the points the froxels are lit at.</param>
+        public void Render(Scene scene, Camera camera, RenderTexture shadowDepth, RenderTexture? fogShadowDepth, RenderTexture blueNoise)
         {
             var cameraPosition = camera.Location;
             var hasPreparedLights = lightsPrepared;
@@ -409,8 +420,9 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             }
 
             shader ??= rendererContext.ShaderLoader.LoadShader("volumetric_fog");
+            integrateShader ??= rendererContext.ShaderLoader.LoadShader("volumetric_fog", ("D_PASS", 1));
 
-            if (volume == null)
+            if (volume == null || lighting == null)
             {
                 volume = RenderTexture.Create3D(TextureTarget.Texture3D, GridWidth, GridHeight, gridDepth, ImageFormat.RGBA16161616F, 1, "VolumetricFog");
                 volume.SetWrapMode(RsTextureAddressMode.Clamp);
@@ -418,6 +430,11 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
 
                 // Until it is built, the fog lets everything through
                 GL.ClearTexImage(volume.Handle, 0, PixelFormat.Rgba, PixelType.Float, [0f, 0f, 0f, 1f]);
+
+                lighting = RenderTexture.Create3D(TextureTarget.Texture3D, GridWidth, GridHeight, gridDepth, ImageFormat.RGBA16161616F, 1, "VolumetricFogLighting");
+                lighting.SetWrapMode(RsTextureAddressMode.Clamp);
+                lighting.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
+                hasHistory = false;
             }
 
             var volumeCount = StoreVolumes();
@@ -436,11 +453,16 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
                 fadeBias = -fadeStart * fadeScale;
             }
 
+            var gridSize = new Vector3(GridWidth, GridHeight, gridDepth);
+            var scatteringFadeIn = new Vector4(scattering, 0f, fadeScale, fadeBias);
+
             shader.Use();
-            shader.SetUniform("g_vFogGridSize", new Vector3(GridWidth, GridHeight, gridDepth));
+            shader.SetUniform("g_vFogGridSize", gridSize);
             shader.SetUniform("g_vFogNearRange", nearRange);
             shader.SetUniform("g_vFogDepthWarp", DepthWarp);
-            shader.SetUniform("g_vFogScatteringFadeIn", new Vector4(scattering, 0f, fadeScale, fadeBias));
+            shader.SetUniform("g_vFogScatteringFadeIn", scatteringFadeIn);
+            shader.SetUniform("g_flFogJitterOffset", (frame++ & JitterFrameMask) * GoldenRatio);
+            shader.SetUniform("g_flFogHistoryWeight", hasHistory ? HistoryWeight : 0f);
             shader.SetUniform("g_vFogTint_IndirectStrength", new Vector4(tint, indirectStrength));
             shader.SetUniform("g_nFogVolumeCount", volumeCount);
             shader.SetUniform("g_flFogDensityFloor", densityFloor);
@@ -486,9 +508,26 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             }
 
             GL.BindTextureUnit(ShadowTextureUnit, fogShadowAtlas.Handle);
+            GL.BindTextureUnit((int)ReservedTextureSlots.BlueNoise, blueNoise.Handle);
 
+            var groupsX = MathUtils.DivideRoundUp(GridWidth, 8);
+            var groupsY = MathUtils.DivideRoundUp(GridHeight, 8);
+
+            GL.BindImageTexture(1, lighting.Handle, 0, true, 0, TextureAccess.ReadWrite, SizedInternalFormat.Rgba16f);
+            GL.DispatchCompute(groupsX, groupsY, gridDepth);
+            GL.MemoryBarrier(MemoryBarrierFlags.TextureFetchBarrierBit | MemoryBarrierFlags.ShaderImageAccessBarrierBit);
+            hasHistory = true;
+
+            integrateShader.Use();
+            integrateShader.SetUniform("g_vFogGridSize", gridSize);
+            integrateShader.SetUniform("g_vFogNearRange", nearRange);
+            integrateShader.SetUniform("g_vFogDepthWarp", DepthWarp);
+            integrateShader.SetUniform("g_vFogScatteringFadeIn", scatteringFadeIn);
+            integrateShader.SetUniform("g_nFogLightStorageIs8Bit", lightStorageIs8Bit ? 1 : 0);
+
+            GL.BindTextureUnit(LightingTextureUnit, lighting.Handle);
             GL.BindImageTexture(0, volume.Handle, 0, true, 0, TextureAccess.WriteOnly, SizedInternalFormat.Rgba16f);
-            GL.DispatchCompute(MathUtils.DivideRoundUp(GridWidth, 8), MathUtils.DivideRoundUp(GridHeight, 8), 1);
+            GL.DispatchCompute(groupsX, groupsY, 1);
             GL.MemoryBarrier(MemoryBarrierFlags.TextureFetchBarrierBit);
         }
 
@@ -1193,6 +1232,8 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         {
             volume?.Delete();
             volume = null;
+            lighting?.Delete();
+            lighting = null;
             volumeBuffer?.Delete();
             volumeBuffer = null;
             lightBuffer?.Delete();

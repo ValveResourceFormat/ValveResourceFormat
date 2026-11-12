@@ -19,14 +19,26 @@ void CalculateShading(inout LightingTerms_t lighting, vec3 lightVector, vec3 lig
 }
 #include "common/lighting_barn.slang"
 
-// Builds the volumetric fog volume of a view: for every pixel column of the froxel grid it walks the slices
-// from the camera outwards, lights the fog of each slice with the fog lights and accumulates the in-scattered
-// light and the remaining transmittance. The volume is read as scatter.rgb + color * transmittance.a.
-//
-// The slices are not filtered with their neighbours and not blended with the previous frame's volume.
+// Builds the volumetric fog volume of a view in two passes. Pass 0 lights every froxel of the grid at a point
+// jittered inside it and blends the result with the froxel's light of the previous frames. Pass 1 walks the slices
+// of every pixel column from the camera outwards, reads the lit froxels with a filter over their neighbours, and
+// accumulates the in-scattered light and the remaining transmittance. The volume is read as
+// scatter.rgb + color * transmittance.a.
+#define D_PASS 0
+
 layout(local_size_x = 8, local_size_y = 8) in;
 
 layout(binding = 0, rgba16f) uniform writeonly image3D g_tFogVolumeOut;
+
+// The light of each froxel in rgb and its density in a, written by pass 0 and read by pass 1
+layout(binding = 1, rgba16f) uniform image3D g_tFogLightingOut;
+layout(binding = 28) uniform sampler3D g_tFogLighting;
+
+uniform sampler2D g_tBlueNoise; // reserved
+
+// The jitter of this frame, added to the blue noise, and how much of the previous frames a froxel keeps
+uniform float g_flFogJitterOffset;
+uniform float g_flFogHistoryWeight;
 
 // Baked light of the fog, over the box of the fog controller
 layout(binding = 30) uniform sampler3D g_tFogIrradiance;
@@ -469,23 +481,71 @@ vec3 GetFogLighting(vec3 vPositionWs)
     return min(vStaticLighting + vDynamicLighting, vec3(MAX_STORED_FOG_LIGHT));
 }
 
-void main()
+// Ray through a point of the grid's columns, scaled to advance one unit along the view direction per unit of depth
+vec3 GetFogRay(vec2 vColumn, vec2 vGridSize)
 {
-    ivec3 vGridSize = ivec3(g_vFogGridSize);
-    ivec2 vColumn = ivec2(gl_GlobalInvocationID.xy);
-
-    if (any(greaterThanEqual(vColumn, vGridSize.xy)))
-    {
-        return;
-    }
-
-    // Ray through the column center, scaled to advance one unit along the view direction per unit of depth
-    vec2 vNdc = (vec2(vColumn) + 0.5) / vec2(vGridSize.xy) * 2.0 - 1.0;
+    vec2 vNdc = vColumn / vGridSize * 2.0 - 1.0;
     // The projection inverse gives a point on the near plane in view space, which is also the ray from the camera
     vec4 vViewRay = g_matProjectionToWorld * vec4(vNdc, 1.0, 1.0);
     vec3 vRay = transpose(mat3(g_matWorldToView)) * (vViewRay.xyz / vViewRay.w);
-    vRay /= dot(vRay, g_vCameraDirWs);
+    return vRay / dot(vRay, g_vCameraDirWs);
+}
 
+void LightFroxel(ivec3 vFroxel, ivec3 vGridSize)
+{
+    // A point of the froxel picked by blue noise that moves every frame, from its center to half the froxel away
+    // across the column and half the slice towards the camera
+    vec3 vJitter = fract(texelFetch(g_tBlueNoise, vFroxel.xy & (textureSize(g_tBlueNoise, 0) - 1), 0).xyz + g_flFogJitterOffset) - 0.5;
+    vec3 vRay = GetFogRay(vec2(vFroxel.xy) + 0.5 + vJitter.xy, vec2(vGridSize.xy));
+
+    float flSlice = (float(vFroxel.z) + 0.5) / float(vGridSize.z);
+    float flDepth = GetSliceDepth(flSlice);
+    float flSliceThickness = flDepth - GetSliceDepth(max(0.0, flSlice - 1.0 / float(vGridSize.z)));
+    vec3 vPositionWs = g_vCameraPositionWs + vRay * (flDepth + vJitter.z * flSliceThickness);
+
+    float flIndirectStrength;
+    vec3 vTint;
+    float flDensity = GetFogDensity(vPositionWs, flIndirectStrength, vTint);
+    vec3 vLighting = vec3(0.0);
+
+    if (flDensity > 0.0)
+    {
+        vLighting = GetFogLighting(vPositionWs);
+
+        if (flIndirectStrength > 0.0)
+        {
+            vLighting += GetFogIndirectLighting(vPositionWs) * flIndirectStrength;
+        }
+
+        vLighting *= vTint;
+    }
+
+    vec3 vHistory = imageLoad(g_tFogLightingOut, vFroxel).rgb;
+    vLighting = mix(vLighting, vHistory, g_flFogHistoryWeight);
+
+    imageStore(g_tFogLightingOut, vFroxel, vec4(vLighting, flDensity));
+}
+
+// The lit froxels around a slice of a column, four in the slice and four more in its neighbour slices with 8 bit storage
+vec4 GetFilteredFroxel(ivec3 vFroxel, ivec3 vGridSize)
+{
+    vec3 vTexelSize = 1.0 / vec3(vGridSize);
+    vec3 vCenter = (vec3(vFroxel) + 0.5) * vTexelSize;
+    vec3 vOffset = vec3(0.5, 0.5, g_nFogLightStorageIs8Bit != 0 ? 0.5 : 0.0) * vTexelSize;
+    vec4 vSum = vec4(0.0);
+
+    for (int i = 0; i < 8; i++)
+    {
+        vec3 vSign = vec3(i & 1, (i >> 1) & 1, (i >> 2) & 1) * 2.0 - 1.0;
+        vSum += textureLod(g_tFogLighting, vCenter + vSign * vOffset, 0.0);
+    }
+
+    return vSum / 8.0;
+}
+
+void IntegrateColumn(ivec2 vColumn, ivec3 vGridSize)
+{
+    vec3 vRay = GetFogRay(vec2(vColumn) + 0.5, vec2(vGridSize.xy));
     float flScattering = g_vFogScatteringFadeIn.x * length(vRay);
 
     vec3 vScatter = vec3(0.0);
@@ -494,34 +554,33 @@ void main()
 
     for (int nSlice = 0; nSlice < vGridSize.z; nSlice++)
     {
-        float flSlice = (float(nSlice) + 0.5) / float(vGridSize.z);
-        float flDepth = GetSliceDepth(flSlice);
-        vec3 vPositionWs = g_vCameraPositionWs + vRay * flDepth;
-
-        float flIndirectStrength;
-        vec3 vTint;
-        float flDensity = GetFogDensity(vPositionWs, flIndirectStrength, vTint);
-        vec3 vLighting = vec3(0.0);
-
-        if (flDensity > 0.0)
-        {
-            vLighting = GetFogLighting(vPositionWs);
-
-            if (flIndirectStrength > 0.0)
-            {
-                vLighting += GetFogIndirectLighting(vPositionWs) * flIndirectStrength;
-            }
-
-            vLighting *= vTint;
-        }
+        float flDepth = GetSliceDepth((float(nSlice) + 0.5) / float(vGridSize.z));
+        vec4 vFroxel = GetFilteredFroxel(ivec3(vColumn, nSlice), vGridSize);
 
         float flFadeIn = saturate(flDepth * g_vFogScatteringFadeIn.z + g_vFogScatteringFadeIn.w);
-        float flExtinction = flDensity * (flDepth - flPreviousDepth) * flScattering * flFadeIn;
+        float flExtinction = vFroxel.a * (flDepth - flPreviousDepth) * flScattering * flFadeIn;
 
-        vScatter += vLighting * flExtinction * saturate(exp(-flOpticalDepth));
+        vScatter += vFroxel.rgb * flExtinction * saturate(exp(-flOpticalDepth));
         flOpticalDepth += flExtinction;
         flPreviousDepth = flDepth;
 
         imageStore(g_tFogVolumeOut, ivec3(vColumn, nSlice), vec4(vScatter, saturate(exp(-flOpticalDepth))));
     }
+}
+
+void main()
+{
+    ivec3 vGridSize = ivec3(g_vFogGridSize);
+    ivec3 vFroxel = ivec3(gl_GlobalInvocationID);
+
+    if (any(greaterThanEqual(vFroxel.xy, vGridSize.xy)))
+    {
+        return;
+    }
+
+#if D_PASS == 0
+    LightFroxel(vFroxel, vGridSize);
+#else
+    IntegrateColumn(vFroxel.xy, vGridSize);
+#endif
 }
