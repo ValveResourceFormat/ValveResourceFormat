@@ -173,7 +173,7 @@ namespace GUI.Forms
 
         private void OnViewReleaseNotesButtonClick(object sender, EventArgs e)
         {
-            OpenUrl(UpdateChecker.Offer?.ReleaseNotesUrl ?? "https://github.com/ValveResourceFormat/ValveResourceFormat/releases");
+            OpenUrl(UpdateChecker.Offer?.ReleaseNotesUrl ?? "https://s2v.app/release/");
         }
 
         private async void OnDownloadButtonClick(object sender, EventArgs e)
