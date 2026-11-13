@@ -8,6 +8,7 @@ using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
+using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.ResourceTypes.ModelData.Attachments;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -445,6 +446,104 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         mesh.ReplaceMaterials(materialTable);
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Builds the model the way an evaluated config assembles it: applies what the config sets on this model,
+        /// and attaches the models it names, each with what the config sets on it.
+        /// </summary>
+        /// <param name="result">The config of this model, from <see cref="ModelConfigList.Evaluate"/>.</param>
+        /// <param name="scale">The scale this model is drawn at, which the frames of its bones and attachments leave out.</param>
+        /// <returns>The attached models, for the caller to add to the scene.</returns>
+        public List<ModelSceneNode> ApplyConfig(ModelConfigResult result, Vector3 scale)
+        {
+            ArgumentNullException.ThrowIfNull(result);
+
+            ApplyConfigAppearance(this, result);
+
+            var nodes = new ModelSceneNode?[result.AttachedModels.Count];
+            var attachedNodes = new List<ModelSceneNode>(nodes.Length);
+            var scaleTransform = Matrix4x4.CreateScale(scale);
+
+            for (var i = 0; i < nodes.Length; i++)
+            {
+                var attached = result.AttachedModels[i];
+                var element = attached.Element;
+                var parent = attached.ParentIndex >= 0 ? nodes[attached.ParentIndex] : this;
+
+                if (parent == null || element.AttachmentType == ModelConfigAttachmentType.Invalid || element.ModelName.Length == 0)
+                {
+                    continue;
+                }
+
+                if (Scene.RendererContext.FileLoader.LoadFileCompiled(element.ModelName)?.DataBlock is not Model model)
+                {
+                    Scene.RendererContext.Logger.LogWarning("Model \"{Model}\" failed to load attached model \"{Attached}\"", Model.Name, element.ModelName);
+                    continue;
+                }
+
+                var node = new ModelSceneNode(Scene, model)
+                {
+                    Name = element.ModelName,
+                    Alpha = Alpha,
+                };
+
+                node.Flags |= Flags & ObjectTypeFlags.NoShadows;
+
+                // Frames of a parent model drop its scale, so the scale is applied again here
+                var offset = scaleTransform * EntityTransformHelper.ToRigidTransformationMatrix(element.AngleOffset, element.Offset * scale);
+
+                // The node is still at the origin, so this is the attachment in the space of its own model
+                if (element.LocalAttachmentOffsetName.Length > 0
+                    && node.Attachments.ContainsKey(element.LocalAttachmentOffsetName)
+                    && Matrix4x4.Invert(node.GetAttachmentTransform(element.LocalAttachmentOffsetName), out var toLocalAttachment))
+                {
+                    offset = toLocalAttachment * offset;
+                }
+
+                switch (element.AttachmentType)
+                {
+                    case ModelConfigAttachmentType.Bonemerge:
+                        node.SetParent(parent, localTransform: scaleTransform);
+                        node.BoneMerge(parent);
+                        break;
+
+                    case ModelConfigAttachmentType.BoneOrAttachment when element.AttachmentName.Length > 0:
+                        node.SetParent(parent, element.AttachmentName, offset);
+                        break;
+
+                    default:
+                        node.SetParent(parent, localTransform: offset);
+                        break;
+                }
+
+                ApplyConfigAppearance(node, attached);
+
+                nodes[i] = node;
+                attachedNodes.Add(node);
+            }
+
+            return attachedNodes;
+        }
+
+        private static void ApplyConfigAppearance(ModelSceneNode node, ModelConfigAppearance appearance)
+        {
+            if (appearance.MaterialGroup is { } materialGroup)
+            {
+                node.SetMaterialGroup(materialGroup);
+            }
+
+            if (appearance.RenderColor is { } color)
+            {
+                // Multiplies the color of the entity as Half-Life: Alyx does. Unproven: that rendercolor is applied
+                // before this there, and that other games multiply too
+                node.Tint *= new Vector3(color.R, color.G, color.B) / byte.MaxValue;
+            }
+
+            foreach (var (name, choice) in appearance.BodyGroups)
+            {
+                node.SetBodyGroupChoice(name, choice);
             }
         }
 

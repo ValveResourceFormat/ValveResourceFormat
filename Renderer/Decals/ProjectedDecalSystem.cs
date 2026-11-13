@@ -610,6 +610,19 @@ namespace ValveResourceFormat.Renderer.Decals
             return SpawnFromGroup(groupName, position, normal, up, parent);
         }
 
+        /// <summary>Registers every decal a bullet can leave on a surface, grazing or not.</summary>
+        /// <param name="surfacePropertyHash">The hash of the surface property, or zero for the default surface.</param>
+        public void RegisterImpactDecals(uint surfacePropertyHash)
+        {
+            foreach (var isGrazing in (ReadOnlySpan<bool>)[false, true])
+            {
+                foreach (var option in ImpactDecals.GetOptions(ImpactDecals.FindDecalGroup(surfacePropertyHash, isGrazing)))
+                {
+                    RegisterMaterial(option.Material, option.Sequence);
+                }
+            }
+        }
+
         /// <summary>
         /// Adds the scuff a knife leaves where it hits a surface. Surfaces that take no bullet decals take
         /// no scuff either.

@@ -1197,8 +1197,8 @@ public class Renderer : ISceneHost
             if (Settings.FogEnabled && Settings.VolumetricFogEnabled)
             {
                 using var _ = new GLDebugGroup("Volumetric Fog");
-                Debug.Assert(BarnLightShadowBuffer?.Depth != null);
-                volumetricFog.Render(Scene, mainCamera, BarnLightShadowBuffer.Depth, FogShadowBuffer?.Depth);
+                Debug.Assert(BarnLightShadowBuffer?.Depth != null && Postprocess.BlueNoise != null);
+                volumetricFog.Render(Scene, mainCamera, BarnLightShadowBuffer.Depth, FogShadowBuffer?.Depth, Postprocess.BlueNoise);
             }
             else
             {

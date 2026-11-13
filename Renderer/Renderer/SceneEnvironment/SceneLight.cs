@@ -1227,7 +1227,6 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
         // custom point light hack
         const uint LitInsideNearPlaneFlag = 0x8000u;
-        const float ApexCullNearPlane = 0.001f;
         var faceFlags = light.LuminaireShape == -1 ? 0xFFFF0000u | LitInsideNearPlaneFlag : 0xFFFF0000u;
 
         // For the shaders that shade a rect light as the rectangle or disc it is
@@ -1301,12 +1300,18 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         {
             var lightView = Matrix4x4.CreateLookAtLeftHanded(origin, origin + faceForward, faceUp);
             var lightProj = Matrix4x4.CreatePerspectiveLeftHanded(2f * nearPlane, 2f * nearPlane, nearPlane, nearPlane + range);
-            var cullProj = (faceFlags & LitInsideNearPlaneFlag) != 0u
-                ? Matrix4x4.CreatePerspectiveLeftHanded(2f * ApexCullNearPlane, 2f * ApexCullNearPlane, ApexCullNearPlane, nearPlane + range)
+            var litInsideNearPlane = (faceFlags & LitInsideNearPlaneFlag) != 0u;
+
+            // Eye one near plane behind the light, so the frustum holds the whole pyramid from the apex
+            var cullView = litInsideNearPlane
+                ? Matrix4x4.CreateLookAtLeftHanded(origin - faceForward * nearPlane, origin, faceUp)
+                : lightView;
+            var cullProj = litInsideNearPlane
+                ? Matrix4x4.CreatePerspectiveLeftHanded(2f * nearPlane, 2f * nearPlane, nearPlane, 2f * nearPlane + range)
                 : lightProj;
             var (illuminationFromWorld, obbToWorld) = GetOmni2FaceOBB(light, faceIndex);
 
-            return CreateFace(lightView * lightProj, lightView * cullProj, illuminationFromWorld, obbToWorld, faceFlags);
+            return CreateFace(lightView * lightProj, cullView * cullProj, illuminationFromWorld, obbToWorld, faceFlags);
         }
 
         light.BarnFaces[0] = MakeFace(forward, up, light.Range, 0);

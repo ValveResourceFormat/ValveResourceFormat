@@ -115,6 +115,46 @@ public sealed class TempEntities
         particle.GetControlPoint(4).Position = data.Origin + Vector3.One;
     }
 
+    /// <summary>
+    /// Readies what a bullet leaves on every surface the world collides with: the impact decals and sounds, and
+    /// the impact particle systems, built stopped in the scene so the renderer's prewarm compiles their shaders.
+    /// </summary>
+    /// <param name="scene">The scene the effects show in.</param>
+    /// <param name="particleNames">Further particle systems to ready the same way, such as tracers.</param>
+    internal void PrecacheImpacts(Scene scene, params IEnumerable<string> particleNames)
+    {
+        var decals = scene.ProjectedDecals;
+        var effects = particleNames.ToHashSet();
+        var surfaces = entitySystem.PhysicsWorld.Shapes
+            .Concat(entitySystem.Entities.Select(static entity => entity.Collider?.Shape).OfType<Rubikon>())
+            .SelectMany(static shape => shape.SurfacePropertyHashes)
+            .Append(0u)
+            .ToHashSet();
+
+        foreach (var surface in surfaces)
+        {
+            decals.RegisterImpactDecals(surface);
+
+            if (decals.FindBulletImpactSound(surface) is { } sound)
+            {
+                Sound.Cache(sound);
+            }
+
+            if (decals.FindImpactEffect(surface) is { Length: > 0 } effect)
+            {
+                effects.Add(effect);
+            }
+        }
+
+        foreach (var effect in effects)
+        {
+            if (DispatchParticleEffect(effect, scene, Vector3.Zero, Vector3.UnitX) != null)
+            {
+                Retire(particles.Count - 1);
+            }
+        }
+    }
+
     /// <summary>Plays a particle system once, removing it when it has finished.</summary>
     /// <param name="particleName">The particle system.</param>
     /// <param name="scene">The scene it shows in.</param>
