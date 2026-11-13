@@ -7,7 +7,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// the ends of that range. <c>OutValue</c> and <c>OnGetValue</c> carry the held value.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CMathCounter">CMathCounter</seealso>
-public sealed class MathCounter : BaseEntity
+public sealed partial class MathCounter : BaseEntity
 {
     private bool hitMin;
     private bool hitMax;

@@ -7,7 +7,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>sky_camera_volume</c>. While the camera is inside its oriented box, the 3D sky is the map's own
 /// world seen from its <see cref="SkyCameraVolumeTarget"/>, replacing any <c>skybox_reference</c> sky.
 /// </summary>
-public sealed class SkyCameraVolume : BaseEntity
+public sealed partial class SkyCameraVolume : BaseEntity
 {
     /// <summary>Gets the local minimum corner of the box.</summary>
     public Vector3 BoxMins { get; private set; }

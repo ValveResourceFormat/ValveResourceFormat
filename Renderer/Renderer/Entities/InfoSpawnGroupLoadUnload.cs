@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// finishes within the input instead of in the background.
 /// </remarks>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CInfoSpawnGroupLoadUnload">CInfoSpawnGroupLoadUnload</seealso>
-public sealed class InfoSpawnGroupLoadUnload : BaseEntity
+public sealed partial class InfoSpawnGroupLoadUnload : BaseEntity
 {
     /// <summary>Gets the map to load, such as <c>stages/lms_stage1</c>.</summary>
     public string MapName { get; private set; } = string.Empty;

@@ -27,7 +27,7 @@ public readonly record struct EntitySpawnInfo(Entity Data, SpawnGroup SpawnGroup
 /// frame.
 /// </remarks>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CBaseEntity">CBaseEntity</seealso>
-public abstract class BaseEntity
+public abstract partial class BaseEntity
 {
     /// <summary>Gets the scene that holds the nodes of this entity.</summary>
     public Scene Scene { get; }
@@ -692,11 +692,11 @@ public abstract class BaseEntity
     /// <summary>
     /// Handles an entity I/O input by running the handler declared with <see cref="EntityInputAttribute"/>.
     /// Override only to intercept inputs that cannot be a fixed method, and call the base to fall back to
-    /// the table.
+    /// the declared handlers.
     /// </summary>
     /// <returns><see langword="true"/> when the input was handled.</returns>
     public virtual bool AcceptInput(string inputName, EntityInputData data)
-        => EntityInputTable.TryDispatch(this, inputName, data);
+        => DispatchInput(inputName, data);
 
     /// <summary>Removes the entity from the world.</summary>
     [EntityInput("Kill")]

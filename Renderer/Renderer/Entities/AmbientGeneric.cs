@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// entity I/O. The pitch controls, dynamic presets, and LFO modulation are not simulated.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CAmbientGeneric">CAmbientGeneric</seealso>
-public sealed class AmbientGeneric : BaseEntity
+public sealed partial class AmbientGeneric : BaseEntity
 {
     /// <summary>What an <c>ambient_generic</c>'s <c>spawnflags</c> mean.</summary>
     [Flags]

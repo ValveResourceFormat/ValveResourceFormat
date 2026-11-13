@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// triggers is the point. They use tools materials, so the tools-material toggle still hides them.
 /// </remarks>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CBaseTrigger">CBaseTrigger</seealso>
-public abstract class BaseTrigger : BaseModelEntity
+public abstract partial class BaseTrigger : BaseModelEntity
 {
     /// <summary>Who a trigger reacts to, from its <c>spawnflags</c>.</summary>
     [Flags]

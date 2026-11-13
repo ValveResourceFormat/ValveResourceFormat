@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// </summary>
 /// <remarks>The box is placed where the entity is when enabled, and stays there until disabled.</remarks>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CInfoVisibilityBox">CInfoVisibilityBox</seealso>
-public sealed class InfoVisibilityBox : BaseEntity
+public sealed partial class InfoVisibilityBox : BaseEntity
 {
     /// <summary>Gets the volume this entity culls with.</summary>
     public VisibilityBox Box { get; private set; } = null!;

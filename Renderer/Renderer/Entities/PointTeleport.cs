@@ -14,7 +14,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// and snap it into place later.
 /// </remarks>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CPointTeleport">CPointTeleport</seealso>
-public sealed class PointTeleport : BaseEntity
+public sealed partial class PointTeleport : BaseEntity
 {
     /// <summary>What a <c>point_teleport</c>'s <c>spawnflags</c> mean.</summary>
     [Flags]

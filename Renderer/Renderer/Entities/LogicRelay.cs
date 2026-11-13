@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// on and off from one entity.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CLogicRelay">CLogicRelay</seealso>
-public sealed class LogicRelay : BaseEntity
+public sealed partial class LogicRelay : BaseEntity
 {
     /// <summary>Gets whether the relay passes triggers on.</summary>
     public bool IsEnabled { get; private set; } = true;

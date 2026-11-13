@@ -7,7 +7,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// Every <see cref="LogicBranchListener"/> watching it hears when the value changes.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CLogicBranch">CLogicBranch</seealso>
-public sealed class LogicBranch : BaseEntity
+public sealed partial class LogicBranch : BaseEntity
 {
     private readonly List<LogicBranchListener> listeners = [];
 

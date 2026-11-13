@@ -1,5 +1,4 @@
-using System.Collections.Concurrent;
-using System.Diagnostics.CodeAnalysis;
+using System.Collections.Frozen;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Entities;
@@ -18,160 +17,138 @@ public delegate BaseEntity EntityCreator(EntitySystem system, EntitySpawnInfo sp
 /// </remarks>
 public static class EntityFactory
 {
-    // Concurrent because map loads read this from several threads and classnames may be registered later
-    private static readonly ConcurrentDictionary<string, EntityCreator> Creators = new(StringComparer.OrdinalIgnoreCase);
-
-    static EntityFactory()
+    private static readonly FrozenDictionary<string, EntityCreator> Creators = new Dictionary<string, EntityCreator>(StringComparer.OrdinalIgnoreCase)
     {
-        // Not registered to a classname, but they still answer the inputs every entity has
-        EntityInputTable.Bind<GenericEntity>();
-        EntityInputTable.Bind<GenericModelEntity>();
+        ["info_world_layer"] = static (system, spawnInfo) => new InfoWorldLayer(system, spawnInfo),
+        ["info_visibility_box"] = static (system, spawnInfo) => new InfoVisibilityBox(system, spawnInfo),
+        ["info_dynamic_shadow_hint"] = static (system, spawnInfo) => new InfoDynamicShadowHint(system, spawnInfo),
+        ["info_dynamic_shadow_hint_box"] = static (system, spawnInfo) => new InfoDynamicShadowHint(system, spawnInfo),
 
-        Register<InfoWorldLayer>("info_world_layer", static (system, spawnInfo) => new InfoWorldLayer(system, spawnInfo));
-        Register<InfoVisibilityBox>("info_visibility_box", static (system, spawnInfo) => new InfoVisibilityBox(system, spawnInfo));
-        Register<InfoDynamicShadowHint>("info_dynamic_shadow_hint", static (system, spawnInfo) => new InfoDynamicShadowHint(system, spawnInfo));
-        Register<InfoDynamicShadowHint>("info_dynamic_shadow_hint_box", static (system, spawnInfo) => new InfoDynamicShadowHint(system, spawnInfo));
-
-        Register<FuncBrush>("func_brush", static (system, spawnInfo) => new FuncBrush(system, spawnInfo));
-        Register<FuncWater>("func_water", static (system, spawnInfo) => new FuncWater(system, spawnInfo));
-        Register<FuncCombineBarrier>("func_combine_barrier", static (system, spawnInfo) => new FuncCombineBarrier(system, spawnInfo));
-        Register<FuncButton>("func_button", static (system, spawnInfo) => new FuncButton(system, spawnInfo));
-        Register<FuncPhysicalButton>("func_physical_button", static (system, spawnInfo) => new FuncPhysicalButton(system, spawnInfo));
-        Register<FuncDoor>("func_door", static (system, spawnInfo) => new FuncDoor(system, spawnInfo));
-        Register<FuncDoorRotating>("func_door_rotating", static (system, spawnInfo) => new FuncDoorRotating(system, spawnInfo));
-        Register<FuncMoveLinear>("func_movelinear", static (system, spawnInfo) => new FuncMoveLinear(system, spawnInfo));
-        Register<FuncRotating>("func_rotating", static (system, spawnInfo) => new FuncRotating(system, spawnInfo));
-        Register<FuncTrackTrain>("func_tracktrain", static (system, spawnInfo) => new FuncTrackTrain(system, spawnInfo));
-        Register<PathTrack>("path_track", static (system, spawnInfo) => new PathTrack(system, spawnInfo));
-        Register<PropDoorRotating>("prop_door_rotating", static (system, spawnInfo) => new PropDoorRotating(system, spawnInfo));
-        Register<PropDoorRotating>("prop_door_rotating_physics", static (system, spawnInfo) => new PropDoorRotating(system, spawnInfo));
-        Register<PropDynamic>("prop_dynamic", static (system, spawnInfo) => new PropDynamic(system, spawnInfo));
-        Register<PropDynamic>("prop_dynamic_override", static (system, spawnInfo) => new PropDynamic(system, spawnInfo));
-        Register<GenericEntity>("prop_handpose", static (system, spawnInfo) => new GenericEntity(system, spawnInfo));
-        Register<NpcVrCitizen>("npc_vr_citizen_female", static (system, spawnInfo) => new NpcVrCitizen(system, spawnInfo));
-        Register<NpcVrCitizen>("npc_vr_citizen_male", static (system, spawnInfo) => new NpcVrCitizen(system, spawnInfo));
-        Register<NpcBossTier3>("npc_boss_tier3", static (system, spawnInfo) => new NpcBossTier3(system, spawnInfo));
-        Register<FuncBreakable>("func_breakable", static (system, spawnInfo) => new FuncBreakable(system, spawnInfo));
-        Register<FuncShatterglass>("func_shatterglass", static (system, spawnInfo) => new FuncShatterglass(system, spawnInfo));
-        Register<XenFloraAnimatedMover>("xen_flora_animatedmover", static (system, spawnInfo) => new XenFloraAnimatedMover(system, spawnInfo));
-        Register<TextureBasedAnimatable>("texture_based_animatable", static (system, spawnInfo) => new TextureBasedAnimatable(system, spawnInfo));
-        Register<TextureBasedAnimatable>("hl_vr_texture_based_animatable", static (system, spawnInfo) => new TextureBasedAnimatable(system, spawnInfo));
-        Register<TriggerMultiple>("trigger_multiple", static (system, spawnInfo) => new TriggerMultiple(system, spawnInfo));
-        Register<TriggerOnce>("trigger_once", static (system, spawnInfo) => new TriggerOnce(system, spawnInfo));
-        Register<TriggerHurt>("trigger_hurt", static (system, spawnInfo) => new TriggerHurt(system, spawnInfo));
-        Register<TriggerLook>("trigger_look", static (system, spawnInfo) => new TriggerLook(system, spawnInfo));
-        Register<TriggerTeleport>("trigger_teleport", static (system, spawnInfo) => new TriggerTeleport(system, spawnInfo));
-        Register<PointTeleport>("point_teleport", static (system, spawnInfo) => new PointTeleport(system, spawnInfo));
-        Register<PointEntityFader>("point_entity_fader", static (system, spawnInfo) => new PointEntityFader(system, spawnInfo));
+        ["func_brush"] = static (system, spawnInfo) => new FuncBrush(system, spawnInfo),
+        ["func_water"] = static (system, spawnInfo) => new FuncWater(system, spawnInfo),
+        ["func_combine_barrier"] = static (system, spawnInfo) => new FuncCombineBarrier(system, spawnInfo),
+        ["func_button"] = static (system, spawnInfo) => new FuncButton(system, spawnInfo),
+        ["func_physical_button"] = static (system, spawnInfo) => new FuncPhysicalButton(system, spawnInfo),
+        ["func_door"] = static (system, spawnInfo) => new FuncDoor(system, spawnInfo),
+        ["func_door_rotating"] = static (system, spawnInfo) => new FuncDoorRotating(system, spawnInfo),
+        ["func_movelinear"] = static (system, spawnInfo) => new FuncMoveLinear(system, spawnInfo),
+        ["func_rotating"] = static (system, spawnInfo) => new FuncRotating(system, spawnInfo),
+        ["func_tracktrain"] = static (system, spawnInfo) => new FuncTrackTrain(system, spawnInfo),
+        ["path_track"] = static (system, spawnInfo) => new PathTrack(system, spawnInfo),
+        ["prop_door_rotating"] = static (system, spawnInfo) => new PropDoorRotating(system, spawnInfo),
+        ["prop_door_rotating_physics"] = static (system, spawnInfo) => new PropDoorRotating(system, spawnInfo),
+        ["prop_dynamic"] = static (system, spawnInfo) => new PropDynamic(system, spawnInfo),
+        ["prop_dynamic_override"] = static (system, spawnInfo) => new PropDynamic(system, spawnInfo),
+        ["prop_handpose"] = static (system, spawnInfo) => new GenericEntity(system, spawnInfo),
+        ["npc_vr_citizen_female"] = static (system, spawnInfo) => new NpcVrCitizen(system, spawnInfo),
+        ["npc_vr_citizen_male"] = static (system, spawnInfo) => new NpcVrCitizen(system, spawnInfo),
+        ["npc_boss_tier3"] = static (system, spawnInfo) => new NpcBossTier3(system, spawnInfo),
+        ["func_breakable"] = static (system, spawnInfo) => new FuncBreakable(system, spawnInfo),
+        ["func_shatterglass"] = static (system, spawnInfo) => new FuncShatterglass(system, spawnInfo),
+        ["xen_flora_animatedmover"] = static (system, spawnInfo) => new XenFloraAnimatedMover(system, spawnInfo),
+        ["texture_based_animatable"] = static (system, spawnInfo) => new TextureBasedAnimatable(system, spawnInfo),
+        ["hl_vr_texture_based_animatable"] = static (system, spawnInfo) => new TextureBasedAnimatable(system, spawnInfo),
+        ["trigger_multiple"] = static (system, spawnInfo) => new TriggerMultiple(system, spawnInfo),
+        ["trigger_once"] = static (system, spawnInfo) => new TriggerOnce(system, spawnInfo),
+        ["trigger_hurt"] = static (system, spawnInfo) => new TriggerHurt(system, spawnInfo),
+        ["trigger_look"] = static (system, spawnInfo) => new TriggerLook(system, spawnInfo),
+        ["trigger_teleport"] = static (system, spawnInfo) => new TriggerTeleport(system, spawnInfo),
+        ["point_teleport"] = static (system, spawnInfo) => new PointTeleport(system, spawnInfo),
+        ["point_entity_fader"] = static (system, spawnInfo) => new PointEntityFader(system, spawnInfo),
 
         // lights
-        Register<LightEntity>("light_barn", static (system, spawnInfo) => new LightEntity(system, spawnInfo));
-        Register<LightEntity>("light_environment", static (system, spawnInfo) => new LightEntity(system, spawnInfo));
-        Register<LightEntity>("light_omni", static (system, spawnInfo) => new LightEntity(system, spawnInfo));
-        Register<LightEntity>("light_omni2", static (system, spawnInfo) => new LightEntity(system, spawnInfo));
-        Register<LightEntity>("light_ortho", static (system, spawnInfo) => new LightEntity(system, spawnInfo));
-        Register<LightEntity>("light_rect", static (system, spawnInfo) => new LightEntity(system, spawnInfo));
-        Register<LightEntity>("light_spot", static (system, spawnInfo) => new LightEntity(system, spawnInfo));
+        ["light_barn"] = static (system, spawnInfo) => new LightEntity(system, spawnInfo),
+        ["light_environment"] = static (system, spawnInfo) => new LightEntity(system, spawnInfo),
+        ["light_omni"] = static (system, spawnInfo) => new LightEntity(system, spawnInfo),
+        ["light_omni2"] = static (system, spawnInfo) => new LightEntity(system, spawnInfo),
+        ["light_ortho"] = static (system, spawnInfo) => new LightEntity(system, spawnInfo),
+        ["light_rect"] = static (system, spawnInfo) => new LightEntity(system, spawnInfo),
+        ["light_spot"] = static (system, spawnInfo) => new LightEntity(system, spawnInfo),
 
         // environment
-        Register<EnvCubemap>("env_cubemap", static (system, spawnInfo) => new EnvCubemap(system, spawnInfo, isSphere: true));
-        Register<EnvCubemap>("env_cubemap_box", static (system, spawnInfo) => new EnvCubemap(system, spawnInfo, isSphere: false));
-        Register<EnvCubemapFog>("env_cubemap_fog", static (system, spawnInfo) => new EnvCubemapFog(system, spawnInfo));
-        Register<EnvFogController>("env_fog_controller", static (system, spawnInfo) => new EnvFogController(system, spawnInfo));
-        Register<EnvLightProbeVolume>("env_combined_light_probe_volume", static (system, spawnInfo) => new EnvLightProbeVolume(system, spawnInfo, bakesCubemap: true));
-        Register<EnvLightProbeVolume>("env_light_probe_volume", static (system, spawnInfo) => new EnvLightProbeVolume(system, spawnInfo, bakesCubemap: false));
-        Register<EnvGradientFog>("env_gradient_fog", static (system, spawnInfo) => new EnvGradientFog(system, spawnInfo));
-        Register<EnvVolumetricFogController>("env_volumetric_fog_controller", static (system, spawnInfo) => new EnvVolumetricFogController(system, spawnInfo));
-        Register<EnvVolumetricFogVolume>("env_volumetric_fog_volume", static (system, spawnInfo) => new EnvVolumetricFogVolume(system, spawnInfo));
-        Register<EnvGlobalLight>("env_global_light", static (system, spawnInfo) => new EnvGlobalLight(system, spawnInfo));
-        Register<EnvSky>("env_sky", static (system, spawnInfo) => new EnvSky(system, spawnInfo));
-        Register<DotaLightInfo>("ent_dota_lightinfo", static (system, spawnInfo) => new DotaLightInfo(system, spawnInfo));
-        Register<EnvTonemapController>("env_tonemap_controller", static (system, spawnInfo) => new EnvTonemapController(system, spawnInfo));
-        Register<InfoMapParameters>("info_map_parameters", static (system, spawnInfo) => new InfoMapParameters(system, spawnInfo));
+        ["env_cubemap"] = static (system, spawnInfo) => new EnvCubemap(system, spawnInfo, isSphere: true),
+        ["env_cubemap_box"] = static (system, spawnInfo) => new EnvCubemap(system, spawnInfo, isSphere: false),
+        ["env_cubemap_fog"] = static (system, spawnInfo) => new EnvCubemapFog(system, spawnInfo),
+        ["env_fog_controller"] = static (system, spawnInfo) => new EnvFogController(system, spawnInfo),
+        ["env_combined_light_probe_volume"] = static (system, spawnInfo) => new EnvLightProbeVolume(system, spawnInfo, bakesCubemap: true),
+        ["env_light_probe_volume"] = static (system, spawnInfo) => new EnvLightProbeVolume(system, spawnInfo, bakesCubemap: false),
+        ["env_gradient_fog"] = static (system, spawnInfo) => new EnvGradientFog(system, spawnInfo),
+        ["env_volumetric_fog_controller"] = static (system, spawnInfo) => new EnvVolumetricFogController(system, spawnInfo),
+        ["env_volumetric_fog_volume"] = static (system, spawnInfo) => new EnvVolumetricFogVolume(system, spawnInfo),
+        ["env_global_light"] = static (system, spawnInfo) => new EnvGlobalLight(system, spawnInfo),
+        ["env_sky"] = static (system, spawnInfo) => new EnvSky(system, spawnInfo),
+        ["ent_dota_lightinfo"] = static (system, spawnInfo) => new DotaLightInfo(system, spawnInfo),
+        ["env_tonemap_controller"] = static (system, spawnInfo) => new EnvTonemapController(system, spawnInfo),
+        ["info_map_parameters"] = static (system, spawnInfo) => new InfoMapParameters(system, spawnInfo),
 
         // particles
-        Register<EnvExplosion>("env_explosion", static (system, spawnInfo) => new EnvExplosion(system, spawnInfo));
-        Register<InfoParticleSystem>("info_particle_system", static (system, spawnInfo) => new InfoParticleSystem(system, spawnInfo));
-        Register<InfoParticleSystem>("dota_world_particle_system", static (system, spawnInfo) => new InfoParticleSystem(system, spawnInfo));
-        Register<EnvParticleGlow>("env_particle_glow", static (system, spawnInfo) => new EnvParticleGlow(system, spawnInfo));
+        ["env_explosion"] = static (system, spawnInfo) => new EnvExplosion(system, spawnInfo),
+        ["info_particle_system"] = static (system, spawnInfo) => new InfoParticleSystem(system, spawnInfo),
+        ["dota_world_particle_system"] = static (system, spawnInfo) => new InfoParticleSystem(system, spawnInfo),
+        ["env_particle_glow"] = static (system, spawnInfo) => new EnvParticleGlow(system, spawnInfo),
 
         // models with an ambient effect
-        Register<AmbientEffectEntity>("dcg_game_board_attachment", static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo));
-        Register<AmbientEffectEntity>("ent_dota_fountain", static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo));
-        Register<AmbientEffectEntity>("ent_dota_tree", static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo));
-        Register<AmbientEffectEntity>("npc_dota_barracks", static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo));
-        Register<AmbientEffectEntity>("npc_dota_building", static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo));
-        Register<AmbientEffectEntity>("npc_dota_fort", static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo));
-        Register<AmbientEffectEntity>("npc_dota_lotus_pool", static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo));
-        Register<AmbientEffectEntity>("npc_dota_mango_tree", static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo));
-        Register<AmbientEffectEntity>("npc_dota_tower", static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo));
+        ["dcg_game_board_attachment"] = static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo),
+        ["ent_dota_fountain"] = static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo),
+        ["ent_dota_tree"] = static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo),
+        ["npc_dota_barracks"] = static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo),
+        ["npc_dota_building"] = static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo),
+        ["npc_dota_fort"] = static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo),
+        ["npc_dota_lotus_pool"] = static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo),
+        ["npc_dota_mango_tree"] = static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo),
+        ["npc_dota_tower"] = static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo),
 
         // A rope's effect_name is the cable effect. Drawn without the rope's snapshot, it is an
         // editor placeholder at the world origin. Ropes must never be treated as plain particle entities
-        Register<PathParticleRopeEntity>("path_particle_rope", static (system, spawnInfo) => new PathParticleRopeEntity(system, spawnInfo));
-        Register<PathParticleRopeEntity>("path_particle_rope_clientside", static (system, spawnInfo) => new PathParticleRopeEntity(system, spawnInfo));
-        Register<PathParticleRopeEntity>("citadel_zipline_path", static (system, spawnInfo) => new PathParticleRopeEntity(system, spawnInfo));
-        Register<PostProcessingVolume>("post_processing_volume", static (system, spawnInfo) => new PostProcessingVolume(system, spawnInfo));
+        ["path_particle_rope"] = static (system, spawnInfo) => new PathParticleRopeEntity(system, spawnInfo),
+        ["path_particle_rope_clientside"] = static (system, spawnInfo) => new PathParticleRopeEntity(system, spawnInfo),
+        ["citadel_zipline_path"] = static (system, spawnInfo) => new PathParticleRopeEntity(system, spawnInfo),
+        ["post_processing_volume"] = static (system, spawnInfo) => new PostProcessingVolume(system, spawnInfo),
 
         // cameras and spawn points
-        Register<PointCamera>("point_camera", static (system, spawnInfo) => new PointCamera(system, spawnInfo));
-        Register<PointCamera>("point_camera_vertical_fov", static (system, spawnInfo) => new PointCamera(system, spawnInfo));
-        Register<PointCamera>("point_devshot_camera", static (system, spawnInfo) => new PointCamera(system, spawnInfo));
-        Register<SkyCamera>("sky_camera", static (system, spawnInfo) => new SkyCamera(system, spawnInfo));
-        Register<SkyboxReference>("skybox_reference", static (system, spawnInfo) => new SkyboxReference(system, spawnInfo));
-        Register<SkyCameraVolume>("sky_camera_volume", static (system, spawnInfo) => new SkyCameraVolume(system, spawnInfo));
-        Register<SkyCameraVolumeTarget>("sky_camera_volume_target", static (system, spawnInfo) => new SkyCameraVolumeTarget(system, spawnInfo));
-        Register<SpawnPoint>("info_player_counterterrorist", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
-        Register<SpawnPoint>("info_player_start", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
-        Register<SpawnPoint>("info_player_start_badguys", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
-        Register<SpawnPoint>("info_player_start_dota", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
-        Register<SpawnPoint>("info_player_start_goodguys", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
-        Register<SpawnPoint>("info_player_terrorist", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
-        Register<SpawnPoint>("info_team_spawn", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
-        Register<SpawnPoint>("team_select", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
+        ["point_camera"] = static (system, spawnInfo) => new PointCamera(system, spawnInfo),
+        ["point_camera_vertical_fov"] = static (system, spawnInfo) => new PointCamera(system, spawnInfo),
+        ["point_devshot_camera"] = static (system, spawnInfo) => new PointCamera(system, spawnInfo),
+        ["sky_camera"] = static (system, spawnInfo) => new SkyCamera(system, spawnInfo),
+        ["skybox_reference"] = static (system, spawnInfo) => new SkyboxReference(system, spawnInfo),
+        ["sky_camera_volume"] = static (system, spawnInfo) => new SkyCameraVolume(system, spawnInfo),
+        ["sky_camera_volume_target"] = static (system, spawnInfo) => new SkyCameraVolumeTarget(system, spawnInfo),
+        ["info_player_counterterrorist"] = static (system, spawnInfo) => new SpawnPoint(system, spawnInfo),
+        ["info_player_start"] = static (system, spawnInfo) => new SpawnPoint(system, spawnInfo),
+        ["info_player_start_badguys"] = static (system, spawnInfo) => new SpawnPoint(system, spawnInfo),
+        ["info_player_start_dota"] = static (system, spawnInfo) => new SpawnPoint(system, spawnInfo),
+        ["info_player_start_goodguys"] = static (system, spawnInfo) => new SpawnPoint(system, spawnInfo),
+        ["info_player_terrorist"] = static (system, spawnInfo) => new SpawnPoint(system, spawnInfo),
+        ["info_team_spawn"] = static (system, spawnInfo) => new SpawnPoint(system, spawnInfo),
+        ["team_select"] = static (system, spawnInfo) => new SpawnPoint(system, spawnInfo),
 
         // logic
-        Register<LogicAuto>("logic_auto", static (system, spawnInfo) => new LogicAuto(system, spawnInfo));
-        Register<LogicBranch>("logic_branch", static (system, spawnInfo) => new LogicBranch(system, spawnInfo));
-        Register<LogicBranchListener>("logic_branch_listener", static (system, spawnInfo) => new LogicBranchListener(system, spawnInfo));
-        Register<LogicCase>("logic_case", static (system, spawnInfo) => new LogicCase(system, spawnInfo));
-        Register<LogicChoreographedScene>("logic_choreographed_scene", static (system, spawnInfo) => new LogicChoreographedScene(system, spawnInfo));
-        Register<LogicCompare>("logic_compare", static (system, spawnInfo) => new LogicCompare(system, spawnInfo));
-        Register<LogicRelay>("logic_relay", static (system, spawnInfo) => new LogicRelay(system, spawnInfo));
-        Register<LogicTimer>("logic_timer", static (system, spawnInfo) => new LogicTimer(system, spawnInfo));
-        Register<MathCounter>("math_counter", static (system, spawnInfo) => new MathCounter(system, spawnInfo));
-        Register<FilterActivatorModel>("filter_activator_model", static (system, spawnInfo) => new FilterActivatorModel(system, spawnInfo));
-        Register<FilterActivatorTeam>("filter_activator_team", static (system, spawnInfo) => new FilterActivatorTeam(system, spawnInfo));
-        Register<InfoSpawnGroupLoadUnload>("info_spawngroup_load_unload", static (system, spawnInfo) => new InfoSpawnGroupLoadUnload(system, spawnInfo));
-        Register<PointTemplate>("point_template", static (system, spawnInfo) => new PointTemplate(system, spawnInfo));
+        ["logic_auto"] = static (system, spawnInfo) => new LogicAuto(system, spawnInfo),
+        ["logic_branch"] = static (system, spawnInfo) => new LogicBranch(system, spawnInfo),
+        ["logic_branch_listener"] = static (system, spawnInfo) => new LogicBranchListener(system, spawnInfo),
+        ["logic_case"] = static (system, spawnInfo) => new LogicCase(system, spawnInfo),
+        ["logic_choreographed_scene"] = static (system, spawnInfo) => new LogicChoreographedScene(system, spawnInfo),
+        ["logic_compare"] = static (system, spawnInfo) => new LogicCompare(system, spawnInfo),
+        ["logic_relay"] = static (system, spawnInfo) => new LogicRelay(system, spawnInfo),
+        ["logic_timer"] = static (system, spawnInfo) => new LogicTimer(system, spawnInfo),
+        ["math_counter"] = static (system, spawnInfo) => new MathCounter(system, spawnInfo),
+        ["filter_activator_model"] = static (system, spawnInfo) => new FilterActivatorModel(system, spawnInfo),
+        ["filter_activator_team"] = static (system, spawnInfo) => new FilterActivatorTeam(system, spawnInfo),
+        ["info_spawngroup_load_unload"] = static (system, spawnInfo) => new InfoSpawnGroupLoadUnload(system, spawnInfo),
+        ["point_template"] = static (system, spawnInfo) => new PointTemplate(system, spawnInfo),
 
         // sounds
-        Register<EnvSoundscape>("env_soundscape", static (system, spawnInfo) => new EnvSoundscape(system, spawnInfo));
-        Register<PointSoundEvent>("point_soundevent", static (system, spawnInfo) => new PointSoundEvent(system, spawnInfo));
-        Register<PointSoundEvent>("snd_event_point", static (system, spawnInfo) => new PointSoundEvent(system, spawnInfo));
-        Register<EnvSoundscape>("snd_soundscape", static (system, spawnInfo) => new EnvSoundscape(system, spawnInfo));
-        Register<AmbientGeneric>("ambient_generic", static (system, spawnInfo) => new AmbientGeneric(system, spawnInfo));
+        ["env_soundscape"] = static (system, spawnInfo) => new EnvSoundscape(system, spawnInfo),
+        ["point_soundevent"] = static (system, spawnInfo) => new PointSoundEvent(system, spawnInfo),
+        ["snd_event_point"] = static (system, spawnInfo) => new PointSoundEvent(system, spawnInfo),
+        ["snd_soundscape"] = static (system, spawnInfo) => new EnvSoundscape(system, spawnInfo),
+        ["ambient_generic"] = static (system, spawnInfo) => new AmbientGeneric(system, spawnInfo),
 
         // panorama world panels
-        Register<PointClientUIWorldPanel>("point_clientui_world_panel", static (system, spawnInfo) => new PointClientUIWorldPanel(system, spawnInfo));
-        Register<PointClientUIWorldPanel>("point_clientui_world_text_panel", static (system, spawnInfo) => new PointClientUIWorldPanel(system, spawnInfo));
-        Register<PointClientUIWorldPanel>("point_clientui_world_movie_panel", static (system, spawnInfo) => new PointClientUIWorldPanel(system, spawnInfo));
-    }
-
-    /// <summary>
-    /// Registers a classname and builds its entity class's table of <see cref="EntityInputAttribute"/>
-    /// handlers. Safe to call while maps are loading.
-    /// </summary>
-    /// <typeparam name="T">The entity class the classname spawns.</typeparam>
-    /// <param name="classname">The classname to link, matched case-insensitively.</param>
-    /// <param name="creator">Constructs the entity.</param>
-    public static void Register<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.NonPublicMethodsWithInherited)] T>(
-        string classname, EntityCreator creator)
-        where T : BaseEntity
-    {
-        Creators[classname] = creator;
-        EntityInputTable.Bind<T>();
-    }
+        ["point_clientui_world_panel"] = static (system, spawnInfo) => new PointClientUIWorldPanel(system, spawnInfo),
+        ["point_clientui_world_text_panel"] = static (system, spawnInfo) => new PointClientUIWorldPanel(system, spawnInfo),
+        ["point_clientui_world_movie_panel"] = static (system, spawnInfo) => new PointClientUIWorldPanel(system, spawnInfo),
+    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Creates the entity for a classname. The entity system adds it to the world and spawns it with the rest

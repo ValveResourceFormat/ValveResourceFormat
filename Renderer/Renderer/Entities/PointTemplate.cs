@@ -28,7 +28,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// </para>
 /// </remarks>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CPointTemplate">CPointTemplate</seealso>
-public sealed class PointTemplate : BaseEntity
+public sealed partial class PointTemplate : BaseEntity
 {
     /// <summary>Spawn flags for templates.</summary>
     [Flags]

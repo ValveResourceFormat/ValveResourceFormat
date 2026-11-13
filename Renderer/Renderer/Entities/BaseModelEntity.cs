@@ -12,7 +12,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// An entity with something to draw.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CBaseModelEntity">CBaseModelEntity</seealso>
-public abstract class BaseModelEntity : BaseEntity
+public abstract partial class BaseModelEntity : BaseEntity
 {
     /// <summary>How an entity collides.</summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/client/SolidType_t">SolidType_t</seealso>

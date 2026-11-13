@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// tells it to.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CSoundEventEntity">CSoundEventEntity</seealso>
-public sealed class PointSoundEvent : BaseEntity
+public sealed partial class PointSoundEvent : BaseEntity
 {
     /// <summary>Gets the sound event this plays.</summary>
     public string? SoundName { get; private set; }

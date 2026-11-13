@@ -17,7 +17,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// train (the player never blocks a train), and the pitch and volume of the move sound from the speed.
 /// </remarks>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CFuncTrackTrain">CFuncTrackTrain</seealso>
-public class FuncTrackTrain : BaseModelEntity
+public partial class FuncTrackTrain : BaseModelEntity
 {
     /// <summary>What a <c>func_tracktrain</c>'s <c>spawnflags</c> mean.</summary>
     [Flags]

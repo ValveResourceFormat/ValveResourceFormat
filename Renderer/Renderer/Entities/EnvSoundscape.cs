@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// audible.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CEnvSoundscape">CEnvSoundscape</seealso>
-public sealed class EnvSoundscape : BaseEntity
+public sealed partial class EnvSoundscape : BaseEntity
 {
     private SoundEventPlayer.Soundscape? region;
 

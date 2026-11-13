@@ -7,7 +7,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// As an oscillator it alternates <c>OnTimerLow</c> and <c>OnTimerHigh</c> instead.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CTimerEntity">CTimerEntity</seealso>
-public sealed class LogicTimer : BaseEntity
+public sealed partial class LogicTimer : BaseEntity
 {
     /// <summary>What a <c>logic_timer</c>'s <c>spawnflags</c> mean.</summary>
     [Flags]

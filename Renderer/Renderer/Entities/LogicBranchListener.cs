@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// whether they are all true, all false, or a mix, each time that answer changes.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CLogicBranchList">CLogicBranchList</seealso>
-public sealed class LogicBranchListener : BaseEntity
+public sealed partial class LogicBranchListener : BaseEntity
 {
     // The FGD's Branch01 to Branch16
     private const int BranchNameCount = 16;

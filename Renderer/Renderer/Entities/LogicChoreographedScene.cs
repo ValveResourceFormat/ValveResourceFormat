@@ -14,7 +14,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>OnCompletion</c> at its first stop point or once its last event has ended.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CSceneEntity">CSceneEntity</seealso>
-public sealed class LogicChoreographedScene : BaseEntity
+public sealed partial class LogicChoreographedScene : BaseEntity
 {
     private const int TriggerOutputCount = 16;
 

@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// cases or at random.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CLogicCase">CLogicCase</seealso>
-public sealed class LogicCase : BaseEntity
+public sealed partial class LogicCase : BaseEntity
 {
     private const int CaseCount = 32;
     private readonly string?[] cases = new string?[CaseCount];

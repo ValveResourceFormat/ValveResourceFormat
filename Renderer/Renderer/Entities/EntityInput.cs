@@ -6,10 +6,9 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// Marks a method as an entity I/O input handler.
 /// </summary>
 /// <remarks>
-/// The method must be an instance method taking one <see cref="EntityInputData"/> and returning void.
-/// Declare it protected to pass it down to subclasses, since the table is built per derived class and
-/// cannot see private base methods. The name is spelled out because maps are authored against it, not
-/// the method name.
+/// The method must be an instance method taking one <see cref="EntityInputData"/>, declared in a top level
+/// partial entity class. Subclasses inherit the input. The name is spelled out because maps are authored
+/// against it, not the method name.
 /// </remarks>
 [AttributeUsage(AttributeTargets.Method)]
 public sealed class EntityInputAttribute : Attribute

@@ -17,7 +17,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CParticleSystem">CParticleSystem</seealso>
 /// <seealso href="https://s2v.app/SchemaExplorer/dota2/client/C_DOTAWorldParticleSystem">C_DOTAWorldParticleSystem</seealso>
-public class InfoParticleSystem : BaseEntity
+public partial class InfoParticleSystem : BaseEntity
 {
     // At most this many cpointN_value keys are applied
     private const int MaxLiteralControlPointValues = 4;

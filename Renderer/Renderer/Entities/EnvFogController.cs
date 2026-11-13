@@ -6,7 +6,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary><c>env_fog_controller</c>. Sets the linear fog of the scene.</summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CFogController">CFogController</seealso>
-public sealed class EnvFogController : BaseEntity
+public sealed partial class EnvFogController : BaseEntity
 {
     // The values a transition blends, with colors in sRGB
     private readonly record struct FogValues(Vector3 Color, Vector3 SecondaryColor, float Start, float End, float MaxDensity)

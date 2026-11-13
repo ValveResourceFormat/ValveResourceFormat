@@ -12,7 +12,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// leaving the target white.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/hlvr/server/CPointEntityFader">CPointEntityFader</seealso>
-public sealed class PointEntityFader : BaseEntity
+public sealed partial class PointEntityFader : BaseEntity
 {
     private PiecewiseCurve? curve;
     private BaseModelEntity? target;

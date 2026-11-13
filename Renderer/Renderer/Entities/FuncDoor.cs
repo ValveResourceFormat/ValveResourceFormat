@@ -7,7 +7,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// sounds, the <c>master</c>, damage to whatever blocks it, and door groups.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CBaseDoor">CBaseDoor</seealso>
-public class FuncDoor : BaseToggle
+public partial class FuncDoor : BaseToggle
 {
     /// <summary>The <c>spawnflags</c> of a <c>func_door</c>.</summary>
     [Flags]

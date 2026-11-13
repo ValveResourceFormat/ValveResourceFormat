@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// alpha, scale and self-illumination scale from control point 17.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CEnvParticleGlow">CEnvParticleGlow</seealso>
-public sealed class EnvParticleGlow : InfoParticleSystem
+public sealed partial class EnvParticleGlow : InfoParticleSystem
 {
     /// <summary>Initializes a glow from its keyvalues.</summary>
     public EnvParticleGlow(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)

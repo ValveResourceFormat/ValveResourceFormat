@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// is inside its model.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CPostProcessingVolume">CPostProcessingVolume</seealso>
-public sealed class PostProcessingVolume : BaseModelEntity
+public sealed partial class PostProcessingVolume : BaseModelEntity
 {
     /// <summary>Gets the post processing this entity registered.</summary>
     public ScenePostProcessVolume? Volume { get; private set; }

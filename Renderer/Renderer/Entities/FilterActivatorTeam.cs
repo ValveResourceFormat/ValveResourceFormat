@@ -5,7 +5,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// gated on the filter reachable.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CFilterTeam">CFilterTeam</seealso>
-public sealed class FilterActivatorTeam : BaseEntity
+public sealed partial class FilterActivatorTeam : BaseEntity
 {
     /// <summary>Initializes a <c>filter_activator_team</c>.</summary>
     public FilterActivatorTeam(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)

@@ -13,7 +13,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// swing acting as a use press.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CPropDoorRotating">CPropDoorRotating</seealso>
-public class PropDoorRotating : BaseToggle
+public partial class PropDoorRotating : BaseToggle
 {
     /// <summary>What a <c>prop_door_rotating</c>'s <c>spawnflags</c> mean.</summary>
     [Flags]

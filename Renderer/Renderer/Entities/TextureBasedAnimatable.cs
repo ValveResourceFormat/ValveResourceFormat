@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>Start</c> plays the frames at <c>fps</c> from the first, <c>Stop</c> returns to the first.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CTextureBasedAnimatable">CTextureBasedAnimatable</seealso>
-public sealed class TextureBasedAnimatable : BaseModelEntity
+public sealed partial class TextureBasedAnimatable : BaseModelEntity
 {
     private const string FrameParam = "g_flFrame";
 

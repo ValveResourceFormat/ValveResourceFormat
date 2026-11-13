@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// effect. Only its sound plays.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CBaseButton">CBaseButton</seealso>
-public class FuncButton : BaseToggle
+public partial class FuncButton : BaseToggle
 {
     /// <summary>What a <c>func_button</c>'s <c>spawnflags</c> mean.</summary>
     [Flags]

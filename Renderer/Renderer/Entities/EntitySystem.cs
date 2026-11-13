@@ -274,9 +274,6 @@ public sealed class EntitySystem
             Remove(Player);
         }
 
-        // Inputs are normally bound at factory registration, which the player skips
-        EntityInputTable.Bind<PlayerEntity>();
-
         Player = new PlayerEntity(this, scene, controller);
         Player.Spawn();
         Add(Player);

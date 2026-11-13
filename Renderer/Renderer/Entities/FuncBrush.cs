@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>SetNonsolid</c> leave drawing alone. The authored <c>solidity</c> decides what "solid" means.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CFuncBrush">CFuncBrush</seealso>
-public class FuncBrush : BaseModelEntity
+public partial class FuncBrush : BaseModelEntity
 {
     /// <summary>What a <c>func_brush</c>'s <c>solidity</c> keyvalue means.</summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/client/BrushSolidities_e">BrushSolidities_e</seealso>

@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// end or any fraction between. Damage to whatever blocks it is not simulated.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CFuncMoveLinear">CFuncMoveLinear</seealso>
-public class FuncMoveLinear : BaseToggle
+public partial class FuncMoveLinear : BaseToggle
 {
     /// <summary>The <c>spawnflags</c> of a <c>func_movelinear</c>.</summary>
     [Flags]

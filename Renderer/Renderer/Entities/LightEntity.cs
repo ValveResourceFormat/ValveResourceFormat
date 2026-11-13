@@ -13,7 +13,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CLightEntity">CLightEntity</seealso>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CBarnLight">CBarnLight</seealso>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CLightEnvironmentEntity">CLightEnvironmentEntity</seealso>
-public sealed class LightEntity : BaseEntity
+public sealed partial class LightEntity : BaseEntity
 {
     /// <summary>Gets whether the light is on.</summary>
     public bool IsEnabled { get; private set; }

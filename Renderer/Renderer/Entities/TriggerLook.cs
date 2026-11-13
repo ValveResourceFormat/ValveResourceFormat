@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// solid entities too; hitting the target itself still counts as seeing it.
 /// </para>
 /// </remarks>
-public sealed class TriggerLook : BaseTrigger
+public sealed partial class TriggerLook : BaseTrigger
 {
     /// <summary>Spawn flags of <c>trigger_look</c>.</summary>
     [Flags]

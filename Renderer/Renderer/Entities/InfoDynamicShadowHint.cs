@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>info_dynamic_shadow_hint</c> and <c>info_dynamic_shadow_hint_box</c>. While the viewer is inside the
 /// sphere or box, the hint names the stationary light that casts the one real-time mixed shadow.
 /// </summary>
-public sealed class InfoDynamicShadowHint : BaseEntity
+public sealed partial class InfoDynamicShadowHint : BaseEntity
 {
     private readonly bool isBox;
     private float range;

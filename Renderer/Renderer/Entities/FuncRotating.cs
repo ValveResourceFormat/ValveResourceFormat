@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// </para>
 /// </remarks>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CFuncRotating">CFuncRotating</seealso>
-public sealed class FuncRotating : BaseModelEntity
+public sealed partial class FuncRotating : BaseModelEntity
 {
     /// <summary>A turning brush shoves the player rather than swallowing them.</summary>
     protected internal override bool IsPusher => true;

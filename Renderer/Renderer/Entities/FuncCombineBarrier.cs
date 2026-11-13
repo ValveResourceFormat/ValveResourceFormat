@@ -13,7 +13,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// implemented yet, so they gather at the barrier's centre.
 /// </remarks>
 /// <seealso href="https://s2v.app/SchemaExplorer/hlvr/server/CFuncCombineBarrier">CFuncCombineBarrier</seealso>
-public sealed class FuncCombineBarrier : FuncBrush
+public sealed partial class FuncCombineBarrier : FuncBrush
 {
     /// <summary>What the barrier stops.</summary>
     public enum State

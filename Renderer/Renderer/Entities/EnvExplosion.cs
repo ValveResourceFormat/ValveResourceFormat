@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>Explode</c>. The damage and the default fireball are not simulated.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CEnvExplosion">CEnvExplosion</seealso>
-public sealed class EnvExplosion : BaseEntity
+public sealed partial class EnvExplosion : BaseEntity
 {
     /// <summary>Gets the explosion effect, or <see langword="null"/> when the entity names none.</summary>
     public ParticleSceneNode? Effect { get; private set; }

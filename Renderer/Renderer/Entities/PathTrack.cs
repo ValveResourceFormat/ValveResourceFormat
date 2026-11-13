@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// along, linked to the next one by <c>target</c> and optionally branching to an <c>altpath</c>.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CPathTrack">CPathTrack</seealso>
-public class PathTrack : BaseEntity
+public partial class PathTrack : BaseEntity
 {
     /// <summary>What a <c>path_track</c>'s <c>spawnflags</c> mean.</summary>
     [Flags]

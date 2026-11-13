@@ -21,7 +21,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// </para>
 /// </remarks>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CInfoWorldLayer">CInfoWorldLayer</seealso>
-public sealed class InfoWorldLayer : BaseEntity
+public sealed partial class InfoWorldLayer : BaseEntity
 {
     /// <summary>Spawn flags for world layers.</summary>
     [Flags]
