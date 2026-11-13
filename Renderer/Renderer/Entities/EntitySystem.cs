@@ -874,8 +874,11 @@ public sealed class EntitySystem
             yield break;
         }
 
-        foreach (var connection in source.Data.Connections)
+        // Connections of one output fire in reverse lump order, so equal delays deliver last authored first
+        for (var i = source.Data.Connections.Count - 1; i >= 0; i--)
         {
+            var connection = source.Data.Connections[i];
+
             if (connection.OutputName.Equals(outputName, StringComparison.OrdinalIgnoreCase)
                 && (connection.TimesToFire < 0 || FiredCount(connection) < connection.TimesToFire))
             {
