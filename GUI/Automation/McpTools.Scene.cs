@@ -317,10 +317,7 @@ internal sealed partial class McpTools
         {
             Entity = DescribeEntity(EntityRowOf(entities, id, instance)),
             Keyvalues = data.Children.Where(static pair => pair.Key is not ("classname" or "targetname")).ToDictionary(static pair => pair.Key, static pair => KeyValueText(pair.Value)),
-
-            // The form Hammer writes them in: output target:input:parameter:delay:times
-            Outputs = data.Connections?.Select(static c => string.Create(CultureInfo.InvariantCulture,
-                $"{c.OutputName} {c.TargetName}:{c.InputName}:{c.OverrideParam}:{c.Delay}:{c.TimesToFire}")).ToList(),
+            Outputs = data.Connections?.Select(DescribeConnection).ToList(),
 
             Spawned = instance == null ? null : new
             {
@@ -334,6 +331,75 @@ internal sealed partial class McpTools
             Nodes = AllNodes(viewer).Where(node => ReferenceEquals(node.EntityData, data)).Select(node => DescribeNode(viewer, entities, node)).ToList(),
         };
     }
+
+    [Tool("Fire an entity input at one entity of a playing world, with the player as activator. The input is delivered while time runs, so step after firing, then read the deliveries with get_log at level debug with include 'Entity Input|unhandled input'.")]
+    private object FireInput(
+        GLWorldViewer viewer,
+        [Description("Entity id from find_entities or pick.")] int id,
+        [Description("Input name, such as Trigger or Toggle.")] string input,
+        [Description("Input parameter.")] string? parameter = null,
+        [Description("Delay before delivery, in seconds.")][Range(0, double.MaxValue)] float delay = 0f)
+    {
+        if (viewer.Simulation != GLWorldViewer.SimulationState.Playing)
+        {
+            throw new ToolException("The world is not playing, and inputs are delivered only while it plays. Use simulation to play it.");
+        }
+
+        var data = EntityById(Entities(viewer), id).Data;
+        var instance = Spawned(viewer, data);
+
+        if (instance == null || instance.IsRemoved)
+        {
+            throw new ToolException($"Entity {id} has no live instance.");
+        }
+
+        var entitySystem = viewer.Renderer.EntitySystem;
+        entitySystem.QueueInput(instance, input, parameter, activator: entitySystem.Player, delay: delay);
+
+        return new { Fired = true };
+    }
+
+    [Tool("Fire an output of one entity of a playing world, as if the entity fired it, with the player as activator. This drives logic that VRF does not simulate, such as a trigger the player touches or an NPC event. Step and read the log as for fire_input.")]
+    private object FireOutput(
+        GLWorldViewer viewer,
+        [Description("Entity id from find_entities or pick.")] int id,
+        [Description("Output name from get_entity outputs, such as OnTrigger.")] string output,
+        [Description("Value the output passes to connections without a parameter of their own.")] string? value = null)
+    {
+        if (viewer.Simulation != GLWorldViewer.SimulationState.Playing)
+        {
+            throw new ToolException("The world is not playing, and inputs are delivered only while it plays. Use simulation to play it.");
+        }
+
+        var data = EntityById(Entities(viewer), id).Data;
+        var instance = Spawned(viewer, data);
+
+        if (instance == null || instance.IsRemoved)
+        {
+            throw new ToolException($"Entity {id} has no live instance.");
+        }
+
+        if (data.Connections?.Any(connection => connection.OutputName.Equals(output, StringComparison.OrdinalIgnoreCase)) != true)
+        {
+            throw new ToolException($"Entity {id} has no connections on {output}.");
+        }
+
+        var entitySystem = viewer.Renderer.EntitySystem;
+        entitySystem.TriggerOutput(instance, output, entitySystem.Player, value);
+
+        return new { Fired = true };
+    }
+
+    // Defaults are left out to keep replies short: no parameter, no delay, and unlimited times to fire
+    private static object DescribeConnection(EntityLump.Connection connection) => new
+    {
+        connection.OutputName,
+        connection.TargetName,
+        connection.InputName,
+        Parameter = string.IsNullOrEmpty(connection.OverrideParam) ? null : connection.OverrideParam,
+        Delay = connection.Delay == 0f ? (float?)null : connection.Delay,
+        TimesToFire = connection.TimesToFire < 0 ? (int?)null : connection.TimesToFire,
+    };
 
     /// <summary>A node of the viewer's scenes by an id from <see cref="NodeIds"/>. Call between frames.</summary>
     private SceneNode NodeById(GLSceneViewer viewer, int id)

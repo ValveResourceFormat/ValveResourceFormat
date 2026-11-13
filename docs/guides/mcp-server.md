@@ -4,7 +4,7 @@ description: Run the opt-in MCP server of a Source 2 Viewer Debug build, so an a
 
 # MCP Automation Server
 
-Source 2 Viewer has an opt-in loopback server that lets an agent drive the real viewer window over the Model Context Protocol. The agent can open files, move the camera, change sidebar controls, and inspect entities, models and particle systems. It can also pick, trace, pause and step simulation time, read the log and render stats, and take screenshots.
+Source 2 Viewer has an opt-in loopback server that lets an agent drive the real viewer window over the Model Context Protocol. The agent can open files, move the camera, change sidebar controls, inspect entities, models and particle systems, and fire entity inputs. It can also pick, trace, pause and step simulation time, read the log and render stats, and take screenshots.
 
 The server is for development and testing of the viewer. The tools can open anything the user can open in the UI, and there is no sandbox.
 

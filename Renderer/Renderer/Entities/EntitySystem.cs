@@ -80,6 +80,9 @@ public sealed class EntitySystem
     /// <summary>Gets the logger for entity problems.</summary>
     public ILogger Logger => RendererContext.Logger;
 
+    /// <summary>Gets or sets whether every delivered and unhandled input is written to the debug log.</summary>
+    public static bool LogInputs { get; set; }
+
     /// <summary>Gets every living entity, in spawn order.</summary>
     public IReadOnlyList<BaseEntity> Entities => entities;
 
@@ -1023,9 +1026,13 @@ public sealed class EntitySystem
 
         if (input.Target is { } bound)
         {
-            if (!bound.IsRemoved)
+            if (bound.IsRemoved)
             {
-                bound.AcceptInput(input.InputName, data);
+                LogUnhandled(input, bound.TargetName, "target entity not found");
+            }
+            else
+            {
+                DeliverTo(bound, input, data);
             }
 
             return;
@@ -1042,13 +1049,46 @@ public sealed class EntitySystem
 
         targets.AddRange(FindTargets(target, input.Activator, input.Caller));
 
+        if (targets.Count == 0)
+        {
+            LogUnhandled(input, target.Name, "target entity not found");
+        }
+
         foreach (var entity in targets)
         {
             if (!entity.IsRemoved)
             {
-                entity.AcceptInput(input.InputName, data);
+                DeliverTo(entity, input, data);
             }
         }
+    }
+
+    private void DeliverTo(BaseEntity entity, QueuedInput input, EntityInputData data)
+    {
+        if (!entity.AcceptInput(input.InputName, data))
+        {
+            LogUnhandled(input, entity.TargetName, "target input not found");
+            return;
+        }
+
+        if (!LogInputs)
+        {
+            return;
+        }
+
+        Logger.LogDebug("Entity Input #{Sequence} ({Time:F3}): \"{TargetName}\"[{Classname}].{InputName}({Parameter}) <- Caller \"{CallerName}\"[{CallerClassname}]",
+            input.Sequence, CurrentTime, entity.TargetName, entity.Classname, input.InputName, input.Parameter, input.Caller?.TargetName, input.Caller?.Classname);
+    }
+
+    private void LogUnhandled(QueuedInput input, string? targetName, string reason)
+    {
+        if (!LogInputs)
+        {
+            return;
+        }
+
+        Logger.LogDebug("unhandled input #{Sequence}: ({InputName}) -> ({TargetName}), from ({CallerClassname},{CallerName}); {Reason}",
+            input.Sequence, input.InputName, targetName, input.Caller?.Classname, input.Caller?.TargetName, reason);
     }
 
     private static bool IsProceduralName(string targetName, string proceduralName)

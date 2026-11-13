@@ -6,6 +6,7 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using GUI.Utils;
+using ValveResourceFormat.Renderer.Entities;
 
 namespace GUI.Automation;
 
@@ -40,6 +41,8 @@ internal sealed class McpServer : IDisposable
     {
         Listener.Prefixes.Add($"http://127.0.0.1:{port}/");
         Listener.Start();
+
+        EntitySystem.LogInputs = true;
 
         _ = Task.Run(AcceptLoop);
 
