@@ -617,6 +617,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             if (activeAnimation != null)
             {
+                // A sequence that does not loop holds its last frame
+                AnimationController.Looping = activeAnimation is not SequenceAnimation { IsLooping: false };
                 SetAnimation(activeAnimation);
                 return true;
             }
