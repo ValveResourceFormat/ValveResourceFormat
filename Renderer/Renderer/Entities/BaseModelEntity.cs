@@ -232,15 +232,26 @@ public abstract class BaseModelEntity : BaseEntity
         {
             foreach (var (name, value) in bodyGroups)
             {
-                SetBodyGroup(node, name, value.ToInt32OrDefault());
+                node.SetBodyGroupChoice(name, value.ToInt32OrDefault());
             }
         }
 
         var configState = modelState?.GetSubCollection("config_state") is { ValueType: KVValueType.Collection } state ? state : null;
 
-        if (model.Configs.Evaluate(ModelConfigList.SpawnConfigName, configState, CreateConfigRandom()) is { } result)
+        if (model.Configs.Evaluate(ModelConfigList.SpawnConfigName, configState, CreateConfigRandom()) is not { } result)
         {
-            AddConfigModels(node, result);
+            return;
+        }
+
+        foreach (var className in result.UnsupportedElements)
+        {
+            EntitySystem.Logger.LogDebug("{Classname} '{TargetName}' skipped model config element {Element}", Classname, TargetName, className);
+        }
+
+        // Placed by the model they are attached to
+        foreach (var attachedNode in node.ApplyConfig(result, EntityScale))
+        {
+            AddNode(attachedNode, followsEntity: false);
         }
     }
 
@@ -259,110 +270,6 @@ public abstract class BaseModelEntity : BaseEntity
             : string.Create(CultureInfo.InvariantCulture, $"{Classname} {WorldOrigin}");
 
         return new Random(unchecked((int)StringToken.Get(seed)));
-    }
-
-    private void AddConfigModels(ModelSceneNode root, ModelConfigResult result)
-    {
-        foreach (var className in result.UnsupportedElements)
-        {
-            EntitySystem.Logger.LogDebug("{Classname} '{TargetName}' skipped model config element {Element}", Classname, TargetName, className);
-        }
-
-        ApplyConfigAppearance(root, result);
-
-        var nodes = new ModelSceneNode?[result.AttachedModels.Count];
-        var scale = Matrix4x4.CreateScale(EntityScale);
-
-        for (var i = 0; i < nodes.Length; i++)
-        {
-            var attached = result.AttachedModels[i];
-            var element = attached.Element;
-            var parent = attached.ParentIndex >= 0 ? nodes[attached.ParentIndex] : root;
-
-            if (parent == null || element.AttachmentType == ModelConfigAttachmentType.Invalid || element.ModelName.Length == 0)
-            {
-                continue;
-            }
-
-            if (EntitySystem.FileLoader.LoadFileCompiled(element.ModelName)?.DataBlock is not Model model)
-            {
-                EntitySystem.Logger.LogWarning("{Classname} '{TargetName}' failed to load attached model \"{Model}\"", Classname, TargetName, element.ModelName);
-                continue;
-            }
-
-            var node = new ModelSceneNode(Scene, model)
-            {
-                Name = element.ModelName,
-                Alpha = root.Alpha,
-            };
-
-            node.Flags |= root.Flags & ObjectTypeFlags.NoShadows;
-
-            // Frames of a parent model drop its scale, so the scale of the entity is applied again here
-            var offset = scale * EntityTransformHelper.ToRigidTransformationMatrix(element.AngleOffset, element.Offset * EntityScale);
-
-            // The node is still at the origin, so this is the attachment in the space of its own model
-            if (element.LocalAttachmentOffsetName.Length > 0
-                && node.Attachments.ContainsKey(element.LocalAttachmentOffsetName)
-                && Matrix4x4.Invert(node.GetAttachmentTransform(element.LocalAttachmentOffsetName), out var toLocalAttachment))
-            {
-                offset = toLocalAttachment * offset;
-            }
-
-            switch (element.AttachmentType)
-            {
-                case ModelConfigAttachmentType.Bonemerge:
-                    node.SetParent(parent, localTransform: scale);
-                    node.BoneMerge(parent);
-                    break;
-
-                case ModelConfigAttachmentType.BoneOrAttachment when element.AttachmentName.Length > 0:
-                    node.SetParent(parent, element.AttachmentName, offset);
-                    break;
-
-                default:
-                    node.SetParent(parent, localTransform: offset);
-                    break;
-            }
-
-            ApplyConfigAppearance(node, attached);
-
-            // Placed by the model it is attached to
-            AddNode(node, followsEntity: false);
-            nodes[i] = node;
-        }
-    }
-
-    private static void ApplyConfigAppearance(ModelSceneNode node, ModelConfigAppearance appearance)
-    {
-        if (appearance.MaterialGroup is { } materialGroup)
-        {
-            node.SetMaterialGroup(materialGroup);
-        }
-
-        if (appearance.RenderColor is { } color)
-        {
-            // Multiplies the color of the entity as Half-Life: Alyx does. Unproven: that rendercolor is applied
-            // before this there, and that other games multiply too
-            node.Tint *= new Vector3(color.R, color.G, color.B) / byte.MaxValue;
-        }
-
-        foreach (var (name, choice) in appearance.BodyGroups)
-        {
-            SetBodyGroup(node, name, choice);
-        }
-    }
-
-    private static void SetBodyGroup(ModelSceneNode node, string bodyGroup, int index)
-    {
-        foreach (var choice in node.GetBodyGroupChoices())
-        {
-            if (choice.Index == index && choice.BodyGroup.Equals(bodyGroup, StringComparison.OrdinalIgnoreCase))
-            {
-                node.SetBodyGroupChoice(choice);
-                return;
-            }
-        }
     }
 
     /// <summary>
