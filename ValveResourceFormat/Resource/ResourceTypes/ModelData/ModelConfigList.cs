@@ -88,10 +88,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
                     {
                         case ModelConfigUserPick { Choices.Count: > 0 } pick:
                         {
-                            // A choice the state does not name, or names wrongly, falls back to the first
-                            var picked = state?.GetStringProperty(pick.StateKey) is { } name && pick.Choices.Contains(name) ? name : pick.Choices[0];
+                            var name = state?.GetStringProperty(pick.StateKey);
 
-                            EvaluatePicked(picked, target, parentIndex, depth);
+                            // A choice the state does not name, or names wrongly, falls back to the first
+                            var index = pick.Choices.Index().FirstOrDefault(choice => choice.Item == name).Index;
+
+                            result.AddPick(pick, index);
+                            EvaluatePicked(pick.Choices[index], target, parentIndex, depth);
                             break;
                         }
 
@@ -104,6 +107,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
                                 index = PickRandom(pick);
                             }
 
+                            result.AddPick(pick, index);
                             EvaluatePicked(pick.Choices[index], target, parentIndex, depth);
                             break;
                         }
@@ -495,10 +499,17 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
     public sealed class ModelConfigResult : ModelConfigAppearance
     {
         private readonly List<ModelConfigAttachedModelResult> attachedModels = [];
+        private readonly List<(ModelConfigElement Pick, int Choice)> picks = [];
         private readonly HashSet<string> unsupportedElements = [];
 
         /// <summary>Gets the models attached to it, a model always after the one it is attached to.</summary>
         public IReadOnlyList<ModelConfigAttachedModelResult> AttachedModels => attachedModels;
+
+        /// <summary>
+        /// Gets each <see cref="ModelConfigUserPick"/> and <see cref="ModelConfigRandomPick"/> the evaluation reached,
+        /// in the order reached, with the index of the choice it followed.
+        /// </summary>
+        public IReadOnlyList<(ModelConfigElement Pick, int Choice)> Picks => picks;
 
         /// <summary>Gets the compiled classes of the elements the evaluation reached but did not apply.</summary>
         public IReadOnlyCollection<string> UnsupportedElements => unsupportedElements;
@@ -508,6 +519,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         }
 
         internal void AddAttachedModel(ModelConfigAttachedModelResult model) => attachedModels.Add(model);
+
+        internal void AddPick(ModelConfigElement pick, int choice) => picks.Add((pick, choice));
 
         internal void AddUnsupportedElement(string className) => unsupportedElements.Add(className);
     }
