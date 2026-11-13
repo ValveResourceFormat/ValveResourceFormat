@@ -153,6 +153,17 @@ internal sealed partial class McpTools : IDisposable
                     obj["type"] = types.First(static type => (string?)type != "null")!.DeepClone();
                 }
 
+                if (obj["enum"] is JsonArray names)
+                {
+                    for (var i = names.Count - 1; i >= 0; i--)
+                    {
+                        if (names[i] == null)
+                        {
+                            names.RemoveAt(i);
+                        }
+                    }
+                }
+
                 if (obj.TryGetPropertyValue("default", out var defaultValue) && defaultValue == null)
                 {
                     obj.Remove("default");
@@ -306,7 +317,7 @@ internal sealed partial class McpTools : IDisposable
                 properties["tab"] = new JsonObject
                 {
                     ["type"] = "integer",
-                    ["description"] = "Tab id from open_file or get_status. Defaults to the active tab.",
+                    ["description"] = "Tab id. Defaults to the active tab.",
                 };
                 continue;
             }
@@ -340,16 +351,43 @@ internal sealed partial class McpTools : IDisposable
             if (!parameter.HasDefaultValue)
             {
                 required.Add(name);
+                continue;
+            }
+
+            var defaultValue = parameter.DefaultValue;
+
+            if (IsTrivialDefault(defaultValue))
+            {
+                continue;
+            }
+
+            if (defaultValue is float number)
+            {
+                // Not through the reply converter, which rounds floats
+                schema["default"] = JsonValue.Create((decimal)number);
+            }
+            else
+            {
+                schema["default"] = JsonSerializer.SerializeToNode(defaultValue, parameter.ParameterType, Json);
             }
         }
 
-        return new JsonObject
+        var result = new JsonObject
         {
             ["type"] = "object",
             ["properties"] = properties,
-            ["required"] = required,
         };
+
+        if (required.Count > 0)
+        {
+            result["required"] = required;
+        }
+
+        return result;
     }
+
+    /// <summary>Whether a default tells a caller nothing: no value, false, zero or blank text.</summary>
+    private static bool IsTrivialDefault(object? value) => value is null or false or 0 or 0L or 0f or "";
 
     private static bool IsTabTarget(Type type) => type == typeof(TabPage) || type.IsAssignableTo(typeof(GLBaseControl));
 
@@ -605,7 +643,7 @@ internal sealed partial class McpTools : IDisposable
                 _ => "has no rendered view",
             };
             var errors = LoadErrors(page);
-            var failure = errors != null ? $" Opening it failed: {errors}" : string.Empty;
+            var failure = errors != null ? $" Opening it failed: {string.Join(" | ", errors)}" : string.Empty;
             var implicitTab = activeTab ? " No 'tab' was given, so the tool used the active tab." : string.Empty;
 
             throw new ToolException($"Tab {TabIds.IdOf(page)} '{page.Text}' {needs}.{failure}{implicitTab}");
@@ -664,7 +702,7 @@ internal sealed partial class McpTools : IDisposable
         }
         catch (RegexParseException e)
         {
-            throw new ArgumentException($"'{argument}' is a regular expression, not a wildcard, and a plain word matches anywhere. {e.Message}");
+            throw new ArgumentException($"'{argument}' is a regular expression, not a wildcard. {e.Message}");
         }
     }
 
@@ -843,15 +881,55 @@ internal sealed partial class McpTools : IDisposable
     /// <summary>An optional count, left out of a reply rather than written as zero.</summary>
     private static int? NonZero(int value) => value > 0 ? value : null;
 
+    /// <summary>Two replies as one object, with the properties of the first before those of the second.</summary>
+    private static JsonObject Merge(object first, object second)
+    {
+        var merged = (JsonObject)JsonSerializer.SerializeToNode(first, Json)!;
+
+        foreach (var (name, value) in (JsonObject)JsonSerializer.SerializeToNode(second, Json)!)
+        {
+            merged[name] = value?.DeepClone();
+        }
+
+        return merged;
+    }
+
     private static void SkipEmpty(JsonTypeInfo info)
     {
         foreach (var property in info.Properties)
         {
             if (property.PropertyType.IsAssignableTo(typeof(IEnumerable)))
             {
-                property.ShouldSerialize = static (_, value) => value is not (null or "" or ICollection { Count: 0 } or JsonArray { Count: 0 } or JsonObject { Count: 0 });
+                property.ShouldSerialize = static (_, value) => !IsEmpty(value);
             }
         }
+    }
+
+    /// <summary>Whether a text or collection property has nothing in it.</summary>
+    private static bool IsEmpty(object? value)
+    {
+        if (value is null or "")
+        {
+            return true;
+        }
+
+        if (value is string)
+        {
+            return false;
+        }
+
+        if (value is ICollection collection)
+        {
+            return collection.Count == 0;
+        }
+
+        // A set or a JSON node has no count without its item type
+        foreach (var _ in (IEnumerable)value)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     /// <summary>Writes a float rounded, or null when it is not finite, since JSON has no number for that.</summary>

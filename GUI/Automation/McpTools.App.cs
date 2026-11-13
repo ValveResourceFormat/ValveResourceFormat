@@ -29,9 +29,9 @@ internal sealed partial class McpTools
     /// <summary>What failed while each tab opened, kept by <see cref="KeepLoadErrors"/>.</summary>
     private readonly ConditionalWeakTable<TabPage, List<string>> TabLoadErrors = [];
 
-    [Tool("Return the viewer status: version, uptime in seconds, vsync, requested msaa samples, and whether the simulation is paused or stepping. It also gives the last error that would have shown a dialog, and the open tabs with id, path, viewer and load errors, and for a map, its world simulation state from the simulation tool. Vsync is the swap interval (0 is off) and the only frame cap. It answers while another call runs. If the UI thread is busy, 'ui_busy' replaces the tabs.", Concurrent = true)]
+    [Tool("Return the viewer status and the open tabs. 'vsync' is the swap interval (0 is off) and the only frame cap. 'last_error' would have shown a dialog. A map tab has 'simulation' unless it is stopped. Answers while another call runs. 'ui_busy' replaces the tabs when the UI thread is busy.", Concurrent = true)]
     private async Task<object> GetStatus(
-        [Description("Add memory use in MB after a full compacting GC, so a leak shows apart from garbage. This gives private bytes, working set, managed heap and GC counts. The pools release a buffer only after up to a minute without use.")] bool memory = false,
+        [Description("Add memory use in MB after a full compacting GC. The pools release a buffer only after up to a minute without use.")] bool memory = false,
         CancellationToken cancellationToken = default)
     {
         List<object>? tabs = null;
@@ -86,7 +86,7 @@ internal sealed partial class McpTools
         };
     }
 
-    [Tool("Close the viewer. Do this before you rebuild, because a running viewer locks the build output.")]
+    [Tool("Close the viewer. Do this before a rebuild, because a running viewer locks the build output.")]
     private static object Quit()
     {
         // Answer first, so the caller gets a reply rather than a dropped connection
@@ -95,13 +95,13 @@ internal sealed partial class McpTools
         return new { Closing = true };
     }
 
-    [Tool("Read the viewer log, oldest first, such as shader compile errors, load failures and renderer warnings. Each line is 'time level [component] message', with level D, I, W or E. Repeats of a line collapse into the last one with an (xN) count. Pass the returned 'cursor' as 'since' to read only newer lines. 'dropped' counts the lines after 'since' that are too old to keep.", Concurrent = true)]
+    [Tool("Read the viewer log, oldest first. Each line is 'time L [component] message', where L is the first letter of the level. Repeats collapse into the last one with an (xN) count. Pass 'cursor' as 'since' to read only newer lines. 'dropped' counts the lines after 'since' that are too old to keep.", Concurrent = true)]
     private static object GetLog(
         [Description("Cursor from an earlier call.")] long since = 0,
         [Description("Lowest level to include.")] Log.Category level = Log.Category.INFO,
         [Description("Case insensitive regular expression that '[component] message' must match.")] string? include = null,
         [Description("Case insensitive regular expression for lines to omit.")] string? exclude = null,
-        [Description("Maximum number of lines to return. The tool keeps the newest.")][Range(1, int.MaxValue)] int limit = 200)
+        [Description("Maximum lines. Keeps the newest.")][Range(1, int.MaxValue)] int limit = 200)
     {
         var includePattern = Pattern(include, nameof(include));
         var excludePattern = Pattern(exclude, nameof(exclude));
@@ -164,8 +164,8 @@ internal sealed partial class McpTools
         };
     }
 
-    [Tool("Close a tab. A package editor with unsaved changes is only closed with discard.", Redraws = true)]
-    private object CloseTab(TabPage tab, [Description("Close a package editor without saving its changes.")] bool discard = false)
+    [Tool("Close a tab.", Redraws = true)]
+    private object CloseTab(TabPage tab, [Description("Close a package editor with unsaved changes without saving them.")] bool discard = false)
     {
         var id = TabIds.IdOf(tab);
 
@@ -184,7 +184,7 @@ internal sealed partial class McpTools
         return tab.Parent == null ? new { Closed = id } : throw new ToolException($"Tab {id} cannot be closed.");
     }
 
-    [Tool("List the inner tabs of a tab, such as the DATA and block tabs of a resource, and select one by name so its content is created. Errors from creating it show in get_log. With no name, it only lists.")]
+    [Tool("List the inner tabs of a tab, such as the DATA and block tabs of a resource. 'name' selects one, which creates its content. Errors from that show in get_log.")]
     private async Task<object> SelectSubTab(
         TabPage tab,
         [Description("Exact title of the inner tab to select.")] string? name = null,
@@ -214,11 +214,11 @@ internal sealed partial class McpTools
         return new { Tabs = selected.Names, Selected = selected.Selected };
     }
 
-    [Tool("Open a file as the command line does, and wait for its tab to load. If the viewer fails, the tab stays open. Pass its id instead of opening the file again.", Redraws = true)]
-    private Task<object> OpenFile([Description("Absolute path, or vpk:package_dir.vpk:inner/file for a file in a package. list_package gives these links.")] string path, CancellationToken cancellationToken = default)
+    [Tool("Open a file and wait for its tab to load. If the viewer fails, the tab stays open: pass its id instead of opening the file again.", Redraws = true)]
+    private Task<object> OpenFile([Description("Absolute path, or vpk:<package path>:<inner path> for a file in a package, as list_package gives.")] string path, CancellationToken cancellationToken = default)
         => OpenReturnedTab(() => Program.MainForm.OpenCommandLineArgFile(path), $"'{path}'", cancellationToken);
 
-    [Tool("Reopen a tab from its file, as Ctrl+R does, and wait for it to load. It opens as a new tab with a new id. Returns the new tab and the replaced id.", Redraws = true)]
+    [Tool("Reopen a tab from its file and wait for it to load. The tab gets a new id, and 'replaced' is the old one.", Redraws = true)]
     private async Task<object> ReloadTab(TabPage tab, CancellationToken cancellationToken = default)
     {
         var replaced = await OnUi(() => TabIds.IdOf(tab), cancellationToken).ConfigureAwait(false);
@@ -229,7 +229,7 @@ internal sealed partial class McpTools
             return Program.MainForm.CloseAndReOpenActiveTab() ?? throw new ToolException($"Tab {replaced} has no file to reopen.");
         }, $"tab {replaced}", cancellationToken).ConfigureAwait(false);
 
-        return new { Tab = reloaded, Replaced = replaced };
+        return Merge(reloaded, new { Replaced = replaced });
     }
 
     /// <summary>Runs <paramref name="open"/> on the UI thread and waits for the tab it returns to load.</summary>
@@ -310,7 +310,7 @@ internal sealed partial class McpTools
             // A tab that renders still works when only its decompiled view failed
             if (errors != null && GLBaseControl.FindHostedIn(page) == null)
             {
-                throw new ToolException($"Tab {id} opened {what}, but its viewer failed: {errors}");
+                throw new ToolException($"Tab {id} opened {what}, but its viewer failed: {string.Join(" | ", errors)}");
             }
 
             return DescribeTab(page);
@@ -352,43 +352,54 @@ internal sealed partial class McpTools
     }
 
     /// <summary>What failed while the tab opened, or null when nothing did.</summary>
-    private string? LoadErrors(TabPage page)
+    private List<string>? LoadErrors(TabPage page)
     {
         if (!TabLoadErrors.TryGetValue(page, out var errors))
         {
             return null;
         }
 
-        return string.Join(" | ", errors);
+        return errors;
     }
 
     private object DescribeTab(TabPage page)
     {
         var data = page.Tag as ExportData;
         var viewer = GLBaseControl.FindHostedIn(page);
+        var path = data?.VrfGuiContext.DisplayPath;
+
+        // The path of a file ends with the title of its tab
+        var title = path != null && path.EndsWith(page.Text, StringComparison.Ordinal) ? null : page.Text;
+
+        GLWorldViewer.SimulationState? simulation = null;
+
+        if (viewer is GLWorldViewer world && world.Simulation != GLWorldViewer.SimulationState.Stopped)
+        {
+            simulation = world.Simulation;
+        }
 
         return new
         {
             Tab = TabIds.IdOf(page),
-            Title = page.Text,
-            Path = data?.VrfGuiContext.DisplayPath,
+            Title = title,
+            Path = path,
             Viewer = viewer?.GetType().Name ?? data?.DisposableContents?.GetType().Name,
             Active = Flag(page == Program.MainForm.Tabs.SelectedTab),
             Loading = Flag(data is { Loaded.IsCompleted: false }),
-            Simulation = (viewer as GLWorldViewer)?.Simulation,
+            Simulation = simulation,
             Errors = LoadErrors(page),
         };
     }
 
-    [Tool("List the files in a package, sorted by path. Each file has its size in bytes and the vpk: link that open_file takes. Reads a package tab, or a .vpk on disk.")]
+    [Tool("List the files of a package tab or of a .vpk on disk, sorted by path, with sizes in bytes. open_file takes '<package>:<path>', or 'open_path' for a file that has one.")]
     private async Task<object> ListPackage(
-        [Description("Tab that shows a package or a file in one. Defaults to the active tab when there is no 'package'.")] int? tab = null,
-        [Description("Absolute path of a .vpk on disk to read instead of a tab, such as game/citadel/pak01_dir.vpk.")] string? package = null,
-        [Description("Only files under this folder, such as maps or models/heroes.")] string folder = "",
-        [Description("Include the files in subfolders of 'folder'. If false, 'folders' counts the subfolders instead.")] bool recursive = true,
-        [Description("Case insensitive wildcard with * and ?, such as *.vmdl_c or *hideout*.vmap_c. It matches the file name, or the whole path if it contains a /.")] string? pattern = null,
-        [Description("Files to skip, from an earlier 'next_offset'.")][Range(0, int.MaxValue)] int offset = 0,
-        [Description("Maximum number of files to return.")][Range(1, int.MaxValue)] int limit = 100,
+        [Description("Tab of a package or of a file in one. Defaults to the active tab.")] int? tab = null,
+        [Description("Absolute path of a .vpk on disk to read instead of a tab.")] string? package = null,
+        [Description("Only files under this folder, such as models/heroes.")] string folder = "",
+        [Description("Include files in subfolders. If false, 'folders' gives the file count of each subfolder instead.")] bool recursive = true,
+        [Description("Case insensitive wildcard with * and ?, such as *.vmdl_c. Matches the file name, or the whole path if it contains a /.")] string? pattern = null,
+        [Description("Files to skip, from 'next_offset'.")][Range(0, int.MaxValue)] int offset = 0,
+        [Description("Maximum files.")][Range(1, int.MaxValue)] int limit = 100,
         CancellationToken cancellationToken = default)
     {
         object List(Package entries, string link) => ListEntries(entries, link, folder, recursive, pattern, offset, limit);
@@ -462,11 +473,18 @@ internal sealed partial class McpTools
 
         matches.Sort(static (a, b) => string.Compare(a.Path, b.Path, StringComparison.OrdinalIgnoreCase));
 
+        // Only a path that a link escapes differs from the package link followed by the path
+        string? OpenPath(string path)
+        {
+            var escaped = VpkLink.EscapePath(path);
+            return escaped == path ? null : $"{link}:{escaped}";
+        }
+
         return new
         {
             Package = link,
             Total = matches.Count,
-            Files = matches.Skip(offset).Take(limit).Select(match => new { match.Path, Size = match.Entry.TotalLength, OpenPath = $"{link}:{VpkLink.EscapePath(match.Path)}" }).ToList(),
+            Files = matches.Skip(offset).Take(limit).Select(match => new { match.Path, Size = match.Entry.TotalLength, OpenPath = OpenPath(match.Path) }).ToList(),
             NextOffset = offset + limit < matches.Count ? offset + limit : (int?)null,
             Folders = folders,
         };

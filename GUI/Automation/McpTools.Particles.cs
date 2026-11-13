@@ -21,7 +21,7 @@ namespace GUI.Automation;
 /// <summary>Tools that control simulation time and inspect, place and drive particle systems.</summary>
 internal sealed partial class McpTools
 {
-    private const string ControlPointsDescription = "Control point positions by index from 0 to 63, such as {\"1\": [0, 0, 100]}. Only the position changes. The orientation stays.";
+    private const string ControlPointsDescription = "Control point positions by index, 0 to 63, such as {\"1\": [0, 0, 100]}. Orientations stay.";
     private const int MaxControlPoint = 63;
 
     // Stepped frames are requested in small batches, so a pause that ends the step stops them soon
@@ -30,20 +30,19 @@ internal sealed partial class McpTools
     /// <summary>The particle systems that spawn_particle added, the only ones set_particles removes. Only the keys are used.</summary>
     private readonly ConditionalWeakTable<ParticleSceneNode, object?> SpawnedParticles = [];
 
-    [Tool("Freeze the simulation in every tab: entities, particles, animation and shader time. Frames still render, so the camera can move and screenshots are repeatable. Particles do not emit while paused, so use step to run them. "
-        + "This freezes time only. Whether a map's entity logic runs at all is the simulation tool's state, the Play and Stop buttons.", Concurrent = true, Redraws = true)]
-    private static object Pause([Description("False to return to real time. This also ends a running step.")] bool paused = true)
+    [Tool("Freeze time in every tab: entities, particles, animation and shader time. Frames still render, so the camera can move and screenshots repeat. Particles do not emit while paused, so use step to run them.", Concurrent = true, Redraws = true)]
+    private static object Pause([Description("False returns to real time and ends a running step.")] bool paused = true)
     {
         AutomationClock.SetPaused(paused);
         return new { Paused = paused };
     }
 
-    [Tool("Pause, advance the simulation of a 3D tab by exactly 'seconds' in fixed frames, and stay paused. A tab reloaded while paused restarts at time zero, so two runs with the same steps match. The seed of a particle system comes from its effect and placement, and each replay continues from the last. So a system restarted in place plays differently each time, unless set_particles pins its seed. Returns the scene time in seconds. If pause ends the step early, the time is less than the full step. "
-        + "A map's entity logic, such as logic_auto and point_template spawns, only runs in the steps after the simulation tool sets it playing.")]
+    [Tool("Pause, advance a 3D tab by exactly 'seconds' in fixed frames, and stay paused. Returns the scene time in seconds, which is short of the full step when pause ended it. A tab reloaded while paused restarts at time zero, so two runs with the same steps match. "
+        + "A particle system restarted in place plays differently each time, unless set_particles pins its seed.")]
     private static async Task<object> Step(
         GLSceneViewer viewer,
         [Description("Seconds to simulate.")][Range(0d, 600d, MinimumIsExclusive = true)] float seconds,
-        [Description("Seconds per simulated frame. Defaults to one entity tick, 1/64.")][Range(0.002, 0.125)] float timestep = 1f / 64f,
+        [Description("Seconds per frame. Defaults to one entity tick, 1/64.")][Range(0.002, 0.125)] float timestep = 1f / 64f,
         CancellationToken cancellationToken = default)
     {
         await ShowForFrames(viewer, readsPixels: false, cancellationToken).ConfigureAwait(false);
@@ -78,12 +77,12 @@ internal sealed partial class McpTools
         return new { Time = viewer.Renderer.Uptime };
     }
 
-    [Tool("Read or set the world simulation of a map tab, as its Play, Pause and Stop buttons do, and return the state once a frame has applied it. "
-        + "Playing from stopped spawns the map's entities again at round start, runs their logic, and walks the camera as the player, with gravity. Stopping puts the world back as it loaded and lifts the camera off the player. Both spawn the entities again, and the map's entities keep their ids. "
-        + "This is apart from pause and step, which freeze or advance time in every tab: a playing world advances only while time runs, so after playing, step to run logic such as logic_auto outputs and point_template spawns.", Redraws = true)]
+    [Tool("Read or set the world simulation of a map tab, as its Play, Pause and Stop buttons do. "
+        + "Playing from stopped spawns the map's entities again at round start, runs their logic, and walks the camera as the player, with gravity. Stopping puts the world back as it loaded and frees the camera. Entities keep their ids. "
+        + "A playing world advances only while time runs. So while the pause tool holds time, step to run logic such as logic_auto outputs and point_template spawns.", Redraws = true)]
     private static async Task<object> Simulation(
         GLWorldViewer viewer,
-        [Description("The state to set. Paused from stopped plays first, so the world spawns and holds. Setting the current state changes nothing. Omit to only read the state.")] GLWorldViewer.SimulationState? state = null,
+        [Description("State to set. Paused from stopped plays first, so the world spawns and holds. Omit to read the state.")] GLWorldViewer.SimulationState? state = null,
         CancellationToken cancellationToken = default)
     {
         if (state == null || state == viewer.Simulation)
@@ -126,14 +125,14 @@ internal sealed partial class McpTools
         return new { State = viewer.Simulation };
     }
 
-    [Tool("Inspect the particle systems of a 3D tab: paused or finished, age in seconds, live particle count including children, and control points. It also lists the renderer classes that are not implemented and so draw nothing.")]
+    [Tool("List the particle systems of a 3D tab. 'age' is in seconds, 'particles' counts the live particles of the system and its children, and 'skipped_renderers' are renderer classes that are not implemented and draw nothing.")]
     private object GetParticles(
         GLSceneViewer viewer,
         [Description("Only systems that this entity plays.")] int? entity = null,
         [Description("Only systems within 'radius' of this world point, nearest first.")] Vector3? near = null,
         [Description("Distance from 'near', in world units.")][Range(0, double.MaxValue)] float radius = 512f,
-        [Description("Maximum number of systems to return.")][Range(1, int.MaxValue)] int limit = 20,
-        [Description("Add the tree of child systems. Each child has its particle count, its age, and the average color, alpha, radius and position of its particles.")] bool tree = false)
+        [Description("Maximum systems to return.")][Range(1, int.MaxValue)] int limit = 20,
+        [Description("Add the tree of child systems, each with its own particle count and the average color, alpha, radius and position of its particles.")] bool tree = false)
     {
         var entities = MapEntities(viewer);
         var data = EntityData(entities, entity);
@@ -164,7 +163,7 @@ internal sealed partial class McpTools
             Paused = Flag(node.IsPaused),
             Finished = Flag(node.IsFinished),
             simulation.RenderState.Age,
-            Particles = CountParticles(simulation),
+            Particles = NonZero(CountParticles(simulation)),
             Position = position,
             ControlPoints = UsedControlPoints(simulation.RenderState),
             SkippedRenderers = node.SkippedRendererClasses.Distinct().ToList(),
@@ -205,7 +204,7 @@ internal sealed partial class McpTools
         return new
         {
             simulation.Name,
-            Particles = particles.Length,
+            Particles = NonZero(particles.Length),
             simulation.RenderState.Age,
             Finished = Flag(simulation.IsFinished()),
             Average = particles.IsEmpty ? null : AverageParticle(particles, toViewerWorld),
@@ -239,16 +238,16 @@ internal sealed partial class McpTools
         };
     }
 
-    [Tool("Add a particle system to a 3D tab, such as an effect on a map. The tab's files supply it. By default it plays once, as an effect dispatched in game does. To put it on the ground of a map, trace down onto the spot and pass the hit position.")]
+    [Tool("Add a particle system to a 3D tab, loaded from the tab's files. It plays once unless 'loop' is true. To put it on the ground of a map, trace down and pass the hit position.")]
     private async Task<object> SpawnParticle(
         GLSceneViewer viewer,
         [Description("Particle system, such as particles/explosions_fx/explosion_basic.vpcf.")] string path,
         [Description("Position of control point 0.")] Vector3? position = null,
         [Description("Orientation of control point 0.")] Vector3? angles = null,
         [Description(ControlPointsDescription)] Dictionary<int, Vector3>? controlPoints = null,
-        [Description("Random seed for every replay, so every run plays the same.")][Range(0, 4095)] int? seed = null,
+        [Description("Random seed pinned for every replay, so every run plays the same.")][Range(0, 4095)] int? seed = null,
         [Description("Restart when finished.")] bool loop = false,
-        [Description("Use its preview control points and preview model, as the particle viewer does, instead of its game configuration.")] bool preview = false,
+        [Description("Use its preview control points and model, as the particle viewer does.")] bool preview = false,
         CancellationToken cancellationToken = default)
     {
         var scene = viewer.Renderer.Scene;
@@ -300,14 +299,14 @@ internal sealed partial class McpTools
         };
     }
 
-    [Tool("Change the particle systems in 'nodes', or all systems of a 3D tab. It can pin their random seed, move their control points, restart them, or remove the ones that spawn_particle added. If a map entity drives a control point, the entity resets it on the next frame. The playback buttons of a particle tab are sidebar controls.", Redraws = true)]
+    [Tool("Change the particle systems in 'nodes', or every system of a 3D tab. A map entity that drives a control point resets it on the next frame. The playback buttons of a particle tab are sidebar controls.", Redraws = true)]
     private object SetParticles(
         GLSceneViewer viewer,
         [Description("Particle node ids from spawn_particle or get_particles.")] int[]? nodes = null,
-        [Description("Random seed for every replay from now on. Each child gets its own seed from it. -1 unpins it, so each replay continues the random sequence of the last, as the engine does. The seed applies from the next restart.")][Range(-1, 4095)] int? seed = null,
+        [Description("Random seed pinned for every replay, from the next restart. Each child derives its own from it. -1 unpins it, so each replay continues the random sequence of the last.")][Range(-1, 4095)] int? seed = null,
         [Description(ControlPointsDescription)] Dictionary<int, Vector3>? controlPoints = null,
-        [Description("Restart the systems. Defaults to true when 'seed' is given.")] bool? restart = null,
-        [Description("Remove the systems from the tab. Only systems that spawn_particle added can be removed. Without 'nodes', removes all of them.")] bool remove = false)
+        [Description("Restart the systems. Defaults to true with 'seed'.")] bool? restart = null,
+        [Description("Remove the systems. Only those that spawn_particle added can be removed. Without 'nodes', removes all of them.")] bool remove = false)
     {
         CheckControlPoints(controlPoints);
 
@@ -408,12 +407,22 @@ internal sealed partial class McpTools
         }
     }
 
-    [Tool("List the functions of a particle system tab by group, as its sidebar does. Each class shows whether the viewer implements it, and the class it was upgraded from. The list includes classes that the format upgrade removed, and child systems.")]
+    [Tool("List the functions of a particle system tab by group, and its child systems. 'status' is unsupported for a class the viewer does not implement, removed for one the format upgrade removed, and left out otherwise. 'was' is the class it was upgraded from.")]
     private static Task<object> ListParticleFunctions(GLParticleViewer viewer)
     {
         // Reads only what the system loaded with, so it returns a task to run on the thread pool instead of between frames
         var lists = viewer.functionLists ?? throw new ToolException("The particle system has not loaded yet.");
         var system = viewer.particleSystem;
+
+        static GLParticleViewer.FunctionSupport? Status(GLParticleViewer.FunctionSupport support)
+        {
+            if (support == GLParticleViewer.FunctionSupport.Supported)
+            {
+                return null;
+            }
+
+            return support;
+        }
 
         return Task.FromResult<object>(new
         {
@@ -422,7 +431,7 @@ internal sealed partial class McpTools
                 .ToDictionary(static group => JsonNamingPolicy.SnakeCaseLower.ConvertName(group.ListName[2..]), group => lists[group.ListName].Select(function => new
                 {
                     function.Class,
-                    Status = GLParticleViewer.GetFunctionSupport(function, group.IsSupported),
+                    Status = Status(GLParticleViewer.GetFunctionSupport(function, group.IsSupported)),
                     Was = function.RemovedByUpgrade ? null : function.OriginalClass,
                 }).ToList()),
             Children = system.GetChildren()

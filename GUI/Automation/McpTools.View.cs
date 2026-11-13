@@ -22,20 +22,21 @@ namespace GUI.Automation;
 /// <summary>Tools that look at and move around what a tab renders.</summary>
 internal sealed partial class McpTools
 {
-    [Tool("Describe a tab without selecting it: its viewer, file and the tools that work on it. For a 3D tab, it also gives the camera, each scene's node count and spawn group, and the map with its entity count.")]
+    [Tool("Describe a tab without selecting it: its file, its viewer and the tools specific to that viewer. A 3D tab adds the camera, its scenes, and the map with its entity count.")]
     private async Task<object> GetInfo(TabPage tab, CancellationToken cancellationToken = default)
     {
         var (description, viewer) = await OnUi(() => (DescribeTab(tab), GLBaseControl.FindHostedIn(tab)), cancellationToken).ConfigureAwait(false);
-        var toolNames = Tools.Values.Where(tool => tool.Target == typeof(TabPage) || tool.Target?.IsInstanceOfType(viewer) == true).Select(static tool => tool.Name).ToList();
+
+        // The tools that take any tab work on all of them
+        var toolNames = Tools.Values.Where(tool => tool.Target?.IsInstanceOfType(viewer) == true).Select(static tool => tool.Name).ToList();
 
         if (viewer is not GLSceneViewer scene)
         {
-            return new { Tab = description, Tools = toolNames };
+            return Merge(description, new { Tools = toolNames });
         }
 
-        return await WithGl<object>(scene, () => new
+        return await WithGl<object>(scene, () => Merge(description, new
         {
-            Tab = description,
             Tools = toolNames,
             Camera = DescribeCamera(scene),
             Scenes = scene.Renderer.Scenes.Select(s => new
@@ -46,18 +47,18 @@ internal sealed partial class McpTools
             }).ToList(),
             Map = (scene as GLWorldViewer)?.LoadedWorld?.MapName,
             Entities = MapEntities(scene)?.Entities.Count,
-        }, cancellationToken).ConfigureAwait(false);
+        }), cancellationToken).ConfigureAwait(false);
     }
 
-    [Tool("Capture what a tab renders: a 3D view as the window shows it without the overlay text, or a whole texture, image or graph. Returns a downscaled JPEG. 'path' also writes the full resolution PNG.")]
+    [Tool("Capture what a tab renders: a 3D view without the overlay text, or a whole texture, image or graph. Returns a JPEG, downscaled when wide.")]
     private static async Task<object> Screenshot(
         GLBaseControl viewer,
-        [Description("Absolute path of a .png file for the full resolution capture.")] string? path = null,
-        [Description("Extra frames to render first, so auto exposure can settle.")][Range(0, 300)] int settleFrames = 2,
-        [Description("On a model, mesh or material tab, draw only the object on a transparent background, as image export does. The inline JPEG shows transparency as black.")] bool transparent = false,
+        [Description("Absolute path of a .png file to also write, at full resolution.")] string? path = null,
+        [Description("Extra frames to render first, so auto exposure settles.")][Range(0, 300)] int settleFrames = 2,
+        [Description("On a model, mesh or material tab, draw only the object on a transparent background, which the JPEG shows as black.")] bool transparent = false,
         [Description("Crop to [x, y, width, height] in render pixels from the top left.")] int[]? region = null,
-        [Description("Factor that shrinks the capture after any 'region', for both the PNG and the inline JPEG.")][Range(0.01d, 1d)] float scale = 1f,
-        [Description("On a 3D tab, skip post processing as CS2 does with r_csgo_postprocess_enable 0: the output is sRGB(saturate(linear color * exposure)), with the exposure that get_render_stats reports and without exposure bias, bloom, tonemapping, color correction, gamma or dither. Depth of field still applies when it is on. The window shows the normal look again afterwards.")] bool raw = false,
+        [Description("Shrink factor applied after 'region', to the PNG and the JPEG.")][Range(0.01d, 1d)] float scale = 1f,
+        [Description("On a 3D tab, skip post processing as CS2 does with r_csgo_postprocess_enable 0: the output is sRGB(saturate(linear color * exposure)), with the exposure of get_render_stats and no exposure bias, bloom, tonemapping, color correction, gamma or dither. Depth of field stays.")] bool raw = false,
         CancellationToken cancellationToken = default)
     {
         RequireAbsolute(path, nameof(path));
@@ -110,19 +111,18 @@ internal sealed partial class McpTools
         using var inline = bitmap.Width > InlineWidth ? Shrink(bitmap, (float)InlineWidth / bitmap.Width) : null;
         using var jpeg = (inline ?? bitmap).Encode(SKEncodedImageFormat.Jpeg, 85);
 
-        return new ImageReply(new { bitmap.Width, bitmap.Height, Path = path }, jpeg.ToArray());
+        return new ImageReply(new { bitmap.Width, bitmap.Height }, jpeg.ToArray());
     }
 
-    [Tool("Compare two image files pixel by pixel, such as screenshots saved with 'path'. Returns how many pixels differ by more than 'threshold' in any channel. It also returns the largest and mean difference, and the box around the differing pixels. "
-        + "'regions' also measures named boxes in both images, such as the sky of a game frame and of a viewer frame.", Concurrent = true)]
+    [Tool("Compare two image files pixel by pixel. Counts the pixels that differ by more than 'threshold' in any channel, with the largest and mean difference and the box around them.", Concurrent = true)]
     private static object CompareScreenshots(
         [Description("Absolute path of the first image.")] string a,
-        [Description("Absolute path of the second image, which must have the same size unless 'resize' is true.")] string b,
-        [Description("Largest difference in a channel, from 0 to 255, that still counts as equal.")][Range(0, 255)] int threshold = 0,
-        [Description("Absolute path of a .png file that shows the differing pixels in red over a dimmed copy of the first image.")] string? diff = null,
-        [Description("Named boxes [x, y, width, height] in pixels of 'a' from the top left, such as {\"sky\": [0, 0, 200, 100]}. Each returns the mean sRGB color (0 to 255) and mean linear color (0 to 1) of both images, and the ratio b/a of each linear channel and of the linear luminance.")] Dictionary<string, int[]>? regions = null,
-        [Description("Scale 'b' to the size of 'a' before comparing, for images of different sizes, such as a game capture and a viewer capture.")] bool resize = false,
-        [Description("Absolute path of a .png file with 'a', 'b' and the diff image side by side.")] string? sideBySide = null)
+        [Description("Absolute path of the second image, of the same size unless 'resize' is true.")] string b,
+        [Description("Largest channel difference, 0 to 255, that still counts as equal.")][Range(0, 255)] int threshold = 0,
+        [Description("Absolute path of a .png file to write: the differing pixels in red over a dimmed 'a'.")] string? diff = null,
+        [Description("Named boxes [x, y, width, height] in pixels of 'a' from the top left, such as {\"sky\": [0, 0, 200, 100]}. Each returns the mean sRGB (0 to 255) and linear (0 to 1) color of both images, and the b/a ratio of each linear channel and of the linear luminance.")] Dictionary<string, int[]>? regions = null,
+        [Description("Scale 'b' to the size of 'a' first.")] bool resize = false,
+        [Description("Absolute path of a .png file to write: 'a', 'b' and the diff side by side.")] string? sideBySide = null)
     {
         RequireAbsolute(diff, nameof(diff));
         RequireAbsolute(sideBySide, nameof(sideBySide));
@@ -217,8 +217,6 @@ internal sealed partial class McpTools
             MeanDelta = Math.Round(deltaSum / pixels, 3),
             DifferingRegion = differing > 0 ? new[] { minX, minY, maxX - minX + 1, maxY - minY + 1 } : null,
             Regions = measured,
-            Diff = diff,
-            SideBySide = sideBySide,
         };
     }
 
@@ -369,15 +367,15 @@ internal sealed partial class McpTools
     /// <summary>Cameras saved by name for the camera tool, with exact values instead of the rounded numbers in its replies.</summary>
     private readonly Dictionary<string, (Vector3 Location, Vector3 Angles, float FieldOfView)> SavedCameras = new(StringComparer.OrdinalIgnoreCase);
 
-    [Tool("Move the camera of a 3D tab at once, without a fly-in, or save it by name. A saved camera restores exactly, in this tab or another. With no arguments, it only reads the camera. Returns the position, angles, field of view, forward direction, and the pixel size of the render area that pick reads.", Redraws = true)]
+    [Tool("Read the camera of a 3D tab, move it at once, or save it by name. 'viewport' is the pixel size of the render area that pick reads.", Redraws = true)]
     private object Camera(
         GLSceneViewer viewer,
         [Description("World position to move to.")] Vector3? position = null,
-        [Description("[pitch, yaw, roll] degrees to face, pitch positive downwards. Pitch stays within 90 degrees either way. Roll is always 0.")] Vector3? angles = null,
+        [Description("[pitch, yaw, roll] degrees to face, pitch positive downwards. Pitch clamps to 90 either way, and roll is always 0.")] Vector3? angles = null,
         [Description("World point to face, instead of 'angles'.")] Vector3? lookAt = null,
         [Description("Field of view in degrees.")][Range(1d, 170d)] float? fov = null,
-        [Description("Name of a camera from 'save' to move to first, with its field of view. The other arguments then change it.")] string? restore = null,
-        [Description("Name to save the camera under after the move. It replaces a camera saved with that name. Saved cameras stay until the viewer quits.")] string? save = null)
+        [Description("Saved camera to move to first, with its field of view. The other arguments then change it.")] string? restore = null,
+        [Description("Name to save the camera under after the move, for any tab, until the viewer quits. It restores exactly.")] string? save = null)
     {
         if (angles != null && lookAt != null)
         {
@@ -466,15 +464,15 @@ internal sealed partial class McpTools
         };
     }
 
-    [Tool("Zoom a texture, image or graph tab around the center of its view, in the same 1.25x steps as the mouse wheel, without animation. 'reset' first returns to 100%, as the Reset zoom button does. Returns the zoom, where 1 is 100%.", Redraws = true)]
-    private static object Zoom(GLTextureViewer viewer, [Description("Wheel steps: positive zooms in, negative zooms out.")][Range(-100, 100)] int steps = 0, [Description("Return to 100% before stepping.")] bool reset = false)
+    [Tool("Zoom a texture, image or graph tab around its center, in the 1.25x steps of the mouse wheel. Returns the zoom, where 1 is 100%.", Redraws = true)]
+    private static object Zoom(GLTextureViewer viewer, [Description("Wheel steps: positive zooms in.")][Range(-100, 100)] int steps = 0, [Description("Return to 100% before stepping.")] bool reset = false)
     {
         viewer.ZoomSteps(steps, reset);
         return new { zoom = viewer.Zoom };
     }
 
-    [Tool("Render a tab at an exact pixel size, capped to the window, so you can compare screenshots from two builds. Pass no size to follow the window again.", Redraws = true)]
-    private static object SetViewport(GLBaseControl viewer, [Description("Render width.")][Range(1, int.MaxValue)] int? width = null, [Description("Render height.")][Range(1, int.MaxValue)] int? height = null)
+    [Tool("Render a tab at an exact pixel size, capped to the window, so screenshots of two builds compare. Pass no size to follow the window again.", Redraws = true)]
+    private static object SetViewport(GLBaseControl viewer, [Description("Render width in pixels.")][Range(1, int.MaxValue)] int? width = null, [Description("Render height in pixels.")][Range(1, int.MaxValue)] int? height = null)
     {
         var control = viewer.GLControl ?? throw new ToolException("The viewer has no render area yet.");
 
@@ -500,9 +498,9 @@ internal sealed partial class McpTools
         return new { control.Width, control.Height };
     }
 
-    [Tool("Recompile the shaders of every open tab from the source tree and redraw, without a viewer restart. A saved shader file already reloads the shown tab, and tabs opened later compile the saved sources. If that reload fails, the viewer opens a dialog. If this tool fails to compile or link a shader, it returns the error, and the viewer keeps drawing with the previous programs of the shaders that failed.", Redraws = true)]
+    [Tool("Recompile the shaders of every open tab from the source tree. Saving a shader file already reloads the shown tab. A compile or link error is returned, and the shaders that failed keep their previous programs.", Redraws = true)]
     private static Task<object> ReloadShaders(
-        [Description("Only reload the shaders built from this file, such as complex.frag.slang. A file without a stage in its name is an include, so it reloads every shader.")] string? name = null,
+        [Description("Only the shaders built from this file, such as complex.frag.slang. A file without a stage in its name is an include, and reloads every shader.")] string? name = null,
         CancellationToken cancellationToken = default)
     {
         if (name != null && ShaderParser.ShaderSourceDirectory is { } sources
@@ -561,7 +559,7 @@ internal sealed partial class McpTools
         };
     }
 
-    [Tool("Render new frames of a 3D tab and return the numbers behind its performance overlays. Exposure is 'auto' while the scene sets it, or 'manual' with the Exposure slider, and its value is the linear scalar the frame is multiplied by before tonemapping. Counters are the last frame's draw counts and renderer metrics, without zeros. Timings are the CPU and GPU milliseconds of each timed render pass, averaged over the frames, in frame order with depth for nesting. GPU readings arrive a few frames late and not every frame. So each row counts its GPU readings, and a single frame may have none.")]
+    [Tool("Render new frames of a 3D tab and return its performance numbers. 'exposure' is auto while the scene sets it, or manual with the Exposure slider, and its value is the linear scalar applied before tonemapping. 'counters' are the last frame's, without zeros. 'timings' are the CPU and GPU milliseconds of each render pass, averaged over the frames, in frame order with 'depth' for nesting. GPU readings arrive late and not every frame, so 'gpu_samples' counts them and a row may have none.")]
     private static async Task<object> GetRenderStats(
         GLSceneViewer viewer,
         [Description("Frames to average the timings over.")][Range(1, 600)] int frames = 1,
@@ -605,20 +603,20 @@ internal sealed partial class McpTools
                 Depth = NonZero(row.Depth),
                 CpuMs = Math.Round(row.CpuMs, 3),
                 GpuMs = row.GpuMs.HasValue ? Math.Round(row.GpuMs.Value, 3) : (double?)null,
-                row.GpuSamples,
+                GpuSamples = NonZero(row.GpuSamples),
                 CpuSamples = row.CpuSamples != averaged ? row.CpuSamples : (int?)null,
             }).ToList(),
         };
     }
 
-    [Tool("Move the camera of a 3D tab at once to frame an entity, a node or a box, from a point with a clear view. With none of them, it frames the whole scene. 'select' also selects the entity or node and enables its layer and physics group, as a double click in the entity list does.", Redraws = true)]
+    [Tool("Move the camera of a 3D tab at once to frame an entity, a node or a box, or the whole scene with none of them.", Redraws = true)]
     private async Task<object> Frame(
         GLSceneViewer viewer,
-        [Description("Entity id from find_entities or pick.")] int? entity = null,
-        [Description("Node id from pick or get_entity.")] int? node = null,
-        [Description("One corner of a world box to frame, with 'max'.")] Vector3? min = null,
+        [Description("Entity id.")] int? entity = null,
+        [Description("Node id.")] int? node = null,
+        [Description("One corner of a world box, with 'max'.")] Vector3? min = null,
         [Description("Opposite corner of the box.")] Vector3? max = null,
-        [Description("Select the entity or node.")] bool select = false,
+        [Description("Also select the entity or node and enable its layer and physics group. 'selected' is its node id.")] bool select = false,
         CancellationToken cancellationToken = default)
     {
         var hasBox = min != null || max != null;
@@ -649,10 +647,9 @@ internal sealed partial class McpTools
             throw new ArgumentException("Pass both 'min' and 'max'.");
         }
 
-        var (entities, data, target, bounds) = await WithGl(viewer, () =>
+        var (data, target, bounds) = await WithGl(viewer, () =>
         {
-            var mapEntities = MapEntities(viewer);
-            var entityData = EntityData(mapEntities, entity);
+            var entityData = EntityData(MapEntities(viewer), entity);
             SceneNode? framed = null;
             AABB box;
 
@@ -675,7 +672,7 @@ internal sealed partial class McpTools
                 box = SceneBounds(viewer) ?? throw new ToolException("Nothing in the scene has bounds to frame.");
             }
 
-            return (mapEntities, entityData, framed, box);
+            return (entityData, framed, box);
         }, cancellationToken).ConfigureAwait(false);
 
         var selected = select ? target : null;
@@ -721,7 +718,7 @@ internal sealed partial class McpTools
                 Camera = DescribeCamera(viewer),
                 bounds.Center,
                 bounds.Size,
-                Selected = selected == null ? null : DescribeNode(viewer, entities, selected),
+                Selected = selected == null ? (int?)null : NodeIds.IdOf(selected),
             };
         }, cancellationToken).ConfigureAwait(false);
     }

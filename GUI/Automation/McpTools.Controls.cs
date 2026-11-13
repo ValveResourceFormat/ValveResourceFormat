@@ -22,16 +22,15 @@ internal sealed partial class McpTools
     /// <summary>One change of <see cref="SetControls"/>.</summary>
     private sealed record ControlChange(string Name, string? Group = null, string? Item = null, JsonNode? Value = null);
 
-    [Tool("List the controls in a tab's sidebar and toolbar, top to bottom, each with its kind, group and state. Kinds are checkbox, toggle, dropdown, list (a checked list such as mesh groups), tree (checked items by path, such as world layers, collision or auto vis groups, where an item checks the items below it), slider (0 to 1), and number (with its range). The others are vector (such as a material or animation graph parameter), button and text. The render mode dropdown is in the Toolbar group.")]
-    private static List<object> ListControls(GLBaseControl viewer, [Description("Include the items of dropdowns and lists. An animation list can have hundreds.")] bool items = false)
+    [Tool("List the sidebar and toolbar controls of a tab, top to bottom. Kinds: checkbox, toggle, dropdown, list (checked items), tree (checked items by path, where an item checks the items below it), slider (0 to 1), number (with its range), vector, button and text. The render mode dropdown is in the Toolbar group.")]
+    private static List<object> ListControls(GLBaseControl viewer, [Description("Include the items of dropdowns, lists and trees. An animation list can have hundreds.")] bool items = false)
         => SidebarControls(viewer).Select(control => DescribeControl(control, items)).ToList();
 
-    [Tool("Change sidebar or toolbar controls in order, as a user would. Stops at the first change that fails and keeps the changes before it. A choice that moves the camera, such as a map camera, moves it at once. Returns each changed control once in 'controls'. "
-        + "On a map, the Exposure slider sets a manual exposure of 10 times its value, even when the value is the current one, until the tab is reloaded. "
-        + "After a change to it, 'exposure' gives the mode, auto or manual, and the exposure value.", Redraws = true)]
+    [Tool("Change sidebar or toolbar controls in order, as a user would. Stops at the first change that fails and keeps the changes before it. Returns each changed control. "
+        + "On a map, the Exposure slider sets a manual exposure of 10 times its value, even when the value does not change, until the tab is reloaded. 'exposure' then gives the mode and value.", Redraws = true)]
     private static object SetControls(
         GLBaseControl viewer,
-        [Description("'name' is the label from list_controls. Give 'group' only when two controls have the same label. 'item' is the list item, or the path of the tree item, such as 'Clip/Player Clip', to check. 'value' is true or false for a checkbox, toggle, list item or tree item, and the item text or index for a dropdown. It is a number for a slider or number, and a number array for a vector. Omit 'value' to press a button.")] List<ControlChange> changes)
+        [Description("'name' is the name from list_controls. Give 'group' only when two controls share a name. 'item' is the list item or the tree path, such as 'Clip/Player Clip'. 'value' is true or false for a checkbox, toggle or item, the item text or index for a dropdown, a number for a slider or number, and a number array for a vector. Omit it to press a button.")] List<ControlChange> changes)
     {
         var changed = new List<SidebarControl>();
 
@@ -43,7 +42,7 @@ internal sealed partial class McpTools
             {
                 control = ApplyControl(viewer, changes[i]);
             }
-            catch (Exception e) when (e is ToolException or ArgumentException)
+            catch (Exception e) when (i > 0 && e is ToolException or ArgumentException)
             {
                 throw new ToolException($"Change {i + 1} of {changes.Count} failed. The changes before it stay applied. {e.Message}");
             }
@@ -249,7 +248,7 @@ internal sealed partial class McpTools
         return new
         {
             Kind = KindOf(input),
-            control.Label,
+            Name = control.Label,
             control.Group,
             Value = ValueOf(input),
             Items = items ? ListItems(input) : null,

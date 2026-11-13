@@ -188,20 +188,20 @@ internal sealed partial class McpTools
     /// <summary>A keyvalue as the entity properties show it.</summary>
     private static string KeyValueText(KVObject value) => EntityInfoControl.BareText(value) ?? EntityLump.StringifyValue(value);
 
-    [Tool("Search the entities of a map, its 3D sky and the other spawn groups it loaded. There is no free text search or 'query': 'classname', 'targetname', 'key' and 'value' are separate filters, and an entity must match all that are given. Text filters are case insensitive regular expressions, not wildcards, so use 'decal' or '.*decal.*' rather than '*decal*'. They match anywhere unless anchored with ^ and $. Positions are where each entity renders. Returns 'next_offset' when more entities match.")]
+    [Tool("Search the entities of a map and of the spawn groups it loaded, such as its 3D sky. There is no free text 'query', and an entity must match every filter given. 'classname', 'targetname' and 'value' are case insensitive regular expressions, not wildcards: 'decal' matches anywhere, anchor with ^ and $. Returns entity ids, and 'next_offset' when more match.")]
     private async Task<object> FindEntities(
         GLWorldViewer viewer,
-        [Description("Classname to match.")] string? classname = null,
-        [Description("Targetname to match.")] string? targetname = null,
-        [Description("Only entities with this exact key.")] string? key = null,
-        [Description("Value to match, of 'key' or of any keyvalue.")] string? value = null,
+        [Description("Classname regex.")] string? classname = null,
+        [Description("Targetname regex.")] string? targetname = null,
+        [Description("Exact key the entity must have.")] string? key = null,
+        [Description("Regex for the value of 'key', or of any key.")] string? value = null,
         [Description("True for only triggers, false for none.")] bool? trigger = null,
         [Description("True for only 3D sky entities, false for none.")] bool? sky = null,
-        [Description("Only entities within 'radius' of this world point.")] Vector3? near = null,
-        [Description("Distance from 'near', in world units.")][Range(0, double.MaxValue)] float radius = 512f,
-        [Description("Exact keys of keyvalues to include with each match.")] string[]? fields = null,
-        [Description("Matches to skip, from an earlier 'next_offset'.")][Range(0, int.MaxValue)] int offset = 0,
-        [Description("Maximum matches to return.")][Range(1, int.MaxValue)] int limit = 50,
+        [Description("Only entities within 'radius' of this point.")] Vector3? near = null,
+        [Description("World units from 'near'.")][Range(0, double.MaxValue)] float radius = 512f,
+        [Description("Exact keys to return with each match.")] string[]? fields = null,
+        [Description("An earlier 'next_offset'.")][Range(0, int.MaxValue)] int offset = 0,
+        [Description("Maximum matches.")][Range(1, int.MaxValue)] int limit = 50,
         CancellationToken cancellationToken = default)
     {
         var classnamePattern = Pattern(classname, nameof(classname));
@@ -306,16 +306,32 @@ internal sealed partial class McpTools
     private static bool IsTrigger(EntityLump.Entity data, BaseEntity? instance)
         => instance?.IsTrigger == true || data.GetStringProperty("classname")?.StartsWith("trigger_", StringComparison.OrdinalIgnoreCase) == true;
 
-    [Tool("Describe one entity: its keyvalues and outputs, where it renders, spawn group, the class it spawned as with its live transform, and its scene nodes.")]
-    private object GetEntity(GLWorldViewer viewer, [Description("Entity id from find_entities or pick.")] int id)
+    [Tool("Describe one entity: keyvalues, outputs, where it renders, the class it spawned as with its live state, and the ids of its scene nodes by node type.")]
+    private object GetEntity(
+        GLWorldViewer viewer,
+        [Description("Entity id.")] int id,
+        [Description("Describe each node (name, layers, materials, bounds, why it is hidden) instead of listing ids.")] bool nodes = false)
     {
         var entities = Entities(viewer);
         var data = EntityById(entities, id).Data;
         var instance = Spawned(viewer, data);
+        var row = EntityRowOf(entities, id, instance);
+        var entityNodes = AllNodes(viewer).Where(node => ReferenceEquals(node.EntityData, data)).ToList();
+        object? describedNodes = null;
+
+        if (entityNodes.Count > 0)
+        {
+            // Without the entity table a node does not repeat the id of its entity
+            describedNodes = nodes ? entityNodes.Select(node => DescribeNode(viewer, null, node)).ToList() : NodeIdsByType(entityNodes);
+        }
 
         return new
         {
-            Entity = DescribeEntity(EntityRowOf(entities, id, instance)),
+            Classname = data.GetStringProperty("classname"),
+            Targetname = data.TargetName,
+            SpawnGroup = row.Group?.MapName,
+            Sky = Flag(row.Group?.WorldGroup != null),
+            row.Position,
             Keyvalues = data.Children.Where(static pair => pair.Key is not ("classname" or "targetname")).ToDictionary(static pair => pair.Key, static pair => KeyValueText(pair.Value)),
             Outputs = data.Connections?.Select(DescribeConnection).ToList(),
 
@@ -328,30 +344,42 @@ internal sealed partial class McpTools
                 Trigger = Flag(instance.IsTrigger),
                 Removed = Flag(instance.IsRemoved),
             },
-            Nodes = AllNodes(viewer).Where(node => ReferenceEquals(node.EntityData, data)).Select(node => DescribeNode(viewer, entities, node)).ToList(),
+            Nodes = describedNodes,
         };
     }
 
-    [Tool("Fire an entity input at one entity of a playing world, with the player as activator. The input is delivered while time runs, so step after firing, then read the deliveries with get_log at level debug with include 'Entity Input|unhandled input'.")]
+    private static string NodeType(SceneNode node) => node.GetType().Name.Replace("SceneNode", string.Empty, StringComparison.Ordinal);
+
+    /// <summary>The ids of nodes, grouped by the type of node.</summary>
+    private SortedDictionary<string, List<int>> NodeIdsByType(List<SceneNode> nodes)
+    {
+        var byType = new SortedDictionary<string, List<int>>(StringComparer.Ordinal);
+
+        foreach (var node in nodes)
+        {
+            var type = NodeType(node);
+
+            if (!byType.TryGetValue(type, out var ids))
+            {
+                ids = [];
+                byType[type] = ids;
+            }
+
+            ids.Add(NodeIds.IdOf(node));
+        }
+
+        return byType;
+    }
+
+    [Tool("Queue an input for one entity of a playing world, with the player as activator. It is delivered while time runs, so step next. get_log at level debug with include 'Entity Input|unhandled input' shows the deliveries.")]
     private object FireInput(
         GLWorldViewer viewer,
-        [Description("Entity id from find_entities or pick.")] int id,
-        [Description("Input name, such as Trigger or Toggle.")] string input,
+        [Description("Entity id.")] int id,
+        [Description("Input name, such as Trigger.")] string input,
         [Description("Input parameter.")] string? parameter = null,
-        [Description("Delay before delivery, in seconds.")][Range(0, double.MaxValue)] float delay = 0f)
+        [Description("Seconds before delivery.")][Range(0, double.MaxValue)] float delay = 0f)
     {
-        if (viewer.Simulation != GLWorldViewer.SimulationState.Playing)
-        {
-            throw new ToolException("The world is not playing, and inputs are delivered only while it plays. Use simulation to play it.");
-        }
-
-        var data = EntityById(Entities(viewer), id).Data;
-        var instance = Spawned(viewer, data);
-
-        if (instance == null || instance.IsRemoved)
-        {
-            throw new ToolException($"Entity {id} has no live instance.");
-        }
+        var (_, instance) = LiveEntity(viewer, id);
 
         var entitySystem = viewer.Renderer.EntitySystem;
         entitySystem.QueueInput(instance, input, parameter, activator: entitySystem.Player, delay: delay);
@@ -359,25 +387,14 @@ internal sealed partial class McpTools
         return new { Fired = true };
     }
 
-    [Tool("Fire an output of one entity of a playing world, as if the entity fired it, with the player as activator. This drives logic that VRF does not simulate, such as a trigger the player touches or an NPC event. Step and read the log as for fire_input.")]
+    [Tool("Fire an output of one entity of a playing world, with the player as activator. Use it for what the viewer does not simulate, such as a trigger touch or an NPC event. Step and read the log as for fire_input.")]
     private object FireOutput(
         GLWorldViewer viewer,
-        [Description("Entity id from find_entities or pick.")] int id,
-        [Description("Output name from get_entity outputs, such as OnTrigger.")] string output,
-        [Description("Value the output passes to connections without a parameter of their own.")] string? value = null)
+        [Description("Entity id.")] int id,
+        [Description("Output name from get_entity, such as OnTrigger.")] string output,
+        [Description("Value for connections without their own parameter.")] string? value = null)
     {
-        if (viewer.Simulation != GLWorldViewer.SimulationState.Playing)
-        {
-            throw new ToolException("The world is not playing, and inputs are delivered only while it plays. Use simulation to play it.");
-        }
-
-        var data = EntityById(Entities(viewer), id).Data;
-        var instance = Spawned(viewer, data);
-
-        if (instance == null || instance.IsRemoved)
-        {
-            throw new ToolException($"Entity {id} has no live instance.");
-        }
+        var (data, instance) = LiveEntity(viewer, id);
 
         if (data.Connections?.Any(connection => connection.OutputName.Equals(output, StringComparison.OrdinalIgnoreCase)) != true)
         {
@@ -390,12 +407,31 @@ internal sealed partial class McpTools
         return new { Fired = true };
     }
 
+    /// <summary>An entity by id with its spawned instance, in a world that plays. Call between frames.</summary>
+    private (EntityLump.Entity Data, BaseEntity Instance) LiveEntity(GLWorldViewer viewer, int id)
+    {
+        if (viewer.Simulation != GLWorldViewer.SimulationState.Playing)
+        {
+            throw new ToolException("The world is not playing. Set simulation to playing first.");
+        }
+
+        var data = EntityById(Entities(viewer), id).Data;
+        var instance = Spawned(viewer, data);
+
+        if (instance == null || instance.IsRemoved)
+        {
+            throw new ToolException($"Entity {id} has no live instance.");
+        }
+
+        return (data, instance);
+    }
+
     // Defaults are left out to keep replies short: no parameter, no delay, and unlimited times to fire
     private static object DescribeConnection(EntityLump.Connection connection) => new
     {
-        connection.OutputName,
-        connection.TargetName,
-        connection.InputName,
+        Output = connection.OutputName,
+        Target = connection.TargetName,
+        Input = connection.InputName,
         Parameter = string.IsNullOrEmpty(connection.OverrideParam) ? null : connection.OverrideParam,
         Delay = connection.Delay == 0f ? (float?)null : connection.Delay,
         TimesToFire = connection.TimesToFire < 0 ? (int?)null : connection.TimesToFire,
@@ -427,7 +463,7 @@ internal sealed partial class McpTools
         return node;
     }
 
-    private static ToolException NoNode(int id) => new($"No node with id {id} in this tab. A node id is valid until the node leaves the scene.");
+    private static ToolException NoNode(int id) => new($"No node with id {id} in this tab. An id lasts until its node leaves the scene.");
 
     /// <summary>Why a node is not drawn, or null when it is.</summary>
     private static string? HiddenReason(SceneNode node)
@@ -462,7 +498,7 @@ internal sealed partial class McpTools
         return new
         {
             Id = NodeIds.IdOf(node),
-            Type = node.GetType().Name.Replace("SceneNode", string.Empty, StringComparison.Ordinal),
+            Type = NodeType(node),
             node.Name,
             Entity = EntityId(entities, node.EntityData),
             Layers = node.Layers.Select(static layer => layer.Name).ToArray(),
@@ -481,12 +517,12 @@ internal sealed partial class McpTools
         };
     }
 
-    [Tool("Identify what a 3D tab draws at a pixel: its node, the mesh and materials there, and its entity. It also returns the world position and distance from the depth buffer. Pixels start at the top left of the render area. get_info gives the size of that area.", Redraws = true)]
+    [Tool("Identify what a 3D tab draws at a pixel: the node, its entity id, the mesh and materials, and the world position and distance from the depth buffer. Pixels start at the top left of the render area, whose size camera returns as 'viewport'.", Redraws = true)]
     private async Task<object> Pick(
         GLSceneViewer viewer,
-        [Description("Pixel X in the render area. Defaults to the centre.")] int? x = null,
-        [Description("Pixel Y in the render area. Defaults to the centre.")] int? y = null,
-        [Description("select replaces the selection, as a click does. add toggles it in the selection, as Ctrl+click does. open opens it in its own tab, as Ctrl+double click does in a map, and returns that tab. details opens its info window, as a double click does. clear removes the selection and reads no pixel. Until then, screenshots show the outline of a selected node, and the debug geometry of a selected light probe or envmap.")] PickAction action = PickAction.None,
+        [Description("Pixel X. Defaults to the centre.")] int? x = null,
+        [Description("Pixel Y. Defaults to the centre.")] int? y = null,
+        [Description("select replaces the selection. add toggles the node in it. open opens the node in its own tab and returns that tab. details opens its info window. clear removes the selection and reads no pixel. Screenshots outline selected nodes, and show the debug geometry of a selected light probe or envmap.")] PickAction action = PickAction.None,
         CancellationToken cancellationToken = default)
     {
         if (action == PickAction.Clear)
@@ -634,15 +670,15 @@ internal sealed partial class McpTools
         _ => null,
     };
 
-    [Tool("Trace a ray, or sweep a 'hull' box, against what the player collides with in a 3D tab. That is the static world and solid entities such as doors. Returns the hit position, normal, distance and entity. A hit without an entity is the world.")]
+    [Tool("Trace a ray, or sweep a box, against what the player collides with in a 3D tab: the static world and solid entities such as doors. A hit without an entity is the world.")]
     private object Trace(
         GLSceneViewer viewer,
-        [Description("Start point. Defaults to the camera position.")] Vector3? from = null,
-        [Description("Direction to trace in. Defaults to the camera view direction.")] Vector3? direction = null,
-        [Description("End point. Pass it instead of 'direction'.")] Vector3? to = null,
-        [Description("Length of the trace along 'direction', in world units.")][Range(0, double.MaxValue, MinimumIsExclusive = true)] float maxDistance = 65536f,
-        [Description("Half extents of a box to sweep instead of a ray. The player box is [16, 16, 36].")] Vector3? hull = null,
-        [Description("Also stop at the enabled trigger volumes the viewer simulates.")] bool triggers = false)
+        [Description("Start point. Defaults to the camera position, which the reply then gives.")] Vector3? from = null,
+        [Description("Direction. Defaults to the camera view direction.")] Vector3? direction = null,
+        [Description("End point, instead of 'direction'.")] Vector3? to = null,
+        [Description("World units to trace along 'direction'.")][Range(0, double.MaxValue, MinimumIsExclusive = true)] float maxDistance = 65536f,
+        [Description("Half extents of a box to sweep. The player box is [16, 16, 36].")] Vector3? hull = null,
+        [Description("Also stop at enabled trigger volumes.")] bool triggers = false)
     {
         if (to != null && direction != null)
         {
@@ -697,8 +733,7 @@ internal sealed partial class McpTools
         return new
         {
             hit.Hit,
-            From = start,
-            To = end,
+            From = from == null ? start : (Vector3?)null,
             Position = hit.Hit ? hit.HitPosition : (Vector3?)null,
             Normal = hit.Hit ? hit.HitNormal : (Vector3?)null,
             Distance = hit.Hit ? hit.Distance : (float?)null,
@@ -741,13 +776,13 @@ internal sealed partial class McpTools
         return true;
     }
 
-    [Tool("List the scene nodes of a 3D tab that this tool hid and that are still hidden. With 'hidden', hide or show nodes instead. This works as select and Delete do, but it sets the state instead of toggling it. Like Delete, it hides that node only. The node then reports not_drawn, and only this tool shows it again, unless starting or stopping the simulation respawns its entity. This tool does not list or show nodes hidden with Delete in the viewer. It does not change nodes that a layer, a physics group or their entity hides, and reports them.", Redraws = true)]
+    [Tool("Hide or show scene nodes of a 3D tab, or with no arguments list the nodes this tool hid. A hidden node reports not_drawn until this tool shows it, or the simulation starts or stops and respawns its entity. It shows only nodes that it hid itself. Nodes that a layer, a physics group or their entity hides stay as they are, and come back in 'unchanged' with the reason.", Redraws = true)]
     private object HiddenNodes(
         GLSceneViewer viewer,
-        [Description("True to hide, false to show again. Omit to list the hidden nodes.")] bool? hidden = null,
-        [Description("Node ids from pick or get_entity.")] int[]? nodes = null,
-        [Description("Every node of this entity.")] int? entity = null,
-        [Description("With 'hidden' false, every node that this tool hid.")] bool all = false)
+        [Description("True to hide, false to show. Omit to list.")] bool? hidden = null,
+        [Description("Node ids.")] int[]? nodes = null,
+        [Description("Entity id, for all of its nodes.")] int? entity = null,
+        [Description("With 'hidden' false, every node this tool hid.")] bool all = false)
     {
         if (hidden == null)
         {
@@ -830,8 +865,8 @@ internal sealed partial class McpTools
         return result;
     }
 
-    [Tool("Return model data that the sidebar does not show: skeleton, attachments, hitboxes, LODs, animations and referenced files. It also returns the groups and animation that its node shows. Reads a model tab, or any model node of a 3D tab, such as a map prop from pick.")]
-    private object GetModelInfo(GLSceneViewer viewer, [Description("Model node id from pick or get_entity. Defaults to the model of a model tab.")] int? node = null)
+    [Tool("Return model data the sidebar does not show: skeleton, attachments, hitbox sets, LODs, animation count, referenced files, and the groups and animation its node shows. Reads a model tab, or a model node of any 3D tab, such as a map prop.")]
+    private object GetModelInfo(GLSceneViewer viewer, [Description("Model node id. Defaults to the model of a model tab.")] int? node = null)
     {
         ModelSceneNode modelNode;
 
@@ -858,7 +893,7 @@ internal sealed partial class McpTools
             HitboxSets = model.HitboxSets.ToDictionary(static set => set.Key, static set => set.Value.Length),
             Lods = model.LodInfo.HasDistinctLevels ? model.LodInfo.AvailableLevels.Count : 1,
             Meshes = modelNode.RenderableMeshes.Count,
-            Animations = modelNode.Animations.Count,
+            Animations = NonZero(modelNode.Animations.Count),
             FlexControllers = NonZero(model.FlexControllers.Length),
             BoneConstraints = NonZero(model.BoneConstraints.Count),
             Physics = model.GetReferencedPhysNames().ToList(),
