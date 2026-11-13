@@ -59,9 +59,9 @@ public class BloomRenderer
     /// </summary>
     public bool ThresholdsExposedScene => Game is Game.Csgo;
 
-    // Deadlock and Half-Life: Alyx upsample with a 2x2 box
+    // Deadlock, Half-Life: Alyx and Aperture Desk Job upsample with a 2x2 box
     /// <summary>Gets whether the mips are upsampled with a tent filter rather than a 2x2 box.</summary>
-    public bool UsesTentUpsample => Game is Game.Csgo or Game.Steampal;
+    public bool UsesTentUpsample => Game is Game.Csgo;
 
     // Deadlock keeps the effects target in floating point, and Dota 2 decodes its sRGB writes when it reads them back.
     // TODO: The effects bloom comes out uniformly about 8% darker than in Counter-Strike 2, for a reason not yet found
